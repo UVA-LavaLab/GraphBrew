@@ -104,17 +104,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     graph_ctx.registerPropertyArray(dist.data(), g.num_nodes(), sizeof(WeightT), llc_size);
     cache.initGraphContext(&graph_ctx);
 
-    // Compute per-vertex ECG mask array
-    graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks(g);
-    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
-    int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
-    if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
-        cout << "SSSP relax PFX lookahead: window=" << pfx_lookahead
-             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
-    }
-
-    // Build P-OPT rereference matrix (for POPT and ECG policies)
+    // Build P-OPT rereference matrix before masks so POPT-ranked PFX can use it.
     static pvector<uint8_t> popt_matrix;
     {
         const char* policy_env = getenv("CACHE_POLICY");
@@ -130,7 +120,17 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                                       numEpochs, g.num_nodes(), 64);
         }
     }
-    
+
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);
+    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
+    int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
+    if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+        cout << "SSSP relax PFX lookahead: window=" << pfx_lookahead
+             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
+    }
+
     pvector<NodeID> frontier(g.num_edges_directed());
     size_t shared_indexes[2] = {0, kMaxBin};
     size_t frontier_tails[2] = {1, 0};

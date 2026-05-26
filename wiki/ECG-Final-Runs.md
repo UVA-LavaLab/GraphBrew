@@ -21,6 +21,27 @@ current-vertex validation. Other gem5 wrappers may have graph hints, but do not
 use them for final P-OPT claims until their matrix export and sideband paths are
 audited.
 
+## ROI And Sidebands
+
+gem5 wrappers load/build the graph, allocate property arrays, export sideband
+metadata, and export the P-OPT matrix before the measured kernel ROI. The
+measured region is the graph algorithm loop between `GEM5_WORK_BEGIN` and
+`GEM5_WORK_END`.
+
+Runner-launched gem5 jobs set per-run sideband paths:
+
+```text
+GEM5_GRAPHBREW_CTX
+GEM5_POPT_MATRIX
+GEM5_GRAPHBREW_OUT_EDGES
+GEM5_GRAPHBREW_IN_EDGES
+```
+
+Rows record these as `gem5_context_path`, `gem5_popt_matrix_path`,
+`gem5_out_edges_path`, `gem5_in_edges_path`, and `gem5_sideband_dir`. This keeps
+gem5 aligned with the Sniper sideband discipline and avoids shared `/tmp`
+metadata when jobs are sharded.
+
 ## Policy Labels
 
 Replacement-only final profile:
@@ -48,6 +69,74 @@ ECG_DBG_PRIMARY_CHARGED + DROPLET
 ECG_DBG_PRIMARY + DROPLET
 ECG_POPT_PRIMARY + DROPLET
 ```
+
+ECG_PFX cache_sim profile:
+
+```text
+LRU + ECG_PFX
+GRASP + ECG_PFX
+POPT + ECG_PFX
+ECG_DBG_ONLY + ECG_PFX
+ECG_DBG_PRIMARY + ECG_PFX
+ECG_POPT_PRIMARY + ECG_PFX
+```
+
+`ECG_PFX` is currently a first-class cache_sim prefetch path. It is exposed in
+`roi_matrix.py` as `--prefetcher ECG_PFX` with POPT-ranked defaults matching the
+proof-matrix path. gem5 has an experimental x86 m5ops hint path behind
+`--allow-gem5-ecg-pfx`; Sniper has an experimental `ecg_pfx` prefetcher path
+behind tracked overlays and a Sniper common/standalone relink. Neither timing
+backend should be used for final performance claims until larger rows show
+stable issued/useful prefetch counters.
+
+Current gem5 ECG_PFX smoke status: PR/BFS/SSSP all issue prefetches with the
+experimental path. Useful prefetches have appeared on ad hoc BFS g6 smokes, but
+the reproducible tiny profile currently proves issued hints rather than stable
+useful-prefetch benefit. Do not use these rows for performance claims yet.
+
+RISC-V `ecg.extract` scaffold status: the tracked custom-0 decoder now strips
+the low 32-bit real vertex ID, decodes the fixed paper DBG/POPT/PFX fields, and
+stores the decoded metadata/PFX target in GraphBrew hint storage. A RISC-V
+gem5 build now passes and verifies at
+`bench/include/gem5_sim/gem5/build/RISCV/gem5.opt`. A RISC-V benchmark wrapper
+run is still blocked locally by the missing `riscv64-linux-gnu-gcc/g++` cross
+toolchain, so do not use this as a timing claim path yet.
+
+Validated local smoke outputs:
+
+```text
+/tmp/graphbrew-gem5-ecg-pfx-tiny-profile: 6/6 ok rows, PR/BFS/SSSP all pf_issued>0
+/tmp/graphbrew-gem5-ecg-pfx-pr-lookahead-smoke:   PR g7,   pf_issued=3, pf_useful=0, pf_late=3 per section
+/tmp/graphbrew-gem5-ecg-pfx-bfs-lookahead-smoke:  BFS g6,  pf_issued=2, useful varies on tiny graph reruns
+/tmp/graphbrew-gem5-ecg-pfx-sssp-lookahead-smoke: SSSP g6, pf_issued=2, pf_useful=0, pf_late=2 per section
+/tmp/graphbrew-sniper-ecg-pfx-pr-smoke:           PR g6 SIFT, ecg_pfx_hints=338, ecg_pfx_issued=1, pf_issued=1, pf_useful=1
+/tmp/graphbrew-sniper-ecg-pfx-profile:            PR/BFS/SSSP SIFT, 3/3 ok rows with pf_issued>0
+/tmp/graphbrew-sniper-file-ecg-pfx-profile:       email PR/BFS/SSSP SIFT, 3/3 ok rows with pf_issued>0
+/tmp/graphbrew-paper-pipeline-sniper-ecg-pfx:     aggregate CSVs plus generic prefetch_* figures
+```
+
+Validated available-local cache_sim ECG_PFX output:
+
+```text
+/tmp/graphbrew-available-cache-sim-ecg-pfx: 6/6 jobs ok, 36/36 ok rows
+/tmp/graphbrew-paper-pipeline-available-ecg-pfx: aggregate CSVs plus generic prefetch_* figures
+```
+
+This run covers `email-Eu-core` and `cit-Patents` for PR/BFS/SSSP with
+`LRU`, `GRASP`, `POPT`, `ECG_DBG_ONLY`, `ECG_DBG_PRIMARY`, and
+`ECG_POPT_PRIMARY`, all under `ECG_PFX` with encoded mode `2` (`popt`), window
+`16`, and lookahead `4`. Every row issued runtime ECG_PFX requests.
+
+Interpret the available-local result as mechanism validation, not a universal
+win claim. On `cit-Patents`, `ECG_POPT_PRIMARY+ECG_PFX` slightly improves over
+`POPT+ECG_PFX` for PR and BFS and nearly ties it for SSSP, but LRU is still
+better on cit-Patents PR/BFS at this tiny 4kB L3 point. On `email-Eu-core`,
+`ECG_POPT_PRIMARY+ECG_PFX` improves or matches POPT on PR/BFS and SSSP is
+saturated at the same small miss count across policies.
+
+Use the repo venv for figure generation; system Python may not have matplotlib.
+ECG_PFX smoke aggregation writes generic `prefetch_*` figures, not DROPLET-only
+figure names.
 
 Interpretation:
 
@@ -172,6 +261,52 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   --run-dir results/ecg_experiments/final_paper_runs/replacement_final_001
 ```
 
+Run cache_sim ECG_PFX once graph checks pass:
+
+```bash
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile available_cache_sim_ecg_pfx \
+  --run-dir results/ecg_experiments/final_paper_runs/available_cache_sim_ecg_pfx_001
+
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile final_cache_sim_ecg_pfx \
+  --run-dir results/ecg_experiments/final_paper_runs/cache_sim_ecg_pfx_final_001
+```
+
+Run the bounded Sniper ECG_PFX synthetic smoke:
+
+```bash
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile sniper_sift_ecg_pfx_smoke \
+  --run-dir results/ecg_experiments/final_paper_runs/sniper_ecg_pfx_smoke_001 \
+  --no-build --force
+```
+
+Run the bounded file-backed email-Eu-core Sniper ECG_PFX smoke:
+
+```bash
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile sniper_sift_file_ecg_pfx_smoke \
+  --run-dir results/ecg_experiments/final_paper_runs/sniper_file_ecg_pfx_smoke_001 \
+  --no-build --force
+```
+
+Run a focused ECG_PFX cache_sim smoke:
+
+```bash
+python3 scripts/experiments/ecg/roi_matrix.py \
+  --suite cache-sim \
+  --benchmark pr \
+  --options "-g 12 -k 16 -o 5 -n 1 -i 2" \
+  --policies LRU POPT ECG:POPT_PRIMARY \
+  --prefetcher ECG_PFX \
+  --ecg-pfx-mode popt \
+  --ecg-pfx-window 16 \
+  --ecg-pfx-lookahead 4 \
+  --l3-sizes 4kB \
+  --no-build
+```
+
 Run final DROPLET after replacement is stable:
 
 ```bash
@@ -235,6 +370,8 @@ figures/droplet_speedup_vs_lru.svg            # written when DROPLET rows exist
 figures/droplet_l3_miss_reduction_vs_lru.svg  # written when DROPLET rows exist
 figures/droplet_speedup_by_benchmark.svg
 figures/droplet_l3_miss_reduction_by_benchmark.svg
+figures/prefetch_l3_miss_reduction_vs_lru.svg  # written for non-DROPLET prefetch rows
+figures/prefetch_l3_miss_reduction_by_benchmark.svg
 figures/component_memory_traffic_reduction_vs_lru.svg
 figures/component_memory_traffic_reduction_by_benchmark.svg
 figures/droplet_prefetch_accuracy_by_benchmark.svg

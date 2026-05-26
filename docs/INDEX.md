@@ -75,9 +75,13 @@ bench/include/
 - `scripts/graphbrew_experiment.py` — Main orchestration pipeline (reorder, benchmark, cache)
 - `scripts/experiments/ecg/paper_pipeline.py` — ECG paper workflow wrapper (profile runs, aggregate CSVs, SVG figures, LaTeX tables)
 - `scripts/experiments/ecg/final_paper_run.py` — ECG final-run harness (manifest, graph checks, validation gate, resume/status, combined CSVs)
-- `scripts/experiments/ecg/roi_matrix.py` — cache_sim/gem5 ROI policy matrix runner, including charged P-OPT labels
+- `scripts/experiments/ecg/roi_matrix.py` — cache_sim/gem5/Sniper ROI policy matrix runner, including charged P-OPT labels and ECG_PFX prefetcher rows
 - `scripts/experiments/ecg/proof_matrix.py` — cache_sim ECG component ablation runner
 - `wiki/ECG-Slurm-Runs.md` — UVA Slurm workflow for split graph/benchmark/policy shards and post-hoc aggregation
+- `wiki/ECG-Sniper-Runs.md` — Sniper setup, overlay, smoke, thread-surface, DROPLET, and ECG_PFX status workflow
+- `plans/sniper-sim-integration-plan.md` — Sniper backend plan for scalable multicore ECG validation
+- `scripts/setup_sniper.py` — Sniper checkout/build scaffold; upstream clone lives under `bench/include/sniper_sim/snipersim/`
+- `scripts/setup_gem5.py` — gem5 checkout/build scaffold; X86 and RISCV overlays include ECG_PFX and `ecg.extract`
 - `scripts/lib/` — 5 sub-packages (core, pipeline, ml, analysis, tools); see `scripts/lib/README.md`
 - `scripts/lib/ml/adaptive_emulator.py` — AdaptiveOrder emulator and evaluation
 - `scripts/lib/core/datastore.py` — Unified data store (BenchmarkStore, GraphPropsStore)

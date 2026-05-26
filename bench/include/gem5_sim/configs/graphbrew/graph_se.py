@@ -36,7 +36,7 @@ addToPath(script_dir)
 
 from graph_cache_config import (
     make_l1d_cache, make_l1i_cache, make_l2_cache, make_l3_cache,
-    make_replacement_policy, make_droplet_prefetcher, DEFAULTS,
+    make_replacement_policy, make_droplet_prefetcher, make_ecg_pfx_prefetcher, DEFAULTS,
 )
 from graph_metadata_loader import load_graph_metadata, metadata_summary
 
@@ -71,6 +71,18 @@ def needs_vertex_hints(args):
     )
 
 
+def benchmark_environment(args):
+    """Environment variables visible inside the simulated benchmark."""
+    env = [
+        f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",
+        f"GEM5_ENABLE_ECG_PFX_HINTS={1 if args.prefetcher == 'ECG_PFX' else 0}",
+        f"GEM5_ECG_PFX_LOOKAHEAD={args.ecg_pfx_lookahead if args.prefetcher == 'ECG_PFX' else 0}",
+    ]
+    for env_name, default_path in RUNTIME_SIDEBAND_FILES:
+        env.append(f"{env_name}={os.environ.get(env_name, default_path)}")
+    return tuple(env)
+
+
 def parse_args():
     """Parse command-line arguments for graph benchmark SE simulation."""
     parser = argparse.ArgumentParser(
@@ -96,11 +108,13 @@ def parse_args():
 
     # Prefetcher
     parser.add_argument("--prefetcher", default="none",
-        choices=["none", "DROPLET"],
+        choices=["none", "DROPLET", "ECG_PFX"],
         help="Graph prefetcher to attach (default: none)")
     parser.add_argument("--prefetcher-level", default="l2",
         choices=["l1d", "l2"],
         help="Cache level for graph prefetcher attachment (default: l2)")
+    parser.add_argument("--ecg-pfx-lookahead", default="4",
+        help="Future-neighbor lookahead distance for benchmark-emitted ECG_PFX hints")
 
     # CPU model
     parser.add_argument("--cpu-type", default="timing",
@@ -164,6 +178,11 @@ def create_system(args):
             system.cpu.dcache.prefetcher = make_droplet_prefetcher()
         else:
             system.l2cache.prefetcher = make_droplet_prefetcher()
+    elif args.prefetcher == "ECG_PFX":
+        if args.prefetcher_level == "l1d":
+            system.cpu.dcache.prefetcher = make_ecg_pfx_prefetcher()
+        else:
+            system.l2cache.prefetcher = make_ecg_pfx_prefetcher()
 
     # ── Memory bus connections ──
     system.membus = SystemXBar()
@@ -209,9 +228,7 @@ def create_system(args):
 
     process = Process()
     process.cmd = [binary] + args.options.split()
-    process.env = (
-        f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",
-    )
+    process.env = benchmark_environment(args)
     system.cpu.workload = process
     system.cpu.createThreads()
 

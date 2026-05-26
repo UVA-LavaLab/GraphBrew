@@ -68,8 +68,15 @@ OVERLAY_FILE_MAP = {
         "mem/cache/prefetch/droplet.hh",
     "mem/cache/prefetch/droplet.cc":
         "mem/cache/prefetch/droplet.cc",
+    "mem/cache/prefetch/ecg_pfx.hh":
+        "mem/cache/prefetch/ecg_pfx.hh",
+    "mem/cache/prefetch/ecg_pfx.cc":
+        "mem/cache/prefetch/ecg_pfx.cc",
     "mem/cache/prefetch/GraphPrefetchers.py":
         "mem/cache/prefetch/GraphPrefetchers.py",
+    # RISC-V ECG custom instruction scaffold
+    "arch/riscv/isa/formats/ecg.isa":
+        "arch/riscv/isa/formats/ecg.isa",
 }
 
 # Patches to apply (relative to overlays/)
@@ -241,22 +248,30 @@ def apply_patches():
         patch_content = patch_file.read_text()
         current_content = target_sconscript.read_text()
 
-        # Check if already applied (idempotent)
-        marker = "# --- GraphBrew graph-aware policies ---"
-        if marker in current_content:
+        if patch_rel == "mem/cache/prefetch/SConscript.patch":
+            old_simobject = "SimObject('GraphPrefetchers.py', sim_objects=['GraphDropletPrefetcher'])"
+            new_simobject = "SimObject('GraphPrefetchers.py', sim_objects=['GraphDropletPrefetcher', 'GraphEcgPfxPrefetcher'])"
+            if old_simobject in current_content and new_simobject not in current_content:
+                current_content = current_content.replace(old_simobject, new_simobject)
+                target_sconscript.write_text(current_content)
+
+        patch_lines = [line for line in patch_content.splitlines() if line.strip()]
+        missing_lines = [line for line in patch_lines if line not in current_content]
+        if not missing_lines:
             log.info(f"  Patch already applied: {patch_dir}/SConscript")
             continue
 
         # Append patch content
+        marker = "# --- GraphBrew graph-aware policies ---"
         with open(target_sconscript, "a") as f:
             f.write(f"\n{marker}\n")
-            f.write(patch_content)
+            f.write("\n".join(missing_lines) + "\n")
 
         log.success(f"  Patched: {patch_dir}/SConscript")
 
 
 def apply_current_vertex_pseudo_inst_patch():
-    """Patch m5_work_begin to carry GraphBrew current-vertex hints."""
+    """Patch m5_work_begin to carry GraphBrew graph hints."""
     target = GEM5_DIR / "src" / "sim" / "pseudo_inst.cc"
     if not target.exists():
         log.warn(f"  pseudo_inst.cc not found: {target}")
@@ -271,23 +286,104 @@ def apply_current_vertex_pseudo_inst_patch():
         else:
             content = content.replace(include_anchor, include_anchor + "\n" + include_line, 1)
 
-    marker = "GRAPHBREW_SET_VERTEX_WORK_ID"
     workbegin_anchor = '    DPRINTF(PseudoInst, "pseudo_inst::workbegin(%i, %i)\\n", workid, threadid);\n'
-    if marker not in content:
-        patch = (
-            workbegin_anchor +
+    hint_blocks = []
+    if "GRAPHBREW_SET_VERTEX_WORK_ID" not in content:
+        hint_blocks.append(
             "    if (workid == replacement_policy::graph::GRAPHBREW_SET_VERTEX_WORK_ID) {\n"
             "        replacement_policy::graph::setCurrentVertexHint(threadid);\n"
             "        return;\n"
             "    }\n\n"
         )
-        if workbegin_anchor not in content:
-            log.warn("  Could not locate workbegin patch anchor")
+    if "GRAPHBREW_ECG_PFX_TARGET_WORK_ID" not in content:
+        hint_blocks.append(
+            "    if (workid == replacement_policy::graph::GRAPHBREW_ECG_PFX_TARGET_WORK_ID) {\n"
+            "        replacement_policy::graph::setPrefetchTargetHint(threadid);\n"
+            "        return;\n"
+            "    }\n\n"
+        )
+    if hint_blocks:
+        insertion = "".join(hint_blocks)
+        if workbegin_anchor in content:
+            content = content.replace(workbegin_anchor, workbegin_anchor + insertion, 1)
+        elif "GRAPHBREW_SET_VERTEX_WORK_ID" in content:
+            content = content.replace(
+                "        replacement_policy::graph::setCurrentVertexHint(threadid);\n"
+                "        return;\n"
+                "    }\n\n",
+                "        replacement_policy::graph::setCurrentVertexHint(threadid);\n"
+                "        return;\n"
+                "    }\n\n" + insertion,
+                1,
+            )
         else:
-            content = content.replace(workbegin_anchor, patch, 1)
+            log.warn("  Could not locate workbegin patch anchor")
 
     target.write_text(content)
     log.success("  Patched sim/pseudo_inst.cc for GraphBrew current-vertex hints.")
+
+
+def insert_once(content: str, anchor: str, insertion: str, label: str) -> tuple[str, bool]:
+    if insertion.strip() in content:
+        return content, False
+    if anchor not in content:
+        log.warn(f"  Could not locate {label} patch anchor")
+        return content, False
+    return content.replace(anchor, anchor + insertion, 1), True
+
+
+def apply_riscv_ecg_extract_patch():
+    """Patch RISC-V ISA description for GraphBrew ecg.extract scaffold."""
+    isa_dir = GEM5_DIR / "src" / "arch" / "riscv" / "isa"
+    formats_path = isa_dir / "formats" / "formats.isa"
+    includes_path = isa_dir / "includes.isa"
+    decoder_path = isa_dir / "decoder.isa"
+    snippet_path = OVERLAYS_DIR / "arch" / "riscv" / "isa" / "decoder_ecg_extract.isa"
+
+    if not formats_path.exists() or not includes_path.exists() or not decoder_path.exists():
+        log.warn("  RISC-V ISA files not found; skipping ECG extract patch")
+        return
+
+    formats = formats_path.read_text()
+    formats, changed = insert_once(
+        formats,
+        '##include "m5ops.isa"\n',
+        '##include "ecg.isa"\n',
+        "RISC-V formats include",
+    )
+    if changed:
+        formats_path.write_text(formats)
+
+    includes = includes_path.read_text()
+    includes, changed = insert_once(
+        includes,
+        '#include "sim/pseudo_inst.hh"\n',
+        '#include "mem/cache/replacement_policies/graph_cache_context_gem5.hh"\n',
+        "RISC-V exec include",
+    )
+    if changed:
+        includes_path.write_text(includes)
+
+    if not snippet_path.exists():
+        log.warn(f"  RISC-V ECG decoder snippet not found: {snippet_path}")
+        return
+    snippet = snippet_path.read_text()
+    decoder = decoder_path.read_text()
+    marker = "        // GraphBrew ECG custom-0 instruction space.\n"
+    load_anchor = "        0x00: decode FUNCT3 {\n"
+    marker_pos = decoder.find(marker)
+    load_pos = decoder.find(load_anchor, marker_pos if marker_pos >= 0 else 0)
+    if marker_pos >= 0 and load_pos > marker_pos:
+        decoder = decoder[:marker_pos] + decoder[load_pos:]
+    decoder, changed = insert_once(
+        decoder,
+        '    0x3: decode OPCODE5 {\n',
+        snippet,
+        "RISC-V custom-0 decoder",
+    )
+    if changed:
+        decoder_path.write_text(decoder)
+    log.success("  Patched RISC-V ecg.extract custom-0 scaffold.")
 
 
 def build_gem5(isas: list, build_type: str, jobs: int):
@@ -465,6 +561,7 @@ def main():
     log.step(4, total_steps, "Applying SConscript patches...")
     apply_patches()
     apply_current_vertex_pseudo_inst_patch()
+    apply_riscv_ecg_extract_patch()
 
     if not args.skip_build:
         # Step 5: Build

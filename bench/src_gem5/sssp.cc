@@ -31,7 +31,21 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                             pvector<WeightT> &dist,
                             vector<vector<NodeID>> &local_bins) {
     GEM5_SET_VERTEX(u);
-    for (WNode wn : g.out_neigh(u)) {
+    int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
+    auto out_neigh = g.out_neigh(u);
+    for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+        WNode wn = *it;
+        if (pfx_lookahead > 0) {
+            auto jt = it;
+            for (int step = 0; step < pfx_lookahead; step++) {
+                ++jt;
+                if (jt == out_neigh.end()) break;
+                GEM5_ECG_PFX_TARGET((*jt).v);
+                break;
+            }
+        } else {
+            GEM5_ECG_PFX_TARGET(wn.v);
+        }
         WeightT old_dist = dist[wn.v];
         WeightT new_dist = dist[u] + wn.w;
         while (new_dist < old_dist) {

@@ -166,17 +166,7 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     graph_ctx.registerPropertyArray(parent.data(), g.num_nodes(), sizeof(NodeID), llc_size);
     cache.initGraphContext(&graph_ctx);
 
-    // Compute per-vertex ECG mask array
-    graph_ctx.initMaskConfig();
-    auto vertex_masks = graph_ctx.computeVertexMasks(g);
-    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
-    int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
-    if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
-        cout << "BFS TD PFX lookahead: window=" << pfx_lookahead
-             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
-    }
-
-    // Build P-OPT rereference matrix (for POPT and ECG policies)
+    // Build P-OPT rereference matrix before masks so POPT-ranked PFX can use it.
     static pvector<uint8_t> popt_matrix;
     {
         const char* policy_env = getenv("CACHE_POLICY");
@@ -191,6 +181,16 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
         }
+    }
+
+    // Compute per-vertex ECG mask array
+    graph_ctx.initMaskConfig();
+    auto vertex_masks = graph_ctx.computeVertexMasks(g);
+    graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
+    int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
+    if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
+        cout << "BFS TD PFX lookahead: window=" << pfx_lookahead
+             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
     }
 
     SlidingQueue<NodeID> queue(g.num_nodes());

@@ -49,6 +49,7 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
+    int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
 
     queue<NodeID> frontier;
     frontier.push(source);
@@ -56,7 +57,20 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         NodeID u = frontier.front();
         frontier.pop();
         GEM5_SET_VERTEX(u);
-        for (NodeID v : g.out_neigh(u)) {
+        auto out_neigh = g.out_neigh(u);
+        for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+            NodeID v = *it;
+            if (pfx_lookahead > 0) {
+                auto jt = it;
+                for (int step = 0; step < pfx_lookahead; step++) {
+                    ++jt;
+                    if (jt == out_neigh.end()) break;
+                    GEM5_ECG_PFX_TARGET(*jt);
+                    break;
+                }
+            } else {
+                GEM5_ECG_PFX_TARGET(v);
+            }
             if (parent[v] == -1) {
                 parent[v] = u;
                 frontier.push(v);

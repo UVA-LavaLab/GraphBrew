@@ -31,6 +31,7 @@ def test_gem5_popt_matrix_export_uses_ceil_sub_epoch(tmp_path):
 
 int main(int argc, char** argv) {
     if (argc != 2) return 2;
+    GEM5_ECG_PFX_TARGET(7);
     constexpr uint32_t num_epochs = 256;
     constexpr uint32_t num_cache_lines = 3;
     constexpr uint32_t num_vertices = 33025;  // ceil(33025/256)=130, ceil(130/128)=2

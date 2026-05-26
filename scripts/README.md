@@ -54,6 +54,34 @@ python3 scripts/experiments/vldb/stages/04_cache_sim.py --exp 1 --local
 python3 scripts/experiments/vldb/stages/05_aggregate.py --exp 0
 ```
 
+## Simulator setup helpers
+
+```bash
+# gem5 detailed backend
+python3 scripts/setup_gem5.py --isa X86 --skip-build
+python3 scripts/experiments/ecg/roi_matrix.py --suite gem5 --policies LRU --benchmark pr --l3-sizes 4kB --no-build
+
+# Sniper scalable multicore backend scaffold
+python3 scripts/setup_sniper.py --dry-run
+python3 scripts/setup_sniper.py --skip-build
+python3 scripts/setup_sniper.py --skip-build --apply-overlays
+python3 scripts/experiments/ecg/roi_matrix.py --suite sniper --policies LRU SRRIP
+python3 scripts/experiments/ecg/final_paper_run.py --profile sniper_kernel_smoke --run-dir /tmp/graphbrew-final-sniper-kernel-smoke --no-build --force
+python3 scripts/experiments/ecg/final_paper_run.py --profile sniper_droplet_smoke --run-dir /tmp/graphbrew-final-sniper-droplet-smoke --no-build --force
+python3 scripts/experiments/ecg/final_paper_run.py --profile sniper_sift_ecg_pfx_smoke --run-dir /tmp/graphbrew-sniper-ecg-pfx-profile --no-build --force
+python3 scripts/experiments/ecg/final_paper_run.py --profile sniper_sift_file_ecg_pfx_smoke --run-dir /tmp/graphbrew-sniper-file-ecg-pfx-profile --no-build --force
+python3 scripts/experiments/ecg/paper_pipeline.py --skip-run --input-run-dirs /tmp/graphbrew-final-sniper-kernel-smoke /tmp/graphbrew-final-sniper-thread-smoke /tmp/graphbrew-final-sniper-droplet-smoke --run-root /tmp/graphbrew-paper-pipeline-sniper-check-final
+```
+
+For ECG_PFX paper figures, aggregate the validated Sniper profiles with:
+
+```bash
+.venv/bin/python3 scripts/experiments/ecg/paper_pipeline.py \
+	--skip-run \
+	--input-run-dirs /tmp/graphbrew-sniper-ecg-pfx-profile /tmp/graphbrew-sniper-file-ecg-pfx-profile \
+	--run-root /tmp/graphbrew-paper-pipeline-sniper-ecg-pfx
+```
+
 SLURM templates: `scripts/experiments/vldb/stages/slurm/*.sbatch`.
 
 ## Legacy / all-in-one entry points

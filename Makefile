@@ -267,6 +267,42 @@ clean-gem5:
 	@echo "Removing cloned gem5..."
 	$(PYTHON) $(SCRIPT_DIR)/setup_gem5.py --clean
 
+# =========================================================
+# Sniper Simulation Setup
+# =========================================================
+SRC_SNIPER_DIR = $(BENCH_DIR)/src_sniper
+BIN_SNIPER_DIR = $(BENCH_DIR)/bin_sniper
+SNIPER_HARNESS_INC = $(INC_DIR)/sniper_sim
+SNIPER_SIM_DIR = $(INC_DIR)/sniper_sim
+SNIPER_DIR = $(SNIPER_SIM_DIR)/snipersim
+SNIPER_INCLUDE = $(SNIPER_DIR)/include
+CXXFLAGS_SNIPER = -std=c++17 -O2 -Wall -g -DNDEBUG -fopenmp -I$(INC_DIR) -I$(SNIPER_INCLUDE)
+
+$(BIN_SNIPER_DIR):
+	@mkdir -p $@ $(CREATE_STATUS)
+
+$(BIN_SNIPER_DIR)/%: $(SRC_SNIPER_DIR)/%.cc $(DEP_GAPBS) | $(BIN_SNIPER_DIR)
+	@$(CXX) $(CXXFLAGS_SNIPER) $(CXXFLAGS_LEIDEN) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+
+.PRECIOUS: $(BIN_SNIPER_DIR)/%
+
+.PHONY: setup-sniper clean-sniper sniper-% run-sniper-%
+
+setup-sniper:
+	@echo "Setting up Sniper for GraphBrew..."
+	$(PYTHON) $(SCRIPT_DIR)/setup_sniper.py --jobs $(PARALLEL)
+
+clean-sniper:
+	@echo "Removing cloned Sniper..."
+	$(PYTHON) $(SCRIPT_DIR)/setup_sniper.py --clean
+
+sniper-%: $(BIN_SNIPER_DIR)/%
+	@echo "Built Sniper benchmark: $<"
+
+run-sniper-%: $(BIN_SNIPER_DIR)/%
+	@echo "Running Sniper benchmark natively: $<"
+	@./$<
+
 .PHONY: lint-includes
 lint-includes:
 	@$(LINT_INCLUDES)
@@ -309,6 +345,12 @@ help: help-pr
 	@echo "  gem5-m5ops-%     - Build gem5 benchmark with ROI m5ops markers"
 	@echo "  run-gem5-%       - Run gem5 benchmark natively (for testing)"
 	@echo "  clean-gem5-bin   - Remove gem5 benchmark binaries"
+	@echo ""
+	@echo "Sniper Simulation:"
+	@echo "  setup-sniper     - Clone and build Sniper for GraphBrew"
+	@echo "  clean-sniper     - Remove cloned Sniper directory"
+	@echo "  sniper-%         - Build Sniper-oriented benchmark (initial: hello_roi)"
+	@echo "  run-sniper-%     - Run Sniper-oriented benchmark natively"
 	@echo ""
 	@echo "Cache Simulation Environment Variables:"
 	@echo "  CACHE_L1_SIZE=32768       - L1 cache size in bytes (default: 32KB)"

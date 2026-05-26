@@ -67,11 +67,21 @@ python scripts/graphbrew_experiment.py --phase cache --simulator gem5 \
 | Prefetcher | gem5 SimObject | Reference |
 |-----------|---------------|-----------|
 | DROPLET   | `GraphDropletPrefetcher` | Basak et al., HPCA 2019 |
+| ECG_PFX   | `GraphEcgPfxPrefetcher` | GraphBrew ECG hint path |
 
 ## Custom Instructions
 
-- **RISC-V**: `ecg.extract rd, rs1` — custom-0 opcode (0x0B), extracts mask from fat-ID
-- **x86**: `m5_ecg_extract()` — gem5 pseudo-instruction fallback
+- **RISC-V**: `ecg.extract rd, rs1` — custom-0 opcode (`0x0b`) scaffold under `overlays/arch/riscv/`
+- **x86**: GraphBrew m5ops work items for current-vertex and ECG_PFX target hints
+
+The RISC-V scaffold decodes the paper-style fixed 64-bit ECG layout: low 32 bits
+for the real vertex ID, 8 DBG bits, 8 P-OPT bits, and 16 ECG_PFX bits. It writes
+the real vertex ID to `rd`, stores decoded metadata in GraphBrew hint storage,
+and forwards the PFX field to the ECG_PFX hint queue, falling back to the real
+vertex ID when the PFX field is zero. `build/RISCV/gem5.opt` builds and verifies
+after applying overlays. RISC-V timing claims still require RISC-V benchmark
+binaries; the local cross toolchain (`riscv64-linux-gnu-gcc/g++`) is currently
+missing and must be installed manually before wrapper runs.
 
 ## Context Passing
 

@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #ifndef NO_M5OPS
 #include <gem5/m5ops.h>
@@ -43,6 +44,7 @@
 #define GEM5_WORK_INIT    0
 #define GEM5_WORK_COMPUTE 1
 #define GEM5_WORK_SET_VERTEX 0x47525654ULL  // GraphBrew current vertex hint
+#define GEM5_WORK_ECG_PFX_TARGET 0x47504658ULL  // GraphBrew ECG PFX target hint
 
 #ifndef NO_M5OPS
 inline bool gem5_vertex_hints_enabled() {
@@ -59,13 +61,61 @@ inline bool gem5_vertex_hints_enabled() {
             m5_work_begin(GEM5_WORK_SET_VERTEX, static_cast<uint64_t>(vertex_id)); \
         } \
     } while (0)
+
+inline bool gem5_ecg_pfx_hints_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_PFX_HINTS");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+#define GEM5_ECG_PFX_TARGET(vertex_id) \
+    do { \
+        if (gem5_ecg_pfx_hints_enabled()) { \
+            m5_work_begin(GEM5_WORK_ECG_PFX_TARGET, static_cast<uint64_t>(vertex_id)); \
+        } \
+    } while (0)
 #else
 #define GEM5_SET_VERTEX(vertex_id) do {} while(0)
+#define GEM5_ECG_PFX_TARGET(vertex_id) do {} while(0)
 #endif
 
-// Default sideband file path — gem5 SE mode forwards file I/O to host
-#define GEM5_SIDEBAND_PATH "/tmp/gem5_graphbrew_ctx.json"
-#define GEM5_POPT_MATRIX_PATH "/tmp/gem5_popt_matrix.bin"
+inline const char* gem5_env_or_default(const char* name, const char* fallback) {
+    const char* value = std::getenv(name);
+    return value && value[0] ? value : fallback;
+}
+
+inline int gem5_env_int_clamped(const char* name, int default_value,
+                                int min_value, int max_value) {
+    const char* value = std::getenv(name);
+    if (!value || !value[0]) return default_value;
+    int parsed = std::atoi(value);
+    if (parsed < min_value) return min_value;
+    if (parsed > max_value) return max_value;
+    return parsed;
+}
+
+inline const char* gem5_context_path() {
+    return gem5_env_or_default("GEM5_GRAPHBREW_CTX", "/tmp/gem5_graphbrew_ctx.json");
+}
+
+inline const char* gem5_popt_matrix_path() {
+    return gem5_env_or_default("GEM5_POPT_MATRIX", "/tmp/gem5_popt_matrix.bin");
+}
+
+inline const char* gem5_out_edges_path() {
+    return gem5_env_or_default("GEM5_GRAPHBREW_OUT_EDGES", "/tmp/gem5_graphbrew_out_edges.bin");
+}
+
+inline const char* gem5_in_edges_path() {
+    return gem5_env_or_default("GEM5_GRAPHBREW_IN_EDGES", "/tmp/gem5_graphbrew_in_edges.bin");
+}
+
+// Default sideband file paths — gem5 SE mode forwards file I/O to host.
+// Runner-launched jobs can override these with per-run environment variables.
+#define GEM5_SIDEBAND_PATH gem5_context_path()
+#define GEM5_POPT_MATRIX_PATH gem5_popt_matrix_path()
 
 // ============================================================================
 // GraphCacheContext exporter — writes sideband JSON for gem5 SimObjects
@@ -179,12 +229,13 @@ inline void gem5_export_context(
     // addresses of CSR neighbor arrays inside the simulated process.
     fprintf(f, "  \"edge_regions\": [\n");
     for (int i = 0; i < num_edge_regions; i++) {
-        char default_data_path[256];
         const char* data_path = edge_regions[i].data_path;
         if (!data_path && edge_regions[i].data && edge_regions[i].size_bytes > 0) {
-            snprintf(default_data_path, sizeof(default_data_path),
-                     "/tmp/gem5_graphbrew_%s.bin", edge_regions[i].name);
-            data_path = default_data_path;
+            if (std::strcmp(edge_regions[i].name, "out_edges") == 0) {
+                data_path = gem5_out_edges_path();
+            } else if (std::strcmp(edge_regions[i].name, "in_edges") == 0) {
+                data_path = gem5_in_edges_path();
+            }
         }
         if (data_path && edge_regions[i].data && edge_regions[i].size_bytes > 0) {
             FILE* ef = fopen(data_path, "wb");

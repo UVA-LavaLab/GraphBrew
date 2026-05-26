@@ -117,10 +117,16 @@ TABLE_HEADER_LABELS = {
     "reference_short": "reference",
     "tick_delta_pct": "tick delta (\\%)",
     "traffic_per_demand_access": "traffic/demand",
+    "threads": "threads",
+    "thread_speedup_vs_1t": "speedup vs 1T",
+    "parallel_efficiency_vs_1t": "parallel eff.",
+    "avg_sniper_cpi_data_cache_pct": r"data cache (\%)",
+    "avg_sniper_cpi_data_dram_pct": r"DRAM (\%)",
+    "avg_sniper_cpi_data_llc_pct": r"LLC (\%)",
 }
 
 ROI_COMPARE_KEYS = (
-    "pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "section",
+    "pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "threads", "section",
 )
 
 PAPER_FIGURE_WIDTH = 3.35
@@ -221,6 +227,22 @@ def safe_ratio(numerator: float | None, denominator: float | None) -> float | No
     if numerator is None or denominator in (None, 0.0):
         return None
     return numerator / denominator
+
+
+def thread_count(row: dict[str, Any]) -> int | None:
+    value = as_float(row.get("threads"))
+    if value is None or value <= 0.0:
+        return None
+    return int(value)
+
+
+def metric_direction(value: float | None, reference: float, tolerance: float = 1.0e-9) -> str:
+    if value is None:
+        return "missing"
+    delta = value - reference
+    if abs(delta) <= tolerance:
+        return "neutral"
+    return "better" if delta > 0.0 else "worse"
 
 
 def avg(values: Iterable[float]) -> float | None:
@@ -352,7 +374,7 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
 
 
 def summarize_roi(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label")
+    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "threads", "policy_label")
     numeric_fields = (
         "sim_ticks", "l3_misses", "l3_miss_rate", "ipc",
         "pf_issued", "pf_useful", "popt_charged_l3_misses_plus_matrix_stream",
@@ -449,7 +471,7 @@ def proof_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def summarize_relative(rows: list[dict[str, Any]], metrics: tuple[str, ...]) -> list[dict[str, Any]]:
-    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label", "policy_short")
+    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "threads", "policy_label", "policy_short")
     groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         groups[tuple(row.get(key, "") for key in keys)].append(row)
@@ -468,7 +490,7 @@ def summarize_relative(rows: list[dict[str, Any]], metrics: tuple[str, ...]) -> 
 
 def charged_overhead(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     pairs = [("POPT_CHARGED", "POPT"), ("ECG_DBG_PRIMARY_CHARGED", "ECG_DBG_PRIMARY")]
-    keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "section")
+    keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "threads", "section")
     indexed: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in rows:
         if row.get("status") != "ok":
@@ -511,7 +533,7 @@ def faithfulness_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         ("GRASP parity", "GRASP", "ECG_DBG_ONLY", 3.0),
         ("P-OPT parity", "POPT", "ECG_POPT_PRIMARY", 3.0),
     ]
-    group_keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size")
+    group_keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "threads")
     indexed: dict[tuple[Any, ...], dict[str, dict[str, dict[str, Any]]]] = defaultdict(lambda: defaultdict(dict))
     for row in rows:
         if row.get("status") != "ok":
@@ -578,7 +600,7 @@ def faithfulness_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def popt_storage_overhead_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label")
+    keys = ("simulator", "benchmark", "prefetcher", "l3_size", "threads", "policy_label")
     groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         if row.get("status") != "ok":
@@ -654,7 +676,7 @@ def ecg_mode_overhead_rows() -> list[dict[str, Any]]:
 def prefetch_quality_summary(roi_rows: list[dict[str, Any]], proof_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out_rows: list[dict[str, Any]] = []
 
-    roi_keys = ("simulator", "benchmark", "prefetcher", "l3_size", "policy_label")
+    roi_keys = ("simulator", "benchmark", "prefetcher", "l3_size", "threads", "policy_label")
     roi_groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for row in roi_rows:
         issued = as_float(row.get("pf_issued"))
@@ -667,7 +689,7 @@ def prefetch_quality_summary(roi_rows: list[dict[str, Any]], proof_rows: list[di
         unused = avg(v for v in (as_float(row.get("pf_unused")) for row in group_rows) if v is not None)
         record = {key: value for key, value in zip(roi_keys, group_key)}
         record.update({
-            "source": "gem5",
+            "source": str(record.get("simulator") or "roi"),
             "policy_short": policy_label(str(record.get("policy_label", ""))),
             "rows": len(group_rows),
             "avg_prefetch_issued": issued if issued is not None else "",
@@ -725,6 +747,129 @@ def prefetch_quality_summary(roi_rows: list[dict[str, Any]], proof_rows: list[di
             record["traffic_per_demand_access"] = traffic_ratio
         out_rows.append(record)
 
+    return out_rows
+
+
+def thread_scaling_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "policy_label", "section")
+    groups: dict[tuple[Any, ...], dict[int, dict[str, Any]]] = defaultdict(dict)
+    for row in rows:
+        threads = thread_count(row)
+        ticks = as_float(row.get("sim_ticks"))
+        if row.get("status") == "ok" and threads is not None and ticks is not None:
+            groups[tuple(row.get(key, "") for key in keys)][threads] = row
+
+    out_rows: list[dict[str, Any]] = []
+    for group_key, by_thread in sorted(groups.items(), key=lambda item: policy_sort_key(str(item[0][6]))):
+        if 1 not in by_thread or len(by_thread) < 2:
+            continue
+        baseline_ticks = as_float(by_thread[1].get("sim_ticks"))
+        if not baseline_ticks:
+            continue
+        for threads, row in sorted(by_thread.items()):
+            ticks = as_float(row.get("sim_ticks"))
+            record = {key: value for key, value in zip(keys, group_key)}
+            record.update({
+                "threads": threads,
+                "policy_short": policy_label(str(record.get("policy_label", ""))),
+                "sim_ticks": row.get("sim_ticks", ""),
+                "ipc": row.get("ipc", ""),
+                "l3_misses": row.get("l3_misses", ""),
+                "l3_miss_rate": row.get("l3_miss_rate", ""),
+            })
+            if ticks:
+                speedup = baseline_ticks / ticks
+                record["thread_speedup_vs_1t"] = speedup
+                record["normalized_ticks_vs_1t"] = ticks / baseline_ticks
+                record["parallel_efficiency_vs_1t"] = speedup / threads
+            out_rows.append(record)
+    return out_rows
+
+
+def backend_direction_agreement(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = ("benchmark", "prefetcher", "l3_size", "threads", "policy_label", "section")
+    metrics = (
+        ("speedup_vs_lru", 1.0),
+        ("l3_miss_reduction_vs_lru_pct", 0.0),
+    )
+    groups: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in rows:
+        simulator = str(row.get("simulator", ""))
+        if simulator:
+            groups[tuple(row.get(key, "") for key in keys)][simulator] = row
+
+    out_rows: list[dict[str, Any]] = []
+    for group_key, by_simulator in sorted(groups.items(), key=lambda item: policy_sort_key(str(item[0][4]))):
+        simulators = sorted(by_simulator)
+        if len(simulators) < 2:
+            continue
+        for metric, reference in metrics:
+            for left_index, left in enumerate(simulators):
+                for right in simulators[left_index + 1:]:
+                    left_value = as_float(by_simulator[left].get(metric))
+                    right_value = as_float(by_simulator[right].get(metric))
+                    left_direction = metric_direction(left_value, reference)
+                    right_direction = metric_direction(right_value, reference)
+                    record = {key: value for key, value in zip(keys, group_key)}
+                    record.update({
+                        "metric": metric,
+                        "simulator_a": left,
+                        "simulator_b": right,
+                        "value_a": left_value if left_value is not None else "",
+                        "value_b": right_value if right_value is not None else "",
+                        "direction_a": left_direction,
+                        "direction_b": right_direction,
+                        "direction_agrees": "yes" if left_direction == right_direction else "no",
+                    })
+                    out_rows.append(record)
+    return out_rows
+
+
+def sniper_cpi_stack_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = ("benchmark", "prefetcher", "l3_size", "threads", "policy_label")
+    fields = (
+        "sniper_cpi_base",
+        "sniper_cpi_branch",
+        "sniper_cpi_data_cache",
+        "sniper_cpi_data_l1",
+        "sniper_cpi_data_l2",
+        "sniper_cpi_data_llc",
+        "sniper_cpi_data_dram",
+        "sniper_cpi_sync",
+        "sniper_cpi_unknown",
+    )
+    stack_total_fields = {
+        "sniper_cpi_base",
+        "sniper_cpi_branch",
+        "sniper_cpi_data_cache",
+        "sniper_cpi_sync",
+        "sniper_cpi_unknown",
+    }
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        if row.get("status") == "ok" and row.get("simulator") == "sniper":
+            if any(as_float(row.get(field)) is not None for field in fields):
+                groups[tuple(row.get(key, "") for key in keys)].append(row)
+
+    out_rows: list[dict[str, Any]] = []
+    for group_key, group_rows in sorted(groups.items(), key=lambda item: policy_sort_key(str(item[0][-1]))):
+        record = {key: value for key, value in zip(keys, group_key)}
+        record["policy_short"] = policy_label(str(record.get("policy_label", "")))
+        record["rows"] = len(group_rows)
+        total = 0.0
+        for field in fields:
+            value = avg(v for v in (as_float(row.get(field)) for row in group_rows) if v is not None)
+            if value is not None:
+                record[f"avg_{field}"] = value
+                if field in stack_total_fields:
+                    total += value
+        record["avg_sniper_cpi_stack_total"] = total
+        if total > 0.0:
+            for field in fields:
+                value = as_float(record.get(f"avg_{field}"))
+                if value is not None:
+                    record[f"avg_{field}_pct"] = (value / total) * 100.0
+        out_rows.append(record)
     return out_rows
 
 
@@ -1018,6 +1163,51 @@ def plot_charged_overhead(path: Path, rows: list[dict[str, Any]]) -> None:
     plt.close()
 
 
+def plot_sniper_thread_scaling(path: Path, rows: list[dict[str, Any]]) -> None:
+    if not HAS_MATPLOTLIB:
+        print(f"[skip] matplotlib not available; not writing {path}")
+        return
+
+    values: dict[tuple[str, str], dict[int, float]] = defaultdict(dict)
+    for row in rows:
+        if row.get("simulator") != "sniper":
+            continue
+        threads = thread_count(row)
+        speedup = as_float(row.get("thread_speedup_vs_1t"))
+        benchmark = str(row.get("benchmark", ""))
+        policy = str(row.get("policy_label", ""))
+        if threads is not None and speedup is not None and benchmark and policy:
+            values[(benchmark, policy)][threads] = speedup
+    if not values:
+        print("[skip] no Sniper thread-scaling data")
+        return
+
+    set_paper_plot_style()
+    fig, ax = plt.subplots(figsize=(PAPER_FIGURE_WIDTH, 2.2))
+    for benchmark, policy in sorted(values, key=lambda item: (benchmark_sort_key(item[0]), policy_sort_key(item[1]))):
+        by_thread = values[(benchmark, policy)]
+        x_values = sorted(by_thread)
+        y_values = [by_thread[threads] for threads in x_values]
+        ax.plot(
+            x_values,
+            y_values,
+            marker="o",
+            linewidth=1.0,
+            markersize=3.0,
+            color=POLICY_COLORS.get(policy, "#6B6B6B"),
+            label=f"{benchmark_label(benchmark)} {policy_label(policy)}",
+        )
+    ax.set_xlabel("Threads")
+    ax.set_ylabel("Speedup vs 1T")
+    ax.grid(alpha=0.25, linewidth=0.5)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2, columnspacing=0.9)
+    fig.tight_layout(pad=0.35)
+    save_figure(path)
+    plt.close()
+
+
 def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: list[dict[str, Any]], copy_to_paper: bool) -> None:
     aggregate_dir = out_dir / "aggregate"
     figures_dir = out_dir / "figures"
@@ -1061,6 +1251,18 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
                 ],
                 "P-OPT storage and stream overhead summary",
             )
+        sniper_cpi = sniper_cpi_stack_summary(roi_rows)
+        if sniper_cpi:
+            write_csv(aggregate_dir / "sniper_cpi_stack_summary.csv", sniper_cpi)
+            write_latex_table(
+                tables_dir / "sniper_cpi_stack_summary.tex",
+                sniper_cpi[:24],
+                [
+                    "policy_short", "benchmark", "prefetcher", "threads",
+                    "avg_sniper_cpi_data_cache_pct", "avg_sniper_cpi_data_llc_pct", "avg_sniper_cpi_data_dram_pct",
+                ],
+                "Sniper CPI/cache-stack summary",
+            )
         mode_overhead = ecg_mode_overhead_rows()
         write_csv(aggregate_dir / "ecg_mode_overhead_summary.csv", mode_overhead)
         write_latex_table(
@@ -1082,6 +1284,24 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
                 ),
             )
             write_csv(aggregate_dir / "roi_relative_policy_summary.csv", relative_summary)
+            direction_agreement = backend_direction_agreement(relative)
+            if direction_agreement:
+                write_csv(aggregate_dir / "backend_direction_agreement.csv", direction_agreement)
+            sniper_relative = [row for row in relative if row.get("simulator") == "sniper"]
+            if sniper_relative:
+                write_csv(aggregate_dir / "sniper_relative_metrics.csv", sniper_relative)
+                write_csv(
+                    aggregate_dir / "sniper_relative_policy_summary.csv",
+                    summarize_relative(
+                        sniper_relative,
+                        (
+                            "speedup_vs_lru",
+                            "normalized_ticks_vs_lru",
+                            "l3_miss_reduction_vs_lru_pct",
+                            "l3_miss_ratio_vs_lru",
+                        ),
+                    ),
+                )
         overhead = charged_overhead(roi_rows)
         if overhead:
             write_csv(aggregate_dir / "popt_charged_overhead.csv", overhead)
@@ -1136,18 +1356,44 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
                     "{:+.1f}%",
                     0.0,
                 )
+                sniper_single_thread_relative = [
+                    row for row in replacement_relative
+                    if row.get("simulator") == "sniper" and str(row.get("threads", "1")) in ("", "1", "1.0")
+                ]
+                if sniper_single_thread_relative:
+                    plot_grouped_metric_by_benchmark(
+                        figures_dir / "sniper_replacement_speedup_by_benchmark.svg",
+                        sniper_single_thread_relative,
+                        "speedup_vs_lru",
+                        "Sniper speedup vs LRU",
+                        1.0,
+                        "gmean",
+                        "geomean",
+                    )
             if prefetch_relative:
+                prefetchers = {row.get("prefetcher", "") for row in prefetch_relative}
+                prefetch_prefix = "droplet" if prefetchers <= {"DROPLET"} else "prefetch"
+                speedup_label = (
+                    "Speedup vs DROPLET+LRU"
+                    if prefetch_prefix == "droplet"
+                    else "Speedup vs same-prefetcher LRU"
+                )
+                miss_label = (
+                    "LLC miss reduction vs DROPLET+LRU (%)"
+                    if prefetch_prefix == "droplet"
+                    else "LLC miss reduction vs same-prefetcher LRU (%)"
+                )
                 plot_grouped_metric_by_benchmark(
-                    figures_dir / "droplet_speedup_by_benchmark.svg",
+                    figures_dir / f"{prefetch_prefix}_speedup_by_benchmark.svg",
                     prefetch_relative,
                     "speedup_vs_lru",
-                    "Speedup vs DROPLET+LRU",
+                    speedup_label,
                     1.0,
                     "gmean",
                     "geomean",
                 )
                 plot_grouped_metric_by_benchmark(
-                    figures_dir / "droplet_l3_miss_reduction_by_benchmark.svg",
+                    figures_dir / f"{prefetch_prefix}_l3_miss_reduction_by_benchmark.svg",
                     prefetch_relative,
                     "l3_miss_reduction_vs_lru_pct",
                     "LLC miss reduction (%)",
@@ -1156,23 +1402,31 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
                     "mean",
                 )
                 plot_metric_by_policy(
-                    figures_dir / "droplet_speedup_vs_lru.svg",
+                    figures_dir / f"{prefetch_prefix}_speedup_vs_lru.svg",
                     prefetch_relative,
                     "speedup_vs_lru",
-                    "Speedup vs DROPLET+LRU",
+                    speedup_label,
                     "{:.2f}x",
                     1.0,
                 )
                 plot_metric_by_policy(
-                    figures_dir / "droplet_l3_miss_reduction_vs_lru.svg",
+                    figures_dir / f"{prefetch_prefix}_l3_miss_reduction_vs_lru.svg",
                     prefetch_relative,
                     "l3_miss_reduction_vs_lru_pct",
-                    "LLC miss reduction vs DROPLET+LRU (%)",
+                    miss_label,
                     "{:+.1f}%",
                     0.0,
                 )
         if overhead:
             plot_charged_overhead(figures_dir / "charged_overhead.svg", overhead)
+
+        thread_scaling = thread_scaling_metrics(roi_rows)
+        if thread_scaling:
+            write_csv(aggregate_dir / "thread_scaling_metrics.csv", thread_scaling)
+            sniper_thread_scaling = [row for row in thread_scaling if row.get("simulator") == "sniper"]
+            if sniper_thread_scaling:
+                write_csv(aggregate_dir / "sniper_thread_scaling_metrics.csv", sniper_thread_scaling)
+                plot_sniper_thread_scaling(figures_dir / "sniper_thread_scaling.svg", sniper_thread_scaling)
 
     if proof_rows:
         write_csv(aggregate_dir / "proof_matrix_all.csv", proof_rows)
@@ -1210,18 +1464,25 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
     prefetch_quality = prefetch_quality_summary(roi_rows, proof_rows)
     if prefetch_quality:
         write_csv(aggregate_dir / "prefetch_quality_summary.csv", prefetch_quality)
-        gem5_prefetch_quality = [row for row in prefetch_quality if row.get("source") == "gem5"]
+        roi_prefetch_quality = [row for row in prefetch_quality if row.get("source") in ("gem5", "sniper")]
         cache_sim_prefetch_quality = [row for row in prefetch_quality if row.get("source") == "cache_sim"]
-        if gem5_prefetch_quality:
+        if roi_prefetch_quality:
+            roi_prefetchers = {row.get("prefetcher", "") for row in roi_prefetch_quality}
+            roi_prefetch_prefix = "droplet" if roi_prefetchers <= {"DROPLET"} else "prefetch"
+            roi_prefetch_title = (
+                "ROI DROPLET prefetch quality summary"
+                if roi_prefetch_prefix == "droplet"
+                else "ROI prefetch quality summary"
+            )
             write_latex_table(
                 tables_dir / "prefetch_quality_summary.tex",
-                gem5_prefetch_quality[:24],
+                roi_prefetch_quality[:24],
                 ["source", "benchmark", "prefetcher", "policy_short", "prefetch_accuracy_pct", "prefetch_unused_pct"],
-                "gem5 DROPLET prefetch quality summary",
+                roi_prefetch_title,
             )
             plot_grouped_metric_by_benchmark(
-                figures_dir / "droplet_prefetch_accuracy_by_benchmark.svg",
-                gem5_prefetch_quality,
+                figures_dir / f"{roi_prefetch_prefix}_prefetch_accuracy_by_benchmark.svg",
+                roi_prefetch_quality,
                 "prefetch_accuracy_pct",
                 "Useful prefetches / issued (%)",
                 0.0,

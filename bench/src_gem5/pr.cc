@@ -123,9 +123,11 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     for (int i = 0; i < hot_table_size; i++)
         hub_rank[hot_table[i]] = i;
 
-    // Check environment variable to enable/disable ECG prefetch
-    const char* ecg_prefetch_env = getenv("ECG_PREFETCH");
+    // Check environment variable to enable/disable ECG_PFX hint emission.
+    const char* ecg_prefetch_env = getenv("GEM5_ENABLE_ECG_PFX_HINTS");
+    if (!ecg_prefetch_env) ecg_prefetch_env = getenv("ECG_PREFETCH");
     bool ecg_prefetch_enabled = ecg_prefetch_env && string(ecg_prefetch_env) != "0";
+    int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
 
     for (NodeID n = 0; n < g.num_nodes(); n++)
         outgoing_contrib[n] = init_score / g.out_degree(n);
@@ -143,14 +145,45 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
             GEM5_SET_VERTEX(u);
             ScoreT incoming_total = 0;
 
-            for (NodeID v : g.in_neigh(u)) {
+            auto in_neigh = g.in_neigh(u);
+            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
+                NodeID v = *it;
+                if (ecg_prefetch_enabled && pfx_lookahead > 0) {
+                    NodeID pfx_target = -1;
+                    int best_rank = hot_table_size + 1;
+                    auto jt = it;
+                    for (int step = 0; step < pfx_lookahead; step++) {
+                        ++jt;
+                        if (jt == in_neigh.end()) break;
+                        NodeID candidate = *jt;
+                        if (candidate >= 0 && candidate < static_cast<NodeID>(hub_rank.size()) &&
+                            hub_rank[candidate] >= 0 && hub_rank[candidate] < best_rank) {
+                            best_rank = hub_rank[candidate];
+                            pfx_target = candidate;
+                        }
+                    }
+                    if (pfx_target >= 0) {
+                        bool in_window = false;
+                        for (int w = 0; w < PREFETCH_WINDOW; w++) {
+                            if (pfx_window[w] == pfx_target) {
+                                in_window = true;
+                                break;
+                            }
+                        }
+                        if (!in_window) {
+                            GEM5_ECG_PFX_TARGET(pfx_target);
+                            pfx_window[pfx_window_pos % PREFETCH_WINDOW] = pfx_target;
+                            pfx_window_pos++;
+                        }
+                    }
+                }
                 incoming_total += outgoing_contrib[v];
                 
                 // ECG per-edge prefetch: if neighbor v is a hub vertex,
                 // prefetch the NEXT hub in the hot table (the one after v's
                 // rank). This brings in the most likely next high-reuse
                 // vertex before it's demanded.
-                if (ecg_prefetch_enabled && hub_rank[v] >= 0) {
+                if (ecg_prefetch_enabled && pfx_lookahead == 0 && hub_rank[v] >= 0) {
                     int next_hub = (hub_rank[v] + 1) % hot_table_size;
                     NodeID pfx_target = hot_table[next_hub];
                     
@@ -163,9 +196,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                         }
                     }
                     if (!in_window) {
-                        // Issue SW prefetch — gem5 sees as regular read
-                        volatile ScoreT pf = outgoing_contrib[pfx_target];
-                        (void)pf;
+                        GEM5_ECG_PFX_TARGET(pfx_target);
                         pfx_window[pfx_window_pos % PREFETCH_WINDOW] = pfx_target;
                         pfx_window_pos++;
                     }

@@ -1,0 +1,237 @@
+// ============================================================================
+// PageRank (Pull, Gauss-Seidel) for Sniper simulation
+// ============================================================================
+// Sniper-oriented PageRank wrapper. It mirrors the audited gem5 PR wrapper but
+// uses Sniper ROI markers and Sniper sideband paths. Sniper policy support is
+// not wired yet; this wrapper establishes the benchmark/harness surface.
+// ============================================================================
+
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <vector>
+
+#include "benchmark.h"
+#include "builder.h"
+#include "command_line.h"
+#include "graph.h"
+#include "pvector.h"
+
+#include "graphbrew/partition/cagra/popt.h"
+#include "sniper_sim/sniper_harness.h"
+
+using namespace std;
+
+typedef float ScoreT;
+const float kDamp = 0.85;
+
+pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
+                                       double epsilon = 0) {
+    const ScoreT init_score = 1.0f / g.num_nodes();
+    const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
+    pvector<ScoreT> scores(g.num_nodes(), init_score);
+    pvector<ScoreT> outgoing_contrib(g.num_nodes());
+
+    sniper_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
+    sniper_report_region("contrib", outgoing_contrib.data(), g.num_nodes(), sizeof(ScoreT));
+
+    SniperPropertyRegion regions[2] = {
+        {"scores", reinterpret_cast<uint64_t>(scores.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+        {"contrib", reinterpret_cast<uint64_t>(outgoing_contrib.data()),
+         static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+    };
+    SniperEdgeRegion edge_regions[2];
+    int num_edge_regions = sniper_make_edge_regions(g, edge_regions, 2, true);
+    sniper_export_context(regions, 2, g, nullptr, edge_regions, num_edge_regions);
+
+    {
+        constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
+        constexpr int numEpochs = 256;
+        static pvector<uint8_t> popt_matrix;
+        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+        int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+        sniper_export_popt_matrix(popt_matrix.data(), numCacheLines,
+                                  numEpochs, g.num_nodes());
+    }
+
+    uint8_t id_bits = 1;
+    while ((1ULL << id_bits) < static_cast<uint64_t>(g.num_nodes())) id_bits++;
+    uint8_t container_bits = (g.num_nodes() > (1LL << 30)) ? 64 : 32;
+    uint8_t spare = container_bits - id_bits;
+    if (spare < 2 && container_bits == 32) {
+        container_bits = 64;
+        spare = container_bits - id_bits;
+    }
+
+    uint8_t pfx_bits = 0;
+    if (spare >= 16) pfx_bits = min(static_cast<int>(spare - 10), 6);
+    else if (spare >= 10) pfx_bits = min(static_cast<int>(spare - 6), 4);
+    else if (spare >= 6) pfx_bits = spare - 4;
+
+    int hot_table_size = pfx_bits > 0 ? (1 << pfx_bits) : 0;
+    hot_table_size = min(hot_table_size, static_cast<int>(g.num_nodes()));
+    constexpr int PREFETCH_WINDOW = 16;
+
+    vector<NodeID> hot_table(hot_table_size);
+    if (hot_table_size > 0) {
+        vector<pair<int64_t, NodeID>> deg_vtx(g.num_nodes());
+        for (NodeID n = 0; n < g.num_nodes(); n++) {
+            deg_vtx[n] = {g.out_degree(n), n};
+        }
+        partial_sort(deg_vtx.begin(), deg_vtx.begin() + hot_table_size, deg_vtx.end(),
+                     [](const auto& a, const auto& b) { return a.first > b.first; });
+        for (int i = 0; i < hot_table_size; i++) {
+            hot_table[i] = deg_vtx[i].second;
+        }
+        printf("Sniper ECG adaptive prefetch: %d-bit container, %d-bit ID, %d spare, "
+               "%d prefetch bits -> %d-entry hot table\n",
+               container_bits, id_bits, spare, pfx_bits, hot_table_size);
+    }
+
+    vector<int> hub_rank(g.num_nodes(), -1);
+    for (int i = 0; i < hot_table_size; i++) {
+        hub_rank[hot_table[i]] = i;
+    }
+
+    const char* ecg_prefetch_env = getenv("SNIPER_ENABLE_ECG_PFX_HINTS");
+    if (!ecg_prefetch_env) ecg_prefetch_env = getenv("ECG_PREFETCH");
+    bool ecg_prefetch_enabled = ecg_prefetch_env && string(ecg_prefetch_env) != "0";
+    int pfx_lookahead = graphbrew_sniper::env_int_clamped(
+        "SNIPER_ECG_PFX_LOOKAHEAD",
+        graphbrew_sniper::env_int_clamped("ECG_PREFETCH_LOOKAHEAD", 4, 0, 64),
+        0, 64);
+
+    for (NodeID n = 0; n < g.num_nodes(); n++) {
+        outgoing_contrib[n] = init_score / g.out_degree(n);
+    }
+
+    SNIPER_ROI_BEGIN();
+
+    vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
+    int pfx_window_pos = 0;
+
+    for (int iter = 0; iter < max_iters; iter++) {
+        double error = 0;
+        for (NodeID u = 0; u < g.num_nodes(); u++) {
+            SNIPER_SET_VERTEX(u);
+            ScoreT incoming_total = 0;
+
+            auto in_neigh = g.in_neigh(u);
+            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
+                NodeID v = *it;
+                if (ecg_prefetch_enabled && pfx_lookahead > 0) {
+                    NodeID pfx_target = -1;
+                    int best_rank = hot_table_size + 1;
+                    auto jt = it;
+                    for (int step = 0; step < pfx_lookahead; step++) {
+                        ++jt;
+                        if (jt == in_neigh.end()) break;
+                        NodeID candidate = *jt;
+                        if (candidate >= 0 && candidate < static_cast<NodeID>(hub_rank.size()) &&
+                            hub_rank[candidate] >= 0 && hub_rank[candidate] < best_rank) {
+                            best_rank = hub_rank[candidate];
+                            pfx_target = candidate;
+                        }
+                    }
+                    if (pfx_target >= 0) {
+                        bool in_window = false;
+                        for (int w = 0; w < PREFETCH_WINDOW; w++) {
+                            if (pfx_window[w] == pfx_target) {
+                                in_window = true;
+                                break;
+                            }
+                        }
+                        if (!in_window) {
+                            SNIPER_ECG_PFX_TARGET(pfx_target);
+#if !GRAPHBREW_SNIPER_HAS_SIM_API
+                            volatile ScoreT pf = outgoing_contrib[pfx_target];
+                            (void)pf;
+#endif
+                            pfx_window[pfx_window_pos % PREFETCH_WINDOW] = pfx_target;
+                            pfx_window_pos++;
+                        }
+                    }
+                }
+                incoming_total += outgoing_contrib[v];
+                if (ecg_prefetch_enabled && pfx_lookahead == 0 && hub_rank[v] >= 0 && hot_table_size > 0) {
+                    int next_hub = (hub_rank[v] + 1) % hot_table_size;
+                    NodeID pfx_target = hot_table[next_hub];
+                    bool in_window = false;
+                    for (int w = 0; w < PREFETCH_WINDOW; w++) {
+                        if (pfx_window[w] == pfx_target) {
+                            in_window = true;
+                            break;
+                        }
+                    }
+                    if (!in_window) {
+#if GRAPHBREW_SNIPER_HAS_SIM_API
+                        SNIPER_ECG_PFX_TARGET(pfx_target);
+#else
+                        volatile ScoreT pf = outgoing_contrib[pfx_target];
+                        (void)pf;
+#endif
+                        pfx_window[pfx_window_pos % PREFETCH_WINDOW] = pfx_target;
+                        pfx_window_pos++;
+                    }
+                }
+            }
+            ScoreT old_score = scores[u];
+            scores[u] = base_score + kDamp * incoming_total;
+            error += fabs(scores[u] - old_score);
+            outgoing_contrib[u] = scores[u] / g.out_degree(u);
+        }
+        if (error < epsilon) break;
+    }
+
+    SNIPER_ROI_END();
+    return scores;
+}
+
+void PrintTopScores(const Graph &g, const pvector<ScoreT> &scores) {
+    vector<pair<NodeID, ScoreT>> score_pairs(g.num_nodes());
+    for (NodeID n = 0; n < g.num_nodes(); n++) {
+        score_pairs[n] = make_pair(n, scores[n]);
+    }
+    int k = min(5, static_cast<int>(g.num_nodes()));
+    partial_sort(score_pairs.begin(), score_pairs.begin() + k, score_pairs.end(),
+                 [](auto a, auto b) { return a.second > b.second; });
+    for (int i = 0; i < k; i++) {
+        cout << score_pairs[i].first << ": " << score_pairs[i].second << endl;
+    }
+}
+
+bool PRVerifier(const Graph &g, const pvector<ScoreT> &scores, double target_error) {
+    const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
+    pvector<ScoreT> incoming_sums(g.num_nodes(), 0);
+    double error = 0;
+    for (NodeID u = 0; u < g.num_nodes(); u++) {
+        ScoreT outgoing_contrib = scores[u] / g.out_degree(u);
+        for (NodeID v : g.out_neigh(u)) {
+            incoming_sums[v] += outgoing_contrib;
+        }
+    }
+    for (NodeID n = 0; n < g.num_nodes(); n++) {
+        error += fabs(base_score + kDamp * incoming_sums[n] - scores[n]);
+    }
+    cout << "Total Error: " << error << endl;
+    return error < target_error;
+}
+
+int main(int argc, char *argv[]) {
+    CLPageRank cli(argc, argv, "pagerank-sniper", 1e-4, 20);
+    if (!cli.ParseArgs()) return -1;
+    Builder b(cli);
+    Graph g = b.MakeGraph();
+
+    auto PRBound = [&cli](const Graph &g) {
+        return PageRankPullGS_Sniper(g, cli.max_iters(), cli.tolerance());
+    };
+    auto VerifierBound = [&cli](const Graph &g, const pvector<ScoreT> &scores) {
+        return PRVerifier(g, scores, cli.tolerance());
+    };
+    BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);
+    return 0;
+}

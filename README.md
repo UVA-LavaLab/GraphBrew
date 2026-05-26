@@ -109,10 +109,10 @@ python3 scripts/graphbrew_experiment.py --help
 
 > 📖 See [Running Benchmarks Wiki](https://github.com/UVA-LavaLab/GraphBrew/wiki/Running-Benchmarks) for advanced workflows.
 
-### ECG / gem5 Final-Run Infrastructure
+### ECG / Simulator Final-Run Infrastructure
 
 The ECG cache-policy work uses a separate manifest-driven runner for long
-cache_sim and gem5 matrices:
+cache_sim, gem5, and Sniper matrices:
 
 ```bash
 python3 scripts/experiments/ecg/final_paper_run.py --profile rehearsal --dry-run
@@ -131,6 +131,15 @@ Current final replacement labels include `LRU`, `SRRIP`, `GRASP`,
 `POPT_CHARGED`, `POPT`, `ECG_DBG_ONLY`, `ECG_DBG_PRIMARY_CHARGED`,
 `ECG_DBG_PRIMARY`, and `ECG_POPT_PRIMARY`. Use `POPT_CHARGED` as the honest
 P-OPT prior-method baseline; `POPT` is the uncharged oracle ceiling.
+
+`ECG_PFX` is now available as a first-class prefetcher in cache_sim and as an
+experimental gem5/Sniper hint path. Validated smoke profiles include
+`available_cache_sim_ecg_pfx`, `gem5_ecg_pfx_tiny_smoke`,
+`sniper_sift_ecg_pfx_smoke`, and `sniper_sift_file_ecg_pfx_smoke`. The Sniper
+ECG_PFX profiles aggregate through the paper pipeline with generic
+`prefetch_*` figure names. The RISC-V `ecg.extract` scaffold decodes the fixed
+paper bit layout and `build/RISCV/gem5.opt` now builds; RISC-V benchmark runs
+still require a local `riscv64-linux-gnu-gcc/g++` toolchain.
 
 See [ECG final runs](wiki/ECG-Final-Runs.md) for the current supported profiles,
 charged P-OPT interpretation, graph checks, and run-status commands.

@@ -39,6 +39,7 @@ namespace graph {
 static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
+static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
 
 inline std::atomic<uint32_t>& currentVertexHintStorage() {
     static std::atomic<uint32_t> vertex{0};
@@ -62,6 +63,57 @@ inline bool hasCurrentVertexHint() {
 
 inline uint32_t getCurrentVertexHint() {
     return currentVertexHintStorage().load(std::memory_order_acquire);
+}
+
+inline std::atomic<uint32_t>& prefetchTargetHintStorage() {
+    static std::atomic<uint32_t> vertex{0};
+    return vertex;
+}
+
+inline std::atomic<bool>& prefetchTargetHintValidStorage() {
+    static std::atomic<bool> valid{false};
+    return valid;
+}
+
+inline void setPrefetchTargetHint(uint64_t vertex) {
+    uint32_t clamped = vertex > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(vertex);
+    prefetchTargetHintStorage().store(clamped, std::memory_order_release);
+    prefetchTargetHintValidStorage().store(true, std::memory_order_release);
+}
+
+inline bool consumePrefetchTargetHint(uint32_t& vertex) {
+    if (!prefetchTargetHintValidStorage().exchange(false, std::memory_order_acq_rel)) {
+        return false;
+    }
+    vertex = prefetchTargetHintStorage().load(std::memory_order_acquire);
+    return true;
+}
+
+inline std::atomic<uint32_t>& decodedEcgRealVertexStorage() {
+    static std::atomic<uint32_t> vertex{0};
+    return vertex;
+}
+
+inline std::atomic<uint32_t>& decodedEcgMetadataStorage() {
+    static std::atomic<uint32_t> metadata{0};
+    return metadata;
+}
+
+inline std::atomic<bool>& decodedEcgHintValidStorage() {
+    static std::atomic<bool> valid{false};
+    return valid;
+}
+
+inline void setDecodedEcgExtractHint(uint32_t real_vertex,
+                                     uint8_t dbg_hint,
+                                     uint8_t popt_hint,
+                                     uint16_t pfx_hint) {
+    uint32_t metadata = static_cast<uint32_t>(dbg_hint)
+        | (static_cast<uint32_t>(popt_hint) << 8)
+        | (static_cast<uint32_t>(pfx_hint) << 16);
+    decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
+    decodedEcgMetadataStorage().store(metadata, std::memory_order_release);
+    decodedEcgHintValidStorage().store(true, std::memory_order_release);
 }
 
 // ============================================================================

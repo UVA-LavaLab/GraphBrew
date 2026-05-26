@@ -1,6 +1,6 @@
 # ECG Slurm Final Runs
 
-This page describes the reproducible UVA Slurm workflow for ECG final-paper runs. The goal is to split slow gem5 simulations into independent shards, run each shard on a separate machine, and aggregate all CSVs later.
+This page describes the reproducible UVA Slurm workflow for ECG final-paper runs. The goal is to split slow gem5 or Sniper simulations into independent shards, run each shard on a separate machine, and aggregate all CSVs later.
 
 The key rule: one GraphBrew gem5 process per node unless you have explicitly isolated the runtime sideband files. The gem5 path uses shared sideband files under `/tmp`, so Slurm jobs should request exclusive nodes or otherwise ensure only one GraphBrew gem5 shard runs per node.
 
@@ -142,31 +142,18 @@ Do not start the multi-day run until missing graphs are resolved or intentionall
 
 ## 3. Generate Slurm Shard List
 
-Create one tab-separated row per shard. Replacement and DROPLET profiles are separated because they run different manifest stages and policy sets.
+Create one tab-separated row per shard from the checked-in final-run manifest.
+The generated TSV is headerless because Slurm array task `0` reads row `1`.
 
 ```bash
 mkdir -p results/ecg_experiments/slurm
 RUN_TAG=final_$(date +%Y%m%d_%H%M%S)
 SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_shards.tsv
 
-GRAPHS=(soc-pokec soc-LiveJournal1 com-orkut cit-Patents)
-BENCHMARKS=(pr bfs sssp)
-REPL_POLICIES=(LRU SRRIP GRASP POPT_CHARGED POPT ECG_DBG_ONLY ECG_DBG_PRIMARY_CHARGED ECG_DBG_PRIMARY ECG_POPT_PRIMARY)
-DROPLET_POLICIES=(LRU GRASP POPT_CHARGED POPT ECG_DBG_PRIMARY_CHARGED ECG_DBG_PRIMARY ECG_POPT_PRIMARY)
-
-: > "$SHARDS"
-for graph in "${GRAPHS[@]}"; do
-  for bench in "${BENCHMARKS[@]}"; do
-    for policy in "${REPL_POLICIES[@]}"; do
-      printf 'final_replacement\t20_gem5_large_replacement\t%s\t%s\t%s\t%s\n' \
-        "$graph" "$bench" "$policy" "$RUN_TAG" >> "$SHARDS"
-    done
-    for policy in "${DROPLET_POLICIES[@]}"; do
-      printf 'final_droplet\t30_gem5_large_droplet\t%s\t%s\t%s\t%s\n' \
-        "$graph" "$bench" "$policy" "$RUN_TAG" >> "$SHARDS"
-    done
-  done
-done
+python3 scripts/experiments/ecg/make_slurm_shards.py \
+  --profile final_replacement final_droplet \
+  --run-tag "$RUN_TAG" \
+  --out "$SHARDS"
 
 wc -l "$SHARDS"
 sed -n '1,5p' "$SHARDS"
@@ -178,7 +165,27 @@ The full four-graph PR/BFS/SSSP replacement+DROPLET set above creates:
 4 graphs * 3 benchmarks * (9 replacement policies + 7 DROPLET policies) = 192 Slurm shards
 ```
 
-For a smaller first pass, reduce `GRAPHS`, `BENCHMARKS`, or policy arrays.
+For a smaller first pass, use the generator filters.
+For example:
+
+```bash
+python3 scripts/experiments/ecg/make_slurm_shards.py \
+  --profile final_replacement \
+  --run-tag "$RUN_TAG" \
+  --graph cit-Patents \
+  --benchmark pr \
+  --policy LRU ECG_DBG_PRIMARY \
+  --out "$SHARDS"
+```
+
+For the current long Sniper scale-out gate, generate a one-row Slurm shard with:
+
+```bash
+python3 scripts/experiments/ecg/make_slurm_shards.py \
+  --profile sniper_sift_cit_patents_long \
+  --run-tag "$RUN_TAG" \
+  --out "$SHARDS"
+```
 
 ## 4. Slurm Array Script
 
@@ -220,6 +227,20 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   --status \
   --run-dir results/ecg_experiments/final_paper_runs/slurm/${RUN_TAG}/final_replacement_soc-pokec_pr_LRU
 ```
+
+Summarize every row from the shard TSV without launching simulations:
+
+```bash
+python3 scripts/experiments/ecg/slurm_shard_status.py \
+  --shards "$SHARDS" \
+  --out results/ecg_experiments/slurm/${RUN_TAG}_status.csv
+
+column -s, -t < results/ecg_experiments/slurm/${RUN_TAG}_status.csv | sed -n '1,20p'
+```
+
+Use `--fail-on-failed` in CI/check scripts when any failed shard should make the
+status command return nonzero. Use `--fail-on-missing` when pending or
+not-started rows should also fail the check.
 
 Rerun a failed shard by resubmitting the same row. The wrapper is resumable: existing `ok` CSV rows are skipped unless `--force` is passed.
 

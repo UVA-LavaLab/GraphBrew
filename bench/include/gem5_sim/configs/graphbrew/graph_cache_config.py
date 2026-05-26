@@ -19,6 +19,7 @@ Reference: scripts/experiments/ecg_config.py lines 72-78
 """
 
 import m5
+import os
 from m5.objects import *
 from m5.util import convert
 
@@ -72,6 +73,8 @@ def make_replacement_policy(name, **kwargs):
         gem5 SimObject for the replacement policy.
     """
     upper = name.upper()
+    sideband_path = os.environ.get("GEM5_GRAPHBREW_CTX", "/tmp/gem5_graphbrew_ctx.json")
+    popt_matrix_path = os.environ.get("GEM5_POPT_MATRIX", "/tmp/gem5_popt_matrix.bin")
 
     if upper in POLICY_MAP:
         return POLICY_MAP[upper]()
@@ -82,10 +85,13 @@ def make_replacement_policy(name, **kwargs):
             num_buckets=kwargs.get("num_buckets", 11),
             hot_fraction=kwargs.get("hot_fraction", 0.1),
             llc_size_bytes=kwargs.get("llc_size_bytes", 8388608),
+            sideband_path=sideband_path,
         )
     elif upper in ("POPT", "P-OPT"):
         return GraphPoptRP(
             max_rrpv=kwargs.get("max_rrpv", 7),
+            sideband_path=sideband_path,
+            popt_matrix_path=popt_matrix_path,
         )
     elif upper == "ECG":
         return GraphEcgRP(
@@ -93,6 +99,8 @@ def make_replacement_policy(name, **kwargs):
             num_buckets=kwargs.get("num_buckets", 11),
             ecg_mode=kwargs.get("ecg_mode", "DBG_PRIMARY"),
             llc_size_bytes=kwargs.get("llc_size_bytes", 8388608),
+            sideband_path=sideband_path,
+            popt_matrix_path=popt_matrix_path,
         )
     else:
         print(f"Warning: Unknown policy '{name}', defaulting to LRU")
@@ -169,6 +177,16 @@ def make_droplet_prefetcher(**kwargs):
         prefetch_degree=kwargs.get("prefetch_degree", 4),
         indirect_degree=kwargs.get("indirect_degree", 8),
         stride_table_size=kwargs.get("stride_table_size", 16),
+        use_virtual_addresses=True,
+        prefetch_on_access=True,
+        on_inst=False,
+    )
+
+
+def make_ecg_pfx_prefetcher(**kwargs):
+    """Create ECG_PFX hint-driven graph prefetcher."""
+    return GraphEcgPfxPrefetcher(
+        recent_filter_size=kwargs.get("recent_filter_size", 256),
         use_virtual_addresses=True,
         prefetch_on_access=True,
         on_inst=False,

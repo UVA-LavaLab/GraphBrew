@@ -21,6 +21,7 @@ import fcntl
 import json
 import os
 import re
+import signal
 import shlex
 import subprocess
 import sys
@@ -133,6 +134,10 @@ def find_graph_path(graph: dict[str, Any], graph_dir: Path, allow_missing: bool)
     raise SystemExit(f"could not find graph file for {name} under {graph_dir}")
 
 
+def graph_uses_synthetic_options(graph: dict[str, Any]) -> bool:
+    return str(graph.get("options_key", "file_dbg")).startswith("synthetic_")
+
+
 def options_for(
     manifest: dict[str, Any],
     graph: dict[str, Any],
@@ -188,7 +193,7 @@ def expand_jobs(args: argparse.Namespace, manifest: dict[str, Any], run_dir: Pat
                 if not token_matches(graph_name, args.graph):
                     continue
                 graph_path = None
-                if str(graph.get("options_key", "file_dbg")) != "synthetic_g12":
+                if not graph_uses_synthetic_options(graph):
                     graph_path = find_graph_path(graph, Path(args.graph_dir), True)
                 for benchmark in settings.get("benchmarks", []):
                     if not token_matches(str(benchmark), args.benchmark):
@@ -269,11 +274,38 @@ def make_roi_job(
         "--out-dir", str(out_dir),
         "--timeout-cache", str(settings["timeout_cache"]),
         "--timeout-gem5", str(settings["timeout_gem5"]),
+        "--timeout-sniper", str(settings.get("timeout_sniper", 600)),
     ]
+    if str(settings.get("prefetcher", "none")) == "ECG_PFX":
+        command.extend(["--ecg-pfx-mode", str(settings.get("ecg_pfx_mode", "popt"))])
+        command.extend(["--ecg-pfx-window", str(settings.get("ecg_pfx_window", 16))])
+        command.extend(["--ecg-pfx-lookahead", str(settings.get("ecg_pfx_lookahead", 4))])
+        if settings.get("allow_gem5_ecg_pfx"):
+            command.append("--allow-gem5-ecg-pfx")
+    if str(settings.get("suite")) == "sniper":
+        command.extend(["--sniper-workload", str(settings.get("sniper_workload", "pr_kernel_smoke"))])
+        command.extend(["--sniper-cores", str(settings.get("sniper_cores", 1))])
+        command.extend(["--sniper-root", str(settings.get("sniper_root", "bench/include/sniper_sim/snipersim"))])
+        command.extend(["--sniper-frontend", str(settings.get("sniper_frontend", "live"))])
+        command.extend(["--sniper-omp-wait-policy", str(settings.get("sniper_omp_wait_policy", "passive"))])
+        command.extend(["--sniper-base-config", str(settings.get("sniper_base_config", "graphbrew/graph_sniper"))])
+        command.extend(["--sniper-address-domain", str(settings.get("sniper_address_domain", "virtual"))])
+        command.extend(["--sniper-memory-limit-gb", str(settings.get("sniper_memory_limit_gb", 16))])
+        command.extend(["--sniper-mimicos-memory-mb", str(settings.get("sniper_mimicos_memory_mb", 4096))])
+        command.extend(["--sniper-mimicos-kernel-mb", str(settings.get("sniper_mimicos_kernel_mb", 128))])
+        if settings.get("allow_sniper_benchmark_workload"):
+            command.append("--allow-sniper-benchmark-workload")
+        if settings.get("allow_sniper_sg_kernel_workload"):
+            command.append("--allow-sniper-sg-kernel-workload")
+        if settings.get("sniper_threads"):
+            command.extend(["--threads", *[str(value) for value in settings.get("sniper_threads", [])]])
     if settings.get("no_build", True) or args.no_build:
         command.append("--no-build")
     if args.dry_run:
         command.append("--dry-run")
+    env = {}
+    if "omp_threads" in settings:
+        env["OMP_NUM_THREADS"] = str(settings["omp_threads"])
     return Job(
         job_id=job_id,
         stage=str(settings["name"]),
@@ -281,6 +313,7 @@ def make_roi_job(
         command=command,
         out_dir=out_dir,
         log_path=log_path,
+        env=env,
         metadata={
             "stage": settings["name"],
             "suite": settings["suite"],
@@ -388,15 +421,52 @@ def latest_run_dir() -> Path:
     return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
+def latest_job_events(run_dir: Path) -> dict[str, dict[str, Any]]:
+    status_path = run_dir / "run_status.jsonl"
+    if not status_path.exists():
+        return {}
+    latest: dict[str, dict[str, Any]] = {}
+    for line in status_path.read_text().splitlines():
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        job_id = str(record.get("job_id", ""))
+        if job_id:
+            latest[job_id] = record
+    return latest
+
+
+def display_status(row: dict[str, str], latest_events: dict[str, dict[str, Any]]) -> tuple[str, str]:
+    status = row.get("status", "")
+    detail = row.get("detail", "")
+    latest = latest_events.get(row.get("job_id", ""), {})
+    if status == "missing" and latest.get("event") == "start":
+        return "running", f"started at {latest.get('utc', 'unknown time')} ({detail})"
+    if latest.get("event") == "interrupted":
+        return "interrupted", str(latest.get("detail", detail))
+    if latest.get("event") == "finish":
+        latest_status = str(latest.get("output_status", status))
+        latest_detail = str(latest.get("detail", detail))
+        if int(latest.get("exit_code", 0) or 0) != 0:
+            return "failed", latest_detail
+        return latest_status, latest_detail
+    return status, detail
+
+
 def print_run_status(run_dir: Path) -> int:
     jobs_path = run_dir / "jobs.csv"
     if not jobs_path.exists():
         print(f"[status] jobs.csv not found: {jobs_path}")
         return 1
     rows = list(csv.DictReader(jobs_path.open(newline="")))
+    latest_events = latest_job_events(run_dir)
     counts: dict[str, int] = {}
     for row in rows:
-        counts[row.get("status", "")] = counts.get(row.get("status", ""), 0) + 1
+        status, _detail = display_status(row, latest_events)
+        counts[status] = counts.get(status, 0) + 1
 
     print(f"[status] run_dir={run_dir}")
     print(f"[status] jobs={len(rows)} counts={counts}")
@@ -407,9 +477,10 @@ def print_run_status(run_dir: Path) -> int:
                 count = max(sum(1 for _ in fh) - 1, 0)
             print(f"[status] {name}: {count} row(s)")
 
-    interesting = [row for row in rows if row.get("status") != "ok"]
+    interesting = [row for row in rows if display_status(row, latest_events)[0] != "ok"]
     for row in interesting[:20]:
-        print(f"  - {row.get('job_id')}: {row.get('status')} ({row.get('detail')})")
+        status, detail = display_status(row, latest_events)
+        print(f"  - {row.get('job_id')}: {status} ({detail})")
     if len(interesting) > 20:
         print(f"  ... {len(interesting) - 20} more non-ok job(s)")
     return 0
@@ -469,18 +540,28 @@ def write_run_manifest(run_dir: Path, args: argparse.Namespace, manifest: dict[s
 def write_combined_outputs(run_dir: Path, jobs: list[Job]) -> None:
     rows_by_kind: dict[str, list[dict[str, Any]]] = {"roi_matrix": [], "proof_matrix": []}
     for job in jobs:
-        status, _detail = csv_status(job.output_csv)
-        if status != "ok":
+        status, detail = csv_status(job.output_csv)
+        if not job.output_csv.exists():
             continue
-        with job.output_csv.open(newline="") as fh:
-            for row in csv.DictReader(fh):
-                row.update({
-                    "final_job_id": job.job_id,
-                    "final_stage": job.stage,
-                    "final_kind": job.kind,
-                    "final_output_csv": str(job.output_csv),
-                })
-                rows_by_kind[job.kind].append(row)
+        try:
+            with job.output_csv.open(newline="") as fh:
+                job_rows = list(csv.DictReader(fh))
+        except OSError:
+            continue
+        if not job_rows:
+            continue
+        for row in job_rows:
+            row.update({
+                "final_job_id": job.job_id,
+                "final_stage": job.stage,
+                "final_kind": job.kind,
+                "final_output_csv": str(job.output_csv),
+                "final_output_status": status,
+                "final_output_detail": detail,
+                "final_graph": str(job.metadata.get("graph", "")),
+                "final_graph_path": str(job.metadata.get("graph_path", "")),
+            })
+            rows_by_kind[job.kind].append(row)
 
     for kind, rows in rows_by_kind.items():
         if not rows:
@@ -550,6 +631,25 @@ def append_status(run_dir: Path, record: dict[str, Any]) -> None:
         fh.write(json.dumps(record, sort_keys=True) + "\n")
 
 
+def terminate_process_group(process: subprocess.Popen[str], log: Any, timeout_s: float = 10.0) -> int:
+    log.write("[interrupt_action] SIGTERM process group\n")
+    log.flush()
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        return process.wait(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        log.write("[interrupt_action] SIGKILL process group\n")
+        log.flush()
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        return process.wait()
+
+
 def run_job(job: Job, run_dir: Path, args: argparse.Namespace) -> int:
     do_run, reason = should_run(job, args)
     if not do_run:
@@ -569,28 +669,48 @@ def run_job(job: Job, run_dir: Path, args: argparse.Namespace) -> int:
     with job.log_path.open("w") as log:
         log.write(f"$ {command_text(job.command)}\n")
         log.flush()
-        result = subprocess.run(
+        process = subprocess.Popen(
             job.command,
             cwd=str(PROJECT_ROOT),
             env={**os.environ, **job.env} if job.env else None,
             stdout=log,
             stderr=subprocess.STDOUT,
             text=True,
+            start_new_session=True,
         )
-        log.write(f"\n[final_paper_run_exit_code] {result.returncode}\n")
+        try:
+            returncode = process.wait()
+        except KeyboardInterrupt:
+            returncode = 130
+            log.write("\n[final_paper_run_interrupted] KeyboardInterrupt\n")
+            terminate_process_group(process, log)
+            log.write(f"[final_paper_run_exit_code] {returncode}\n")
+            log.write(f"[final_paper_run_elapsed_s] {time.time() - start:.3f}\n")
+            status, detail = csv_status(job.output_csv)
+            append_status(run_dir, {
+                "job_id": job.job_id,
+                "event": "interrupted",
+                "exit_code": returncode,
+                "output_status": status,
+                "detail": detail,
+                "elapsed_s": round(time.time() - start, 3),
+            })
+            print(f"[interrupt] {job.job_id}: output={status} {detail}")
+            return returncode
+        log.write(f"\n[final_paper_run_exit_code] {returncode}\n")
         log.write(f"[final_paper_run_elapsed_s] {time.time() - start:.3f}\n")
     status, detail = csv_status(job.output_csv)
     append_status(run_dir, {
         "job_id": job.job_id,
         "event": "finish",
-        "exit_code": result.returncode,
+        "exit_code": returncode,
         "output_status": status,
         "detail": detail,
         "elapsed_s": round(time.time() - start, 3),
     })
-    if result.returncode != 0 or status != "ok":
-        print(f"[fail] {job.job_id}: exit={result.returncode} output={status} {detail}")
-        return result.returncode or 1
+    if returncode != 0 or status != "ok":
+        print(f"[fail] {job.job_id}: exit={returncode} output={status} {detail}")
+        return returncode or 1
     print(f"[ok] {job.job_id}: {detail}")
     return 0
 
