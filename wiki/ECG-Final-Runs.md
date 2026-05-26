@@ -136,6 +136,23 @@ issued and useful prefetch counters. PR and SSSP remain useful diagnostic rows,
 but not complete matched proof points. None of these tiny rows are performance
 claims; `timing_valid_for_speedup=0` still applies to ECG_PFX detailed-sim rows.
 
+BFS scale-up smoke, 2026-05-26:
+
+```text
+/tmp/graphbrew-ecg-pfx-riscv-sniper-bfs-scale-proof/summary.csv
+```
+
+| Scale | Root | Backend | Counter readout | Interpretation |
+|---|---:|---|---|---|
+| g7 | 1 | gem5 RISC-V | section 1/2: `pfIdentified=2`, `pfIssued=2`, `pfUseful=1` | instruction path remains useful one scale up |
+| g7 | 1 | Sniper SIFT | `hints=8`, `ecg_pfx_issued=8`, `pf_issued=1`, `pf_useful=1` | matched Sniper useful-prefetch proof |
+| g8 | 9 | gem5 RISC-V | section 1/2: `pfIdentified=9`, `pfIssued=9`, `pfUseful=2` | instruction path remains active and useful at g8 |
+| g8 | 9 | Sniper SIFT | `hints=14`, `ecg_pfx_issued=14`, `pf_issued=3`, `pf_useful=3` | matched Sniper useful-prefetch proof |
+
+Root choice matters for BFS: g7 root 0 and g8 roots 0/1 had no ECG_PFX hint
+activity, while nearby roots produced useful fills. Use root sweeps as a local
+mechanism-selection step before spending gem5 time on a larger BFS point.
+
 Small evaluation recipe:
 
 ```bash
@@ -183,8 +200,9 @@ python3 scripts/experiments/ecg/final_paper_run.py \
 
 Full evaluation guide:
 
-1. Keep the local gate small: PR/BFS/SSSP g6 first, and treat BFS as the current
-  matched proof row because both backends report useful fills there.
+1. Keep the local gate small: PR/BFS/SSSP g6 first, then BFS g7/g8 root-selected
+  smokes. BFS roots g7/r1 and g8/r9 are the current matched proof rows because
+  both backends report useful fills there.
 2. Use `cache_sim` to select graph/cache points where PFX has useful fills or
   clear demand-miss reductions before spending gem5/Sniper time.
 3. For gem5, run RISC-V instruction delivery on one benchmark/policy at a time;

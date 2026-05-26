@@ -141,9 +141,9 @@ ECG_PFX profiles aggregate through the paper pipeline with generic
 paper bit layout, `build/RISCV/gem5.opt` now builds, and local RISC-V PR wrapper
 smokes build with `make gem5-riscv-m5ops-pr` when `riscv64-linux-gnu-gcc/g++` is
 installed. The current small RISC-V-vs-Sniper ECG_PFX comparison is documented
-in [ECG final runs](wiki/ECG-Final-Runs.md): BFS g6 is the current matched proof
-point where RISC-V gem5 and Sniper both report issued and useful ECG_PFX
-prefetches.
+in [ECG final runs](wiki/ECG-Final-Runs.md): BFS g6 is the first matched proof,
+and BFS g7/root1 plus g8/root9 preserve issued and useful ECG_PFX prefetches on
+both RISC-V gem5 and Sniper.
 
 See [ECG final runs](wiki/ECG-Final-Runs.md) for the current supported profiles,
 charged P-OPT interpretation, graph checks, and run-status commands.
