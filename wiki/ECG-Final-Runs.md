@@ -150,12 +150,16 @@ BFS scale-up smoke, 2026-05-26:
 | g8 | 9 | Sniper SIFT | `hints=14`, `ecg_pfx_issued=14`, `pf_issued=3`, `pf_useful=3` | matched Sniper useful-prefetch proof |
 | g9 | 20 | gem5 RISC-V | section 1/2: `pfIdentified=9`, `pfIssued=9`, `pfUseful=7` | instruction path remains active and more useful at g9 |
 | g9 | 20 | Sniper SIFT | `hints=757`, `ecg_pfx_issued=26`, `pf_issued=4`, `pf_useful=2` | matched Sniper useful-prefetch proof |
+| g10 | 0 | gem5 RISC-V | section 1/2: `pfIdentified=22`, `pfIssued=22`, `pfUseful=10` | instruction path remains active and useful at g10 |
+| g10 | 0 | Sniper SIFT | `hints=3362`, `ecg_pfx_issued=51`, `pf_issued=2`, `pf_useful=2` | matched Sniper useful-prefetch proof |
 
 Root choice matters for BFS: g7 root 0 and g8 roots 0/1 had no ECG_PFX hint
 activity, while nearby roots produced useful fills; at g9, roots 0-11 and many
 higher roots were active, with root 20 giving the strongest local Sniper useful
-signal in the sweep. Use root sweeps as a local mechanism-selection step before
-spending gem5 time on a larger BFS point.
+signal in the sweep. At g10, root 0 already produced useful fills, but the first
+root took long enough that the rest of the local sweep was stopped. Use root
+sweeps as a local mechanism-selection step before spending gem5 time on a larger
+BFS point, and move beyond g10 to a long local window or Slurm.
 
 Small evaluation recipe:
 
@@ -204,9 +208,9 @@ python3 scripts/experiments/ecg/final_paper_run.py \
 
 Full evaluation guide:
 
-1. Keep the local gate small: PR/BFS/SSSP g6 first, then BFS g7/g8/g9
-  root-selected smokes. BFS roots g7/r1, g8/r9, and g9/r20 are the current
-  matched proof rows because both backends report useful fills there.
+1. Keep the local gate small: PR/BFS/SSSP g6 first, then BFS g7/g8/g9/g10
+  root-selected smokes. BFS roots g7/r1, g8/r9, g9/r20, and g10/r0 are the
+  current matched proof rows because both backends report useful fills there.
 2. Use `cache_sim` to select graph/cache points where PFX has useful fills or
   clear demand-miss reductions before spending gem5/Sniper time.
 3. For gem5, run RISC-V instruction delivery on one benchmark/policy at a time;
