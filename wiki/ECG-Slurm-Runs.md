@@ -146,6 +146,19 @@ python3 scripts/experiments/ecg/final_paper_run.py \
 
 Do not start the multi-day run until missing graphs are resolved or intentionally excluded with `--graph` filters.
 
+Cluster preflight before any `sbatch`:
+
+```bash
+python3 scripts/experiments/ecg/ecg_cluster_preflight.py \
+  --allow-missing-graphs \
+  --shards results/ecg_experiments/slurm/final_repl_droplet_20260526_141547_shards.tsv \
+           results/ecg_experiments/slurm/cache_sim_pfx_20260526_142555_shards.tsv \
+  --scale-shards results/ecg_experiments/slurm/ecg_pfx_scale_20260526_133517_scale.tsv
+```
+
+On the actual cluster, add `--require-slurm` and omit `--allow-missing-graphs`
+after the large graph `.sg` files are staged.
+
 ## 3. Generate Slurm Shard List
 
 Create one tab-separated row per shard from the checked-in final-run manifest.
