@@ -327,6 +327,28 @@ python3 scripts/experiments/ecg/ecg_pfx_scale_status.py \
   --combined results/ecg_experiments/slurm/${RUN_TAG}_scale_combined.csv
 ```
 
+Current prepared local shard file, generated 2026-05-26:
+
+```bash
+RUN_TAG=ecg_pfx_scale_20260526_133517
+SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_scale.tsv
+
+# 64 rows: scales 11-12, roots 0-31, backend sniper
+wc -l "$SHARDS"
+
+# Submit on the cluster, not on the workstation.
+export GRAPHBREW_ROOT=$SCRATCH/GraphBrew
+export SHARDS
+N=$(( $(wc -l < "$SHARDS") - 1 ))
+sbatch --array=0-${N} scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch
+
+# Monitor and combine completed rows.
+python3 scripts/experiments/ecg/ecg_pfx_scale_status.py \
+  --shards "$SHARDS" \
+  --out results/ecg_experiments/slurm/${RUN_TAG}_scale_status.csv \
+  --combined results/ecg_experiments/slurm/${RUN_TAG}_scale_combined.csv
+```
+
 ## Guardrails
 
 - Do not run multiple GraphBrew gem5 shards on the same node unless sideband files are isolated.
