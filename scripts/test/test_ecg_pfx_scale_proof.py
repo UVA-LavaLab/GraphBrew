@@ -39,3 +39,26 @@ def test_slurm_scale_proof_wrapper_uses_runner():
     assert "SCALE" in text
     assert "ROOT" in text
     assert "BACKEND" in text
+
+
+def test_make_ecg_pfx_scale_shards_expands_ranges(tmp_path):
+    out = tmp_path / "scale.tsv"
+    subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/make_ecg_pfx_scale_shards.py",
+            "--scale", "11:12",
+            "--root", "0:2",
+            "--backend", "sniper", "gem5-riscv",
+            "--run-tag", "unit",
+            "--out-root", "results/ecg_experiments/ecg_pfx_scale_proof",
+            "--out", str(out),
+        ],
+        cwd=PROJECT_ROOT,
+        check=True,
+    )
+
+    rows = out.read_text().splitlines()
+    assert len(rows) == 12
+    assert rows[0] == "11\t0\tsniper\tresults/ecg_experiments/ecg_pfx_scale_proof/unit/g11_r0_sniper"
+    assert rows[-1] == "12\t2\tgem5-riscv\tresults/ecg_experiments/ecg_pfx_scale_proof/unit/g12_r2_gem5-riscv"

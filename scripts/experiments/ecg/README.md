@@ -38,7 +38,15 @@ For larger scales, generate one Slurm row per root/backend and submit with
 mkdir -p results/ecg_experiments/slurm
 RUN_TAG=ecg_pfx_scale_$(date +%Y%m%d_%H%M%S)
 SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_scale.tsv
-printf '11\t0\tboth\tresults/ecg_experiments/ecg_pfx_scale_proof/%s_g11_r0\n' "$RUN_TAG" > "$SHARDS"
+
+python3 scripts/experiments/ecg/make_ecg_pfx_scale_shards.py \
+	--scale 11:12 \
+	--root 0:31 \
+	--backend sniper \
+	--run-tag "$RUN_TAG" \
+	--out "$SHARDS"
+
 export SHARDS
-sbatch --array=0-0 scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch
+N=$(( $(wc -l < "$SHARDS") - 1 ))
+sbatch --array=0-${N} scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch
 ```
