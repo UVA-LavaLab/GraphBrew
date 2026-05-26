@@ -95,10 +95,13 @@ behind tracked overlays and a Sniper common/standalone relink. Neither timing
 backend should be used for final performance claims until larger rows show
 stable issued/useful prefetch counters.
 
-Current gem5 ECG_PFX smoke status: PR/BFS/SSSP all issue prefetches with the
-experimental path. Useful prefetches have appeared on ad hoc BFS g6 smokes, but
-the reproducible tiny profile currently proves issued hints rather than stable
-useful-prefetch benefit. Do not use these rows for performance claims yet.
+Current gem5 ECG_PFX smoke status: the x86 instruction-mode tiny profile
+completed at `/tmp/graphbrew-gem5-x86-pfx-instruction-smoke` with all three jobs
+ok and `timing_valid_for_speedup=0`. PR and SSSP issue ECG_PFX prefetches
+(`pfIdentified=pfIssued=4` for PR, `2` for SSSP), while the current BFS tiny
+point remains inactive (`pfIssued=0`). Useful prefetches are proven on the
+RISC-V/Sniper BFS scale rows below, not by this x86 tiny smoke. Do not use these
+rows for performance claims yet.
 
 RISC-V `ecg.extract` scaffold status: the tracked custom-0 decoder now strips
 the low 32-bit real vertex ID, decodes the fixed paper DBG/POPT/PFX fields, and
