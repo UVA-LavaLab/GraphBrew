@@ -325,6 +325,15 @@ python3 scripts/experiments/ecg/ecg_pfx_scale_status.py \
   --shards "$SHARDS" \
   --out results/ecg_experiments/slurm/${RUN_TAG}_scale_status.csv \
   --combined results/ecg_experiments/slurm/${RUN_TAG}_scale_combined.csv
+
+# Generate matched RISC-V gem5 follow-up shards for useful Sniper roots.
+FOLLOWUP_TAG=${RUN_TAG}_gem5_followup
+FOLLOWUP_SHARDS=results/ecg_experiments/slurm/${FOLLOWUP_TAG}_scale.tsv
+python3 scripts/experiments/ecg/make_ecg_pfx_scale_shards.py \
+  --from-combined results/ecg_experiments/slurm/${RUN_TAG}_scale_combined.csv \
+  --backend gem5-riscv \
+  --run-tag "$FOLLOWUP_TAG" \
+  --out "$FOLLOWUP_SHARDS"
 ```
 
 Current prepared local shard file, generated 2026-05-26:

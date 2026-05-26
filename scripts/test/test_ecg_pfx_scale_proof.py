@@ -96,3 +96,34 @@ def test_ecg_pfx_scale_status_reports_ok_and_missing(tmp_path):
     assert "not_started" in text
     assert "pf_useful_total" in text
     assert "sniper-sift" in combined.read_text()
+
+
+def test_make_ecg_pfx_scale_shards_selects_from_combined(tmp_path):
+    combined = tmp_path / "combined.csv"
+    combined.write_text(
+        "backend,scale,root,section,status,pf_issued,pf_useful\n"
+        "sniper-sift,11,0,1,ok,2,0\n"
+        "sniper-sift,11,2,1,ok,4,3\n"
+        "gem5-riscv,11,5,1,ok,4,4\n"
+        "sniper-sift,12,1,1,failed,4,4\n"
+    )
+    out = tmp_path / "followup.tsv"
+
+    subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/make_ecg_pfx_scale_shards.py",
+            "--from-combined", str(combined),
+            "--backend", "gem5-riscv",
+            "--run-tag", "followup",
+            "--out-root", "results/ecg_experiments/ecg_pfx_scale_proof",
+            "--out", str(out),
+        ],
+        cwd=PROJECT_ROOT,
+        check=True,
+    )
+
+    assert out.read_text().strip() == (
+        "11\t2\tgem5-riscv\t"
+        "results/ecg_experiments/ecg_pfx_scale_proof/followup/g11_r2_gem5-riscv"
+    )
