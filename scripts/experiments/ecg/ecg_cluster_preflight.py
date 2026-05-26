@@ -7,6 +7,7 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 from typing import Any
 
@@ -17,6 +18,10 @@ import ecg_graph_staging_status
 PROJECT_ROOT = final_paper_run.PROJECT_ROOT
 DEFAULT_MANIFEST = final_paper_run.DEFAULT_MANIFEST
 DEFAULT_GRAPH_DIR = PROJECT_ROOT / "results" / "graphs"
+SBATCH_SCRIPTS = [
+    PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_final_shard.sbatch",
+    PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_ecg_pfx_scale_proof.sbatch",
+]
 
 
 @dataclass
@@ -103,6 +108,24 @@ def check_slurm(require_slurm: bool) -> list[CheckResult]:
     return checks
 
 
+def check_sbatch_script(path: Path) -> CheckResult:
+    path_check = check_path(path, f"sbatch:{path.name}")
+    if not path_check.ok:
+        return path_check
+    bash = shutil.which("bash")
+    if not bash:
+        return CheckResult(f"sbatch:{path.name}", False, "bash not found for syntax check")
+    result = subprocess.run([bash, "-n", str(path)], text=True, capture_output=True, check=False)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or f"bash -n exit_code={result.returncode}"
+        return CheckResult(f"sbatch:{path.name}", False, detail)
+    return CheckResult(f"sbatch:{path.name}", True, f"syntax ok: {path}")
+
+
+def check_sbatch_scripts() -> list[CheckResult]:
+    return [check_sbatch_script(path) for path in SBATCH_SCRIPTS]
+
+
 def check_required_binaries(skip_sniper: bool) -> list[CheckResult]:
     checks = [
         check_path(PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt", "gem5-x86", True),
@@ -151,6 +174,7 @@ def main(argv: list[str]) -> int:
     if not args.skip_binaries:
         checks.extend(check_required_binaries(bool(args.skip_sniper)))
     checks.extend(check_slurm(bool(args.require_slurm)))
+    checks.extend(check_sbatch_scripts())
 
     if args.profile:
         checks.extend(staging_checks([str(profile) for profile in args.profile], graph_dir, bool(args.allow_missing_graphs)))

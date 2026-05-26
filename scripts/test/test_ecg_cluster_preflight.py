@@ -27,6 +27,8 @@ def test_cluster_preflight_accepts_scale_shards(tmp_path):
 
     assert "scale-shards" in result.stdout
     assert "1 rows" in result.stdout
+    assert "sbatch:slurm_ecg_pfx_scale_proof.sbatch" in result.stdout
+    assert "syntax ok" in result.stdout
 
 
 def test_cluster_preflight_allows_missing_graphs(tmp_path):
@@ -68,3 +70,24 @@ def test_cluster_preflight_profile_staging_check():
 
     assert "staging:soc-pokec" in result.stdout
     assert "staging:cit-Patents" in result.stdout
+
+
+def test_cluster_preflight_reports_sbatch_syntax_errors(tmp_path):
+    bad_script = tmp_path / "bad.sbatch"
+    bad_script.write_text("#!/bin/bash\nif [[ 1 ]]; then\n")
+
+    import importlib.util
+    import sys
+
+    path = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "ecg_cluster_preflight.py"
+    sys.path.insert(0, str(path.parent))
+    spec = importlib.util.spec_from_file_location("ecg_cluster_preflight", path)
+    ecg_cluster_preflight = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules["ecg_cluster_preflight"] = ecg_cluster_preflight
+    spec.loader.exec_module(ecg_cluster_preflight)
+
+    result = ecg_cluster_preflight.check_sbatch_script(bad_script)
+
+    assert not result.ok
+    assert result.name == "sbatch:bad.sbatch"
