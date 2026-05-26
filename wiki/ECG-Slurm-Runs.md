@@ -318,6 +318,15 @@ Each shard runs `scripts/experiments/ecg/ecg_pfx_scale_proof.py`, writes a
 `summary.csv`, and keeps the RISC-V gem5 and Sniper outputs under the requested
 `out_root`.
 
+Summarize shard status and combine completed `summary.csv` rows with:
+
+```bash
+python3 scripts/experiments/ecg/ecg_pfx_scale_status.py \
+  --shards "$SHARDS" \
+  --out results/ecg_experiments/slurm/${RUN_TAG}_scale_status.csv \
+  --combined results/ecg_experiments/slurm/${RUN_TAG}_scale_combined.csv
+```
+
 ## Guardrails
 
 - Do not run multiple GraphBrew gem5 shards on the same node unless sideband files are isolated.

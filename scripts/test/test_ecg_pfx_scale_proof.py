@@ -62,3 +62,37 @@ def test_make_ecg_pfx_scale_shards_expands_ranges(tmp_path):
     assert len(rows) == 12
     assert rows[0] == "11\t0\tsniper\tresults/ecg_experiments/ecg_pfx_scale_proof/unit/g11_r0_sniper"
     assert rows[-1] == "12\t2\tgem5-riscv\tresults/ecg_experiments/ecg_pfx_scale_proof/unit/g12_r2_gem5-riscv"
+
+
+def test_ecg_pfx_scale_status_reports_ok_and_missing(tmp_path):
+    ok_root = tmp_path / "ok"
+    ok_root.mkdir()
+    (ok_root / "summary.csv").write_text(
+        "backend,scale,root,section,status,pf_issued,pf_useful,hints,ecg_pfx_issued\n"
+        "sniper-sift,11,0,1,ok,2,1,8,8\n"
+    )
+    shards = tmp_path / "shards.tsv"
+    shards.write_text(
+        f"11\t0\tsniper\t{ok_root}\n"
+        f"11\t1\tsniper\t{tmp_path / 'missing'}\n"
+    )
+    status = tmp_path / "status.csv"
+    combined = tmp_path / "combined.csv"
+
+    subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/ecg_pfx_scale_status.py",
+            "--shards", str(shards),
+            "--out", str(status),
+            "--combined", str(combined),
+        ],
+        cwd=PROJECT_ROOT,
+        check=True,
+    )
+
+    text = status.read_text()
+    assert "ok" in text
+    assert "not_started" in text
+    assert "pf_useful_total" in text
+    assert "sniper-sift" in combined.read_text()
