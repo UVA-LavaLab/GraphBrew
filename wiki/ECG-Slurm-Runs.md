@@ -4,6 +4,12 @@ This page describes the reproducible UVA Slurm workflow for ECG final-paper runs
 
 The key rule: one GraphBrew gem5 process per node unless you have explicitly isolated the runtime sideband files. The gem5 path uses shared sideband files under `/tmp`, so Slurm jobs should request exclusive nodes or otherwise ensure only one GraphBrew gem5 shard runs per node.
 
+For autonomous execution, follow
+[the ECG autonomous final-paper completion task](../plans/ecg-autonomous-final-paper-completion.md).
+It keeps build checks, dry-runs, tiny smokes, and shard generation local, while
+large file-backed gem5/Sniper/final profiles are saved as Slurm shards instead
+of being launched on the workstation.
+
 ## Overview
 
 The workflow has four phases:

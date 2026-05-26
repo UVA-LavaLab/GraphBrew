@@ -280,8 +280,17 @@ def make_roi_job(
         command.extend(["--ecg-pfx-mode", str(settings.get("ecg_pfx_mode", "popt"))])
         command.extend(["--ecg-pfx-window", str(settings.get("ecg_pfx_window", 16))])
         command.extend(["--ecg-pfx-lookahead", str(settings.get("ecg_pfx_lookahead", 4))])
+        command.extend(["--ecg-pfx-hint-filter", str(settings.get("ecg_pfx_hint_filter", 16))])
+        command.extend(["--ecg-pfx-delivery", str(settings.get("ecg_pfx_delivery", "explicit-hint"))])
         if settings.get("allow_gem5_ecg_pfx"):
             command.append("--allow-gem5-ecg-pfx")
+    if str(settings.get("prefetcher", "none")) == "DROPLET":
+        if "droplet_prefetch_degree" in settings:
+            command.extend(["--droplet-prefetch-degree", str(settings["droplet_prefetch_degree"])])
+        if "droplet_indirect_degree" in settings:
+            command.extend(["--droplet-indirect-degree", str(settings["droplet_indirect_degree"])])
+        if "droplet_stride_table_size" in settings:
+            command.extend(["--droplet-stride-table-size", str(settings["droplet_stride_table_size"])])
     if str(settings.get("suite")) == "sniper":
         command.extend(["--sniper-workload", str(settings.get("sniper_workload", "pr_kernel_smoke"))])
         command.extend(["--sniper-cores", str(settings.get("sniper_cores", 1))])

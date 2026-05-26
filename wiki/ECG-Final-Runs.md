@@ -5,6 +5,10 @@ place to check before starting long cache-policy runs.
 
 For UVA Slurm runs where each graph/benchmark/policy shard runs independently
 and results are aggregated later, see [ECG Slurm runs](ECG-Slurm-Runs.md).
+For the autonomous finish-the-stack backlog, use
+[the final-paper completion task](../plans/ecg-autonomous-final-paper-completion.md);
+it routes bounded validation to the local workstation and large gem5/Sniper or
+final-scale jobs to Slurm shards.
 
 ## Current Scope
 
@@ -98,9 +102,101 @@ RISC-V `ecg.extract` scaffold status: the tracked custom-0 decoder now strips
 the low 32-bit real vertex ID, decodes the fixed paper DBG/POPT/PFX fields, and
 stores the decoded metadata/PFX target in GraphBrew hint storage. A RISC-V
 gem5 build now passes and verifies at
-`bench/include/gem5_sim/gem5/build/RISCV/gem5.opt`. A RISC-V benchmark wrapper
-run is still blocked locally by the missing `riscv64-linux-gnu-gcc/g++` cross
-toolchain, so do not use this as a timing claim path yet.
+`bench/include/gem5_sim/gem5/build/RISCV/gem5.opt`. The local
+`riscv64-linux-gnu-gcc/g++` cross toolchain is installed, and a static RISC-V PR
+wrapper builds with `make gem5-riscv-m5ops-pr`. A tiny RISC-V instruction-mode
+ECG_PFX smoke completed at `/tmp/graphbrew-riscv-ecg-pfx-g6-smoke` with
+`pfIdentified=2` and `pfIssued=2` (`pfUseful=0` on that tiny point). Treat this
+as instruction-path activation evidence, not a timing claim.
+
+Small RISC-V vs Sniper ECG_PFX evaluation, 2026-05-26:
+
+```text
+/tmp/graphbrew-riscv-ecg-pfx-kernel-proof
+/tmp/graphbrew-sniper-ecg-pfx-current-proof
+/tmp/graphbrew-ecg-pfx-riscv-sniper-kernel-proof/summary.csv
+```
+
+Both legs use synthetic g6, LRU, ECG_PFX at L2, 32kB L3, POPT mode, window 16,
+lookahead 4, and hint filter 16. The gem5 leg uses the RISC-V `ecg.extract`
+instruction path; the Sniper leg uses the bounded SIFT benchmark wrapper and
+explicit `GPFX` hint delivery.
+
+| Kernel | Backend | Status | Counter readout | Interpretation |
+|---|---|---|---|---|
+| PR | gem5 RISC-V | `ok` | section 1/2: `pfIdentified=1`, `pfIssued=1`, `pfUseful=0` | instruction delivery reaches gem5's prefetch queue, but this tiny PR point has no useful fill |
+| PR | Sniper SIFT | `ok` | `hints=4`, `ecg_pfx_issued=4`, `pf_issued=3`, `pf_useful=3` | Sniper hint delivery and cache-fill path are useful on this point |
+| BFS | gem5 RISC-V | `ok` | section 1/2: `pfIdentified=1`, `pfIssued=1`, `pfUseful=1` | matched instruction-path useful-prefetch proof |
+| BFS | Sniper SIFT | `ok` | `hints=4`, `ecg_pfx_issued=4`, `pf_issued=1`, `pf_useful=1` | matched Sniper useful-prefetch proof |
+| SSSP | gem5 RISC-V | `ok` | section 1/2: `pfIdentified=2`, `pfIssued=2`, `pfUseful=1` | RISC-V instruction path has useful fills |
+| SSSP | Sniper SIFT | `active_no_fill` | `hints=4`, `ecg_pfx_issued=4`, `pf_issued=0` | Sniper consumes hints and generates requests but does not enqueue fills for this SSSP point |
+
+Use BFS as the current local matched proof point: both backends report nonzero
+issued and useful prefetch counters. PR and SSSP remain useful diagnostic rows,
+but not complete matched proof points. None of these tiny rows are performance
+claims; `timing_valid_for_speedup=0` still applies to ECG_PFX detailed-sim rows.
+
+Small evaluation recipe:
+
+```bash
+make gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs gem5-riscv-m5ops-sssp PARALLEL=2
+
+root=/tmp/graphbrew-riscv-ecg-pfx-kernel-proof
+rm -rf "$root" && mkdir -p "$root"
+for bench in pr bfs sssp; do
+  case "$bench" in
+    pr) opts="-g 6 -k 8 -o 2 -n 1 -i 1" ;;
+    bfs) opts="-g 6 -k 8 -o 2 -n 1 -r 0" ;;
+    sssp) opts="-g 6 -k 8 -o 2 -n 1 -r 0 -d 1" ;;
+  esac
+  out="$root/$bench"
+  mkdir -p "$out/sidebands"
+GEM5_GRAPHBREW_CTX="$out/sidebands/ctx.json" \
+GEM5_POPT_MATRIX="$out/sidebands/popt.bin" \
+GEM5_GRAPHBREW_OUT_EDGES="$out/sidebands/out_edges.bin" \
+GEM5_GRAPHBREW_IN_EDGES="$out/sidebands/in_edges.bin" \
+ECG_PREFETCH_MODE=2 \
+ECG_PREFETCH_WINDOW=16 \
+bench/include/gem5_sim/gem5/build/RISCV/gem5.opt \
+  --outdir="$out/m5out" \
+  bench/include/gem5_sim/configs/graphbrew/graph_se.py \
+  --binary "bench/bin_gem5/${bench}_riscv_m5ops" \
+  --options "$opts" \
+  --policy LRU \
+  --prefetcher ECG_PFX \
+  --prefetcher-level l2 \
+  --ecg-pfx-lookahead 4 \
+  --ecg-pfx-hint-filter 16 \
+  --ecg-pfx-delivery instruction \
+  --l1d-size 1kB --l2-size 2kB --l3-size 32kB --l3-ways 16
+done
+
+python3 scripts/setup_sniper.py --skip-build --apply-overlays
+USE_SDE=1 make -C bench/include/sniper_sim/snipersim/common -j1
+USE_SDE=1 make -C bench/include/sniper_sim/snipersim/standalone -j1
+
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile sniper_sift_ecg_pfx_smoke \
+  --run-dir /tmp/graphbrew-sniper-ecg-pfx-current-proof \
+  --no-build --force --skip-validation-gate
+```
+
+Full evaluation guide:
+
+1. Keep the local gate small: PR/BFS/SSSP g6 first, and treat BFS as the current
+  matched proof row because both backends report useful fills there.
+2. Use `cache_sim` to select graph/cache points where PFX has useful fills or
+  clear demand-miss reductions before spending gem5/Sniper time.
+3. For gem5, run RISC-V instruction delivery on one benchmark/policy at a time;
+  do not combine it with large graph sweeps locally.
+4. For Sniper, use bounded SIFT full wrappers with `--sniper-memory-limit-gb`
+  and require nonzero `ecg_pfx_target_hints_seen`, `ecg_pfx_issued`, and
+  eventually `pf_issued`/`pf_useful` before claiming active cache prefetching.
+5. Once PR/BFS/SSSP pass local activation on available graphs, generate Slurm
+  shards for larger gem5/Sniper/file-backed matrices instead of running them on
+  the workstation.
+6. Aggregate completed shards with `paper_pipeline.py --skip-run`; verify
+  `timing_valid_for_speedup` before using any speedup column.
 
 Validated local smoke outputs:
 
@@ -137,6 +233,52 @@ saturated at the same small miss count across policies.
 Use the repo venv for figure generation; system Python may not have matplotlib.
 ECG_PFX smoke aggregation writes generic `prefetch_*` figures, not DROPLET-only
 figure names.
+
+Timing interpretation for ECG_PFX:
+
+- cache and prefetch metrics are valid mechanism evidence (`l3_misses`,
+  prefetch issued/fill/useful counters, and memory traffic),
+- current gem5/Sniper ECG_PFX rows use explicit benchmark-emitted hint delivery
+  (`GEM5_ECG_PFX_TARGET` / `SNIPER_ECG_PFX_TARGET`),
+- the wrappers now apply a small recent-target filter before crossing the
+  simulator magic-call boundary (`--ecg-pfx-hint-filter`, default `16`) so
+  obvious duplicate target hints are not over-emitted,
+- gem5 also has an opt-in RISC-V custom-instruction delivery path
+  (`--ecg-pfx-delivery instruction`, `GEM5_ENABLE_ECG_EXTRACT=1`) that emits
+  `ecg.extract` instead of the m5ops PFX target hint when the benchmark is built
+  for RISC-V,
+- that hint path is a prototype delivery mechanism, not the final
+  instruction-carried hardware metadata model,
+- therefore `roi_matrix.py` marks gem5/Sniper ECG_PFX rows with
+  `timing_model=prototype_explicit_hint_delivery` and
+  `timing_valid_for_speedup=0`,
+- `paper_pipeline.py` preserves their cache/prefetch metrics but omits
+  `speedup_vs_lru` and speedup figures for those rows.
+
+Only use ECG_PFX simulator target-time speedups after the run actually uses an
+instruction-carried or otherwise hardware-faithful low-overhead PFX path. The
+current X86 gem5/Sniper rows remain cache-performance and precision evidence,
+not runtime-speedup evidence.
+
+Preprocessing overhead is measured in two ways. Cache_sim rows already include
+`ecg_build_s`, which is the ECG mask/PFX construction time observed inside the
+simulator run. For no-simulation overhead analysis, use `bench/bin_sim/ecg_preprocess`:
+
+```bash
+make RABBIT_ENABLE=0 bench/bin_sim/ecg_preprocess
+ECG_PREFETCH_MODE=2 \
+ECG_PREPROCESS_REPEATS=5 \
+ECG_PREPROCESS_OUTPUT_JSON=/tmp/graphbrew-ecg-preprocess.json \
+OMP_NUM_THREADS=32 \
+bench/bin_sim/ecg_preprocess -f results/graphs/email-Eu-core/email-Eu-core.sg -s -o 0 -n 1
+```
+
+The JSON separates `graph_load_s` from `degree_scan_s_*`,
+`popt_matrix_s_*`, `mask_build_s_*`, and `total_preprocess_s_*`. Use
+`total_preprocess_s_*` for end-to-end ECG/PFX metadata cost, and use
+`mask_build_s_*` when isolating only compact mask construction. The utility uses
+the same OpenMP-enabled degree scan, P-OPT matrix builder, and ECG mask builder
+as the cache_sim path, but does not run PR/BFS/SSSP or any cache simulation.
 
 Interpretation:
 
@@ -239,7 +381,42 @@ python3 scripts/experiments/ecg/roi_matrix.py \
   --no-build
 ```
 
-Run the full rehearsal before any multi-day job:
+Small-machine final-run smoke:
+
+```bash
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile rehearsal \
+  --run-dir /tmp/graphbrew-local-final-rehearsal-lite \
+  --only 02_gem5_replacement_rehearsal \
+  --benchmark bfs \
+  --policy LRU \
+  --no-build \
+  --force \
+  --skip-validation-gate
+
+.venv/bin/python3 scripts/experiments/ecg/paper_pipeline.py \
+  --skip-run \
+  --input-run-dirs /tmp/graphbrew-local-final-rehearsal-lite \
+  --run-root /tmp/graphbrew-local-final-rehearsal-lite-aggregate-venv
+```
+
+Validated local result, 2026-05-26:
+
+```text
+/tmp/graphbrew-local-final-rehearsal-lite: 1/1 final-run job ok
+combined_roi_matrix.csv: 2 gem5 BFS/LRU ROI rows ok
+section 1: sim_ticks=7,266,133,000, l3_misses=41,807
+section 2: sim_ticks=7,463,180,000, l3_misses=43,518
+/tmp/graphbrew-local-final-rehearsal-lite-aggregate-venv: CSVs, LaTeX tables, SVG figures, and PNG previews generated
+```
+
+The full `rehearsal` profile is useful, but it expands to cache_sim proof plus
+six gem5 matrix jobs. On a workstation, the first PR replacement matrix alone
+can take several minutes per policy, so use the small-machine smoke above for a
+quick final-run/pipeline sanity check and reserve the full rehearsal for a long
+local window or Slurm.
+
+Run the full rehearsal before any multi-day job when you have enough local time:
 
 ```bash
 python3 scripts/experiments/ecg/final_paper_run.py --profile rehearsal

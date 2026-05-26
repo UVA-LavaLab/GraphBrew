@@ -77,6 +77,10 @@ def benchmark_environment(args):
         f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",
         f"GEM5_ENABLE_ECG_PFX_HINTS={1 if args.prefetcher == 'ECG_PFX' else 0}",
         f"GEM5_ECG_PFX_LOOKAHEAD={args.ecg_pfx_lookahead if args.prefetcher == 'ECG_PFX' else 0}",
+        f"GEM5_ECG_PFX_HINT_FILTER={args.ecg_pfx_hint_filter if args.prefetcher == 'ECG_PFX' else 0}",
+        f"GEM5_ECG_PFX_FILTER_ELEM_SIZE=4",
+        f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
+        f"GEM5_ENABLE_ECG_EXTRACT={1 if args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction' else 0}",
     ]
     for env_name, default_path in RUNTIME_SIDEBAND_FILES:
         env.append(f"{env_name}={os.environ.get(env_name, default_path)}")
@@ -113,8 +117,19 @@ def parse_args():
     parser.add_argument("--prefetcher-level", default="l2",
         choices=["l1d", "l2"],
         help="Cache level for graph prefetcher attachment (default: l2)")
+    parser.add_argument("--droplet-prefetch-degree", type=int, default=1,
+        help="DROPLET edge-stream cache lines to prefetch per trigger (artifact default: 1)")
+    parser.add_argument("--droplet-indirect-degree", type=int, default=16,
+        help="DROPLET neighbor IDs to translate into property prefetches per edge line (artifact default: 16)")
+    parser.add_argument("--droplet-stride-table-size", type=int, default=64,
+        help="DROPLET stream table entries (artifact config streams default: 64)")
     parser.add_argument("--ecg-pfx-lookahead", default="4",
         help="Future-neighbor lookahead distance for benchmark-emitted ECG_PFX hints")
+    parser.add_argument("--ecg-pfx-hint-filter", default="16",
+        help="Recent-target filter capacity before emitting ECG_PFX hints; 0 disables filtering")
+    parser.add_argument("--ecg-pfx-delivery", default="explicit-hint",
+        choices=["explicit-hint", "instruction"],
+        help="ECG_PFX delivery path: m5ops prototype or RISC-V ecg.extract instruction path")
 
     # CPU model
     parser.add_argument("--cpu-type", default="timing",
@@ -174,10 +189,15 @@ def create_system(args):
 
     # ── Prefetcher ──
     if args.prefetcher == "DROPLET":
+        droplet_kwargs = {
+            "prefetch_degree": args.droplet_prefetch_degree,
+            "indirect_degree": args.droplet_indirect_degree,
+            "stride_table_size": args.droplet_stride_table_size,
+        }
         if args.prefetcher_level == "l1d":
-            system.cpu.dcache.prefetcher = make_droplet_prefetcher()
+            system.cpu.dcache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
         else:
-            system.l2cache.prefetcher = make_droplet_prefetcher()
+            system.l2cache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
     elif args.prefetcher == "ECG_PFX":
         if args.prefetcher_level == "l1d":
             system.cpu.dcache.prefetcher = make_ecg_pfx_prefetcher()
@@ -214,9 +234,12 @@ def create_system(args):
     system.cpu.createInterruptController()
     if hasattr(system.cpu, "interrupts"):
         for interrupt in system.cpu.interrupts:
-            interrupt.pio = system.membus.mem_side_ports
-            interrupt.int_requestor = system.membus.cpu_side_ports
-            interrupt.int_responder = system.membus.mem_side_ports
+            if hasattr(interrupt, "pio"):
+                interrupt.pio = system.membus.mem_side_ports
+            if hasattr(interrupt, "int_requestor"):
+                interrupt.int_requestor = system.membus.cpu_side_ports
+            if hasattr(interrupt, "int_responder"):
+                interrupt.int_responder = system.membus.mem_side_ports
 
     # CPU ports
     system.cpu.icache_port = system.cpu.icache.cpu_side

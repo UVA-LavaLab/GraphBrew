@@ -12,6 +12,10 @@ def test_sniper_harness_defines_ecg_pfx_hint_surface() -> None:
     text = read("bench/include/sniper_sim/sniper_harness.h")
     assert "GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET" in text
     assert "SNIPER_ENABLE_ECG_PFX_HINTS" in text
+    assert "SNIPER_ECG_PFX_HINT_FILTER" in text
+    assert "SNIPER_ECG_PFX_FILTER_ELEM_SIZE" in text
+    assert "SNIPER_ECG_PFX_FILTER_LINE_SIZE" in text
+    assert "should_emit_ecg_pfx_hint" in text
     assert "SNIPER_ECG_PFX_TARGET" in text
 
 
@@ -52,6 +56,9 @@ def test_sniper_runner_wires_ecg_pfx_prefetcher() -> None:
     assert '"Sniper ECG_PFX requires overlays' in text
     assert 'prefetcher"] = "ecg_pfx"' in text
     assert 'SNIPER_ENABLE_ECG_PFX_HINTS' in text
+    assert 'SNIPER_ECG_PFX_HINT_FILTER' in text
+    assert 'SNIPER_ECG_PFX_FILTER_ELEM_SIZE' in text
+    assert 'SNIPER_ECG_PFX_FILTER_LINE_SIZE' in text
     assert 'ecg_pfx_target_hints_seen' in text
     assert 'ecg_pfx_activity' in text
 

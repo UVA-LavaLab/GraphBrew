@@ -32,8 +32,6 @@ GraphDropletPrefetcher::calculatePrefetch(
     const CacheAccessor &cache)
 {
     Addr addr = pfi.getAddr();
-    bool isMiss = pfi.isCacheMiss();
-
     if ((!edgeConfigured || !propertyConfigured) && !sidebandLoaded) {
         sidebandProbeCount++;
         if (sidebandProbeCount == 1 || (sidebandProbeCount & 0x3ff) == 0) {
@@ -78,9 +76,7 @@ GraphDropletPrefetcher::calculatePrefetch(
         // From the current edge data, extract neighbor IDs and prefetch
         // their property data. This is the key DROPLET innovation:
         // the indirect chain edge_list[i] → neighbor_id → property[neighbor_id]
-        if (isMiss && !edgeDataLoaded) {
-            issueIndirectPrefetches(addr, addresses);
-        }
+        issueIndirectPrefetches(addr, addresses);
     }
 
     // Property data misses: no action needed (covered by indirect prefetch)

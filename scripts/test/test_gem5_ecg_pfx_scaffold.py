@@ -40,6 +40,10 @@ def test_graph_se_accepts_ecg_pfx_prefetcher():
     assert 'choices=["none", "DROPLET", "ECG_PFX"]' in text
     assert "GEM5_ENABLE_ECG_PFX_HINTS" in text
     assert "GEM5_ECG_PFX_LOOKAHEAD" in text
+    assert "GEM5_ECG_PFX_HINT_FILTER" in text
+    assert "GEM5_ECG_PFX_FILTER_ELEM_SIZE" in text
+    assert "GEM5_ECG_PFX_FILTER_LINE_SIZE" in text
+    assert "GEM5_ENABLE_ECG_EXTRACT" in text
     assert "make_ecg_pfx_prefetcher" in text
 
 
@@ -48,6 +52,9 @@ def test_gem5_harness_defines_ecg_pfx_m5ops_macro():
 
     assert "GEM5_WORK_ECG_PFX_TARGET" in text
     assert "GEM5_ECG_PFX_TARGET" in text
+    assert "gem5_should_emit_ecg_pfx_hint" in text
+    assert "gem5_ecg_extract_target_instruction" in text
+    assert ".insn r 0x0b" in text
 
 
 def test_riscv_ecg_extract_overlay_uses_custom0_opcode():

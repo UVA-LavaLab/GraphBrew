@@ -27,11 +27,12 @@ GraphEcgPfxPrefetcher::calculatePrefetch(
         }
     }
 
-    uint32_t target = 0;
-    if (!replacement_policy::graph::consumePrefetchTargetHint(target)) {
+    if (!sidebandLoaded || !propertyConfigured) {
         return;
     }
-    if (!sidebandLoaded || !propertyConfigured) {
+
+    uint32_t target = 0;
+    if (!replacement_policy::graph::consumePrefetchTargetHint(target)) {
         return;
     }
 

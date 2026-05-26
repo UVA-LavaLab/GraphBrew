@@ -82,6 +82,20 @@ For ECG_PFX paper figures, aggregate the validated Sniper profiles with:
 	--run-root /tmp/graphbrew-paper-pipeline-sniper-ecg-pfx
 ```
 
+To measure ECG/ECG_PFX preprocessing overhead without running a cache simulator,
+build and run the standalone utility. It reports graph-load time separately from
+degree scan, optional P-OPT matrix construction, ECG mask/PFX construction, and
+total preprocessing time.
+
+```bash
+make RABBIT_ENABLE=0 bench/bin_sim/ecg_preprocess
+ECG_PREFETCH_MODE=2 \
+ECG_PREPROCESS_REPEATS=5 \
+ECG_PREPROCESS_OUTPUT_JSON=/tmp/graphbrew-ecg-preprocess.json \
+OMP_NUM_THREADS=32 \
+bench/bin_sim/ecg_preprocess -f results/graphs/email-Eu-core/email-Eu-core.sg -s -o 0 -n 1
+```
+
 SLURM templates: `scripts/experiments/vldb/stages/slurm/*.sbatch`.
 
 ## Legacy / all-in-one entry points

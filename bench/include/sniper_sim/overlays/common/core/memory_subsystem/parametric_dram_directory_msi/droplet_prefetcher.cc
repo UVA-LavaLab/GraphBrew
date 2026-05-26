@@ -34,9 +34,9 @@ UInt32 cfgUIntOrDefault(const String& key, core_id_t core_id, UInt32 fallback)
 
 DropletPrefetcher::DropletPrefetcher(String configName, core_id_t core_id)
    : m_core_id(core_id)
-   , m_prefetch_degree(cfgUIntOrDefault("perf_model/" + configName + "/prefetcher/droplet/prefetch_degree", core_id, 2))
-   , m_indirect_degree(cfgUIntOrDefault("perf_model/" + configName + "/prefetcher/droplet/indirect_degree", core_id, 4))
-   , m_stride_table_size(cfgUIntOrDefault("perf_model/" + configName + "/prefetcher/droplet/stride_table_size", core_id, 16))
+   , m_prefetch_degree(cfgUIntOrDefault("perf_model/" + configName + "/prefetcher/droplet/prefetch_degree", core_id, 1))
+   , m_indirect_degree(cfgUIntOrDefault("perf_model/" + configName + "/prefetcher/droplet/indirect_degree", core_id, 16))
+   , m_stride_table_size(cfgUIntOrDefault("perf_model/" + configName + "/prefetcher/droplet/stride_table_size", core_id, 64))
    , m_cache_line_size(cfgUIntOrDefault("perf_model/" + configName + "/cache_block_size", core_id, 64))
    , m_stride_table(m_stride_table_size)
 {

@@ -26,6 +26,7 @@ make sim-cc
 make sim-cc_sv
 make sim-sssp
 make sim-tc
+make RABBIT_ENABLE=0 bench/bin_sim/ecg_preprocess
 ```
 
 ## Running
@@ -39,7 +40,19 @@ CACHE_L1_SIZE=32768 CACHE_L1_WAYS=8 CACHE_POLICY=LRU ./bench/bin_sim/pr -g 15 -n
 
 # Export statistics to JSON
 CACHE_OUTPUT_JSON=cache_stats.json ./bench/bin_sim/pr -g 15 -n 1
+
+# Benchmark ECG preprocessing overhead without cache simulation
+ECG_PREFETCH_MODE=2 ECG_PREPROCESS_REPEATS=5 \
+ECG_PREPROCESS_OUTPUT_JSON=ecg_preprocess.json \
+OMP_NUM_THREADS=32 \
+./bench/bin_sim/ecg_preprocess -g 15 -k 16 -o 0 -n 1
 ```
+
+`ecg_preprocess` loads/builds the graph, then times the preprocessing work that
+feeds ECG/ECG_PFX: degree scan, optional P-OPT rereference matrix construction,
+mask/PFX construction, and total preprocessing. It does not run a graph kernel
+or cache simulation. `graph_load_s` is reported separately so overhead analysis
+can focus on `total_preprocess_s_*` or the isolated `mask_build_s_*` fields.
 
 ## Configuration
 

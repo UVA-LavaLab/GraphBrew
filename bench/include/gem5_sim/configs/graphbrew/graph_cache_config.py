@@ -174,9 +174,9 @@ def make_l3_cache(policy="LRU", size=DEFAULTS["l3_size"],
 def make_droplet_prefetcher(**kwargs):
     """Create DROPLET indirect graph prefetcher."""
     return GraphDropletPrefetcher(
-        prefetch_degree=kwargs.get("prefetch_degree", 4),
-        indirect_degree=kwargs.get("indirect_degree", 8),
-        stride_table_size=kwargs.get("stride_table_size", 16),
+        prefetch_degree=kwargs.get("prefetch_degree", 1),
+        indirect_degree=kwargs.get("indirect_degree", 16),
+        stride_table_size=kwargs.get("stride_table_size", 64),
         use_virtual_addresses=True,
         prefetch_on_access=True,
         on_inst=False,

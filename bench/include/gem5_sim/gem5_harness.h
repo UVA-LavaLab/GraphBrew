@@ -70,15 +70,174 @@ inline bool gem5_ecg_pfx_hints_enabled() {
     return enabled != 0;
 }
 
+inline bool gem5_ecg_extract_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_EXTRACT");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+inline int gem5_ecg_pfx_hint_filter_capacity() {
+    static int capacity = []() {
+        const char* value = std::getenv("GEM5_ECG_PFX_HINT_FILTER");
+        if (!value || !value[0]) return 16;
+        int parsed = std::atoi(value);
+        if (parsed < 0) return 0;
+        if (parsed > 64) return 64;
+        return parsed;
+    }();
+    return capacity;
+}
+
+inline bool gem5_should_emit_ecg_pfx_hint(uint64_t vertex_id) {
+    int capacity = gem5_ecg_pfx_hint_filter_capacity();
+    if (capacity == 0) return true;
+    auto env_int = [](const char* name, int default_value, int min_value, int max_value) {
+        const char* value = std::getenv(name);
+        if (!value || !value[0]) return default_value;
+        int parsed = std::atoi(value);
+        if (parsed < min_value) return min_value;
+        if (parsed > max_value) return max_value;
+        return parsed;
+    };
+    int elem_size = env_int("GEM5_ECG_PFX_FILTER_ELEM_SIZE", 4, 1, 64);
+    int line_size = env_int("GEM5_ECG_PFX_FILTER_LINE_SIZE", 64, 1, 4096);
+    uint64_t vertices_per_line = static_cast<uint64_t>(line_size / elem_size);
+    if (vertices_per_line == 0) vertices_per_line = 1;
+    uint64_t filter_key = vertex_id / vertices_per_line;
+    thread_local uint64_t recent[64] = {};
+    thread_local int count = 0;
+    thread_local int next = 0;
+    for (int i = 0; i < count; ++i) {
+        if (recent[i] == filter_key) return false;
+    }
+    recent[next] = filter_key;
+    next = (next + 1) % capacity;
+    if (count < capacity) ++count;
+    return true;
+}
+
+inline uint32_t gem5_ecg_extract_target_instruction(uint32_t target_vertex) {
+#if defined(__riscv)
+    uint64_t fat_id = static_cast<uint64_t>(target_vertex);
+    uint64_t real_vertex = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x00, %0, %1, x0"
+                  : "=r"(real_vertex)
+                  : "r"(fat_id)
+                  : "memory");
+    return static_cast<uint32_t>(real_vertex);
+#else
+    return target_vertex;
+#endif
+}
+
+#if defined(__riscv)
 #define GEM5_ECG_PFX_TARGET(vertex_id) \
     do { \
         if (gem5_ecg_pfx_hints_enabled()) { \
-            m5_work_begin(GEM5_WORK_ECG_PFX_TARGET, static_cast<uint64_t>(vertex_id)); \
+            uint64_t _gem5_pfx_vertex = static_cast<uint64_t>(vertex_id); \
+            if (gem5_should_emit_ecg_pfx_hint(_gem5_pfx_vertex)) { \
+                if (gem5_ecg_extract_enabled()) { \
+                    (void)gem5_ecg_extract_target_instruction(static_cast<uint32_t>(_gem5_pfx_vertex)); \
+                } else { \
+                    m5_work_begin(GEM5_WORK_ECG_PFX_TARGET, _gem5_pfx_vertex); \
+                } \
+            } \
         } \
     } while (0)
 #else
+#define GEM5_ECG_PFX_TARGET(vertex_id) \
+    do { \
+        if (gem5_ecg_pfx_hints_enabled()) { \
+            uint64_t _gem5_pfx_vertex = static_cast<uint64_t>(vertex_id); \
+            if (gem5_should_emit_ecg_pfx_hint(_gem5_pfx_vertex)) { \
+                m5_work_begin(GEM5_WORK_ECG_PFX_TARGET, _gem5_pfx_vertex); \
+            } \
+        } \
+    } while (0)
+#endif
+#else
 #define GEM5_SET_VERTEX(vertex_id) do {} while(0)
+#if defined(__riscv)
+inline bool gem5_ecg_pfx_hints_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_PFX_HINTS");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+inline bool gem5_ecg_extract_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_EXTRACT");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+inline int gem5_ecg_pfx_hint_filter_capacity() {
+    static int capacity = []() {
+        const char* value = std::getenv("GEM5_ECG_PFX_HINT_FILTER");
+        if (!value || !value[0]) return 16;
+        int parsed = std::atoi(value);
+        if (parsed < 0) return 0;
+        if (parsed > 64) return 64;
+        return parsed;
+    }();
+    return capacity;
+}
+
+inline bool gem5_should_emit_ecg_pfx_hint(uint64_t vertex_id) {
+    int capacity = gem5_ecg_pfx_hint_filter_capacity();
+    if (capacity == 0) return true;
+    auto env_int = [](const char* name, int default_value, int min_value, int max_value) {
+        const char* value = std::getenv(name);
+        if (!value || !value[0]) return default_value;
+        int parsed = std::atoi(value);
+        if (parsed < min_value) return min_value;
+        if (parsed > max_value) return max_value;
+        return parsed;
+    };
+    int elem_size = env_int("GEM5_ECG_PFX_FILTER_ELEM_SIZE", 4, 1, 64);
+    int line_size = env_int("GEM5_ECG_PFX_FILTER_LINE_SIZE", 64, 1, 4096);
+    uint64_t vertices_per_line = static_cast<uint64_t>(line_size / elem_size);
+    if (vertices_per_line == 0) vertices_per_line = 1;
+    uint64_t filter_key = vertex_id / vertices_per_line;
+    thread_local uint64_t recent[64] = {};
+    thread_local int count = 0;
+    thread_local int next = 0;
+    for (int i = 0; i < count; ++i) {
+        if (recent[i] == filter_key) return false;
+    }
+    recent[next] = filter_key;
+    next = (next + 1) % capacity;
+    if (count < capacity) ++count;
+    return true;
+}
+
+inline uint32_t gem5_ecg_extract_target_instruction(uint32_t target_vertex) {
+    uint64_t fat_id = static_cast<uint64_t>(target_vertex);
+    uint64_t real_vertex = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x00, %0, %1, x0"
+                  : "=r"(real_vertex)
+                  : "r"(fat_id)
+                  : "memory");
+    return static_cast<uint32_t>(real_vertex);
+}
+
+#define GEM5_ECG_PFX_TARGET(vertex_id) \
+    do { \
+        if (gem5_ecg_pfx_hints_enabled() && gem5_ecg_extract_enabled()) { \
+            uint64_t _gem5_pfx_vertex = static_cast<uint64_t>(vertex_id); \
+            if (gem5_should_emit_ecg_pfx_hint(_gem5_pfx_vertex)) { \
+                (void)gem5_ecg_extract_target_instruction(static_cast<uint32_t>(_gem5_pfx_vertex)); \
+            } \
+        } \
+    } while (0)
+#else
 #define GEM5_ECG_PFX_TARGET(vertex_id) do {} while(0)
+#endif
 #endif
 
 inline const char* gem5_env_or_default(const char* name, const char* fallback) {

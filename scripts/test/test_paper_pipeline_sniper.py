@@ -160,3 +160,54 @@ def test_prefetch_quality_preserves_ecg_pfx_label():
     assert summary[0]["source"] == "gem5"
     assert summary[0]["prefetcher"] == "ECG_PFX"
     assert summary[0]["prefetch_accuracy_pct"] == 50.0
+
+
+def test_ecg_pfx_hint_timing_is_not_used_for_speedup():
+    rows = [
+        {
+            **roi_row("LRU", "1", "100"),
+            "prefetcher": "ECG_PFX",
+            "timing_model": "prototype_explicit_hint_delivery",
+            "timing_valid_for_speedup": "0",
+            "timing_caveat": "explicit hint delivery",
+            "l3_misses": "100",
+        },
+        {
+            **roi_row("ECG_POPT_PRIMARY", "1", "80"),
+            "prefetcher": "ECG_PFX",
+            "timing_model": "prototype_explicit_hint_delivery",
+            "timing_valid_for_speedup": "0",
+            "timing_caveat": "explicit hint delivery",
+            "l3_misses": "50",
+        },
+    ]
+
+    relative = paper_pipeline.roi_relative_metrics(rows)
+    pfx_row = next(row for row in relative if row["policy_label"] == "ECG_POPT_PRIMARY")
+
+    assert "speedup_vs_lru" not in pfx_row
+    assert "normalized_ticks_vs_lru" not in pfx_row
+    assert pfx_row["l3_miss_reduction_vs_lru_pct"] == 50.0
+    assert pfx_row["timing_valid_for_speedup"] == "0"
+
+
+def test_legacy_ecg_pfx_rows_are_inferred_timing_invalid():
+    rows = [
+        {
+            **roi_row("LRU", "1", "100"),
+            "prefetcher": "ECG_PFX",
+            "l3_misses": "100",
+        },
+        {
+            **roi_row("ECG_POPT_PRIMARY", "1", "80"),
+            "prefetcher": "ECG_PFX",
+            "l3_misses": "50",
+        },
+    ]
+
+    relative = paper_pipeline.roi_relative_metrics(rows)
+    pfx_row = next(row for row in relative if row["policy_label"] == "ECG_POPT_PRIMARY")
+
+    assert "speedup_vs_lru" not in pfx_row
+    assert pfx_row["timing_valid_for_speedup"] == "0"
+    assert pfx_row["timing_model"] == "prototype_explicit_hint_delivery"

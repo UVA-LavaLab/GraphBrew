@@ -58,16 +58,16 @@ EcgPfxPrefetcher::getNextAddress(IntPtr current_address, core_id_t core_id,
    }
 
    std::vector<IntPtr> addresses;
+   if (!m_sideband_loaded || !m_property_configured) {
+      m_stat_no_sideband++;
+      return addresses;
+   }
+
    UInt32 target = 0;
    if (!graphbrew::sniper::consumePrefetchTargetHint(static_cast<UInt32>(m_core_id), target)) {
       return addresses;
    }
    m_stat_target_hints_seen++;
-
-   if (!m_sideband_loaded || !m_property_configured) {
-      m_stat_no_sideband++;
-      return addresses;
-   }
 
    IntPtr address = propertyAddress(target);
    if (!isPropertyAddress(address)) {

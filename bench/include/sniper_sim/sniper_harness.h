@@ -96,6 +96,34 @@ inline bool ecg_pfx_hints_enabled() {
     return value && value[0] && std::string(value) != "0";
 }
 
+inline bool should_emit_ecg_pfx_hint(uint64_t vertex_id) {
+    int capacity = env_int_clamped("SNIPER_ECG_PFX_HINT_FILTER", 16, 0, 64);
+    if (capacity == 0) {
+        return true;
+    }
+    int elem_size = env_int_clamped("SNIPER_ECG_PFX_FILTER_ELEM_SIZE", 4, 1, 64);
+    int line_size = env_int_clamped("SNIPER_ECG_PFX_FILTER_LINE_SIZE", 64, 1, 4096);
+    uint64_t vertices_per_line = static_cast<uint64_t>(line_size / elem_size);
+    if (vertices_per_line == 0) {
+        vertices_per_line = 1;
+    }
+    uint64_t filter_key = vertex_id / vertices_per_line;
+    thread_local uint64_t recent[64] = {};
+    thread_local int count = 0;
+    thread_local int next = 0;
+    for (int i = 0; i < count; ++i) {
+        if (recent[i] == filter_key) {
+            return false;
+        }
+    }
+    recent[next] = filter_key;
+    next = (next + 1) % capacity;
+    if (count < capacity) {
+        ++count;
+    }
+    return true;
+}
+
 inline void roi_begin() {
 #if GRAPHBREW_SNIPER_HAS_SIM_API
     SimRoiStart();
@@ -117,6 +145,9 @@ inline void set_vertex(uint64_t vertex_id) {
 
 inline void set_prefetch_target(uint64_t vertex_id) {
     if (!ecg_pfx_hints_enabled()) {
+        return;
+    }
+    if (!should_emit_ecg_pfx_hint(vertex_id)) {
         return;
     }
     notify_user(GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET, vertex_id);

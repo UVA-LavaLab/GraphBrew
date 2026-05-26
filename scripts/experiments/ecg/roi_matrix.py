@@ -662,8 +662,18 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         "--l3-size", effective_l3_size,
         "--l3-ways", effective_l3_ways,
     ]
+    if args.prefetcher == "DROPLET":
+        cmd.extend([
+            "--droplet-prefetch-degree", str(args.droplet_prefetch_degree),
+            "--droplet-indirect-degree", str(args.droplet_indirect_degree),
+            "--droplet-stride-table-size", str(args.droplet_stride_table_size),
+        ])
     if args.prefetcher == "ECG_PFX":
-        cmd.extend(["--ecg-pfx-lookahead", str(args.ecg_pfx_lookahead)])
+        cmd.extend([
+            "--ecg-pfx-lookahead", str(args.ecg_pfx_lookahead),
+            "--ecg-pfx-hint-filter", str(args.ecg_pfx_hint_filter),
+            "--ecg-pfx-delivery", str(args.ecg_pfx_delivery),
+        ])
     if spec.ecg_mode:
         cmd.extend(["--ecg-mode", spec.ecg_mode])
 
@@ -898,9 +908,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if args.prefetcher == "DROPLET":
         prefetch_config = "l1_dcache" if args.prefetcher_level == "l1d" else "l2_cache"
         sniper_config_values[f"perf_model/{prefetch_config}/prefetcher"] = "droplet"
-        sniper_config_values[f"perf_model/{prefetch_config}/prefetcher/droplet/prefetch_degree"] = 2
-        sniper_config_values[f"perf_model/{prefetch_config}/prefetcher/droplet/indirect_degree"] = 4
-        sniper_config_values[f"perf_model/{prefetch_config}/prefetcher/droplet/stride_table_size"] = 16
+        sniper_config_values[f"perf_model/{prefetch_config}/prefetcher/droplet/prefetch_degree"] = args.droplet_prefetch_degree
+        sniper_config_values[f"perf_model/{prefetch_config}/prefetcher/droplet/indirect_degree"] = args.droplet_indirect_degree
+        sniper_config_values[f"perf_model/{prefetch_config}/prefetcher/droplet/stride_table_size"] = args.droplet_stride_table_size
     elif args.prefetcher == "ECG_PFX":
         prefetch_config = "l1_dcache" if args.prefetcher_level == "l1d" else "l2_cache"
         sniper_config_values[f"perf_model/{prefetch_config}/prefetcher"] = "ecg_pfx"
@@ -929,6 +939,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env.update(ecg_pfx_env(args))
         env["SNIPER_ENABLE_ECG_PFX_HINTS"] = "1"
         env["SNIPER_ECG_PFX_LOOKAHEAD"] = effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD")
+        env["SNIPER_ECG_PFX_HINT_FILTER"] = str(args.ecg_pfx_hint_filter)
+        env["SNIPER_ECG_PFX_FILTER_ELEM_SIZE"] = "4"
+        env["SNIPER_ECG_PFX_FILTER_LINE_SIZE"] = str(args.line_size)
     if spec.ecg_mode and policy_name == "ecg":
         env["SNIPER_ECG_MODE"] = spec.ecg_mode
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_sniper, log_path, args.dry_run)
@@ -1006,6 +1019,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if args.prefetcher == "DROPLET":
         indirect_issued = int(row.get("droplet_indirect_issued") or 0)
         prefetch_issued = int(row.get("pf_issued") or 0)
+        prefetch_useful = int(row.get("pf_useful") or 0)
         if indirect_issued == 0:
             error = "DROPLET sideband loaded but no edge accesses/prefetches issued."
             if args.sniper_address_domain == "translated":
@@ -1013,16 +1027,19 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             row.update({
                 "status": "inactive",
                 "droplet_activity": "inactive",
+                "droplet_useful_activity": "inactive",
                 "error": error,
             })
         elif prefetch_issued == 0:
             row.update({
                 "status": "active_no_fill",
                 "droplet_activity": "requested_no_fill",
+                "droplet_useful_activity": "no_fill",
                 "error": "DROPLET saw edge accesses and generated indirect requests, but Sniper did not enqueue cache prefetch fills.",
             })
         else:
             row["droplet_activity"] = "issued"
+            row["droplet_useful_activity"] = "useful" if prefetch_useful > 0 else "issued_no_useful"
     if args.prefetcher == "ECG_PFX":
         hints_seen = int(row.get("ecg_pfx_target_hints_seen") or 0)
         pfx_issued = int(row.get("ecg_pfx_issued") or 0)
@@ -1074,15 +1091,40 @@ def parse_gem5_sections(stats_path: Path) -> list[dict[str, Any]]:
 
 def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size: str,
              charge: dict[str, Any] | None = None) -> dict[str, Any]:
+    timing_model = "simulated_target_time"
+    timing_valid_for_speedup = "1"
+    timing_caveat = ""
+    if args.prefetcher == "ECG_PFX" and simulator in ("gem5", "sniper"):
+        timing_model = (
+            "prototype_instruction_delivery"
+            if simulator == "gem5" and args.ecg_pfx_delivery == "instruction"
+            else "prototype_explicit_hint_delivery"
+        )
+        timing_valid_for_speedup = "0"
+        timing_caveat = (
+            "ECG_PFX timing includes prototype benchmark-emitted hint delivery; "
+            "use cache and prefetch metrics for mechanism evidence until PFX is validated as instruction-carried metadata."
+        )
+    elif simulator == "cache-sim":
+        timing_model = "cache_mechanism_model"
+
     row = {
         "simulator": simulator,
         "benchmark": args.benchmark,
         "options": args.options,
         "prefetcher": args.prefetcher,
         "prefetcher_level": args.prefetcher_level,
+        "timing_model": timing_model,
+        "timing_valid_for_speedup": timing_valid_for_speedup,
+        "timing_caveat": timing_caveat,
+        "droplet_prefetch_degree": args.droplet_prefetch_degree,
+        "droplet_indirect_degree": args.droplet_indirect_degree,
+        "droplet_stride_table_size": args.droplet_stride_table_size,
         "ecg_prefetch_mode": effective_ecg_pfx_value(args, "ECG_PREFETCH_MODE"),
         "ecg_prefetch_window": effective_ecg_pfx_value(args, "ECG_PREFETCH_WINDOW"),
         "ecg_prefetch_lookahead": effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD"),
+        "ecg_pfx_hint_filter": args.ecg_pfx_hint_filter,
+        "ecg_pfx_delivery": args.ecg_pfx_delivery,
         "policy_label": spec.label,
         "policy": spec.policy,
         "ecg_mode": spec.ecg_mode or "",
@@ -1131,12 +1173,22 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="Prefetcher to attach. ECG_PFX is supported by cache_sim and experimental gem5/Sniper hint paths.")
     parser.add_argument("--prefetcher-level", choices=["l1d", "l2"], default="l2",
                         help="gem5/Sniper cache level for --prefetcher; ignored by cache_sim ECG_PFX.")
+    parser.add_argument("--droplet-prefetch-degree", type=int, default=1,
+                        help="DROPLET edge-stream cache lines to prefetch per trigger (artifact default: 1).")
+    parser.add_argument("--droplet-indirect-degree", type=int, default=16,
+                        help="DROPLET neighbor IDs to translate into property prefetches per edge line (artifact default: one 64B line of 4B IDs).")
+    parser.add_argument("--droplet-stride-table-size", type=int, default=64,
+                        help="DROPLET stream table entries (artifact config streams default: 64).")
     parser.add_argument("--ecg-pfx-mode", choices=sorted(ECG_PFX_MODE_VALUES), default="popt",
                         help="ECG_PFX target selection: degree/hot-neighbor mode or P-OPT-ranked mode.")
     parser.add_argument("--ecg-pfx-window", default="16",
                         help="Runtime/construction dedup window for ECG_PFX.")
     parser.add_argument("--ecg-pfx-lookahead", default="4",
                         help="Algorithm lookahead distance for ECG_PFX temporal prefetch probes.")
+    parser.add_argument("--ecg-pfx-hint-filter", default="16",
+                        help="Recent-target filter capacity before emitting ECG_PFX hints; 0 disables filtering.")
+    parser.add_argument("--ecg-pfx-delivery", choices=["explicit-hint", "instruction"], default="explicit-hint",
+                        help="ECG_PFX detailed-sim delivery path. instruction currently applies to gem5 RISC-V ecg.extract builds.")
     parser.add_argument("--l1d-size", default="1kB")
     parser.add_argument("--l1d-ways", default="8")
     parser.add_argument("--l2-size", default="2kB")

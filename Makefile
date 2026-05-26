@@ -182,7 +182,7 @@ BIN_SIM_DIR = $(BENCH_DIR)/bin_sim
 DEP_CACHE = $(wildcard $(INCLUDE_CACHE)/*.h)
 
 # Simulation kernels (algorithms with cache instrumentation)
-KERNELS_SIM = pr pr_spmv bfs bc cc cc_sv sssp tc
+KERNELS_SIM = pr pr_spmv bfs bc cc cc_sv sssp tc ecg_preprocess
 
 # Create bin_sim directory
 $(BIN_SIM_DIR):
@@ -214,11 +214,15 @@ GEM5_SIM_DIR = $(INC_DIR)/gem5_sim
 GEM5_DIR = $(GEM5_SIM_DIR)/gem5
 GEM5_M5_DIR = $(GEM5_DIR)/util/m5
 GEM5_M5_LIB = $(GEM5_M5_DIR)/build/x86/out/libm5.a
+GEM5_M5_RISCV_LIB = $(GEM5_M5_DIR)/build/riscv/out/libm5.a
+RISCV_CXX ?= riscv64-linux-gnu-g++
+RISCV_CROSS_COMPILE ?= riscv64-linux-gnu-
 
 # gem5 benchmarks: single-threaded at runtime but headers need OpenMP.
 # Static linking for gem5 SE mode. -O1 to avoid unsupported instructions.
 CXXFLAGS_GEM5 = -std=c++17 -O1 -Wall -g -DNDEBUG -DNO_M5OPS -fopenmp
 CXXFLAGS_GEM5_M5OPS = $(filter-out -DNO_M5OPS,$(CXXFLAGS_GEM5)) -I$(GEM5_DIR)/include
+CXXFLAGS_GEM5_RISCV_M5OPS = $(CXXFLAGS_GEM5_M5OPS) -static
 KERNELS_GEM5 = pr pr_spmv bfs sssp cc cc_sv bc tc
 
 $(BIN_GEM5_DIR):
@@ -230,18 +234,28 @@ $(BIN_GEM5_DIR)/%: $(SRC_GEM5_DIR)/%.cc $(DEP_GAPBS) | $(BIN_GEM5_DIR)
 $(GEM5_M5_LIB):
 	@cd $(GEM5_M5_DIR) && scons -j$(PARALLEL) build/x86/out/m5
 
+$(GEM5_M5_RISCV_LIB):
+	@cd $(GEM5_M5_DIR) && scons -j$(PARALLEL) build/riscv/out/m5 riscv.CROSS_COMPILE=$(RISCV_CROSS_COMPILE)
+
 $(BIN_GEM5_DIR)/%_m5ops: $(SRC_GEM5_DIR)/%.cc $(DEP_GAPBS) $(GEM5_M5_LIB) | $(BIN_GEM5_DIR)
 	@$(CXX) $(CXXFLAGS_GEM5_M5OPS) $(CXXFLAGS_LEIDEN) $(INCLUDES) $< $(GEM5_M5_LIB) $(LDLIBS) -o $@ $(EXIT_STATUS)
 
-.PRECIOUS: $(BIN_GEM5_DIR)/%_m5ops
+$(BIN_GEM5_DIR)/%_riscv_m5ops: $(SRC_GEM5_DIR)/%.cc $(DEP_GAPBS) $(GEM5_M5_RISCV_LIB) | $(BIN_GEM5_DIR)
+	@$(RISCV_CXX) $(CXXFLAGS_GEM5_RISCV_M5OPS) $(CXXFLAGS_LEIDEN) $(INCLUDES) $< $(GEM5_M5_RISCV_LIB) -o $@ $(EXIT_STATUS)
 
-.PHONY: gem5-% gem5-m5ops-% all-gem5 clean-gem5-bin run-gem5-%
+.PRECIOUS: $(BIN_GEM5_DIR)/%_m5ops
+.PRECIOUS: $(BIN_GEM5_DIR)/%_riscv_m5ops
+
+.PHONY: gem5-% gem5-m5ops-% gem5-riscv-m5ops-% all-gem5 clean-gem5-bin run-gem5-%
 
 gem5-%: $(BIN_GEM5_DIR)/%
 	@echo "Built gem5 version: $<"
 
 gem5-m5ops-%: $(BIN_GEM5_DIR)/%_m5ops
 	@echo "Built gem5 ROI/m5ops version: $<"
+
+gem5-riscv-m5ops-%: $(BIN_GEM5_DIR)/%_riscv_m5ops
+	@echo "Built RISC-V gem5 ROI/m5ops version: $<"
 
 all-gem5: $(addprefix $(BIN_GEM5_DIR)/, $(KERNELS_GEM5))
 	@echo "Built all gem5 benchmarks"
@@ -343,6 +357,7 @@ help: help-pr
 	@echo "  all-gem5         - Build all gem5 benchmark binaries"
 	@echo "  gem5-%           - Build gem5 version of specified algorithm"
 	@echo "  gem5-m5ops-%     - Build gem5 benchmark with ROI m5ops markers"
+	@echo "  gem5-riscv-m5ops-% - Build RISC-V gem5 benchmark with ROI m5ops markers"
 	@echo "  run-gem5-%       - Run gem5 benchmark natively (for testing)"
 	@echo "  clean-gem5-bin   - Remove gem5 benchmark binaries"
 	@echo ""

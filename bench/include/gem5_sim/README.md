@@ -79,9 +79,11 @@ for the real vertex ID, 8 DBG bits, 8 P-OPT bits, and 16 ECG_PFX bits. It writes
 the real vertex ID to `rd`, stores decoded metadata in GraphBrew hint storage,
 and forwards the PFX field to the ECG_PFX hint queue, falling back to the real
 vertex ID when the PFX field is zero. `build/RISCV/gem5.opt` builds and verifies
-after applying overlays. RISC-V timing claims still require RISC-V benchmark
-binaries; the local cross toolchain (`riscv64-linux-gnu-gcc/g++`) is currently
-missing and must be installed manually before wrapper runs.
+after applying overlays. RISC-V benchmark wrappers require the local
+`riscv64-linux-gnu-gcc/g++` cross toolchain and can be built with
+`make gem5-riscv-m5ops-pr` for the PR smoke path. Current RISC-V ECG_PFX rows are
+instruction-path activation evidence until useful-prefetch and timing-validity
+checks pass on larger points.
 
 ## Context Passing
 

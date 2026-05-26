@@ -28,6 +28,9 @@ emit lookahead target hints using `SNIPER_ECG_PFX_LOOKAHEAD` or
 `SimUser` `GRVT`/`GPFX` commands store current-vertex and ECG_PFX target hints.
 `EcgPfxPrefetcher` consumes those stored targets, maps them to the exported
 property region, deduplicates recent cache lines, and reports ECG_PFX counters.
+Wrappers also apply a recent property-cache-line target filter before emitting
+`GPFX` (`--ecg-pfx-hint-filter`, default `16`) so obvious duplicate candidates
+do not cross the simulator magic-call boundary.
 The updated overlays have been copied into the ignored Sniper checkout and
 Sniper common/standalone have been rebuilt locally. Treat this as experimental:
 the first bounded PR SIFT smoke proves hint consumption, request generation, and
@@ -43,10 +46,16 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   --no-build --force
 ```
 
-Result at `/tmp/graphbrew-sniper-ecg-pfx-profile`: 3/3 ok rows for PR/BFS/SSSP
-at 32kB L3. Counters: PR `338` target hints / `1` ECG_PFX request / `pf_issued=1` /
-`pf_useful=1`; BFS `474` / `4` / `pf_issued=3` / `pf_useful=2`; SSSP `474` / `1` /
-`pf_issued=1` / `pf_useful=1`.
+Result at `/tmp/graphbrew-sniper-ecg-pfx-fixed-hint-smoke`: 3/3 ok rows for
+PR/BFS/SSSP at 32kB L3 after rebuilding wrappers and fixing pre-sideband hint
+consumption. Counters: PR `4` target hints / `4` ECG_PFX requests /
+`pf_issued=3` / `pf_useful=3`; BFS `4` / `4` / `pf_issued=1` /
+`pf_useful=1`; SSSP `4` / `4` / `pf_issued=1` / `pf_useful=1`.
+
+The same run aggregates cleanly through the paper pipeline at
+`/tmp/graphbrew-paper-pipeline-ecg-pfx-fixed-hint-smoke`. Timing speedup figures
+are intentionally skipped because current Sniper ECG_PFX still uses explicit
+`GPFX` hint delivery, but cache and prefetch-quality figures are emitted.
 
 Validated file-backed email-Eu-core profile:
 
@@ -76,6 +85,23 @@ pipeline:
 Validated aggregate: 6/6 ok rows, all `prefetcher=ECG_PFX`, and figures are
 written under generic `prefetch_*` names including
 `prefetch_prefetch_accuracy_by_benchmark.svg`.
+
+Matched RISC-V comparison, 2026-05-26: after rebuilding wrappers, reapplying
+overlays, and relinking Sniper common/standalone, the bounded SIFT synthetic g6
+profile gives a matched useful-prefetch proof for BFS:
+
+```text
+/tmp/graphbrew-sniper-ecg-pfx-current-proof
+PR:   hints=4, ecg_pfx_issued=4, pf_issued=3, pf_useful=3
+BFS:  hints=4, ecg_pfx_issued=4, pf_issued=1, pf_useful=1
+SSSP: hints=4, ecg_pfx_issued=4, pf_issued=0, pf_useful=0 (active_no_fill)
+```
+
+The paired RISC-V gem5 run at `/tmp/graphbrew-riscv-ecg-pfx-kernel-proof` also
+reports useful fills for BFS (`pfIssued=1`, `pfUseful=1` in both ROI sections),
+so BFS is the current local matched proof point. PR and SSSP remain diagnostic:
+PR is useful in Sniper but not gem5 RISC-V on this tiny point, while SSSP is
+useful in gem5 RISC-V but `active_no_fill` in Sniper.
 
 Current local constraint:
 
@@ -530,6 +556,9 @@ declared `matplotlib` Python dependency.
 
 `roi_matrix.py --suite sniper --prefetcher DROPLET` attaches the tracked
 `droplet` prefetcher to L2 by default, or L1D with `--prefetcher-level l1d`.
+The default DROPLET knobs are artifact-informed from the old public Sniper-6.1
+tree: `droplet_prefetch_degree=1`, `droplet_indirect_degree=16`, and
+`droplet_stride_table_size=64`.
 
 Current safe active smoke:
 
@@ -554,11 +583,68 @@ mechanism-smoke point:
 - PR and BFS report nonzero edge accesses, indirect requests, Sniper prefetch
   fills, and useful prefetches.
 
+Fresh useful-activity validation at
+`/tmp/graphbrew-sniper-droplet-useful-activity-smoke` produced:
+
+```text
+PR:  droplet_activity=issued, droplet_useful_activity=useful, pf_issued=1, pf_useful=1
+BFS: droplet_activity=issued, droplet_useful_activity=useful, pf_issued=1, pf_useful=1
+```
+
+Artifact-default validation at `/tmp/graphbrew-sniper-droplet-artifact-profile`
+used the same profile after the 1/16/64 DROPLET default update:
+
+```text
+PR:  droplet_prefetch_degree=1, droplet_indirect_degree=16, droplet_stride_table_size=64, edge_accesses=7, indirect_issued=1, pf_issued=1, pf_useful=1, l3_misses=91
+BFS: droplet_prefetch_degree=1, droplet_indirect_degree=16, droplet_stride_table_size=64, edge_accesses=3, indirect_issued=4, pf_issued=1, pf_useful=1, l3_misses=448
+```
+
+The aggregate pipeline also accepts this run:
+
+```bash
+.venv/bin/python3 scripts/experiments/ecg/paper_pipeline.py \
+  --skip-run \
+  --input-run-dirs /tmp/graphbrew-sniper-droplet-artifact-profile \
+  --run-root /tmp/graphbrew-paper-pipeline-droplet-artifact-smoke
+```
+
+Validated aggregate: 2/2 ok rows, `prefetcher=DROPLET`, and DROPLET
+prefetch-quality figures/tables are emitted.
+
 SSSP now reports edge accesses and indirect requests after the cache-line overlap
 fix. The tiny kernel smoke still has zero Sniper prefetch fills and is marked
-`active_no_fill`, but the email-Eu-core full-wrapper SIFT profile proves SSSP
-DROPLET can issue useful prefetches on a real `.sg` workload. Use the file-backed
-DROPLET profile for claim-oriented SSSP prefetch evidence.
+`active_no_fill`. File-backed rows can also be mechanically active without useful
+fills, so claim-oriented analysis must inspect both `droplet_activity` and
+`droplet_useful_activity` / `pf_useful`.
+
+The file-backed profile intentionally uses tuned normal-prefetcher knobs rather
+than the artifact defaults:
+
+```text
+droplet_prefetch_degree=2
+droplet_indirect_degree=4
+droplet_stride_table_size=16
+```
+
+The artifact-default file-backed probe at
+`/tmp/graphbrew-sniper-file-droplet-artifact-profile` completed PR/BFS/SSSP, but
+BFS and SSSP produced `pf_useful=0` and substantially higher Sniper ticks even
+though L3 misses remained low. It is useful for artifact-parameter exploration,
+not as final useful-prefetch evidence.
+
+The current tuned revalidation at
+`/tmp/graphbrew-sniper-file-droplet-tuned-profile` also completed PR/BFS/SSSP,
+but after the current-edge indirect-prefetch change only PR produced useful
+prefetch fills:
+
+```text
+PR:   pf_issued=2384, pf_useful=1093, l3_misses=4713, sim_ticks=838049347856
+BFS:  pf_issued=18,   pf_useful=0,    l3_misses=3495, sim_ticks=11911918329032
+SSSP: pf_issued=1,    pf_useful=0,    l3_misses=5954, sim_ticks=11695805881518
+```
+
+Treat file-backed DROPLET as active and L3-reducing at this point, but not yet
+claim-ready for useful BFS/SSSP prefetches under the current implementation.
 
 ## Guardrails
 

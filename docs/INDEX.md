@@ -77,6 +77,7 @@ bench/include/
 - `scripts/experiments/ecg/final_paper_run.py` — ECG final-run harness (manifest, graph checks, validation gate, resume/status, combined CSVs)
 - `scripts/experiments/ecg/roi_matrix.py` — cache_sim/gem5/Sniper ROI policy matrix runner, including charged P-OPT labels and ECG_PFX prefetcher rows
 - `scripts/experiments/ecg/proof_matrix.py` — cache_sim ECG component ablation runner
+- `bench/src_sim/ecg_preprocess.cc` — no-simulation ECG preprocessing overhead benchmark for degree scan, P-OPT matrix construction, and ECG mask/PFX construction
 - `wiki/ECG-Slurm-Runs.md` — UVA Slurm workflow for split graph/benchmark/policy shards and post-hoc aggregation
 - `wiki/ECG-Sniper-Runs.md` — Sniper setup, overlay, smoke, thread-surface, DROPLET, and ECG_PFX status workflow
 - `plans/sniper-sim-integration-plan.md` — Sniper backend plan for scalable multicore ECG validation

@@ -297,6 +297,32 @@ def effective_l3_misses(row: dict[str, Any]) -> float | None:
     return as_float(row.get("l3_misses"))
 
 
+def timing_valid_for_speedup(row: dict[str, Any]) -> bool:
+    raw_value = row.get("timing_valid_for_speedup")
+    if raw_value in (None, ""):
+        if row.get("prefetcher") == "ECG_PFX" and row.get("simulator") in ("gem5", "sniper"):
+            return False
+        return True
+    value = str(raw_value).strip().lower()
+    return value not in {"0", "false", "no", "invalid"}
+
+
+def timing_valid_label(row: dict[str, Any]) -> str:
+    value = row.get("timing_valid_for_speedup")
+    if value not in (None, ""):
+        return str(value)
+    return "1" if timing_valid_for_speedup(row) else "0"
+
+
+def timing_model_label(row: dict[str, Any]) -> str:
+    value = row.get("timing_model")
+    if value not in (None, ""):
+        return str(value)
+    if row.get("prefetcher") == "ECG_PFX" and row.get("simulator") in ("gem5", "sniper"):
+        return "prototype_explicit_hint_delivery"
+    return ""
+
+
 def compare_key(row: dict[str, Any]) -> tuple[Any, ...]:
     return tuple(row.get(key, "") for key in ROI_COMPARE_KEYS)
 
@@ -419,6 +445,9 @@ def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "policy_short": policy_label(policy),
                 "baseline_policy": "LRU",
                 "sim_ticks": row.get("sim_ticks", ""),
+                "timing_model": timing_model_label(row),
+                "timing_valid_for_speedup": timing_valid_label(row),
+                "timing_caveat": row.get("timing_caveat", ""),
                 "l3_misses": row.get("l3_misses", ""),
                 "effective_l3_misses": misses if misses is not None else "",
                 "popt_overhead_charged": row.get("popt_overhead_charged", ""),
@@ -426,7 +455,7 @@ def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "popt_charged_l3_misses_plus_matrix_stream", ""
                 ),
             })
-            if ticks is not None and lru_ticks:
+            if ticks is not None and lru_ticks and timing_valid_for_speedup(row):
                 record["speedup_vs_lru"] = lru_ticks / ticks
                 record["normalized_ticks_vs_lru"] = ticks / lru_ticks
             if misses is not None and lru_misses:

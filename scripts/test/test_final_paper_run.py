@@ -192,6 +192,8 @@ def test_ecg_pfx_profile_passes_explicit_runner_knobs(tmp_path):
     assert command[command.index("--ecg-pfx-mode") + 1] == "popt"
     assert command[command.index("--ecg-pfx-window") + 1] == "16"
     assert command[command.index("--ecg-pfx-lookahead") + 1] == "4"
+    assert command[command.index("--ecg-pfx-hint-filter") + 1] == "16"
+    assert command[command.index("--ecg-pfx-delivery") + 1] == "explicit-hint"
 
 
 def test_gem5_ecg_pfx_smoke_profile_passes_allow_flag(tmp_path):
@@ -253,6 +255,28 @@ def test_sniper_file_ecg_pfx_smoke_profile_uses_benchmark_lookahead(tmp_path):
         assert command[command.index("--sniper-frontend") + 1] == "sift"
         assert "--allow-sniper-benchmark-workload" in command
     assert by_benchmark["sssp"][by_benchmark["sssp"].index("--ecg-pfx-lookahead") + 1] == "0"
+
+
+def test_sniper_file_droplet_smoke_profile_uses_tuned_knobs(tmp_path):
+    args = final_paper_run.parse_args([
+        "--profile", "sniper_sift_file_droplet_smoke",
+        "--run-dir", str(tmp_path),
+        "--dry-run",
+        "--allow-missing-graphs",
+    ])
+    manifest = final_paper_run.load_manifest(final_paper_run.DEFAULT_MANIFEST)
+
+    jobs = final_paper_run.expand_jobs(args, manifest, tmp_path)
+
+    assert len(jobs) == 3
+    for job in jobs:
+        command = job.command
+        assert command[command.index("--prefetcher") + 1] == "DROPLET"
+        assert command[command.index("--droplet-prefetch-degree") + 1] == "2"
+        assert command[command.index("--droplet-indirect-degree") + 1] == "4"
+        assert command[command.index("--droplet-stride-table-size") + 1] == "16"
+        assert command[command.index("--sniper-frontend") + 1] == "sift"
+        assert "--allow-sniper-benchmark-workload" in command
 
 
 def test_roi_job_can_set_omp_threads_env(tmp_path):
