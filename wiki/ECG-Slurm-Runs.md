@@ -196,6 +196,9 @@ It also checks that `slurm_final_shard.sbatch` requests `#SBATCH --exclusive`,
 matching the one-gem5-shard-per-node rule. If your cluster enforces equivalent
 placement outside the script, pass `--allow-nonexclusive` and document that site
 policy in your run notes.
+The wrappers themselves fail early if `SHARDS` is unreadable, `SLURM_ARRAY_TASK_ID`
+is missing for array-mode execution, or the selected TSV row has the wrong number
+of tab-separated fields.
 
 ## 3. Generate Slurm Shard List
 
