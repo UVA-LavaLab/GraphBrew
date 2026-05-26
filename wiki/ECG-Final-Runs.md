@@ -224,6 +224,21 @@ Full evaluation guide:
 6. Aggregate completed shards with `paper_pipeline.py --skip-run`; verify
   `timing_valid_for_speedup` before using any speedup column.
 
+For BFS ECG_PFX scale proofs beyond g10, use the Slurm-ready one-root helper:
+
+```bash
+python3 scripts/experiments/ecg/ecg_pfx_scale_proof.py \
+  --scale 10 \
+  --roots 0 \
+  --backend both \
+  --out-root /tmp/graphbrew-ecg-pfx-scale-g10-r0
+
+printf '11\t0\tboth\tresults/ecg_experiments/ecg_pfx_scale_proof/g11_r0\n' \
+  > results/ecg_experiments/slurm/ecg_pfx_scale_g11.tsv
+export SHARDS=results/ecg_experiments/slurm/ecg_pfx_scale_g11.tsv
+sbatch --array=0-0 scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch
+```
+
 Validated local smoke outputs:
 
 ```text

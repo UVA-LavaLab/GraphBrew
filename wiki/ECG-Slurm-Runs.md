@@ -286,6 +286,31 @@ If some shards are still running or failed, aggregation still works on completed
 6. Run `final_droplet` shards after replacement shards are stable.
 7. Aggregate with `paper_pipeline.py --skip-run --input-run-glob ...`.
 
+## 8. ECG_PFX Scale-Proof Shards
+
+For root-selected BFS ECG_PFX scale proofs beyond the local g10 gate, use the
+dedicated shard wrapper. TSV columns are:
+
+```text
+scale<TAB>root<TAB>backend<TAB>out_root
+```
+
+Example:
+
+```bash
+RUN_TAG=ecg_pfx_scale_$(date +%Y%m%d_%H%M%S)
+SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_scale.tsv
+mkdir -p results/ecg_experiments/slurm
+printf '11\t0\tboth\tresults/ecg_experiments/ecg_pfx_scale_proof/%s_g11_r0\n' "$RUN_TAG" > "$SHARDS"
+
+export SHARDS
+sbatch --array=0-0 scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch
+```
+
+Each shard runs `scripts/experiments/ecg/ecg_pfx_scale_proof.py`, writes a
+`summary.csv`, and keeps the RISC-V gem5 and Sniper outputs under the requested
+`out_root`.
+
 ## Guardrails
 
 - Do not run multiple GraphBrew gem5 shards on the same node unless sideband files are isolated.
