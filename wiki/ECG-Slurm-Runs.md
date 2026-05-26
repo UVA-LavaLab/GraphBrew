@@ -197,6 +197,28 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   --skip-validation-gate
 ```
 
+Current prepared cache_sim replacement+ECG_PFX shard file, generated 2026-05-26:
+
+```bash
+RUN_TAG=cache_sim_pfx_20260526_142555
+SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_shards.tsv
+
+# 180 rows: final_cache_sim replacement plus final_cache_sim_ecg_pfx.
+wc -l "$SHARDS"
+
+# Expected coverage: 4 graphs x 3 benchmarks x 9 replacement policies, plus
+# 4 graphs x 3 benchmarks x 6 ECG_PFX policies.
+python3 scripts/experiments/ecg/slurm_shard_status.py \
+  --shards "$SHARDS" \
+  --out results/ecg_experiments/slurm/${RUN_TAG}_status.csv
+
+# Submit on the cluster/shared-storage environment.
+export GRAPHBREW_ROOT=$SCRATCH/GraphBrew
+export SHARDS
+N=$(( $(wc -l < "$SHARDS") - 1 ))
+sbatch --array=0-${N} scripts/experiments/ecg/slurm_final_shard.sbatch
+```
+
 For a smaller first pass, use the generator filters.
 For example:
 
