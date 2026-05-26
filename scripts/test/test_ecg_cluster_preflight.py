@@ -49,3 +49,22 @@ def test_cluster_preflight_allows_missing_graphs(tmp_path):
 
     assert "graph:soc-pokec" in result.stdout
     assert "missing allowed" in result.stdout
+
+
+def test_cluster_preflight_profile_staging_check():
+    result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/ecg_cluster_preflight.py",
+            "--skip-binaries",
+            "--allow-missing-graphs",
+            "--profile", "final_replacement",
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+
+    assert "staging:soc-pokec" in result.stdout
+    assert "staging:cit-Patents" in result.stdout

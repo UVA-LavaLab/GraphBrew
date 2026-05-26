@@ -168,6 +168,7 @@ Cluster preflight before any `sbatch`:
 
 ```bash
 python3 scripts/experiments/ecg/ecg_cluster_preflight.py \
+  --profile final_replacement final_droplet final_cache_sim final_cache_sim_ecg_pfx \
   --allow-missing-graphs \
   --shards results/ecg_experiments/slurm/final_repl_droplet_20260526_141547_shards.tsv \
            results/ecg_experiments/slurm/cache_sim_pfx_20260526_142555_shards.tsv \

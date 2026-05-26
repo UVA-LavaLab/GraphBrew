@@ -11,6 +11,7 @@ import sys
 from typing import Any
 
 import final_paper_run
+import ecg_graph_staging_status
 
 
 PROJECT_ROOT = final_paper_run.PROJECT_ROOT
@@ -82,6 +83,18 @@ def graph_checks(shard_rows: list[list[str]], graph_dir: Path, allow_missing: bo
     return checks
 
 
+def staging_checks(profiles: list[str], graph_dir: Path, allow_missing: bool) -> list[CheckResult]:
+    manifest = final_paper_run.load_manifest(DEFAULT_MANIFEST)
+    checks: list[CheckResult] = []
+    for row in ecg_graph_staging_status.staging_rows(manifest, profiles, graph_dir):
+        ok = str(row.get("status")) == "ok" or allow_missing
+        detail = str(row.get("detail", ""))
+        if str(row.get("status")) == "missing" and allow_missing:
+            detail = f"missing allowed: {row.get('expected_path')}"
+        checks.append(CheckResult(f"staging:{row['graph']}", ok, detail))
+    return checks
+
+
 def check_slurm(require_slurm: bool) -> list[CheckResult]:
     checks = []
     for command in ("sbatch", "squeue", "sacct"):
@@ -122,6 +135,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--shards", nargs="*", default=[], help="final_paper_run shard TSV(s), 6 columns.")
     parser.add_argument("--scale-shards", nargs="*", default=[], help="ECG_PFX scale-proof shard TSV(s), 4 columns.")
     parser.add_argument("--graph-dir", default=str(DEFAULT_GRAPH_DIR))
+    parser.add_argument("--profile", nargs="+", default=[], help="Profiles for explicit graph staging checks.")
     parser.add_argument("--allow-missing-graphs", action="store_true")
     parser.add_argument("--require-slurm", action="store_true")
     parser.add_argument("--skip-binaries", action="store_true")
@@ -137,6 +151,9 @@ def main(argv: list[str]) -> int:
     if not args.skip_binaries:
         checks.extend(check_required_binaries(bool(args.skip_sniper)))
     checks.extend(check_slurm(bool(args.require_slurm)))
+
+    if args.profile:
+        checks.extend(staging_checks([str(profile) for profile in args.profile], graph_dir, bool(args.allow_missing_graphs)))
 
     for shard in args.shards:
         path = final_paper_run.resolve_path(str(shard))
