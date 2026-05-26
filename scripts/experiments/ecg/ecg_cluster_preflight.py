@@ -24,6 +24,7 @@ SBATCH_SCRIPTS = [
     FINAL_SBATCH_SCRIPT,
     SCALE_SBATCH_SCRIPT,
 ]
+SCALE_BACKENDS = {"sniper", "gem5-riscv", "both"}
 
 
 @dataclass
@@ -119,6 +120,37 @@ def shard_semantic_checks(shard_rows: list[list[str]], manifest: dict[str, Any])
             checks.append(CheckResult(check_name, False, f"policy {policy!r} is not valid for stage {stage_name!r}"))
             continue
         checks.append(CheckResult(check_name, True, "matches manifest"))
+    return checks
+
+
+def scale_shard_semantic_checks(shard_rows: list[list[str]]) -> list[CheckResult]:
+    checks: list[CheckResult] = []
+    for index, row in enumerate(shard_rows, 1):
+        scale_text, root_text, backend, out_root = row
+        check_name = f"scale-shard-row:{index}:{scale_text}:{root_text}:{backend}"
+        try:
+            scale = int(scale_text)
+        except ValueError:
+            checks.append(CheckResult(check_name, False, f"scale {scale_text!r} is not an integer"))
+            continue
+        if scale <= 0:
+            checks.append(CheckResult(check_name, False, f"scale {scale!r} must be positive"))
+            continue
+        try:
+            root = int(root_text)
+        except ValueError:
+            checks.append(CheckResult(check_name, False, f"root {root_text!r} is not an integer"))
+            continue
+        if root < 0:
+            checks.append(CheckResult(check_name, False, f"root {root!r} must be nonnegative"))
+            continue
+        if backend not in SCALE_BACKENDS:
+            checks.append(CheckResult(check_name, False, f"backend {backend!r} must be one of {sorted(SCALE_BACKENDS)}"))
+            continue
+        if not out_root:
+            checks.append(CheckResult(check_name, False, "out_root is empty"))
+            continue
+        checks.append(CheckResult(check_name, True, "matches scale-proof contract"))
     return checks
 
 
@@ -245,6 +277,7 @@ def main(argv: list[str]) -> int:
         if path.exists():
             rows = read_rows(path, 4)
             checks.append(CheckResult(f"scale-shards:{path.name}:rows", bool(rows), f"{len(rows)} rows"))
+            checks.extend(scale_shard_semantic_checks(rows))
 
     return 1 if print_checks(checks) else 0
 

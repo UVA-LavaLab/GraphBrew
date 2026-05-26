@@ -199,6 +199,9 @@ policy in your run notes.
 For final-run shard TSVs, preflight validates that each row's profile, stage,
 graph, benchmark, and policy still match the checked-in manifest. This catches
 hand-edited or stale shard rows before they reach a Slurm worker.
+For ECG_PFX scale-proof TSVs, preflight validates that scale/root are numeric,
+root is nonnegative, backend is one of `sniper`, `gem5-riscv`, or `both`, and
+the output root is present.
 The wrappers themselves fail early if `SHARDS` is unreadable, `SLURM_ARRAY_TASK_ID`
 is missing for array-mode execution, or the selected TSV row has the wrong number
 of tab-separated fields.

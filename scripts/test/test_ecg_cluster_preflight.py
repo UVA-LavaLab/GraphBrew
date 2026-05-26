@@ -27,9 +27,54 @@ def test_cluster_preflight_accepts_scale_shards(tmp_path):
 
     assert "scale-shards" in result.stdout
     assert "1 rows" in result.stdout
+    assert "matches scale-proof contract" in result.stdout
     assert "sbatch:slurm_ecg_pfx_scale_proof.sbatch" in result.stdout
     assert "syntax ok" in result.stdout
     assert "sbatch:slurm_final_shard.sbatch:exclusive" in result.stdout
+
+
+def test_cluster_preflight_rejects_invalid_scale_backend(tmp_path):
+    shards = tmp_path / "scale.tsv"
+    shards.write_text("11\t0\tbad-backend\t/tmp/out\n")
+
+    result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/ecg_cluster_preflight.py",
+            "--skip-binaries",
+            "--scale-shards", str(shards),
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "bad-backend" in result.stdout
+    assert "must be one of" in result.stdout
+
+
+def test_cluster_preflight_rejects_invalid_scale_root(tmp_path):
+    shards = tmp_path / "scale.tsv"
+    shards.write_text("11\t-1\tsniper\t/tmp/out\n")
+
+    result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/ecg_cluster_preflight.py",
+            "--skip-binaries",
+            "--scale-shards", str(shards),
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "root -1" in result.stdout
+    assert "must be nonnegative" in result.stdout
 
 
 def test_cluster_preflight_allows_missing_graphs(tmp_path):
