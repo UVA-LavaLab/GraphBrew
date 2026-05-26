@@ -440,6 +440,7 @@
       "ecg_pfx_mode": "popt",
       "ecg_pfx_window": 16,
       "ecg_pfx_lookahead": 4,
+      "ecg_pfx_delivery": "instruction",
       "allow_gem5_ecg_pfx": true,
       "out_subdir": "09i_gem5_ecg_pfx_tiny_smoke",
       "timeout_gem5": 1800

@@ -1188,7 +1188,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--ecg-pfx-hint-filter", default="16",
                         help="Recent-target filter capacity before emitting ECG_PFX hints; 0 disables filtering.")
     parser.add_argument("--ecg-pfx-delivery", choices=["explicit-hint", "instruction"], default="explicit-hint",
-                        help="ECG_PFX detailed-sim delivery path. instruction currently applies to gem5 RISC-V ecg.extract builds.")
+                        help="ECG_PFX detailed-sim delivery path. instruction uses gem5 RISC-V ecg.extract or x86 pseudo-op scaffolds.")
     parser.add_argument("--l1d-size", default="1kB")
     parser.add_argument("--l1d-ways", default="8")
     parser.add_argument("--l2-size", default="2kB")

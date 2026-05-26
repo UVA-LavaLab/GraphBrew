@@ -132,6 +132,36 @@ inline uint32_t gem5_ecg_extract_target_instruction(uint32_t target_vertex) {
 #endif
 }
 
+inline bool gem5_x86_instruction_m5ops_available() {
+#if defined(__x86_64__)
+    return true;
+#else
+    return false;
+#endif
+}
+
+inline void gem5_x86_work_begin_instruction(uint64_t work_id, uint64_t argument) {
+#if defined(__x86_64__)
+    asm volatile (".byte 0x0F, 0x04\n\t.word %c0"
+                  :
+                  : "i"(M5OP_WORK_BEGIN), "D"(work_id), "S"(argument)
+                  : "rax", "memory");
+#else
+    m5_work_begin(work_id, argument);
+#endif
+}
+
+inline uint32_t gem5_ecg_pfx_target_instruction(uint32_t target_vertex) {
+#if defined(__riscv)
+    return gem5_ecg_extract_target_instruction(target_vertex);
+#elif defined(__x86_64__)
+    gem5_x86_work_begin_instruction(GEM5_WORK_ECG_PFX_TARGET, static_cast<uint64_t>(target_vertex));
+    return target_vertex;
+#else
+    return target_vertex;
+#endif
+}
+
 #if defined(__riscv)
 #define GEM5_ECG_PFX_TARGET(vertex_id) \
     do { \
@@ -139,7 +169,7 @@ inline uint32_t gem5_ecg_extract_target_instruction(uint32_t target_vertex) {
             uint64_t _gem5_pfx_vertex = static_cast<uint64_t>(vertex_id); \
             if (gem5_should_emit_ecg_pfx_hint(_gem5_pfx_vertex)) { \
                 if (gem5_ecg_extract_enabled()) { \
-                    (void)gem5_ecg_extract_target_instruction(static_cast<uint32_t>(_gem5_pfx_vertex)); \
+                    (void)gem5_ecg_pfx_target_instruction(static_cast<uint32_t>(_gem5_pfx_vertex)); \
                 } else { \
                     m5_work_begin(GEM5_WORK_ECG_PFX_TARGET, _gem5_pfx_vertex); \
                 } \
@@ -152,7 +182,11 @@ inline uint32_t gem5_ecg_extract_target_instruction(uint32_t target_vertex) {
         if (gem5_ecg_pfx_hints_enabled()) { \
             uint64_t _gem5_pfx_vertex = static_cast<uint64_t>(vertex_id); \
             if (gem5_should_emit_ecg_pfx_hint(_gem5_pfx_vertex)) { \
-                m5_work_begin(GEM5_WORK_ECG_PFX_TARGET, _gem5_pfx_vertex); \
+                if (gem5_ecg_extract_enabled() && gem5_x86_instruction_m5ops_available()) { \
+                    (void)gem5_ecg_pfx_target_instruction(static_cast<uint32_t>(_gem5_pfx_vertex)); \
+                } else { \
+                    m5_work_begin(GEM5_WORK_ECG_PFX_TARGET, _gem5_pfx_vertex); \
+                } \
             } \
         } \
     } while (0)
@@ -226,12 +260,16 @@ inline uint32_t gem5_ecg_extract_target_instruction(uint32_t target_vertex) {
     return static_cast<uint32_t>(real_vertex);
 }
 
+inline uint32_t gem5_ecg_pfx_target_instruction(uint32_t target_vertex) {
+    return gem5_ecg_extract_target_instruction(target_vertex);
+}
+
 #define GEM5_ECG_PFX_TARGET(vertex_id) \
     do { \
         if (gem5_ecg_pfx_hints_enabled() && gem5_ecg_extract_enabled()) { \
             uint64_t _gem5_pfx_vertex = static_cast<uint64_t>(vertex_id); \
             if (gem5_should_emit_ecg_pfx_hint(_gem5_pfx_vertex)) { \
-                (void)gem5_ecg_extract_target_instruction(static_cast<uint32_t>(_gem5_pfx_vertex)); \
+                (void)gem5_ecg_pfx_target_instruction(static_cast<uint32_t>(_gem5_pfx_vertex)); \
             } \
         } \
     } while (0)

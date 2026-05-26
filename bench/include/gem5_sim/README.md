@@ -72,7 +72,9 @@ python scripts/graphbrew_experiment.py --phase cache --simulator gem5 \
 ## Custom Instructions
 
 - **RISC-V**: `ecg.extract rd, rs1` — custom-0 opcode (`0x0b`) scaffold under `overlays/arch/riscv/`
-- **x86**: GraphBrew m5ops work items for current-vertex and ECG_PFX target hints
+- **x86**: GraphBrew emits gem5's `0F 04 imm16` pseudo-op directly for
+    instruction-mode ECG_PFX target hints, with m5ops work items kept as the
+    explicit-hint fallback.
 
 The RISC-V scaffold decodes the paper-style fixed 64-bit ECG layout: low 32 bits
 for the real vertex ID, 8 DBG bits, 8 P-OPT bits, and 16 ECG_PFX bits. It writes
@@ -85,11 +87,18 @@ after applying overlays. RISC-V benchmark wrappers require the local
 instruction-path activation evidence until useful-prefetch and timing-validity
 checks pass on larger points.
 
+For x86, `--ecg-pfx-delivery instruction` sets `GEM5_ENABLE_ECG_EXTRACT=1` and
+the harness emits gem5's pseudo-op instruction for `M5OP_WORK_BEGIN` with the
+GraphBrew ECG_PFX work ID and target vertex in the x86 pseudo-inst ABI
+registers. This is still a gem5 pseudo-op prototype, not a final hardware ISA
+claim; ECG_PFX detailed-sim rows remain timing-invalid for speedup until the
+overhead model is deliberately validated.
+
 ## Context Passing
 
 Static metadata (degree distribution, rereference matrix) passes via JSON sideband file
 loaded by gem5 Python config. Dynamic per-access hints pass via custom ECG instruction
-→ CSR → cache controller.
+or gem5 pseudo-op prototype to the cache controller.
 
 ## See Also
 

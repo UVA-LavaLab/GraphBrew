@@ -210,6 +210,7 @@ def test_gem5_ecg_pfx_smoke_profile_passes_allow_flag(tmp_path):
     for job in jobs:
         assert "--prefetcher" in job.command
         assert job.command[job.command.index("--prefetcher") + 1] == "ECG_PFX"
+        assert job.command[job.command.index("--ecg-pfx-delivery") + 1] == "instruction"
         assert "--allow-gem5-ecg-pfx" in job.command
 
 

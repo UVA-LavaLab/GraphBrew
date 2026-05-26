@@ -89,7 +89,7 @@ ECG_POPT_PRIMARY + ECG_PFX
 
 `ECG_PFX` is currently a first-class cache_sim prefetch path. It is exposed in
 `roi_matrix.py` as `--prefetcher ECG_PFX` with POPT-ranked defaults matching the
-proof-matrix path. gem5 has an experimental x86 m5ops hint path behind
+proof-matrix path. gem5 has an experimental x86 pseudo-op hint path behind
 `--allow-gem5-ecg-pfx`; Sniper has an experimental `ecg_pfx` prefetcher path
 behind tracked overlays and a Sniper common/standalone relink. Neither timing
 backend should be used for final performance claims until larger rows show
@@ -110,6 +110,13 @@ wrapper builds with `make gem5-riscv-m5ops-pr`. A tiny RISC-V instruction-mode
 ECG_PFX smoke completed at `/tmp/graphbrew-riscv-ecg-pfx-g6-smoke` with
 `pfIdentified=2` and `pfIssued=2` (`pfUseful=0` on that tiny point). Treat this
 as instruction-path activation evidence, not a timing claim.
+
+x86 instruction-mode scaffold status: `--ecg-pfx-delivery instruction` now uses
+the gem5 x86 pseudo-op encoding (`0F 04 imm16`, `M5OP_WORK_BEGIN=0x5a`) directly
+at the ECG_PFX hint site, with the GraphBrew PFX work ID and target vertex
+placed in the x86 pseudo-inst ABI argument registers. This removes the extra C
+function-call wrapper from the x86 hint path, but it is still a gem5 pseudo-op
+prototype and remains timing-invalid for speedup claims.
 
 Small RISC-V vs Sniper ECG_PFX evaluation, 2026-05-26:
 

@@ -129,7 +129,7 @@ def parse_args():
         help="Recent-target filter capacity before emitting ECG_PFX hints; 0 disables filtering")
     parser.add_argument("--ecg-pfx-delivery", default="explicit-hint",
         choices=["explicit-hint", "instruction"],
-        help="ECG_PFX delivery path: m5ops prototype or RISC-V ecg.extract instruction path")
+        help="ECG_PFX delivery path: explicit m5ops hint, RISC-V ecg.extract, or x86 gem5 pseudo-op instruction")
 
     # CPU model
     parser.add_argument("--cpu-type", default="timing",
