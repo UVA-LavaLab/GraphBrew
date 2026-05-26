@@ -14,6 +14,10 @@ import final_paper_run
 
 DEFAULT_MANIFEST = final_paper_run.DEFAULT_MANIFEST
 DEFAULT_GRAPH_DIR = final_paper_run.PROJECT_ROOT / "results" / "graphs"
+SMOKE_PROFILE = "final_replacement"
+SMOKE_GRAPH = "cit-Patents"
+SMOKE_BENCHMARK = "pr"
+SMOKE_POLICY = "LRU"
 
 
 @dataclass(frozen=True)
@@ -90,13 +94,27 @@ def write_shards(path: Path, rows: list[ShardRow]) -> None:
     path.write_text("".join(f"{row.to_tsv()}\n" for row in rows))
 
 
+def apply_smoke_defaults(args: argparse.Namespace) -> None:
+    if not args.smoke:
+        return
+    if not args.profile:
+        args.profile = [SMOKE_PROFILE]
+    if not args.graph:
+        args.graph = [SMOKE_GRAPH]
+    if not args.benchmark:
+        args.benchmark = [SMOKE_BENCHMARK]
+    if not args.policy:
+        args.policy = [SMOKE_POLICY]
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate Slurm shard TSV rows for ECG final-paper runs.")
     parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST), help="JSON final-run manifest.")
-    parser.add_argument("--profile", nargs="+", required=True, help="Profile(s) to expand, e.g. final_replacement final_droplet.")
+    parser.add_argument("--profile", nargs="+", default=[], help="Profile(s) to expand, e.g. final_replacement final_droplet.")
     parser.add_argument("--run-tag", required=True, help="Run tag written into each shard row.")
     parser.add_argument("--out", default="-", help="Output TSV path, or '-' for stdout.")
     parser.add_argument("--graph-dir", default=str(DEFAULT_GRAPH_DIR), help="Graph root for manifest graph names without explicit paths.")
+    parser.add_argument("--smoke", action="store_true", help="Generate the canonical one-row cluster smoke shard unless filters are overridden.")
     parser.add_argument("--stage", nargs="+", default=[], help="Only stages whose name contains one of these tokens.")
     parser.add_argument("--graph", nargs="+", default=[], help="Only exact normalized graph names.")
     parser.add_argument("--benchmark", nargs="+", default=[], help="Only exact normalized benchmark names.")
@@ -107,6 +125,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    apply_smoke_defaults(args)
+    if not args.profile:
+        raise SystemExit("--profile is required unless --smoke supplies the canonical final_replacement smoke profile")
     manifest = final_paper_run.load_manifest(final_paper_run.resolve_path(args.manifest))
     rows = generate_shards(
         manifest=manifest,

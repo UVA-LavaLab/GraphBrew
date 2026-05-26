@@ -195,11 +195,8 @@ RUN_TAG=autonomous_smoke_$(date +%Y%m%d_%H%M%S)
 SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_shards.tsv
 
 python3 scripts/experiments/ecg/make_slurm_shards.py \
-  --profile final_replacement \
+  --smoke \
   --run-tag "$RUN_TAG" \
-  --graph cit-Patents \
-  --benchmark pr \
-  --policy LRU \
   --out "$SHARDS" \
   --allow-missing-graphs
 ```

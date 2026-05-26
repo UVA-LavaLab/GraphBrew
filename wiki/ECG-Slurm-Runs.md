@@ -267,6 +267,20 @@ For a smaller first pass, use the generator filters.
 For example:
 
 ```bash
+RUN_TAG=cluster_smoke_$(date +%Y%m%d_%H%M%S)
+SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_shards.tsv
+
+python3 scripts/experiments/ecg/make_slurm_shards.py \
+  --smoke \
+  --run-tag "$RUN_TAG" \
+  --out "$SHARDS"
+
+wc -l "$SHARDS"   # one row: final_replacement, cit-Patents, PR, LRU
+```
+
+Use explicit filters when you want a different first pass:
+
+```bash
 python3 scripts/experiments/ecg/make_slurm_shards.py \
   --profile final_replacement \
   --run-tag "$RUN_TAG" \

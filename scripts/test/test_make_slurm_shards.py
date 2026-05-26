@@ -47,6 +47,31 @@ def tiny_manifest() -> dict:
     }
 
 
+def smoke_manifest() -> dict:
+    return {
+        "defaults": {
+            "graph_set": "graphs",
+        },
+        "graph_sets": {
+            "graphs": [
+                {"name": "cit-Patents", "path": "missing/cit-Patents.sg", "options_key": "file_dbg"},
+                {"name": "soc-pokec", "path": "missing/soc-pokec.sg", "options_key": "file_dbg"},
+            ],
+        },
+        "stages": [
+            {
+                "name": "20_gem5_large_replacement",
+                "kind": "roi_matrix",
+                "profiles": ["final_replacement"],
+                "suite": "gem5",
+                "graph_set": "graphs",
+                "benchmarks": ["pr", "bfs"],
+                "policies": ["LRU", "ECG:DBG_PRIMARY"],
+            },
+        ],
+    }
+
+
 def test_generate_shards_expands_manifest_rows_with_filters(tmp_path):
     rows = make_slurm_shards.generate_shards(
         manifest=tiny_manifest(),
@@ -72,3 +97,47 @@ def test_write_shards_uses_headerless_tsv(tmp_path):
     make_slurm_shards.write_shards(out_path, rows)
 
     assert out_path.read_text() == "profile\tstage\tgraph\tpr\tLRU\ttag\n"
+
+
+def test_smoke_defaults_select_canonical_one_row(tmp_path):
+    class Args:
+        smoke = True
+        profile = []
+        graph = []
+        benchmark = []
+        policy = []
+
+    args = Args()
+    make_slurm_shards.apply_smoke_defaults(args)
+    rows = make_slurm_shards.generate_shards(
+        manifest=smoke_manifest(),
+        profiles=args.profile,
+        run_tag="smoke1",
+        graph_dir=tmp_path,
+        stage_filters=[],
+        graph_filters=args.graph,
+        benchmark_filters=args.benchmark,
+        policy_filters=args.policy,
+        allow_missing_graphs=True,
+    )
+
+    assert [row.to_tsv() for row in rows] == [
+        "final_replacement\t20_gem5_large_replacement\tcit-Patents\tpr\tLRU\tsmoke1"
+    ]
+
+
+def test_smoke_defaults_preserve_explicit_overrides():
+    class Args:
+        smoke = True
+        profile = ["final_replacement"]
+        graph = ["soc-pokec"]
+        benchmark = ["bfs"]
+        policy = ["ECG_DBG_PRIMARY"]
+
+    args = Args()
+    make_slurm_shards.apply_smoke_defaults(args)
+
+    assert args.profile == ["final_replacement"]
+    assert args.graph == ["soc-pokec"]
+    assert args.benchmark == ["bfs"]
+    assert args.policy == ["ECG_DBG_PRIMARY"]
