@@ -90,6 +90,38 @@ def graph_checks(shard_rows: list[list[str]], graph_dir: Path, allow_missing: bo
     return checks
 
 
+def shard_semantic_checks(shard_rows: list[list[str]], manifest: dict[str, Any]) -> list[CheckResult]:
+    stages = {str(stage.get("name")): stage for stage in manifest.get("stages", [])}
+    graph_sets = manifest.get("graph_sets", {})
+    checks: list[CheckResult] = []
+    for index, row in enumerate(shard_rows, 1):
+        profile, stage_name, graph_name, benchmark, policy, _run_tag = row
+        check_name = f"shard-row:{index}:{profile}:{stage_name}:{graph_name}:{benchmark}:{policy}"
+        stage = stages.get(stage_name)
+        if stage is None:
+            checks.append(CheckResult(check_name, False, f"unknown stage {stage_name!r}"))
+            continue
+        if profile not in {str(item) for item in stage.get("profiles", [])}:
+            checks.append(CheckResult(check_name, False, f"profile {profile!r} is not valid for stage {stage_name!r}"))
+            continue
+        settings = final_paper_run.merged_defaults(manifest, stage)
+        graph_set_name = str(settings.get("graph_set", ""))
+        graph_names = {str(graph.get("name")) for graph in graph_sets.get(graph_set_name, [])}
+        if graph_name not in graph_names:
+            checks.append(CheckResult(check_name, False, f"graph {graph_name!r} is not in graph_set {graph_set_name!r}"))
+            continue
+        benchmarks = {str(item) for item in settings.get("benchmarks", [])}
+        if benchmark not in benchmarks:
+            checks.append(CheckResult(check_name, False, f"benchmark {benchmark!r} is not valid for stage {stage_name!r}"))
+            continue
+        policies = [str(item) for item in settings.get("policies", [])]
+        if not final_paper_run.filter_policy_specs(policies, [policy]):
+            checks.append(CheckResult(check_name, False, f"policy {policy!r} is not valid for stage {stage_name!r}"))
+            continue
+        checks.append(CheckResult(check_name, True, "matches manifest"))
+    return checks
+
+
 def staging_checks(profiles: list[str], graph_dir: Path, allow_missing: bool) -> list[CheckResult]:
     manifest = final_paper_run.load_manifest(DEFAULT_MANIFEST)
     checks: list[CheckResult] = []
@@ -203,6 +235,8 @@ def main(argv: list[str]) -> int:
         if path.exists():
             rows = read_rows(path, 6)
             checks.append(CheckResult(f"shards:{path.name}:rows", bool(rows), f"{len(rows)} rows"))
+            manifest = final_paper_run.load_manifest(DEFAULT_MANIFEST)
+            checks.extend(shard_semantic_checks(rows, manifest))
             checks.extend(graph_checks(rows, graph_dir, bool(args.allow_missing_graphs)))
 
     for shard in args.scale_shards:

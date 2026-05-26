@@ -52,6 +52,30 @@ def test_cluster_preflight_allows_missing_graphs(tmp_path):
 
     assert "graph:soc-pokec" in result.stdout
     assert "missing allowed" in result.stdout
+    assert "matches manifest" in result.stdout
+
+
+def test_cluster_preflight_rejects_invalid_shard_policy(tmp_path):
+    shards = tmp_path / "final.tsv"
+    shards.write_text("final_replacement\t20_gem5_large_replacement\tcit-Patents\tpr\tNOT_A_POLICY\trun\n")
+
+    result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/ecg_cluster_preflight.py",
+            "--skip-binaries",
+            "--allow-missing-graphs",
+            "--shards", str(shards),
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "NOT_A_POLICY" in result.stdout
+    assert "not valid for stage" in result.stdout
 
 
 def test_cluster_preflight_profile_staging_check():
