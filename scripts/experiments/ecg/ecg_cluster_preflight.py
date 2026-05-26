@@ -18,9 +18,11 @@ import ecg_graph_staging_status
 PROJECT_ROOT = final_paper_run.PROJECT_ROOT
 DEFAULT_MANIFEST = final_paper_run.DEFAULT_MANIFEST
 DEFAULT_GRAPH_DIR = PROJECT_ROOT / "results" / "graphs"
+FINAL_SBATCH_SCRIPT = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_final_shard.sbatch"
+SCALE_SBATCH_SCRIPT = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_ecg_pfx_scale_proof.sbatch"
 SBATCH_SCRIPTS = [
-    PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_final_shard.sbatch",
-    PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_ecg_pfx_scale_proof.sbatch",
+    FINAL_SBATCH_SCRIPT,
+    SCALE_SBATCH_SCRIPT,
 ]
 
 
@@ -126,6 +128,20 @@ def check_sbatch_scripts() -> list[CheckResult]:
     return [check_sbatch_script(path) for path in SBATCH_SCRIPTS]
 
 
+def check_sbatch_directive(path: Path, directive: str, label: str, waived: bool = False) -> CheckResult:
+    name = f"sbatch:{path.name}:{label}"
+    if waived:
+        return CheckResult(name, True, "waived by --allow-nonexclusive")
+    path_check = check_path(path, name)
+    if not path_check.ok:
+        return path_check
+    expected = f"#SBATCH {directive}"
+    found = any(line.strip().startswith(expected) for line in path.read_text().splitlines())
+    if not found:
+        return CheckResult(name, False, f"missing {expected}")
+    return CheckResult(name, True, f"found {expected}")
+
+
 def check_required_binaries(skip_sniper: bool) -> list[CheckResult]:
     checks = [
         check_path(PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt", "gem5-x86", True),
@@ -161,6 +177,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--profile", nargs="+", default=[], help="Profiles for explicit graph staging checks.")
     parser.add_argument("--allow-missing-graphs", action="store_true")
     parser.add_argument("--require-slurm", action="store_true")
+    parser.add_argument("--allow-nonexclusive", action="store_true", help="Waive the slurm_final_shard.sbatch #SBATCH --exclusive check when site policy enforces one shard per node another way.")
     parser.add_argument("--skip-binaries", action="store_true")
     parser.add_argument("--skip-sniper", action="store_true")
     return parser.parse_args(argv)
@@ -175,6 +192,7 @@ def main(argv: list[str]) -> int:
         checks.extend(check_required_binaries(bool(args.skip_sniper)))
     checks.extend(check_slurm(bool(args.require_slurm)))
     checks.extend(check_sbatch_scripts())
+    checks.append(check_sbatch_directive(FINAL_SBATCH_SCRIPT, "--exclusive", "exclusive", bool(args.allow_nonexclusive)))
 
     if args.profile:
         checks.extend(staging_checks([str(profile) for profile in args.profile], graph_dir, bool(args.allow_missing_graphs)))

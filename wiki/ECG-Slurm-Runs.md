@@ -192,6 +192,10 @@ after the large graph `.sg` files are staged.
 Preflight also runs `bash -n` over the checked-in Slurm wrappers so syntax
 errors in `slurm_final_shard.sbatch` or `slurm_ecg_pfx_scale_proof.sbatch` are
 caught before submission.
+It also checks that `slurm_final_shard.sbatch` requests `#SBATCH --exclusive`,
+matching the one-gem5-shard-per-node rule. If your cluster enforces equivalent
+placement outside the script, pass `--allow-nonexclusive` and document that site
+policy in your run notes.
 
 ## 3. Generate Slurm Shard List
 

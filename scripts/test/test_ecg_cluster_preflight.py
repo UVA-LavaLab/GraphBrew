@@ -29,6 +29,7 @@ def test_cluster_preflight_accepts_scale_shards(tmp_path):
     assert "1 rows" in result.stdout
     assert "sbatch:slurm_ecg_pfx_scale_proof.sbatch" in result.stdout
     assert "syntax ok" in result.stdout
+    assert "sbatch:slurm_final_shard.sbatch:exclusive" in result.stdout
 
 
 def test_cluster_preflight_allows_missing_graphs(tmp_path):
@@ -91,3 +92,27 @@ def test_cluster_preflight_reports_sbatch_syntax_errors(tmp_path):
 
     assert not result.ok
     assert result.name == "sbatch:bad.sbatch"
+
+
+def test_cluster_preflight_reports_missing_exclusive_directive(tmp_path):
+    script = tmp_path / "noexclusive.sbatch"
+    script.write_text("#!/bin/bash\n#SBATCH --job-name=test\n")
+
+    import importlib.util
+    import sys
+
+    path = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "ecg_cluster_preflight.py"
+    sys.path.insert(0, str(path.parent))
+    spec = importlib.util.spec_from_file_location("ecg_cluster_preflight", path)
+    ecg_cluster_preflight = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules["ecg_cluster_preflight"] = ecg_cluster_preflight
+    spec.loader.exec_module(ecg_cluster_preflight)
+
+    result = ecg_cluster_preflight.check_sbatch_directive(script, "--exclusive", "exclusive")
+    waived = ecg_cluster_preflight.check_sbatch_directive(script, "--exclusive", "exclusive", waived=True)
+
+    assert not result.ok
+    assert "missing #SBATCH --exclusive" in result.detail
+    assert waived.ok
+    assert "waived" in waived.detail
