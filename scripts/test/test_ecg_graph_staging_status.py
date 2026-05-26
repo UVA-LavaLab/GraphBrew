@@ -26,6 +26,11 @@ def test_graph_staging_status_lists_final_graphs(tmp_path):
 
     assert {"soc-pokec", "soc-LiveJournal1", "com-orkut", "cit-Patents"}.issubset(names)
     assert all(row["expected_path"].endswith(f"/{row['graph']}.sg") for row in rows)
+    by_name = {row["graph"]: row for row in rows}
+    assert "scripts.lib.pipeline.download" in by_name["soc-pokec"]["download_command"]
+    assert "bench/bin/converter" in by_name["com-orkut"]["convert_command"]
+    assert by_name["com-orkut"]["source_category"] == "social"
+    assert by_name["soc-LiveJournal1"]["source_category"] == "social"
 
 
 def test_graph_staging_status_fail_on_missing(tmp_path):

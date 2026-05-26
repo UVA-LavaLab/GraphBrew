@@ -156,6 +156,12 @@ python3 scripts/experiments/ecg/ecg_graph_staging_status.py \
 column -s, -t < results/ecg_experiments/slurm/final_graph_staging_status.csv
 ```
 
+The CSV includes the expected `.sg` path, SuiteSparse/SNAP source URL when the
+graph is in the download catalog, and concrete `download_command` /
+`convert_command` templates. For the current final set, `cit-Patents` is staged
+locally; `soc-pokec`, `soc-LiveJournal1`, and `com-orkut` need download and
+conversion on the shared cluster filesystem.
+
 Make the cluster preflight fail until every required graph is staged:
 
 ```bash

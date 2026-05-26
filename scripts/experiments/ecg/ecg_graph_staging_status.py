@@ -9,7 +9,12 @@ from pathlib import Path
 import sys
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import final_paper_run
+from scripts.lib.pipeline.download import get_graph_info
 
 
 FIELDNAMES = [
@@ -22,6 +27,14 @@ FIELDNAMES = [
     "jobs",
     "status",
     "detail",
+    "source_url",
+    "source_size_mb",
+    "source_nodes",
+    "source_edges",
+    "source_symmetric",
+    "source_category",
+    "download_command",
+    "convert_command",
 ]
 
 
@@ -55,11 +68,26 @@ def expected_graph_path(graph: dict[str, Any], graph_dir: Path) -> Path:
     return graph_dir / str(graph["name"]) / f"{graph['name']}.sg"
 
 
+def catalog_info(graph_name: str):
+    aliases = {
+        "com-orkut": "com-Orkut",
+    }
+    for candidate in (graph_name, aliases.get(graph_name, "")):
+        if not candidate:
+            continue
+        info = get_graph_info(candidate)
+        if info is not None:
+            return info
+    return None
+
+
 def staging_rows(manifest: dict[str, Any], profiles: list[str], graph_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for graph_name, record in sorted(graph_jobs(manifest, profiles).items()):
         path = expected_graph_path(record["graph"], graph_dir)
         exists = path.exists()
+        info = catalog_info(graph_name)
+        mtx_path = path.parent / f"{graph_name}.mtx"
         rows.append({
             "graph": graph_name,
             "expected_path": str(path),
@@ -70,6 +98,14 @@ def staging_rows(manifest: dict[str, Any], profiles: list[str], graph_dir: Path)
             "jobs": int(record["jobs"]),
             "status": "ok" if exists else "missing",
             "detail": "staged" if exists else f"stage graph at {path}",
+            "source_url": info.url if info else "",
+            "source_size_mb": info.size_mb if info else "",
+            "source_nodes": info.nodes if info else "",
+            "source_edges": info.edges if info else "",
+            "source_symmetric": int(info.symmetric) if info else "",
+            "source_category": info.category if info else "",
+            "download_command": f"python3 -m scripts.lib.pipeline.download --graph {graph_name} --dest {graph_dir}",
+            "convert_command": f"make converter && bench/bin/converter -f {mtx_path} -s -b {path}",
         })
     return rows
 
