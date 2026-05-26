@@ -9,6 +9,8 @@ For autonomous execution, follow
 It keeps build checks, dry-runs, tiny smokes, and shard generation local, while
 large file-backed gem5/Sniper/final profiles are saved as Slurm shards instead
 of being launched on the workstation.
+For the graph-data blocker specifically, use
+[the ECG final graph staging plan](../plans/ecg-graph-staging-plan.md).
 
 ## Overview
 
@@ -161,6 +163,10 @@ graph is in the download catalog, and concrete `download_command` /
 `convert_command` templates. For the current final set, `cit-Patents` is staged
 locally; `soc-pokec`, `soc-LiveJournal1`, and `com-orkut` need download and
 conversion on the shared cluster filesystem.
+
+For an executable cluster checklist, including the `com-orkut` / `com-Orkut`
+catalog alias and strict verification commands, follow
+[the ECG final graph staging plan](../plans/ecg-graph-staging-plan.md).
 
 Make the cluster preflight fail until every required graph is staged:
 

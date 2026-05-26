@@ -5,6 +5,8 @@ place to check before starting long cache-policy runs.
 
 For UVA Slurm runs where each graph/benchmark/policy shard runs independently
 and results are aggregated later, see [ECG Slurm runs](ECG-Slurm-Runs.md).
+For the current large-graph staging blocker and exact download/convert checklist,
+see [the ECG final graph staging plan](../plans/ecg-graph-staging-plan.md).
 For the autonomous finish-the-stack backlog, use
 [the final-paper completion task](../plans/ecg-autonomous-final-paper-completion.md);
 it routes bounded validation to the local workstation and large gem5/Sniper or

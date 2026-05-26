@@ -24,6 +24,7 @@ research/
 agent
 plans/*
 !plans/ecg-autonomous-final-paper-completion.md
+!plans/ecg-graph-staging-plan.md
 paper
 docs/agent_*
 # gem5 cloned repository (large, managed by scripts/setup_gem5.py)

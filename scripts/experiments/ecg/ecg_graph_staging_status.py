@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 from pathlib import Path
+import shlex
 import sys
 from typing import Any
 
@@ -33,6 +34,7 @@ FIELDNAMES = [
     "source_edges",
     "source_symmetric",
     "source_category",
+    "catalog_graph",
     "download_command",
     "convert_command",
 ]
@@ -81,13 +83,33 @@ def catalog_info(graph_name: str):
     return None
 
 
+def shell_join(parts: list[str | Path]) -> str:
+    return " ".join(shlex.quote(str(part)) for part in parts)
+
+
+def download_command(catalog_name: str, graph_dir: Path) -> str:
+    return shell_join(["python3", "-m", "scripts.lib.pipeline.download", "--graph", catalog_name, "--dest", graph_dir])
+
+
+def convert_command(catalog_name: str, graph_dir: Path, output_path: Path) -> str:
+    source_dir = graph_dir / catalog_name
+    source_dir_q = shlex.quote(str(source_dir))
+    output_dir_q = shlex.quote(str(output_path.parent))
+    output_path_q = shlex.quote(str(output_path))
+    return (
+        f"mtx=$(find {source_dir_q} -maxdepth 1 -name '*.mtx' -print -quit) && "
+        f"test -n \"$mtx\" && mkdir -p {output_dir_q} && make converter && "
+        f"bench/bin/converter -f \"$mtx\" -s -b {output_path_q}"
+    )
+
+
 def staging_rows(manifest: dict[str, Any], profiles: list[str], graph_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for graph_name, record in sorted(graph_jobs(manifest, profiles).items()):
         path = expected_graph_path(record["graph"], graph_dir)
         exists = path.exists()
         info = catalog_info(graph_name)
-        mtx_path = path.parent / f"{graph_name}.mtx"
+        catalog_name = info.name if info else graph_name
         rows.append({
             "graph": graph_name,
             "expected_path": str(path),
@@ -104,8 +126,9 @@ def staging_rows(manifest: dict[str, Any], profiles: list[str], graph_dir: Path)
             "source_edges": info.edges if info else "",
             "source_symmetric": int(info.symmetric) if info else "",
             "source_category": info.category if info else "",
-            "download_command": f"python3 -m scripts.lib.pipeline.download --graph {graph_name} --dest {graph_dir}",
-            "convert_command": f"make converter && bench/bin/converter -f {mtx_path} -s -b {path}",
+            "catalog_graph": catalog_name,
+            "download_command": download_command(catalog_name, graph_dir),
+            "convert_command": convert_command(catalog_name, graph_dir, path),
         })
     return rows
 

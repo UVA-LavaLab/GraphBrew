@@ -28,6 +28,10 @@ def test_graph_staging_status_lists_final_graphs(tmp_path):
     assert all(row["expected_path"].endswith(f"/{row['graph']}.sg") for row in rows)
     by_name = {row["graph"]: row for row in rows}
     assert "scripts.lib.pipeline.download" in by_name["soc-pokec"]["download_command"]
+    assert by_name["com-orkut"]["catalog_graph"] == "com-Orkut"
+    assert "--graph com-Orkut" in by_name["com-orkut"]["download_command"]
+    assert "results/graphs/com-Orkut" in by_name["com-orkut"]["convert_command"]
+    assert "results/graphs/com-orkut/com-orkut.sg" in by_name["com-orkut"]["convert_command"]
     assert "bench/bin/converter" in by_name["com-orkut"]["convert_command"]
     assert by_name["com-orkut"]["source_category"] == "social"
     assert by_name["soc-LiveJournal1"]["source_category"] == "social"

@@ -179,6 +179,9 @@ python3 scripts/experiments/ecg/final_paper_run.py \
 ### Phase 4: Slurm Shard Preparation
 
 - [ ] Check graph availability for final profiles.
+- [ ] For missing large final graphs, follow
+  `plans/ecg-graph-staging-plan.md` on shared cluster storage before strict
+  preflight or full-array submission.
 - [ ] Generate shard TSVs for every large job rather than launching locally.
 - [ ] Use a descriptive `RUN_TAG` that includes date and purpose.
 - [ ] Generate a one-row smoke shard first for any new cluster environment.

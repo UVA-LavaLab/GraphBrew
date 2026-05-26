@@ -24,7 +24,7 @@ the reorder cost.
 - [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
 - [ECG-Final-Runs](ECG-Final-Runs) — current ECG/gem5 final-run profiles, charged P-OPT, and supported baselines
 - [ECG-Sniper-Runs](ECG-Sniper-Runs) — Sniper backend setup, bounded SIFT full-wrapper validation, DROPLET, and current multithread blocker
-- [ECG-Slurm-Runs](ECG-Slurm-Runs) — split ECG/gem5 final runs across UVA Slurm and aggregate later
+- [ECG-Slurm-Runs](ECG-Slurm-Runs) — split ECG/gem5 final runs across UVA Slurm, stage final graphs, and aggregate later
 - [Code-Architecture](Code-Architecture) — codebase map
 - [VLDB-Experiments](VLDB-Experiments) — reproducing the paper
 
