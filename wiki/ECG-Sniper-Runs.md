@@ -103,11 +103,12 @@ so BFS is the current local matched proof point. PR and SSSP remain diagnostic:
 PR is useful in Sniper but not gem5 RISC-V on this tiny point, while SSSP is
 useful in gem5 RISC-V but `active_no_fill` in Sniper.
 
-BFS scale-up check: g7 root 1 and g8 root 9 both preserve the matched useful
-prefetch proof across RISC-V gem5 and Sniper SIFT. The compact artifact is
+BFS scale-up check: g7 root 1, g8 root 9, and g9 root 20 all preserve the matched
+useful-prefetch proof across RISC-V gem5 and Sniper SIFT. The compact artifact is
 `/tmp/graphbrew-ecg-pfx-riscv-sniper-bfs-scale-proof/summary.csv`. Root choice
 matters: g7 root 0 and g8 roots 0/1 were inactive in Sniper, while nearby roots
-generated hints and useful fills.
+generated hints and useful fills; g9 root 20 was the strongest useful-prefetch
+candidate in the local 0-31 root sweep.
 
 Current local constraint:
 

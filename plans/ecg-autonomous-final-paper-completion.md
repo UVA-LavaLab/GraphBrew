@@ -170,10 +170,10 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   `paper_pipeline.py --skip-run` where possible.
 - [ ] Confirm no ECG_PFX prototype row contributes to speedup figures.
 - [ ] For RISC-V-vs-Sniper ECG_PFX comparison, run the PR/BFS/SSSP g6 local
-  gate, then root-selected BFS g7/g8. Current matched proof rows are BFS g6,
-  g7/r1, and g8/r9: RISC-V gem5 `ecg.extract` and Sniper SIFT both report
-  nonzero issued and useful prefetch counters. Treat rows with `pf_issued=0` as
-  activation-only, not fill/useful-prefetch evidence.
+  gate, then root-selected BFS g7/g8/g9. Current matched proof rows are BFS g6,
+  g7/r1, g8/r9, and g9/r20: RISC-V gem5 `ecg.extract` and Sniper SIFT both
+  report nonzero issued and useful prefetch counters. Treat rows with
+  `pf_issued=0` as activation-only, not fill/useful-prefetch evidence.
 
 ### Phase 4: Slurm Shard Preparation
 
