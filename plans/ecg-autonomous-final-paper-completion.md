@@ -239,6 +239,11 @@ Status:
 python3 scripts/experiments/ecg/slurm_shard_status.py \
   --shards "$SHARDS" \
   --out results/ecg_experiments/slurm/${RUN_TAG}_status.csv
+
+# Use this before promoting a smoke shard to a full array.
+python3 scripts/experiments/ecg/slurm_shard_status.py \
+  --shards "$SHARDS" \
+  --require-ok
 ```
 
 ### Phase 6: Aggregation and Figures

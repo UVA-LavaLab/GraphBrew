@@ -363,6 +363,9 @@ column -s, -t < results/ecg_experiments/slurm/${RUN_TAG}_status.csv | sed -n '1,
 Use `--fail-on-failed` in CI/check scripts when any failed shard should make the
 status command return nonzero. Use `--fail-on-missing` when pending or
 not-started rows should also fail the check.
+Use `--require-ok` for the smoke-shard promotion gate: it returns nonzero unless
+every row in the shard TSV is already `ok`, including rows that are still
+`running`.
 
 Rerun a failed shard by resubmitting the same row. The wrapper is resumable: existing `ok` CSV rows are skipped unless `--force` is passed.
 

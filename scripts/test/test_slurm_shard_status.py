@@ -3,6 +3,7 @@
 
 import csv
 import importlib.util
+import subprocess
 from pathlib import Path
 import sys
 
@@ -67,3 +68,44 @@ def test_write_status_writes_stable_columns(tmp_path):
 
     header = out_path.read_text().splitlines()[0]
     assert header == ",".join(slurm_shard_status.STATUS_FIELDNAMES)
+
+
+def test_require_ok_fails_until_every_shard_is_ok(tmp_path):
+    shards = tmp_path / "shards.tsv"
+    runs_root = tmp_path / "runs"
+    shards.write_text("profile\tstage\tgraph\tpr\tLRU\ttag\n")
+
+    missing_result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/slurm_shard_status.py",
+            "--shards", str(shards),
+            "--runs-root", str(runs_root),
+            "--require-ok",
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert missing_result.returncode == 4
+    assert "not_started" in missing_result.stdout
+
+    row = slurm_shard_status.ShardRow("profile", "stage", "graph", "pr", "LRU", "tag")
+    write_jobs(slurm_shard_status.shard_run_dir(row, runs_root) / "jobs.csv", "ok", "1 ok row")
+
+    ok_result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/slurm_shard_status.py",
+            "--shards", str(shards),
+            "--runs-root", str(runs_root),
+            "--require-ok",
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert ok_result.returncode == 0
+    assert "ok" in ok_result.stdout

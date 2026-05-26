@@ -149,6 +149,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--out", default="-", help="Output status CSV path, or '-' for stdout.")
     parser.add_argument("--fail-on-missing", action="store_true", help="Exit nonzero if any shard is not started or pending.")
     parser.add_argument("--fail-on-failed", action="store_true", help="Exit nonzero if any shard failed.")
+    parser.add_argument("--require-ok", action="store_true", help="Exit nonzero unless every shard status is ok; useful before promoting a smoke shard to a full array.")
     return parser.parse_args(argv)
 
 
@@ -171,6 +172,8 @@ def main(argv: list[str]) -> int:
         return 2
     if args.fail_on_missing and any(counts.get(status, 0) for status in ("not_started", "pending")):
         return 3
+    if args.require_ok and (set(counts) != {"ok"}):
+        return 4
     return 0
 
 
