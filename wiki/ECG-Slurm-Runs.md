@@ -171,6 +171,32 @@ The full four-graph PR/BFS/SSSP replacement+DROPLET set above creates:
 4 graphs * 3 benchmarks * (9 replacement policies + 7 DROPLET policies) = 192 Slurm shards
 ```
 
+Current prepared final replacement+DROPLET shard file, generated 2026-05-26:
+
+```bash
+RUN_TAG=final_repl_droplet_20260526_141547
+SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_shards.tsv
+
+# 192 rows: 4 graphs x 3 benchmarks x replacement/DROPLET policies.
+wc -l "$SHARDS"
+
+# Local dry-run of one row is expected to warn about missing graph files if the
+# large .sg files are only staged on shared cluster storage.
+IFS=$'\t' read -r profile stage graph benchmark policy run_tag < "$SHARDS"
+safe_policy=${policy//:/_}
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile "$profile" \
+  --run-dir "/tmp/graphbrew-final-shard-dryrun/${profile}_${graph}_${benchmark}_${safe_policy}" \
+  --only "$stage" \
+  --graph "$graph" \
+  --benchmark "$benchmark" \
+  --policy "$policy" \
+  --no-build \
+  --dry-run \
+  --allow-missing-graphs \
+  --skip-validation-gate
+```
+
 For a smaller first pass, use the generator filters.
 For example:
 
