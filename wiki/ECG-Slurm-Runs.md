@@ -146,6 +146,24 @@ python3 scripts/experiments/ecg/final_paper_run.py \
 
 Do not start the multi-day run until missing graphs are resolved or intentionally excluded with `--graph` filters.
 
+Generate a graph staging checklist:
+
+```bash
+python3 scripts/experiments/ecg/ecg_graph_staging_status.py \
+  --profile final_replacement final_droplet final_cache_sim final_cache_sim_ecg_pfx \
+  --out results/ecg_experiments/slurm/final_graph_staging_status.csv
+
+column -s, -t < results/ecg_experiments/slurm/final_graph_staging_status.csv
+```
+
+Make the cluster preflight fail until every required graph is staged:
+
+```bash
+python3 scripts/experiments/ecg/ecg_graph_staging_status.py \
+  --profile final_replacement final_droplet final_cache_sim final_cache_sim_ecg_pfx \
+  --fail-on-missing
+```
+
 Cluster preflight before any `sbatch`:
 
 ```bash
