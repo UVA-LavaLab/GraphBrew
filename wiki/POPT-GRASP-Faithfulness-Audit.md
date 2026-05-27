@@ -76,6 +76,10 @@ Validation completed:
    `/tmp/graphbrew-faithful-email-core-prspmv-cache-size-refresh` and
    `/tmp/graphbrew-faithful-email-core-tc-cache-size-refresh` produced 42/42 ok
    cache_sim rows.
+- Refreshed ECG proof matrix with embedded/combined rows:
+   `/tmp/graphbrew-ecg-validation-proof-post-faithful` produced 42/42 ok proof
+   rows and a 27-row gate report. GRASP/P-OPT parity passes; PR/SSSP hybrid value
+   and embedded-quality gates fail under this local 4kB synthetic proof.
 - `USE_SDE=1 make -C bench/include/sniper_sim/snipersim/common -j1` rebuilt the touched Sniper cache-set objects.
 - `scons build/X86/gem5.opt -j2` rebuilt gem5 X86 successfully after overlay refresh.
 

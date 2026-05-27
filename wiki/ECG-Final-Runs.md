@@ -542,6 +542,32 @@ The JSON separates `graph_load_s` from `degree_scan_s_*`,
 the same OpenMP-enabled degree scan, P-OPT matrix builder, and ECG mask builder
 as the cache_sim path, but does not run PR/BFS/SSSP or any cache simulation.
 
+ECG validation gate workflow, 2026-05-27:
+
+```bash
+python3 scripts/experiments/ecg/proof_matrix.py \
+  --benchmarks pr bfs sssp \
+  --l3-sizes 4kB \
+  --out-dir /tmp/graphbrew-ecg-validation-proof-post-faithful \
+  --timeout-cache 900 \
+  --no-build
+
+python3 scripts/experiments/ecg/ecg_validation_gates.py \
+  /tmp/graphbrew-ecg-validation-proof-post-faithful/proof_matrix.csv \
+  --out-csv /tmp/graphbrew-ecg-validation-proof-post-faithful/gates.csv \
+  --out-md /tmp/graphbrew-ecg-validation-proof-post-faithful/gates.md
+```
+
+The refreshed proof matrix has 42/42 ok cache_sim rows across PR/BFS/SSSP and
+the gate report has 27 verdict rows: 23 pass and 4 fail. Passing gates: GRASP
+parity (`ECG_DBG_ONLY` equals GRASP), P-OPT parity (`ECG_POPT_PRIMARY` within
+5% of POPT), all synthetic PFX demand gates, BFS embedded quality, and BFS ECG
+hybrid value. Failing gates: `ECG_DBG_POPT` does not beat the stronger prior
+replacement baseline on PR or SSSP, and `ECG_EMBEDDED` is outside the 10%
+P-OPT-quality tolerance on PR and SSSP. Interpret this as mechanism proof plus
+a clear research gap: ECG parity and PFX activation are working locally, but the
+current hybrid/embedded replacement story is not yet a paper-level win.
+
 Interpretation:
 
 | Label | Meaning |
