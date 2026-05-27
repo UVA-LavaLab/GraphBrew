@@ -48,8 +48,10 @@ def read_rows(path: Path, columns: int) -> list[list[str]]:
     rows: list[list[str]] = []
     for line_number, line in enumerate(path.read_text().splitlines(), 1):
         stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
+        if not stripped:
+            raise SystemExit(f"invalid row {path}:{line_number}: blank lines are not allowed in executable shard TSVs")
+        if stripped.startswith("#"):
+            raise SystemExit(f"invalid row {path}:{line_number}: comments are not allowed in executable shard TSVs")
         parts = line.split("\t")
         if len(parts) != columns:
             raise SystemExit(f"invalid row {path}:{line_number}: expected {columns} tab-separated fields")

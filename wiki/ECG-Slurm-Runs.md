@@ -214,6 +214,9 @@ enters `GRAPHBREW_ROOT`, matching the examples in this runbook.
 
 Create one tab-separated row per shard from the checked-in final-run manifest.
 The generated TSV is headerless because Slurm array task `0` reads row `1`.
+Executable shard TSVs must not contain comments or blank lines; Slurm array
+tasks index physical lines, so preflight rejects comments/blanks to keep row
+counts and task IDs aligned.
 
 ```bash
 mkdir -p results/ecg_experiments/slurm

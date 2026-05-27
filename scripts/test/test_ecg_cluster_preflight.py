@@ -77,6 +77,49 @@ def test_cluster_preflight_rejects_invalid_scale_root(tmp_path):
     assert "must be nonnegative" in result.stdout
 
 
+def test_cluster_preflight_rejects_comment_rows_in_final_shards(tmp_path):
+    shards = tmp_path / "final.tsv"
+    shards.write_text("# comment\nfinal_replacement\t20_gem5_large_replacement\tcit-Patents\tpr\tLRU\trun\n")
+
+    result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/ecg_cluster_preflight.py",
+            "--skip-binaries",
+            "--allow-missing-graphs",
+            "--shards", str(shards),
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "comments are not allowed" in result.stderr
+
+
+def test_cluster_preflight_rejects_blank_rows_in_scale_shards(tmp_path):
+    shards = tmp_path / "scale.tsv"
+    shards.write_text("\n11\t0\tsniper\t/tmp/out\n")
+
+    result = subprocess.run(
+        [
+            "python3",
+            "scripts/experiments/ecg/ecg_cluster_preflight.py",
+            "--skip-binaries",
+            "--scale-shards", str(shards),
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "blank lines are not allowed" in result.stderr
+
+
 def test_cluster_preflight_allows_missing_graphs(tmp_path):
     shards = tmp_path / "final.tsv"
     shards.write_text("final_replacement\t20_gem5_large_replacement\tsoc-pokec\tpr\tLRU\trun\n")
