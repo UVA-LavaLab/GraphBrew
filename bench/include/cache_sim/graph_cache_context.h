@@ -120,6 +120,7 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 //
 //   DBG_PRIMARY  (default): SRRIP → DBG tier → dynamic P-OPT
 //   POPT_PRIMARY:           SRRIP → dynamic P-OPT → DBG tier
+//   POPT_TIE:               SRRIP candidates → dynamic P-OPT → DBG tier
 //   DBG_ONLY:               GRASP-faithful insertion/hit hints, plain SRRIP victim
 //   ECG_EMBEDDED:           Stored P-OPT hint as primary, DBG as secondary
 //   ECG_EPOCH_EMBEDDED:     Current-epoch compact P-OPT hint, DBG as secondary
@@ -127,6 +128,7 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 enum class ECGMode {
     DBG_PRIMARY,   // DBG tier is primary tiebreaker, P-OPT is secondary
     POPT_PRIMARY,  // Dynamic P-OPT is primary tiebreaker, DBG is secondary
+    POPT_TIE,      // SRRIP narrows candidates, dynamic P-OPT picks among ties
     DBG_ONLY,      // GRASP-equivalent insertion/hit hints, no eviction tiebreak
     ECG_EMBEDDED,  // Stored P-OPT hint (from mask) primary, DBG tier secondary — zero LLC overhead
     ECG_EPOCH_EMBEDDED, // Current-epoch P-OPT hint primary, DBG tier secondary — compact epoch table model
@@ -137,6 +139,7 @@ inline std::string ECGModeToString(ECGMode mode) {
     switch (mode) {
         case ECGMode::DBG_PRIMARY:  return "DBG_PRIMARY";
         case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
+        case ECGMode::POPT_TIE:     return "POPT_TIE";
         case ECGMode::DBG_ONLY:     return "DBG_ONLY";
         case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
         case ECGMode::ECG_EPOCH_EMBEDDED: return "ECG_EPOCH_EMBEDDED";
@@ -147,6 +150,7 @@ inline std::string ECGModeToString(ECGMode mode) {
 
 inline ECGMode StringToECGMode(const std::string& s) {
     if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
+    if (s == "POPT_TIE" || s == "popt_tie" || s == "popt_tiebreak") return ECGMode::POPT_TIE;
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
     if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
     if (s == "ECG_EPOCH_EMBEDDED" || s == "ecg_epoch_embedded" || s == "epoch_embedded") return ECGMode::ECG_EPOCH_EMBEDDED;

@@ -88,6 +88,11 @@ Validation completed:
    added `ECG_EPOCH_EMBEDDED`. It improves PR static embedded from 9,332 to 6,793
    misses and BFS static embedded from 1,270 to 1,212 misses, but still trails
    dynamic POPT/`ECG_POPT_PRIMARY` on PR/BFS.
+- POPT-tie variant probe `/tmp/graphbrew-ecg-validation-proof-email-core-popt-tie`
+   added `ECG_POPT_TIE` and produced 48/48 ok proof rows plus a 36-row gate
+   report with 31 pass / 5 fail. It matches epoch-embedded on PR/BFS, showing
+   that SRRIP candidate filtering is a major source of the remaining gap to
+   dynamic POPT.
 - `USE_SDE=1 make -C bench/include/sniper_sim/snipersim/common -j1` rebuilt the touched Sniper cache-set objects.
 - `scons build/X86/gem5.opt -j2` rebuilt gem5 X86 successfully after overlay refresh.
 

@@ -1202,6 +1202,35 @@ private:
             }
             return narrowed[0];
 
+        } else if (mode == ECGMode::POPT_TIE && graph_ctx_ && graph_ctx_->rereference.matrix) {
+            // POPT_TIE: keep GRASP insertion/hit behavior, but use dynamic
+            // P-OPT as the first tiebreak after SRRIP has selected max-RRPV
+            // candidates. This is cheaper than full POPT_PRIMARY because it
+            // only queries candidates that are already eligible for eviction.
+            uint32_t max_dist = 0;
+            for (size_t c = 0; c < num_candidates; c++) {
+                uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
+                if (dist > max_dist) max_dist = dist;
+            }
+
+            size_t narrowed[64];
+            size_t num_narrowed = 0;
+            for (size_t c = 0; c < num_candidates; c++) {
+                uint32_t dist = graph_ctx_->findNextRef(set[candidates[c]].line_addr);
+                if (dist == max_dist) narrowed[num_narrowed++] = candidates[c];
+            }
+            if (num_narrowed == 1) return narrowed[0];
+
+            uint8_t max_dbg = 0;
+            size_t victim = narrowed[0];
+            for (size_t c = 0; c < num_narrowed; c++) {
+                if (set[narrowed[c]].ecg_dbg_tier > max_dbg) {
+                    max_dbg = set[narrowed[c]].ecg_dbg_tier;
+                    victim = narrowed[c];
+                }
+            }
+            return victim;
+
         } else if (mode == ECGMode::ECG_EMBEDDED || mode == ECGMode::ECG_EPOCH_EMBEDDED) {
             // ECG_EMBEDDED: stored P-OPT hint as Level 2 (zero LLC overhead).
             // ECG_EPOCH_EMBEDDED: compact current-epoch P-OPT hint as Level 2.

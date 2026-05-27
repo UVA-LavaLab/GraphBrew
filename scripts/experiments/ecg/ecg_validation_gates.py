@@ -211,6 +211,7 @@ def best_ecg_replacement_gate(
         "ECG_DBG_only",
         "ECG_POPT_primary",
         "ECG_DBG_POPT",
+        "ECG_POPT_TIE",
         "ECG_EMBEDDED",
         "ECG_EPOCH_EMBEDDED",
         "ECG_COMBINED",
@@ -284,6 +285,10 @@ def evaluate(rows: list[dict[str, str]], metric: str, parity_tolerance: float, b
         verdicts.append(benefit_gate(
             benchmark, table, "epoch_embedded_quality", "ECG_EPOCH_EMBEDDED", "POPT_only",
             metric, embedded_tolerance, "Epoch-conditioned compact P-OPT hint should stay near pure P-OPT within quantization tolerance.",
+        ))
+        verdicts.append(benefit_gate(
+            benchmark, table, "popt_tie_quality", "ECG_POPT_TIE", "POPT_only",
+            metric, embedded_tolerance, "SRRIP-candidate POPT tiebreak should stay near pure P-OPT within filtering tolerance.",
         ))
         verdicts.append(benefit_gate(
             benchmark, table, "combined_insertion_quality", "ECG_COMBINED", "LRU_cache_only",

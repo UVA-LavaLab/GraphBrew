@@ -591,6 +591,26 @@ at 1,186. The design insight is clear: each approach is useful as a point in
 the design space, but current-epoch information is necessary and still not
 sufficient to fully match dynamic POPT on PR.
 
+Second replacement-variant result, 2026-05-27:
+
+```text
+/tmp/graphbrew-ecg-validation-proof-email-core-popt-tie   48/48 proof rows ok
+/tmp/graphbrew-ecg-validation-proof-email-core-popt-tie/gates.csv   36 gates, 31 pass / 5 fail
+```
+
+This run adds `ECG_POPT_TIE`, a cache_sim-only mode that keeps GRASP-style
+insertion/hit behavior, lets SRRIP pick max-RRPV candidate lines, then uses
+dynamic POPT only among those candidates. It matches `ECG_EPOCH_EMBEDDED` on the
+file-backed proof: PR gets 6,793 misses and BFS 1,212 misses. That is much
+better than static embedded on PR/BFS, but still behind full dynamic
+`ECG_POPT_PRIMARY`/POPT (PR about 5.25k misses, BFS 1,186). The design insight
+is sharper now: the gap is not only static hint averaging; filtering decisions
+through SRRIP candidate eligibility also loses information that full POPT uses.
+The promising architecture direction is therefore either POPT-primary selection
+with compact/low-overhead hint delivery, or an adaptive policy that uses
+POPT-primary for PR-like phases and cheaper embedded/tie modes where they are
+close enough.
+
 Interpret this as mechanism proof plus a clear research gap: ECG parity and PFX
 activation are working locally, and at least one ECG replacement mode matches or
 beats the strongest prior baseline on each file-backed proof benchmark, but the

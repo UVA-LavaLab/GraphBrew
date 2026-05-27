@@ -64,6 +64,7 @@ ABLATIONS = [
     Ablation("ECG_DBG_only", "ecg_replacement", "ECG:DBG_ONLY", note="ECG DBG replacement only."),
     Ablation("ECG_POPT_primary", "ecg_replacement", "ECG:POPT_PRIMARY", note="ECG POPT replacement plus DBG tiebreak."),
     Ablation("ECG_DBG_POPT", "ecg_replacement", "ECG:DBG_PRIMARY", note="DBG primary plus POPT tiebreak."),
+    Ablation("ECG_POPT_TIE", "ecg_replacement", "ECG:POPT_TIE", note="SRRIP candidates plus dynamic POPT tiebreak and DBG fallback."),
     Ablation("ECG_EMBEDDED", "ecg_replacement", "ECG:ECG_EMBEDDED", note="Stored P-OPT hint plus DBG tiebreak; zero dynamic P-OPT lookup."),
     Ablation("ECG_EPOCH_EMBEDDED", "ecg_replacement", "ECG:ECG_EPOCH_EMBEDDED", note="Current-epoch compact P-OPT hint plus DBG tiebreak."),
     Ablation("ECG_COMBINED", "ecg_replacement", "ECG:ECG_COMBINED", note="Combined DBG and stored P-OPT hint insertion priority."),

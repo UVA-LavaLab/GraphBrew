@@ -115,6 +115,7 @@ ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (
 |------|---------|---------|------|
 | **DBG_PRIMARY** (default) | DBG tier (coldest vertex) | Dynamic P-OPT `findNextRef()` | `ECG_MODE=DBG_PRIMARY` |
 | **POPT_PRIMARY** | P-OPT 3-phase algorithm (exact match) | DBG tier among P-OPT ties | `ECG_MODE=POPT_PRIMARY` |
+| **POPT_TIE** | SRRIP max-RRPV candidates | Dynamic P-OPT, then DBG tier | `ECG_MODE=POPT_TIE` |
 | **DBG_ONLY** | DBG tier only | None (fast path) | `ECG_MODE=DBG_ONLY` |
 | **ECG_EMBEDDED** | Stored P-OPT hint (from mask, zero LLC overhead) | DBG tier | `ECG_MODE=ECG_EMBEDDED` |
 | **ECG_EPOCH_EMBEDDED** | Current-epoch compact P-OPT hint, cache_sim experimental mode | DBG tier | `ECG_MODE=ECG_EPOCH_EMBEDDED` |
