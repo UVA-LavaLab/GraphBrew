@@ -212,6 +212,7 @@ def best_ecg_replacement_gate(
         "ECG_POPT_primary",
         "ECG_DBG_POPT",
         "ECG_EMBEDDED",
+        "ECG_EPOCH_EMBEDDED",
         "ECG_COMBINED",
     ]
     prior_labels = ["GRASP_DBG_only", "POPT_only"]
@@ -279,6 +280,10 @@ def evaluate(rows: list[dict[str, str]], metric: str, parity_tolerance: float, b
         verdicts.append(benefit_gate(
             benchmark, table, "embedded_quality", "ECG_EMBEDDED", "POPT_only",
             metric, embedded_tolerance, "Embedded stored P-OPT hint should stay near pure P-OPT within quantization tolerance.",
+        ))
+        verdicts.append(benefit_gate(
+            benchmark, table, "epoch_embedded_quality", "ECG_EPOCH_EMBEDDED", "POPT_only",
+            metric, embedded_tolerance, "Epoch-conditioned compact P-OPT hint should stay near pure P-OPT within quantization tolerance.",
         ))
         verdicts.append(benefit_gate(
             benchmark, table, "combined_insertion_quality", "ECG_COMBINED", "LRU_cache_only",

@@ -648,7 +648,7 @@ public:
         }
 
         // ECG: Mode-dependent insertion RRPV.
-        // DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED: use GRASP 3-tier (1/6/7)
+        // DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED variants: use GRASP 3-tier (1/6/7)
         // POPT_PRIMARY: use P-OPT-style RRPV=6 (matches pure P-OPT aging)
         if (policy_ == EvictionPolicy::ECG) {
             ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
@@ -691,7 +691,7 @@ public:
                 if (combined == 0 && dbg_rrpv > 0) combined = 1;  // Reserve 0 for hits
                 set[victim_idx].rrpv = combined;
             } else {
-                // GRASP-faithful 3-tier for DBG_PRIMARY, DBG_ONLY, ECG_EMBEDDED
+                // GRASP-faithful 3-tier for DBG_PRIMARY, DBG_ONLY, ECG_EMBEDDED variants
                 constexpr uint8_t P_RRIP = 1;
                 constexpr uint8_t I_RRIP = 6;
                 constexpr uint8_t M_RRIP_C = 7;
@@ -843,7 +843,7 @@ private:
                 // Every hit is evidence of cache-friendliness
                 set[idx].rrpv = 0;
             } else {
-                // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED
+                // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED variants
                 if (graph_ctx_) {
                     uint64_t addr = set[idx].line_addr;
                     uint32_t tier = graph_ctx_->classifyGRASP(addr, size_bytes_);
@@ -1202,19 +1202,30 @@ private:
             }
             return narrowed[0];
 
-        } else if (mode == ECGMode::ECG_EMBEDDED) {
+        } else if (mode == ECGMode::ECG_EMBEDDED || mode == ECGMode::ECG_EPOCH_EMBEDDED) {
             // ECG_EMBEDDED: stored P-OPT hint as Level 2 (zero LLC overhead).
-            // Evict line with highest stored rereference hint (furthest future).
-            // Falls back to DBG tier as Level 3 tiebreaker.
+            // ECG_EPOCH_EMBEDDED: compact current-epoch P-OPT hint as Level 2.
+            // Both fall back to DBG tier as Level 3 tiebreaker.
             uint8_t max_hint = 0;
-            for (size_t c = 0; c < num_candidates; c++)
-                if (set[candidates[c]].ecg_popt_hint > max_hint)
-                    max_hint = set[candidates[c]].ecg_popt_hint;
+            uint8_t hints[64] = {};
+            uint32_t popt_max = 127;
+            if (graph_ctx_ && graph_ctx_->mask_config.popt_bits > 0)
+                popt_max = (1U << graph_ctx_->mask_config.popt_bits) - 1;
+            for (size_t c = 0; c < num_candidates; c++) {
+                size_t idx = candidates[c];
+                if (mode == ECGMode::ECG_EPOCH_EMBEDDED && graph_ctx_ && graph_ctx_->rereference.matrix) {
+                    uint32_t dist = std::min(graph_ctx_->findNextRef(set[idx].line_addr), uint32_t(127));
+                    hints[c] = static_cast<uint8_t>((dist * popt_max) / 127);
+                } else {
+                    hints[c] = set[idx].ecg_popt_hint;
+                }
+                if (hints[c] > max_hint) max_hint = hints[c];
+            }
 
             size_t narrowed[64];
             size_t num_narrowed = 0;
             for (size_t c = 0; c < num_candidates; c++)
-                if (set[candidates[c]].ecg_popt_hint == max_hint)
+                if (hints[c] == max_hint)
                     narrowed[num_narrowed++] = candidates[c];
 
             if (num_narrowed == 1) return narrowed[0];

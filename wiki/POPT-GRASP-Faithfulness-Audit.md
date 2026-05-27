@@ -84,6 +84,10 @@ Validation completed:
    local 4kB `email-Eu-core` proof. Synthetic `-g 12` proof rows were observed to
    vary across invocations, so use file-backed proof gates for quantitative
    interpretation.
+- Embedded variant probe `/tmp/graphbrew-ecg-validation-proof-email-core-epoch`
+   added `ECG_EPOCH_EMBEDDED`. It improves PR static embedded from 9,332 to 6,793
+   misses and BFS static embedded from 1,270 to 1,212 misses, but still trails
+   dynamic POPT/`ECG_POPT_PRIMARY` on PR/BFS.
 - `USE_SDE=1 make -C bench/include/sniper_sim/snipersim/common -j1` rebuilt the touched Sniper cache-set objects.
 - `scons build/X86/gem5.opt -j2` rebuilt gem5 X86 successfully after overlay refresh.
 

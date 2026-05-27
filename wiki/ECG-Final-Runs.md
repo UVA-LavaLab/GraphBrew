@@ -573,12 +573,29 @@ best-available ECG replacement gate for every benchmark. Failing gates:
 and `ECG_EMBEDDED` is outside the 10% P-OPT-quality tolerance on PR. The PR
 embedded log uses full 7-bit P-OPT hints (`DBG=2 POPT=7`) yet still collapses to
 the DBG/GRASP row, so the problem is not bit budget; it is that the stored hint
-is too static/averaged compared with dynamic current-vertex POPT. Interpret this
-as mechanism proof plus a clear research gap: ECG parity and PFX activation are
-working locally, and at least one ECG replacement mode matches or beats the
-strongest prior baseline on each file-backed proof benchmark, but the specific
-DBG-primary hybrid and PR embedded replacement story are not yet paper-level
-wins.
+is too static/averaged compared with dynamic current-vertex POPT.
+
+First embedded-variant result, 2026-05-27:
+
+```text
+/tmp/graphbrew-ecg-validation-proof-email-core-epoch   45/45 proof rows ok
+```
+
+This run adds `ECG_EPOCH_EMBEDDED`, a cache_sim-only compact current-epoch POPT
+hint model. It improves over static embedded but still does not reach dynamic
+P-OPT on PR/BFS. On PR, static embedded and DBG-primary both miss 9,332 times,
+epoch-embedded misses 6,793 times, combined insertion misses 6,226, and dynamic
+`ECG_POPT_PRIMARY` misses 5,248 versus POPT at 5,254. On BFS, epoch-embedded is
+1,212 misses versus static embedded at 1,270 and dynamic POPT/`ECG_POPT_PRIMARY`
+at 1,186. The design insight is clear: each approach is useful as a point in
+the design space, but current-epoch information is necessary and still not
+sufficient to fully match dynamic POPT on PR.
+
+Interpret this as mechanism proof plus a clear research gap: ECG parity and PFX
+activation are working locally, and at least one ECG replacement mode matches or
+beats the strongest prior baseline on each file-backed proof benchmark, but the
+specific DBG-primary hybrid and PR embedded replacement story are not yet
+paper-level wins.
 
 Interpretation:
 

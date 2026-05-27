@@ -63,6 +63,7 @@ def test_gate_report_classifies_pass_and_activation_only():
         row("pr", "ECG_POPT_primary", 72),
         row("pr", "ECG_DBG_POPT", 69),
         row("pr", "ECG_EMBEDDED", 75),
+        row("pr", "ECG_EPOCH_EMBEDDED", 68),
         row("pr", "ECG_COMBINED", 95),
         row("pr", "PFX_POPT_only", 110, useful=10, fills=20),
         row("pr", "DBG_PFX", 81, useful=4, fills=8),
@@ -82,9 +83,10 @@ def test_gate_report_classifies_pass_and_activation_only():
     assert by_gate[("pr", "grasp_parity")]["status"] == "pass"
     assert by_gate[("pr", "popt_parity")]["status"] == "pass"
     assert by_gate[("pr", "embedded_quality")]["status"] == "pass"
+    assert by_gate[("pr", "epoch_embedded_quality")]["status"] == "pass"
     assert by_gate[("pr", "ecg_hybrid_value")]["status"] == "pass"
     assert by_gate[("pr", "best_ecg_replacement_value")]["status"] == "pass"
-    assert by_gate[("pr", "best_ecg_replacement_value")]["candidate"] == "ECG_DBG_POPT"
+    assert by_gate[("pr", "best_ecg_replacement_value")]["candidate"] == "ECG_EPOCH_EMBEDDED"
     assert by_gate[("pr", "PFX_POPT_only_pfx")]["status"] == "activation_only"
     assert by_gate[("pr", "DBG_POPT_PFX_pfx")]["status"] == "pass"
 
@@ -98,6 +100,7 @@ def test_embedded_quality_allows_beating_popt():
         row("sssp", "ECG_POPT_primary", 80),
         row("sssp", "ECG_DBG_POPT", 90),
         row("sssp", "ECG_EMBEDDED", 68),
+        row("sssp", "ECG_EPOCH_EMBEDDED", 67),
         row("sssp", "ECG_COMBINED", 95),
         row("sssp", "PFX_POPT_only", 90, useful=1, fills=1),
         row("sssp", "DBG_PFX", 70, useful=1, fills=1),
@@ -115,9 +118,10 @@ def test_embedded_quality_allows_beating_popt():
     by_gate = {(gate["benchmark"], gate["gate"]): gate for gate in gates}
 
     assert by_gate[("sssp", "embedded_quality")]["status"] == "pass"
+    assert by_gate[("sssp", "epoch_embedded_quality")]["status"] == "pass"
     assert by_gate[("sssp", "ecg_hybrid_value")]["status"] == "fail"
     assert by_gate[("sssp", "best_ecg_replacement_value")]["status"] == "pass"
-    assert by_gate[("sssp", "best_ecg_replacement_value")]["candidate"] == "ECG_EMBEDDED"
+    assert by_gate[("sssp", "best_ecg_replacement_value")]["candidate"] == "ECG_EPOCH_EMBEDDED"
 
 
 def test_cli_writes_csv_and_markdown(tmp_path):
@@ -131,6 +135,7 @@ def test_cli_writes_csv_and_markdown(tmp_path):
         row("bfs", "ECG_POPT_primary", 70),
         row("bfs", "ECG_DBG_POPT", 69),
         row("bfs", "ECG_EMBEDDED", 72),
+        row("bfs", "ECG_EPOCH_EMBEDDED", 70),
         row("bfs", "ECG_COMBINED", 90),
         row("bfs", "PFX_POPT_only", 95, useful=1, fills=1),
         row("bfs", "DBG_PFX", 80, useful=1, fills=1),
