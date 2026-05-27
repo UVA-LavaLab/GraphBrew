@@ -104,7 +104,7 @@ CacheSetECG::graspInsertionRRPV(IntPtr addr) const
    if (context.loaded && context.isPropertyData(static_cast<uint64_t>(addr))) {
       uint64_t llc_size = m_llc_size_bytes ? m_llc_size_bytes : UInt64(m_associativity) * m_blocksize;
       uint32_t tier = context.classifyGRASP(static_cast<uint64_t>(addr), llc_size);
-      if (tier == 1) return 0;
+      if (tier == 1) return 1;
       if (tier == 2) return m_rrip_max > 0 ? m_rrip_max - 1 : 0;
       return m_rrip_max;
    }
@@ -222,12 +222,12 @@ CacheSetECG::findPOPTVictim(CacheCntlr *cntlr)
 
    if (property_count != m_associativity) {
       for (UInt32 way = 0; way < m_associativity; way++) {
-         if (m_property_lines[way]) {
-            UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
-            if (distance > 64 && m_rrip_bits[way] < m_rrip_max) m_rrip_bits[way] = m_rrip_max;
+         if (!m_property_lines[way]) {
+            applyPendingInsertion(way);
+            LOG_ASSERT_ERROR(isValidReplacement(way), "ECG POPT selected an invalid replacement candidate");
+            return way;
          }
       }
-      return findSRRIPVictim(cntlr);
    }
 
    UInt32 max_distance = 0;

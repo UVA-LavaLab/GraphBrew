@@ -140,7 +140,7 @@ uint8_t
 GraphGraspRP::insertionRRPV(ReuseTier tier) const
 {
     switch (tier) {
-        case ReuseTier::HIGH:     return 0;
+        case ReuseTier::HIGH:     return 1;
         case ReuseTier::MODERATE: return maxRRPV - 1;
         case ReuseTier::LOW:      return maxRRPV;
     }

@@ -618,7 +618,7 @@ public:
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
 
         // GRASP: 3-tier RRIP insertion matching Faldu et al. HPCA 2020.
-        // HIGH reuse (hubs):    RRPV = 0 (MRU — protect in cache)
+        // HIGH reuse (hubs):    RRPV = 1 (P_RRIP — protect in cache)
         // MODERATE reuse:       RRPV = 6 (I_RRIP — intermediate)
         // LOW reuse (cold/OOB): RRPV = 7 (M_RRIP — evict sooner)
         //
@@ -626,7 +626,7 @@ public:
         // each property region. Moderate = next 10%. Cold = rest.
         // After DBG reorder, highest-degree vertices are at front (low addr).
         if (policy_ == EvictionPolicy::GRASP) {
-            constexpr uint8_t P_RRIP = 0;   // Priority/MRU (hot)
+            constexpr uint8_t P_RRIP = 1;   // Priority insertion (hot), matching upstream GRASP
             constexpr uint8_t I_RRIP = 6;   // Intermediate (moderate)
             constexpr uint8_t M_RRIP = 7;   // Max (cold)
             if (graph_ctx_) {
@@ -648,7 +648,7 @@ public:
         }
 
         // ECG: Mode-dependent insertion RRPV.
-        // DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED: use GRASP 3-tier (0/6/7)
+        // DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED: use GRASP 3-tier (1/6/7)
         // POPT_PRIMARY: use P-OPT-style RRPV=6 (matches pure P-OPT aging)
         if (policy_ == EvictionPolicy::ECG) {
             ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
@@ -667,13 +667,13 @@ public:
                 // either signal alone.
                 //
                 // Formula: RRPV = max(0, min(7, dbg_rrpv + popt_rrpv) / 2))
-                //   dbg_rrpv:  0 (hub) to 7 (cold) from GRASP 3-tier
+                //   dbg_rrpv:  1 (hub) to 7 (cold) from GRASP 3-tier
                 //   popt_rrpv: 0 (near) to 7 (far) from stored P-OPT hint
                 //   Combined:  average → smooth 8-level priority
                 uint8_t dbg_rrpv = 7;
                 if (graph_ctx_) {
                     uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
-                    if (tier == 1)      dbg_rrpv = 0;
+                    if (tier == 1)      dbg_rrpv = 1;
                     else if (tier == 2) dbg_rrpv = 4;
                     else                dbg_rrpv = 7;
                 }
@@ -692,7 +692,7 @@ public:
                 set[victim_idx].rrpv = combined;
             } else {
                 // GRASP-faithful 3-tier for DBG_PRIMARY, DBG_ONLY, ECG_EMBEDDED
-                constexpr uint8_t P_RRIP = 0;
+                constexpr uint8_t P_RRIP = 1;
                 constexpr uint8_t I_RRIP = 6;
                 constexpr uint8_t M_RRIP_C = 7;
                 if (graph_ctx_) {
@@ -958,7 +958,7 @@ private:
     // (Faldu et al., HPCA 2020 — reference: grasp.cpp)
     //
     // RRIP-based policy with 3-tier insertion depending on address region:
-    //   High-reuse (hot hubs):    insert RRPV = 0 (MRU), hit → 0
+    //   High-reuse (hot hubs):    insert RRPV = 1 (P_RRIP), hit → 0
     //   Moderate-reuse:           insert RRPV = M-1 (I_RRIP), hit → decrement
     //   Low-reuse (cold/other):   insert RRPV = M (M_RRIP), hit → decrement
     // Eviction: find way with max RRPV, age all if none at max.

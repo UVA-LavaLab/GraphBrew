@@ -1,13 +1,10 @@
 // ============================================================================
 // P-OPT Replacement Policy for gem5 — Implementation
 // ============================================================================
-// Faithful P-OPT adapted for gem5's full-system address space.
-//
-// Key difference from standalone cache_sim: gem5 sees ALL memory accesses
-// (instructions, stack, CSR edges) not just property arrays. Phase 1
-// ("evict non-property first") would thrash in gem5 because most L3 lines
-// are non-property. Instead, we use P-OPT rereference distance ONLY for
-// property data lines, and SRRIP for everything else.
+// Faithful P-OPT adapted for gem5's full-system address space. The victim
+// algorithm mirrors upstream POPT-CacheSim-HPCA21 and GraphBrew cache_sim:
+// evict non-property data first, then use rereference distance, then RRIP
+// tiebreaks among equal-distance lines.
 //
 // Reference: Balaji et al., HPCA 2021
 // ============================================================================
@@ -147,65 +144,42 @@ GraphPoptRP::getVictim(const ReplacementCandidates& candidates) const
         if (d->is_property_data) propCount++;
     }
 
-    // If ALL candidates are property data, use full P-OPT 3-phase
-    if (propCount == static_cast<int>(candidates.size())) {
-        // Phase 2: find max rereference distance among property lines
-        uint8_t maxDist = 0;
-        std::vector<std::pair<ReplaceableEntry*, uint8_t>> wayDists;
-        wayDists.reserve(candidates.size());
-
+    // Phase 1: evict non-property data before applying oracle rereference.
+    if (propCount != static_cast<int>(candidates.size())) {
         for (const auto& c : candidates) {
             auto d = std::static_pointer_cast<PoptReplData>(c->replacementData);
-            uint32_t dist = ctx.findNextRef(d->line_addr);
-            uint8_t d8 = static_cast<uint8_t>(std::min(dist, uint32_t(127)));
-            wayDists.emplace_back(c, d8);
-            if (d8 > maxDist) maxDist = d8;
-        }
-
-        // Phase 3: RRIP tiebreaker among max-distance lines
-        while (true) {
-            for (auto& [entry, dist] : wayDists) {
-                if (dist == maxDist) {
-                    auto d = std::static_pointer_cast<PoptReplData>(
-                        entry->replacementData);
-                    if (d->rrpv >= maxRRPV) return entry;
-                }
-            }
-            for (auto& [entry, dist] : wayDists) {
-                if (dist == maxDist) {
-                    auto d = std::static_pointer_cast<PoptReplData>(
-                        entry->replacementData);
-                    if (d->rrpv < maxRRPV) d->rrpv++;
-                }
-            }
+            if (!d->is_property_data) return c;
         }
     }
 
-    // Mixed set (property + non-property): use SRRIP with P-OPT boost.
-    // Property lines with far rereference get RRPV boosted toward eviction.
-    // Non-property lines use standard SRRIP aging.
-    // This avoids the Phase 1 problem of blindly evicting non-property data.
+    // Phase 2: find max rereference distance among property lines.
+    uint8_t maxDist = 0;
+    std::vector<std::pair<ReplaceableEntry*, uint8_t>> wayDists;
+    wayDists.reserve(candidates.size());
+
     for (const auto& c : candidates) {
         auto d = std::static_pointer_cast<PoptReplData>(c->replacementData);
-        d->is_property_data = ctx.isPropertyData(d->line_addr);
-        if (d->is_property_data) {
-            uint32_t dist = ctx.findNextRef(d->line_addr);
-            // Far rereference -> boost RRPV toward eviction
-            if (dist > 64 && d->rrpv < maxRRPV) {
-                d->rrpv = maxRRPV;  // Push far-future property lines to evict
-            }
-        }
+        uint32_t dist = ctx.findNextRef(d->line_addr);
+        uint8_t d8 = static_cast<uint8_t>(std::min(dist, uint32_t(127)));
+        wayDists.emplace_back(c, d8);
+        if (d8 > maxDist) maxDist = d8;
     }
 
-    // Standard SRRIP eviction on the (now-boosted) set
+    // Phase 3: RRIP tiebreaker among max-distance lines.
     while (true) {
-        for (const auto& c : candidates) {
-            auto d = std::static_pointer_cast<PoptReplData>(c->replacementData);
-            if (d->rrpv >= maxRRPV) return c;
+        for (auto& [entry, dist] : wayDists) {
+            if (dist == maxDist) {
+                auto d = std::static_pointer_cast<PoptReplData>(
+                    entry->replacementData);
+                if (d->rrpv >= maxRRPV) return entry;
+            }
         }
-        for (const auto& c : candidates) {
-            auto d = std::static_pointer_cast<PoptReplData>(c->replacementData);
-            if (d->rrpv < maxRRPV) d->rrpv++;
+        for (auto& [entry, dist] : wayDists) {
+            if (dist == maxDist) {
+                auto d = std::static_pointer_cast<PoptReplData>(
+                    entry->replacementData);
+                if (d->rrpv < maxRRPV) d->rrpv++;
+            }
         }
     }
 }

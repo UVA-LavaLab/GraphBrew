@@ -368,6 +368,16 @@ at 256kB all policies tied with zero useful PFX. Treat PR ECG_PFX here as a
 negative/control tuning point: the hint path is active, but the current target
 selection and cache point do not convert that into fewer L3 misses.
 
+Faithfulness correction note, 2026-05-27: the official GRASP implementation uses
+hot-line insertion `P_RRIP=1` and hot-line hit promotion `H_RRIP=0`. GraphBrew
+previously used `0` for both. The cache_sim/gem5/Sniper implementations were
+updated to match upstream GRASP, and gem5/Sniper P-OPT mixed-set behavior was
+changed from a far-rereference boost heuristic to upstream Phase 1 non-property
+eviction. The local cache_sim screen rows above predate this correction for
+GRASP/DBG-mode ECG rows and should be refreshed before final quantitative
+claims; pure POPT cache_sim rows are still representative of the strict P-OPT
+path.
+
 Medium local screen result, 2026-05-26:
 
 ```text

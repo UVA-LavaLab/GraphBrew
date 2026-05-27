@@ -35,8 +35,9 @@ feed `prepareInsertion(addr)`, then use `ECG_DBG_ONLY` as the parity check.
 
 `cache_set_popt.{h,cc}` is also scaffolded. It loads the same sideband and
 P-OPT matrix files as gem5, uses P-OPT distance for all-property candidate sets,
-uses SRRIP with a far-rereference boost for mixed sets, and falls back to SRRIP
-when the matrix is absent. It is not yet wired into the Sniper factory.
+evicts non-property data first for mixed sets to match upstream P-OPT, and falls
+back to SRRIP when the matrix is absent. It is not yet wired into the Sniper
+factory.
 
 `cache_set_ecg.{h,cc}` supports `SNIPER_ECG_MODE=DBG_ONLY`, `DBG_PRIMARY`,
 `POPT_PRIMARY`, `ECG_EMBEDDED`, and `ECG_COMBINED`. The active smoke coverage

@@ -102,7 +102,7 @@ The default configuration models a typical modern CPU:
 | **LFU** | Evicts least frequently used | Good for hot data |
 | **PLRU** | Tree-based pseudo-LRU | Hardware-efficient LRU approximation |
 | **SRRIP** | Re-reference interval prediction | Scan-resistant, good for streaming |
-| **GRASP** | Graph-aware 3-tier RRIP: HIGH=0/MODERATE=6/LOW=7 (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
+| **GRASP** | Graph-aware 3-tier RRIP: HIGH insert=1 / MODERATE=6 / LOW=7, hot hit=0 (Faldu et al., HPCA'20) | Power-law graphs with DBG reordering |
 | **P-OPT** | Graph-transpose Belady 3-phase: non-property first -> oracle distance -> RRIP tiebreak (Balaji et al., HPCA'21) | Oracle ceiling; requires rereference matrix |
 | **P-OPT charged** | Runner alias `POPT_CHARGED`: same dynamic P-OPT logic, but effective LLC data ways are reduced for rereference matrix columns | Honest P-OPT prior-method baseline |
 | **ECG** | Layered: GRASP insertion + P-OPT/DBG eviction tiebreak, multiple modes (Mughrabi et al., GrAPL) | Combines structural + oracle; zero-overhead embedded mode |
@@ -120,7 +120,7 @@ ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (
 | **ECG_COMBINED** | Combined DBG + stored P-OPT insertion RRPV | None | `ECG_MODE=ECG_COMBINED` |
 
 **Insertion RRPV by mode:**
-- **DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED**: GRASP-faithful 3-tier — HIGH=0 (P_RRIP), MODERATE=6 (I_RRIP), LOW=7 (M_RRIP)
+- **DBG_ONLY / DBG_PRIMARY / ECG_EMBEDDED**: GRASP-faithful 3-tier — HIGH insert=1 (P_RRIP), MODERATE=6 (I_RRIP), LOW=7 (M_RRIP)
 - **POPT_PRIMARY**: Uniform RRPV=6 for all lines (matching pure P-OPT)
 
 **Non-property data handling:**
@@ -128,7 +128,7 @@ ECG uses a 3-level layered eviction strategy. All modes start with SRRIP aging (
 - **DBG modes**: Non-property data gets RRPV=7 (cold) at insert, naturally ages out
 
 **Hit promotion:**
-- **DBG modes**: Hot region → RRPV=0 (aggressive), others → decrement by 1
+- **DBG modes**: Hot-region hits → RRPV=0 (aggressive), other hits → decrement by 1
 - **POPT_PRIMARY**: Universal RRPV=0 (same as SRRIP/P-OPT)
 
 **P-OPT rereference matrix:**
@@ -349,13 +349,14 @@ All eight benchmarks (`pr`, `pr_spmv`, `bfs`, `cc`, `cc_sv`, `sssp`, `bc`, `tc`)
 
 The cache policies have been validated against the original reference implementations:
 
-**GRASP** (Faldu et al., HPCA'20): Faithful 3-tier implementation with high-reuse insertion at RRPV=0, moderate at 6, low at 7, and plain SRRIP victim selection.
+**GRASP** (Faldu et al., HPCA'20): Faithful 3-tier implementation with high-reuse insertion at RRPV=1, high-reuse hit promotion to 0, moderate insertion at 6, low insertion at 7, and plain SRRIP victim selection. This matches the official `faldupriyank/grasp` `P_RRIP=1` / `H_RRIP=0` split.
 
 **P-OPT** (Balaji et al., HPCA'21): Algorithm 2 three-phase eviction using an explicit current-vertex signal. Use `POPT` as the uncharged oracle ceiling and `POPT_CHARGED` as the overhead-aware prior-method baseline.
 
 **Current focused validation:**
-- cache_sim component proof: `results/ecg_experiments/proof_matrix/component_g12_l3_4kb_grasp_rrpv0/proof_matrix.csv` has 36/36 `ok` rows.
-- gem5 GRASP parity: `GRASP` and `ECG_DBG_ONLY` match exactly on PR/BFS/SSSP g10 after the RRPV=0 and plain-SRRIP victim fixes.
+- 2026-05-27 source-faithfulness audit: cache_sim, gem5 overlays, and Sniper overlays now use GRASP hot insertion RRPV=1 / hot hit RRPV=0, and P-OPT mixed sets use upstream Phase 1 non-property eviction rather than the earlier far-rereference boost heuristic.
+- cache_sim component proof at `results/ecg_experiments/proof_matrix/component_g12_l3_4kb_grasp_rrpv0/proof_matrix.csv` predates the RRPV=1 correction and should be refreshed before use in final claims.
+- gem5 GRASP parity: `GRASP` and `ECG_DBG_ONLY` should be refreshed on PR/BFS/SSSP after the RRPV=1 correction; the old RRPV=0 parity rows are no longer final evidence.
 - gem5 P-OPT current-vertex validation: PR/SSSP selected rows pass with explicit `GEM5_SET_VERTEX` hints.
 - charged P-OPT smoke: `results/ecg_experiments/roi_matrix/popt_charged_gem5_smoke/roi_matrix.csv` shows `POPT_CHARGED` and `ECG_DBG_PRIMARY_CHARGED` run end-to-end with visible reserved-way overhead.
 

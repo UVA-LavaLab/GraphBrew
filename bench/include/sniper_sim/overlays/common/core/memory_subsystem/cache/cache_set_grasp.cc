@@ -85,7 +85,7 @@ CacheSetGRASP::insertionRRPV(IntPtr addr) const
    if (context.loaded && context.isPropertyData(static_cast<uint64_t>(addr))) {
       uint64_t llc_size = m_llc_size_bytes ? m_llc_size_bytes : UInt64(m_associativity) * m_blocksize;
       uint32_t tier = context.classifyGRASP(static_cast<uint64_t>(addr), llc_size);
-      if (tier == 1) return 0;
+      if (tier == 1) return 1;
       if (tier == 2) return m_rrip_max > 0 ? m_rrip_max - 1 : 0;
       return m_rrip_max;
    }

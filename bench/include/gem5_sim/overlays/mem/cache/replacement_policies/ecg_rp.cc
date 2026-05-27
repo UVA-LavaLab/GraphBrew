@@ -111,7 +111,7 @@ GraphEcgRP::reset(
         data->line_addr = addr & ~uint64_t(63);
         data->is_property_data = ctx.loaded && ctx.isPropertyData(addr);
 
-        constexpr uint8_t pRrip = 0;
+        constexpr uint8_t pRrip = 1;
         constexpr uint8_t iRrip = 6;
         constexpr uint8_t mRrip = 7;
 
@@ -205,22 +205,7 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         if (propCount != static_cast<int>(candidates.size())) {
             for (const auto& c : candidates) {
                 auto data = getData(c);
-                if (data->is_property_data) {
-                    uint32_t dist = ctx.findNextRef(data->line_addr);
-                    if (dist > 64 && data->rrpv < rrpvMax) {
-                        data->rrpv = rrpvMax;
-                    }
-                }
-            }
-
-            while (true) {
-                for (const auto& c : candidates) {
-                    if (getData(c)->rrpv >= rrpvMax) return c;
-                }
-                for (const auto& c : candidates) {
-                    auto data = getData(c);
-                    if (data->rrpv < rrpvMax) data->rrpv++;
-                }
+                if (!data->is_property_data) return c;
             }
         }
 

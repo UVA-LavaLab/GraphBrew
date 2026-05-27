@@ -169,41 +169,38 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
       if (m_property_lines[way]) property_count++;
    }
 
-   if (property_count == m_associativity) {
-      UInt32 max_distance = 0;
+   if (property_count != m_associativity) {
+      for (UInt32 way = 0; way < m_associativity; way++) {
+         if (!m_property_lines[way]) {
+            applyPendingInsertion(way);
+            LOG_ASSERT_ERROR(isValidReplacement(way), "POPT selected an invalid replacement candidate");
+            return way;
+         }
+      }
+   }
+
+   UInt32 max_distance = 0;
+   for (UInt32 way = 0; way < m_associativity; way++) {
+      UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
+      max_distance = std::max(max_distance, std::min(distance, uint32_t(127)));
+   }
+
+   while (true) {
       for (UInt32 way = 0; way < m_associativity; way++) {
          UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
-         max_distance = std::max(max_distance, std::min(distance, uint32_t(127)));
-      }
-
-      while (true) {
-         for (UInt32 way = 0; way < m_associativity; way++) {
-            UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
-            if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] >= m_rrip_max) {
-               applyPendingInsertion(way);
-               LOG_ASSERT_ERROR(isValidReplacement(way), "POPT selected an invalid replacement candidate");
-               return way;
-            }
-         }
-         for (UInt32 way = 0; way < m_associativity; way++) {
-            UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
-            if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] < m_rrip_max) {
-               m_rrip_bits[way]++;
-            }
+         if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] >= m_rrip_max) {
+            applyPendingInsertion(way);
+            LOG_ASSERT_ERROR(isValidReplacement(way), "POPT selected an invalid replacement candidate");
+            return way;
          }
       }
-   }
-
-   for (UInt32 way = 0; way < m_associativity; way++) {
-      if (m_property_lines[way]) {
+      for (UInt32 way = 0; way < m_associativity; way++) {
          UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
-         if (distance > 64 && m_rrip_bits[way] < m_rrip_max) {
-            m_rrip_bits[way] = m_rrip_max;
+         if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] < m_rrip_max) {
+            m_rrip_bits[way]++;
          }
       }
    }
-
-   return findSRRIPVictim(cntlr);
 }
 
 void

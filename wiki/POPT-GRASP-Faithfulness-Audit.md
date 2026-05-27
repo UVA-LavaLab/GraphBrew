@@ -47,11 +47,31 @@ Establish whether GraphBrew's GRASP and P-OPT implementations match canonical so
   - bench/include/gem5_sim/overlays/mem/cache/replacement_policies/popt_rp.hh
   - bench/include/gem5_sim/overlays/mem/cache/replacement_policies/popt_rp.cc
 
-## Preliminary Difference to Validate
-Potential non-paper heuristic present in gem5 P-OPT path:
-- In popt_rp.cc, property lines with far rereference distance can be directly boosted to max RRPV when dist > 64.
-- This appears to be an implementation heuristic that may diverge from strict paper Algorithm-2 behavior.
-- Action: verify against paper pseudocode and either (a) remove for strict mode, or (b) keep behind an explicit non-faithful toggle.
+## Audit Result: 2026-05-27
+Pinned upstream commits used for this audit:
+- GRASP `faldupriyank/grasp`: `6e3814430265fc4f2513c95ef131a6522bc9d389`
+- P-OPT `CMUAbstract/POPT-CacheSim-HPCA21`: `53b5021846690d0f3445428c6380e877ecf7a10e`
+
+Resolved implementation differences:
+- GRASP upstream uses separate priority insertion and hit promotion values:
+   `P_RRIP=1` on hot-line insert and `H_RRIP=0` on hot-line hit. GraphBrew had
+   used `0` for both. cache_sim, gem5 overlays, and Sniper overlays now use
+   hot insertion `1` and hot hit `0`.
+- P-OPT upstream Phase 1 evicts non-irregular/non-property data before applying
+   rereference distance. GraphBrew gem5/Sniper overlays had used a mixed-set
+   far-rereference boost heuristic (`dist > 64`). That heuristic has been removed;
+   gem5 and Sniper P-OPT paths now evict non-property data first, then apply max
+   rereference distance and RRIP tiebreaking.
+
+Validation completed:
+- `python3 -m pytest -q scripts/test/test_popt_grasp_faithfulness_sources.py scripts/test/test_gem5_popt_matrix.py scripts/test/test_popt_charged_policy.py` -> 16 passed.
+- `make sim-pr` rebuilt `bench/bin_sim/pr`.
+- Tiny cache_sim smoke at `/tmp/graphbrew-popt-grasp-faithfulness-smoke` produced 5/5 ok rows for LRU, GRASP, POPT, ECG_DBG_ONLY, and ECG_POPT_PRIMARY.
+- `USE_SDE=1 make -C bench/include/sniper_sim/snipersim/common -j1` rebuilt the touched Sniper cache-set objects.
+- `scons build/X86/gem5.opt -j2` rebuilt gem5 X86 successfully after overlay refresh.
+
+Resulting caution:
+- Local cache_sim screens recorded before this audit used the older GRASP hot-insert value for GRASP/DBG-mode ECG rows. Refresh GRASP/ECG_DBG_* local screen rows before making final quantitative claims.
 
 ## 1:1 Faithfulness Checklist
 1. Paper-to-code mapping table
@@ -79,8 +99,8 @@ Potential non-paper heuristic present in gem5 P-OPT path:
    - Separate uncharged oracle POPT from charged-overhead POPT in claims.
 
 ## Immediate Execution Plan
-1. Create a strict-faithful mode switch for gem5 P-OPT that disables dist>64 boost heuristic.
-2. Run cache_sim + gem5 micro parity checks for GRASP and P-OPT under strict mode.
+1. Refresh cache_sim + gem5/Sniper parity checks for GRASP and P-OPT under the strict upstream-faithful behavior.
+2. Generate fresh component-proof rows after the GRASP hot-insert correction.
 3. Generate a source-faithfulness report CSV with columns:
    - source_block, graphbrew_file, graphbrew_function, status, evidence_run, notes
 4. Promote only rows passing strict-faithful checks into paper-facing claims.
