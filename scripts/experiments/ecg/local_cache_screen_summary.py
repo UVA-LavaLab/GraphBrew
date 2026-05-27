@@ -139,9 +139,12 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     summaries: list[dict[str, Any]] = []
     input_values = [item for group in args.input for item in group]
+    rows_by_label: dict[str, list[dict[str, str]]] = defaultdict(list)
     for value in input_values:
         label, path = parse_input(str(value))
-        summaries.extend(summarize_rows(input_label(path, label), read_rows(path)))
+        rows_by_label[input_label(path, label)].extend(read_rows(path))
+    for label, rows in sorted(rows_by_label.items()):
+        summaries.extend(summarize_rows(label, rows))
     out_path = None if args.out == "-" else final_paper_run.resolve_path(str(args.out))
     write_csv(out_path, summaries)
     if out_path is not None:

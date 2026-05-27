@@ -275,7 +275,8 @@ python3 scripts/experiments/ecg/local_cache_screen_summary.py \
 
 The summary ranks policies by L3 misses within each benchmark/prefetcher group,
 reports delta versus the local LRU row, and includes ECG_PFX useful-prefetch
-rates when present.
+rates when present. Reuse the same `label=path` prefix across inputs when you
+want charged and uncharged CSVs ranked against the same local LRU row.
 
 Small local screen result, 2026-05-26:
 
@@ -290,6 +291,21 @@ screen were strongest for BC (`ECG_DBG_PRIMARY`, about 30%), TC (`SRRIP`, about
 and SSSP were too small at this cache point to differentiate policies. The PFX
 screen showed useful cache_sim prefetches for BFS, PR, and SSSP; CC/CC-SV issued
 no PFX requests on this graph.
+
+Medium local screen result, 2026-05-26:
+
+```text
+/tmp/graphbrew-local-cache-diversity-medium-pr-cc             2 jobs ok, 8 rows
+/tmp/graphbrew-local-cache-diversity-medium-pr-cc-uncharged   2 jobs ok, 4 rows
+```
+
+On `cit-Patents` with the same 4kB L3 screen, LRU remained best for PR and CC.
+Uncharged POPT was still worse than LRU by about 8% on PR and 11% on CC;
+uncharged `ECG_DBG_PRIMARY` was worse by about 20% on PR and 23% on CC. Charged
+POPT/ECG rows were worse again because their effective L3 capacity dropped to
+256B. This is a useful negative result: `cit-Patents` at this cache point should
+not be used as a winning ECG claim, but it is valuable for overhead accounting
+and for deciding which graph/cache points to move to Slurm.
 
 For BFS ECG_PFX scale proofs beyond g10, use the Slurm-ready one-root helper:
 
