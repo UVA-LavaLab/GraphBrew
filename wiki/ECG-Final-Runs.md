@@ -306,6 +306,21 @@ about 0.3%, and all main policies were effectively tied around 315--318 L3
 misses. Treat email-Eu-core BC as a positive tiny-cache mechanism proof, not as
 a robust cache-size win by itself.
 
+Follow-up BFS cache-size probe on `email-Eu-core`:
+
+```text
+/tmp/graphbrew-email-core-bfs-cache-size-probe   27 rows ok
+```
+
+BFS shows the same caution pattern with a different mechanism. At 4kB,
+`ECG_POPT_PRIMARY` and POPT reduce L3 misses by about 10.6% and 10.4%,
+respectively, versus LRU. At 32kB, that reverses: SRRIP is slightly best at
+about 1.7% fewer misses than LRU, while POPT/ECG-P-OPT rows miss about 10--11%
+more than LRU. At 256kB all policies tie at 977 L3 misses. Treat this as a
+small-cache P-OPT/ECG-P-OPT mechanism signal and keep the BFS PFX path as the
+more interesting follow-up, because the earlier PFX screen issued useful BFS
+prefetches on this graph.
+
 Medium local screen result, 2026-05-26:
 
 ```text
