@@ -292,6 +292,10 @@ and SSSP were too small at this cache point to differentiate policies. The PFX
 screen showed useful cache_sim prefetches for BFS, PR, and SSSP; CC/CC-SV issued
 no PFX requests on this graph.
 
+The PR/BFS/BC/PR-SPMV/TC follow-up sections below supersede the raw 4kB
+replacement-policy takeaways from this broad smoke for final claims, because
+they were refreshed after the 2026-05-27 GRASP/P-OPT faithfulness fix.
+
 Follow-up BC cache-size probe on `email-Eu-core`, refreshed after the
 2026-05-27 GRASP/P-OPT faithfulness fix:
 
@@ -356,6 +360,36 @@ misses by about 10.3%, POPT by about 10.0%, and `ECG_POPT_PRIMARY` by about
 256kB all policies tie at 2134 L3 misses. Treat email-Eu-core PR as a modest
 4kB P-OPT/SRRIP mechanism point, not as a robust graph-aware replacement win.
 
+Follow-up PR-SPMV cache-size probe on `email-Eu-core`, refreshed after the
+2026-05-27 GRASP/P-OPT faithfulness fix:
+
+```text
+/tmp/graphbrew-faithful-email-core-prspmv-cache-size-refresh   21 rows ok
+```
+
+PR-SPMV is also cache-size sensitive, but the refreshed 4kB win is mostly SRRIP
+with a small ECG-P-OPT signal. At 4kB, SRRIP reduces L3 misses by about 6.7%
+versus LRU and `ECG_POPT_PRIMARY` by about 3.4%; POPT is effectively tied with
+LRU, while GRASP and DBG-led rows are much worse. At 32kB, LRU is best and
+graph-aware rows miss more; at 256kB all rows tie at 2134 L3 misses. Treat this
+as another small-cache SRRIP/ECG-P-OPT control point, not a broad GRASP/POPT
+win.
+
+Follow-up TC cache-size probe on `email-Eu-core`, refreshed after the
+2026-05-27 GRASP/P-OPT faithfulness fix:
+
+```text
+/tmp/graphbrew-faithful-email-core-tc-cache-size-refresh   21 rows ok
+```
+
+The TC result remains a strong tiny-cache baseline point, but it is not a
+graph-aware replacement win. At 4kB, SRRIP reduces L3 misses by about 22.6%
+versus LRU, while POPT is essentially tied with LRU and GRASP/DBG/ECG rows miss
+about 34--36% more. At 32kB, POPT and SRRIP are only about 0.6% better than LRU,
+while GRASP/DBG/ECG rows are much worse; at 256kB all rows tie at 794 L3
+misses. Treat TC as evidence that the local screen can find useful baselines,
+not as a current ECG/GRASP claim.
+
 Follow-up PR ECG_PFX cache-size probe on `email-Eu-core`:
 
 ```text
@@ -378,10 +412,10 @@ hot-line insertion `P_RRIP=1` and hot-line hit promotion `H_RRIP=0`. GraphBrew
 previously used `0` for both. The cache_sim/gem5/Sniper implementations were
 updated to match upstream GRASP, and gem5/Sniper P-OPT mixed-set behavior was
 changed from a far-rereference boost heuristic to upstream Phase 1 non-property
-eviction. The PR/BFS/BC cache-size probes above have now been refreshed after
-the correction. Other older local diversity rows involving GRASP/DBG-mode ECG,
-such as TC/PR-SPMV and broad all-kernel summaries, should still be refreshed
-before final quantitative claims.
+eviction. The PR/BFS/BC/PR-SPMV/TC cache-size probes above have now been
+refreshed after the correction. Other older local diversity rows involving
+GRASP/DBG-mode ECG, such as CC/CC-SV/SSSP and broad all-kernel summaries, should
+still be refreshed before final quantitative claims.
 
 Medium local screen result, 2026-05-26:
 

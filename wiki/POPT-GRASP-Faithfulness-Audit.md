@@ -72,13 +72,18 @@ Validation completed:
    `/tmp/graphbrew-faithful-email-core-bfs-cache-size-refresh`, and
    `/tmp/graphbrew-faithful-email-core-bc-cache-size-refresh` produced 63/63 ok
    cache_sim rows.
+- Refreshed email-Eu-core PR-SPMV/TC cache-size screens after the fix:
+   `/tmp/graphbrew-faithful-email-core-prspmv-cache-size-refresh` and
+   `/tmp/graphbrew-faithful-email-core-tc-cache-size-refresh` produced 42/42 ok
+   cache_sim rows.
 - `USE_SDE=1 make -C bench/include/sniper_sim/snipersim/common -j1` rebuilt the touched Sniper cache-set objects.
 - `scons build/X86/gem5.opt -j2` rebuilt gem5 X86 successfully after overlay refresh.
 
 Resulting caution:
-- PR/BFS/BC local cache-size screens have been refreshed; other older local
-   cache_sim screens recorded before this audit, especially TC/PR-SPMV and broad
-   all-kernel summaries, still need refresh before final GRASP/DBG-mode claims.
+- PR/BFS/BC/PR-SPMV/TC local cache-size screens have been refreshed; other older
+   local cache_sim screens recorded before this audit, especially CC/CC-SV/SSSP
+   and broad all-kernel summaries, still need refresh before final GRASP/DBG-mode
+   claims.
 
 ## 1:1 Faithfulness Checklist
 1. Paper-to-code mapping table
