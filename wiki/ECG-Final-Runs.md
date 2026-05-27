@@ -336,6 +336,21 @@ no-PFX BFS cache-size probe were unchanged at 32kB/256kB and moved by less than
 only modest win; at 256kB all rows tie. Treat BFS PFX here as a hint-path
 activation proof, not a cache-miss improvement claim.
 
+Follow-up PR cache-size probe on `email-Eu-core`:
+
+```text
+/tmp/graphbrew-email-core-pr-cache-size-probe   27 rows ok
+```
+
+This is the closest local screen to the original PR-focused ECG evaluation, and
+it is also cache-size sensitive. At 4kB, POPT reduces L3 misses by about 7.8%
+versus LRU, SRRIP by about 5.7%, and `ECG_POPT_PRIMARY` by about 2.5%; DBG-led
+rows are worse than LRU on this graph. At 32kB, LRU is best and graph-aware
+rows miss more: `ECG_POPT_PRIMARY` is about 1.1% worse, POPT about 3.5% worse,
+and `ECG_DBG_PRIMARY` about 6.0% worse. At 256kB all policies tie at 2136 L3
+misses. Treat email-Eu-core PR as a modest 4kB P-OPT/SRRIP mechanism point, not
+as a robust graph-aware replacement win.
+
 Medium local screen result, 2026-05-26:
 
 ```text

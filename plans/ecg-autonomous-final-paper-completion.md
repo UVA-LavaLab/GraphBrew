@@ -174,8 +174,8 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   `scripts/experiments/ecg/local_cache_screen_summary.py` before choosing
   follow-up gem5/Sniper or Slurm shards.
 - [ ] Track cache-size sensitivity before promoting a local win: current local
-  triage says email-Eu-core BC and BFS are positive tiny-cache mechanism
-  proofs but collapse to near ties or reversals at 32kB/256kB, while
+  triage says email-Eu-core BC, BFS, and PR are positive tiny-cache mechanism
+  points but collapse to near ties or reversals at 32kB/256kB, while
   cit-Patents PR/CC remain negative/control points.
 - [ ] Treat email-Eu-core BFS ECG_PFX as activation evidence only unless a
   tuning sweep finds a real miss reduction: it issues useful prefetches, but
