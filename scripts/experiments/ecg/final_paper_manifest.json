@@ -41,6 +41,9 @@
     "final_sniper_replacement": "Placeholder for final Sniper replacement sweep after Sniper/SDE full-wrapper or trace-reuse run mode is fixed.",
     "final_sniper_droplet": "Placeholder for final Sniper DROPLET sweep after full run mode and final-workload prefetch counters prove active.",
     "available_replacement": "Replacement-only gem5 sweep on graph files currently present in results/graphs.",
+    "local_cache_sim_diversity_smoke": "Small-graph cache_sim diversity screen over email-Eu-core with additional kernels beyond PR/BFS/SSSP.",
+    "local_cache_sim_diversity_medium": "Medium-graph cache_sim diversity screen over cit-Patents with safe additional kernels.",
+    "local_cache_sim_pfx_diversity_smoke": "Small-graph cache_sim ECG_PFX diversity screen over extra kernels before larger PFX runs.",
     "final_cache_sim": "Large-graph cache_sim replacement-only sweep.",
     "available_cache_sim_ecg_pfx": "Available-local cache_sim ECG_PFX sweep before large graph staging.",
     "final_cache_sim_ecg_pfx": "Large-graph cache_sim ECG_PFX sweep for graph-aware prefetch evidence.",
@@ -65,8 +68,13 @@
     },
     "file_dbg": {
       "pr": "-f {graph_path} -s -o 5 -n 1 -i 2",
+      "pr_spmv": "-f {graph_path} -s -o 5 -n 1 -i 2",
       "bfs": "-f {graph_path} -s -o 5 -n 1 -r 0",
-      "sssp": "-f {graph_path} -s -o 5 -n 1 -r 0 -d 1"
+      "sssp": "-f {graph_path} -s -o 5 -n 1 -r 0 -d 1",
+      "cc": "-f {graph_path} -s -o 5 -n 1",
+      "cc_sv": "-f {graph_path} -s -o 5 -n 1",
+      "bc": "-f {graph_path} -s -o 5 -n 1 -r 0 -i 1",
+      "tc": "-f {graph_path} -s -o 5 -n 1"
     }
   },
   "graph_sets": {
@@ -486,6 +494,45 @@
       "ecg_pfx_lookahead": 4,
       "out_subdir": "11a_cache_sim_available_ecg_pfx",
       "timeout_cache": 7200
+    },
+    {
+      "name": "12_cache_sim_email_core_diversity",
+      "kind": "roi_matrix",
+      "profiles": ["local_cache_sim_diversity_smoke"],
+      "suite": "cache-sim",
+      "graph_set": "email_core",
+      "benchmarks": ["pr", "pr_spmv", "bfs", "sssp", "cc", "cc_sv", "bc", "tc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "out_subdir": "12_cache_sim_email_core_diversity",
+      "timeout_cache": 900
+    },
+    {
+      "name": "12a_cache_sim_cit_patents_diversity",
+      "kind": "roi_matrix",
+      "profiles": ["local_cache_sim_diversity_medium"],
+      "suite": "cache-sim",
+      "graph_set": "cit_patents",
+      "benchmarks": ["pr", "pr_spmv", "bfs", "sssp", "cc", "cc_sv"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "out_subdir": "12a_cache_sim_cit_patents_diversity",
+      "timeout_cache": 1800
+    },
+    {
+      "name": "12b_cache_sim_email_core_ecg_pfx_diversity",
+      "kind": "roi_matrix",
+      "profiles": ["local_cache_sim_pfx_diversity_smoke"],
+      "suite": "cache-sim",
+      "graph_set": "email_core",
+      "benchmarks": ["pr", "pr_spmv", "bfs", "sssp", "cc", "cc_sv"],
+      "policies": ["LRU", "GRASP", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "ECG_PFX",
+      "ecg_pfx_mode": "popt",
+      "ecg_pfx_window": 16,
+      "ecg_pfx_lookahead": 4,
+      "out_subdir": "12b_cache_sim_email_core_ecg_pfx_diversity",
+      "timeout_cache": 900
     },
     {
       "name": "15_gem5_available_replacement",

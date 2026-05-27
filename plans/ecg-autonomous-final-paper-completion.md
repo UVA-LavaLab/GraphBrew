@@ -166,6 +166,10 @@ python3 scripts/experiments/ecg/final_paper_run.py \
 - [ ] Keep cache_sim as the fast mechanism validator.
 - [ ] Run or refresh bounded cache_sim ECG_PFX/component proof rows only when the
   local runtime is manageable.
+- [ ] Use `local_cache_sim_diversity_smoke`,
+  `local_cache_sim_diversity_medium`, and
+  `local_cache_sim_pfx_diversity_smoke` to screen additional manageable graph
+  kernels and small/medium graph behavior before detailed simulation.
 - [ ] Aggregate available-local cache_sim and smoke results with
   `paper_pipeline.py --skip-run` where possible.
 - [ ] Confirm no ECG_PFX prototype row contributes to speedup figures.

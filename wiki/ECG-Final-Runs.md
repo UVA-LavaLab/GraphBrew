@@ -236,6 +236,34 @@ Full evaluation guide:
 6. Aggregate completed shards with `paper_pipeline.py --skip-run`; verify
   `timing_valid_for_speedup` before using any speedup column.
 
+Local cache_sim diversity screens, 2026-05-26:
+
+```bash
+# Small graph, broad kernel surface including PR-SPMV, CC, CC-SV, BC, and TC.
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile local_cache_sim_diversity_smoke \
+  --run-dir /tmp/graphbrew-local-cache-diversity-smoke \
+  --dry-run --no-build
+
+# Medium graph, safe expanded kernel subset. Use filters for first runs.
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile local_cache_sim_diversity_medium \
+  --benchmark pr bfs cc \
+  --policy LRU GRASP POPT_CHARGED ECG_DBG_PRIMARY_CHARGED \
+  --run-dir /tmp/graphbrew-local-cache-diversity-medium \
+  --dry-run --no-build
+
+# Small ECG_PFX screen across extra kernels before spending detailed-sim time.
+python3 scripts/experiments/ecg/final_paper_run.py \
+  --profile local_cache_sim_pfx_diversity_smoke \
+  --run-dir /tmp/graphbrew-local-cache-pfx-diversity-smoke \
+  --dry-run --no-build
+```
+
+Keep the first actual local runs filtered by `--benchmark` and `--policy`; the
+medium profile intentionally excludes BC and TC because those kernels can grow
+quickly on cit-Patents.
+
 For BFS ECG_PFX scale proofs beyond g10, use the Slurm-ready one-root helper:
 
 ```bash

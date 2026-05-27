@@ -214,6 +214,56 @@ def test_gem5_ecg_pfx_smoke_profile_passes_allow_flag(tmp_path):
         assert "--allow-gem5-ecg-pfx" in job.command
 
 
+def test_local_cache_sim_diversity_profiles_expand_extra_kernels(tmp_path):
+    manifest = final_paper_run.load_manifest(final_paper_run.DEFAULT_MANIFEST)
+    args = final_paper_run.parse_args([
+        "--profile", "local_cache_sim_diversity_smoke",
+        "--run-dir", str(tmp_path),
+        "--dry-run",
+        "--no-build",
+    ])
+
+    jobs = final_paper_run.expand_jobs(args, manifest, tmp_path)
+    benchmarks = {job.metadata["benchmark"] for job in jobs}
+
+    assert {"pr_spmv", "cc", "cc_sv", "bc", "tc"}.issubset(benchmarks)
+    assert len(jobs) == 8
+
+
+def test_local_cache_sim_medium_diversity_avoids_expensive_kernels(tmp_path):
+    manifest = final_paper_run.load_manifest(final_paper_run.DEFAULT_MANIFEST)
+    args = final_paper_run.parse_args([
+        "--profile", "local_cache_sim_diversity_medium",
+        "--run-dir", str(tmp_path),
+        "--dry-run",
+        "--no-build",
+    ])
+
+    jobs = final_paper_run.expand_jobs(args, manifest, tmp_path)
+    benchmarks = {job.metadata["benchmark"] for job in jobs}
+
+    assert {"pr", "pr_spmv", "bfs", "sssp", "cc", "cc_sv"} == benchmarks
+    assert "bc" not in benchmarks
+    assert "tc" not in benchmarks
+
+
+def test_local_cache_sim_pfx_diversity_uses_ecg_pfx(tmp_path):
+    manifest = final_paper_run.load_manifest(final_paper_run.DEFAULT_MANIFEST)
+    args = final_paper_run.parse_args([
+        "--profile", "local_cache_sim_pfx_diversity_smoke",
+        "--run-dir", str(tmp_path),
+        "--dry-run",
+        "--no-build",
+    ])
+
+    jobs = final_paper_run.expand_jobs(args, manifest, tmp_path)
+
+    assert len(jobs) == 6
+    for job in jobs:
+        assert job.command[job.command.index("--suite") + 1] == "cache-sim"
+        assert job.command[job.command.index("--prefetcher") + 1] == "ECG_PFX"
+
+
 def test_sniper_ecg_pfx_smoke_profile_uses_bounded_sift(tmp_path):
     args = final_paper_run.parse_args([
         "--profile", "sniper_sift_ecg_pfx_smoke",
