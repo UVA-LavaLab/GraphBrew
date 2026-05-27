@@ -351,6 +351,23 @@ and `ECG_DBG_PRIMARY` about 6.0% worse. At 256kB all policies tie at 2136 L3
 misses. Treat email-Eu-core PR as a modest 4kB P-OPT/SRRIP mechanism point, not
 as a robust graph-aware replacement win.
 
+Follow-up PR ECG_PFX cache-size probe on `email-Eu-core`:
+
+```text
+/tmp/graphbrew-email-core-pr-pfx-cache-size-probe   21 rows ok
+```
+
+PR ECG_PFX issues many hints but should not be claimed as a win in the current
+configuration. Each row issued about 36.6k PFX requests. At 4kB, useful counts
+were nonzero, but PFX mostly increased L3 misses versus matching no-PFX rows:
+POPT worsened by about 15.5%, `ECG_POPT_PRIMARY` by about 8.7%, GRASP by about
+9.0%, and LRU by about 0.6%. `ECG_DBG_PRIMARY` improved versus its no-PFX row
+by about 9.5%, but it still missed more than LRU and SRRIP. At 32kB, PFX useful
+counts were essentially zero except a tiny SRRIP signal and most rows worsened;
+at 256kB all policies tied with zero useful PFX. Treat PR ECG_PFX here as a
+negative/control tuning point: the hint path is active, but the current target
+selection and cache point do not convert that into fewer L3 misses.
+
 Medium local screen result, 2026-05-26:
 
 ```text

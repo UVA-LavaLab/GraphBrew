@@ -180,6 +180,9 @@ python3 scripts/experiments/ecg/final_paper_run.py \
 - [ ] Treat email-Eu-core BFS ECG_PFX as activation evidence only unless a
   tuning sweep finds a real miss reduction: it issues useful prefetches, but
   current cache-size rows do not materially improve L3 misses versus no-PFX.
+- [ ] Treat email-Eu-core PR ECG_PFX as a negative/control tuning point in the
+  current configuration: it issues about 36.6k hints per row, but useful hits
+  vanish at larger caches and most matching rows worsen versus no-PFX.
 - [ ] Aggregate available-local cache_sim and smoke results with
   `paper_pipeline.py --skip-run` where possible.
 - [ ] Confirm no ECG_PFX prototype row contributes to speedup figures.
