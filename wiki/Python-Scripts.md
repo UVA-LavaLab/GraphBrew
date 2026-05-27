@@ -99,7 +99,7 @@ See the [[VLDB-Experiments]] wiki page for full usage.
 | `scripts/experiments/ecg/final_paper_run.py` | Manifest-driven final ECG/gem5 runner with resume, graph checks, validation gate, per-job logs, status mode, and combined CSV outputs |
 | `scripts/experiments/ecg/final_paper_manifest.json` | Final-run profiles: `rehearsal`, `available_replacement`, `final_cache_sim`, `final_replacement`, `final_droplet` |
 | `scripts/experiments/ecg/roi_matrix.py` | Focused cache_sim/gem5 ROI matrix runner; supports charged labels such as `POPT_CHARGED` and `ECG:DBG_PRIMARY_CHARGED` |
-| `scripts/experiments/ecg/proof_matrix.py` | cache_sim component ablation runner for DBG, P-OPT, PFX, and combined ECG proof |
+| `scripts/experiments/ecg/proof_matrix.py` | cache_sim component ablation runner for DBG, P-OPT, PFX, and combined ECG proof; use `--graph-path` for deterministic file-backed gate runs |
 | `scripts/experiments/ecg/ecg_validation_gates.py` | Converts proof-matrix rows into explicit ECG validation gate verdicts: parity, embedded quality, hybrid value, and PFX benefit/activation |
 | `scripts/experiments/ecg/check_proof_claims.py` | Claim checker for proof matrices |
 | `scripts/experiments/ecg/summarize_proof_matrix.py` | Summary helper for proof matrix CSV/JSON output |

@@ -547,28 +547,38 @@ ECG validation gate workflow, 2026-05-27:
 ```bash
 python3 scripts/experiments/ecg/proof_matrix.py \
   --benchmarks pr bfs sssp \
+  --graph-path results/graphs/email-Eu-core/email-Eu-core.sg \
   --l3-sizes 4kB \
-  --out-dir /tmp/graphbrew-ecg-validation-proof-post-faithful \
+  --out-dir /tmp/graphbrew-ecg-validation-proof-email-core \
   --timeout-cache 900 \
   --no-build
 
 python3 scripts/experiments/ecg/ecg_validation_gates.py \
-  /tmp/graphbrew-ecg-validation-proof-post-faithful/proof_matrix.csv \
-  --out-csv /tmp/graphbrew-ecg-validation-proof-post-faithful/gates.csv \
-  --out-md /tmp/graphbrew-ecg-validation-proof-post-faithful/gates.md
+  /tmp/graphbrew-ecg-validation-proof-email-core/proof_matrix.csv \
+  --out-csv /tmp/graphbrew-ecg-validation-proof-email-core/gates.csv \
+  --out-md /tmp/graphbrew-ecg-validation-proof-email-core/gates.md
 ```
 
-The refreshed proof matrix has 42/42 ok cache_sim rows across PR/BFS/SSSP. The
-current gate report has 30 verdict rows: 27 pass and 3 fail. Passing gates:
-GRASP parity (`ECG_DBG_ONLY` equals GRASP), P-OPT parity (`ECG_POPT_PRIMARY`
-within 5% of POPT), all synthetic PFX demand gates, and the best-available ECG
-replacement gate for every benchmark. Failing gates: `ECG_DBG_POPT` does not
-beat the stronger prior replacement baseline on PR or SSSP, and `ECG_EMBEDDED`
-is outside the 10% P-OPT-quality tolerance on PR. Interpret this as mechanism
-proof plus a clear research gap: ECG parity and PFX activation are working
-locally, at least one ECG replacement mode matches or beats the strongest prior
-baseline on each synthetic proof benchmark, but the specific DBG-primary hybrid
-and PR embedded replacement story are not yet paper-level wins.
+Use file-backed proof gates for quantitative interpretation. Repeated synthetic
+`-g 12` PR proof rows changed across separate invocations enough to make policy
+comparisons fragile, while `--graph-path` keeps the graph input fixed for every
+ablation row.
+
+The refreshed file-backed proof matrix has 42/42 ok cache_sim rows across
+PR/BFS/SSSP on `email-Eu-core`. The gate report has 30 verdict rows: 27 pass and
+3 fail. Passing gates: GRASP parity (`ECG_DBG_ONLY` equals GRASP), P-OPT parity
+(`ECG_POPT_PRIMARY` within 5% of POPT), all PFX demand gates, and the
+best-available ECG replacement gate for every benchmark. Failing gates:
+`ECG_DBG_POPT` does not beat the stronger prior replacement baseline on PR/BFS,
+and `ECG_EMBEDDED` is outside the 10% P-OPT-quality tolerance on PR. The PR
+embedded log uses full 7-bit P-OPT hints (`DBG=2 POPT=7`) yet still collapses to
+the DBG/GRASP row, so the problem is not bit budget; it is that the stored hint
+is too static/averaged compared with dynamic current-vertex POPT. Interpret this
+as mechanism proof plus a clear research gap: ECG parity and PFX activation are
+working locally, and at least one ECG replacement mode matches or beats the
+strongest prior baseline on each file-backed proof benchmark, but the specific
+DBG-primary hybrid and PR embedded replacement story are not yet paper-level
+wins.
 
 Interpretation:
 

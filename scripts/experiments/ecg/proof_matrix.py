@@ -39,6 +39,12 @@ DEFAULT_OPTIONS = {
     "sssp": "-g 12 -k 16 -o 5 -n 1 -r 0 -d 1",
 }
 
+FILE_OPTIONS = {
+    "pr": "-f {graph_path} -s -o 5 -n 1 -i 2",
+    "bfs": "-f {graph_path} -s -o 5 -n 1 -r 0",
+    "sssp": "-f {graph_path} -s -o 5 -n 1 -r 0 -d 1",
+}
+
 
 @dataclass(frozen=True)
 class Ablation:
@@ -82,12 +88,20 @@ def sanitize(text: str) -> str:
 
 
 def benchmark_options(args: argparse.Namespace, benchmark: str) -> str:
-    if benchmark == "pr":
-        return args.pr_options
-    if benchmark == "bfs":
-        return args.bfs_options
-    if benchmark == "sssp":
-        return args.sssp_options
+    explicit = {
+        "pr": args.pr_options,
+        "bfs": args.bfs_options,
+        "sssp": args.sssp_options,
+    }
+    if explicit.get(benchmark):
+        return explicit[benchmark]
+    if args.graph_path:
+        graph_path = Path(args.graph_path)
+        if not graph_path.is_absolute():
+            graph_path = PROJECT_ROOT / graph_path
+        return FILE_OPTIONS[benchmark].format(graph_path=graph_path)
+    if benchmark in DEFAULT_OPTIONS:
+        return DEFAULT_OPTIONS[benchmark]
     raise ValueError(f"unsupported benchmark: {benchmark}")
 
 
@@ -214,9 +228,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         choices=["pr", "bfs", "sssp"])
     parser.add_argument("--ablations", nargs="+", default=[],
                         help="Optional ablation labels to run. Defaults to all.")
-    parser.add_argument("--pr-options", default=DEFAULT_OPTIONS["pr"])
-    parser.add_argument("--bfs-options", default=DEFAULT_OPTIONS["bfs"])
-    parser.add_argument("--sssp-options", default=DEFAULT_OPTIONS["sssp"])
+    parser.add_argument("--graph-path", default="", help="Optional .sg/.mtx graph path used to build deterministic file-backed benchmark options.")
+    parser.add_argument("--pr-options", default="", help="Override PR benchmark options. Defaults to --graph-path or synthetic g12.")
+    parser.add_argument("--bfs-options", default="", help="Override BFS benchmark options. Defaults to --graph-path or synthetic g12.")
+    parser.add_argument("--sssp-options", default="", help="Override SSSP benchmark options. Defaults to --graph-path or synthetic g12.")
     parser.add_argument("--l1d-size", default="1kB")
     parser.add_argument("--l2-size", default="2kB")
     parser.add_argument("--l3-sizes", nargs="+", default=["4kB"])

@@ -12,6 +12,13 @@ assert spec.loader is not None
 sys.modules["ecg_validation_gates"] = ecg_validation_gates
 spec.loader.exec_module(ecg_validation_gates)
 
+PROOF_SCRIPT = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "proof_matrix.py"
+proof_spec = importlib.util.spec_from_file_location("proof_matrix", PROOF_SCRIPT)
+proof_matrix = importlib.util.module_from_spec(proof_spec)
+assert proof_spec.loader is not None
+sys.modules["proof_matrix"] = proof_matrix
+proof_spec.loader.exec_module(proof_matrix)
+
 
 def row(benchmark: str, ablation: str, memory: int, useful: int = 0, fills: int = 0) -> dict[str, str]:
     return {
@@ -24,6 +31,27 @@ def row(benchmark: str, ablation: str, memory: int, useful: int = 0, fills: int 
         "prefetch_useful": str(useful),
         "prefetch_fills": str(fills),
     }
+
+
+def test_proof_matrix_graph_path_builds_file_options():
+    args = proof_matrix.parse_args([
+        "--graph-path", "results/graphs/email-Eu-core/email-Eu-core.sg",
+    ])
+
+    assert proof_matrix.benchmark_options(args, "pr").startswith("-f ")
+    assert "email-Eu-core.sg" in proof_matrix.benchmark_options(args, "pr")
+    assert "-i 2" in proof_matrix.benchmark_options(args, "pr")
+    assert "-r 0" in proof_matrix.benchmark_options(args, "bfs")
+    assert "-d 1" in proof_matrix.benchmark_options(args, "sssp")
+
+
+def test_proof_matrix_explicit_options_override_graph_path():
+    args = proof_matrix.parse_args([
+        "--graph-path", "results/graphs/email-Eu-core/email-Eu-core.sg",
+        "--pr-options", "-g 6 -k 8 -o 5 -n 1 -i 1",
+    ])
+
+    assert proof_matrix.benchmark_options(args, "pr") == "-g 6 -k 8 -o 5 -n 1 -i 1"
 
 
 def test_gate_report_classifies_pass_and_activation_only():
