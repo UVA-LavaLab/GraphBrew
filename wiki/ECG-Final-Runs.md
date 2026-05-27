@@ -321,6 +321,21 @@ small-cache P-OPT/ECG-P-OPT mechanism signal and keep the BFS PFX path as the
 more interesting follow-up, because the earlier PFX screen issued useful BFS
 prefetches on this graph.
 
+Follow-up BFS ECG_PFX cache-size probe on `email-Eu-core`:
+
+```text
+/tmp/graphbrew-email-core-bfs-pfx-cache-size-probe   21 rows ok
+```
+
+ECG_PFX activation is consistent but does not materially change cache_sim L3
+misses on this small graph. Every row issued 24 PFX requests with 17--18 useful
+prefetches, a useful/request rate of about 71--75%. Matching rows versus the
+no-PFX BFS cache-size probe were unchanged at 32kB/256kB and moved by less than
+0.3% at 4kB. At 4kB the ordering still comes from replacement policy
+(`POPT`/`ECG_POPT_PRIMARY` near 10% better than LRU); at 32kB SRRIP remains the
+only modest win; at 256kB all rows tie. Treat BFS PFX here as a hint-path
+activation proof, not a cache-miss improvement claim.
+
 Medium local screen result, 2026-05-26:
 
 ```text

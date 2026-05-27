@@ -177,6 +177,9 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   triage says email-Eu-core BC and BFS are positive tiny-cache mechanism
   proofs but collapse to near ties or reversals at 32kB/256kB, while
   cit-Patents PR/CC remain negative/control points.
+- [ ] Treat email-Eu-core BFS ECG_PFX as activation evidence only unless a
+  tuning sweep finds a real miss reduction: it issues useful prefetches, but
+  current cache-size rows do not materially improve L3 misses versus no-PFX.
 - [ ] Aggregate available-local cache_sim and smoke results with
   `paper_pipeline.py --skip-run` where possible.
 - [ ] Confirm no ECG_PFX prototype row contributes to speedup figures.
