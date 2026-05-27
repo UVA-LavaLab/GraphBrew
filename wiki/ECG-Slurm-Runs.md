@@ -204,7 +204,8 @@ root is nonnegative, backend is one of `sniper`, `gem5-riscv`, or `both`, and
 the output root is present.
 The wrappers themselves fail early if `SHARDS` is unreadable, `SLURM_ARRAY_TASK_ID`
 is missing for array-mode execution, or the selected TSV row has the wrong number
-of tab-separated fields.
+of tab-separated fields. Relative `SHARDS` paths are resolved after the wrapper
+enters `GRAPHBREW_ROOT`, matching the examples in this runbook.
 
 ## 3. Generate Slurm Shard List
 

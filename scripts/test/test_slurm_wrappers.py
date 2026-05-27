@@ -11,15 +11,21 @@ FINAL_WRAPPER = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_final_
 SCALE_WRAPPER = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "slurm_ecg_pfx_scale_proof.sbatch"
 
 
-def run_wrapper(wrapper: Path, shards: Path, array_task_id: str | None = "0") -> subprocess.CompletedProcess[str]:
+def run_wrapper(
+    wrapper: Path,
+    shards: Path,
+    array_task_id: str | None = "0",
+    cwd: Path = PROJECT_ROOT,
+    shards_value: str | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env["GRAPHBREW_ROOT"] = str(PROJECT_ROOT)
-    env["SHARDS"] = str(shards)
+    env["SHARDS"] = shards_value if shards_value is not None else str(shards)
     if array_task_id is None:
         env.pop("SLURM_ARRAY_TASK_ID", None)
     else:
         env["SLURM_ARRAY_TASK_ID"] = array_task_id
-    return subprocess.run(["bash", str(wrapper)], cwd=PROJECT_ROOT, env=env, text=True, capture_output=True, check=False)
+    return subprocess.run(["bash", str(wrapper)], cwd=cwd, env=env, text=True, capture_output=True, check=False)
 
 
 def test_final_wrapper_rejects_malformed_shard_row(tmp_path):
@@ -51,6 +57,17 @@ def test_scale_wrapper_rejects_malformed_shard_row(tmp_path):
 
     assert result.returncode == 4
     assert "expected 4 tab-separated fields" in result.stderr
+
+
+def test_final_wrapper_resolves_relative_shards_after_graphbrew_root_cd(tmp_path):
+    shards = tmp_path / "bad_relative.tsv"
+    shards.write_text("final_replacement\tstage\tcit-Patents\tpr\tLRU\n")
+    relative_to_root = os.path.relpath(shards, PROJECT_ROOT)
+
+    result = run_wrapper(FINAL_WRAPPER, shards, cwd=tmp_path, shards_value=relative_to_root)
+
+    assert result.returncode == 4
+    assert "expected 6 tab-separated fields" in result.stderr
 
 
 def test_scale_wrapper_requires_array_task_id_with_shards(tmp_path):
