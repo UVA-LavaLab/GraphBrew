@@ -292,34 +292,37 @@ and SSSP were too small at this cache point to differentiate policies. The PFX
 screen showed useful cache_sim prefetches for BFS, PR, and SSSP; CC/CC-SV issued
 no PFX requests on this graph.
 
-Follow-up BC cache-size probe on `email-Eu-core`:
+Follow-up BC cache-size probe on `email-Eu-core`, refreshed after the
+2026-05-27 GRASP/P-OPT faithfulness fix:
 
 ```text
 /tmp/graphbrew-email-core-bc-cache-size-probe   27 rows ok
+/tmp/graphbrew-faithful-email-core-bc-cache-size-refresh   21 rows ok
 ```
 
 The strong BC result is real at the tiny-cache point but cache-size sensitive.
-At 4kB, `ECG_DBG_PRIMARY` reduced L3 misses by about 29.7% versus LRU, with
-`ECG_DBG_ONLY` and GRASP also near 29% and POPT near 27%. At 32kB and 256kB,
-the graph mostly fits the modeled LLC working set: the best deltas were only
-about 0.3%, and all main policies were effectively tied around 315--318 L3
-misses. Treat email-Eu-core BC as a positive tiny-cache mechanism proof, not as
-a robust cache-size win by itself.
+In the refreshed 4kB rows, `ECG_DBG_ONLY` reduced L3 misses by about 30.9%,
+`ECG_DBG_PRIMARY` by about 30.4%, GRASP by about 28.9%, and POPT by about
+27.1% versus LRU. At 32kB and 256kB, the graph mostly fits the modeled LLC
+working set: all main policies are effectively tied around 315--317 L3 misses.
+Treat email-Eu-core BC as a positive tiny-cache mechanism proof, not as a robust
+cache-size win by itself.
 
-Follow-up BFS cache-size probe on `email-Eu-core`:
+Follow-up BFS cache-size probe on `email-Eu-core`, refreshed after the
+2026-05-27 GRASP/P-OPT faithfulness fix:
 
 ```text
 /tmp/graphbrew-email-core-bfs-cache-size-probe   27 rows ok
+/tmp/graphbrew-faithful-email-core-bfs-cache-size-refresh   21 rows ok
 ```
 
 BFS shows the same caution pattern with a different mechanism. At 4kB,
-`ECG_POPT_PRIMARY` and POPT reduce L3 misses by about 10.6% and 10.4%,
-respectively, versus LRU. At 32kB, that reverses: SRRIP is slightly best at
-about 1.7% fewer misses than LRU, while POPT/ECG-P-OPT rows miss about 10--11%
-more than LRU. At 256kB all policies tie at 977 L3 misses. Treat this as a
-small-cache P-OPT/ECG-P-OPT mechanism signal and keep the BFS PFX path as the
-more interesting follow-up, because the earlier PFX screen issued useful BFS
-prefetches on this graph.
+the refreshed POPT and `ECG_POPT_PRIMARY` rows reduce L3 misses by about 10.6%
+and 10.5%, respectively, versus LRU. At 32kB, that reverses: SRRIP is slightly
+best at about 1.7% fewer misses than LRU, while POPT/GRASP/ECG rows miss about
+10.6% more than LRU. At 256kB all policies tie at 977 L3 misses. Treat this as
+a small-cache P-OPT/ECG-P-OPT mechanism signal and keep the BFS PFX path as a
+hint-path activation target, not a proven miss-rate win.
 
 Follow-up BFS ECG_PFX cache-size probe on `email-Eu-core`:
 
@@ -336,20 +339,22 @@ no-PFX BFS cache-size probe were unchanged at 32kB/256kB and moved by less than
 only modest win; at 256kB all rows tie. Treat BFS PFX here as a hint-path
 activation proof, not a cache-miss improvement claim.
 
-Follow-up PR cache-size probe on `email-Eu-core`:
+Follow-up PR cache-size probe on `email-Eu-core`, refreshed after the
+2026-05-27 GRASP/P-OPT faithfulness fix:
 
 ```text
 /tmp/graphbrew-email-core-pr-cache-size-probe   27 rows ok
+/tmp/graphbrew-faithful-email-core-pr-cache-size-refresh   21 rows ok
 ```
 
 This is the closest local screen to the original PR-focused ECG evaluation, and
-it is also cache-size sensitive. At 4kB, POPT reduces L3 misses by about 7.8%
-versus LRU, SRRIP by about 5.7%, and `ECG_POPT_PRIMARY` by about 2.5%; DBG-led
-rows are worse than LRU on this graph. At 32kB, LRU is best and graph-aware
-rows miss more: `ECG_POPT_PRIMARY` is about 1.1% worse, POPT about 3.5% worse,
-and `ECG_DBG_PRIMARY` about 6.0% worse. At 256kB all policies tie at 2136 L3
-misses. Treat email-Eu-core PR as a modest 4kB P-OPT/SRRIP mechanism point, not
-as a robust graph-aware replacement win.
+it is also cache-size sensitive. In the refreshed 4kB rows, SRRIP reduces L3
+misses by about 10.3%, POPT by about 10.0%, and `ECG_POPT_PRIMARY` by about
+5.3% versus LRU; GRASP and DBG-led rows remain worse than LRU on this graph. At
+32kB, LRU is best and graph-aware rows miss more: `ECG_POPT_PRIMARY` is about
+6.3% worse, POPT about 4.5% worse, and `ECG_DBG_PRIMARY` about 6.7% worse. At
+256kB all policies tie at 2134 L3 misses. Treat email-Eu-core PR as a modest
+4kB P-OPT/SRRIP mechanism point, not as a robust graph-aware replacement win.
 
 Follow-up PR ECG_PFX cache-size probe on `email-Eu-core`:
 
@@ -373,10 +378,10 @@ hot-line insertion `P_RRIP=1` and hot-line hit promotion `H_RRIP=0`. GraphBrew
 previously used `0` for both. The cache_sim/gem5/Sniper implementations were
 updated to match upstream GRASP, and gem5/Sniper P-OPT mixed-set behavior was
 changed from a far-rereference boost heuristic to upstream Phase 1 non-property
-eviction. The local cache_sim screen rows above predate this correction for
-GRASP/DBG-mode ECG rows and should be refreshed before final quantitative
-claims; pure POPT cache_sim rows are still representative of the strict P-OPT
-path.
+eviction. The PR/BFS/BC cache-size probes above have now been refreshed after
+the correction. Other older local diversity rows involving GRASP/DBG-mode ECG,
+such as TC/PR-SPMV and broad all-kernel summaries, should still be refreshed
+before final quantitative claims.
 
 Medium local screen result, 2026-05-26:
 
