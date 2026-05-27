@@ -206,8 +206,16 @@ def check_sbatch_directive(path: Path, directive: str, label: str, waived: bool 
     return CheckResult(name, True, f"found {expected}")
 
 
+def check_python_environment(root: Path = PROJECT_ROOT) -> list[CheckResult]:
+    return [
+        check_path(root / ".venv" / "bin" / "activate", "python-env:activate"),
+        check_path(root / ".venv" / "bin" / "python3", "python-env:python3", True),
+        check_path(root / "scripts" / "requirements.txt", "python-env:requirements"),
+    ]
+
+
 def check_required_binaries(skip_sniper: bool) -> list[CheckResult]:
-    checks = [
+    checks = check_python_environment() + [
         check_path(PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt", "gem5-x86", True),
         check_path(PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt", "gem5-riscv", True),
     ]

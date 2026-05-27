@@ -185,3 +185,36 @@ def test_cluster_preflight_reports_missing_exclusive_directive(tmp_path):
     assert "missing #SBATCH --exclusive" in result.detail
     assert waived.ok
     assert "waived" in waived.detail
+
+
+def test_cluster_preflight_checks_python_environment(tmp_path):
+    import importlib.util
+    import sys
+
+    path = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "ecg_cluster_preflight.py"
+    sys.path.insert(0, str(path.parent))
+    spec = importlib.util.spec_from_file_location("ecg_cluster_preflight", path)
+    ecg_cluster_preflight = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules["ecg_cluster_preflight"] = ecg_cluster_preflight
+    spec.loader.exec_module(ecg_cluster_preflight)
+
+    checks = ecg_cluster_preflight.check_python_environment(tmp_path)
+    assert {check.name for check in checks} == {
+        "python-env:activate",
+        "python-env:python3",
+        "python-env:requirements",
+    }
+    assert not any(check.ok for check in checks)
+
+    activate = tmp_path / ".venv" / "bin" / "activate"
+    python = tmp_path / ".venv" / "bin" / "python3"
+    requirements = tmp_path / "scripts" / "requirements.txt"
+    activate.parent.mkdir(parents=True)
+    requirements.parent.mkdir(parents=True)
+    activate.write_text("# test activate\n")
+    python.write_text("#!/bin/sh\n")
+    python.chmod(0o755)
+    requirements.write_text("pytest\n")
+
+    assert all(check.ok for check in ecg_cluster_preflight.check_python_environment(tmp_path))

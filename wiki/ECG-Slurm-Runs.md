@@ -189,6 +189,9 @@ python3 scripts/experiments/ecg/ecg_cluster_preflight.py \
 
 On the actual cluster, add `--require-slurm` and omit `--allow-missing-graphs`
 after the large graph `.sg` files are staged.
+When binary checks are enabled, preflight also verifies the wrapper-required
+Python environment files: `.venv/bin/activate`, `.venv/bin/python3`, and
+`scripts/requirements.txt`.
 Preflight also runs `bash -n` over the checked-in Slurm wrappers so syntax
 errors in `slurm_final_shard.sbatch` or `slurm_ecg_pfx_scale_proof.sbatch` are
 caught before submission.
