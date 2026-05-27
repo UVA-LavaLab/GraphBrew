@@ -8,6 +8,10 @@ Establish whether GraphBrew's GRASP and P-OPT implementations match canonical so
    - Title: Domain-Specialized Cache Management for Graph Analytics
    - Venue: HPCA 2020
    - DOI: 10.1109/HPCA47549.2020.00028
+    - Official repository found in `research/README.md` and `research/caching/grasp.md`:
+       https://github.com/faldupriyank/grasp
+    - GitHub API description: "Source code for the evaluated benchmarks and proposed cache management technique, GRASP, in  [Faldu et al., HPCA'20]."
+    - License: Apache-2.0
    - Open-access copy (via Semantic Scholar metadata):
      https://www.pure.ed.ac.uk/ws/files/131011069/Domain_Specialized_Cache_FALDU_DOA06112019_AFV.pdf
    - ArXiv ID in metadata: 2001.09783
@@ -16,10 +20,14 @@ Establish whether GraphBrew's GRASP and P-OPT implementations match canonical so
    - Title: P-OPT: Practical Optimal Cache Replacement for Graph Analytics
    - Venue: HPCA 2021
    - DOI: 10.1109/HPCA51647.2021.00062
+   - Official repository found in `research/README.md`, `research/caching/popt.md`, and the paper text under `research/POPT_HPCA21_CameraReady.txt`:
+     https://github.com/CMUAbstract/POPT-CacheSim-HPCA21
+   - License: MIT
 
 ## Artifact / GitHub Status
-- We searched GitHub repository metadata by exact paper titles and keywords and did not find an obvious official public GRASP/P-OPT artifact repository tied to these HPCA papers.
-- Current conclusion: paper text + DOI source are the canonical baseline for faithfulness checks unless authors provide an official artifact link.
+- Official public artifact/source repositories are available for both papers.
+- The initial exact-title GitHub metadata search missed them; the links were already recorded in ignored `research/` notes and, for P-OPT, in the local camera-ready paper text.
+- Current conclusion: use paper text + DOI source + official repositories as the canonical baseline for faithfulness checks.
 
 ## GraphBrew Implementation Anchors
 ### cache_sim (primary faithfulness reference)
