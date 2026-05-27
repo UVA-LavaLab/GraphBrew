@@ -292,6 +292,20 @@ and SSSP were too small at this cache point to differentiate policies. The PFX
 screen showed useful cache_sim prefetches for BFS, PR, and SSSP; CC/CC-SV issued
 no PFX requests on this graph.
 
+Follow-up BC cache-size probe on `email-Eu-core`:
+
+```text
+/tmp/graphbrew-email-core-bc-cache-size-probe   27 rows ok
+```
+
+The strong BC result is real at the tiny-cache point but cache-size sensitive.
+At 4kB, `ECG_DBG_PRIMARY` reduced L3 misses by about 29.7% versus LRU, with
+`ECG_DBG_ONLY` and GRASP also near 29% and POPT near 27%. At 32kB and 256kB,
+the graph mostly fits the modeled LLC working set: the best deltas were only
+about 0.3%, and all main policies were effectively tied around 315--318 L3
+misses. Treat email-Eu-core BC as a positive tiny-cache mechanism proof, not as
+a robust cache-size win by itself.
+
 Medium local screen result, 2026-05-26:
 
 ```text
