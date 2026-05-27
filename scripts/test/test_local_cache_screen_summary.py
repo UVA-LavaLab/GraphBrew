@@ -21,17 +21,17 @@ spec.loader.exec_module(local_cache_screen_summary)
 
 def test_summarize_rows_ranks_and_computes_rates():
     rows = [
-        {"benchmark": "pr", "prefetcher": "none", "policy_label": "LRU", "status": "ok", "l3_misses": "100", "timing_valid_for_speedup": "1"},
-        {"benchmark": "pr", "prefetcher": "none", "policy_label": "POPT", "status": "ok", "l3_misses": "75", "timing_valid_for_speedup": "1"},
-        {"benchmark": "pr", "prefetcher": "ECG_PFX", "policy_label": "LRU", "status": "ok", "l3_misses": "90", "prefetch_requests": "10", "prefetch_useful": "4", "timing_valid_for_speedup": "1"},
+        {"benchmark": "pr", "prefetcher": "none", "l3_size": "4kB", "policy_label": "LRU", "status": "ok", "l3_misses": "100", "timing_valid_for_speedup": "1"},
+        {"benchmark": "pr", "prefetcher": "none", "l3_size": "4kB", "policy_label": "POPT", "status": "ok", "l3_misses": "75", "timing_valid_for_speedup": "1"},
+        {"benchmark": "pr", "prefetcher": "ECG_PFX", "l3_size": "4kB", "policy_label": "LRU", "status": "ok", "l3_misses": "90", "prefetch_requests": "10", "prefetch_useful": "4", "timing_valid_for_speedup": "1"},
     ]
 
     summary = local_cache_screen_summary.summarize_rows("unit", rows)
-    by_key = {(row["benchmark"], row["prefetcher"], row["policy_label"]): row for row in summary}
+    by_key = {(row["benchmark"], row["prefetcher"], row["l3_size"], row["policy_label"]): row for row in summary}
 
-    assert by_key[("pr", "none", "POPT")]["l3_rank"] == 1
-    assert by_key[("pr", "none", "POPT")]["l3_delta_vs_lru"] == "0.25"
-    assert by_key[("pr", "ECG_PFX", "LRU")]["prefetch_useful_per_request"] == "0.4"
+    assert by_key[("pr", "none", "4kB", "POPT")]["l3_rank"] == 1
+    assert by_key[("pr", "none", "4kB", "POPT")]["l3_delta_vs_lru"] == "0.25"
+    assert by_key[("pr", "ECG_PFX", "4kB", "LRU")]["prefetch_useful_per_request"] == "0.4"
 
 
 def test_summary_cli_writes_csv(tmp_path):
@@ -92,3 +92,18 @@ def test_summary_cli_combines_repeated_labels(tmp_path):
     rows = {row["policy_label"]: row for row in csv.DictReader(out.open())}
     assert rows["POPT"]["l3_delta_vs_lru"] == "0.2"
     assert rows["POPT"]["l3_rank"] == "1"
+
+
+def test_summarize_rows_compares_lru_within_l3_size():
+    rows = [
+        {"benchmark": "pr", "prefetcher": "none", "l3_size": "4kB", "policy_label": "LRU", "status": "ok", "l3_misses": "100", "timing_valid_for_speedup": "1"},
+        {"benchmark": "pr", "prefetcher": "none", "l3_size": "4kB", "policy_label": "POPT", "status": "ok", "l3_misses": "80", "timing_valid_for_speedup": "1"},
+        {"benchmark": "pr", "prefetcher": "none", "l3_size": "32kB", "policy_label": "LRU", "status": "ok", "l3_misses": "40", "timing_valid_for_speedup": "1"},
+        {"benchmark": "pr", "prefetcher": "none", "l3_size": "32kB", "policy_label": "POPT", "status": "ok", "l3_misses": "20", "timing_valid_for_speedup": "1"},
+    ]
+
+    summary = local_cache_screen_summary.summarize_rows("unit", rows)
+    by_key = {(row["l3_size"], row["policy_label"]): row for row in summary}
+
+    assert by_key[("4kB", "POPT")]["l3_delta_vs_lru"] == "0.2"
+    assert by_key[("32kB", "POPT")]["l3_delta_vs_lru"] == "0.5"

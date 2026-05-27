@@ -17,6 +17,7 @@ FIELDNAMES = [
     "source",
     "benchmark",
     "prefetcher",
+    "l3_size",
     "policy_label",
     "status",
     "l3_misses",
@@ -68,14 +69,14 @@ def read_rows(path: Path) -> list[dict[str, str]]:
 
 
 def summarize_rows(label: str, rows: list[dict[str, str]]) -> list[dict[str, Any]]:
-    grouped: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
+    grouped: dict[tuple[str, str, str], list[dict[str, str]]] = defaultdict(list)
     for row in rows:
         if row.get("status") != "ok":
             continue
-        grouped[(str(row.get("benchmark", "")), str(row.get("prefetcher", "")))].append(row)
+        grouped[(str(row.get("benchmark", "")), str(row.get("prefetcher", "")), str(row.get("l3_size", "")))].append(row)
 
     out: list[dict[str, Any]] = []
-    for (benchmark, prefetcher), group_rows in sorted(grouped.items()):
+    for (benchmark, prefetcher, l3_size), group_rows in sorted(grouped.items()):
         lru_row = next((row for row in group_rows if row.get("policy_label") == "LRU"), None)
         lru_misses = number(lru_row.get("l3_misses")) if lru_row else None
         ranked = sorted(
@@ -98,6 +99,7 @@ def summarize_rows(label: str, rows: list[dict[str, str]]) -> list[dict[str, Any
                 "source": label,
                 "benchmark": benchmark,
                 "prefetcher": prefetcher,
+                "l3_size": l3_size,
                 "policy_label": row.get("policy_label", ""),
                 "status": row.get("status", ""),
                 "l3_misses": format_number(l3_misses),

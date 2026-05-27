@@ -274,9 +274,9 @@ python3 scripts/experiments/ecg/local_cache_screen_summary.py \
 ```
 
 The summary ranks policies by L3 misses within each benchmark/prefetcher group,
-reports delta versus the local LRU row, and includes ECG_PFX useful-prefetch
-rates when present. Reuse the same `label=path` prefix across inputs when you
-want charged and uncharged CSVs ranked against the same local LRU row.
+and L3 size, reports delta versus the local LRU row, and includes ECG_PFX
+useful-prefetch rates when present. Reuse the same `label=path` prefix across
+inputs when you want charged and uncharged CSVs ranked against the same local LRU row.
 
 Small local screen result, 2026-05-26:
 
@@ -306,6 +306,19 @@ POPT/ECG rows were worse again because their effective L3 capacity dropped to
 256B. This is a useful negative result: `cit-Patents` at this cache point should
 not be used as a winning ECG claim, but it is valuable for overhead accounting
 and for deciding which graph/cache points to move to Slurm.
+
+Follow-up PR cache-size probe on `cit-Patents`:
+
+```text
+/tmp/graphbrew-cit-patents-pr-cache-size-probe   6 rows ok
+```
+
+Increasing L3 from 4kB to 32kB and 256kB did not flip the local result. At 32kB,
+POPT was about 51% worse than LRU and `ECG_DBG_PRIMARY` about 40% worse. At
+256kB, `ECG_DBG_PRIMARY` narrowed the gap but still missed about 5.8% more than
+LRU, while POPT missed about 17.5% more. This makes `cit-Patents` PR a useful
+negative/control point for overhead and cache-size sensitivity, not a priority
+candidate for detailed-sim winning-claim runs.
 
 For BFS ECG_PFX scale proofs beyond g10, use the Slurm-ready one-root helper:
 
