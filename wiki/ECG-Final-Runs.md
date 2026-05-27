@@ -264,6 +264,33 @@ Keep the first actual local runs filtered by `--benchmark` and `--policy`; the
 medium profile intentionally excludes BC and TC because those kernels can grow
 quickly on cit-Patents.
 
+Summarize completed local cache_sim screens with:
+
+```bash
+python3 scripts/experiments/ecg/local_cache_screen_summary.py \
+  --input diversity=/tmp/graphbrew-local-cache-diversity-smoke-full/combined_roi_matrix.csv \
+  --input pfx=/tmp/graphbrew-local-cache-pfx-diversity-smoke-full/combined_roi_matrix.csv \
+  --out /tmp/graphbrew-local-cache-screen-summary.csv
+```
+
+The summary ranks policies by L3 misses within each benchmark/prefetcher group,
+reports delta versus the local LRU row, and includes ECG_PFX useful-prefetch
+rates when present.
+
+Small local screen result, 2026-05-26:
+
+```text
+/tmp/graphbrew-local-cache-diversity-smoke-full       8 jobs ok, 72 rows
+/tmp/graphbrew-local-cache-pfx-diversity-smoke-full   6 jobs ok, 36 rows
+```
+
+On `email-Eu-core`, the best L3-miss reductions versus LRU in the no-prefetch
+screen were strongest for BC (`ECG_DBG_PRIMARY`, about 30%), TC (`SRRIP`, about
+22%), BFS (`POPT`, about 10%), and PR/PR-SPMV (`SRRIP`, about 7%). CC, CC-SV,
+and SSSP were too small at this cache point to differentiate policies. The PFX
+screen showed useful cache_sim prefetches for BFS, PR, and SSSP; CC/CC-SV issued
+no PFX requests on this graph.
+
 For BFS ECG_PFX scale proofs beyond g10, use the Slurm-ready one-root helper:
 
 ```bash

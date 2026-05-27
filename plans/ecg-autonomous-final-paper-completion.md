@@ -170,6 +170,9 @@ python3 scripts/experiments/ecg/final_paper_run.py \
   `local_cache_sim_diversity_medium`, and
   `local_cache_sim_pfx_diversity_smoke` to screen additional manageable graph
   kernels and small/medium graph behavior before detailed simulation.
+- [ ] Summarize completed local cache screens with
+  `scripts/experiments/ecg/local_cache_screen_summary.py` before choosing
+  follow-up gem5/Sniper or Slurm shards.
 - [ ] Aggregate available-local cache_sim and smoke results with
   `paper_pipeline.py --skip-run` where possible.
 - [ ] Confirm no ECG_PFX prototype row contributes to speedup figures.
