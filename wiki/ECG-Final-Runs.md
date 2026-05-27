@@ -558,15 +558,17 @@ python3 scripts/experiments/ecg/ecg_validation_gates.py \
   --out-md /tmp/graphbrew-ecg-validation-proof-post-faithful/gates.md
 ```
 
-The refreshed proof matrix has 42/42 ok cache_sim rows across PR/BFS/SSSP and
-the gate report has 27 verdict rows: 23 pass and 4 fail. Passing gates: GRASP
-parity (`ECG_DBG_ONLY` equals GRASP), P-OPT parity (`ECG_POPT_PRIMARY` within
-5% of POPT), all synthetic PFX demand gates, BFS embedded quality, and BFS ECG
-hybrid value. Failing gates: `ECG_DBG_POPT` does not beat the stronger prior
-replacement baseline on PR or SSSP, and `ECG_EMBEDDED` is outside the 10%
-P-OPT-quality tolerance on PR and SSSP. Interpret this as mechanism proof plus
-a clear research gap: ECG parity and PFX activation are working locally, but the
-current hybrid/embedded replacement story is not yet a paper-level win.
+The refreshed proof matrix has 42/42 ok cache_sim rows across PR/BFS/SSSP. The
+current gate report has 30 verdict rows: 27 pass and 3 fail. Passing gates:
+GRASP parity (`ECG_DBG_ONLY` equals GRASP), P-OPT parity (`ECG_POPT_PRIMARY`
+within 5% of POPT), all synthetic PFX demand gates, and the best-available ECG
+replacement gate for every benchmark. Failing gates: `ECG_DBG_POPT` does not
+beat the stronger prior replacement baseline on PR or SSSP, and `ECG_EMBEDDED`
+is outside the 10% P-OPT-quality tolerance on PR. Interpret this as mechanism
+proof plus a clear research gap: ECG parity and PFX activation are working
+locally, at least one ECG replacement mode matches or beats the strongest prior
+baseline on each synthetic proof benchmark, but the specific DBG-primary hybrid
+and PR embedded replacement story are not yet paper-level wins.
 
 Interpretation:
 

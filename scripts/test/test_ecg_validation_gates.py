@@ -55,8 +55,41 @@ def test_gate_report_classifies_pass_and_activation_only():
     assert by_gate[("pr", "popt_parity")]["status"] == "pass"
     assert by_gate[("pr", "embedded_quality")]["status"] == "pass"
     assert by_gate[("pr", "ecg_hybrid_value")]["status"] == "pass"
+    assert by_gate[("pr", "best_ecg_replacement_value")]["status"] == "pass"
+    assert by_gate[("pr", "best_ecg_replacement_value")]["candidate"] == "ECG_DBG_POPT"
     assert by_gate[("pr", "PFX_POPT_only_pfx")]["status"] == "activation_only"
     assert by_gate[("pr", "DBG_POPT_PFX_pfx")]["status"] == "pass"
+
+
+def test_embedded_quality_allows_beating_popt():
+    rows = [
+        row("sssp", "LRU_cache_only", 100),
+        row("sssp", "GRASP_DBG_only", 70),
+        row("sssp", "POPT_only", 80),
+        row("sssp", "ECG_DBG_only", 70),
+        row("sssp", "ECG_POPT_primary", 80),
+        row("sssp", "ECG_DBG_POPT", 90),
+        row("sssp", "ECG_EMBEDDED", 68),
+        row("sssp", "ECG_COMBINED", 95),
+        row("sssp", "PFX_POPT_only", 90, useful=1, fills=1),
+        row("sssp", "DBG_PFX", 70, useful=1, fills=1),
+        row("sssp", "POPT_PFX", 80, useful=1, fills=1),
+        row("sssp", "DBG_POPT_PFX", 80, useful=1, fills=1),
+    ]
+
+    gates = ecg_validation_gates.evaluate(
+        rows,
+        metric="memory_accesses",
+        parity_tolerance=0.05,
+        benefit_tolerance=0.0,
+        embedded_tolerance=0.10,
+    )
+    by_gate = {(gate["benchmark"], gate["gate"]): gate for gate in gates}
+
+    assert by_gate[("sssp", "embedded_quality")]["status"] == "pass"
+    assert by_gate[("sssp", "ecg_hybrid_value")]["status"] == "fail"
+    assert by_gate[("sssp", "best_ecg_replacement_value")]["status"] == "pass"
+    assert by_gate[("sssp", "best_ecg_replacement_value")]["candidate"] == "ECG_EMBEDDED"
 
 
 def test_cli_writes_csv_and_markdown(tmp_path):

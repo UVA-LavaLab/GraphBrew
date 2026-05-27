@@ -201,6 +201,41 @@ def hybrid_gate(
     )
 
 
+def best_ecg_replacement_gate(
+    benchmark: str,
+    table: dict[str, dict[str, str]],
+    metric: str,
+    tolerance: float,
+) -> dict[str, str]:
+    ecg_labels = [
+        "ECG_DBG_only",
+        "ECG_POPT_primary",
+        "ECG_DBG_POPT",
+        "ECG_EMBEDDED",
+        "ECG_COMBINED",
+    ]
+    prior_labels = ["GRASP_DBG_only", "POPT_only"]
+    missing = require(table, ecg_labels + prior_labels)
+    if missing:
+        return missing_gate(benchmark, "best_ecg_replacement_value", missing, metric)
+    candidate, candidate_value = best_of(table, ecg_labels, metric)
+    baseline, baseline_value = best_of(table, prior_labels, metric)
+    delta = rel_delta(candidate_value, baseline_value)
+    status = "pass" if delta is not None and delta >= -tolerance else "fail"
+    return gate_row(
+        benchmark,
+        "best_ecg_replacement_value",
+        status,
+        metric,
+        candidate,
+        candidate_value,
+        baseline,
+        baseline_value,
+        tolerance,
+        "At least one ECG replacement mode should match or beat the strongest GRASP/POPT prior baseline.",
+    )
+
+
 def pfx_gate(
     benchmark: str,
     table: dict[str, dict[str, str]],
@@ -241,7 +276,7 @@ def evaluate(rows: list[dict[str, str]], metric: str, parity_tolerance: float, b
             benchmark, table, "popt_parity", "ECG_POPT_primary", "POPT_only",
             metric, parity_tolerance, "ECG POPT_PRIMARY should match pure P-OPT closely.",
         ))
-        verdicts.append(parity_gate(
+        verdicts.append(benefit_gate(
             benchmark, table, "embedded_quality", "ECG_EMBEDDED", "POPT_only",
             metric, embedded_tolerance, "Embedded stored P-OPT hint should stay near pure P-OPT within quantization tolerance.",
         ))
@@ -250,6 +285,7 @@ def evaluate(rows: list[dict[str, str]], metric: str, parity_tolerance: float, b
             metric, benefit_tolerance, "Combined stored DBG+P-OPT insertion should not regress badly versus LRU.",
         ))
         verdicts.append(hybrid_gate(benchmark, table, metric, benefit_tolerance))
+        verdicts.append(best_ecg_replacement_gate(benchmark, table, metric, benefit_tolerance))
         verdicts.append(pfx_gate(benchmark, table, "PFX_POPT_only", "LRU_cache_only", metric, benefit_tolerance))
         verdicts.append(pfx_gate(benchmark, table, "DBG_PFX", "ECG_DBG_only", metric, benefit_tolerance))
         verdicts.append(pfx_gate(benchmark, table, "POPT_PFX", "ECG_POPT_primary", metric, benefit_tolerance))

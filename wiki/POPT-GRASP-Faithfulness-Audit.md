@@ -78,8 +78,10 @@ Validation completed:
    cache_sim rows.
 - Refreshed ECG proof matrix with embedded/combined rows:
    `/tmp/graphbrew-ecg-validation-proof-post-faithful` produced 42/42 ok proof
-   rows and a 27-row gate report. GRASP/P-OPT parity passes; PR/SSSP hybrid value
-   and embedded-quality gates fail under this local 4kB synthetic proof.
+   rows. The current gate report uses `/tmp/graphbrew-ecg-validation-proof-post-gate-fix`,
+   produces 30 verdict rows, and has 27 pass / 3 fail: GRASP/P-OPT parity,
+   best-available ECG replacement, and PFX gates pass; PR/SSSP DBG-primary hybrid
+   value and PR embedded-quality gates fail under this local 4kB synthetic proof.
 - `USE_SDE=1 make -C bench/include/sniper_sim/snipersim/common -j1` rebuilt the touched Sniper cache-set objects.
 - `scons build/X86/gem5.opt -j2` rebuilt gem5 X86 successfully after overlay refresh.
 
