@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -35,6 +36,36 @@
 namespace gem5 {
 namespace replacement_policy {
 namespace graph {
+
+// Tier A sideband-registration sanity log.  One line per region parsed from
+// the sideband JSON, mirroring the cache_sim variant. Suppress with
+// GRAPHBREW_SIDEBAND_LOG=0.
+inline bool graphCtxRegistrationLogEnabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GRAPHBREW_SIDEBAND_LOG");
+        if (!value || !value[0]) return 1;
+        return (std::strcmp(value, "0") == 0) ? 0 : 1;
+    }();
+    return enabled != 0;
+}
+
+inline void logGraphCtxRegistration(const char* source,
+                                    const char* name,
+                                    uint64_t base,
+                                    uint64_t upper,
+                                    uint32_t hot_pct,
+                                    bool grasp_region) {
+    if (!graphCtxRegistrationLogEnabled()) return;
+    std::fprintf(stderr,
+                 "[graphctx] register region source=%s name=%s base=0x%lx "
+                 "upper=0x%lx hot_pct=%u grasp_region=%d\n",
+                 source ? source : "?",
+                 (name && name[0]) ? name : "(unnamed)",
+                 static_cast<unsigned long>(base),
+                 static_cast<unsigned long>(upper),
+                 hot_pct,
+                 grasp_region ? 1 : 0);
+}
 
 static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
@@ -433,6 +464,17 @@ struct GraphCacheContext {
                     regions[num_regions].bucket_bounds[0] = regions[num_regions].base_address + third;
                     regions[num_regions].bucket_bounds[1] = regions[num_regions].base_address + 2 * third;
                     regions[num_regions].bucket_bounds[2] = regions[num_regions].upper_bound;
+
+                    // Tier A sanity: gem5 sideband loader hard-codes
+                    // hot_fraction=0.50 (frontier_frac=50, matching upstream
+                    // GRASP PR/BC/Radii traces). BellmanFordOpt (frac=100) is
+                    // not yet plumbed through the gem5 sideband.
+                    constexpr uint32_t kSidebandHotPct = 50;
+                    logGraphCtxRegistration("gem5", nullptr,
+                                            regions[num_regions].base_address,
+                                            regions[num_regions].upper_bound,
+                                            kSidebandHotPct,
+                                            regions[num_regions].grasp_region);
 
                     num_regions++;
                     obj_pos = obj_end + 1;

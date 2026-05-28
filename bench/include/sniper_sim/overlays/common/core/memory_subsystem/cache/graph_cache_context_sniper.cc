@@ -1,7 +1,9 @@
 #include "graph_cache_context_sniper.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <limits>
@@ -10,6 +12,37 @@ namespace graphbrew {
 namespace sniper {
 
 namespace {
+
+// Tier A sideband-registration sanity log.  Mirrors the cache_sim / gem5
+// variants. Suppress with GRAPHBREW_SIDEBAND_LOG=0.
+bool graphCtxRegistrationLogEnabled()
+{
+    static int enabled = []() {
+        const char* value = std::getenv("GRAPHBREW_SIDEBAND_LOG");
+        if (!value || !value[0]) return 1;
+        return (std::strcmp(value, "0") == 0) ? 0 : 1;
+    }();
+    return enabled != 0;
+}
+
+void logGraphCtxRegistration(const char* source,
+                             const char* name,
+                             uint64_t base,
+                             uint64_t upper,
+                             uint32_t hot_pct,
+                             bool grasp_region)
+{
+    if (!graphCtxRegistrationLogEnabled()) return;
+    std::fprintf(stderr,
+                 "[graphctx] register region source=%s name=%s base=0x%lx "
+                 "upper=0x%lx hot_pct=%u grasp_region=%d\n",
+                 source ? source : "?",
+                 (name && name[0]) ? name : "(unnamed)",
+                 static_cast<unsigned long>(base),
+                 static_cast<unsigned long>(upper),
+                 hot_pct,
+                 grasp_region ? 1 : 0);
+}
 
 std::array<std::atomic<uint32_t>, MAX_TRACKED_CORES>& vertexStorage()
 {
@@ -312,6 +345,17 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
                 region.bucket_bounds[0] = region.base_address + third;
                 region.bucket_bounds[1] = region.base_address + 2 * third;
                 region.bucket_bounds[2] = region.upper_bound;
+
+                // Tier A sanity: Sniper sideband loader hard-codes
+                // hot_fraction=0.50 (frontier_frac=50, matching upstream
+                // GRASP PR/BC/Radii traces). BellmanFordOpt (frac=100) is
+                // not yet plumbed through the Sniper sideband.
+                constexpr uint32_t kSidebandHotPct = 50;
+                logGraphCtxRegistration("sniper", region.name.c_str(),
+                                        region.base_address,
+                                        region.upper_bound,
+                                        kSidebandHotPct,
+                                        region.grasp_region);
 
                 num_regions++;
                 obj_pos = obj_end + 1;

@@ -40,11 +40,45 @@
 #include <iomanip>
 #include <sstream>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
 namespace cache_sim {
+
+// Tier A sideband-registration sanity: emit a single stderr line per region
+// at registration time so external tests (and humans) can verify the loader
+// saw the expected (base, upper, hot_pct, grasp_region) tuple. Suppress with
+// GRAPHBREW_SIDEBAND_LOG=0 to keep noisy benchmarking runs quiet.
+inline bool graphCtxRegistrationLogEnabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GRAPHBREW_SIDEBAND_LOG");
+        if (!value || !value[0]) return 1;
+        return (std::strcmp(value, "0") == 0) ? 0 : 1;
+    }();
+    return enabled != 0;
+}
+
+inline void logGraphCtxRegistration(const char* source,
+                                    const char* name,
+                                    uint64_t base,
+                                    uint64_t upper,
+                                    uint32_t hot_pct,
+                                    bool grasp_region) {
+    if (!graphCtxRegistrationLogEnabled()) return;
+    std::fprintf(stderr,
+                 "[graphctx] register region source=%s name=%s base=0x%lx "
+                 "upper=0x%lx hot_pct=%u grasp_region=%d\n",
+                 source ? source : "?",
+                 (name && name[0]) ? name : "(unnamed)",
+                 static_cast<unsigned long>(base),
+                 static_cast<unsigned long>(upper),
+                 hot_pct,
+                 grasp_region ? 1 : 0);
+}
 
 // ============================================================================
 // PropertyRegion: One tracked vertex data array
@@ -1021,6 +1055,9 @@ struct GraphCacheContext {
             r.num_buckets = 3;
         }
 
+        logGraphCtxRegistration("cache_sim", nullptr,
+                                r.base_address, r.upper_bound,
+                                r.grasp_hot_percent, r.grasp_region);
         num_regions++;
     }
 
@@ -1039,6 +1076,9 @@ struct GraphCacheContext {
         r.num_buckets = 0;
         r.grasp_hot_percent = hot_percent;
         r.grasp_region = true;
+        logGraphCtxRegistration("cache_sim_trace", nullptr,
+                                r.base_address, r.upper_bound,
+                                r.grasp_hot_percent, r.grasp_region);
         num_regions++;
     }
 
