@@ -260,3 +260,96 @@ Resulting caution:
 - Do not claim "matches paper" unless status is Exact or Equivalent with explicit justification.
 - Any heuristic or fallback path must be labeled non-faithful in figures/tables.
 - Keep POPT_CHARGED (overhead-aware) separate from POPT (oracle) in conclusions.
+
+## Tier C — gem5 / Sniper GRASP-vs-LRU sign test (snapshot)
+
+Tier C cross-checks the per-(graph, app, L3-size) sign of
+`miss_rate(GRASP) − miss_rate(LRU)` between the `cache_sim` reference
+sweep and the gem5 / Sniper sweeps. Mandatory agreement is required at
+L3 ∈ {4kB, 32kB}; the 256kB and 2MB cases are warnings only because the
+working set fits comfortably and the policies converge.
+
+Tooling:
+- `scripts/experiments/ecg/sign_consistency.py` — comparator CLI; takes
+  the three sweep roots and a list of `graph/app` pairs and emits a
+  human-readable table plus an optional JSON summary.
+- `scripts/test/test_grasp_sign_consistency.py` — pytest gate. Skips when
+  the cache_sim reference or a simulator sweep CSV is missing, fails on
+  unrecorded mandatory disagreements, and xfails on entries in
+  `KNOWN_DISAGREEMENTS`.
+- Source sweeps live under `/tmp/graphbrew-grasp-{cache,gem5,sniper}-sweep`
+  with the layout `<graph>-<app>/DBG/roi_matrix.csv`. The handoff
+  one-liner in `wiki/HANDOFF-grasp-popt-validation.md` regenerates the
+  cache_sim sweep; `--suite gem5`/`--suite sniper` regenerate the others.
+
+Initial sweep ({PR, BC} on {email-Eu-core, cit-Patents}, L1d=1kB, L2=2kB,
+L3-ways=16, line=64):
+
+| graph         | app | L3   | cache_sim Δ | gem5 Δ    | sniper Δ | mandatory agreement |
+| ------------- | --- | ---- | ----------- | --------- | -------- | ------------------- |
+| email-Eu-core | pr  | 4kB  | −0.0212     | +0.2081   | −0.0376  | gem5 ✗ (known), sniper ✓ |
+| email-Eu-core | pr  | 32kB | +0.0269     | +0.0093   | +0.0039  | gem5 ✓, sniper ✓    |
+| email-Eu-core | pr  | 256kB| +0.0033     | −0.0214   | +0.0033  | gem5 warn, sniper ✓ |
+| email-Eu-core | pr  | 2MB  | +0.0005     | +0.0003   | +0.0015  | gem5 ✓, sniper ✓    |
+| email-Eu-core | bc  | 4kB  | −0.1225     | −0.0520   | n/a      | gem5 ✓, sniper n/a  |
+| email-Eu-core | bc  | 32kB | +0.0180     | +0.0011   | n/a      | gem5 ✓, sniper n/a  |
+| email-Eu-core | bc  | 256kB| +0.0047     | −0.0033   | n/a      | gem5 warn, sniper n/a |
+| email-Eu-core | bc  | 2MB  | +0.00005    | −0.00006  | n/a      | gem5 warn, sniper n/a |
+| cit-Patents   | pr  | 4kB  | +0.1654     | (pending) | +0.0851  | sniper ✓            |
+| cit-Patents   | pr  | 32kB | +0.2545     | (pending) | +0.0002  | sniper ✓            |
+| cit-Patents   | pr  | 256kB| +0.0757     | (pending) | −0.0032  | sniper warn         |
+| cit-Patents   | pr  | 2MB  | −0.0071     | (pending) | −0.0012  | sniper ✓            |
+| cit-Patents   | bc  | 4kB  | +0.0193     | (pending) | n/a      | sniper n/a          |
+| cit-Patents   | bc  | 32kB | +0.0759     | (pending) | n/a      | sniper n/a          |
+| cit-Patents   | bc  | 256kB| +0.0664     | (pending) | n/a      | sniper n/a          |
+| cit-Patents   | bc  | 2MB  | +0.0490     | (pending) | n/a      | sniper n/a          |
+
+(Δ = `miss_rate(GRASP) − miss_rate(LRU)`. Negative = GRASP improves miss
+rate. Sniper currently runs only the PR kernel-smoke workload; BC sweeps
+are skipped pending a non-SDE-heavy Sniper workload path. The gem5
+`cit-Patents` rows are left as `(pending)` because that sweep takes
+multiple hours and is intentionally backgrounded; the pytest auto-skips
+those entries until the CSVs land and the audit table can be amended.)
+
+### Findings
+
+- **Sniper PR matches cache_sim sign at all mandatory L3 sizes** for both
+  `email-Eu-core` and `cit-Patents`. The 256kB warning for `cit-Patents`
+  is at the convergence boundary.
+- **gem5 BC matches cache_sim sign at all mandatory L3 sizes** on
+  `email-Eu-core` (4kB and 32kB both agree). The 256kB and 2MB
+  disagreements are sub-permille deltas at the convergence boundary and
+  fall under the existing warning policy.
+- **gem5 disagrees with cache_sim at `email-Eu-core` / PR / L3=4kB**. The
+  delta is large (+0.21 vs −0.02) and both SRRIP *and* GRASP miss-rates
+  jump well above LRU in gem5 at this size, while cache_sim sees SRRIP
+  and GRASP both slightly improving on LRU:
+
+  ```
+  cache_sim 4kB: LRU=0.387 SRRIP=0.363 GRASP=0.366
+  gem5 4kB sec1: LRU=0.292 SRRIP=0.600 GRASP=0.500
+  ```
+
+  The fact that SRRIP also degrades against gem5's LRU points to a
+  generic RRPV / hot-region masking problem in the gem5 overlay rather
+  than a GRASP-specific defect. This is captured as a known disagreement
+  in `KNOWN_DISAGREEMENTS` so that the pytest stays green on currently
+  documented behavior but fires immediately when the underlying issue is
+  fixed (XPASS) or a new disagreement appears (FAIL). The same root
+  cause is not active for BC, which suggests the trigger is tied to PR's
+  push-style edge traversal pattern at very small L3.
+
+### Open follow-ups
+
+1. Replay `email-Eu-core` / PR / L3=4kB under gem5 with the
+   `[graphctx]` registration trace enabled (Tier A log line, suppressible
+   via `GRAPHBREW_SIDEBAND_LOG=0`) and confirm the GRASP region's
+   `base`/`upper` lie inside the LLC-accessed range.
+2. Compare gem5's `system.l3cache.rrip*` stats between LRU, SRRIP, and
+   GRASP at 4kB to see whether the policy is forcing 3-bit-RRPV inserts
+   that get evicted before reuse.
+3. Once the gem5 `cit-Patents` sweep completes (~hours), update the table
+   above and append any new mandatory disagreements (or add them to
+   `KNOWN_DISAGREEMENTS` and the audit follow-up list).
+4. Enable a non-SDE-heavy Sniper workload (`kernel_smoke` covers PR/BFS/SSSP;
+   BC needs a dedicated path) so the BC half of the matrix can be measured.
