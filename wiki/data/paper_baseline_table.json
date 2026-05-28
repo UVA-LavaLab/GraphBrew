@@ -1,5 +1,64 @@
 [
   {
+    "accesses": 5161106,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.9982999999999964,
+      "LRU": 0.0,
+      "POPT": -0.8921999999999985,
+      "SRRIP": -0.3966999999999943
+    },
+    "graph": "cit-Patents",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.956526,
+      "LRU": 0.966509,
+      "POPT": 0.957587,
+      "SRRIP": 0.962542
+    },
+    "verdict": {
+      "GRASP": "ok"
+    }
+  },
+  {
+    "accesses": 5155615,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": -4.0806000000000004,
+      "LRU": 0.0,
+      "POPT": -3.700900000000007,
+      "SRRIP": -0.6848000000000076
+    },
+    "graph": "cit-Patents",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.869013,
+      "LRU": 0.909819,
+      "POPT": 0.87281,
+      "SRRIP": 0.902971
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 5154729,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": -8.62449999999999,
+      "LRU": 0.0,
+      "POPT": -7.935799999999993,
+      "SRRIP": -0.3126999999999991
+    },
+    "graph": "cit-Patents",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.7848310000000001,
+      "LRU": 0.871076,
+      "POPT": 0.791718,
+      "SRRIP": 0.867949
+    },
+    "verdict": {}
+  },
+  {
     "accesses": 10262410,
     "app": "cc",
     "delta_pp_vs_lru": {
@@ -55,6 +114,68 @@
       "SRRIP": 0.16012000000000004
     },
     "verdict": {}
+  },
+  {
+    "accesses": 68958633,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -10.647099999999998,
+      "LRU": 0.0,
+      "POPT": -11.699099999999996,
+      "SRRIP": -1.4266999999999919
+    },
+    "graph": "cit-Patents",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.785828,
+      "LRU": 0.892299,
+      "POPT": 0.775308,
+      "SRRIP": 0.878032
+    },
+    "verdict": {
+      "GRASP": "ok",
+      "POPT": "ok"
+    }
+  },
+  {
+    "accesses": 68963141,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -13.369200000000003,
+      "LRU": 0.0,
+      "POPT": -21.615000000000006,
+      "SRRIP": -4.181000000000001
+    },
+    "graph": "cit-Patents",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.45424,
+      "LRU": 0.587932,
+      "POPT": 0.37178199999999995,
+      "SRRIP": 0.546122
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 68955281,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -11.0247,
+      "LRU": 0.0,
+      "POPT": -13.859100000000002,
+      "SRRIP": -4.915100000000006
+    },
+    "graph": "cit-Patents",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.21452000000000004,
+      "LRU": 0.32476700000000003,
+      "POPT": 0.186176,
+      "SRRIP": 0.27561599999999997
+    },
+    "verdict": {
+      "GRASP": "within_tol"
+    }
   },
   {
     "accesses": 27458849,

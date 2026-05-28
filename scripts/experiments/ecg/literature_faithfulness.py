@@ -273,10 +273,12 @@ def evaluate(
                     entry["accesses"] = popt.accesses
                 else:
                     grasp_gain_pp = (lru_ref.miss_rate - grasp.miss_rate) * 100.0
-                    diff_pct = abs(popt.miss_rate - grasp.miss_rate) * 100.0
+                    signed_pp = (popt.miss_rate - grasp.miss_rate) * 100.0
+                    diff_pct = abs(signed_pp)
                     entry["popt_miss_rate"] = popt.miss_rate
                     entry["grasp_miss_rate"] = grasp.miss_rate
                     entry["delta_pct"] = round(diff_pct, 4)
+                    entry["signed_delta_pct"] = round(signed_pp, 4)
                     entry["grasp_gain_vs_lru_pct"] = round(grasp_gain_pp, 4)
                     entry["accesses"] = popt.accesses
                     # Trigger threshold: only assert when GRASP outperforms
@@ -284,8 +286,12 @@ def evaluate(
                     if grasp_gain_pp <= 10.0:
                         entry["status"] = "ok"
                         entry["note"] = "not in phase-transition regime; assertion not triggered"
-                    elif diff_pct <= claim.max_abs_delta_pct + claim.tolerance_pct:
+                    elif signed_pp <= claim.max_abs_delta_pct + claim.tolerance_pct:
+                        # POPT either better than GRASP (signed_pp <= 0) or
+                        # within tolerance worse - both are literature-faithful.
                         entry["status"] = "ok"
+                        if signed_pp < 0:
+                            entry["note"] = "POPT outperforms GRASP (oracle dominates heuristic)"
                     else:
                         entry["status"] = "disagree"
                 per_claim.append(entry)

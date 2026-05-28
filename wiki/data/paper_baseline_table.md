@@ -7,9 +7,15 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 
 | Graph | App | L3 | LRU miss | SRRIP Δ | GRASP Δ | POPT Δ | GRASP claim | POPT claim |
 |---|---|---|---:|---:|---:|---:|---|---|
+| cit-Patents | bfs | 1MB | 96.65% | -0.40 | -1.00 | -0.89 | ✓ ok | — |
+| cit-Patents | bfs | 4MB | 90.98% | -0.68 | -4.08 | -3.70 | — | — |
+| cit-Patents | bfs | 8MB | 87.11% | -0.31 | -8.62 | -7.94 | — | — |
 | cit-Patents | cc | 1MB | 64.31% | -4.21 | -11.69 | -2.97 | — | — |
 | cit-Patents | cc | 4MB | 31.70% | -2.30 | -6.97 | -3.32 | — | — |
 | cit-Patents | cc | 8MB | 18.15% | -2.14 | -6.45 | -4.92 | — | — |
+| cit-Patents | pr | 1MB | 89.23% | -1.43 | -10.65 | -11.70 | ✓ ok | ✓ ok |
+| cit-Patents | pr | 4MB | 58.79% | -4.18 | -13.37 | -21.62 | — | — |
+| cit-Patents | pr | 8MB | 32.48% | -4.92 | -11.02 | -13.86 | ~ within_tol | — |
 | cit-Patents | sssp | 1MB | 85.29% | -0.32 | -3.45 | -2.59 | ✓ ok | ✓ ok |
 | cit-Patents | sssp | 4MB | 56.31% | -2.46 | -8.67 | -6.87 | — | — |
 | cit-Patents | sssp | 8MB | 26.90% | -2.50 | -6.90 | -5.27 | — | — |
