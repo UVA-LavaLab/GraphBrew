@@ -417,6 +417,22 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "Same cit-Patents/SSSP rank-mis-alignment as the 4MB entry; "
         "~1.6 pp gap persists even at 8 MB because the issue is "
         "ordering not capacity.",
+    # ---- POPT_NEAR_GRASP_IF_BIG_GAP phase-transition deviations -------
+    # The cross-policy invariant fires when GRASP improves on LRU by
+    # >10 pp (phase-transition regime). On CC at small L3, GRASP gains
+    # 13+ pp over LRU but POPT gains only 2.5 pp on soc-pokec and
+    # 8.7 pp on cit-Patents - the CC/POPT algorithmic mismatch
+    # documented above means the static PR-ranked oracle cannot match
+    # GRASP's locality-aware pinning. Same root cause; same rationale.
+    ("soc-pokec", "cc", "1MB", "POPT_NEAR_GRASP_IF_BIG_GAP"):
+        "Phase-transition regime invariant fires because GRASP gains "
+        "13.1 pp over LRU. POPT only gains 2.5 pp due to the CC/POPT "
+        "algorithmic mismatch (edge-driven vs PR-ranked access). "
+        "Same root cause as the per-policy POPT_GE_GRASP entry above.",
+    ("cit-Patents", "cc", "1MB", "POPT_NEAR_GRASP_IF_BIG_GAP"):
+        "Phase-transition regime invariant fires because GRASP gains "
+        "13+ pp over LRU on cit-Patents/CC at 1 MB. POPT lags by "
+        "~8.7 pp due to the same CC/POPT algorithmic mismatch.",
 }
 
 

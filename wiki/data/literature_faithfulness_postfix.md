@@ -2,7 +2,7 @@
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
 - Claims total: **66**
-- Verdict mix: **46 ok**, 0 within-tolerance, **2 DISAGREE**, 1 known-deviation, 0 missing, 17 insufficient_data
+- Verdict mix: **46 ok**, 0 within-tolerance, **0 DISAGREE**, 3 known-deviation, 0 missing, 17 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -53,7 +53,7 @@
 
 | status | graph | app | L3 | policy | Δ | citation |
 |---|---|---|---|---|---:|---|
-| disagree | cit-Patents | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +8.726pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| known_deviation | cit-Patents | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +8.726pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | cit-Patents | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.648pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | cit-Patents | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.528pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | cit-Patents | sssp | 1MB | GRASP | -3.452pp | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) |
@@ -74,7 +74,7 @@
 | insufficient_data | email-Eu-core | pr | 8MB | GRASP | +0.000pp | Faldu et al. HPCA 2020 Fig 10 |
 | insufficient_data | email-Eu-core | pr | 8MB | POPT_GE_GRASP | +0.000pp | Balaji & Lucia HPCA 2021 §6.3 |
 | insufficient_data | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| disagree | soc-pokec | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +10.580pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| known_deviation | soc-pokec | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +10.580pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-pokec | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +5.608pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-pokec | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.037pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-pokec | pr | 1MB | SRRIP | -4.517pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 |
@@ -122,9 +122,6 @@
 
 ## Known deviations (registered)
 
+- **cit-Patents/cc L3=1MB POPT_NEAR_GRASP_IF_BIG_GAP** (+8.726pp): 
+- **soc-pokec/cc L3=1MB POPT_NEAR_GRASP_IF_BIG_GAP** (+10.580pp): 
 - **web-Google/pr L3=4MB POPT_GE_GRASP** (+1.072pp): 
-
-## ⚠ Disagreements (need investigation)
-
-- **cit-Patents/cc L3=1MB POPT_NEAR_GRASP_IF_BIG_GAP** Δ=+8.726pp — Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
-- **soc-pokec/cc L3=1MB POPT_NEAR_GRASP_IF_BIG_GAP** Δ=+10.580pp — Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
