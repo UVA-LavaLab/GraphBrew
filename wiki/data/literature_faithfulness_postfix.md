@@ -1,8 +1,8 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **78**
-- Verdict mix: **58 ok**, 0 within-tolerance, **0 DISAGREE**, 3 known-deviation, 0 missing, 17 insufficient_data
+- Claims total: **102**
+- Verdict mix: **79 ok**, 0 within-tolerance, **0 DISAGREE**, 3 known-deviation, 0 missing, 20 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -56,13 +56,19 @@
 
 | status | graph | app | L3 | policy | Δ | citation |
 |---|---|---|---|---|---:|---|
+| ok | cit-Patents | cc | 1MB | SRRIP | -4.213pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | known_deviation | cit-Patents | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +8.726pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | cc | 4MB | SRRIP | -2.299pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | ok | cit-Patents | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.648pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | cc | 8MB | SRRIP | -2.142pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | ok | cit-Patents | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.528pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | sssp | 1MB | SRRIP | -0.320pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | cit-Patents | sssp | 1MB | GRASP | -3.452pp | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) |
 | ok | cit-Patents | sssp | 1MB | POPT | -2.588pp | Balaji & Lucia HPCA 2021 Fig 10 |
 | ok | cit-Patents | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.863pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | sssp | 4MB | SRRIP | -2.465pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | cit-Patents | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.804pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | sssp | 8MB | SRRIP | -2.498pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | cit-Patents | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.633pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | -0.316pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.317pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
@@ -89,8 +95,11 @@
 | ok | soc-LiveJournal1 | pr | 8MB | GRASP | -7.385pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | soc-LiveJournal1 | pr | 8MB | POPT_GE_GRASP | -2.212pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | soc-LiveJournal1 | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +2.212pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-pokec | cc | 1MB | SRRIP | -3.263pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | known_deviation | soc-pokec | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +10.580pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-pokec | cc | 4MB | SRRIP | -6.614pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | ok | soc-pokec | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +5.608pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-pokec | cc | 8MB | SRRIP | +0.002pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | ok | soc-pokec | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.037pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-pokec | pr | 1MB | SRRIP | -4.517pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 |
 | ok | soc-pokec | pr | 1MB | GRASP | -13.617pp | Faldu et al. HPCA 2020 Fig 10 |
@@ -104,20 +113,32 @@
 | ok | soc-pokec | pr | 8MB | GRASP | -2.113pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | soc-pokec | pr | 8MB | POPT_GE_GRASP | +0.814pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | soc-pokec | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.814pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| insufficient_data | soc-pokec | sssp | 1MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | insufficient_data | soc-pokec | sssp | 1MB | POPT | +0.000pp | Balaji & Lucia HPCA 2021 Fig 10 |
 | insufficient_data | soc-pokec | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| insufficient_data | soc-pokec | sssp | 4MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | insufficient_data | soc-pokec | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| insufficient_data | soc-pokec | sssp | 8MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | insufficient_data | soc-pokec | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | bc | 1MB | SRRIP | -1.838pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | web-Google | bc | 1MB | GRASP | +0.020pp | Faldu et al. HPCA 2020 Fig 11 |
 | ok | web-Google | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.512pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | bc | 4MB | SRRIP | -1.128pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | web-Google | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +2.902pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | bc | 8MB | SRRIP | -0.711pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | web-Google | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.050pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | bfs | 1MB | SRRIP | -0.068pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | web-Google | bfs | 1MB | GRASP | -3.368pp | Faldu et al. HPCA 2020 Fig 11 |
 | ok | web-Google | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.098pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | bfs | 4MB | SRRIP | -0.102pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | web-Google | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.386pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | bfs | 8MB | SRRIP | -0.481pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | web-Google | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +2.481pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | cc | 1MB | SRRIP | -3.859pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | ok | web-Google | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.268pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | cc | 4MB | SRRIP | -0.000pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | ok | web-Google | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.004pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | cc | 8MB | SRRIP | +0.002pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | ok | web-Google | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.001pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | web-Google | pr | 1MB | SRRIP | -5.698pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 |
 | ok | web-Google | pr | 1MB | GRASP | -14.766pp | Faldu et al. HPCA 2020 Fig 10 |
@@ -131,8 +152,11 @@
 | ok | web-Google | pr | 8MB | GRASP | -1.253pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | web-Google | pr | 8MB | POPT_GE_GRASP | -0.038pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | web-Google | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.038pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | sssp | 1MB | SRRIP | -0.502pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | web-Google | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.858pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | sssp | 4MB | SRRIP | +0.002pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | web-Google | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | web-Google | sssp | 8MB | SRRIP | -0.003pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | web-Google | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 
 ## Known deviations (registered)

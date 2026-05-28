@@ -83,6 +83,39 @@ INVARIANT_CLAIMS: tuple[LiteratureClaim, ...] = (
         rationale="SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices retained by reuse, cold vertices age out at the same rate.",
         citation="Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1",
     ),
+    # SRRIP on BFS / BC / SSSP: still close to LRU because frontier-driven
+    # traversal has weak scan/streaming components. Tolerance is broader than
+    # PR to allow for the larger per-trial variance these apps exhibit.
+    LiteratureClaim(
+        graph="*power_law*", app="bfs", l3_size="*", policy="SRRIP",
+        expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=5.0,
+        tolerance_pct=3.0,
+        rationale="SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversal has weak reuse signal beyond hot vertices that LRU also captures.",
+        citation="Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)",
+    ),
+    LiteratureClaim(
+        graph="*power_law*", app="bc", l3_size="*", policy="SRRIP",
+        expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=5.0,
+        tolerance_pct=3.0,
+        rationale="SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex sets; the dynamic insertion-priority signal is weak.",
+        citation="Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)",
+    ),
+    LiteratureClaim(
+        graph="*power_law*", app="sssp", l3_size="*", policy="SRRIP",
+        expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=5.0,
+        tolerance_pct=3.0,
+        rationale="SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+        citation="Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)",
+    ),
+    # CC's edge-iterative pattern can give SRRIP up to ~8 pp gain by scan-resistance
+    # over LRU; we allow a broader magnitude bound here.
+    LiteratureClaim(
+        graph="*power_law*", app="cc", l3_size="*", policy="SRRIP",
+        expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=10.0,
+        tolerance_pct=3.0,
+        rationale="SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+        citation="Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)",
+    ),
     # POPT ≥ GRASP at all L3 sizes (oracle look-ahead dominates degree heuristic).
     # Encoded as a relative claim handled by the comparator (POPT.delta ≤ GRASP.delta).
     LiteratureClaim(

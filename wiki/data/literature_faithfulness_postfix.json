@@ -60,6 +60,23 @@
   ],
   "per_claim": [
     {
+      "accesses": 10214846,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": -4.2127,
+      "expected_sign": "~",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "lru_miss_rate": 0.643092,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.600965,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 10188853,
       "app": "cc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -77,6 +94,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "known_deviation",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 10259768,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": -2.2986,
+      "expected_sign": "~",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "lru_miss_rate": 0.31697,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.293984,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 10200570,
@@ -98,6 +132,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 10229866,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": -2.1422,
+      "expected_sign": "~",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "lru_miss_rate": 0.18154199999999998,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.16012000000000004,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 10247171,
       "app": "cc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -115,6 +166,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "ok",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 27446716,
+      "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": -0.3199,
+      "expected_sign": "~",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "lru_miss_rate": 0.852928,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.849729,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 27439273,
@@ -170,6 +238,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 27444166,
+      "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": -2.4646,
+      "expected_sign": "~",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "lru_miss_rate": 0.563099,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.5384530000000001,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 27142163,
       "app": "sssp",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -187,6 +272,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "ok",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 27473215,
+      "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": -2.4983,
+      "expected_sign": "~",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "lru_miss_rate": 0.26895800000000003,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.24397500000000005,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 27262248,
@@ -639,6 +741,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 1766797,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": -3.2629,
+      "expected_sign": "~",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "lru_miss_rate": 0.699434,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.666805,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 1766529,
       "app": "cc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -658,6 +777,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 1772476,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": -6.6143,
+      "expected_sign": "~",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "lru_miss_rate": 0.396085,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.32994199999999996,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 1771404,
       "app": "cc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -674,6 +810,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "ok",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 1767814,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": 0.0019,
+      "expected_sign": "~",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "lru_miss_rate": 0.05770799999999998,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.05772699999999997,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 1769194,
@@ -906,6 +1059,23 @@
     {
       "accesses": 1,
       "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": 0.0,
+      "expected_sign": "~",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "lru_miss_rate": 1.0,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 1.0,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "insufficient_data",
+      "tolerance_pct": 3.0
+    },
+    {
+      "accesses": 1,
+      "app": "sssp",
       "citation": "Balaji & Lucia HPCA 2021 Fig 10",
       "delta_pct": 0.0,
       "expected_sign": "-",
@@ -940,6 +1110,23 @@
     {
       "accesses": 1,
       "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": 0.0,
+      "expected_sign": "~",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "lru_miss_rate": 1.0,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 1.0,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "insufficient_data",
+      "tolerance_pct": 3.0
+    },
+    {
+      "accesses": 1,
+      "app": "sssp",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
       "delta_pct": 0.0,
       "expected_sign": "~",
@@ -957,6 +1144,23 @@
     {
       "accesses": 1,
       "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": 0.0,
+      "expected_sign": "~",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "lru_miss_rate": 1.0,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 1.0,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "insufficient_data",
+      "tolerance_pct": 3.0
+    },
+    {
+      "accesses": 1,
+      "app": "sssp",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
       "delta_pct": 0.0,
       "expected_sign": "~",
@@ -970,6 +1174,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "insufficient_data",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 16017549,
+      "app": "bc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "delta_pct": -1.838,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "lru_miss_rate": 0.707256,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.688876,
+      "rationale": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex sets; the dynamic insertion-priority signal is weak.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 16104375,
@@ -1008,6 +1229,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 16144684,
+      "app": "bc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "delta_pct": -1.1284,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "lru_miss_rate": 0.368711,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.35742700000000005,
+      "rationale": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex sets; the dynamic insertion-priority signal is weak.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 16305237,
       "app": "bc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -1027,6 +1265,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 16092320,
+      "app": "bc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "delta_pct": -0.7109,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "lru_miss_rate": 0.15152200000000005,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.144413,
+      "rationale": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex sets; the dynamic insertion-priority signal is weak.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 16032626,
       "app": "bc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -1044,6 +1299,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "ok",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 1289533,
+      "app": "bfs",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "delta_pct": -0.068,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "lru_miss_rate": 0.970019,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.969339,
+      "rationale": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversal has weak reuse signal beyond hot vertices that LRU also captures.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 1288494,
@@ -1082,6 +1354,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 1290835,
+      "app": "bfs",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "delta_pct": -0.1017,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "lru_miss_rate": 0.935872,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.934855,
+      "rationale": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversal has weak reuse signal beyond hot vertices that LRU also captures.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 1291065,
       "app": "bfs",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -1098,6 +1387,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "ok",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 1289130,
+      "app": "bfs",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "delta_pct": -0.481,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "lru_miss_rate": 0.80865,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.80384,
+      "rationale": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversal has weak reuse signal beyond hot vertices that LRU also captures.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 1290602,
@@ -1119,6 +1425,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 1253977,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": -3.8587,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "lru_miss_rate": 0.5607610000000001,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.522174,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 1253257,
       "app": "cc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -1138,6 +1461,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 1252516,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": -0.0003,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "lru_miss_rate": 0.045733000000000024,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.04573000000000005,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 1252931,
       "app": "cc",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -1155,6 +1495,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "ok",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 1254488,
+      "app": "cc",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "delta_pct": 0.0017,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "lru_miss_rate": 0.04564100000000004,
+      "max_abs_delta_pct": 10.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.045657999999999976,
+      "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 1253691,
@@ -1386,6 +1743,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 3509577,
+      "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": -0.5021,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "lru_miss_rate": 0.555762,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.5507409999999999,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 3480052,
       "app": "sssp",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -1405,6 +1779,23 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 3515157,
+      "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": 0.0019,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "lru_miss_rate": 0.016275999999999957,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.01629499999999995,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "ok",
+      "tolerance_pct": 3.0
+    },
+    {
       "accesses": 3516703,
       "app": "sssp",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
@@ -1422,6 +1813,23 @@
       "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
       "status": "ok",
       "tolerance_pct": 2.0
+    },
+    {
+      "accesses": 3523576,
+      "app": "sssp",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "delta_pct": -0.0034,
+      "expected_sign": "~",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "lru_miss_rate": 0.016290000000000027,
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "policy": "SRRIP",
+      "policy_miss_rate": 0.016256000000000048,
+      "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+      "status": "ok",
+      "tolerance_pct": 3.0
     },
     {
       "accesses": 3522294,
@@ -2958,13 +3366,13 @@
     }
   ],
   "summary": {
-    "claims_total": 78,
+    "claims_total": 102,
     "disagree": 0,
-    "insufficient_data": 17,
+    "insufficient_data": 20,
     "known_deviation": 3,
     "min_accesses_threshold": 10000,
     "missing": 0,
-    "ok": 58,
+    "ok": 79,
     "within_tolerance": 0
   },
   "tolerated": []
