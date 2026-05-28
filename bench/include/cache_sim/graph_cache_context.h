@@ -76,6 +76,8 @@ struct PropertyRegion {
     uint32_t elem_size = 0;         // Size of each element in bytes
     uint32_t region_id = 0;         // ID for per-region statistics
     uint32_t num_buckets = 0;       // Active bucket count (0 = uninitialized)
+    uint32_t grasp_hot_percent = 50; // GRASP trace-header f value, percent of LLC capacity
+    bool grasp_region = true;       // Whether GRASP treats this as propertyA/B
 
     // Bucket boundaries: bucket_bounds[i] = upper byte address of bucket i
     // Bucket 0 = highest-degree (most important to cache)
@@ -600,14 +602,11 @@ struct FatIDConfig {
 // Stored as flat uint8_t array of size [num_epochs × num_cache_lines].
 // Layout: matrix[epoch * num_cache_lines + cache_line_id]
 //
-// Entry encoding (8-bit, GraphBrew makeOffsetMatrix convention):
-//   MSB=1: cache line IS referenced in this epoch
+// Entry encoding (8-bit, official P-OPT artifact convention):
+//   MSB=0: cache line IS referenced in this epoch
 //     bits [6:0] = sub-epoch of LAST access within epoch
-//   MSB=0: cache line is NOT referenced in this epoch
+//   MSB=1: cache line is NOT referenced in this epoch
 //     bits [6:0] = distance (in epochs) to next epoch with a reference
-// This is the inverse bit polarity of the HPCA'21 paper text, but the
-// generator and decoder are paired and preserve the same next-reference
-// semantics.
 struct RereferenceConfig {
     const uint8_t* matrix = nullptr;  // Rereference matrix data (not owned)
     uint32_t num_cache_lines = 0;     // Cache lines covering vertex data
@@ -629,21 +628,21 @@ struct RereferenceConfig {
         constexpr uint8_t MASK = 0x7F;
 
         if ((entry & MSB) != 0) {
-            // Referenced in this epoch — check sub-epoch position
+            // Not referenced in this epoch — data encodes distance to next epoch.
+            return entry & MASK;
+        } else {
+            // Referenced in this epoch — check sub-epoch position.
             uint8_t last_sub = entry & MASK;
             uint32_t curr_sub = (current_vertex % epoch_size) / sub_epoch_size;
             if (curr_sub <= last_sub) return 0;  // Still upcoming
             // Past final access — check next epoch
             if (epoch_id + 1 < num_epochs) {
                 uint8_t next = matrix[(epoch_id + 1) * num_cache_lines + cline_id];
-                if ((next & MSB) != 0) return 1;  // Referenced next epoch
+                if ((next & MSB) == 0) return 1;  // Referenced next epoch
                 uint8_t dist = next & MASK;
                 return (dist < 127) ? dist + 1 : 127;
             }
             return 127;
-        } else {
-            // NOT referenced — data encodes distance to next epoch
-            return entry & MASK;
         }
     }
 };
@@ -958,7 +957,8 @@ struct GraphCacheContext {
     //           Graph must be DBG-reordered for regions to be meaningful
     void registerPropertyArray(const void* data_ptr, uint32_t num_elements,
                                uint32_t elem_size, size_t llc_size,
-                               double manual_hot_fraction = -1.0) {
+                               double manual_hot_fraction = -1.0,
+                               bool grasp_region = true) {
         if (num_regions >= MAX_PROPERTY_REGIONS) return;
 
         PropertyRegion& r = regions[num_regions];
@@ -967,6 +967,12 @@ struct GraphCacheContext {
         r.num_elements = num_elements;
         r.elem_size = elem_size;
         r.region_id = num_regions;
+        r.grasp_region = grasp_region;
+        if (manual_hot_fraction > 0.0 && manual_hot_fraction <= 1.0) {
+            r.grasp_hot_percent = static_cast<uint32_t>(manual_hot_fraction * 100.0 + 0.5);
+        } else {
+            r.grasp_hot_percent = 50;
+        }
 
         constexpr uint64_t LINE_MASK = ~uint64_t(63);
 
@@ -1015,6 +1021,24 @@ struct GraphCacheContext {
             r.num_buckets = 3;
         }
 
+        num_regions++;
+    }
+
+    // Register a GRASP trace header property region directly.  The official
+    // GRASP trace format carries propertyA/propertyB base/end addresses plus
+    // an `f` percentage of LLC capacity used for high-reuse classification.
+    void registerGRASPTraceRegion(uint64_t base_address, uint64_t upper_bound,
+                                  uint32_t hot_percent) {
+        if (num_regions >= MAX_PROPERTY_REGIONS || base_address >= upper_bound) return;
+        PropertyRegion& r = regions[num_regions];
+        r.base_address = base_address;
+        r.upper_bound = upper_bound;
+        r.num_elements = static_cast<uint32_t>(std::min<uint64_t>(upper_bound - base_address, UINT32_MAX));
+        r.elem_size = 1;
+        r.region_id = num_regions;
+        r.num_buckets = 0;
+        r.grasp_hot_percent = hot_percent;
+        r.grasp_region = true;
         num_regions++;
     }
 
@@ -1244,23 +1268,28 @@ struct GraphCacheContext {
     // Classify address into GRASP 3-tier reuse (Faldu et al. HPCA 2020).
     //
     // After DBG reorder, highest-degree vertices are at front (low addresses).
-    // The original GRASP uses hot_fraction (default 10%) of LLC capacity to
-    // define the hot boundary within each property region:
-    //   HOT:      [base, base + f × llc_size)
-    //   MODERATE: [base + f × llc_size, base + 2 × f × llc_size)
+    // The original GRASP uses the trace-header `f` percentage of LLC capacity
+    // to define the hot boundary within each property region:
+    //   HOT:      [base, base + f% × llc_size + 8)
+    //   MODERATE: [base + f% × llc_size + 8, base + 2f% × llc_size + 8)
     //   COLD:     everything else (including non-property data)
     //
     // Returns: 1=HOT, 2=MODERATE, 3=COLD (0=not in any region)
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
-        constexpr double hot_fraction = 0.10;  // 10% of LLC, matches paper "f"
-        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
-
         for (uint32_t i = 0; i < num_regions; ++i) {
-            if (addr >= regions[i].base_address && addr < regions[i].upper_bound) {
-                uint64_t offset = addr - regions[i].base_address;
-                if (offset < hot_bytes)          return 1;  // HOT (hubs)
-                if (offset < 2 * hot_bytes)      return 2;  // MODERATE
-                return 3;                                    // COLD
+            const PropertyRegion& r = regions[i];
+            if (!r.grasp_region) continue;
+            if (addr >= r.base_address) {
+                uint64_t hot_bytes = (uint64_t(r.grasp_hot_percent) * uint64_t(llc_size)) / 100;
+                uint64_t hot_bound = r.base_address + hot_bytes;
+                uint64_t moderate_bound = r.base_address + 2 * hot_bytes;
+                if (hot_bound > r.upper_bound) hot_bound = r.upper_bound;
+                if (moderate_bound > r.upper_bound) moderate_bound = r.upper_bound;
+                hot_bound += 8;       // Matches upstream common.h boundary rule.
+                moderate_bound += 8;  // Matches upstream common.h boundary rule.
+                if (addr < hot_bound)      return 1;  // HOT (hubs)
+                if (addr < moderate_bound) return 2;  // MODERATE
+                if (addr < r.upper_bound) return 3;   // COLD within this property region
             }
         }
         return 3;  // Not in any property region → cold

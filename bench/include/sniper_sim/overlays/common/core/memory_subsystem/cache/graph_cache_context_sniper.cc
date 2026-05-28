@@ -215,6 +215,8 @@ uint32_t RereferenceMatrix::findNextRef(uint32_t cline_id, uint32_t current_vert
     constexpr uint8_t AND_MASK = 0x7F;
 
     if ((entry & OR_MASK) != 0) {
+        return entry & AND_MASK;
+    } else {
         uint8_t last_ref_sub_epoch = entry & AND_MASK;
         uint32_t current_sub_epoch = sub_epoch_size > 0
             ? ((current_vertex % epoch_size) / sub_epoch_size)
@@ -222,13 +224,12 @@ uint32_t RereferenceMatrix::findNextRef(uint32_t cline_id, uint32_t current_vert
         if (current_sub_epoch <= last_ref_sub_epoch) return 0;
         if (epoch_id + 1 < num_epochs) {
             uint8_t next_entry = data[static_cast<size_t>(epoch_id + 1) * num_cache_lines + cline_id];
-            if ((next_entry & OR_MASK) != 0) return 1;
+            if ((next_entry & OR_MASK) == 0) return 1;
             uint8_t reref = next_entry & AND_MASK;
             return reref < 127 ? reref + 1 : 127;
         }
         return 127;
     }
-    return entry & AND_MASK;
 }
 
 uint32_t RereferenceMatrix::findNextRefByAddr(uint64_t addr, uint32_t current_vertex) const
@@ -303,6 +304,8 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
                 region.num_elements = static_cast<uint32_t>(parseJsonUint(obj, "\"count\""));
                 region.elem_size = static_cast<uint32_t>(parseJsonUint(obj, "\"elem_size\""));
                 region.region_id = num_regions;
+                region.grasp_region = obj.find("\"grasp\"") == std::string::npos ||
+                    parseJsonBool(obj, "\"grasp\"");
                 region.num_buckets = 3;
 
                 uint64_t third = ((size / 3) + rereference.cache_line_size - 1) & ~(rereference.cache_line_size - 1);
@@ -417,13 +420,19 @@ uint32_t GraphCacheContext::findNextRef(uint64_t addr, uint32_t core_id) const
 
 uint32_t GraphCacheContext::classifyGRASP(uint64_t addr, uint64_t llc_size) const
 {
-    constexpr double hot_fraction = 0.10;
+    constexpr double hot_fraction = 0.50;
     uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
     for (uint32_t i = 0; i < num_regions; ++i) {
+        if (!regions[i].grasp_region) continue;
         if (regions[i].contains(addr)) {
-            uint64_t offset = addr - regions[i].base_address;
-            if (offset < hot_bytes) return 1;
-            if (offset < 2 * hot_bytes) return 2;
+            uint64_t hot_bound = regions[i].base_address + hot_bytes;
+            uint64_t moderate_bound = regions[i].base_address + 2 * hot_bytes;
+            if (hot_bound > regions[i].upper_bound) hot_bound = regions[i].upper_bound;
+            if (moderate_bound > regions[i].upper_bound) moderate_bound = regions[i].upper_bound;
+            hot_bound += 8;
+            moderate_bound += 8;
+            if (addr < hot_bound) return 1;
+            if (addr < moderate_bound) return 2;
             return 3;
         }
     }

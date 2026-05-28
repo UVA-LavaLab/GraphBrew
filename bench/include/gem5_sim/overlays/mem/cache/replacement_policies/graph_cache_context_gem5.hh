@@ -156,6 +156,7 @@ struct PropertyRegion {
     uint32_t elem_size = 0;
     uint32_t region_id = 0;
     uint32_t num_buckets = 0;
+    bool grasp_region = true;
     uint64_t bucket_bounds[MAX_REGION_BUCKETS] = {};
 
     uint32_t classifyBucket(uint64_t addr) const {
@@ -186,11 +187,9 @@ struct RereferenceMatrix {
     uint64_t cache_line_size = 64;
     bool enabled = false;
 
-    // P-OPT Algorithm 2 semantics using GraphBrew's paired matrix convention:
-    // MSB=1 means referenced in this epoch (final sub-epoch in low bits),
-    // MSB=0 means not referenced (distance-to-next in low bits). This is the
-    // inverse bit polarity of the HPCA'21 paper text, but matches
-    // bench/include/graphbrew/partition/cagra/popt.h::makeOffsetMatrix().
+    // P-OPT Algorithm 2 semantics using the official artifact convention:
+    // MSB=0 means referenced in this epoch (final sub-epoch in low bits),
+    // MSB=1 means not referenced (distance-to-next in low bits).
     uint32_t findNextRef(uint32_t cline_id, uint32_t current_vertex) const {
         if (!enabled || cline_id >= num_cache_lines) return 127;
         uint32_t epoch_id = (epoch_size > 0) ? (current_vertex / epoch_size) : 0;
@@ -201,19 +200,20 @@ struct RereferenceMatrix {
         constexpr uint8_t AND_MASK = 0x7F;
 
         if ((entry & OR_MASK) != 0) {
+            return entry & AND_MASK;
+        } else {
             uint8_t last_ref_sub_epoch = entry & AND_MASK;
             uint32_t current_sub_epoch = (sub_epoch_size > 0)
                 ? ((current_vertex % epoch_size) / sub_epoch_size) : 0;
             if (current_sub_epoch <= last_ref_sub_epoch) return 0;
             if (epoch_id + 1 < num_epochs) {
                 uint8_t next_entry = data[(epoch_id + 1) * num_cache_lines + cline_id];
-                if ((next_entry & OR_MASK) != 0) return 1;
+                if ((next_entry & OR_MASK) == 0) return 1;
                 uint8_t reref = next_entry & AND_MASK;
                 return (reref < 127) ? reref + 1 : 127;
             }
             return 127;
         }
-        return entry & AND_MASK;
     }
 
     uint32_t findNextRefByAddr(uint64_t addr, uint32_t current_vertex) const {
@@ -363,13 +363,19 @@ struct GraphCacheContext {
     }
 
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
-        constexpr double hot_fraction = 0.10;
+        constexpr double hot_fraction = 0.50;
         uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
         for (uint32_t i = 0; i < num_regions; ++i) {
+            if (!regions[i].grasp_region) continue;
             if (regions[i].contains(addr)) {
-                uint64_t offset = addr - regions[i].base_address;
-                if (offset < hot_bytes) return 1;
-                if (offset < 2 * hot_bytes) return 2;
+                uint64_t hot_bound = regions[i].base_address + hot_bytes;
+                uint64_t moderate_bound = regions[i].base_address + 2 * hot_bytes;
+                if (hot_bound > regions[i].upper_bound) hot_bound = regions[i].upper_bound;
+                if (moderate_bound > regions[i].upper_bound) moderate_bound = regions[i].upper_bound;
+                hot_bound += 8;
+                moderate_bound += 8;
+                if (addr < hot_bound) return 1;
+                if (addr < moderate_bound) return 2;
                 return 3;
             }
         }
@@ -418,6 +424,8 @@ struct GraphCacheContext {
                     regions[num_regions].elem_size = static_cast<uint32_t>(
                         parseJsonUint(obj, "\"elem_size\""));
                     regions[num_regions].region_id = num_regions;
+                    regions[num_regions].grasp_region =
+                        obj.find("\"grasp\"") == std::string::npos || parseJsonBool(obj, "\"grasp\"");
 
                     uint64_t region_bytes = size;
                     uint64_t third = (region_bytes / 3 + 63) & ~uint64_t(63);
@@ -445,6 +453,16 @@ private:
         pos++;
         while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
         return std::strtoull(json.c_str() + pos, nullptr, 10);
+    }
+
+    static bool parseJsonBool(const std::string& json, const std::string& key) {
+        size_t pos = json.find(key);
+        if (pos == std::string::npos) return false;
+        pos = json.find(':', pos);
+        if (pos == std::string::npos) return false;
+        pos++;
+        while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
+        return json.compare(pos, 4, "true") == 0;
     }
 };
 

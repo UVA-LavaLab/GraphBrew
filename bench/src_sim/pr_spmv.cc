@@ -58,8 +58,8 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
                            g.num_edges_directed(), g.directed());
     size_t llc_size = 8 * 1024 * 1024;
     llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
-    graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
-    graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
+    graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, false);
+    graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true);
     cache.initGraphContext(&graph_ctx);
 
     // Compute per-vertex ECG mask array

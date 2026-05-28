@@ -35,9 +35,11 @@ void BCBFS_Sim(const Graph &g, NodeID source,
     pvector<int64_t> succ_start(g.num_nodes() + 1, 0);
     pvector<int64_t> path_counts(g.num_nodes(), 0);
     path_counts[source] = 1;
+    pvector<ScoreT> deltas(g.num_nodes(), 0);
 
     // --- Graph-aware cache context ---
-    // BC accesses depths[], path_counts[], deltas[], scores[] — register all
+    // Upstream GRASP's default BC instrumentation protects backward
+    // dependencies (propertyA). Other arrays remain property data for P-OPT/ECG.
     GraphCacheContext graph_ctx;
     pvector<uint32_t> deg_arr(g.num_nodes());
     #pragma omp parallel for
@@ -47,9 +49,10 @@ void BCBFS_Sim(const Graph &g, NodeID source,
                            g.num_edges_directed(), g.directed());
     size_t llc_size = 8 * 1024 * 1024;
     llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
-    graph_ctx.registerPropertyArray(depths.data(), g.num_nodes(), sizeof(int32_t), llc_size);
-    graph_ctx.registerPropertyArray(path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size);
-    graph_ctx.registerPropertyArray(scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size);
+    graph_ctx.registerPropertyArray(depths.data(), g.num_nodes(), sizeof(int32_t), llc_size, -1.0, false);
+    graph_ctx.registerPropertyArray(path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size, -1.0, false);
+    graph_ctx.registerPropertyArray(scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, false);
+    graph_ctx.registerPropertyArray(deltas.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true);
     cache.initGraphContext(&graph_ctx);
 
     // Compute per-vertex ECG mask array
@@ -124,8 +127,6 @@ void BCBFS_Sim(const Graph &g, NodeID source,
         succ_start[n + 1] += succ_start[n];
     
     // Backward phase - accumulate dependencies
-    pvector<ScoreT> deltas(g.num_nodes(), 0);
-    
     for (int32_t d = depth - 1; d >= 0; d--) {
         #pragma omp parallel for schedule(dynamic, 64)
         for (auto it = depth_index[d]; it < depth_index[d + 1]; it++) {

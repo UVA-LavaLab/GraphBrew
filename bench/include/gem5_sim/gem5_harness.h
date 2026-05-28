@@ -337,6 +337,7 @@ struct Gem5PropertyRegion {
     uint64_t size_bytes;
     uint32_t num_elements;
     uint32_t elem_size;
+    bool grasp_region = true;
 };
 
 struct Gem5EdgeRegion {
@@ -412,12 +413,13 @@ inline void gem5_export_context(
     fprintf(f, "  \"property_regions\": [\n");
     for (int i = 0; i < num_regions; i++) {
         fprintf(f, "    {\"name\": \"%s\", \"base\": %lu, \"size\": %lu, "
-                "\"count\": %u, \"elem_size\": %u}%s\n",
+            "\"count\": %u, \"elem_size\": %u, \"grasp\": %s}%s\n",
                 regions[i].name,
                 (unsigned long)regions[i].base_address,
                 (unsigned long)regions[i].size_bytes,
                 regions[i].num_elements,
                 regions[i].elem_size,
+            regions[i].grasp_region ? "true" : "false",
                 (i < num_regions - 1) ? "," : "");
     }
     fprintf(f, "  ],\n");

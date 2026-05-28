@@ -54,11 +54,12 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     graph_ctx.initTopology(degrees.data(), g.num_nodes(),
                            g.num_edges_directed(), g.directed());
 
-    // Register both property arrays (scores + contrib)
+    // Upstream GRASP protects the source contribution region (propertyA), not
+    // the next-score destination array. Both remain property data for P-OPT/ECG.
     size_t llc_size = 8 * 1024 * 1024;  // Default 8MB, overridden by env
     llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
-    graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
-    graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size);
+    graph_ctx.registerPropertyArray(scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, false);
+    graph_ctx.registerPropertyArray(contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true);
     cache.initGraphContext(&graph_ctx);
 
     // Build P-OPT rereference matrix (for POPT and ECG policies)

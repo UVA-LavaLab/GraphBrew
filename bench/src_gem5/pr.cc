@@ -43,10 +43,10 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     Gem5PropertyRegion regions[2] = {
         {"scores",  reinterpret_cast<uint64_t>(scores.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
-         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), false},
         {"contrib", reinterpret_cast<uint64_t>(outgoing_contrib.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
-         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), true},
     };
     Gem5EdgeRegion edge_regions[2];
     int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2, true);

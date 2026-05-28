@@ -17,9 +17,9 @@ constexpr int kOutDegree[kNodes] = {2, 2, 2, 2};
 void export_context(ScoreT* scores, ScoreT* contrib) {
     SniperPropertyRegion regions[2] = {
         {"scores", reinterpret_cast<uint64_t>(scores), sizeof(ScoreT) * kNodes,
-         kNodes, sizeof(ScoreT)},
+            kNodes, sizeof(ScoreT), false},
         {"contrib", reinterpret_cast<uint64_t>(contrib), sizeof(ScoreT) * kNodes,
-         kNodes, sizeof(ScoreT)},
+            kNodes, sizeof(ScoreT), true},
     };
 
     const std::string edge_path = graphbrew_sniper::in_edges_path();
@@ -38,7 +38,9 @@ void export_context(ScoreT* scores, ScoreT* contrib) {
         out << "    {\"name\": \"" << regions[i].name << "\", \"base\": "
             << regions[i].base_address << ", \"size\": " << regions[i].size_bytes
             << ", \"count\": " << regions[i].num_elements << ", \"elem_size\": "
-            << regions[i].elem_size << "}" << (i == 0 ? "," : "") << "\n";
+            << regions[i].elem_size << ", \"grasp\": "
+            << (regions[i].grasp_region ? "true" : "false")
+            << "}" << (i == 0 ? "," : "") << "\n";
     }
     out << "  ],\n";
     out << "  \"edge_regions\": [\n";

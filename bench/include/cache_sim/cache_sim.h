@@ -38,6 +38,7 @@ enum class EvictionPolicy {
     LFU,      // Least Frequently Used
     PLRU,     // Pseudo-LRU (tree-based)
     SRRIP,    // Static Re-Reference Interval Prediction
+    PIN,      // LRU-with-pinning of high-reuse graph regions (Faldu et al., HPCA 2020 baseline)
     GRASP,    // Graph-aware cache Replacement with Software Prefetching (Faldu et al., HPCA 2020)
     POPT,     // Practical Optimal cache replacement for Graph Analytics (Balaji et al., HPCA 2021)
     ECG       // Expressing Locality for Caching in Graphs — fat-ID encoding (Mughrabi et al., GrAPL)
@@ -51,6 +52,7 @@ inline std::string PolicyToString(EvictionPolicy policy) {
         case EvictionPolicy::LFU:    return "LFU";
         case EvictionPolicy::PLRU:   return "PLRU";
         case EvictionPolicy::SRRIP:  return "SRRIP";
+        case EvictionPolicy::PIN:    return "PIN";
         case EvictionPolicy::GRASP:  return "GRASP";
         case EvictionPolicy::POPT:   return "POPT";
         case EvictionPolicy::ECG:    return "ECG";
@@ -65,6 +67,7 @@ inline EvictionPolicy StringToPolicy(const std::string& s) {
     if (s == "LFU" || s == "lfu") return EvictionPolicy::LFU;
     if (s == "PLRU" || s == "plru") return EvictionPolicy::PLRU;
     if (s == "SRRIP" || s == "srrip") return EvictionPolicy::SRRIP;
+    if (s == "PIN" || s == "pin") return EvictionPolicy::PIN;
     if (s == "GRASP" || s == "grasp") return EvictionPolicy::GRASP;
     if (s == "POPT" || s == "popt" || s == "P-OPT" || s == "p-opt") return EvictionPolicy::POPT;
     if (s == "ECG" || s == "ecg") return EvictionPolicy::ECG;
@@ -164,6 +167,7 @@ struct CacheLine {
     uint64_t line_addr = 0;      // Cache-line-aligned address
     uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (structural, for eviction tiebreak)
     uint8_t ecg_popt_hint = 0;   // ECG_EMBEDDED: stored P-OPT quantized rereference hint
+    bool pin = false;            // PIN policy: line is pinned in cache (high-reuse region)
 };
 
 // ============================================================================
@@ -184,9 +188,9 @@ struct POPTState {
     // Compute next-reference distance for a cache line.
     //
     // Encoding (from makeOffsetMatrix in popt.h, matching reference llc.cpp):
-    //   MSB=1 (bit 7 set): cache line IS referenced in this epoch
+    //   MSB=0 (bit 7 clear): cache line IS referenced in this epoch
     //     → bits [6:0] = sub-epoch of LAST access within the epoch
-    //   MSB=0 (bit 7 clear): cache line is NOT referenced in this epoch
+    //   MSB=1 (bit 7 set): cache line is NOT referenced in this epoch
     //     → bits [6:0] = distance (in epochs) to next epoch with a reference
     //
     // Returns: rereference distance (0 = accessed soon, higher = farther away)
@@ -201,7 +205,11 @@ struct POPTState {
         constexpr uint8_t AND_MASK = 0x7F;  // lower 7 bits
 
         if ((entry & OR_MASK) != 0) {
-            // MSB=1: Referenced in this epoch — data = sub-epoch of last access
+            // MSB=1: NOT referenced in this epoch — data = distance to next epoch
+            uint8_t reref = entry & AND_MASK;
+            return reref;
+        } else {
+            // MSB=0: Referenced in this epoch — data = sub-epoch of last access
             uint8_t lastRefSubEpoch = entry & AND_MASK;
             uint32_t currSubEpoch = (current_vertex % epoch_size) / sub_epoch_size;
             if (currSubEpoch <= lastRefSubEpoch) {
@@ -210,7 +218,7 @@ struct POPTState {
                 // Past final access in this epoch — check next epoch
                 if (epoch_id + 1 < num_epochs) {
                     uint8_t next_entry = reref_matrix[(epoch_id + 1) * num_cache_lines + cline_id];
-                    if ((next_entry & OR_MASK) != 0) {
+                    if ((next_entry & OR_MASK) == 0) {
                         return 1;  // Referenced next epoch
                     } else {
                         uint8_t reref = next_entry & AND_MASK;
@@ -219,10 +227,6 @@ struct POPTState {
                 }
                 return 127;  // No future reference found (max distance)
             }
-        } else {
-            // MSB=0: NOT referenced in this epoch — data = distance to next epoch
-            uint8_t reref = entry & AND_MASK;
-            return reref;  // 0 = check next epoch, 127 = very far away
         }
     }
 };
@@ -238,8 +242,9 @@ struct POPTState {
 //   Low-reuse:       addr ∉ above ranges
 //
 // The border between high/moderate is determined by what fraction of
-// the LLC capacity should be reserved for high-degree vertices (default
-// from paper: the "f" parameter in the trace header, typically 5-20%).
+// the LLC capacity should be reserved for high-degree vertices.  The original
+// GRASP app instrumentation defaults frontier_frac=50, so PR/BC/Radii traces
+// carry propertyA/B-f=50; BellmanFord-style traces may override this to 100.
 // ============================================================================
 struct GRASPState {
     uint64_t data_base = 0;            // Base address of vertex data array (DBG-ordered)
@@ -265,9 +270,9 @@ struct GRASPState {
     //   num_vertices: total vertices
     //   elem_size: sizeof each element (e.g., sizeof(float) for PageRank scores)
     //   llc_size: LLC size in bytes
-    //   hot_fraction: fraction of LLC to reserve for hot vertices (0.0-1.0, default 0.1)
+    //   hot_fraction: fraction of LLC to reserve for hot vertices (0.0-1.0, default 0.5)
     void init(uint64_t data_ptr, uint32_t num_vertices, size_t elem_size,
-              size_t llc_size, double hot_fraction = 0.1) {
+              size_t llc_size, double hot_fraction = 0.5) {
         data_base = data_ptr;
         data_end = data_ptr + num_vertices * elem_size;
         // High-reuse border: hot_fraction of LLC capacity worth of vertex data
@@ -598,7 +603,10 @@ public:
         
         // Find victim
         size_t victim_idx = findVictim(set);
-        
+
+        // PIN bypass: all ways pinned, do not insert (miss already counted).
+        if (victim_idx == SIZE_MAX) return;
+
         // Evict if necessary
         if (set[victim_idx].valid) {
             stats_.evictions++;
@@ -645,6 +653,17 @@ public:
         // P-OPT: insert with SRRIP-style RRPV (long re-reference = M-1)
         if (policy_ == EvictionPolicy::POPT) {
             set[victim_idx].rrpv = 6;  // M_RRPV - 1 = long re-reference (SRRIP default)
+        }
+
+        // PIN: set pin bit when newly inserted line falls in the high-reuse
+        // region (Faldu et al., HPCA 2020 PIN baseline, mirrors upstream pin.cpp).
+        if (policy_ == EvictionPolicy::PIN) {
+            set[victim_idx].pin = false;
+            if (graph_ctx_ && graph_ctx_->num_regions > 0) {
+                if (graph_ctx_->classifyGRASP(address, size_bytes_) == 1) {
+                    set[victim_idx].pin = true;
+                }
+            }
         }
 
         // ECG: Mode-dependent insertion RRPV.
@@ -765,7 +784,7 @@ public:
     // ================================================================
     void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
                    size_t elem_size, size_t llc_size,
-                   double hot_fraction = 0.1) {
+                   double hot_fraction = 0.5) {
         grasp_state_.init(data_ptr, num_vertices, elem_size, llc_size, hot_fraction);
     }
 
@@ -855,9 +874,22 @@ private:
     }
 
     size_t findVictim(std::vector<CacheLine>& set) {
-        // First, look for invalid line
-        for (size_t i = 0; i < associativity_; i++) {
-            if (!set[i].valid) return i;
+        // First, look for an invalid line.  Upstream GRASP is the exception:
+        // its trace simulator has no valid bit and lets RRIP select the victim
+        // even during cold fill.  ECG DBG_ONLY follows this path to preserve
+        // GRASP-equivalence checks.
+        bool prefer_invalid = true;
+        if (policy_ == EvictionPolicy::GRASP) {
+            prefer_invalid = false;
+        } else if (policy_ == EvictionPolicy::ECG) {
+            ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
+                ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
+            if (mode == ECGMode::DBG_ONLY) prefer_invalid = false;
+        }
+        if (prefer_invalid) {
+            for (size_t i = 0; i < associativity_; i++) {
+                if (!set[i].valid) return i;
+            }
         }
         
         // All lines valid, use eviction policy
@@ -874,6 +906,8 @@ private:
                 return findVictimPLRU(set);
             case EvictionPolicy::SRRIP:
                 return findVictimSRRIP(set);
+            case EvictionPolicy::PIN:
+                return findVictimPIN(set);
             case EvictionPolicy::GRASP:
                 return findVictimGRASP(set);
             case EvictionPolicy::POPT:
@@ -890,6 +924,22 @@ private:
         uint64_t oldest = set[0].last_access;
         for (size_t i = 1; i < associativity_; i++) {
             if (set[i].last_access < oldest) {
+                oldest = set[i].last_access;
+                victim = i;
+            }
+        }
+        return victim;
+    }
+
+    // PIN (Faldu et al., HPCA 2020 PIN baseline, mirrors upstream pin.cpp):
+    // LRU among unpinned ways. Returns SIZE_MAX to signal bypass when every
+    // way in the set is pinned, matching upstream's all-pinned bypass.
+    size_t findVictimPIN(std::vector<CacheLine>& set) {
+        size_t victim = SIZE_MAX;
+        uint64_t oldest = 0;
+        for (size_t i = 0; i < associativity_; i++) {
+            if (set[i].pin) continue;
+            if (victim == SIZE_MAX || set[i].last_access < oldest) {
                 oldest = set[i].last_access;
                 victim = i;
             }
@@ -1520,7 +1570,7 @@ public:
 
     // GRASP: Initialize degree-aware RRIP retention — legacy API
     void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
-                   size_t elem_size, double hot_fraction = 0.1) {
+                   size_t elem_size, double hot_fraction = 0.5) {
         size_t llc_size = l3_->getSizeBytes();
         l1_->initGRASP(data_ptr, num_vertices, elem_size, l1_->getSizeBytes(), hot_fraction);
         l2_->initGRASP(data_ptr, num_vertices, elem_size, l2_->getSizeBytes(), hot_fraction);
@@ -2285,7 +2335,7 @@ public:
 
     // GRASP: Initialize degree-aware RRIP retention — legacy API
     void initGRASP(uint64_t data_ptr, uint32_t num_vertices,
-                   size_t elem_size, double hot_fraction = 0.1) {
+                   size_t elem_size, double hot_fraction = 0.5) {
         size_t llc_size = l3_shared_->getSizeBytes();
         for (int i = 0; i < num_cores_; i++) {
             l1_caches_[i]->initGRASP(data_ptr, num_vertices, elem_size, l1_caches_[i]->getSizeBytes(), hot_fraction);

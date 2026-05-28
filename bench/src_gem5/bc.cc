@@ -30,21 +30,25 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     gem5_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
     gem5_report_region("depth", depth.data(), g.num_nodes(), sizeof(int32_t));
     gem5_report_region("path_counts", path_counts.data(), g.num_nodes(), sizeof(int64_t));
+        gem5_report_region("deltas", deltas.data(), g.num_nodes(), sizeof(ScoreT));
 
-    Gem5PropertyRegion regions[3] = {
+        Gem5PropertyRegion regions[4] = {
         {"scores", reinterpret_cast<uint64_t>(scores.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
-         static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT)},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), false},
         {"depth", reinterpret_cast<uint64_t>(depth.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(int32_t),
-         static_cast<uint32_t>(g.num_nodes()), sizeof(int32_t)},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(int32_t), false},
         {"path_counts", reinterpret_cast<uint64_t>(path_counts.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(int64_t),
-         static_cast<uint32_t>(g.num_nodes()), sizeof(int64_t)},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(int64_t), false},
+           {"deltas", reinterpret_cast<uint64_t>(deltas.data()),
+            static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
+            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), true},
     };
     Gem5EdgeRegion edge_regions[2];
     int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
-    gem5_export_context(regions, 3, g, GEM5_SIDEBAND_PATH,
+        gem5_export_context(regions, 4, g, GEM5_SIDEBAND_PATH,
                         edge_regions, num_edge_regions);
 
     GEM5_RESET_STATS();

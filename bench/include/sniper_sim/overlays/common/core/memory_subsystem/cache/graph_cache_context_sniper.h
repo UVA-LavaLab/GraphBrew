@@ -52,6 +52,7 @@ struct PropertyRegion {
     uint32_t elem_size = 0;
     uint32_t region_id = 0;
     uint32_t num_buckets = 0;
+    bool grasp_region = true;
     std::array<uint64_t, MAX_REGION_BUCKETS> bucket_bounds{};
 
     bool contains(uint64_t addr) const;
