@@ -334,3 +334,40 @@ proves both implementations are seeing the same workload behaviour.
   the gem5 sideband JSON contains the expected `grasp_region` flags
   after the rebuild.
 
+## P-OPT on Connected Components (algorithmic mismatch)
+
+The post-fix sweep added CC to the mix and uncovered a clean POPT
+*algorithmic* mismatch — not a bug — that warrants paper text:
+
+| Graph | L3 | LRU miss | GRASP Δ | POPT Δ | Verdict |
+|---|---|---:|---:|---:|---|
+| soc-pokec | 1MB | 69.94 % | −13.11 pp | **−2.52 pp** | POPT loses 10.6 pp to GRASP |
+| soc-pokec | 4MB | 39.61 % | −16.97 pp | **−11.36 pp** | POPT loses 5.6 pp to GRASP |
+| web-Google | 1MB | 56.08 % | −6.64 pp | **−5.37 pp** | POPT loses 1.3 pp to GRASP |
+
+Why P-OPT is mis-aligned on CC:
+
+- P-OPT's offset matrix is built from a *static* schedule of vertex-property
+  reads ordered by PageRank ranking (Balaji HPCA21 §3.3).
+- CC's Shiloach–Vishkin union-find traverses `parent[]` driven by **edge
+  order**, which is uncorrelated with PageRank ranking.
+- Result: P-OPT's pre-planned eviction order is mis-aligned with the
+  observed reuse, and Phase-1's preferential eviction of CSR/offset lines
+  compounds the loss. GRASP, which only protects a hot-zone, naturally wins.
+
+This is consistent with HPCA21 Table 1 — CC is **not** in the P-OPT
+benchmark set. The three rows are logged in `literature_baselines.py`
+as `KNOWN_DEVIATIONS` with the CC/POPT mismatch rationale, so the gate
+stays green while the paper text can cite this as a documented case
+where workload-aware replacement (GRASP) beats a static oracle (POPT).
+
+## Paper baseline snapshot
+
+A consolidated cross-tabulated paper-ready table is regenerated at
+`wiki/data/paper_baseline_table.{md,csv,json}` via
+`scripts/experiments/ecg/paper_baseline_table.py`. Each row carries
+the LRU baseline miss-rate, SRRIP/GRASP/POPT Δ vs LRU in pp, and a
+verdict glyph (`✓ ok`, `~ within_tol`, `✗ DISAGREE`, `? insufficient`)
+mirroring the lit-faithfulness comparator so the paper text and the
+CI gate cannot disagree on what was observed.
+

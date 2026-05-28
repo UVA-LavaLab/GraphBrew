@@ -1,0 +1,581 @@
+[
+  {
+    "accesses": 320,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.9375000000000022,
+      "LRU": 0.0,
+      "POPT": 0.6220000000000003,
+      "SRRIP": 0.9375000000000022
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 0.990625,
+      "POPT": 0.996845,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 316,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.31649999999999734,
+      "SRRIP": 0.31649999999999734
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.996835,
+      "LRU": 0.996835,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 319,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.9434000000000053,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": -1.2538999999999967
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.990566,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 0.987461
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 977,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 977,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 977,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 2135,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.046800000000002395,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.999532,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 2134,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 2134,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1771468,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -13.105099999999991,
+      "LRU": 0.0,
+      "POPT": -2.524800000000005,
+      "SRRIP": -3.262900000000002
+    },
+    "graph": "soc-pokec",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.5683830000000001,
+      "LRU": 0.699434,
+      "POPT": 0.674186,
+      "SRRIP": 0.666805
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1774929,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -16.968400000000006,
+      "LRU": 0.0,
+      "POPT": -11.360199999999999,
+      "SRRIP": -6.614300000000006
+    },
+    "graph": "soc-pokec",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.22640099999999996,
+      "LRU": 0.396085,
+      "POPT": 0.28248300000000004,
+      "SRRIP": 0.32994199999999996
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1780527,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.03929999999999767,
+      "LRU": 0.0,
+      "POPT": -0.002599999999997049,
+      "SRRIP": 0.0018999999999991246
+    },
+    "graph": "soc-pokec",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.057315000000000005,
+      "LRU": 0.05770799999999998,
+      "POPT": 0.05768200000000001,
+      "SRRIP": 0.05772699999999997
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "soc-pokec",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {
+      "POPT": "insufficient"
+    }
+  },
+  {
+    "accesses": 1,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "soc-pokec",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "soc-pokec",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 16225790,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.019599999999997397,
+      "LRU": 0.0,
+      "POPT": -0.4929000000000072,
+      "SRRIP": -1.8379999999999952
+    },
+    "graph": "web-Google",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.707452,
+      "LRU": 0.707256,
+      "POPT": 0.7023269999999999,
+      "SRRIP": 0.688876
+    },
+    "verdict": {
+      "GRASP": "ok"
+    }
+  },
+  {
+    "accesses": 16305237,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -2.691100000000002,
+      "LRU": 0.0,
+      "POPT": 0.21059999999999413,
+      "SRRIP": -1.128399999999996
+    },
+    "graph": "web-Google",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.3418,
+      "LRU": 0.368711,
+      "POPT": 0.37081699999999995,
+      "SRRIP": 0.35742700000000005
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 16276818,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -1.582500000000009,
+      "LRU": 0.0,
+      "POPT": 1.4672999999999936,
+      "SRRIP": -0.7109000000000032
+    },
+    "graph": "web-Google",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.13569699999999996,
+      "LRU": 0.15152200000000005,
+      "POPT": 0.16619499999999998,
+      "SRRIP": 0.144413
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1289659,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": -3.3677999999999986,
+      "LRU": 0.0,
+      "POPT": -2.269599999999994,
+      "SRRIP": -0.06800000000000139
+    },
+    "graph": "web-Google",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.936341,
+      "LRU": 0.970019,
+      "POPT": 0.947323,
+      "SRRIP": 0.969339
+    },
+    "verdict": {
+      "GRASP": "ok"
+    }
+  },
+  {
+    "accesses": 1291926,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": -17.683100000000007,
+      "LRU": 0.0,
+      "POPT": -18.069100000000006,
+      "SRRIP": -0.10170000000000456
+    },
+    "graph": "web-Google",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.759041,
+      "LRU": 0.935872,
+      "POPT": 0.755181,
+      "SRRIP": 0.934855
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1292226,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": -5.442499999999995,
+      "LRU": 0.0,
+      "POPT": -7.9230999999999945,
+      "SRRIP": -0.4809999999999981
+    },
+    "graph": "web-Google",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.754225,
+      "LRU": 0.80865,
+      "POPT": 0.729419,
+      "SRRIP": 0.80384
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1259550,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -6.636100000000011,
+      "LRU": 0.0,
+      "POPT": -5.368600000000012,
+      "SRRIP": -3.858700000000004
+    },
+    "graph": "web-Google",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.49439999999999995,
+      "LRU": 0.5607610000000001,
+      "POPT": 0.5070749999999999,
+      "SRRIP": 0.522174
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1253913,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.005399999999999849,
+      "LRU": 0.0,
+      "POPT": -0.0018999999999991246,
+      "SRRIP": -0.00029999999999752447
+    },
+    "graph": "web-Google",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.045679000000000025,
+      "LRU": 0.045733000000000024,
+      "POPT": 0.04571400000000003,
+      "SRRIP": 0.04573000000000005
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 1254947,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.005399999999999849,
+      "LRU": 0.0,
+      "POPT": 0.004599999999999049,
+      "SRRIP": 0.0016999999999933735
+    },
+    "graph": "web-Google",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.04569500000000004,
+      "LRU": 0.04564100000000004,
+      "POPT": 0.04568700000000003,
+      "SRRIP": 0.045657999999999976
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 14111268,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -14.765700000000004,
+      "LRU": 0.0,
+      "POPT": -18.413100000000004,
+      "SRRIP": -5.697900000000001
+    },
+    "graph": "web-Google",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.453209,
+      "LRU": 0.600866,
+      "POPT": 0.41673499999999997,
+      "SRRIP": 0.543887
+    },
+    "verdict": {
+      "GRASP": "ok",
+      "POPT": "ok"
+    }
+  },
+  {
+    "accesses": 14108742,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -3.5824999999999996,
+      "LRU": 0.0,
+      "POPT": -2.5102999999999986,
+      "SRRIP": -2.238399999999996
+    },
+    "graph": "web-Google",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.10559399999999997,
+      "LRU": 0.14141899999999996,
+      "POPT": 0.11631599999999997,
+      "SRRIP": 0.119035
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 14107742,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -1.2533000000000016,
+      "LRU": 0.0,
+      "POPT": -1.2917000000000067,
+      "SRRIP": -0.36920000000000286
+    },
+    "graph": "web-Google",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.08451600000000004,
+      "LRU": 0.09704900000000005,
+      "POPT": 0.08413199999999998,
+      "SRRIP": 0.09335700000000002
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 3515491,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.034000000000000696,
+      "LRU": 0.0,
+      "POPT": -0.8239999999999914,
+      "SRRIP": -0.5021000000000053
+    },
+    "graph": "web-Google",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.556102,
+      "LRU": 0.555762,
+      "POPT": 0.5475220000000001,
+      "SRRIP": 0.5507409999999999
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 3519131,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0011000000000094268,
+      "LRU": 0.0,
+      "POPT": 0.0012000000000012,
+      "SRRIP": 0.0018999999999991246
+    },
+    "graph": "web-Google",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.01628700000000005,
+      "LRU": 0.016275999999999957,
+      "POPT": 0.01628799999999997,
+      "SRRIP": 0.01629499999999995
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 3523576,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.0028000000000028002,
+      "LRU": 0.0,
+      "POPT": -0.0028000000000028002,
+      "SRRIP": -0.003399999999997849
+    },
+    "graph": "web-Google",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.016262,
+      "LRU": 0.016290000000000027,
+      "POPT": 0.016262,
+      "SRRIP": 0.016256000000000048
+    },
+    "verdict": {}
+  }
+]
