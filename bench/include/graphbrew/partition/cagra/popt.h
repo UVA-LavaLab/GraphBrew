@@ -376,11 +376,10 @@ quantizeGraph(const CSRGraph<NodeID_, DestID_, invert> &g, NodeID_ numTiles)
  * Creates a matrix tracking when each cache line will next be accessed.
  * Used by P-OPT cache replacement policy to make optimal decisions.
  * 
- * The rereference matrix is compressed using GraphBrew's paired convention:
- *   - MSB=1: referenced in this epoch; lower bits = final sub-epoch
- *   - MSB=0: not referenced in this epoch; lower bits = distance to next reference
- * This is the inverse bit polarity of the HPCA'21 paper text, but the paired
- * makeOffsetMatrix()/findNextRef() semantics are equivalent.
+ * The rereference matrix is compressed using the official P-OPT artifact
+ * convention:
+ *   - MSB=0: referenced in this epoch; lower bits = final sub-epoch
+ *   - MSB=1: not referenced in this epoch; lower bits = distance to next reference
  * 
  * @tparam NodeID_ Node ID type
  * @tparam DestID_ Destination ID type
@@ -452,7 +451,8 @@ void makeOffsetMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
     NodeID_ subEpochSz = (epochSz + 127) / 128;  // 7 bits for intra-epoch info
     pvector<uint8_t> compressedOffsets(numCacheLines * numEpochs);
     uint8_t mask = 1;
-    mask <<= 7;
+    uint8_t orMask = mask << 7;
+    uint8_t andMask = ~orMask;
 
     #pragma omp parallel for schedule(dynamic, chunkSz)
     for (NodeID_ c = 0; c < numCacheLines; ++c)
@@ -466,19 +466,19 @@ void makeOffsetMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
             {
                 // Calculate intra-epoch position
                 NodeID_ subPos = (lastRefVal % epochSz) / subEpochSz;
-                compressedOffsets[idx] = static_cast<uint8_t>(subPos) | mask;
+                compressedOffsets[idx] = static_cast<uint8_t>(subPos) & andMask;
             }
             else
             {
-                compressedOffsets[idx] = 0;  // No reference in this epoch (distance filled in Step II-b)
+                compressedOffsets[idx] = maxReref | orMask;  // No reference in this epoch.
             }
         }
     }
 
-    // Step II-b: For "no reference" entries (MSB=0), compute forward distance
+    // Step II-b: For "no reference" entries (MSB=1), compute forward distance
     // to the next epoch that HAS a reference. Scan backwards from the end
     // so each entry records how many epochs ahead the next reference is.
-    // (Reference: llc.cpp findRereferenceVal — MSB=0 data field = epoch distance)
+    // (Reference: official llc.cpp findRereferenceVal — MSB=1 data field = epoch distance)
     #pragma omp parallel for schedule(dynamic, chunkSz)
     for (NodeID_ c = 0; c < numCacheLines; ++c)
     {
@@ -486,12 +486,12 @@ void makeOffsetMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
         for (int e = numEpochs - 1; e >= 0; --e)
         {
             int idx = (c * numEpochs) + e;
-            if ((compressedOffsets[idx] & mask) != 0) {
-                // This epoch HAS a reference (MSB=1) — reset distance
-                distToNext = 0;
+            if ((compressedOffsets[idx] & orMask) == 0) {
+                // This epoch HAS a reference (MSB=0) — reset distance for earlier epochs.
+                distToNext = 1;
             } else {
                 // No reference — store forward distance to next referenced epoch
-                compressedOffsets[idx] = (distToNext < maxReref) ? distToNext : maxReref;
+                compressedOffsets[idx] = ((distToNext < maxReref) ? distToNext : maxReref) | orMask;
                 if (distToNext < maxReref) distToNext++;
             }
         }
