@@ -166,6 +166,9 @@ def evaluate(
             if claim.policy == "POPT_GE_GRASP":
                 # Relative claim handled separately below.
                 continue
+            if claim.policy == "POPT_NEAR_GRASP_IF_BIG_GAP":
+                # Cross-policy invariant handled separately below.
+                continue
             obs = obs_by_key.get((graph, app, l3, claim.policy))
             entry: dict[str, Any] = {
                 "graph": graph,
@@ -232,6 +235,56 @@ def evaluate(
                     entry["delta_pct"] = round(diff_pct, 4)
                     entry["accesses"] = popt.accesses
                     if diff_pct <= claim.tolerance_pct:
+                        entry["status"] = "ok"
+                    else:
+                        entry["status"] = "disagree"
+                per_claim.append(entry)
+
+        # POPT_NEAR_GRASP_IF_BIG_GAP cross-policy invariant. Fires only when
+        # GRASP-LRU shows a >10pp improvement (phase-transition regime); in
+        # that regime POPT must agree with GRASP within tolerance, otherwise
+        # one of the two policies is misbehaving.
+        near_claims = [c for c in _lit.claims_for(graph, app, l3) if c.policy == "POPT_NEAR_GRASP_IF_BIG_GAP"]
+        if near_claims:
+            popt = obs_by_key.get((graph, app, l3, "POPT"))
+            grasp = obs_by_key.get((graph, app, l3, "GRASP"))
+            lru_ref = obs_by_key.get((graph, app, l3, "LRU"))
+            for claim in near_claims:
+                entry = {
+                    "graph": graph, "app": app, "l3_size": l3,
+                    "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+                    "expected_sign": claim.expected_sign,
+                    "min_abs_delta_pct": None,
+                    "max_abs_delta_pct": claim.max_abs_delta_pct,
+                    "tolerance_pct": claim.tolerance_pct,
+                    "rationale": claim.rationale, "citation": claim.citation,
+                }
+                if popt is None or grasp is None or lru_ref is None:
+                    entry["status"] = "missing"
+                    entry["popt_miss_rate"] = None if popt is None else popt.miss_rate
+                    entry["grasp_miss_rate"] = None if grasp is None else grasp.miss_rate
+                    entry["delta_pct"] = None
+                    entry["accesses"] = None
+                elif max(popt.accesses, grasp.accesses, lru_ref.accesses) < min_accesses:
+                    entry["status"] = "insufficient_data"
+                    entry["popt_miss_rate"] = popt.miss_rate
+                    entry["grasp_miss_rate"] = grasp.miss_rate
+                    entry["delta_pct"] = round((popt.miss_rate - grasp.miss_rate) * 100.0, 4)
+                    entry["accesses"] = popt.accesses
+                else:
+                    grasp_gain_pp = (lru_ref.miss_rate - grasp.miss_rate) * 100.0
+                    diff_pct = abs(popt.miss_rate - grasp.miss_rate) * 100.0
+                    entry["popt_miss_rate"] = popt.miss_rate
+                    entry["grasp_miss_rate"] = grasp.miss_rate
+                    entry["delta_pct"] = round(diff_pct, 4)
+                    entry["grasp_gain_vs_lru_pct"] = round(grasp_gain_pp, 4)
+                    entry["accesses"] = popt.accesses
+                    # Trigger threshold: only assert when GRASP outperforms
+                    # LRU by >10pp (the phase-transition regime).
+                    if grasp_gain_pp <= 10.0:
+                        entry["status"] = "ok"
+                        entry["note"] = "not in phase-transition regime; assertion not triggered"
+                    elif diff_pct <= claim.max_abs_delta_pct + claim.tolerance_pct:
                         entry["status"] = "ok"
                     else:
                         entry["status"] = "disagree"

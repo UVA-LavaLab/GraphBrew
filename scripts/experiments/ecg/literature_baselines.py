@@ -243,6 +243,85 @@ PER_GRAPH_CLAIMS: tuple[LiteratureClaim, ...] = (
         rationale="P-OPT HPCA21 Fig 10: soc-Pokec SSSP shows P-OPT beats GRASP and LRU at 1MB.",
         citation="Balaji & Lucia HPCA 2021 Fig 10",
     ),
+
+    # --- soc-LiveJournal1 (GRASP/P-OPT headline graph) ---
+    # GRASP HPCA20 Fig 10/11 and P-OPT HPCA21 Fig 9/10 both report soc-LJ
+    # as showing the largest absolute miss-rate gains alongside cit-Patents.
+    # 4.8 M vertices / 69 M edges power-law graph.
+    LiteratureClaim(
+        graph="soc-LiveJournal1", app="pr", l3_size="1MB", policy="GRASP",
+        expected_sign="-", min_abs_delta_pct=3.0, max_abs_delta_pct=25.0,
+        tolerance_pct=2.0,
+        rationale="GRASP HPCA20 Fig 10: soc-LJ PR is the headline GRASP graph; reports the largest miss-rate reduction at 1 MB LLC.",
+        citation="Faldu et al. HPCA 2020 Fig 10",
+    ),
+    LiteratureClaim(
+        graph="soc-LiveJournal1", app="pr", l3_size="1MB", policy="POPT",
+        expected_sign="-", min_abs_delta_pct=4.0, max_abs_delta_pct=30.0,
+        tolerance_pct=2.0,
+        rationale="P-OPT HPCA21 Fig 9: soc-LJ PR shows the largest P-OPT gain among power-law graphs; oracle look-ahead beats GRASP heuristic by several pp.",
+        citation="Balaji & Lucia HPCA 2021 Fig 9",
+    ),
+    LiteratureClaim(
+        graph="soc-LiveJournal1", app="bc", l3_size="1MB", policy="GRASP",
+        expected_sign="-", min_abs_delta_pct=1.0, max_abs_delta_pct=20.0,
+        tolerance_pct=3.0,
+        rationale="GRASP HPCA20 Fig 11: soc-LJ BC shows positive but smaller-than-PR improvement; multi-array property layout splits hot capacity.",
+        citation="Faldu et al. HPCA 2020 Fig 11",
+    ),
+    LiteratureClaim(
+        graph="soc-LiveJournal1", app="bfs", l3_size="1MB", policy="GRASP",
+        expected_sign="-", min_abs_delta_pct=0.5, max_abs_delta_pct=15.0,
+        tolerance_pct=3.0,
+        rationale="GRASP HPCA20 Fig 11: soc-LJ BFS shows modest GRASP gain; frontier traversal dilutes hot-vertex bias.",
+        citation="Faldu et al. HPCA 2020 Fig 11",
+    ),
+    LiteratureClaim(
+        graph="soc-LiveJournal1", app="sssp", l3_size="1MB", policy="POPT",
+        expected_sign="-", min_abs_delta_pct=2.0, max_abs_delta_pct=25.0,
+        tolerance_pct=2.0,
+        rationale="P-OPT HPCA21 Fig 10: soc-LJ SSSP is among the strongest P-OPT cases; large vertex set + iterative relaxation creates oracle-reuse opportunities.",
+        citation="Balaji & Lucia HPCA 2021 Fig 10",
+    ),
+
+    # --- com-orkut (dense undirected social graph) ---
+    # 3.1 M vertices / 117 M undirected edges; lower diameter / higher
+    # average degree than the other corpora. GRASP paper does not
+    # include com-orkut explicitly, but its access pattern resembles
+    # twitter (which it does include), and the hot-vertex protection
+    # should still help PR. Use a permissive band because no exact
+    # paper number exists.
+    LiteratureClaim(
+        graph="com-orkut", app="pr", l3_size="1MB", policy="GRASP",
+        expected_sign="-", min_abs_delta_pct=1.0, max_abs_delta_pct=25.0,
+        tolerance_pct=3.0,
+        rationale="GRASP HPCA20 §6.1: PR on dense undirected power-law graphs should see GRASP improvement, but magnitude can be smaller than directed graphs because every endpoint is also a source.",
+        citation="Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10)",
+    ),
+    LiteratureClaim(
+        graph="com-orkut", app="pr", l3_size="1MB", policy="POPT",
+        expected_sign="-", min_abs_delta_pct=1.0, max_abs_delta_pct=30.0,
+        tolerance_pct=3.0,
+        rationale="P-OPT HPCA21 §6: oracle look-ahead should beat any heuristic on com-orkut; magnitude is similar to soc-LJ.",
+        citation="Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter)",
+    ),
+
+    # --- Phase transition: GRASP+POPT both win when LLC just-fits ---
+    # GRASP HPCA20 §6.1 explicitly describes a "transition zone" where the
+    # LLC is small enough that LRU's reuse-order fails on the hot working
+    # set but large enough that GRASP's hot-pinning + bypass succeeds. In
+    # this regime BOTH GRASP and POPT show double-digit improvements over
+    # LRU. We observed it on web-Google/BFS at L3=4 MB: LRU=0.936,
+    # GRASP=0.759, POPT=0.755 (Δ ≈ -18 pp for both). Encode it as an
+    # invariant: when the gap GRASP-LRU exceeds 10 pp, POPT must agree
+    # (within tolerance), otherwise one of the two is mis-behaving.
+    LiteratureClaim(
+        graph="*", app="*", l3_size="*", policy="POPT_NEAR_GRASP_IF_BIG_GAP",
+        expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=5.0,
+        tolerance_pct=2.0,
+        rationale="When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within ±5 pp; a large disagreement indicates one of the two policies has a bug.",
+        citation="Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check",
+    ),
 )
 
 
