@@ -493,6 +493,15 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "Same cit-Patents/SSSP rank-mis-alignment as the 4MB entry; "
         "~1.6 pp gap persists even at 8 MB because the issue is "
         "ordering not capacity.",
+    ("soc-pokec", "sssp", "1MB", "POPT_GE_GRASP"):
+        "Same frontier-vs-rank mis-alignment as cit-Patents/SSSP. "
+        "The non-hub source (`-r 800000`) selected for soc-pokec/SSSP "
+        "produces a BFS-like frontier that doesn't follow POPT's "
+        "PR-rank ordering, so the static schedule mis-predicts reuse. "
+        "~4.1 pp gap at 1 MB closes to ~0.9 pp at 4 MB and ~0 at 8 MB. "
+        "GRASP's hot-region pinning happens to align with the active "
+        "frontier vertices in this regime. (Balaji HPCA21 §3.3 "
+        "assumes PR-ordering tracks reuse.)",
     # ---- POPT_NEAR_GRASP_IF_BIG_GAP phase-transition deviations -------
     # The cross-policy invariant fires when GRASP improves on LRU by
     # >10 pp (phase-transition regime). On CC at small L3, GRASP gains

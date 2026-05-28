@@ -357,6 +357,21 @@
     }
   },
   {
+    "accesses": 163468870,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "LRU": 0.0,
+      "SRRIP": -3.9465000000000083
+    },
+    "graph": "com-orkut",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "LRU": 0.6591130000000001,
+      "SRRIP": 0.619648
+    },
+    "verdict": {}
+  },
+  {
     "accesses": 320,
     "app": "bc",
     "delta_pp_vs_lru": {
@@ -709,6 +724,65 @@
     "verdict": {
       "GRASP": "ok"
     }
+  },
+  {
+    "accesses": 34656505,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": -11.038800000000004,
+      "LRU": 0.0,
+      "POPT": -6.942000000000004,
+      "SRRIP": -3.1708999999999987
+    },
+    "graph": "soc-pokec",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.529359,
+      "LRU": 0.6397470000000001,
+      "POPT": 0.570327,
+      "SRRIP": 0.6080380000000001
+    },
+    "verdict": {
+      "POPT": "ok"
+    }
+  },
+  {
+    "accesses": 34649580,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": -3.0908999999999964,
+      "LRU": 0.0,
+      "POPT": -2.218500000000001,
+      "SRRIP": -1.3348000000000027
+    },
+    "graph": "soc-pokec",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.06781800000000004,
+      "LRU": 0.09872700000000001,
+      "POPT": 0.076542,
+      "SRRIP": 0.08537899999999998
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 34665692,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.00040000000000040004,
+      "LRU": 0.0,
+      "POPT": -0.0007000000000090267,
+      "SRRIP": 9.999999999177334e-05
+    },
+    "graph": "soc-pokec",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.002955000000000041,
+      "LRU": 0.002951000000000037,
+      "POPT": 0.0029439999999999467,
+      "SRRIP": 0.0029519999999999547
+    },
+    "verdict": {}
   },
   {
     "accesses": 16225790,
