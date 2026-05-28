@@ -445,6 +445,71 @@ LRU, while POPT missed about 17.5% more. This makes `cit-Patents` PR a useful
 negative/control point for overhead and cache-size sensitivity, not a priority
 candidate for detailed-sim winning-claim runs.
 
+DBG ordering check for GRASP, 2026-05-27:
+
+```text
+/tmp/graphbrew-dbg-ordering-email-pr   original vs DBG PR, 10/10 rows ok
+/tmp/graphbrew-dbg-ordering-cit-pr     original vs DBG PR, 10/10 rows ok
+/tmp/graphbrew-dbg-ordering-srrip      SRRIP-only add-on rows, 6/6 rows ok
+/tmp/graphbrew-grasp-f50-recheck       intermediate f=50-only rows, superseded
+/tmp/graphbrew-grasp-region-scope-recheck  upstream-like GRASP regions, 24/24 rows ok
+```
+
+`-o 5` is the repo's DBG ordering. This matters for GRASP because GRASP's
+region policy assumes high-degree vertices are placed at low property-array
+addresses. The local PR sweep confirms DBG can improve layout, but GRASP itself
+is not automatically a win.
+
+The first original-vs-DBG sweep used GraphBrew's old live-benchmark default of
+`grasp_hot_percent=10`. That was too cold for GRASP: the official app
+instrumentation defaults `frontier_frac=50`, so the bundled PR/BC/Radii traces
+carry `propertyA/B-f=50` while BellmanFord carries `propertyA-f=100`. The trace
+replay path was already correct because it reads `f` from trace headers, but the
+live GraphBrew path and gem5/Sniper sideband contexts needed the default fixed.
+
+The next audit question was whether GraphBrew was protecting the same arrays as
+upstream GRASP. DBG ordering itself was correct (`-o 5`), but the live region
+model was too broad: GraphBrew registered every property array as GRASP-protected,
+whereas upstream marks specific `propertyA/B` arrays. The model now carries an
+explicit `grasp_region` flag. PR/PR-SPMV protect the contribution/source-value
+array, not the destination score array; the current BC path protects the backward
+dependency/delta array, matching upstream's default non-`FORWARD_PASS` BC mode.
+
+After the explicit-region correction, `email-Eu-core` PR is a near-neutral GRASP
+case rather than a strong win. On original ordering, LRU has 11,041 misses, SRRIP
+11,872, and GRASP 11,784, so GRASP is slightly better than SRRIP but worse than
+LRU. Under DBG, LRU drops to 6,580 misses, SRRIP to 5,974, and GRASP to 6,202;
+GRASP still beats LRU but trails SRRIP by 3.8%. The broader `f=50` row is
+superseded by `/tmp/graphbrew-grasp-region-scope-recheck`.
+
+On `cit-Patents`, DBG barely changes PR misses at this 4kB cache point. LRU is
+57,828,416 misses on original ordering and 57,408,642 under DBG; SRRIP is better
+than LRU in both cases, at 52,373,620 and 52,208,570 misses. GRASP remains a
+negative result even with the right `f` and region scope: 70,242,270 misses on
+original ordering and 69,509,760 under DBG. Treat `cit-Patents` PR as a
+negative/control graph for both DBG ordering and GRASP replacement at the tiny
+LLC point, while treating SRRIP as the relevant generic RRIP-family baseline.
+This remaining loss is not by itself a faithfulness bug: upstream GRASP does not
+dominate SRRIP for every trace, because cold/out-of-region data is inserted at
+max RRPV and can churn a set even when generic SRRIP retains the working set.
+
+BC decomposition on `email-Eu-core` shows a different story and explains the
+earlier positive GRASP result:
+
+```text
+/tmp/graphbrew-dbg-ordering-email-bc   original vs DBG BC, 10/10 rows ok
+/tmp/graphbrew-grasp-region-scope-recheck/email-bc  upstream-like BC GRASP region
+```
+
+For BC, DBG ordering alone helps LRU: 39,557 misses on original ordering drops
+to 31,211 under DBG, a 21.1% layout-only reduction. With the upstream-like
+default BC GRASP region, GRASP improves original ordering (32,732 misses, 13.6%
+fewer than SRRIP) but under DBG falls to 30,643 misses, only 1.8% better than
+DBG+LRU and 9.4% worse than DBG+SRRIP. `ECG_DBG_ONLY` remains a useful live
+variant at 27,676 misses under DBG, but it should not be cited as strict GRASP
+parity for this live BC path until the remaining allocation/context differences
+are isolated.
+
 For BFS ECG_PFX scale proofs beyond g10, use the Slurm-ready one-root helper:
 
 ```bash
@@ -611,11 +676,75 @@ with compact/low-overhead hint delivery, or an adaptive policy that uses
 POPT-primary for PR-like phases and cheaper embedded/tie modes where they are
 close enough.
 
+Adaptive selector proof, 2026-05-27:
+
+```text
+/tmp/graphbrew-ecg-validation-proof-email-core-adaptive   54/54 proof rows ok
+/tmp/graphbrew-ecg-validation-proof-email-core-adaptive/gates.csv   42 gates, 35 pass / 7 fail
+```
+
+This run keeps the same file-backed PR/BFS/SSSP proof matrix and adds two
+synthetic proof rows per benchmark. `ECG_ADAPTIVE_ORACLE` chooses the best ECG
+replacement mode including full dynamic `ECG_POPT_PRIMARY`; it passes on all
+three benchmarks, selecting `ECG_POPT_PRIMARY` for PR and BFS and `ECG_DBG_ONLY`
+for the tied SSSP point. `ECG_ADAPTIVE_NO_FULL_POPT` excludes full
+POPT-primary delivery; it selects `ECG_COMBINED` for PR, `ECG_POPT_TIE` for BFS,
+and `ECG_DBG_ONLY` for SSSP. That no-full-POPT selector still fails against the
+strongest prior baseline on PR (6,226 misses versus POPT at 5,254) and is just
+behind on BFS (1,212 versus 1,186). The adaptive result therefore answers the
+current design-space question: adaptive selection works only when the design is
+allowed to use the POPT-primary mechanism on POPT-sensitive phases. Cheaper
+embedded/tie/combined designs are useful, but they do not yet replace full
+current-vertex POPT on PR.
+
+Official P-OPT encoding correction, 2026-05-27:
+
+```text
+/tmp/graphbrew-popt-official-encoding-proof-email   54/54 proof rows ok
+/tmp/graphbrew-popt-official-encoding-proof-email/gates.csv   42 gates, 33 pass / 9 fail
+```
+
+Direct source comparison against `CMUAbstract/POPT-CacheSim-HPCA21` found that
+the official rereference matrix uses `MSB=0` for a current-epoch reference and
+`MSB=1` for no current-epoch reference plus distance-to-next in the low bits.
+GraphBrew previously used the inverse polarity as a paired generator/decoder.
+The generator and cache_sim/gem5/Sniper decoders now use the official polarity.
+
+The corrected file-backed proof keeps the core parity story but changes the PR
+numbers. On PR at 4kB LLC, pure `POPT` is 5,448 misses and
+`ECG_POPT_PRIMARY` is 5,466, which passes the 5% P-OPT parity gate but fails the
+strict zero-tolerance best-ECG replacement gate. BFS remains exact at 1,186
+misses for POPT and `ECG_POPT_PRIMARY`; SSSP remains exact at 63. Cheaper modes
+still do not replace full POPT-primary on PR: `ECG_COMBINED` is 6,494,
+`ECG_EPOCH_EMBEDDED` and `ECG_POPT_TIE` are 6,793, and static embedded is 9,332.
+
+At the original artifact's large LLC geometry, GraphBrew cache_sim on
+`email-Eu-core` PR at 24MB/16-way gives LRU=2,135 misses and POPT/
+`ECG_POPT_PRIMARY`=2,134 misses. The modern-Pin original artifact smoke on the
+same graph reports roughly 2,325--2,326 LLC misses and `Start Way = 1` for
+POPT. The absolute counters are not expected to match because the original Pin
+pintool instruments full application memory with hashed S-NUCA set selection,
+while GraphBrew cache_sim is a controlled graph-kernel simulator. The useful
+runtime alignment is qualitative: at the original large LLC geometry, both
+stacks show this small graph is saturated and POPT is effectively tied with LRU.
+
+gem5 and Sniper confirm the same qualitative point. gem5 cannot instantiate the
+exact 24MB LLC because it requires a power-of-two number of sets, so the nearest
+bracket run used 16MB and 32MB LLCs at
+`/tmp/graphbrew-gem5-popt-pin-geometry-email-pr-bracket`; all rows completed and
+POPT/`ECG_POPT_PRIMARY` are effectively tied with LRU, with tiny miss reductions.
+Safe Sniper `pr_kernel_smoke` at the exact 24MB hierarchy completed at
+`/tmp/graphbrew-sniper-popt-pin-geometry-kernel-smoke` with LRU=93 LLC misses
+and POPT=92. Do not treat this Sniper smoke as same-graph parity; the full
+same-graph Sniper path remains disabled locally because of prior ~50 GiB RSS
+behavior.
+
 Interpret this as mechanism proof plus a clear research gap: ECG parity and PFX
-activation are working locally, and at least one ECG replacement mode matches or
-beats the strongest prior baseline on each file-backed proof benchmark, but the
-specific DBG-primary hybrid and PR embedded replacement story are not yet
-paper-level wins.
+activation are working locally, and POPT-primary remains the stable oracle ECG
+baseline. After the official encoding correction, PR `ECG_POPT_PRIMARY` is a
+near-parity row rather than a strict win over pure POPT, and the specific
+DBG-primary hybrid, PR embedded replacement story, and no-full-POPT adaptive
+selector are not yet paper-level wins.
 
 Interpretation:
 
