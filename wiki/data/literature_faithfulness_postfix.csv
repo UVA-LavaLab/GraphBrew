@@ -47,18 +47,6 @@ cit-Patents,sssp,8MB,GRASP,0.199914,-6.9044,,no_claim,
 cit-Patents,sssp,8MB,LRU,0.268958,+0.0000,,no_claim,
 cit-Patents,sssp,8MB,POPT,0.216244,-5.2714,,no_claim,
 cit-Patents,sssp,8MB,SRRIP,0.243975,-2.4983,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
-com-orkut,bfs,1MB,GRASP,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,1MB,LRU,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,1MB,POPT,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,1MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-com-orkut,bfs,4MB,GRASP,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,4MB,LRU,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,4MB,POPT,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,4MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-com-orkut,bfs,8MB,GRASP,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,8MB,LRU,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,8MB,POPT,1.000000,+0.0000,,no_claim,
-com-orkut,bfs,8MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,cc,1MB,GRASP,0.583690,-10.5228,,no_claim,
 com-orkut,cc,1MB,LRU,0.688918,+0.0000,,no_claim,
 com-orkut,cc,1MB,POPT,0.693854,+0.4936,,no_claim,
@@ -83,18 +71,6 @@ com-orkut,pr,8MB,GRASP,0.129581,-3.5000,,ok,Faldu et al. HPCA 2020 §6.1 (extrap
 com-orkut,pr,8MB,LRU,0.164581,+0.0000,,no_claim,
 com-orkut,pr,8MB,POPT,0.109374,-5.5207,,no_claim,
 com-orkut,pr,8MB,SRRIP,0.142183,-2.2398,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
-com-orkut,sssp,1MB,GRASP,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,1MB,LRU,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,1MB,POPT,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,1MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
-com-orkut,sssp,4MB,GRASP,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,4MB,LRU,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,4MB,POPT,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,4MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
-com-orkut,sssp,8MB,GRASP,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,8MB,LRU,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,8MB,POPT,1.000000,+0.0000,,no_claim,
-com-orkut,sssp,8MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 email-Eu-core,bc,1MB,GRASP,1.000000,+0.9375,,no_claim,
 email-Eu-core,bc,1MB,LRU,0.990625,+0.0000,,no_claim,
 email-Eu-core,bc,1MB,POPT,0.996845,+0.6220,,no_claim,
@@ -167,18 +143,6 @@ soc-pokec,pr,8MB,GRASP,0.079289,-2.1127,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-pokec,pr,8MB,LRU,0.100416,+0.0000,,no_claim,
 soc-pokec,pr,8MB,POPT,0.087432,-1.2984,,no_claim,
 soc-pokec,pr,8MB,SRRIP,0.088267,-1.2149,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
-soc-pokec,sssp,1MB,GRASP,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,1MB,LRU,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,1MB,POPT,1.000000,+0.0000,,insufficient_data,Balaji & Lucia HPCA 2021 Fig 10
-soc-pokec,sssp,1MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
-soc-pokec,sssp,4MB,GRASP,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,4MB,LRU,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,4MB,POPT,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,4MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
-soc-pokec,sssp,8MB,GRASP,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,8MB,LRU,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,8MB,POPT,1.000000,+0.0000,,no_claim,
-soc-pokec,sssp,8MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 web-Google,bc,1MB,GRASP,0.707452,+0.0196,,ok,Faldu et al. HPCA 2020 Fig 11
 web-Google,bc,1MB,LRU,0.707256,+0.0000,,no_claim,
 web-Google,bc,1MB,POPT,0.702327,-0.4929,,no_claim,

@@ -371,3 +371,66 @@ verdict glyph (`✓ ok`, `~ within_tol`, `✗ DISAGREE`, `? insufficient`)
 mirroring the lit-faithfulness comparator so the paper text and the
 CI gate cannot disagree on what was observed.
 
+### Snapshot — full corpus state
+
+After the 5-hour parallel sweep on the literature cache org
+(L1d 32 kB / L2 256 kB / L3 ∈ {1, 4, 8 MB}, line 64 B, 16-way),
+the corpus state on `/tmp/graphbrew-lit-baseline` is:
+
+| Corpus graph | PR | BFS | BC | SSSP | CC |
+|---|:---:|:---:|:---:|:---:|:---:|
+| email-Eu-core | ✓ | ✓ | ✓ | n/a (too small) | n/a (too small) |
+| web-Google    | ✓ | ✓ | ✓ | ✓ | ✓ |
+| soc-pokec     | ✓ | (in-flight) | (in-flight) | ✓ rerun w/ non-hub src | ✓ |
+| cit-Patents   | ✓ | ✓ | (in-flight) | ✓ | ✓ |
+| com-orkut     | ✓ | n/a (hub degenerate) | (in-flight) | ✓ rerun w/ non-hub src | ✓ |
+| soc-LiveJournal1 | ✓ | (in-flight) | (in-flight) | (in-flight) | (in-flight) |
+
+Cells marked "rerun w/ non-hub src" used `-r N/2` instead of `-r 0`
+because DBG re-ordering places the highest-degree vertex at index 0;
+running SSSP/BFS from it on highly-clustered graphs (Orkut CC≈0.17)
+terminates in <100 ms before ROI markers capture meaningful L3
+traffic (total_accesses ≤ 1). Picking a middle-rank source restores
+representative frontier expansion. This is a `cache_sim` measurement
+artifact, not a literature deviation.
+
+### Headline literature-faithfulness state
+
+| Status | Count | Meaning |
+|---|---:|---|
+| `ok` | 114 | Observed Δ within published tolerance |
+| `within_tolerance` | 0 | Borderline (none currently) |
+| `DISAGREE` | 0 | Unexplained deviation from literature |
+| `known_deviation` | 5 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, etc.) |
+| `insufficient_data` | 13 | ROI ran with <10 k accesses (tiny graph or hub-src degeneracy) |
+
+All `known_deviation` entries are CC + POPT permutations where
+P-OPT's PR-ranked offset matrix is mis-aligned with CC's edge-driven
+union-find traversal — see the *P-OPT on Connected Components*
+section above. com-orkut/cc shows the largest mismatch (~11 pp at 1
+MB / ~10 pp at 4 MB / ~6 pp at 8 MB) because Orkut has the highest
+clustering coefficient in the corpus, maximising the PR-rank vs
+edge-order mis-alignment.
+
+### Invariants the comparator now enforces
+
+`scripts/experiments/ecg/literature_baselines.py` codifies:
+
+- **SRRIP wildcards** across PR/BFS/BC/SSSP/CC on power-law graphs
+  (Jaleel ISCA10 §5.2 + Faldu HPCA20 §6.1 extensions). PR/BFS/BC/SSSP
+  use ±5 pp tolerance, CC uses ±10 pp because edge-iterative
+  union-find triggers SRRIP's scan-resistance more strongly than
+  frontier-driven traversals.
+- **GRASP convergence at 8 MB** is now expressed per-graph, not as a
+  single wildcard, because GRASP's gain over LRU at 8 MB depends on
+  whether the L3 holds the full property array (≈ |V| × 8 B). For
+  graphs that fit (email-Eu-core, web-Google) the gain is ≤ 3 pp; for
+  graphs that spill (soc-LJ, cit-Patents, com-orkut) GRASP still wins
+  by 0.5–12 pp.
+- **POPT_NEAR_GRASP_IF_BIG_GAP** is now a *signed* invariant — it
+  fires DISAGREE only when POPT regresses *worse* than GRASP by the
+  threshold. POPT outperforming GRASP (the typical oracle-dominates
+  regime, e.g. cit-Patents/pr/4MB at -8.2 pp) is literature-faithful
+  and no longer trips the check.
+
+

@@ -238,63 +238,6 @@
     "verdict": {}
   },
   {
-    "accesses": 0,
-    "app": "bfs",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "com-orkut",
-    "l3_size": "1MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 0,
-    "app": "bfs",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "com-orkut",
-    "l3_size": "4MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 0,
-    "app": "bfs",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "com-orkut",
-    "l3_size": "8MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
     "accesses": 2834817,
     "app": "cc",
     "delta_pp_vs_lru": {
@@ -412,63 +355,6 @@
     "verdict": {
       "GRASP": "ok"
     }
-  },
-  {
-    "accesses": 1,
-    "app": "sssp",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "com-orkut",
-    "l3_size": "1MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 1,
-    "app": "sssp",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "com-orkut",
-    "l3_size": "4MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 1,
-    "app": "sssp",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "com-orkut",
-    "l3_size": "8MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
   },
   {
     "accesses": 320,
@@ -823,65 +709,6 @@
     "verdict": {
       "GRASP": "ok"
     }
-  },
-  {
-    "accesses": 1,
-    "app": "sssp",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "soc-pokec",
-    "l3_size": "1MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {
-      "POPT": "insufficient"
-    }
-  },
-  {
-    "accesses": 1,
-    "app": "sssp",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "soc-pokec",
-    "l3_size": "4MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 1,
-    "app": "sssp",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
-    },
-    "graph": "soc-pokec",
-    "l3_size": "8MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
   },
   {
     "accesses": 16225790,

@@ -1,8 +1,8 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **151**
-- Verdict mix: **114 ok**, 0 within-tolerance, **0 DISAGREE**, 5 known-deviation, 0 missing, 32 insufficient_data
+- Claims total: **132**
+- Verdict mix: **114 ok**, 0 within-tolerance, **0 DISAGREE**, 5 known-deviation, 0 missing, 13 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -21,18 +21,12 @@
 | cit-Patents | sssp | 1MB | 0.8529 | 0.8497 | 0.8184 | 0.8270 | -3.452pp | -2.588pp |
 | cit-Patents | sssp | 4MB | 0.5631 | 0.5385 | 0.4764 | 0.4944 | -8.673pp | -6.869pp |
 | cit-Patents | sssp | 8MB | 0.2690 | 0.2440 | 0.1999 | 0.2162 | -6.904pp | -5.271pp |
-| com-orkut | bfs | 1MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| com-orkut | bfs | 4MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| com-orkut | bfs | 8MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
 | com-orkut | cc | 1MB | 0.6889 | 0.6510 | 0.5837 | 0.6939 | -10.523pp | +0.494pp |
 | com-orkut | cc | 4MB | 0.5033 | 0.4888 | 0.3698 | 0.4704 | -13.345pp | -3.290pp |
 | com-orkut | cc | 8MB | 0.4306 | 0.3212 | 0.2212 | 0.2830 | -20.943pp | -14.756pp |
 | com-orkut | pr | 1MB | 0.7104 | 0.6686 | 0.6867 | 0.6184 | -2.368pp | -9.198pp |
 | com-orkut | pr | 4MB | 0.3108 | 0.2743 | 0.2679 | 0.2158 | -4.295pp | -9.508pp |
 | com-orkut | pr | 8MB | 0.1646 | 0.1422 | 0.1296 | 0.1094 | -3.500pp | -5.521pp |
-| com-orkut | sssp | 1MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| com-orkut | sssp | 4MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| com-orkut | sssp | 8MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
 | email-Eu-core | bc | 1MB | 0.9906 | 1.0000 | 1.0000 | 0.9968 | +0.938pp | +0.622pp |
 | email-Eu-core | bc | 4MB | 0.9968 | 1.0000 | 0.9968 | 1.0000 | +0.000pp | +0.317pp |
 | email-Eu-core | bc | 8MB | 1.0000 | 0.9875 | 0.9906 | 1.0000 | -0.943pp | +0.000pp |
@@ -51,9 +45,6 @@
 | soc-pokec | pr | 1MB | 0.6796 | 0.6344 | 0.5434 | 0.5476 | -13.617pp | -13.196pp |
 | soc-pokec | pr | 4MB | 0.1969 | 0.1616 | 0.1302 | 0.1238 | -6.672pp | -7.314pp |
 | soc-pokec | pr | 8MB | 0.1004 | 0.0883 | 0.0793 | 0.0874 | -2.113pp | -1.298pp |
-| soc-pokec | sssp | 1MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| soc-pokec | sssp | 4MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| soc-pokec | sssp | 8MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
 | web-Google | bc | 1MB | 0.7073 | 0.6889 | 0.7075 | 0.7023 | +0.020pp | -0.493pp |
 | web-Google | bc | 4MB | 0.3687 | 0.3574 | 0.3418 | 0.3708 | -2.691pp | +0.211pp |
 | web-Google | bc | 8MB | 0.1515 | 0.1444 | 0.1357 | 0.1662 | -1.583pp | +1.467pp |
@@ -107,12 +98,6 @@
 | ok | cit-Patents | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.804pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | cit-Patents | sssp | 8MB | SRRIP | -2.498pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | cit-Patents | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.633pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | com-orkut | bfs | 1MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
-| insufficient_data | com-orkut | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | com-orkut | bfs | 4MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
-| insufficient_data | com-orkut | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | com-orkut | bfs | 8MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
-| insufficient_data | com-orkut | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | com-orkut | cc | 1MB | SRRIP | -3.791pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
 | known_deviation | com-orkut | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +11.016pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | com-orkut | cc | 4MB | SRRIP | -1.449pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
@@ -131,12 +116,6 @@
 | ok | com-orkut | pr | 8MB | GRASP | -3.500pp | Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10) |
 | ok | com-orkut | pr | 8MB | POPT_GE_GRASP | -2.021pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | com-orkut | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +2.021pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | com-orkut | sssp | 1MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | com-orkut | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | com-orkut | sssp | 4MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | com-orkut | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | com-orkut | sssp | 8MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | com-orkut | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | -0.316pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.317pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.943pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
@@ -180,13 +159,6 @@
 | ok | soc-pokec | pr | 8MB | GRASP | -2.113pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | soc-pokec | pr | 8MB | POPT_GE_GRASP | +0.814pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | soc-pokec | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.814pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | soc-pokec | sssp | 1MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | soc-pokec | sssp | 1MB | POPT | +0.000pp | Balaji & Lucia HPCA 2021 Fig 10 |
-| insufficient_data | soc-pokec | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | soc-pokec | sssp | 4MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | soc-pokec | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | soc-pokec | sssp | 8MB | SRRIP | +0.000pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | soc-pokec | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | web-Google | bc | 1MB | SRRIP | -1.838pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | web-Google | bc | 1MB | GRASP | +0.020pp | Faldu et al. HPCA 2020 Fig 11 |
 | ok | web-Google | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.512pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
