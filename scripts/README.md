@@ -98,6 +98,29 @@ bench/bin_sim/ecg_preprocess -f results/graphs/email-Eu-core/email-Eu-core.sg -s
 
 SLURM templates: `scripts/experiments/vldb/stages/slurm/*.sbatch`.
 
+## Upstream GRASP/PIN parity validation
+
+The GRASP, PIN, and BELADY policies in `bench/include/cache_sim/` are
+validated against the upstream `faldupriyank/grasp` trace simulators via:
+
+```bash
+# Build both sides, replay web-Google traces, write comparison.csv
+python3 scripts/experiments/ecg/upstream_policy_compare.py \
+  --policies lru pin grasp belady \
+  --traces BC.web-Google.cvgr.dbg.lru.llc.trace \
+           BellmanFordOpt.web-Google.cintgr.dbg.lru.llc.trace \
+           PageRankOpt.web-Google.cvgr.dbg.lru.llc.trace \
+           PageRankDeltaOpt.web-Google.cvgr.dbg.lru.llc.trace \
+           Radii.web-Google.cvgr.dbg.lru.llc.trace \
+  --out-dir /tmp/graphbrew-upstream-policy-compare
+```
+
+LRU/PIN/GRASP route through `cache_sim::CacheLevel`; BELADY uses an
+offline oracle inside [graphbrew_trace_replay.cc](experiments/ecg/graphbrew_trace_replay.cc)
+because the live cache_sim API has no future-trace concept. Current
+status: 20/20 zero-delta. Source-faithfulness pytest:
+`pytest scripts/test/test_popt_grasp_faithfulness_sources.py`.
+
 ## Legacy / all-in-one entry points
 
 - `scripts/experiments/vldb/runner.py --all --local` — monolithic VLDB runner
