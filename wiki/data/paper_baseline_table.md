@@ -21,13 +21,16 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | email-Eu-core | bfs | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
 | email-Eu-core | pr | 1MB | 100.00% | +0.00 | -0.05 | +0.00 | — | — |
 | email-Eu-core | pr | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
-| email-Eu-core | pr | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
+| email-Eu-core | pr | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | ? insufficient | — |
+| soc-LiveJournal1 | pr | 1MB | 73.22% | -3.28 | -4.79 | -10.74 | ✓ ok | ✓ ok |
+| soc-LiveJournal1 | pr | 4MB | 42.61% | -3.64 | -7.47 | -13.45 | — | — |
+| soc-LiveJournal1 | pr | 8MB | 27.56% | -3.50 | -7.38 | -9.60 | ✓ ok | — |
 | soc-pokec | cc | 1MB | 69.94% | -3.26 | -13.11 | -2.52 | — | — |
 | soc-pokec | cc | 4MB | 39.61% | -6.61 | -16.97 | -11.36 | — | — |
 | soc-pokec | cc | 8MB | 5.77% | +0.00 | -0.04 | -0.00 | — | — |
 | soc-pokec | pr | 1MB | 67.96% | -4.52 | -13.62 | -13.20 | ✓ ok | ✓ ok |
 | soc-pokec | pr | 4MB | 19.69% | -3.53 | -6.67 | -7.31 | — | — |
-| soc-pokec | pr | 8MB | 10.04% | -1.21 | -2.11 | -1.30 | — | — |
+| soc-pokec | pr | 8MB | 10.04% | -1.21 | -2.11 | -1.30 | ✓ ok | — |
 | soc-pokec | sssp | 1MB | 100.00% | +0.00 | +0.00 | +0.00 | — | ? insufficient |
 | soc-pokec | sssp | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
 | soc-pokec | sssp | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
@@ -42,7 +45,7 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | web-Google | cc | 8MB | 4.56% | +0.00 | +0.01 | +0.00 | — | — |
 | web-Google | pr | 1MB | 60.09% | -5.70 | -14.77 | -18.41 | ✓ ok | ✓ ok |
 | web-Google | pr | 4MB | 14.14% | -2.24 | -3.58 | -2.51 | — | — |
-| web-Google | pr | 8MB | 9.70% | -0.37 | -1.25 | -1.29 | — | — |
+| web-Google | pr | 8MB | 9.70% | -0.37 | -1.25 | -1.29 | ✓ ok | — |
 | web-Google | sssp | 1MB | 55.58% | -0.50 | +0.03 | -0.82 | — | — |
 | web-Google | sssp | 4MB | 1.63% | +0.00 | +0.00 | +0.00 | — | — |
 | web-Google | sssp | 8MB | 1.63% | -0.00 | -0.00 | -0.00 | — | — |

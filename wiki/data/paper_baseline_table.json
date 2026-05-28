@@ -285,7 +285,71 @@
       "POPT": 1.0,
       "SRRIP": 1.0
     },
+    "verdict": {
+      "GRASP": "insufficient"
+    }
+  },
+  {
+    "accesses": 106617574,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -4.791400000000001,
+      "LRU": 0.0,
+      "POPT": -10.741500000000004,
+      "SRRIP": -3.2762999999999987
+    },
+    "graph": "soc-LiveJournal1",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.684286,
+      "LRU": 0.7322,
+      "POPT": 0.6247849999999999,
+      "SRRIP": 0.699437
+    },
+    "verdict": {
+      "GRASP": "ok",
+      "POPT": "ok"
+    }
+  },
+  {
+    "accesses": 106714612,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -7.470200000000005,
+      "LRU": 0.0,
+      "POPT": -13.445600000000002,
+      "SRRIP": -3.644500000000006
+    },
+    "graph": "soc-LiveJournal1",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.351445,
+      "LRU": 0.42614700000000005,
+      "POPT": 0.29169100000000003,
+      "SRRIP": 0.389702
+    },
     "verdict": {}
+  },
+  {
+    "accesses": 106677739,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -7.384799999999991,
+      "LRU": 0.0,
+      "POPT": -9.596899999999998,
+      "SRRIP": -3.4978999999999982
+    },
+    "graph": "soc-LiveJournal1",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.20177100000000003,
+      "LRU": 0.27561899999999995,
+      "POPT": 0.17964999999999998,
+      "SRRIP": 0.24063999999999997
+    },
+    "verdict": {
+      "GRASP": "ok"
+    }
   },
   {
     "accesses": 1771468,
@@ -402,7 +466,9 @@
       "POPT": 0.08743199999999995,
       "SRRIP": 0.08826699999999998
     },
-    "verdict": {}
+    "verdict": {
+      "GRASP": "ok"
+    }
   },
   {
     "accesses": 1,
@@ -696,7 +762,9 @@
       "POPT": 0.08413199999999998,
       "SRRIP": 0.09335700000000002
     },
-    "verdict": {}
+    "verdict": {
+      "GRASP": "ok"
+    }
   },
   {
     "accesses": 3515491,

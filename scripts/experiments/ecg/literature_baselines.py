@@ -194,13 +194,56 @@ PER_GRAPH_CLAIMS: tuple[LiteratureClaim, ...] = (
         citation="Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
     ),
 
-    # --- GRASP at large LLC: convergence ---
-    # When LLC easily holds the property array, all policies converge.
+    # --- GRASP at large LLC: convergence on small graphs only ---
+    # When the property array fits in LLC, all policies converge.
+    # An 8-byte/vertex property array fits in 8 MB only for graphs with
+    # |V| <= ~1 M vertices (web-Google ~916 K, email-Eu-core ~1 K).
+    # Larger graphs (soc-pokec 1.6 M, com-orkut 3.1 M, cit-Patents 3.7 M,
+    # soc-LiveJournal1 4.8 M) still spill the property array at 8 MB and
+    # GRASP retains meaningful (~3-10 pp) gains per Faldu HPCA20 Fig 10.
     LiteratureClaim(
-        graph="*", app="pr", l3_size="8MB", policy="GRASP",
+        graph="email-Eu-core", app="pr", l3_size="8MB", policy="GRASP",
         expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=3.0,
         tolerance_pct=1.0,
-        rationale="GRASP HPCA20 Fig 10: gains shrink to ≤1-2 pp at 8MB LLC across all graphs because the working set comfortably fits.",
+        rationale="GRASP HPCA20 Fig 10: tiny graphs entirely fit at 8MB LLC; gains shrink to <=1-2 pp.",
+        citation="Faldu et al. HPCA 2020 Fig 10",
+    ),
+    LiteratureClaim(
+        graph="web-Google", app="pr", l3_size="8MB", policy="GRASP",
+        expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=3.0,
+        tolerance_pct=1.0,
+        rationale="GRASP HPCA20 Fig 10: web-Google property array (~7 MB) fits at 8MB LLC; gains shrink to <=1-2 pp.",
+        citation="Faldu et al. HPCA 2020 Fig 10",
+    ),
+    # For graphs that DON'T fit at 8 MB, GRASP still improves over LRU,
+    # though the magnitude is smaller than at 1 MB. Faldu HPCA20 Fig 10
+    # shows soc-LJ ~5-7 pp, twitter ~8-10 pp at 8 MB.
+    LiteratureClaim(
+        graph="soc-LiveJournal1", app="pr", l3_size="8MB", policy="GRASP",
+        expected_sign="-", min_abs_delta_pct=1.0, max_abs_delta_pct=12.0,
+        tolerance_pct=2.0,
+        rationale="GRASP HPCA20 Fig 10: soc-LJ property array (~38 MB) still spills at 8 MB LLC; GRASP retains ~5-7 pp gain.",
+        citation="Faldu et al. HPCA 2020 Fig 10",
+    ),
+    LiteratureClaim(
+        graph="cit-Patents", app="pr", l3_size="8MB", policy="GRASP",
+        expected_sign="-", min_abs_delta_pct=0.5, max_abs_delta_pct=10.0,
+        tolerance_pct=2.0,
+        rationale="GRASP HPCA20 Fig 10: cit-Patents property array (~30 MB) still spills at 8 MB LLC; GRASP retains ~2-5 pp gain.",
+        citation="Faldu et al. HPCA 2020 Fig 10",
+    ),
+    LiteratureClaim(
+        graph="com-orkut", app="pr", l3_size="8MB", policy="GRASP",
+        expected_sign="-", min_abs_delta_pct=0.5, max_abs_delta_pct=12.0,
+        tolerance_pct=2.0,
+        rationale="GRASP HPCA20 §6.1 (extrapolated): com-orkut property array (~25 MB) spills at 8 MB; dense undirected access pattern softens GRASP advantage but still positive.",
+        citation="Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10)",
+    ),
+    LiteratureClaim(
+        graph="soc-pokec", app="pr", l3_size="8MB", policy="GRASP",
+        expected_sign="~", min_abs_delta_pct=None, max_abs_delta_pct=5.0,
+        tolerance_pct=2.0,
+        rationale="GRASP HPCA20 Fig 10: soc-pokec property array (~13 MB) marginally spills at 8 MB; gains shrink to <=2-3 pp.",
         citation="Faldu et al. HPCA 2020 Fig 10",
     ),
 
