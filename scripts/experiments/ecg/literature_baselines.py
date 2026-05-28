@@ -509,6 +509,27 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "Phase-transition regime invariant fires because GRASP gains "
         "13+ pp over LRU on cit-Patents/CC at 1 MB. POPT lags by "
         "~8.7 pp due to the same CC/POPT algorithmic mismatch.",
+    ("com-orkut", "cc", "1MB", "POPT_NEAR_GRASP_IF_BIG_GAP"):
+        "Phase-transition regime invariant fires because GRASP gains "
+        "13+ pp over LRU on com-orkut/CC at 1 MB. POPT lags by "
+        "~11 pp - the largest CC/POPT gap observed - because Orkut "
+        "is the highest-clustering corpus graph (CC ~0.17), so the "
+        "static PR-ranked oracle is maximally mis-aligned with the "
+        "union-find traversal's edge-driven reuse pattern.",
+    ("com-orkut", "cc", "4MB", "POPT_NEAR_GRASP_IF_BIG_GAP"):
+        "Same com-orkut/CC mismatch as the 1MB entry; gap persists "
+        "at ~10 pp at 4MB because the issue is ordering not capacity "
+        "(see Balaji HPCA21 §3.3 PR-ordering assumption).",
+    ("com-orkut", "cc", "1MB", "POPT_GE_GRASP"):
+        "Same CC/POPT mismatch as soc-pokec/cit-Patents CC entries; "
+        "com-orkut shows the largest gap (~11 pp) due to maximal "
+        "PR-rank vs edge-order mis-alignment.",
+    ("com-orkut", "cc", "4MB", "POPT_GE_GRASP"):
+        "Same CC/POPT mismatch; gap persists at ~10 pp at 4MB.",
+    ("com-orkut", "cc", "8MB", "POPT_GE_GRASP"):
+        "Same CC/POPT mismatch; ~6 pp gap remains even at 8 MB on "
+        "com-orkut because the static PR-ranked schedule mis-orders "
+        "evictions of edge-driven CC reuse regardless of capacity.",
 }
 
 

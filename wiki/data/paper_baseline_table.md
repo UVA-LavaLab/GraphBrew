@@ -19,6 +19,18 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | cit-Patents | sssp | 1MB | 85.29% | -0.32 | -3.45 | -2.59 | ✓ ok | ✓ ok |
 | cit-Patents | sssp | 4MB | 56.31% | -2.46 | -8.67 | -6.87 | — | — |
 | cit-Patents | sssp | 8MB | 26.90% | -2.50 | -6.90 | -5.27 | — | — |
+| com-orkut | bfs | 1MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
+| com-orkut | bfs | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
+| com-orkut | bfs | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
+| com-orkut | cc | 1MB | 68.89% | -3.79 | -10.52 | +0.49 | — | — |
+| com-orkut | cc | 4MB | 50.33% | -1.45 | -13.34 | -3.29 | — | — |
+| com-orkut | cc | 8MB | 43.06% | -10.94 | -20.94 | -14.76 | — | — |
+| com-orkut | pr | 1MB | 71.04% | -4.18 | -2.37 | -9.20 | ✓ ok | ✓ ok |
+| com-orkut | pr | 4MB | 31.08% | -3.65 | -4.30 | -9.51 | — | — |
+| com-orkut | pr | 8MB | 16.46% | -2.24 | -3.50 | -5.52 | ✓ ok | — |
+| com-orkut | sssp | 1MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
+| com-orkut | sssp | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
+| com-orkut | sssp | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
 | email-Eu-core | bc | 1MB | 99.06% | +0.94 | +0.94 | +0.62 | — | — |
 | email-Eu-core | bc | 4MB | 99.68% | +0.32 | +0.00 | +0.32 | — | — |
 | email-Eu-core | bc | 8MB | 100.00% | -1.25 | -0.94 | +0.00 | — | — |
