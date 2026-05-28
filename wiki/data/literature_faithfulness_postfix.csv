@@ -71,8 +71,18 @@ com-orkut,pr,8MB,GRASP,0.129581,-3.5000,,ok,Faldu et al. HPCA 2020 §6.1 (extrap
 com-orkut,pr,8MB,LRU,0.164581,+0.0000,,no_claim,
 com-orkut,pr,8MB,POPT,0.109374,-5.5207,,no_claim,
 com-orkut,pr,8MB,SRRIP,0.142183,-2.2398,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
-com-orkut,sssp,1MB,LRU,0.659113,+0.0000,,no_claim,
-com-orkut,sssp,1MB,SRRIP,0.619648,-3.9465,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
+com-orkut,sssp,1MB,GRASP,0.633754,-2.6574,,no_claim,
+com-orkut,sssp,1MB,LRU,0.660328,+0.0000,,no_claim,
+com-orkut,sssp,1MB,POPT,0.596793,-6.3535,,no_claim,
+com-orkut,sssp,1MB,SRRIP,0.620433,-3.9895,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
+com-orkut,sssp,4MB,GRASP,0.158877,-1.0842,,no_claim,
+com-orkut,sssp,4MB,LRU,0.169719,+0.0000,,no_claim,
+com-orkut,sssp,4MB,POPT,0.147270,-2.2449,,no_claim,
+com-orkut,sssp,4MB,SRRIP,0.154127,-1.5592,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
+com-orkut,sssp,8MB,GRASP,0.022450,-0.2146,,no_claim,
+com-orkut,sssp,8MB,LRU,0.024596,+0.0000,,no_claim,
+com-orkut,sssp,8MB,POPT,0.024068,-0.0528,,no_claim,
+com-orkut,sssp,8MB,SRRIP,0.022316,-0.2280,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 email-Eu-core,bc,1MB,GRASP,1.000000,+0.9375,,no_claim,
 email-Eu-core,bc,1MB,LRU,0.990625,+0.0000,,no_claim,
 email-Eu-core,bc,1MB,POPT,0.996845,+0.6220,,no_claim,

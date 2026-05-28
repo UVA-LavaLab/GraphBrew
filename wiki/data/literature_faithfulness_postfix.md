@@ -1,8 +1,8 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **141**
-- Verdict mix: **122 ok**, 0 within-tolerance, **0 DISAGREE**, 5 known-deviation, 1 missing, 13 insufficient_data
+- Claims total: **145**
+- Verdict mix: **127 ok**, 0 within-tolerance, **0 DISAGREE**, 5 known-deviation, 0 missing, 13 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -27,7 +27,9 @@
 | com-orkut | pr | 1MB | 0.7104 | 0.6686 | 0.6867 | 0.6184 | -2.368pp | -9.198pp |
 | com-orkut | pr | 4MB | 0.3108 | 0.2743 | 0.2679 | 0.2158 | -4.295pp | -9.508pp |
 | com-orkut | pr | 8MB | 0.1646 | 0.1422 | 0.1296 | 0.1094 | -3.500pp | -5.521pp |
-| com-orkut | sssp | 1MB | 0.6591 | 0.6196 | — | — | — | — |
+| com-orkut | sssp | 1MB | 0.6603 | 0.6204 | 0.6338 | 0.5968 | -2.657pp | -6.354pp |
+| com-orkut | sssp | 4MB | 0.1697 | 0.1541 | 0.1589 | 0.1473 | -1.084pp | -2.245pp |
+| com-orkut | sssp | 8MB | 0.0246 | 0.0223 | 0.0224 | 0.0241 | -0.215pp | -0.053pp |
 | email-Eu-core | bc | 1MB | 0.9906 | 1.0000 | 1.0000 | 0.9968 | +0.938pp | +0.622pp |
 | email-Eu-core | bc | 4MB | 0.9968 | 1.0000 | 0.9968 | 1.0000 | +0.000pp | +0.317pp |
 | email-Eu-core | bc | 8MB | 1.0000 | 0.9875 | 0.9906 | 1.0000 | -0.943pp | +0.000pp |
@@ -120,8 +122,12 @@
 | ok | com-orkut | pr | 8MB | GRASP | -3.500pp | Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10) |
 | ok | com-orkut | pr | 8MB | POPT_GE_GRASP | -2.021pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | com-orkut | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +2.021pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| ok | com-orkut | sssp | 1MB | SRRIP | -3.946pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| missing | com-orkut | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | — | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | com-orkut | sssp | 1MB | SRRIP | -3.990pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | com-orkut | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.696pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | com-orkut | sssp | 4MB | SRRIP | -1.559pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | com-orkut | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.161pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | com-orkut | sssp | 8MB | SRRIP | -0.228pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | com-orkut | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.162pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | -0.316pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.317pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.943pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |

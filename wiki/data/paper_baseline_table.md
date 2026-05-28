@@ -25,7 +25,9 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | com-orkut | pr | 1MB | 71.04% | -4.18 | -2.37 | -9.20 | ✓ ok | ✓ ok |
 | com-orkut | pr | 4MB | 31.08% | -3.65 | -4.30 | -9.51 | — | — |
 | com-orkut | pr | 8MB | 16.46% | -2.24 | -3.50 | -5.52 | ✓ ok | — |
-| com-orkut | sssp | 1MB | 65.91% | -3.95 | — | — | — | — |
+| com-orkut | sssp | 1MB | 66.03% | -3.99 | -2.66 | -6.35 | — | — |
+| com-orkut | sssp | 4MB | 16.97% | -1.56 | -1.08 | -2.24 | — | — |
+| com-orkut | sssp | 8MB | 2.46% | -0.23 | -0.21 | -0.05 | — | — |
 | email-Eu-core | bc | 1MB | 99.06% | +0.94 | +0.94 | +0.62 | — | — |
 | email-Eu-core | bc | 4MB | 99.68% | +0.32 | +0.00 | +0.32 | — | — |
 | email-Eu-core | bc | 8MB | 100.00% | -1.25 | -0.94 | +0.00 | — | — |
