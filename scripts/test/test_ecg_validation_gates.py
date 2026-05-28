@@ -21,16 +21,39 @@ proof_spec.loader.exec_module(proof_matrix)
 
 
 def row(benchmark: str, ablation: str, memory: int, useful: int = 0, fills: int = 0) -> dict[str, str]:
+    group = "ecg_replacement" if ablation.startswith("ECG_") else "cache_alone"
     return {
         "benchmark": benchmark,
         "ablation": ablation,
+        "ablation_group": group,
         "status": "ok",
         "memory_accesses": str(memory),
         "total_memory_traffic": str(memory),
         "l3_misses": str(memory),
+        "l3_size": "4kB",
         "prefetch_useful": str(useful),
         "prefetch_fills": str(fills),
     }
+
+
+def test_proof_matrix_synthesizes_adaptive_rows():
+    rows = [
+        row("pr", "ECG_DBG_only", 90),
+        row("pr", "ECG_POPT_primary", 60),
+        row("pr", "ECG_DBG_POPT", 95),
+        row("pr", "ECG_POPT_TIE", 72),
+        row("pr", "ECG_EMBEDDED", 94),
+        row("pr", "ECG_EPOCH_EMBEDDED", 72),
+        row("pr", "ECG_COMBINED", 68),
+    ]
+
+    adaptive_rows = proof_matrix.synthesize_adaptive_rows(rows)
+    by_label = {row["ablation"]: row for row in adaptive_rows}
+
+    assert by_label["ECG_ADAPTIVE_ORACLE"]["adaptive_selected_ablation"] == "ECG_POPT_primary"
+    assert by_label["ECG_ADAPTIVE_ORACLE"]["memory_accesses"] == "60"
+    assert by_label["ECG_ADAPTIVE_NO_FULL_POPT"]["adaptive_selected_ablation"] == "ECG_COMBINED"
+    assert by_label["ECG_ADAPTIVE_NO_FULL_POPT"]["memory_accesses"] == "68"
 
 
 def test_proof_matrix_graph_path_builds_file_options():
@@ -89,6 +112,10 @@ def test_gate_report_classifies_pass_and_activation_only():
     assert by_gate[("pr", "ecg_hybrid_value")]["status"] == "pass"
     assert by_gate[("pr", "best_ecg_replacement_value")]["status"] == "pass"
     assert by_gate[("pr", "best_ecg_replacement_value")]["candidate"] == "ECG_POPT_TIE"
+    assert by_gate[("pr", "adaptive_oracle_value")]["status"] == "pass"
+    assert by_gate[("pr", "adaptive_oracle_value")]["candidate"] == "ECG_POPT_TIE"
+    assert by_gate[("pr", "adaptive_no_full_popt_value")]["status"] == "pass"
+    assert by_gate[("pr", "adaptive_no_full_popt_value")]["candidate"] == "ECG_POPT_TIE"
     assert by_gate[("pr", "PFX_POPT_only_pfx")]["status"] == "activation_only"
     assert by_gate[("pr", "DBG_POPT_PFX_pfx")]["status"] == "pass"
 
@@ -126,11 +153,15 @@ def test_embedded_quality_allows_beating_popt():
     assert by_gate[("sssp", "ecg_hybrid_value")]["status"] == "fail"
     assert by_gate[("sssp", "best_ecg_replacement_value")]["status"] == "pass"
     assert by_gate[("sssp", "best_ecg_replacement_value")]["candidate"] == "ECG_EPOCH_EMBEDDED"
+    assert by_gate[("sssp", "adaptive_oracle_value")]["status"] == "pass"
+    assert by_gate[("sssp", "adaptive_oracle_value")]["candidate"] == "ECG_EPOCH_EMBEDDED"
+    assert by_gate[("sssp", "adaptive_no_full_popt_value")]["status"] == "pass"
+    assert by_gate[("sssp", "adaptive_no_full_popt_value")]["candidate"] == "ECG_EPOCH_EMBEDDED"
 
 
 def test_cli_writes_csv_and_markdown(tmp_path):
     proof_csv = tmp_path / "proof_matrix.csv"
-    fieldnames = ["benchmark", "ablation", "status", "memory_accesses", "total_memory_traffic", "l3_misses", "prefetch_useful", "prefetch_fills"]
+    fieldnames = ["benchmark", "ablation", "ablation_group", "status", "memory_accesses", "total_memory_traffic", "l3_misses", "l3_size", "prefetch_useful", "prefetch_fills"]
     rows = [
         row("bfs", "LRU_cache_only", 100),
         row("bfs", "GRASP_DBG_only", 80),

@@ -8,6 +8,7 @@ from PFX prefetch effects:
 - ECG replacement modes with PFX disabled
 - PFX-only under LRU replacement
 - DBG/POPT/PFX combined modes
+- offline adaptive selector rows synthesized from the replacement-only modes
 
 gem5/DROPLET comparisons are handled through roi_matrix.py after the cache_sim
 component story is stable.
@@ -81,12 +82,71 @@ ABLATIONS = [
 ]
 
 
+@dataclass(frozen=True)
+class AdaptiveSelector:
+    label: str
+    candidates: tuple[str, ...]
+    note: str
+
+
+ADAPTIVE_METRIC = "memory_accesses"
+ADAPTIVE_GROUP_FIELDS = (
+    "benchmark",
+    "simulator",
+    "options",
+    "l1d_size",
+    "l2_size",
+    "l3_size",
+    "l3_ways",
+    "line_size",
+    "prefetcher",
+    "prefetcher_level",
+    "section",
+)
+ADAPTIVE_SELECTORS = [
+    AdaptiveSelector(
+        "ECG_ADAPTIVE_ORACLE",
+        (
+            "ECG_DBG_only",
+            "ECG_POPT_primary",
+            "ECG_DBG_POPT",
+            "ECG_POPT_TIE",
+            "ECG_EMBEDDED",
+            "ECG_EPOCH_EMBEDDED",
+            "ECG_COMBINED",
+        ),
+        "Offline selector over all ECG replacement modes; includes dynamic P-OPT primary.",
+    ),
+    AdaptiveSelector(
+        "ECG_ADAPTIVE_NO_FULL_POPT",
+        (
+            "ECG_DBG_only",
+            "ECG_DBG_POPT",
+            "ECG_POPT_TIE",
+            "ECG_EMBEDDED",
+            "ECG_EPOCH_EMBEDDED",
+            "ECG_COMBINED",
+        ),
+        "Offline selector over ECG modes that exclude full dynamic P-OPT primary.",
+    ),
+]
+
+
 def now_tag() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 def sanitize(text: str) -> str:
     return "".join(ch for ch in text if ch.isalnum() or ch in "_.-")
+
+
+def number(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def benchmark_options(args: argparse.Namespace, benchmark: str) -> str:
@@ -224,6 +284,49 @@ def write_outputs(out_dir: Path, rows: list[dict[str, Any]]) -> None:
     print(f"[write] {csv_path}")
 
 
+def adaptive_group_key(row: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(str(row.get(field, "")) for field in ADAPTIVE_GROUP_FIELDS)
+
+
+def synthesize_adaptive_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[tuple[str, ...], dict[str, dict[str, Any]]] = {}
+    for row in rows:
+        if row.get("status") != "ok" or row.get("ablation_group") != "ecg_replacement":
+            continue
+        grouped.setdefault(adaptive_group_key(row), {})[str(row.get("ablation", ""))] = row
+
+    synthetic: list[dict[str, Any]] = []
+    for key in sorted(grouped):
+        table = grouped[key]
+        for selector in ADAPTIVE_SELECTORS:
+            if any(label not in table for label in selector.candidates):
+                continue
+            candidate_rows = []
+            for rank, label in enumerate(selector.candidates):
+                value = number(table[label].get(ADAPTIVE_METRIC))
+                if value is not None:
+                    candidate_rows.append((value, rank, label, table[label]))
+            if not candidate_rows:
+                continue
+            selected_value, _, selected_label, selected_row = min(candidate_rows)
+            row = dict(selected_row)
+            row.update({
+                "ablation": selector.label,
+                "ablation_group": "adaptive_selector",
+                "ablation_note": selector.note,
+                "policy": "ECG_ADAPTIVE",
+                "policy_label": selector.label,
+                "policy_spec": selector.label,
+                "adaptive_selection_metric": ADAPTIVE_METRIC,
+                "adaptive_selected_ablation": selected_label,
+                "adaptive_selected_policy_spec": selected_row.get("policy_spec", ""),
+                "adaptive_selected_value": selected_value,
+                "adaptive_candidates": ",".join(selector.candidates),
+            })
+            synthetic.append(row)
+    return synthetic
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run ECG cache_sim proof ablation matrix.")
     parser.add_argument("--benchmarks", nargs="+", default=["pr", "bfs", "sssp"],
@@ -261,6 +364,7 @@ def main(argv: list[str]) -> int:
             rows.extend(run_ablation(args, out_dir, benchmark, ablation))
 
     if not args.dry_run:
+        rows.extend(synthesize_adaptive_rows(rows))
         write_outputs(out_dir, rows)
     return 0
 

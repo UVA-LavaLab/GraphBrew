@@ -238,6 +238,37 @@ def best_ecg_replacement_gate(
     )
 
 
+def adaptive_selector_gate(
+    benchmark: str,
+    table: dict[str, dict[str, str]],
+    gate: str,
+    candidates: list[str],
+    metric: str,
+    tolerance: float,
+    notes: str,
+) -> dict[str, str]:
+    prior_labels = ["GRASP_DBG_only", "POPT_only"]
+    missing = require(table, candidates + prior_labels)
+    if missing:
+        return missing_gate(benchmark, gate, missing, metric)
+    candidate, candidate_value = best_of(table, candidates, metric)
+    baseline, baseline_value = best_of(table, prior_labels, metric)
+    delta = rel_delta(candidate_value, baseline_value)
+    status = "pass" if delta is not None and delta >= -tolerance else "fail"
+    return gate_row(
+        benchmark,
+        gate,
+        status,
+        metric,
+        candidate,
+        candidate_value,
+        baseline,
+        baseline_value,
+        tolerance,
+        notes,
+    )
+
+
 def pfx_gate(
     benchmark: str,
     table: dict[str, dict[str, str]],
@@ -296,6 +327,39 @@ def evaluate(rows: list[dict[str, str]], metric: str, parity_tolerance: float, b
         ))
         verdicts.append(hybrid_gate(benchmark, table, metric, benefit_tolerance))
         verdicts.append(best_ecg_replacement_gate(benchmark, table, metric, benefit_tolerance))
+        verdicts.append(adaptive_selector_gate(
+            benchmark,
+            table,
+            "adaptive_oracle_value",
+            [
+                "ECG_DBG_only",
+                "ECG_POPT_primary",
+                "ECG_DBG_POPT",
+                "ECG_POPT_TIE",
+                "ECG_EMBEDDED",
+                "ECG_EPOCH_EMBEDDED",
+                "ECG_COMBINED",
+            ],
+            metric,
+            benefit_tolerance,
+            "Offline adaptive selector over all ECG replacement modes should match or beat the strongest prior baseline.",
+        ))
+        verdicts.append(adaptive_selector_gate(
+            benchmark,
+            table,
+            "adaptive_no_full_popt_value",
+            [
+                "ECG_DBG_only",
+                "ECG_DBG_POPT",
+                "ECG_POPT_TIE",
+                "ECG_EMBEDDED",
+                "ECG_EPOCH_EMBEDDED",
+                "ECG_COMBINED",
+            ],
+            metric,
+            benefit_tolerance,
+            "Offline adaptive selector excluding full POPT_PRIMARY tests whether cheaper ECG modes can carry the result.",
+        ))
         verdicts.append(pfx_gate(benchmark, table, "PFX_POPT_only", "LRU_cache_only", metric, benefit_tolerance))
         verdicts.append(pfx_gate(benchmark, table, "DBG_PFX", "ECG_DBG_only", metric, benefit_tolerance))
         verdicts.append(pfx_gate(benchmark, table, "POPT_PFX", "ECG_POPT_primary", metric, benefit_tolerance))
