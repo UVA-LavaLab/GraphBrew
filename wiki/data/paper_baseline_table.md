@@ -7,6 +7,12 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 
 | Graph | App | L3 | LRU miss | SRRIP Δ | GRASP Δ | POPT Δ | GRASP claim | POPT claim |
 |---|---|---|---:|---:|---:|---:|---|---|
+| cit-Patents | cc | 1MB | 64.31% | -4.21 | -11.69 | -2.97 | — | — |
+| cit-Patents | cc | 4MB | 31.70% | -2.30 | -6.97 | -3.32 | — | — |
+| cit-Patents | cc | 8MB | 18.15% | -2.14 | -6.45 | -4.92 | — | — |
+| cit-Patents | sssp | 1MB | 85.29% | -0.32 | -3.45 | -2.59 | ✓ ok | ✓ ok |
+| cit-Patents | sssp | 4MB | 56.31% | -2.46 | -8.67 | -6.87 | — | — |
+| cit-Patents | sssp | 8MB | 26.90% | -2.50 | -6.90 | -5.27 | — | — |
 | email-Eu-core | bc | 1MB | 99.06% | +0.94 | +0.94 | +0.62 | — | — |
 | email-Eu-core | bc | 4MB | 99.68% | +0.32 | +0.00 | +0.32 | — | — |
 | email-Eu-core | bc | 8MB | 100.00% | -1.25 | -0.94 | +0.00 | — | — |
@@ -19,6 +25,9 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | soc-pokec | cc | 1MB | 69.94% | -3.26 | -13.11 | -2.52 | — | — |
 | soc-pokec | cc | 4MB | 39.61% | -6.61 | -16.97 | -11.36 | — | — |
 | soc-pokec | cc | 8MB | 5.77% | +0.00 | -0.04 | -0.00 | — | — |
+| soc-pokec | pr | 1MB | 67.96% | -4.52 | -13.62 | -13.20 | ✓ ok | ✓ ok |
+| soc-pokec | pr | 4MB | 19.69% | -3.53 | -6.67 | -7.31 | — | — |
+| soc-pokec | pr | 8MB | 10.04% | -1.21 | -2.11 | -1.30 | — | — |
 | soc-pokec | sssp | 1MB | 100.00% | +0.00 | +0.00 | +0.00 | — | ? insufficient |
 | soc-pokec | sssp | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
 | soc-pokec | sssp | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |

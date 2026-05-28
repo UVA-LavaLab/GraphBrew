@@ -1,14 +1,20 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **46**
-- Verdict mix: **27 ok**, 0 within-tolerance, **1 DISAGREE**, 1 known-deviation, 0 missing, 17 insufficient_data
+- Claims total: **66**
+- Verdict mix: **46 ok**, 0 within-tolerance, **2 DISAGREE**, 1 known-deviation, 0 missing, 17 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
 
 | graph | app | L3 | LRU | SRRIP | GRASP | POPT | Δ GRASP-LRU | Δ POPT-LRU |
 |---|---|---|---:|---:|---:|---:|---:|---:|
+| cit-Patents | cc | 1MB | 0.6431 | 0.6010 | 0.5262 | 0.6134 | -11.691pp | -2.965pp |
+| cit-Patents | cc | 4MB | 0.3170 | 0.2940 | 0.2473 | 0.2838 | -6.967pp | -3.319pp |
+| cit-Patents | cc | 8MB | 0.1815 | 0.1601 | 0.1171 | 0.1324 | -6.445pp | -4.917pp |
+| cit-Patents | sssp | 1MB | 0.8529 | 0.8497 | 0.8184 | 0.8270 | -3.452pp | -2.588pp |
+| cit-Patents | sssp | 4MB | 0.5631 | 0.5385 | 0.4764 | 0.4944 | -8.673pp | -6.869pp |
+| cit-Patents | sssp | 8MB | 0.2690 | 0.2440 | 0.1999 | 0.2162 | -6.904pp | -5.271pp |
 | email-Eu-core | bc | 1MB | 0.9906 | 1.0000 | 1.0000 | 0.9968 | +0.938pp | +0.622pp |
 | email-Eu-core | bc | 4MB | 0.9968 | 1.0000 | 0.9968 | 1.0000 | +0.000pp | +0.317pp |
 | email-Eu-core | bc | 8MB | 1.0000 | 0.9875 | 0.9906 | 1.0000 | -0.943pp | +0.000pp |
@@ -21,6 +27,9 @@
 | soc-pokec | cc | 1MB | 0.6994 | 0.6668 | 0.5684 | 0.6742 | -13.105pp | -2.525pp |
 | soc-pokec | cc | 4MB | 0.3961 | 0.3299 | 0.2264 | 0.2825 | -16.968pp | -11.360pp |
 | soc-pokec | cc | 8MB | 0.0577 | 0.0577 | 0.0573 | 0.0577 | -0.039pp | -0.003pp |
+| soc-pokec | pr | 1MB | 0.6796 | 0.6344 | 0.5434 | 0.5476 | -13.617pp | -13.196pp |
+| soc-pokec | pr | 4MB | 0.1969 | 0.1616 | 0.1302 | 0.1238 | -6.672pp | -7.314pp |
+| soc-pokec | pr | 8MB | 0.1004 | 0.0883 | 0.0793 | 0.0874 | -2.113pp | -1.298pp |
 | soc-pokec | sssp | 1MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
 | soc-pokec | sssp | 4MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
 | soc-pokec | sssp | 8MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
@@ -44,6 +53,14 @@
 
 | status | graph | app | L3 | policy | Δ | citation |
 |---|---|---|---|---|---:|---|
+| disagree | cit-Patents | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +8.726pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.648pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.528pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | sssp | 1MB | GRASP | -3.452pp | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) |
+| ok | cit-Patents | sssp | 1MB | POPT | -2.588pp | Balaji & Lucia HPCA 2021 Fig 10 |
+| ok | cit-Patents | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.863pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.804pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.633pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | -0.316pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.317pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | email-Eu-core | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.943pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
@@ -60,6 +77,18 @@
 | disagree | soc-pokec | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +10.580pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-pokec | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +5.608pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-pokec | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.037pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-pokec | pr | 1MB | SRRIP | -4.517pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 |
+| ok | soc-pokec | pr | 1MB | GRASP | -13.617pp | Faldu et al. HPCA 2020 Fig 10 |
+| ok | soc-pokec | pr | 1MB | POPT | -13.196pp | Balaji & Lucia HPCA 2021 Fig 9 |
+| ok | soc-pokec | pr | 1MB | POPT_GE_GRASP | +0.421pp | Balaji & Lucia HPCA 2021 §6.3 |
+| ok | soc-pokec | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.421pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-pokec | pr | 4MB | SRRIP | -3.534pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 |
+| ok | soc-pokec | pr | 4MB | POPT_GE_GRASP | -0.642pp | Balaji & Lucia HPCA 2021 §6.3 |
+| ok | soc-pokec | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.642pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-pokec | pr | 8MB | SRRIP | -1.215pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 |
+| ok | soc-pokec | pr | 8MB | GRASP | -2.113pp | Faldu et al. HPCA 2020 Fig 10 |
+| ok | soc-pokec | pr | 8MB | POPT_GE_GRASP | +0.814pp | Balaji & Lucia HPCA 2021 §6.3 |
+| ok | soc-pokec | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.814pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | soc-pokec | sssp | 1MB | POPT | +0.000pp | Balaji & Lucia HPCA 2021 Fig 10 |
 | insufficient_data | soc-pokec | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | insufficient_data | soc-pokec | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
@@ -97,4 +126,5 @@
 
 ## ⚠ Disagreements (need investigation)
 
+- **cit-Patents/cc L3=1MB POPT_NEAR_GRASP_IF_BIG_GAP** Δ=+8.726pp — Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
 - **soc-pokec/cc L3=1MB POPT_NEAR_GRASP_IF_BIG_GAP** Δ=+10.580pp — Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check

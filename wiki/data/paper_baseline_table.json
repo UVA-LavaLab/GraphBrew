@@ -1,5 +1,122 @@
 [
   {
+    "accesses": 10262410,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -11.691000000000006,
+      "LRU": 0.0,
+      "POPT": -2.965200000000001,
+      "SRRIP": -4.2127000000000026
+    },
+    "graph": "cit-Patents",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.5261819999999999,
+      "LRU": 0.643092,
+      "POPT": 0.61344,
+      "SRRIP": 0.600965
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 10316713,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -6.966899999999998,
+      "LRU": 0.0,
+      "POPT": -3.318999999999994,
+      "SRRIP": -2.298599999999995
+    },
+    "graph": "cit-Patents",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.247301,
+      "LRU": 0.31697,
+      "POPT": 0.28378000000000003,
+      "SRRIP": 0.293984
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 10267514,
+    "app": "cc",
+    "delta_pp_vs_lru": {
+      "GRASP": -6.445,
+      "LRU": 0.0,
+      "POPT": -4.917300000000003,
+      "SRRIP": -2.142199999999994
+    },
+    "graph": "cit-Patents",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.11709199999999997,
+      "LRU": 0.18154199999999998,
+      "POPT": 0.13236899999999996,
+      "SRRIP": 0.16012000000000004
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 27458849,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": -3.4519000000000077,
+      "LRU": 0.0,
+      "POPT": -2.5885000000000047,
+      "SRRIP": -0.3199000000000063
+    },
+    "graph": "cit-Patents",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.8184089999999999,
+      "LRU": 0.852928,
+      "POPT": 0.827043,
+      "SRRIP": 0.849729
+    },
+    "verdict": {
+      "GRASP": "ok",
+      "POPT": "ok"
+    }
+  },
+  {
+    "accesses": 27464659,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": -8.6731,
+      "LRU": 0.0,
+      "POPT": -6.869300000000001,
+      "SRRIP": -2.4645999999999946
+    },
+    "graph": "cit-Patents",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.476368,
+      "LRU": 0.563099,
+      "POPT": 0.494406,
+      "SRRIP": 0.5384530000000001
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 27473215,
+    "app": "sssp",
+    "delta_pp_vs_lru": {
+      "GRASP": -6.904399999999999,
+      "LRU": 0.0,
+      "POPT": -5.271400000000003,
+      "SRRIP": -2.4982999999999977
+    },
+    "graph": "cit-Patents",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.19991400000000004,
+      "LRU": 0.26895800000000003,
+      "POPT": 0.216244,
+      "SRRIP": 0.24397500000000005
+    },
+    "verdict": {}
+  },
+  {
     "accesses": 320,
     "app": "bc",
     "delta_pp_vs_lru": {
@@ -224,6 +341,66 @@
       "LRU": 0.05770799999999998,
       "POPT": 0.05768200000000001,
       "SRRIP": 0.05772699999999997
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 76541944,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -13.617400000000002,
+      "LRU": 0.0,
+      "POPT": -13.196000000000009,
+      "SRRIP": -4.5169000000000015
+    },
+    "graph": "soc-pokec",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.54339,
+      "LRU": 0.6795640000000001,
+      "POPT": 0.547604,
+      "SRRIP": 0.634395
+    },
+    "verdict": {
+      "GRASP": "ok",
+      "POPT": "ok"
+    }
+  },
+  {
+    "accesses": 76543048,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -6.671700000000003,
+      "LRU": 0.0,
+      "POPT": -7.3139000000000065,
+      "SRRIP": -3.533799999999998
+    },
+    "graph": "soc-pokec",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.13022,
+      "LRU": 0.19693700000000003,
+      "POPT": 0.12379799999999996,
+      "SRRIP": 0.16159900000000005
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 76451963,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -2.1126999999999896,
+      "LRU": 0.0,
+      "POPT": -1.2983999999999996,
+      "SRRIP": -1.2148999999999965
+    },
+    "graph": "soc-pokec",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.07928900000000005,
+      "LRU": 0.10041599999999995,
+      "POPT": 0.08743199999999995,
+      "SRRIP": 0.08826699999999998
     },
     "verdict": {}
   },

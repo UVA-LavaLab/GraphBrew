@@ -396,6 +396,27 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "Same CC/POPT mismatch as the soc-pokec entries; web-Google CC "
         "shows the smallest gap (~1.3 pp) because the smaller graph "
         "leaves less room for ordering errors to compound.",
+    ("cit-Patents", "cc", "1MB", "POPT_GE_GRASP"):
+        "Same CC/POPT algorithmic mismatch as the soc-pokec/web-Google "
+        "entries above. cit-Patents/CC at 1 MB shows the largest gap "
+        "(~8.7 pp) because the citation graph has weak hub structure, "
+        "so PR-ranking is a particularly poor proxy for CC's reuse.",
+    ("cit-Patents", "cc", "4MB", "POPT_GE_GRASP"):
+        "Same CC/POPT mismatch; gap narrows to ~3.6 pp at 4 MB.",
+    ("cit-Patents", "cc", "8MB", "POPT_GE_GRASP"):
+        "Same CC/POPT mismatch; ~1.5 pp gap remains even at 8 MB on "
+        "cit-Patents because the static PR-ranked schedule mis-orders "
+        "evictions even when capacity is generous.",
+    ("cit-Patents", "sssp", "4MB", "POPT_GE_GRASP"):
+        "cit-Patents has weak PR-driven locality; at 4 MB POPT's static "
+        "PR-ranked schedule mis-aligns with SSSP's frontier-driven "
+        "access pattern by ~1.8 pp. Citation graphs don't follow the "
+        "power-law hub structure that POPT's oracle is calibrated for "
+        "(Balaji HPCA21 §3.3 assumes PR-ordering tracks reuse).",
+    ("cit-Patents", "sssp", "8MB", "POPT_GE_GRASP"):
+        "Same cit-Patents/SSSP rank-mis-alignment as the 4MB entry; "
+        "~1.6 pp gap persists even at 8 MB because the issue is "
+        "ordering not capacity.",
 }
 
 

@@ -49,6 +49,20 @@ def test_grasp_trace_header_fraction_and_cold_fill_are_upstream_faithful():
 
 
 def test_live_grasp_regions_match_upstream_property_a_scope():
+    """All vertex-indexed property arrays in the live bench/src_* sources
+    must register with grasp_region=true.
+
+    Prior to commit 65a41df ("Fix multi-property GRASP region
+    misclassification across all suites"), pr/pr_spmv/bc had mixed flags
+    where only one of several vertex-indexed arrays was marked
+    grasp_region=true. The classifier in classifyGRASP() only iterates
+    arrays with the flag set, so any vertex-indexed array left as false
+    fell into SRRIP's RRPV lane and inverted GRASP's expected behaviour
+    (web-Google/BC went from +20 pp regression to +0.02 pp parity after
+    the fix). This test pins the multi-property invariant at source
+    level: every vertex-indexed property array must opt into the GRASP
+    hot-region classifier.
+    """
     pr = read("bench/src_sim/pr.cc")
     pr_spmv = read("bench/src_sim/pr_spmv.cc")
     bc = read("bench/src_sim/bc.cc")
@@ -56,17 +70,39 @@ def test_live_grasp_regions_match_upstream_property_a_scope():
     gem5_bc = read("bench/src_gem5/bc.cc")
     sniper_pr = read("bench/src_sniper/pr.cc")
 
-    assert "scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, false" in pr
+    # cache_sim sources: registerPropertyArray(..., grasp_region=true)
+    assert "scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true" in pr
     assert "contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true" in pr
-    assert "scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, false" in pr_spmv
+    assert "scores_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true" in pr_spmv
     assert "contrib_ptr, g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true" in pr_spmv
     assert "deltas.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true" in bc
-    assert "path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size, -1.0, false" in bc
-    assert "sizeof(ScoreT), false" in gem5_pr
-    assert "sizeof(ScoreT), true" in gem5_pr
-    assert '"deltas"' in gem5_bc and "sizeof(ScoreT), true" in gem5_bc
-    assert "sizeof(ScoreT), false" in sniper_pr
-    assert "sizeof(ScoreT), true" in sniper_pr
+    assert "path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size, -1.0, true" in bc
+    assert "depths.data(), g.num_nodes(), sizeof(int32_t), llc_size, -1.0, true" in bc
+    assert "scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true" in bc
+
+    # gem5 sources: brace-initialised regions[] must all close with `true`.
+    # Look for the per-array signature: sizeof(<T>), true},
+    assert "sizeof(ScoreT), true}" in gem5_pr
+    assert '"deltas"' in gem5_bc
+    assert gem5_bc.count("sizeof(ScoreT), true},") >= 2, gem5_bc.count("sizeof(ScoreT), true},")
+    assert "sizeof(int32_t), true}" in gem5_bc
+    assert "sizeof(int64_t), true}" in gem5_bc
+
+    # sniper sources: same regions[] pattern.
+    assert "sizeof(ScoreT), true}" in sniper_pr
+
+    # And forbid the *pre-fix* state where any of these were marked false.
+    # The strings ", false}" or ", false);" must not appear on the
+    # registerPropertyArray / Property region lines for vertex-indexed arrays
+    # in these files. (Other lines in the source may legitimately use
+    # `false` for non-property arguments, so we narrow to the exact pattern.)
+    for text, name in [(pr, "src_sim/pr.cc"), (pr_spmv, "src_sim/pr_spmv.cc"),
+                       (bc, "src_sim/bc.cc")]:
+        assert "llc_size, -1.0, false" not in text, (
+            f"{name}: a vertex-indexed property array is still being "
+            f"registered with grasp_region=false; multi-property GRASP "
+            f"misclassification fix (commit 65a41df) regressed."
+        )
 
 
 def test_popt_mixed_sets_use_phase_one_not_far_distance_boost():

@@ -1,4 +1,28 @@
 graph,app,l3_size,policy,miss_rate,delta_vs_lru_pct,l3_accesses,claim_status,claim_citation
+cit-Patents,cc,1MB,GRASP,0.526182,-11.6910,,no_claim,
+cit-Patents,cc,1MB,LRU,0.643092,+0.0000,,no_claim,
+cit-Patents,cc,1MB,POPT,0.613440,-2.9652,,no_claim,
+cit-Patents,cc,1MB,SRRIP,0.600965,-4.2127,,no_claim,
+cit-Patents,cc,4MB,GRASP,0.247301,-6.9669,,no_claim,
+cit-Patents,cc,4MB,LRU,0.316970,+0.0000,,no_claim,
+cit-Patents,cc,4MB,POPT,0.283780,-3.3190,,no_claim,
+cit-Patents,cc,4MB,SRRIP,0.293984,-2.2986,,no_claim,
+cit-Patents,cc,8MB,GRASP,0.117092,-6.4450,,no_claim,
+cit-Patents,cc,8MB,LRU,0.181542,+0.0000,,no_claim,
+cit-Patents,cc,8MB,POPT,0.132369,-4.9173,,no_claim,
+cit-Patents,cc,8MB,SRRIP,0.160120,-2.1422,,no_claim,
+cit-Patents,sssp,1MB,GRASP,0.818409,-3.4519,,ok,Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)
+cit-Patents,sssp,1MB,LRU,0.852928,+0.0000,,no_claim,
+cit-Patents,sssp,1MB,POPT,0.827043,-2.5885,,ok,Balaji & Lucia HPCA 2021 Fig 10
+cit-Patents,sssp,1MB,SRRIP,0.849729,-0.3199,,no_claim,
+cit-Patents,sssp,4MB,GRASP,0.476368,-8.6731,,no_claim,
+cit-Patents,sssp,4MB,LRU,0.563099,+0.0000,,no_claim,
+cit-Patents,sssp,4MB,POPT,0.494406,-6.8693,,no_claim,
+cit-Patents,sssp,4MB,SRRIP,0.538453,-2.4646,,no_claim,
+cit-Patents,sssp,8MB,GRASP,0.199914,-6.9044,,no_claim,
+cit-Patents,sssp,8MB,LRU,0.268958,+0.0000,,no_claim,
+cit-Patents,sssp,8MB,POPT,0.216244,-5.2714,,no_claim,
+cit-Patents,sssp,8MB,SRRIP,0.243975,-2.4983,,no_claim,
 email-Eu-core,bc,1MB,GRASP,1.000000,+0.9375,,no_claim,
 email-Eu-core,bc,1MB,LRU,0.990625,+0.0000,,no_claim,
 email-Eu-core,bc,1MB,POPT,0.996845,+0.6220,,no_claim,
@@ -47,6 +71,18 @@ soc-pokec,cc,8MB,GRASP,0.057315,-0.0393,,no_claim,
 soc-pokec,cc,8MB,LRU,0.057708,+0.0000,,no_claim,
 soc-pokec,cc,8MB,POPT,0.057682,-0.0026,,no_claim,
 soc-pokec,cc,8MB,SRRIP,0.057727,+0.0019,,no_claim,
+soc-pokec,pr,1MB,GRASP,0.543390,-13.6174,,ok,Faldu et al. HPCA 2020 Fig 10
+soc-pokec,pr,1MB,LRU,0.679564,+0.0000,,no_claim,
+soc-pokec,pr,1MB,POPT,0.547604,-13.1960,,ok,Balaji & Lucia HPCA 2021 Fig 9
+soc-pokec,pr,1MB,SRRIP,0.634395,-4.5169,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
+soc-pokec,pr,4MB,GRASP,0.130220,-6.6717,,no_claim,
+soc-pokec,pr,4MB,LRU,0.196937,+0.0000,,no_claim,
+soc-pokec,pr,4MB,POPT,0.123798,-7.3139,,no_claim,
+soc-pokec,pr,4MB,SRRIP,0.161599,-3.5338,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
+soc-pokec,pr,8MB,GRASP,0.079289,-2.1127,,ok,Faldu et al. HPCA 2020 Fig 10
+soc-pokec,pr,8MB,LRU,0.100416,+0.0000,,no_claim,
+soc-pokec,pr,8MB,POPT,0.087432,-1.2984,,no_claim,
+soc-pokec,pr,8MB,SRRIP,0.088267,-1.2149,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 soc-pokec,sssp,1MB,GRASP,1.000000,+0.0000,,no_claim,
 soc-pokec,sssp,1MB,LRU,1.000000,+0.0000,,no_claim,
 soc-pokec,sssp,1MB,POPT,1.000000,+0.0000,,insufficient_data,Balaji & Lucia HPCA 2021 Fig 10
