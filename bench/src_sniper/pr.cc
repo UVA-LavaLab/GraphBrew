@@ -38,7 +38,7 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
     SniperPropertyRegion regions[2] = {
         {"scores", reinterpret_cast<uint64_t>(scores.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
-            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), false},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), true},
         {"contrib", reinterpret_cast<uint64_t>(outgoing_contrib.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
             static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), true},

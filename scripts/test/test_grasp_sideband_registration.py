@@ -3,8 +3,8 @@
 
 Locks the invariant that each simulator (``cache_sim``, ``gem5``-native,
 ``sniper``-native) registers exactly two property regions for PageRank on
-``email-Eu-core`` and that the ``grasp_region`` (the ``contrib`` array) is
-classified at the upstream-faithful ``hot_pct=50`` band.
+``email-Eu-core`` and that *both* of those regions are classified as
+GRASP regions at the upstream-faithful ``hot_pct=50`` band.
 
 The handoff (``wiki/HANDOFF-grasp-popt-validation.md``) calls for "exactly 2
 regions with ``grasp_region=1`` and the expected ``hot_pct`` (50 for
@@ -12,11 +12,14 @@ PR/BC/Radii, 100 for BellmanFord)".  Two contexts apply:
 
 * **Upstream GRASP trace replay**: header carries both ``propertyA`` and
   ``propertyB`` ranges, both flagged as GRASP regions (``grasp_region=1``).
-* **Live GraphBrew runs**: each app registers a ``scores``-style read-only
-  array (``grasp_region=0``) and a ``contrib``-style hot array
-  (``grasp_region=1``).  The expected invariant per app is therefore
-  ``len(regions)==2`` and ``sum(grasp_region)==1`` with the grasp region
-  carrying ``hot_pct`` matching the app's upstream frontier fraction.
+* **Live GraphBrew runs**: each app registers both the ``scores``-style
+  array and the ``contrib``-style array as GRASP regions
+  (``grasp_region=1``).  Marking only one of multiple vertex-indexed
+  property arrays as a GRASP region caused the catastrophic BC bug
+  where the unmarked arrays thrashed under SRRIP while the single hot
+  array hogged the LLC — see
+  ``wiki/Baseline-Literature-Faithfulness.md`` and
+  ``scripts/test/test_grasp_multi_property_invariant.py``.
 
 Only PR is exercised end-to-end today because (a) it's the canonical
 microbench in the handoff and (b) BellmanFordOpt (``hot_pct=100``) is not
@@ -173,18 +176,23 @@ def _assert_grasp_invariant(regions: list[dict], app: AppSpec) -> None:
         f"{app.name}: expected exactly 2 property regions, got {len(regions)}: {regions}"
     )
     grasp_flags = [r["grasp_region"] for r in regions]
-    assert sum(grasp_flags) == 1, (
-        f"{app.name}: expected exactly 1 region with grasp_region=1, "
+    # Post-fix invariant: *both* property arrays must be classified as
+    # GRASP regions (the multi-property bug surfaced in BC was that only
+    # the trailing array was a GRASP region — see
+    # wiki/Baseline-Literature-Faithfulness.md and
+    # scripts/test/test_grasp_multi_property_invariant.py).
+    assert sum(grasp_flags) == 2, (
+        f"{app.name}: expected both regions with grasp_region=1, "
         f"got grasp_region flags={grasp_flags}: {regions}"
     )
-    hot = next(r for r in regions if r["grasp_region"] == 1)
-    assert hot["hot_pct"] == app.expected_hot_pct, (
-        f"{app.name}: grasp_region hot_pct={hot['hot_pct']} "
-        f"!= expected {app.expected_hot_pct} ({hot})"
-    )
-    assert hot["upper"] > hot["base"], (
-        f"{app.name}: degenerate grasp_region range {hot}"
-    )
+    for hot in regions:
+        assert hot["hot_pct"] == app.expected_hot_pct, (
+            f"{app.name}: grasp_region hot_pct={hot['hot_pct']} "
+            f"!= expected {app.expected_hot_pct} ({hot})"
+        )
+        assert hot["upper"] > hot["base"], (
+            f"{app.name}: degenerate grasp_region range {hot}"
+        )
 
 
 # ---------------------------------------------------------------------------

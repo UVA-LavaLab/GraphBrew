@@ -383,6 +383,90 @@ def validate_gate(run_dir: Path, strict: bool) -> bool:
     return True
 
 
+def validate_literature_gate(run_dir: Path, sweep_root: Path,
+                              sweep_subdir: str, strict: bool) -> bool:
+    """Run the literature_faithfulness comparator against *sweep_root*.
+
+    Writes ``preflight/literature_gate.json`` summarising the verdicts and
+    fails (returns False) if any unregistered ``disagree`` exists. When
+    *strict* is False, prints the failures and returns True anyway.
+    """
+
+    if not sweep_root.exists():
+        print(f"[lit-gate] sweep root {sweep_root} does not exist")
+        if strict:
+            print("[lit-gate] cannot run gate without sweep data; rerun the literature sweep or pass --skip-literature-gate")
+            return False
+        return True
+
+    here = Path(__file__).resolve().parent
+    lit_script = here / "literature_faithfulness.py"
+    if not lit_script.exists():
+        print(f"[lit-gate] literature_faithfulness.py missing at {lit_script}")
+        return not strict
+
+    gate_dir = run_dir / "preflight"
+    gate_dir.mkdir(parents=True, exist_ok=True)
+    json_out = gate_dir / "literature_gate.json"
+    md_out = gate_dir / "literature_gate.md"
+
+    cmd = [
+        sys.executable, str(lit_script),
+        "--sweep-root", str(sweep_root),
+        "--sweep-subdir", sweep_subdir,
+        "--json-out", str(json_out),
+        "--md-out", str(md_out),
+        "--no-exit-on-disagree",
+    ]
+    print(f"[lit-gate] running {' '.join(cmd)}")
+    try:
+        completed = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    except FileNotFoundError as exc:
+        print(f"[lit-gate] failed to launch comparator: {exc}")
+        return not strict
+
+    print(completed.stdout)
+    if completed.stderr:
+        print(completed.stderr, file=sys.stderr)
+    try:
+        payload = json.loads(json_out.read_text()) if json_out.exists() else {}
+    except json.JSONDecodeError as exc:
+        print(f"[lit-gate] could not parse comparator JSON: {exc}")
+        return not strict
+
+    summary = payload.get("summary", {})
+    disagreements = payload.get("disagreements", [])
+    print(
+        f"[lit-gate] verdicts: ok={summary.get('ok', 0)} "
+        f"within_tol={summary.get('within_tolerance', 0)} "
+        f"DISAGREE={summary.get('disagree', 0)} "
+        f"known_deviation={summary.get('known_deviation', 0)} "
+        f"missing={summary.get('missing', 0)} "
+        f"insufficient={summary.get('insufficient_data', 0)}"
+    )
+
+    if disagreements:
+        print("[lit-gate] DISAGREEMENTS:")
+        for d in disagreements:
+            delta = d.get("delta_pct")
+            delta_s = f"{delta:+.3f}pp" if delta is not None else "n/a"
+            print(
+                f"  - {d['graph']}/{d['app']} L3={d['l3_size']} {d['policy']}: "
+                f"Δ={delta_s}  ({d.get('citation', '')})"
+            )
+
+    if summary.get("disagree", 0) > 0:
+        if strict:
+            print("[lit-gate] gate FAILED — refusing to start jobs. Investigate "
+                  "disagreements or register a known-deviation in "
+                  "literature_baselines.KNOWN_DEVIATIONS before re-running.")
+            return False
+        print("[lit-gate] continuing because gate is non-strict for this profile")
+    else:
+        print("[lit-gate] gate PASSED")
+    return True
+
+
 def validate_job_graphs(run_dir: Path, jobs: list[Job], strict: bool) -> bool:
     records_by_path: dict[str, dict[str, Any]] = {}
     for job in jobs:
@@ -774,6 +858,28 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--allow-missing-graphs", action="store_true", help="Allow dry-run/list expansion when large graph files are not present.")
     parser.add_argument("--skip-validation-gate", action="store_true", help="Do not require existing faithfulness-validation CSVs before final_* profiles.")
     parser.add_argument("--require-validation-gate", action="store_true", help="Require existing faithfulness-validation CSVs for any profile.")
+    parser.add_argument(
+        "--literature-gate-root", type=Path, default=None,
+        help="Sweep root to run the literature_faithfulness comparator against "
+             "before launching jobs. When a final_cache_sim profile is requested "
+             "(or --require-literature-gate is set) and this points at a sweep "
+             "tree, jobs are blocked unless every per-graph claim is ok/within "
+             "tolerance/known-deviation.",
+    )
+    parser.add_argument(
+        "--literature-gate-subdir", default="lit",
+        help="Sub-directory under <graph>-<app>/ that holds roi_matrix.csv "
+             "(default: lit).",
+    )
+    parser.add_argument(
+        "--require-literature-gate", action="store_true",
+        help="Require the literature-faithfulness comparator to pass before "
+             "starting any jobs.",
+    )
+    parser.add_argument(
+        "--skip-literature-gate", action="store_true",
+        help="Bypass the literature-faithfulness comparator even on final_ profiles.",
+    )
     parser.add_argument("--lock-path", type=Path, default=DEFAULT_LOCK, help="Advisory lock path for long gem5 runs.")
     return parser.parse_args(argv)
 
@@ -811,6 +917,27 @@ def main(argv: list[str]) -> int:
     if gate_required and not args.skip_validation_gate:
         if not validate_gate(run_dir, strict=True):
             return 3
+
+    cache_sim_final_requested = any(
+        prof == "final_cache_sim" or prof.startswith("final_cache_sim_")
+        for prof in args.profile
+    )
+    lit_gate_required = (
+        args.require_literature_gate
+        or (cache_sim_final_requested and args.literature_gate_root is not None)
+    )
+    if lit_gate_required and not args.skip_literature_gate:
+        if args.literature_gate_root is None:
+            print("[lit-gate] --require-literature-gate set but "
+                  "--literature-gate-root was not supplied")
+            return 5
+        if not validate_literature_gate(
+            run_dir,
+            args.literature_gate_root,
+            args.literature_gate_subdir,
+            strict=True,
+        ):
+            return 5
 
     print(f"[final-run] run_dir={run_dir}")
     print(f"[final-run] profiles={', '.join(args.profile)} jobs={len(jobs)}")

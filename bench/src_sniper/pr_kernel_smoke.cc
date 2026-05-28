@@ -17,7 +17,7 @@ constexpr int kOutDegree[kNodes] = {2, 2, 2, 2};
 void export_context(ScoreT* scores, ScoreT* contrib) {
     SniperPropertyRegion regions[2] = {
         {"scores", reinterpret_cast<uint64_t>(scores), sizeof(ScoreT) * kNodes,
-            kNodes, sizeof(ScoreT), false},
+            kNodes, sizeof(ScoreT), true},
         {"contrib", reinterpret_cast<uint64_t>(contrib), sizeof(ScoreT) * kNodes,
             kNodes, sizeof(ScoreT), true},
     };

@@ -99,7 +99,7 @@ int run_pr(const Graph& graph, int max_iters) {
     SniperPropertyRegion regions[2] = {
         {"scores", reinterpret_cast<uint64_t>(scores.data()),
          static_cast<uint64_t>(graph.num_nodes()) * sizeof(ScoreT),
-            static_cast<uint32_t>(graph.num_nodes()), sizeof(ScoreT), false},
+            static_cast<uint32_t>(graph.num_nodes()), sizeof(ScoreT), true},
         {"contrib", reinterpret_cast<uint64_t>(contrib.data()),
          static_cast<uint64_t>(graph.num_nodes()) * sizeof(ScoreT),
             static_cast<uint32_t>(graph.num_nodes()), sizeof(ScoreT), true},

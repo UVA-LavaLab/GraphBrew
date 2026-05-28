@@ -49,9 +49,17 @@ void BCBFS_Sim(const Graph &g, NodeID source,
                            g.num_edges_directed(), g.directed());
     size_t llc_size = 8 * 1024 * 1024;
     llc_size = GetEnvSizeBytes("CACHE_L3_SIZE", llc_size);
-    graph_ctx.registerPropertyArray(depths.data(), g.num_nodes(), sizeof(int32_t), llc_size, -1.0, false);
-    graph_ctx.registerPropertyArray(path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size, -1.0, false);
-    graph_ctx.registerPropertyArray(scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, false);
+    // GRASP HPCA20 protects vertex-indexed property arrays. BC has four
+    // such arrays (all indexed by vertex id), so we mark all of them as
+    // grasp_region=true: classifyGRASP() applies the same hot/moderate
+    // boundary inside each region.  Marking only one of four arrays as a
+    // GRASP region (the original behaviour) caused the other three to
+    // thrash under SRRIP while the one protected array hogged the LLC,
+    // costing roughly 20 pp of L3 hit-rate vs LRU on web-Google.  See
+    // wiki/Baseline-Literature-Faithfulness.md "BC multi-property fix".
+    graph_ctx.registerPropertyArray(depths.data(), g.num_nodes(), sizeof(int32_t), llc_size, -1.0, true);
+    graph_ctx.registerPropertyArray(path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size, -1.0, true);
+    graph_ctx.registerPropertyArray(scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true);
     graph_ctx.registerPropertyArray(deltas.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true);
     cache.initGraphContext(&graph_ctx);
 

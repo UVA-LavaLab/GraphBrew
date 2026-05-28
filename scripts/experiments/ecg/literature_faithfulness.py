@@ -338,6 +338,114 @@ def _l3_sort_key(s: str) -> int:
     return int(s)
 
 
+# ---------- summary emitters ----------
+
+def format_markdown(result: dict[str, Any], sweep_root: Path) -> str:
+    """Render a self-contained Markdown report for the audit doc."""
+    s = result["summary"]
+    out: list[str] = []
+    out.append(f"# Literature-faithfulness summary")
+    out.append("")
+    out.append(f"- Sweep root: `{sweep_root}`")
+    out.append(f"- Claims total: **{s['claims_total']}**")
+    out.append(
+        f"- Verdict mix: **{s['ok']} ok**, {s['within_tolerance']} within-tolerance, "
+        f"**{s['disagree']} DISAGREE**, {s.get('known_deviation', 0)} known-deviation, "
+        f"{s['missing']} missing, {s.get('insufficient_data', 0)} insufficient_data"
+    )
+    out.append(f"- min_accesses threshold: {s.get('min_accesses_threshold', '?')}")
+    out.append("")
+
+    out.append("## Observed L3 miss-rates")
+    out.append("")
+    out.append("| graph | app | L3 | LRU | SRRIP | GRASP | POPT | Δ GRASP-LRU | Δ POPT-LRU |")
+    out.append("|---|---|---|---:|---:|---:|---:|---:|---:|")
+    grouped: dict[tuple[str, str], dict[str, dict[str, dict[str, Any]]]] = defaultdict(lambda: defaultdict(dict))
+    for o in result["per_observation"]:
+        grouped[(o["graph"], o["app"])][o["l3_size"]][o["policy"]] = o
+    for (graph, app), by_l3 in sorted(grouped.items()):
+        for l3 in sorted(by_l3, key=_l3_sort_key):
+            pmap = by_l3[l3]
+            def fmt(p: str) -> str:
+                return f"{pmap[p]['miss_rate']:.4f}" if p in pmap else "—"
+            def fmt_d(p: str) -> str:
+                v = pmap.get(p, {}).get("delta_vs_lru_pct")
+                return f"{v:+.3f}pp" if v is not None else "—"
+            out.append(
+                f"| {graph} | {app} | {l3} | {fmt('LRU')} | {fmt('SRRIP')} | "
+                f"{fmt('GRASP')} | {fmt('POPT')} | {fmt_d('GRASP')} | {fmt_d('POPT')} |"
+            )
+    out.append("")
+
+    out.append("## Per-claim verdicts")
+    out.append("")
+    out.append("| status | graph | app | L3 | policy | Δ | citation |")
+    out.append("|---|---|---|---|---|---:|---|")
+    for e in result["per_claim"]:
+        delta = e.get("delta_pct")
+        delta_s = f"{delta:+.3f}pp" if delta is not None else "—"
+        out.append(
+            f"| {e['status']} | {e['graph']} | {e['app']} | {e['l3_size']} | "
+            f"{e['policy']} | {delta_s} | {e['citation']} |"
+        )
+    out.append("")
+
+    if result.get("known_deviations"):
+        out.append("## Known deviations (registered)")
+        out.append("")
+        for d in result["known_deviations"]:
+            out.append(
+                f"- **{d['graph']}/{d['app']} L3={d['l3_size']} {d['policy']}** "
+                f"({d.get('delta_pct', 0):+.3f}pp): {d.get('reason', '')}"
+            )
+        out.append("")
+
+    if result.get("disagreements"):
+        out.append("## ⚠ Disagreements (need investigation)")
+        out.append("")
+        for d in result["disagreements"]:
+            out.append(
+                f"- **{d['graph']}/{d['app']} L3={d['l3_size']} {d['policy']}** "
+                f"Δ={d.get('delta_pct', 0):+.3f}pp — {d['citation']}"
+            )
+        out.append("")
+    return "\n".join(out)
+
+
+def format_summary_csv(result: dict[str, Any]) -> str:
+    """One row per (graph, app, L3, policy) with miss-rate + Δ + verdict."""
+    rows: list[dict[str, Any]] = []
+    claim_lookup: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for e in result["per_claim"]:
+        claim_lookup[(e["graph"], e["app"], e["l3_size"], e["policy"])] = e
+    for o in result["per_observation"]:
+        c = claim_lookup.get((o["graph"], o["app"], o["l3_size"], o["policy"]))
+        rows.append({
+            "graph": o["graph"],
+            "app": o["app"],
+            "l3_size": o["l3_size"],
+            "policy": o["policy"],
+            "miss_rate": f"{o['miss_rate']:.6f}",
+            "delta_vs_lru_pct": (
+                f"{o['delta_vs_lru_pct']:+.4f}" if o.get("delta_vs_lru_pct") is not None else ""
+            ),
+            "l3_accesses": o.get("l3_accesses", ""),
+            "claim_status": c["status"] if c else "no_claim",
+            "claim_citation": c["citation"] if c else "",
+        })
+    if not rows:
+        return ""
+    fields = ["graph", "app", "l3_size", "policy", "miss_rate",
+              "delta_vs_lru_pct", "l3_accesses", "claim_status", "claim_citation"]
+    import io as _io
+    buf = _io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=fields)
+    w.writeheader()
+    for r in rows:
+        w.writerow(r)
+    return buf.getvalue()
+
+
 def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--sweep-root", type=Path, required=True,
@@ -349,6 +457,10 @@ def main(argv: list[str]) -> int:
     p.add_argument("--apps", nargs="*", default=None,
                    help="Restrict to these apps.")
     p.add_argument("--json-out", type=Path, default=None)
+    p.add_argument("--md-out", type=Path, default=None,
+                   help="Write a Markdown summary suitable for paste into the audit doc.")
+    p.add_argument("--csv-out", type=Path, default=None,
+                   help="Write one CSV row per (graph,app,L3,policy) with miss-rate + verdict.")
     p.add_argument("--no-exit-on-disagree", action="store_true")
     p.add_argument("--min-accesses", type=int, default=10_000,
                    help="Minimum L3 accesses for a claim to count; below this it's "
@@ -366,6 +478,14 @@ def main(argv: list[str]) -> int:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
         args.json_out.write_text(json.dumps(result, indent=2, sort_keys=True))
         print(f"\n[lit] JSON: {args.json_out}", file=sys.stderr)
+    if args.md_out:
+        args.md_out.parent.mkdir(parents=True, exist_ok=True)
+        args.md_out.write_text(format_markdown(result, args.sweep_root))
+        print(f"[lit] Markdown: {args.md_out}", file=sys.stderr)
+    if args.csv_out:
+        args.csv_out.parent.mkdir(parents=True, exist_ok=True)
+        args.csv_out.write_text(format_summary_csv(result))
+        print(f"[lit] CSV: {args.csv_out}", file=sys.stderr)
     if result["summary"]["disagree"] and not args.no_exit_on_disagree:
         return 2
     return 0

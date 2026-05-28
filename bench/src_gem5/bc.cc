@@ -32,16 +32,23 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     gem5_report_region("path_counts", path_counts.data(), g.num_nodes(), sizeof(int64_t));
         gem5_report_region("deltas", deltas.data(), g.num_nodes(), sizeof(ScoreT));
 
+        // GRASP HPCA20 protects vertex-indexed property arrays. BC has four
+        // such arrays (all indexed by vertex id), so we mark all of them as
+        // grasp_region=true. classifyGRASP() applies the same hot/moderate
+        // boundary per region; marking only one of four arrays (the original
+        // behaviour) caused the other three to thrash under SRRIP. Mirror of
+        // the cache_sim fix in bench/src_sim/bc.cc — see
+        // wiki/Baseline-Literature-Faithfulness.md "BC multi-property fix".
         Gem5PropertyRegion regions[4] = {
         {"scores", reinterpret_cast<uint64_t>(scores.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
-            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), false},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), true},
         {"depth", reinterpret_cast<uint64_t>(depth.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(int32_t),
-            static_cast<uint32_t>(g.num_nodes()), sizeof(int32_t), false},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(int32_t), true},
         {"path_counts", reinterpret_cast<uint64_t>(path_counts.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(int64_t),
-            static_cast<uint32_t>(g.num_nodes()), sizeof(int64_t), false},
+            static_cast<uint32_t>(g.num_nodes()), sizeof(int64_t), true},
            {"deltas", reinterpret_cast<uint64_t>(deltas.data()),
             static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),
             static_cast<uint32_t>(g.num_nodes()), sizeof(ScoreT), true},
