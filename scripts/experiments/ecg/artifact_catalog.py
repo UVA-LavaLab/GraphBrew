@@ -440,6 +440,14 @@ CATALOG = [
         "summary":   "Computes OLS slope of miss_rate (pp) vs log2(L3 kB) across the four gem5 anchor sizes (4kB/32kB/256kB/2MB) per (app, graph, policy). On the current bc+pr@email-Eu-core anchor corpus, GRASP median = -5.96 pp/oct, LRU = -5.12, SRRIP = -7.21. Verdict PASS iff (1) cache monotonicity holds in every cell (miss(4kB) > miss(2MB)), (2) every per-policy median slope is negative, (3) SRRIP median <= GRASP median (SRRIP is more cache-hungry than the oracle-aware GRASP), (4) GRASP median is below the help-floor (-1.0 pp/oct). The LRU-vs-GRASP delta is reported as INFORMATIONAL and explicitly NOT gated: sub-WSS anchor scales (4kB << email-Eu-core WSS ~4.5kB) put PR into a small-cache regime where LRU's give-up-and-stream behavior beats GRASP's hold-the-hot-set behavior, which inverts the LRU>GRASP ordering observed at 1-8MB cache-sim sizes.",
     },
     {
+        "id":        "sniper_slope_replay",
+        "label":     "Sniper anchor slope sanity",
+        "generator": "scripts/experiments/ecg/sniper_slope_replay.py",
+        "gate":      "scripts/test/test_sniper_slope_replay.py",
+        "artifact":  "wiki/data/sniper_slope_replay.json",
+        "summary":   "Mirror of gate 70 for the Sniper anchor sweep. Six (app, graph) cells (bfs/pr/sssp at cit-Patents and email-Eu-core); same verdict checks. On the current corpus, GRASP median = -7.64 pp/oct, LRU = -7.40, SRRIP = -7.96. SRRIP-GRASP gap = -0.32 pp/oct (gated, want <= 0); LRU-GRASP gap = +0.24 (INFORMATIONAL — sub-WSS at 4kB inverts the ordering). All verdict checks pass: cache monotonicity holds in every cell, every per-policy median negative, SRRIP <= GRASP, GRASP below help-floor (-1.0).",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -519,7 +527,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (70 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (71 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

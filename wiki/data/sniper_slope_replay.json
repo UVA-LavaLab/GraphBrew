@@ -1,0 +1,271 @@
+{
+  "meta": {
+    "anchor_source": "sniper_anchor.json",
+    "n_cells": 6,
+    "n_cell_policy_records": 18,
+    "l3_axis_log2_kb": {
+      "4kB": 2.0,
+      "32kB": 5.0,
+      "256kB": 8.0,
+      "2MB": 11.0
+    },
+    "expected_sizes": [
+      "4kB",
+      "32kB",
+      "256kB",
+      "2MB"
+    ],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "SRRIP"
+    ],
+    "per_policy": {
+      "GRASP": {
+        "median": -7.6445,
+        "mean": -6.8227,
+        "n": 6
+      },
+      "LRU": {
+        "median": -7.4015,
+        "mean": -6.9539,
+        "n": 6
+      },
+      "SRRIP": {
+        "median": -7.964,
+        "mean": -7.0059,
+        "n": 6
+      }
+    },
+    "lru_minus_grasp_pp_oct": 0.243,
+    "lru_minus_grasp_note": "INFORMATIONAL \u2014 regime-dependent at sub-WSS anchor scales, not gated. See module docstring.",
+    "srrip_minus_grasp_pp_oct": -0.3195,
+    "help_floor_pp_octave": -1.0,
+    "monotonic_violations": [],
+    "verdict_checks": {
+      "cache_monotonic_every_cell": true,
+      "all_per_policy_medians_negative": true,
+      "srrip_at_least_as_steep_as_grasp": true,
+      "grasp_below_help_floor": true
+    },
+    "verdict": "PASS"
+  },
+  "per_cell": [
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "slope_pp_per_octave": -4.7671,
+      "miss_pp_by_size": {
+        "4kB": 94.2827,
+        "32kB": 46.5681,
+        "256kB": 46.7793,
+        "2MB": 46.5409
+      }
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "slope_pp_per_octave": -4.9317,
+      "miss_pp_by_size": {
+        "4kB": 96.0764,
+        "32kB": 46.6316,
+        "256kB": 46.4435,
+        "2MB": 46.822
+      }
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "slope_pp_per_octave": -4.9075,
+      "miss_pp_by_size": {
+        "4kB": 95.3684,
+        "32kB": 46.0417,
+        "256kB": 45.3429,
+        "2MB": 46.5263
+      }
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "policy": "GRASP",
+      "slope_pp_per_octave": -4.9111,
+      "miss_pp_by_size": {
+        "4kB": 95.0526,
+        "32kB": 47.5789,
+        "256kB": 46.2422,
+        "2MB": 46.3874
+      }
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "policy": "LRU",
+      "slope_pp_per_octave": -5.0706,
+      "miss_pp_by_size": {
+        "4kB": 96.8321,
+        "32kB": 46.0897,
+        "256kB": 46.723,
+        "2MB": 45.9152
+      }
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "policy": "SRRIP",
+      "slope_pp_per_octave": -4.912,
+      "miss_pp_by_size": {
+        "4kB": 95.7717,
+        "32kB": 46.3059,
+        "256kB": 46.3874,
+        "2MB": 46.6245
+      }
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "slope_pp_per_octave": -7.6747,
+      "miss_pp_by_size": {
+        "4kB": 88.6486,
+        "32kB": 11.9785,
+        "256kB": 11.7647,
+        "2MB": 11.9728
+      }
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "slope_pp_per_octave": -6.8004,
+      "miss_pp_by_size": {
+        "4kB": 80.1418,
+        "32kB": 11.9565,
+        "256kB": 12.0833,
+        "2MB": 12.0956
+      }
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "slope_pp_per_octave": -7.9302,
+      "miss_pp_by_size": {
+        "4kB": 91.5278,
+        "32kB": 11.4434,
+        "256kB": 11.8439,
+        "2MB": 12.0924
+      }
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "policy": "GRASP",
+      "slope_pp_per_octave": -7.6143,
+      "miss_pp_by_size": {
+        "4kB": 87.931,
+        "32kB": 12.3944,
+        "256kB": 12.0924,
+        "2MB": 11.889
+      }
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "policy": "LRU",
+      "slope_pp_per_octave": -8.0027,
+      "miss_pp_by_size": {
+        "4kB": 91.6898,
+        "32kB": 12.0,
+        "256kB": 11.7647,
+        "2MB": 11.7414
+      }
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "policy": "SRRIP",
+      "slope_pp_per_octave": -7.9979,
+      "miss_pp_by_size": {
+        "4kB": 91.4952,
+        "32kB": 11.9728,
+        "256kB": 12.1918,
+        "2MB": 11.4434
+      }
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "slope_pp_per_octave": -7.8399,
+      "miss_pp_by_size": {
+        "4kB": 86.4209,
+        "32kB": 8.2577,
+        "256kB": 8.0501,
+        "2MB": 8.0909
+      }
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "slope_pp_per_octave": -8.4675,
+      "miss_pp_by_size": {
+        "4kB": 92.7778,
+        "32kB": 8.1577,
+        "256kB": 8.0543,
+        "2MB": 8.1374
+      }
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "slope_pp_per_octave": -8.1147,
+      "miss_pp_by_size": {
+        "4kB": 89.1089,
+        "32kB": 8.0863,
+        "256kB": 8.0357,
+        "2MB": 7.9787
+      }
+    },
+    {
+      "app": "sssp",
+      "graph": "email-Eu-core",
+      "policy": "GRASP",
+      "slope_pp_per_octave": -8.1293,
+      "miss_pp_by_size": {
+        "4kB": 89.3019,
+        "32kB": 8.0773,
+        "256kB": 8.0285,
+        "2MB": 8.0247
+      }
+    },
+    {
+      "app": "sssp",
+      "graph": "email-Eu-core",
+      "policy": "LRU",
+      "slope_pp_per_octave": -8.4508,
+      "miss_pp_by_size": {
+        "4kB": 92.6431,
+        "32kB": 8.0142,
+        "256kB": 8.0573,
+        "2MB": 8.1204
+      }
+    },
+    {
+      "app": "sssp",
+      "graph": "email-Eu-core",
+      "policy": "SRRIP",
+      "slope_pp_per_octave": -8.1733,
+      "miss_pp_by_size": {
+        "4kB": 89.7205,
+        "32kB": 7.8231,
+        "256kB": 7.8603,
+        "2MB": 7.9755
+      }
+    }
+  ]
+}

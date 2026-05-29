@@ -175,6 +175,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_slope_saturation_xcheck.py", "Xchk"),
     "Gem5 anchor slope sanity":
         ("scripts/test/test_gem5_slope_replay.py", "G5slope"),
+    "Sniper anchor slope sanity":
+        ("scripts/test/test_sniper_slope_replay.py", "SNslope"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

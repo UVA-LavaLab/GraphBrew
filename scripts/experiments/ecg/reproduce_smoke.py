@@ -131,6 +131,8 @@ TRACKED_ARTIFACTS = [
     "slope_saturation_xcheck.md",
     "gem5_slope_replay.json",
     "gem5_slope_replay.md",
+    "sniper_slope_replay.json",
+    "sniper_slope_replay.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
