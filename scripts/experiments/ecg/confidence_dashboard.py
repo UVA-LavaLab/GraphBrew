@@ -77,6 +77,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_catalog_completeness.py", "Cat-Comp"),
     "Family-sensitivity cross-artifact":
         ("scripts/test/test_family_sensitivity_cross_artifact.py", "Fam-Sens-X"),
+    "Cross-tool slope-ordering cross-artifact":
+        ("scripts/test/test_cross_tool_slope_ordering_xartifact.py", "Slope-Ord-X"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
