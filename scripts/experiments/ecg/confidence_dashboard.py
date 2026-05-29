@@ -85,6 +85,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_small_l3_thrash.py", "Thrash"),
     "Cross-tool saturation soundness":
         ("scripts/test/test_cross_tool_saturation.py", "X-tool"),
+    "Cross-tool winner agreement":
+        ("scripts/test/test_cross_tool_winners.py", "X-win"),
     "Per-graph claim density":
         ("scripts/test/test_claim_density.py", "Density"),
     "POPT-vs-GRASP delta":

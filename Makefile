@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -654,17 +654,33 @@ lit-deviations: lit-repro lit-faith
 		--json-out      $(WIKI_DATA)/literature_deviations.json \
 		--md-out        $(WIKI_DATA)/literature_deviations.md
 
+# Cross-tool *winner* agreement: at each tool's largest-L3 operating
+# point per (graph, app), do the simulators pick the same winning
+# policy? Different tools sweep different L3 ranges, so disagreement
+# is common and the saturation report (lit-cross-tool) is the proper
+# headline test — this one surfaces the negative cases so reviewers
+# can see what should NOT be claimed without per-cell L3 context.
+lit-cross-tool-winners:
+	@echo "$(BLUE)Regenerating cross-tool winner agreement report...$(NC)"
+	@python3 -m scripts.experiments.ecg.cross_tool_winners_report \
+		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
+		--gem5-json     $(WIKI_DATA)/gem5_anchor.json \
+		--sniper-json   $(WIKI_DATA)/sniper_anchor.json \
+		--csv-out  $(WIKI_DATA)/cross_tool_winners.csv \
+		--json-out $(WIKI_DATA)/cross_tool_winners.json \
+		--md-out   $(WIKI_DATA)/cross_tool_winners.md
+
 # Single source of truth for the paper's numerical claims. Reads all
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations lit-claims
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-claims
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

@@ -1,0 +1,145 @@
+{
+  "cells": [
+    {
+      "app": "bfs",
+      "cache_sim_l3": "8MB",
+      "cache_sim_margin_pp": "0.689",
+      "cache_sim_winner": "GRASP",
+      "classification": "split",
+      "gem5_l3": "",
+      "gem5_margin_pp": "",
+      "gem5_winner": "",
+      "graph": "cit-Patents",
+      "n_tools": 2,
+      "sniper_l3": "2MB",
+      "sniper_margin_pp": "0.015",
+      "sniper_winner": "SRRIP"
+    },
+    {
+      "app": "pr",
+      "cache_sim_l3": "8MB",
+      "cache_sim_margin_pp": "2.834",
+      "cache_sim_winner": "POPT",
+      "classification": "split",
+      "gem5_l3": "",
+      "gem5_margin_pp": "",
+      "gem5_winner": "",
+      "graph": "cit-Patents",
+      "n_tools": 2,
+      "sniper_l3": "2MB",
+      "sniper_margin_pp": "0.120",
+      "sniper_winner": "GRASP"
+    },
+    {
+      "app": "sssp",
+      "cache_sim_l3": "8MB",
+      "cache_sim_margin_pp": "1.633",
+      "cache_sim_winner": "GRASP",
+      "classification": "split",
+      "gem5_l3": "",
+      "gem5_margin_pp": "",
+      "gem5_winner": "",
+      "graph": "cit-Patents",
+      "n_tools": 2,
+      "sniper_l3": "2MB",
+      "sniper_margin_pp": "0.112",
+      "sniper_winner": "SRRIP"
+    },
+    {
+      "app": "bc",
+      "cache_sim_l3": "8MB",
+      "cache_sim_margin_pp": "0.000",
+      "cache_sim_winner": "POPT",
+      "classification": "split",
+      "gem5_l3": "2MB",
+      "gem5_margin_pp": "0.006",
+      "gem5_winner": "GRASP",
+      "graph": "email-Eu-core",
+      "n_tools": 2,
+      "sniper_l3": "",
+      "sniper_margin_pp": "",
+      "sniper_winner": ""
+    },
+    {
+      "app": "bfs",
+      "cache_sim_l3": "8MB",
+      "cache_sim_margin_pp": "0.002",
+      "cache_sim_winner": "GRASP",
+      "classification": "split",
+      "gem5_l3": "",
+      "gem5_margin_pp": "",
+      "gem5_winner": "",
+      "graph": "email-Eu-core",
+      "n_tools": 2,
+      "sniper_l3": "2MB",
+      "sniper_margin_pp": "0.472",
+      "sniper_winner": "LRU"
+    },
+    {
+      "app": "pr",
+      "cache_sim_l3": "8MB",
+      "cache_sim_margin_pp": "0.019",
+      "cache_sim_winner": "GRASP",
+      "classification": "split",
+      "gem5_l3": "2MB",
+      "gem5_margin_pp": "0.030",
+      "gem5_winner": "LRU",
+      "graph": "email-Eu-core",
+      "n_tools": 3,
+      "sniper_l3": "2MB",
+      "sniper_margin_pp": "0.298",
+      "sniper_winner": "SRRIP"
+    }
+  ],
+  "summary": {
+    "by_classification": {
+      "split": 6
+    },
+    "majority_cells": [],
+    "n_cells": 6,
+    "split_cells": [
+      {
+        "app": "bfs",
+        "cache_sim_winner": "GRASP",
+        "gem5_winner": "",
+        "graph": "cit-Patents",
+        "sniper_winner": "SRRIP"
+      },
+      {
+        "app": "pr",
+        "cache_sim_winner": "POPT",
+        "gem5_winner": "",
+        "graph": "cit-Patents",
+        "sniper_winner": "GRASP"
+      },
+      {
+        "app": "sssp",
+        "cache_sim_winner": "GRASP",
+        "gem5_winner": "",
+        "graph": "cit-Patents",
+        "sniper_winner": "SRRIP"
+      },
+      {
+        "app": "bc",
+        "cache_sim_winner": "POPT",
+        "gem5_winner": "GRASP",
+        "graph": "email-Eu-core",
+        "sniper_winner": ""
+      },
+      {
+        "app": "bfs",
+        "cache_sim_winner": "GRASP",
+        "gem5_winner": "",
+        "graph": "email-Eu-core",
+        "sniper_winner": "LRU"
+      },
+      {
+        "app": "pr",
+        "cache_sim_winner": "GRASP",
+        "gem5_winner": "LRU",
+        "graph": "email-Eu-core",
+        "sniper_winner": "SRRIP"
+      }
+    ]
+  }
+}
