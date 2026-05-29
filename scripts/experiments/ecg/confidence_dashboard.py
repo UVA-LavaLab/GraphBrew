@@ -97,6 +97,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_paper_claims_registry.py", "Claims"),
     "Winning-regime taxonomy":
         ("scripts/test/test_winning_regime_taxonomy.py", "Regime"),
+    "Oracle gap":
+        ("scripts/test/test_oracle_gap.py", "Oracle"),
 }
 
 
