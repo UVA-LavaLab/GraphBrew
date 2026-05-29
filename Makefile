@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -670,17 +670,29 @@ lit-cross-tool-winners:
 		--json-out $(WIKI_DATA)/cross_tool_winners.json \
 		--md-out   $(WIKI_DATA)/cross_tool_winners.md
 
+# Winning-regime taxonomy: paper headline figure projecting the
+# winner table onto (graph_family × L3 regime) bins and extracting
+# minimal-rule implications. Depends on the winner table being fresh.
+lit-regime-taxonomy: lit-winner
+	@echo "$(BLUE)Regenerating winning-regime taxonomy...$(NC)"
+	@python3 -m scripts.experiments.ecg.winning_regime_taxonomy \
+		--winners-json $(WIKI_DATA)/policy_winner_table.json \
+		--corpus-json  $(WIKI_DATA)/corpus_diversity.json \
+		--csv-out      $(WIKI_DATA)/winning_regime_taxonomy.csv \
+		--json-out     $(WIKI_DATA)/winning_regime_taxonomy.json \
+		--md-out       $(WIKI_DATA)/winning_regime_taxonomy.md
+
 # Single source of truth for the paper's numerical claims. Reads all
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-claims
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-claims
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
