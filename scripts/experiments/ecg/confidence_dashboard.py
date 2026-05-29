@@ -101,6 +101,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_monotonicity_universality_vs_anchor_replay.py", "Mono-Anch"),
     "Catalog ↔ dashboard coverage milestone":
         ("scripts/test/test_catalog_dashboard_coverage_milestone.py", "Cat-Dash"),
+    "Deviations vs regime taxonomy parity":
+        ("scripts/test/test_deviations_vs_regime_taxonomy.py", "Dev-Reg"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
