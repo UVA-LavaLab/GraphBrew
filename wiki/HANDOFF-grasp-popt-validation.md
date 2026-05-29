@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **74 gates, all GREEN, exit 0**.
+and currently reports **81 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -39,12 +39,25 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   SRRIP-vs-GRASP (gate 73) per-app ordering, with the pin gated by
   "no NEW deviations". Frontier-driven streaming pathology that
   gate 65 already flags as the most-saturated kernel.
+- **Cross-tool universality + anchor census + saturation replays**
+  (gates 75-81): cross-tool slope-sign universality roll-up across
+  all 10 (tool, policy) cells (gate 76); cell-level L3-sweep
+  monotonicity universality across 320 (Li, Li+1) steps (gate 77);
+  anchor cell-pair census pinning 2 gem5 cells + 6 sniper cells
+  against silent shrinkage (gate 78); per-family saturation-distance
+  replay locking citation/social headroom and the web pin
+  (citation=+15.69, social=+12.50, web=+2.15 pp) (gate 79); anchor
+  monotonicity replay with tier-aware tolerances — gem5 strict
+  (0/18 bumps), sniper bounded (19/54 bumps, 2 hard, max +1.18 pp)
+  (gate 80); per-policy final-octave steepness ranking
+  POPT(0.10) <= GRASP(0.23) << LRU(1.06) ~ SRRIP(1.09) pp/octave
+  (gate 81).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 74. `make confidence-fast` runs the whole suite in under
-  ~3 minutes; `reproduce_smoke.py` snapshots 126 SHA-256 hashes of
+  current 81. `make confidence-fast` runs the whole suite in under
+  ~3 minutes; `reproduce_smoke.py` snapshots 140 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
 
@@ -63,7 +76,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 74+ pytest gates + lit-faith headline + corpus diversity
+  view of all 81+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
@@ -308,7 +321,7 @@ Latest additions on top of the Tier A/B/C work:
     bedrock claim at 0 flips and enforces that all road flips
     must originate from roadNet-CA (no spurious sources).
   - `scripts/experiments/ecg/reproduce_smoke.py` snapshots SHA-
-    256 hashes of 126 tracked `wiki/data/*.{json,md}` artifacts,
+    256 hashes of 140 tracked `wiki/data/*.{json,md}` artifacts,
     re-runs `make lit-claims lit-catalog` in a subprocess, and
     diffs the canonical hashes (masking volatile timing/runtime
     fields). Lives at
