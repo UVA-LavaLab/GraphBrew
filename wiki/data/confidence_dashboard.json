@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.5244293212890625,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.34s"
+      "runtime_s": 2.6012814044952393,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 2.40s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.6455814838409424,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.42s"
+      "runtime_s": 1.7134451866149902,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.52s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 4,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.235731840133667,
+      "runtime_s": 0.2237377166748047,
       "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.05s"
     },
     {
@@ -50,7 +50,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.47348737716674805,
+      "runtime_s": 0.48604536056518555,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.27s"
     },
     {
@@ -63,7 +63,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.353177547454834,
+      "runtime_s": 0.3510932922363281,
       "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.15s"
     },
     {
@@ -76,8 +76,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22047042846679688,
-      "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
+      "runtime_s": 0.24441981315612793,
+      "raw_tail": "...                                                                      [100%]\n3 passed in 0.04s"
     },
     {
       "label": "ECG validation gate catalog",
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23313426971435547,
+      "runtime_s": 0.22995734214782715,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.04s"
     },
     {
@@ -102,8 +102,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19310235977172852,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
+      "runtime_s": 0.23177862167358398,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.03s"
     },
     {
       "label": "Cross-tool report parity",
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21442103385925293,
+      "runtime_s": 0.23136663436889648,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.04s"
     },
     {
@@ -128,8 +128,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23627853393554688,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
+      "runtime_s": 0.28273534774780273,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.04s"
     },
     {
       "label": "Corpus diversity profile parity",
@@ -141,8 +141,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.27005815505981445,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
+      "runtime_s": 0.2491624355316162,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.04s"
     },
     {
       "label": "Paper-pipeline literature pre-flight gate",
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22190642356872559,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.03s"
+      "runtime_s": 0.7917370796203613,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.45s"
     },
     {
       "label": "gem5 literature anchor",
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24525856971740723,
+      "runtime_s": 0.23560810089111328,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.05s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23563432693481445,
+      "runtime_s": 0.2434852123260498,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.04s"
     },
     {
@@ -193,7 +193,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2243938446044922,
+      "runtime_s": 0.23510026931762695,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     }
   ],

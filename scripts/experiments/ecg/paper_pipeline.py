@@ -12,6 +12,7 @@ import csv
 import glob
 import json
 import math
+import re
 import shlex
 import shutil
 import subprocess
@@ -1243,6 +1244,148 @@ def plot_sniper_thread_scaling(path: Path, rows: list[dict[str, Any]]) -> None:
     plt.close()
 
 
+def _graph_label(graph: str) -> str:
+    return str(graph).replace("_", "-")
+
+
+_GRAPH_OPTION_RE = re.compile(r"results/graphs/([^/\s]+)/")
+
+
+def _graph_from_row(row: dict[str, Any]) -> str:
+    """Best-effort graph-name extraction for cache_sim/gem5/sniper rows.
+
+    Priority order:
+    1. An explicit ``graph`` field if the row already carries one.
+    2. The ``-f results/graphs/<name>/<name>.sg`` segment in ``options``.
+    3. The ``pipeline_run_dir`` / ``pipeline_run_name`` set by collect_csvs
+       (matrices/<stage>/<graph>/<app>/roi_matrix.csv layout).
+    """
+    explicit = str(row.get("graph") or "").strip()
+    if explicit:
+        return explicit
+    options = str(row.get("options") or "")
+    match = _GRAPH_OPTION_RE.search(options)
+    if match:
+        return match.group(1)
+    src = str(row.get("pipeline_source_csv") or "")
+    if "/matrices/" in src:
+        parts = src.split("/matrices/", 1)[1].split("/")
+        if len(parts) >= 3:
+            return parts[1]
+    return ""
+
+
+def l_curve_rows(roi_rows: list[dict[str, Any]]) -> dict[tuple[str, str], list[dict[str, Any]]]:
+    """Group cache_sim rows by (graph, app) for L-curve plotting.
+
+    Only cache_sim rows with a parseable L3 size, a non-empty policy, and a
+    finite l3_miss_rate are eligible. Returns groups with at least three
+    distinct L3 sizes so the L-shape is meaningful.
+    """
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in roi_rows:
+        if row.get("simulator") != "cache_sim":
+            continue
+        graph = _graph_from_row(row)
+        app = str(row.get("benchmark") or "").strip()
+        policy = str(row.get("policy_label") or row.get("policy") or "").strip()
+        l3_bytes = parse_size_bytes(row.get("l3_size"))
+        miss = as_float(row.get("l3_miss_rate"))
+        if not graph or not app or not policy or l3_bytes is None or miss is None:
+            continue
+        grouped[(graph, app)].append(
+            {
+                "graph": graph,
+                "app": app,
+                "policy_label": policy,
+                "l3_size": str(row.get("l3_size") or ""),
+                "l3_size_bytes": l3_bytes,
+                "l3_miss_rate": miss,
+            }
+        )
+    return {
+        key: rows
+        for key, rows in grouped.items()
+        if len({r["l3_size_bytes"] for r in rows}) >= 3
+    }
+
+
+def _l_curve_summary_rows(groups: dict[tuple[str, str], list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for (graph, app), entries in sorted(groups.items(), key=lambda item: (item[0][0], benchmark_sort_key(item[0][1]))):
+        averaged: dict[tuple[str, float, str], list[float]] = defaultdict(list)
+        for entry in entries:
+            key = (entry["policy_label"], entry["l3_size_bytes"], entry["l3_size"])
+            averaged[key].append(entry["l3_miss_rate"])
+        for (policy, l3_bytes, l3_size), values in sorted(
+            averaged.items(), key=lambda item: (policy_sort_key(item[0][0]), item[0][1])
+        ):
+            rows.append(
+                {
+                    "graph": graph,
+                    "benchmark": app,
+                    "policy_label": policy,
+                    "policy_figure_label": policy_label(policy),
+                    "l3_size": l3_size,
+                    "l3_size_bytes": int(l3_bytes),
+                    "l3_miss_rate": sum(values) / len(values),
+                    "samples": len(values),
+                }
+            )
+    return rows
+
+
+def plot_l_curve(path: Path, group_key: tuple[str, str], entries: list[dict[str, Any]]) -> None:
+    """Plot the GRASP-paper L-curve for a single (graph, app)."""
+    if not HAS_MATPLOTLIB:
+        print(f"[skip] matplotlib not available; not writing {path}")
+        return
+
+    graph, app = group_key
+    by_policy: dict[str, dict[float, list[float]]] = defaultdict(lambda: defaultdict(list))
+    by_policy_label_size: dict[float, str] = {}
+    for entry in entries:
+        by_policy[entry["policy_label"]][entry["l3_size_bytes"]].append(entry["l3_miss_rate"])
+        by_policy_label_size[entry["l3_size_bytes"]] = entry["l3_size"]
+    if not by_policy:
+        print(f"[skip] no L-curve data for {graph}/{app}")
+        return
+
+    policies = sorted(by_policy, key=policy_sort_key)
+    all_sizes = sorted(by_policy_label_size)
+
+    set_paper_plot_style()
+    fig, ax = plt.subplots(figsize=(PAPER_FIGURE_WIDTH, 2.2))
+    for policy in policies:
+        by_size = by_policy[policy]
+        x_vals = [s for s in all_sizes if s in by_size]
+        y_vals = [sum(by_size[s]) / len(by_size[s]) * 100.0 for s in x_vals]
+        if not x_vals:
+            continue
+        ax.plot(
+            x_vals,
+            y_vals,
+            marker="o",
+            linewidth=1.0,
+            markersize=3.0,
+            color=POLICY_COLORS.get(policy, "#6B6B6B"),
+            label=policy_label(policy),
+        )
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(all_sizes)
+    ax.set_xticklabels([by_policy_label_size[s] for s in all_sizes], rotation=0, fontsize=6.2)
+    ax.set_xlabel("L3 cache size")
+    ax.set_ylabel("L3 miss rate (%)")
+    ax.set_title(f"{_graph_label(graph)} / {benchmark_label(app)}", fontsize=7.5)
+    ax.grid(alpha=0.25, linewidth=0.5)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(frameon=False, loc="upper right", fontsize=6.2)
+    fig.tight_layout(pad=0.35)
+    save_figure(path)
+    plt.close()
+
+
 def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: list[dict[str, Any]], copy_to_paper: bool) -> None:
     aggregate_dir = out_dir / "aggregate"
     figures_dir = out_dir / "figures"
@@ -1462,6 +1605,15 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
             if sniper_thread_scaling:
                 write_csv(aggregate_dir / "sniper_thread_scaling_metrics.csv", sniper_thread_scaling)
                 plot_sniper_thread_scaling(figures_dir / "sniper_thread_scaling.svg", sniper_thread_scaling)
+
+        l_curve_groups = l_curve_rows(roi_rows)
+        if l_curve_groups:
+            l_curve_summary = _l_curve_summary_rows(l_curve_groups)
+            write_csv(aggregate_dir / "l_curve_miss_rate_by_size.csv", l_curve_summary)
+            for group_key, entries in sorted(l_curve_groups.items(), key=lambda item: (item[0][0], benchmark_sort_key(item[0][1]))):
+                graph, app = group_key
+                fig_path = figures_dir / f"l_curve_{graph}_{app}.svg"
+                plot_l_curve(fig_path, group_key, entries)
 
     if proof_rows:
         write_csv(aggregate_dir / "proof_matrix_all.csv", proof_rows)
