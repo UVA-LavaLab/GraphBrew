@@ -155,6 +155,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_per_app_srrip_vs_grasp_arithmetic.py", "PAS-vG"),
     "corpus_balance arithmetic + diversity metrics":
         ("scripts/test/test_corpus_balance_arithmetic.py", "CB-Div"),
+    "family_curvature_replay arithmetic + verdict":
+        ("scripts/test/test_family_curvature_replay_arithmetic.py", "FCR-Curv"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
