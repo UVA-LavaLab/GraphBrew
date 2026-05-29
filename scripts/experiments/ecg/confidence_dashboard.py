@@ -225,6 +225,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_winner_margin_by_regime_derivation_parity.py", "WMR-Der"),
     "wss_relative_l3 derivation parity (WSS proxy + L3/WSS regime aggregation + ranking)":
         ("scripts/test/test_wss_relative_l3_derivation_parity.py", "WSL-Der"),
+    "slope_saturation_xcheck derivation parity (OLS slope vs upper-octave distance + correlation)":
+        ("scripts/test/test_slope_saturation_xcheck_derivation_parity.py", "SSX-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
