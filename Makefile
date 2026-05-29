@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -654,7 +654,17 @@ lit-deviations: lit-repro lit-faith
 		--json-out      $(WIKI_DATA)/literature_deviations.json \
 		--md-out        $(WIKI_DATA)/literature_deviations.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations
+# Single source of truth for the paper's numerical claims. Reads all
+# the paper-grade aggregator JSONs and emits a consolidated registry
+# linking each claim to value + source + governing gate. Must run
+# AFTER all other aggregators so the values are current.
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations
+	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
+	@python3 -m scripts.experiments.ecg.paper_claims_registry \
+		--json-out $(WIKI_DATA)/paper_claims.json \
+		--md-out   $(WIKI_DATA)/paper_claims.md
+
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations lit-claims
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

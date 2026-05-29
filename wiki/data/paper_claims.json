@@ -1,0 +1,131 @@
+{
+  "claims": [
+    {
+      "category": "corpus",
+      "gate": "scripts/test/test_corpus_diversity_floor.py",
+      "id": "corpus.graph_count",
+      "source": "wiki/data/corpus_diversity.json",
+      "text": "Corpus spans 8 graphs across web/citation/social/road/mesh families.",
+      "units": "graphs",
+      "value": 8
+    },
+    {
+      "category": "reproduction",
+      "gate": "scripts/test/test_claim_density.py",
+      "id": "reproduction.ok_ratio",
+      "source": "wiki/data/claim_density.json",
+      "text": "Literature reproduction matches 288 / 320 claims (90.0 %) across the corpus.",
+      "units": "percent",
+      "value": 90.0
+    },
+    {
+      "category": "reproduction",
+      "gate": "scripts/test/test_claim_density.py",
+      "id": "reproduction.n_graphs_with_claims",
+      "source": "wiki/data/claim_density.json",
+      "text": "Reproduction summary spans 8 graphs and 320 total literature claims.",
+      "units": "graphs",
+      "value": 8
+    },
+    {
+      "category": "lit_faith",
+      "gate": "scripts/test/test_lit_faith_no_disagree.py",
+      "id": "lit_faith.disagreement_rate",
+      "source": "wiki/data/literature_faithfulness_postfix.json",
+      "text": "Across 320 (graph, app, L3, policy) claims the lit-faith comparator records 0 disagreement(s).",
+      "units": "claims",
+      "value": 0
+    },
+    {
+      "category": "winner_table",
+      "gate": "scripts/test/test_policy_winner_table.py",
+      "id": "winner.grasp_share",
+      "source": "wiki/data/policy_winner_table.json",
+      "text": "GRASP wins 56 / 109 cells (51.4 %) in the lit-faith corpus.",
+      "units": "percent",
+      "value": 51.4
+    },
+    {
+      "category": "winner_table",
+      "gate": "scripts/test/test_policy_winner_table.py",
+      "id": "winner.popt_share",
+      "source": "wiki/data/policy_winner_table.json",
+      "text": "POPT wins 41 / 109 cells (37.6 %) in the lit-faith corpus.",
+      "units": "percent",
+      "value": 37.6
+    },
+    {
+      "category": "winner_table",
+      "gate": "scripts/test/test_policy_winner_table.py",
+      "id": "winner.srrip_share",
+      "source": "wiki/data/policy_winner_table.json",
+      "text": "SRRIP wins 6 / 109 cells (5.5 %) in the lit-faith corpus.",
+      "units": "percent",
+      "value": 5.5
+    },
+    {
+      "category": "winner_table",
+      "gate": "scripts/test/test_policy_winner_table.py",
+      "id": "winner.lru_share",
+      "source": "wiki/data/policy_winner_table.json",
+      "text": "LRU wins 6 / 109 cells (5.5 %) in the lit-faith corpus.",
+      "units": "percent",
+      "value": 5.5
+    },
+    {
+      "category": "thrash",
+      "gate": "scripts/test/test_small_l3_thrash.py",
+      "id": "thrash.lru_wins_at_4kb",
+      "source": "wiki/data/small_l3_thrash.json",
+      "text": "At a 4 kB L3 LRU wins 5 / 9 cells, beating both GRASP and POPT - the canonical thrash regime where policy overhead dominates.",
+      "units": "cells",
+      "value": 5
+    },
+    {
+      "category": "popt_vs_grasp",
+      "gate": "scripts/test/test_popt_vs_grasp_delta.py",
+      "id": "popt_vs_grasp.road_family_mean",
+      "source": "wiki/data/popt_vs_grasp_delta.json",
+      "text": "On road-family graphs POPT improves on GRASP by a mean of -9.276 pp (min -60.023, max +0.272) across 20 cells - POPT's offline lookahead is decisive where GRASP's hub-protection has nothing to grip.",
+      "units": "pp",
+      "value": -9.276
+    },
+    {
+      "category": "popt_vs_grasp",
+      "gate": "scripts/test/test_popt_vs_grasp_delta.py",
+      "id": "popt_vs_grasp.social_family_mean",
+      "source": "wiki/data/popt_vs_grasp_delta.json",
+      "text": "On social-family graphs POPT's mean lift over GRASP is only +0.360 pp across 54 cells; the permutation overhead is not always recovered, contradicting the literature's blanket POPT_GE_GRASP claim.",
+      "units": "pp",
+      "value": 0.36
+    },
+    {
+      "category": "deviations",
+      "gate": "scripts/test/test_literature_deviations.py",
+      "id": "deviations.popt_overhead_share",
+      "source": "wiki/data/literature_deviations.json",
+      "text": "30 / 30 documented literature deviations (100.0 %) classify as `popt_overhead_dominates` - measured POPT miss rate exceeds GRASP by more than the claim tolerance.",
+      "units": "percent",
+      "value": 100.0
+    },
+    {
+      "category": "cross_tool",
+      "gate": "scripts/test/test_cross_tool_saturation.py",
+      "id": "cross_tool.doubly_saturated_agreement",
+      "source": "wiki/data/cross_tool_saturation.json",
+      "text": "4 / 7 cross-tool cells reach simultaneous saturation on cache_sim and either gem5 or Sniper; all 4 doubly-saturated cells agree on the GRASP-vs-LRU sign within the 2 pp headline tolerance (0 disagreement(s)).",
+      "units": "disagreements",
+      "value": 0
+    },
+    {
+      "category": "meta",
+      "gate": "scripts/experiments/ecg/confidence_dashboard.py",
+      "id": "confidence.green_gate_count",
+      "source": "wiki/data/confidence_dashboard.json",
+      "text": "24 / 24 confidence gates pass in the current run.",
+      "units": "gates",
+      "value": 24
+    }
+  ],
+  "n_claims": 14
+}
