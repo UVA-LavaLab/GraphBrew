@@ -113,6 +113,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_effect_size.py", "Cliff"),
     "Per-L3 policy stability":
         ("scripts/test/test_l3_policy_stability.py", "L3-Stab"),
+    "Multiple-testing correction":
+        ("scripts/test/test_multiple_testing_correction.py", "MT-Corr"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

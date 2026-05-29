@@ -69,6 +69,8 @@ TRACKED_ARTIFACTS = [
     "oracle_gap_effect_size.md",
     "l3_policy_stability.json",
     "l3_policy_stability.md",
+    "multiple_testing_correction.json",
+    "multiple_testing_correction.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

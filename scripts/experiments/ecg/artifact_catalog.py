@@ -192,6 +192,14 @@ CATALOG = [
         "summary":   "Stable single winners at 1MB/4MB/8MB: cc=GRASP, pr=POPT. Regime change: bfs (GRASP@1MB → POPT@≥4MB). No stable cross-L3 winner: sssp. Pinned so paper can never silently average across L3 and hide a regime change.",
     },
     {
+        "id":        "multiple_testing_correction",
+        "label":     "Multiple-testing correction (Holm-Bonferroni + Benjamini-Hochberg)",
+        "generator": "scripts/experiments/ecg/multiple_testing_correction.py",
+        "gate":      "scripts/test/test_multiple_testing_correction.py",
+        "artifact":  "wiki/data/multiple_testing_correction.json",
+        "summary":   "81 p-values across gates 34/38 + per-(family,app) combined; HB (FWER) retains 28, BH (FDR) retains 40 at α=0.05. Pins which findings can honestly be called 'significant' after correcting for the family of tests we actually run.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -271,7 +279,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (39 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (40 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
