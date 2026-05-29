@@ -211,6 +211,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_policy_rank_kendall_derivation_parity.py", "PRK-Der"),
     "claim_density derivation parity (per-graph claim aggregation)":
         ("scripts/test/test_claim_density_derivation_parity.py", "CLD-Der"),
+    "paper_baseline_table derivation parity (per_observation + PER_GRAPH_CLAIMS)":
+        ("scripts/test/test_paper_baseline_table_derivation_parity.py", "PBT-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
