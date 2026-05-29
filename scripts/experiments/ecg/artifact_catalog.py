@@ -448,6 +448,14 @@ CATALOG = [
         "summary":   "Mirror of gate 70 for the Sniper anchor sweep. Six (app, graph) cells (bfs/pr/sssp at cit-Patents and email-Eu-core); same verdict checks. On the current corpus, GRASP median = -7.64 pp/oct, LRU = -7.40, SRRIP = -7.96. SRRIP-GRASP gap = -0.32 pp/oct (gated, want <= 0); LRU-GRASP gap = +0.24 (INFORMATIONAL — sub-WSS at 4kB inverts the ordering). All verdict checks pass: cache monotonicity holds in every cell, every per-policy median negative, SRRIP <= GRASP, GRASP below help-floor (-1.0).",
     },
     {
+        "id":        "cross_tool_slope_ordering",
+        "label":     "Cross-tool SRRIP-vs-GRASP slope ordering",
+        "generator": "scripts/experiments/ecg/cross_tool_slope_ordering.py",
+        "gate":      "scripts/test/test_cross_tool_slope_ordering.py",
+        "artifact":  "wiki/data/cross_tool_slope_ordering.json",
+        "summary":   "Reads gate 66 (cache-sim capacity_sensitivity), gate 70 (gem5 anchor slope), and gate 71 (sniper anchor slope) per-policy medians and verifies the 'oracle-aware policies are less cache-hungry' claim is REPLICATED across all three tools: SRRIP median <= GRASP median in every tool, with at least 2 of 3 tools showing a strict gap >= 0.05 pp/octave. Current state: all 3/3 tools show strict steeper. Cache-sim SRRIP-GRASP = -0.95 pp/oct; gem5 = -1.25; sniper = -0.32. LRU-vs-GRASP delta is reported per tool but explicitly NOT gated — gates 70/71 documented that sub-WSS anchor scales invert the LRU>GRASP ordering observed at 1-8MB cache-sim sizes. Verdict PASS iff (1) all three tools' artifacts present and valid, (2) every tool shows SRRIP <= GRASP, (3) at least 2 of 3 tools show strict gap >= 0.05 pp/octave.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -527,7 +535,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (71 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (72 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

@@ -133,6 +133,8 @@ TRACKED_ARTIFACTS = [
     "gem5_slope_replay.md",
     "sniper_slope_replay.json",
     "sniper_slope_replay.md",
+    "cross_tool_slope_ordering.json",
+    "cross_tool_slope_ordering.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
