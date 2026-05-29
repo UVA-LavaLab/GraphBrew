@@ -5,6 +5,22 @@ Source: `results/ecg_experiments/final_paper_runs/20260528_1408_final_cache_sim`
 
 Aggregated via `scripts/experiments/ecg/paper_pipeline.py --skip-run`.
 
+## Paper-ready figures
+
+- `figures/replacement_l3_miss_reduction_vs_lru.png` — per-policy miss-reduction
+  vs LRU baseline at L3=4 kB across all 12 graph/app pairs. ECG variants in solid
+  fill, GRASP/POPT references in hatched. The headline: **ECG_POPT_PRIMARY tracks
+  POPT within ±1pp; ECG_DBG_PRIMARY matches GRASP on PR/SSSP and outperforms
+  GRASP on BFS (because DBG_PRIMARY's reuse-priority logic dominates GRASP's
+  static hot-region bound at this small L3).**
+- `figures/replacement_l3_miss_reduction_by_benchmark.png` — same data faceted by
+  benchmark. Useful for spotting BFS as the strongest case for ECG and the
+  weakest case for plain GRASP at this stress config.
+- `figures/charged_overhead.png` — POPT_CHARGED's storage overhead (one row per
+  graph/app) versus POPT's L3 budget. Confirms ECG-D's overhead is bounded by
+  the DBG sideband (~bytes per region) while POPT_CHARGED's overhead scales
+  with |V|·log(|V|) per epoch.
+
 ## ECG-vs-baseline parity status (faithfulness gate)
 
 The pipeline checks two ECG-variant parities at tolerance ±3 pp:
