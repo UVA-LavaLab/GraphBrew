@@ -67,6 +67,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_regression_budget_floor.py", "Budget"),
     "Regression budget margin distribution":
         ("scripts/test/test_regression_budget.py", "Budget-dist"),
+    "Paper-claims registry integrity":
+        ("scripts/test/test_paper_claims_integrity.py", "Claims-Int"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

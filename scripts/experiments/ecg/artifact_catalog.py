@@ -615,7 +615,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (83 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (84 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
