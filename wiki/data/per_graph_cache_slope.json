@@ -1,0 +1,4100 @@
+{
+  "meta": {
+    "source": "wiki/data/oracle_gap.json",
+    "scope_l3_sizes": [
+      "1MB",
+      "4MB",
+      "8MB"
+    ],
+    "n_apps": 5,
+    "n_policies": 4,
+    "n_graphs_with_full_trajectory": 6,
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "graphs": [
+      "cit-Patents",
+      "com-orkut",
+      "email-Eu-core",
+      "soc-LiveJournal1",
+      "soc-pokec",
+      "web-Google"
+    ],
+    "n_full_trajectories": 112,
+    "significant_pp_threshold": 1.0,
+    "n_cells_with_significant_anti_scaling": 33,
+    "n_oracle_aware_anti_scaling": 7
+  },
+  "per_policy_anti_scaling_count": {
+    "LRU": 13,
+    "POPT": 5,
+    "SRRIP": 13,
+    "GRASP": 2
+  },
+  "per_graph_anti_scaling_count": {
+    "cit-Patents": 10,
+    "com-orkut": 5,
+    "soc-LiveJournal1": 9,
+    "soc-pokec": 3,
+    "web-Google": 6
+  },
+  "per_graph_policy_anti_scaling_count": {
+    "cit-Patents|LRU": 4,
+    "cit-Patents|POPT": 1,
+    "cit-Patents|SRRIP": 4,
+    "cit-Patents|GRASP": 1,
+    "com-orkut|POPT": 1,
+    "com-orkut|LRU": 2,
+    "com-orkut|SRRIP": 2,
+    "soc-LiveJournal1|LRU": 4,
+    "soc-LiveJournal1|SRRIP": 4,
+    "soc-LiveJournal1|POPT": 1,
+    "soc-pokec|LRU": 2,
+    "soc-pokec|SRRIP": 1,
+    "web-Google|POPT": 2,
+    "web-Google|SRRIP": 2,
+    "web-Google|GRASP": 1,
+    "web-Google|LRU": 1
+  },
+  "anti_scaling_cells": [
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.368,
+          "gap_to": 18.069,
+          "delta_gap_pp": 14.701,
+          "slope_pp_per_octave": -7.3505,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 18.069,
+          "gap_to": 7.923,
+          "delta_gap_pp": -10.146,
+          "slope_pp_per_octave": 10.146,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 14.701
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.3,
+          "gap_to": 17.967,
+          "delta_gap_pp": 14.667,
+          "slope_pp_per_octave": -7.3335,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 17.967,
+          "gap_to": 7.442,
+          "delta_gap_pp": -10.525,
+          "slope_pp_per_octave": 10.525,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 14.667
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 11.699,
+          "gap_to": 21.615,
+          "delta_gap_pp": 9.916,
+          "slope_pp_per_octave": -4.958,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 21.615,
+          "gap_to": 13.859,
+          "delta_gap_pp": -7.756,
+          "slope_pp_per_octave": 7.756,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 9.916
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 10.523,
+          "gap_to": 13.345,
+          "delta_gap_pp": 2.822,
+          "slope_pp_per_octave": -1.411,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 13.345,
+          "gap_to": 20.943,
+          "delta_gap_pp": 7.598,
+          "slope_pp_per_octave": -7.598,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 7.598
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "pr",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.052,
+          "gap_to": 8.246,
+          "delta_gap_pp": 7.194,
+          "slope_pp_per_octave": -3.597,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 8.246,
+          "gap_to": 2.834,
+          "delta_gap_pp": -5.412,
+          "slope_pp_per_octave": 5.412,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 7.194
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 10.272,
+          "gap_to": 17.434,
+          "delta_gap_pp": 7.162,
+          "slope_pp_per_octave": -3.581,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 17.434,
+          "gap_to": 8.944,
+          "delta_gap_pp": -8.49,
+          "slope_pp_per_octave": 8.49,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 7.162
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.899,
+          "gap_to": 6.514,
+          "delta_gap_pp": 4.615,
+          "slope_pp_per_octave": -2.3075,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.514,
+          "gap_to": 12.083,
+          "delta_gap_pp": 5.569,
+          "slope_pp_per_octave": -5.569,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 5.569
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.872,
+          "gap_to": 6.652,
+          "delta_gap_pp": 3.78,
+          "slope_pp_per_octave": -1.89,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.652,
+          "gap_to": 12.18,
+          "delta_gap_pp": 5.528,
+          "slope_pp_per_octave": -5.528,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 5.528
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "sssp",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.452,
+          "gap_to": 8.673,
+          "delta_gap_pp": 5.221,
+          "slope_pp_per_octave": -2.6105,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 8.673,
+          "gap_to": 6.904,
+          "delta_gap_pp": -1.769,
+          "slope_pp_per_octave": 1.769,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 5.221
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 6.731,
+          "gap_to": 11.896,
+          "delta_gap_pp": 5.165,
+          "slope_pp_per_octave": -2.5825,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 11.896,
+          "gap_to": 10.0,
+          "delta_gap_pp": -1.896,
+          "slope_pp_per_octave": 1.896,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 5.165
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.602,
+          "gap_to": 3.396,
+          "delta_gap_pp": 2.794,
+          "slope_pp_per_octave": -1.397,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.396,
+          "gap_to": 8.312,
+          "delta_gap_pp": 4.916,
+          "slope_pp_per_octave": -4.916,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 4.916
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.818,
+          "gap_to": 6.629,
+          "delta_gap_pp": 2.811,
+          "slope_pp_per_octave": -1.4055,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.629,
+          "gap_to": 11.211,
+          "delta_gap_pp": 4.582,
+          "slope_pp_per_octave": -4.582,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 4.582
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.998,
+          "gap_to": 4.081,
+          "delta_gap_pp": 3.083,
+          "slope_pp_per_octave": -1.5415,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.081,
+          "gap_to": 8.625,
+          "delta_gap_pp": 4.544,
+          "slope_pp_per_octave": -4.544,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 4.544
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 13.105,
+          "gap_to": 16.968,
+          "delta_gap_pp": 3.863,
+          "slope_pp_per_octave": -1.9315,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 16.968,
+          "gap_to": 0.039,
+          "delta_gap_pp": -16.929,
+          "slope_pp_per_octave": 16.929,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 3.863
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.717,
+          "gap_to": 5.499,
+          "delta_gap_pp": 2.782,
+          "slope_pp_per_octave": -1.391,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.499,
+          "gap_to": 9.059,
+          "delta_gap_pp": 3.56,
+          "slope_pp_per_octave": -3.56,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 3.56
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.631,
+          "gap_to": 2.053,
+          "delta_gap_pp": 1.422,
+          "slope_pp_per_octave": -0.711,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.053,
+          "gap_to": 5.271,
+          "delta_gap_pp": 3.218,
+          "slope_pp_per_octave": -3.218,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 3.218
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "sssp",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.466,
+          "gap_to": 4.675,
+          "delta_gap_pp": 3.209,
+          "slope_pp_per_octave": -1.6045,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.675,
+          "gap_to": 3.585,
+          "delta_gap_pp": -1.09,
+          "slope_pp_per_octave": 1.09,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 3.209
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "sssp",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.132,
+          "gap_to": 6.208,
+          "delta_gap_pp": 3.076,
+          "slope_pp_per_octave": -1.538,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.208,
+          "gap_to": 4.406,
+          "delta_gap_pp": -1.802,
+          "slope_pp_per_octave": 1.802,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 3.076
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 10.741,
+          "gap_to": 13.446,
+          "delta_gap_pp": 2.705,
+          "slope_pp_per_octave": -1.3525,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 13.446,
+          "gap_to": 9.597,
+          "delta_gap_pp": -3.849,
+          "slope_pp_per_octave": 3.849,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 2.705
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 7.465,
+          "gap_to": 9.801,
+          "delta_gap_pp": 2.336,
+          "slope_pp_per_octave": -1.168,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 9.801,
+          "gap_to": 6.099,
+          "delta_gap_pp": -3.702,
+          "slope_pp_per_octave": 3.702,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 2.336
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.475,
+          "gap_to": 4.668,
+          "delta_gap_pp": 2.193,
+          "slope_pp_per_octave": -1.0965,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.668,
+          "gap_to": 4.727,
+          "delta_gap_pp": 0.059,
+          "slope_pp_per_octave": -0.059,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 2.193
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.386,
+          "delta_gap_pp": 0.386,
+          "slope_pp_per_octave": -0.193,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.386,
+          "gap_to": 2.481,
+          "delta_gap_pp": 2.095,
+          "slope_pp_per_octave": -2.095,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 2.095
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.849,
+          "delta_gap_pp": 0.849,
+          "slope_pp_per_octave": -0.4245,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.849,
+          "gap_to": 2.879,
+          "delta_gap_pp": 2.03,
+          "slope_pp_per_octave": -2.03,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 2.03
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "sssp",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.406,
+          "gap_to": 3.346,
+          "delta_gap_pp": 1.94,
+          "slope_pp_per_octave": -0.97,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.346,
+          "gap_to": 2.136,
+          "delta_gap_pp": -1.21,
+          "slope_pp_per_octave": 1.21,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 1.94
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.234,
+          "gap_to": 2.043,
+          "delta_gap_pp": 1.809,
+          "slope_pp_per_octave": -0.9045,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.043,
+          "gap_to": 3.944,
+          "delta_gap_pp": 1.901,
+          "slope_pp_per_octave": -1.901,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 1.901
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.268,
+          "gap_to": 2.109,
+          "delta_gap_pp": 1.841,
+          "slope_pp_per_octave": -0.9205,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.109,
+          "gap_to": 3.971,
+          "delta_gap_pp": 1.862,
+          "slope_pp_per_octave": -1.862,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 1.862
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.128,
+          "gap_to": 1.227,
+          "delta_gap_pp": 0.099,
+          "slope_pp_per_octave": -0.0495,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.227,
+          "gap_to": 3.068,
+          "delta_gap_pp": 1.841,
+          "slope_pp_per_octave": -1.841,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 1.841
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.71,
+          "gap_to": 1.888,
+          "delta_gap_pp": -0.822,
+          "slope_pp_per_octave": 0.411,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.888,
+          "gap_to": 3.564,
+          "delta_gap_pp": 1.676,
+          "slope_pp_per_octave": -1.676,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 1.676
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 1.563,
+          "delta_gap_pp": 1.563,
+          "slope_pp_per_octave": -0.7815,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.563,
+          "gap_to": 0.872,
+          "delta_gap_pp": -0.691,
+          "slope_pp_per_octave": 0.691,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 1.563
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.345,
+          "gap_to": 2.902,
+          "delta_gap_pp": 1.557,
+          "slope_pp_per_octave": -0.7785,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.902,
+          "gap_to": 3.05,
+          "delta_gap_pp": 0.148,
+          "slope_pp_per_octave": -0.148,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 1.557
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "cc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.398,
+          "gap_to": 1.81,
+          "delta_gap_pp": 0.412,
+          "slope_pp_per_octave": -0.206,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.81,
+          "gap_to": 3.083,
+          "delta_gap_pp": 1.273,
+          "slope_pp_per_octave": -1.273,
+          "significant_anti_scaling": true
+        }
+      ],
+      "max_pp_growth": 1.273
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.488,
+          "gap_to": 1.597,
+          "delta_gap_pp": 1.109,
+          "slope_pp_per_octave": -0.5545,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.597,
+          "gap_to": 2.529,
+          "delta_gap_pp": 0.932,
+          "slope_pp_per_octave": -0.932,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 1.109
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 1.072,
+          "delta_gap_pp": 1.072,
+          "slope_pp_per_octave": -0.536,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.072,
+          "gap_to": 0.0,
+          "delta_gap_pp": -1.072,
+          "slope_pp_per_octave": 1.072,
+          "significant_anti_scaling": false
+        }
+      ],
+      "max_pp_growth": 1.072
+    }
+  ],
+  "all_trajectories": [
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.968,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.968,
+          "slope_pp_per_octave": 0.484,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.968
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.631,
+          "gap_to": 2.053,
+          "delta_gap_pp": 1.422,
+          "slope_pp_per_octave": -0.711,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.053,
+          "gap_to": 5.271,
+          "delta_gap_pp": 3.218,
+          "slope_pp_per_octave": -3.218,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -4.64
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.488,
+          "gap_to": 1.597,
+          "delta_gap_pp": 1.109,
+          "slope_pp_per_octave": -0.5545,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.597,
+          "gap_to": 2.529,
+          "delta_gap_pp": 0.932,
+          "slope_pp_per_octave": -0.932,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -2.041
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.849,
+          "delta_gap_pp": 0.849,
+          "slope_pp_per_octave": -0.4245,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.849,
+          "gap_to": 2.879,
+          "delta_gap_pp": 2.03,
+          "slope_pp_per_octave": -2.03,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -2.879
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.998,
+          "gap_to": 4.081,
+          "delta_gap_pp": 3.083,
+          "slope_pp_per_octave": -1.5415,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.081,
+          "gap_to": 8.625,
+          "delta_gap_pp": 4.544,
+          "slope_pp_per_octave": -4.544,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -7.627
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bfs",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.106,
+          "gap_to": 0.38,
+          "delta_gap_pp": 0.274,
+          "slope_pp_per_octave": -0.137,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.38,
+          "gap_to": 0.689,
+          "delta_gap_pp": 0.309,
+          "slope_pp_per_octave": -0.309,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.583
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.602,
+          "gap_to": 3.396,
+          "delta_gap_pp": 2.794,
+          "slope_pp_per_octave": -1.397,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.396,
+          "gap_to": 8.312,
+          "delta_gap_pp": 4.916,
+          "slope_pp_per_octave": -4.916,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -7.71
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "cc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 11.691,
+          "gap_to": 6.967,
+          "delta_gap_pp": -4.724,
+          "slope_pp_per_octave": 2.362,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.967,
+          "gap_to": 6.445,
+          "delta_gap_pp": -0.522,
+          "slope_pp_per_octave": 0.522,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 5.246
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "cc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 8.726,
+          "gap_to": 3.648,
+          "delta_gap_pp": -5.078,
+          "slope_pp_per_octave": 2.539,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.648,
+          "gap_to": 1.528,
+          "delta_gap_pp": -2.12,
+          "slope_pp_per_octave": 2.12,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 7.198
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 7.478,
+          "gap_to": 4.668,
+          "delta_gap_pp": -2.81,
+          "slope_pp_per_octave": 1.405,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.668,
+          "gap_to": 4.303,
+          "delta_gap_pp": -0.365,
+          "slope_pp_per_octave": 0.365,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 3.175
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "pr",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.052,
+          "gap_to": 8.246,
+          "delta_gap_pp": 7.194,
+          "slope_pp_per_octave": -3.597,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 8.246,
+          "gap_to": 2.834,
+          "delta_gap_pp": -5.412,
+          "slope_pp_per_octave": 5.412,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -1.782
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 11.699,
+          "gap_to": 21.615,
+          "delta_gap_pp": 9.916,
+          "slope_pp_per_octave": -4.958,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 21.615,
+          "gap_to": 13.859,
+          "delta_gap_pp": -7.756,
+          "slope_pp_per_octave": 7.756,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -2.16
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 10.272,
+          "gap_to": 17.434,
+          "delta_gap_pp": 7.162,
+          "slope_pp_per_octave": -3.581,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 17.434,
+          "gap_to": 8.944,
+          "delta_gap_pp": -8.49,
+          "slope_pp_per_octave": 8.49,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": 1.328
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "sssp",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "sssp",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.452,
+          "gap_to": 8.673,
+          "delta_gap_pp": 5.221,
+          "slope_pp_per_octave": -2.6105,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 8.673,
+          "gap_to": 6.904,
+          "delta_gap_pp": -1.769,
+          "slope_pp_per_octave": 1.769,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -3.452
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "sssp",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.863,
+          "gap_to": 1.804,
+          "delta_gap_pp": 0.941,
+          "slope_pp_per_octave": -0.4705,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.804,
+          "gap_to": 1.633,
+          "delta_gap_pp": -0.171,
+          "slope_pp_per_octave": 0.171,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.77
+    },
+    {
+      "graph": "cit-Patents",
+      "family": "citation",
+      "app": "sssp",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.132,
+          "gap_to": 6.208,
+          "delta_gap_pp": 3.076,
+          "slope_pp_per_octave": -1.538,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.208,
+          "gap_to": 4.406,
+          "delta_gap_pp": -1.802,
+          "slope_pp_per_octave": 1.802,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -1.274
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 6.245,
+          "gap_to": 5.844,
+          "delta_gap_pp": -0.401,
+          "slope_pp_per_octave": 0.2005,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.844,
+          "gap_to": 4.62,
+          "delta_gap_pp": -1.224,
+          "slope_pp_per_octave": 1.224,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 1.625
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.475,
+          "gap_to": 4.668,
+          "delta_gap_pp": 2.193,
+          "slope_pp_per_octave": -1.0965,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.668,
+          "gap_to": 4.727,
+          "delta_gap_pp": 0.059,
+          "slope_pp_per_octave": -0.059,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -2.252
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.704,
+          "gap_to": 2.603,
+          "delta_gap_pp": -1.101,
+          "slope_pp_per_octave": 0.5505,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.603,
+          "gap_to": 1.721,
+          "delta_gap_pp": -0.882,
+          "slope_pp_per_octave": 0.882,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 1.983
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.395,
+          "delta_gap_pp": 0.395,
+          "slope_pp_per_octave": -0.1975,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.395,
+          "gap_to": 0.728,
+          "delta_gap_pp": 0.333,
+          "slope_pp_per_octave": -0.333,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.728
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.234,
+          "gap_to": 2.043,
+          "delta_gap_pp": 1.809,
+          "slope_pp_per_octave": -0.9045,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.043,
+          "gap_to": 3.944,
+          "delta_gap_pp": 1.901,
+          "slope_pp_per_octave": -1.901,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -3.71
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bfs",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.289,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.289,
+          "slope_pp_per_octave": 0.1445,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.289
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.268,
+          "gap_to": 2.109,
+          "delta_gap_pp": 1.841,
+          "slope_pp_per_octave": -0.9205,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.109,
+          "gap_to": 3.971,
+          "delta_gap_pp": 1.862,
+          "slope_pp_per_octave": -1.862,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -3.703
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "cc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 10.523,
+          "gap_to": 13.345,
+          "delta_gap_pp": 2.822,
+          "slope_pp_per_octave": -1.411,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 13.345,
+          "gap_to": 20.943,
+          "delta_gap_pp": 7.598,
+          "slope_pp_per_octave": -7.598,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -10.42
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "cc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 11.016,
+          "gap_to": 10.055,
+          "delta_gap_pp": -0.961,
+          "slope_pp_per_octave": 0.4805,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 10.055,
+          "gap_to": 6.187,
+          "delta_gap_pp": -3.868,
+          "slope_pp_per_octave": 3.868,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 4.829
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 6.731,
+          "gap_to": 11.896,
+          "delta_gap_pp": 5.165,
+          "slope_pp_per_octave": -2.5825,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 11.896,
+          "gap_to": 10.0,
+          "delta_gap_pp": -1.896,
+          "slope_pp_per_octave": 1.896,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -3.269
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "pr",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 6.83,
+          "gap_to": 5.213,
+          "delta_gap_pp": -1.617,
+          "slope_pp_per_octave": 0.8085,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.213,
+          "gap_to": 2.021,
+          "delta_gap_pp": -3.192,
+          "slope_pp_per_octave": 3.192,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 4.809
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 9.198,
+          "gap_to": 9.508,
+          "delta_gap_pp": 0.31,
+          "slope_pp_per_octave": -0.155,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 9.508,
+          "gap_to": 5.521,
+          "delta_gap_pp": -3.987,
+          "slope_pp_per_octave": 3.987,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 3.677
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 5.021,
+          "gap_to": 5.857,
+          "delta_gap_pp": 0.836,
+          "slope_pp_per_octave": -0.418,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.857,
+          "gap_to": 3.281,
+          "delta_gap_pp": -2.576,
+          "slope_pp_per_octave": 2.576,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 1.74
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "sssp",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.696,
+          "gap_to": 1.161,
+          "delta_gap_pp": -2.535,
+          "slope_pp_per_octave": 1.2675,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.161,
+          "gap_to": 0.013,
+          "delta_gap_pp": -1.148,
+          "slope_pp_per_octave": 1.148,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 3.683
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "sssp",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 6.354,
+          "gap_to": 2.245,
+          "delta_gap_pp": -4.109,
+          "slope_pp_per_octave": 2.0545,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.245,
+          "gap_to": 0.228,
+          "delta_gap_pp": -2.017,
+          "slope_pp_per_octave": 2.017,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 6.126
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "sssp",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.175,
+          "delta_gap_pp": 0.175,
+          "slope_pp_per_octave": -0.175,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.175
+    },
+    {
+      "graph": "com-orkut",
+      "family": "social",
+      "app": "sssp",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.364,
+          "gap_to": 0.686,
+          "delta_gap_pp": -1.678,
+          "slope_pp_per_octave": 0.839,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.686,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.686,
+          "slope_pp_per_octave": 0.686,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 2.364
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.01,
+          "delta_gap_pp": 0.01,
+          "slope_pp_per_octave": -0.005,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.01,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.01,
+          "slope_pp_per_octave": 0.01,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 17.753,
+          "gap_to": 0.0,
+          "delta_gap_pp": -17.753,
+          "slope_pp_per_octave": 8.8765,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 17.753
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.002,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.002,
+          "slope_pp_per_octave": 0.001,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.005,
+          "delta_gap_pp": 0.005,
+          "slope_pp_per_octave": -0.005,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.003
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bfs",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.002,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.002,
+          "slope_pp_per_octave": 0.001,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.002,
+          "delta_gap_pp": 0.002,
+          "slope_pp_per_octave": -0.002,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.003,
+          "delta_gap_pp": 0.003,
+          "slope_pp_per_octave": -0.003,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.003
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "pr",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.388,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.388,
+          "slope_pp_per_octave": 0.194,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.388
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.059,
+          "gap_to": 0.013,
+          "delta_gap_pp": -0.046,
+          "slope_pp_per_octave": 0.023,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.013,
+          "gap_to": 0.043,
+          "delta_gap_pp": 0.03,
+          "slope_pp_per_octave": -0.03,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.016
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.025,
+          "delta_gap_pp": 0.025,
+          "slope_pp_per_octave": -0.0125,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.025,
+          "gap_to": 0.022,
+          "delta_gap_pp": -0.003,
+          "slope_pp_per_octave": 0.003,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.022
+    },
+    {
+      "graph": "email-Eu-core",
+      "family": "social",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.02,
+          "gap_to": 0.001,
+          "delta_gap_pp": -0.019,
+          "slope_pp_per_octave": 0.0095,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.001,
+          "gap_to": 0.019,
+          "delta_gap_pp": 0.018,
+          "slope_pp_per_octave": -0.018,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.001
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 4.825,
+          "gap_to": 5.271,
+          "delta_gap_pp": 0.446,
+          "slope_pp_per_octave": -0.223,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.271,
+          "gap_to": 6.24,
+          "delta_gap_pp": 0.969,
+          "slope_pp_per_octave": -0.969,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -1.415
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.985,
+          "gap_to": 1.877,
+          "delta_gap_pp": -0.108,
+          "slope_pp_per_octave": 0.054,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.877,
+          "gap_to": 1.583,
+          "delta_gap_pp": -0.294,
+          "slope_pp_per_octave": 0.294,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.402
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.003,
+          "gap_to": 3.174,
+          "delta_gap_pp": 0.171,
+          "slope_pp_per_octave": -0.0855,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.174,
+          "gap_to": 3.329,
+          "delta_gap_pp": 0.155,
+          "slope_pp_per_octave": -0.155,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.326
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.556,
+          "gap_to": 1.213,
+          "delta_gap_pp": -0.343,
+          "slope_pp_per_octave": 0.1715,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.213,
+          "gap_to": 0.961,
+          "delta_gap_pp": -0.252,
+          "slope_pp_per_octave": 0.252,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.595
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.71,
+          "gap_to": 1.888,
+          "delta_gap_pp": -0.822,
+          "slope_pp_per_octave": 0.411,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.888,
+          "gap_to": 3.564,
+          "delta_gap_pp": 1.676,
+          "slope_pp_per_octave": -1.676,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -0.854
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bfs",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.128,
+          "gap_to": 1.227,
+          "delta_gap_pp": 0.099,
+          "slope_pp_per_octave": -0.0495,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.227,
+          "gap_to": 3.068,
+          "delta_gap_pp": 1.841,
+          "slope_pp_per_octave": -1.841,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -1.94
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "cc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.818,
+          "gap_to": 6.629,
+          "delta_gap_pp": 2.811,
+          "slope_pp_per_octave": -1.4055,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.629,
+          "gap_to": 11.211,
+          "delta_gap_pp": 4.582,
+          "slope_pp_per_octave": -4.582,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -7.393
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "cc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.398,
+          "gap_to": 1.81,
+          "delta_gap_pp": 0.412,
+          "slope_pp_per_octave": -0.206,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.81,
+          "gap_to": 3.083,
+          "delta_gap_pp": 1.273,
+          "slope_pp_per_octave": -1.273,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -1.685
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.717,
+          "gap_to": 5.499,
+          "delta_gap_pp": 2.782,
+          "slope_pp_per_octave": -1.391,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.499,
+          "gap_to": 9.059,
+          "delta_gap_pp": 3.56,
+          "slope_pp_per_octave": -3.56,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -6.342
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "pr",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 5.95,
+          "gap_to": 5.975,
+          "delta_gap_pp": 0.025,
+          "slope_pp_per_octave": -0.0125,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.975,
+          "gap_to": 2.212,
+          "delta_gap_pp": -3.763,
+          "slope_pp_per_octave": 3.763,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 3.738
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 10.741,
+          "gap_to": 13.446,
+          "delta_gap_pp": 2.705,
+          "slope_pp_per_octave": -1.3525,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 13.446,
+          "gap_to": 9.597,
+          "delta_gap_pp": -3.849,
+          "slope_pp_per_octave": 3.849,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": 1.144
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 7.465,
+          "gap_to": 9.801,
+          "delta_gap_pp": 2.336,
+          "slope_pp_per_octave": -1.168,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 9.801,
+          "gap_to": 6.099,
+          "delta_gap_pp": -3.702,
+          "slope_pp_per_octave": 3.702,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": 1.366
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "sssp",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.531,
+          "gap_to": 0.0,
+          "delta_gap_pp": -3.531,
+          "slope_pp_per_octave": 1.7655,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 3.531
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "sssp",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.466,
+          "gap_to": 4.675,
+          "delta_gap_pp": 3.209,
+          "slope_pp_per_octave": -1.6045,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.675,
+          "gap_to": 3.585,
+          "delta_gap_pp": -1.09,
+          "slope_pp_per_octave": 1.09,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -2.119
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "sssp",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.331,
+          "delta_gap_pp": 0.331,
+          "slope_pp_per_octave": -0.1655,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.331,
+          "gap_to": 0.578,
+          "delta_gap_pp": 0.247,
+          "slope_pp_per_octave": -0.247,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.578
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "family": "social",
+      "app": "sssp",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.406,
+          "gap_to": 3.346,
+          "delta_gap_pp": 1.94,
+          "slope_pp_per_octave": -0.97,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.346,
+          "gap_to": 2.136,
+          "delta_gap_pp": -1.21,
+          "slope_pp_per_octave": 1.21,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -0.73
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 8.691,
+          "gap_to": 8.048,
+          "delta_gap_pp": -0.643,
+          "slope_pp_per_octave": 0.3215,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 8.048,
+          "gap_to": 4.412,
+          "delta_gap_pp": -3.636,
+          "slope_pp_per_octave": 3.636,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 4.279
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.079,
+          "gap_to": 1.717,
+          "delta_gap_pp": -1.362,
+          "slope_pp_per_octave": 0.681,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.717,
+          "gap_to": 0.285,
+          "delta_gap_pp": -1.432,
+          "slope_pp_per_octave": 1.432,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 2.794
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 6.371,
+          "gap_to": 4.652,
+          "delta_gap_pp": -1.719,
+          "slope_pp_per_octave": 0.8595,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 4.652,
+          "gap_to": 2.213,
+          "delta_gap_pp": -2.439,
+          "slope_pp_per_octave": 2.439,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 4.158
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.283,
+          "delta_gap_pp": 0.283,
+          "slope_pp_per_octave": -0.1415,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.283,
+          "gap_to": 1.102,
+          "delta_gap_pp": 0.819,
+          "slope_pp_per_octave": -0.819,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -1.102
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.872,
+          "gap_to": 6.652,
+          "delta_gap_pp": 3.78,
+          "slope_pp_per_octave": -1.89,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.652,
+          "gap_to": 12.18,
+          "delta_gap_pp": 5.528,
+          "slope_pp_per_octave": -5.528,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -9.308
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bfs",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.262,
+          "gap_to": 0.0,
+          "delta_gap_pp": -1.262,
+          "slope_pp_per_octave": 0.631,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 1.262
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.899,
+          "gap_to": 6.514,
+          "delta_gap_pp": 4.615,
+          "slope_pp_per_octave": -2.3075,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.514,
+          "gap_to": 12.083,
+          "delta_gap_pp": 5.569,
+          "slope_pp_per_octave": -5.569,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -10.184
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "cc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 13.105,
+          "gap_to": 16.968,
+          "delta_gap_pp": 3.863,
+          "slope_pp_per_octave": -1.9315,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 16.968,
+          "gap_to": 0.039,
+          "delta_gap_pp": -16.929,
+          "slope_pp_per_octave": 16.929,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": 13.066
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "cc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 10.58,
+          "gap_to": 5.608,
+          "delta_gap_pp": -4.972,
+          "slope_pp_per_octave": 2.486,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.608,
+          "gap_to": 0.037,
+          "delta_gap_pp": -5.571,
+          "slope_pp_per_octave": 5.571,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 10.543
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 9.842,
+          "gap_to": 10.354,
+          "delta_gap_pp": 0.512,
+          "slope_pp_per_octave": -0.256,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 10.354,
+          "gap_to": 0.041,
+          "delta_gap_pp": -10.313,
+          "slope_pp_per_octave": 10.313,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 9.801
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "pr",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.642,
+          "delta_gap_pp": 0.642,
+          "slope_pp_per_octave": -0.321,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.642,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.642,
+          "slope_pp_per_octave": 0.642,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 13.617,
+          "gap_to": 7.314,
+          "delta_gap_pp": -6.303,
+          "slope_pp_per_octave": 3.1515,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 7.314,
+          "gap_to": 2.113,
+          "delta_gap_pp": -5.201,
+          "slope_pp_per_octave": 5.201,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 11.504
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.421,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.421,
+          "slope_pp_per_octave": 0.2105,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.814,
+          "delta_gap_pp": 0.814,
+          "slope_pp_per_octave": -0.814,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.393
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 9.101,
+          "gap_to": 3.78,
+          "delta_gap_pp": -5.321,
+          "slope_pp_per_octave": 2.6605,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.78,
+          "gap_to": 0.898,
+          "delta_gap_pp": -2.882,
+          "slope_pp_per_octave": 2.882,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 8.203
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "sssp",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.001,
+          "delta_gap_pp": 0.001,
+          "slope_pp_per_octave": -0.001,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.001
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "sssp",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 11.039,
+          "gap_to": 3.091,
+          "delta_gap_pp": -7.948,
+          "slope_pp_per_octave": 3.974,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.091,
+          "gap_to": 0.001,
+          "delta_gap_pp": -3.09,
+          "slope_pp_per_octave": 3.09,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 11.038
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "sssp",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 4.097,
+          "gap_to": 0.872,
+          "delta_gap_pp": -3.225,
+          "slope_pp_per_octave": 1.6125,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.872,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.872,
+          "slope_pp_per_octave": 0.872,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 4.097
+    },
+    {
+      "graph": "soc-pokec",
+      "family": "social",
+      "app": "sssp",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 7.868,
+          "gap_to": 1.756,
+          "delta_gap_pp": -6.112,
+          "slope_pp_per_octave": 3.056,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.756,
+          "gap_to": 0.001,
+          "delta_gap_pp": -1.755,
+          "slope_pp_per_octave": 1.755,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 7.867
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.858,
+          "gap_to": 0.0,
+          "delta_gap_pp": -1.858,
+          "slope_pp_per_octave": 0.929,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 1.858
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.838,
+          "gap_to": 2.691,
+          "delta_gap_pp": 0.853,
+          "slope_pp_per_octave": -0.4265,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.691,
+          "gap_to": 1.582,
+          "delta_gap_pp": -1.109,
+          "slope_pp_per_octave": 1.109,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.256
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.345,
+          "gap_to": 2.902,
+          "delta_gap_pp": 1.557,
+          "slope_pp_per_octave": -0.7785,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.902,
+          "gap_to": 3.05,
+          "delta_gap_pp": 0.148,
+          "slope_pp_per_octave": -0.148,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -1.705
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 1.563,
+          "delta_gap_pp": 1.563,
+          "slope_pp_per_octave": -0.7815,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.563,
+          "gap_to": 0.872,
+          "delta_gap_pp": -0.691,
+          "slope_pp_per_octave": 0.691,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -0.872
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.386,
+          "delta_gap_pp": 0.386,
+          "slope_pp_per_octave": -0.193,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.386,
+          "gap_to": 2.481,
+          "delta_gap_pp": 2.095,
+          "slope_pp_per_octave": -2.095,
+          "significant_anti_scaling": true
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -2.481
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.368,
+          "gap_to": 18.069,
+          "delta_gap_pp": 14.701,
+          "slope_pp_per_octave": -7.3505,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 18.069,
+          "gap_to": 7.923,
+          "delta_gap_pp": -10.146,
+          "slope_pp_per_octave": 10.146,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -4.555
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bfs",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.098,
+          "gap_to": 0.0,
+          "delta_gap_pp": -1.098,
+          "slope_pp_per_octave": 0.549,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 1.098
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.3,
+          "gap_to": 17.967,
+          "delta_gap_pp": 14.667,
+          "slope_pp_per_octave": -7.3335,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 17.967,
+          "gap_to": 7.442,
+          "delta_gap_pp": -10.525,
+          "slope_pp_per_octave": 10.525,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": -4.142
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "cc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.0,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.005,
+          "delta_gap_pp": 0.005,
+          "slope_pp_per_octave": -0.005,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.005
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 6.636,
+          "gap_to": 0.005,
+          "delta_gap_pp": -6.631,
+          "slope_pp_per_octave": 3.3155,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.005,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.005,
+          "slope_pp_per_octave": 0.005,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 6.636
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "cc",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.268,
+          "gap_to": 0.004,
+          "delta_gap_pp": -1.264,
+          "slope_pp_per_octave": 0.632,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.004,
+          "gap_to": 0.005,
+          "delta_gap_pp": 0.001,
+          "slope_pp_per_octave": -0.001,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 1.263
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 2.777,
+          "gap_to": 0.005,
+          "delta_gap_pp": -2.772,
+          "slope_pp_per_octave": 1.386,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.005,
+          "gap_to": 0.002,
+          "delta_gap_pp": -0.003,
+          "slope_pp_per_octave": 0.003,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 2.775
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "pr",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.647,
+          "gap_to": 0.0,
+          "delta_gap_pp": -3.647,
+          "slope_pp_per_octave": 1.8235,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.038,
+          "delta_gap_pp": 0.038,
+          "slope_pp_per_octave": -0.038,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 3.609
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "pr",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 18.413,
+          "gap_to": 3.582,
+          "delta_gap_pp": -14.831,
+          "slope_pp_per_octave": 7.4155,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.582,
+          "gap_to": 1.292,
+          "delta_gap_pp": -2.29,
+          "slope_pp_per_octave": 2.29,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 17.121
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 1.072,
+          "delta_gap_pp": 1.072,
+          "slope_pp_per_octave": -0.536,
+          "significant_anti_scaling": true
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.072,
+          "gap_to": 0.0,
+          "delta_gap_pp": -1.072,
+          "slope_pp_per_octave": 1.072,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": true,
+      "total_shrinkage_pp": 0.0
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "pr",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 12.715,
+          "gap_to": 1.344,
+          "delta_gap_pp": -11.371,
+          "slope_pp_per_octave": 5.6855,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 1.344,
+          "gap_to": 0.922,
+          "delta_gap_pp": -0.422,
+          "slope_pp_per_octave": 0.422,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 11.793
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "sssp",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.858,
+          "gap_to": 0.001,
+          "delta_gap_pp": -0.857,
+          "slope_pp_per_octave": 0.4285,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.001,
+          "gap_to": 0.001,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.857
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "sssp",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.824,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.824,
+          "slope_pp_per_octave": 0.412,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.003,
+          "delta_gap_pp": 0.003,
+          "slope_pp_per_octave": -0.003,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.821
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "sssp",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0,
+          "gap_to": 0.001,
+          "delta_gap_pp": 0.001,
+          "slope_pp_per_octave": -0.0005,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.001,
+          "gap_to": 0.001,
+          "delta_gap_pp": 0.0,
+          "slope_pp_per_octave": -0.0,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": -0.001
+    },
+    {
+      "graph": "web-Google",
+      "family": "web",
+      "app": "sssp",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.322,
+          "gap_to": 0.002,
+          "delta_gap_pp": -0.32,
+          "slope_pp_per_octave": 0.16,
+          "significant_anti_scaling": false
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.002,
+          "gap_to": 0.0,
+          "delta_gap_pp": -0.002,
+          "slope_pp_per_octave": 0.002,
+          "significant_anti_scaling": false
+        }
+      ],
+      "any_significant_anti_scaling": false,
+      "total_shrinkage_pp": 0.322
+    }
+  ]
+}

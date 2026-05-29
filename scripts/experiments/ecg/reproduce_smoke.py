@@ -95,6 +95,8 @@ TRACKED_ARTIFACTS = [
     "policy_stability.md",
     "cache_sensitivity_slope.json",
     "cache_sensitivity_slope.md",
+    "per_graph_cache_slope.json",
+    "per_graph_cache_slope.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

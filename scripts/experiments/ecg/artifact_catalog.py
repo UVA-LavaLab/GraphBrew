@@ -296,6 +296,14 @@ CATALOG = [
         "summary":   "Per-(app, policy) gap_pp shrinkage per L3 octave. GRASP has largest mean slope (2.29 pp/octave, shrinks fastest as L3 grows); LRU has near-zero mean slope (0.15) and the most cells with anti-scaling. Key invariant: significant anti-scaling (gap GROWS by >=1.0 pp at any octave) is exclusively LRU/SRRIP — the oracle-aware GRASP and POPT NEVER regress as L3 grows.",
     },
     {
+        "id":        "per_graph_cache_slope",
+        "label":     "Per-graph oracle-gap cache-sensitivity slope (refines gate 52)",
+        "generator": "scripts/experiments/ecg/per_graph_cache_slope.py",
+        "gate":      "scripts/test/test_per_graph_cache_slope.py",
+        "artifact":  "wiki/data/per_graph_cache_slope.json",
+        "summary":   "Drills the gate-52 anti-scaling story down to individual graphs. Of 112 full (graph, app, policy) trajectories at paper L3, 33 cells show >=1.0 pp single-octave gap growth. LRU+SRRIP dominate (26 of 33 = 79%). The corpus-averaged 'oracle-aware never regress' claim has 7 per-graph exceptions: GRASP regresses on cit-Patents/pr (+7.2 pp) and web-Google/bfs; POPT regresses predominantly on bc (4 graphs). Worst single cell: web-Google/bfs/LRU at +14.7 pp. email-Eu-core (PR pilot) has zero anti-scaling.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -375,7 +383,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (52 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (53 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
