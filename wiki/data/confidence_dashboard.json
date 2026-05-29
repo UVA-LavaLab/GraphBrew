@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.3480889797210693,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.17s"
+      "runtime_s": 1.3374481201171875,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.16s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.5122485160827637,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.33s"
+      "runtime_s": 1.4286935329437256,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.26s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 4,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.230926513671875,
+      "runtime_s": 0.22855353355407715,
       "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.05s"
     },
     {
@@ -50,7 +50,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.4465367794036865,
+      "runtime_s": 0.44353175163269043,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.27s"
     },
     {
@@ -63,8 +63,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.32932543754577637,
-      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.15s"
+      "runtime_s": 0.3166368007659912,
+      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.14s"
     },
     {
       "label": "Lit-faith no-disagree gate",
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21247458457946777,
+      "runtime_s": 0.20118117332458496,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
     },
     {
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22026801109313965,
+      "runtime_s": 0.2245042324066162,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.04s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19445109367370605,
+      "runtime_s": 0.19394731521606445,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,8 +115,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21820712089538574,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.04s"
+      "runtime_s": 0.21177291870117188,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
       "label": "Regression budget floor",
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21348309516906738,
+      "runtime_s": 0.21105527877807617,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2157130241394043,
+      "runtime_s": 0.21623849868774414,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     },
     {
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.6878073215484619,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.40s"
+      "runtime_s": 0.684563398361206,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.38s"
     },
     {
       "label": "gem5 literature anchor",
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21975445747375488,
+      "runtime_s": 0.24279141426086426,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.05s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20494866371154785,
+      "runtime_s": 0.20565223693847656,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.04s"
     },
     {
@@ -193,7 +193,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21140503883361816,
+      "runtime_s": 0.19894719123840332,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     },
     {
@@ -206,7 +206,20 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20590543746948242,
+      "runtime_s": 0.19014883041381836,
+      "raw_tail": "..                                                                       [100%]\n2 passed in 0.02s"
+    },
+    {
+      "label": "L-curve monotonicity gate",
+      "short": "L-mono",
+      "path": "scripts/test/test_l_curve_monotonicity.py",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.19413280487060547,
       "raw_tail": "..                                                                       [100%]\n2 passed in 0.02s"
     }
   ],

@@ -77,6 +77,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_literature_preflight.py", "Lit-helper"),
     "GRASP no-hub graph invariant":
         ("scripts/test/test_no_hub_graph_invariant.py", "No-hub"),
+    "L-curve monotonicity gate":
+        ("scripts/test/test_l_curve_monotonicity.py", "L-mono"),
 }
 
 
