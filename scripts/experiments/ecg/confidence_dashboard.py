@@ -273,6 +273,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_capacity_sensitivity_derivation_parity.py", "CSE-Der"),
     "per_graph_cache_slope derivation parity (per-octave slope + anti-scaling cells + per-policy/graph counters)":
         ("scripts/test/test_per_graph_cache_slope_derivation_parity.py", "PCS-Der"),
+    "per_graph_app_stability derivation parity (4-class winner stability + per-graph rollup + tie tolerance)":
+        ("scripts/test/test_per_graph_app_stability_derivation_parity.py", "PGS-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
