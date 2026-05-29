@@ -1,0 +1,373 @@
+{
+  "meta": {
+    "source": "wiki/data/oracle_gap.json",
+    "scope_l3_sizes": [
+      "1MB",
+      "4MB",
+      "8MB"
+    ],
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "families": [
+      "citation",
+      "mesh",
+      "road",
+      "social",
+      "web"
+    ],
+    "qualifying_families": [
+      "citation",
+      "social",
+      "web"
+    ],
+    "global_clusters": {
+      "GRASP": [
+        "bc",
+        "cc"
+      ],
+      "POPT": [
+        "bfs",
+        "pr",
+        "sssp"
+      ]
+    },
+    "global_winner_by_app": {
+      "bc": "GRASP",
+      "bfs": "POPT",
+      "cc": "GRASP",
+      "pr": "POPT",
+      "sssp": "POPT"
+    },
+    "min_winners_matching_across_families": 3,
+    "n_families_with_intra_dominates": 3,
+    "deviation_set": {
+      "observed": [
+        {
+          "family": "citation",
+          "app": "bfs"
+        },
+        {
+          "family": "citation",
+          "app": "sssp"
+        }
+      ],
+      "pinned": [
+        {
+          "family": "citation",
+          "app": "bfs"
+        },
+        {
+          "family": "citation",
+          "app": "sssp"
+        }
+      ],
+      "pinned_max": 2,
+      "new_vs_pin": [],
+      "gone_vs_pin": [],
+      "rationale": "citation family (sole graph cit-Patents) has lower out-degree skew than social/web, so POPT's popularity-prior loses its edge on bfs and sssp. Both fall back to GRASP. Pin guards against any NEW family/app pair drifting away from the global winner."
+    },
+    "cluster_invariance_verdict": "PASS"
+  },
+  "per_family": {
+    "citation": {
+      "qualified": true,
+      "n_graphs": 1,
+      "auc_by_app_policy": {
+        "bc": {
+          "GRASP": 0.968,
+          "LRU": 6.346,
+          "POPT": 4.148,
+          "SRRIP": 2.713
+        },
+        "bfs": {
+          "GRASP": 0.0,
+          "LRU": 11.432,
+          "POPT": 1.0205,
+          "SRRIP": 9.852
+        },
+        "cc": {
+          "GRASP": 0.0,
+          "LRU": 25.364,
+          "POPT": 14.962,
+          "SRRIP": 16.6315
+        },
+        "pr": {
+          "GRASP": 14.838,
+          "LRU": 51.051,
+          "POPT": 0.0,
+          "SRRIP": 40.895
+        },
+        "sssp": {
+          "GRASP": 0.0,
+          "LRU": 19.9135,
+          "POPT": 4.3855,
+          "SRRIP": 14.647
+        }
+      },
+      "winner_by_app": {
+        "bc": "GRASP",
+        "bfs": "GRASP",
+        "cc": "GRASP",
+        "pr": "POPT",
+        "sssp": "GRASP"
+      },
+      "winner_matches_global": {
+        "bc": true,
+        "bfs": false,
+        "cc": true,
+        "pr": true,
+        "sssp": false
+      },
+      "winners_matching": 3,
+      "n_apps": 5,
+      "correlation_matrix": {
+        "bc": {
+          "bc": 1.0,
+          "bfs": 0.6073,
+          "cc": 0.9219,
+          "pr": 0.4428,
+          "sssp": 0.7409
+        },
+        "bfs": {
+          "bc": 0.6073,
+          "bfs": 1.0,
+          "cc": 0.8126,
+          "pr": 0.9427,
+          "sssp": 0.9835
+        },
+        "cc": {
+          "bc": 0.9219,
+          "bfs": 0.8126,
+          "cc": 1.0,
+          "pr": 0.6137,
+          "sssp": 0.8985
+        },
+        "pr": {
+          "bc": 0.4428,
+          "bfs": 0.9427,
+          "cc": 0.6137,
+          "pr": 1.0,
+          "sssp": 0.8952
+        },
+        "sssp": {
+          "bc": 0.7409,
+          "bfs": 0.9835,
+          "cc": 0.8985,
+          "pr": 0.8952,
+          "sssp": 1.0
+        }
+      },
+      "intra_cluster_mean_r": 0.933,
+      "inter_cluster_mean_r": 0.686,
+      "intra_minus_inter": 0.247,
+      "intra_dominates": true
+    },
+    "mesh": {
+      "qualified": false,
+      "reason": "incomplete paper-L3 coverage in at least one cell",
+      "n_graphs": 1
+    },
+    "road": {
+      "qualified": false,
+      "reason": "incomplete paper-L3 coverage in at least one cell",
+      "n_graphs": 1
+    },
+    "social": {
+      "qualified": true,
+      "n_graphs": 4,
+      "auc_by_app_policy": {
+        "bc": {
+          "GRASP": 0.0,
+          "LRU": 14.0354,
+          "POPT": 5.8111,
+          "SRRIP": 8.0883
+        },
+        "bfs": {
+          "GRASP": 5.8853,
+          "LRU": 7.8848,
+          "POPT": 0.3885,
+          "SRRIP": 6.9081
+        },
+        "cc": {
+          "GRASP": 0.0,
+          "LRU": 32.9852,
+          "POPT": 17.9523,
+          "SRRIP": 23.4878
+        },
+        "pr": {
+          "GRASP": 8.2574,
+          "LRU": 21.9184,
+          "POPT": 0.2191,
+          "SRRIP": 13.9785
+        },
+        "sssp": {
+          "GRASP": 2.9918,
+          "LRU": 11.9275,
+          "POPT": 2.0927,
+          "SRRIP": 7.1295
+        }
+      },
+      "winner_by_app": {
+        "bc": "GRASP",
+        "bfs": "POPT",
+        "cc": "GRASP",
+        "pr": "POPT",
+        "sssp": "POPT"
+      },
+      "winner_matches_global": {
+        "bc": true,
+        "bfs": true,
+        "cc": true,
+        "pr": true,
+        "sssp": true
+      },
+      "winners_matching": 5,
+      "n_apps": 5,
+      "correlation_matrix": {
+        "bc": {
+          "bc": 1.0,
+          "bfs": 0.3712,
+          "cc": 0.9832,
+          "pr": 0.7025,
+          "sssp": 0.876
+        },
+        "bfs": {
+          "bc": 0.3712,
+          "bfs": 1.0,
+          "cc": 0.2676,
+          "pr": 0.9155,
+          "sssp": 0.7639
+        },
+        "cc": {
+          "bc": 0.9832,
+          "bfs": 0.2676,
+          "cc": 1.0,
+          "pr": 0.6023,
+          "sssp": 0.7973
+        },
+        "pr": {
+          "bc": 0.7025,
+          "bfs": 0.9155,
+          "cc": 0.6023,
+          "pr": 1.0,
+          "sssp": 0.9579
+        },
+        "sssp": {
+          "bc": 0.876,
+          "bfs": 0.7639,
+          "cc": 0.7973,
+          "pr": 0.9579,
+          "sssp": 1.0
+        }
+      },
+      "intra_cluster_mean_r": 0.9207,
+      "inter_cluster_mean_r": 0.6028,
+      "intra_minus_inter": 0.3179,
+      "intra_dominates": true
+    },
+    "web": {
+      "qualified": true,
+      "n_graphs": 1,
+      "auc_by_app_policy": {
+        "bc": {
+          "GRASP": 1.858,
+          "LRU": 6.6655,
+          "POPT": 7.223,
+          "SRRIP": 2.7805
+        },
+        "bfs": {
+          "GRASP": 1.8195,
+          "LRU": 34.433,
+          "POPT": 1.098,
+          "SRRIP": 33.9715
+        },
+        "cc": {
+          "GRASP": 0.0025,
+          "LRU": 6.6435,
+          "POPT": 1.2765,
+          "SRRIP": 2.7855
+        },
+        "pr": {
+          "GRASP": 3.666,
+          "LRU": 24.432,
+          "POPT": 1.608,
+          "SRRIP": 15.192
+        },
+        "sssp": {
+          "GRASP": 0.86,
+          "LRU": 0.8255,
+          "POPT": 0.002,
+          "SRRIP": 0.325
+        }
+      },
+      "winner_by_app": {
+        "bc": "GRASP",
+        "bfs": "POPT",
+        "cc": "GRASP",
+        "pr": "POPT",
+        "sssp": "POPT"
+      },
+      "winner_matches_global": {
+        "bc": true,
+        "bfs": true,
+        "cc": true,
+        "pr": true,
+        "sssp": true
+      },
+      "winners_matching": 5,
+      "n_apps": 5,
+      "correlation_matrix": {
+        "bc": {
+          "bc": 1.0,
+          "bfs": 0.0322,
+          "cc": 0.4987,
+          "pr": 0.1801,
+          "sssp": -0.3877
+        },
+        "bfs": {
+          "bc": 0.0322,
+          "bfs": 1.0,
+          "cc": 0.8198,
+          "pr": 0.9363,
+          "sssp": 0.2192
+        },
+        "cc": {
+          "bc": 0.4987,
+          "bfs": 0.8198,
+          "cc": 1.0,
+          "pr": 0.9412,
+          "sssp": 0.2816
+        },
+        "pr": {
+          "bc": 0.1801,
+          "bfs": 0.9363,
+          "cc": 0.9412,
+          "pr": 1.0,
+          "sssp": 0.4292
+        },
+        "sssp": {
+          "bc": -0.3877,
+          "bfs": 0.2192,
+          "cc": 0.2816,
+          "pr": 0.4292,
+          "sssp": 1.0
+        }
+      },
+      "intra_cluster_mean_r": 0.5164,
+      "inter_cluster_mean_r": 0.3112,
+      "intra_minus_inter": 0.2052,
+      "intra_dominates": true
+    }
+  }
+}

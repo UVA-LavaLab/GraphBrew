@@ -328,6 +328,14 @@ CATALOG = [
         "summary":   "Per-(app, L3, policy) skew/excess-kurtosis envelope for the paper L3 grid. Extends gate 46 from pooled marginals to the cell level. 14 cells exceed the Hesterberg textbook envelope (|skew|<2, |kurt|<7); all 14 are oracle-aware (GRASP or POPT) and exhibit the same discrete pattern: many oracle-tight near-zero gaps plus one mesh/road outlier (typically roadNet-CA or web-Google). Pinned-exception set guards against any NEW cell entering the offending set. Recommended remedy for the 14 pinned cells: BCa or studentized-t bootstrap.",
     },
     {
+        "id":        "family_policy_auc_clustering",
+        "label":     "Per-family policy-AUC clustering replay",
+        "generator": "scripts/experiments/ecg/family_policy_auc_clustering.py",
+        "gate":      "scripts/test/test_family_policy_auc_clustering.py",
+        "artifact":  "wiki/data/family_policy_auc_clustering.json",
+        "summary":   "Re-derives the AUC winner per app inside each qualifying graph family (citation, social, web — the three with full 1MB/4MB/8MB coverage) and replays gate 50's intra/inter cluster correlation. social (n=4 graphs) replays the global winners perfectly with intra-r 0.92 vs inter-r 0.60. web (n=1) replays 5/5. citation (cit-Patents only) flips bfs and sssp from POPT to GRASP — pinned as expected for a low-out-degree-skew network. Pin guards against any NEW family/app pair drifting.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -407,7 +415,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (56 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (57 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
