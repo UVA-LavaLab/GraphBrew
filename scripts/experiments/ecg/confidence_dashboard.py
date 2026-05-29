@@ -233,6 +233,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_saturation_distance_derivation_parity.py", "SD-Der"),
     "per_app_capacity_slope derivation parity (per-(app, policy) OLS slope + cache-hungriness ranking)":
         ("scripts/test/test_per_app_capacity_slope_derivation_parity.py", "PACS-Der"),
+    "oracle_gap_by_app derivation parity (per-(policy, app) bucket + per-app ranking)":
+        ("scripts/test/test_oracle_gap_by_app_derivation_parity.py", "OGA-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
