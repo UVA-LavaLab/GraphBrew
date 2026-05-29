@@ -37,15 +37,15 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | com-orkut | sssp | 1MB | 66.03% | -3.99 | -2.66 | -6.35 | — | — |
 | com-orkut | sssp | 4MB | 16.97% | -1.56 | -1.08 | -2.24 | — | — |
 | com-orkut | sssp | 8MB | 2.46% | -0.23 | -0.21 | -0.05 | — | — |
-| email-Eu-core | bc | 1MB | 99.06% | +0.94 | +0.94 | +0.62 | — | — |
-| email-Eu-core | bc | 4MB | 99.68% | +0.32 | +0.00 | +0.32 | — | — |
-| email-Eu-core | bc | 8MB | 100.00% | -1.25 | -0.94 | +0.00 | — | — |
-| email-Eu-core | bfs | 1MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
-| email-Eu-core | bfs | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
-| email-Eu-core | bfs | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
-| email-Eu-core | pr | 1MB | 100.00% | +0.00 | -0.05 | +0.00 | — | — |
-| email-Eu-core | pr | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
-| email-Eu-core | pr | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | ? insufficient | — |
+| email-Eu-core | bc | 1MB | 0.01% | +0.00 | +0.00 | +0.00 | — | — |
+| email-Eu-core | bc | 4MB | 0.01% | -0.00 | -0.00 | +0.01 | — | — |
+| email-Eu-core | bc | 8MB | 0.01% | -0.00 | +0.00 | -0.00 | — | — |
+| email-Eu-core | bfs | 1MB | 4.58% | -0.00 | +17.75 | +0.00 | — | — |
+| email-Eu-core | bfs | 4MB | 4.59% | +0.00 | -0.00 | -0.00 | — | — |
+| email-Eu-core | bfs | 8MB | 4.59% | -0.00 | -0.00 | -0.00 | — | — |
+| email-Eu-core | pr | 1MB | 0.81% | -0.04 | +0.33 | -0.06 | — | — |
+| email-Eu-core | pr | 4MB | 0.77% | -0.01 | -0.01 | +0.01 | — | — |
+| email-Eu-core | pr | 8MB | 0.80% | -0.02 | -0.04 | -0.02 | ✓ ok | — |
 | soc-LiveJournal1 | bc | 1MB | 84.32% | -1.82 | -4.83 | -2.84 | ✓ ok | — |
 | soc-LiveJournal1 | bc | 4MB | 60.38% | -2.10 | -5.27 | -3.39 | — | — |
 | soc-LiveJournal1 | bc | 8MB | 45.28% | -2.91 | -6.24 | -4.66 | — | — |

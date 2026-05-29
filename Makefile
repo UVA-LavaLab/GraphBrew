@@ -498,7 +498,9 @@ GEM5_ANCHOR_GRAPHS ?= email-Eu-core
 SNIPER_ANCHOR_ROOT ?= /tmp/graphbrew-grasp-sniper-sweep
 SNIPER_ANCHOR_SUBDIR ?= DBG
 SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
-SNIPER_ANCHOR_APPS ?= pr
+# BFS deferred: small_cache_divergence fails on both graphs (working-set vs 4kB)
+# and the email-Eu-core headline shows GRASP +1.49pp over LRU (insufficient reuse).
+SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
 .PHONY: lit-faith lit-repro lit-budget lit-table gem5-anchor sniper-anchor confidence confidence-fast
@@ -555,9 +557,10 @@ gem5-anchor:
 		echo "$(BLUE)  gem5 sweep dir $(GEM5_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
 	fi
 
-# Regenerate the Sniper literature anchor. Sniper currently only
-# sweeps PR (BC variants are empty); expand SNIPER_ANCHOR_APPS once
-# BC sweeps land. Same graceful-degradation behaviour as gem5-anchor.
+# Regenerate the Sniper literature anchor. PR + SSSP are validated on
+# both graphs; BFS is deferred (4 kB small_cache_divergence under the
+# 2 pp floor on both graphs, and email-Eu-core headline shows
+# GRASP +1.49 pp over LRU — insufficient reuse for the L-shape).
 sniper-anchor:
 	@echo "$(BLUE)Regenerating Sniper literature anchor...$(NC)"
 	@if [ -d "$(SNIPER_ANCHOR_ROOT)" ]; then \

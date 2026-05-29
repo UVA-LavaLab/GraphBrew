@@ -587,65 +587,8 @@
     "verdict": {}
   },
   {
-    "accesses": 320,
+    "accesses": 2598354,
     "app": "bc",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.9375000000000022,
-      "LRU": 0.0,
-      "POPT": 0.6220000000000003,
-      "SRRIP": 0.9375000000000022
-    },
-    "graph": "email-Eu-core",
-    "l3_size": "1MB",
-    "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 0.990625,
-      "POPT": 0.996845,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 316,
-    "app": "bc",
-    "delta_pp_vs_lru": {
-      "GRASP": 0.0,
-      "LRU": 0.0,
-      "POPT": 0.31649999999999734,
-      "SRRIP": 0.31649999999999734
-    },
-    "graph": "email-Eu-core",
-    "l3_size": "4MB",
-    "miss_rate": {
-      "GRASP": 0.996835,
-      "LRU": 0.996835,
-      "POPT": 1.0,
-      "SRRIP": 1.0
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 319,
-    "app": "bc",
-    "delta_pp_vs_lru": {
-      "GRASP": -0.9434000000000053,
-      "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": -1.2538999999999967
-    },
-    "graph": "email-Eu-core",
-    "l3_size": "8MB",
-    "miss_rate": {
-      "GRASP": 0.990566,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 0.987461
-    },
-    "verdict": {}
-  },
-  {
-    "accesses": 977,
-    "app": "bfs",
     "delta_pp_vs_lru": {
       "GRASP": 0.0,
       "LRU": 0.0,
@@ -655,108 +598,165 @@
     "graph": "email-Eu-core",
     "l3_size": "1MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.00012199999999995548,
+      "LRU": 0.00012199999999995548,
+      "POPT": 0.00012199999999995548,
+      "SRRIP": 0.00012199999999995548
     },
     "verdict": {}
   },
   {
-    "accesses": 977,
-    "app": "bfs",
+    "accesses": 2602361,
+    "app": "bc",
     "delta_pp_vs_lru": {
-      "GRASP": 0.0,
+      "GRASP": -9.999999999177334e-05,
       "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
+      "POPT": 0.0096000000000096,
+      "SRRIP": -9.999999999177334e-05
     },
     "graph": "email-Eu-core",
     "l3_size": "4MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.00012100000000003774,
+      "LRU": 0.00012199999999995548,
+      "POPT": 0.00021800000000005149,
+      "SRRIP": 0.00012100000000003774
     },
     "verdict": {}
   },
   {
-    "accesses": 977,
-    "app": "bfs",
+    "accesses": 2612090,
+    "app": "bc",
     "delta_pp_vs_lru": {
       "GRASP": 0.0,
       "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
+      "POPT": -9.999999999177334e-05,
+      "SRRIP": -9.999999999177334e-05
     },
     "graph": "email-Eu-core",
     "l3_size": "8MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.00012199999999995548,
+      "LRU": 0.00012199999999995548,
+      "POPT": 0.00012100000000003774,
+      "SRRIP": 0.00012100000000003774
     },
     "verdict": {}
   },
   {
-    "accesses": 2135,
-    "app": "pr",
+    "accesses": 21317,
+    "app": "bfs",
     "delta_pp_vs_lru": {
-      "GRASP": -0.046800000000002395,
+      "GRASP": 17.751499999999997,
       "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
+      "POPT": 0.00040000000000040004,
+      "SRRIP": -0.0017000000000044757
     },
     "graph": "email-Eu-core",
     "l3_size": "1MB",
     "miss_rate": {
-      "GRASP": 0.999532,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.223364,
+      "LRU": 0.04584900000000003,
+      "POPT": 0.04585300000000003,
+      "SRRIP": 0.045831999999999984
     },
     "verdict": {}
   },
   {
-    "accesses": 2134,
-    "app": "pr",
+    "accesses": 21309,
+    "app": "bfs",
     "delta_pp_vs_lru": {
-      "GRASP": 0.0,
+      "GRASP": -0.00020000000000575113,
       "LRU": 0.0,
-      "POPT": 0.0,
+      "POPT": -0.00040000000000040004,
       "SRRIP": 0.0
     },
     "graph": "email-Eu-core",
     "l3_size": "4MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.045850999999999975,
+      "LRU": 0.04585300000000003,
+      "POPT": 0.04584900000000003,
+      "SRRIP": 0.04585300000000003
     },
     "verdict": {}
   },
   {
-    "accesses": 2134,
-    "app": "pr",
+    "accesses": 21320,
+    "app": "bfs",
     "delta_pp_vs_lru": {
-      "GRASP": 0.0,
+      "GRASP": -0.004700000000001925,
       "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
+      "POPT": -0.0032000000000032003,
+      "SRRIP": -0.0013000000000040757
     },
     "graph": "email-Eu-core",
     "l3_size": "8MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.04582600000000003,
+      "LRU": 0.04587300000000005,
+      "POPT": 0.04584100000000002,
+      "SRRIP": 0.04586000000000001
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 285883,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.3291000000000044,
+      "LRU": 0.0,
+      "POPT": -0.058699999999989316,
+      "SRRIP": -0.038799999999994395
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.011342999999999992,
+      "LRU": 0.008051999999999948,
+      "POPT": 0.007465000000000055,
+      "SRRIP": 0.007664000000000004
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 282202,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.013200000000002099,
+      "LRU": 0.0,
+      "POPT": 0.01180000000000625,
+      "SRRIP": -0.012499999999993072
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.007561999999999958,
+      "LRU": 0.007693999999999979,
+      "POPT": 0.007812000000000041,
+      "SRRIP": 0.007569000000000048
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 280998,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.04330000000000167,
+      "LRU": 0.0,
+      "POPT": -0.021499999999996522,
+      "SRRIP": -0.023799999999996047
+    },
+    "graph": "email-Eu-core",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.00759399999999999,
+      "LRU": 0.008027000000000006,
+      "POPT": 0.007812000000000041,
+      "SRRIP": 0.007789000000000046
     },
     "verdict": {
-      "GRASP": "insufficient"
+      "GRASP": "ok"
     }
   },
   {

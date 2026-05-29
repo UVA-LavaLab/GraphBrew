@@ -6,9 +6,58 @@
     "email-Eu-core"
   ],
   "apps_scope": [
-    "pr"
+    "pr",
+    "sssp"
   ],
   "cells": [
+    {
+      "graph": "cit-Patents",
+      "app": "bfs",
+      "l3_size": "256kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.46443514644351463,
+        "SRRIP": 0.4534288638689867,
+        "GRASP": 0.4677930306230201
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "bfs",
+      "l3_size": "2MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.4682203389830508,
+        "SRRIP": 0.4652631578947368,
+        "GRASP": 0.46540880503144655
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "bfs",
+      "l3_size": "32kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.4663157894736842,
+        "SRRIP": 0.46041666666666664,
+        "GRASP": 0.4656810982048574
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "bfs",
+      "l3_size": "4kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.9607635206786851,
+        "SRRIP": 0.9536842105263158,
+        "GRASP": 0.9428274428274428
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
     {
       "graph": "cit-Patents",
       "app": "pr",
@@ -53,6 +102,102 @@
         "LRU": 0.8014184397163121,
         "SRRIP": 0.9152777777777777,
         "GRASP": 0.8864864864864865
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "sssp",
+      "l3_size": "256kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.08054298642533937,
+        "SRRIP": 0.08035714285714286,
+        "GRASP": 0.08050089445438283
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "sssp",
+      "l3_size": "2MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.081374321880651,
+        "SRRIP": 0.0797872340425532,
+        "GRASP": 0.0809090909090909
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "sssp",
+      "l3_size": "32kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.08157653528872594,
+        "SRRIP": 0.08086253369272237,
+        "GRASP": 0.08257713248638839
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "sssp",
+      "l3_size": "4kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.9277777777777778,
+        "SRRIP": 0.8910891089108911,
+        "GRASP": 0.8642086330935251
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "bfs",
+      "l3_size": "256kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.46723044397463004,
+        "SRRIP": 0.4638743455497382,
+        "GRASP": 0.46242171189979125
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "bfs",
+      "l3_size": "2MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.4591520165460186,
+        "SRRIP": 0.46624472573839665,
+        "GRASP": 0.4638743455497382
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "bfs",
+      "l3_size": "32kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.4608967674661105,
+        "SRRIP": 0.4630593132154006,
+        "GRASP": 0.47578947368421054
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "bfs",
+      "l3_size": "4kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.9683210137275607,
+        "SRRIP": 0.9577167019027484,
+        "GRASP": 0.9505263157894737
       },
       "ok_rows": 3,
       "error_rows": 0
@@ -104,6 +249,54 @@
       },
       "ok_rows": 3,
       "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "sssp",
+      "l3_size": "256kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.08057296329453895,
+        "SRRIP": 0.07860262008733625,
+        "GRASP": 0.08028545941123996
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "sssp",
+      "l3_size": "2MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.0812043795620438,
+        "SRRIP": 0.07975460122699386,
+        "GRASP": 0.08024691358024691
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "sssp",
+      "l3_size": "32kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.08014247551202137,
+        "SRRIP": 0.0782312925170068,
+        "GRASP": 0.08077260755048288
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "sssp",
+      "l3_size": "4kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.9264305177111717,
+        "SRRIP": 0.8972046889089269,
+        "GRASP": 0.8930190389845875
+      },
+      "ok_rows": 3,
+      "error_rows": 0
     }
   ],
   "invariants": [
@@ -113,9 +306,19 @@
       "detail": "grasp=0.1209 lru=0.1176 \u0394=+0.328pp (tolerance \u2264 +0.50pp)"
     },
     {
+      "name": "GRASP_LE_LRU_headline:email-Eu-core/sssp@256kB",
+      "status": "ok",
+      "detail": "grasp=0.0803 lru=0.0806 \u0394=-0.029pp (tolerance \u2264 +0.50pp)"
+    },
+    {
       "name": "GRASP_LE_LRU_headline:cit-Patents/pr@256kB",
       "status": "ok",
       "detail": "grasp=0.1176 lru=0.1208 \u0394=-0.319pp (tolerance \u2264 +0.50pp)"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:cit-Patents/sssp@256kB",
+      "status": "ok",
+      "detail": "grasp=0.0805 lru=0.0805 \u0394=-0.004pp (tolerance \u2264 +0.50pp)"
     },
     {
       "name": "asymptote_within_1.0pp:email-Eu-core/pr@2MB",
@@ -123,9 +326,19 @@
       "detail": "spread=0.446pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
     },
     {
+      "name": "asymptote_within_1.0pp:email-Eu-core/sssp@2MB",
+      "status": "ok",
+      "detail": "spread=0.145pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
+    },
+    {
       "name": "asymptote_within_1.0pp:cit-Patents/pr@2MB",
       "status": "ok",
       "detail": "spread=0.123pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
+    },
+    {
+      "name": "asymptote_within_1.0pp:cit-Patents/sssp@2MB",
+      "status": "ok",
+      "detail": "spread=0.159pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
     },
     {
       "name": "small_cache_divergence:email-Eu-core/pr@4kB",
@@ -133,19 +346,29 @@
       "detail": "spread=3.759pp across ['GRASP', 'LRU', 'SRRIP'] (min \u2265 2.00pp; L-shape holds)"
     },
     {
+      "name": "small_cache_divergence:email-Eu-core/sssp@4kB",
+      "status": "ok",
+      "detail": "spread=3.341pp across ['GRASP', 'LRU', 'SRRIP'] (min \u2265 2.00pp; L-shape holds)"
+    },
+    {
       "name": "small_cache_divergence:cit-Patents/pr@4kB",
       "status": "ok",
       "detail": "spread=11.386pp across ['GRASP', 'LRU', 'SRRIP'] (min \u2265 2.00pp; L-shape holds)"
     },
     {
+      "name": "small_cache_divergence:cit-Patents/sssp@4kB",
+      "status": "ok",
+      "detail": "spread=6.357pp across ['GRASP', 'LRU', 'SRRIP'] (min \u2265 2.00pp; L-shape holds)"
+    },
+    {
       "name": "no_error_rows",
       "status": "ok",
-      "detail": "24 ok rows across 8 cells"
+      "detail": "72 ok rows across 24 cells"
     }
   ],
   "counts": {
-    "cells": 8,
-    "invariants_ok": 7,
+    "cells": 24,
+    "invariants_ok": 13,
     "invariants_disagree": 0,
     "invariants_missing": 0
   }

@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.325355052947998,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.15s"
+      "runtime_s": 1.4426159858703613,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.26s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.4263949394226074,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.25s"
+      "runtime_s": 1.5654773712158203,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.37s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,21 +37,21 @@
       "xfailed": 1,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20992255210876465,
-      "raw_tail": "....x....s.s                                                             [100%]\n9 passed, 2 skipped, 1 xfailed in 0.03s"
+      "runtime_s": 0.21173620223999023,
+      "raw_tail": "....x....s.s                                                             [100%]\n9 passed, 2 skipped, 1 xfailed in 0.04s"
     },
     {
       "label": "Lit-baseline data-driven gate",
       "short": "Lit-data",
       "path": "scripts/test/test_baselines_match_literature.py",
-      "passed": 29,
+      "passed": 30,
       "failed": 0,
-      "skipped": 1,
+      "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.4367525577545166,
-      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.26s"
+      "runtime_s": 0.4428706169128418,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.27s"
     },
     {
       "label": "Lit-baseline structural gate",
@@ -63,7 +63,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.32988667488098145,
+      "runtime_s": 0.33220672607421875,
       "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.15s"
     },
     {
@@ -76,8 +76,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20598435401916504,
-      "raw_tail": "...                                                                      [100%]\n3 passed in 0.04s"
+      "runtime_s": 0.20803332328796387,
+      "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
     },
     {
       "label": "ECG validation gate catalog",
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21509957313537598,
+      "runtime_s": 0.21777629852294922,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.04s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19562387466430664,
+      "runtime_s": 0.20177173614501953,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20367789268493652,
+      "runtime_s": 0.21545839309692383,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.04s"
     },
     {
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20014619827270508,
+      "runtime_s": 0.22406816482543945,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2032794952392578,
+      "runtime_s": 0.21750736236572266,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     },
     {
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21087217330932617,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.03s"
+      "runtime_s": 0.22237181663513184,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.04s"
     },
     {
       "label": "gem5 literature anchor",
@@ -167,21 +167,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23847723007202148,
+      "runtime_s": 0.2504758834838867,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.05s"
     },
     {
       "label": "Sniper literature anchor",
       "short": "Sniper-anchor",
       "path": "scripts/test/test_sniper_anchor.py",
-      "passed": 10,
+      "passed": 16,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20868730545043945,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.03s"
+      "runtime_s": 0.21910357475280762,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.04s"
     },
     {
       "label": "Lit-preflight shared helper",
@@ -193,38 +193,38 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20439743995666504,
+      "runtime_s": 0.20548582077026367,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     }
   ],
   "lit_faith_summary": {
     "claims_total": 270,
     "disagree": 0,
-    "insufficient_data": 19,
+    "insufficient_data": 0,
     "known_deviation": 30,
     "min_accesses_threshold": 10000,
     "missing": 0,
-    "ok": 219,
+    "ok": 238,
     "within_tolerance": 2
   },
   "regression_budget_summary": {
     "cells_total": 270,
-    "cells_in_distribution": 221,
+    "cells_in_distribution": 240,
     "min_margin_pp": 0.1024,
-    "p10_margin_pp": 1.4965,
+    "p10_margin_pp": 1.4633,
     "median_margin_pp": 6.1366,
     "p90_margin_pp": 10.6961,
-    "max_margin_pp": 19.415,
+    "max_margin_pp": 24.7511,
     "by_kind": {
       "cache_policy": {
-        "n": 101,
+        "n": 102,
         "min_pp": 1.305,
         "median_pp": 6.875
       },
       "popt_ge_grasp": {
-        "n": 49,
+        "n": 58,
         "min_pp": 0.1024,
-        "median_pp": 1.7832
+        "median_pp": 1.5008
       },
       "popt_near_grasp_active": {
         "n": 11,
@@ -232,9 +232,9 @@
         "median_pp": 7.386
       },
       "popt_near_grasp_inactive": {
-        "n": 60,
+        "n": 69,
         "min_pp": 2.273,
-        "median_pp": 6.7154
+        "median_pp": 6.975
       }
     }
   },

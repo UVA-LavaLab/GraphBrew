@@ -41,9 +41,17 @@ Latest additions on top of the Tier A/B/C work:
   three policies **must** diverge by ≥ 2 pp. Together with the
   asymptote check this codifies the GRASP-paper L-shape and would
   catch regressions where a "fix" at small caches collapses policy
-  differentiation. Invariants are now per-(graph, app), so the
-  Sniper anchor folds in both `email-Eu-core` (PR) and `cit-Patents`
-  (PR, 11.4 pp 4kB spread) on every check.
+  differentiation. Invariants are now per-(graph, app); the Sniper
+  anchor scopes to PR + SSSP on `email-Eu-core` and `cit-Patents`
+  (16 invariants all `ok`, max small-cache spread 6.36 pp). BFS is
+  deferred — 4 kB spread sits at 1.78 pp and email-Eu-core/bfs/Sniper
+  shows GRASP +1.49 pp over LRU (insufficient reuse for the L-shape).
+- `literature_faithfulness_postfix.json` now reports **0 insufficient_data**
+  (was 19). The email-Eu-core/{pr,bc,bfs}/{1MB,4MB,8MB} cells were
+  re-run with bumped iterations (PR `-i 2 → -i 20`, BFS `-n 1 → -n 16`,
+  BC `-i 1 → -i 64`) to push L3 access counts above the 10 000-access
+  validity threshold. lit-faith claims now: 238 ok, 2 within-tolerance,
+  30 known-deviation, 0 disagree, 0 missing, 0 insufficient.
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the

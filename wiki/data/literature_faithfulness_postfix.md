@@ -2,7 +2,7 @@
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
 - Claims total: **270**
-- Verdict mix: **219 ok**, 2 within-tolerance, **0 DISAGREE**, 30 known-deviation, 0 missing, 19 insufficient_data
+- Verdict mix: **238 ok**, 2 within-tolerance, **0 DISAGREE**, 30 known-deviation, 0 missing, 0 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -39,15 +39,15 @@
 | com-orkut | sssp | 1MB | 0.6603 | 0.6204 | 0.6338 | 0.5968 | -2.657pp | -6.354pp |
 | com-orkut | sssp | 4MB | 0.1697 | 0.1541 | 0.1589 | 0.1473 | -1.084pp | -2.245pp |
 | com-orkut | sssp | 8MB | 0.0246 | 0.0223 | 0.0224 | 0.0241 | -0.215pp | -0.053pp |
-| email-Eu-core | bc | 1MB | 0.9906 | 1.0000 | 1.0000 | 0.9968 | +0.938pp | +0.622pp |
-| email-Eu-core | bc | 4MB | 0.9968 | 1.0000 | 0.9968 | 1.0000 | +0.000pp | +0.317pp |
-| email-Eu-core | bc | 8MB | 1.0000 | 0.9875 | 0.9906 | 1.0000 | -0.943pp | +0.000pp |
-| email-Eu-core | bfs | 1MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| email-Eu-core | bfs | 4MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| email-Eu-core | bfs | 8MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| email-Eu-core | pr | 1MB | 1.0000 | 1.0000 | 0.9995 | 1.0000 | -0.047pp | +0.000pp |
-| email-Eu-core | pr | 4MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
-| email-Eu-core | pr | 8MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
+| email-Eu-core | bc | 1MB | 0.0001 | 0.0001 | 0.0001 | 0.0001 | +0.000pp | +0.000pp |
+| email-Eu-core | bc | 4MB | 0.0001 | 0.0001 | 0.0001 | 0.0002 | -0.000pp | +0.010pp |
+| email-Eu-core | bc | 8MB | 0.0001 | 0.0001 | 0.0001 | 0.0001 | +0.000pp | -0.000pp |
+| email-Eu-core | bfs | 1MB | 0.0458 | 0.0458 | 0.2234 | 0.0459 | +17.752pp | +0.000pp |
+| email-Eu-core | bfs | 4MB | 0.0459 | 0.0459 | 0.0459 | 0.0458 | -0.000pp | -0.000pp |
+| email-Eu-core | bfs | 8MB | 0.0459 | 0.0459 | 0.0458 | 0.0458 | -0.005pp | -0.003pp |
+| email-Eu-core | pr | 1MB | 0.0081 | 0.0077 | 0.0113 | 0.0075 | +0.329pp | -0.059pp |
+| email-Eu-core | pr | 4MB | 0.0077 | 0.0076 | 0.0076 | 0.0078 | -0.013pp | +0.012pp |
+| email-Eu-core | pr | 8MB | 0.0080 | 0.0078 | 0.0076 | 0.0078 | -0.043pp | -0.021pp |
 | soc-LiveJournal1 | bc | 1MB | 0.8432 | 0.8250 | 0.7949 | 0.8148 | -4.825pp | -2.840pp |
 | soc-LiveJournal1 | bc | 4MB | 0.6038 | 0.5828 | 0.5511 | 0.5698 | -5.271pp | -3.394pp |
 | soc-LiveJournal1 | bc | 8MB | 0.4528 | 0.4237 | 0.3904 | 0.4062 | -6.240pp | -4.657pp |
@@ -198,25 +198,25 @@
 | ok | com-orkut | sssp | 8MB | SRRIP | -0.228pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | com-orkut | sssp | 8MB | POPT_GE_GRASP | +0.162pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | com-orkut | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.162pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | bc | 1MB | POPT_GE_GRASP | -0.316pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | email-Eu-core | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | -0.316pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | bc | 4MB | POPT_GE_GRASP | +0.317pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | email-Eu-core | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.317pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | bc | 8MB | POPT_GE_GRASP | +0.943pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | email-Eu-core | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.943pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | bfs | 1MB | POPT_GE_GRASP | +0.000pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | email-Eu-core | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | bfs | 4MB | POPT_GE_GRASP | +0.000pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | email-Eu-core | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | bfs | 8MB | POPT_GE_GRASP | +0.000pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| insufficient_data | email-Eu-core | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | pr | 1MB | POPT_GE_GRASP | +0.047pp | Balaji & Lucia HPCA 2021 §6.3 |
-| insufficient_data | email-Eu-core | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.047pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | pr | 4MB | POPT_GE_GRASP | +0.000pp | Balaji & Lucia HPCA 2021 §6.3 |
-| insufficient_data | email-Eu-core | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
-| insufficient_data | email-Eu-core | pr | 8MB | GRASP | +0.000pp | Faldu et al. HPCA 2020 Fig 10 |
-| insufficient_data | email-Eu-core | pr | 8MB | POPT_GE_GRASP | +0.000pp | Balaji & Lucia HPCA 2021 §6.3 |
-| insufficient_data | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | bc | 1MB | POPT_GE_GRASP | +0.000pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | email-Eu-core | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | bc | 4MB | POPT_GE_GRASP | +0.010pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | email-Eu-core | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.010pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | bc | 8MB | POPT_GE_GRASP | -0.000pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | email-Eu-core | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | bfs | 1MB | POPT_GE_GRASP | -17.751pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | email-Eu-core | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +17.751pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | bfs | 4MB | POPT_GE_GRASP | -0.000pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | email-Eu-core | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.000pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | bfs | 8MB | POPT_GE_GRASP | +0.002pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | email-Eu-core | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.002pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | pr | 1MB | POPT_GE_GRASP | -0.388pp | Balaji & Lucia HPCA 2021 §6.3 |
+| ok | email-Eu-core | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.388pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | pr | 4MB | POPT_GE_GRASP | +0.025pp | Balaji & Lucia HPCA 2021 §6.3 |
+| ok | email-Eu-core | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.025pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | email-Eu-core | pr | 8MB | GRASP | -0.043pp | Faldu et al. HPCA 2020 Fig 10 |
+| ok | email-Eu-core | pr | 8MB | POPT_GE_GRASP | +0.022pp | Balaji & Lucia HPCA 2021 §6.3 |
+| ok | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.022pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-LiveJournal1 | bc | 1MB | SRRIP | -1.822pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | soc-LiveJournal1 | bc | 1MB | GRASP | -4.825pp | Faldu et al. HPCA 2020 Fig 11 |
 | known_deviation | soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | +1.985pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
