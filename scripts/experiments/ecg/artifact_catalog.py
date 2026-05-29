@@ -528,6 +528,14 @@ CATALOG = [
         "summary":   "Absolute-magnitude inversion of gate 64's saturation ranking. Aggregates |final-octave slope| (4MB->8MB) per policy across all 5 apps from cache_saturation_onset.json and locks the headline ordering POPT(0.10) < GRASP(0.23) << LRU(1.06) ~ SRRIP(1.09) pp/octave. Seven checks: (1) POPT median <= GRASP median, (2) GRASP median <= LRU median, (3) POPT median < SRRIP median, (4) oracle-aware (POPT/GRASP) medians <= 0.5 pp/oct ceiling, (5) non-oracle (LRU/SRRIP) medians >= 0.5 pp/oct floor, (6) oracle-aware median < half non-oracle median (currently 0.16 vs 1.07 = 0.15x), (7) POPT min slope <= 0.2 (at least one app fully saturates with POPT). Locks the 'oracle-aware policies are less cache-hungry' story as a quantitative ordering, complementing gate 64's binary onset count and gate 72's cross-tool slope-ordering check.",
     },
     {
+        "id":        "anchor_cross_tool_agreement",
+        "label":     "Cross-tool shared-anchor slope agreement",
+        "generator": "scripts/experiments/ecg/anchor_cross_tool_agreement.py",
+        "gate":      "scripts/test/test_anchor_cross_tool_agreement.py",
+        "artifact":  "wiki/data/anchor_cross_tool_agreement.json",
+        "summary":   "Cross-tool physical-replication lock for the (graph, app, policy) anchor cells present in BOTH gem5_slope_replay.json and sniper_slope_replay.json. Currently 3 shared cells: (email-Eu-core, pr) x {GRASP, LRU, SRRIP}. Five invariants: (1) shared-cell floor >= 3; (2) 100% slope-sign agreement across the two simulators; (3) 100% both-negative slopes (the 'bigger cache helps' invariant on the shared cells); (4) 100% sniper-steeper-than-gem5 magnitudes (sniper's wider L3 sweep + lower fidelity); (5) per-cell |sniper-gem5| <= 8 pp/oct ceiling. Current observation: gem5 = {-5.06, -2.88, -6.13}; sniper = {-7.61, -8.00, -8.00}; max|diff| = 5.13 pp/oct. Defends against a sniper or gem5 plumbing regression that would flip the slope sign on the shared cells (where 'L3 helps' becomes 'L3 hurts'), and against a future overhaul that shrinks the shared cell set below 3.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -607,7 +615,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (81 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (82 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

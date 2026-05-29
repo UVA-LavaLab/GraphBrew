@@ -153,6 +153,8 @@ TRACKED_ARTIFACTS = [
     "anchor_monotonicity_replay.md",
     "policy_steepness_ranking.json",
     "policy_steepness_ranking.md",
+    "anchor_cross_tool_agreement.json",
+    "anchor_cross_tool_agreement.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

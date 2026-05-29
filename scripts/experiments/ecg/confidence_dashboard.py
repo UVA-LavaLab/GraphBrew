@@ -197,6 +197,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_anchor_monotonicity_replay.py", "AnchMono"),
     "Per-policy final-octave steepness ranking":
         ("scripts/test/test_policy_steepness_ranking.py", "Steepness"),
+    "Cross-tool shared-anchor slope agreement":
+        ("scripts/test/test_anchor_cross_tool_agreement.py", "CrossAnch"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
