@@ -67,8 +67,8 @@ def manifest_graphs(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return out
 
 
-def graph_checks(shard_rows: list[list[str]], graph_dir: Path, allow_missing: bool) -> list[CheckResult]:
-    manifest = final_paper_run.load_manifest(DEFAULT_MANIFEST)
+def graph_checks(shard_rows: list[list[str]], graph_dir: Path, allow_missing: bool, manifest_path: Path = DEFAULT_MANIFEST) -> list[CheckResult]:
+    manifest = final_paper_run.load_manifest(manifest_path)
     graphs = manifest_graphs(manifest)
     names = sorted({row[2] for row in shard_rows})
     checks: list[CheckResult] = []
@@ -156,8 +156,8 @@ def scale_shard_semantic_checks(shard_rows: list[list[str]]) -> list[CheckResult
     return checks
 
 
-def staging_checks(profiles: list[str], graph_dir: Path, allow_missing: bool) -> list[CheckResult]:
-    manifest = final_paper_run.load_manifest(DEFAULT_MANIFEST)
+def staging_checks(profiles: list[str], graph_dir: Path, allow_missing: bool, manifest_path: Path = DEFAULT_MANIFEST) -> list[CheckResult]:
+    manifest = final_paper_run.load_manifest(manifest_path)
     checks: list[CheckResult] = []
     for row in ecg_graph_staging_status.staging_rows(manifest, profiles, graph_dir):
         ok = str(row.get("status")) == "ok" or allow_missing
@@ -254,6 +254,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--allow-nonexclusive", action="store_true", help="Waive the slurm_final_shard.sbatch #SBATCH --exclusive check when site policy enforces one shard per node another way.")
     parser.add_argument("--skip-binaries", action="store_true")
     parser.add_argument("--skip-sniper", action="store_true")
+    parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST), help="Override the manifest JSON (useful in tests).")
     return parser.parse_args(argv)
 
 
@@ -261,6 +262,7 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     checks: list[CheckResult] = []
     graph_dir = final_paper_run.resolve_path(str(args.graph_dir))
+    manifest_path = final_paper_run.resolve_path(str(args.manifest))
 
     if not args.skip_binaries:
         checks.extend(check_required_binaries(bool(args.skip_sniper)))
@@ -269,7 +271,7 @@ def main(argv: list[str]) -> int:
     checks.append(check_sbatch_directive(FINAL_SBATCH_SCRIPT, "--exclusive", "exclusive", bool(args.allow_nonexclusive)))
 
     if args.profile:
-        checks.extend(staging_checks([str(profile) for profile in args.profile], graph_dir, bool(args.allow_missing_graphs)))
+        checks.extend(staging_checks([str(profile) for profile in args.profile], graph_dir, bool(args.allow_missing_graphs), manifest_path))
 
     for shard in args.shards:
         path = final_paper_run.resolve_path(str(shard))
@@ -277,9 +279,9 @@ def main(argv: list[str]) -> int:
         if path.exists():
             rows = read_rows(path, 6)
             checks.append(CheckResult(f"shards:{path.name}:rows", bool(rows), f"{len(rows)} rows"))
-            manifest = final_paper_run.load_manifest(DEFAULT_MANIFEST)
+            manifest = final_paper_run.load_manifest(manifest_path)
             checks.extend(shard_semantic_checks(rows, manifest))
-            checks.extend(graph_checks(rows, graph_dir, bool(args.allow_missing_graphs)))
+            checks.extend(graph_checks(rows, graph_dir, bool(args.allow_missing_graphs), manifest_path))
 
     for shard in args.scale_shards:
         path = final_paper_run.resolve_path(str(shard))

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for the ECG cluster preflight helper."""
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -123,6 +124,20 @@ def test_cluster_preflight_rejects_blank_rows_in_scale_shards(tmp_path):
 def test_cluster_preflight_allows_missing_graphs(tmp_path):
     shards = tmp_path / "final.tsv"
     shards.write_text("final_replacement\t20_gem5_large_replacement\tsoc-pokec\tpr\tLRU\trun\n")
+    # Build a minimal manifest that points soc-pokec at a non-existent
+    # path inside tmp_path so the "missing allowed" branch fires
+    # regardless of whether the repo checkout has real graphs staged.
+    real_manifest = json.loads(
+        (PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "final_paper_manifest.json").read_text()
+    )
+    for graph_set in real_manifest.get("graph_sets", {}).values():
+        for graph in graph_set:
+            if graph.get("name") == "soc-pokec":
+                graph["path"] = str(tmp_path / "no_such_graph.sg")
+    fake_manifest = tmp_path / "fake_manifest.json"
+    fake_manifest.write_text(json.dumps(real_manifest))
+    empty_graph_dir = tmp_path / "empty_graphs"
+    empty_graph_dir.mkdir()
 
     result = subprocess.run(
         [
@@ -130,6 +145,8 @@ def test_cluster_preflight_allows_missing_graphs(tmp_path):
             "scripts/experiments/ecg/ecg_cluster_preflight.py",
             "--skip-binaries",
             "--allow-missing-graphs",
+            "--graph-dir", str(empty_graph_dir),
+            "--manifest", str(fake_manifest),
             "--shards", str(shards),
         ],
         cwd=PROJECT_ROOT,

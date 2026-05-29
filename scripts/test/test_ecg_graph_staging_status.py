@@ -2,6 +2,7 @@
 """Tests for ECG graph staging status helper."""
 
 import csv
+import json
 import subprocess
 from pathlib import Path
 
@@ -39,12 +40,28 @@ def test_graph_staging_status_lists_final_graphs(tmp_path):
 
 def test_graph_staging_status_fail_on_missing(tmp_path):
     out = tmp_path / "graphs.csv"
+    # Build a manifest whose final_replacement graphs point at non-existent
+    # files inside tmp_path. This makes the test robust to repo checkouts
+    # that already have results/graphs/*.sg locally staged (which would
+    # otherwise make every graph appear "ok" and short-circuit
+    # --fail-on-missing).
+    real_manifest = json.loads(
+        (PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "final_paper_manifest.json").read_text()
+    )
+    for graph_set in real_manifest.get("graph_sets", {}).values():
+        for graph in graph_set:
+            if "path" in graph:
+                graph["path"] = str(tmp_path / "missing_graphs" / f"{graph['name']}.sg")
+    fake_manifest = tmp_path / "fake_manifest.json"
+    fake_manifest.write_text(json.dumps(real_manifest))
+
     result = subprocess.run(
         [
             "python3",
             "scripts/experiments/ecg/ecg_graph_staging_status.py",
             "--profile", "final_replacement",
             "--graph-dir", str(tmp_path / "missing_graphs"),
+            "--manifest", str(fake_manifest),
             "--out", str(out),
             "--fail-on-missing",
         ],
