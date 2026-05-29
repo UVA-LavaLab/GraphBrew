@@ -320,6 +320,14 @@ CATALOG = [
         "summary":   "Per-(app, policy), the L3 size beyond which extra cache buys <0.5 pp/octave gap improvement. Saturation ordering today: POPT > GRASP > LRU > SRRIP. POPT saturates on 3/5 apps within paper L3 (bc, pr, sssp); GRASP on 2 (bc, sssp); LRU and SRRIP on just 1 each (bc). bfs is universally unsaturated — its working set far exceeds 8MB. Paper-grade mechanism story: oracle-aware policies hit diminishing returns earlier because they are already close to oracle.",
     },
     {
+        "id":        "gap_distribution_shape",
+        "label":     "Per-cell gap-distribution shape envelope",
+        "generator": "scripts/experiments/ecg/gap_distribution_shape.py",
+        "gate":      "scripts/test/test_gap_distribution_shape.py",
+        "artifact":  "wiki/data/gap_distribution_shape.json",
+        "summary":   "Per-(app, L3, policy) skew/excess-kurtosis envelope for the paper L3 grid. Extends gate 46 from pooled marginals to the cell level. 14 cells exceed the Hesterberg textbook envelope (|skew|<2, |kurt|<7); all 14 are oracle-aware (GRASP or POPT) and exhibit the same discrete pattern: many oracle-tight near-zero gaps plus one mesh/road outlier (typically roadNet-CA or web-Google). Pinned-exception set guards against any NEW cell entering the offending set. Recommended remedy for the 14 pinned cells: BCa or studentized-t bootstrap.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -399,7 +407,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (55 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (56 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

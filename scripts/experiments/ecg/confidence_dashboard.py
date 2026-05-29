@@ -145,6 +145,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_generator_gap_parity.py", "Parity"),
     "Cache-saturation onset detection":
         ("scripts/test/test_cache_saturation_onset.py", "Sat"),
+    "Per-cell gap-distribution shape envelope":
+        ("scripts/test/test_gap_distribution_shape.py", "Shape"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

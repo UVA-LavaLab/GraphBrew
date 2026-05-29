@@ -101,6 +101,8 @@ TRACKED_ARTIFACTS = [
     "cross_generator_gap_parity.md",
     "cache_saturation_onset.json",
     "cache_saturation_onset.md",
+    "gap_distribution_shape.json",
+    "gap_distribution_shape.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
