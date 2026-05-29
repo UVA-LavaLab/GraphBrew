@@ -281,6 +281,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_curvature_replay_derivation_parity.py", "FCR-Der"),
     "family_margin_replay derivation parity (WSS-regime classifier + winner-margin distribution + shrink evidence)":
         ("scripts/test/test_family_margin_replay_derivation_parity.py", "FMR-Der"),
+    "family_slope_replay derivation parity (per-family OLS slope replay + pinned social deviation)":
+        ("scripts/test/test_family_slope_replay_derivation_parity.py", "FSR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
