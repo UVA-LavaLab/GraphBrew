@@ -119,6 +119,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_claim_density_vs_baselines.py", "CD-Base"),
     "small_l3_thrash internal + WRT-tiny disjointness":
         ("scripts/test/test_small_l3_thrash_consistency.py", "Thr-Tiny"),
+    "bootstrap_ci + oracle_gap_by_app_bootstrap parity":
+        ("scripts/test/test_bootstrap_ci_consistency.py", "Boot-Par"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **105 gates, all GREEN, exit 0**.
+and currently reports **110 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -163,11 +163,46 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   known_deviation cells all have margin_pp=0, and triple counts of
   known_deviation / within_tolerance agree across summary, per-cell,
   and tolerated list (gate 105, 13 tests).
+- **Fourth cross-artifact integrity block** (gates 106-110): oracle_gap
+  internal + oracle_gap_by_app aggregation parity — oracle is min across
+  the 4-policy panel per (graph, app, l3), winner has miss==oracle and
+  gap_pp==0, by_policy_app mean/median/p90/max/n/wins all recompute
+  exactly from rows using the right percentile methods (numpy `higher`
+  for p90, linear-interpolation median; the two MUST stay distinct),
+  by_app_ranking entries sort ascending by mean_gap_pp (gate 106, 13
+  tests); GRAPH_FAMILY map duplication lock — 2 full-tier copies (11
+  entries with reserved future graphs road-CA / twitter-2010 / uk-2005)
+  in policy_winner_table.py and test_corpus_diversity_floor.py vs 5
+  short-tier copies (8 entries, current corpus only) in literature_
+  deviations_report.py, oracle_gap_report.py, winning_regime_taxonomy.py,
+  popt_vs_grasp_report.py, family_saturation_distance.py — every copy
+  agrees on family for every shared graph key, using ast.literal_eval
+  on the source files (no module imports needed) so the gate stays
+  side-effect-free (gate 107, 13 tests); claim_density.json ↔ literature_
+  baselines.py parity — every per-graph rollup (n_claims, n_ok, n_cells,
+  n_apps, n_policies, n_citations, status_counts) recomputes exactly
+  from literature_reproduction_summary.csv, every CSV row's
+  (graph, app, l3, policy) reaches via claims_for() expansion or
+  KNOWN_DEVIATIONS closure, every CSV citation ⊆ baseline citation
+  universe, total_ok_pct matches ratio (gate 108, 13 tests);
+  small_l3_thrash internal + WRT-tiny disjointness — 9-policy wide-panel
+  4kB snapshot (n_rows = n_cells * n_policies = 9 * 9 = 81), per-policy
+  aggregates all recompute from CSV, per-cell winner / runner-up honor
+  POLICY_LABEL_ORDER tie-break (necessary for all-thrashing 1.0 cells),
+  thrash cells (power-law @ 4kB) disjoint from WRT 'tiny'-regime cells
+  (mesh+road @ 4kB and 16kB) so the paper never double-counts
+  (gate 109, 13 tests); bootstrap_ci.json + oracle_gap_by_app_bootstrap
+  .json parity & hygiene — every (policy, family) and (policy, regime)
+  mean/median/n exactly matches oracle_gap.summary, ci_lo ≤ ci_hi with
+  ci_width recompute, POPT-vs-GRASP family-level paired-delta sign agrees
+  with whether CI excludes zero (locks the headline 'POPT loses on road
+  with 95% CI excluding 0' claim), per-app pairs are anti-symmetric in
+  mean_delta and p_a_lt_b complement to ≤ 1 + slack (gate 110, 13 tests).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 105. `make confidence-fast` runs the whole suite in under
+  current 110. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -187,7 +222,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 105+ pytest gates + lit-faith headline + corpus diversity
+  view of all 110+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
