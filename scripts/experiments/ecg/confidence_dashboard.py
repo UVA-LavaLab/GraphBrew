@@ -99,6 +99,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_curvature_vs_effect_size.py", "Curv-Eff"),
     "Monotonicity universality vs anchor replay":
         ("scripts/test/test_monotonicity_universality_vs_anchor_replay.py", "Mono-Anch"),
+    "Catalog ↔ dashboard coverage milestone":
+        ("scripts/test/test_catalog_dashboard_coverage_milestone.py", "Cat-Dash"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
@@ -172,13 +174,13 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
     "Per-policy stability index":
         ("scripts/test/test_policy_stability.py", "Stab"),
     "Per-(app, policy) cache-sensitivity slope":
-        ("scripts/test/test_cache_sensitivity_slope.py", "Slope"),
+        ("scripts/test/test_cache_sensitivity_slope.py", "CSlope"),
     "Per-graph oracle-gap cache-sensitivity slope":
         ("scripts/test/test_per_graph_cache_slope.py", "PGSlope"),
     "Cross-generator gap_pp parity":
-        ("scripts/test/test_cross_generator_gap_parity.py", "Parity"),
+        ("scripts/test/test_cross_generator_gap_parity.py", "GapPar"),
     "Cache-saturation onset detection":
-        ("scripts/test/test_cache_saturation_onset.py", "Sat"),
+        ("scripts/test/test_cache_saturation_onset.py", "SatOn"),
     "Per-cell gap-distribution shape envelope":
         ("scripts/test/test_gap_distribution_shape.py", "Shape"),
     "Per-family policy-AUC clustering replay":
@@ -198,9 +200,9 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
     "Cross-policy mean-margin asymmetry":
         ("scripts/test/test_cross_policy_asymmetry.py", "Asym"),
     "Per-app saturation distance (4MB->8MB)":
-        ("scripts/test/test_saturation_distance.py", "Sat"),
+        ("scripts/test/test_saturation_distance.py", "SatDist"),
     "Per-policy capacity-sensitivity slope":
-        ("scripts/test/test_capacity_sensitivity.py", "Slope"),
+        ("scripts/test/test_capacity_sensitivity.py", "CapSlope"),
     "Per-family capacity-sensitivity slope replay":
         ("scripts/test/test_family_slope_replay.py", "FSlope"),
     "Per-app capacity-sensitivity slope":
