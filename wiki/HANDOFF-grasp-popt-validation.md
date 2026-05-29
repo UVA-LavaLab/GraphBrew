@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **100 gates, all GREEN, exit 0**.
+and currently reports **105 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -134,11 +134,40 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   len(PYTEST_SUITES) (gate 100, 13 tests). Also disambiguated 3
   pre-existing duplicate PYTEST_SUITES short labels (Slope→CSlope/
   CapSlope, Parity→GapPar, Sat→SatOn/SatDist).
+- **Third cross-artifact integrity block** (gates 101-105): deviations
+  ↔ regime taxonomy parity — LD's 30 entries all carry
+  mechanism=popt_overhead_dominates and family ∈ WRT's family universe,
+  shares within 1e-5 of wins/total, mechanism×family cross-tab
+  recomputable from per-deviation rows (gate 101, 13 tests); corpus
+  diversity ↔ regime taxonomy feature parity — every WRT cell's
+  avg_degree / hub_concentration / clustering_coeff matches the
+  corpus_diversity per-graph value within 1e-3 across all 114 cells,
+  WRT.family == GRAPH_FAMILY[graph] for every cell, and the corpus
+  and WRT graph universes are identical (gate 102, 13 tests); paper
+  claims registry recompute parity — all 14 claim values
+  recomputable from their cited artifacts (winner shares from
+  policy_winner_table sum to 100±0.5 %, popt_vs_grasp family means
+  to 0.01 pp, ok_ratio/disagreement_rate/thrash counts exact),
+  every claim.source and claim.gate path resolves, snake-eating-tail
+  agreement between paper_claims.green_gate_count and dashboard.json
+  (gate 103, 13 tests); family tri-artifact agreement —
+  family_sensitivity / family_geomean / family_policy_auc_clustering
+  share the same 5-family universe, sensitivity canonical_state
+  matches canonical_claims fracs to 1e-9, clustering's
+  (family, winner) picks all appear in geomean records, and
+  winners_matching equals counted True flags per qualified family
+  (gate 104, 13 tests); regression_budget ↔ lit_faith parity — both
+  artifacts cover the same 330-cell key universe, rb.status ==
+  lf.status for every cell, by_kind.n counts only in-distribution
+  cells, fragile_cells subset of per_cell and bounded at 10,
+  known_deviation cells all have margin_pp=0, and triple counts of
+  known_deviation / within_tolerance agree across summary, per-cell,
+  and tolerated list (gate 105, 13 tests).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 100. `make confidence-fast` runs the whole suite in under
+  current 105. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -158,7 +187,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 100+ pytest gates + lit-faith headline + corpus diversity
+  view of all 105+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
