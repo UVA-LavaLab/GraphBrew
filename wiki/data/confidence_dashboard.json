@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.0148820877075195,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.81s"
+      "runtime_s": 2.3627259731292725,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 2.17s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.83229660987854,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.62s"
+      "runtime_s": 1.6490364074707031,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.46s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 1,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2190258502960205,
+      "runtime_s": 0.21543669700622559,
       "raw_tail": "....x....s.s                                                             [100%]\n9 passed, 2 skipped, 1 xfailed in 0.04s"
     },
     {
@@ -50,8 +50,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.45702028274536133,
-      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.28s"
+      "runtime_s": 0.4467647075653076,
+      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.27s"
     },
     {
       "label": "Lit-baseline structural gate",
@@ -63,8 +63,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.386660099029541,
-      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.18s"
+      "runtime_s": 0.3196713924407959,
+      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.15s"
     },
     {
       "label": "Lit-faith no-disagree gate",
@@ -76,8 +76,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.25485992431640625,
-      "raw_tail": "...                                                                      [100%]\n3 passed in 0.04s"
+      "runtime_s": 0.1929187774658203,
+      "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
     },
     {
       "label": "ECG validation gate catalog",
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22277545928955078,
+      "runtime_s": 0.21942663192749023,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.04s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1958010196685791,
+      "runtime_s": 0.20554018020629883,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21644926071166992,
+      "runtime_s": 0.22107911109924316,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.04s"
     },
     {
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21650910377502441,
+      "runtime_s": 0.21146821975708008,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,8 +141,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22063255310058594,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.04s"
+      "runtime_s": 0.2163410186767578,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     },
     {
       "label": "Paper-pipeline literature pre-flight gate",
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2139146327972412,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.03s"
+      "runtime_s": 0.22749996185302734,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.04s"
     },
     {
       "label": "gem5 literature anchor",
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23670434951782227,
+      "runtime_s": 0.2437424659729004,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.05s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21609902381896973,
+      "runtime_s": 0.21395206451416016,
       "raw_tail": ".......                                                                  [100%]\n7 passed in 0.03s"
     },
     {
@@ -193,8 +193,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26563501358032227,
-      "raw_tail": ".........                                                                [100%]\n9 passed in 0.04s"
+      "runtime_s": 0.21068167686462402,
+      "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     }
   ],
   "lit_faith_summary": {

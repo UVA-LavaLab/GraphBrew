@@ -366,3 +366,47 @@ def test_synthetic_option_sets_do_not_require_graph_files(tmp_path):
     graph = {"name": "synthetic_ecg_pfx_tiny", "options_key": "synthetic_ecg_pfx_tiny"}
 
     assert final_paper_run.graph_uses_synthetic_options(graph)
+
+
+def test_final_cache_sim_l_curve_profile_shape():
+    """Lock the L-curve sweep design: bounded scope, ≥4 L3 sizes, baseline policies.
+
+    This invariant exists because the L-curve figure must show the full L-shape
+    (divergent at small L3 → convergent at large L3). If a future edit shrinks
+    the L3 sweep or removes a baseline policy, this test should fail so we notice.
+    """
+    manifest_path = PROJECT_ROOT / "scripts" / "experiments" / "ecg" / "final_paper_manifest.json"
+    manifest = final_paper_run.load_manifest(manifest_path)
+
+    assert "final_cache_sim_l_curve" in manifest["profiles"], (
+        "L-curve profile description must be declared in manifest.profiles"
+    )
+
+    stages = [s for s in manifest["stages"] if "final_cache_sim_l_curve" in s.get("profiles", [])]
+    assert len(stages) == 1, f"expected exactly one L-curve stage, got {[s['name'] for s in stages]}"
+    stage = stages[0]
+
+    assert stage["suite"] == "cache-sim", "L-curve uses cache_sim for speed"
+    assert stage["kind"] == "roi_matrix"
+
+    graph_set = manifest["graph_sets"][stage["graph_set"]]
+    assert 1 <= len(graph_set) <= 2, (
+        f"L-curve must stay bounded (<=2 graphs); got {[g['name'] for g in graph_set]}"
+    )
+
+    l3_sizes = stage["l3_sizes"]
+    assert len(l3_sizes) >= 4, f"L-curve needs >=4 L3 points to show the L-shape; got {l3_sizes}"
+    assert "4kB" in l3_sizes, "L-curve must include the small-cache divergence point"
+    assert any(sz in l3_sizes for sz in ("1MB", "2MB", "4MB", "8MB")), (
+        f"L-curve must include a large-cache convergence point; got {l3_sizes}"
+    )
+
+    assert set(stage["benchmarks"]).issubset({"pr", "bfs", "sssp", "bc"}), (
+        f"unexpected benchmark in L-curve: {stage['benchmarks']}"
+    )
+    assert stage["benchmarks"], "L-curve needs at least one benchmark"
+
+    baselines = {"LRU", "SRRIP", "GRASP"}
+    assert baselines.issubset(set(stage["policies"])), (
+        f"L-curve must include the three GRASP-paper baselines (LRU,SRRIP,GRASP); got {stage['policies']}"
+    )

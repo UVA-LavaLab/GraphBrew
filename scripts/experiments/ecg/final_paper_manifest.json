@@ -45,6 +45,7 @@
     "local_cache_sim_diversity_medium": "Medium-graph cache_sim diversity screen over cit-Patents with safe additional kernels.",
     "local_cache_sim_pfx_diversity_smoke": "Small-graph cache_sim ECG_PFX diversity screen over extra kernels before larger PFX runs.",
     "final_cache_sim": "Large-graph cache_sim replacement-only sweep.",
+    "final_cache_sim_l_curve": "Multi-L3 cache_sim L-curve sweep on soc-pokec for paper figure showing the GRASP-paper L-shape (divergent at small L3, convergent at large).",
     "available_cache_sim_ecg_pfx": "Available-local cache_sim ECG_PFX sweep before large graph staging.",
     "final_cache_sim_ecg_pfx": "Large-graph cache_sim ECG_PFX sweep for graph-aware prefetch evidence.",
     "final_replacement": "Large-graph gem5 replacement-only sweep for PR/BFS/SSSP.",
@@ -98,6 +99,9 @@
       {"name": "soc-LiveJournal1", "path": "results/graphs/soc-LiveJournal1/soc-LiveJournal1.sg", "options_key": "file_dbg"},
       {"name": "com-orkut", "path": "results/graphs/com-orkut/com-orkut.sg", "options_key": "file_dbg"},
       {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg"}
+    ],
+    "local_l_curve": [
+      {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg"}
     ],
     "available_local": [
       {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"},
@@ -463,6 +467,19 @@
       "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
       "prefetcher": "none",
       "out_subdir": "10_cache_sim_large_replacement",
+      "timeout_cache": 7200
+    },
+    {
+      "name": "10b_cache_sim_l_curve",
+      "kind": "roi_matrix",
+      "profiles": ["final_cache_sim_l_curve"],
+      "suite": "cache-sim",
+      "graph_set": "local_l_curve",
+      "benchmarks": ["pr", "bfs"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT"],
+      "prefetcher": "none",
+      "l3_sizes": ["4kB", "16kB", "64kB", "256kB", "1MB"],
+      "out_subdir": "10b_cache_sim_l_curve",
       "timeout_cache": 7200
     },
     {
