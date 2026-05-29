@@ -91,6 +91,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_bootstrap_ci_nested_consistency.py", "Boot-CI"),
     "Family clustering 3-way agreement":
         ("scripts/test/test_family_clustering_3way_agreement.py", "Fam-3way"),
+    "AUC correlation cross-artifact parity":
+        ("scripts/test/test_auc_correlation_cross_artifact_parity.py", "AUC-Par"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
