@@ -129,83 +129,87 @@ class AnchorInvariant:
 def evaluate_invariants(
     cells: list[CellSummary],
     apps: tuple[str, ...] = ("pr", "bc"),
+    graphs: tuple[str, ...] = ("email-Eu-core",),
 ) -> list[AnchorInvariant]:
     results: list[AnchorInvariant] = []
     by_key = {(c.graph, c.app, c.l3_size): c for c in cells}
 
-    for app in apps:
-        c = by_key.get(("email-Eu-core", app, HEADLINE_L3))
-        name = f"GRASP_LE_LRU_headline:{app}@{HEADLINE_L3}"
-        if c is None:
-            results.append(AnchorInvariant(name, "missing", "cell not in sweep"))
-            continue
-        grasp = c.miss_rate_by_policy.get("GRASP")
-        lru = c.miss_rate_by_policy.get("LRU")
-        if grasp is None or lru is None:
-            results.append(AnchorInvariant(name, "missing", f"grasp={grasp} lru={lru}"))
-            continue
-        delta_pp = (grasp - lru) * 100.0
-        if delta_pp <= HEADLINE_MAX_GRASP_OVER_LRU_PP:
-            results.append(AnchorInvariant(
-                name, "ok",
-                f"grasp={grasp:.4f} lru={lru:.4f} Δ={delta_pp:+.3f}pp "
-                f"(tolerance ≤ {HEADLINE_MAX_GRASP_OVER_LRU_PP:+.2f}pp)",
-            ))
-        else:
-            results.append(AnchorInvariant(
-                name, "disagree",
-                f"grasp={grasp:.4f} lru={lru:.4f} Δ={delta_pp:+.3f}pp exceeds "
-                f"tolerance ({HEADLINE_MAX_GRASP_OVER_LRU_PP:+.2f}pp)",
-            ))
+    for graph in graphs:
+        for app in apps:
+            c = by_key.get((graph, app, HEADLINE_L3))
+            name = f"GRASP_LE_LRU_headline:{graph}/{app}@{HEADLINE_L3}"
+            if c is None:
+                results.append(AnchorInvariant(name, "missing", "cell not in sweep"))
+                continue
+            grasp = c.miss_rate_by_policy.get("GRASP")
+            lru = c.miss_rate_by_policy.get("LRU")
+            if grasp is None or lru is None:
+                results.append(AnchorInvariant(name, "missing", f"grasp={grasp} lru={lru}"))
+                continue
+            delta_pp = (grasp - lru) * 100.0
+            if delta_pp <= HEADLINE_MAX_GRASP_OVER_LRU_PP:
+                results.append(AnchorInvariant(
+                    name, "ok",
+                    f"grasp={grasp:.4f} lru={lru:.4f} Δ={delta_pp:+.3f}pp "
+                    f"(tolerance ≤ {HEADLINE_MAX_GRASP_OVER_LRU_PP:+.2f}pp)",
+                ))
+            else:
+                results.append(AnchorInvariant(
+                    name, "disagree",
+                    f"grasp={grasp:.4f} lru={lru:.4f} Δ={delta_pp:+.3f}pp exceeds "
+                    f"tolerance ({HEADLINE_MAX_GRASP_OVER_LRU_PP:+.2f}pp)",
+                ))
 
-    for app in apps:
-        c = by_key.get(("email-Eu-core", app, ASYMPTOTE_L3))
-        name = f"asymptote_within_{ASYMPTOTE_MAX_SPREAD_PCT}pp:{app}@{ASYMPTOTE_L3}"
-        if c is None:
-            results.append(AnchorInvariant(name, "missing", "cell not in sweep"))
-            continue
-        mrates = {p: r for p, r in c.miss_rate_by_policy.items() if p in {"GRASP", "LRU", "SRRIP"}}
-        if len(mrates) < 3:
-            results.append(AnchorInvariant(name, "missing", f"have policies={sorted(mrates)}"))
-            continue
-        spread_pp = (max(mrates.values()) - min(mrates.values())) * 100.0
-        if spread_pp <= ASYMPTOTE_MAX_SPREAD_PCT:
-            results.append(AnchorInvariant(
-                name, "ok",
-                f"spread={spread_pp:.3f}pp across {sorted(mrates)} "
-                f"(tolerance ≤ {ASYMPTOTE_MAX_SPREAD_PCT:.2f}pp)",
-            ))
-        else:
-            results.append(AnchorInvariant(
-                name, "disagree",
-                f"spread={spread_pp:.3f}pp across {sorted(mrates)} exceeds "
-                f"tolerance ({ASYMPTOTE_MAX_SPREAD_PCT:.2f}pp)",
-            ))
+    for graph in graphs:
+        for app in apps:
+            c = by_key.get((graph, app, ASYMPTOTE_L3))
+            name = f"asymptote_within_{ASYMPTOTE_MAX_SPREAD_PCT}pp:{graph}/{app}@{ASYMPTOTE_L3}"
+            if c is None:
+                results.append(AnchorInvariant(name, "missing", "cell not in sweep"))
+                continue
+            mrates = {p: r for p, r in c.miss_rate_by_policy.items() if p in {"GRASP", "LRU", "SRRIP"}}
+            if len(mrates) < 3:
+                results.append(AnchorInvariant(name, "missing", f"have policies={sorted(mrates)}"))
+                continue
+            spread_pp = (max(mrates.values()) - min(mrates.values())) * 100.0
+            if spread_pp <= ASYMPTOTE_MAX_SPREAD_PCT:
+                results.append(AnchorInvariant(
+                    name, "ok",
+                    f"spread={spread_pp:.3f}pp across {sorted(mrates)} "
+                    f"(tolerance ≤ {ASYMPTOTE_MAX_SPREAD_PCT:.2f}pp)",
+                ))
+            else:
+                results.append(AnchorInvariant(
+                    name, "disagree",
+                    f"spread={spread_pp:.3f}pp across {sorted(mrates)} exceeds "
+                    f"tolerance ({ASYMPTOTE_MAX_SPREAD_PCT:.2f}pp)",
+                ))
 
-    for app in apps:
-        c = by_key.get(("email-Eu-core", app, SMALL_CACHE_L3))
-        name = f"small_cache_divergence:{app}@{SMALL_CACHE_L3}"
-        if c is None:
-            results.append(AnchorInvariant(name, "missing", "cell not in sweep"))
-            continue
-        mrates = {p: r for p, r in c.miss_rate_by_policy.items() if p in {"GRASP", "LRU", "SRRIP"}}
-        if len(mrates) < 3:
-            results.append(AnchorInvariant(name, "missing", f"have policies={sorted(mrates)}"))
-            continue
-        spread_pp = (max(mrates.values()) - min(mrates.values())) * 100.0
-        if spread_pp >= SMALL_CACHE_MIN_SPREAD_PP:
-            results.append(AnchorInvariant(
-                name, "ok",
-                f"spread={spread_pp:.3f}pp across {sorted(mrates)} "
-                f"(min ≥ {SMALL_CACHE_MIN_SPREAD_PP:.2f}pp; L-shape holds)",
-            ))
-        else:
-            results.append(AnchorInvariant(
-                name, "disagree",
-                f"spread={spread_pp:.3f}pp across {sorted(mrates)} below "
-                f"min {SMALL_CACHE_MIN_SPREAD_PP:.2f}pp (policies converged "
-                f"at {SMALL_CACHE_L3}; L-shape broken)",
-            ))
+    for graph in graphs:
+        for app in apps:
+            c = by_key.get((graph, app, SMALL_CACHE_L3))
+            name = f"small_cache_divergence:{graph}/{app}@{SMALL_CACHE_L3}"
+            if c is None:
+                results.append(AnchorInvariant(name, "missing", "cell not in sweep"))
+                continue
+            mrates = {p: r for p, r in c.miss_rate_by_policy.items() if p in {"GRASP", "LRU", "SRRIP"}}
+            if len(mrates) < 3:
+                results.append(AnchorInvariant(name, "missing", f"have policies={sorted(mrates)}"))
+                continue
+            spread_pp = (max(mrates.values()) - min(mrates.values())) * 100.0
+            if spread_pp >= SMALL_CACHE_MIN_SPREAD_PP:
+                results.append(AnchorInvariant(
+                    name, "ok",
+                    f"spread={spread_pp:.3f}pp across {sorted(mrates)} "
+                    f"(min ≥ {SMALL_CACHE_MIN_SPREAD_PP:.2f}pp; L-shape holds)",
+                ))
+            else:
+                results.append(AnchorInvariant(
+                    name, "disagree",
+                    f"spread={spread_pp:.3f}pp across {sorted(mrates)} below "
+                    f"min {SMALL_CACHE_MIN_SPREAD_PP:.2f}pp (policies converged "
+                    f"at {SMALL_CACHE_L3}; L-shape broken)",
+                ))
 
     name = "no_error_rows"
     total_err = sum(c.error_rows for c in cells)
@@ -305,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     cells = load_cells(args.sweep_root, args.sweep_subdir, graphs=set(args.graphs))
-    invariants = evaluate_invariants(cells, apps=tuple(args.apps))
+    invariants = evaluate_invariants(cells, apps=tuple(args.apps), graphs=tuple(args.graphs))
 
     payload = {
         "sweep_root": str(args.sweep_root),

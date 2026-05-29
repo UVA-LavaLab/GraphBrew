@@ -1,9 +1,10 @@
 """Test the Sniper literature-anchor invariants.
 
 Parallel structure to test_gem5_anchor.py but scoped to the Sniper
-sweep on email-Eu-core. Sniper currently only sweeps PR (BC variants
-are empty), so the asymptote and headline invariants are only
-asserted for PR.
+sweep. Sniper currently sweeps PR on email-Eu-core and cit-Patents
+(BC variants are empty pending a kernel_smoke binary), so headline,
+asymptote and small-cache-divergence invariants are asserted on both
+graphs for PR.
 """
 
 from __future__ import annotations
@@ -67,26 +68,30 @@ def test_no_invariant_missing(anchor_snapshot: dict) -> None:
     )
 
 
-def test_headline_pr_present(anchor_snapshot: dict) -> None:
-    name = "GRASP_LE_LRU_headline:pr@256kB"
+@pytest.mark.parametrize("graph", ["email-Eu-core", "cit-Patents"])
+def test_headline_pr_present(anchor_snapshot: dict, graph: str) -> None:
+    name = f"GRASP_LE_LRU_headline:{graph}/pr@256kB"
     matches = [i for i in anchor_snapshot["invariants"] if i["name"] == name]
     assert matches, f"expected invariant {name}"
     assert matches[0]["status"] == "ok", matches[0]
 
 
-def test_asymptote_pr_present(anchor_snapshot: dict) -> None:
+@pytest.mark.parametrize("graph", ["email-Eu-core", "cit-Patents"])
+def test_asymptote_pr_present(anchor_snapshot: dict, graph: str) -> None:
     name_prefix = "asymptote_within_"
+    suffix = f":{graph}/pr@2MB"
     matches = [
         i for i in anchor_snapshot["invariants"]
-        if i["name"].startswith(name_prefix) and i["name"].endswith(":pr@2MB")
+        if i["name"].startswith(name_prefix) and i["name"].endswith(suffix)
     ]
-    assert matches, "expected asymptote invariant for pr@2MB"
+    assert matches, f"expected asymptote invariant for {graph}/pr@2MB"
     assert matches[0]["status"] == "ok", matches[0]
 
 
-def test_small_cache_divergence_pr_present(anchor_snapshot: dict) -> None:
+@pytest.mark.parametrize("graph", ["email-Eu-core", "cit-Patents"])
+def test_small_cache_divergence_pr_present(anchor_snapshot: dict, graph: str) -> None:
     """L-shape companion: at 4kB << WSS, Sniper policies must diverge ≥ 2pp."""
-    name = "small_cache_divergence:pr@4kB"
+    name = f"small_cache_divergence:{graph}/pr@4kB"
     matches = [i for i in anchor_snapshot["invariants"] if i["name"] == name]
     assert matches, f"expected invariant {name}"
     assert matches[0]["status"] == "ok", matches[0]
@@ -134,7 +139,7 @@ def test_apps_filter_isolates_pr(tmp_path: Path) -> None:
     # with apps=("pr",) the bc invariants should not appear at all
     invariants_pr = mod.evaluate_invariants(cells, apps=("pr",))
     names = [i.name for i in invariants_pr]
-    assert not any(":bc@" in n for n in names), names
+    assert not any("/bc@" in n for n in names), names
     # the bc error_row should still be counted by no_error_rows
     no_err = [i for i in invariants_pr if i.name == "no_error_rows"][0]
     assert no_err.status == "disagree", no_err.detail

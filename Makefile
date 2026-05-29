@@ -497,7 +497,7 @@ GEM5_ANCHOR_SUBDIR ?= DBG
 GEM5_ANCHOR_GRAPHS ?= email-Eu-core
 SNIPER_ANCHOR_ROOT ?= /tmp/graphbrew-grasp-sniper-sweep
 SNIPER_ANCHOR_SUBDIR ?= DBG
-SNIPER_ANCHOR_GRAPHS ?= email-Eu-core
+SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr
 WIKI_DATA       := $(WIKI_DIR)/data
 

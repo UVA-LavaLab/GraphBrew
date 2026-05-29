@@ -36,12 +36,14 @@ Latest additions on top of the Tier A/B/C work:
 - Make targets: `make lit-faith`, `make lit-repro`, `make lit-budget`,
   `make confidence` (CI-ready: exit 0 iff every gate is GREEN).
 - `scripts/experiments/ecg/gem5_anchor_summary.py` now emits a
-  `small_cache_divergence:<app>@4kB` invariant alongside the
+  `small_cache_divergence:<graph>/<app>@4kB` invariant alongside the
   headline (256kB) and asymptote (2MB) checks: at 4kB << WSS the
   three policies **must** diverge by ≥ 2 pp. Together with the
   asymptote check this codifies the GRASP-paper L-shape and would
   catch regressions where a "fix" at small caches collapses policy
-  differentiation.
+  differentiation. Invariants are now per-(graph, app), so the
+  Sniper anchor folds in both `email-Eu-core` (PR) and `cit-Patents`
+  (PR, 11.4 pp 4kB spread) on every check.
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the

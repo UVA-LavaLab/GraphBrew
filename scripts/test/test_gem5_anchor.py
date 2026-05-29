@@ -105,7 +105,7 @@ def test_no_invariant_missing(anchor_snapshot: dict) -> None:
 
 @pytest.mark.parametrize("app", ["pr", "bc"])
 def test_headline_grasp_le_lru_present(anchor_snapshot: dict, app: str) -> None:
-    name = f"GRASP_LE_LRU_headline:{app}@256kB"
+    name = f"GRASP_LE_LRU_headline:email-Eu-core/{app}@256kB"
     matches = [i for i in anchor_snapshot["invariants"] if i["name"] == name]
     assert matches, f"expected invariant {name}"
     assert matches[0]["status"] == "ok", matches[0]
@@ -116,18 +116,18 @@ def test_asymptote_present(anchor_snapshot: dict, app: str) -> None:
     name_prefix = f"asymptote_within_"
     matches = [
         i for i in anchor_snapshot["invariants"]
-        if i["name"].startswith(name_prefix) and i["name"].endswith(f":{app}@2MB")
+        if i["name"].startswith(name_prefix) and i["name"].endswith(f":email-Eu-core/{app}@2MB")
     ]
-    assert matches, f"expected asymptote invariant for {app}@2MB"
+    assert matches, f"expected asymptote invariant for email-Eu-core/{app}@2MB"
     assert matches[0]["status"] == "ok", matches[0]
 
 
 @pytest.mark.parametrize("app", ["pr", "bc"])
 def test_small_cache_divergence_present(anchor_snapshot: dict, app: str) -> None:
     """L-shape companion: at 4kB << WSS, policies must NOT have converged."""
-    name = f"small_cache_divergence:{app}@4kB"
+    name = f"small_cache_divergence:email-Eu-core/{app}@4kB"
     matches = [i for i in anchor_snapshot["invariants"] if i["name"] == name]
-    assert matches, f"expected small_cache_divergence invariant for {app}@4kB"
+    assert matches, f"expected small_cache_divergence invariant for email-Eu-core/{app}@4kB"
     assert matches[0]["status"] == "ok", matches[0]
 
 
@@ -201,7 +201,7 @@ def test_synthetic_headline_violation_disagrees(tmp_path: Path) -> None:
     cells = mod.load_cells(tmp_path, "DBG", graphs={"email-Eu-core"})
     invariants = mod.evaluate_invariants(cells)
     by_name = {i.name: i for i in invariants}
-    assert by_name["GRASP_LE_LRU_headline:bc@256kB"].status == "disagree"
+    assert by_name["GRASP_LE_LRU_headline:email-Eu-core/bc@256kB"].status == "disagree"
 
 
 def test_synthetic_missing_asymptote_cell_reports_missing(tmp_path: Path) -> None:
@@ -213,7 +213,7 @@ def test_synthetic_missing_asymptote_cell_reports_missing(tmp_path: Path) -> Non
     cells = mod.load_cells(tmp_path, "DBG", graphs={"email-Eu-core"})
     invariants = mod.evaluate_invariants(cells)
     by_name = {i.name: i for i in invariants}
-    assert by_name["asymptote_within_1.0pp:pr@2MB"].status == "missing"
+    assert by_name["asymptote_within_1.0pp:email-Eu-core/pr@2MB"].status == "missing"
 
 
 def test_synthetic_small_cache_collapse_disagrees(tmp_path: Path) -> None:
@@ -230,8 +230,8 @@ def test_synthetic_small_cache_collapse_disagrees(tmp_path: Path) -> None:
     cells = mod.load_cells(tmp_path, "DBG", graphs={"email-Eu-core"})
     invariants = mod.evaluate_invariants(cells)
     by_name = {i.name: i for i in invariants}
-    assert by_name["small_cache_divergence:pr@4kB"].status == "disagree"
-    assert "below min" in by_name["small_cache_divergence:pr@4kB"].detail
+    assert by_name["small_cache_divergence:email-Eu-core/pr@4kB"].status == "disagree"
+    assert "below min" in by_name["small_cache_divergence:email-Eu-core/pr@4kB"].detail
 
 
 def test_synthetic_missing_small_cache_cell_reports_missing(tmp_path: Path) -> None:
@@ -242,7 +242,7 @@ def test_synthetic_missing_small_cache_cell_reports_missing(tmp_path: Path) -> N
     cells = mod.load_cells(tmp_path, "DBG", graphs={"email-Eu-core"})
     invariants = mod.evaluate_invariants(cells)
     by_name = {i.name: i for i in invariants}
-    assert by_name["small_cache_divergence:bc@4kB"].status == "missing"
+    assert by_name["small_cache_divergence:email-Eu-core/bc@4kB"].status == "missing"
 
 
 def test_synthetic_error_row_disagrees_on_no_error_rows(tmp_path: Path) -> None:
