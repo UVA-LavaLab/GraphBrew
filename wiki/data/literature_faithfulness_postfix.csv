@@ -131,6 +131,30 @@ soc-LiveJournal1,pr,8MB,GRASP,0.201771,-7.3848,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-LiveJournal1,pr,8MB,LRU,0.275619,+0.0000,,no_claim,
 soc-LiveJournal1,pr,8MB,POPT,0.179650,-9.5969,,no_claim,
 soc-LiveJournal1,pr,8MB,SRRIP,0.240640,-3.4979,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
+soc-pokec,bc,1MB,GRASP,0.765123,-8.6907,,ok,Faldu et al. HPCA 2020 Fig 11
+soc-pokec,bc,1MB,LRU,0.852030,+0.0000,,no_claim,
+soc-pokec,bc,1MB,POPT,0.795915,-5.6115,,no_claim,
+soc-pokec,bc,1MB,SRRIP,0.828838,-2.3192,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-pokec,bc,4MB,GRASP,0.420456,-8.0482,,no_claim,
+soc-pokec,bc,4MB,LRU,0.500938,+0.0000,,no_claim,
+soc-pokec,bc,4MB,POPT,0.437630,-6.3308,,no_claim,
+soc-pokec,bc,4MB,SRRIP,0.466971,-3.3967,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-pokec,bc,8MB,GRASP,0.199376,-4.4118,,no_claim,
+soc-pokec,bc,8MB,LRU,0.243494,+0.0000,,no_claim,
+soc-pokec,bc,8MB,POPT,0.202222,-4.1272,,no_claim,
+soc-pokec,bc,8MB,SRRIP,0.221503,-2.1991,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-pokec,bfs,1MB,GRASP,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,1MB,LRU,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,1MB,POPT,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,1MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-pokec,bfs,4MB,GRASP,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,4MB,LRU,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,4MB,POPT,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,4MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-pokec,bfs,8MB,GRASP,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,8MB,LRU,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,8MB,POPT,1.000000,+0.0000,,no_claim,
+soc-pokec,bfs,8MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-pokec,cc,1MB,GRASP,0.568383,-13.1051,,no_claim,
 soc-pokec,cc,1MB,LRU,0.699434,+0.0000,,no_claim,
 soc-pokec,cc,1MB,POPT,0.674186,-2.5248,,no_claim,

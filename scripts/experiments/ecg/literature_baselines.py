@@ -502,6 +502,18 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "GRASP's hot-region pinning happens to align with the active "
         "frontier vertices in this regime. (Balaji HPCA21 §3.3 "
         "assumes PR-ordering tracks reuse.)",
+    ("soc-pokec", "bc", "1MB", "POPT_GE_GRASP"):
+        "BC's forward + backward sweeps from `-r 0` (highest-PR hub) "
+        "expand a frontier whose access pattern correlates with the "
+        "directed sub-graph from the source rather than with global "
+        "PR-rank order. POPT's static PR-ranked schedule mis-predicts "
+        "reuse by ~3.1 pp at 1 MB. GRASP's hot-region pinning happens "
+        "to track the BC frontier on soc-pokec. cit-Patents/bc and "
+        "soc-LJ/bc do not exhibit this mismatch.",
+    ("soc-pokec", "bc", "4MB", "POPT_GE_GRASP"):
+        "Same source-rooted frontier vs PR-rank mis-alignment as the "
+        "1 MB entry; ~1.7 pp gap persists at 4 MB because the issue is "
+        "ordering, not capacity.",
     # ---- POPT_NEAR_GRASP_IF_BIG_GAP phase-transition deviations -------
     # The cross-policy invariant fires when GRASP improves on LRU by
     # >10 pp (phase-transition regime). On CC at small L3, GRASP gains

@@ -649,6 +649,122 @@
     }
   },
   {
+    "accesses": 99386071,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -8.690700000000007,
+      "LRU": 0.0,
+      "POPT": -5.611500000000003,
+      "SRRIP": -2.31920000000001
+    },
+    "graph": "soc-pokec",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.765123,
+      "LRU": 0.8520300000000001,
+      "POPT": 0.795915,
+      "SRRIP": 0.828838
+    },
+    "verdict": {
+      "GRASP": "ok"
+    }
+  },
+  {
+    "accesses": 98921957,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -8.048199999999994,
+      "LRU": 0.0,
+      "POPT": -6.3308000000000035,
+      "SRRIP": -3.396699999999997
+    },
+    "graph": "soc-pokec",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 0.42045600000000005,
+      "LRU": 0.500938,
+      "POPT": 0.43762999999999996,
+      "SRRIP": 0.466971
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 98920977,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -4.4117999999999995,
+      "LRU": 0.0,
+      "POPT": -4.1271999999999975,
+      "SRRIP": -2.1990999999999983
+    },
+    "graph": "soc-pokec",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 0.199376,
+      "LRU": 0.243494,
+      "POPT": 0.202222,
+      "SRRIP": 0.221503
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 0,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "soc-pokec",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 0,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "soc-pokec",
+    "l3_size": "4MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 0,
+    "app": "bfs",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.0,
+      "LRU": 0.0,
+      "POPT": 0.0,
+      "SRRIP": 0.0
+    },
+    "graph": "soc-pokec",
+    "l3_size": "8MB",
+    "miss_rate": {
+      "GRASP": 1.0,
+      "LRU": 1.0,
+      "POPT": 1.0,
+      "SRRIP": 1.0
+    },
+    "verdict": {}
+  },
+  {
     "accesses": 1771468,
     "app": "cc",
     "delta_pp_vs_lru": {
