@@ -8,7 +8,45 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **42 gates, all GREEN, exit 0**.
+and currently reports **74 gates, all GREEN, exit 0**.
+
+**Major gate families added since the 42-gate baseline** (each is one
+generator + 12-test pytest + Makefile target + dashboard entry +
+catalog entry + reproduce_smoke tracking — same 10-step wiring):
+
+- **Curvature / slope family** (gates 50-72): per-(app, graph, policy)
+  capacity-sensitivity slopes (OLS of miss% over log2 L3-MB),
+  per-policy summaries, per-app and per-family breakdowns, saturation
+  distance (4MB→8MB miss-rate drop), curvature, slope vs distance
+  cross-check, family-curvature replay, and a cross-tool SRRIP-vs-
+  GRASP slope ordering invariant that confirms the "oracle-aware
+  policies are less cache-hungry" claim replicates on cache-sim,
+  gem5 anchor, and sniper anchor (gate 72).
+- **Anchor-tool slope replays** (gates 70/71): timing-faithful slope
+  reproductions on gem5 (2 cells) and sniper (6 cells) at the
+  4kB-2MB anchor sweep, using the same OLS / monotonicity / SRRIP-
+  vs-GRASP / help-floor checks as the cache-sim sweep.
+- **Regime-dependence formalization** (gate 74): the cross-tool
+  LRU-vs-GRASP slope inversion is now a first-class invariant:
+  cache-sim post-WSS (1-8MB) shows LRU strictly steeper than GRASP
+  (-0.97 pp/oct), while both anchor tools at sub-WSS scales show
+  the opposite sign (gem5 +0.84, sniper +0.24). Sign agreement
+  between gem5 and sniper confirms the inversion is physical
+  (LRU's give-up-and-stream behaviour vs GRASP's hold-the-hot-set
+  behaviour at sub-WSS).
+- **Per-app deviation pinning** (gates 68/73): bfs is pinned as a
+  documented kernel deviation for both LRU-vs-GRASP (gate 68) and
+  SRRIP-vs-GRASP (gate 73) per-app ordering, with the pin gated by
+  "no NEW deviations". Frontier-driven streaming pathology that
+  gate 65 already flags as the most-saturated kernel.
+- **Bootstrap / statistical-significance gates**, **policy-rank
+  Kendall stability**, **WSS-knee-location**, **family-classification
+  sensitivity**, **cross-policy mean-margin asymmetry**, and others
+  filled out the dashboard from the original 11 pytest gates to the
+  current 74. `make confidence-fast` runs the whole suite in under
+  ~3 minutes; `reproduce_smoke.py` snapshots 126 SHA-256 hashes of
+  the tracked artifacts and re-runs `make lit-claims lit-catalog`
+  in a subprocess to verify drift=0.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -25,7 +63,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 11 pytest gates + lit-faith headline + corpus diversity
+  view of all 74+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
@@ -270,7 +308,7 @@ Latest additions on top of the Tier A/B/C work:
     bedrock claim at 0 flips and enforces that all road flips
     must originate from roadNet-CA (no spurious sources).
   - `scripts/experiments/ecg/reproduce_smoke.py` snapshots SHA-
-    256 hashes of 44 tracked `wiki/data/*.{json,md}` artifacts,
+    256 hashes of 126 tracked `wiki/data/*.{json,md}` artifacts,
     re-runs `make lit-claims lit-catalog` in a subprocess, and
     diffs the canonical hashes (masking volatile timing/runtime
     fields). Lives at
