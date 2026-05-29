@@ -141,6 +141,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cache_sensitivity_slope.py", "Slope"),
     "Per-graph oracle-gap cache-sensitivity slope":
         ("scripts/test/test_per_graph_cache_slope.py", "PGSlope"),
+    "Cross-generator gap_pp parity":
+        ("scripts/test/test_cross_generator_gap_parity.py", "Parity"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

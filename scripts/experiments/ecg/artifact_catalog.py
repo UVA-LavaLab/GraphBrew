@@ -304,6 +304,14 @@ CATALOG = [
         "summary":   "Drills the gate-52 anti-scaling story down to individual graphs. Of 112 full (graph, app, policy) trajectories at paper L3, 33 cells show >=1.0 pp single-octave gap growth. LRU+SRRIP dominate (26 of 33 = 79%). The corpus-averaged 'oracle-aware never regress' claim has 7 per-graph exceptions: GRASP regresses on cit-Patents/pr (+7.2 pp) and web-Google/bfs; POPT regresses predominantly on bc (4 graphs). Worst single cell: web-Google/bfs/LRU at +14.7 pp. email-Eu-core (PR pilot) has zero anti-scaling.",
     },
     {
+        "id":        "cross_generator_gap_parity",
+        "label":     "Cross-generator gap_pp parity (oracle_gap vs auc vs slope)",
+        "generator": "scripts/experiments/ecg/cross_generator_gap_parity.py",
+        "gate":      "scripts/test/test_cross_generator_gap_parity.py",
+        "artifact":  "wiki/data/cross_generator_gap_parity.json",
+        "summary":   "Reconciles the three load-bearing aggregators that all expose per-(app, policy, L3) gap_pp via different schemas (raw rows / AUC trajectory / slope decoration). Verifies all 60 paper triples (5 apps x 4 policies x 3 L3) report identical gap_pp values within 1e-3 pp. Zero mismatches today. Catches silent staleness, aggregation drift, or rounding mismatches that would invisibly break the paper narrative.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -383,7 +391,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (53 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (54 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

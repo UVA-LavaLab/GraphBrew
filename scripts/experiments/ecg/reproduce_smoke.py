@@ -97,6 +97,8 @@ TRACKED_ARTIFACTS = [
     "cache_sensitivity_slope.md",
     "per_graph_cache_slope.json",
     "per_graph_cache_slope.md",
+    "cross_generator_gap_parity.json",
+    "cross_generator_gap_parity.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
