@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "source": "per_app_capacity_slope.json",
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "allow_srrip_shallower_by_pp": 1.0,
+    "pinned_deviating_apps": [
+      "bfs"
+    ],
+    "deviating_apps": [
+      "bfs"
+    ],
+    "new_deviating_apps": [],
+    "missing_apps": [],
+    "per_app": {
+      "bc": {
+        "grasp_median_pp_oct": -14.2633,
+        "srrip_median_pp_oct": -14.5334,
+        "srrip_minus_grasp_pp_oct": -0.2701,
+        "deviates": false
+      },
+      "bfs": {
+        "grasp_median_pp_oct": -6.4051,
+        "srrip_median_pp_oct": -4.0515,
+        "srrip_minus_grasp_pp_oct": 2.3536,
+        "deviates": true
+      },
+      "cc": {
+        "grasp_median_pp_oct": -14.0757,
+        "srrip_median_pp_oct": -14.7883,
+        "srrip_minus_grasp_pp_oct": -0.7126,
+        "deviates": false
+      },
+      "pr": {
+        "grasp_median_pp_oct": -16.1874,
+        "srrip_median_pp_oct": -16.8824,
+        "srrip_minus_grasp_pp_oct": -0.695,
+        "deviates": false
+      },
+      "sssp": {
+        "grasp_median_pp_oct": -19.4111,
+        "srrip_median_pp_oct": -19.5307,
+        "srrip_minus_grasp_pp_oct": -0.1196,
+        "deviates": false
+      }
+    },
+    "verdict_checks": {
+      "no_missing_apps": true,
+      "no_new_deviating_apps": true,
+      "every_app_has_both_grasp_and_srrip": true
+    },
+    "verdict": "PASS"
+  }
+}

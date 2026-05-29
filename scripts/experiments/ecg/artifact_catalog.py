@@ -456,6 +456,14 @@ CATALOG = [
         "summary":   "Reads gate 66 (cache-sim capacity_sensitivity), gate 70 (gem5 anchor slope), and gate 71 (sniper anchor slope) per-policy medians and verifies the 'oracle-aware policies are less cache-hungry' claim is REPLICATED across all three tools: SRRIP median <= GRASP median in every tool, with at least 2 of 3 tools showing a strict gap >= 0.05 pp/octave. Current state: all 3/3 tools show strict steeper. Cache-sim SRRIP-GRASP = -0.95 pp/oct; gem5 = -1.25; sniper = -0.32. LRU-vs-GRASP delta is reported per tool but explicitly NOT gated — gates 70/71 documented that sub-WSS anchor scales invert the LRU>GRASP ordering observed at 1-8MB cache-sim sizes. Verdict PASS iff (1) all three tools' artifacts present and valid, (2) every tool shows SRRIP <= GRASP, (3) at least 2 of 3 tools show strict gap >= 0.05 pp/octave.",
     },
     {
+        "id":        "per_app_srrip_vs_grasp",
+        "label":     "Per-app SRRIP-vs-GRASP slope ordering",
+        "generator": "scripts/experiments/ecg/per_app_srrip_vs_grasp.py",
+        "gate":      "scripts/test/test_per_app_srrip_vs_grasp.py",
+        "artifact":  "wiki/data/per_app_srrip_vs_grasp.json",
+        "summary":   "Per-app companion to gate 72. Reads gate 68's per_app_capacity_slope artifact and verifies that for every non-pinned app, SRRIP median slope is no more than 1.0 pp/octave shallower than GRASP. Current state: bc -0.27, cc -0.71, pr -0.70, sssp -0.12 (all SRRIP steeper or near-tied). bfs is pinned as a known kernel deviation (+2.35 pp/oct shallower SRRIP) — same frontier-driven streaming pathology that gates 65/68 already document for LRU-vs-GRASP. Verdict PASS iff (1) no missing GRASP or SRRIP medians, (2) no NEW deviating apps beyond {bfs}, (3) at least one app has strictly steeper SRRIP, (4) majority of apps show steeper SRRIP (matches global gate 72 winner).",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -535,7 +543,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (72 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (73 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

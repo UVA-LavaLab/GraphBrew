@@ -179,6 +179,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_sniper_slope_replay.py", "SNslope"),
     "Cross-tool SRRIP-vs-GRASP slope ordering":
         ("scripts/test/test_cross_tool_slope_ordering.py", "XTslope"),
+    "Per-app SRRIP-vs-GRASP slope ordering":
+        ("scripts/test/test_per_app_srrip_vs_grasp.py", "AppSGR"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
