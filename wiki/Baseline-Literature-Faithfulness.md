@@ -458,11 +458,12 @@ edge-order mis-alignment.
   regime, e.g. cit-Patents/pr/4MB at -8.2 pp) is literature-faithful
   and no longer trips the check.
 
-### The eleven confidence gates
+### The twelve confidence gates
 
 `make confidence` (Makefile target) re-runs `lit-faith → lit-repro →
-lit-budget → confidence_dashboard` and asserts every gate is GREEN.
-The dashboard headline goes RED if **any** of the following fails:
+lit-budget → lit-table → confidence_dashboard` and asserts every
+gate is GREEN. The dashboard headline goes RED if **any** of the
+following fails:
 
 | # | Dashboard label | Source file |
 |---|---|---|
@@ -477,6 +478,7 @@ The dashboard headline goes RED if **any** of the following fails:
 | 9 | Cross-tool report parity | `scripts/test/test_cross_tool_parity.py` |
 | 10 | Regression budget floor | `scripts/test/test_regression_budget_floor.py` |
 | 11 | Corpus diversity profile parity | `scripts/test/test_corpus_diversity.py` |
+| 12 | Paper-pipeline literature pre-flight gate | `scripts/test/test_paper_pipeline_lit_gate.py` |
 
 Adding a new claim shape (e.g., a fourth `claim_kind`) is intentionally
 hard: `test_no_unrecognized_claim_kind_appears` in
