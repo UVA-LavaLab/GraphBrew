@@ -1,16 +1,16 @@
 graph,app,l3_size,policy,miss_rate,delta_vs_lru_pct,l3_accesses,claim_status,claim_citation
-cit-Patents,bc,1MB,GRASP,0.901854,+0.0258,,within_tolerance,Faldu et al. HPCA 2020 Fig 11
-cit-Patents,bc,1MB,LRU,0.901596,+0.0000,,no_claim,
-cit-Patents,bc,1MB,POPT,0.895605,-0.5991,,no_claim,
-cit-Patents,bc,1MB,SRRIP,0.896723,-0.4873,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-cit-Patents,bc,4MB,GRASP,0.720449,-2.9569,,no_claim,
-cit-Patents,bc,4MB,LRU,0.750018,+0.0000,,no_claim,
-cit-Patents,bc,4MB,POPT,0.731835,-1.8183,,no_claim,
-cit-Patents,bc,4MB,SRRIP,0.737451,-1.2567,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-cit-Patents,bc,8MB,GRASP,0.571329,-4.6822,,no_claim,
-cit-Patents,bc,8MB,LRU,0.618151,+0.0000,,no_claim,
-cit-Patents,bc,8MB,POPT,0.587026,-3.1125,,no_claim,
-cit-Patents,bc,8MB,SRRIP,0.599636,-1.8515,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+cit-Patents,bc,1MB,GRASP,0.902363,+0.3371,,within_tolerance,Faldu et al. HPCA 2020 Fig 11
+cit-Patents,bc,1MB,LRU,0.898992,+0.0000,,no_claim,
+cit-Patents,bc,1MB,POPT,0.897556,-0.1436,,no_claim,
+cit-Patents,bc,1MB,SRRIP,0.892680,-0.6312,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+cit-Patents,bc,4MB,GRASP,0.720874,-2.0525,,no_claim,
+cit-Patents,bc,4MB,LRU,0.741399,+0.0000,,no_claim,
+cit-Patents,bc,4MB,POPT,0.736844,-0.4555,,no_claim,
+cit-Patents,bc,4MB,SRRIP,0.729365,-1.2034,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+cit-Patents,bc,8MB,GRASP,0.563945,-5.2714,,no_claim,
+cit-Patents,bc,8MB,LRU,0.616659,+0.0000,,no_claim,
+cit-Patents,bc,8MB,POPT,0.589237,-2.7422,,no_claim,
+cit-Patents,bc,8MB,SRRIP,0.592732,-2.3927,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 cit-Patents,bfs,1MB,GRASP,0.956526,-0.9983,,ok,Faldu et al. HPCA 2020 Fig 11
 cit-Patents,bfs,1MB,LRU,0.966509,+0.0000,,no_claim,
 cit-Patents,bfs,1MB,POPT,0.957587,-0.8922,,no_claim,
@@ -59,6 +59,10 @@ cit-Patents,sssp,8MB,GRASP,0.199914,-6.9044,,no_claim,
 cit-Patents,sssp,8MB,LRU,0.268958,+0.0000,,no_claim,
 cit-Patents,sssp,8MB,POPT,0.216244,-5.2714,,no_claim,
 cit-Patents,sssp,8MB,SRRIP,0.243975,-2.4983,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
+com-orkut,bc,1MB,GRASP,0.799916,-6.2445,,no_claim,
+com-orkut,bc,1MB,LRU,0.862362,+0.0000,,no_claim,
+com-orkut,bc,1MB,POPT,0.824663,-3.7698,,no_claim,
+com-orkut,bc,1MB,SRRIP,0.836956,-2.5406,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,bfs,1MB,GRASP,0.994940,-0.2340,,no_claim,
 com-orkut,bfs,1MB,LRU,0.997280,+0.0000,,no_claim,
 com-orkut,bfs,1MB,POPT,0.997835,+0.0555,,no_claim,
@@ -143,6 +147,16 @@ email-Eu-core,pr,8MB,GRASP,1.000000,+0.0000,,insufficient_data,Faldu et al. HPCA
 email-Eu-core,pr,8MB,LRU,1.000000,+0.0000,,no_claim,
 email-Eu-core,pr,8MB,POPT,1.000000,+0.0000,,no_claim,
 email-Eu-core,pr,8MB,SRRIP,1.000000,+0.0000,,no_claim,
+soc-LiveJournal1,bc,1MB,GRASP,0.794920,-4.8254,,ok,Faldu et al. HPCA 2020 Fig 11
+soc-LiveJournal1,bc,1MB,LRU,0.843174,+0.0000,,no_claim,
+soc-LiveJournal1,bc,1MB,POPT,0.814773,-2.8401,,no_claim,
+soc-LiveJournal1,bc,1MB,SRRIP,0.824953,-1.8221,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-LiveJournal1,bc,4MB,GRASP,0.551066,-5.2710,,no_claim,
+soc-LiveJournal1,bc,4MB,LRU,0.603776,+0.0000,,no_claim,
+soc-LiveJournal1,bc,4MB,POPT,0.569835,-3.3941,,no_claim,
+soc-LiveJournal1,bc,4MB,SRRIP,0.582806,-2.0970,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-LiveJournal1,bc,8MB,LRU,0.452787,+0.0000,,no_claim,
+soc-LiveJournal1,bc,8MB,SRRIP,0.423678,-2.9109,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,bfs,1MB,GRASP,0.787126,-1.1538,,ok,Faldu et al. HPCA 2020 Fig 11
 soc-LiveJournal1,bfs,1MB,LRU,0.798664,+0.0000,,no_claim,
 soc-LiveJournal1,bfs,1MB,POPT,0.771569,-2.7095,,no_claim,

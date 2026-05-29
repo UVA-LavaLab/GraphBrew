@@ -7,9 +7,9 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 
 | Graph | App | L3 | LRU miss | SRRIP Δ | GRASP Δ | POPT Δ | GRASP claim | POPT claim |
 |---|---|---|---:|---:|---:|---:|---|---|
-| cit-Patents | bc | 1MB | 90.16% | -0.49 | +0.03 | -0.60 | ~ within_tol | — |
-| cit-Patents | bc | 4MB | 75.00% | -1.26 | -2.96 | -1.82 | — | — |
-| cit-Patents | bc | 8MB | 61.82% | -1.85 | -4.68 | -3.11 | — | — |
+| cit-Patents | bc | 1MB | 89.90% | -0.63 | +0.34 | -0.14 | ~ within_tol | — |
+| cit-Patents | bc | 4MB | 74.14% | -1.20 | -2.05 | -0.46 | — | — |
+| cit-Patents | bc | 8MB | 61.67% | -2.39 | -5.27 | -2.74 | — | — |
 | cit-Patents | bfs | 1MB | 96.65% | -0.40 | -1.00 | -0.89 | ✓ ok | — |
 | cit-Patents | bfs | 4MB | 90.98% | -0.68 | -4.08 | -3.70 | — | — |
 | cit-Patents | bfs | 8MB | 87.11% | -0.31 | -8.62 | -7.94 | — | — |
@@ -22,6 +22,7 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | cit-Patents | sssp | 1MB | 85.29% | -0.32 | -3.45 | -2.59 | ✓ ok | ✓ ok |
 | cit-Patents | sssp | 4MB | 56.31% | -2.46 | -8.67 | -6.87 | — | — |
 | cit-Patents | sssp | 8MB | 26.90% | -2.50 | -6.90 | -5.27 | — | — |
+| com-orkut | bc | 1MB | 86.24% | -2.54 | -6.24 | -3.77 | — | — |
 | com-orkut | bfs | 1MB | 99.73% | +0.03 | -0.23 | +0.06 | — | — |
 | com-orkut | bfs | 4MB | 99.49% | +0.07 | -1.65 | -2.04 | — | — |
 | com-orkut | bfs | 8MB | 99.42% | +0.03 | -3.22 | -3.94 | — | — |
@@ -43,6 +44,9 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | email-Eu-core | pr | 1MB | 100.00% | +0.00 | -0.05 | +0.00 | — | — |
 | email-Eu-core | pr | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
 | email-Eu-core | pr | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | ? insufficient | — |
+| soc-LiveJournal1 | bc | 1MB | 84.32% | -1.82 | -4.83 | -2.84 | ✓ ok | — |
+| soc-LiveJournal1 | bc | 4MB | 60.38% | -2.10 | -5.27 | -3.39 | — | — |
+| soc-LiveJournal1 | bc | 8MB | 45.28% | -2.91 | — | — | — | — |
 | soc-LiveJournal1 | bfs | 1MB | 79.87% | -1.58 | -1.15 | -2.71 | ✓ ok | — |
 | soc-LiveJournal1 | bfs | 4MB | 60.75% | -0.66 | -0.68 | -1.89 | — | — |
 | soc-LiveJournal1 | bfs | 8MB | 55.71% | -0.50 | -2.60 | -3.56 | — | — |

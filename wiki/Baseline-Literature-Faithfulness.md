@@ -383,8 +383,8 @@ the corpus state on `/tmp/graphbrew-lit-baseline` is:
 | web-Google    | ✓ | ✓ | ✓ | ✓ | ✓ |
 | soc-pokec     | ✓ | ✓ rerun w/ non-hub src | ✓ | ✓ rerun w/ non-hub src | ✓ |
 | cit-Patents   | ✓ | ✓ | ✓ | ✓ | ✓ |
-| com-orkut     | ✓ | ✓ rerun w/ non-hub src | (partial 4/12, in-flight) | ✓ rerun w/ non-hub src | ✓ |
-| soc-LiveJournal1 | ✓ | ✓ rerun w/ non-hub src | (partial 10/12, in-flight) | ✓ rerun w/ non-hub src | ✓ |
+| com-orkut     | ✓ | ✓ rerun w/ non-hub src | ◐ folded 4/12 (1MB) | ✓ rerun w/ non-hub src | ✓ |
+| soc-LiveJournal1 | ✓ | ✓ rerun w/ non-hub src | ◐ folded 10/12 (8MB GRASP+POPT in-flight) | ✓ rerun w/ non-hub src | ✓ |
 
 Cells marked "rerun w/ non-hub src" used `-r N/2` instead of `-r 0`
 because DBG re-ordering places the highest-degree vertex at index 0;
@@ -398,14 +398,14 @@ artifact, not a literature deviation.
 
 | Status | Count | Meaning |
 |---|---:|---|
-| `ok` | 171 | Observed Δ within published tolerance |
+| `ok` | 179 | Observed Δ within published tolerance |
 | `within_tolerance` | 2 | Borderline (cit-Patents/bc/1MB GRASP; soc-LJ/sssp/1MB POPT) |
 | `DISAGREE` | 0 | Unexplained deviation from literature |
 | `known_deviation` | 5 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, frontier vs PR-rank mis-alignment) |
 | `insufficient_data` | 13 | ROI ran with <10 k accesses (tiny graph or hub-src degeneracy) |
-| `missing` | 0 | Claim has no matching observation |
+| `missing` | 1 | Claim has no matching observation yet (soc-LJ/bc/8MB POPT, in-flight) |
 
-Total claims: 191 (added soc-LJ/{bfs,sssp,cc} and com-orkut/bfs fold-ins: 4 × 12 cells = 48 new cells, all executed from non-hub sources to bypass DBG-reordered hub starvation).
+Total claims: 200 (added soc-LJ/{bfs,sssp,cc,bc-partial} and com-orkut/{bfs,bc-partial} fold-ins; pytest gate now treats 3 BC/POPT cells (soc-LJ/bc/{1MB,4MB}, com-orkut/bc/1MB) as documented `POPT_GE_GRASP` deviations, same root cause as CC: BC's dependency-frontier traversal mis-aligns with POPT's static PR-rank schedule).
 
 All `known_deviation` entries are CC + POPT permutations where
 P-OPT's PR-ranked offset matrix is mis-aligned with CC's edge-driven
