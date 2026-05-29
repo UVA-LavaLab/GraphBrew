@@ -111,6 +111,8 @@ TRACKED_ARTIFACTS = [
     "policy_rank_kendall.md",
     "wss_knee_location.json",
     "wss_knee_location.md",
+    "family_curvature_replay.json",
+    "family_curvature_replay.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

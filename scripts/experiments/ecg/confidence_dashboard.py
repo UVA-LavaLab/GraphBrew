@@ -155,6 +155,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_policy_rank_kendall.py", "Tau"),
     "WSS-relative knee location":
         ("scripts/test/test_wss_knee_location.py", "WssKn"),
+    "Per-family curvature replay":
+        ("scripts/test/test_family_curvature_replay.py", "FamKn"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

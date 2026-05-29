@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2920069694519043,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.15s"
+      "runtime_s": 0.3864753246307373,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.25s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,7 +24,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.7672247886657715,
+      "runtime_s": 0.7689456939697266,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.64s"
     },
     {
@@ -37,7 +37,7 @@
       "xfailed": 4,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.165419340133667,
+      "runtime_s": 0.17163872718811035,
       "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.04s"
     },
     {
@@ -50,7 +50,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.35465478897094727,
+      "runtime_s": 0.35134053230285645,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.22s"
     },
     {
@@ -63,7 +63,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23568439483642578,
+      "runtime_s": 0.2329847812652588,
       "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.10s"
     },
     {
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.157395601272583,
+      "runtime_s": 0.15676593780517578,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
     },
     {
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15805792808532715,
+      "runtime_s": 0.15954875946044922,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.03s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15031719207763672,
+      "runtime_s": 0.15282297134399414,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16376924514770508,
+      "runtime_s": 0.16109466552734375,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15598559379577637,
+      "runtime_s": 0.16142940521240234,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15711021423339844,
+      "runtime_s": 0.1610121726989746,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     },
     {
@@ -154,7 +154,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.44960713386535645,
+      "runtime_s": 0.4560360908508301,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.28s"
     },
     {
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.17353034019470215,
+      "runtime_s": 0.17066192626953125,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.04s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1612107753753662,
+      "runtime_s": 0.16342997550964355,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.03s"
     },
     {
@@ -193,7 +193,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15576720237731934,
+      "runtime_s": 0.16476655006408691,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     },
     {
@@ -206,7 +206,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1761915683746338,
+      "runtime_s": 0.17914676666259766,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.05s"
     },
     {
@@ -219,7 +219,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.14943218231201172,
+      "runtime_s": 0.15178656578063965,
       "raw_tail": "..                                                                       [100%]\n2 passed in 0.02s"
     },
     {
@@ -232,8 +232,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.18279075622558594,
-      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.05s"
+      "runtime_s": 0.18854165077209473,
+      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.06s"
     },
     {
       "label": "Small-L3 thrash sanity",
@@ -245,8 +245,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15806269645690918,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
+      "runtime_s": 0.15274977684020996,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
       "label": "Cross-tool saturation soundness",
@@ -258,7 +258,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1546623706817627,
+      "runtime_s": 0.15484213829040527,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -271,7 +271,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.14864134788513184,
+      "runtime_s": 0.1508011817932129,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -284,7 +284,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15482735633850098,
+      "runtime_s": 0.15172767639160156,
       "raw_tail": ".......                                                                  [100%]\n7 passed in 0.02s"
     },
     {
@@ -297,7 +297,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1494140625,
+      "runtime_s": 0.15034270286560059,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -310,7 +310,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.148651123046875,
+      "runtime_s": 0.14954018592834473,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -323,7 +323,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15665674209594727,
+      "runtime_s": 0.1573176383972168,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.03s"
     },
     {
@@ -336,7 +336,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15221238136291504,
+      "runtime_s": 0.15261316299438477,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.02s"
     },
     {
@@ -349,7 +349,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15106630325317383,
+      "runtime_s": 0.15343141555786133,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.02s"
     },
     {
@@ -362,8 +362,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1536562442779541,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
+      "runtime_s": 0.15105748176574707,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
       "label": "Per-kernel bootstrap CIs",
@@ -375,7 +375,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15204930305480957,
+      "runtime_s": 0.15195584297180176,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
     },
     {
@@ -388,7 +388,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15413141250610352,
+      "runtime_s": 0.15382003784179688,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -401,8 +401,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15186691284179688,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
+      "runtime_s": 0.15556812286376953,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
     },
     {
       "label": "Cohen's h on win-rate gaps",
@@ -414,7 +414,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15541934967041016,
+      "runtime_s": 0.15168046951293945,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -427,7 +427,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15377426147460938,
+      "runtime_s": 0.1546955108642578,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
     },
     {
@@ -440,7 +440,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1520380973815918,
+      "runtime_s": 0.15436029434204102,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
     },
     {
@@ -453,7 +453,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1554865837097168,
+      "runtime_s": 0.1539466381072998,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.03s"
     },
     {
@@ -466,7 +466,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1550273895263672,
+      "runtime_s": 0.15151548385620117,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -479,8 +479,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15071773529052734,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.02s"
+      "runtime_s": 0.15298748016357422,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
       "label": "Family geomean improvement vs LRU",
@@ -492,7 +492,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15596866607666016,
+      "runtime_s": 0.1544783115386963,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -505,7 +505,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15340113639831543,
+      "runtime_s": 0.15832924842834473,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -518,7 +518,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15492916107177734,
+      "runtime_s": 0.15927982330322266,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -531,7 +531,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15241098403930664,
+      "runtime_s": 0.1604776382446289,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -544,7 +544,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.14884448051452637,
+      "runtime_s": 0.16415047645568848,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -557,7 +557,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15034151077270508,
+      "runtime_s": 0.15506219863891602,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -570,7 +570,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15127873420715332,
+      "runtime_s": 0.15741252899169922,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
     },
     {
@@ -583,7 +583,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16015172004699707,
+      "runtime_s": 0.15685462951660156,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -596,7 +596,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16387033462524414,
+      "runtime_s": 0.1541764736175537,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -609,7 +609,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16114497184753418,
+      "runtime_s": 0.1570284366607666,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -622,7 +622,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16071319580078125,
+      "runtime_s": 0.15685176849365234,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -635,7 +635,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16054916381835938,
+      "runtime_s": 0.1551990509033203,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -648,7 +648,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15358424186706543,
+      "runtime_s": 0.152235746383667,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -661,7 +661,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1611640453338623,
+      "runtime_s": 0.16221046447753906,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -674,7 +674,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15396881103515625,
+      "runtime_s": 0.15810823440551758,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -687,7 +687,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15107297897338867,
+      "runtime_s": 0.15314507484436035,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -700,7 +700,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15416526794433594,
+      "runtime_s": 0.15398216247558594,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -713,7 +713,20 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15566420555114746,
+      "runtime_s": 0.15296149253845215,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
+    },
+    {
+      "label": "Per-family curvature replay",
+      "short": "FamKn",
+      "path": "scripts/test/test_family_curvature_replay.py",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.15676331520080566,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
     },
     {
@@ -726,7 +739,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15644598007202148,
+      "runtime_s": 0.1545579433441162,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.03s"
     },
     {
@@ -739,7 +752,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15531086921691895,
+      "runtime_s": 0.15312552452087402,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
     },
     {
@@ -752,7 +765,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15143966674804688,
+      "runtime_s": 0.15464091300964355,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -765,7 +778,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15867400169372559,
+      "runtime_s": 0.15343999862670898,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -778,7 +791,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15692758560180664,
+      "runtime_s": 0.15488052368164062,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.03s"
     }
   ],

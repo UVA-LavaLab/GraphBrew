@@ -360,6 +360,14 @@ CATALOG = [
         "summary":   "Per-policy plateau location on the under_wss → near_wss → over_wss regime ladder. Knee = first regime where median gap-to-oracle drops at-or-below 0.5pp. Today GRASP and POPT both plateau at under_wss (rank 0); LRU and SRRIP only at over_wss (rank 2) — a full two ladder steps of separation. Verdict PASS iff every oracle-aware policy plateaus strictly earlier than every non-oracle policy. Combines gates 41 (WSS-relative L3), 55 (saturation onset), and 58 (curvature) into a single ladder-rank invariant.",
     },
     {
+        "id":        "family_curvature_replay",
+        "label":     "Per-family oracle-gap curvature replay",
+        "generator": "scripts/experiments/ecg/family_curvature_replay.py",
+        "gate":      "scripts/test/test_family_curvature_replay.py",
+        "artifact":  "wiki/data/family_curvature_replay.json",
+        "summary":   "Re-runs the gate 58 curvature signal one graph family at a time on the three families with full 1MB/4MB/8MB coverage (citation, social, web). All three replay the global pattern: at least one oracle-aware policy has positive mean curvature (web: GRASP +0.683, social: GRASP +0.169, citation: POPT +0.044) while every non-oracle policy stays non-positive. Verdict PASS iff at least one family replays the pattern AND no NEW family deviates from the pin set. This is the family-level analog of gate 57 (per-family AUC replay) for the curvature metric.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -439,7 +447,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (60 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (61 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

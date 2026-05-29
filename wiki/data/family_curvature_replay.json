@@ -1,0 +1,113 @@
+{
+  "meta": {
+    "curvature_threshold_pp_oct2": 0.0,
+    "deviating_families": [],
+    "new_deviating_families": [],
+    "non_oracle_policies": [
+      "LRU",
+      "SRRIP"
+    ],
+    "oracle_aware_policies": [
+      "GRASP",
+      "POPT"
+    ],
+    "pinned_deviating_families": [],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "qualifying_families": [
+      "citation",
+      "social",
+      "web"
+    ],
+    "replay_count": 3,
+    "verdict": "PASS",
+    "verdict_invariant": "PASS iff at least one family replays the pattern AND no NEW deviating family appears beyond the pinned set"
+  },
+  "per_family": {
+    "citation": {
+      "all_non_oracle_nonpositive": true,
+      "any_oracle_aware_positive": true,
+      "per_policy": {
+        "GRASP": {
+          "is_oracle_aware": true,
+          "mean_curvature": -1.1367,
+          "n_app_graph_cells": 5
+        },
+        "LRU": {
+          "is_oracle_aware": false,
+          "mean_curvature": -1.2992,
+          "n_app_graph_cells": 5
+        },
+        "POPT": {
+          "is_oracle_aware": true,
+          "mean_curvature": 0.0436,
+          "n_app_graph_cells": 5
+        },
+        "SRRIP": {
+          "is_oracle_aware": false,
+          "mean_curvature": -1.2329,
+          "n_app_graph_cells": 5
+        }
+      },
+      "replays_pattern": true
+    },
+    "social": {
+      "all_non_oracle_nonpositive": true,
+      "any_oracle_aware_positive": true,
+      "per_policy": {
+        "GRASP": {
+          "is_oracle_aware": true,
+          "mean_curvature": 0.1691,
+          "n_app_graph_cells": 18
+        },
+        "LRU": {
+          "is_oracle_aware": false,
+          "mean_curvature": -0.7213,
+          "n_app_graph_cells": 18
+        },
+        "POPT": {
+          "is_oracle_aware": true,
+          "mean_curvature": -0.1728,
+          "n_app_graph_cells": 18
+        },
+        "SRRIP": {
+          "is_oracle_aware": false,
+          "mean_curvature": -0.6484,
+          "n_app_graph_cells": 18
+        }
+      },
+      "replays_pattern": true
+    },
+    "web": {
+      "all_non_oracle_nonpositive": true,
+      "any_oracle_aware_positive": true,
+      "per_policy": {
+        "GRASP": {
+          "is_oracle_aware": true,
+          "mean_curvature": 0.6835,
+          "n_app_graph_cells": 5
+        },
+        "LRU": {
+          "is_oracle_aware": false,
+          "mean_curvature": -1.3575,
+          "n_app_graph_cells": 5
+        },
+        "POPT": {
+          "is_oracle_aware": true,
+          "mean_curvature": -0.1409,
+          "n_app_graph_cells": 5
+        },
+        "SRRIP": {
+          "is_oracle_aware": false,
+          "mean_curvature": -1.6702,
+          "n_app_graph_cells": 5
+        }
+      },
+      "replays_pattern": true
+    }
+  }
+}

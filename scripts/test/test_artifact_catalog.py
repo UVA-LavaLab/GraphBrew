@@ -29,7 +29,7 @@ CATALOG_MD = REPO_ROOT / "wiki" / "data" / "artifact_catalog.md"
 # Bump this whenever a new aggregator is folded in. The dashboard
 # gate count and this floor should be the only two places that
 # track aggregator growth.
-ENTRY_COUNT_FLOOR = 49
+ENTRY_COUNT_FLOOR = 50
 
 ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
