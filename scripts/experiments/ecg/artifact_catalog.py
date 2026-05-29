@@ -496,6 +496,14 @@ CATALOG = [
         "summary":   "Cell-level cache-monotonicity guard. Reads the load-bearing cache-sim sweep (oracle_gap.json, 456 rows, 7-point L3 axis 4kB-8MB), groups by (graph, app, policy), and checks every consecutive L3 step. PASS iff (1) zero hard violations (no step has miss-rate increase >= 0.5 pp), (2) at most 10% of steps are bumps of any size, (3) the largest observed bump stays below 0.05 pp (current worst is 0.035 pp on email-Eu-core/pr/POPT 1MB->4MB). Current state: 136 cells, 320 steps, 14 bumps (4.4%), all bumps < 0.05 pp. Foundational soundness invariant that downstream slope/distance/sensitivity gates (65-68, 70-76) all assume.",
     },
     {
+        "id":        "anchor_cell_census",
+        "label":     "Anchor cell-pair census",
+        "generator": "scripts/experiments/ecg/anchor_cell_census.py",
+        "gate":      "scripts/test/test_anchor_cell_census.py",
+        "artifact":  "wiki/data/anchor_cell_census.json",
+        "summary":   "Pins gem5 and Sniper anchor coverage against silent shrinkage that would invalidate downstream cross-tool gates (70/71/72/74/76) without an obvious failure. gem5 baseline: 2 cells (email-Eu-core/bc, email-Eu-core/pr) x 3 policies (GRASP, LRU, SRRIP) x 4 L3 sizes (4kB, 32kB, 256kB, 2MB) = 6 records. Sniper baseline: 6 cells (cit-Patents and email-Eu-core, each x {bfs, pr, sssp}) x 3 policies x 4 L3 sizes = 18 records. Cross-anchor invariants: shared L3 axis, shared policy set, at least one shared (graph, app) cell (currently email-Eu-core/pr) so per-cell parity spot-checks have a foothold. PASS iff all 13 of these structural invariants hold simultaneously.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -575,7 +583,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (77 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (78 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

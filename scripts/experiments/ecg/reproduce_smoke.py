@@ -145,6 +145,8 @@ TRACKED_ARTIFACTS = [
     "cross_tool_slope_universality.md",
     "monotonicity_universality.json",
     "monotonicity_universality.md",
+    "anchor_cell_census.json",
+    "anchor_cell_census.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

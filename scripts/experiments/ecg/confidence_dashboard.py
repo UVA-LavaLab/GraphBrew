@@ -189,6 +189,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_tool_slope_universality.py", "XTsign"),
     "L3-sweep monotonicity universality":
         ("scripts/test/test_monotonicity_universality.py", "Monoton"),
+    "Anchor cell-pair census":
+        ("scripts/test/test_anchor_cell_census.py", "Anchors"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
