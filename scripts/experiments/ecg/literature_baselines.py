@@ -514,6 +514,17 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "Same source-rooted frontier vs PR-rank mis-alignment as the "
         "1 MB entry; ~1.7 pp gap persists at 4 MB because the issue is "
         "ordering, not capacity.",
+    ("cit-Patents", "bc", "4MB", "POPT_GE_GRASP"):
+        "Same source-rooted BC frontier vs PR-rank mis-alignment "
+        "as the soc-pokec/bc entries. cit-Patents (3.7M vertices) "
+        "is highest-PR-hub rooted (`-r 0`); GRASP's hot-region "
+        "pinning happens to track the directed BC sub-graph more "
+        "closely than POPT's PR-ranked static schedule. Gap is "
+        "~1.1 pp at 4 MB and 1.6 pp at 8 MB.",
+    ("cit-Patents", "bc", "8MB", "POPT_GE_GRASP"):
+        "Same BC frontier vs PR-rank mis-alignment as the 4 MB "
+        "entry; gap persists at ~1.6 pp at 8 MB because the issue "
+        "is ordering, not capacity (Balaji HPCA21 §3.3).",
     # ---- POPT_NEAR_GRASP_IF_BIG_GAP phase-transition deviations -------
     # The cross-policy invariant fires when GRASP improves on LRU by
     # >10 pp (phase-transition regime). On CC at small L3, GRASP gains

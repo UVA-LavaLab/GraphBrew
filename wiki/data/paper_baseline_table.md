@@ -7,6 +7,9 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 
 | Graph | App | L3 | LRU miss | SRRIP Δ | GRASP Δ | POPT Δ | GRASP claim | POPT claim |
 |---|---|---|---:|---:|---:|---:|---|---|
+| cit-Patents | bc | 1MB | 90.16% | -0.49 | +0.03 | -0.60 | ~ within_tol | — |
+| cit-Patents | bc | 4MB | 75.00% | -1.26 | -2.96 | -1.82 | — | — |
+| cit-Patents | bc | 8MB | 61.82% | -1.85 | -4.68 | -3.11 | — | — |
 | cit-Patents | bfs | 1MB | 96.65% | -0.40 | -1.00 | -0.89 | ✓ ok | — |
 | cit-Patents | bfs | 4MB | 90.98% | -0.68 | -4.08 | -3.70 | — | — |
 | cit-Patents | bfs | 8MB | 87.11% | -0.31 | -8.62 | -7.94 | — | — |

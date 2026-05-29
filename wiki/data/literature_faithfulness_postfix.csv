@@ -1,4 +1,16 @@
 graph,app,l3_size,policy,miss_rate,delta_vs_lru_pct,l3_accesses,claim_status,claim_citation
+cit-Patents,bc,1MB,GRASP,0.901854,+0.0258,,within_tolerance,Faldu et al. HPCA 2020 Fig 11
+cit-Patents,bc,1MB,LRU,0.901596,+0.0000,,no_claim,
+cit-Patents,bc,1MB,POPT,0.895605,-0.5991,,no_claim,
+cit-Patents,bc,1MB,SRRIP,0.896723,-0.4873,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+cit-Patents,bc,4MB,GRASP,0.720449,-2.9569,,no_claim,
+cit-Patents,bc,4MB,LRU,0.750018,+0.0000,,no_claim,
+cit-Patents,bc,4MB,POPT,0.731835,-1.8183,,no_claim,
+cit-Patents,bc,4MB,SRRIP,0.737451,-1.2567,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+cit-Patents,bc,8MB,GRASP,0.571329,-4.6822,,no_claim,
+cit-Patents,bc,8MB,LRU,0.618151,+0.0000,,no_claim,
+cit-Patents,bc,8MB,POPT,0.587026,-3.1125,,no_claim,
+cit-Patents,bc,8MB,SRRIP,0.599636,-1.8515,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 cit-Patents,bfs,1MB,GRASP,0.956526,-0.9983,,ok,Faldu et al. HPCA 2020 Fig 11
 cit-Patents,bfs,1MB,LRU,0.966509,+0.0000,,no_claim,
 cit-Patents,bfs,1MB,POPT,0.957587,-0.8922,,no_claim,

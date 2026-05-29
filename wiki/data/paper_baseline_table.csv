@@ -1,4 +1,7 @@
 graph,app,l3_size,lru_miss_rate,srrip_miss_rate,grasp_miss_rate,popt_miss_rate,srrip_delta_pp,grasp_delta_pp,popt_delta_pp,grasp_verdict,popt_verdict,min_accesses
+cit-Patents,bc,1MB,0.901596,0.896723,0.901854,0.895605,-0.487,+0.026,-0.599,within_tol,,89242730
+cit-Patents,bc,4MB,0.750018,0.737451,0.720449,0.731835,-1.257,-2.957,-1.818,,,89381895
+cit-Patents,bc,8MB,0.618151,0.599636,0.571329,0.587026,-1.851,-4.682,-3.112,,,89078911
 cit-Patents,bfs,1MB,0.966509,0.962542,0.956526,0.957587,-0.397,-0.998,-0.892,ok,,5161106
 cit-Patents,bfs,4MB,0.909819,0.902971,0.869013,0.872810,-0.685,-4.081,-3.701,,,5155615
 cit-Patents,bfs,8MB,0.871076,0.867949,0.784831,0.791718,-0.313,-8.624,-7.936,,,5154729

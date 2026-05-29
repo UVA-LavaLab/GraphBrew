@@ -1,14 +1,17 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **158**
-- Verdict mix: **134 ok**, 0 within-tolerance, **0 DISAGREE**, 5 known-deviation, 0 missing, 19 insufficient_data
+- Claims total: **165**
+- Verdict mix: **140 ok**, 1 within-tolerance, **0 DISAGREE**, 5 known-deviation, 0 missing, 19 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
 
 | graph | app | L3 | LRU | SRRIP | GRASP | POPT | Δ GRASP-LRU | Δ POPT-LRU |
 |---|---|---|---:|---:|---:|---:|---:|---:|
+| cit-Patents | bc | 1MB | 0.9016 | 0.8967 | 0.9019 | 0.8956 | +0.026pp | -0.599pp |
+| cit-Patents | bc | 4MB | 0.7500 | 0.7375 | 0.7204 | 0.7318 | -2.957pp | -1.818pp |
+| cit-Patents | bc | 8MB | 0.6182 | 0.5996 | 0.5713 | 0.5870 | -4.682pp | -3.112pp |
 | cit-Patents | bfs | 1MB | 0.9665 | 0.9625 | 0.9565 | 0.9576 | -0.998pp | -0.892pp |
 | cit-Patents | bfs | 4MB | 0.9098 | 0.9030 | 0.8690 | 0.8728 | -4.081pp | -3.701pp |
 | cit-Patents | bfs | 8MB | 0.8711 | 0.8679 | 0.7848 | 0.7917 | -8.624pp | -7.936pp |
@@ -77,6 +80,13 @@
 
 | status | graph | app | L3 | policy | Δ | citation |
 |---|---|---|---|---|---:|---|
+| ok | cit-Patents | bc | 1MB | SRRIP | -0.487pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
+| within_tolerance | cit-Patents | bc | 1MB | GRASP | +0.026pp | Faldu et al. HPCA 2020 Fig 11 |
+| ok | cit-Patents | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.625pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | bc | 4MB | SRRIP | -1.257pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
+| ok | cit-Patents | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.139pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | cit-Patents | bc | 8MB | SRRIP | -1.851pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
+| ok | cit-Patents | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.570pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | cit-Patents | bfs | 1MB | SRRIP | -0.397pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | cit-Patents | bfs | 1MB | GRASP | -0.998pp | Faldu et al. HPCA 2020 Fig 11 |
 | ok | cit-Patents | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.106pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
