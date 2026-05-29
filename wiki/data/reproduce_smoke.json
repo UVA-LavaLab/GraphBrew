@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "d936c4037d92d18b7b9ace375d5c8018cc76d08bf78c9a0b284b060b7640b68c",
-      "sha_after": "d936c4037d92d18b7b9ace375d5c8018cc76d08bf78c9a0b284b060b7640b68c",
+      "sha_before": "9dcbe253f40e1b898b9728bb947139f363ce39a8a8f081b52575755b9209c47c",
+      "sha_after": "9dcbe253f40e1b898b9728bb947139f363ce39a8a8f081b52575755b9209c47c",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "7f0e08f793a5e31e5e3a225c811270c9ad2799d5576cbf63cdb0518291ef8ceb",
-      "sha_after": "7f0e08f793a5e31e5e3a225c811270c9ad2799d5576cbf63cdb0518291ef8ceb",
+      "sha_before": "14ced18e5de4879acaefe146bdfd1c48d90c0380878331bf8a9c284a3f2b9809",
+      "sha_after": "14ced18e5de4879acaefe146bdfd1c48d90c0380878331bf8a9c284a3f2b9809",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "ea4f1ec3c6ef5a24728a96f96eed8159959ea74c24f276dffbcbc4d6b50b1a58",
-      "sha_after": "ea4f1ec3c6ef5a24728a96f96eed8159959ea74c24f276dffbcbc4d6b50b1a58",
+      "sha_before": "849e100c0e2ed9ac6e1c47f41b9f1ee26be34be372a1f6c2bb9b1d27dea84244",
+      "sha_after": "849e100c0e2ed9ac6e1c47f41b9f1ee26be34be372a1f6c2bb9b1d27dea84244",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "db2da09df0a06fb535ec61f7c814c545807376d8dab417e6a253aa52b9339473",
-      "sha_after": "db2da09df0a06fb535ec61f7c814c545807376d8dab417e6a253aa52b9339473",
+      "sha_before": "0f61c4a0d2dd51f7e445e0c90204b55e83545a4a2d00a2a127414ee50f07994e",
+      "sha_after": "0f61c4a0d2dd51f7e445e0c90204b55e83545a4a2d00a2a127414ee50f07994e",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "2d30ef6ea792dc292459ae00121ae58e9683ccd4fdabbdbd3c88800827735d4e",
-      "sha_after": "2d30ef6ea792dc292459ae00121ae58e9683ccd4fdabbdbd3c88800827735d4e",
+      "sha_before": "70ea7f2464a89c777ead7a86639f2d0fed9c2c9be8eb0a23c87a4958eff17e70",
+      "sha_after": "70ea7f2464a89c777ead7a86639f2d0fed9c2c9be8eb0a23c87a4958eff17e70",
       "status": "ok"
     },
     {
