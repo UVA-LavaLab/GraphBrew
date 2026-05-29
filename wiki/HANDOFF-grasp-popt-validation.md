@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **185 gates, all GREEN, exit 0**.
+and currently reports **190 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–185.**
+- **Cross-artifact / cross-source derivation parity gates 151–190.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -740,6 +740,49 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   median_steepness_gap = round(|steep|−|shall|, 4); three-clause verdict:
   (1) every policy median_pp < −5.0 STRICT, (2) steepest == "LRU" exact,
   (3) GRASP > LRU medians STRICT; PASS iff all three.
+  Gate 186 (PCS-Der, 34 tests) locks per_graph_cache_slope.json: per-(graph,
+  app, policy) per-octave slopes -d_gap/log2(L3_to/L3_from); INCLUSIVE
+  >=1.0 pp threshold for significant_anti_scaling (NOT strict >);
+  full-trajectory filter via set equality on {1MB,4MB,8MB} (NOT subset);
+  per_graph_policy key 'graph|policy' string; families dict
+  last-write-wins; n_oracle_aware_anti_scaling = GRASP+POPT counts only;
+  anti_scaling_cells sorted DESC by max_pp_growth; per-policy/per-graph
+  counters carry no zero entries.
+  Gate 187 (PGS-Der, 36 tests) locks per_graph_app_stability.json: per-
+  (graph, app, l3) winner set = ALL policies tied for min gap_pp within
+  1e-6 tolerance (NOT exact eq); 5-rule classification (insufficient_l3,
+  regime_change, stable_unique, stable_unique_with_ties, stable_partial);
+  meta.n_stable_unique COMBINES stable_unique + stable_unique_with_ties;
+  stability_fraction = stable / max(1, total - insufficient);
+  per_graph_rollup uses 'partial' key (NOT 'stable_partial') and
+  'stable_unique' includes tied variant; line formats 'g/a -> w' / 'g/a
+  -> w1,w2' / 'g/a'.
+  Gate 188 (DDG-Der, 24 tests) locks distribution_diagnostics.json:
+  per_app_policy keyed 'app__policy' with DOUBLE underscore separator;
+  SAMPLE statistics throughout (Bessel-corrected sd via statistics.stdev);
+  adjusted Fisher-Pearson skewness g1 = n/((n-1)(n-2))·Σ((x-m)/sd)³ with
+  n<3/sd=0 → 0.0; adjusted Fisher excess kurtosis g2 = n(n+1)/((n-1)(n-2)
+  (n-3))·Σ((x-m)/sd)⁴ − 3(n-1)²/((n-2)(n-3)) with n<4/sd=0 → 0.0; envelope
+  constants (skew=2.0, kurt=7.0) from Hesterberg 2015 + Efron & Tibshirani
+  1993; PASS iff all four worst-case metrics STRICTLY < envelope.
+  Gate 189 (FCR-Der, 30 tests) locks family_curvature_replay.json:
+  L3_LOG2_MB = {1MB:0, 4MB:2, 8MB:3} (NON-uniform); curvature =
+  (slope_hi − slope_lo)/1.5 where slope_lo=(g4-g1)/2, slope_hi=(g8-g4)/1;
+  (graph, app) qualifies iff ALL 4 policies AND each has ALL 3 L3 sizes;
+  per_policy carries EVERY policy in POLICIES tuple (zero-fill empty);
+  sign-test threshold 0.0 (any oracle-aware curv > 0 AND all non-oracle
+  ≤ 0); replays_pattern = conjunction; deviating preserves iteration
+  order; PINNED_DEVIATING_FAMILIES = () empty.
+  Gate 190 (FMR-Der, 32 tests) locks family_margin_replay.json: joint
+  upstream oracle_gap + wss_relative_l3 (meta.wss_proxies); ORACLE_AWARE
+  is a TUPLE (order load-bearing for shrink_evidence emission); regime
+  classifier on STRICT bounds (ratio<0.25→under, >4.0→over, else near);
+  (app, graph, l3) cell skipped iff <4 policies OR missing wss/L3_BYTES;
+  margin = (second_miss − best_miss) × 100; per_policy_regime is FULL
+  4×3 grid (12 entries, zero-filled on empty wins); _pct bespoke
+  percentile formula; family qualifies iff some oracle-aware policy has
+  wins in BOTH under_wss AND over_wss; shrink_evidence records only when
+  under_median > over_median (STRICT >).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
