@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **140 gates, all GREEN, exit 0**.
+and currently reports **145 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -373,11 +373,45 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   AUC vectors); pair_list = C(5,2)=10 entries, sorted desc;
   nearest_sibling.closest_app = argmax; intra_inter splits by
   auc_winner cluster and reproduces both means and gap.
+- **Cross-artifact / statistical derivation parity gates 141–145.**
+  Gate 141 (FPC-Der, 18 tests) locks family_policy_auc_clustering:
+  per-(family, app, pol) pooling via mean across graphs in family,
+  trapezoidal AUC on log2(MB), winner-by-app vs GLOBAL_WINNER pin,
+  z-score+Pearson correlation matrix per family, intra/inter cluster
+  means using GLOBAL_CLUSTERS partition (NOT per-family winners — a
+  deliberate cross-family test of clustering universality). Family
+  qualification REQUIRES full L3 coverage on EVERY (app, pol) cell.
+  Gate 142 (CHW-Der, 19 tests) locks cohens_h_win_rates: Cohen's h
+  via arcsine-transformed proportion delta (h = |2arcsin√p_a -
+  2arcsin√p_b|), Cohen 1988 cumulative magnitude bucketing (small≥0.2,
+  medium≥0.5, large≥0.8), and the large_effects filter
+  (magnitude==large AND p_a>p_b — dominance direction enforced).
+  delta_p uses RAW p_hat (not rounded display) — load-bearing rule.
+  Gate 143 (WWR-Der, 19 tests) locks wilson_win_rates: z=1.959963984540054
+  (load-bearing precision — NOT the common 1.96 approximation), Wilson
+  score interval at 95% with [0,1] clamping across three scopes
+  (overall, per_app, per_family); cross-gate consistency check that
+  per_app rates equal cohens_h per_app rates (same raw aggregation step
+  underpins both); per_app + per_family totals each sum to overall.
+  Gate 144 (BCI-Der, 19 tests) locks bootstrap_ci: aggregation
+  correctness across four sections (policy×family, policy×regime,
+  family Δ-buckets, sign_stability) — bootstrap CI BOUNDS remain
+  pinned by byte-level reproduce_smoke (same seed=1729, 5000 resamples
+  ⇒ byte-identical output), this gate adds the aggregation-level
+  safety net (n/mean/median/ci_width/sign logic exact). Gate 145
+  (GDS-Der, 20 tests) locks gap_distribution_shape: sample Fisher-Pearson
+  g1 skewness + sample-adjusted g2 excess kurtosis formulas per
+  (app, L3, policy) cell across 60 cells; the Hesterberg envelope
+  (|skew|<2 ∧ |kurt|<7), the pinned-exception delta (new vs gone
+  offenders), and the bootstrap_validity_verdict logic (PASS iff
+  no new_offenders AND n_outside ≤ 14). This is the upstream artifact
+  that determines whether plain-percentile bootstrap is valid for
+  the per-cell sample sizes the paper relies on.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 140. `make confidence-fast` runs the whole suite in under
+  current 145. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -397,7 +431,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 140+ pytest gates + lit-faith headline + corpus diversity
+  view of all 145+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,

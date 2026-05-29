@@ -189,6 +189,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_wilson_win_rates_derivation_parity.py", "WWR-Der"),
     "bootstrap_ci derivation parity (aggregation + width + sign logic)":
         ("scripts/test/test_bootstrap_ci_derivation_parity.py", "BCI-Der"),
+    "gap_distribution_shape derivation parity (g1/g2 moments + envelope)":
+        ("scripts/test/test_gap_distribution_shape_derivation_parity.py", "GDS-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
