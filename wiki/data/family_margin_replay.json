@@ -1,0 +1,629 @@
+{
+  "meta": {
+    "deviating_families": [],
+    "new_deviating_families": [],
+    "oracle_aware": [
+      "GRASP",
+      "POPT"
+    ],
+    "pinned_deviating_families": [],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "qualifying_families": [
+      "social"
+    ],
+    "regimes": [
+      "under_wss",
+      "near_wss",
+      "over_wss"
+    ],
+    "replay_count": 1,
+    "replaying_families": [
+      "social"
+    ],
+    "verdict": "PASS",
+    "verdict_invariant": "PASS iff at least one qualifying family replays the global margin-shrink pattern (some oracle-aware policy median under_wss > over_wss) AND no NEW family deviates beyond the pinned set"
+  },
+  "per_family": {
+    "citation": {
+      "cells_classified": 15,
+      "cells_skipped": 0,
+      "per_policy_regime": {
+        "GRASP/near_wss": {
+          "cells_won": 8,
+          "max_margin_pp": 3.6479,
+          "mean_margin_pp": 1.6324,
+          "median_margin_pp": 1.5803,
+          "p90_margin_pp": 2.5292,
+          "policy": "GRASP",
+          "wss_regime": "near_wss"
+        },
+        "GRASP/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "GRASP",
+          "wss_regime": "over_wss"
+        },
+        "GRASP/under_wss": {
+          "cells_won": 3,
+          "max_margin_pp": 7.4783,
+          "mean_margin_pp": 2.8159,
+          "median_margin_pp": 0.8634,
+          "p90_margin_pp": 7.4783,
+          "policy": "GRASP",
+          "wss_regime": "under_wss"
+        },
+        "LRU/near_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "near_wss"
+        },
+        "LRU/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "over_wss"
+        },
+        "LRU/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "under_wss"
+        },
+        "POPT/near_wss": {
+          "cells_won": 2,
+          "max_margin_pp": 8.2458,
+          "mean_margin_pp": 5.5401,
+          "median_margin_pp": 5.5401,
+          "p90_margin_pp": 8.2458,
+          "policy": "POPT",
+          "wss_regime": "near_wss"
+        },
+        "POPT/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "POPT",
+          "wss_regime": "over_wss"
+        },
+        "POPT/under_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 1.052,
+          "mean_margin_pp": 1.052,
+          "median_margin_pp": 1.052,
+          "p90_margin_pp": 1.052,
+          "policy": "POPT",
+          "wss_regime": "under_wss"
+        },
+        "SRRIP/near_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "near_wss"
+        },
+        "SRRIP/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "over_wss"
+        },
+        "SRRIP/under_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.4876,
+          "mean_margin_pp": 0.4876,
+          "median_margin_pp": 0.4876,
+          "p90_margin_pp": 0.4876,
+          "policy": "SRRIP",
+          "wss_regime": "under_wss"
+        }
+      },
+      "qualifying": false,
+      "replays": false,
+      "shrink_evidence": []
+    },
+    "mesh": {
+      "cells_classified": 5,
+      "cells_skipped": 0,
+      "per_policy_regime": {
+        "GRASP/near_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "GRASP",
+          "wss_regime": "near_wss"
+        },
+        "GRASP/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "GRASP",
+          "wss_regime": "over_wss"
+        },
+        "GRASP/under_wss": {
+          "cells_won": 2,
+          "max_margin_pp": 0.3319,
+          "mean_margin_pp": 0.2054,
+          "median_margin_pp": 0.2054,
+          "p90_margin_pp": 0.3319,
+          "policy": "GRASP",
+          "wss_regime": "under_wss"
+        },
+        "LRU/near_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "near_wss"
+        },
+        "LRU/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "over_wss"
+        },
+        "LRU/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "under_wss"
+        },
+        "POPT/near_wss": {
+          "cells_won": 2,
+          "max_margin_pp": 3.8674,
+          "mean_margin_pp": 2.2414,
+          "median_margin_pp": 2.2414,
+          "p90_margin_pp": 3.8674,
+          "policy": "POPT",
+          "wss_regime": "near_wss"
+        },
+        "POPT/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "POPT",
+          "wss_regime": "over_wss"
+        },
+        "POPT/under_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.2339,
+          "mean_margin_pp": 0.2339,
+          "median_margin_pp": 0.2339,
+          "p90_margin_pp": 0.2339,
+          "policy": "POPT",
+          "wss_regime": "under_wss"
+        },
+        "SRRIP/near_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "near_wss"
+        },
+        "SRRIP/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "over_wss"
+        },
+        "SRRIP/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "under_wss"
+        }
+      },
+      "qualifying": false,
+      "replays": false,
+      "shrink_evidence": []
+    },
+    "road": {
+      "cells_classified": 25,
+      "cells_skipped": 0,
+      "per_policy_regime": {
+        "GRASP/near_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "GRASP",
+          "wss_regime": "near_wss"
+        },
+        "GRASP/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "GRASP",
+          "wss_regime": "over_wss"
+        },
+        "GRASP/under_wss": {
+          "cells_won": 6,
+          "max_margin_pp": 0.2153,
+          "mean_margin_pp": 0.0776,
+          "median_margin_pp": 0.0451,
+          "p90_margin_pp": 0.1219,
+          "policy": "GRASP",
+          "wss_regime": "under_wss"
+        },
+        "LRU/near_wss": {
+          "cells_won": 3,
+          "max_margin_pp": 4.6427,
+          "mean_margin_pp": 2.228,
+          "median_margin_pp": 1.504,
+          "p90_margin_pp": 4.6427,
+          "policy": "LRU",
+          "wss_regime": "near_wss"
+        },
+        "LRU/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "over_wss"
+        },
+        "LRU/under_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 2.7559,
+          "mean_margin_pp": 2.7559,
+          "median_margin_pp": 2.7559,
+          "p90_margin_pp": 2.7559,
+          "policy": "LRU",
+          "wss_regime": "under_wss"
+        },
+        "POPT/near_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 4.7576,
+          "mean_margin_pp": 4.7576,
+          "median_margin_pp": 4.7576,
+          "p90_margin_pp": 4.7576,
+          "policy": "POPT",
+          "wss_regime": "near_wss"
+        },
+        "POPT/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "POPT",
+          "wss_regime": "over_wss"
+        },
+        "POPT/under_wss": {
+          "cells_won": 11,
+          "max_margin_pp": 8.7554,
+          "mean_margin_pp": 1.9969,
+          "median_margin_pp": 1.1568,
+          "p90_margin_pp": 5.1626,
+          "policy": "POPT",
+          "wss_regime": "under_wss"
+        },
+        "SRRIP/near_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 2.0967,
+          "mean_margin_pp": 2.0967,
+          "median_margin_pp": 2.0967,
+          "p90_margin_pp": 2.0967,
+          "policy": "SRRIP",
+          "wss_regime": "near_wss"
+        },
+        "SRRIP/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "over_wss"
+        },
+        "SRRIP/under_wss": {
+          "cells_won": 2,
+          "max_margin_pp": 0.5327,
+          "mean_margin_pp": 0.4334,
+          "median_margin_pp": 0.4334,
+          "p90_margin_pp": 0.5327,
+          "policy": "SRRIP",
+          "wss_regime": "under_wss"
+        }
+      },
+      "qualifying": false,
+      "replays": false,
+      "shrink_evidence": []
+    },
+    "social": {
+      "cells_classified": 54,
+      "cells_skipped": 0,
+      "per_policy_regime": {
+        "GRASP/near_wss": {
+          "cells_won": 14,
+          "max_margin_pp": 6.1871,
+          "mean_margin_pp": 1.893,
+          "median_margin_pp": 1.6501,
+          "p90_margin_pp": 5.6082,
+          "policy": "GRASP",
+          "wss_regime": "near_wss"
+        },
+        "GRASP/over_wss": {
+          "cells_won": 5,
+          "max_margin_pp": 0.0195,
+          "mean_margin_pp": 0.0043,
+          "median_margin_pp": 0.0007,
+          "p90_margin_pp": 0.0195,
+          "policy": "GRASP",
+          "wss_regime": "over_wss"
+        },
+        "GRASP/under_wss": {
+          "cells_won": 12,
+          "max_margin_pp": 10.0547,
+          "mean_margin_pp": 3.6819,
+          "median_margin_pp": 2.539,
+          "p90_margin_pp": 9.8422,
+          "policy": "GRASP",
+          "wss_regime": "under_wss"
+        },
+        "LRU/near_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "near_wss"
+        },
+        "LRU/over_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "over_wss"
+        },
+        "LRU/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "under_wss"
+        },
+        "POPT/near_wss": {
+          "cells_won": 10,
+          "max_margin_pp": 5.9754,
+          "mean_margin_pp": 1.5138,
+          "median_margin_pp": 1.0313,
+          "p90_margin_pp": 2.2121,
+          "policy": "POPT",
+          "wss_regime": "near_wss"
+        },
+        "POPT/over_wss": {
+          "cells_won": 3,
+          "max_margin_pp": 0.0199,
+          "mean_margin_pp": 0.0067,
+          "median_margin_pp": 0.0002,
+          "p90_margin_pp": 0.0199,
+          "policy": "POPT",
+          "wss_regime": "over_wss"
+        },
+        "POPT/under_wss": {
+          "cells_won": 8,
+          "max_margin_pp": 5.9501,
+          "mean_margin_pp": 2.7705,
+          "median_margin_pp": 1.8851,
+          "p90_margin_pp": 5.2133,
+          "policy": "POPT",
+          "wss_regime": "under_wss"
+        },
+        "SRRIP/near_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.0134,
+          "mean_margin_pp": 0.0134,
+          "median_margin_pp": 0.0134,
+          "p90_margin_pp": 0.0134,
+          "policy": "SRRIP",
+          "wss_regime": "near_wss"
+        },
+        "SRRIP/over_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.0017,
+          "mean_margin_pp": 0.0017,
+          "median_margin_pp": 0.0017,
+          "p90_margin_pp": 0.0017,
+          "policy": "SRRIP",
+          "wss_regime": "over_wss"
+        },
+        "SRRIP/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "under_wss"
+        }
+      },
+      "qualifying": true,
+      "replays": true,
+      "shrink_evidence": [
+        {
+          "over_median": 0.0007,
+          "policy": "GRASP",
+          "under_median": 2.539
+        },
+        {
+          "over_median": 0.0002,
+          "policy": "POPT",
+          "under_median": 1.8851
+        }
+      ]
+    },
+    "web": {
+      "cells_classified": 15,
+      "cells_skipped": 0,
+      "per_policy_regime": {
+        "GRASP/near_wss": {
+          "cells_won": 5,
+          "max_margin_pp": 1.5627,
+          "mean_margin_pp": 1.0008,
+          "median_margin_pp": 1.0982,
+          "p90_margin_pp": 1.5627,
+          "policy": "GRASP",
+          "wss_regime": "near_wss"
+        },
+        "GRASP/over_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.8716,
+          "mean_margin_pp": 0.8716,
+          "median_margin_pp": 0.8716,
+          "p90_margin_pp": 0.8716,
+          "policy": "GRASP",
+          "wss_regime": "over_wss"
+        },
+        "GRASP/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "GRASP",
+          "wss_regime": "under_wss"
+        },
+        "LRU/near_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.0011,
+          "mean_margin_pp": 0.0011,
+          "median_margin_pp": 0.0011,
+          "p90_margin_pp": 0.0011,
+          "policy": "LRU",
+          "wss_regime": "near_wss"
+        },
+        "LRU/over_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.0017,
+          "mean_margin_pp": 0.0017,
+          "median_margin_pp": 0.0017,
+          "p90_margin_pp": 0.0017,
+          "policy": "LRU",
+          "wss_regime": "over_wss"
+        },
+        "LRU/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "LRU",
+          "wss_regime": "under_wss"
+        },
+        "POPT/near_wss": {
+          "cells_won": 3,
+          "max_margin_pp": 3.6474,
+          "mean_margin_pp": 1.4518,
+          "median_margin_pp": 0.386,
+          "p90_margin_pp": 3.6474,
+          "policy": "POPT",
+          "wss_regime": "near_wss"
+        },
+        "POPT/over_wss": {
+          "cells_won": 2,
+          "max_margin_pp": 2.4806,
+          "mean_margin_pp": 1.2595,
+          "median_margin_pp": 1.2595,
+          "p90_margin_pp": 2.4806,
+          "policy": "POPT",
+          "wss_regime": "over_wss"
+        },
+        "POPT/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "POPT",
+          "wss_regime": "under_wss"
+        },
+        "SRRIP/near_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 1.3451,
+          "mean_margin_pp": 1.3451,
+          "median_margin_pp": 1.3451,
+          "p90_margin_pp": 1.3451,
+          "policy": "SRRIP",
+          "wss_regime": "near_wss"
+        },
+        "SRRIP/over_wss": {
+          "cells_won": 1,
+          "max_margin_pp": 0.0006,
+          "mean_margin_pp": 0.0006,
+          "median_margin_pp": 0.0006,
+          "p90_margin_pp": 0.0006,
+          "policy": "SRRIP",
+          "wss_regime": "over_wss"
+        },
+        "SRRIP/under_wss": {
+          "cells_won": 0,
+          "max_margin_pp": 0.0,
+          "mean_margin_pp": 0.0,
+          "median_margin_pp": 0.0,
+          "p90_margin_pp": 0.0,
+          "policy": "SRRIP",
+          "wss_regime": "under_wss"
+        }
+      },
+      "qualifying": false,
+      "replays": false,
+      "shrink_evidence": []
+    }
+  }
+}

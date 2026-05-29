@@ -115,6 +115,8 @@ TRACKED_ARTIFACTS = [
     "family_curvature_replay.md",
     "winner_margin_by_regime.json",
     "winner_margin_by_regime.md",
+    "family_margin_replay.json",
+    "family_margin_replay.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
