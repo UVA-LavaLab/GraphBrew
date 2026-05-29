@@ -167,6 +167,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_paper_baseline_table_arithmetic.py", "PBT-Par"),
     "literature_faithfulness_postfix arithmetic + parity":
         ("scripts/test/test_literature_faithfulness_postfix_arithmetic.py", "LFP-Par"),
+    "cross-artifact miss + delta parity":
+        ("scripts/test/test_cross_artifact_miss_delta_parity.py", "XAP-Par"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
