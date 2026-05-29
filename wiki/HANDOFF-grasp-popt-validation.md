@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **145 gates, all GREEN, exit 0**.
+and currently reports **150 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -407,11 +407,42 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   no new_offenders AND n_outside ≤ 14). This is the upstream artifact
   that determines whether plain-percentile bootstrap is valid for
   the per-cell sample sizes the paper relies on.
+- **Cross-artifact / cross-source derivation parity gates 146–150.**
+  Gate 146 (CWC-Der, 19 tests) locks cell_winner_census: classifies every
+  (graph, app, l3_size) cell as no_winner / unique_winner / tied_winners
+  using the load-bearing STRING comparison `r.get("is_winner") == "1"`
+  (NOT bool/int); n_cells_total counts ALL L3 sizes including probe
+  sweep rows (114 cells, not the 60-cell paper grid). Gate 147 (PWT-Der,
+  22 tests) locks policy_winner_table: argmin(miss_rate) within
+  (graph, app, l3) groups with stable tie-break by policy name;
+  margin_pp = (runner − winner)*100; L3 regime bucketing at 64 kB and
+  1 MB byte boundaries; canonical GRAPH_FAMILY map; fragile_top_5 =
+  5 lowest-margin cells with margin<0.5 pp. Gate 148 (MUN-Der, 22 tests)
+  locks monotonicity_universality: cache-monotonicity (more cache cannot
+  hurt) over (graph, app, policy) L3 sweeps from oracle_gap.json;
+  MAX_NOISE_BUMP_PP=0.5, BUMP_PCT_CEILING=0.10, verdict=PASS iff all
+  three checks (no_hard_violations ∧ bump_pct_under_ceiling ∧
+  largest_bump_within_noise) are True; this is a foundational soundness
+  gate every downstream slope/distance/sensitivity artifact assumes.
+  Gate 149 (PVG-Der, 23 tests) locks popt_vs_grasp_delta: per-(graph,
+  app, l3) Δ(POPT−GRASP)*100 in pp with cells lacking either policy
+  SKIPPED; classification floor=0.5 pp (popt_better<−0.5, grasp_better
+  >+0.5, else tie); stats use **statistics.pstdev** (POPULATION, NOT
+  sample) at 3dp rounding; popt_top5_helps sorted ascending,
+  grasp_top5_helps descending; this is the central paper question
+  "when does POPT actually help GRASP?" Gate 150 (WRT-Der, 21 tests)
+  locks winning_regime_taxonomy: the paper's headline-figure aggregator
+  binning each winner cell into a (family, regime) bucket; RULE_THRESHOLD
+  =0.80 (>=80% dominance extracts a quotable rule); rule text matches
+  the exact f-string the paper quotes; rules sorted by (family,
+  REGIME_ORDER.index(regime)); _extract_rules break statement enforces
+  at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
+  GRASP, POPT) to catch silent upstream typos.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 145. `make confidence-fast` runs the whole suite in under
+  current 150. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -431,7 +462,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 145+ pytest gates + lit-faith headline + corpus diversity
+  view of all 150+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
