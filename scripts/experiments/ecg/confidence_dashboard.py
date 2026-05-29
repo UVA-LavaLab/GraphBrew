@@ -217,6 +217,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_tool_lru_regime_derivation_parity.py", "CTLR-Der"),
     "cross_tool_slope_universality derivation parity (per-(tool,policy) slope sign + physical band)":
         ("scripts/test/test_cross_tool_slope_universality_derivation_parity.py", "CTSU-Der"),
+    "cross_tool_slope_ordering derivation parity (SRRIP-vs-GRASP gap_floor + strict-tool count)":
+        ("scripts/test/test_cross_tool_slope_ordering_derivation_parity.py", "CTSO-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
