@@ -1,8 +1,8 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **178**
-- Verdict mix: **159 ok**, 1 within-tolerance, **0 DISAGREE**, 5 known-deviation, 0 missing, 13 insufficient_data
+- Claims total: **191**
+- Verdict mix: **171 ok**, 2 within-tolerance, **0 DISAGREE**, 5 known-deviation, 0 missing, 13 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -48,9 +48,15 @@
 | soc-LiveJournal1 | bfs | 1MB | 0.7987 | 0.7829 | 0.7871 | 0.7716 | -1.154pp | -2.709pp |
 | soc-LiveJournal1 | bfs | 4MB | 0.6075 | 0.6009 | 0.6007 | 0.5886 | -0.675pp | -1.888pp |
 | soc-LiveJournal1 | bfs | 8MB | 0.5571 | 0.5521 | 0.5311 | 0.5215 | -2.603pp | -3.564pp |
+| soc-LiveJournal1 | cc | 1MB | 0.7832 | 0.7722 | 0.7450 | 0.7590 | -3.818pp | -2.421pp |
+| soc-LiveJournal1 | cc | 4MB | 0.5437 | 0.5324 | 0.4774 | 0.4955 | -6.630pp | -4.820pp |
+| soc-LiveJournal1 | cc | 8MB | 0.4314 | 0.4099 | 0.3193 | 0.3501 | -11.211pp | -8.128pp |
 | soc-LiveJournal1 | pr | 1MB | 0.7322 | 0.6994 | 0.6843 | 0.6248 | -4.791pp | -10.742pp |
 | soc-LiveJournal1 | pr | 4MB | 0.4261 | 0.3897 | 0.3514 | 0.2917 | -7.470pp | -13.446pp |
 | soc-LiveJournal1 | pr | 8MB | 0.2756 | 0.2406 | 0.2018 | 0.1796 | -7.385pp | -9.597pp |
+| soc-LiveJournal1 | sssp | 1MB | 0.6877 | 0.6871 | 0.7083 | 0.6730 | +2.064pp | -1.466pp |
+| soc-LiveJournal1 | sssp | 4MB | 0.3556 | 0.3423 | 0.3089 | 0.3122 | -4.676pp | -4.345pp |
+| soc-LiveJournal1 | sssp | 8MB | 0.1647 | 0.1502 | 0.1288 | 0.1346 | -3.585pp | -3.008pp |
 | soc-pokec | bc | 1MB | 0.8520 | 0.8288 | 0.7651 | 0.7959 | -8.691pp | -5.612pp |
 | soc-pokec | bc | 4MB | 0.5009 | 0.4670 | 0.4205 | 0.4376 | -8.048pp | -6.331pp |
 | soc-pokec | bc | 8MB | 0.2435 | 0.2215 | 0.1994 | 0.2022 | -4.412pp | -4.127pp |
@@ -176,6 +182,12 @@
 | ok | soc-LiveJournal1 | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.213pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-LiveJournal1 | bfs | 8MB | SRRIP | -0.496pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | soc-LiveJournal1 | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.961pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-LiveJournal1 | cc | 1MB | SRRIP | -1.101pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
+| ok | soc-LiveJournal1 | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.398pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-LiveJournal1 | cc | 4MB | SRRIP | -1.130pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
+| ok | soc-LiveJournal1 | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.810pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-LiveJournal1 | cc | 8MB | SRRIP | -2.152pp | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) |
+| ok | soc-LiveJournal1 | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.083pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-LiveJournal1 | pr | 1MB | SRRIP | -3.276pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 |
 | ok | soc-LiveJournal1 | pr | 1MB | GRASP | -4.791pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | soc-LiveJournal1 | pr | 1MB | POPT | -10.742pp | Balaji & Lucia HPCA 2021 Fig 9 |
@@ -188,6 +200,13 @@
 | ok | soc-LiveJournal1 | pr | 8MB | GRASP | -7.385pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | soc-LiveJournal1 | pr | 8MB | POPT_GE_GRASP | -2.212pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | soc-LiveJournal1 | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +2.212pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-LiveJournal1 | sssp | 1MB | SRRIP | -0.060pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| within_tolerance | soc-LiveJournal1 | sssp | 1MB | POPT | -1.466pp | Balaji & Lucia HPCA 2021 Fig 10 |
+| ok | soc-LiveJournal1 | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.530pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-LiveJournal1 | sssp | 4MB | SRRIP | -1.329pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | soc-LiveJournal1 | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.331pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | soc-LiveJournal1 | sssp | 8MB | SRRIP | -1.450pp | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | soc-LiveJournal1 | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.578pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-pokec | bc | 1MB | SRRIP | -2.319pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | soc-pokec | bc | 1MB | GRASP | -8.691pp | Faldu et al. HPCA 2020 Fig 11 |
 | ok | soc-pokec | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +3.079pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |

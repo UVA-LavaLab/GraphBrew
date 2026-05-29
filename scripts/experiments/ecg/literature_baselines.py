@@ -569,6 +569,17 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "Same CC/POPT mismatch; ~6 pp gap remains even at 8 MB on "
         "com-orkut because the static PR-ranked schedule mis-orders "
         "evictions of edge-driven CC reuse regardless of capacity.",
+    ("soc-LiveJournal1", "cc", "1MB", "POPT_GE_GRASP"):
+        "Same CC/POPT mismatch as soc-pokec/com-orkut/cit-Patents CC "
+        "entries: union-find's edge-order reuse pattern is mis-aligned "
+        "with POPT's PR-rank static schedule on soc-LiveJournal1 (3.8M "
+        "nodes, 69M directed edges). Gap is +1.4 pp at 1MB.",
+    ("soc-LiveJournal1", "cc", "4MB", "POPT_GE_GRASP"):
+        "Same soc-LJ/CC mismatch; gap widens to +1.8 pp at 4MB.",
+    ("soc-LiveJournal1", "cc", "8MB", "POPT_GE_GRASP"):
+        "Same soc-LJ/CC mismatch; gap is widest (+3.1 pp) at 8MB where "
+        "GRASP's locality preservation pays off more than POPT's "
+        "static PR-rank ordering of CC's union-find edge traversal.",
 }
 
 

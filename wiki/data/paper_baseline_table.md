@@ -46,9 +46,15 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | soc-LiveJournal1 | bfs | 1MB | 79.87% | -1.58 | -1.15 | -2.71 | ✓ ok | — |
 | soc-LiveJournal1 | bfs | 4MB | 60.75% | -0.66 | -0.68 | -1.89 | — | — |
 | soc-LiveJournal1 | bfs | 8MB | 55.71% | -0.50 | -2.60 | -3.56 | — | — |
+| soc-LiveJournal1 | cc | 1MB | 78.32% | -1.10 | -3.82 | -2.42 | — | — |
+| soc-LiveJournal1 | cc | 4MB | 54.37% | -1.13 | -6.63 | -4.82 | — | — |
+| soc-LiveJournal1 | cc | 8MB | 43.14% | -2.15 | -11.21 | -8.13 | — | — |
 | soc-LiveJournal1 | pr | 1MB | 73.22% | -3.28 | -4.79 | -10.74 | ✓ ok | ✓ ok |
 | soc-LiveJournal1 | pr | 4MB | 42.61% | -3.64 | -7.47 | -13.45 | — | — |
 | soc-LiveJournal1 | pr | 8MB | 27.56% | -3.50 | -7.38 | -9.60 | ✓ ok | — |
+| soc-LiveJournal1 | sssp | 1MB | 68.77% | -0.06 | +2.06 | -1.47 | — | ~ within_tol |
+| soc-LiveJournal1 | sssp | 4MB | 35.56% | -1.33 | -4.68 | -4.34 | — | — |
+| soc-LiveJournal1 | sssp | 8MB | 16.47% | -1.45 | -3.59 | -3.01 | — | — |
 | soc-pokec | bc | 1MB | 85.20% | -2.32 | -8.69 | -5.61 | ✓ ok | — |
 | soc-pokec | bc | 4MB | 50.09% | -3.40 | -8.05 | -6.33 | — | — |
 | soc-pokec | bc | 8MB | 24.35% | -2.20 | -4.41 | -4.13 | — | — |

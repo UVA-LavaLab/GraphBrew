@@ -155,6 +155,18 @@ soc-LiveJournal1,bfs,8MB,GRASP,0.531077,-2.6031,,no_claim,
 soc-LiveJournal1,bfs,8MB,LRU,0.557108,+0.0000,,no_claim,
 soc-LiveJournal1,bfs,8MB,POPT,0.521469,-3.5639,,no_claim,
 soc-LiveJournal1,bfs,8MB,SRRIP,0.552149,-0.4959,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-LiveJournal1,cc,1MB,GRASP,0.745014,-3.8184,,no_claim,
+soc-LiveJournal1,cc,1MB,LRU,0.783198,+0.0000,,no_claim,
+soc-LiveJournal1,cc,1MB,POPT,0.758990,-2.4208,,no_claim,
+soc-LiveJournal1,cc,1MB,SRRIP,0.772184,-1.1014,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
+soc-LiveJournal1,cc,4MB,GRASP,0.477399,-6.6295,,no_claim,
+soc-LiveJournal1,cc,4MB,LRU,0.543694,+0.0000,,no_claim,
+soc-LiveJournal1,cc,4MB,POPT,0.495497,-4.8197,,no_claim,
+soc-LiveJournal1,cc,4MB,SRRIP,0.532392,-1.1302,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
+soc-LiveJournal1,cc,8MB,GRASP,0.319267,-11.2108,,no_claim,
+soc-LiveJournal1,cc,8MB,LRU,0.431375,+0.0000,,no_claim,
+soc-LiveJournal1,cc,8MB,POPT,0.350099,-8.1276,,no_claim,
+soc-LiveJournal1,cc,8MB,SRRIP,0.409854,-2.1521,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
 soc-LiveJournal1,pr,1MB,GRASP,0.684286,-4.7914,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-LiveJournal1,pr,1MB,LRU,0.732200,+0.0000,,no_claim,
 soc-LiveJournal1,pr,1MB,POPT,0.624785,-10.7415,,ok,Balaji & Lucia HPCA 2021 Fig 9
@@ -167,6 +179,18 @@ soc-LiveJournal1,pr,8MB,GRASP,0.201771,-7.3848,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-LiveJournal1,pr,8MB,LRU,0.275619,+0.0000,,no_claim,
 soc-LiveJournal1,pr,8MB,POPT,0.179650,-9.5969,,no_claim,
 soc-LiveJournal1,pr,8MB,SRRIP,0.240640,-3.4979,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
+soc-LiveJournal1,sssp,1MB,GRASP,0.708334,+2.0645,,no_claim,
+soc-LiveJournal1,sssp,1MB,LRU,0.687689,+0.0000,,no_claim,
+soc-LiveJournal1,sssp,1MB,POPT,0.673029,-1.4660,,within_tolerance,Balaji & Lucia HPCA 2021 Fig 10
+soc-LiveJournal1,sssp,1MB,SRRIP,0.687091,-0.0598,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
+soc-LiveJournal1,sssp,4MB,GRASP,0.308876,-4.6755,,no_claim,
+soc-LiveJournal1,sssp,4MB,LRU,0.355631,+0.0000,,no_claim,
+soc-LiveJournal1,sssp,4MB,POPT,0.312181,-4.3450,,no_claim,
+soc-LiveJournal1,sssp,4MB,SRRIP,0.342338,-1.3293,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
+soc-LiveJournal1,sssp,8MB,GRASP,0.128809,-3.5854,,no_claim,
+soc-LiveJournal1,sssp,8MB,LRU,0.164663,+0.0000,,no_claim,
+soc-LiveJournal1,sssp,8MB,POPT,0.134584,-3.0079,,no_claim,
+soc-LiveJournal1,sssp,8MB,SRRIP,0.150166,-1.4497,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 soc-pokec,bc,1MB,GRASP,0.765123,-8.6907,,ok,Faldu et al. HPCA 2020 Fig 11
 soc-pokec,bc,1MB,LRU,0.852030,+0.0000,,no_claim,
 soc-pokec,bc,1MB,POPT,0.795915,-5.6115,,no_claim,
