@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **130 gates, all GREEN, exit 0**.
+and currently reports **135 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -315,12 +315,42 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   miss_rate(8MB) in pp) and OLS slope of miss_rate vs log2(MB) across
   1MB/4MB/8MB reproduced from raw rows, Pearson r + Spearman rho + medians
   + 4 invariant booleans (cells>=80, r>=0.4, rho>=0.4, median ratio in
-  [0.7,1.3]) all reproduced (gate 130, 18 tests).
+  [0.7,1.3]) all reproduced (gate 130, 18 tests); per_graph_app_stability
+  arithmetic + classification — TIE_TOL=1e-6 winner detection on rounded
+  gap_pp, intersection/union derivation, 5-way classification decision
+  tree (stable_unique / stable_unique_with_ties / stable_partial /
+  regime_change / insufficient_l3), and headline cell-list parity
+  (gate 131, 17 tests); paper_baseline_table arithmetic + parity — the
+  paste-ready paper appendix table; miss_rate values verified
+  PIXEL-IDENTICAL to oracle_gap.json (456 cells, 0 mismatches at 1e-9),
+  delta_pp_vs_lru derived from miss-rate diffs, verdict labels
+  restricted to oracle-aware policies (gate 132, 15 tests);
+  literature_faithfulness_postfix arithmetic + parity — the load-bearing
+  headline of the paper's "how faithful are we to published baselines?"
+  claim and the largest single artifact (~360 KB); summary status counts
+  reproduced from per_claim, bucket lists (tolerated /
+  known_deviations / disagreements) match per_claim filtered by status,
+  per_observation.miss_rate matches oracle_gap (cross-source parity),
+  every per_claim carries a citation literal, no DISAGREE entries today
+  (gate 133, 17 tests; closes the "every wiki/data/*.json artifact has
+  its own arithmetic gate" milestone — 72/72 artifacts now covered);
+  cross-artifact miss + delta parity — first multi-artifact gate; locks
+  the RELATIONSHIPS between oracle_gap + paper_baseline_table +
+  literature_faithfulness_postfix (three-way miss_rate parity at 1e-9,
+  delta parity at 1e-3 pp, pbt verdict ⊂ lfp status superset mapping,
+  composite-claim whitelist for synthetic claim types like POPT_GE_GRASP)
+  (gate 134, 17 tests); winner identification parity — locks the
+  winner-identification chain oracle_gap.is_winner ↔
+  per_graph_app_stability.winners_by_l3 / intersection / classification
+  / headline cell lists; reimplements the cell_winners + classify
+  generator from scratch in pytest (TIE_TOL on rounded gap_pp, not
+  raw miss_rate; insufficient_l3 cases suppress intersection to []
+  by design), so generator drift trips this gate (gate 135, 22 tests).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 130. `make confidence-fast` runs the whole suite in under
+  current 135. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -340,7 +370,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 130+ pytest gates + lit-faith headline + corpus diversity
+  view of all 135+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
