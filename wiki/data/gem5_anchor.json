@@ -110,12 +110,12 @@
     {
       "name": "GRASP_LE_LRU_headline:email-Eu-core/pr@256kB",
       "status": "ok",
-      "detail": "grasp=0.1106 lru=0.1320 \u0394=-2.142pp (tolerance \u2264 +0.50pp)"
+      "detail": "grasp=0.1106 lru=0.1320 \u0394=-2.142pp (tolerance \u2264 +0.45pp)"
     },
     {
       "name": "GRASP_LE_LRU_headline:email-Eu-core/bc@256kB",
       "status": "ok",
-      "detail": "grasp=0.0253 lru=0.0286 \u0394=-0.328pp (tolerance \u2264 +0.50pp)"
+      "detail": "grasp=0.0253 lru=0.0286 \u0394=-0.328pp (tolerance \u2264 +0.45pp)"
     },
     {
       "name": "asymptote_within_1.0pp:email-Eu-core/pr@2MB",

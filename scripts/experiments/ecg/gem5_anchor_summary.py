@@ -42,7 +42,13 @@ DEFAULT_SUBDIR = "DBG"
 HEADLINE_L3 = "256kB"
 ASYMPTOTE_L3 = "2MB"
 ASYMPTOTE_MAX_SPREAD_PCT = 1.0
-HEADLINE_MAX_GRASP_OVER_LRU_PP = 0.5
+# Tightened 0.5 -> 0.45 pp once both gem5 and Sniper anchors landed and
+# the worst observed |GRASP - LRU| margin across all six anchor cells
+# settled at 0.328 pp (Sniper / email-Eu-core / pr / 256 kB). Leaves
+# 0.122 pp slack — comfortable but not loose. If a future hardware
+# config push pushes us past 0.45 pp we want to *see* the regression,
+# not absorb it silently.
+HEADLINE_MAX_GRASP_OVER_LRU_PP = 0.45
 
 # The L-shape companion to the asymptote invariant: at the smallest
 # L3 (4kB << working-set), policies must NOT have converged into the

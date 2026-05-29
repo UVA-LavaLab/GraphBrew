@@ -303,22 +303,22 @@
     {
       "name": "GRASP_LE_LRU_headline:email-Eu-core/pr@256kB",
       "status": "ok",
-      "detail": "grasp=0.1209 lru=0.1176 \u0394=+0.328pp (tolerance \u2264 +0.50pp)"
+      "detail": "grasp=0.1209 lru=0.1176 \u0394=+0.328pp (tolerance \u2264 +0.45pp)"
     },
     {
       "name": "GRASP_LE_LRU_headline:email-Eu-core/sssp@256kB",
       "status": "ok",
-      "detail": "grasp=0.0803 lru=0.0806 \u0394=-0.029pp (tolerance \u2264 +0.50pp)"
+      "detail": "grasp=0.0803 lru=0.0806 \u0394=-0.029pp (tolerance \u2264 +0.45pp)"
     },
     {
       "name": "GRASP_LE_LRU_headline:cit-Patents/pr@256kB",
       "status": "ok",
-      "detail": "grasp=0.1176 lru=0.1208 \u0394=-0.319pp (tolerance \u2264 +0.50pp)"
+      "detail": "grasp=0.1176 lru=0.1208 \u0394=-0.319pp (tolerance \u2264 +0.45pp)"
     },
     {
       "name": "GRASP_LE_LRU_headline:cit-Patents/sssp@256kB",
       "status": "ok",
-      "detail": "grasp=0.0805 lru=0.0805 \u0394=-0.004pp (tolerance \u2264 +0.50pp)"
+      "detail": "grasp=0.0805 lru=0.0805 \u0394=-0.004pp (tolerance \u2264 +0.45pp)"
     },
     {
       "name": "asymptote_within_1.0pp:email-Eu-core/pr@2MB",

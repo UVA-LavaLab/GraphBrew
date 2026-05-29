@@ -6,8 +6,8 @@ Source sweep: `/tmp/graphbrew-grasp-gem5-sweep/<graph>-<app>/DBG`
 
 | invariant | status | detail |
 |---|:---:|---|
-| `GRASP_LE_LRU_headline:email-Eu-core/pr@256kB` | ✅ | grasp=0.1106 lru=0.1320 Δ=-2.142pp (tolerance ≤ +0.50pp) |
-| `GRASP_LE_LRU_headline:email-Eu-core/bc@256kB` | ✅ | grasp=0.0253 lru=0.0286 Δ=-0.328pp (tolerance ≤ +0.50pp) |
+| `GRASP_LE_LRU_headline:email-Eu-core/pr@256kB` | ✅ | grasp=0.1106 lru=0.1320 Δ=-2.142pp (tolerance ≤ +0.45pp) |
+| `GRASP_LE_LRU_headline:email-Eu-core/bc@256kB` | ✅ | grasp=0.0253 lru=0.0286 Δ=-0.328pp (tolerance ≤ +0.45pp) |
 | `asymptote_within_1.0pp:email-Eu-core/pr@2MB` | ✅ | spread=0.042pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
 | `asymptote_within_1.0pp:email-Eu-core/bc@2MB` | ✅ | spread=0.025pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
 | `small_cache_divergence:email-Eu-core/pr@4kB` | ✅ | spread=30.807pp across ['GRASP', 'LRU', 'SRRIP'] (min ≥ 2.00pp; L-shape holds) |

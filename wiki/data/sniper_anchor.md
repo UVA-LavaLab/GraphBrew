@@ -6,10 +6,10 @@ Source sweep: `/tmp/graphbrew-grasp-sniper-sweep/<graph>-<app>/DBG`
 
 | invariant | status | detail |
 |---|:---:|---|
-| `GRASP_LE_LRU_headline:email-Eu-core/pr@256kB` | ✅ | grasp=0.1209 lru=0.1176 Δ=+0.328pp (tolerance ≤ +0.50pp) |
-| `GRASP_LE_LRU_headline:email-Eu-core/sssp@256kB` | ✅ | grasp=0.0803 lru=0.0806 Δ=-0.029pp (tolerance ≤ +0.50pp) |
-| `GRASP_LE_LRU_headline:cit-Patents/pr@256kB` | ✅ | grasp=0.1176 lru=0.1208 Δ=-0.319pp (tolerance ≤ +0.50pp) |
-| `GRASP_LE_LRU_headline:cit-Patents/sssp@256kB` | ✅ | grasp=0.0805 lru=0.0805 Δ=-0.004pp (tolerance ≤ +0.50pp) |
+| `GRASP_LE_LRU_headline:email-Eu-core/pr@256kB` | ✅ | grasp=0.1209 lru=0.1176 Δ=+0.328pp (tolerance ≤ +0.45pp) |
+| `GRASP_LE_LRU_headline:email-Eu-core/sssp@256kB` | ✅ | grasp=0.0803 lru=0.0806 Δ=-0.029pp (tolerance ≤ +0.45pp) |
+| `GRASP_LE_LRU_headline:cit-Patents/pr@256kB` | ✅ | grasp=0.1176 lru=0.1208 Δ=-0.319pp (tolerance ≤ +0.45pp) |
+| `GRASP_LE_LRU_headline:cit-Patents/sssp@256kB` | ✅ | grasp=0.0805 lru=0.0805 Δ=-0.004pp (tolerance ≤ +0.45pp) |
 | `asymptote_within_1.0pp:email-Eu-core/pr@2MB` | ✅ | spread=0.446pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
 | `asymptote_within_1.0pp:email-Eu-core/sssp@2MB` | ✅ | spread=0.145pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
 | `asymptote_within_1.0pp:cit-Patents/pr@2MB` | ✅ | spread=0.123pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
