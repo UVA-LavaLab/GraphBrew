@@ -628,6 +628,17 @@
       "summary": "Pins gem5 and Sniper anchor coverage against silent shrinkage that would invalidate downstream cross-tool gates (70/71/72/74/76) without an obvious failure. gem5 baseline: 2 cells (email-Eu-core/bc, email-Eu-core/pr) x 3 policies (GRASP, LRU, SRRIP) x 4 L3 sizes (4kB, 32kB, 256kB, 2MB) = 6 records. Sniper baseline: 6 cells (cit-Patents and email-Eu-core, each x {bfs, pr, sssp}) x 3 policies x 4 L3 sizes = 18 records. Cross-anchor invariants: shared L3 axis, shared policy set, at least one shared (graph, app) cell (currently email-Eu-core/pr) so per-cell parity spot-checks have a foothold. PASS iff all 13 of these structural invariants hold simultaneously."
     },
     {
+      "artifact": "wiki/data/family_saturation_distance.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_family_saturation_distance.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/family_saturation_distance.py",
+      "generator_exists": true,
+      "id": "family_saturation_distance",
+      "label": "Per-family saturation-distance replay",
+      "summary": "Mirror of gate 67 for the saturation-distance metric (4MB->8MB miss-rate drop in pp). Aggregates gate 65's per_cell data by graph family on the high-WSS qualifying subset (pico sentinels dropped). PASS iff (1) every family has non-negative median distance (family-level dual of gate 77's cell-level monotonicity guard), (2) every family has min distance >= 0, (3) citation and social meet the 5 pp high-headroom floor, (4) web is pinned as the low-headroom outlier with median < 5 pp (web-Google is much closer to its saturation point at 4MB than the hub-heavy families), (5) family ordering citation >= social >= web holds within a 1 pp slack. Current state: citation median +15.69 pp, social +12.50 pp, web +2.15 pp. Makes the regime story explicit at the family level so a regression that flattens citation/social to web's level (or pushes web's median above the ceiling) is caught at exactly one named check."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -735,13 +746,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (78 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (79 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 67
+    "n_entries": 68
   }
 }

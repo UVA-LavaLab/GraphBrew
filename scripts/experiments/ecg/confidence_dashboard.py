@@ -191,6 +191,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_monotonicity_universality.py", "Monoton"),
     "Anchor cell-pair census":
         ("scripts/test/test_anchor_cell_census.py", "Anchors"),
+    "Per-family saturation-distance replay":
+        ("scripts/test/test_family_saturation_distance.py", "FamSat"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

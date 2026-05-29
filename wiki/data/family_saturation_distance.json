@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "families": [
+      "citation",
+      "social",
+      "web"
+    ],
+    "per_family": {
+      "citation": {
+        "n_cells": 5,
+        "min_pp": 8.4182,
+        "median_pp": 15.6929,
+        "p90_pp": 27.6454,
+        "max_pp": 27.6454,
+        "graphs": [
+          "cit-Patents"
+        ]
+      },
+      "social": {
+        "n_cells": 15,
+        "min_pp": 1.9715,
+        "median_pp": 12.4954,
+        "p90_pp": 18.8313,
+        "max_pp": 22.108,
+        "graphs": [
+          "com-orkut",
+          "soc-LiveJournal1",
+          "soc-pokec"
+        ]
+      },
+      "web": {
+        "n_cells": 5,
+        "min_pp": 0.002,
+        "median_pp": 2.1462,
+        "p90_pp": 20.6103,
+        "max_pp": 20.6103,
+        "graphs": [
+          "web-Google"
+        ]
+      }
+    },
+    "high_headroom_families": [
+      "citation",
+      "social"
+    ],
+    "pinned_low_headroom_families": [
+      "web"
+    ],
+    "high_headroom_floor_pp": 5.0,
+    "low_headroom_ceiling_pp": 5.0,
+    "ordering_slack_pp": 1.0,
+    "source_artifact": "wiki/data/saturation_distance.json",
+    "verdict_checks": {
+      "all_family_medians_nonneg": true,
+      "all_family_mins_nonneg": true,
+      "high_headroom_families_meet_floor": true,
+      "pinned_low_headroom_under_ceiling": true,
+      "family_ordering_citation_social_web": true,
+      "at_least_three_families_present": true
+    },
+    "verdict": "PASS"
+  }
+}
