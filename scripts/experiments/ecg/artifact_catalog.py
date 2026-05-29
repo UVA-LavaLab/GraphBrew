@@ -133,7 +133,15 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/oracle_gap_report.py",
         "gate":      "scripts/test/test_oracle_gap.py",
         "artifact":  "wiki/data/oracle_gap.json",
-        "summary":   "Each policy's gap to per-cell empirical oracle (min across 4 policies). Mean gaps: POPT 1.65 pp, GRASP 3.10 pp, SRRIP 3.60 pp, LRU 4.93 pp.",
+        "summary":   "Each policy's gap to per-cell empirical oracle (min across 4 policies). Mean gaps: POPT 1.78 pp, GRASP 3.37 pp, SRRIP 3.46 pp, LRU 4.76 pp.",
+    },
+    {
+        "id":        "oracle_gap_by_app",
+        "label":     "Per-kernel oracle gap",
+        "generator": "scripts/experiments/ecg/oracle_gap_by_app.py",
+        "gate":      "scripts/test/test_oracle_gap_by_app.py",
+        "artifact":  "wiki/data/oracle_gap_by_app.json",
+        "summary":   "Per-(policy, app) oracle-gap matrix exposing per-kernel winners: POPT crushes pr (0.100 pp); GRASP wins cc (0.640 pp); GRASP catastrophic on sssp (7.106 pp). No one-size-fits-all.",
     },
     {
         "id":        "winning_regime_taxonomy",
@@ -191,7 +199,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (29 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (30 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

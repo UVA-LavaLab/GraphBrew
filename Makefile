@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-bootstrap-ci lit-catalog lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -693,6 +693,17 @@ lit-oracle-gap: lit-faith
 		--json-out $(WIKI_DATA)/oracle_gap.json \
 		--md-out   $(WIKI_DATA)/oracle_gap.md
 
+# Per-kernel oracle-gap breakdown. Reuses oracle_gap.json and projects
+# per (policy, app) so the paper has a per-kernel winner table
+# (POPT on PR; GRASP on CC; etc.).
+lit-oracle-gap-by-app: lit-oracle-gap
+	@echo "$(BLUE)Regenerating per-app oracle-gap breakdown...$(NC)"
+	@python3 -m scripts.experiments.ecg.oracle_gap_by_app \
+		--oracle-json $(WIKI_DATA)/oracle_gap.json \
+		--csv-out     $(WIKI_DATA)/oracle_gap_by_app.csv \
+		--json-out    $(WIKI_DATA)/oracle_gap_by_app.json \
+		--md-out      $(WIKI_DATA)/oracle_gap_by_app.md
+
 # Bootstrap confidence intervals on the load-bearing claims (POPT-vs-
 # GRASP per family, sign-stability of mean orderings). Depends on the
 # oracle_gap + popt_vs_grasp inputs being current.
@@ -717,13 +728,13 @@ lit-catalog:
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-bootstrap-ci lit-catalog
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-bootstrap-ci lit-catalog lit-claims
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-claims
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
