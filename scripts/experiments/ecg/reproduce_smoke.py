@@ -149,6 +149,8 @@ TRACKED_ARTIFACTS = [
     "anchor_cell_census.md",
     "family_saturation_distance.json",
     "family_saturation_distance.md",
+    "anchor_monotonicity_replay.json",
+    "anchor_monotonicity_replay.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
