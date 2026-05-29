@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "e3852f569c01fb97be6f1e50355c9d58b6c8e0c703bd8ee94a64b1556d3f48dc",
-      "sha_after": "e3852f569c01fb97be6f1e50355c9d58b6c8e0c703bd8ee94a64b1556d3f48dc",
+      "sha_before": "64b5f92e7b9c1a001326c7a5afcbf19da7a04748d3ee54c61e58d9eb60ff84b0",
+      "sha_after": "64b5f92e7b9c1a001326c7a5afcbf19da7a04748d3ee54c61e58d9eb60ff84b0",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "94d0d4652366fd17131e7ac5a8b3ff17730fc842b2354ef31cd32a8b5a5cdb97",
-      "sha_after": "94d0d4652366fd17131e7ac5a8b3ff17730fc842b2354ef31cd32a8b5a5cdb97",
+      "sha_before": "2ef73c95c733aa3ad2602d53abdcfd1f16965db637885b32529f5ac95c68ce8a",
+      "sha_after": "2ef73c95c733aa3ad2602d53abdcfd1f16965db637885b32529f5ac95c68ce8a",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "0dde699c57e4ee94ba11268c91753f917bfd2c1d34dad7ddf266107327145e00",
-      "sha_after": "0dde699c57e4ee94ba11268c91753f917bfd2c1d34dad7ddf266107327145e00",
+      "sha_before": "8de1d6ce5e2c04e2b4de9ac054376acc1f1006b827e6129bed345d16bf641c96",
+      "sha_after": "8de1d6ce5e2c04e2b4de9ac054376acc1f1006b827e6129bed345d16bf641c96",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "3cc71a5a745ce8ab1691fcf07af6220ccefb87e8a32299230281ca70434b66dd",
-      "sha_after": "3cc71a5a745ce8ab1691fcf07af6220ccefb87e8a32299230281ca70434b66dd",
+      "sha_before": "900171200f8075a818b108b87a48190eb7b784666889b91b11310d45fc8717cc",
+      "sha_after": "900171200f8075a818b108b87a48190eb7b784666889b91b11310d45fc8717cc",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "37997f1491e6ef12bf47a610318088f8024029627ff148193ab9c4e536e3a23f",
-      "sha_after": "37997f1491e6ef12bf47a610318088f8024029627ff148193ab9c4e536e3a23f",
+      "sha_before": "9c6cd4800bdecd46c6baef3d6326e8bb97eac3a84017d9a249c25a147aa02a9d",
+      "sha_after": "9c6cd4800bdecd46c6baef3d6326e8bb97eac3a84017d9a249c25a147aa02a9d",
       "status": "ok"
     },
     {

@@ -285,6 +285,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_slope_replay_derivation_parity.py", "FSR-Der"),
     "family_sensitivity derivation parity (relabel sweep + sign-claim flip detector + seed-stable bootstrap)":
         ("scripts/test/test_family_sensitivity_derivation_parity.py", "FSE-Der"),
+    "family_saturation_distance derivation parity (per-family upper-octave headroom + pinned web outlier)":
+        ("scripts/test/test_family_saturation_distance_derivation_parity.py", "FSD-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
