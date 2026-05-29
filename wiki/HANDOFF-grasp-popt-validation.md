@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **35 gates, all GREEN, exit 0**.
+and currently reports **42 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -281,7 +281,7 @@ Latest additions on top of the Tier A/B/C work:
     `lit-claims` in the dep chain. Documents the one-cycle
     convergence wart for future maintainers. Test
     `scripts/test/test_reproduce_smoke.py` (8 cases) pins the
-    artifact floor at 48 with the load-bearing files list.
+    artifact floor at 62 with the load-bearing files list.
   - `scripts/experiments/ecg/oracle_gap_by_app_bootstrap.py`
     paired-bootstraps Δ = gap(a) − gap(b) for every ordered policy
     pair, per kernel (5 apps × 12 pairs = 60 comparisons). 2000
@@ -307,11 +307,64 @@ Latest additions on top of the Tier A/B/C work:
     [`wiki/data/popt_vs_grasp_by_family_app.md`](data/popt_vs_grasp_by_family_app.md).
     Test `scripts/test/test_popt_vs_grasp_by_family_app.py`
     (10 cases).
+  - `scripts/experiments/ecg/wilson_win_rates.py` — Wilson 95% CIs
+    on per-(scope, policy) win-rates. Right tool for small-n
+    binomial when p̂ near 0/1. Headline: pr/POPT 20/28 CI
+    [0.529, 0.848] strict majority; cc/GRASP 17/20 CI [0.640, 0.948]
+    strict majority AND above the 25% null baseline; cc/POPT 0/20
+    CI [0.000, 0.161] strict below-chance; sssp policies overlap
+    CI. Test `scripts/test/test_wilson_win_rates.py` (11 cases).
+  - `scripts/experiments/ecg/cohens_h_win_rates.py` — Cohen's h
+    effect-size (arcsine-transformed) on win-rate gaps. 14 large-
+    effect (h ≥ 0.8) dominance pairs: cc/GRASP-vs-POPT h=2.346
+    (largest), pr/POPT-vs-{LRU,SRRIP} h=2.014. **sssp has no
+    large-effect dominance** (max h=0.726 medium). Test
+    `scripts/test/test_cohens_h_win_rates.py` (12 cases).
+  - `scripts/experiments/ecg/oracle_gap_effect_size.py` — Cliff's
+    delta + Mann-Whitney U on RAW gap_pp distributions
+    (nonparametric, outlier-robust). MW-U via `math.erfc`, no scipy
+    dep. 10 large-effect (|d|≥0.474) dominance pairs. pr/POPT vs
+    LRU d=-0.911 MW p=0; cc/GRASP dominates all 3 with MW p<1e-4.
+    **sssp again has no large-effect dominance** (third independent
+    weak-signal signal). Test `scripts/test/test_oracle_gap_effect_size.py`
+    (11 cases).
+  - `scripts/experiments/ecg/l3_policy_stability.py` — per-(app, L3)
+    winner stability across paper L3 sizes (1MB / 4MB / 8MB).
+    **Stable single winners**: cc=GRASP, pr=POPT. **Regime change**:
+    bfs (GRASP@1MB → POPT@≥4MB). **No stable winner**: sssp.
+    Gray-zone: bc (tied SRRIP/GRASP at 1MB, GRASP unique at 4MB+8MB).
+    Pins the firewall against averaging across L3 and silently
+    hiding a regime change. Test `scripts/test/test_l3_policy_stability.py`
+    (11 cases).
+  - `scripts/experiments/ecg/multiple_testing_correction.py` —
+    aggregates 81 p-values across the entire gate family (gate 38
+    MW, gate 34 paired bootstrap, gate 35 per-(family,app)) and
+    applies Holm-Bonferroni (FWER) and Benjamini-Hochberg (FDR)
+    at α=0.05. **Naive significant 44/81; HB survivors 28/81; BH
+    survivors 40/81.** Pins which claims may honestly be called
+    'significant' in the paper. Test
+    `scripts/test/test_multiple_testing_correction.py` (14 cases).
+  - `scripts/experiments/ecg/leave_one_graph_out.py` — drops each
+    of the 8 graphs in turn and re-ranks winners. **LOGO-robust**
+    (winner survives every drop): pr/POPT, cc/GRASP, bc/GRASP.
+    **LOGO-fragile**: bfs (flips when soc-LiveJournal1 dropped),
+    sssp (flips under 3/8 drops). Sssp's fragility is now the
+    fifth independent signal converging on 'sssp is weak'. Test
+    `scripts/test/test_leave_one_graph_out.py` (12 cases).
+  - `scripts/experiments/ecg/cell_winner_census.py` — corpus
+    decisiveness census. **114 cells: 97.4% unique winner, 2.6%
+    tied (3 cells, all in bc/email-Eu-core), 0% no-winner.** The
+    one 4-way tie (bc/email-Eu-core/1MB) and two 2-way ties pin
+    the 'tied subcorpus' the paper must disclose separately. Test
+    `scripts/test/test_cell_winner_census.py` (12 cases).
 - New Make targets: `make lit-popt-vs-grasp`, `make lit-deviations`,
   `make lit-claims`, `make lit-cross-tool-winners`,
   `make lit-regime-taxonomy`, `make lit-oracle-gap`,
   `make lit-oracle-gap-by-app`, `make lit-oracle-by-app-bootstrap`,
   `make lit-popt-vs-grasp-by-family-app`,
+  `make lit-wilson-wins`, `make lit-cohens-h`, `make lit-gap-effect-size`,
+  `make lit-l3-stability`, `make lit-mt-correction`, `make lit-logo-robust`,
+  `make lit-cell-census`,
   `make lit-wss-relative-l3`,
   `make lit-bootstrap-ci`, `make lit-family-sensitivity`,
   `make lit-reproduce-smoke`, `make lit-catalog` (all wired into
