@@ -107,6 +107,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_corpus_diversity_vs_regime_taxonomy.py", "Cor-Reg"),
     "Paper claims registry recompute parity":
         ("scripts/test/test_paper_claims_recompute.py", "PC-Recom"),
+    "Family tri-artifact agreement":
+        ("scripts/test/test_family_tri_artifact_agreement.py", "Fam-Tri"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
