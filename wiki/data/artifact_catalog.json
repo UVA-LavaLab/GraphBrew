@@ -276,6 +276,17 @@
       "summary": "Validates bootstrap CI assumptions (gates 35, 43) by pinning per-policy skewness + excess kurtosis at paper L3. Worst observed |skewness| ~ 1.3 (bfs/GRASP), worst |excess kurtosis| ~ 1.4 (sssp/GRASP); both well inside Hesterberg 2015's |skew|<2, |kurt|<7 envelope. Verdict: PASS. Future drift past envelope auto-fails this gate."
     },
     {
+      "artifact": "wiki/data/lofo_robustness.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lofo_robustness.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lofo_robustness.py",
+      "generator_exists": true,
+      "id": "lofo_robustness",
+      "label": "Leave-one-family-out (LOFO) winner robustness",
+      "summary": "Strictly stronger sibling of gate 41 (LOGO): drops an entire family at a time (1-4 graphs) and re-ranks per app. 3/5 apps (bc, cc, pr) are LOFO-robust; bfs is honestly disclosed as social-sensitive (drop social -> POPT loses to GRASP) and sssp as citation-sensitive (drop citation -> GRASP loses to POPT)."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -383,13 +394,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (46 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (47 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 35
+    "n_entries": 36
   }
 }

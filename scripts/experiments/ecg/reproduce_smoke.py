@@ -83,6 +83,8 @@ TRACKED_ARTIFACTS = [
     "corpus_balance.md",
     "distribution_diagnostics.json",
     "distribution_diagnostics.md",
+    "lofo_robustness.json",
+    "lofo_robustness.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

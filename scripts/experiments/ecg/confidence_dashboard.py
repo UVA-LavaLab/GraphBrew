@@ -127,6 +127,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_corpus_balance.py", "Balance"),
     "Per-policy miss-rate distribution diagnostics":
         ("scripts/test/test_distribution_diagnostics.py", "Dist"),
+    "Leave-one-family-out (LOFO) robustness":
+        ("scripts/test/test_lofo_robustness.py", "LOFO"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
