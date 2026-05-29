@@ -221,6 +221,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_tool_slope_ordering_derivation_parity.py", "CTSO-Der"),
     "policy_steepness_ranking derivation parity (final-octave |slope| reducers + ordering checks)":
         ("scripts/test/test_policy_steepness_ranking_derivation_parity.py", "PSR-Der"),
+    "winner_margin_by_regime derivation parity (per-(policy, wss_regime) margin reducers + shrink-evidence)":
+        ("scripts/test/test_winner_margin_by_regime_derivation_parity.py", "WMR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
