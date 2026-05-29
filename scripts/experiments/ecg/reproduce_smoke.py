@@ -121,6 +121,8 @@ TRACKED_ARTIFACTS = [
     "cross_policy_asymmetry.md",
     "saturation_distance.json",
     "saturation_distance.md",
+    "capacity_sensitivity.json",
+    "capacity_sensitivity.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

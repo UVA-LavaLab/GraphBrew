@@ -400,6 +400,14 @@ CATALOG = [
         "summary":   "Per-(app, graph) gap between best-policy miss rate at 4MB and at 8MB; per-app median quantifies how much an application is still cache-bound at 8MB. bc is the least saturated (17.45pp median, still streaming after 8MB); bfs is the most saturated (4.64pp median, frontier reuse takes over); pr/cc/sssp sit in between. email-Eu-core (pico-sentinel) is saturated for every app within 0.05pp. App-level diversity range = 12.81pp. Verdict PASS iff (1) every cell with WSS > 4MB has non-negative 4MB->8MB best-policy improvement (cache monotonicity), (2) email-Eu-core saturates everywhere, and (3) per-app median range >= 3pp (corpus retains app-level signal).",
     },
     {
+        "id":        "capacity_sensitivity",
+        "label":     "Per-policy capacity-sensitivity slope",
+        "generator": "scripts/experiments/ecg/capacity_sensitivity.py",
+        "gate":      "scripts/test/test_capacity_sensitivity.py",
+        "artifact":  "wiki/data/capacity_sensitivity.json",
+        "summary":   "Per-(app, graph, policy) OLS slope of miss_rate (pp) versus log2(L3 MB) on the {1MB, 4MB, 8MB} axis. Per-policy median slope ranks policies by how much they benefit from cache scaling: LRU is steepest (median -15.62 pp/octave, most cache-hungry); GRASP is shallowest (median -14.65 pp/octave, extracts the most at small caches). POPT (-14.76) and SRRIP (-15.60) sit between. The 0.97 pp/octave gap between LRU and GRASP medians is the dual of gate 62's central finding: oracle-aware policies harvest more value when capacity is tight, so they have less marginal value to gain as cache grows. Verdict PASS iff (1) every policy's median slope is strictly < -5 pp/octave, (2) LRU has the steepest median slope, and (3) GRASP is strictly shallower than LRU.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -479,7 +487,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (65 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (66 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
