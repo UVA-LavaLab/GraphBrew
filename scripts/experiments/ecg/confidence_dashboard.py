@@ -133,6 +133,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cohens_h_wilson_parity.py", "CH-Wil"),
     "lofo ↔ leave_one_graph_out robustness parity":
         ("scripts/test/test_lofo_logo_robustness_parity.py", "LOFO-Par"),
+    "multiple_testing_correction HB+BH arithmetic":
+        ("scripts/test/test_multiple_testing_correction_arithmetic.py", "MTC-Lad"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
