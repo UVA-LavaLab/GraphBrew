@@ -79,6 +79,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_road_like_graph_invariant.py", "Road-like"),
     "L-curve monotonicity gate":
         ("scripts/test/test_l_curve_monotonicity.py", "L-mono"),
+    "Policy-winner table sanity":
+        ("scripts/test/test_policy_winner_table.py", "Winner"),
 }
 
 

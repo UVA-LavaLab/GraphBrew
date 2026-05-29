@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -537,6 +537,18 @@ lit-table:
 		--markdown $(WIKI_DATA)/paper_baseline_table.md \
 		--csv      $(WIKI_DATA)/paper_baseline_table.csv \
 		--json     $(WIKI_DATA)/paper_baseline_table.json
+
+# Project the lit-faith CSV onto a winner-per-cell view and emit
+# paper-grade per-policy / per-family / per-regime win counts. Depends
+# only on the lit-faith CSV being current.
+lit-winner: lit-faith
+	@echo "$(BLUE)Regenerating policy winner table...$(NC)"
+	@python3 -m scripts.experiments.ecg.policy_winner_table \
+		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
+		--corpus-json   $(WIKI_DATA)/corpus_diversity.json \
+		--csv-out  $(WIKI_DATA)/policy_winner_table.csv \
+		--json-out $(WIKI_DATA)/policy_winner_table.json \
+		--md-out   $(WIKI_DATA)/policy_winner_table.md
 
 # Regenerate the gem5 literature anchor (small graph, fast).
 # Scoped to email-Eu-core by default; expand GEM5_ANCHOR_GRAPHS once
@@ -577,7 +589,7 @@ sniper-anchor:
 		echo "$(BLUE)  Sniper sweep dir $(SNIPER_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
 	fi
 
-confidence: lit-faith lit-repro lit-budget lit-table gem5-anchor sniper-anchor
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner gem5-anchor sniper-anchor
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
