@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "226339f9a4e3e52520771849c64616709eba5d748eaf6c03b8c34f323edda1c7",
-      "sha_after": "226339f9a4e3e52520771849c64616709eba5d748eaf6c03b8c34f323edda1c7",
+      "sha_before": "bb08e013fd7d972644a7e51800a641b3591bfd80a2f13cba378cfb6c8b5d6829",
+      "sha_after": "bb08e013fd7d972644a7e51800a641b3591bfd80a2f13cba378cfb6c8b5d6829",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "3779e93e192e4d126d5dd818ac53315a8d3e68f8a59b8cbdb71e5fe08f9c8669",
-      "sha_after": "3779e93e192e4d126d5dd818ac53315a8d3e68f8a59b8cbdb71e5fe08f9c8669",
+      "sha_before": "7b9b4c42a4d620ebd01cf291edd80eac97b57d849f8d48c0aabeb0bf7112515b",
+      "sha_after": "7b9b4c42a4d620ebd01cf291edd80eac97b57d849f8d48c0aabeb0bf7112515b",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "6dd99e8e7013cdc1daff61dc60fef58c0eff32da8cf2045b5da8d6ae5122a437",
-      "sha_after": "6dd99e8e7013cdc1daff61dc60fef58c0eff32da8cf2045b5da8d6ae5122a437",
+      "sha_before": "859e54407635141487c4451632ae4dd27d0e1602f2feac5c7d3d2b48065be686",
+      "sha_after": "859e54407635141487c4451632ae4dd27d0e1602f2feac5c7d3d2b48065be686",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "917099d77b60e28f3ca7bd5c20c837d240260b8bf99ed96ef7b06f099128aedd",
-      "sha_after": "917099d77b60e28f3ca7bd5c20c837d240260b8bf99ed96ef7b06f099128aedd",
+      "sha_before": "316a3251be0348257cb2ab1292e5806134095582246fe5433fcad445b0e8d315",
+      "sha_after": "316a3251be0348257cb2ab1292e5806134095582246fe5433fcad445b0e8d315",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "fd5871ebea32eedf525683fb093b2ba17e27a41bf2add619cb3af27e19b22452",
-      "sha_after": "fd5871ebea32eedf525683fb093b2ba17e27a41bf2add619cb3af27e19b22452",
+      "sha_before": "5f4486aad96da8a9bc799a4a69096b0f785f32430ebb213930166f15e67511dd",
+      "sha_after": "5f4486aad96da8a9bc799a4a69096b0f785f32430ebb213930166f15e67511dd",
       "status": "ok"
     },
     {
