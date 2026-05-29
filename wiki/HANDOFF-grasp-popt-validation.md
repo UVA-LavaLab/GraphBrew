@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **95 gates, all GREEN, exit 0**.
+and currently reports **100 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -104,11 +104,41 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   family_sensitivity claims at stability_floor=0.95, and the global
   cluster split {GRASP:[bc,cc], POPT:[bfs,pr,sssp]} locked (gate 95,
   13 tests).
+- **Second cross-artifact integrity block + milestone** (gates 96-100):
+  AUC correlation cross-artifact parity — PAC.meta and FPAC.meta agree
+  on auc_winner_by_app and clusters_by_winner, intra_inter math
+  recomputable from the matrix within 1e-3, 3 qualifying families
+  {citation, social, web} locked at min_apps=4 (gate 96, 13 tests);
+  family-geomean ↔ margin-replay parity — all 5 families present in
+  both artifacts, FMR per-family cells {citation:15, mesh:5, road:25,
+  social:54, web:15} summing to corpus total 114, FGI headline-15
+  entries derivable from geomean_improve_pct ≥ 10.0, and the 34 strict
+  geomean improvements all have ≥1 winning cell in margin-replay (gate
+  97, 13 tests); oracle-gap curvature ↔ effect-size parity — slope and
+  curvature math (slope = gap_diff/log2_ratio, curvature = slope2 -
+  slope1) verifiable to 1e-3, OGES Cliff's-delta antisymmetry to
+  machine precision, knee_count {GRASP:4, POPT:3, LRU:0, SRRIP:0}
+  pinned (gate 98, 13 tests); monotonicity-universality ↔ anchor-
+  replay agreement — MU 14 sub-noise bumps (max 0.0347 pp), AMR per-
+  tool steps/bumps/hard_bumps/catastrophic accounting all internally
+  consistent, MU.max_noise_bump_pp == AMR.constants.hard_bump_threshold_pp
+  (both 0.5 pp), and MU.largest_bump_pp strictly < shared threshold
+  (the "cache-sim is sharper than the anchors" guarantee) (gate 99,
+  13 tests). **Milestone gate 100** — catalog ↔ dashboard ↔ disk
+  coverage triangle: every CATALOG entry has gate/generator/artifact
+  on disk under wiki/, every PYTEST_SUITES path resolves, short
+  labels unique and non-empty, ≥70 catalog gates fan into the
+  dashboard with exactly two documented EXEMPT_FROM_DASHBOARD entries
+  (test_confidence_dashboard.py and test_paper_baseline_table.py),
+  and the catalog summary's "(N) gates today" text matches
+  len(PYTEST_SUITES) (gate 100, 13 tests). Also disambiguated 3
+  pre-existing duplicate PYTEST_SUITES short labels (Slope→CSlope/
+  CapSlope, Parity→GapPar, Sat→SatOn/SatDist).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 95. `make confidence-fast` runs the whole suite in under
+  current 100. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -128,7 +158,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 95+ pytest gates + lit-faith headline + corpus diversity
+  view of all 100+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
