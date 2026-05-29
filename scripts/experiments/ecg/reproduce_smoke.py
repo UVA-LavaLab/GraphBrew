@@ -53,6 +53,8 @@ TRACKED_ARTIFACTS = [
     "cross_tool_saturation.md",
     "cross_tool_winners.json",
     "cross_tool_winners.md",
+    "family_sensitivity.json",
+    "family_sensitivity.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

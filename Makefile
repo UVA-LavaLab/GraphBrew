@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -715,6 +715,19 @@ lit-bootstrap-ci: lit-oracle-gap lit-popt-vs-grasp
 		--json-out    $(WIKI_DATA)/bootstrap_ci.json \
 		--md-out      $(WIKI_DATA)/bootstrap_ci.md
 
+# Family-classification sensitivity sweep. For each (graph,
+# alternative family) reassignment, rerun the bootstrap sign-
+# stability claims and report which paper claims survive every
+# relabeling vs which depend on a specific taxonomy choice.
+# Defends the paper against the obvious reviewer challenge
+# "what if you relabeled graph X as family Y?".
+lit-family-sensitivity: lit-oracle-gap
+	@echo "$(BLUE)Regenerating family-classification sensitivity...$(NC)"
+	@python3 -m scripts.experiments.ecg.family_sensitivity \
+		--oracle-json $(WIKI_DATA)/oracle_gap.json \
+		--json-out    $(WIKI_DATA)/family_sensitivity.json \
+		--md-out      $(WIKI_DATA)/family_sensitivity.md
+
 # Paper-artifact catalog: single canonical index of every aggregator
 # + its generator + governing gate + JSON artifact + headline finding.
 # No data dependencies — just metadata + on-disk file existence audit.
@@ -740,13 +753,13 @@ lit-reproduce-smoke:
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-family-sensitivity lit-catalog
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-claims lit-reproduce-smoke
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

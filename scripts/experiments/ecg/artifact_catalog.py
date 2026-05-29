@@ -144,6 +144,14 @@ CATALOG = [
         "summary":   "Per-(policy, app) oracle-gap matrix exposing per-kernel winners: POPT crushes pr (0.100 pp); GRASP wins cc (0.640 pp); GRASP catastrophic on sssp (7.106 pp). No one-size-fits-all.",
     },
     {
+        "id":        "family_sensitivity",
+        "label":     "Family-classification sensitivity",
+        "generator": "scripts/experiments/ecg/family_sensitivity.py",
+        "gate":      "scripts/test/test_family_sensitivity.py",
+        "artifact":  "wiki/data/family_sensitivity.json",
+        "summary":   "Enumerates every (graph, alternative family) relabeling (32 total) and reruns the 7 sign-stability claims. Bedrock: POPT < LRU on social survives 32/32 relabelings. Road claim only loses stability when roadNet-CA (sole road member) is relocated, as expected.",
+    },
+    {
         "id":        "reproduce_smoke",
         "label":     "Reproducibility smoke",
         "generator": "scripts/experiments/ecg/reproduce_smoke.py",
@@ -207,7 +215,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (31 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (32 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

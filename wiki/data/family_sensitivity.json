@@ -1,0 +1,447 @@
+{
+  "canonical_claims": [
+    {
+      "claim": "POPT < GRASP on road",
+      "family": "road",
+      "frac": 0.971,
+      "mean_a": 3.4745,
+      "mean_b": 11.8214,
+      "n_a": 25,
+      "n_b": 25,
+      "policy_a": "POPT",
+      "policy_b": "GRASP"
+    },
+    {
+      "claim": "POPT < GRASP on social",
+      "family": "social",
+      "frac": 0.2495,
+      "mean_a": 1.5013,
+      "mean_b": 1.1412,
+      "n_a": 54,
+      "n_b": 54,
+      "policy_a": "POPT",
+      "policy_b": "GRASP"
+    },
+    {
+      "claim": "POPT < GRASP on mesh",
+      "family": "mesh",
+      "frac": 0.9455,
+      "mean_a": 0.0822,
+      "mean_b": 0.9432,
+      "n_a": 5,
+      "n_b": 5,
+      "policy_a": "POPT",
+      "policy_b": "GRASP"
+    },
+    {
+      "claim": "POPT < GRASP on citation",
+      "family": "citation",
+      "frac": 0.1665,
+      "mean_a": 1.5994,
+      "mean_b": 0.8733,
+      "n_a": 15,
+      "n_b": 15,
+      "policy_a": "POPT",
+      "policy_b": "GRASP"
+    },
+    {
+      "claim": "POPT < GRASP on web",
+      "family": "web",
+      "frac": 0.403,
+      "mean_a": 0.7164,
+      "mean_b": 0.6183,
+      "n_a": 15,
+      "n_b": 15,
+      "policy_a": "POPT",
+      "policy_b": "GRASP"
+    },
+    {
+      "claim": "POPT < LRU on social",
+      "family": "social",
+      "frac": 1.0,
+      "mean_a": 1.5013,
+      "mean_b": 5.569,
+      "n_a": 54,
+      "n_b": 54,
+      "policy_a": "POPT",
+      "policy_b": "LRU"
+    },
+    {
+      "claim": "GRASP < LRU on social",
+      "family": "social",
+      "frac": 1.0,
+      "mean_a": 1.1412,
+      "mean_b": 5.569,
+      "n_a": 54,
+      "n_b": 54,
+      "policy_a": "GRASP",
+      "policy_b": "LRU"
+    }
+  ],
+  "canonical_state": {
+    "GRASP < LRU on social": 1.0,
+    "POPT < GRASP on citation": 0.1665,
+    "POPT < GRASP on mesh": 0.9455,
+    "POPT < GRASP on road": 0.971,
+    "POPT < GRASP on social": 0.2495,
+    "POPT < GRASP on web": 0.403,
+    "POPT < LRU on social": 1.0
+  },
+  "meta": {
+    "n_resamples": 2000,
+    "seed": 1729,
+    "stability_floor": 0.95
+  },
+  "n_flipping_relabelings": 15,
+  "n_relabelings": 32,
+  "per_claim_flip_count": {
+    "GRASP < LRU on social": 1,
+    "POPT < GRASP on citation": 1,
+    "POPT < GRASP on mesh": 14,
+    "POPT < GRASP on road": 4,
+    "POPT < GRASP on social": 1,
+    "POPT < GRASP on web": 1,
+    "POPT < LRU on social": 0
+  },
+  "relabelings": [
+    {
+      "canonical_family": "citation",
+      "flipped": [],
+      "graph": "cit-Patents",
+      "new_family": "mesh"
+    },
+    {
+      "canonical_family": "citation",
+      "flipped": [],
+      "graph": "cit-Patents",
+      "new_family": "road"
+    },
+    {
+      "canonical_family": "citation",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.953
+        }
+      ],
+      "graph": "cit-Patents",
+      "new_family": "social"
+    },
+    {
+      "canonical_family": "citation",
+      "flipped": [],
+      "graph": "cit-Patents",
+      "new_family": "web"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "com-orkut",
+      "new_family": "citation"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [],
+      "graph": "com-orkut",
+      "new_family": "mesh"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [],
+      "graph": "com-orkut",
+      "new_family": "road"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "com-orkut",
+      "new_family": "web"
+    },
+    {
+      "canonical_family": "mesh",
+      "flipped": [],
+      "graph": "delaunay_n19",
+      "new_family": "citation"
+    },
+    {
+      "canonical_family": "mesh",
+      "flipped": [],
+      "graph": "delaunay_n19",
+      "new_family": "road"
+    },
+    {
+      "canonical_family": "mesh",
+      "flipped": [],
+      "graph": "delaunay_n19",
+      "new_family": "social"
+    },
+    {
+      "canonical_family": "mesh",
+      "flipped": [],
+      "graph": "delaunay_n19",
+      "new_family": "web"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "email-Eu-core",
+      "new_family": "citation"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9875
+        }
+      ],
+      "graph": "email-Eu-core",
+      "new_family": "mesh"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [],
+      "graph": "email-Eu-core",
+      "new_family": "road"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "email-Eu-core",
+      "new_family": "web"
+    },
+    {
+      "canonical_family": "road",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on road",
+          "direction": "lost",
+          "frac_canonical": 0.971,
+          "frac_perturbed": null
+        },
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.95
+        },
+        {
+          "claim": "POPT < GRASP on citation",
+          "direction": "gained",
+          "frac_canonical": 0.1665,
+          "frac_perturbed": 0.9705
+        }
+      ],
+      "graph": "roadNet-CA",
+      "new_family": "citation"
+    },
+    {
+      "canonical_family": "road",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on road",
+          "direction": "lost",
+          "frac_canonical": 0.971,
+          "frac_perturbed": null
+        },
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.979
+        }
+      ],
+      "graph": "roadNet-CA",
+      "new_family": "mesh"
+    },
+    {
+      "canonical_family": "road",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on road",
+          "direction": "lost",
+          "frac_canonical": 0.971,
+          "frac_perturbed": null
+        },
+        {
+          "claim": "POPT < GRASP on social",
+          "direction": "gained",
+          "frac_canonical": 0.2495,
+          "frac_perturbed": 0.9515
+        },
+        {
+          "claim": "GRASP < LRU on social",
+          "direction": "lost",
+          "frac_canonical": 1.0,
+          "frac_perturbed": 0.4695
+        }
+      ],
+      "graph": "roadNet-CA",
+      "new_family": "social"
+    },
+    {
+      "canonical_family": "road",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on road",
+          "direction": "lost",
+          "frac_canonical": 0.971,
+          "frac_perturbed": null
+        },
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.95
+        },
+        {
+          "claim": "POPT < GRASP on web",
+          "direction": "gained",
+          "frac_canonical": 0.403,
+          "frac_perturbed": 0.974
+        }
+      ],
+      "graph": "roadNet-CA",
+      "new_family": "web"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "soc-LiveJournal1",
+      "new_family": "citation"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [],
+      "graph": "soc-LiveJournal1",
+      "new_family": "mesh"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [],
+      "graph": "soc-LiveJournal1",
+      "new_family": "road"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "soc-LiveJournal1",
+      "new_family": "web"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "soc-pokec",
+      "new_family": "citation"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [],
+      "graph": "soc-pokec",
+      "new_family": "mesh"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [],
+      "graph": "soc-pokec",
+      "new_family": "road"
+    },
+    {
+      "canonical_family": "social",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.9515
+        }
+      ],
+      "graph": "soc-pokec",
+      "new_family": "web"
+    },
+    {
+      "canonical_family": "web",
+      "flipped": [],
+      "graph": "web-Google",
+      "new_family": "citation"
+    },
+    {
+      "canonical_family": "web",
+      "flipped": [],
+      "graph": "web-Google",
+      "new_family": "mesh"
+    },
+    {
+      "canonical_family": "web",
+      "flipped": [],
+      "graph": "web-Google",
+      "new_family": "road"
+    },
+    {
+      "canonical_family": "web",
+      "flipped": [
+        {
+          "claim": "POPT < GRASP on mesh",
+          "direction": "gained",
+          "frac_canonical": 0.9455,
+          "frac_perturbed": 0.953
+        }
+      ],
+      "graph": "web-Google",
+      "new_family": "social"
+    }
+  ]
+}
