@@ -151,6 +151,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_saturation_slope_extremum_arithmetic.py", "SSE-Ext"),
     "winner_margin_gradient arithmetic + classification":
         ("scripts/test/test_winner_margin_gradient_arithmetic.py", "WMG-Grad"),
+    "per_app_srrip_vs_grasp arithmetic + verdict":
+        ("scripts/test/test_per_app_srrip_vs_grasp_arithmetic.py", "PAS-vG"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
