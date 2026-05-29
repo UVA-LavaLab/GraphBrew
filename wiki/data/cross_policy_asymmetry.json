@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "every_pair_both_win": true,
+    "max_asymmetry_ratio": 3.196,
+    "max_ratio_under_ceiling": true,
+    "pair_count": 6,
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "ratio_ceiling": 20.0,
+    "verdict": "PASS",
+    "verdict_invariant": "PASS iff every (A,B) policy pair has at least one cell where each side wins head-to-head AND the largest observed asymmetry ratio (max(meanA,meanB) / min(meanA,meanB)) is strictly less than the sanity ceiling of 20.0"
+  },
+  "per_pair": {
+    "GRASP_vs_LRU": {
+      "a_mean_margin_pp": 4.7787,
+      "a_policy": "GRASP",
+      "a_wins": 92,
+      "asymmetry_ratio": 2.9396,
+      "b_mean_margin_pp": 14.0476,
+      "b_policy": "LRU",
+      "b_wins": 20,
+      "ties": 2
+    },
+    "GRASP_vs_POPT": {
+      "a_mean_margin_pp": 2.0194,
+      "a_policy": "GRASP",
+      "a_wins": 57,
+      "asymmetry_ratio": 2.6676,
+      "b_mean_margin_pp": 5.3869,
+      "b_policy": "POPT",
+      "b_wins": 55,
+      "ties": 2
+    },
+    "GRASP_vs_SRRIP": {
+      "a_mean_margin_pp": 3.4543,
+      "a_policy": "GRASP",
+      "a_wins": 86,
+      "asymmetry_ratio": 3.196,
+      "b_mean_margin_pp": 11.04,
+      "b_policy": "SRRIP",
+      "b_wins": 26,
+      "ties": 2
+    },
+    "LRU_vs_POPT": {
+      "a_mean_margin_pp": 5.031,
+      "a_policy": "LRU",
+      "a_wins": 17,
+      "asymmetry_ratio": 1.1354,
+      "b_mean_margin_pp": 4.4311,
+      "b_policy": "POPT",
+      "b_wins": 96,
+      "ties": 1
+    },
+    "LRU_vs_SRRIP": {
+      "a_mean_margin_pp": 0.5366,
+      "a_policy": "LRU",
+      "a_wins": 18,
+      "asymmetry_ratio": 3.1384,
+      "b_mean_margin_pp": 1.6842,
+      "b_policy": "SRRIP",
+      "b_wins": 94,
+      "ties": 2
+    },
+    "POPT_vs_SRRIP": {
+      "a_mean_margin_pp": 3.3628,
+      "a_policy": "POPT",
+      "a_wins": 85,
+      "asymmetry_ratio": 1.0423,
+      "b_mean_margin_pp": 3.5051,
+      "b_policy": "SRRIP",
+      "b_wins": 27,
+      "ties": 2
+    }
+  }
+}

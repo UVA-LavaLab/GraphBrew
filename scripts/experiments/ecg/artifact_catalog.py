@@ -384,6 +384,14 @@ CATALOG = [
         "summary":   "Re-runs gate 62 one graph family at a time. A family qualifies iff at least one oracle-aware policy wins cells in BOTH under_wss and over_wss regimes; only the social family (com-orkut, email-Eu-core, soc-LiveJournal1, soc-pokec) has the WSS diversity to qualify today. social replays with both GRASP (2.54pp -> 0.001pp) and POPT (1.89pp -> 0.000pp) showing the global shrink pattern. Verdict PASS iff at least one family replays AND no NEW family deviates beyond the pinned set. Family-level analog of gate 62, sibling to gates 57 and 61.",
     },
     {
+        "id":        "cross_policy_asymmetry",
+        "label":     "Cross-policy mean-margin asymmetry",
+        "generator": "scripts/experiments/ecg/cross_policy_asymmetry.py",
+        "gate":      "scripts/test/test_cross_policy_asymmetry.py",
+        "artifact":  "wiki/data/cross_policy_asymmetry.json",
+        "summary":   "Head-to-head between every (A,B) policy pair: when A wins H2H against B, by how much pp; and when B wins, by how much. Records 6 unordered pairs with a-wins, b-wins, ties, a/b mean-margin, and asymmetry ratio. GRASP vs POPT is near-balanced (57 vs 55 wins, 2.67x ratio); GRASP vs LRU is lopsided (92 vs 20 wins, 14.05pp LRU mean loss); POPT vs SRRIP is most symmetric (1.04x). Max asymmetry today is 3.20x. Verdict PASS iff every pair has at least one win on each side AND the largest observed asymmetry ratio stays under the 20x sanity ceiling — catches future regressions where one policy's losing-magnitude explodes.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -463,7 +471,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (63 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (64 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

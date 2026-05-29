@@ -161,6 +161,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_winner_margin_by_regime.py", "WMrgn"),
     "Per-family winner-margin replay":
         ("scripts/test/test_family_margin_replay.py", "FMrgn"),
+    "Cross-policy mean-margin asymmetry":
+        ("scripts/test/test_cross_policy_asymmetry.py", "Asym"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
