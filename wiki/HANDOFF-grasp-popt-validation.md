@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **30 gates, all GREEN, exit 0**.
+and currently reports **33 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -236,13 +236,60 @@ Latest additions on top of the Tier A/B/C work:
     20 (policy, app) buckets present, n≥15 per bucket, pr→POPT
     (≤0.5 pp), cc→GRASP, and the GRASP-must-not-win-sssp counter-
     narrative.
+  - `scripts/experiments/ecg/wss_relative_l3.py` re-bins every
+    oracle-gap cell by L3 / WSS ratio (under_wss < 0.25, near_wss
+    0.25–4.0, over_wss > 4.0), using the per-graph
+    `working_set_ratio` already published in
+    [`wiki/data/corpus_diversity.json`](data/corpus_diversity.json)
+    as a WSS proxy. Defends against the reviewer pushback that
+    absolute-byte L3 tables silently compare across graphs of
+    wildly different sizes. Lives at
+    [`wiki/data/wss_relative_l3.md`](data/wss_relative_l3.md).
+    Headlines (114 cells; 0 skipped): **POPT has the smallest
+    mean gap in EVERY WSS regime** (under 1.619 pp, near 2.351 pp,
+    over 0.223 pp); GRASP dominates by **win count** in every
+    regime (under 23/48, near 27/52, over 8/14); **LRU win_rate
+    in under_wss is 1/48 (~2%)** — strongest quantitative case
+    that a real cache-friendly policy actually matters when WSS
+    blows past L3. Test `scripts/test/test_wss_relative_l3.py`
+    (10 cases) pins the load-bearing per-regime POPT rank-1
+    claim plus the no-unknown-graphs invariant so silently-
+    dropped cells can't bias the bins.
+  - `scripts/experiments/ecg/family_sensitivity.py` re-runs the 7
+    sign-stability claims from `bootstrap_ci` under every single-
+    graph family reassignment (8 graphs × 4 alternate families =
+    32 perturbations), reporting how many flips cross the 0.95
+    stability floor. Lives at
+    [`wiki/data/family_sensitivity.md`](data/family_sensitivity.md).
+    Key findings: **POPT < LRU on social = BEDROCK (0/32 flips)**;
+    **POPT < GRASP on road = LOCAL (4/32, all from roadNet-CA
+    relocation)** — the road headline depends on a single graph,
+    documented as such; POPT < GRASP on mesh = GRAINY (14/32,
+    baseline n=5). Uses seed=1729, 2000 resamples. Test
+    `scripts/test/test_family_sensitivity.py` (10 cases) pins the
+    bedrock claim at 0 flips and enforces that all road flips
+    must originate from roadNet-CA (no spurious sources).
+  - `scripts/experiments/ecg/reproduce_smoke.py` snapshots SHA-
+    256 hashes of 44 tracked `wiki/data/*.{json,md}` artifacts,
+    re-runs `make lit-claims lit-catalog` in a subprocess, and
+    diffs the canonical hashes (masking volatile timing/runtime
+    fields). Lives at
+    [`wiki/data/reproduce_smoke.md`](data/reproduce_smoke.md).
+    This caught a real drift on first integration —
+    `paper_claims.json` carried a stale "28/28" headline after a
+    gate count bump because the dashboard regenerates AFTER
+    `lit-claims` in the dep chain. Documents the one-cycle
+    convergence wart for future maintainers. Test
+    `scripts/test/test_reproduce_smoke.py` (8 cases) pins the
+    artifact floor at 44 with the load-bearing files list.
 - New Make targets: `make lit-popt-vs-grasp`, `make lit-deviations`,
   `make lit-claims`, `make lit-cross-tool-winners`,
   `make lit-regime-taxonomy`, `make lit-oracle-gap`,
-  `make lit-oracle-gap-by-app`, `make lit-bootstrap-ci`,
-  `make lit-catalog` (all wired into the `confidence` dep chain;
-  `lit-claims` depends on every other `lit-*` so the registry
-  values are always fresh).
+  `make lit-oracle-gap-by-app`, `make lit-wss-relative-l3`,
+  `make lit-bootstrap-ci`, `make lit-family-sensitivity`,
+  `make lit-reproduce-smoke`, `make lit-catalog` (all wired into
+  the `confidence` dep chain; `lit-claims` depends on every other
+  `lit-*` so the registry values are always fresh).
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the
