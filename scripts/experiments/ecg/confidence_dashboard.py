@@ -197,6 +197,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_policy_winner_table_derivation_parity.py", "PWT-Der"),
     "monotonicity_universality derivation parity (bump count + verdict logic)":
         ("scripts/test/test_monotonicity_universality_derivation_parity.py", "MUN-Der"),
+    "popt_vs_grasp_delta derivation parity (delta + classification + tails)":
+        ("scripts/test/test_popt_vs_grasp_delta_derivation_parity.py", "PVG-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
