@@ -175,6 +175,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_arithmetic.py", "OGA-Stat"),
     "oracle_gap_auc derivation parity (trapezoidal on log2)":
         ("scripts/test/test_oracle_gap_auc_derivation_parity.py", "AUC-Der"),
+    "cache_sensitivity_slope derivation parity (auc → slope)":
+        ("scripts/test/test_cache_sensitivity_slope_derivation_parity.py", "CSS-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
