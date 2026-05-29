@@ -95,6 +95,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_auc_correlation_cross_artifact_parity.py", "AUC-Par"),
     "Family geomean vs margin replay parity":
         ("scripts/test/test_family_geomean_vs_margin_replay_parity.py", "Geo-Marg"),
+    "Oracle-gap curvature vs effect-size parity":
+        ("scripts/test/test_oracle_gap_curvature_vs_effect_size.py", "Curv-Eff"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
