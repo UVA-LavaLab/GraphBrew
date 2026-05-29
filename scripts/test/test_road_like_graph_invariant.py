@@ -106,12 +106,14 @@ def _road_like_graphs() -> list[str]:
     return [c.get("graph", "") for c in _load_corpus() if _is_road_like(c)]
 
 
-def _miss_rate(graph: str, policy: str, benchmark: str = "pr") -> float | None:
-    """Look up the cache_sim L3 miss rate for (graph, policy, benchmark)
-    at any L3 size; returns the value at the first matching row. We
-    don't pin a specific L3 here because the invariant must hold at
-    *every* L3 size (a road-like graph has no reusable working set at
-    any L3).
+def _miss_rate(
+    graph: str, policy: str, benchmark: str = "pr", l3_size: str | None = None
+) -> float | None:
+    """Look up the cache_sim L3 miss rate for (graph, policy, benchmark).
+
+    If ``l3_size`` is given, return that specific cell. Otherwise return
+    the first matching row's value (kept for backwards compatibility
+    with the legacy single-cell call shape).
     """
     if not LIT_FAITH_CSV.exists():
         return None
@@ -120,13 +122,38 @@ def _miss_rate(graph: str, policy: str, benchmark: str = "pr") -> float | None:
             if (
                 row.get("graph") == graph
                 and row.get("policy") == policy
-                and (row.get("benchmark") or "pr") == benchmark
+                and (row.get("app") or row.get("benchmark") or "pr") == benchmark
+                and (l3_size is None or row.get("l3_size") == l3_size)
             ):
                 try:
                     return float(row.get("miss_rate") or row.get("l3_miss_rate") or "nan")
                 except (TypeError, ValueError):
                     continue
     return None
+
+
+def _road_like_cells() -> list[tuple[str, str, str]]:
+    """Enumerate every (graph, app, l3_size) cell in lit-faith CSV for
+    a road-like graph that has both LRU and GRASP rows. We test the
+    invariant on every such cell so a regression at any L3 size or
+    benchmark is caught (not just the PR headline).
+    """
+    if not LIT_FAITH_CSV.exists():
+        return []
+    road = set(_road_like_graphs())
+    if not road:
+        return []
+    cells: dict[tuple[str, str, str], set[str]] = {}
+    with LIT_FAITH_CSV.open() as f:
+        for row in csv.DictReader(f):
+            g = row.get("graph", "")
+            if g not in road:
+                continue
+            app = row.get("app") or row.get("benchmark") or "pr"
+            l3 = row.get("l3_size") or ""
+            pol = row.get("policy", "")
+            cells.setdefault((g, app, l3), set()).add(pol)
+    return sorted(k for k, pols in cells.items() if {"LRU", "GRASP"} <= pols)
 
 
 def test_road_like_graph_present() -> None:
@@ -142,25 +169,36 @@ def test_road_like_graph_present() -> None:
     )
 
 
-@pytest.mark.parametrize("graph", _road_like_graphs() or ["__skip__"])
-def test_grasp_does_not_beat_lru_on_road_like_graphs(graph: str) -> None:
-    """GRASP must not show a meaningful win over LRU on road-like graphs."""
+@pytest.mark.parametrize(
+    "cell",
+    _road_like_cells() or [("__skip__", "__skip__", "__skip__")],
+)
+def test_grasp_does_not_beat_lru_on_road_like_graphs(
+    cell: tuple[str, str, str],
+) -> None:
+    """GRASP must not show a meaningful win over LRU on road-like graphs
+    at any (app, L3 size) cell we have data for. The road-like predicate
+    asserts there is no reusable working set, so GRASP cannot create one
+    by pinning a hot bucket — at any L3 size, at any kernel.
+    """
+    graph, app, l3 = cell
     if graph == "__skip__":
         pytest.skip("no road-like graphs in corpus")
-    lru = _miss_rate(graph, "LRU")
-    grasp = _miss_rate(graph, "GRASP")
+    lru = _miss_rate(graph, "LRU", benchmark=app, l3_size=l3)
+    grasp = _miss_rate(graph, "GRASP", benchmark=app, l3_size=l3)
     if lru is None or grasp is None:
         pytest.skip(
-            f"no LRU/GRASP cache_sim data for {graph} in lit-faith CSV "
+            f"no LRU/GRASP cache_sim data for {graph}/{app}@{l3} in lit-faith CSV "
             f"(have lru={lru!r}, grasp={grasp!r})"
         )
     grasp_minus_lru_pp = (grasp - lru) * 100.0
     assert grasp_minus_lru_pp > -GRASP_WIN_NOISE_FLOOR_PP, (
         f"GRASP beats LRU by {-grasp_minus_lru_pp:.3f}pp on road-like graph "
-        f"{graph} (grasp={grasp:.4f} lru={lru:.4f}); this contradicts the "
-        f"GRASP-paper design assumption that GRASP wins by pinning a hot "
-        f"set in L3. Either the corpus_diversity hub_concentration / "
-        f"clustering_coeff is mis-measured, or GRASP has gained a "
-        f"locality-free improvement that needs to be documented. Loosen "
-        f"GRASP_WIN_NOISE_FLOOR_PP only after writing up the cause."
+        f"{graph}/{app}@{l3} (grasp={grasp:.4f} lru={lru:.4f}); this "
+        f"contradicts the GRASP-paper design assumption that GRASP wins "
+        f"by pinning a hot set in L3. Either the corpus_diversity "
+        f"hub_concentration / clustering_coeff is mis-measured, or GRASP "
+        f"has gained a locality-free improvement that needs to be "
+        f"documented. Loosen GRASP_WIN_NOISE_FLOOR_PP only after writing "
+        f"up the cause."
     )
