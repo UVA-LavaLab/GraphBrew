@@ -408,6 +408,14 @@ CATALOG = [
         "summary":   "Per-(app, graph, policy) OLS slope of miss_rate (pp) versus log2(L3 MB) on the {1MB, 4MB, 8MB} axis. Per-policy median slope ranks policies by how much they benefit from cache scaling: LRU is steepest (median -15.62 pp/octave, most cache-hungry); GRASP is shallowest (median -14.65 pp/octave, extracts the most at small caches). POPT (-14.76) and SRRIP (-15.60) sit between. The 0.97 pp/octave gap between LRU and GRASP medians is the dual of gate 62's central finding: oracle-aware policies harvest more value when capacity is tight, so they have less marginal value to gain as cache grows. Verdict PASS iff (1) every policy's median slope is strictly < -5 pp/octave, (2) LRU has the steepest median slope, and (3) GRASP is strictly shallower than LRU.",
     },
     {
+        "id":        "family_slope_replay",
+        "label":     "Per-family capacity-sensitivity slope replay",
+        "generator": "scripts/experiments/ecg/family_slope_replay.py",
+        "gate":      "scripts/test/test_family_slope_replay.py",
+        "artifact":  "wiki/data/family_slope_replay.json",
+        "summary":   "Per-family replay of the gate 66 slope ordering. For each graph family with at least one (graph, app) cell scored across all four policies at 1MB/4MB/8MB, recompute the per-policy median OLS slope and check that LRU and SRRIP are strictly steeper than GRASP and that every policy still beats the -5 pp/octave help floor. Today citation (-13.68/-16.10/-15.52/-14.79) and web (-16.02/-16.48/-18.30/-17.02) replay cleanly; social is pinned as a known deviation because email-Eu-core saturates at every L3 size (WSS ~4.5 kB) and its near-zero slopes wash out the GRASP-vs-LRU ordering once mixed with the other social graphs. Verdict PASS iff at least one family replays and no NEW family deviates beyond the pinned set.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -487,7 +495,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (66 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (67 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

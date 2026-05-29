@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -1091,6 +1091,18 @@ lit-capacity-sensitivity: lit-oracle-gap
 		--json-out    $(WIKI_DATA)/capacity_sensitivity.json \
 		--md-out      $(WIKI_DATA)/capacity_sensitivity.md
 
+# Per-family replay of the gate 66 slope ordering. For each graph
+# family with full 1MB/4MB/8MB coverage, recompute per-policy median
+# slope and confirm LRU/SRRIP both strictly steeper than GRASP. The
+# social family is pinned as a known deviation because email-Eu-core
+# saturates at every L3, washing out its slope contribution.
+lit-family-slope-replay: lit-oracle-gap lit-capacity-sensitivity
+	@echo "$(BLUE)Regenerating per-family capacity-sensitivity slope replay...$(NC)"
+	@python3 -m scripts.experiments.ecg.family_slope_replay \
+		--oracle-json $(WIKI_DATA)/oracle_gap.json \
+		--json-out    $(WIKI_DATA)/family_slope_replay.json \
+		--md-out      $(WIKI_DATA)/family_slope_replay.md
+
 # Per-kernel oracle-gap bootstrap CIs. Turns the per-app point
 # estimates from lit-oracle-gap-by-app into CI-backed sign claims:
 # pr→POPT < all (P=1.0), cc→GRASP < POPT (P=0.9995), bfs→POPT <
@@ -1165,13 +1177,13 @@ lit-reproduce-smoke:
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
