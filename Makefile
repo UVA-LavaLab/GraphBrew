@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -897,6 +897,19 @@ lit-policy-auc-correlation: lit-oracle-gap-auc
 		--json-out $(WIKI_DATA)/policy_auc_correlation.json \
 		--md-out   $(WIKI_DATA)/policy_auc_correlation.md
 
+# Per-policy stability index across apps. Reads gate 49's AUC vectors
+# and computes coefficient of variation across the 5 paper apps per
+# policy. Surfaces which policy is the 'safest all-rounder' (lowest
+# CV, even if mediocre) versus the 'high-variance specialist' (lowest
+# mean AUC but biggest swings). Also tracks rank per app and the
+# 'always-in-top-2' safe-default flag.
+lit-policy-stability: lit-oracle-gap-auc
+	@echo "$(BLUE)Regenerating policy stability index...$(NC)"
+	@python3 -m scripts.experiments.ecg.policy_stability \
+		--auc-json $(WIKI_DATA)/oracle_gap_auc.json \
+		--json-out $(WIKI_DATA)/policy_stability.json \
+		--md-out   $(WIKI_DATA)/policy_stability.md
+
 # Per-kernel oracle-gap bootstrap CIs. Turns the per-app point
 # estimates from lit-oracle-gap-by-app into CI-backed sign claims:
 # pr→POPT < all (P=1.0), cc→GRASP < POPT (P=0.9995), bfs→POPT <
@@ -971,13 +984,13 @@ lit-reproduce-smoke:
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

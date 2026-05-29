@@ -280,6 +280,14 @@ CATALOG = [
         "summary":   "Reads gate 49 AUC vectors, z-normalizes within each app, and runs pairwise Pearson correlation across 4 policy dimensions. Apps cluster into two AUC-winner groups (GRASP=[bc,cc], POPT=[bfs,pr,sssp]) with intra-cluster mean r positive for every app and 4/5 apps showing intra > inter (paper headline). bfs+sssp is the strongest pair (r=+0.855) — both frontier-bound traversals.",
     },
     {
+        "id":        "policy_stability",
+        "label":     "Per-policy AUC stability across apps",
+        "generator": "scripts/experiments/ecg/policy_stability.py",
+        "gate":      "scripts/test/test_policy_stability.py",
+        "artifact":  "wiki/data/policy_stability.json",
+        "summary":   "Computes coefficient of variation of AUC across 5 paper apps per policy. LRU has lowest CV (0.42) — predictably bad; POPT has highest CV (0.72) — high-reward/high-variance; SRRIP is the 'safe runner-up' (never wins, never finishes last, always rank 2 or 3). POPT wins 3/5 apps, GRASP is bimodal (wins bc+cc, finishes last on bfs+sssp).",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -359,7 +367,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (50 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (51 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

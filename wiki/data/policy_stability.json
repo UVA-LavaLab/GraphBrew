@@ -1,0 +1,162 @@
+{
+  "meta": {
+    "source": "wiki/data/oracle_gap_auc.json",
+    "n_apps": 5,
+    "n_policies": 4,
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "stability_metric": "coefficient of variation (stdev / mean) of AUC across apps",
+    "safest_policy": "LRU",
+    "highest_variance_policy": "POPT",
+    "best_avg_policy": "POPT"
+  },
+  "per_policy": {
+    "GRASP": {
+      "auc_mean_across_apps": 8.686,
+      "auc_stdev_across_apps": 4.5871,
+      "auc_cv": 0.5281,
+      "best_app": "cc",
+      "best_app_auc": 1.5205,
+      "worst_app": "bfs",
+      "worst_app_auc": 13.539,
+      "worst_over_best_ratio": 8.9043,
+      "ranks_by_app": {
+        "bc": 1,
+        "bfs": 4,
+        "cc": 1,
+        "pr": 2,
+        "sssp": 4
+      },
+      "rank_mean": 2.4,
+      "rank_stdev": 1.3565,
+      "best_rank": 1,
+      "worst_rank": 4,
+      "n_wins": 2,
+      "n_lasts": 2,
+      "always_top_2": false,
+      "always_bot_2": false
+    },
+    "LRU": {
+      "auc_mean_across_apps": 17.3031,
+      "auc_stdev_across_apps": 7.1957,
+      "auc_cv": 0.4159,
+      "best_app": "sssp",
+      "best_app_auc": 10.5331,
+      "worst_app": "pr",
+      "worst_app_auc": 27.3615,
+      "worst_over_best_ratio": 2.5977,
+      "ranks_by_app": {
+        "bc": 4,
+        "bfs": 3,
+        "cc": 4,
+        "pr": 4,
+        "sssp": 3
+      },
+      "rank_mean": 3.6,
+      "rank_stdev": 0.4899,
+      "best_rank": 3,
+      "worst_rank": 4,
+      "n_wins": 0,
+      "n_lasts": 3,
+      "always_top_2": false,
+      "always_bot_2": true
+    },
+    "POPT": {
+      "auc_mean_across_apps": 6.3784,
+      "auc_stdev_across_apps": 4.5734,
+      "auc_cv": 0.717,
+      "best_app": "pr",
+      "best_app_auc": 0.3965,
+      "worst_app": "cc",
+      "worst_app_auc": 13.7625,
+      "worst_over_best_ratio": 34.71,
+      "ranks_by_app": {
+        "bc": 3,
+        "bfs": 1,
+        "cc": 2,
+        "pr": 1,
+        "sssp": 1
+      },
+      "rank_mean": 1.6,
+      "rank_stdev": 0.8,
+      "best_rank": 1,
+      "worst_rank": 3,
+      "n_wins": 3,
+      "n_lasts": 0,
+      "always_top_2": false,
+      "always_bot_2": false
+    },
+    "SRRIP": {
+      "auc_mean_across_apps": 12.3839,
+      "auc_stdev_across_apps": 5.3134,
+      "auc_cv": 0.4291,
+      "best_app": "bc",
+      "best_app_auc": 5.9964,
+      "worst_app": "pr",
+      "worst_app_auc": 19.4213,
+      "worst_over_best_ratio": 3.2388,
+      "ranks_by_app": {
+        "bc": 2,
+        "bfs": 2,
+        "cc": 3,
+        "pr": 3,
+        "sssp": 2
+      },
+      "rank_mean": 2.4,
+      "rank_stdev": 0.4899,
+      "best_rank": 2,
+      "worst_rank": 3,
+      "n_wins": 0,
+      "n_lasts": 0,
+      "always_top_2": false,
+      "always_bot_2": false
+    }
+  },
+  "ranking_by_cv_ascending": [
+    {
+      "policy": "LRU",
+      "auc_cv": 0.4159
+    },
+    {
+      "policy": "SRRIP",
+      "auc_cv": 0.4291
+    },
+    {
+      "policy": "GRASP",
+      "auc_cv": 0.5281
+    },
+    {
+      "policy": "POPT",
+      "auc_cv": 0.717
+    }
+  ],
+  "ranking_by_mean_auc_ascending": [
+    {
+      "policy": "POPT",
+      "auc_mean": 6.3784
+    },
+    {
+      "policy": "GRASP",
+      "auc_mean": 8.686
+    },
+    {
+      "policy": "SRRIP",
+      "auc_mean": 12.3839
+    },
+    {
+      "policy": "LRU",
+      "auc_mean": 17.3031
+    }
+  ]
+}

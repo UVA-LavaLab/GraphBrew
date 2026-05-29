@@ -91,6 +91,8 @@ TRACKED_ARTIFACTS = [
     "oracle_gap_auc.md",
     "policy_auc_correlation.json",
     "policy_auc_correlation.md",
+    "policy_stability.json",
+    "policy_stability.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

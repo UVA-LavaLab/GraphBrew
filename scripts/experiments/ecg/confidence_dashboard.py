@@ -135,6 +135,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_auc.py", "AUC"),
     "Cross-app policy-AUC correlation matrix":
         ("scripts/test/test_policy_auc_correlation.py", "Corr"),
+    "Per-policy stability index":
+        ("scripts/test/test_policy_stability.py", "Stab"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
