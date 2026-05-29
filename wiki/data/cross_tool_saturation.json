@@ -1,0 +1,115 @@
+{
+  "cells": [
+    {
+      "agree": false,
+      "anchor_grasp_minus_lru_pp": -0.28115339516042726,
+      "anchor_l3": "2MB",
+      "anchor_spread_pp": 0.2957181088313998,
+      "app": "bfs",
+      "cache_sim_grasp_minus_lru_pp": -8.624500000000001,
+      "cache_sim_l3": "8MB",
+      "cache_sim_spread_pp": 8.624500000000001,
+      "delta_pp": 8.343346604839574,
+      "graph": "cit-Patents",
+      "regime": "single_saturated",
+      "tool": "sniper"
+    },
+    {
+      "agree": false,
+      "anchor_grasp_minus_lru_pp": -0.12285082809495168,
+      "anchor_l3": "2MB",
+      "anchor_spread_pp": 0.12285082809495168,
+      "app": "pr",
+      "cache_sim_grasp_minus_lru_pp": -11.0247,
+      "cache_sim_l3": "8MB",
+      "cache_sim_spread_pp": 11.0247,
+      "delta_pp": 10.901849171905047,
+      "graph": "cit-Patents",
+      "regime": "single_saturated",
+      "tool": "sniper"
+    },
+    {
+      "agree": false,
+      "anchor_grasp_minus_lru_pp": -0.04652309715600933,
+      "anchor_l3": "2MB",
+      "anchor_spread_pp": 0.15870878380978004,
+      "app": "sssp",
+      "cache_sim_grasp_minus_lru_pp": -6.904399999999996,
+      "cache_sim_l3": "8MB",
+      "cache_sim_spread_pp": 6.904399999999996,
+      "delta_pp": 6.857876902843987,
+      "graph": "cit-Patents",
+      "regime": "single_saturated",
+      "tool": "sniper"
+    },
+    {
+      "agree": true,
+      "anchor_grasp_minus_lru_pp": -0.005799999999999989,
+      "anchor_l3": "2MB",
+      "anchor_spread_pp": 0.02509999999999999,
+      "app": "bc",
+      "cache_sim_grasp_minus_lru_pp": 0.0,
+      "cache_sim_l3": "8MB",
+      "cache_sim_spread_pp": 9.999999999999972e-05,
+      "delta_pp": 0.005799999999999989,
+      "graph": "email-Eu-core",
+      "regime": "doubly_saturated",
+      "tool": "gem5"
+    },
+    {
+      "agree": true,
+      "anchor_grasp_minus_lru_pp": 0.47223290037196053,
+      "anchor_l3": "2MB",
+      "anchor_spread_pp": 0.7092709192378033,
+      "app": "bfs",
+      "cache_sim_grasp_minus_lru_pp": -0.004699999999999843,
+      "cache_sim_l3": "8MB",
+      "cache_sim_spread_pp": 0.004699999999999843,
+      "delta_pp": 0.47693290037196034,
+      "graph": "email-Eu-core",
+      "regime": "doubly_saturated",
+      "tool": "sniper"
+    },
+    {
+      "agree": true,
+      "anchor_grasp_minus_lru_pp": 0.029500000000000012,
+      "anchor_l3": "2MB",
+      "anchor_spread_pp": 0.041500000000000044,
+      "app": "pr",
+      "cache_sim_grasp_minus_lru_pp": -0.043299999999999936,
+      "cache_sim_l3": "8MB",
+      "cache_sim_spread_pp": 0.043299999999999936,
+      "delta_pp": 0.07279999999999995,
+      "graph": "email-Eu-core",
+      "regime": "doubly_saturated",
+      "tool": "gem5"
+    },
+    {
+      "agree": true,
+      "anchor_grasp_minus_lru_pp": 0.14761086499618242,
+      "anchor_l3": "2MB",
+      "anchor_spread_pp": 0.4456026371980282,
+      "app": "pr",
+      "cache_sim_grasp_minus_lru_pp": -0.043299999999999936,
+      "cache_sim_l3": "8MB",
+      "cache_sim_spread_pp": 0.043299999999999936,
+      "delta_pp": 0.19091086499618237,
+      "graph": "email-Eu-core",
+      "regime": "doubly_saturated",
+      "tool": "sniper"
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "disagreements": [],
+    "doubly_saturated_agree": 4,
+    "doubly_saturated_total": 4,
+    "headline_tol_pp": 2.0,
+    "n_cells": 7,
+    "regime_counts": {
+      "doubly_saturated": 4,
+      "single_saturated": 3
+    },
+    "sat_floor_pp": 1.0
+  }
+}

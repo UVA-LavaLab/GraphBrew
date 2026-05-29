@@ -83,6 +83,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_policy_winner_table.py", "Winner"),
     "Small-L3 thrash sanity":
         ("scripts/test/test_small_l3_thrash.py", "Thrash"),
+    "Cross-tool saturation soundness":
+        ("scripts/test/test_cross_tool_saturation.py", "X-tool"),
 }
 
 

@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -604,7 +604,21 @@ sniper-anchor:
 		echo "$(BLUE)  Sniper sweep dir $(SNIPER_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
 	fi
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor
+# Pair each cache_sim lit-faith cell with the matching gem5/Sniper
+# anchor cell and verify cross-tool agreement at saturation. Depends
+# on the three input artifacts already being on disk; degrades to a
+# refresh of the report from existing inputs if anchors are stale.
+lit-cross-tool:
+	@echo "$(BLUE)Regenerating cross-tool saturation report...$(NC)"
+	@python3 -m scripts.experiments.ecg.cross_tool_saturation_report \
+		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
+		--gem5-anchor   $(WIKI_DATA)/gem5_anchor.json \
+		--sniper-anchor $(WIKI_DATA)/sniper_anchor.json \
+		--csv-out  $(WIKI_DATA)/cross_tool_saturation.csv \
+		--json-out $(WIKI_DATA)/cross_tool_saturation.json \
+		--md-out   $(WIKI_DATA)/cross_tool_saturation.md
+
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
