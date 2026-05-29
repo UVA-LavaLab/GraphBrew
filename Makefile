@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -550,6 +550,21 @@ lit-winner: lit-faith
 		--json-out $(WIKI_DATA)/policy_winner_table.json \
 		--md-out   $(WIKI_DATA)/policy_winner_table.md
 
+# Build the small-L3 (4 kB) "thrash" sub-report from the standalone
+# final_cache_sim sweep. This regime intentionally overflows the hot
+# working set so LRU/SRRIP can beat GRASP/POPT and the four ECG
+# variants get exercised. Falls back gracefully if no sweep is on disk.
+lit-thrash:
+	@echo "$(BLUE)Regenerating small-L3 thrash report...$(NC)"
+	@if ls results/ecg_experiments/paper_pipeline/*/final_cache_sim/combined_roi_matrix.csv >/dev/null 2>&1; then \
+		python3 -m scripts.experiments.ecg.small_l3_thrash_report \
+			--csv-out  $(WIKI_DATA)/small_l3_thrash.csv \
+			--json-out $(WIKI_DATA)/small_l3_thrash.json \
+			--md-out   $(WIKI_DATA)/small_l3_thrash.md; \
+	else \
+		echo "$(BLUE)  no final_cache_sim sweep on disk; reusing on-disk snapshot.$(NC)"; \
+	fi
+
 # Regenerate the gem5 literature anchor (small graph, fast).
 # Scoped to email-Eu-core by default; expand GEM5_ANCHOR_GRAPHS once
 # additional gem5 sweeps land. A missing sweep root is non-fatal so
@@ -589,7 +604,7 @@ sniper-anchor:
 		echo "$(BLUE)  Sniper sweep dir $(SNIPER_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
 	fi
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner gem5-anchor sniper-anchor
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

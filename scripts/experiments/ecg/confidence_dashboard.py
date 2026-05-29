@@ -81,6 +81,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_l_curve_monotonicity.py", "L-mono"),
     "Policy-winner table sanity":
         ("scripts/test/test_policy_winner_table.py", "Winner"),
+    "Small-L3 thrash sanity":
+        ("scripts/test/test_small_l3_thrash.py", "Thrash"),
 }
 
 
