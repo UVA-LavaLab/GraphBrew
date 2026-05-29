@@ -224,6 +224,14 @@ CATALOG = [
         "summary":   "63 (family, app, policy != LRU) records with bootstrap CIs on the geomean miss-rate ratio. 34/63 CI-strict improvements vs LRU; 0 CI-strict regressions ('do no harm' check). Marquee: citation/pr/POPT geomean 0.68 (-32% miss-rate, CI [-43%, -13%]); citation/cc/GRASP -26%; social/cc/GRASP -23%; social/pr/POPT -21%.",
     },
     {
+        "id":        "per_graph_app_stability",
+        "label":     "Per-(graph, app) winner stability across L3",
+        "generator": "scripts/experiments/ecg/per_graph_app_stability.py",
+        "gate":      "scripts/test/test_per_graph_app_stability.py",
+        "artifact":  "wiki/data/per_graph_app_stability.json",
+        "summary":   "34 (graph, app) cells at paper L3 (1MB/4MB/8MB): 13 stable-unique winner, 1 stable-partial (email-Eu-core/bc multi-tie), 14 regime-change, 6 insufficient-L3 (roadNet-CA + delaunay_n19/pr only at 1MB). web-Google maximally volatile (5/5 apps flip); soc-LiveJournal1 + cit-Patents most reliable (4/5 stable each).",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -303,7 +311,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (43 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (44 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

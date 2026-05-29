@@ -121,6 +121,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cell_winner_census.py", "Census"),
     "Family geomean improvement vs LRU":
         ("scripts/test/test_family_geomean_improvement.py", "FamGeo"),
+    "Per-(graph, app) L3 stability":
+        ("scripts/test/test_per_graph_app_stability.py", "GAStab"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

@@ -77,6 +77,8 @@ TRACKED_ARTIFACTS = [
     "cell_winner_census.md",
     "family_geomean_improvement.json",
     "family_geomean_improvement.md",
+    "per_graph_app_stability.json",
+    "per_graph_app_stability.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
