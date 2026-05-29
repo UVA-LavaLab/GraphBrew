@@ -179,6 +179,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cache_sensitivity_slope_derivation_parity.py", "CSS-Der"),
     "per_graph_rollup arithmetic + meta counts":
         ("scripts/test/test_per_graph_rollup_arithmetic.py", "PGR-Math"),
+    "policy_auc_correlation derivation parity (z-score + Pearson)":
+        ("scripts/test/test_policy_auc_correlation_derivation_parity.py", "PAC-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

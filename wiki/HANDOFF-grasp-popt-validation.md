@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **135 gates, all GREEN, exit 0**.
+and currently reports **140 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -346,11 +346,38 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   generator from scratch in pytest (TIE_TOL on rounded gap_pp, not
   raw miss_rate; insufficient_l3 cases suppress intersection to []
   by design), so generator drift trips this gate (gate 135, 22 tests).
+- **Source-of-truth arithmetic + downstream derivation parity gates 136–140.**
+  Gate 136 (OGA-Stat, 21 tests) locks the oracle_gap.json foundation:
+  gap_pp = round((miss-oracle)*100, 3); oracle = min(miss) per cell;
+  is_winner uses STRICT raw-miss equality (a different rule than
+  per_graph_app_stability's TIE_TOL-on-rounded — both pinned now);
+  summary mean/median/max/p90 (p90 = nearest-rank round(0.9*(n-1)))
+  per policy and per policy/family and per policy/regime reproduce
+  from gap_pp to 1e-3. Gate 137 (AUC-Der, 20 tests) locks the
+  oracle_gap_auc derivation: trapezoidal AUC on log2(MB) computed
+  from RAW means (load-bearing — the displayed trajectory is
+  separately rounded). Gate 138 (CSS-Der, 20 tests) locks
+  cache_sensitivity_slope: octave delta + slope = -d(gap)/d(log2 MB)
+  reconstructed from raw AUC trajectory (Python banker's rounding at
+  5th decimal flips e.g. -0.13595 → -0.1359 vs -0.136 when computed
+  from pre-rounded delta — must mirror generator path exactly).
+  Gate 139 (PGR-Math, 18 tests) locks per_graph_app_stability's
+  per_graph_rollup + meta counts: rollup MERGES
+  {stable_unique, stable_unique_with_ties} into the single
+  stable_unique bucket; corpus-level meta counts double-consistent
+  (rollup sum AND per_graph_app set count); stability_fraction
+  reproduces round(n_stable / max(total - n_insufficient, 1), 3).
+  Gate 140 (PAC-Der, 19 tests) locks policy_auc_correlation:
+  matrix[a][b] = round(pearson(zscore(auc_a), zscore(auc_b)), 4)
+  (and the z-score-invariance triple-check: equals pearson on raw
+  AUC vectors); pair_list = C(5,2)=10 entries, sorted desc;
+  nearest_sibling.closest_app = argmax; intra_inter splits by
+  auc_winner cluster and reproduces both means and gap.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 135. `make confidence-fast` runs the whole suite in under
+  current 140. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -370,7 +397,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 135+ pytest gates + lit-faith headline + corpus diversity
+  view of all 140+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
