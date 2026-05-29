@@ -6,21 +6,21 @@ adverse direction before the lit-faith status flips to
 
 ## Headline
 
-- Cells in distribution: **250** (of 280 total claim rows)
+- Cells in distribution: **290** (of 320 total claim rows)
 - Minimum margin: **0.102 pp**
-- p10 margin: 1.394 pp
-- Median margin: 6.180 pp
-- p90 margin: 10.700 pp
-- Max margin: 24.751 pp
+- p10 margin: 1.388 pp
+- Median margin: 6.420 pp
+- p90 margin: 11.200 pp
+- Max margin: 67.023 pp
 
 ### By claim kind
 
 | kind | n cells | min margin (pp) | median margin (pp) |
 |---|---:|---:|---:|
 | cache_policy | 102 | 1.305 | 6.875 |
-| popt_ge_grasp | 63 | 0.102 | 1.501 |
-| popt_near_grasp_active | 11 | 0.813 | 7.386 |
-| popt_near_grasp_inactive | 74 | 2.273 | 6.990 |
+| popt_ge_grasp | 83 | 0.102 | 1.526 |
+| popt_near_grasp_active | 12 | 0.813 | 8.052 |
+| popt_near_grasp_inactive | 93 | 2.273 | 6.998 |
 
 Cache-policy claims (LRU/SRRIP/GRASP/POPT individually) are
 the **primary** load-bearing checks. POPT_GE_GRASP enforces
@@ -56,6 +56,6 @@ gate fire later.
 | soc-pokec | pr | 1MB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.421 | 0.579 |
 | soc-pokec | sssp | 4MB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.872 | 0.628 |
 | cit-Patents | sssp | 1MB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.863 | 0.637 |
+| delaunay_n19 | pr | 16kB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.332 | 0.668 |
 | cit-Patents | bfs | 8MB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.689 | 0.811 |
-| com-orkut | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | popt_near_grasp_active | ok | +6.187 | 0.813 |
 

@@ -37,6 +37,11 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | com-orkut | sssp | 1MB | 66.03% | -3.99 | -2.66 | -6.35 | — | — |
 | com-orkut | sssp | 4MB | 16.97% | -1.56 | -1.08 | -2.24 | — | — |
 | com-orkut | sssp | 8MB | 2.46% | -0.23 | -0.21 | -0.05 | — | — |
+| delaunay_n19 | pr | 16kB | 99.99% | -0.01 | -0.43 | -0.10 | — | — |
+| delaunay_n19 | pr | 1MB | 95.39% | -1.46 | -13.73 | -17.60 | — | — |
+| delaunay_n19 | pr | 256kB | 99.27% | +0.01 | -4.47 | -5.09 | — | — |
+| delaunay_n19 | pr | 4kB | 99.99% | +0.00 | -0.12 | -0.04 | — | — |
+| delaunay_n19 | pr | 64kB | 99.97% | -0.01 | -1.42 | -1.65 | — | — |
 | email-Eu-core | bc | 1MB | 0.01% | +0.00 | +0.00 | +0.00 | — | — |
 | email-Eu-core | bc | 4MB | 0.01% | -0.00 | -0.00 | +0.01 | — | — |
 | email-Eu-core | bc | 8MB | 0.01% | -0.00 | +0.00 | -0.00 | — | — |
@@ -46,11 +51,26 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | email-Eu-core | pr | 1MB | 0.81% | -0.04 | +0.33 | -0.06 | — | — |
 | email-Eu-core | pr | 4MB | 0.77% | -0.01 | -0.01 | +0.01 | — | — |
 | email-Eu-core | pr | 8MB | 0.80% | -0.02 | -0.04 | -0.02 | ✓ ok | — |
+| roadNet-CA | bfs | 16kB | 99.99% | -0.00 | -0.19 | -0.07 | — | — |
+| roadNet-CA | bfs | 1MB | 25.54% | +4.64 | +68.40 | +33.39 | — | — |
+| roadNet-CA | bfs | 256kB | 89.10% | -2.49 | +8.99 | -11.25 | — | — |
+| roadNet-CA | bfs | 4kB | 99.99% | -0.00 | -0.05 | -0.01 | — | — |
+| roadNet-CA | bfs | 64kB | 99.74% | -0.06 | -0.45 | -2.42 | — | — |
+| roadNet-CA | cc | 16kB | 99.71% | +0.03 | -0.32 | -0.11 | — | — |
+| roadNet-CA | cc | 1MB | 74.28% | +0.54 | +9.12 | +5.06 | — | — |
+| roadNet-CA | cc | 256kB | 91.60% | -0.53 | +3.13 | +0.35 | — | — |
+| roadNet-CA | cc | 4kB | 99.88% | -0.04 | -0.05 | +0.01 | — | — |
+| roadNet-CA | cc | 64kB | 97.97% | -0.39 | -0.44 | -0.17 | — | — |
 | roadNet-CA | pr | 16kB | 99.99% | +0.00 | -0.10 | -0.07 | — | — |
 | roadNet-CA | pr | 1MB | 94.17% | -0.24 | +1.47 | -4.99 | — | — |
 | roadNet-CA | pr | 256kB | 98.56% | -0.07 | +0.28 | -5.23 | — | — |
 | roadNet-CA | pr | 4kB | 99.99% | -0.00 | -0.02 | -0.02 | — | — |
 | roadNet-CA | pr | 64kB | 99.93% | +0.04 | -0.37 | -1.66 | — | — |
+| roadNet-CA | sssp | 16kB | 99.79% | -0.04 | -0.20 | -1.12 | — | — |
+| roadNet-CA | sssp | 1MB | 17.63% | +1.50 | +70.12 | +10.09 | — | — |
+| roadNet-CA | sssp | 256kB | 44.09% | +2.76 | +52.14 | +13.82 | — | — |
+| roadNet-CA | sssp | 4kB | 99.99% | +0.00 | -0.13 | -0.15 | — | — |
+| roadNet-CA | sssp | 64kB | 93.18% | -1.69 | +5.40 | -4.25 | — | — |
 | soc-LiveJournal1 | bc | 1MB | 84.32% | -1.82 | -4.83 | -2.84 | ✓ ok | — |
 | soc-LiveJournal1 | bc | 4MB | 60.38% | -2.10 | -5.27 | -3.39 | — | — |
 | soc-LiveJournal1 | bc | 8MB | 45.28% | -2.91 | -6.24 | -4.66 | — | — |

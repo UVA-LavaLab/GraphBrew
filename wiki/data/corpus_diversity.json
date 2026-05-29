@@ -152,12 +152,35 @@
       "hub_concentration": 0.14053,
       "avg_degree": 2.9062,
       "graph_density": 0.0,
-      "modularity": 0.36892,
+      "modularity": 0.3688,
       "forward_edge_fraction": 0.48641,
       "working_set_ratio": 1.59959,
       "vertex_sig_skew": 0.39311,
       "window_neighbor_overlap": 0.9566,
       "sampled_locality_score": 0.85467
+    }
+  },
+  {
+    "graph": "delaunay_n19",
+    "log_path": "/tmp/graphbrew-lit-baseline/delaunay_n19-pr/lit/logs/cache_sim_pr_LRU_L31MB.log",
+    "nodes": 524288,
+    "edges": 3145646,
+    "edges_directed": true,
+    "features": {
+      "clustering_coeff": 0.37869,
+      "avg_path_len": 24.83071,
+      "diameter_estimate": 39.0,
+      "community_count": 73,
+      "degree_variance": 0.21789,
+      "hub_concentration": 0.138,
+      "avg_degree": 6.3188,
+      "graph_density": 1e-05,
+      "modularity": 0.3265,
+      "forward_edge_fraction": 0.49942,
+      "working_set_ratio": 0.62499,
+      "vertex_sig_skew": 0.57485,
+      "window_neighbor_overlap": 0.58737,
+      "sampled_locality_score": 0.57946
     }
   }
 ]

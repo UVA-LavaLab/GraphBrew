@@ -64,6 +64,7 @@ GRAPH_FAMILY = {
     "soc-LiveJournal1": "social",
     "com-orkut": "social",
     "roadNet-CA": "road",
+    "delaunay_n19": "mesh",
     # Reserved tags for graphs we may add later:
     "road-CA": "road",                # historical alias for roadNet-CA
     "twitter-2010": "social",

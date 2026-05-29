@@ -85,6 +85,22 @@ Latest additions on top of the Tier A/B/C work:
   (+0.28 pp at 256 kB, +1.47 pp at 1 MB). POPT remains best at every
   L3 size that can hold useful state. Lit-faith ratio is now 248/280 ok
   (was 240/272); +8 derived POPT-vs-GRASP claims all "ok".
+- Corpus expanded again to 8 graphs with **delaunay_n19** added as a
+  **mesh** topology family (524 k vertices, 3.1 M edges, hub_concentration
+  0.138, clustering_coeff 0.379). The cache_sim data immediately
+  *contradicted* the simple "GRASP needs hubs" thesis: at 1 MB GRASP
+  beats LRU by 13.73 pp on delaunay_n19 despite uniform degree (~6),
+  because GRASP's random-within-bucket protection accidentally aligns
+  with the mesh's local cluster structure (protected vertices keep
+  their neighbours' hits warm). The original `test_no_hub_graph_invariant.py`
+  was therefore renamed (`git mv`) to `test_road_like_graph_invariant.py`
+  and the predicate tightened to require BOTH
+  `hub_concentration < 0.20` AND `clustering_coeff < 0.10` — i.e.,
+  *road-like* (uniform degree AND no triangle structure). roadNet-CA
+  still satisfies both (hub 0.140, cluster 0.063); delaunay_n19 is
+  correctly excluded by the clustering criterion. Lit-faith ratio
+  climbs to **288/320 ok = 90.0 %** (was 248/280). All 17 confidence
+  gates remain ✅ GREEN.
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the

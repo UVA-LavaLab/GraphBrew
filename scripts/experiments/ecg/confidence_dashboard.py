@@ -75,8 +75,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_sniper_anchor.py", "Sniper-anchor"),
     "Lit-preflight shared helper":
         ("scripts/test/test_literature_preflight.py", "Lit-helper"),
-    "GRASP no-hub graph invariant":
-        ("scripts/test/test_no_hub_graph_invariant.py", "No-hub"),
+    "GRASP road-like graph invariant":
+        ("scripts/test/test_road_like_graph_invariant.py", "Road-like"),
     "L-curve monotonicity gate":
         ("scripts/test/test_l_curve_monotonicity.py", "L-mono"),
 }

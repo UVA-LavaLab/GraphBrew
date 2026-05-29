@@ -12,9 +12,9 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 | paper | cells | ok | within_tol | known_dev | disagree | insufficient | missing | reproduction% |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Faldu HPCA20 | 18 | 17 | 1 | 0 | 0 | 0 | 0 | 100.0% |
-| Balaji HPCA21 | 98 | 71 | 1 | 26 | 0 | 0 | 0 | 73.5% |
+| Balaji HPCA21 | 118 | 91 | 1 | 26 | 0 | 0 | 0 | 78.0% |
 | Jaleel ISCA10 | 15 | 15 | 0 | 0 | 0 | 0 | 0 | 100.0% |
-| cross-paper | 149 | 145 | 0 | 4 | 0 | 0 | 0 | 97.3% |
+| cross-paper | 169 | 165 | 0 | 4 | 0 | 0 | 0 | 97.6% |
 
 ## Per-citation roll-up
 
@@ -24,13 +24,13 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 | Faldu et al. HPCA 2020 Fig 11 | 7 | 6 | 1 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 89 | 85 | 0 | 4 | 0 | 0 | 0 |
+| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 109 | 105 | 0 | 4 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 10 | 3 | 2 | 1 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 9 | 4 | 4 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Balaji & Lucia HPCA 2021 §6.3 | 23 | 22 | 0 | 1 | 0 | 0 | 0 |
-| Balaji & Lucia HPCA 2021 §6.3 (extended) | 66 | 41 | 0 | 25 | 0 | 0 | 0 |
+| Balaji & Lucia HPCA 2021 §6.3 | 28 | 27 | 0 | 1 | 0 | 0 | 0 |
+| Balaji & Lucia HPCA 2021 §6.3 (extended) | 81 | 56 | 0 | 25 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
@@ -84,7 +84,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 ## Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
 
-_89 cell(s):_ 85 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_109 cell(s):_ 105 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -118,6 +118,11 @@ _89 cell(s):_ 85 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 
 | com-orkut | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.696pp | ✅ |
 | com-orkut | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.161pp | ✅ |
 | com-orkut | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.162pp | ✅ |
+| delaunay_n19 | pr | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.332pp | ✅ |
+| delaunay_n19 | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.867pp | ✅ |
+| delaunay_n19 | pr | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.615pp | ✅ |
+| delaunay_n19 | pr | 4kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.079pp | ✅ |
+| delaunay_n19 | pr | 64kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.234pp | ✅ |
 | email-Eu-core | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | ✅ |
 | email-Eu-core | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.010pp | ✅ |
 | email-Eu-core | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | ✅ |
@@ -127,11 +132,26 @@ _89 cell(s):_ 85 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 
 | email-Eu-core | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.388pp | ✅ |
 | email-Eu-core | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.025pp | ✅ |
 | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.022pp | ✅ |
+| roadNet-CA | bfs | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.122pp | ✅ |
+| roadNet-CA | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +35.014pp | ✅ |
+| roadNet-CA | bfs | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +20.233pp | ✅ |
+| roadNet-CA | bfs | 4kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.044pp | ✅ |
+| roadNet-CA | bfs | 64kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.966pp | ✅ |
+| roadNet-CA | cc | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.215pp | ✅ |
+| roadNet-CA | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +4.061pp | ✅ |
+| roadNet-CA | cc | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.785pp | ✅ |
+| roadNet-CA | cc | 4kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.060pp | ✅ |
+| roadNet-CA | cc | 64kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.272pp | ✅ |
 | roadNet-CA | pr | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.031pp | ✅ |
 | roadNet-CA | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +6.467pp | ✅ |
 | roadNet-CA | pr | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +5.511pp | ✅ |
 | roadNet-CA | pr | 4kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.001pp | ✅ |
 | roadNet-CA | pr | 64kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.294pp | ✅ |
+| roadNet-CA | sssp | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.923pp | ✅ |
+| roadNet-CA | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +60.023pp | ✅ |
+| roadNet-CA | sssp | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +38.317pp | ✅ |
+| roadNet-CA | sssp | 4kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.026pp | ✅ |
+| roadNet-CA | sssp | 64kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +9.648pp | ✅ |
 | soc-LiveJournal1 | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.985pp | ✅ |
 | soc-LiveJournal1 | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.877pp | ✅ |
 | soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.583pp | ✅ |
@@ -217,7 +237,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 ## Balaji & Lucia HPCA 2021 §6.3
 
-_23 cell(s):_ 22 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_28 cell(s):_ 27 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -227,6 +247,11 @@ _23 cell(s):_ 22 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 
 | com-orkut | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -6.830pp | ✅ |
 | com-orkut | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.213pp | ✅ |
 | com-orkut | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -2.021pp | ✅ |
+| delaunay_n19 | pr | 16kB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.332pp | ✅ |
+| delaunay_n19 | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -3.867pp | ✅ |
+| delaunay_n19 | pr | 256kB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.615pp | ✅ |
+| delaunay_n19 | pr | 4kB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.079pp | ✅ |
+| delaunay_n19 | pr | 64kB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.234pp | ✅ |
 | email-Eu-core | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.388pp | ✅ |
 | email-Eu-core | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.025pp | ✅ |
 | email-Eu-core | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.022pp | ✅ |
@@ -247,7 +272,7 @@ _23 cell(s):_ 22 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 
 
 ## Balaji & Lucia HPCA 2021 §6.3 (extended)
 
-_66 cell(s):_ 41 ok · 0 within_tolerance · 25 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_81 cell(s):_ 56 ok · 0 within_tolerance · 25 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -281,6 +306,21 @@ _66 cell(s):_ 41 ok · 0 within_tolerance · 25 known_deviation · 0 disagree ·
 | email-Eu-core | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -17.751pp | ✅ |
 | email-Eu-core | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.000pp | ✅ |
 | email-Eu-core | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.002pp | ✅ |
+| roadNet-CA | bfs | 16kB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.122pp | ✅ |
+| roadNet-CA | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -35.014pp | ✅ |
+| roadNet-CA | bfs | 256kB | POPT_GE_GRASP | sign=-, ±1.50pp | -20.233pp | ✅ |
+| roadNet-CA | bfs | 4kB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.044pp | ✅ |
+| roadNet-CA | bfs | 64kB | POPT_GE_GRASP | sign=-, ±1.50pp | -1.966pp | ✅ |
+| roadNet-CA | cc | 16kB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.215pp | ✅ |
+| roadNet-CA | cc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -4.061pp | ✅ |
+| roadNet-CA | cc | 256kB | POPT_GE_GRASP | sign=-, ±1.50pp | -2.785pp | ✅ |
+| roadNet-CA | cc | 4kB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.060pp | ✅ |
+| roadNet-CA | cc | 64kB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.272pp | ✅ |
+| roadNet-CA | sssp | 16kB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.923pp | ✅ |
+| roadNet-CA | sssp | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -60.023pp | ✅ |
+| roadNet-CA | sssp | 256kB | POPT_GE_GRASP | sign=-, ±1.50pp | -38.317pp | ✅ |
+| roadNet-CA | sssp | 4kB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.026pp | ✅ |
+| roadNet-CA | sssp | 64kB | POPT_GE_GRASP | sign=-, ±1.50pp | -9.648pp | ✅ |
 | soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.985pp | 📘 |
 | soc-LiveJournal1 | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.877pp | 📘 |
 | soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.583pp | 📘 |
