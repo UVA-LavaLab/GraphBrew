@@ -163,6 +163,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_margin_replay.py", "FMrgn"),
     "Cross-policy mean-margin asymmetry":
         ("scripts/test/test_cross_policy_asymmetry.py", "Asym"),
+    "Per-app saturation distance (4MB->8MB)":
+        ("scripts/test/test_saturation_distance.py", "Sat"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

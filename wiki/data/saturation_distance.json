@@ -1,0 +1,314 @@
+{
+  "meta": {
+    "app_count": 5,
+    "app_diversity_range_pp": 12.8058,
+    "app_diversity_threshold": 3.0,
+    "cell_count": 28,
+    "invariant_app_diversity": true,
+    "invariant_non_negative": true,
+    "invariant_pico_saturated": true,
+    "non_negative_violations": [],
+    "pico_graph": "email-Eu-core",
+    "pico_saturation_pp": 0.05,
+    "pico_violations": [],
+    "verdict": "PASS",
+    "verdict_invariant": "PASS iff (1) every cell with WSS > 4 MB has non-negative 4MB->8MB best-policy improvement, (2) email-Eu-core (pico-sentinel) is saturated for every app within 0.05 pp, and (3) per-app median saturation distance varies by at least 3.0 pp across apps.",
+    "wss_floor_bytes": 4194304
+  },
+  "per_app": {
+    "bc": {
+      "max_pp": 22.108,
+      "mean_pp": 15.5517,
+      "median_pp": 17.4496,
+      "min_pp": 0.0,
+      "n_graphs": 6,
+      "p90_pp": 20.6103
+    },
+    "bfs": {
+      "max_pp": 8.4182,
+      "mean_pp": 4.6274,
+      "median_pp": 4.6438,
+      "min_pp": 0.0023,
+      "n_graphs": 6,
+      "p90_pp": 8.0845
+    },
+    "cc": {
+      "max_pp": 16.9086,
+      "mean_pp": 12.1229,
+      "median_pp": 14.8679,
+      "min_pp": 0.0038,
+      "n_graphs": 5,
+      "p90_pp": 16.9086
+    },
+    "pr": {
+      "max_pp": 18.5606,
+      "mean_pp": 7.8327,
+      "median_pp": 7.5443,
+      "min_pp": -0.0032,
+      "n_graphs": 6,
+      "p90_pp": 11.2041
+    },
+    "sssp": {
+      "max_pp": 27.6454,
+      "mean_pp": 12.9274,
+      "median_pp": 12.4954,
+      "min_pp": 0.002,
+      "n_graphs": 5,
+      "p90_pp": 27.6454
+    }
+  },
+  "per_cell": [
+    {
+      "app": "bc",
+      "best4_miss_pp": 72.0874,
+      "best8_miss_pp": 56.3945,
+      "distance_pp": 15.6929,
+      "graph": "cit-Patents",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6017117.06
+    },
+    {
+      "app": "bc",
+      "best4_miss_pp": 52.4215,
+      "best8_miss_pp": 33.5902,
+      "distance_pp": 18.8313,
+      "graph": "com-orkut",
+      "is_pico_sentinel": false,
+      "wss_bytes": 30832580.36
+    },
+    {
+      "app": "bc",
+      "best4_miss_pp": 0.0121,
+      "best8_miss_pp": 0.0121,
+      "distance_pp": 0.0,
+      "graph": "email-Eu-core",
+      "is_pico_sentinel": true,
+      "wss_bytes": 4519.36
+    },
+    {
+      "app": "bc",
+      "best4_miss_pp": 55.1066,
+      "best8_miss_pp": 39.0387,
+      "distance_pp": 16.0679,
+      "graph": "soc-LiveJournal1",
+      "is_pico_sentinel": false,
+      "wss_bytes": 13136591.59
+    },
+    {
+      "app": "bc",
+      "best4_miss_pp": 42.0456,
+      "best8_miss_pp": 19.9376,
+      "distance_pp": 22.108,
+      "graph": "soc-pokec",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6391888.61
+    },
+    {
+      "app": "bc",
+      "best4_miss_pp": 34.18,
+      "best8_miss_pp": 13.5697,
+      "distance_pp": 20.6103,
+      "graph": "web-Google",
+      "is_pico_sentinel": false,
+      "wss_bytes": 1538722.37
+    },
+    {
+      "app": "bfs",
+      "best4_miss_pp": 86.9013,
+      "best8_miss_pp": 78.4831,
+      "distance_pp": 8.4182,
+      "graph": "cit-Patents",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6017117.06
+    },
+    {
+      "app": "bfs",
+      "best4_miss_pp": 97.4505,
+      "best8_miss_pp": 95.479,
+      "distance_pp": 1.9715,
+      "graph": "com-orkut",
+      "is_pico_sentinel": false,
+      "wss_bytes": 30832580.36
+    },
+    {
+      "app": "bfs",
+      "best4_miss_pp": 4.5849,
+      "best8_miss_pp": 4.5826,
+      "distance_pp": 0.0023,
+      "graph": "email-Eu-core",
+      "is_pico_sentinel": true,
+      "wss_bytes": 4519.36
+    },
+    {
+      "app": "bfs",
+      "best4_miss_pp": 58.8583,
+      "best8_miss_pp": 52.1469,
+      "distance_pp": 6.7114,
+      "graph": "soc-LiveJournal1",
+      "is_pico_sentinel": false,
+      "wss_bytes": 13136591.59
+    },
+    {
+      "app": "bfs",
+      "best4_miss_pp": 67.3605,
+      "best8_miss_pp": 59.276,
+      "distance_pp": 8.0845,
+      "graph": "soc-pokec",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6391888.61
+    },
+    {
+      "app": "bfs",
+      "best4_miss_pp": 75.5181,
+      "best8_miss_pp": 72.9419,
+      "distance_pp": 2.5762,
+      "graph": "web-Google",
+      "is_pico_sentinel": false,
+      "wss_bytes": 1538722.37
+    },
+    {
+      "app": "cc",
+      "best4_miss_pp": 24.7301,
+      "best8_miss_pp": 11.7092,
+      "distance_pp": 13.0209,
+      "graph": "cit-Patents",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6017117.06
+    },
+    {
+      "app": "cc",
+      "best4_miss_pp": 36.9839,
+      "best8_miss_pp": 22.116,
+      "distance_pp": 14.8679,
+      "graph": "com-orkut",
+      "is_pico_sentinel": false,
+      "wss_bytes": 30832580.36
+    },
+    {
+      "app": "cc",
+      "best4_miss_pp": 47.7399,
+      "best8_miss_pp": 31.9267,
+      "distance_pp": 15.8132,
+      "graph": "soc-LiveJournal1",
+      "is_pico_sentinel": false,
+      "wss_bytes": 13136591.59
+    },
+    {
+      "app": "cc",
+      "best4_miss_pp": 22.6401,
+      "best8_miss_pp": 5.7315,
+      "distance_pp": 16.9086,
+      "graph": "soc-pokec",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6391888.61
+    },
+    {
+      "app": "cc",
+      "best4_miss_pp": 4.5679,
+      "best8_miss_pp": 4.5641,
+      "distance_pp": 0.0038,
+      "graph": "web-Google",
+      "is_pico_sentinel": false,
+      "wss_bytes": 1538722.37
+    },
+    {
+      "app": "pr",
+      "best4_miss_pp": 37.1782,
+      "best8_miss_pp": 18.6176,
+      "distance_pp": 18.5606,
+      "graph": "cit-Patents",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6017117.06
+    },
+    {
+      "app": "pr",
+      "best4_miss_pp": 21.5751,
+      "best8_miss_pp": 10.9374,
+      "distance_pp": 10.6377,
+      "graph": "com-orkut",
+      "is_pico_sentinel": false,
+      "wss_bytes": 30832580.36
+    },
+    {
+      "app": "pr",
+      "best4_miss_pp": 0.7562,
+      "best8_miss_pp": 0.7594,
+      "distance_pp": -0.0032,
+      "graph": "email-Eu-core",
+      "is_pico_sentinel": true,
+      "wss_bytes": 4519.36
+    },
+    {
+      "app": "pr",
+      "best4_miss_pp": 29.1691,
+      "best8_miss_pp": 17.965,
+      "distance_pp": 11.2041,
+      "graph": "soc-LiveJournal1",
+      "is_pico_sentinel": false,
+      "wss_bytes": 13136591.59
+    },
+    {
+      "app": "pr",
+      "best4_miss_pp": 12.3798,
+      "best8_miss_pp": 7.9289,
+      "distance_pp": 4.4509,
+      "graph": "soc-pokec",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6391888.61
+    },
+    {
+      "app": "pr",
+      "best4_miss_pp": 10.5594,
+      "best8_miss_pp": 8.4132,
+      "distance_pp": 2.1462,
+      "graph": "web-Google",
+      "is_pico_sentinel": false,
+      "wss_bytes": 1538722.37
+    },
+    {
+      "app": "sssp",
+      "best4_miss_pp": 47.6368,
+      "best8_miss_pp": 19.9914,
+      "distance_pp": 27.6454,
+      "graph": "cit-Patents",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6017117.06
+    },
+    {
+      "app": "sssp",
+      "best4_miss_pp": 14.727,
+      "best8_miss_pp": 2.2316,
+      "distance_pp": 12.4954,
+      "graph": "com-orkut",
+      "is_pico_sentinel": false,
+      "wss_bytes": 30832580.36
+    },
+    {
+      "app": "sssp",
+      "best4_miss_pp": 30.8876,
+      "best8_miss_pp": 12.8809,
+      "distance_pp": 18.0067,
+      "graph": "soc-LiveJournal1",
+      "is_pico_sentinel": false,
+      "wss_bytes": 13136591.59
+    },
+    {
+      "app": "sssp",
+      "best4_miss_pp": 6.7818,
+      "best8_miss_pp": 0.2944,
+      "distance_pp": 6.4874,
+      "graph": "soc-pokec",
+      "is_pico_sentinel": false,
+      "wss_bytes": 6391888.61
+    },
+    {
+      "app": "sssp",
+      "best4_miss_pp": 1.6276,
+      "best8_miss_pp": 1.6256,
+      "distance_pp": 0.002,
+      "graph": "web-Google",
+      "is_pico_sentinel": false,
+      "wss_bytes": 1538722.37
+    }
+  ]
+}

@@ -392,6 +392,14 @@ CATALOG = [
         "summary":   "Head-to-head between every (A,B) policy pair: when A wins H2H against B, by how much pp; and when B wins, by how much. Records 6 unordered pairs with a-wins, b-wins, ties, a/b mean-margin, and asymmetry ratio. GRASP vs POPT is near-balanced (57 vs 55 wins, 2.67x ratio); GRASP vs LRU is lopsided (92 vs 20 wins, 14.05pp LRU mean loss); POPT vs SRRIP is most symmetric (1.04x). Max asymmetry today is 3.20x. Verdict PASS iff every pair has at least one win on each side AND the largest observed asymmetry ratio stays under the 20x sanity ceiling — catches future regressions where one policy's losing-magnitude explodes.",
     },
     {
+        "id":        "saturation_distance",
+        "label":     "Per-app saturation distance (4MB->8MB)",
+        "generator": "scripts/experiments/ecg/saturation_distance.py",
+        "gate":      "scripts/test/test_saturation_distance.py",
+        "artifact":  "wiki/data/saturation_distance.json",
+        "summary":   "Per-(app, graph) gap between best-policy miss rate at 4MB and at 8MB; per-app median quantifies how much an application is still cache-bound at 8MB. bc is the least saturated (17.45pp median, still streaming after 8MB); bfs is the most saturated (4.64pp median, frontier reuse takes over); pr/cc/sssp sit in between. email-Eu-core (pico-sentinel) is saturated for every app within 0.05pp. App-level diversity range = 12.81pp. Verdict PASS iff (1) every cell with WSS > 4MB has non-negative 4MB->8MB best-policy improvement (cache monotonicity), (2) email-Eu-core saturates everywhere, and (3) per-app median range >= 3pp (corpus retains app-level signal).",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -471,7 +479,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (64 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (65 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

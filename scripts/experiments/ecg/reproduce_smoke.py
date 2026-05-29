@@ -119,6 +119,8 @@ TRACKED_ARTIFACTS = [
     "family_margin_replay.md",
     "cross_policy_asymmetry.json",
     "cross_policy_asymmetry.md",
+    "saturation_distance.json",
+    "saturation_distance.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
