@@ -249,6 +249,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_curvature_derivation_parity.py", "OGC-Der"),
     "oracle_gap_by_app_bootstrap derivation parity (paired Δ seeded bootstrap + 95% CI)":
         ("scripts/test/test_oracle_gap_by_app_bootstrap_derivation_parity.py", "OGB-Der"),
+    "cross_generator_gap_parity derivation parity (three-source gap_pp reconciliation)":
+        ("scripts/test/test_cross_generator_gap_parity_derivation_parity.py", "CGP-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

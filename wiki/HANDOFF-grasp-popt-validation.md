@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **170 gates, all GREEN, exit 0**.
+and currently reports **175 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–170.**
+- **Cross-artifact / cross-source derivation parity gates 151–175.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -594,6 +594,56 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   symmetric); asymmetry_ratio = max/min (None when either mean is
   zero, always ≥ 1.0 by construction); 2-invariant AND verdict
   (every_pair_both_win ∧ max_ratio < ASYMMETRY_RATIO_CEILING=20.0).
+  Gate 171 (SSE-Der, 29 tests) locks saturation_slope_extremum.json:
+  joins saturation_distance.json#per_app (mean 4MB→8MB drop) with
+  per_app_capacity_slope.json#meta.per_app (per-policy median OLS
+  slope); per-app slope = bespoke `_median` over per-policy
+  median_pp values (NOT mean, NOT median-of-medians); distance_rank
+  ASC by distance_pp; slope_rank ASC by abs(slope) (NOT signed
+  slope); MOST_BY_SLOPE uses signed-min sort key (NOT argmax
+  steepness — load-bearing); 5-invariant AND verdict (bfs argmin
+  on BOTH axes + bfs strictly-greater-than every other app on BOTH
+  metrics + corpus_has_slope_3x_bfs + corpus_has_distance_2_5x_bfs).
+  Gate 172 (OGE-Der, 30 tests) locks oracle_gap_effect_size.json:
+  per-(app, ordered policy pair a≠b) Cliff's delta = (#{x>y} −
+  #{x<y}) / (n_x*n_y) with magnitude classifier (negligible <0.147,
+  small ≥0.147, medium ≥0.33, large ≥0.474), Mann-Whitney U with
+  average-rank tie-breaking + asymptotic normal p-value
+  (`_normal_sf = 0.5 * math.erfc(z/√2)`, 6dp); per-policy
+  distribution uses sorted[n//2] for median (NOT statistics.median —
+  even-n differs) + mean=sum/n; stochastically_smaller polarity
+  matches sign(delta); large_negative_deltas = filter
+  magnitude=='large' AND delta<0 sorted ASC by delta.
+  Gate 173 (OGC-Der, 27 tests) locks oracle_gap_curvature.json:
+  per (app, policy) discrete second derivative at the 4MB midpoint
+  on a log2-MB axis (s01 divides by 2 octaves, s12 by 1); knee_present
+  uses NON-STRICT >= 0.05 pp/oct² (boundary inclusive); cells_total
+  gates cells where all three of {1MB, 4MB, 8MB} are present in the
+  upstream trajectory; per-policy median uses statistics.median (NOT
+  bespoke); knee_rank sort key (-knee_count, -mean_curvature); cross-
+  gate-55 lead_agrees mirrors the current saturation_rank_by_policy
+  first element from cache_saturation_onset.json; verdict = min(GRASP,
+  POPT knee_count) > max(LRU, SRRIP knee_count). Gate 174 (OGB-Der,
+  17 tests) locks oracle_gap_by_app_bootstrap.json: paired Δ cell
+  pairing by (graph, l3_size) with BOTH policies required; iteration
+  order through apps_sorted × POLICIES × POLICIES (a≠b) is load-
+  bearing for Random(1729) reproducibility; n=2000 resamples; 95% CI
+  percentile indices lo=int(0.025·n)=50 and hi=int(0.975·n)−1=1949;
+  p_a_lt_b decided by strict mean < 0; gate re-runs the full
+  bootstrap and asserts BYTE-EXACT match against the published
+  artifact — catches any iteration-order / seed / sample-count drift.
+  Gate 175 (CGP-Der, 24 tests) locks
+  cross_generator_gap_parity.json: three-way reconciliation across
+  oracle_gap (raw rows averaged via statistics.mean, 4dp),
+  oracle_gap_auc (trajectory_by_policy, raw float), and
+  cache_sensitivity_slope (top-level gap_at_{l3} pulls FIRST, octave
+  records consulted via setdefault as fallback for the 4MB midpoint
+  — priority order load-bearing); cells emitted in lex-sorted
+  (app, policy, l3_size) order over the union of all three upstream
+  key sets; spread_pp = max(present) − min(present), 6dp; agree
+  requires BOTH spread ≤ 1e-3 AND all_three_present (partial cells
+  are NEVER agree=True); mismatches = [c for c if not c.agree];
+  n_full_triple_cells counts all_three_present cells separately.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others

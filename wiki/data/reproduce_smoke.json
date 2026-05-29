@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "865b060f9be7b6ff9678ebe73361ba7489a34b5cb02037adec69ce461bf97ec9",
-      "sha_after": "865b060f9be7b6ff9678ebe73361ba7489a34b5cb02037adec69ce461bf97ec9",
+      "sha_before": "b41c879c9f8177ab1ec9ac6dff1f3be11e2b4d4a79cd2f63f975d32b878a6052",
+      "sha_after": "b41c879c9f8177ab1ec9ac6dff1f3be11e2b4d4a79cd2f63f975d32b878a6052",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "5cbc2fc7bdd0c01be90d310fe6e356750055902f47ae13cb34ce47f273926d26",
-      "sha_after": "5cbc2fc7bdd0c01be90d310fe6e356750055902f47ae13cb34ce47f273926d26",
+      "sha_before": "8d0697df22d1c7ddd0ab93c66d55cc178b38be7882b4343c716f90f31bc4364d",
+      "sha_after": "8d0697df22d1c7ddd0ab93c66d55cc178b38be7882b4343c716f90f31bc4364d",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "f25df731e6d70788084ca9215f545be9a676f872521ff69472d2428019b4ed41",
-      "sha_after": "f25df731e6d70788084ca9215f545be9a676f872521ff69472d2428019b4ed41",
+      "sha_before": "f61916b10641fbd227d7b9b692fb712e034dc1db8a117cf437772c54bf68ddcb",
+      "sha_after": "f61916b10641fbd227d7b9b692fb712e034dc1db8a117cf437772c54bf68ddcb",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "3b8b9d04de6fa8a26ed0ddf91ccd9d00652095b209eb8bf6c21d8e6d47e30ca1",
-      "sha_after": "3b8b9d04de6fa8a26ed0ddf91ccd9d00652095b209eb8bf6c21d8e6d47e30ca1",
+      "sha_before": "2360f9cb2bc9ae87429135cfa1a806cb22241f17d8908fde0e85604775b5d48d",
+      "sha_after": "2360f9cb2bc9ae87429135cfa1a806cb22241f17d8908fde0e85604775b5d48d",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "44989861f6a67029f2d722a50ab556b2d0f746dac5e55f7456a84f27638ac2e0",
-      "sha_after": "44989861f6a67029f2d722a50ab556b2d0f746dac5e55f7456a84f27638ac2e0",
+      "sha_before": "4faee773b84cddb1bf80f1425dc40b32d8dfaddb266034ff0dded69d62b344c5",
+      "sha_after": "4faee773b84cddb1bf80f1425dc40b32d8dfaddb266034ff0dded69d62b344c5",
       "status": "ok"
     },
     {
