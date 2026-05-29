@@ -63,6 +63,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_corpus_diversity_floor.py", "Corpus-floor"),
     "Cross-tool report parity":
         ("scripts/test/test_cross_tool_parity.py", "Parity"),
+    "Regression budget floor":
+        ("scripts/test/test_regression_budget_floor.py", "Budget"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
 }
@@ -175,6 +177,44 @@ def _lit_faith_section(lit) -> list[str]:
     return out
 
 
+def _budget_section(budget) -> list[str]:
+    out = ["## Regression budget — distance to disagree", ""]
+    if not isinstance(budget, dict):
+        out += ["_No regression_budget JSON found — run "
+                "`make lit-budget` to generate one._", ""]
+        return out
+    s = budget.get("summary", {})
+    by_kind = s.get("by_kind", {})
+    out += [
+        f"- Cells in distribution: **{s.get('cells_in_distribution', 0)}**",
+        f"- Min margin (any kind): **{s.get('min_margin_pp', 0):.3f} pp**",
+        f"- Median margin: {s.get('median_margin_pp', 0):.3f} pp",
+        f"- p90 margin: {s.get('p90_margin_pp', 0):.3f} pp",
+        "",
+        "| claim kind | n | min margin (pp) | median margin (pp) |",
+        "|---|---:|---:|---:|",
+    ]
+    for k, v in by_kind.items():
+        out.append(
+            f"| {k} | {v.get('n', 0)} | {v.get('min_pp', 0):.3f} "
+            f"| {v.get('median_pp', 0):.3f} |"
+        )
+    out.append("")
+    fragile = (budget.get("fragile_cache_policy_cells") or [])[:5]
+    if fragile:
+        out += ["**5 most fragile cache-policy cells:**", ""]
+        out += ["| graph | app | l3 | policy | Δ (pp) | margin (pp) |"]
+        out += ["|---|---|---|---|---:|---:|"]
+        for r in fragile:
+            out.append(
+                f"| {r['graph']} | {r['app']} | {r['l3_size']} "
+                f"| {r['policy']} | {r['delta_pct']:+.3f} "
+                f"| {r['margin_pp']:.3f} |"
+            )
+        out.append("")
+    return out
+
+
 def _corpus_section(corpus) -> list[str]:
     out = ["## Corpus diversity coverage", ""]
     if corpus is None:
@@ -250,7 +290,7 @@ def _pytest_section(results: list[SuiteResult]) -> list[str]:
     return out
 
 
-def render(results: list[SuiteResult], lit, corpus) -> str:
+def render(results: list[SuiteResult], lit, corpus, budget=None) -> str:
     out = [
         "# GraphBrew literature-faithfulness confidence dashboard",
         "",
@@ -261,6 +301,7 @@ def render(results: list[SuiteResult], lit, corpus) -> str:
     ]
     out += _pytest_section(results)
     out += _lit_faith_section(lit)
+    out += _budget_section(budget)
     out += _corpus_section(corpus)
     return "\n".join(out)
 
@@ -276,6 +317,11 @@ def main() -> int:
         "--corpus-diversity-json",
         default=str(REPO_ROOT / "wiki" / "data" / "corpus_diversity.json"),
         help="Path to corpus_diversity JSON output.",
+    )
+    parser.add_argument(
+        "--regression-budget-json",
+        default=str(REPO_ROOT / "wiki" / "data" / "regression_budget.json"),
+        help="Path to regression_budget JSON output.",
     )
     parser.add_argument(
         "--markdown", default=None,
@@ -306,8 +352,9 @@ def main() -> int:
 
     lit = _read_json(Path(args.lit_faith_json))
     corpus = _read_json(Path(args.corpus_diversity_json))
+    budget = _read_json(Path(args.regression_budget_json))
 
-    rendered = render(results, lit, corpus)
+    rendered = render(results, lit, corpus, budget)
     print(rendered)
     if args.markdown:
         Path(args.markdown).write_text(rendered.rstrip("\n") + "\n")
@@ -323,6 +370,7 @@ def main() -> int:
             "headline": _headline_verdict(results, lit),
             "suites": [r.__dict__ for r in results],
             "lit_faith_summary": (lit or {}).get("summary") if isinstance(lit, dict) else None,
+            "regression_budget_summary": (budget or {}).get("summary") if isinstance(budget, dict) else None,
             "corpus_graph_count": graph_count,
         }, indent=2) + "\n")
         print(f"[dashboard] json -> {args.json_out}", file=sys.stderr)

@@ -108,12 +108,63 @@ def test_corpus_section_handles_list_and_dict(dash):
                 "features": {"hub_concentration": 0.1, "avg_degree": 1.0,
                              "clustering_coeff": 0.0, "working_set_ratio": 0.0}}]
     as_dict = {"graphs": as_list}
-    sec_list = dash._corpus_section(as_list)
-    sec_dict = dash._corpus_section(as_dict)
-    list_text = "\n".join(sec_list)
-    dict_text = "\n".join(sec_dict)
-    assert "g1" in list_text
-    assert "g1" in dict_text
+    a = "\n".join(dash._corpus_section(as_list))
+    b = "\n".join(dash._corpus_section(as_dict))
+    assert a == b
+    assert "g1" in a
+
+
+def test_budget_section_renders_kind_table_and_fragile_rows(dash):
+    budget = {
+        "summary": {
+            "cells_total": 20,
+            "cells_in_distribution": 15,
+            "min_margin_pp": 0.5,
+            "p10_margin_pp": 0.7,
+            "median_margin_pp": 3.0,
+            "p90_margin_pp": 7.0,
+            "max_margin_pp": 10.0,
+            "by_kind": {
+                "cache_policy": {"n": 10, "min_pp": 1.0, "median_pp": 3.5},
+                "popt_ge_grasp": {"n": 5, "min_pp": 0.5, "median_pp": 2.0},
+            },
+        },
+        "fragile_cache_policy_cells": [
+            {"graph": "G", "app": "pr", "l3_size": "1MB",
+             "policy": "SRRIP", "delta_pct": -2.5, "margin_pp": 1.0},
+        ],
+    }
+    md = "\n".join(dash._budget_section(budget))
+    assert "Regression budget" in md
+    assert "cache_policy" in md
+    assert "popt_ge_grasp" in md
+    assert "5 most fragile cache-policy cells" in md
+    assert "G | pr | 1MB" in md
+
+
+def test_budget_section_missing_input_emits_stub(dash):
+    md = "\n".join(dash._budget_section(None))
+    assert "No regression_budget JSON found" in md
+
+
+def test_render_includes_budget_section_when_provided(dash):
+    results = [_suite(dash)]
+    lit = {"summary": {"claims_total": 1, "ok": 1, "disagree": 0,
+                       "within_tolerance": 0, "known_deviation": 0,
+                       "insufficient_data": 0, "missing": 0}}
+    corpus = []
+    budget = {
+        "summary": {
+            "cells_total": 1, "cells_in_distribution": 1,
+            "min_margin_pp": 2.0, "p10_margin_pp": 2.0,
+            "median_margin_pp": 2.0, "p90_margin_pp": 2.0,
+            "max_margin_pp": 2.0, "by_kind": {},
+        },
+        "fragile_cache_policy_cells": [],
+    }
+    md = dash.render(results, lit, corpus, budget=budget)
+    assert "Regression budget" in md
+    assert "Min margin (any kind): **2.000 pp**" in md
 
 
 def test_lit_faith_section_missing_input(dash):
