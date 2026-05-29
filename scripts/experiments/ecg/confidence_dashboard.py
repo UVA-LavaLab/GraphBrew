@@ -257,6 +257,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_leave_one_graph_out_derivation_parity.py", "LGO-Der"),
     "popt_vs_grasp_by_family_app derivation parity (per-(family,app) paired bootstrap CIs)":
         ("scripts/test/test_popt_vs_grasp_by_family_app_derivation_parity.py", "PGF-Der"),
+    "cache_saturation_onset derivation parity (per-(app,policy) octave walker + per-policy rank)":
+        ("scripts/test/test_cache_saturation_onset_derivation_parity.py", "CSO-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
