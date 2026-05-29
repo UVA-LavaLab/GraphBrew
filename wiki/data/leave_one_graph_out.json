@@ -1,0 +1,424 @@
+{
+  "meta": {
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "fragile_apps": [
+      "bfs",
+      "sssp"
+    ],
+    "graphs": [
+      "cit-Patents",
+      "com-orkut",
+      "delaunay_n19",
+      "email-Eu-core",
+      "roadNet-CA",
+      "soc-LiveJournal1",
+      "soc-pokec",
+      "web-Google"
+    ],
+    "n_fragile_apps": 2,
+    "n_graphs": 8,
+    "n_robust_apps": 3,
+    "n_rows": 456,
+    "robust_apps": [
+      "bc",
+      "cc",
+      "pr"
+    ]
+  },
+  "per_app": {
+    "bc": {
+      "drops": {
+        "cit-Patents": {
+          "margin": 7,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 13,
+          "unique_top": true
+        },
+        "com-orkut": {
+          "margin": 5,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 12,
+          "unique_top": true
+        },
+        "delaunay_n19": {
+          "margin": 8,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 15,
+          "unique_top": true
+        },
+        "email-Eu-core": {
+          "margin": 9,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 13,
+          "unique_top": true
+        },
+        "roadNet-CA": {
+          "margin": 10,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 15,
+          "unique_top": true
+        },
+        "soc-LiveJournal1": {
+          "margin": 5,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 12,
+          "unique_top": true
+        },
+        "soc-pokec": {
+          "margin": 5,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 12,
+          "unique_top": true
+        },
+        "web-Google": {
+          "margin": 7,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 13,
+          "unique_top": true
+        }
+      },
+      "fragile_drops": [],
+      "full_corpus": {
+        "margin": 8,
+        "runner_up_wins": 7,
+        "top_policy": "GRASP",
+        "top_wins": 15,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 15,
+          "LRU": 1,
+          "POPT": 5,
+          "SRRIP": 7
+        }
+      },
+      "is_logo_robust": true,
+      "n_drops": 8,
+      "n_robust_drops": 8
+    },
+    "bfs": {
+      "drops": {
+        "cit-Patents": {
+          "margin": 6,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 12,
+          "unique_top": true
+        },
+        "com-orkut": {
+          "margin": 2,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 10,
+          "unique_top": true
+        },
+        "delaunay_n19": {
+          "margin": 3,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 12,
+          "unique_top": true
+        },
+        "email-Eu-core": {
+          "margin": 3,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 11,
+          "unique_top": true
+        },
+        "roadNet-CA": {
+          "margin": 3,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 10,
+          "unique_top": true
+        },
+        "soc-LiveJournal1": {
+          "margin": 0,
+          "same_winner_as_full": false,
+          "top_policy": "GRASP",
+          "top_wins": 9,
+          "unique_top": false
+        },
+        "soc-pokec": {
+          "margin": 2,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 10,
+          "unique_top": true
+        },
+        "web-Google": {
+          "margin": 2,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 10,
+          "unique_top": true
+        }
+      },
+      "fragile_drops": [
+        "soc-LiveJournal1"
+      ],
+      "full_corpus": {
+        "margin": 3,
+        "runner_up_wins": 9,
+        "top_policy": "POPT",
+        "top_wins": 12,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 9,
+          "LRU": 1,
+          "POPT": 12,
+          "SRRIP": 1
+        }
+      },
+      "is_logo_robust": false,
+      "n_drops": 8,
+      "n_robust_drops": 7
+    },
+    "cc": {
+      "drops": {
+        "cit-Patents": {
+          "margin": 12,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 14,
+          "unique_top": true
+        },
+        "com-orkut": {
+          "margin": 12,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 14,
+          "unique_top": true
+        },
+        "delaunay_n19": {
+          "margin": 15,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 17,
+          "unique_top": true
+        },
+        "email-Eu-core": {
+          "margin": 15,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 17,
+          "unique_top": true
+        },
+        "roadNet-CA": {
+          "margin": 13,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 14,
+          "unique_top": true
+        },
+        "soc-LiveJournal1": {
+          "margin": 12,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 14,
+          "unique_top": true
+        },
+        "soc-pokec": {
+          "margin": 12,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 14,
+          "unique_top": true
+        },
+        "web-Google": {
+          "margin": 14,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 15,
+          "unique_top": true
+        }
+      },
+      "fragile_drops": [],
+      "full_corpus": {
+        "margin": 15,
+        "runner_up_wins": 2,
+        "top_policy": "GRASP",
+        "top_wins": 17,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 17,
+          "LRU": 2,
+          "SRRIP": 1
+        }
+      },
+      "is_logo_robust": true,
+      "n_drops": 8,
+      "n_robust_drops": 8
+    },
+    "pr": {
+      "drops": {
+        "cit-Patents": {
+          "margin": 9,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 17,
+          "unique_top": true
+        },
+        "com-orkut": {
+          "margin": 9,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 17,
+          "unique_top": true
+        },
+        "delaunay_n19": {
+          "margin": 11,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 17,
+          "unique_top": true
+        },
+        "email-Eu-core": {
+          "margin": 13,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 19,
+          "unique_top": true
+        },
+        "roadNet-CA": {
+          "margin": 9,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 16,
+          "unique_top": true
+        },
+        "soc-LiveJournal1": {
+          "margin": 9,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 17,
+          "unique_top": true
+        },
+        "soc-pokec": {
+          "margin": 13,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 19,
+          "unique_top": true
+        },
+        "web-Google": {
+          "margin": 11,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 18,
+          "unique_top": true
+        }
+      },
+      "fragile_drops": [],
+      "full_corpus": {
+        "margin": 12,
+        "runner_up_wins": 8,
+        "top_policy": "POPT",
+        "top_wins": 20,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 8,
+          "POPT": 20
+        }
+      },
+      "is_logo_robust": true,
+      "n_drops": 8,
+      "n_robust_drops": 8
+    },
+    "sssp": {
+      "drops": {
+        "cit-Patents": {
+          "margin": 4,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 8,
+          "unique_top": true
+        },
+        "com-orkut": {
+          "margin": 1,
+          "same_winner_as_full": false,
+          "top_policy": "GRASP",
+          "top_wins": 7,
+          "unique_top": true
+        },
+        "delaunay_n19": {
+          "margin": 1,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 8,
+          "unique_top": true
+        },
+        "email-Eu-core": {
+          "margin": 1,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 8,
+          "unique_top": true
+        },
+        "roadNet-CA": {
+          "margin": 2,
+          "same_winner_as_full": false,
+          "top_policy": "GRASP",
+          "top_wins": 7,
+          "unique_top": true
+        },
+        "soc-LiveJournal1": {
+          "margin": 2,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 7,
+          "unique_top": true
+        },
+        "soc-pokec": {
+          "margin": 2,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 7,
+          "unique_top": true
+        },
+        "web-Google": {
+          "margin": 0,
+          "same_winner_as_full": false,
+          "top_policy": "GRASP",
+          "top_wins": 7,
+          "unique_top": false
+        }
+      },
+      "fragile_drops": [
+        "com-orkut",
+        "roadNet-CA",
+        "web-Google"
+      ],
+      "full_corpus": {
+        "margin": 1,
+        "runner_up_wins": 7,
+        "top_policy": "POPT",
+        "top_wins": 8,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 7,
+          "LRU": 3,
+          "POPT": 8,
+          "SRRIP": 2
+        }
+      },
+      "is_logo_robust": false,
+      "n_drops": 8,
+      "n_robust_drops": 5
+    }
+  }
+}

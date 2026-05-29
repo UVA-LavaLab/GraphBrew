@@ -71,6 +71,8 @@ TRACKED_ARTIFACTS = [
     "l3_policy_stability.md",
     "multiple_testing_correction.json",
     "multiple_testing_correction.md",
+    "leave_one_graph_out.json",
+    "leave_one_graph_out.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

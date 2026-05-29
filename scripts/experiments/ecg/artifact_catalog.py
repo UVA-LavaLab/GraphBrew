@@ -200,6 +200,14 @@ CATALOG = [
         "summary":   "81 p-values across gates 34/38 + per-(family,app) combined; HB (FWER) retains 28, BH (FDR) retains 40 at α=0.05. Pins which findings can honestly be called 'significant' after correcting for the family of tests we actually run.",
     },
     {
+        "id":        "leave_one_graph_out",
+        "label":     "Leave-one-graph-out (LOGO) winner robustness",
+        "generator": "scripts/experiments/ecg/leave_one_graph_out.py",
+        "gate":      "scripts/test/test_leave_one_graph_out.py",
+        "artifact":  "wiki/data/leave_one_graph_out.json",
+        "summary":   "LOGO-robust apps (winner survives every single-graph drop): pr/POPT, cc/GRASP, bc/GRASP. LOGO-fragile: bfs (flips when soc-LiveJournal1 dropped), sssp (flips under com-orkut, roadNet-CA, web-Google drops). Triangulates the cross-gate weak-signal finding for sssp.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -279,7 +287,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (40 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (41 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
