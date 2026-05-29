@@ -17,7 +17,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DOC_JSON = REPO_ROOT / "wiki" / "data" / "reproduce_smoke.json"
 
-ARTIFACT_FLOOR = 86  # bump explicitly when a new aggregator is added
+ARTIFACT_FLOOR = 88  # bump explicitly when a new aggregator is added
 
 
 @pytest.fixture(scope="module")

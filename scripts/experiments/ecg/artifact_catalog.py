@@ -312,6 +312,14 @@ CATALOG = [
         "summary":   "Reconciles the three load-bearing aggregators that all expose per-(app, policy, L3) gap_pp via different schemas (raw rows / AUC trajectory / slope decoration). Verifies all 60 paper triples (5 apps x 4 policies x 3 L3) report identical gap_pp values within 1e-3 pp. Zero mismatches today. Catches silent staleness, aggregation drift, or rounding mismatches that would invisibly break the paper narrative.",
     },
     {
+        "id":        "cache_saturation_onset",
+        "label":     "Cache-saturation onset detection",
+        "generator": "scripts/experiments/ecg/cache_saturation_onset.py",
+        "gate":      "scripts/test/test_cache_saturation_onset.py",
+        "artifact":  "wiki/data/cache_saturation_onset.json",
+        "summary":   "Per-(app, policy), the L3 size beyond which extra cache buys <0.5 pp/octave gap improvement. Saturation ordering today: POPT > GRASP > LRU > SRRIP. POPT saturates on 3/5 apps within paper L3 (bc, pr, sssp); GRASP on 2 (bc, sssp); LRU and SRRIP on just 1 each (bc). bfs is universally unsaturated — its working set far exceeds 8MB. Paper-grade mechanism story: oracle-aware policies hit diminishing returns earlier because they are already close to oracle.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -391,7 +399,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (54 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (55 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
