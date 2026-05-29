@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **125 gates, all GREEN, exit 0**.
+and currently reports **130 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -290,12 +290,37 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   with alphabetical tie-break; win_counts reproduced from oracle_gap
   is_winner==1 tallies; n_cells_in_scope = distinct (graph,app,l3) count;
   class_counts, strong_cell_fraction, weak_cells, tied_cells, and per_cell
-  tied_top_policies all reproduced (gate 125, 16 tests).
+  tied_top_policies all reproduced (gate 125, 16 tests);
+  per_app_srrip_vs_grasp slope ordering — per-app delta = SRRIP - GRASP
+  (signed, sign matters), deviates iff delta > 1.0 pp/oct, PINNED=('bfs',)
+  guard test asserts bfs.deviates True today; verdict=PASS iff no missing
+  apps AND no new deviating apps AND every app has both policies present
+  (gate 126, 15 tests); corpus_balance arithmetic + diversity metrics —
+  per-family and per-app (paper-L3 cell) row counts reproduced from
+  oracle_gap, Shannon H bits + Simpson's D + evenness reproduced from the
+  raw counts to 5e-4 tolerance, plus dominance share and honest disclosures
+  (families_capped_below_4MB / 8MB sorted lists) (gate 127, 16 tests);
+  family_curvature_replay arithmetic + verdict — per-family discrete second
+  derivative on log2-MB axis (1→0, 4→2, 8→3) reproduced via gate-58 formula,
+  replays_pattern as conjunction of any_oracle_aware_positive +
+  all_non_oracle_nonpositive, verdict=PASS iff replay_count >= 1 AND no new
+  deviating families beyond the pinned set (gate 128, 17 tests);
+  cross_generator_gap_parity arithmetic + spread — the structural-integrity
+  backbone reconciling oracle_gap raw + oracle_gap_auc trajectory +
+  cache_sensitivity_slope gap_at_*/octave records, per-cell raw mean +
+  AUC + slope all reproduced to 1e-3 pp, spread/agree/mismatches accounting
+  derives consistently, cells sorted lexicographically and keyset equals
+  union of all three sources (gate 129, 15 tests); slope_saturation_xcheck
+  arithmetic + statistics — per-cell saturation distance (miss_rate(4MB) -
+  miss_rate(8MB) in pp) and OLS slope of miss_rate vs log2(MB) across
+  1MB/4MB/8MB reproduced from raw rows, Pearson r + Spearman rho + medians
+  + 4 invariant booleans (cells>=80, r>=0.4, rho>=0.4, median ratio in
+  [0.7,1.3]) all reproduced (gate 130, 18 tests).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 125. `make confidence-fast` runs the whole suite in under
+  current 130. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -315,7 +340,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 125+ pytest gates + lit-faith headline + corpus diversity
+  view of all 130+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
