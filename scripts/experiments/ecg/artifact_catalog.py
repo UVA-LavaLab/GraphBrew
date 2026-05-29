@@ -472,6 +472,14 @@ CATALOG = [
         "summary":   "Formalizes the regime-dependent LRU-vs-GRASP slope finding that gates 70/71/72 surfaced as INFORMATIONAL. cache-sim sweep (1-8MB, post-WSS) shows LRU strictly steeper than GRASP (-0.97 pp/oct); both anchor tools at sub-WSS scales (4kB-2MB) show the opposite ordering (gem5 +0.84, sniper +0.24). PASS confirms (1) cache-sim post-WSS LRU is steeper by at least 0.30 pp/oct, (2) both anchor tools sub-WSS show LRU at-most negligibly steeper (within 0.20 pp/oct slack), (3) the inversion sign holds across tools, (4) regime labels match documented L3 ranges. Cross-tool sign agreement between gem5 and sniper confirms the inversion is a physical regime effect (LRU's give-up-and-stream behaviour extracts nothing from extra capacity when no policy fits the hot set; GRASP's hold-the-hot-set behaviour still secures partial reuse) rather than a tool artifact.",
     },
     {
+        "id":        "saturation_slope_extremum",
+        "label":     "Per-app saturation-vs-slope extremum corroboration",
+        "generator": "scripts/experiments/ecg/saturation_slope_extremum.py",
+        "gate":      "scripts/test/test_saturation_slope_extremum.py",
+        "artifact":  "wiki/data/saturation_slope_extremum.json",
+        "summary":   "Reads gate 65 (saturation_distance per_app) and gate 68 (per_app_capacity_slope per-app medians) and verifies that bfs is the UNIQUE extremum on BOTH metrics: smallest 4MB->8MB distance AND shallowest OLS slope across the 1MB-8MB sweep. Pins the bfs-is-least-cache-sensitive finding with two independent measures. The most-cache-hungry app DISAGREES across metrics (sssp by slope -19.4 pp/oct; bc by distance +15.6 pp) — the regime-vs-aggregate distinction in action (distance captures upper-octave headroom while slope averages per-octave drop) — and is reported as INFORMATIONAL rather than gated. PASS iff (1) bfs is argmin(distance), (2) bfs is argmin(|slope|), (3) bfs is unique extremum on both, (4) at least one app has slope steepness >= 3x bfs, (5) at least one app has distance >= 2.5x bfs.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -551,7 +559,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (74 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (75 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

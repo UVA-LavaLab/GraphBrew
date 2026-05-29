@@ -183,6 +183,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_per_app_srrip_vs_grasp.py", "AppSGR"),
     "Cross-tool LRU-vs-GRASP regime inversion":
         ("scripts/test/test_cross_tool_lru_regime.py", "XTregm"),
+    "Per-app saturation-vs-slope extremum":
+        ("scripts/test/test_saturation_slope_extremum.py", "SatExt"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
