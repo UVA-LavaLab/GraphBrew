@@ -267,6 +267,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_l3_policy_stability_derivation_parity.py", "L3S-Der"),
     "multiple_testing_correction derivation parity (HB step-down + BH step-up + p-value collection)":
         ("scripts/test/test_multiple_testing_correction_derivation_parity.py", "MTC-Der"),
+    "corpus_balance derivation parity (Shannon entropy + Pielou evenness + Simpson + dominance + L3 coverage)":
+        ("scripts/test/test_corpus_balance_derivation_parity.py", "CBL-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
