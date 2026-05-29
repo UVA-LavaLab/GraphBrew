@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-density gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -618,7 +618,18 @@ lit-cross-tool:
 		--json-out $(WIKI_DATA)/cross_tool_saturation.json \
 		--md-out   $(WIKI_DATA)/cross_tool_saturation.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool
+# Per-graph literature claim density mini-report. Reads the
+# reproduction summary and tallies claims/cells/status mix per graph.
+# Depends only on lit-repro being current.
+lit-density: lit-repro
+	@echo "$(BLUE)Regenerating per-graph claim density report...$(NC)"
+	@python3 -m scripts.experiments.ecg.claim_density_report \
+		--repro-csv $(WIKI_DATA)/literature_reproduction_summary.csv \
+		--csv-out  $(WIKI_DATA)/claim_density.csv \
+		--json-out $(WIKI_DATA)/claim_density.json \
+		--md-out   $(WIKI_DATA)/claim_density.md
+
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-density
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
