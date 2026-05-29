@@ -205,6 +205,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_tool_winners_derivation_parity.py", "CTW-Der"),
     "regression_budget derivation parity (per-cell distance to disagree)":
         ("scripts/test/test_regression_budget_derivation_parity.py", "RBD-Der"),
+    "family_geomean_improvement derivation parity (geomean ratio + bootstrap CI)":
+        ("scripts/test/test_family_geomean_improvement_derivation_parity.py", "FGI-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
