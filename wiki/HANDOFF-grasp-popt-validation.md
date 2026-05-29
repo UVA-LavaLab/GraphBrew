@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **180 gates, all GREEN, exit 0**.
+and currently reports **185 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–180.**
+- **Cross-artifact / cross-source derivation parity gates 151–185.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -690,6 +690,56 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   even with 0 rows; by_policy_family/regime keys sorted by (pol, label)
   tuple. Full 456-row byte-exact CSV re-derivation. Locks the deepest
   seam in the dashboard.
+  Gate 181 (PST-Der, 29 tests) locks policy_stability.json: per-policy
+  CV across apps; mean = statistics.fmean, stdev = statistics.pstdev
+  (POPULATION not sample); auc_cv = None iff mean ≤ 0 else round(sd/mean,
+  4); always_top_2 = max(ranks) ≤ 2 NON-STRICT; always_bot_2 = min(ranks)
+  ≥ 3; n_wins counts rank == 1, n_lasts counts rank == 4 specifically
+  (NOT == n_policies — load-bearing); safest_order sorts by (auc_cv or
+  inf, mean) so None CVs sink; safest_policy / highest_variance_policy /
+  best_avg_policy match head/tail of the orderings.
+  Gate 182 (L3S-Der, 26 tests) locks l3_policy_stability.json: per-(app,
+  l3) winner aggregation from oracle_gap.json#rows; n_cells = UNIQUE-GRAPH
+  count (set cardinality, not row count); wins dict ONLY carries policies
+  with ≥1 win; ranking key (-wins, POLICIES.index) so ties go to CANONICAL
+  order (LRU, SRRIP, GRASP, POPT) NOT alphabetical; unique_winner is
+  STRICT >; top_share = round(tw/n, 4); paper_l3_tops EXCLUDES tie cells
+  (load-bearing); is_stable requires n_unique == 1 AND len(paper_tops) ==
+  3 (full coverage); has_regime_change is n_unique >= 2; stable + regime
+  mutually exclusive. cc/GRASP and pr/POPT must be stable single-winner;
+  bfs must show GRASP→POPT regime change.
+  Gate 183 (MTC-Der, 29 tests) locks multiple_testing_correction.json:
+  joins three p-value upstreams (oracle_gap_effect_size mannwhitney_p
+  ALREADY two-sided; oracle_gap_by_app_bootstrap p_a_lt_b ONE-sided;
+  popt_vs_grasp_by_family_app p_popt_lt_grasp ONE-sided); two-sided
+  conversion min(1.0, 2 · min(p, 1-p)) — NOT 2·p; unordered-pair dedup
+  via tuple(sorted([a, b])); Holm-Bonferroni step-down threshold α/(n-r+1)
+  with rejection-CHAIN rule (once survives goes False, never True again);
+  Benjamini-Hochberg step-up uses LARGEST-K rule (NOT per-row threshold);
+  BH ⊇ HB (every HB survivor is also BH); expected_false_positives_at_alpha
+  = round(α·n, 3); per-source aggregation with int(bool) counters.
+  Gate 184 (CBL-Der, 34 tests) locks corpus_balance.json: graph→family
+  map from oracle rows (later rows overwrite); per-(family, L3) and
+  per-(app, L3) counts in PAPER_L3 scope = ROW counts NOT unique-cell
+  counts; Shannon H in BITS (log2 not ln); H_max = log2(K); Pielou
+  evenness = H/H_max with 0 fallback when K ≤ 1; Simpson D = 1 - Σp²;
+  all metrics rounded to 4dp; dominance via max() with first-encountered
+  tie-break; per_family.graphs sorted alphabetically; paper_l3_sizes_reached
+  is set→sorted-list (dedup); reaches_4mb/8mb booleans; honest_disclosures
+  4MB-capped ⊆ 8MB-capped (monotone); capped + reaching partition all
+  families.
+  Gate 185 (CSE-Der, 30 tests) locks capacity_sensitivity.json: per-(app,
+  graph, policy) OLS slope of miss_rate_pp over log2(L3_MB) with
+  L3_LOG2_MB = {"1MB":0, "4MB":2, "8MB":3}; miss_rate × 100 for pp;
+  closed-form OLS (n·Σxy − Σx·Σy)/(n·Σxx − (Σx)²); per_cell iteration via
+  sorted(cells.items()) over (app, graph, policy) tuples; slope_pp 4dp;
+  per-policy bespoke percentile s[max(0, min(n-1, int(round(p·(n-1)))))]
+  (NOT numpy.percentile interpolation); POLICIES order alphabetical
+  ("GRASP","LRU","POPT","SRRIP") for policy_summary key emission;
+  steepest = argmin(medians), shallowest = argmax(medians);
+  median_steepness_gap = round(|steep|−|shall|, 4); three-clause verdict:
+  (1) every policy median_pp < −5.0 STRICT, (2) steepest == "LRU" exact,
+  (3) GRASP > LRU medians STRICT; PASS iff all three.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
