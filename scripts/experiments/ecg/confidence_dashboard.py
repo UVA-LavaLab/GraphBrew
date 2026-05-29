@@ -119,6 +119,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_leave_one_graph_out.py", "LOGO"),
     "Cell-winner census":
         ("scripts/test/test_cell_winner_census.py", "Census"),
+    "Family geomean improvement vs LRU":
+        ("scripts/test/test_family_geomean_improvement.py", "FamGeo"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

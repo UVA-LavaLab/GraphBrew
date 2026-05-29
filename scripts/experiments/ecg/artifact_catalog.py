@@ -216,6 +216,14 @@ CATALOG = [
         "summary":   "114 cells: 97.4% have unique winner, 2.6% tied (3 cells all in bc/email-Eu-core: one 4-way tie + two 2-way ties), 0% no-winner. Pins corpus decisiveness; paper must report the tied subcorpus separately.",
     },
     {
+        "id":        "family_geomean_improvement",
+        "label":     "Family geomean improvement vs LRU (bootstrap CIs)",
+        "generator": "scripts/experiments/ecg/family_geomean_improvement.py",
+        "gate":      "scripts/test/test_family_geomean_improvement.py",
+        "artifact":  "wiki/data/family_geomean_improvement.json",
+        "summary":   "63 (family, app, policy != LRU) records with bootstrap CIs on the geomean miss-rate ratio. 34/63 CI-strict improvements vs LRU; 0 CI-strict regressions ('do no harm' check). Marquee: citation/pr/POPT geomean 0.68 (-32% miss-rate, CI [-43%, -13%]); citation/cc/GRASP -26%; social/cc/GRASP -23%; social/pr/POPT -21%.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -295,7 +303,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (42 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (43 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

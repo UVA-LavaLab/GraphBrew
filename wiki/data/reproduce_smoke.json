@@ -1,20 +1,20 @@
 {
-  "n_artifacts": 62,
-  "ok": 62,
+  "n_artifacts": 64,
+  "ok": 64,
   "drift": [],
   "missing": [],
   "passed": true,
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "b6d01052dbec07d8e519ade4cc855ee2872fe5d9896770ff503b2e429b28ecb2",
-      "sha_after": "b6d01052dbec07d8e519ade4cc855ee2872fe5d9896770ff503b2e429b28ecb2",
+      "sha_before": "a3ca5c3bb5578b10bd28331a9e641b894be54114521e2abfc4e0b042f68077a3",
+      "sha_after": "a3ca5c3bb5578b10bd28331a9e641b894be54114521e2abfc4e0b042f68077a3",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "f09d69900b8aff0f6c7a6149f4a0582e6cfd18136223cc70c489f5e889da8a9a",
-      "sha_after": "f09d69900b8aff0f6c7a6149f4a0582e6cfd18136223cc70c489f5e889da8a9a",
+      "sha_before": "ec494a477c86d8d99036ef57c55f252bca3e59d7542b947d66a05b0a6002e79e",
+      "sha_after": "ec494a477c86d8d99036ef57c55f252bca3e59d7542b947d66a05b0a6002e79e",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "cff8242fc72ca45ccc0c7dd43119724deb6792b324b233e7cf011601f821ca23",
-      "sha_after": "cff8242fc72ca45ccc0c7dd43119724deb6792b324b233e7cf011601f821ca23",
+      "sha_before": "95d68c374270fdb815c9a6775315a592a171de533f2615b4eef4f0c988419e88",
+      "sha_after": "95d68c374270fdb815c9a6775315a592a171de533f2615b4eef4f0c988419e88",
       "status": "ok"
     },
     {
@@ -222,6 +222,18 @@
       "status": "ok"
     },
     {
+      "artifact": "family_geomean_improvement.json",
+      "sha_before": "c561516904d17f8fe89d0b2af44201521873d4ab804d999077360110532ccaa6",
+      "sha_after": "c561516904d17f8fe89d0b2af44201521873d4ab804d999077360110532ccaa6",
+      "status": "ok"
+    },
+    {
+      "artifact": "family_geomean_improvement.md",
+      "sha_before": "8f8bae0dc6799433e73eded338e660dc3e6dd40a076d5d0727cdff9d97cd6b46",
+      "sha_after": "8f8bae0dc6799433e73eded338e660dc3e6dd40a076d5d0727cdff9d97cd6b46",
+      "status": "ok"
+    },
+    {
       "artifact": "gem5_anchor.json",
       "sha_before": "5bb82b23003e4603d53f66ac33497808044d1868b70c4762b148e120ae70c912",
       "sha_after": "5bb82b23003e4603d53f66ac33497808044d1868b70c4762b148e120ae70c912",
@@ -295,14 +307,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "b4559efbdbb6df7419b959b4ae2e43e69b4ed58d33fae2d9a67e72f9b951c693",
-      "sha_after": "b4559efbdbb6df7419b959b4ae2e43e69b4ed58d33fae2d9a67e72f9b951c693",
+      "sha_before": "7fa9206125b6092a7dd86ce4d81d857c7c65af23ff5ee11cb58015678e702769",
+      "sha_after": "7fa9206125b6092a7dd86ce4d81d857c7c65af23ff5ee11cb58015678e702769",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "4b0690c4815dec9a159a57162773f8fd9850d55c05b843d5f3ed1a2a27ac8578",
-      "sha_after": "4b0690c4815dec9a159a57162773f8fd9850d55c05b843d5f3ed1a2a27ac8578",
+      "sha_before": "c688912c5aa332bb1a8975e35b17d6b2dd9038842fef8fa04251952cf8d4d387",
+      "sha_after": "c688912c5aa332bb1a8975e35b17d6b2dd9038842fef8fa04251952cf8d4d387",
       "status": "ok"
     },
     {

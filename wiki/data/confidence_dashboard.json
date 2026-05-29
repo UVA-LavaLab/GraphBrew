@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.9677829742431641,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.82s"
+      "runtime_s": 0.39269232749938965,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.26s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.0361683368682861,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.90s"
+      "runtime_s": 0.7861003875732422,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.64s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 4,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1780543327331543,
+      "runtime_s": 0.17173075675964355,
       "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.04s"
     },
     {
@@ -50,8 +50,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.36599206924438477,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.23s"
+      "runtime_s": 0.35917234420776367,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.22s"
     },
     {
       "label": "Lit-baseline structural gate",
@@ -63,7 +63,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24000859260559082,
+      "runtime_s": 0.2387981414794922,
       "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.10s"
     },
     {
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16725969314575195,
+      "runtime_s": 0.16162681579589844,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
     },
     {
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16815900802612305,
+      "runtime_s": 0.16237974166870117,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.03s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15978050231933594,
+      "runtime_s": 0.15044283866882324,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1648271083831787,
+      "runtime_s": 0.15567803382873535,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1675410270690918,
+      "runtime_s": 0.15760302543640137,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1661369800567627,
+      "runtime_s": 0.15787172317504883,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     },
     {
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5263965129852295,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.30s"
+      "runtime_s": 0.46526408195495605,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.29s"
     },
     {
       "label": "gem5 literature anchor",
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.17592859268188477,
+      "runtime_s": 0.16675257682800293,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.04s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16956520080566406,
+      "runtime_s": 0.1621570587158203,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.03s"
     },
     {
@@ -193,7 +193,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.171766996383667,
+      "runtime_s": 0.15896272659301758,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     },
     {
@@ -206,7 +206,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.18919038772583008,
+      "runtime_s": 0.1792161464691162,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.05s"
     },
     {
@@ -219,7 +219,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1598374843597412,
+      "runtime_s": 0.15096807479858398,
       "raw_tail": "..                                                                       [100%]\n2 passed in 0.02s"
     },
     {
@@ -232,7 +232,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1928400993347168,
+      "runtime_s": 0.18606781959533691,
       "raw_tail": ".......                                                                  [100%]\n7 passed in 0.05s"
     },
     {
@@ -245,7 +245,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15915417671203613,
+      "runtime_s": 0.1514453887939453,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -258,7 +258,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16004347801208496,
+      "runtime_s": 0.14955687522888184,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -271,7 +271,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15981793403625488,
+      "runtime_s": 0.15025687217712402,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -284,7 +284,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16388869285583496,
+      "runtime_s": 0.15192341804504395,
       "raw_tail": ".......                                                                  [100%]\n7 passed in 0.02s"
     },
     {
@@ -297,7 +297,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15981221199035645,
+      "runtime_s": 0.14940595626831055,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -310,7 +310,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15971875190734863,
+      "runtime_s": 0.1540694236755371,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -323,7 +323,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16234898567199707,
+      "runtime_s": 0.15247106552124023,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -336,7 +336,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15811443328857422,
+      "runtime_s": 0.14996719360351562,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.02s"
     },
     {
@@ -349,7 +349,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16003036499023438,
+      "runtime_s": 0.1526961326599121,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.02s"
     },
     {
@@ -362,7 +362,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16040682792663574,
+      "runtime_s": 0.1512293815612793,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -375,7 +375,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16257047653198242,
+      "runtime_s": 0.14927101135253906,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -388,7 +388,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1598367691040039,
+      "runtime_s": 0.1488323211669922,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -401,7 +401,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15851092338562012,
+      "runtime_s": 0.14862799644470215,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -414,7 +414,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16182231903076172,
+      "runtime_s": 0.15166759490966797,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.02s"
     },
     {
@@ -427,7 +427,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16803765296936035,
+      "runtime_s": 0.15124297142028809,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -440,7 +440,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1626911163330078,
+      "runtime_s": 0.1568431854248047,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -453,8 +453,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16141128540039062,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.03s"
+      "runtime_s": 0.15737009048461914,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.02s"
     },
     {
       "label": "Leave-one-graph-out robustness",
@@ -466,7 +466,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16271424293518066,
+      "runtime_s": 0.1563427448272705,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.02s"
     },
     {
@@ -479,7 +479,20 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1631641387939453,
+      "runtime_s": 0.1547849178314209,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.02s"
+    },
+    {
+      "label": "Family geomean improvement vs LRU",
+      "short": "FamGeo",
+      "path": "scripts/test/test_family_geomean_improvement.py",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.1609644889831543,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.02s"
     },
     {
@@ -492,7 +505,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16181015968322754,
+      "runtime_s": 0.1552581787109375,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -505,7 +518,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16570186614990234,
+      "runtime_s": 0.15795683860778809,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -518,7 +531,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15928220748901367,
+      "runtime_s": 0.15059256553649902,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -531,8 +544,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16255760192871094,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
+      "runtime_s": 0.15147638320922852,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
       "label": "Artifact catalog completeness",
@@ -544,7 +557,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16659832000732422,
+      "runtime_s": 0.15506863594055176,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.03s"
     }
   ],

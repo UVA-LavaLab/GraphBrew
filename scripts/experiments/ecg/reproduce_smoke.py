@@ -75,6 +75,8 @@ TRACKED_ARTIFACTS = [
     "leave_one_graph_out.md",
     "cell_winner_census.json",
     "cell_winner_census.md",
+    "family_geomean_improvement.json",
+    "family_geomean_improvement.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

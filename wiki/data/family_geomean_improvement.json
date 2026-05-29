@@ -1,0 +1,3003 @@
+{
+  "headline_improvements_ge_10pct": [
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 42.674,
+      "ci_hi_ratio": 0.868888,
+      "ci_lo_improve_pct": 13.111,
+      "ci_lo_ratio": 0.57326,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 31.961,
+      "geomean_ratio": 0.680392,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "cc",
+      "ci_hi_improve_pct": 35.501,
+      "ci_hi_ratio": 0.818206,
+      "ci_lo_improve_pct": 18.179,
+      "ci_lo_ratio": 0.644986,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 25.606,
+      "geomean_ratio": 0.743944,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 33.946,
+      "ci_hi_ratio": 0.880678,
+      "ci_lo_improve_pct": 11.932,
+      "ci_lo_ratio": 0.660535,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 23.401,
+      "geomean_ratio": 0.765991,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "ci_hi_improve_pct": 33.898,
+      "ci_hi_ratio": 0.874073,
+      "ci_lo_improve_pct": 12.593,
+      "ci_lo_ratio": 0.661022,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 23.362,
+      "geomean_ratio": 0.766378,
+      "n_cells": 9,
+      "policy": "GRASP"
+    },
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 25.333,
+      "ci_hi_ratio": 0.870859,
+      "ci_lo_improve_pct": 12.914,
+      "ci_lo_ratio": 0.746675,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 21.138,
+      "geomean_ratio": 0.788618,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 30.644,
+      "ci_hi_ratio": 0.866902,
+      "ci_lo_improve_pct": 13.31,
+      "ci_lo_ratio": 0.693557,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 20.921,
+      "geomean_ratio": 0.79079,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 27.668,
+      "ci_hi_ratio": 0.866411,
+      "ci_lo_improve_pct": 13.359,
+      "ci_lo_ratio": 0.723325,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 20.708,
+      "geomean_ratio": 0.792921,
+      "n_cells": 12,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "ci_hi_improve_pct": 25.671,
+      "ci_hi_ratio": 0.959529,
+      "ci_lo_improve_pct": 4.047,
+      "ci_lo_ratio": 0.743291,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 15.5,
+      "geomean_ratio": 0.845003,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "ci_hi_improve_pct": 27.086,
+      "ci_hi_ratio": 0.953892,
+      "ci_lo_improve_pct": 4.611,
+      "ci_lo_ratio": 0.729137,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 14.607,
+      "geomean_ratio": 0.853933,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 20.563,
+      "ci_hi_ratio": 0.983156,
+      "ci_lo_improve_pct": 1.684,
+      "ci_lo_ratio": 0.794368,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 12.465,
+      "geomean_ratio": 0.87535,
+      "n_cells": 12,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "ci_hi_improve_pct": 21.012,
+      "ci_hi_ratio": 0.957841,
+      "ci_lo_improve_pct": 4.216,
+      "ci_lo_ratio": 0.789875,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 12.369,
+      "geomean_ratio": 0.876314,
+      "n_cells": 9,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "ci_hi_improve_pct": 19.599,
+      "ci_hi_ratio": 0.969652,
+      "ci_lo_improve_pct": 3.035,
+      "ci_lo_ratio": 0.804007,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 11.87,
+      "geomean_ratio": 0.881302,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "ci_hi_improve_pct": 18.699,
+      "ci_hi_ratio": 0.952617,
+      "ci_lo_improve_pct": 4.738,
+      "ci_lo_ratio": 0.81301,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 11.691,
+      "geomean_ratio": 0.883094,
+      "n_cells": 9,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bfs",
+      "ci_hi_improve_pct": 19.307,
+      "ci_hi_ratio": 0.976603,
+      "ci_lo_improve_pct": 2.34,
+      "ci_lo_ratio": 0.806928,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 10.754,
+      "geomean_ratio": 0.892462,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "ci_hi_improve_pct": 14.938,
+      "ci_hi_ratio": 0.943514,
+      "ci_lo_improve_pct": 5.649,
+      "ci_lo_ratio": 0.850625,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 10.417,
+      "geomean_ratio": 0.895827,
+      "n_cells": 9,
+      "policy": "POPT"
+    }
+  ],
+  "headline_regressions_ci_strict": [],
+  "meta": {
+    "alpha": 0.05,
+    "bootstrap_iters": 2000,
+    "bootstrap_seed": 1729,
+    "n_ci_strict_improvements": 34,
+    "n_ci_strict_regressions": 0,
+    "n_records": 63,
+    "scope_l3_sizes": [
+      "1MB",
+      "4MB",
+      "8MB"
+    ],
+    "source": "wiki/data/oracle_gap.json"
+  },
+  "records": [
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.898992,
+          "mr_policy": 0.902363,
+          "ratio": 1.003749755281471
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.741399,
+          "mr_policy": 0.720874,
+          "ratio": 0.972315851518548
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.616659,
+          "mr_policy": 0.563945,
+          "ratio": 0.91451677507342
+        }
+      ],
+      "ci_hi_improve_pct": 8.548,
+      "ci_hi_ratio": 1.00375,
+      "ci_lo_improve_pct": -0.375,
+      "ci_lo_ratio": 0.914517,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 3.719,
+      "geomean_ratio": 0.962812,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.898992,
+          "mr_policy": 0.897556,
+          "ratio": 0.9984026554185131
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.741399,
+          "mr_policy": 0.736844,
+          "ratio": 0.9938562096792686
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.616659,
+          "mr_policy": 0.589237,
+          "ratio": 0.9555313390382693
+        }
+      ],
+      "ci_hi_improve_pct": 4.447,
+      "ci_hi_ratio": 0.998403,
+      "ci_lo_improve_pct": 0.16,
+      "ci_lo_ratio": 0.955531,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 1.759,
+      "geomean_ratio": 0.982407,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.898992,
+          "mr_policy": 0.89268,
+          "ratio": 0.9929788029259438
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.741399,
+          "mr_policy": 0.729365,
+          "ratio": 0.9837685241010576
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.616659,
+          "mr_policy": 0.592732,
+          "ratio": 0.9611989770683637
+        }
+      ],
+      "ci_hi_improve_pct": 3.88,
+      "ci_hi_ratio": 0.992979,
+      "ci_lo_improve_pct": 0.702,
+      "ci_lo_ratio": 0.961199,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 2.078,
+      "geomean_ratio": 0.979224,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.966509,
+          "mr_policy": 0.956526,
+          "ratio": 0.9896710739372319
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.909819,
+          "mr_policy": 0.869013,
+          "ratio": 0.955149320908884
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.871076,
+          "mr_policy": 0.784831,
+          "ratio": 0.9009902695057607
+        }
+      ],
+      "ci_hi_improve_pct": 9.901,
+      "ci_hi_ratio": 0.989671,
+      "ci_lo_improve_pct": 1.033,
+      "ci_lo_ratio": 0.90099,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 5.21,
+      "geomean_ratio": 0.947896,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.966509,
+          "mr_policy": 0.957587,
+          "ratio": 0.9907688391934271
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.909819,
+          "mr_policy": 0.87281,
+          "ratio": 0.9593226784668158
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.871076,
+          "mr_policy": 0.791718,
+          "ratio": 0.9088965830765628
+        }
+      ],
+      "ci_hi_improve_pct": 9.11,
+      "ci_hi_ratio": 0.990769,
+      "ci_lo_improve_pct": 0.923,
+      "ci_lo_ratio": 0.908897,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 4.76,
+      "geomean_ratio": 0.952395,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.966509,
+          "mr_policy": 0.962542,
+          "ratio": 0.9958955374445557
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.909819,
+          "mr_policy": 0.902971,
+          "ratio": 0.9924732281915413
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.871076,
+          "mr_policy": 0.867949,
+          "ratio": 0.9964101869412083
+        }
+      ],
+      "ci_hi_improve_pct": 0.753,
+      "ci_hi_ratio": 0.99641,
+      "ci_lo_improve_pct": 0.359,
+      "ci_lo_ratio": 0.992473,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 0.508,
+      "geomean_ratio": 0.994925,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.643092,
+          "mr_policy": 0.526182,
+          "ratio": 0.8182064152562931
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.31697,
+          "mr_policy": 0.247301,
+          "ratio": 0.7802031738019372
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.181542,
+          "mr_policy": 0.117092,
+          "ratio": 0.6449857333289266
+        }
+      ],
+      "ci_hi_improve_pct": 35.501,
+      "ci_hi_ratio": 0.818206,
+      "ci_lo_improve_pct": 18.179,
+      "ci_lo_ratio": 0.644986,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 25.606,
+      "geomean_ratio": 0.743944,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.643092,
+          "mr_policy": 0.61344,
+          "ratio": 0.9538915116344162
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.31697,
+          "mr_policy": 0.28378,
+          "ratio": 0.8952897750575765
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.181542,
+          "mr_policy": 0.132369,
+          "ratio": 0.7291370591929139
+        }
+      ],
+      "ci_hi_improve_pct": 27.086,
+      "ci_hi_ratio": 0.953892,
+      "ci_lo_improve_pct": 4.611,
+      "ci_lo_ratio": 0.729137,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 14.607,
+      "geomean_ratio": 0.853933,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.643092,
+          "mr_policy": 0.600965,
+          "ratio": 0.9344930429860735
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.31697,
+          "mr_policy": 0.293984,
+          "ratio": 0.9274820960974226
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.181542,
+          "mr_policy": 0.16012,
+          "ratio": 0.8819997576318428
+        }
+      ],
+      "ci_hi_improve_pct": 11.8,
+      "ci_hi_ratio": 0.934493,
+      "ci_lo_improve_pct": 6.551,
+      "ci_lo_ratio": 0.882,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 8.564,
+      "geomean_ratio": 0.914359,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.892299,
+          "mr_policy": 0.785828,
+          "ratio": 0.8806778893621982
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.587932,
+          "mr_policy": 0.45424,
+          "ratio": 0.7726063558370695
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.324767,
+          "mr_policy": 0.21452,
+          "ratio": 0.6605350913116173
+        }
+      ],
+      "ci_hi_improve_pct": 33.946,
+      "ci_hi_ratio": 0.880678,
+      "ci_lo_improve_pct": 11.932,
+      "ci_lo_ratio": 0.660535,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 23.401,
+      "geomean_ratio": 0.765991,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.892299,
+          "mr_policy": 0.775308,
+          "ratio": 0.8688881193411626
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.587932,
+          "mr_policy": 0.371782,
+          "ratio": 0.6323554424661355
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.324767,
+          "mr_policy": 0.186176,
+          "ratio": 0.5732602142459056
+        }
+      ],
+      "ci_hi_improve_pct": 42.674,
+      "ci_hi_ratio": 0.868888,
+      "ci_lo_improve_pct": 13.111,
+      "ci_lo_ratio": 0.57326,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 31.961,
+      "geomean_ratio": 0.680392,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.892299,
+          "mr_policy": 0.878032,
+          "ratio": 0.9840109649343999
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.587932,
+          "mr_policy": 0.546122,
+          "ratio": 0.928886333793704
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.324767,
+          "mr_policy": 0.275616,
+          "ratio": 0.848657653025092
+        }
+      ],
+      "ci_hi_improve_pct": 15.134,
+      "ci_hi_ratio": 0.984011,
+      "ci_lo_improve_pct": 1.599,
+      "ci_lo_ratio": 0.848658,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 8.118,
+      "geomean_ratio": 0.918823,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.852928,
+          "mr_policy": 0.818409,
+          "ratio": 0.9595288230659563
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.563099,
+          "mr_policy": 0.476368,
+          "ratio": 0.845975574454936
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.268958,
+          "mr_policy": 0.199914,
+          "ratio": 0.7432907740241972
+        }
+      ],
+      "ci_hi_improve_pct": 25.671,
+      "ci_hi_ratio": 0.959529,
+      "ci_lo_improve_pct": 4.047,
+      "ci_lo_ratio": 0.743291,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 15.5,
+      "geomean_ratio": 0.845003,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.852928,
+          "mr_policy": 0.827043,
+          "ratio": 0.9696516001350641
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.563099,
+          "mr_policy": 0.494406,
+          "ratio": 0.8780090179524382
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.268958,
+          "mr_policy": 0.216244,
+          "ratio": 0.8040065735170547
+        }
+      ],
+      "ci_hi_improve_pct": 19.599,
+      "ci_hi_ratio": 0.969652,
+      "ci_lo_improve_pct": 3.035,
+      "ci_lo_ratio": 0.804007,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 11.87,
+      "geomean_ratio": 0.881302,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "cit-Patents",
+          "l3_size": "1MB",
+          "mr_lru": 0.852928,
+          "mr_policy": 0.849729,
+          "ratio": 0.9962493903354093
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "4MB",
+          "mr_lru": 0.563099,
+          "mr_policy": 0.538453,
+          "ratio": 0.9562314974809046
+        },
+        {
+          "graph": "cit-Patents",
+          "l3_size": "8MB",
+          "mr_lru": 0.268958,
+          "mr_policy": 0.243975,
+          "ratio": 0.9071118910759302
+        }
+      ],
+      "ci_hi_improve_pct": 9.289,
+      "ci_hi_ratio": 0.996249,
+      "ci_lo_improve_pct": 0.375,
+      "ci_lo_ratio": 0.907112,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 4.75,
+      "geomean_ratio": 0.952498,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "delaunay_n19",
+          "l3_size": "1MB",
+          "mr_lru": 0.953929,
+          "mr_policy": 0.816632,
+          "ratio": 0.8560720976089415
+        }
+      ],
+      "family": "mesh",
+      "n_cells": 1,
+      "policy": "GRASP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "delaunay_n19",
+          "l3_size": "1MB",
+          "mr_lru": 0.953929,
+          "mr_policy": 0.777958,
+          "ratio": 0.8155302962799118
+        }
+      ],
+      "family": "mesh",
+      "n_cells": 1,
+      "policy": "POPT",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "delaunay_n19",
+          "l3_size": "1MB",
+          "mr_lru": 0.953929,
+          "mr_policy": 0.939378,
+          "ratio": 0.9847462442173369
+        }
+      ],
+      "family": "mesh",
+      "n_cells": 1,
+      "policy": "SRRIP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.547962,
+          "mr_policy": 0.908277,
+          "ratio": 1.6575547209478032
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "GRASP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.547962,
+          "mr_policy": 0.752401,
+          "ratio": 1.3730897397994752
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "POPT",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.547962,
+          "mr_policy": 0.526995,
+          "ratio": 0.9617363977794081
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "SRRIP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.255352,
+          "mr_policy": 0.939395,
+          "ratio": 3.67882374134528
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "GRASP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.255352,
+          "mr_policy": 0.589257,
+          "ratio": 2.30762633541151
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "POPT",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.255352,
+          "mr_policy": 0.301779,
+          "ratio": 1.18181568971459
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "SRRIP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.742777,
+          "mr_policy": 0.833974,
+          "ratio": 1.1227784382122763
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "GRASP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.742777,
+          "mr_policy": 0.793359,
+          "ratio": 1.0680985006267023
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "POPT",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.742777,
+          "mr_policy": 0.748151,
+          "ratio": 1.0072350113156439
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "SRRIP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.941718,
+          "mr_policy": 0.956439,
+          "ratio": 1.01563206819876
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "GRASP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.941718,
+          "mr_policy": 0.891772,
+          "ratio": 0.9469628912264605
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "POPT",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.941718,
+          "mr_policy": 0.939348,
+          "ratio": 0.9974833230330098
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "SRRIP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.176259,
+          "mr_policy": 0.877427,
+          "ratio": 4.978055021303876
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "GRASP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.176259,
+          "mr_policy": 0.277201,
+          "ratio": 1.5726913235636193
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "POPT",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "roadNet-CA",
+          "l3_size": "1MB",
+          "mr_lru": 0.176259,
+          "mr_policy": 0.191299,
+          "ratio": 1.0853289761090215
+        }
+      ],
+      "family": "road",
+      "n_cells": 1,
+      "policy": "SRRIP",
+      "skipped_reason": "insufficient_cells_for_bootstrap_min_2"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.862362,
+          "mr_policy": 0.799916,
+          "ratio": 0.9275872545404366
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.582657,
+          "mr_policy": 0.524215,
+          "ratio": 0.8996974206093808
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.382097,
+          "mr_policy": 0.335902,
+          "ratio": 0.8791013800160691
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000122,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000121,
+          "ratio": 0.9918032786885246
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000122,
+          "ratio": 1.0
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.843174,
+          "mr_policy": 0.79492,
+          "ratio": 0.9427710057473309
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.603776,
+          "mr_policy": 0.551066,
+          "ratio": 0.9126994117023531
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.452787,
+          "mr_policy": 0.390387,
+          "ratio": 0.8621868560713978
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.85203,
+          "mr_policy": 0.765123,
+          "ratio": 0.8980000704200557
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.500938,
+          "mr_policy": 0.420456,
+          "ratio": 0.8393374030319122
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.243494,
+          "mr_policy": 0.199376,
+          "ratio": 0.8188127838878987
+        }
+      ],
+      "ci_hi_improve_pct": 11.996,
+      "ci_hi_ratio": 0.945133,
+      "ci_lo_improve_pct": 5.487,
+      "ci_lo_ratio": 0.880036,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 8.753,
+      "geomean_ratio": 0.912474,
+      "n_cells": 12,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.862362,
+          "mr_policy": 0.824663,
+          "ratio": 0.9562840199359435
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.582657,
+          "mr_policy": 0.570893,
+          "ratio": 0.979809733685513
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.382097,
+          "mr_policy": 0.383172,
+          "ratio": 1.0028134217227562
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000122,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000218,
+          "ratio": 1.7868852459016396
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000121,
+          "ratio": 0.9918032786885246
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.843174,
+          "mr_policy": 0.814773,
+          "ratio": 0.9663165609945278
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.603776,
+          "mr_policy": 0.569835,
+          "ratio": 0.9437854436082256
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.452787,
+          "mr_policy": 0.406215,
+          "ratio": 0.8971436900794413
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.85203,
+          "mr_policy": 0.795915,
+          "ratio": 0.934139642970318
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.500938,
+          "mr_policy": 0.43763,
+          "ratio": 0.8736210868410862
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.243494,
+          "mr_policy": 0.202222,
+          "ratio": 0.8305009569024289
+        }
+      ],
+      "ci_hi_improve_pct": 8.26,
+      "ci_hi_ratio": 1.119182,
+      "ci_lo_improve_pct": -11.918,
+      "ci_lo_ratio": 0.917403,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 0.662,
+      "geomean_ratio": 0.993383,
+      "n_cells": 12,
+      "policy": "POPT"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.862362,
+          "mr_policy": 0.836956,
+          "ratio": 0.9705390543646405
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.582657,
+          "mr_policy": 0.550247,
+          "ratio": 0.9443755073739782
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.382097,
+          "mr_policy": 0.353107,
+          "ratio": 0.9241292132626008
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000122,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000121,
+          "ratio": 0.9918032786885246
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.000122,
+          "mr_policy": 0.000121,
+          "ratio": 0.9918032786885246
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.843174,
+          "mr_policy": 0.824953,
+          "ratio": 0.9783899883060911
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.603776,
+          "mr_policy": 0.582806,
+          "ratio": 0.9652685764256944
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.452787,
+          "mr_policy": 0.423678,
+          "ratio": 0.935711493483691
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.85203,
+          "mr_policy": 0.828838,
+          "ratio": 0.9727803011631045
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.500938,
+          "mr_policy": 0.466971,
+          "ratio": 0.9321932055463951
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.243494,
+          "mr_policy": 0.221503,
+          "ratio": 0.9096856596055756
+        }
+      ],
+      "ci_hi_improve_pct": 5.723,
+      "ci_hi_ratio": 0.975575,
+      "ci_lo_improve_pct": 2.442,
+      "ci_lo_ratio": 0.942769,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 4.07,
+      "geomean_ratio": 0.9593,
+      "n_cells": 12,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.99728,
+          "mr_policy": 0.99494,
+          "ratio": 0.9976536178405262
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.994937,
+          "mr_policy": 0.978458,
+          "ratio": 0.983437142251218
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.994229,
+          "mr_policy": 0.962075,
+          "ratio": 0.9676593621791357
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.045849,
+          "mr_policy": 0.223364,
+          "ratio": 4.871731117363519
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.045853,
+          "mr_policy": 0.045851,
+          "ratio": 0.9999563823522999
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.045873,
+          "mr_policy": 0.045826,
+          "ratio": 0.9989754321714298
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.798664,
+          "mr_policy": 0.787126,
+          "ratio": 0.985553374134805
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.607464,
+          "mr_policy": 0.60071,
+          "ratio": 0.9888816456613067
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.557108,
+          "mr_policy": 0.531077,
+          "ratio": 0.9532747689855467
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.871696,
+          "mr_policy": 0.842981,
+          "ratio": 0.967058469925295
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.740122,
+          "mr_policy": 0.676437,
+          "ratio": 0.9139533752543499
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.714564,
+          "mr_policy": 0.603778,
+          "ratio": 0.8449600035826043
+        }
+      ],
+      "ci_hi_improve_pct": 5.975,
+      "ci_hi_ratio": 1.460603,
+      "ci_lo_improve_pct": -46.06,
+      "ci_lo_ratio": 0.940254,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": -10.195,
+      "geomean_ratio": 1.101946,
+      "n_cells": 12,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.99728,
+          "mr_policy": 0.997835,
+          "ratio": 1.0005565137173111
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.994937,
+          "mr_policy": 0.974505,
+          "ratio": 0.9794640263654885
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.994229,
+          "mr_policy": 0.95479,
+          "ratio": 0.9603320764129794
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.045849,
+          "mr_policy": 0.045853,
+          "ratio": 1.0000872429060612
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.045853,
+          "mr_policy": 0.045849,
+          "ratio": 0.9999127647045996
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.045873,
+          "mr_policy": 0.045841,
+          "ratio": 0.9993024219039522
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.798664,
+          "mr_policy": 0.771569,
+          "ratio": 0.9660745945729367
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.607464,
+          "mr_policy": 0.588583,
+          "ratio": 0.9689183227318819
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.557108,
+          "mr_policy": 0.521469,
+          "ratio": 0.9360285617869424
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.871696,
+          "mr_policy": 0.855599,
+          "ratio": 0.9815336998219563
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.740122,
+          "mr_policy": 0.673605,
+          "ratio": 0.9101269790656136
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.714564,
+          "mr_policy": 0.59276,
+          "ratio": 0.8295408109000733
+        }
+      ],
+      "ci_hi_improve_pct": 7.082,
+      "ci_hi_ratio": 0.984784,
+      "ci_lo_improve_pct": 1.522,
+      "ci_lo_ratio": 0.929177,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 4.027,
+      "geomean_ratio": 0.959728,
+      "n_cells": 12,
+      "policy": "POPT"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.99728,
+          "mr_policy": 0.997617,
+          "ratio": 1.000337919140061
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.994937,
+          "mr_policy": 0.995591,
+          "ratio": 1.0006573280519269
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.994229,
+          "mr_policy": 0.994499,
+          "ratio": 1.0002715672143943
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.045849,
+          "mr_policy": 0.045832,
+          "ratio": 0.9996292176492398
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.045853,
+          "mr_policy": 0.045853,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.045873,
+          "mr_policy": 0.04586,
+          "ratio": 0.9997166088984806
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.798664,
+          "mr_policy": 0.78285,
+          "ratio": 0.9801994330531989
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.607464,
+          "mr_policy": 0.600855,
+          "ratio": 0.9891203429339023
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.557108,
+          "mr_policy": 0.552149,
+          "ratio": 0.9910986738657495
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.871696,
+          "mr_policy": 0.861972,
+          "ratio": 0.9888447348616948
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.740122,
+          "mr_policy": 0.738747,
+          "ratio": 0.9981421981781383
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.714564,
+          "mr_policy": 0.713591,
+          "ratio": 0.9986383305064347
+        }
+      ],
+      "ci_hi_improve_pct": 0.841,
+      "ci_hi_ratio": 0.998904,
+      "ci_lo_improve_pct": 0.11,
+      "ci_lo_ratio": 0.991588,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 0.447,
+      "geomean_ratio": 0.995534,
+      "n_cells": 12,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.688918,
+          "mr_policy": 0.58369,
+          "ratio": 0.8472561320795798
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.503285,
+          "mr_policy": 0.369839,
+          "ratio": 0.7348500352682873
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.430593,
+          "mr_policy": 0.22116,
+          "ratio": 0.5136172673499104
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.783198,
+          "mr_policy": 0.745014,
+          "ratio": 0.9512460450614021
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.543694,
+          "mr_policy": 0.477399,
+          "ratio": 0.8780656030782021
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.431375,
+          "mr_policy": 0.319267,
+          "ratio": 0.7401147493480151
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.699434,
+          "mr_policy": 0.568383,
+          "ratio": 0.8126327859383444
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.396085,
+          "mr_policy": 0.226401,
+          "ratio": 0.5715970056932224
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.057708,
+          "mr_policy": 0.057315,
+          "ratio": 0.993189852360158
+        }
+      ],
+      "ci_hi_improve_pct": 33.898,
+      "ci_hi_ratio": 0.874073,
+      "ci_lo_improve_pct": 12.593,
+      "ci_lo_ratio": 0.661022,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 23.362,
+      "geomean_ratio": 0.766378,
+      "n_cells": 9,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.688918,
+          "mr_policy": 0.693854,
+          "ratio": 1.007164858517269
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.503285,
+          "mr_policy": 0.470386,
+          "ratio": 0.9346314712339927
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.430593,
+          "mr_policy": 0.283031,
+          "ratio": 0.6573051582352708
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.783198,
+          "mr_policy": 0.75899,
+          "ratio": 0.9690908301604448
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.543694,
+          "mr_policy": 0.495497,
+          "ratio": 0.9113527094284652
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.431375,
+          "mr_policy": 0.350099,
+          "ratio": 0.8115885250651984
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.699434,
+          "mr_policy": 0.674186,
+          "ratio": 0.9639022409548291
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.396085,
+          "mr_policy": 0.282483,
+          "ratio": 0.7131878258454624
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.057708,
+          "mr_policy": 0.057682,
+          "ratio": 0.9995494558813335
+        }
+      ],
+      "ci_hi_improve_pct": 21.012,
+      "ci_hi_ratio": 0.957841,
+      "ci_lo_improve_pct": 4.216,
+      "ci_lo_ratio": 0.789875,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 12.369,
+      "geomean_ratio": 0.876314,
+      "n_cells": 9,
+      "policy": "POPT"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.688918,
+          "mr_policy": 0.651004,
+          "ratio": 0.9449658740227429
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.503285,
+          "mr_policy": 0.488797,
+          "ratio": 0.9712131297376239
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.430593,
+          "mr_policy": 0.321163,
+          "ratio": 0.7458621017991467
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.783198,
+          "mr_policy": 0.772184,
+          "ratio": 0.9859371448854568
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.543694,
+          "mr_policy": 0.532392,
+          "ratio": 0.9792125717775071
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.431375,
+          "mr_policy": 0.409854,
+          "ratio": 0.9501106925528832
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.699434,
+          "mr_policy": 0.666805,
+          "ratio": 0.9533494225330768
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.396085,
+          "mr_policy": 0.329942,
+          "ratio": 0.8330080664503832
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.057708,
+          "mr_policy": 0.057727,
+          "ratio": 1.0003292437790254
+        }
+      ],
+      "ci_hi_improve_pct": 13.247,
+      "ci_hi_ratio": 0.974758,
+      "ci_lo_improve_pct": 2.524,
+      "ci_lo_ratio": 0.867531,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 7.437,
+      "geomean_ratio": 0.925629,
+      "n_cells": 9,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.710401,
+          "mr_policy": 0.686721,
+          "ratio": 0.9666667135885226
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.310834,
+          "mr_policy": 0.267884,
+          "ratio": 0.8618233526576887
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.164581,
+          "mr_policy": 0.129581,
+          "ratio": 0.7873387572076971
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.008052,
+          "mr_policy": 0.011343,
+          "ratio": 1.4087183308494784
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.007694,
+          "mr_policy": 0.007562,
+          "ratio": 0.9828437743696387
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.008027,
+          "mr_policy": 0.007594,
+          "ratio": 0.9460570574311699
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.7322,
+          "mr_policy": 0.684286,
+          "ratio": 0.9345615951925703
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.426147,
+          "mr_policy": 0.351445,
+          "ratio": 0.8247036820627625
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.275619,
+          "mr_policy": 0.201771,
+          "ratio": 0.7320649156988451
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.679564,
+          "mr_policy": 0.54339,
+          "ratio": 0.7996156359077292
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.196937,
+          "mr_policy": 0.13022,
+          "ratio": 0.6612266867069164
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.100416,
+          "mr_policy": 0.079289,
+          "ratio": 0.7896052421924792
+        }
+      ],
+      "ci_hi_improve_pct": 20.563,
+      "ci_hi_ratio": 0.983156,
+      "ci_lo_improve_pct": 1.684,
+      "ci_lo_ratio": 0.794368,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 12.465,
+      "geomean_ratio": 0.87535,
+      "n_cells": 12,
+      "policy": "GRASP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.710401,
+          "mr_policy": 0.618423,
+          "ratio": 0.8705266462181218
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.310834,
+          "mr_policy": 0.215751,
+          "ratio": 0.6941036051397209
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.164581,
+          "mr_policy": 0.109374,
+          "ratio": 0.6645603076904382
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.008052,
+          "mr_policy": 0.007465,
+          "ratio": 0.9270988574267263
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.007694,
+          "mr_policy": 0.007812,
+          "ratio": 1.0153366259422927
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.008027,
+          "mr_policy": 0.007812,
+          "ratio": 0.9732153980316434
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.7322,
+          "mr_policy": 0.624785,
+          "ratio": 0.8532982791586999
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.426147,
+          "mr_policy": 0.291691,
+          "ratio": 0.6844844619344967
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.275619,
+          "mr_policy": 0.17965,
+          "ratio": 0.6518055721847913
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.679564,
+          "mr_policy": 0.547604,
+          "ratio": 0.8058166706888534
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.196937,
+          "mr_policy": 0.123798,
+          "ratio": 0.6286172735443315
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.100416,
+          "mr_policy": 0.087432,
+          "ratio": 0.8706978967495219
+        }
+      ],
+      "ci_hi_improve_pct": 27.668,
+      "ci_hi_ratio": 0.866411,
+      "ci_lo_improve_pct": 13.359,
+      "ci_lo_ratio": 0.723325,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 20.708,
+      "geomean_ratio": 0.792921,
+      "n_cells": 12,
+      "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.710401,
+          "mr_policy": 0.668635,
+          "ratio": 0.9412078530294862
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.310834,
+          "mr_policy": 0.274322,
+          "ratio": 0.8825353725782894
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.164581,
+          "mr_policy": 0.142183,
+          "ratio": 0.8639089566839429
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 0.008052,
+          "mr_policy": 0.007664,
+          "ratio": 0.951813214108296
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 0.007694,
+          "mr_policy": 0.007569,
+          "ratio": 0.9837535742136729
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 0.008027,
+          "mr_policy": 0.007789,
+          "ratio": 0.9703500685187493
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.7322,
+          "mr_policy": 0.699437,
+          "ratio": 0.9552540289538378
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.426147,
+          "mr_policy": 0.389702,
+          "ratio": 0.9144778679657489
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.275619,
+          "mr_policy": 0.24064,
+          "ratio": 0.8730893008101763
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.679564,
+          "mr_policy": 0.634395,
+          "ratio": 0.9335323825276208
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.196937,
+          "mr_policy": 0.161599,
+          "ratio": 0.8205619055840192
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.100416,
+          "mr_policy": 0.088267,
+          "ratio": 0.8790133046526449
+        }
+      ],
+      "ci_hi_improve_pct": 11.559,
+      "ci_hi_ratio": 0.9402,
+      "ci_lo_improve_pct": 5.98,
+      "ci_lo_ratio": 0.884415,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 8.714,
+      "geomean_ratio": 0.912858,
+      "n_cells": 12,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.660328,
+          "mr_policy": 0.633754,
+          "ratio": 0.9597563635041979
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.169719,
+          "mr_policy": 0.158877,
+          "ratio": 0.936117936117936
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.024596,
+          "mr_policy": 0.02245,
+          "ratio": 0.9127500406570175
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.687689,
+          "mr_policy": 0.708334,
+          "ratio": 1.0300208379078333
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.355631,
+          "mr_policy": 0.308876,
+          "ratio": 0.8685294589054385
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.164663,
+          "mr_policy": 0.128809,
+          "ratio": 0.7822583093955534
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.639747,
+          "mr_policy": 0.529359,
+          "ratio": 0.8274505390412148
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.098727,
+          "mr_policy": 0.067818,
+          "ratio": 0.6869245495153302
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.002951,
+          "mr_policy": 0.002955,
+          "ratio": 1.0013554727211116
+        }
+      ],
+      "ci_hi_improve_pct": 18.699,
+      "ci_hi_ratio": 0.952617,
+      "ci_lo_improve_pct": 4.738,
+      "ci_lo_ratio": 0.81301,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 11.691,
+      "geomean_ratio": 0.883094,
+      "n_cells": 9,
+      "policy": "GRASP"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.660328,
+          "mr_policy": 0.596793,
+          "ratio": 0.9037826655843763
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.169719,
+          "mr_policy": 0.14727,
+          "ratio": 0.8677284216852562
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.024596,
+          "mr_policy": 0.024068,
+          "ratio": 0.9785330948121646
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.687689,
+          "mr_policy": 0.673029,
+          "ratio": 0.9786822240867601
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.355631,
+          "mr_policy": 0.312181,
+          "ratio": 0.8778227994747365
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.164663,
+          "mr_policy": 0.134584,
+          "ratio": 0.8173299405452349
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.639747,
+          "mr_policy": 0.570327,
+          "ratio": 0.8914883539899368
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.098727,
+          "mr_policy": 0.076542,
+          "ratio": 0.7752894345012004
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.002951,
+          "mr_policy": 0.002944,
+          "ratio": 0.9976279227380549
+        }
+      ],
+      "ci_hi_improve_pct": 14.938,
+      "ci_hi_ratio": 0.943514,
+      "ci_lo_improve_pct": 5.649,
+      "ci_lo_ratio": 0.850625,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 10.417,
+      "geomean_ratio": 0.895827,
+      "n_cells": 9,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.660328,
+          "mr_policy": 0.620433,
+          "ratio": 0.9395830556935341
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.169719,
+          "mr_policy": 0.154127,
+          "ratio": 0.9081304980585555
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.024596,
+          "mr_policy": 0.022316,
+          "ratio": 0.9073020003252561
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.687689,
+          "mr_policy": 0.687091,
+          "ratio": 0.999130420873389
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.355631,
+          "mr_policy": 0.342338,
+          "ratio": 0.9626213687783124
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.164663,
+          "mr_policy": 0.150166,
+          "ratio": 0.9119595780472844
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.639747,
+          "mr_policy": 0.608038,
+          "ratio": 0.9504350938730467
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.098727,
+          "mr_policy": 0.085379,
+          "ratio": 0.8647988898680199
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.002951,
+          "mr_policy": 0.002952,
+          "ratio": 1.0003388681802778
+        }
+      ],
+      "ci_hi_improve_pct": 9.055,
+      "ci_hi_ratio": 0.965909,
+      "ci_lo_improve_pct": 3.409,
+      "ci_lo_ratio": 0.909454,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 6.271,
+      "geomean_ratio": 0.937292,
+      "n_cells": 9,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.707256,
+          "mr_policy": 0.707452,
+          "ratio": 1.0002771273767914
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.368711,
+          "mr_policy": 0.3418,
+          "ratio": 0.9270132976775849
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.151522,
+          "mr_policy": 0.135697,
+          "ratio": 0.8955597207006245
+        }
+      ],
+      "ci_hi_improve_pct": 10.444,
+      "ci_hi_ratio": 1.000277,
+      "ci_lo_improve_pct": -0.028,
+      "ci_lo_ratio": 0.89556,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 6.006,
+      "geomean_ratio": 0.93994,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.707256,
+          "mr_policy": 0.702327,
+          "ratio": 0.9930308120397706
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.368711,
+          "mr_policy": 0.370817,
+          "ratio": 1.0057117905351345
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.151522,
+          "mr_policy": 0.166195,
+          "ratio": 1.096837422948483
+        }
+      ],
+      "ci_hi_improve_pct": 0.697,
+      "ci_hi_ratio": 1.096837,
+      "ci_lo_improve_pct": -9.684,
+      "ci_lo_ratio": 0.993031,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": -3.084,
+      "geomean_ratio": 1.030844,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "bc",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.707256,
+          "mr_policy": 0.688876,
+          "ratio": 0.9740122388498649
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.368711,
+          "mr_policy": 0.357427,
+          "ratio": 0.969396085280884
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.151522,
+          "mr_policy": 0.144413,
+          "ratio": 0.9530827206610263
+        }
+      ],
+      "ci_hi_improve_pct": 4.692,
+      "ci_hi_ratio": 0.974012,
+      "ci_lo_improve_pct": 2.599,
+      "ci_lo_ratio": 0.953083,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 3.454,
+      "geomean_ratio": 0.965455,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.970019,
+          "mr_policy": 0.936341,
+          "ratio": 0.96528109243221
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.935872,
+          "mr_policy": 0.759041,
+          "ratio": 0.8110521524311016
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.80865,
+          "mr_policy": 0.754225,
+          "ratio": 0.9326964694243493
+        }
+      ],
+      "ci_hi_improve_pct": 18.895,
+      "ci_hi_ratio": 0.965281,
+      "ci_lo_improve_pct": 3.472,
+      "ci_lo_ratio": 0.811052,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 9.951,
+      "geomean_ratio": 0.900494,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.970019,
+          "mr_policy": 0.947323,
+          "ratio": 0.9766025201568217
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.935872,
+          "mr_policy": 0.755181,
+          "ratio": 0.8069276567735758
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.80865,
+          "mr_policy": 0.729419,
+          "ratio": 0.9020206517034565
+        }
+      ],
+      "ci_hi_improve_pct": 19.307,
+      "ci_hi_ratio": 0.976603,
+      "ci_lo_improve_pct": 2.34,
+      "ci_lo_ratio": 0.806928,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 10.754,
+      "geomean_ratio": 0.892462,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.970019,
+          "mr_policy": 0.969339,
+          "ratio": 0.9992989828034297
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.935872,
+          "mr_policy": 0.934855,
+          "ratio": 0.998913312931683
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.80865,
+          "mr_policy": 0.80384,
+          "ratio": 0.9940518147529834
+        }
+      ],
+      "ci_hi_improve_pct": 0.595,
+      "ci_hi_ratio": 0.999299,
+      "ci_lo_improve_pct": 0.07,
+      "ci_lo_ratio": 0.994052,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 0.258,
+      "geomean_ratio": 0.997419,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.560761,
+          "mr_policy": 0.4944,
+          "ratio": 0.8816590312093745
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.045733,
+          "mr_policy": 0.045679,
+          "ratio": 0.9988192333763365
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.045641,
+          "mr_policy": 0.045695,
+          "ratio": 1.0011831467321048
+        }
+      ],
+      "ci_hi_improve_pct": 11.834,
+      "ci_hi_ratio": 1.001183,
+      "ci_lo_improve_pct": -0.118,
+      "ci_lo_ratio": 0.881659,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 4.111,
+      "geomean_ratio": 0.958886,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.560761,
+          "mr_policy": 0.507075,
+          "ratio": 0.9042622436296391
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.045733,
+          "mr_policy": 0.045714,
+          "ratio": 0.999584545076859
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.045641,
+          "mr_policy": 0.045687,
+          "ratio": 1.0010078657347559
+        }
+      ],
+      "ci_hi_improve_pct": 9.574,
+      "ci_hi_ratio": 1.001008,
+      "ci_lo_improve_pct": -0.101,
+      "ci_lo_ratio": 0.904262,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 3.28,
+      "geomean_ratio": 0.967202,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.560761,
+          "mr_policy": 0.522174,
+          "ratio": 0.9311881532417555
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.045733,
+          "mr_policy": 0.04573,
+          "ratio": 0.9999344018542409
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.045641,
+          "mr_policy": 0.045658,
+          "ratio": 1.0003724721193663
+        }
+      ],
+      "ci_hi_improve_pct": 6.881,
+      "ci_hi_ratio": 1.000372,
+      "ci_lo_improve_pct": -0.037,
+      "ci_lo_ratio": 0.931188,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 2.338,
+      "geomean_ratio": 0.976615,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.600866,
+          "mr_policy": 0.453209,
+          "ratio": 0.7542596851877124
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.141419,
+          "mr_policy": 0.105594,
+          "ratio": 0.7466747749595175
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.097049,
+          "mr_policy": 0.084516,
+          "ratio": 0.8708590505826953
+        }
+      ],
+      "ci_hi_improve_pct": 25.333,
+      "ci_hi_ratio": 0.870859,
+      "ci_lo_improve_pct": 12.914,
+      "ci_lo_ratio": 0.746675,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 21.138,
+      "geomean_ratio": 0.788618,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.600866,
+          "mr_policy": 0.416735,
+          "ratio": 0.6935572989651603
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.141419,
+          "mr_policy": 0.116316,
+          "ratio": 0.8224920272382071
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.097049,
+          "mr_policy": 0.084132,
+          "ratio": 0.8669022864738432
+        }
+      ],
+      "ci_hi_improve_pct": 30.644,
+      "ci_hi_ratio": 0.866902,
+      "ci_lo_improve_pct": 13.31,
+      "ci_lo_ratio": 0.693557,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 20.921,
+      "geomean_ratio": 0.79079,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.600866,
+          "mr_policy": 0.543887,
+          "ratio": 0.905171868602983
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.141419,
+          "mr_policy": 0.119035,
+          "ratio": 0.8417185809544687
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.097049,
+          "mr_policy": 0.093357,
+          "ratio": 0.9619573617450978
+        }
+      ],
+      "ci_hi_improve_pct": 15.828,
+      "ci_hi_ratio": 0.961957,
+      "ci_lo_improve_pct": 3.804,
+      "ci_lo_ratio": 0.841719,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 9.839,
+      "geomean_ratio": 0.901608,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.555762,
+          "mr_policy": 0.556102,
+          "ratio": 1.0006117726652777
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.016276,
+          "mr_policy": 0.016287,
+          "ratio": 1.000675841730155
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.01629,
+          "mr_policy": 0.016262,
+          "ratio": 0.998281154082259
+        }
+      ],
+      "ci_hi_improve_pct": 0.172,
+      "ci_hi_ratio": 1.000676,
+      "ci_lo_improve_pct": -0.068,
+      "ci_lo_ratio": 0.998281,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 0.014,
+      "geomean_ratio": 0.999856,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.555762,
+          "mr_policy": 0.547522,
+          "ratio": 0.9851735095238608
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.016276,
+          "mr_policy": 0.016288,
+          "ratio": 1.0007372818874418
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.01629,
+          "mr_policy": 0.016262,
+          "ratio": 0.998281154082259
+        }
+      ],
+      "ci_hi_improve_pct": 1.483,
+      "ci_hi_ratio": 1.000737,
+      "ci_lo_improve_pct": -0.074,
+      "ci_lo_ratio": 0.985174,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 0.529,
+      "geomean_ratio": 0.994707,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "web-Google",
+          "l3_size": "1MB",
+          "mr_lru": 0.555762,
+          "mr_policy": 0.550741,
+          "ratio": 0.990965557198945
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "4MB",
+          "mr_lru": 0.016276,
+          "mr_policy": 0.016295,
+          "ratio": 1.0011673629884494
+        },
+        {
+          "graph": "web-Google",
+          "l3_size": "8MB",
+          "mr_lru": 0.01629,
+          "mr_policy": 0.016256,
+          "ratio": 0.9979128299570289
+        }
+      ],
+      "ci_hi_improve_pct": 0.903,
+      "ci_hi_ratio": 1.001167,
+      "ci_lo_improve_pct": -0.117,
+      "ci_lo_ratio": 0.990966,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 0.333,
+      "geomean_ratio": 0.996673,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    }
+  ]
+}
