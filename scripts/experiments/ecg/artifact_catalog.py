@@ -432,6 +432,14 @@ CATALOG = [
         "summary":   "Within-policy cross-check between gate 65 (saturation distance, miss(4MB)-miss(8MB)) and gate 66 (capacity-sensitivity slope, OLS over {1MB,4MB,8MB}). Both metrics derive from the same per-(app, graph, policy) miss curve, so they must be positively correlated. Observed: 102 non-flat cells (10 flat cells excluded via |slope|<0.05 pp), Pearson r=0.51, Spearman rho=0.45, median(distance/|slope|)=0.96. The correlation is moderate-not-strong because heterogeneous curve shapes (convex vs concave) decouple the upper-octave drop from the average per-octave drop. This is a regression test for the gate 65 and gate 66 generators: a sign flip in either would push the correlation negative, a scaling error would push the ratio outside [0.70, 1.30]. Verdict PASS iff (1) >= 80 matched cells, (2) Pearson r >= 0.40, (3) Spearman rho >= 0.40, (4) median ratio in [0.70, 1.30].",
     },
     {
+        "id":        "gem5_slope_replay",
+        "label":     "Gem5 anchor slope sanity",
+        "generator": "scripts/experiments/ecg/gem5_slope_replay.py",
+        "gate":      "scripts/test/test_gem5_slope_replay.py",
+        "artifact":  "wiki/data/gem5_slope_replay.json",
+        "summary":   "Computes OLS slope of miss_rate (pp) vs log2(L3 kB) across the four gem5 anchor sizes (4kB/32kB/256kB/2MB) per (app, graph, policy). On the current bc+pr@email-Eu-core anchor corpus, GRASP median = -5.96 pp/oct, LRU = -5.12, SRRIP = -7.21. Verdict PASS iff (1) cache monotonicity holds in every cell (miss(4kB) > miss(2MB)), (2) every per-policy median slope is negative, (3) SRRIP median <= GRASP median (SRRIP is more cache-hungry than the oracle-aware GRASP), (4) GRASP median is below the help-floor (-1.0 pp/oct). The LRU-vs-GRASP delta is reported as INFORMATIONAL and explicitly NOT gated: sub-WSS anchor scales (4kB << email-Eu-core WSS ~4.5kB) put PR into a small-cache regime where LRU's give-up-and-stream behavior beats GRASP's hold-the-hot-set behavior, which inverts the LRU>GRASP ordering observed at 1-8MB cache-sim sizes.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -511,7 +519,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (69 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (70 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
