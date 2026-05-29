@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "f8efda34dcb9ed29afa66f040909667e47887e0546a4d0759710f73a365b8931",
-      "sha_after": "f8efda34dcb9ed29afa66f040909667e47887e0546a4d0759710f73a365b8931",
+      "sha_before": "226339f9a4e3e52520771849c64616709eba5d748eaf6c03b8c34f323edda1c7",
+      "sha_after": "226339f9a4e3e52520771849c64616709eba5d748eaf6c03b8c34f323edda1c7",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "81322b1619ca43ce1b1202719ff87189130a367ed99dd09862a0d96b726fa3ad",
-      "sha_after": "81322b1619ca43ce1b1202719ff87189130a367ed99dd09862a0d96b726fa3ad",
+      "sha_before": "3779e93e192e4d126d5dd818ac53315a8d3e68f8a59b8cbdb71e5fe08f9c8669",
+      "sha_after": "3779e93e192e4d126d5dd818ac53315a8d3e68f8a59b8cbdb71e5fe08f9c8669",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "e67c97cc509fd3ab32ee5565ceb55eede29cc4d02418f139b8b969feff936b89",
-      "sha_after": "e67c97cc509fd3ab32ee5565ceb55eede29cc4d02418f139b8b969feff936b89",
+      "sha_before": "6dd99e8e7013cdc1daff61dc60fef58c0eff32da8cf2045b5da8d6ae5122a437",
+      "sha_after": "6dd99e8e7013cdc1daff61dc60fef58c0eff32da8cf2045b5da8d6ae5122a437",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "b1e49544845039632b4256fdb2ca190dc218dc65af71a4ccd7bb58b3d26b976d",
-      "sha_after": "b1e49544845039632b4256fdb2ca190dc218dc65af71a4ccd7bb58b3d26b976d",
+      "sha_before": "917099d77b60e28f3ca7bd5c20c837d240260b8bf99ed96ef7b06f099128aedd",
+      "sha_after": "917099d77b60e28f3ca7bd5c20c837d240260b8bf99ed96ef7b06f099128aedd",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "a647e7a9e1b23160183c080fd5404e149363f284f2a412f1c939b0ae20b1cceb",
-      "sha_after": "a647e7a9e1b23160183c080fd5404e149363f284f2a412f1c939b0ae20b1cceb",
+      "sha_before": "fd5871ebea32eedf525683fb093b2ba17e27a41bf2add619cb3af27e19b22452",
+      "sha_after": "fd5871ebea32eedf525683fb093b2ba17e27a41bf2add619cb3af27e19b22452",
       "status": "ok"
     },
     {

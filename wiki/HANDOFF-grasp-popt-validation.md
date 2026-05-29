@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **175 gates, all GREEN, exit 0**.
+and currently reports **180 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–175.**
+- **Cross-artifact / cross-source derivation parity gates 151–180.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -644,6 +644,52 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   requires BOTH spread ≤ 1e-3 AND all_three_present (partial cells
   are NEVER agree=True); mismatches = [c for c if not c.agree];
   n_full_triple_cells counts all_three_present cells separately.
+  Gate 176 (LFR-Der, 25 tests) locks lofo_robustness.json: leave-one-
+  family-out winner partition on oracle_gap rows filtered to PAPER_L3;
+  is_winner check uses STRING "1" (NOT int 1, NOT truth); tie-break
+  sort key (-wins, policy_name) alphabetical; drops dict per-family
+  is {"missing": True} only for missing-app cells, else 6 fields
+  including same_winner_as_full; fragile_family_drops in family-
+  iteration order; is_lofo_robust iff empty fragile list;
+  robustness_fraction = round(n_robust/n_apps, 4); 0.0 if no apps.
+  Gate 177 (LGO-Der, 23 tests) locks leave_one_graph_out.json: LOGO
+  sibling of LFR-Der but uses FULL CORPUS (no L3 scope filter); same
+  is_winner STRING "1" predicate; drops entries carry 5 fields
+  (NO runner_up_wins — load-bearing asymmetry vs LFR-Der full_corpus
+  which carries 6); n_drops always equals n_graphs; fragile_drops
+  in sorted-graph iteration order; is_logo_robust iff empty fragile.
+  Gate 178 (PGF-Der, 19 tests) locks popt_vs_grasp_by_family_app.json:
+  per-(family × app) paired bootstrap Δ = gap(POPT) − gap(GRASP) with
+  N_RESAMPLES=2000, SEED=1729, CI_LEVEL=0.95, N_PAIRED_FLOOR=3;
+  iteration order families_sorted × apps_sorted is load-bearing for
+  Random(1729); cell match key (graph, l3_size); STRICT m<0 for
+  p_popt_lt_grasp; cells_with_data counts n_paired≥3; cells_skipped_
+  insufficient counts 0<n_paired<3 (zero-paired cells NOT counted as
+  skipped — load-bearing); full 50,000-draw bootstrap byte-exact re-roll.
+  Gate 179 (CSO-Der, 26 tests) locks cache_saturation_onset.json:
+  per-(app,policy) octave walker on oracle_gap_auc#trajectory_by_policy;
+  saturation onset = smallest i where ALL octaves[i:] satisfy
+  −0.5 < delta_pp ≤ 0 (NON-STRICT upper bound = 0 includes flat,
+  excludes anti-scaling); slope_pp_per_octave = round(−Δgap/Δlog2, 4)
+  with SIGN FLIP load-bearing (positive slope = shrinking);
+  saturation_rank_by_policy sort key (-c['1MB'], -c['4MB'],
+  n_never_saturated) — ties broken by FEWER never-saturated cells;
+  closes the gate 173 OGC-Der cross-gate-consistency seam (which
+  mirrors this artifact's saturation_rank_by_policy first element).
+  Gate 180 (OGR-Der, 29 tests) locks oracle_gap.json — THE UPSTREAM
+  of ~13 downstream artifacts: per-cell construction from
+  literature_faithfulness_postfix.csv with skip predicate (<2 policies,
+  unknown family dropped); oracle = min over PRESENT policies (NOT all
+  four); is_winner uses abs(mr − oracle) < 1e-9 (NOT equality);
+  miss_rate/oracle 6dp string, gap_pp 3dp string, n_policies_in_cell
+  int; row sort (family, graph, app, L3_bytes, policy); regime
+  classifier NON-STRICT <= boundaries (tiny ≤64KB, small ≤256KB, else
+  large); summary p90 = sorted[min(n-1, int(round(0.9·(n-1))))] —
+  bespoke not numpy.percentile; mean=statistics.fmean, median=
+  statistics.median, all 4dp; overall_by_policy emits ALL POLICIES
+  even with 0 rows; by_policy_family/regime keys sorted by (pol, label)
+  tuple. Full 456-row byte-exact CSV re-derivation. Locks the deepest
+  seam in the dashboard.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others

@@ -259,6 +259,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_popt_vs_grasp_by_family_app_derivation_parity.py", "PGF-Der"),
     "cache_saturation_onset derivation parity (per-(app,policy) octave walker + per-policy rank)":
         ("scripts/test/test_cache_saturation_onset_derivation_parity.py", "CSO-Der"),
+    "oracle_gap derivation parity (THE upstream: per-cell rows + summary stat block from CSV)":
+        ("scripts/test/test_oracle_gap_derivation_parity.py", "OGR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
