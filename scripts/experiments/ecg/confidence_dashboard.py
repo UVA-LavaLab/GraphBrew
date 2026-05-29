@@ -157,6 +157,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_corpus_balance_arithmetic.py", "CB-Div"),
     "family_curvature_replay arithmetic + verdict":
         ("scripts/test/test_family_curvature_replay_arithmetic.py", "FCR-Curv"),
+    "cross_generator_gap_parity arithmetic + spread":
+        ("scripts/test/test_cross_generator_gap_parity_arithmetic.py", "CGGP-Par"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
