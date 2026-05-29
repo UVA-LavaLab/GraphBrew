@@ -464,19 +464,19 @@ edge-order mis-alignment.
 lit-budget → confidence_dashboard` and asserts every gate is GREEN.
 The dashboard headline goes RED if **any** of the following fails:
 
-| # | Gate | What it asserts |
+| # | Dashboard label | Source file |
 |---|---|---|
-| 1 | `test_baselines_match_literature` | No `disagree` cells (KNOWN_DEVIATIONS allow-list permitting) |
-| 2 | `test_confidence_dashboard` | Dashboard renderer + sections stay self-consistent |
-| 3 | `test_corpus_diversity_floor` | ≥4 graphs, ≥3 graph families, clustering / hub-concentration / working-set-ratio spreads above literature-grade floors |
-| 4 | `test_cross_tool_parity` | lit-faith ↔ paper-baseline-table cell-tuple parity, reproduction-summary ⊆ lit-faith, citation set agrees on both sides |
-| 5 | `test_known_deviations_have_root_cause_anchor` | Every entry in `KNOWN_DEVIATIONS` carries a `root_cause=` traceable to a paper § or commit SHA |
-| 6 | `test_literature_baselines_citation_locator` | Every `citation=` literal in `INVARIANT_CLAIMS` / `PER_GRAPH_CLAIMS` resolves to a non-empty source string |
-| 7 | `test_literature_reproduction_summary` | The per-paper grouped reproduction CSV exists and parses |
-| 8 | `test_paper_baseline_table` | The 6-graph × 5-app × 3-cache-size paper-baseline table covers every cited cell |
-| 9 | `test_regression_budget_floor` | Per-claim-kind min margin clears the published floor (cache_policy ≥ 0.75 pp, popt_ge_grasp ≥ 0.05 pp, popt_near_grasp ≥ 0.5 / 1.5 pp active/inactive) |
-| 10 | `test_ecg_catalog_gates` | The ECG sweep catalog enumerates every (suite, benchmark, graph) tuple the dashboard reports on |
-| 11 | `test_baseline_smoke_run` | A single-cell smoke run completes end-to-end on the literature cache org |
+| 1 | Tier A — GRASP sideband registration | `scripts/test/test_grasp_sideband_registration.py` |
+| 2 | Tier B — POPT permutation equivalence | `scripts/test/test_popt_permutation_equivalence.py` |
+| 3 | Tier C — GRASP vs LRU sign test | `scripts/test/test_grasp_sign_consistency.py` |
+| 4 | Lit-baseline data-driven gate | `scripts/test/test_baselines_match_literature.py` + helpers |
+| 5 | Lit-baseline structural gate | `scripts/test/test_literature_baselines_*.py` (citation locator, root-cause anchors, schema) |
+| 6 | Lit-faith no-disagree gate | `scripts/test/test_lit_faith_no_disagree.py` |
+| 7 | ECG validation gate catalog | `scripts/test/test_ecg_validation_gates.py` |
+| 8 | Corpus diversity floor | `scripts/test/test_corpus_diversity_floor.py` |
+| 9 | Cross-tool report parity | `scripts/test/test_cross_tool_parity.py` |
+| 10 | Regression budget floor | `scripts/test/test_regression_budget_floor.py` |
+| 11 | Corpus diversity profile parity | `scripts/test/test_corpus_diversity.py` |
 
 Adding a new claim shape (e.g., a fourth `claim_kind`) is intentionally
 hard: `test_no_unrecognized_claim_kind_appears` in
