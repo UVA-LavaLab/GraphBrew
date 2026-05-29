@@ -143,6 +143,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_gem5_slope_replay_arithmetic.py", "GSR-OLS"),
     "family_slope_replay arithmetic + verdict":
         ("scripts/test/test_family_slope_replay_arithmetic.py", "FSR-Inv"),
+    "policy_steepness_ranking checks + arithmetic":
+        ("scripts/test/test_policy_steepness_ranking_arithmetic.py", "PSR-Chk"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
