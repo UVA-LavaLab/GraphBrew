@@ -272,6 +272,14 @@ CATALOG = [
         "summary":   "Collapses each (app, policy) trajectory across paper L3 (1MB->4MB->8MB) into one trapezoidal AUC score (gap_pp x log2(MB), smaller = closer to oracle). AUC winners: bc=GRASP, bfs=POPT, cc=GRASP, pr=POPT (AUC<1, basically tracks oracle), sssp=POPT. sssp AUC winner POPT differs from cell-vote winner GRASP — honestly disclosed.",
     },
     {
+        "id":        "policy_auc_correlation",
+        "label":     "Cross-app policy-AUC correlation matrix",
+        "generator": "scripts/experiments/ecg/policy_auc_correlation.py",
+        "gate":      "scripts/test/test_policy_auc_correlation.py",
+        "artifact":  "wiki/data/policy_auc_correlation.json",
+        "summary":   "Reads gate 49 AUC vectors, z-normalizes within each app, and runs pairwise Pearson correlation across 4 policy dimensions. Apps cluster into two AUC-winner groups (GRASP=[bc,cc], POPT=[bfs,pr,sssp]) with intra-cluster mean r positive for every app and 4/5 apps showing intra > inter (paper headline). bfs+sssp is the strongest pair (r=+0.855) — both frontier-bound traversals.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -351,7 +359,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (49 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (50 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

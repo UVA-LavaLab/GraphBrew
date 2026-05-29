@@ -309,6 +309,17 @@
       "summary": "Collapses each (app, policy) trajectory across paper L3 (1MB->4MB->8MB) into one trapezoidal AUC score (gap_pp x log2(MB), smaller = closer to oracle). AUC winners: bc=GRASP, bfs=POPT, cc=GRASP, pr=POPT (AUC<1, basically tracks oracle), sssp=POPT. sssp AUC winner POPT differs from cell-vote winner GRASP \u2014 honestly disclosed."
     },
     {
+      "artifact": "wiki/data/policy_auc_correlation.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_policy_auc_correlation.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/policy_auc_correlation.py",
+      "generator_exists": true,
+      "id": "policy_auc_correlation",
+      "label": "Cross-app policy-AUC correlation matrix",
+      "summary": "Reads gate 49 AUC vectors, z-normalizes within each app, and runs pairwise Pearson correlation across 4 policy dimensions. Apps cluster into two AUC-winner groups (GRASP=[bc,cc], POPT=[bfs,pr,sssp]) with intra-cluster mean r positive for every app and 4/5 apps showing intra > inter (paper headline). bfs+sssp is the strongest pair (r=+0.855) \u2014 both frontier-bound traversals."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -416,13 +427,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (49 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (50 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 38
+    "n_entries": 39
   }
 }

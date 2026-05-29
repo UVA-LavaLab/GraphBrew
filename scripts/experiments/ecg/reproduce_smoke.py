@@ -89,6 +89,8 @@ TRACKED_ARTIFACTS = [
     "winner_margin_gradient.md",
     "oracle_gap_auc.json",
     "oracle_gap_auc.md",
+    "policy_auc_correlation.json",
+    "policy_auc_correlation.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
