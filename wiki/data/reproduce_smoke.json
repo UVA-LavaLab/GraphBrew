@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "a4d9991ee63dd4cc08dd145a5bff8515375490aad34f15ba819e8aedc20025c9",
-      "sha_after": "a4d9991ee63dd4cc08dd145a5bff8515375490aad34f15ba819e8aedc20025c9",
+      "sha_before": "2f0044c9d1380de0344508d32944a3213013d7af5ae38240164761fc96890346",
+      "sha_after": "2f0044c9d1380de0344508d32944a3213013d7af5ae38240164761fc96890346",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "acd65680f4dd96a93835904edfa7f50344b7153e9a35c8cec62cb1400576a635",
-      "sha_after": "acd65680f4dd96a93835904edfa7f50344b7153e9a35c8cec62cb1400576a635",
+      "sha_before": "02312e0ff483da5e5a453fc64ac6173d369b3d09bda3f886ade04e7b17a13613",
+      "sha_after": "02312e0ff483da5e5a453fc64ac6173d369b3d09bda3f886ade04e7b17a13613",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "3d8e5a04c5cf908f0f6bc15918a7cc5782d5259a4645c306af888ce633ad9cc1",
-      "sha_after": "3d8e5a04c5cf908f0f6bc15918a7cc5782d5259a4645c306af888ce633ad9cc1",
+      "sha_before": "6846839c33201cbae23b7c5a316f52590ecda508ced5b523e752c68462a0f2a7",
+      "sha_after": "6846839c33201cbae23b7c5a316f52590ecda508ced5b523e752c68462a0f2a7",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "1dfe4c13c5dac59027e211b74631b251aa931a872f7732d13a2eedd5499034ff",
-      "sha_after": "1dfe4c13c5dac59027e211b74631b251aa931a872f7732d13a2eedd5499034ff",
+      "sha_before": "8307587aa956a547fbe61470440e59cdbed4319279851b4d4da814c180f72b4f",
+      "sha_after": "8307587aa956a547fbe61470440e59cdbed4319279851b4d4da814c180f72b4f",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "9b734da8f3116331ad8e6a09d3b9e71363d01e5e123f6cc52d3718c40c250889",
-      "sha_after": "9b734da8f3116331ad8e6a09d3b9e71363d01e5e123f6cc52d3718c40c250889",
+      "sha_before": "9b21dd46efc217236269f9fd69acedfe6306ac30aacfc3ae88e92c07e934f59b",
+      "sha_after": "9b21dd46efc217236269f9fd69acedfe6306ac30aacfc3ae88e92c07e934f59b",
       "status": "ok"
     },
     {

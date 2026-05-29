@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **150 gates, all GREEN, exit 0**.
+and currently reports **155 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,11 +438,48 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
+- **Cross-artifact / cross-source derivation parity gates 151–155.**
+  Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
+  lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
+  = argmin(miss_rate) with stable byte tie-break on policy name; cells
+  collapsed to the LARGEST L3 each tool actually sampled (tools sweep
+  different L3 sets so equal-L3 overlap is ~zero); skip cells with
+  fewer than 2 tools; classify unanimous / majority / split — current
+  corpus is 100% "split" which is itself the headline. Gate 152
+  (RBD-Der, 23 tests) locks regression_budget.json: per-cell distance
+  the observed Δ would have to drift in the *adverse* direction before
+  the lit-faith status flips to disagree; for cache_policy cells the
+  test pins the binary-search exit point by re-running
+  literature_faithfulness._classify at margin±ε and asserting the flip
+  happens at exactly the recorded margin; POPT_GE_GRASP cells satisfy
+  the closed-form margin = max(0, tolerance_pct − delta_pct). Gate 153
+  (FGI-Der, 23 tests) locks family_geomean_improvement.json: per-(family,
+  app, policy != LRU) geomean miss-rate ratio vs LRU with seeded
+  bootstrap CI (B=2000, seed=1729, α=0.05) over the paper L3 scope
+  (1MB, 4MB, 8MB); LRU-baseline-required + miss_rate > 0 filters;
+  ci_strict_improvement iff ci_hi_ratio < 1.0; headline includes
+  CI-strict improvements with improve_pct ≥ 10%, sorted DESC; this is
+  what the paper cites for headline magnitudes (+24% on social etc.).
+  Gate 154 (PRK-Der, 21 tests) locks policy_rank_kendall.json: per-(app,
+  graph) Kendall-τb on the 4-policy rank vector at each L3 pair;
+  mean-rank tie-breaking so rank sum invariant n*(n+1)/2 = 10.0
+  always; only full-L3-coverage cells emit; verdict PASS iff median
+  1MB↔8MB τ > 0 AND no NEW flip cells beyond the 6-cell pinned
+  exception list (bc/cit-Patents, bc/web-Google, bfs/email-Eu-core,
+  cc/web-Google, pr/email-Eu-core, sssp/soc-pokec) AND total flip
+  cells ≤ 6. Gate 155 (CLD-Der, 22 tests) locks claim_density.json:
+  per-graph claim aggregation from
+  literature_reproduction_summary.csv; n_claims / n_ok / ok_pct;
+  status_counts as a Counter dict that must sum to n_claims;
+  apps/policies/citations are sorted-unique with truthy-citation
+  filter (drops empty strings); summary roll-up totals match per-graph
+  sums; n_graphs matches source-distinct-graph count. This is the
+  reviewer-facing breakdown of "why does graph X only have N claims?"
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 150. `make confidence-fast` runs the whole suite in under
+  current 155. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -462,7 +499,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 150+ pytest gates + lit-faith headline + corpus diversity
+  view of all 155+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
