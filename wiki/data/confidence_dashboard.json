@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.4426159858703613,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.26s"
+      "runtime_s": 1.5244293212890625,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.34s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,21 +24,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.5654773712158203,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.37s"
+      "runtime_s": 1.6455814838409424,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.42s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
       "short": "Tier C",
       "path": "scripts/test/test_grasp_sign_consistency.py",
-      "passed": 9,
+      "passed": 14,
       "failed": 0,
-      "skipped": 2,
-      "xfailed": 1,
+      "skipped": 6,
+      "xfailed": 4,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21173620223999023,
-      "raw_tail": "....x....s.s                                                             [100%]\n9 passed, 2 skipped, 1 xfailed in 0.04s"
+      "runtime_s": 0.235731840133667,
+      "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.05s"
     },
     {
       "label": "Lit-baseline data-driven gate",
@@ -50,7 +50,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.4428706169128418,
+      "runtime_s": 0.47348737716674805,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.27s"
     },
     {
@@ -63,7 +63,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.33220672607421875,
+      "runtime_s": 0.353177547454834,
       "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.15s"
     },
     {
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20803332328796387,
+      "runtime_s": 0.22047042846679688,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
     },
     {
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21777629852294922,
+      "runtime_s": 0.23313426971435547,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.04s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20177173614501953,
+      "runtime_s": 0.19310235977172852,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21545839309692383,
+      "runtime_s": 0.21442103385925293,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.04s"
     },
     {
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22406816482543945,
+      "runtime_s": 0.23627853393554688,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21750736236572266,
+      "runtime_s": 0.27005815505981445,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     },
     {
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22237181663513184,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.04s"
+      "runtime_s": 0.22190642356872559,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.03s"
     },
     {
       "label": "gem5 literature anchor",
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2504758834838867,
+      "runtime_s": 0.24525856971740723,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.05s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21910357475280762,
+      "runtime_s": 0.23563432693481445,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.04s"
     },
     {
@@ -193,7 +193,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20548582077026367,
+      "runtime_s": 0.2243938446044922,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     }
   ],

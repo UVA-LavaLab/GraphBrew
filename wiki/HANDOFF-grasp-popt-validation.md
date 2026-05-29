@@ -52,6 +52,14 @@ Latest additions on top of the Tier A/B/C work:
   BC `-i 1 → -i 64`) to push L3 access counts above the 10 000-access
   validity threshold. lit-faith claims now: 238 ok, 2 within-tolerance,
   30 known-deviation, 0 disagree, 0 missing, 0 insufficient.
+- Tier C sign-consistency coverage expanded from 4 to 8 (graph, app)
+  pairs: BFS and SSSP added on both email-Eu-core and cit-Patents.
+  cache_sim reference sweeps generated for the new pairs; Sniper data
+  fold-in confirms strong agreement on email-Eu-core/bfs (all 4 sizes)
+  and exposes 3 documented Sniper disagreements (email-Eu-core/sssp —
+  noise-floor cache_sim deltas, cit-Patents/sssp@4kB, cit-Patents/bfs
+  @4kB+32kB) tracked as xfail in `KNOWN_DISAGREEMENTS`. Tier C count:
+  14 pass / 6 skip / 4 xfail (was 5 pass / 3 skip).
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the
