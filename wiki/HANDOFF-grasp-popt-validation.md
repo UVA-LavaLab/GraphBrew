@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **85 gates, all GREEN, exit 0**.
+and currently reports **90 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -68,11 +68,28 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   and corpus_diversity — load-bearing: the winner counts across
   sibling artifacts now provably agree on 114 cells, 56 GRASP wins,
   44 POPT, 8 SRRIP, 6 LRU (gate 85).
+- **Per-app, catalog, family, and timing-tool cross-artifact gates**
+  (gates 86-90): per-app oracle-rank-1 ↔ winner-table top-2 parity
+  with the bc:SRRIP→GRASP divergence registered as the only allowed
+  disagreement (gate 86); artifact-catalog completeness — every
+  `wiki/data/*.json` is registered (gate 87, caught the silent gap
+  where `paper_baseline_table.json` shipped without being catalogued,
+  and registered it as the 72nd catalog entry); family-sensitivity
+  cross-artifact parity — the 7 canonical_state claims agree on
+  cell-counts with `policy_winner_table.wins_by_family` and on
+  dominance direction (gate 88); cross-tool slope-ordering xartifact —
+  SRRIP strictly steeper than GRASP on all 3 tools, LRU regime-
+  inversion verdict PASS on all 5 checks, anchor sign-agreement and
+  doubly-saturated cross-tool agreement (gate 89); gem5/Sniper anchor
+  cell parity — load-bearing (email-Eu-core, pr) shared anchor cell
+  locked in `shared_cells`, both tools share L3 axis and policy set,
+  every anchor cell has all 3 policies populated with miss-rate in
+  (0, 1) (gate 90).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 85. `make confidence-fast` runs the whole suite in under
+  current 90. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -92,7 +109,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 85+ pytest gates + lit-faith headline + corpus diversity
+  view of all 90+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
