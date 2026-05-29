@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.3267309665679932,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.14s"
+      "runtime_s": 2.0148820877075195,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.81s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.4927632808685303,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.32s"
+      "runtime_s": 1.83229660987854,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.62s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 1,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20200729370117188,
+      "runtime_s": 0.2190258502960205,
       "raw_tail": "....x....s.s                                                             [100%]\n9 passed, 2 skipped, 1 xfailed in 0.04s"
     },
     {
@@ -50,8 +50,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.44110727310180664,
-      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.26s"
+      "runtime_s": 0.45702028274536133,
+      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.28s"
     },
     {
       "label": "Lit-baseline structural gate",
@@ -63,8 +63,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3208343982696533,
-      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.15s"
+      "runtime_s": 0.386660099029541,
+      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.18s"
     },
     {
       "label": "Lit-faith no-disagree gate",
@@ -76,8 +76,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2071094512939453,
-      "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
+      "runtime_s": 0.25485992431640625,
+      "raw_tail": "...                                                                      [100%]\n3 passed in 0.04s"
     },
     {
       "label": "ECG validation gate catalog",
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2145214080810547,
+      "runtime_s": 0.22277545928955078,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.04s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19766902923583984,
+      "runtime_s": 0.1958010196685791,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,8 +115,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2020418643951416,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
+      "runtime_s": 0.21644926071166992,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.04s"
     },
     {
       "label": "Regression budget floor",
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20471405982971191,
+      "runtime_s": 0.21650910377502441,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,8 +141,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2011559009552002,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
+      "runtime_s": 0.22063255310058594,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.04s"
     },
     {
       "label": "Paper-pipeline literature pre-flight gate",
@@ -154,34 +154,34 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20035195350646973,
+      "runtime_s": 0.2139146327972412,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.03s"
     },
     {
       "label": "gem5 literature anchor",
       "short": "Gem5-anchor",
       "path": "scripts/test/test_gem5_anchor.py",
-      "passed": 12,
+      "passed": 16,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21077418327331543,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.04s"
+      "runtime_s": 0.23670434951782227,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.05s"
     },
     {
       "label": "Sniper literature anchor",
       "short": "Sniper-anchor",
       "path": "scripts/test/test_sniper_anchor.py",
-      "passed": 6,
+      "passed": 7,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19440984725952148,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.03s"
+      "runtime_s": 0.21609902381896973,
+      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.03s"
     },
     {
       "label": "Lit-preflight shared helper",
@@ -193,8 +193,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19544196128845215,
-      "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
+      "runtime_s": 0.26563501358032227,
+      "raw_tail": ".........                                                                [100%]\n9 passed in 0.04s"
     }
   ],
   "lit_faith_summary": {

@@ -16,6 +16,8 @@ machine-readable summary of:
 * the headline invariants from the GRASP paper:
     - GRASP <= LRU at L3 = 256kB (PR and BC headline regime)
     - all three policies within 1pp at L3 = 2MB (asymptote)
+    - all three policies diverge by >= 2pp at L3 = 4kB
+      (L-shape companion: policies must NOT converge below capacity)
 
 The output is consumed by
 :mod:`scripts.test.test_gem5_anchor` and surfaced on the confidence
@@ -41,6 +43,17 @@ HEADLINE_L3 = "256kB"
 ASYMPTOTE_L3 = "2MB"
 ASYMPTOTE_MAX_SPREAD_PCT = 1.0
 HEADLINE_MAX_GRASP_OVER_LRU_PP = 0.5
+
+# The L-shape companion to the asymptote invariant: at the smallest
+# L3 (4kB << working-set), policies must NOT have converged into the
+# asymptote regime. We require ≥ 2 × ASYMPTOTE_MAX_SPREAD_PCT of spread
+# across {LRU, SRRIP, GRASP} for at least one app at this size.
+# Rationale: cache_sim, gem5 and Sniper all show the GRASP-paper
+# L-shape (divergent at small L3, convergent at large L3); a flat-
+# at-4kB result would indicate a behavioural regression where policies
+# stop differentiating in the high-pressure regime.
+SMALL_CACHE_L3 = "4kB"
+SMALL_CACHE_MIN_SPREAD_PP = 2.0
 
 
 @dataclass
@@ -167,6 +180,31 @@ def evaluate_invariants(
                 name, "disagree",
                 f"spread={spread_pp:.3f}pp across {sorted(mrates)} exceeds "
                 f"tolerance ({ASYMPTOTE_MAX_SPREAD_PCT:.2f}pp)",
+            ))
+
+    for app in apps:
+        c = by_key.get(("email-Eu-core", app, SMALL_CACHE_L3))
+        name = f"small_cache_divergence:{app}@{SMALL_CACHE_L3}"
+        if c is None:
+            results.append(AnchorInvariant(name, "missing", "cell not in sweep"))
+            continue
+        mrates = {p: r for p, r in c.miss_rate_by_policy.items() if p in {"GRASP", "LRU", "SRRIP"}}
+        if len(mrates) < 3:
+            results.append(AnchorInvariant(name, "missing", f"have policies={sorted(mrates)}"))
+            continue
+        spread_pp = (max(mrates.values()) - min(mrates.values())) * 100.0
+        if spread_pp >= SMALL_CACHE_MIN_SPREAD_PP:
+            results.append(AnchorInvariant(
+                name, "ok",
+                f"spread={spread_pp:.3f}pp across {sorted(mrates)} "
+                f"(min ≥ {SMALL_CACHE_MIN_SPREAD_PP:.2f}pp; L-shape holds)",
+            ))
+        else:
+            results.append(AnchorInvariant(
+                name, "disagree",
+                f"spread={spread_pp:.3f}pp across {sorted(mrates)} below "
+                f"min {SMALL_CACHE_MIN_SPREAD_PP:.2f}pp (policies converged "
+                f"at {SMALL_CACHE_L3}; L-shape broken)",
             ))
 
     name = "no_error_rows"

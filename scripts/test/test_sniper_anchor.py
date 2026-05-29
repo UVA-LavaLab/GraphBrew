@@ -84,6 +84,14 @@ def test_asymptote_pr_present(anchor_snapshot: dict) -> None:
     assert matches[0]["status"] == "ok", matches[0]
 
 
+def test_small_cache_divergence_pr_present(anchor_snapshot: dict) -> None:
+    """L-shape companion: at 4kB << WSS, Sniper policies must diverge ≥ 2pp."""
+    name = "small_cache_divergence:pr@4kB"
+    matches = [i for i in anchor_snapshot["invariants"] if i["name"] == name]
+    assert matches, f"expected invariant {name}"
+    assert matches[0]["status"] == "ok", matches[0]
+
+
 def test_apps_filter_isolates_pr(tmp_path: Path) -> None:
     """When invoked with --apps pr, no bc invariants should appear."""
     mod = _load_summary_module()

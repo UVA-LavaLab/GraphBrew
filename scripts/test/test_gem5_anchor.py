@@ -80,8 +80,10 @@ def anchor_snapshot() -> dict:
 
 def test_snapshot_has_invariants(anchor_snapshot: dict) -> None:
     assert "invariants" in anchor_snapshot
-    assert len(anchor_snapshot["invariants"]) >= 5, (
-        "expected ≥5 invariants (2 headline + 2 asymptote + no_error_rows)"
+    # Expected: 2 headline + 2 asymptote + 2 small-cache-divergence + no_error_rows
+    # (Sniper-only sweeps have apps=[pr] so 1 of each; gem5 has [pr, bc] so 2.)
+    assert len(anchor_snapshot["invariants"]) >= 4, (
+        "expected ≥4 invariants (headline + asymptote + small_cache_divergence + no_error_rows)"
     )
 
 
@@ -120,6 +122,15 @@ def test_asymptote_present(anchor_snapshot: dict, app: str) -> None:
     assert matches[0]["status"] == "ok", matches[0]
 
 
+@pytest.mark.parametrize("app", ["pr", "bc"])
+def test_small_cache_divergence_present(anchor_snapshot: dict, app: str) -> None:
+    """L-shape companion: at 4kB << WSS, policies must NOT have converged."""
+    name = f"small_cache_divergence:{app}@4kB"
+    matches = [i for i in anchor_snapshot["invariants"] if i["name"] == name]
+    assert matches, f"expected small_cache_divergence invariant for {app}@4kB"
+    assert matches[0]["status"] == "ok", matches[0]
+
+
 # --- behavioural tests against synthetic sweep dirs ---------------------------
 
 def _good_email_eu_core_rows() -> dict[tuple[str, str], list[dict]]:
@@ -144,6 +155,18 @@ def _good_email_eu_core_rows() -> dict[tuple[str, str], list[dict]]:
             {"policy": "LRU", "l3_size": "2MB", "l3_miss_rate": "0.0019"},
             {"policy": "GRASP", "l3_size": "2MB", "l3_miss_rate": "0.0018"},
             {"policy": "SRRIP", "l3_size": "2MB", "l3_miss_rate": "0.0021"},
+        ],
+        # 4kB cells: << working set, policies diverge sharply (L-shape).
+        # These mirror the actual gem5 sweep behaviour: spread > 2pp.
+        ("pr", "4kB"): [
+            {"policy": "LRU", "l3_size": "4kB", "l3_miss_rate": "0.2916"},
+            {"policy": "GRASP", "l3_size": "4kB", "l3_miss_rate": "0.4997"},
+            {"policy": "SRRIP", "l3_size": "4kB", "l3_miss_rate": "0.5996"},
+        ],
+        ("bc", "4kB"): [
+            {"policy": "LRU", "l3_size": "4kB", "l3_miss_rate": "0.7115"},
+            {"policy": "GRASP", "l3_size": "4kB", "l3_miss_rate": "0.6595"},
+            {"policy": "SRRIP", "l3_size": "4kB", "l3_miss_rate": "0.8026"},
         ],
     }
 
@@ -191,6 +214,35 @@ def test_synthetic_missing_asymptote_cell_reports_missing(tmp_path: Path) -> Non
     invariants = mod.evaluate_invariants(cells)
     by_name = {i.name: i for i in invariants}
     assert by_name["asymptote_within_1.0pp:pr@2MB"].status == "missing"
+
+
+def test_synthetic_small_cache_collapse_disagrees(tmp_path: Path) -> None:
+    """If policies converge at 4kB (L-shape broken) the gate must fire."""
+    mod = _load_summary_module()
+    rows = _good_email_eu_core_rows()
+    # Force all three policies to collapse to the same miss rate at PR/4kB.
+    rows[("pr", "4kB")] = [
+        {"policy": "LRU", "l3_size": "4kB", "l3_miss_rate": "0.5000"},
+        {"policy": "GRASP", "l3_size": "4kB", "l3_miss_rate": "0.5005"},
+        {"policy": "SRRIP", "l3_size": "4kB", "l3_miss_rate": "0.5010"},
+    ]
+    _materialise_synthetic_sweep(tmp_path, rows)
+    cells = mod.load_cells(tmp_path, "DBG", graphs={"email-Eu-core"})
+    invariants = mod.evaluate_invariants(cells)
+    by_name = {i.name: i for i in invariants}
+    assert by_name["small_cache_divergence:pr@4kB"].status == "disagree"
+    assert "below min" in by_name["small_cache_divergence:pr@4kB"].detail
+
+
+def test_synthetic_missing_small_cache_cell_reports_missing(tmp_path: Path) -> None:
+    mod = _load_summary_module()
+    rows = _good_email_eu_core_rows()
+    del rows[("bc", "4kB")]
+    _materialise_synthetic_sweep(tmp_path, rows)
+    cells = mod.load_cells(tmp_path, "DBG", graphs={"email-Eu-core"})
+    invariants = mod.evaluate_invariants(cells)
+    by_name = {i.name: i for i in invariants}
+    assert by_name["small_cache_divergence:bc@4kB"].status == "missing"
 
 
 def test_synthetic_error_row_disagrees_on_no_error_rows(tmp_path: Path) -> None:

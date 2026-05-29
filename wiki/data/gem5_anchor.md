@@ -10,6 +10,8 @@ Source sweep: `/tmp/graphbrew-grasp-gem5-sweep/<graph>-<app>/DBG`
 | `GRASP_LE_LRU_headline:bc@256kB` | ✅ | grasp=0.0253 lru=0.0286 Δ=-0.328pp (tolerance ≤ +0.50pp) |
 | `asymptote_within_1.0pp:pr@2MB` | ✅ | spread=0.042pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
 | `asymptote_within_1.0pp:bc@2MB` | ✅ | spread=0.025pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
+| `small_cache_divergence:pr@4kB` | ✅ | spread=30.807pp across ['GRASP', 'LRU', 'SRRIP'] (min ≥ 2.00pp; L-shape holds) |
+| `small_cache_divergence:bc@4kB` | ✅ | spread=14.309pp across ['GRASP', 'LRU', 'SRRIP'] (min ≥ 2.00pp; L-shape holds) |
 | `no_error_rows` | ✅ | 48 ok rows across 8 cells |
 
 ## Per-cell summary

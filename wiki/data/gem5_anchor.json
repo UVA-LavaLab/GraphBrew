@@ -4,6 +4,10 @@
   "graphs_scope": [
     "email-Eu-core"
   ],
+  "apps_scope": [
+    "bc",
+    "pr"
+  ],
   "cells": [
     {
       "graph": "email-Eu-core",
@@ -124,6 +128,16 @@
       "detail": "spread=0.025pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
     },
     {
+      "name": "small_cache_divergence:pr@4kB",
+      "status": "ok",
+      "detail": "spread=30.807pp across ['GRASP', 'LRU', 'SRRIP'] (min \u2265 2.00pp; L-shape holds)"
+    },
+    {
+      "name": "small_cache_divergence:bc@4kB",
+      "status": "ok",
+      "detail": "spread=14.309pp across ['GRASP', 'LRU', 'SRRIP'] (min \u2265 2.00pp; L-shape holds)"
+    },
+    {
       "name": "no_error_rows",
       "status": "ok",
       "detail": "48 ok rows across 8 cells"
@@ -131,7 +145,7 @@
   ],
   "counts": {
     "cells": 8,
-    "invariants_ok": 5,
+    "invariants_ok": 7,
     "invariants_disagree": 0,
     "invariants_missing": 0
   }

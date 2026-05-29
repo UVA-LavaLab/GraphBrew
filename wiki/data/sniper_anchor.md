@@ -8,6 +8,7 @@ Source sweep: `/tmp/graphbrew-grasp-sniper-sweep/<graph>-<app>/DBG`
 |---|:---:|---|
 | `GRASP_LE_LRU_headline:pr@256kB` | ✅ | grasp=0.1209 lru=0.1176 Δ=+0.328pp (tolerance ≤ +0.50pp) |
 | `asymptote_within_1.0pp:pr@2MB` | ✅ | spread=0.446pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance ≤ 1.00pp) |
+| `small_cache_divergence:pr@4kB` | ✅ | spread=3.759pp across ['GRASP', 'LRU', 'SRRIP'] (min ≥ 2.00pp; L-shape holds) |
 | `no_error_rows` | ✅ | 12 ok rows across 4 cells |
 
 ## Per-cell summary
