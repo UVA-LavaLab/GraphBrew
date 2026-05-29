@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **25 gates, all GREEN, exit 0**.
+and currently reports **28 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -180,10 +180,41 @@ Latest additions on top of the Tier A/B/C work:
     Test `scripts/test/test_cross_tool_winners.py` (8 cases) pins
     schema, closed vocabulary `{unanimous, majority, split}`,
     overlap-with-each-tool, and cache_sim-anchor presence.
+  - `scripts/experiments/ecg/winning_regime_taxonomy.py` joins the
+    policy winner table with corpus diversity to project a
+    (graph family × L3 regime) winner matrix at
+    [`wiki/data/winning_regime_taxonomy.md`](data/winning_regime_taxonomy.md).
+    Auto-extracts ≥80 % dominance rules: mesh/{tiny,small,large} →
+    POPT 100 %; road/large → LRU 75 %; citation/large → GRASP 73 %.
+    Test `scripts/test/test_winning_regime_taxonomy.py` (9 cases)
+    pins schema, large-regime family coverage, mesh+road presence,
+    and the road/large LRU-win existence claim.
+  - `scripts/experiments/ecg/oracle_gap_report.py` projects each
+    policy's gap to the per-cell empirical oracle = min(LRU, SRRIP,
+    GRASP, POPT) at [`wiki/data/oracle_gap.md`](data/oracle_gap.md).
+    Mean gaps: POPT 1.65 pp (smallest), GRASP 3.10 pp (most wins:
+    56), SRRIP 3.60 pp, LRU 4.93 pp. GRASP/road mean 12.48 pp
+    (devastating counter-narrative); POPT/mesh 0.08 pp (near-
+    perfect). Test `scripts/test/test_oracle_gap.py` (9 cases) pins
+    no-negative-gap, winners-have-zero-gap, every-cell-has-a-
+    winner, POPT-smallest-overall-mean (load-bearing), and the
+    GRASP/road ≥ 5 pp counter-narrative.
+  - `scripts/experiments/ecg/artifact_catalog.py` is the single
+    canonical index of every paper-grade aggregator (17 entries
+    today) with on-disk audit of (generator, gate, artifact)
+    triples. Lives at [`wiki/data/artifact_catalog.md`](data/artifact_catalog.md).
+    Test `scripts/test/test_artifact_catalog.py` (10 cases) pins
+    schema, no-missing entries on any of the three axes, unique
+    snake_lower ids, and an entry-count floor that future PRs
+    must bump explicitly. This closes the long-standing five-place
+    coordination gap (script + gate + Makefile + dashboard +
+    HANDOFF) when adding a new aggregator.
 - New Make targets: `make lit-popt-vs-grasp`, `make lit-deviations`,
-  `make lit-claims`, `make lit-cross-tool-winners` (all wired into
-  the `confidence` dep chain; `lit-claims` depends on every other
-  `lit-*` so the registry values are always fresh).
+  `make lit-claims`, `make lit-cross-tool-winners`,
+  `make lit-regime-taxonomy`, `make lit-oracle-gap`,
+  `make lit-catalog` (all wired into the `confidence` dep chain;
+  `lit-claims` depends on every other `lit-*` so the registry
+  values are always fresh).
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the
