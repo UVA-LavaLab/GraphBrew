@@ -239,6 +239,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_tool_saturation_derivation_parity.py", "CTS-Der"),
     "per_app_srrip_vs_grasp derivation parity (per-app delta + pinned bfs)":
         ("scripts/test/test_per_app_srrip_vs_grasp_derivation_parity.py", "PSG-Der"),
+    "cross_policy_asymmetry derivation parity (head-to-head margins + ratio ceiling)":
+        ("scripts/test/test_cross_policy_asymmetry_derivation_parity.py", "CPA-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

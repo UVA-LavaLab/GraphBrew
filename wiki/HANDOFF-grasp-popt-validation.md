@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **165 gates, all GREEN, exit 0**.
+and currently reports **170 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–165.**
+- **Cross-artifact / cross-source derivation parity gates 151–170.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -560,6 +560,40 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   with linear-rank percentile; app_diversity_range = max(median) −
   min(median); verdict = AND of (no non-negative violations, no pico
   violations > 0.05 pp, app_diversity_range ≥ 3.0 pp).
+  Gate 166 (PACS-Der, 32 tests) locks per_app_capacity_slope.json:
+  per (app, graph, policy) cells at L3 in {1MB, 4MB, 8MB} compute
+  OLS slope_pp (4dp) over L3_LOG2_MB; per (app, policy) aggregates
+  {n_cells, median, mean, min, max}; medians_of_medians ranks apps
+  via argmin/argmax with range_pp = least − most; deviating_apps
+  ≡ LRU.median − GRASP.median > ALLOW_LRU_SHALLOWER_BY_PP=1.0;
+  new_deviating = deviating − {bfs} (PINNED_DEVIATING_APPS);
+  3-invariant AND verdict (all_negative every-(app,policy) median,
+  no_new_deviating, at_least_one_cache_sensitive where every-policy
+  median < HELP_FLOOR_PP_OCTAVE=-5.0). Gate 167 (OGA-Der, 21 tests)
+  locks oracle_gap_by_app.json: bucket by `f"{policy}/{app}"`
+  (forward-slash, single) with POLICIES filter; per bucket
+  {n, mean=round(statistics.fmean,4), median=round(statistics.median,4),
+  p90=round(_p90,4) where idx = min(n-1, max(0, int(0.90*n))) is
+  DIFFERENT from gate 165's `_pct`, max, wins=sum(is_winner)};
+  by_app_ranking sorted ASC by mean_gap_pp; descriptive matrix only
+  (no verdict). Gate 168 (CTS-Der, 26 tests) locks
+  cross_tool_saturation.json: per-cell classifier (strict spread <
+  sat_floor, 4 regimes), abs-diff delta_pp, agree predicate
+  (delta ≤ headline_tol), regime-gated summary reducers
+  (doubly_saturated_agree counts ONLY agree=True doubly-saturated
+  cells; disagreements list ONLY doubly-saturated agree=False).
+  Gate 169 (PSG-Der, 25 tests) locks per_app_srrip_vs_grasp.json:
+  per-app SRRIP − GRASP delta from gate 166 medians; deviation
+  predicate delta > ALLOW_SRRIP_SHALLOWER_BY_PP=1.0; pinned-app
+  subtraction (deviating − {bfs}); 3-invariant AND verdict
+  (no_missing_apps, no_new_deviating_apps,
+  every_app_has_both_grasp_and_srrip). Gate 170 (CPA-Der, 28 tests)
+  locks cross_policy_asymmetry.json: itertools.combinations(POLICIES,2)
+  yields 6 unordered pairs; head-to-head winner via strict-less-than
+  miss_rate; a_mean_margin = mean over a_wins of (mb-ma)*100 (b
+  symmetric); asymmetry_ratio = max/min (None when either mean is
+  zero, always ≥ 1.0 by construction); 2-invariant AND verdict
+  (every_pair_both_win ∧ max_ratio < ASYMMETRY_RATIO_CEILING=20.0).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
