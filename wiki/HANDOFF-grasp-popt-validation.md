@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **81 gates, all GREEN, exit 0**.
+and currently reports **85 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -52,12 +52,28 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   (gate 80); per-policy final-octave steepness ranking
   POPT(0.10) <= GRASP(0.23) << LRU(1.06) ~ SRRIP(1.09) pp/octave
   (gate 81).
+- **Cross-tool agreement, distribution integrity, and registry
+  cross-checks** (gates 82-85): cross-tool shared-anchor slope-sign
+  agreement across the 3 gem5∩sniper anchor cells (gate 82, all 3
+  sign-matched, all both-negative, all sniper-steeper, max |Δ|=5.13
+  pp/oct); regression-budget margin-distribution gate over all 330
+  literature claim cells, locking global min/median floors and per-
+  claim-kind margin floors (gate 83); paper-claims registry-integrity
+  gate that re-derives every one of the 14 published claims' value
+  from its cited source JSON and asserts equality within a half-LSB
+  tolerance (gate 84, also catches stale headline text); cross-
+  artifact aggregate consistency that locks 17 invariants between
+  policy_winner_table, winning_regime_taxonomy, popt_vs_grasp_delta,
+  cross_tool_saturation, literature_deviations, regression_budget,
+  and corpus_diversity — load-bearing: the winner counts across
+  sibling artifacts now provably agree on 114 cells, 56 GRASP wins,
+  44 POPT, 8 SRRIP, 6 LRU (gate 85).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 81. `make confidence-fast` runs the whole suite in under
-  ~3 minutes; `reproduce_smoke.py` snapshots 140 SHA-256 hashes of
+  current 85. `make confidence-fast` runs the whole suite in under
+  ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
 
@@ -76,7 +92,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 81+ pytest gates + lit-faith headline + corpus diversity
+  view of all 85+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
