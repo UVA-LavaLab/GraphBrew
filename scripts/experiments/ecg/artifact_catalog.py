@@ -70,6 +70,14 @@ CATALOG = [
         "summary":   "Cell-level comparator: 288/320 ok (90.0 %), 0 disagree, 30 known_deviation. The single load-bearing aggregate behind every other paper-grade finding.",
     },
     {
+        "id":        "paper_baseline_table",
+        "label":     "Paper-ready baseline table",
+        "generator": "scripts/experiments/ecg/paper_baseline_table.py",
+        "gate":      "scripts/test/test_paper_baseline_table.py",
+        "artifact":  "wiki/data/paper_baseline_table.json",
+        "summary":   "Cross-tabulated (graph, app, L3) table of LRU miss-rate plus SRRIP/GRASP/POPT Δ in pp and literature claim verdicts; mirrors literature_faithfulness so the paper text and the lit-gate cannot disagree.",
+    },
+    {
         "id":        "regression_budget",
         "label":     "Regression budget floor",
         "generator": "scripts/experiments/ecg/regression_budget.py",
@@ -615,7 +623,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (86 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (87 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

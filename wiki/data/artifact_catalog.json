@@ -34,6 +34,17 @@
       "summary": "Cell-level comparator: 288/320 ok (90.0 %), 0 disagree, 30 known_deviation. The single load-bearing aggregate behind every other paper-grade finding."
     },
     {
+      "artifact": "wiki/data/paper_baseline_table.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_paper_baseline_table.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/paper_baseline_table.py",
+      "generator_exists": true,
+      "id": "paper_baseline_table",
+      "label": "Paper-ready baseline table",
+      "summary": "Cross-tabulated (graph, app, L3) table of LRU miss-rate plus SRRIP/GRASP/POPT \u0394 in pp and literature claim verdicts; mirrors literature_faithfulness so the paper text and the lit-gate cannot disagree."
+    },
+    {
       "artifact": "wiki/data/regression_budget.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_regression_budget_floor.py",
@@ -779,13 +790,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (86 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (87 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 71
+    "n_entries": 72
   }
 }
