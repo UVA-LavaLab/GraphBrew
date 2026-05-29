@@ -171,6 +171,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_artifact_miss_delta_parity.py", "XAP-Par"),
     "winner identification parity (oracle ↔ stability)":
         ("scripts/test/test_winner_identification_parity.py", "WID-Par"),
+    "oracle_gap arithmetic + is_winner + summary rollups":
+        ("scripts/test/test_oracle_gap_arithmetic.py", "OGA-Stat"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
