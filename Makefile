@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -1009,6 +1009,19 @@ lit-policy-rank-kendall: lit-oracle-gap
 		--json-out    $(WIKI_DATA)/policy_rank_kendall.json \
 		--md-out      $(WIKI_DATA)/policy_rank_kendall.md
 
+# Per-policy plateau location in WSS-relative L3 capacity. Walks the
+# regime ladder (under_wss → near_wss → over_wss) and pins the first
+# regime where each policy's median gap-to-oracle falls below 0.5pp.
+# Verdict PASS iff oracle-aware policies plateau STRICTLY earlier than
+# non-oracle. Today: GRASP/POPT plateau at under_wss; LRU/SRRIP only at
+# over_wss — a full two ladder steps of separation.
+lit-wss-knee-location: lit-wss-relative-l3
+	@echo "$(BLUE)Regenerating WSS-relative knee location...$(NC)"
+	@python3 -m scripts.experiments.ecg.wss_knee_location \
+		--wss-json $(WIKI_DATA)/wss_relative_l3.json \
+		--json-out $(WIKI_DATA)/wss_knee_location.json \
+		--md-out   $(WIKI_DATA)/wss_knee_location.md
+
 # Per-kernel oracle-gap bootstrap CIs. Turns the per-app point
 # estimates from lit-oracle-gap-by-app into CI-backed sign claims:
 # pr→POPT < all (P=1.0), cc→GRASP < POPT (P=0.9995), bfs→POPT <
@@ -1083,13 +1096,13 @@ lit-reproduce-smoke:
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

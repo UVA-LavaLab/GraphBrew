@@ -419,6 +419,17 @@
       "summary": "Per-(app, graph) Kendall-tau rank correlation between the four policies' miss-rate rankings at 1MB vs 4MB vs 8MB. Median tau 1MB\u21948MB is 0.50 (positive \u2014 rank is generally predictive across capacity), but six cells flip: three GRASP-thrash-at-1MB cells (bc/cit-Patents, bc/web-Google, pr/email-Eu-core where GRASP ranks 4th at 1MB and 1st at 4MB), two large-cache-fit-in-WSS cells (cc/web-Google, sssp/soc-pokec where oracle-pinning hurts when there is no pressure), one pico-corpus noise cell (bfs/email-Eu-core). Verdict pins those six and fails on any new flip."
     },
     {
+      "artifact": "wiki/data/wss_knee_location.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_wss_knee_location.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/wss_knee_location.py",
+      "generator_exists": true,
+      "id": "wss_knee_location",
+      "label": "WSS-relative knee location",
+      "summary": "Per-policy plateau location on the under_wss \u2192 near_wss \u2192 over_wss regime ladder. Knee = first regime where median gap-to-oracle drops at-or-below 0.5pp. Today GRASP and POPT both plateau at under_wss (rank 0); LRU and SRRIP only at over_wss (rank 2) \u2014 a full two ladder steps of separation. Verdict PASS iff every oracle-aware policy plateaus strictly earlier than every non-oracle policy. Combines gates 41 (WSS-relative L3), 55 (saturation onset), and 58 (curvature) into a single ladder-rank invariant."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -526,13 +537,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (59 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (60 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 48
+    "n_entries": 49
   }
 }

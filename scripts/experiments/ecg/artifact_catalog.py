@@ -352,6 +352,14 @@ CATALOG = [
         "summary":   "Per-(app, graph) Kendall-tau rank correlation between the four policies' miss-rate rankings at 1MB vs 4MB vs 8MB. Median tau 1MB↔8MB is 0.50 (positive — rank is generally predictive across capacity), but six cells flip: three GRASP-thrash-at-1MB cells (bc/cit-Patents, bc/web-Google, pr/email-Eu-core where GRASP ranks 4th at 1MB and 1st at 4MB), two large-cache-fit-in-WSS cells (cc/web-Google, sssp/soc-pokec where oracle-pinning hurts when there is no pressure), one pico-corpus noise cell (bfs/email-Eu-core). Verdict pins those six and fails on any new flip.",
     },
     {
+        "id":        "wss_knee_location",
+        "label":     "WSS-relative knee location",
+        "generator": "scripts/experiments/ecg/wss_knee_location.py",
+        "gate":      "scripts/test/test_wss_knee_location.py",
+        "artifact":  "wiki/data/wss_knee_location.json",
+        "summary":   "Per-policy plateau location on the under_wss → near_wss → over_wss regime ladder. Knee = first regime where median gap-to-oracle drops at-or-below 0.5pp. Today GRASP and POPT both plateau at under_wss (rank 0); LRU and SRRIP only at over_wss (rank 2) — a full two ladder steps of separation. Verdict PASS iff every oracle-aware policy plateaus strictly earlier than every non-oracle policy. Combines gates 41 (WSS-relative L3), 55 (saturation onset), and 58 (curvature) into a single ladder-rank invariant.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -431,7 +439,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (59 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (60 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
