@@ -169,6 +169,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_capacity_sensitivity.py", "Slope"),
     "Per-family capacity-sensitivity slope replay":
         ("scripts/test/test_family_slope_replay.py", "FSlope"),
+    "Per-app capacity-sensitivity slope":
+        ("scripts/test/test_per_app_capacity_slope.py", "ASlope"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

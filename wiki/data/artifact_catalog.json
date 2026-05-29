@@ -507,6 +507,17 @@
       "summary": "Per-family replay of the gate 66 slope ordering. For each graph family with at least one (graph, app) cell scored across all four policies at 1MB/4MB/8MB, recompute the per-policy median OLS slope and check that LRU and SRRIP are strictly steeper than GRASP and that every policy still beats the -5 pp/octave help floor. Today citation (-13.68/-16.10/-15.52/-14.79) and web (-16.02/-16.48/-18.30/-17.02) replay cleanly; social is pinned as a known deviation because email-Eu-core saturates at every L3 size (WSS ~4.5 kB) and its near-zero slopes wash out the GRASP-vs-LRU ordering once mixed with the other social graphs. Verdict PASS iff at least one family replays and no NEW family deviates beyond the pinned set."
     },
     {
+      "artifact": "wiki/data/per_app_capacity_slope.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_per_app_capacity_slope.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/per_app_capacity_slope.py",
+      "generator_exists": true,
+      "id": "per_app_capacity_slope",
+      "label": "Per-app capacity-sensitivity slope",
+      "summary": "Per-(app, policy) median OLS slope of miss_rate (pp) vs log2(L3 MB), aggregated across all graphs that scored. sssp is most cache-hungry (median-of-medians -19.47 pp/octave); bfs is least (-5.23). Per-app median-of-medians range = 14.24 pp/octave \u2014 the corpus spans a wide cache-sensitivity spectrum. bfs is pinned as a known kernel deviation: its frontier-driven access pattern inverts the global GRASP-vs-LRU ordering (LRU median -3.99 > GRASP -6.41 pp/octave), consistent with gate 65 flagging bfs as the most-saturated kernel. Verdict PASS iff (1) every (app, policy) median slope < 0, (2) no app outside the pinned set has GRASP more than 1.0 pp/octave steeper than LRU, and (3) at least one app has every policy median below the help floor."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -614,13 +625,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (67 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (68 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 56
+    "n_entries": 57
   }
 }
