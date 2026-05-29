@@ -253,6 +253,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_generator_gap_parity_derivation_parity.py", "CGP-Der"),
     "lofo_robustness derivation parity (leave-one-family-out winner partition)":
         ("scripts/test/test_lofo_robustness_derivation_parity.py", "LFR-Der"),
+    "leave_one_graph_out derivation parity (LOGO per-app re-rank + fragile partition)":
+        ("scripts/test/test_leave_one_graph_out_derivation_parity.py", "LGO-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
