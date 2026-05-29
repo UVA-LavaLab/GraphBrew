@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "43027d214fbd0cb52ee7743346abfb5d83914ebec4bffd76dc67971c19ff958e",
-      "sha_after": "43027d214fbd0cb52ee7743346abfb5d83914ebec4bffd76dc67971c19ff958e",
+      "sha_before": "e2dc2257bbd3144a02faf97598d25d07e6815580454b1c362e6dd75e6fb38b36",
+      "sha_after": "e2dc2257bbd3144a02faf97598d25d07e6815580454b1c362e6dd75e6fb38b36",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "f8a1da9c0d04cc4d570f6a6f7a5256d2af172c369fea1b0725a368294d64a5fc",
-      "sha_after": "f8a1da9c0d04cc4d570f6a6f7a5256d2af172c369fea1b0725a368294d64a5fc",
+      "sha_before": "a1a2ce625e8ce7360a19ef5427a637cb66235e4d713d5447ae82f9165dce261d",
+      "sha_after": "a1a2ce625e8ce7360a19ef5427a637cb66235e4d713d5447ae82f9165dce261d",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "477e822ed540d92fc49afde4e9fe66bc6f4002b706ace171b4cd4aaf183d8c5d",
-      "sha_after": "477e822ed540d92fc49afde4e9fe66bc6f4002b706ace171b4cd4aaf183d8c5d",
+      "sha_before": "36fd1864dae6c65347c3c08b485eb45145d27ea23708fb5f988f87af5e40d877",
+      "sha_after": "36fd1864dae6c65347c3c08b485eb45145d27ea23708fb5f988f87af5e40d877",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "f7c2573c82955d9b004f91cdb92fa86006fb093ed7ef1fd06c0a7603e880f518",
-      "sha_after": "f7c2573c82955d9b004f91cdb92fa86006fb093ed7ef1fd06c0a7603e880f518",
+      "sha_before": "4480d58b4a005373caf03d037fa9dbb6e1f74f4506116f2a82ddd0676c4c90e2",
+      "sha_after": "4480d58b4a005373caf03d037fa9dbb6e1f74f4506116f2a82ddd0676c4c90e2",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "0f0483d6237c6dd33b1c6166ee380538b35c310b414be2f23fe187cbace00435",
-      "sha_after": "0f0483d6237c6dd33b1c6166ee380538b35c310b414be2f23fe187cbace00435",
+      "sha_before": "8c3652e8f0b047570bae356c70e53dcf6a27e55ea35be183e43b0b43231cd052",
+      "sha_after": "8c3652e8f0b047570bae356c70e53dcf6a27e55ea35be183e43b0b43231cd052",
       "status": "ok"
     },
     {
