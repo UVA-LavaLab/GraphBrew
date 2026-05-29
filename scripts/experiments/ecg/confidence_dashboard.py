@@ -247,6 +247,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_effect_size_derivation_parity.py", "OGE-Der"),
     "oracle_gap_curvature derivation parity (log2-octave second derivative + knee threshold)":
         ("scripts/test/test_oracle_gap_curvature_derivation_parity.py", "OGC-Der"),
+    "oracle_gap_by_app_bootstrap derivation parity (paired Δ seeded bootstrap + 95% CI)":
+        ("scripts/test/test_oracle_gap_by_app_bootstrap_derivation_parity.py", "OGB-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
