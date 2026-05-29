@@ -97,6 +97,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_geomean_vs_margin_replay_parity.py", "Geo-Marg"),
     "Oracle-gap curvature vs effect-size parity":
         ("scripts/test/test_oracle_gap_curvature_vs_effect_size.py", "Curv-Eff"),
+    "Monotonicity universality vs anchor replay":
+        ("scripts/test/test_monotonicity_universality_vs_anchor_replay.py", "Mono-Anch"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
