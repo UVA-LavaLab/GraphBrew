@@ -113,6 +113,8 @@ TRACKED_ARTIFACTS = [
     "wss_knee_location.md",
     "family_curvature_replay.json",
     "family_curvature_replay.md",
+    "winner_margin_by_regime.json",
+    "winner_margin_by_regime.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

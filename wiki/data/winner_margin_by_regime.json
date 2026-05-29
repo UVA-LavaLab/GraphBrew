@@ -1,0 +1,146 @@
+{
+  "meta": {
+    "cells_classified": 114,
+    "cells_skipped": 0,
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "regime_has_wins": {
+      "near_wss": true,
+      "over_wss": true,
+      "under_wss": true
+    },
+    "regimes": [
+      "under_wss",
+      "near_wss",
+      "over_wss"
+    ],
+    "shrink_evidence": [
+      {
+        "over_median": 0.0011000000000000593,
+        "policy": "GRASP",
+        "under_median": 0.863399999999992
+      },
+      {
+        "over_median": 0.019899999999999952,
+        "policy": "POPT",
+        "under_median": 1.1568000000000023
+      }
+    ],
+    "verdict": "PASS",
+    "verdict_invariant": "PASS iff every regime has at least one win AND at least one oracle-aware policy has median winner-margin strictly larger at under_wss than at over_wss"
+  },
+  "per_policy_regime": {
+    "GRASP/near_wss": {
+      "cells_won": 27,
+      "max_margin_pp": 6.1871,
+      "mean_margin_pp": 1.6506,
+      "median_margin_pp": 1.5277,
+      "p90_margin_pp": 3.0832,
+      "policy": "GRASP",
+      "wss_regime": "near_wss"
+    },
+    "GRASP/over_wss": {
+      "cells_won": 6,
+      "max_margin_pp": 0.8716,
+      "mean_margin_pp": 0.1489,
+      "median_margin_pp": 0.0011,
+      "p90_margin_pp": 0.0195,
+      "policy": "GRASP",
+      "wss_regime": "over_wss"
+    },
+    "GRASP/under_wss": {
+      "cells_won": 23,
+      "max_margin_pp": 10.0547,
+      "mean_margin_pp": 2.3264,
+      "median_margin_pp": 0.8634,
+      "p90_margin_pp": 7.4783,
+      "policy": "GRASP",
+      "wss_regime": "under_wss"
+    },
+    "LRU/near_wss": {
+      "cells_won": 4,
+      "max_margin_pp": 4.6427,
+      "mean_margin_pp": 1.6713,
+      "median_margin_pp": 1.0207,
+      "p90_margin_pp": 4.6427,
+      "policy": "LRU",
+      "wss_regime": "near_wss"
+    },
+    "LRU/over_wss": {
+      "cells_won": 1,
+      "max_margin_pp": 0.0017,
+      "mean_margin_pp": 0.0017,
+      "median_margin_pp": 0.0017,
+      "p90_margin_pp": 0.0017,
+      "policy": "LRU",
+      "wss_regime": "over_wss"
+    },
+    "LRU/under_wss": {
+      "cells_won": 1,
+      "max_margin_pp": 2.7559,
+      "mean_margin_pp": 2.7559,
+      "median_margin_pp": 2.7559,
+      "p90_margin_pp": 2.7559,
+      "policy": "LRU",
+      "wss_regime": "under_wss"
+    },
+    "POPT/near_wss": {
+      "cells_won": 18,
+      "max_margin_pp": 8.2458,
+      "mean_margin_pp": 2.2119,
+      "median_margin_pp": 1.1573,
+      "p90_margin_pp": 4.7576,
+      "policy": "POPT",
+      "wss_regime": "near_wss"
+    },
+    "POPT/over_wss": {
+      "cells_won": 5,
+      "max_margin_pp": 2.4806,
+      "mean_margin_pp": 0.5078,
+      "median_margin_pp": 0.0199,
+      "p90_margin_pp": 2.4806,
+      "policy": "POPT",
+      "wss_regime": "over_wss"
+    },
+    "POPT/under_wss": {
+      "cells_won": 21,
+      "max_margin_pp": 8.7554,
+      "mean_margin_pp": 2.1627,
+      "median_margin_pp": 1.1568,
+      "p90_margin_pp": 5.2133,
+      "policy": "POPT",
+      "wss_regime": "under_wss"
+    },
+    "SRRIP/near_wss": {
+      "cells_won": 3,
+      "max_margin_pp": 2.0967,
+      "mean_margin_pp": 1.1517,
+      "median_margin_pp": 1.3451,
+      "p90_margin_pp": 2.0967,
+      "policy": "SRRIP",
+      "wss_regime": "near_wss"
+    },
+    "SRRIP/over_wss": {
+      "cells_won": 2,
+      "max_margin_pp": 0.0017,
+      "mean_margin_pp": 0.0012,
+      "median_margin_pp": 0.0012,
+      "p90_margin_pp": 0.0017,
+      "policy": "SRRIP",
+      "wss_regime": "over_wss"
+    },
+    "SRRIP/under_wss": {
+      "cells_won": 3,
+      "max_margin_pp": 0.5327,
+      "mean_margin_pp": 0.4515,
+      "median_margin_pp": 0.4876,
+      "p90_margin_pp": 0.5327,
+      "policy": "SRRIP",
+      "wss_regime": "under_wss"
+    }
+  }
+}

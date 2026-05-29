@@ -157,6 +157,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_wss_knee_location.py", "WssKn"),
     "Per-family curvature replay":
         ("scripts/test/test_family_curvature_replay.py", "FamKn"),
+    "Winner-margin distribution by WSS regime":
+        ("scripts/test/test_winner_margin_by_regime.py", "WMrgn"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

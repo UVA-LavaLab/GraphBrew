@@ -368,6 +368,14 @@ CATALOG = [
         "summary":   "Re-runs the gate 58 curvature signal one graph family at a time on the three families with full 1MB/4MB/8MB coverage (citation, social, web). All three replay the global pattern: at least one oracle-aware policy has positive mean curvature (web: GRASP +0.683, social: GRASP +0.169, citation: POPT +0.044) while every non-oracle policy stays non-positive. Verdict PASS iff at least one family replays the pattern AND no NEW family deviates from the pin set. This is the family-level analog of gate 57 (per-family AUC replay) for the curvature metric.",
     },
     {
+        "id":        "winner_margin_by_regime",
+        "label":     "Winner-margin distribution by WSS regime",
+        "generator": "scripts/experiments/ecg/winner_margin_by_regime.py",
+        "gate":      "scripts/test/test_winner_margin_by_regime.py",
+        "artifact":  "wiki/data/winner_margin_by_regime.json",
+        "summary":   "Per-(policy, regime) distribution of winner margin over second-best (in pp of miss-rate). Tests the paper's central claim that oracle-aware payoff is biggest under pressure: GRASP's median margin shrinks from 0.86pp at under_wss to 0.001pp at over_wss; POPT's from 1.16pp at under_wss to 0.02pp at over_wss. Oracle-aware policies (GRASP+POPT) win 100 of 114 classified cells; non-oracle policies (LRU+SRRIP) win only 14. Verdict PASS iff every regime has at least one win AND at least one oracle-aware policy's under_wss median margin strictly exceeds its over_wss median margin.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -447,7 +455,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (61 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (62 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
