@@ -298,6 +298,17 @@
       "summary": "Classifies all 15 (app, L3) paper-scope cells by top-vs-runner-up margin: 6 decisive (margin>=4), 6 moderate (2<=margin<4), 1 weak (sssp/1MB), 2 tied (bc/1MB + sssp/8MB). 12/15 = 80% strong cells. Honest disclosure of weak/tied cells defends against 'your winner is one cell from flipping' pushback."
     },
     {
+      "artifact": "wiki/data/oracle_gap_auc.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_oracle_gap_auc.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/oracle_gap_auc.py",
+      "generator_exists": true,
+      "id": "oracle_gap_auc",
+      "label": "Per-(app, policy) oracle-gap AUC across L3 sweep",
+      "summary": "Collapses each (app, policy) trajectory across paper L3 (1MB->4MB->8MB) into one trapezoidal AUC score (gap_pp x log2(MB), smaller = closer to oracle). AUC winners: bc=GRASP, bfs=POPT, cc=GRASP, pr=POPT (AUC<1, basically tracks oracle), sssp=POPT. sssp AUC winner POPT differs from cell-vote winner GRASP \u2014 honestly disclosed."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -405,13 +416,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (48 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (49 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 37
+    "n_entries": 38
   }
 }
