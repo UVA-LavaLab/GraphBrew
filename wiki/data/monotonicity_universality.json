@@ -1,0 +1,159 @@
+{
+  "meta": {
+    "source_artifact": "wiki/data/oracle_gap.json",
+    "l3_axis_bytes": [
+      4096,
+      16384,
+      65536,
+      262144,
+      1048576,
+      4194304,
+      8388608
+    ],
+    "l3_axis_labels": [
+      "4kB",
+      "16kB",
+      "64kB",
+      "256kB",
+      "1MB",
+      "4MB",
+      "8MB"
+    ],
+    "max_noise_bump_pp": 0.5,
+    "bump_pct_ceiling": 0.1,
+    "cell_count": 136,
+    "total_step_count": 320,
+    "bump_count": 14,
+    "bump_pct": 0.04375,
+    "hard_violation_count": 0,
+    "largest_bump_pp": 0.0347,
+    "largest_bump_cell": {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "policy": "POPT",
+      "l3_from": "1MB",
+      "l3_to": "4MB",
+      "delta_pp": 0.0347
+    },
+    "bumps": [
+      {
+        "graph": "email-Eu-core",
+        "app": "pr",
+        "policy": "POPT",
+        "l3_from": "1MB",
+        "l3_to": "4MB",
+        "delta_pp": 0.0347
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "pr",
+        "policy": "LRU",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.0333
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "pr",
+        "policy": "SRRIP",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.022
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "bc",
+        "policy": "POPT",
+        "l3_from": "1MB",
+        "l3_to": "4MB",
+        "delta_pp": 0.0096
+      },
+      {
+        "graph": "delaunay_n19",
+        "app": "pr",
+        "policy": "LRU",
+        "l3_from": "4kB",
+        "l3_to": "16kB",
+        "delta_pp": 0.0039
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "pr",
+        "policy": "GRASP",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.0032
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "bfs",
+        "policy": "SRRIP",
+        "l3_from": "1MB",
+        "l3_to": "4MB",
+        "delta_pp": 0.0021
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "bfs",
+        "policy": "LRU",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.002
+      },
+      {
+        "graph": "web-Google",
+        "app": "cc",
+        "policy": "GRASP",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.0016
+      },
+      {
+        "graph": "web-Google",
+        "app": "sssp",
+        "policy": "LRU",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.0014
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "bfs",
+        "policy": "SRRIP",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.0007
+      },
+      {
+        "graph": "roadNet-CA",
+        "app": "pr",
+        "policy": "SRRIP",
+        "l3_from": "4kB",
+        "l3_to": "16kB",
+        "delta_pp": 0.0006
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "bfs",
+        "policy": "LRU",
+        "l3_from": "1MB",
+        "l3_to": "4MB",
+        "delta_pp": 0.0004
+      },
+      {
+        "graph": "email-Eu-core",
+        "app": "bc",
+        "policy": "GRASP",
+        "l3_from": "4MB",
+        "l3_to": "8MB",
+        "delta_pp": 0.0001
+      }
+    ],
+    "verdict_checks": {
+      "no_hard_violations": true,
+      "bump_pct_under_ceiling": true,
+      "largest_bump_within_noise": true
+    },
+    "verdict": "PASS"
+  }
+}

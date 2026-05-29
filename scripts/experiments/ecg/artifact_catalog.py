@@ -488,6 +488,14 @@ CATALOG = [
         "summary":   "Roll-up invariant across all 10 (tool, policy) cells: cache-sim {GRASP,LRU,POPT,SRRIP} + gem5 {GRASP,LRU,SRRIP} + sniper {GRASP,LRU,SRRIP}. PASS iff (1) every (tool, policy) median capacity-sensitivity slope is negative (extra cache never makes a policy worse on average), (2) every median lies in the documented physical band [-25, -0.5] pp/oct (catches both runaway-steep regressions and near-zero collapse), (3) per-tool steepness span (max - min across policies) does not exceed 5 pp/oct (catches partial regressions where one policy on one tool stops scaling while siblings stay healthy). Centralizes the within-tool sign checks from gates 66/70/71 and adds two cross-tool roll-up invariants those gates cannot. All 10 cells in band: cache-sim [-15.62, -14.65], gem5 [-7.21, -5.12], sniper [-7.96, -7.40].",
     },
     {
+        "id":        "monotonicity_universality",
+        "label":     "L3-sweep monotonicity universality",
+        "generator": "scripts/experiments/ecg/monotonicity_universality.py",
+        "gate":      "scripts/test/test_monotonicity_universality.py",
+        "artifact":  "wiki/data/monotonicity_universality.json",
+        "summary":   "Cell-level cache-monotonicity guard. Reads the load-bearing cache-sim sweep (oracle_gap.json, 456 rows, 7-point L3 axis 4kB-8MB), groups by (graph, app, policy), and checks every consecutive L3 step. PASS iff (1) zero hard violations (no step has miss-rate increase >= 0.5 pp), (2) at most 10% of steps are bumps of any size, (3) the largest observed bump stays below 0.05 pp (current worst is 0.035 pp on email-Eu-core/pr/POPT 1MB->4MB). Current state: 136 cells, 320 steps, 14 bumps (4.4%), all bumps < 0.05 pp. Foundational soundness invariant that downstream slope/distance/sensitivity gates (65-68, 70-76) all assume.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -567,7 +575,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (76 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (77 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
