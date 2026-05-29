@@ -458,4 +458,59 @@ edge-order mis-alignment.
   regime, e.g. cit-Patents/pr/4MB at -8.2 pp) is literature-faithful
   and no longer trips the check.
 
+### The eleven confidence gates
+
+`make confidence` (Makefile target) re-runs `lit-faith → lit-repro →
+lit-budget → confidence_dashboard` and asserts every gate is GREEN.
+The dashboard headline goes RED if **any** of the following fails:
+
+| # | Gate | What it asserts |
+|---|---|---|
+| 1 | `test_baselines_match_literature` | No `disagree` cells (KNOWN_DEVIATIONS allow-list permitting) |
+| 2 | `test_confidence_dashboard` | Dashboard renderer + sections stay self-consistent |
+| 3 | `test_corpus_diversity_floor` | ≥4 graphs, ≥3 graph families, clustering / hub-concentration / working-set-ratio spreads above literature-grade floors |
+| 4 | `test_cross_tool_parity` | lit-faith ↔ paper-baseline-table cell-tuple parity, reproduction-summary ⊆ lit-faith, citation set agrees on both sides |
+| 5 | `test_known_deviations_have_root_cause_anchor` | Every entry in `KNOWN_DEVIATIONS` carries a `root_cause=` traceable to a paper § or commit SHA |
+| 6 | `test_literature_baselines_citation_locator` | Every `citation=` literal in `INVARIANT_CLAIMS` / `PER_GRAPH_CLAIMS` resolves to a non-empty source string |
+| 7 | `test_literature_reproduction_summary` | The per-paper grouped reproduction CSV exists and parses |
+| 8 | `test_paper_baseline_table` | The 6-graph × 5-app × 3-cache-size paper-baseline table covers every cited cell |
+| 9 | `test_regression_budget_floor` | Per-claim-kind min margin clears the published floor (cache_policy ≥ 0.75 pp, popt_ge_grasp ≥ 0.05 pp, popt_near_grasp ≥ 0.5 / 1.5 pp active/inactive) |
+| 10 | `test_ecg_catalog_gates` | The ECG sweep catalog enumerates every (suite, benchmark, graph) tuple the dashboard reports on |
+| 11 | `test_baseline_smoke_run` | A single-cell smoke run completes end-to-end on the literature cache org |
+
+Adding a new claim shape (e.g., a fourth `claim_kind`) is intentionally
+hard: `test_no_unrecognized_claim_kind_appears` in
+`test_regression_budget_floor.py` forces an explicit margin floor to
+be declared in the same PR, and `test_every_source_citation_appears_in_repro_summary`
+in `test_cross_tool_parity.py` forces the reproduction CSV to be
+regenerated.
+
+### Regression budget — "how robust is each green cell?"
+
+Beyond *whether* a cell agrees with the literature, we now track *by
+how much* it agrees. For every `ok` / `within_tolerance` cell,
+`scripts/experiments/ecg/regression_budget.py` computes the minimum
+perturbation of the observed delta (in pp) that would flip the cell
+to `disagree`. Headline summary lives in
+[`wiki/data/regression_budget.md`](data/regression_budget.md); the
+full per-cell list is in `wiki/data/regression_budget.json`.
+
+Three claim kinds are handled with kind-specific math:
+
+- **cache_policy** (LRU vs SRRIP vs GRASP vs POPT) — linear search
+  over the observed delta in the adverse direction via
+  `literature_faithfulness._classify`; the budget is the largest
+  step that still classifies as `ok` / `within_tolerance`.
+- **popt_ge_grasp** — analytical: `margin = tol − (POPT − GRASP)` in pp.
+- **popt_near_grasp_if_big_gap** — analytical with what-if semantics:
+  for cells inside the >10 pp GRASP-vs-LRU activation band the margin
+  is `(max_abs + tol) − signed_pp`; for inactive cells we report a
+  *conservative* what-if budget that anticipates the gate firing
+  later when more sweep data lands.
+
+The dashboard surfaces the per-kind breakdown plus the 5 most fragile
+cache-policy cells (those closest to disagree) so a reviewer can spot
+"this cell is currently green only because it's 0.3 pp inside the
+tolerance band" before relying on it.
+
 

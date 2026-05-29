@@ -2,6 +2,44 @@
 
 Branch: `graphbrew_ecg`  •  Date: 2026-05-28
 
+## Status update — confidence-building automation (2026-06-XX)
+
+Tier A/B/C have all landed. The work has since expanded into a full
+"is everything still green?" gate suite that runs on a single
+`make confidence` invocation. The dashboard lives at
+[`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
+and currently reports **11 gates, all GREEN, exit 0**.
+
+Latest additions on top of the Tier A/B/C work:
+
+- `scripts/experiments/ecg/literature_baselines.py` — 264-claim
+  spec covering Faldu HPCA20 (143 claims), Balaji HPCA21 (106
+  claims), Jaleel ISCA10 (15 claims). Every entry carries a
+  `citation=` literal back to a paper figure or section.
+- `scripts/experiments/ecg/literature_faithfulness.py` — comparator
+  that classifies every observed cell into ok / within_tolerance /
+  disagree / known_deviation / insufficient_data / missing.
+- `scripts/experiments/ecg/literature_reproduction_summary.py` —
+  per-paper grouped reproduction map at
+  [`wiki/data/literature_reproduction_summary.md`](data/literature_reproduction_summary.md).
+- `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
+  to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
+- `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
+  view of all 11 pytest gates + lit-faith headline + corpus diversity
+  + regression budget.
+- 6 new pytest gate files in `scripts/test/`:
+  `test_baselines_match_literature`, `test_confidence_dashboard`,
+  `test_corpus_diversity_floor`, `test_cross_tool_parity`,
+  `test_known_deviations_have_root_cause_anchor`,
+  `test_literature_baselines_citation_locator`,
+  `test_regression_budget_floor`.
+- Make targets: `make lit-faith`, `make lit-repro`, `make lit-budget`,
+  `make confidence` (CI-ready: exit 0 iff every gate is GREEN).
+
+See `wiki/Baseline-Literature-Faithfulness.md` → "The eleven
+confidence gates" and "Regression budget" sections for the
+per-gate spec.
+
 ## What is already done
 
 **Trace-replay parity (cache_sim layer):** 20/20 zero-delta vs upstream
