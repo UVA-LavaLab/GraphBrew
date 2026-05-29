@@ -97,6 +97,74 @@ def _key(citation: str) -> tuple[int, str]:
     return (len(CITATION_ORDER_PREFIX), citation)
 
 
+def _paper_name(citation: str) -> str:
+    """Roll a fine-grained citation literal up to a single paper handle.
+
+    Returns 'Faldu HPCA20', 'Balaji HPCA21', 'Jaleel ISCA10', or
+    'cross-paper' for citations that explicitly cite more than one paper
+    (e.g., the Faldu+Balaji extrapolation rows). Keeps the per-paper
+    roll-up honest: a Faldu+Balaji extrapolation contributes to neither
+    paper's reproduction percentage on its own, it gets its own row.
+    """
+    cites_faldu = "Faldu" in citation
+    cites_balaji = "Balaji" in citation
+    cites_jaleel = "Jaleel" in citation
+    n = cites_faldu + cites_balaji + cites_jaleel
+    if n >= 2:
+        return "cross-paper"
+    if cites_faldu:
+        return "Faldu HPCA20"
+    if cites_balaji:
+        return "Balaji HPCA21"
+    if cites_jaleel:
+        return "Jaleel ISCA10"
+    return "other"
+
+
+def _paper_rollup(per_claim: list[dict]) -> list[str]:
+    """Aggregate per-citation cells by source paper.
+
+    Reproduction% = (ok + within_tolerance) / cells. known_deviation is
+    not counted toward reproduction (it's a documented mismatch); it's
+    surfaced separately so reviewers can tell the difference between
+    'we got it right' and 'we explicitly disagree on a known basis'.
+    """
+    by_paper: dict[str, list[dict]] = defaultdict(list)
+    for e in per_claim:
+        by_paper[_paper_name(e["citation"])].append(e)
+
+    lines = [
+        "## Per-paper headline",
+        "",
+        "Reproduction% counts only `ok` + `within_tolerance` cells "
+        "(strict — known_deviation is *not* counted as reproduction).",
+        "",
+        "| paper | cells | ok | within_tol | known_dev | disagree | "
+        "insufficient | missing | reproduction% |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    paper_order = ["Faldu HPCA20", "Balaji HPCA21", "Jaleel ISCA10",
+                   "cross-paper", "other"]
+    for paper in paper_order:
+        rows = by_paper.get(paper)
+        if not rows:
+            continue
+        ok = sum(1 for e in rows if e["status"] == "ok")
+        wt = sum(1 for e in rows if e["status"] == "within_tolerance")
+        kd = sum(1 for e in rows if e["status"] == "known_deviation")
+        dg = sum(1 for e in rows if e["status"] == "disagree")
+        ms = sum(1 for e in rows if e["status"] == "missing")
+        ins = sum(1 for e in rows if e["status"] == "insufficient_data")
+        total = len(rows)
+        repro_pct = 100.0 * (ok + wt) / total if total else 0.0
+        lines.append(
+            f"| {paper} | {total} | {ok} | {wt} | {kd} | {dg} | "
+            f"{ins} | {ms} | {repro_pct:.1f}% |"
+        )
+    lines.append("")
+    return lines
+
+
 def render_markdown(per_claim: list[dict]) -> str:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for e in per_claim:
@@ -155,9 +223,10 @@ def render_markdown(per_claim: list[dict]) -> str:
             f"| {citation} | {total} | {ok} | {wt} | {kd} | {dg} | {ms} | {ins} |"
         )
     rollup.append("")
-    # Insert rollup after the legend (index 6 — right after the blank line
-    # following the legend).
-    out = out[:7] + rollup + out[7:]
+    paper = _paper_rollup(per_claim)
+    # Insert paper rollup, then citation rollup, after the legend
+    # (index 6 — right after the blank line following the legend).
+    out = out[:7] + paper + rollup + out[7:]
     while out and out[-1] == "":
         out.pop()
     return "\n".join(out) + "\n"

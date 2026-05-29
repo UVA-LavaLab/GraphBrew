@@ -103,3 +103,56 @@ def test_real_input_renders_without_error(mod):
     cites = {e["citation"] for e in per_claim}
     for c in cites:
         assert c in md, f"citation missing: {c}"
+
+
+def test_paper_name_classifies_single_paper_citations(mod):
+    assert mod._paper_name("Faldu et al. HPCA 2020 Fig 10") == "Faldu HPCA20"
+    assert mod._paper_name("Balaji & Lucia HPCA 2021 §6.3") == "Balaji HPCA21"
+    assert mod._paper_name("Jaleel et al. ISCA 2010 §5.2") == "Jaleel ISCA10"
+
+
+def test_paper_name_classifies_cross_paper_citations(mod):
+    assert mod._paper_name(
+        "Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check"
+    ) == "cross-paper"
+    assert mod._paper_name(
+        "Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1"
+    ) == "cross-paper"
+
+
+def test_paper_rollup_strict_reproduction_percentage(mod):
+    rows = [
+        _entry(citation="Faldu et al. HPCA 2020 Fig 10", status="ok"),
+        _entry(citation="Faldu et al. HPCA 2020 Fig 10", status="ok"),
+        _entry(citation="Faldu et al. HPCA 2020 Fig 11", status="within_tolerance"),
+        _entry(citation="Faldu et al. HPCA 2020 Fig 11", status="known_deviation"),
+    ]
+    lines = mod._paper_rollup(rows)
+    md = "\n".join(lines)
+    assert "## Per-paper headline" in md
+    # 4 cells: 2 ok + 1 within_tol = 3 reproduced, 1 known_dev not counted.
+    assert "Faldu HPCA20 | 4 | 2 | 1 | 1" in md
+    assert "75.0%" in md
+
+
+def test_paper_rollup_known_deviation_excluded_from_reproduction(mod):
+    """A paper whose every cell is known_deviation reproduces 0%, not 100%."""
+    rows = [_entry(citation="Balaji & Lucia HPCA 2021 §6.3",
+                   status="known_deviation") for _ in range(3)]
+    md = "\n".join(mod._paper_rollup(rows))
+    assert "Balaji HPCA21 | 3 | 0 | 0 | 3" in md
+    assert "0.0%" in md
+
+
+@pytest.mark.skipif(not LIT_JSON.exists(), reason="lit-faith JSON not produced yet")
+def test_real_input_per_paper_headline_has_every_paper(mod):
+    """All three cited papers must appear in the per-paper headline."""
+    raw = json.loads(LIT_JSON.read_text())
+    per_claim = raw.get("per_claim", [])
+    if not per_claim:
+        pytest.skip("empty per_claim in lit-faith JSON")
+    md = mod.render_markdown(per_claim)
+    # Per-paper headline must precede the per-citation roll-up.
+    assert md.index("Per-paper headline") < md.index("Per-citation roll-up")
+    for paper in ("Faldu HPCA20", "Balaji HPCA21", "Jaleel ISCA10"):
+        assert paper in md, f"per-paper roll-up missing {paper}"
