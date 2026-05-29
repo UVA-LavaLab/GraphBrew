@@ -121,6 +121,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_small_l3_thrash_consistency.py", "Thr-Tiny"),
     "bootstrap_ci + oracle_gap_by_app_bootstrap parity":
         ("scripts/test/test_bootstrap_ci_consistency.py", "Boot-Par"),
+    "oracle_gap_curvature arithmetic + knee rule":
+        ("scripts/test/test_oracle_gap_curvature_arithmetic.py", "OG-Curv"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
