@@ -127,6 +127,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_gap_distribution_shape_envelope.py", "GDS-Env"),
     "distribution_diagnostics envelope + marginals":
         ("scripts/test/test_distribution_diagnostics_envelope.py", "DD-Env"),
+    "cross_tool_winners classification arithmetic":
+        ("scripts/test/test_cross_tool_winners_classification.py", "CTW-Cls"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
