@@ -1,0 +1,852 @@
+{
+  "meta": {
+    "source": "wiki/data/oracle_gap_auc.json",
+    "n_apps": 5,
+    "n_policies": 4,
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "l3_octaves": [
+      "1MB",
+      "4MB",
+      "8MB"
+    ],
+    "slope_units": "gap_pp per L3 octave (log2 MB)",
+    "n_monotonic_violations": 10,
+    "all_monotonic": false
+  },
+  "per_app": {
+    "bc": {
+      "GRASP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 5.8506,
+            "gap_to": 0.0,
+            "delta_gap_pp": -5.8506,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 2.9253
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 0.0,
+            "gap_to": 0.0,
+            "delta_gap_pp": 0.0,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": -0.0
+          }
+        ],
+        "avg_slope_pp_per_octave": 1.9502,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 5.8506,
+        "gap_at_8MB": 0.0,
+        "total_shrinkage_pp": 5.8506
+      },
+      "LRU": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 3.4753,
+            "gap_to": 3.9845,
+            "delta_gap_pp": 0.5092,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": -0.2546
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 3.9845,
+            "gap_to": 3.6875,
+            "delta_gap_pp": -0.297,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 0.297
+          }
+        ],
+        "avg_slope_pp_per_octave": -0.0707,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 3.4753,
+        "gap_at_8MB": 3.6875,
+        "total_shrinkage_pp": -0.2122
+      },
+      "POPT": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 4.559,
+            "gap_to": 2.1285,
+            "delta_gap_pp": -2.4305,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 1.2153
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 2.1285,
+            "gap_to": 2.029,
+            "delta_gap_pp": -0.0995,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 0.0995
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.8433,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 4.559,
+        "gap_at_8MB": 2.029,
+        "total_shrinkage_pp": 2.53
+      },
+      "SRRIP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 1.8683,
+            "gap_to": 2.1402,
+            "delta_gap_pp": 0.2719,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": -0.136
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 2.1402,
+            "gap_to": 1.8357,
+            "delta_gap_pp": -0.3045,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 0.3045
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.0109,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 1.8683,
+        "gap_at_8MB": 1.8357,
+        "total_shrinkage_pp": 0.0326
+      }
+    },
+    "bfs": {
+      "GRASP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 12.5304,
+            "gap_to": 0.3795,
+            "delta_gap_pp": -12.1509,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 6.0755
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 0.3795,
+            "gap_to": 0.8787,
+            "delta_gap_pp": 0.4992,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": -0.4992
+          }
+        ],
+        "avg_slope_pp_per_octave": 3.8839,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 12.5304,
+        "gap_at_8MB": 0.8787,
+        "total_shrinkage_pp": 11.6517
+      },
+      "LRU": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 1.4549,
+            "gap_to": 5.4555,
+            "delta_gap_pp": 4.0006,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": -2.0003
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 5.4555,
+            "gap_to": 6.0402,
+            "delta_gap_pp": 0.5847,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": -0.5847
+          }
+        ],
+        "avg_slope_pp_per_octave": -1.5284,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 1.4549,
+        "gap_at_8MB": 6.0402,
+        "total_shrinkage_pp": -4.5853
+      },
+      "POPT": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 5.164,
+            "gap_to": 0.0633,
+            "delta_gap_pp": -5.1007,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 2.5503
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 0.0633,
+            "gap_to": 0.1152,
+            "delta_gap_pp": 0.0519,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": -0.0519
+          }
+        ],
+        "avg_slope_pp_per_octave": 1.6829,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 5.164,
+        "gap_at_8MB": 0.1152,
+        "total_shrinkage_pp": 5.0488
+      },
+      "SRRIP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 1.6914,
+            "gap_to": 5.2022,
+            "delta_gap_pp": 3.5108,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": -1.7554
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 5.2022,
+            "gap_to": 5.8132,
+            "delta_gap_pp": 0.611,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": -0.611
+          }
+        ],
+        "avg_slope_pp_per_octave": -1.3739,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 1.6914,
+        "gap_at_8MB": 5.8132,
+        "total_shrinkage_pp": -4.1218
+      }
+    },
+    "cc": {
+      "GRASP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 1.52,
+            "gap_to": 0.0,
+            "delta_gap_pp": -1.52,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 0.76
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 0.0,
+            "gap_to": 0.001,
+            "delta_gap_pp": 0.001,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": -0.001
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.5063,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 1.52,
+        "gap_at_8MB": 0.001,
+        "total_shrinkage_pp": 1.519
+      },
+      "LRU": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 7.6288,
+            "gap_to": 8.7828,
+            "delta_gap_pp": 1.154,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": -0.577
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 8.7828,
+            "gap_to": 7.7276,
+            "delta_gap_pp": -1.0552,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 1.0552
+          }
+        ],
+        "avg_slope_pp_per_octave": -0.0329,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 7.6288,
+        "gap_at_8MB": 7.7276,
+        "total_shrinkage_pp": -0.0988
+      },
+      "POPT": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 6.341,
+            "gap_to": 4.225,
+            "delta_gap_pp": -2.116,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 1.058
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 4.225,
+            "gap_to": 2.168,
+            "delta_gap_pp": -2.057,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 2.057
+          }
+        ],
+        "avg_slope_pp_per_octave": 1.391,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 6.341,
+        "gap_at_8MB": 2.168,
+        "total_shrinkage_pp": 4.173
+      },
+      "SRRIP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 5.0137,
+            "gap_to": 6.4844,
+            "delta_gap_pp": 1.4707,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": -0.7353
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 6.4844,
+            "gap_to": 4.681,
+            "delta_gap_pp": -1.8034,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 1.8034
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.1109,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 5.0137,
+        "gap_at_8MB": 4.681,
+        "total_shrinkage_pp": 0.3327
+      }
+    },
+    "pr": {
+      "GRASP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 3.5251,
+            "gap_to": 3.346,
+            "delta_gap_pp": -0.1791,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 0.0896
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 3.346,
+            "gap_to": 1.1842,
+            "delta_gap_pp": -2.1618,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 2.1618
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.7803,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 3.5251,
+        "gap_at_8MB": 1.1842,
+        "total_shrinkage_pp": 2.3409
+      },
+      "LRU": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 10.7899,
+            "gap_to": 9.2463,
+            "delta_gap_pp": -1.5436,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 0.7718
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 9.2463,
+            "gap_to": 5.4042,
+            "delta_gap_pp": -3.8421,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 3.8421
+          }
+        ],
+        "avg_slope_pp_per_octave": 1.7952,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 10.7899,
+        "gap_at_8MB": 5.4042,
+        "total_shrinkage_pp": 5.3857
+      },
+      "POPT": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 0.0526,
+            "gap_to": 0.1828,
+            "delta_gap_pp": 0.1302,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": -0.0651
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 0.1828,
+            "gap_to": 0.1393,
+            "delta_gap_pp": -0.0435,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 0.0435
+          }
+        ],
+        "avg_slope_pp_per_octave": -0.0289,
+        "monotonic_decreasing": false,
+        "gap_at_1MB": 0.0526,
+        "gap_at_8MB": 0.1393,
+        "total_shrinkage_pp": -0.0867
+      },
+      "SRRIP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 8.1867,
+            "gap_to": 6.3695,
+            "delta_gap_pp": -1.8172,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 0.9086
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 6.3695,
+            "gap_to": 3.3605,
+            "delta_gap_pp": -3.009,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 3.009
+          }
+        ],
+        "avg_slope_pp_per_octave": 1.6087,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 8.1867,
+        "gap_at_8MB": 3.3605,
+        "total_shrinkage_pp": 4.8262
+      }
+    },
+    "sssp": {
+      "GRASP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 13.0337,
+            "gap_to": 0.2324,
+            "delta_gap_pp": -12.8013,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 6.4006
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 0.2324,
+            "gap_to": 0.003,
+            "delta_gap_pp": -0.2294,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 0.2294
+          }
+        ],
+        "avg_slope_pp_per_octave": 4.3436,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 13.0337,
+        "gap_at_8MB": 0.003,
+        "total_shrinkage_pp": 13.0307
+      },
+      "LRU": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 3.8558,
+            "gap_to": 3.7368,
+            "delta_gap_pp": -0.119,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 0.0595
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 3.7368,
+            "gap_to": 2.1442,
+            "delta_gap_pp": -1.5926,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 1.5926
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.5705,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 3.8558,
+        "gap_at_8MB": 2.1442,
+        "total_shrinkage_pp": 1.7116
+      },
+      "POPT": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 2.509,
+            "gap_to": 0.6016,
+            "delta_gap_pp": -1.9074,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 0.9537
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 0.6016,
+            "gap_to": 0.4774,
+            "delta_gap_pp": -0.1242,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 0.1242
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.6772,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 2.509,
+        "gap_at_8MB": 0.4774,
+        "total_shrinkage_pp": 2.0316
+      },
+      "SRRIP": {
+        "octaves": [
+          {
+            "from": "1MB",
+            "to": "4MB",
+            "gap_from": 2.766,
+            "gap_to": 2.3996,
+            "delta_gap_pp": -0.3664,
+            "delta_log2_mb": 2.0,
+            "slope_pp_per_octave": 0.1832
+          },
+          {
+            "from": "4MB",
+            "to": "8MB",
+            "gap_from": 2.3996,
+            "gap_to": 1.3086,
+            "delta_gap_pp": -1.091,
+            "delta_log2_mb": 1.0,
+            "slope_pp_per_octave": 1.091
+          }
+        ],
+        "avg_slope_pp_per_octave": 0.4858,
+        "monotonic_decreasing": true,
+        "gap_at_1MB": 2.766,
+        "gap_at_8MB": 1.3086,
+        "total_shrinkage_pp": 1.4574
+      }
+    }
+  },
+  "per_policy_summary": {
+    "GRASP": {
+      "n_apps": 5,
+      "mean_avg_slope": 2.2929,
+      "stdev_avg_slope": 1.5706,
+      "max_slope": 4.3436,
+      "min_slope": 0.5063
+    },
+    "LRU": {
+      "n_apps": 5,
+      "mean_avg_slope": 0.1467,
+      "stdev_avg_slope": 1.0754,
+      "max_slope": 1.7952,
+      "min_slope": -1.5284
+    },
+    "POPT": {
+      "n_apps": 5,
+      "mean_avg_slope": 0.9131,
+      "stdev_avg_slope": 0.5948,
+      "max_slope": 1.6829,
+      "min_slope": -0.0289
+    },
+    "SRRIP": {
+      "n_apps": 5,
+      "mean_avg_slope": 0.1685,
+      "stdev_avg_slope": 0.9573,
+      "max_slope": 1.6087,
+      "min_slope": -1.3739
+    }
+  },
+  "monotonic_violations": [
+    {
+      "app": "bc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 3.4753,
+          "gap_to": 3.9845,
+          "delta_gap_pp": 0.5092,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": -0.2546
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 3.9845,
+          "gap_to": 3.6875,
+          "delta_gap_pp": -0.297,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": 0.297
+        }
+      ]
+    },
+    {
+      "app": "bc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.8683,
+          "gap_to": 2.1402,
+          "delta_gap_pp": 0.2719,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": -0.136
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 2.1402,
+          "gap_to": 1.8357,
+          "delta_gap_pp": -0.3045,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": 0.3045
+        }
+      ]
+    },
+    {
+      "app": "bfs",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 12.5304,
+          "gap_to": 0.3795,
+          "delta_gap_pp": -12.1509,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": 6.0755
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.3795,
+          "gap_to": 0.8787,
+          "delta_gap_pp": 0.4992,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": -0.4992
+        }
+      ]
+    },
+    {
+      "app": "bfs",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.4549,
+          "gap_to": 5.4555,
+          "delta_gap_pp": 4.0006,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": -2.0003
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.4555,
+          "gap_to": 6.0402,
+          "delta_gap_pp": 0.5847,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": -0.5847
+        }
+      ]
+    },
+    {
+      "app": "bfs",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 5.164,
+          "gap_to": 0.0633,
+          "delta_gap_pp": -5.1007,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": 2.5503
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0633,
+          "gap_to": 0.1152,
+          "delta_gap_pp": 0.0519,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": -0.0519
+        }
+      ]
+    },
+    {
+      "app": "bfs",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.6914,
+          "gap_to": 5.2022,
+          "delta_gap_pp": 3.5108,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": -1.7554
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 5.2022,
+          "gap_to": 5.8132,
+          "delta_gap_pp": 0.611,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": -0.611
+        }
+      ]
+    },
+    {
+      "app": "cc",
+      "policy": "GRASP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 1.52,
+          "gap_to": 0.0,
+          "delta_gap_pp": -1.52,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": 0.76
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.0,
+          "gap_to": 0.001,
+          "delta_gap_pp": 0.001,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": -0.001
+        }
+      ]
+    },
+    {
+      "app": "cc",
+      "policy": "LRU",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 7.6288,
+          "gap_to": 8.7828,
+          "delta_gap_pp": 1.154,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": -0.577
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 8.7828,
+          "gap_to": 7.7276,
+          "delta_gap_pp": -1.0552,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": 1.0552
+        }
+      ]
+    },
+    {
+      "app": "cc",
+      "policy": "SRRIP",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 5.0137,
+          "gap_to": 6.4844,
+          "delta_gap_pp": 1.4707,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": -0.7353
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 6.4844,
+          "gap_to": 4.681,
+          "delta_gap_pp": -1.8034,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": 1.8034
+        }
+      ]
+    },
+    {
+      "app": "pr",
+      "policy": "POPT",
+      "octaves": [
+        {
+          "from": "1MB",
+          "to": "4MB",
+          "gap_from": 0.0526,
+          "gap_to": 0.1828,
+          "delta_gap_pp": 0.1302,
+          "delta_log2_mb": 2.0,
+          "slope_pp_per_octave": -0.0651
+        },
+        {
+          "from": "4MB",
+          "to": "8MB",
+          "gap_from": 0.1828,
+          "gap_to": 0.1393,
+          "delta_gap_pp": -0.0435,
+          "delta_log2_mb": 1.0,
+          "slope_pp_per_octave": 0.0435
+        }
+      ]
+    }
+  ]
+}

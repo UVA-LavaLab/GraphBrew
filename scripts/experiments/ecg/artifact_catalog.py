@@ -288,6 +288,14 @@ CATALOG = [
         "summary":   "Computes coefficient of variation of AUC across 5 paper apps per policy. LRU has lowest CV (0.42) — predictably bad; POPT has highest CV (0.72) — high-reward/high-variance; SRRIP is the 'safe runner-up' (never wins, never finishes last, always rank 2 or 3). POPT wins 3/5 apps, GRASP is bimodal (wins bc+cc, finishes last on bfs+sssp).",
     },
     {
+        "id":        "cache_sensitivity_slope",
+        "label":     "Per-(app, policy) cache-sensitivity slope across L3 octaves",
+        "generator": "scripts/experiments/ecg/cache_sensitivity_slope.py",
+        "gate":      "scripts/test/test_cache_sensitivity_slope.py",
+        "artifact":  "wiki/data/cache_sensitivity_slope.json",
+        "summary":   "Per-(app, policy) gap_pp shrinkage per L3 octave. GRASP has largest mean slope (2.29 pp/octave, shrinks fastest as L3 grows); LRU has near-zero mean slope (0.15) and the most cells with anti-scaling. Key invariant: significant anti-scaling (gap GROWS by >=1.0 pp at any octave) is exclusively LRU/SRRIP — the oracle-aware GRASP and POPT NEVER regress as L3 grows.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -367,7 +375,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (51 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (52 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
