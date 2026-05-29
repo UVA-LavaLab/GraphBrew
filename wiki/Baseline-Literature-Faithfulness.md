@@ -386,6 +386,14 @@ the corpus state on `/tmp/graphbrew-lit-baseline` is:
 | com-orkut     | ✓ | ✓ rerun w/ non-hub src | ◐ folded 4/12 (1MB) | ✓ rerun w/ non-hub src | ✓ |
 | soc-LiveJournal1 | ✓ | ✓ rerun w/ non-hub src | ◐ folded 10/12 (8MB GRASP+POPT in-flight) | ✓ rerun w/ non-hub src | ✓ |
 
+See [`wiki/data/corpus_diversity.md`](data/corpus_diversity.md) for the
+per-graph topology profile (nodes, edges, clustering, hub concentration,
+working-set ratio, …) extracted from the GAPBS topology pass that runs
+inside every sweep cell. The corpus spans web, citation, social, and
+dense-social graphs; average degree ranges from 11 (cit-Patents) to 114
+(com-orkut), and hub concentration ranges from 0.33 (cit-Patents) to
+0.62 (soc-LiveJournal1).
+
 Cells marked "rerun w/ non-hub src" used `-r N/2` instead of `-r 0`
 because DBG re-ordering places the highest-degree vertex at index 0;
 running SSSP/BFS from it on highly-clustered graphs (Orkut CC≈0.17)
