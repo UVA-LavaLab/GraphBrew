@@ -213,6 +213,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_claim_density_derivation_parity.py", "CLD-Der"),
     "paper_baseline_table derivation parity (per_observation + PER_GRAPH_CLAIMS)":
         ("scripts/test/test_paper_baseline_table_derivation_parity.py", "PBT-Der"),
+    "cross_tool_lru_regime derivation parity (per-tool slope medians + regime classifier)":
+        ("scripts/test/test_cross_tool_lru_regime_derivation_parity.py", "CTLR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
