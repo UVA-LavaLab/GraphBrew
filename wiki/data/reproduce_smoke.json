@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "993a320cc36a2ac7fb5cdca32d61b77bc2dc93a8dfd7021fb219992e48f471dd",
-      "sha_after": "993a320cc36a2ac7fb5cdca32d61b77bc2dc93a8dfd7021fb219992e48f471dd",
+      "sha_before": "63ada3f5da83e52222a25f617f583412b55e1d3842d885097a29e3ddc8a66956",
+      "sha_after": "63ada3f5da83e52222a25f617f583412b55e1d3842d885097a29e3ddc8a66956",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "99c0a5b9e503ca50aa7a0fd27b2acd92278c996b84c78890025ac43a57ec8bb1",
-      "sha_after": "99c0a5b9e503ca50aa7a0fd27b2acd92278c996b84c78890025ac43a57ec8bb1",
+      "sha_before": "dfa634a9c1d9598fc2b5d2fed8127df253e1ae6bfa2062d7be1260594c36ebd7",
+      "sha_after": "dfa634a9c1d9598fc2b5d2fed8127df253e1ae6bfa2062d7be1260594c36ebd7",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "0847f6107e00047988b1c87eaeadbcecc107ffcab29e6c516b4af7fc05528f44",
-      "sha_after": "0847f6107e00047988b1c87eaeadbcecc107ffcab29e6c516b4af7fc05528f44",
+      "sha_before": "e63049732916f183216624be797b6d3ddd9e615e02cd66a61b18b330f9064398",
+      "sha_after": "e63049732916f183216624be797b6d3ddd9e615e02cd66a61b18b330f9064398",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "b9786cd95b771b65f5d8d75a2a8aaeb8dcebd598723e8160e9927acef598dc50",
-      "sha_after": "b9786cd95b771b65f5d8d75a2a8aaeb8dcebd598723e8160e9927acef598dc50",
+      "sha_before": "2b54e7dee2a60de1de9a5e8b0d6bb3f3725e00ff447e9b2ec6d0cd9d696f8fc6",
+      "sha_after": "2b54e7dee2a60de1de9a5e8b0d6bb3f3725e00ff447e9b2ec6d0cd9d696f8fc6",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "787ac69ab12832dc8797d6a3c0f33126bff0d1f6cb92d56155090a5556420637",
-      "sha_after": "787ac69ab12832dc8797d6a3c0f33126bff0d1f6cb92d56155090a5556420637",
+      "sha_before": "79515f1e87a2b1223a403d0a61122a3aff61b22dd88706803a27f7359f9bf6fa",
+      "sha_after": "79515f1e87a2b1223a403d0a61122a3aff61b22dd88706803a27f7359f9bf6fa",
       "status": "ok"
     },
     {
