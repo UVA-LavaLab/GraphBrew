@@ -103,6 +103,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_catalog_dashboard_coverage_milestone.py", "Cat-Dash"),
     "Deviations vs regime taxonomy parity":
         ("scripts/test/test_deviations_vs_regime_taxonomy.py", "Dev-Reg"),
+    "Corpus diversity vs regime taxonomy parity":
+        ("scripts/test/test_corpus_diversity_vs_regime_taxonomy.py", "Cor-Reg"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
