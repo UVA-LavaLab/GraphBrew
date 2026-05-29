@@ -144,6 +144,14 @@ CATALOG = [
         "summary":   "Per-(policy, app) oracle-gap matrix exposing per-kernel winners: POPT crushes pr (0.100 pp); GRASP wins cc (0.640 pp); GRASP catastrophic on sssp (7.106 pp). No one-size-fits-all.",
     },
     {
+        "id":        "wss_relative_l3",
+        "label":     "WSS-relative L3 axis",
+        "generator": "scripts/experiments/ecg/wss_relative_l3.py",
+        "gate":      "scripts/test/test_wss_relative_l3.py",
+        "artifact":  "wiki/data/wss_relative_l3.json",
+        "summary":   "Bins each cell by L3/WSS ratio (under/near/over WSS). POPT has smallest mean gap in EVERY WSS regime (1.62/2.35/0.22 pp); GRASP wins by count in every regime. Defends against absolute-byte cross-graph comparison pushback.",
+    },
+    {
         "id":        "family_sensitivity",
         "label":     "Family-classification sensitivity",
         "generator": "scripts/experiments/ecg/family_sensitivity.py",
@@ -215,7 +223,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (32 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (33 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

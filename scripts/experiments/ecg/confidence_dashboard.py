@@ -101,6 +101,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap.py", "Oracle"),
     "Per-kernel oracle gap":
         ("scripts/test/test_oracle_gap_by_app.py", "OracleApp"),
+    "WSS-relative L3 axis":
+        ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
         ("scripts/test/test_bootstrap_ci.py", "Bootstrap"),
     "Family-classification sensitivity":

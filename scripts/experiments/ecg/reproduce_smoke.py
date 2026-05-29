@@ -55,6 +55,8 @@ TRACKED_ARTIFACTS = [
     "cross_tool_winners.md",
     "family_sensitivity.json",
     "family_sensitivity.md",
+    "wss_relative_l3.json",
+    "wss_relative_l3.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
