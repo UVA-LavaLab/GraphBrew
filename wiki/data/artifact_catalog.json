@@ -188,6 +188,17 @@
       "summary": "10 large-effect (|d|\u22650.474) dominance pairs on raw gap_pp distributions. pr/POPT vs LRU d=-0.911 p=0. cc/GRASP dominates all 3 at |d|\u22650.474 with MW p<1e-4. Confirms gates 36\u201337 nonparametrically."
     },
     {
+      "artifact": "wiki/data/l3_policy_stability.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_l3_policy_stability.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/l3_policy_stability.py",
+      "generator_exists": true,
+      "id": "l3_policy_stability",
+      "label": "Per-L3-size policy stability",
+      "summary": "Stable single winners at 1MB/4MB/8MB: cc=GRASP, pr=POPT. Regime change: bfs (GRASP@1MB \u2192 POPT@\u22654MB). No stable cross-L3 winner: sssp. Pinned so paper can never silently average across L3 and hide a regime change."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -295,13 +306,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (38 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (39 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 27
+    "n_entries": 28
   }
 }

@@ -111,6 +111,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cohens_h_win_rates.py", "Cohen"),
     "Cliff's delta on gap distributions":
         ("scripts/test/test_oracle_gap_effect_size.py", "Cliff"),
+    "Per-L3 policy stability":
+        ("scripts/test/test_l3_policy_stability.py", "L3-Stab"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

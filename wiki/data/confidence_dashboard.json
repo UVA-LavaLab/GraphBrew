@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.0757083892822266,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.93s"
+      "runtime_s": 1.0815436840057373,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.95s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.0189094543457031,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.88s"
+      "runtime_s": 1.0039663314819336,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.87s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 4,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.17621231079101562,
+      "runtime_s": 0.168623685836792,
       "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.04s"
     },
     {
@@ -50,8 +50,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.36463141441345215,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.23s"
+      "runtime_s": 0.3558957576751709,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.22s"
     },
     {
       "label": "Lit-baseline structural gate",
@@ -63,7 +63,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23889732360839844,
+      "runtime_s": 0.23641705513000488,
       "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.10s"
     },
     {
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1648881435394287,
+      "runtime_s": 0.15933632850646973,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
     },
     {
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.17018747329711914,
+      "runtime_s": 0.16347193717956543,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.03s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1576080322265625,
+      "runtime_s": 0.15378332138061523,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16707372665405273,
+      "runtime_s": 0.1670396327972412,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16648364067077637,
+      "runtime_s": 0.1582338809967041,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
     },
     {
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1684870719909668,
+      "runtime_s": 0.15656447410583496,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     },
     {
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5097401142120361,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.30s"
+      "runtime_s": 0.4653630256652832,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.29s"
     },
     {
       "label": "gem5 literature anchor",
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.17812132835388184,
+      "runtime_s": 0.17394518852233887,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.04s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16821742057800293,
+      "runtime_s": 0.15949392318725586,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.03s"
     },
     {
@@ -193,7 +193,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16322731971740723,
+      "runtime_s": 0.15503621101379395,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.03s"
     },
     {
@@ -206,7 +206,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.18435406684875488,
+      "runtime_s": 0.17656850814819336,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.05s"
     },
     {
@@ -219,7 +219,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15824151039123535,
+      "runtime_s": 0.15091371536254883,
       "raw_tail": "..                                                                       [100%]\n2 passed in 0.02s"
     },
     {
@@ -232,7 +232,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19131016731262207,
+      "runtime_s": 0.1855330467224121,
       "raw_tail": ".......                                                                  [100%]\n7 passed in 0.05s"
     },
     {
@@ -245,7 +245,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16202044486999512,
+      "runtime_s": 0.15464472770690918,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -258,7 +258,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1613013744354248,
+      "runtime_s": 0.15228867530822754,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -271,7 +271,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16293931007385254,
+      "runtime_s": 0.152435302734375,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -284,7 +284,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16544294357299805,
+      "runtime_s": 0.15091419219970703,
       "raw_tail": ".......                                                                  [100%]\n7 passed in 0.02s"
     },
     {
@@ -297,7 +297,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15908384323120117,
+      "runtime_s": 0.15149569511413574,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -310,7 +310,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16090679168701172,
+      "runtime_s": 0.15395879745483398,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -323,7 +323,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16063594818115234,
+      "runtime_s": 0.15500283241271973,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -336,7 +336,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15894579887390137,
+      "runtime_s": 0.15312981605529785,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.02s"
     },
     {
@@ -349,7 +349,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16006827354431152,
+      "runtime_s": 0.15235543251037598,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.02s"
     },
     {
@@ -362,7 +362,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1634509563446045,
+      "runtime_s": 0.15167927742004395,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -375,7 +375,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16376900672912598,
+      "runtime_s": 0.15299439430236816,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -388,7 +388,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16079330444335938,
+      "runtime_s": 0.1551964282989502,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -401,7 +401,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16203737258911133,
+      "runtime_s": 0.15244412422180176,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -414,7 +414,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1602921485900879,
+      "runtime_s": 0.1572725772857666,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.02s"
     },
     {
@@ -427,7 +427,20 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1658155918121338,
+      "runtime_s": 0.1558971405029297,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
+    },
+    {
+      "label": "Per-L3 policy stability",
+      "short": "L3-Stab",
+      "path": "scripts/test/test_l3_policy_stability.py",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.15288257598876953,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
@@ -440,7 +453,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16258502006530762,
+      "runtime_s": 0.15204882621765137,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -453,8 +466,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16481971740722656,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.03s"
+      "runtime_s": 0.153656005859375,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.02s"
     },
     {
       "label": "Family-classification sensitivity",
@@ -466,7 +479,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16237783432006836,
+      "runtime_s": 0.15322327613830566,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.02s"
     },
     {
@@ -479,7 +492,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1639871597290039,
+      "runtime_s": 0.15621089935302734,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -492,7 +505,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16549444198608398,
+      "runtime_s": 0.1565241813659668,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.03s"
     }
   ],
