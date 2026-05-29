@@ -79,6 +79,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_sensitivity_cross_artifact.py", "Fam-Sens-X"),
     "Cross-tool slope-ordering cross-artifact":
         ("scripts/test/test_cross_tool_slope_ordering_xartifact.py", "Slope-Ord-X"),
+    "Gem5/Sniper anchor cell parity":
+        ("scripts/test/test_gem5_sniper_anchor_cell_parity.py", "Anch-Par"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
