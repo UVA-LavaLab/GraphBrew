@@ -131,6 +131,18 @@ email-Eu-core,pr,8MB,GRASP,1.000000,+0.0000,,insufficient_data,Faldu et al. HPCA
 email-Eu-core,pr,8MB,LRU,1.000000,+0.0000,,no_claim,
 email-Eu-core,pr,8MB,POPT,1.000000,+0.0000,,no_claim,
 email-Eu-core,pr,8MB,SRRIP,1.000000,+0.0000,,no_claim,
+soc-LiveJournal1,bfs,1MB,GRASP,0.787126,-1.1538,,ok,Faldu et al. HPCA 2020 Fig 11
+soc-LiveJournal1,bfs,1MB,LRU,0.798664,+0.0000,,no_claim,
+soc-LiveJournal1,bfs,1MB,POPT,0.771569,-2.7095,,no_claim,
+soc-LiveJournal1,bfs,1MB,SRRIP,0.782850,-1.5814,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-LiveJournal1,bfs,4MB,GRASP,0.600710,-0.6754,,no_claim,
+soc-LiveJournal1,bfs,4MB,LRU,0.607464,+0.0000,,no_claim,
+soc-LiveJournal1,bfs,4MB,POPT,0.588583,-1.8881,,no_claim,
+soc-LiveJournal1,bfs,4MB,SRRIP,0.600855,-0.6609,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-LiveJournal1,bfs,8MB,GRASP,0.531077,-2.6031,,no_claim,
+soc-LiveJournal1,bfs,8MB,LRU,0.557108,+0.0000,,no_claim,
+soc-LiveJournal1,bfs,8MB,POPT,0.521469,-3.5639,,no_claim,
+soc-LiveJournal1,bfs,8MB,SRRIP,0.552149,-0.4959,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,pr,1MB,GRASP,0.684286,-4.7914,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-LiveJournal1,pr,1MB,LRU,0.732200,+0.0000,,no_claim,
 soc-LiveJournal1,pr,1MB,POPT,0.624785,-10.7415,,ok,Balaji & Lucia HPCA 2021 Fig 9
