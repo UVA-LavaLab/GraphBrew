@@ -111,6 +111,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_tri_artifact_agreement.py", "Fam-Tri"),
     "Regression budget vs lit_faith parity":
         ("scripts/test/test_regression_budget_vs_lit_faith.py", "Reg-Faith"),
+    "Oracle-gap internal and by-app aggregation":
+        ("scripts/test/test_oracle_gap_internal_and_by_app.py", "Ora-Ag"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
