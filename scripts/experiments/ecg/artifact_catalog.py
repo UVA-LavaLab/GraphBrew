@@ -344,6 +344,14 @@ CATALOG = [
         "summary":   "Per-(app, policy) discrete second derivative of the oracle-gap trajectory on a log2-MB L3 axis. GRASP shows the sharpest knee (mean curv 2.87 pp/oct^2, 4/5 apps); POPT shows a milder knee (0.69, 3/5 apps); LRU and SRRIP both show negative mean curvature (still accelerating their descent at 4→8MB, 0 knees each). Disagreement with gate 55 on lead policy is itself informative: saturation-by-threshold favors POPT (already flat), curvature favors GRASP (the dramatic plateau emerges). Both agree oracle-aware policies dominate non-oracle on plateau evidence.",
     },
     {
+        "id":        "policy_rank_kendall",
+        "label":     "Policy-rank Kendall-tau across L3 octave",
+        "generator": "scripts/experiments/ecg/policy_rank_kendall.py",
+        "gate":      "scripts/test/test_policy_rank_kendall.py",
+        "artifact":  "wiki/data/policy_rank_kendall.json",
+        "summary":   "Per-(app, graph) Kendall-tau rank correlation between the four policies' miss-rate rankings at 1MB vs 4MB vs 8MB. Median tau 1MB↔8MB is 0.50 (positive — rank is generally predictive across capacity), but six cells flip: three GRASP-thrash-at-1MB cells (bc/cit-Patents, bc/web-Google, pr/email-Eu-core where GRASP ranks 4th at 1MB and 1st at 4MB), two large-cache-fit-in-WSS cells (cc/web-Google, sssp/soc-pokec where oracle-pinning hurts when there is no pressure), one pico-corpus noise cell (bfs/email-Eu-core). Verdict pins those six and fails on any new flip.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -423,7 +431,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (58 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (59 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

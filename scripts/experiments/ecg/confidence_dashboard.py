@@ -151,6 +151,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_policy_auc_clustering.py", "FamAUC"),
     "Oracle-gap trajectory curvature":
         ("scripts/test/test_oracle_gap_curvature.py", "Knee"),
+    "Policy-rank Kendall-tau across L3 octave":
+        ("scripts/test/test_policy_rank_kendall.py", "Tau"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
