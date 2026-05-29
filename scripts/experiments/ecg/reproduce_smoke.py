@@ -105,6 +105,8 @@ TRACKED_ARTIFACTS = [
     "gap_distribution_shape.md",
     "family_policy_auc_clustering.json",
     "family_policy_auc_clustering.md",
+    "oracle_gap_curvature.json",
+    "oracle_gap_curvature.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

@@ -149,6 +149,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_gap_distribution_shape.py", "Shape"),
     "Per-family policy-AUC clustering replay":
         ("scripts/test/test_family_policy_auc_clustering.py", "FamAUC"),
+    "Oracle-gap trajectory curvature":
+        ("scripts/test/test_oracle_gap_curvature.py", "Knee"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

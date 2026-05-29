@@ -336,6 +336,14 @@ CATALOG = [
         "summary":   "Re-derives the AUC winner per app inside each qualifying graph family (citation, social, web — the three with full 1MB/4MB/8MB coverage) and replays gate 50's intra/inter cluster correlation. social (n=4 graphs) replays the global winners perfectly with intra-r 0.92 vs inter-r 0.60. web (n=1) replays 5/5. citation (cit-Patents only) flips bfs and sssp from POPT to GRASP — pinned as expected for a low-out-degree-skew network. Pin guards against any NEW family/app pair drifting.",
     },
     {
+        "id":        "oracle_gap_curvature",
+        "label":     "Oracle-gap trajectory curvature (knee)",
+        "generator": "scripts/experiments/ecg/oracle_gap_curvature.py",
+        "gate":      "scripts/test/test_oracle_gap_curvature.py",
+        "artifact":  "wiki/data/oracle_gap_curvature.json",
+        "summary":   "Per-(app, policy) discrete second derivative of the oracle-gap trajectory on a log2-MB L3 axis. GRASP shows the sharpest knee (mean curv 2.87 pp/oct^2, 4/5 apps); POPT shows a milder knee (0.69, 3/5 apps); LRU and SRRIP both show negative mean curvature (still accelerating their descent at 4→8MB, 0 knees each). Disagreement with gate 55 on lead policy is itself informative: saturation-by-threshold favors POPT (already flat), curvature favors GRASP (the dramatic plateau emerges). Both agree oracle-aware policies dominate non-oracle on plateau evidence.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -415,7 +423,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (57 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (58 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
