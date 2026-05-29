@@ -71,6 +71,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_paper_claims_integrity.py", "Claims-Int"),
     "Cross-artifact aggregate consistency":
         ("scripts/test/test_cross_artifact_consistency.py", "X-Art"),
+    "Per-app oracle-vs-winner parity":
+        ("scripts/test/test_oracle_winner_per_app_parity.py", "Per-App-Par"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
