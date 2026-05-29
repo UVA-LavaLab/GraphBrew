@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **15 gates, all GREEN, exit 0**.
+and currently reports **21 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -101,6 +101,47 @@ Latest additions on top of the Tier A/B/C work:
   correctly excluded by the clustering criterion. Lit-faith ratio
   climbs to **288/320 ok = 90.0 %** (was 248/280). All 17 confidence
   gates remain ✅ GREEN.
+- Road-like invariant extended from a single graph-level check to a
+  per-(graph, app, L3) cell sweep — every cell on every road-like
+  graph at every swept L3 must satisfy the GRASP-cannot-help
+  predicate. Test count grows automatically as more road-family
+  data folds in (21 cases today for roadNet-CA × {bfs, sssp, cc, pr}
+  × 5 L3 sizes + 1 corpus-present check).
+- **Four paper-grade aggregator gates added** (bumps total from 17 → 21):
+  - `scripts/experiments/ecg/policy_winner_table.py` projects the
+    lit-faith CSV onto a winner-per-cell view. 109 cells today; GRASP
+    wins 56 (51 %), POPT 41 (38 %), LRU/SRRIP 6 each. Test
+    `scripts/test/test_policy_winner_table.py` (7 cases) pins that
+    every winner is a known policy, hub graphs at large L3 actually
+    have a GRASP/POPT winner, and road-family GRASP wins stay within
+    the 0.5 pp noise floor.
+  - `scripts/experiments/ecg/small_l3_thrash_report.py` aggregates
+    the standalone `final_cache_sim` 4 kB-L3 sweep (9 (graph, app)
+    cells × 9 policy variants including POPT_CHARGED and 4 ECG
+    modes). LRU wins 5/9 cells; GRASP regresses up to +35.857 pp vs
+    LRU on soc-LiveJournal1/bfs. Test
+    `scripts/test/test_small_l3_thrash.py` (8 cases) pins the
+    "GRASP+POPT both regress ≥ 5 pp vs LRU" tiny-L3 signature,
+    that POPT_CHARGED never wins, and that all four ECG variants
+    are present.
+  - `scripts/experiments/ecg/cross_tool_saturation_report.py`
+    pairs each lit-faith cell with the matching gem5/Sniper anchor
+    cell, picks each tool's largest L3, and verifies cross-tool
+    agreement when both tools are saturated. 7 overlapping cells
+    today; 4 doubly-saturated, all agree on Δ(GRASP−LRU) within
+    2 pp. Test `scripts/test/test_cross_tool_saturation.py` (8 cases)
+    pins that ≥ 1 doubly-saturated cell exists and that no
+    doubly-saturated cell disagrees — the central cross-tool
+    soundness claim for the paper.
+  - `scripts/experiments/ecg/claim_density_report.py` tallies per-
+    graph literature claim density (8 graphs, 320 claims, 288 OK
+    = 90.0 %). Citation density per graph ranges 2 (delaunay_n19)
+    → 12 (cit-Patents). Test `scripts/test/test_claim_density.py`
+    (7 cases) pins zero-density absence, status-count consistency,
+    and summary-vs-per-graph totals.
+- New Make targets: `make lit-winner`, `make lit-thrash`,
+  `make lit-cross-tool`, `make lit-density` (all wired into the
+  `confidence` dep chain).
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the
