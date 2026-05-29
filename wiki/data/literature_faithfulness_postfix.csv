@@ -59,10 +59,18 @@ cit-Patents,sssp,8MB,GRASP,0.199914,-6.9044,,no_claim,
 cit-Patents,sssp,8MB,LRU,0.268958,+0.0000,,no_claim,
 cit-Patents,sssp,8MB,POPT,0.216244,-5.2714,,no_claim,
 cit-Patents,sssp,8MB,SRRIP,0.243975,-2.4983,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
-com-orkut,bc,1MB,GRASP,0.799916,-6.2445,,no_claim,
+com-orkut,bc,1MB,GRASP,0.799916,-6.2446,,no_claim,
 com-orkut,bc,1MB,LRU,0.862362,+0.0000,,no_claim,
-com-orkut,bc,1MB,POPT,0.824663,-3.7698,,no_claim,
+com-orkut,bc,1MB,POPT,0.824663,-3.7699,,no_claim,
 com-orkut,bc,1MB,SRRIP,0.836956,-2.5406,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+com-orkut,bc,4MB,GRASP,0.524215,-5.8442,,no_claim,
+com-orkut,bc,4MB,LRU,0.582657,+0.0000,,no_claim,
+com-orkut,bc,4MB,POPT,0.570893,-1.1764,,no_claim,
+com-orkut,bc,4MB,SRRIP,0.550247,-3.2410,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+com-orkut,bc,8MB,GRASP,0.335902,-4.6195,,no_claim,
+com-orkut,bc,8MB,LRU,0.382097,+0.0000,,no_claim,
+com-orkut,bc,8MB,POPT,0.383172,+0.1075,,no_claim,
+com-orkut,bc,8MB,SRRIP,0.353107,-2.8990,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,bfs,1MB,GRASP,0.994940,-0.2340,,no_claim,
 com-orkut,bfs,1MB,LRU,0.997280,+0.0000,,no_claim,
 com-orkut,bfs,1MB,POPT,0.997835,+0.0555,,no_claim,

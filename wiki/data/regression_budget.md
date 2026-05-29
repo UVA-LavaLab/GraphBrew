@@ -6,10 +6,10 @@ adverse direction before the lit-faith status flips to
 
 ## Headline
 
-- Cells in distribution: **217** (of 264 total claim rows)
+- Cells in distribution: **221** (of 270 total claim rows)
 - Minimum margin: **0.102 pp**
-- p10 margin: 1.470 pp
-- Median margin: 6.180 pp
+- p10 margin: 1.496 pp
+- Median margin: 6.137 pp
 - p90 margin: 10.696 pp
 - Max margin: 19.415 pp
 
@@ -17,10 +17,10 @@ adverse direction before the lit-faith status flips to
 
 | kind | n cells | min margin (pp) | median margin (pp) |
 |---|---:|---:|---:|
-| cache_policy | 99 | 1.305 | 7.030 |
+| cache_policy | 101 | 1.305 | 6.875 |
 | popt_ge_grasp | 49 | 0.102 | 1.783 |
 | popt_near_grasp_active | 11 | 0.813 | 7.386 |
-| popt_near_grasp_inactive | 58 | 3.352 | 6.838 |
+| popt_near_grasp_inactive | 60 | 2.273 | 6.715 |
 
 Cache-policy claims (LRU/SRRIP/GRASP/POPT individually) are
 the **primary** load-bearing checks. POPT_GE_GRASP enforces

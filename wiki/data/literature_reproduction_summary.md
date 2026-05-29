@@ -12,9 +12,9 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 | paper | cells | ok | within_tol | known_dev | disagree | insufficient | missing | reproduction% |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Faldu HPCA20 | 18 | 16 | 1 | 0 | 0 | 1 | 0 | 94.4% |
-| Balaji HPCA21 | 91 | 57 | 1 | 24 | 0 | 9 | 0 | 63.7% |
+| Balaji HPCA21 | 93 | 57 | 1 | 26 | 0 | 9 | 0 | 62.4% |
 | Jaleel ISCA10 | 15 | 15 | 0 | 0 | 0 | 0 | 0 | 100.0% |
-| cross-paper | 140 | 127 | 0 | 4 | 0 | 9 | 0 | 90.7% |
+| cross-paper | 144 | 131 | 0 | 4 | 0 | 9 | 0 | 91.0% |
 
 ## Per-citation roll-up
 
@@ -24,17 +24,17 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 | Faldu et al. HPCA 2020 Fig 11 | 7 | 6 | 1 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 82 | 69 | 0 | 4 | 0 | 0 | 9 |
+| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 84 | 71 | 0 | 4 | 0 | 0 | 9 |
 | Balaji & Lucia HPCA 2021 Fig 10 | 3 | 2 | 1 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 9 | 4 | 4 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6.3 | 18 | 14 | 0 | 1 | 0 | 0 | 3 |
-| Balaji & Lucia HPCA 2021 §6.3 (extended) | 64 | 35 | 0 | 23 | 0 | 0 | 6 |
+| Balaji & Lucia HPCA 2021 §6.3 (extended) | 66 | 35 | 0 | 25 | 0 | 0 | 6 |
 | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
-| Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) | 28 | 28 | 0 | 0 | 0 | 0 | 0 |
+| Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) | 30 | 30 | 0 | 0 | 0 | 0 | 0 |
 
 ## Faldu et al. HPCA 2020 Fig 10
 
@@ -84,7 +84,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 ## Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
 
-_82 cell(s):_ 69 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 9 insufficient_data.
+_84 cell(s):_ 71 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 9 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -104,6 +104,8 @@ _82 cell(s):_ 69 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 
 | cit-Patents | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.804pp | ✅ |
 | cit-Patents | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.633pp | ✅ |
 | com-orkut | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.475pp | ✅ |
+| com-orkut | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +4.668pp | ✅ |
+| com-orkut | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +4.727pp | ✅ |
 | com-orkut | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.289pp | ✅ |
 | com-orkut | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.395pp | ✅ |
 | com-orkut | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.729pp | ✅ |
@@ -235,7 +237,7 @@ _18 cell(s):_ 14 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 
 
 ## Balaji & Lucia HPCA 2021 §6.3 (extended)
 
-_64 cell(s):_ 35 ok · 0 within_tolerance · 23 known_deviation · 0 disagree · 0 missing · 6 insufficient_data.
+_66 cell(s):_ 35 ok · 0 within_tolerance · 25 known_deviation · 0 disagree · 0 missing · 6 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -252,6 +254,8 @@ _64 cell(s):_ 35 ok · 0 within_tolerance · 23 known_deviation · 0 disagree ·
 | cit-Patents | sssp | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.804pp | 📘 |
 | cit-Patents | sssp | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.633pp | 📘 |
 | com-orkut | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +2.475pp | 📘 |
+| com-orkut | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +4.668pp | 📘 |
+| com-orkut | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +4.727pp | 📘 |
 | com-orkut | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.289pp | ✅ |
 | com-orkut | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.395pp | ✅ |
 | com-orkut | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.729pp | ✅ |
@@ -372,7 +376,7 @@ _15 cell(s):_ 15 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 
 
 ## Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 
-_28 cell(s):_ 28 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_30 cell(s):_ 30 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -383,6 +387,8 @@ _28 cell(s):_ 28 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 
 | cit-Patents | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.685pp | ✅ |
 | cit-Patents | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.313pp | ✅ |
 | com-orkut | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.541pp | ✅ |
+| com-orkut | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.241pp | ✅ |
+| com-orkut | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.899pp | ✅ |
 | com-orkut | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.034pp | ✅ |
 | com-orkut | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.065pp | ✅ |
 | com-orkut | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.027pp | ✅ |

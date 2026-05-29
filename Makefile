@@ -494,7 +494,7 @@ LIT_SWEEP_ROOT  ?= /tmp/graphbrew-lit-baseline
 LIT_SWEEP_SUBDIR ?= lit
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -520,7 +520,16 @@ lit-budget:
 		--md-out   $(WIKI_DATA)/regression_budget.md \
 		--csv-out  $(WIKI_DATA)/regression_budget.csv
 
-confidence: lit-faith lit-repro lit-budget
+lit-table:
+	@echo "$(BLUE)Regenerating paper baseline table...$(NC)"
+	@python3 -m scripts.experiments.ecg.paper_baseline_table \
+		--sweep-root $(LIT_SWEEP_ROOT) \
+		--sweep-subdir $(LIT_SWEEP_SUBDIR) \
+		--markdown $(WIKI_DATA)/paper_baseline_table.md \
+		--csv      $(WIKI_DATA)/paper_baseline_table.csv \
+		--json     $(WIKI_DATA)/paper_baseline_table.json
+
+confidence: lit-faith lit-repro lit-budget lit-table
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

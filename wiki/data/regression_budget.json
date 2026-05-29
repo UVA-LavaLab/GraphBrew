@@ -1,17 +1,17 @@
 {
   "summary": {
-    "cells_total": 264,
-    "cells_in_distribution": 217,
+    "cells_total": 270,
+    "cells_in_distribution": 221,
     "min_margin_pp": 0.1024,
-    "p10_margin_pp": 1.47,
-    "median_margin_pp": 6.18,
+    "p10_margin_pp": 1.4965,
+    "median_margin_pp": 6.1366,
     "p90_margin_pp": 10.6961,
     "max_margin_pp": 19.415,
     "by_kind": {
       "cache_policy": {
-        "n": 99,
+        "n": 101,
         "min_pp": 1.305,
-        "median_pp": 7.03
+        "median_pp": 6.875
       },
       "popt_ge_grasp": {
         "n": 49,
@@ -24,9 +24,9 @@
         "median_pp": 7.386
       },
       "popt_near_grasp_inactive": {
-        "n": 58,
-        "min_pp": 3.3521,
-        "median_pp": 6.8382
+        "n": 60,
+        "min_pp": 2.273,
+        "median_pp": 6.7154
       }
     }
   },
@@ -1157,6 +1157,96 @@
       "max_abs_delta_pct": 5.0,
       "tolerance_pct": 2.0,
       "margin_pp": 4.5253,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "com-orkut",
+      "app": "bc",
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "status": "ok",
+      "delta_pct": -3.241,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 3.0,
+      "margin_pp": 4.76,
+      "claim_kind": "cache_policy",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
+    },
+    {
+      "graph": "com-orkut",
+      "app": "bc",
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "status": "known_deviation",
+      "delta_pct": 4.6678,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.5,
+      "margin_pp": 0.0,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+    },
+    {
+      "graph": "com-orkut",
+      "app": "bc",
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 4.6678,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 2.3322,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "com-orkut",
+      "app": "bc",
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "status": "ok",
+      "delta_pct": -2.899,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 3.0,
+      "margin_pp": 5.105,
+      "claim_kind": "cache_policy",
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
+    },
+    {
+      "graph": "com-orkut",
+      "app": "bc",
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "status": "known_deviation",
+      "delta_pct": 4.727,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.5,
+      "margin_pp": 0.0,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+    },
+    {
+      "graph": "com-orkut",
+      "app": "bc",
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 4.727,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 2.273,
       "claim_kind": "popt_near_grasp_inactive",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
     },

@@ -1,8 +1,8 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **264**
-- Verdict mix: **215 ok**, 2 within-tolerance, **0 DISAGREE**, 28 known-deviation, 0 missing, 19 insufficient_data
+- Claims total: **270**
+- Verdict mix: **219 ok**, 2 within-tolerance, **0 DISAGREE**, 30 known-deviation, 0 missing, 19 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -25,6 +25,8 @@
 | cit-Patents | sssp | 4MB | 0.5631 | 0.5385 | 0.4764 | 0.4944 | -8.673pp | -6.869pp |
 | cit-Patents | sssp | 8MB | 0.2690 | 0.2440 | 0.1999 | 0.2162 | -6.904pp | -5.271pp |
 | com-orkut | bc | 1MB | 0.8624 | 0.8370 | 0.7999 | 0.8247 | -6.245pp | -3.770pp |
+| com-orkut | bc | 4MB | 0.5827 | 0.5502 | 0.5242 | 0.5709 | -5.844pp | -1.176pp |
+| com-orkut | bc | 8MB | 0.3821 | 0.3531 | 0.3359 | 0.3832 | -4.620pp | +0.107pp |
 | com-orkut | bfs | 1MB | 0.9973 | 0.9976 | 0.9949 | 0.9978 | -0.234pp | +0.056pp |
 | com-orkut | bfs | 4MB | 0.9949 | 0.9956 | 0.9785 | 0.9745 | -1.648pp | -2.043pp |
 | com-orkut | bfs | 8MB | 0.9942 | 0.9945 | 0.9621 | 0.9548 | -3.215pp | -3.944pp |
@@ -151,6 +153,12 @@
 | ok | com-orkut | bc | 1MB | SRRIP | -2.541pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | known_deviation | com-orkut | bc | 1MB | POPT_GE_GRASP | +2.475pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | com-orkut | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +2.475pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | com-orkut | bc | 4MB | SRRIP | -3.241pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
+| known_deviation | com-orkut | bc | 4MB | POPT_GE_GRASP | +4.668pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | com-orkut | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +4.668pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | com-orkut | bc | 8MB | SRRIP | -2.899pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
+| known_deviation | com-orkut | bc | 8MB | POPT_GE_GRASP | +4.727pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | com-orkut | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +4.727pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | com-orkut | bfs | 1MB | SRRIP | +0.034pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | com-orkut | bfs | 1MB | POPT_GE_GRASP | +0.289pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | com-orkut | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.289pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
@@ -372,6 +380,8 @@
 - **cit-Patents/sssp L3=4MB POPT_GE_GRASP** (+1.804pp): cit-Patents has weak PR-driven locality; at 4 MB POPT's static PR-ranked schedule mis-aligns with SSSP's frontier-driven access pattern by ~1.8 pp. Citation graphs don't follow the power-law hub structure that POPT's oracle is calibrated for (Balaji HPCA21 §3.3 assumes PR-ordering tracks reuse).
 - **cit-Patents/sssp L3=8MB POPT_GE_GRASP** (+1.633pp): Same cit-Patents/SSSP rank-mis-alignment as the 4MB entry; ~1.6 pp gap persists even at 8 MB because the issue is ordering not capacity.
 - **com-orkut/bc L3=1MB POPT_GE_GRASP** (+2.475pp): Same BC/PR-rank mismatch as soc-LJ; com-orkut has even higher clustering coefficient (~0.17) so the gap widens to +2.5 pp at 1MB. GRASP wins by pinning the dense-subgraph pivots.
+- **com-orkut/bc L3=4MB POPT_GE_GRASP** (+4.668pp): Same com-orkut/BC PR-rank vs dependency-frontier mismatch as the 1MB entry; gap widens to +4.7 pp at 4MB because the larger cache amplifies POPT's mis-ordering penalty — more dense-subgraph pivots survive a single BC iteration under GRASP's pinning but are evicted in PR-rank order under POPT before the reverse pass needs them.
+- **com-orkut/bc L3=8MB POPT_GE_GRASP** (+4.727pp): Same com-orkut/BC PR-rank vs dependency-frontier mismatch as the 1MB / 4MB entries; gap is +4.7 pp at 8MB. com-orkut's high clustering coefficient (~0.17) and 17:1 hub-edge concentration make the PR-rank schedule maximally mis-aligned with BC's reverse-BFS dependency accumulation; GRASP wins because its hot-vertex hot-region holds the same dense-subgraph pivots that BC repeatedly re-visits across source vertices.
 - **com-orkut/cc L3=1MB POPT_GE_GRASP** (+11.016pp): Same CC/POPT mismatch as soc-pokec/cit-Patents CC entries; com-orkut shows the largest gap (~11 pp) due to maximal PR-rank vs edge-order mis-alignment.
 - **com-orkut/cc L3=1MB POPT_NEAR_GRASP_IF_BIG_GAP** (+11.016pp): Phase-transition regime invariant fires because GRASP gains 13+ pp over LRU on com-orkut/CC at 1 MB. POPT lags by ~11 pp - the largest CC/POPT gap observed - because Orkut is the highest-clustering corpus graph (CC ~0.17), so the static PR-ranked oracle is maximally mis-aligned with the union-find traversal's edge-driven reuse pattern.
 - **com-orkut/cc L3=4MB POPT_GE_GRASP** (+10.055pp): Same CC/POPT algorithmic mismatch as the com-orkut/cc/1MB entry above: union-find's edge-driven parent[] reuse is mis-aligned with POPT's static PR-rank schedule. Gap persists at ~10 pp at 4MB because the mismatch is in ordering, not capacity (see Balaji HPCA21 §3.3 PR-ordering assumption).

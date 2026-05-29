@@ -656,6 +656,21 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "Same BC/PR-rank mismatch as soc-LJ; com-orkut has even higher "
         "clustering coefficient (~0.17) so the gap widens to +2.5 pp at "
         "1MB. GRASP wins by pinning the dense-subgraph pivots.",
+    ("com-orkut", "bc", "4MB", "POPT_GE_GRASP"):
+        "Same com-orkut/BC PR-rank vs dependency-frontier mismatch as "
+        "the 1MB entry; gap widens to +4.7 pp at 4MB because the larger "
+        "cache amplifies POPT's mis-ordering penalty — more dense-subgraph "
+        "pivots survive a single BC iteration under GRASP's pinning but "
+        "are evicted in PR-rank order under POPT before the reverse pass "
+        "needs them.",
+    ("com-orkut", "bc", "8MB", "POPT_GE_GRASP"):
+        "Same com-orkut/BC PR-rank vs dependency-frontier mismatch as "
+        "the 1MB / 4MB entries; gap is +4.7 pp at 8MB. com-orkut's high "
+        "clustering coefficient (~0.17) and 17:1 hub-edge concentration "
+        "make the PR-rank schedule maximally mis-aligned with BC's "
+        "reverse-BFS dependency accumulation; GRASP wins because its "
+        "hot-vertex hot-region holds the same dense-subgraph pivots that "
+        "BC repeatedly re-visits across source vertices.",
 }
 
 

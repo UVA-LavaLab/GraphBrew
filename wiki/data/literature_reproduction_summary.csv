@@ -54,6 +54,12 @@ Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,sssp,8MB,POPT_N
 Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,1MB,SRRIP,~,,5.0,3.0,-2.5406,ok
 Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bc,1MB,POPT_GE_GRASP,-,,,1.5,2.4747,known_deviation
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.4747,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,4MB,SRRIP,~,,5.0,3.0,-3.241,ok
+Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bc,4MB,POPT_GE_GRASP,-,,,1.5,4.6678,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.6678,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,8MB,SRRIP,~,,5.0,3.0,-2.899,ok
+Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bc,8MB,POPT_GE_GRASP,-,,,1.5,4.727,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.727,ok
 Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bfs,1MB,SRRIP,~,,5.0,3.0,0.0337,ok
 Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bfs,1MB,POPT_GE_GRASP,-,,,1.5,0.2895,ok
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2895,ok
