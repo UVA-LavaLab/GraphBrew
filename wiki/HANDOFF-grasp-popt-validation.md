@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **120 gates, all GREEN, exit 0**.
+and currently reports **125 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -259,12 +259,43 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   per_policy median/mean/n reproduce from per_cell slopes; cross-policy
   deltas (lru_minus_grasp, srrip_minus_grasp) exact; verdict_checks
   recomputed from the four monotonicity/sign/steepness invariants
-  (gate 120, 12 tests).
+  (gate 120, 12 tests); family_slope_replay arithmetic + verdict —
+  per-family OLS slopes from oracle_gap rows (L3_LOG2_MB={1MB:0, 4MB:2,
+  8MB:3}, HELP_FLOOR=-5.0 pp/oct), qualifying families require at least
+  one (graph, app) cell with all 4 policies × 3 L3 sizes; replays_pattern
+  = LRU steeper than GRASP AND SRRIP steeper than GRASP AND every policy
+  median below help floor; PINNED_DEVIATING=('social',); verdict=PASS iff
+  replay_count >= 1 AND no new deviating families (gate 121, 11 tests);
+  policy_steepness_ranking checks + arithmetic — per-policy final-octave
+  steepness ranking (POPT <= GRASP <= LRU AND POPT < SRRIP) with
+  oracle-aware ceiling 0.5 pp/oct, non-oracle floor 0.5 pp/oct, oracle
+  median strictly < half non-oracle median, POPT min slope <= 0.2 pp/oct
+  (at least one app fully saturates); all seven checks reproduced from
+  cache_saturation_onset per_app final_octave_slope_pp magnitudes
+  (gate 122, 14 tests); cross_policy_asymmetry head-to-head arithmetic
+  — for every unordered policy pair, a_wins/b_wins/ties recomputed from
+  oracle_gap H2H (lower miss_rate wins), means × 100.0 conversion to pp,
+  asymmetry_ratio = max/min (None when either mean is 0); verdict=PASS
+  iff every pair has at least one win on both sides AND max ratio < 20.0
+  ceiling (gate 123, 30 parametric runs); saturation_slope_extremum
+  — distance metric (saturation_distance.per_app.mean_pp) and slope
+  metric (median across policies of per_app_capacity_slope.median_pp)
+  must agree on the LEAST-sensitive app (bfs) but are explicitly
+  allowed to disagree on the MOST-hungry app (regime-vs-aggregate
+  distinction); all five verdict_checks reproduce (bfs argmin on both
+  metrics, bfs unique extremum, corpus has slope >= 3× bfs AND distance
+  >= 2.5× bfs) (gate 124, 16 tests); winner_margin_gradient per-(app,L3)
+  margin gradient — paper L3 scope {1MB,4MB,8MB} classification
+  (decisive >= 4, moderate in [2,4), weak == 1, tied == 0); top_policy
+  with alphabetical tie-break; win_counts reproduced from oracle_gap
+  is_winner==1 tallies; n_cells_in_scope = distinct (graph,app,l3) count;
+  class_counts, strong_cell_fraction, weak_cells, tied_cells, and per_cell
+  tied_top_policies all reproduced (gate 125, 16 tests).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 120. `make confidence-fast` runs the whole suite in under
+  current 125. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -284,7 +315,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 120+ pytest gates + lit-faith headline + corpus diversity
+  view of all 125+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
