@@ -1,0 +1,7 @@
+avg_popt_matrix_active_columns,avg_popt_matrix_column_bytes,avg_popt_matrix_stream_bytes,avg_popt_matrix_stream_cache_lines,avg_popt_reserved_bytes,avg_popt_reserved_ways,avg_reserved_l3_pct,benchmark,l3_size,policy_label,policy_short,prefetcher,rows,simulator,threads
+2.0,208247.0,53311232.0,832988.0,3840.0,15.0,93.75,pr,4kB,POPT_CHARGED,P-OPT+C,none,4,cache_sim,
+2.0,208247.0,53311232.0,832988.0,3840.0,15.0,93.75,bfs,4kB,POPT_CHARGED,P-OPT+C,none,4,cache_sim,
+2.0,208247.0,53311232.0,832988.0,3840.0,15.0,93.75,sssp,4kB,POPT_CHARGED,P-OPT+C,none,4,cache_sim,
+2.0,208247.0,53311232.0,832988.0,3840.0,15.0,93.75,pr,4kB,ECG_DBG_PRIMARY_CHARGED,ECG-H+C,none,4,cache_sim,
+2.0,208247.0,53311232.0,832988.0,3840.0,15.0,93.75,bfs,4kB,ECG_DBG_PRIMARY_CHARGED,ECG-H+C,none,4,cache_sim,
+2.0,208247.0,53311232.0,832988.0,3840.0,15.0,93.75,sssp,4kB,ECG_DBG_PRIMARY_CHARGED,ECG-H+C,none,4,cache_sim,

@@ -128,6 +128,16 @@ Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,pr,4MB,POPT_N
 Faldu et al. HPCA 2020 Fig 10,email-Eu-core,pr,8MB,GRASP,~,,3.0,1.0,-0.0433,ok
 Balaji & Lucia HPCA 2021 §6.3,email-Eu-core,pr,8MB,POPT_GE_GRASP,-,,,1.0,0.0218,ok
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0218,ok
+Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,16kB,POPT_GE_GRASP,-,,,1.5,-0.1098,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1098,ok
+Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,1MB,POPT_GE_GRASP,-,,,1.5,-15.5876,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,15.5876,ok
+Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,256kB,POPT_GE_GRASP,-,,,1.5,-6.2817,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,256kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.2817,ok
+Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,4kB,POPT_GE_GRASP,-,,,1.5,-0.0107,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,4kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0107,ok
+Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,64kB,POPT_GE_GRASP,-,,,1.5,-1.1568,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,64kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.1568,ok
 Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bfs,16kB,POPT_GE_GRASP,-,,,1.5,0.1219,ok
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bfs,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1219,ok
 Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bfs,1MB,POPT_GE_GRASP,-,,,1.5,-35.0138,ok

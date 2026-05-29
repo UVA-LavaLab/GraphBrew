@@ -138,6 +138,7 @@
     },
     {
       "apps": [
+        "bc",
         "bfs",
         "cc",
         "pr",
@@ -149,11 +150,11 @@
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
       ],
       "graph": "roadNet-CA",
-      "n_apps": 4,
-      "n_cells": 20,
+      "n_apps": 5,
+      "n_cells": 25,
       "n_citations": 3,
-      "n_claims": 40,
-      "n_ok": 40,
+      "n_claims": 50,
+      "n_ok": 50,
       "n_policies": 2,
       "ok_pct": 100.0,
       "policies": [
@@ -161,7 +162,7 @@
         "POPT_NEAR_GRASP_IF_BIG_GAP"
       ],
       "status_counts": {
-        "ok": 40
+        "ok": 50
       }
     },
     {
@@ -291,8 +292,8 @@
   "schema_version": 1,
   "summary": {
     "n_graphs": 8,
-    "total_claims": 320,
-    "total_ok": 288,
-    "total_ok_pct": 90.0
+    "total_claims": 330,
+    "total_ok": 298,
+    "total_ok_pct": 90.30303030303031
   }
 }

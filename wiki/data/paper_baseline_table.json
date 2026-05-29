@@ -855,6 +855,101 @@
     }
   },
   {
+    "accesses": 53518574,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.20970000000000155,
+      "LRU": 0.0,
+      "POPT": -0.3195000000000059,
+      "SRRIP": -0.002900000000005676
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "16kB",
+    "miss_rate": {
+      "GRASP": 0.997708,
+      "LRU": 0.999805,
+      "POPT": 0.99661,
+      "SRRIP": 0.999776
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 53541138,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": 36.031499999999994,
+      "LRU": 0.0,
+      "POPT": 20.443899999999992,
+      "SRRIP": -2.096700000000007
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.908277,
+      "LRU": 0.5479620000000001,
+      "POPT": 0.752401,
+      "SRRIP": 0.526995
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 53410871,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": 5.322799999999994,
+      "LRU": 0.0,
+      "POPT": -0.958900000000007,
+      "SRRIP": -1.2930000000000108
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "256kB",
+    "miss_rate": {
+      "GRASP": 0.975329,
+      "LRU": 0.9221010000000001,
+      "POPT": 0.912512,
+      "SRRIP": 0.909171
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 53541075,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.053400000000003445,
+      "LRU": 0.0,
+      "POPT": -0.06410000000000027,
+      "SRRIP": 0.0021000000000048757
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "4kB",
+    "miss_rate": {
+      "GRASP": 0.999311,
+      "LRU": 0.999845,
+      "POPT": 0.999204,
+      "SRRIP": 0.999866
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 53386834,
+    "app": "bc",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.433299999999992,
+      "LRU": 0.0,
+      "POPT": -1.5900999999999943,
+      "SRRIP": -0.05299999999999194
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "64kB",
+    "miss_rate": {
+      "GRASP": 0.992171,
+      "LRU": 0.996504,
+      "POPT": 0.980603,
+      "SRRIP": 0.995974
+    },
+    "verdict": {}
+  },
+  {
     "accesses": 2724100,
     "app": "bfs",
     "delta_pp_vs_lru": {

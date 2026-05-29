@@ -1,0 +1,5 @@
+charged_alias,dynamic_popt_matrix,policy_label,policy_short,popt_reserved_ways,role
+no,no,ECG_DBG_ONLY,ECG-D,0,GRASP-equivalence / DBG-only low-overhead mode
+no,yes,ECG_DBG_PRIMARY,ECG-H,0,"Hybrid DBG-first ECG mode, oracle matrix capacity"
+yes,yes,ECG_DBG_PRIMARY_CHARGED,ECG-H+C,from run geometry,Hybrid DBG-first ECG mode with P-OPT overhead charged
+no,yes,ECG_POPT_PRIMARY,ECG-P,0,P-OPT-equivalence / oracle-validation mode

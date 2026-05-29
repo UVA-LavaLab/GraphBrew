@@ -1,0 +1,10 @@
+description,figure_label,policy_label
+Least recently used baseline,LRU,LRU
+Static re-reference interval prediction baseline,SRRIP,SRRIP
+GRASP degree-aware replacement,GRASP,GRASP
+P-OPT with matrix capacity and stream overhead charged,P-OPT+C,POPT_CHARGED
+P-OPT oracle-capacity replacement,P-OPT,POPT
+"ECG DBG-only mode, GRASP-equivalence check",ECG-D,ECG_DBG_ONLY
+ECG hybrid mode with P-OPT overhead charged,ECG-H+C,ECG_DBG_PRIMARY_CHARGED
+ECG DBG-primary hybrid mode,ECG-H,ECG_DBG_PRIMARY
+ECG P-OPT-primary oracle-validation mode,ECG-P,ECG_POPT_PRIMARY

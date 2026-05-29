@@ -51,6 +51,11 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | email-Eu-core | pr | 1MB | 0.81% | -0.04 | +0.33 | -0.06 | — | — |
 | email-Eu-core | pr | 4MB | 0.77% | -0.01 | -0.01 | +0.01 | — | — |
 | email-Eu-core | pr | 8MB | 0.80% | -0.02 | -0.04 | -0.02 | ✓ ok | — |
+| roadNet-CA | bc | 16kB | 99.98% | -0.00 | -0.21 | -0.32 | — | — |
+| roadNet-CA | bc | 1MB | 54.80% | -2.10 | +36.03 | +20.44 | — | — |
+| roadNet-CA | bc | 256kB | 92.21% | -1.29 | +5.32 | -0.96 | — | — |
+| roadNet-CA | bc | 4kB | 99.98% | +0.00 | -0.05 | -0.06 | — | — |
+| roadNet-CA | bc | 64kB | 99.65% | -0.05 | -0.43 | -1.59 | — | — |
 | roadNet-CA | bfs | 16kB | 99.99% | -0.00 | -0.19 | -0.07 | — | — |
 | roadNet-CA | bfs | 1MB | 25.54% | +4.64 | +68.40 | +33.39 | — | — |
 | roadNet-CA | bfs | 256kB | 89.10% | -2.49 | +8.99 | -11.25 | — | — |

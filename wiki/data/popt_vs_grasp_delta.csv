@@ -43,6 +43,11 @@ email-Eu-core,social,bfs,8MB,large,0.045826,0.045841,0.002,tie
 email-Eu-core,social,pr,1MB,large,0.011343,0.007465,-0.388,tie
 email-Eu-core,social,pr,4MB,large,0.007562,0.007812,0.025,tie
 email-Eu-core,social,pr,8MB,large,0.007594,0.007812,0.022,tie
+roadNet-CA,road,bc,4kB,tiny,0.999311,0.999204,-0.011,tie
+roadNet-CA,road,bc,16kB,tiny,0.997708,0.996610,-0.110,tie
+roadNet-CA,road,bc,64kB,small,0.992171,0.980603,-1.157,popt_better
+roadNet-CA,road,bc,256kB,small,0.975329,0.912512,-6.282,popt_better
+roadNet-CA,road,bc,1MB,large,0.908277,0.752401,-15.588,popt_better
 roadNet-CA,road,bfs,4kB,tiny,0.999418,0.999863,0.044,tie
 roadNet-CA,road,bfs,16kB,tiny,0.998003,0.999222,0.122,tie
 roadNet-CA,road,bfs,64kB,small,0.992857,0.973192,-1.967,popt_better

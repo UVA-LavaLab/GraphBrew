@@ -261,6 +261,71 @@
       "winner": "POPT"
     },
     {
+      "app": "bc",
+      "avg_degree": "2.906200",
+      "clustering_coeff": "0.062930",
+      "family": "road",
+      "graph": "roadNet-CA",
+      "hub_concentration": "0.140530",
+      "l3_size": "16kB",
+      "margin_pp": "0.110",
+      "regime": "tiny",
+      "runner_up": "GRASP",
+      "winner": "POPT"
+    },
+    {
+      "app": "bc",
+      "avg_degree": "2.906200",
+      "clustering_coeff": "0.062930",
+      "family": "road",
+      "graph": "roadNet-CA",
+      "hub_concentration": "0.140530",
+      "l3_size": "1MB",
+      "margin_pp": "2.097",
+      "regime": "large",
+      "runner_up": "LRU",
+      "winner": "SRRIP"
+    },
+    {
+      "app": "bc",
+      "avg_degree": "2.906200",
+      "clustering_coeff": "0.062930",
+      "family": "road",
+      "graph": "roadNet-CA",
+      "hub_concentration": "0.140530",
+      "l3_size": "256kB",
+      "margin_pp": "0.334",
+      "regime": "small",
+      "runner_up": "POPT",
+      "winner": "SRRIP"
+    },
+    {
+      "app": "bc",
+      "avg_degree": "2.906200",
+      "clustering_coeff": "0.062930",
+      "family": "road",
+      "graph": "roadNet-CA",
+      "hub_concentration": "0.140530",
+      "l3_size": "4kB",
+      "margin_pp": "0.011",
+      "regime": "tiny",
+      "runner_up": "GRASP",
+      "winner": "POPT"
+    },
+    {
+      "app": "bc",
+      "avg_degree": "2.906200",
+      "clustering_coeff": "0.062930",
+      "family": "road",
+      "graph": "roadNet-CA",
+      "hub_concentration": "0.140530",
+      "l3_size": "64kB",
+      "margin_pp": "1.157",
+      "regime": "small",
+      "runner_up": "GRASP",
+      "winner": "POPT"
+    },
+    {
       "app": "bfs",
       "avg_degree": "2.906200",
       "clustering_coeff": "0.062930",
@@ -1477,46 +1542,46 @@
         "total": 1
       },
       {
-        "GRASP_share": 0.625,
+        "GRASP_share": 0.5,
         "GRASP_wins": 5,
         "LRU_share": 0.0,
         "LRU_wins": 0,
         "OTHER_wins": 0,
-        "POPT_share": 0.375,
-        "POPT_wins": 3,
+        "POPT_share": 0.5,
+        "POPT_wins": 5,
         "SRRIP_share": 0.0,
         "SRRIP_wins": 0,
         "family": "road",
         "regime": "tiny",
-        "total": 8
+        "total": 10
       },
       {
-        "GRASP_share": 0.125,
+        "GRASP_share": 0.1,
         "GRASP_wins": 1,
-        "LRU_share": 0.125,
+        "LRU_share": 0.1,
         "LRU_wins": 1,
         "OTHER_wins": 0,
-        "POPT_share": 0.625,
-        "POPT_wins": 5,
-        "SRRIP_share": 0.125,
-        "SRRIP_wins": 1,
+        "POPT_share": 0.6,
+        "POPT_wins": 6,
+        "SRRIP_share": 0.2,
+        "SRRIP_wins": 2,
         "family": "road",
         "regime": "small",
-        "total": 8
+        "total": 10
       },
       {
         "GRASP_share": 0.0,
         "GRASP_wins": 0,
-        "LRU_share": 0.75,
+        "LRU_share": 0.6,
         "LRU_wins": 3,
         "OTHER_wins": 0,
-        "POPT_share": 0.25,
+        "POPT_share": 0.2,
         "POPT_wins": 1,
-        "SRRIP_share": 0.0,
-        "SRRIP_wins": 0,
+        "SRRIP_share": 0.2,
+        "SRRIP_wins": 1,
         "family": "road",
         "regime": "large",
-        "total": 4
+        "total": 5
       },
       {
         "GRASP_share": 0.574074,
@@ -1547,13 +1612,13 @@
         "total": 15
       }
     ],
-    "n_cells": 109,
+    "n_cells": 114,
     "n_family_regime_bins": 9,
     "overall_winner_counts": {
       "GRASP": 56,
       "LRU": 6,
-      "POPT": 41,
-      "SRRIP": 6
+      "POPT": 44,
+      "SRRIP": 8
     },
     "rule_threshold": 0.8,
     "rules": [

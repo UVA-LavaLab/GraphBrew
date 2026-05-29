@@ -1041,6 +1041,266 @@
       "regime": "large"
     },
     {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.011",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "4kB",
+      "miss_rate": "0.999311",
+      "n_policies_in_cell": 4,
+      "oracle": "0.999204",
+      "policy": "GRASP",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.064",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "4kB",
+      "miss_rate": "0.999845",
+      "n_policies_in_cell": 4,
+      "oracle": "0.999204",
+      "policy": "LRU",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.000",
+      "graph": "roadNet-CA",
+      "is_winner": "1",
+      "l3_size": "4kB",
+      "miss_rate": "0.999204",
+      "n_policies_in_cell": 4,
+      "oracle": "0.999204",
+      "policy": "POPT",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.066",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "4kB",
+      "miss_rate": "0.999866",
+      "n_policies_in_cell": 4,
+      "oracle": "0.999204",
+      "policy": "SRRIP",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.110",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "16kB",
+      "miss_rate": "0.997708",
+      "n_policies_in_cell": 4,
+      "oracle": "0.996610",
+      "policy": "GRASP",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.320",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "16kB",
+      "miss_rate": "0.999805",
+      "n_policies_in_cell": 4,
+      "oracle": "0.996610",
+      "policy": "LRU",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.000",
+      "graph": "roadNet-CA",
+      "is_winner": "1",
+      "l3_size": "16kB",
+      "miss_rate": "0.996610",
+      "n_policies_in_cell": 4,
+      "oracle": "0.996610",
+      "policy": "POPT",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.317",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "16kB",
+      "miss_rate": "0.999776",
+      "n_policies_in_cell": 4,
+      "oracle": "0.996610",
+      "policy": "SRRIP",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "1.157",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "64kB",
+      "miss_rate": "0.992171",
+      "n_policies_in_cell": 4,
+      "oracle": "0.980603",
+      "policy": "GRASP",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "1.590",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "64kB",
+      "miss_rate": "0.996504",
+      "n_policies_in_cell": 4,
+      "oracle": "0.980603",
+      "policy": "LRU",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.000",
+      "graph": "roadNet-CA",
+      "is_winner": "1",
+      "l3_size": "64kB",
+      "miss_rate": "0.980603",
+      "n_policies_in_cell": 4,
+      "oracle": "0.980603",
+      "policy": "POPT",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "1.537",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "64kB",
+      "miss_rate": "0.995974",
+      "n_policies_in_cell": 4,
+      "oracle": "0.980603",
+      "policy": "SRRIP",
+      "regime": "tiny"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "6.616",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "256kB",
+      "miss_rate": "0.975329",
+      "n_policies_in_cell": 4,
+      "oracle": "0.909171",
+      "policy": "GRASP",
+      "regime": "small"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "1.293",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "256kB",
+      "miss_rate": "0.922101",
+      "n_policies_in_cell": 4,
+      "oracle": "0.909171",
+      "policy": "LRU",
+      "regime": "small"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.334",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "256kB",
+      "miss_rate": "0.912512",
+      "n_policies_in_cell": 4,
+      "oracle": "0.909171",
+      "policy": "POPT",
+      "regime": "small"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.000",
+      "graph": "roadNet-CA",
+      "is_winner": "1",
+      "l3_size": "256kB",
+      "miss_rate": "0.909171",
+      "n_policies_in_cell": 4,
+      "oracle": "0.909171",
+      "policy": "SRRIP",
+      "regime": "small"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "38.128",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "1MB",
+      "miss_rate": "0.908277",
+      "n_policies_in_cell": 4,
+      "oracle": "0.526995",
+      "policy": "GRASP",
+      "regime": "large"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "2.097",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "1MB",
+      "miss_rate": "0.547962",
+      "n_policies_in_cell": 4,
+      "oracle": "0.526995",
+      "policy": "LRU",
+      "regime": "large"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "22.541",
+      "graph": "roadNet-CA",
+      "is_winner": "0",
+      "l3_size": "1MB",
+      "miss_rate": "0.752401",
+      "n_policies_in_cell": 4,
+      "oracle": "0.526995",
+      "policy": "POPT",
+      "regime": "large"
+    },
+    {
+      "app": "bc",
+      "family": "road",
+      "gap_pp": "0.000",
+      "graph": "roadNet-CA",
+      "is_winner": "1",
+      "l3_size": "1MB",
+      "miss_rate": "0.526995",
+      "n_policies_in_cell": 4,
+      "oracle": "0.526995",
+      "policy": "SRRIP",
+      "regime": "large"
+    },
+    {
       "app": "bfs",
       "family": "road",
       "gap_pp": "0.000",
@@ -5687,9 +5947,9 @@
       },
       "GRASP/road": {
         "max": 70.117,
-        "mean": 12.4757,
-        "median": 1.6305,
-        "n": 20,
+        "mean": 11.8214,
+        "median": 1.294,
+        "n": 25,
         "p90": 52.137
       },
       "GRASP/social": {
@@ -5722,9 +5982,9 @@
       },
       "LRU/road": {
         "max": 11.246,
-        "mean": 1.6388,
-        "median": 0.2575,
-        "n": 20,
+        "mean": 1.5256,
+        "median": 0.325,
+        "n": 25,
         "p90": 4.995
       },
       "LRU/social": {
@@ -5757,10 +6017,10 @@
       },
       "POPT/road": {
         "max": 33.391,
-        "mean": 3.1994,
-        "median": 0.0375,
-        "n": 20,
-        "p90": 10.094
+        "mean": 3.4745,
+        "median": 0.031,
+        "n": 25,
+        "p90": 13.82
       },
       "POPT/social": {
         "max": 11.016,
@@ -5792,9 +6052,9 @@
       },
       "SRRIP/road": {
         "max": 8.755,
-        "mean": 1.8368,
-        "median": 0.806,
-        "n": 20,
+        "mean": 1.5462,
+        "median": 0.356,
+        "n": 25,
         "p90": 4.758
       },
       "SRRIP/social": {
@@ -5815,123 +6075,123 @@
     "by_policy_regime": {
       "GRASP/large": {
         "max": 70.117,
-        "mean": 2.7188,
+        "mean": 3.1122,
         "median": 0.0,
-        "n": 89,
-        "p90": 5.213
+        "n": 90,
+        "p90": 5.95
       },
       "GRASP/small": {
         "max": 52.137,
-        "mean": 16.4324,
-        "median": 5.511,
-        "n": 5,
-        "p90": 52.137
+        "mean": 14.7963,
+        "median": 6.0635,
+        "n": 6,
+        "p90": 20.233
       },
       "GRASP/tiny": {
         "max": 9.648,
-        "mean": 0.9395,
-        "median": 0.0,
-        "n": 15,
-        "p90": 1.967
+        "mean": 0.8539,
+        "median": 0.006,
+        "n": 18,
+        "p90": 1.294
       },
       "LRU/large": {
         "max": 21.615,
-        "mean": 5.6461,
-        "median": 4.412,
-        "n": 89,
+        "mean": 5.6067,
+        "median": 4.2465,
+        "n": 90,
         "p90": 13.345
       },
       "LRU/small": {
         "max": 11.246,
-        "mean": 4.4184,
-        "median": 5.085,
-        "n": 5,
-        "p90": 11.246
+        "mean": 3.8975,
+        "median": 3.189,
+        "n": 6,
+        "p90": 5.228
       },
       "LRU/tiny": {
         "max": 4.247,
-        "mean": 0.8648,
-        "median": 0.325,
-        "n": 15,
-        "p90": 2.421
+        "mean": 0.8303,
+        "median": 0.3225,
+        "n": 18,
+        "p90": 1.66
       },
       "POPT/large": {
         "max": 33.391,
-        "mean": 1.8466,
-        "median": 0.285,
-        "n": 89,
-        "p90": 4.727
+        "mean": 2.0766,
+        "median": 0.287,
+        "n": 90,
+        "p90": 5.058
       },
       "POPT/small": {
         "max": 13.82,
-        "mean": 2.9402,
-        "median": 0.0,
-        "n": 5,
-        "p90": 13.82
+        "mean": 2.5058,
+        "median": 0.167,
+        "n": 6,
+        "p90": 0.881
       },
       "POPT/tiny": {
         "max": 0.332,
-        "mean": 0.077,
-        "median": 0.031,
-        "n": 15,
-        "p90": 0.272
+        "mean": 0.0642,
+        "median": 0.0,
+        "n": 18,
+        "p90": 0.215
       },
       "SRRIP/large": {
         "max": 17.967,
-        "mean": 4.0425,
-        "median": 3.003,
-        "n": 89,
+        "mean": 3.9976,
+        "median": 2.941,
+        "n": 90,
         "p90": 9.842
       },
       "SRRIP/small": {
         "max": 8.755,
-        "mean": 4.354,
-        "median": 5.096,
-        "n": 5,
-        "p90": 8.755
+        "mean": 3.6283,
+        "median": 3.926,
+        "n": 6,
+        "p90": 5.163
       },
       "SRRIP/tiny": {
         "max": 2.56,
-        "mean": 0.7205,
-        "median": 0.189,
-        "n": 15,
-        "p90": 2.363
+        "mean": 0.7071,
+        "median": 0.253,
+        "n": 18,
+        "p90": 1.695
       }
     },
-    "n_cells": 109,
-    "n_rows": 436,
+    "n_cells": 114,
+    "n_rows": 456,
     "overall_by_policy": {
       "GRASP": {
         "max": 70.117,
-        "mean": 3.103,
+        "mean": 3.3706,
         "median": 0.0,
-        "n": 109,
-        "p90": 5.95,
+        "n": 114,
+        "p90": 6.467,
         "wins": 56
       },
       "LRU": {
         "max": 21.615,
-        "mean": 4.9318,
-        "median": 3.564,
-        "n": 109,
+        "mean": 4.7626,
+        "median": 3.2295,
+        "n": 114,
         "p90": 12.18,
         "wins": 7
       },
       "POPT": {
         "max": 33.391,
-        "mean": 1.6533,
-        "median": 0.06,
-        "n": 109,
-        "p90": 4.668,
-        "wins": 42
+        "mean": 1.7814,
+        "median": 0.052,
+        "n": 114,
+        "p90": 4.727,
+        "wins": 45
       },
       "SRRIP": {
         "max": 17.967,
-        "mean": 3.5997,
-        "median": 2.364,
-        "n": 109,
+        "mean": 3.4586,
+        "median": 2.1745,
+        "n": 114,
         "p90": 9.101,
-        "wins": 9
+        "wins": 11
       }
     }
   }

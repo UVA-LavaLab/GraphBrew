@@ -1,8 +1,8 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **320**
-- Verdict mix: **288 ok**, 2 within-tolerance, **0 DISAGREE**, 30 known-deviation, 0 missing, 0 insufficient_data
+- Claims total: **330**
+- Verdict mix: **298 ok**, 2 within-tolerance, **0 DISAGREE**, 30 known-deviation, 0 missing, 0 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -53,6 +53,11 @@
 | email-Eu-core | pr | 1MB | 0.0081 | 0.0077 | 0.0113 | 0.0075 | +0.329pp | -0.059pp |
 | email-Eu-core | pr | 4MB | 0.0077 | 0.0076 | 0.0076 | 0.0078 | -0.013pp | +0.012pp |
 | email-Eu-core | pr | 8MB | 0.0080 | 0.0078 | 0.0076 | 0.0078 | -0.043pp | -0.021pp |
+| roadNet-CA | bc | 4kB | 0.9998 | 0.9999 | 0.9993 | 0.9992 | -0.053pp | -0.064pp |
+| roadNet-CA | bc | 16kB | 0.9998 | 0.9998 | 0.9977 | 0.9966 | -0.210pp | -0.320pp |
+| roadNet-CA | bc | 64kB | 0.9965 | 0.9960 | 0.9922 | 0.9806 | -0.433pp | -1.590pp |
+| roadNet-CA | bc | 256kB | 0.9221 | 0.9092 | 0.9753 | 0.9125 | +5.323pp | -0.959pp |
+| roadNet-CA | bc | 1MB | 0.5480 | 0.5270 | 0.9083 | 0.7524 | +36.032pp | +20.444pp |
 | roadNet-CA | bfs | 4kB | 0.9999 | 0.9999 | 0.9994 | 0.9999 | -0.052pp | -0.007pp |
 | roadNet-CA | bfs | 16kB | 0.9999 | 0.9999 | 0.9980 | 0.9992 | -0.190pp | -0.068pp |
 | roadNet-CA | bfs | 64kB | 0.9974 | 0.9968 | 0.9929 | 0.9732 | -0.454pp | -2.421pp |
@@ -252,6 +257,16 @@
 | ok | email-Eu-core | pr | 8MB | GRASP | -0.043pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | email-Eu-core | pr | 8MB | POPT_GE_GRASP | +0.022pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.022pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | roadNet-CA | bc | 16kB | POPT_GE_GRASP | -0.110pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | roadNet-CA | bc | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.110pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | roadNet-CA | bc | 1MB | POPT_GE_GRASP | -15.588pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | roadNet-CA | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +15.588pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | roadNet-CA | bc | 256kB | POPT_GE_GRASP | -6.282pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | roadNet-CA | bc | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | +6.282pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | roadNet-CA | bc | 4kB | POPT_GE_GRASP | -0.011pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | roadNet-CA | bc | 4kB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.011pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | roadNet-CA | bc | 64kB | POPT_GE_GRASP | -1.157pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | roadNet-CA | bc | 64kB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.157pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | roadNet-CA | bfs | 16kB | POPT_GE_GRASP | +0.122pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | roadNet-CA | bfs | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.122pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | roadNet-CA | bfs | 1MB | POPT_GE_GRASP | -35.014pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |

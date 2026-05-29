@@ -1,11 +1,11 @@
 {
   "summary": {
-    "cells_total": 320,
-    "cells_in_distribution": 290,
+    "cells_total": 330,
+    "cells_in_distribution": 300,
     "min_margin_pp": 0.1024,
-    "p10_margin_pp": 1.3878,
-    "median_margin_pp": 6.42,
-    "p90_margin_pp": 11.2,
+    "p10_margin_pp": 1.3918,
+    "median_margin_pp": 6.445,
+    "p90_margin_pp": 11.87,
     "max_margin_pp": 67.0226,
     "by_kind": {
       "cache_policy": {
@@ -14,9 +14,9 @@
         "median_pp": 6.875
       },
       "popt_ge_grasp": {
-        "n": 83,
+        "n": 88,
         "min_pp": 0.1024,
-        "median_pp": 1.5261
+        "median_pp": 1.6154
       },
       "popt_near_grasp_active": {
         "n": 12,
@@ -24,9 +24,9 @@
         "median_pp": 8.052
       },
       "popt_near_grasp_inactive": {
-        "n": 93,
+        "n": 98,
         "min_pp": 2.273,
-        "median_pp": 6.9985
+        "median_pp": 7.0
       }
     }
   },
@@ -2267,6 +2267,156 @@
       "max_abs_delta_pct": 5.0,
       "tolerance_pct": 2.0,
       "margin_pp": 6.9782,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "16kB",
+      "policy": "POPT_GE_GRASP",
+      "status": "ok",
+      "delta_pct": -0.1098,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.5,
+      "margin_pp": 1.6098,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "16kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 0.1098,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 7.1098,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "status": "ok",
+      "delta_pct": -15.5876,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.5,
+      "margin_pp": 17.0876,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 15.5876,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 22.5876,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "256kB",
+      "policy": "POPT_GE_GRASP",
+      "status": "ok",
+      "delta_pct": -6.2817,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.5,
+      "margin_pp": 7.7817,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "256kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 6.2817,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 13.2817,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "4kB",
+      "policy": "POPT_GE_GRASP",
+      "status": "ok",
+      "delta_pct": -0.0107,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.5,
+      "margin_pp": 1.5107,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "4kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 0.0107,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 7.0107,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "64kB",
+      "policy": "POPT_GE_GRASP",
+      "status": "ok",
+      "delta_pct": -1.1568,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.5,
+      "margin_pp": 2.6568,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "bc",
+      "l3_size": "64kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 1.1568,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 8.1568,
       "claim_kind": "popt_near_grasp_inactive",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
     },

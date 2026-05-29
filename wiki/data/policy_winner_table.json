@@ -573,6 +573,71 @@
       "winner_policy": "GRASP"
     },
     {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "graph_family": "road",
+      "l3_regime": "tiny",
+      "l3_size": "4kB",
+      "margin_pp": "0.011",
+      "n_policies": 4,
+      "runner_up_miss_rate": "0.999311",
+      "runner_up_policy": "GRASP",
+      "winner_miss_rate": "0.999204",
+      "winner_policy": "POPT"
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "graph_family": "road",
+      "l3_regime": "tiny",
+      "l3_size": "16kB",
+      "margin_pp": "0.110",
+      "n_policies": 4,
+      "runner_up_miss_rate": "0.997708",
+      "runner_up_policy": "GRASP",
+      "winner_miss_rate": "0.996610",
+      "winner_policy": "POPT"
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "graph_family": "road",
+      "l3_regime": "small",
+      "l3_size": "64kB",
+      "margin_pp": "1.157",
+      "n_policies": 4,
+      "runner_up_miss_rate": "0.992171",
+      "runner_up_policy": "GRASP",
+      "winner_miss_rate": "0.980603",
+      "winner_policy": "POPT"
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "graph_family": "road",
+      "l3_regime": "small",
+      "l3_size": "256kB",
+      "margin_pp": "0.334",
+      "n_policies": 4,
+      "runner_up_miss_rate": "0.912512",
+      "runner_up_policy": "POPT",
+      "winner_miss_rate": "0.909171",
+      "winner_policy": "SRRIP"
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "graph_family": "road",
+      "l3_regime": "large",
+      "l3_size": "1MB",
+      "margin_pp": "2.097",
+      "n_policies": 4,
+      "runner_up_miss_rate": "0.547962",
+      "runner_up_policy": "LRU",
+      "winner_miss_rate": "0.526995",
+      "winner_policy": "SRRIP"
+    },
+    {
       "app": "bfs",
       "graph": "roadNet-CA",
       "graph_family": "road",
@@ -1461,12 +1526,12 @@
         "winner_policy": "GRASP"
       }
     ],
-    "n_cells": 109,
+    "n_cells": 114,
     "wins_by_app": {
       "bc": {
         "GRASP": 15,
-        "POPT": 1,
-        "SRRIP": 2
+        "POPT": 4,
+        "SRRIP": 4
       },
       "bfs": {
         "GRASP": 9,
@@ -1503,8 +1568,8 @@
       "road": {
         "GRASP": 6,
         "LRU": 4,
-        "POPT": 9,
-        "SRRIP": 1
+        "POPT": 12,
+        "SRRIP": 3
       },
       "social": {
         "GRASP": 31,
@@ -1521,25 +1586,25 @@
     "wins_by_policy": {
       "GRASP": 56,
       "LRU": 6,
-      "POPT": 41,
-      "SRRIP": 6
+      "POPT": 44,
+      "SRRIP": 8
     },
     "wins_by_regime": {
       "large": {
         "GRASP": 48,
         "LRU": 5,
         "POPT": 31,
-        "SRRIP": 5
+        "SRRIP": 6
       },
       "small": {
         "GRASP": 1,
         "LRU": 1,
-        "POPT": 7,
-        "SRRIP": 1
+        "POPT": 8,
+        "SRRIP": 2
       },
       "tiny": {
         "GRASP": 7,
-        "POPT": 3
+        "POPT": 5
       }
     }
   }
