@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "tools": [
+      "cache-sim",
+      "gem5",
+      "sniper"
+    ],
+    "tool_policies": {
+      "cache-sim": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ],
+      "gem5": [
+        "GRASP",
+        "LRU",
+        "SRRIP"
+      ],
+      "sniper": [
+        "GRASP",
+        "LRU",
+        "SRRIP"
+      ]
+    },
+    "medians": {
+      "cache-sim": {
+        "GRASP": -14.6513,
+        "LRU": -15.6181,
+        "POPT": -14.7621,
+        "SRRIP": -15.5966
+      },
+      "gem5": {
+        "GRASP": -5.9607,
+        "LRU": -5.1229,
+        "SRRIP": -7.2113
+      },
+      "sniper": {
+        "GRASP": -7.6445,
+        "LRU": -7.4015,
+        "SRRIP": -7.964
+      }
+    },
+    "steepness_spans": {
+      "cache-sim": 0.9668,
+      "gem5": 2.0884,
+      "sniper": 0.5625
+    },
+    "in_band_count": 10,
+    "expected_in_band_count": 10,
+    "violations": [],
+    "min_slope_pp_oct": -25.0,
+    "max_slope_pp_oct": -0.5,
+    "steepness_span_ceiling_pp_oct": 5.0,
+    "verdict_checks": {
+      "all_tool_policy_medians_negative": true,
+      "all_tool_policy_medians_in_band": true,
+      "no_tool_exceeds_steepness_span_ceiling": true
+    },
+    "verdict": "PASS"
+  }
+}

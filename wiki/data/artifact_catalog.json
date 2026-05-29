@@ -595,6 +595,17 @@
       "summary": "Reads gate 65 (saturation_distance per_app) and gate 68 (per_app_capacity_slope per-app medians) and verifies that bfs is the UNIQUE extremum on BOTH metrics: smallest 4MB->8MB distance AND shallowest OLS slope across the 1MB-8MB sweep. Pins the bfs-is-least-cache-sensitive finding with two independent measures. The most-cache-hungry app DISAGREES across metrics (sssp by slope -19.4 pp/oct; bc by distance +15.6 pp) \u2014 the regime-vs-aggregate distinction in action (distance captures upper-octave headroom while slope averages per-octave drop) \u2014 and is reported as INFORMATIONAL rather than gated. PASS iff (1) bfs is argmin(distance), (2) bfs is argmin(|slope|), (3) bfs is unique extremum on both, (4) at least one app has slope steepness >= 3x bfs, (5) at least one app has distance >= 2.5x bfs."
     },
     {
+      "artifact": "wiki/data/cross_tool_slope_universality.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_cross_tool_slope_universality.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/cross_tool_slope_universality.py",
+      "generator_exists": true,
+      "id": "cross_tool_slope_universality",
+      "label": "Cross-tool slope-sign universality",
+      "summary": "Roll-up invariant across all 10 (tool, policy) cells: cache-sim {GRASP,LRU,POPT,SRRIP} + gem5 {GRASP,LRU,SRRIP} + sniper {GRASP,LRU,SRRIP}. PASS iff (1) every (tool, policy) median capacity-sensitivity slope is negative (extra cache never makes a policy worse on average), (2) every median lies in the documented physical band [-25, -0.5] pp/oct (catches both runaway-steep regressions and near-zero collapse), (3) per-tool steepness span (max - min across policies) does not exceed 5 pp/oct (catches partial regressions where one policy on one tool stops scaling while siblings stay healthy). Centralizes the within-tool sign checks from gates 66/70/71 and adds two cross-tool roll-up invariants those gates cannot. All 10 cells in band: cache-sim [-15.62, -14.65], gem5 [-7.21, -5.12], sniper [-7.96, -7.40]."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -702,13 +713,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (75 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (76 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 64
+    "n_entries": 65
   }
 }
