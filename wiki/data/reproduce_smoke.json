@@ -1,20 +1,20 @@
 {
-  "n_artifacts": 50,
-  "ok": 50,
+  "n_artifacts": 52,
+  "ok": 52,
   "drift": [],
   "missing": [],
   "passed": true,
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "5c40673febecd646dff6cabbd5c1ebb5508840dcb19ab9d0df9beb09fe9dd2d9",
-      "sha_after": "5c40673febecd646dff6cabbd5c1ebb5508840dcb19ab9d0df9beb09fe9dd2d9",
+      "sha_before": "8576e3f7776fb68c71074dd7efebefc98a61ad6f373636f5ae6ad503caf2f7f6",
+      "sha_after": "8576e3f7776fb68c71074dd7efebefc98a61ad6f373636f5ae6ad503caf2f7f6",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "b6eba9b81bcf1e65e1bd300c544dfdb6f6580fa9892d2d21f2753d631cb52656",
-      "sha_after": "b6eba9b81bcf1e65e1bd300c544dfdb6f6580fa9892d2d21f2753d631cb52656",
+      "sha_before": "40e684e60f837bf56e6e01bad97b9e6a74c7bf5d60d1b1e0f961f45c7953bec9",
+      "sha_after": "40e684e60f837bf56e6e01bad97b9e6a74c7bf5d60d1b1e0f961f45c7953bec9",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "dbf41f93b830f0e67de8e976702b7b1a14a81ac09e0bc5a991dbcc9f132cf973",
-      "sha_after": "dbf41f93b830f0e67de8e976702b7b1a14a81ac09e0bc5a991dbcc9f132cf973",
+      "sha_before": "60decb0a48f71393e64849c54449854c08e7ce440963cea4d09806ec4afabc60",
+      "sha_after": "60decb0a48f71393e64849c54449854c08e7ce440963cea4d09806ec4afabc60",
       "status": "ok"
     },
     {
@@ -150,6 +150,18 @@
       "status": "ok"
     },
     {
+      "artifact": "cohens_h_win_rates.json",
+      "sha_before": "4216f644a98d776c4fc09c58f69a39ea18756fd09d57c721fc5a67ceb89510bc",
+      "sha_after": "4216f644a98d776c4fc09c58f69a39ea18756fd09d57c721fc5a67ceb89510bc",
+      "status": "ok"
+    },
+    {
+      "artifact": "cohens_h_win_rates.md",
+      "sha_before": "cfd868e482572e7232959f25026036bb86f9a3c9246c7f3ca9d434bb89e439a9",
+      "sha_after": "cfd868e482572e7232959f25026036bb86f9a3c9246c7f3ca9d434bb89e439a9",
+      "status": "ok"
+    },
+    {
       "artifact": "gem5_anchor.json",
       "sha_before": "5bb82b23003e4603d53f66ac33497808044d1868b70c4762b148e120ae70c912",
       "sha_after": "5bb82b23003e4603d53f66ac33497808044d1868b70c4762b148e120ae70c912",
@@ -223,14 +235,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "3274ab88eaa71fdd734b8f6933fde022be0025fc7b7acbc898c00c29e85e9c23",
-      "sha_after": "3274ab88eaa71fdd734b8f6933fde022be0025fc7b7acbc898c00c29e85e9c23",
+      "sha_before": "bc3369cc8050fa7e0f32a755329fcafa6fea1a189121a292aaf1231d682d1ca3",
+      "sha_after": "bc3369cc8050fa7e0f32a755329fcafa6fea1a189121a292aaf1231d682d1ca3",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "b647b5267cd71ce627b13ddd865cf0a0cc02a55e235aaca42ad1b77701733746",
-      "sha_after": "b647b5267cd71ce627b13ddd865cf0a0cc02a55e235aaca42ad1b77701733746",
+      "sha_before": "c85aaad2f750f5d0f4c72f63c69a8200dc24829ffe8ac392dc6060e4814946f8",
+      "sha_after": "c85aaad2f750f5d0f4c72f63c69a8200dc24829ffe8ac392dc6060e4814946f8",
       "status": "ok"
     },
     {

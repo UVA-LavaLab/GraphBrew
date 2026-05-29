@@ -63,6 +63,8 @@ TRACKED_ARTIFACTS = [
     "popt_vs_grasp_by_family_app.md",
     "wilson_win_rates.json",
     "wilson_win_rates.md",
+    "cohens_h_win_rates.json",
+    "cohens_h_win_rates.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

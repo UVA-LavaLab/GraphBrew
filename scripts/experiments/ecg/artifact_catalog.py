@@ -168,6 +168,14 @@ CATALOG = [
         "summary":   "Wilson 95% CIs on per-(scope,policy) win-rates. CI-strict majority: pr/POPT [0.529,0.848], cc/GRASP [0.640,0.948]. CI-strict below-chance: cc/POPT [0.000,0.161]. sssp POPT/GRASP not CI-distinguishable.",
     },
     {
+        "id":        "cohens_h_win_rates",
+        "label":     "Cohen's h on policy win-rate gaps",
+        "generator": "scripts/experiments/ecg/cohens_h_win_rates.py",
+        "gate":      "scripts/test/test_cohens_h_win_rates.py",
+        "artifact":  "wiki/data/cohens_h_win_rates.json",
+        "summary":   "14 large-effect (h≥0.8) dominance pairs. cc/GRASP-vs-POPT h=2.346 (largest). pr/POPT-vs-{LRU,SRRIP} h=2.014. sssp has NO large effect (max h=0.726); pinned as the kernel with weakest policy-ordering signal.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -247,7 +255,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (36 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (37 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

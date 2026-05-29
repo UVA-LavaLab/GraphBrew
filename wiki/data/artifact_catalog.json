@@ -166,6 +166,17 @@
       "summary": "Wilson 95% CIs on per-(scope,policy) win-rates. CI-strict majority: pr/POPT [0.529,0.848], cc/GRASP [0.640,0.948]. CI-strict below-chance: cc/POPT [0.000,0.161]. sssp POPT/GRASP not CI-distinguishable."
     },
     {
+      "artifact": "wiki/data/cohens_h_win_rates.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_cohens_h_win_rates.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/cohens_h_win_rates.py",
+      "generator_exists": true,
+      "id": "cohens_h_win_rates",
+      "label": "Cohen's h on policy win-rate gaps",
+      "summary": "14 large-effect (h\u22650.8) dominance pairs. cc/GRASP-vs-POPT h=2.346 (largest). pr/POPT-vs-{LRU,SRRIP} h=2.014. sssp has NO large effect (max h=0.726); pinned as the kernel with weakest policy-ordering signal."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -273,13 +284,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (36 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (37 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 25
+    "n_entries": 26
   }
 }
