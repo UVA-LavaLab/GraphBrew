@@ -453,10 +453,14 @@ def format_markdown(result: dict[str, Any], sweep_root: Path) -> str:
         out.append("## Known deviations (registered)")
         out.append("")
         for d in result["known_deviations"]:
-            out.append(
+            reason = d.get("known_deviation_reason") or d.get("reason") or ""
+            line = (
                 f"- **{d['graph']}/{d['app']} L3={d['l3_size']} {d['policy']}** "
-                f"({d.get('delta_pct', 0):+.3f}pp): {d.get('reason', '')}"
+                f"({d.get('delta_pct', 0):+.3f}pp)"
             )
+            if reason:
+                line += f": {reason}"
+            out.append(line)
         out.append("")
 
     if result.get("disagreements"):

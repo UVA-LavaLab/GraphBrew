@@ -118,12 +118,45 @@ INVARIANT_CLAIMS: tuple[LiteratureClaim, ...] = (
     ),
     # POPT ≥ GRASP at all L3 sizes (oracle look-ahead dominates degree heuristic).
     # Encoded as a relative claim handled by the comparator (POPT.delta ≤ GRASP.delta).
+    # The literature explicitly evaluates this on PR; for BC / BFS / SSSP / CC we
+    # encode the same invariant because the oracle argument is graph-agnostic
+    # (a 1pp regression vs a heuristic implies a measurement or modelling
+    # bug). Tolerance widens to 1.5pp for non-PR apps to absorb the larger
+    # per-trial variance these apps exhibit on frontier-driven traversals.
     LiteratureClaim(
         graph="*", app="pr", l3_size="*", policy="POPT_GE_GRASP",
         expected_sign="-", min_abs_delta_pct=None, max_abs_delta_pct=None,
         tolerance_pct=1.0,
         rationale="P-OPT is an oracle policy by construction; it cannot be worse than any heuristic, including GRASP, by more than tolerance.",
         citation="Balaji & Lucia HPCA 2021 §6.3",
+    ),
+    LiteratureClaim(
+        graph="*", app="bc", l3_size="*", policy="POPT_GE_GRASP",
+        expected_sign="-", min_abs_delta_pct=None, max_abs_delta_pct=None,
+        tolerance_pct=1.5,
+        rationale="P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modulo the larger per-trial variance of BC's dependency-frontier traversal.",
+        citation="Balaji & Lucia HPCA 2021 §6.3 (extended)",
+    ),
+    LiteratureClaim(
+        graph="*", app="bfs", l3_size="*", policy="POPT_GE_GRASP",
+        expected_sign="-", min_abs_delta_pct=None, max_abs_delta_pct=None,
+        tolerance_pct=1.5,
+        rationale="P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-driven variance.",
+        citation="Balaji & Lucia HPCA 2021 §6.3 (extended)",
+    ),
+    LiteratureClaim(
+        graph="*", app="sssp", l3_size="*", policy="POPT_GE_GRASP",
+        expected_sign="-", min_abs_delta_pct=None, max_abs_delta_pct=None,
+        tolerance_pct=1.5,
+        rationale="P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial variance.",
+        citation="Balaji & Lucia HPCA 2021 §6.3 (extended)",
+    ),
+    LiteratureClaim(
+        graph="*", app="cc", l3_size="*", policy="POPT_GE_GRASP",
+        expected_sign="-", min_abs_delta_pct=None, max_abs_delta_pct=None,
+        tolerance_pct=1.5,
+        rationale="P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mis-alignment for POPT's static PR-rank schedule, see KNOWN_DEVIATIONS), the oracle still cannot lose by more than tolerance outside those documented cells.",
+        citation="Balaji & Lucia HPCA 2021 §6.3 (extended)",
     ),
 )
 

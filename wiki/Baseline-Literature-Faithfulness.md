@@ -406,14 +406,14 @@ artifact, not a literature deviation.
 
 | Status | Count | Meaning |
 |---|---:|---|
-| `ok` | 179 | Observed Δ within published tolerance |
+| `ok` | 214 | Observed Δ within published tolerance |
 | `within_tolerance` | 2 | Borderline (cit-Patents/bc/1MB GRASP; soc-LJ/sssp/1MB POPT) |
 | `DISAGREE` | 0 | Unexplained deviation from literature |
-| `known_deviation` | 5 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, frontier vs PR-rank mis-alignment) |
-| `insufficient_data` | 13 | ROI ran with <10 k accesses (tiny graph or hub-src degeneracy) |
-| `missing` | 1 | Claim has no matching observation yet (soc-LJ/bc/8MB POPT, in-flight) |
+| `known_deviation` | 27 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, BC/SSSP frontier vs PR-rank mis-alignment) |
+| `insufficient_data` | 19 | ROI ran with <10 k accesses (email-Eu-core smoke graph only) |
+| `missing` | 2 | Claim has no matching observation yet (soc-LJ/bc/8MB POPT, in-flight) |
 
-Total claims: 200 (added soc-LJ/{bfs,sssp,cc,bc-partial} and com-orkut/{bfs,bc-partial} fold-ins; pytest gate now treats 3 BC/POPT cells (soc-LJ/bc/{1MB,4MB}, com-orkut/bc/1MB) as documented `POPT_GE_GRASP` deviations, same root cause as CC: BC's dependency-frontier traversal mis-aligns with POPT's static PR-rank schedule).
+Total claims: 264 (POPT_GE_GRASP invariant now applies to bc / bfs / sssp / cc as well as pr — the oracle argument is graph-agnostic, so any cell where POPT loses to GRASP by >tolerance must be registered as a `KNOWN_DEVIATION` or fixed; this surfaces 22 additional pre-registered mismatches that were previously not reported as relational claims).
 
 All `known_deviation` entries are CC + POPT permutations where
 P-OPT's PR-ranked offset matrix is mis-aligned with CC's edge-driven
