@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **155 gates, all GREEN, exit 0**.
+and currently reports **160 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–155.**
+- **Cross-artifact / cross-source derivation parity gates 151–160.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -475,6 +475,49 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   filter (drops empty strings); summary roll-up totals match per-graph
   sums; n_graphs matches source-distinct-graph count. This is the
   reviewer-facing breakdown of "why does graph X only have N claims?"
+  Gate 156 (PBT-Der, 22 tests) locks paper_baseline_table.json: each
+  cell groups by (graph, app, l3) over POLICY_COLS=(LRU,SRRIP,GRASP,POPT);
+  per_observation miss_rates byte-exact against
+  literature_faithfulness_postfix.json#per_observation;
+  delta_pp_vs_lru reproduced via raw `(mr − lru_mr) * 100.0`;
+  accesses=max(over policies); verdict via _verdict_for 5-branch
+  classifier (no_lru / insufficient / DISAGREE / within_tol / ok); the
+  PER_GRAPH_CLAIMS pseudo-policy filter (POPT_GE_GRASP,
+  POPT_NEAR_GRASP_IF_BIG_GAP) means only GRASP/POPT real-policy claims
+  attach verdicts, matching the 27-verdict (19 GRASP + 8 POPT) cap.
+  Gate 157 (CTLR-Der, 20 tests) locks cross_tool_lru_regime.json: per-
+  tool LRU − GRASP slope deltas with TOOL_L3_RANGE_KB pinned;
+  regime classifier (hi ≤ 4096 → sub-WSS, lo ≥ 1024 → post-WSS, else
+  mixed) at POSTWSS_GAP_FLOOR_PP_OCT=0.30 and SUBWSS_TOLERANCE_PP=0.20;
+  5 verdict predicates ANDed (cache_sim post-WSS LRU steeper,
+  gem5/sniper sub-WSS LRU not strictly steeper, regime inversion sign
+  holds, regime labels correct). Gate 158 (CTSU-Der, 20 tests) locks
+  cross_tool_slope_universality.json: per-(tool, policy) median rounded
+  to 4dp from the same three upstream slope sources; physical band
+  [MIN_SLOPE_PP_OCT=-25.0, MAX_SLOPE_PP_OCT=-0.5]; steepness_span
+  rounded to 4dp; STEEPNESS_SPAN_CEILING_PP_OCT=5.0; violations list
+  element-by-element reconstruction; verdict AND of 3 predicates
+  (all_negative, all_in_band, no_span_exceeded). Gate 159 (CTSO-Der,
+  24 tests) locks cross_tool_slope_ordering.json: per-tool SRRIP-vs-
+  GRASP slope ordering from the same three upstream sources;
+  GAP_FLOOR_PP_OCTAVE=0.05 and REQUIRED_STRICT_TOOLS=2;
+  srrip_steeper ≡ srrip ≤ grasp; srrip_strictly_steeper ≡
+  srrip < grasp − 0.05; per_tool keys use UNDERSCORES (`cache_sim`
+  not `cache-sim` like in gates 157/158); 3-predicate AND verdict;
+  LRU-vs-GRASP delta reported but EXPLICITLY NOT gated (regime-
+  dependent — owned by gate 157). Gate 160 (PSR-Der, 30 tests) locks
+  policy_steepness_ranking.json: per-policy aggregates
+  (n/min/median/mean/max + per_app) from
+  cache_saturation_onset.json#per_app[app][policy].final_octave_slope_pp
+  via `abs()` + `statistics.median/mean`, all rounded to 6dp; oracle
+  vs non-oracle family medians; 7 ordering/threshold checks
+  (popt_le_grasp_median, grasp_le_lru_median, popt_lt_srrip_median,
+  oracle_aware_ceiling 0.5 pp/oct, non_oracle_floor 0.5 pp/oct,
+  oracle_half_of_non_oracle 50%, popt_min_saturates 0.2 pp/oct);
+  ranking_by_median sorted ASC must place oracle-aware family in top
+  two slots. This nails down the headline saturation-rank story
+  (POPT/GRASP saturate to near-zero final-octave slope while LRU/SRRIP
+  stay steep) byte-exactly against its single upstream input.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others

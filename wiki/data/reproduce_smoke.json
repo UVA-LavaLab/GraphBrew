@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "d6cb782569e2f432eb79a7cb89e5c2773dce5a2a95f640ae476840c90542ed81",
-      "sha_after": "d6cb782569e2f432eb79a7cb89e5c2773dce5a2a95f640ae476840c90542ed81",
+      "sha_before": "0d3db9a4150b7f5e73d4304f6e8bede5806acd2c23ae281d31bb1223f0801029",
+      "sha_after": "0d3db9a4150b7f5e73d4304f6e8bede5806acd2c23ae281d31bb1223f0801029",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "8799c51695929ac0dedb0f89674506febfbdff7afd7e95654a416e8bd71b510d",
-      "sha_after": "8799c51695929ac0dedb0f89674506febfbdff7afd7e95654a416e8bd71b510d",
+      "sha_before": "dba20c5fbf927e43f34d5e7141a7c45263225594e29f6dc8a4719474f5637a6e",
+      "sha_after": "dba20c5fbf927e43f34d5e7141a7c45263225594e29f6dc8a4719474f5637a6e",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "6d4605807b10697b5ca6f6eb308af0a378db8e5b1da01bd31626f165dbb058c0",
-      "sha_after": "6d4605807b10697b5ca6f6eb308af0a378db8e5b1da01bd31626f165dbb058c0",
+      "sha_before": "58b6b3c2e8ca471d08173b7e7dc4171e12a7a0d2256b8c9b1645dc63661c2758",
+      "sha_after": "58b6b3c2e8ca471d08173b7e7dc4171e12a7a0d2256b8c9b1645dc63661c2758",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "df0e9c1e794fe141f62bc12b5c6f2e8f28c0433a65794f2a422911cf81b066ac",
-      "sha_after": "df0e9c1e794fe141f62bc12b5c6f2e8f28c0433a65794f2a422911cf81b066ac",
+      "sha_before": "83772206e3bed959f0b567b3de6624da2121d497d59f53e73346dd42429eecda",
+      "sha_after": "83772206e3bed959f0b567b3de6624da2121d497d59f53e73346dd42429eecda",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "70dd2944b8df80305cb5769e9f18457c2725a48571e6eb6b9832de2507b8f4d9",
-      "sha_after": "70dd2944b8df80305cb5769e9f18457c2725a48571e6eb6b9832de2507b8f4d9",
+      "sha_before": "e111e7f2445ecbe00c8e79507ec60dcf648b774e9a2f8e96a4bfdc85ad6ff82a",
+      "sha_after": "e111e7f2445ecbe00c8e79507ec60dcf648b774e9a2f8e96a4bfdc85ad6ff82a",
       "status": "ok"
     },
     {
