@@ -22,6 +22,9 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | cit-Patents | sssp | 1MB | 85.29% | -0.32 | -3.45 | -2.59 | ✓ ok | ✓ ok |
 | cit-Patents | sssp | 4MB | 56.31% | -2.46 | -8.67 | -6.87 | — | — |
 | cit-Patents | sssp | 8MB | 26.90% | -2.50 | -6.90 | -5.27 | — | — |
+| com-orkut | bfs | 1MB | 99.73% | +0.03 | -0.23 | +0.06 | — | — |
+| com-orkut | bfs | 4MB | 99.49% | +0.07 | -1.65 | -2.04 | — | — |
+| com-orkut | bfs | 8MB | 99.42% | +0.03 | -3.22 | -3.94 | — | — |
 | com-orkut | cc | 1MB | 68.89% | -3.79 | -10.52 | +0.49 | — | — |
 | com-orkut | cc | 4MB | 50.33% | -1.45 | -13.34 | -3.29 | — | — |
 | com-orkut | cc | 8MB | 43.06% | -10.94 | -20.94 | -14.76 | — | — |

@@ -383,7 +383,7 @@ the corpus state on `/tmp/graphbrew-lit-baseline` is:
 | web-Google    | ✓ | ✓ | ✓ | ✓ | ✓ |
 | soc-pokec     | ✓ | ✓ rerun w/ non-hub src | ✓ | ✓ rerun w/ non-hub src | ✓ |
 | cit-Patents   | ✓ | ✓ | ✓ | ✓ | ✓ |
-| com-orkut     | ✓ | n/a (hub degenerate) | (partial 4/12, in-flight) | ✓ rerun w/ non-hub src | ✓ |
+| com-orkut     | ✓ | ✓ rerun w/ non-hub src | (partial 4/12, in-flight) | ✓ rerun w/ non-hub src | ✓ |
 | soc-LiveJournal1 | ✓ | ✓ rerun w/ non-hub src | (partial 9/12, in-flight) | (in-flight) | (in-flight) |
 
 Cells marked "rerun w/ non-hub src" used `-r N/2` instead of `-r 0`
@@ -398,14 +398,14 @@ artifact, not a literature deviation.
 
 | Status | Count | Meaning |
 |---|---:|---|
-| `ok` | 153 | Observed Δ within published tolerance |
+| `ok` | 159 | Observed Δ within published tolerance |
 | `within_tolerance` | 1 | Borderline (cit-Patents/bc/1MB GRASP at +0.026pp vs LRU) |
 | `DISAGREE` | 0 | Unexplained deviation from literature |
 | `known_deviation` | 5 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, frontier vs PR-rank mis-alignment) |
 | `insufficient_data` | 13 | ROI ran with <10 k accesses (tiny graph or hub-src degeneracy) |
 | `missing` | 0 | Claim has no matching observation |
 
-Total claims: 172 (grew with the soc-LiveJournal1/bfs fold-in: 12 new cells across LRU/SRRIP/GRASP/POPT at L3 1 / 4 / 8 MB, executed from `-r 2400000` to skip the DBG-reordered hub).
+Total claims: 178 (grew with the soc-LiveJournal1/bfs and com-orkut/bfs fold-ins: 12 new cells each, both executed from non-hub sources to bypass DBG-reordered hub starvation).
 
 All `known_deviation` entries are CC + POPT permutations where
 P-OPT's PR-ranked offset matrix is mis-aligned with CC's edge-driven
