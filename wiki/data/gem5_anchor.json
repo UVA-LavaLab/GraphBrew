@@ -1,0 +1,138 @@
+{
+  "sweep_root": "/tmp/graphbrew-grasp-gem5-sweep",
+  "sweep_subdir": "DBG",
+  "graphs_scope": [
+    "email-Eu-core"
+  ],
+  "cells": [
+    {
+      "graph": "email-Eu-core",
+      "app": "bc",
+      "l3_size": "256kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.028589,
+        "SRRIP": 0.024364,
+        "GRASP": 0.025305
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "bc",
+      "l3_size": "2MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.001895,
+        "SRRIP": 0.002088,
+        "GRASP": 0.001837
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "bc",
+      "l3_size": "32kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.110387,
+        "SRRIP": 0.10941,
+        "GRASP": 0.111498
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "bc",
+      "l3_size": "4kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.711548,
+        "SRRIP": 0.802591,
+        "GRASP": 0.659506
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "256kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.131979,
+        "SRRIP": 0.094025,
+        "GRASP": 0.110559
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "2MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.004979,
+        "SRRIP": 0.005394,
+        "GRASP": 0.005274
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "32kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.135213,
+        "SRRIP": 0.151559,
+        "GRASP": 0.14447
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "4kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.291561,
+        "SRRIP": 0.599629,
+        "GRASP": 0.499701
+      },
+      "ok_rows": 6,
+      "error_rows": 0
+    }
+  ],
+  "invariants": [
+    {
+      "name": "GRASP_LE_LRU_headline:pr@256kB",
+      "status": "ok",
+      "detail": "grasp=0.1106 lru=0.1320 \u0394=-2.142pp (tolerance \u2264 +0.50pp)"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:bc@256kB",
+      "status": "ok",
+      "detail": "grasp=0.0253 lru=0.0286 \u0394=-0.328pp (tolerance \u2264 +0.50pp)"
+    },
+    {
+      "name": "asymptote_within_1.0pp:pr@2MB",
+      "status": "ok",
+      "detail": "spread=0.042pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
+    },
+    {
+      "name": "asymptote_within_1.0pp:bc@2MB",
+      "status": "ok",
+      "detail": "spread=0.025pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
+    },
+    {
+      "name": "no_error_rows",
+      "status": "ok",
+      "detail": "48 ok rows across 8 cells"
+    }
+  ],
+  "counts": {
+    "cells": 8,
+    "invariants_ok": 5,
+    "invariants_disagree": 0,
+    "invariants_missing": 0
+  }
+}

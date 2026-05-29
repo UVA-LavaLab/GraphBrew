@@ -492,9 +492,12 @@ wiki-status:
 # =========================================================
 LIT_SWEEP_ROOT  ?= /tmp/graphbrew-lit-baseline
 LIT_SWEEP_SUBDIR ?= lit
+GEM5_ANCHOR_ROOT ?= /tmp/graphbrew-grasp-gem5-sweep
+GEM5_ANCHOR_SUBDIR ?= DBG
+GEM5_ANCHOR_GRAPHS ?= email-Eu-core
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table gem5-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -529,7 +532,25 @@ lit-table:
 		--csv      $(WIKI_DATA)/paper_baseline_table.csv \
 		--json     $(WIKI_DATA)/paper_baseline_table.json
 
-confidence: lit-faith lit-repro lit-budget lit-table
+# Regenerate the gem5 literature anchor (small graph, fast).
+# Scoped to email-Eu-core by default; expand GEM5_ANCHOR_GRAPHS once
+# additional gem5 sweeps land. A missing sweep root is non-fatal so
+# the gate degrades to "missing" rather than blocking the build.
+gem5-anchor:
+	@echo "$(BLUE)Regenerating gem5 literature anchor...$(NC)"
+	@if [ -d "$(GEM5_ANCHOR_ROOT)" ]; then \
+		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+			--sweep-root $(GEM5_ANCHOR_ROOT) \
+			--sweep-subdir $(GEM5_ANCHOR_SUBDIR) \
+			--graphs $(GEM5_ANCHOR_GRAPHS) \
+			--json-out $(WIKI_DATA)/gem5_anchor.json \
+			--md-out   $(WIKI_DATA)/gem5_anchor.md \
+			--exit-on-disagree; \
+	else \
+		echo "$(BLUE)  gem5 sweep dir $(GEM5_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
+	fi
+
+confidence: lit-faith lit-repro lit-budget lit-table gem5-anchor
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
