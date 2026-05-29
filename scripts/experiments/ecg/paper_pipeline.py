@@ -21,6 +21,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+# Allow `from literature_preflight import ...` whether this script is
+# invoked directly (python paper_pipeline.py) or loaded by an importer
+# such as spec_from_file_location in tests.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from literature_preflight import snapshot_preflight  # noqa: E402
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
@@ -1592,47 +1598,8 @@ def _literature_preflight() -> int:
     profiles against unverified baselines is exactly what this gate
     exists to prevent.
     """
-    lit_json = PROJECT_ROOT / "wiki" / "data" / "literature_faithfulness_postfix.json"
-    if not lit_json.exists():
-        print(
-            f"[lit-gate] FAIL: {lit_json} not found. Run `make lit-faith` "
-            f"(or `make confidence` for the full gate suite) first, then "
-            f"retry. Use --skip-literature-gate to bypass at your own risk.",
-            file=sys.stderr,
-        )
-        return 2
-    try:
-        data = json.loads(lit_json.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        print(f"[lit-gate] FAIL: could not parse {lit_json}: {exc}", file=sys.stderr)
-        return 2
-    summary = data.get("summary", {})
-    disagree = int(summary.get("disagree", 0))
-    if disagree > 0:
-        per = data.get("per_claim", [])
-        examples = [
-            f"{e['graph']}/{e['app']}/{e['l3_size']}/{e['policy']}"
-            for e in per
-            if e.get("status") == "disagree"
-        ][:5]
-        print(
-            f"[lit-gate] FAIL: {disagree} unexplained literature "
-            f"disagreement(s). Examples: {examples}. Either register "
-            f"them in KNOWN_DEVIATIONS in literature_baselines.py with "
-            f"a documented root cause, or fix the underlying behavior, "
-            f"then re-run `make confidence`.",
-            file=sys.stderr,
-        )
-        return 1
-    ok = int(summary.get("ok", 0))
-    wt = int(summary.get("within_tolerance", 0))
-    kd = int(summary.get("known_deviation", 0))
-    total = int(summary.get("claims_total", ok + wt + kd))
-    print(
-        f"[lit-gate] PASS: lit-faith green "
-        f"({ok} ok + {wt} within_tol + {kd} known_dev of {total} claims)."
-    )
-    return 0
+    snap = PROJECT_ROOT / "wiki" / "data" / "literature_faithfulness_postfix.json"
+    return snapshot_preflight(snap)
 
 
 def main(argv: list[str]) -> int:

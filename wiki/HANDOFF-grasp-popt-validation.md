@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **14 gates, all GREEN, exit 0**.
+and currently reports **15 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -36,7 +36,7 @@ Latest additions on top of the Tier A/B/C work:
 - Make targets: `make lit-faith`, `make lit-repro`, `make lit-budget`,
   `make confidence` (CI-ready: exit 0 iff every gate is GREEN).
 
-See `wiki/Baseline-Literature-Faithfulness.md` → "The fourteen
+See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the
 per-gate spec.
 

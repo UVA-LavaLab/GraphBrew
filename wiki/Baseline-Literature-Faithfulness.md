@@ -458,7 +458,7 @@ edge-order mis-alignment.
   regime, e.g. cit-Patents/pr/4MB at -8.2 pp) is literature-faithful
   and no longer trips the check.
 
-### The fourteen confidence gates
+### The fifteen confidence gates
 
 `make confidence` (Makefile target) re-runs `lit-faith → lit-repro →
 lit-budget → lit-table → gem5-anchor → sniper-anchor →
@@ -481,6 +481,14 @@ headline goes RED if **any** of the following fails:
 | 12 | Paper-pipeline literature pre-flight gate | `scripts/test/test_paper_pipeline_lit_gate.py` |
 | 13 | gem5 literature anchor | `scripts/test/test_gem5_anchor.py` |
 | 14 | Sniper literature anchor | `scripts/test/test_sniper_anchor.py` |
+| 15 | Lit-preflight shared helper | `scripts/test/test_literature_preflight.py` |
+
+Both `paper_pipeline.py` and `final_paper_run.py` import
+`scripts/experiments/ecg/literature_preflight.py` so any
+paper-relevant launch path enforces the same snapshot gate with
+the same opt-out semantics (`--skip-literature-gate`). Gate #15
+prevents the helper from drifting back into per-script inline
+copies.
 
 Adding a new claim shape (e.g., a fourth `claim_kind`) is intentionally
 hard: `test_no_unrecognized_claim_kind_appears` in

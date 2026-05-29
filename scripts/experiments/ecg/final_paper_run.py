@@ -32,6 +32,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+# Allow `from literature_preflight import ...` whether this script is
+# invoked directly (python final_paper_run.py) or loaded by an importer
+# such as spec_from_file_location in tests.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from literature_preflight import snapshot_preflight  # noqa: E402
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
@@ -873,12 +879,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--require-literature-gate", action="store_true",
-        help="Require the literature-faithfulness comparator to pass before "
-             "starting any jobs.",
+        help="Force the literature-faithfulness gate even when no final_ "
+             "profile is requested. On final_ profiles the snapshot gate "
+             "runs by default; this flag is only needed to enforce it on "
+             "other profiles.",
     )
     parser.add_argument(
         "--skip-literature-gate", action="store_true",
-        help="Bypass the literature-faithfulness comparator even on final_ profiles.",
+        help="Bypass both the snapshot and live literature-faithfulness "
+             "gates even on final_ profiles.",
     )
     parser.add_argument("--lock-path", type=Path, default=DEFAULT_LOCK, help="Advisory lock path for long gem5 runs.")
     return parser.parse_args(argv)
@@ -918,6 +927,23 @@ def main(argv: list[str]) -> int:
         if not validate_gate(run_dir, strict=True):
             return 3
 
+    # Snapshot-based literature pre-flight: same opt-out semantics as
+    # paper_pipeline.py. Skipped on inspection-only runs (dry-run, list,
+    # check-graphs) because no real jobs will be dispatched.
+    snapshot_gate_requested = (
+        final_profiles_requested(args.profile)
+        or args.require_literature_gate
+    )
+    inspection_only = args.dry_run or args.list or args.check_graphs
+    if (
+        snapshot_gate_requested
+        and not args.skip_literature_gate
+        and not inspection_only
+    ):
+        snap_rc = snapshot_preflight()
+        if snap_rc != 0:
+            return 5
+
     cache_sim_final_requested = any(
         prof == "final_cache_sim" or prof.startswith("final_cache_sim_")
         for prof in args.profile
@@ -928,10 +954,11 @@ def main(argv: list[str]) -> int:
     )
     if lit_gate_required and not args.skip_literature_gate:
         if args.literature_gate_root is None:
-            print("[lit-gate] --require-literature-gate set but "
-                  "--literature-gate-root was not supplied")
-            return 5
-        if not validate_literature_gate(
+            # The snapshot gate above already covered this case for
+            # --require-literature-gate; here we only fall through when
+            # a live-gate root was supplied.
+            pass
+        elif not validate_literature_gate(
             run_dir,
             args.literature_gate_root,
             args.literature_gate_subdir,
