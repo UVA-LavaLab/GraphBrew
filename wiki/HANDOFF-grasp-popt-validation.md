@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **110 gates, all GREEN, exit 0**.
+and currently reports **115 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -197,12 +197,41 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   ci_width recompute, POPT-vs-GRASP family-level paired-delta sign agrees
   with whether CI excludes zero (locks the headline 'POPT loses on road
   with 95% CI excluding 0' claim), per-app pairs are anti-symmetric in
-  mean_delta and p_a_lt_b complement to ≤ 1 + slack (gate 110, 13 tests).
+  mean_delta and p_a_lt_b complement to ≤ 1 + slack (gate 110, 13 tests);
+  oracle_gap_curvature arithmetic + knee rule — per-cell slope_1to4 =
+  Δgap / log2(4) = Δgap/2, slope_4to8 = Δgap / log2(2) = Δgap/1,
+  curvature_at_4MB = slope_4to8 − slope_1to4, knee_present iff
+  curvature ≥ 0.05, knee_rank_by_policy sorts by mean_curvature DESC
+  (NOT knee_count), knee_lead_verdict=PASS iff set(sat_rank[:2]) ==
+  set(knee_rank[:2]) (gate 111, 13 tests); gap_distribution_shape
+  Hesterberg envelope — 60 per_cell (5 apps × 3 L3 × 4 policies) carry
+  full moment stats (n, mean, sd, min, max, skewness_g1,
+  excess_kurtosis_g2), a cell is 'outside envelope' iff |skew|>2.0 OR
+  |kurt|>7.0 (Hesterberg 2015), pinned_exception_set == observed,
+  verdict=PASS iff sets agree + no drift + within budget (gate 112,
+  13 tests); distribution_diagnostics envelope + marginals — 20 per_app_
+  policy cells + 4 per_policy marginals all share the same nine moment
+  fields, observed_envelope reports four worst |skew|/|kurt| values that
+  recompute exactly from per_app_policy and per_policy, bootstrap_
+  validity_verdict=PASS iff all four worsts ≤ envelope (gate 113, 13
+  tests); cross_tool_winners classification — per-cell (app, graph)
+  winners across cache_sim/gem5/sniper with n_tools = count of non-empty
+  winners, classification='split' iff ≥2 disagree else 'majority',
+  summary.split_cells & majority_cells are faithful projections of cells
+  (catches a flip from 'split' → 'majority' immediately) (gate 114, 13
+  tests); cohens_h_win_rates ↔ wilson_win_rates parity & arithmetic —
+  every per_app (app, policy) {wins, total, p_hat} matches exactly
+  between the two effect-size views, Cohen's h recomputes as
+  2·|asin(√p_a) − asin(√p_b)| (Cohen 1988) from raw counts within
+  H_TOL=1e-3, delta_p = p_a − p_b, favors picks the higher p_hat (or
+  'tie' sentinel for p_a==p_b), magnitude bucket matches thresholds
+  {large=0.8, medium=0.5, small=0.2}, comparisons cover full P(4,2)=12
+  permutations per app (gate 115, 14 tests).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 110. `make confidence-fast` runs the whole suite in under
+  current 115. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -222,7 +251,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 110+ pytest gates + lit-faith headline + corpus diversity
+  view of all 115+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,
