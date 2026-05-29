@@ -135,6 +135,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lofo_logo_robustness_parity.py", "LOFO-Par"),
     "multiple_testing_correction HB+BH arithmetic":
         ("scripts/test/test_multiple_testing_correction_arithmetic.py", "MTC-Lad"),
+    "cache_saturation_onset step-down rule + ranking":
+        ("scripts/test/test_cache_saturation_onset_arithmetic.py", "CSO-Step"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
