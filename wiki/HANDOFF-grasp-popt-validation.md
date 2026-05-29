@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **21 gates, all GREEN, exit 0**.
+and currently reports **25 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -142,6 +142,48 @@ Latest additions on top of the Tier A/B/C work:
 - New Make targets: `make lit-winner`, `make lit-thrash`,
   `make lit-cross-tool`, `make lit-density` (all wired into the
   `confidence` dep chain).
+- **Four further paper-grade aggregators added** (bumps total from
+  21 → 25):
+  - `scripts/experiments/ecg/popt_vs_grasp_report.py` projects per-
+    cell `Δ(POPT − GRASP)` in pp, broken down by graph family and L3
+    regime. Headline: ROAD family mean **−9.276 pp** (POPT crushes
+    GRASP, max swing −60.023 pp on roadNet-CA/sssp/1MB); SOCIAL
+    family mean +0.360 pp (essentially tie). Counts: POPT better 37,
+    GRASP better 35, tie 37 of 109 cells. Test
+    `scripts/test/test_popt_vs_grasp_delta.py` (8 cases) pins the
+    sign convention, classification consistency, and the family-level
+    claims.
+  - `scripts/experiments/ecg/literature_deviations_report.py`
+    classifies every `known_deviation` row in the reproduction
+    summary against a closed mechanism vocabulary
+    (`popt_overhead_dominates`, `within_extended_tolerance`,
+    `policy_data_missing`, `unclassified`). Today: 30/30 rows classify
+    as `popt_overhead_dominates` — the perfect inverse of the road-
+    graph finding. Test `scripts/test/test_literature_deviations.py`
+    (8 cases) pins the vocabulary, asserts zero unclassified leakage,
+    and catches any new policy name without an explicit rule.
+  - `scripts/experiments/ecg/paper_claims_registry.py` is the single
+    source of truth for every numerical claim the paper makes — 14
+    claims across 8 categories (corpus, reproduction, lit_faith,
+    winner_table, popt_vs_grasp, thrash, deviations, cross_tool,
+    meta), each linked to source artifact + governing gate. Test
+    `scripts/test/test_paper_claims_registry.py` (9 cases) pins
+    required headline IDs, unique IDs, source/gate file existence,
+    the road-popt-negative-sign claim, and a confidence-gate-count
+    ≥ 22 floor.
+  - `scripts/experiments/ecg/cross_tool_winners_report.py` complements
+    the saturation report by computing, for each (graph, app), the
+    winning policy each tool picks at its largest L3 (cache_sim,
+    gem5, Sniper). Surfaces 6 split cells today — an expected
+    negative result because the tools sweep different L3 ranges, so
+    largest-L3 operating points sit in different saturation regimes.
+    Test `scripts/test/test_cross_tool_winners.py` (8 cases) pins
+    schema, closed vocabulary `{unanimous, majority, split}`,
+    overlap-with-each-tool, and cache_sim-anchor presence.
+- New Make targets: `make lit-popt-vs-grasp`, `make lit-deviations`,
+  `make lit-claims`, `make lit-cross-tool-winners` (all wired into
+  the `confidence` dep chain; `lit-claims` depends on every other
+  `lit-*` so the registry values are always fresh).
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the
