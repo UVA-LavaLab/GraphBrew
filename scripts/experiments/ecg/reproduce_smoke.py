@@ -65,6 +65,8 @@ TRACKED_ARTIFACTS = [
     "wilson_win_rates.md",
     "cohens_h_win_rates.json",
     "cohens_h_win_rates.md",
+    "oracle_gap_effect_size.json",
+    "oracle_gap_effect_size.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

@@ -1,0 +1,978 @@
+{
+  "large_negative_deltas": [
+    {
+      "a": "POPT",
+      "app": "pr",
+      "b": "LRU",
+      "cliffs_delta_a_minus_b": -0.9107,
+      "magnitude": "large",
+      "mannwhitney_p": 0.0,
+      "mannwhitney_u": 35.0,
+      "n_a": 28,
+      "n_b": 28,
+      "stochastically_smaller": "POPT"
+    },
+    {
+      "a": "POPT",
+      "app": "pr",
+      "b": "SRRIP",
+      "cliffs_delta_a_minus_b": -0.8903,
+      "magnitude": "large",
+      "mannwhitney_p": 0.0,
+      "mannwhitney_u": 43.0,
+      "n_a": 28,
+      "n_b": 28,
+      "stochastically_smaller": "POPT"
+    },
+    {
+      "a": "GRASP",
+      "app": "cc",
+      "b": "POPT",
+      "cliffs_delta_a_minus_b": -0.8425,
+      "magnitude": "large",
+      "mannwhitney_p": 5e-06,
+      "mannwhitney_u": 31.5,
+      "n_a": 20,
+      "n_b": 20,
+      "stochastically_smaller": "GRASP"
+    },
+    {
+      "a": "GRASP",
+      "app": "cc",
+      "b": "SRRIP",
+      "cliffs_delta_a_minus_b": -0.815,
+      "magnitude": "large",
+      "mannwhitney_p": 1e-05,
+      "mannwhitney_u": 37.0,
+      "n_a": 20,
+      "n_b": 20,
+      "stochastically_smaller": "GRASP"
+    },
+    {
+      "a": "GRASP",
+      "app": "cc",
+      "b": "LRU",
+      "cliffs_delta_a_minus_b": -0.7975,
+      "magnitude": "large",
+      "mannwhitney_p": 1.6e-05,
+      "mannwhitney_u": 40.5,
+      "n_a": 20,
+      "n_b": 20,
+      "stochastically_smaller": "GRASP"
+    },
+    {
+      "a": "POPT",
+      "app": "bfs",
+      "b": "SRRIP",
+      "cliffs_delta_a_minus_b": -0.6786,
+      "magnitude": "large",
+      "mannwhitney_p": 8e-05,
+      "mannwhitney_u": 85.0,
+      "n_a": 23,
+      "n_b": 23,
+      "stochastically_smaller": "POPT"
+    },
+    {
+      "a": "POPT",
+      "app": "bfs",
+      "b": "LRU",
+      "cliffs_delta_a_minus_b": -0.656,
+      "magnitude": "large",
+      "mannwhitney_p": 0.000138,
+      "mannwhitney_u": 91.0,
+      "n_a": 23,
+      "n_b": 23,
+      "stochastically_smaller": "POPT"
+    },
+    {
+      "a": "GRASP",
+      "app": "bc",
+      "b": "LRU",
+      "cliffs_delta_a_minus_b": -0.6333,
+      "magnitude": "large",
+      "mannwhitney_p": 0.000233,
+      "mannwhitney_u": 97.0,
+      "n_a": 23,
+      "n_b": 23,
+      "stochastically_smaller": "GRASP"
+    },
+    {
+      "a": "POPT",
+      "app": "pr",
+      "b": "GRASP",
+      "cliffs_delta_a_minus_b": -0.5689,
+      "magnitude": "large",
+      "mannwhitney_p": 0.000258,
+      "mannwhitney_u": 169.0,
+      "n_a": 28,
+      "n_b": 28,
+      "stochastically_smaller": "POPT"
+    },
+    {
+      "a": "GRASP",
+      "app": "bc",
+      "b": "POPT",
+      "cliffs_delta_a_minus_b": -0.5161,
+      "magnitude": "large",
+      "mannwhitney_p": 0.002711,
+      "mannwhitney_u": 128.0,
+      "n_a": 23,
+      "n_b": 23,
+      "stochastically_smaller": "GRASP"
+    }
+  ],
+  "meta": {
+    "apps": [
+      "pr",
+      "bc",
+      "cc",
+      "bfs",
+      "sssp"
+    ],
+    "cliffs_thresholds": {
+      "large": 0.474,
+      "medium": 0.33,
+      "small": 0.147
+    },
+    "n_rows": 456,
+    "policies": [
+      "LRU",
+      "SRRIP",
+      "GRASP",
+      "POPT"
+    ],
+    "source": "wiki/data/oracle_gap.json"
+  },
+  "per_app": {
+    "bc": {
+      "comparisons": [
+        {
+          "a": "LRU",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": 0.3251,
+          "magnitude": "small",
+          "mannwhitney_p": 0.058845,
+          "mannwhitney_u": 350.5,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "LRU",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.6333,
+          "magnitude": "large",
+          "mannwhitney_p": 0.000233,
+          "mannwhitney_u": 432.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "LRU",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.2684,
+          "magnitude": "small",
+          "mannwhitney_p": 0.118804,
+          "mannwhitney_u": 335.5,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "SRRIP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.3251,
+          "magnitude": "small",
+          "mannwhitney_p": 0.058845,
+          "mannwhitney_u": 178.5,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.4216,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.014303,
+          "mannwhitney_u": 376.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": -0.0529,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.758411,
+          "mannwhitney_u": 250.5,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "GRASP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.6333,
+          "magnitude": "large",
+          "mannwhitney_p": 0.000233,
+          "mannwhitney_u": 97.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.4216,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.014303,
+          "mannwhitney_u": 153.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": -0.5161,
+          "magnitude": "large",
+          "mannwhitney_p": 0.002711,
+          "mannwhitney_u": 128.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "POPT",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.2684,
+          "magnitude": "small",
+          "mannwhitney_p": 0.118804,
+          "mannwhitney_u": 193.5,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": 0.0529,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.758411,
+          "mannwhitney_u": 278.5,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "POPT",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.5161,
+          "magnitude": "large",
+          "mannwhitney_p": 0.002711,
+          "mannwhitney_u": 401.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        }
+      ],
+      "per_policy": {
+        "GRASP": {
+          "max": 38.128,
+          "mean": 2.1238,
+          "median": 0.0,
+          "min": 0.0,
+          "n": 23
+        },
+        "LRU": {
+          "max": 8.691,
+          "mean": 3.2011,
+          "median": 2.097,
+          "min": 0.0,
+          "n": 23
+        },
+        "POPT": {
+          "max": 22.541,
+          "mean": 2.4866,
+          "median": 1.597,
+          "min": 0.0,
+          "n": 23
+        },
+        "SRRIP": {
+          "max": 6.371,
+          "mean": 1.6893,
+          "median": 1.537,
+          "min": 0.0,
+          "n": 23
+        }
+      }
+    },
+    "bfs": {
+      "comparisons": [
+        {
+          "a": "LRU",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": 0.0057,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.973711,
+          "mannwhitney_u": 266.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "LRU",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.4064,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.018192,
+          "mannwhitney_u": 372.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "LRU",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.656,
+          "magnitude": "large",
+          "mannwhitney_p": 0.000138,
+          "mannwhitney_u": 438.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "SRRIP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.0057,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.973711,
+          "mannwhitney_u": 263.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.4102,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.017142,
+          "mannwhitney_u": 373.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.6786,
+          "magnitude": "large",
+          "mannwhitney_p": 8e-05,
+          "mannwhitney_u": 444.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "GRASP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.4064,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.018192,
+          "mannwhitney_u": 157.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.4102,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.017142,
+          "mannwhitney_u": 156.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.2476,
+          "magnitude": "small",
+          "mannwhitney_p": 0.150156,
+          "mannwhitney_u": 330.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.656,
+          "magnitude": "large",
+          "mannwhitney_p": 0.000138,
+          "mannwhitney_u": 91.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.6786,
+          "magnitude": "large",
+          "mannwhitney_p": 8e-05,
+          "mannwhitney_u": 85.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": -0.2476,
+          "magnitude": "small",
+          "mannwhitney_p": 0.150156,
+          "mannwhitney_u": 199.0,
+          "n_a": 23,
+          "n_b": 23,
+          "stochastically_smaller": "POPT"
+        }
+      ],
+      "per_policy": {
+        "GRASP": {
+          "max": 68.404,
+          "mean": 5.107,
+          "median": 0.386,
+          "min": 0.0,
+          "n": 23
+        },
+        "LRU": {
+          "max": 18.069,
+          "mean": 4.0464,
+          "median": 2.71,
+          "min": 0.0,
+          "n": 23
+        },
+        "POPT": {
+          "max": 33.391,
+          "mean": 1.6254,
+          "median": 0.0,
+          "min": 0.0,
+          "n": 23
+        },
+        "SRRIP": {
+          "max": 17.967,
+          "mean": 3.8822,
+          "median": 2.363,
+          "min": 0.0,
+          "n": 23
+        }
+      }
+    },
+    "cc": {
+      "comparisons": [
+        {
+          "a": "LRU",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": 0.1675,
+          "magnitude": "small",
+          "mannwhitney_p": 0.364842,
+          "mannwhitney_u": 233.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "LRU",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.7975,
+          "magnitude": "large",
+          "mannwhitney_p": 1.6e-05,
+          "mannwhitney_u": 359.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "LRU",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.2025,
+          "magnitude": "small",
+          "mannwhitney_p": 0.273285,
+          "mannwhitney_u": 240.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "SRRIP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.1675,
+          "magnitude": "small",
+          "mannwhitney_p": 0.364842,
+          "mannwhitney_u": 166.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.815,
+          "magnitude": "large",
+          "mannwhitney_p": 1e-05,
+          "mannwhitney_u": 363.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.0225,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.903116,
+          "mannwhitney_u": 204.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "GRASP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.7975,
+          "magnitude": "large",
+          "mannwhitney_p": 1.6e-05,
+          "mannwhitney_u": 40.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.815,
+          "magnitude": "large",
+          "mannwhitney_p": 1e-05,
+          "mannwhitney_u": 37.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": -0.8425,
+          "magnitude": "large",
+          "mannwhitney_p": 5e-06,
+          "mannwhitney_u": 31.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "POPT",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.2025,
+          "magnitude": "small",
+          "mannwhitney_p": 0.273285,
+          "mannwhitney_u": 159.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.0225,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.903116,
+          "mannwhitney_u": 195.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.8425,
+          "magnitude": "large",
+          "mannwhitney_p": 5e-06,
+          "mannwhitney_u": 368.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        }
+      ],
+      "per_policy": {
+        "GRASP": {
+          "max": 9.12,
+          "mean": 0.6395,
+          "median": 0.0,
+          "min": 0.0,
+          "n": 20
+        },
+        "LRU": {
+          "max": 20.943,
+          "mean": 6.4835,
+          "median": 6.629,
+          "min": 0.0,
+          "n": 20
+        },
+        "POPT": {
+          "max": 11.016,
+          "mean": 3.572,
+          "median": 1.81,
+          "min": 0.004,
+          "n": 20
+        },
+        "SRRIP": {
+          "max": 11.896,
+          "mean": 4.3159,
+          "median": 4.303,
+          "min": 0.0,
+          "n": 20
+        }
+      }
+    },
+    "pr": {
+      "comparisons": [
+        {
+          "a": "LRU",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": 0.1543,
+          "magnitude": "small",
+          "mannwhitney_p": 0.321488,
+          "mannwhitney_u": 452.5,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "LRU",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.4668,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.002711,
+          "mannwhitney_u": 575.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "LRU",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.9107,
+          "magnitude": "large",
+          "mannwhitney_p": 0.0,
+          "mannwhitney_u": 749.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "SRRIP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.1543,
+          "magnitude": "small",
+          "mannwhitney_p": 0.321488,
+          "mannwhitney_u": 331.5,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.3712,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.017112,
+          "mannwhitney_u": 537.5,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.8903,
+          "magnitude": "large",
+          "mannwhitney_p": 0.0,
+          "mannwhitney_u": 741.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "GRASP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.4668,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.002711,
+          "mannwhitney_u": 209.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.3712,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.017112,
+          "mannwhitney_u": 246.5,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.5689,
+          "magnitude": "large",
+          "mannwhitney_p": 0.000258,
+          "mannwhitney_u": 615.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.9107,
+          "magnitude": "large",
+          "mannwhitney_p": 0.0,
+          "mannwhitney_u": 35.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.8903,
+          "magnitude": "large",
+          "mannwhitney_p": 0.0,
+          "mannwhitney_u": 43.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": -0.5689,
+          "magnitude": "large",
+          "mannwhitney_p": 0.000258,
+          "mannwhitney_u": 169.0,
+          "n_a": 28,
+          "n_b": 28,
+          "stochastically_smaller": "POPT"
+        }
+      ],
+      "per_policy": {
+        "GRASP": {
+          "max": 8.246,
+          "mean": 2.2513,
+          "median": 1.052,
+          "min": 0.0,
+          "n": 28
+        },
+        "LRU": {
+          "max": 21.615,
+          "mean": 6.7327,
+          "median": 5.228,
+          "min": 0.013,
+          "n": 28
+        },
+        "POPT": {
+          "max": 1.072,
+          "mean": 0.0999,
+          "median": 0.0,
+          "min": 0.0,
+          "n": 28
+        },
+        "SRRIP": {
+          "max": 17.434,
+          "mean": 4.9336,
+          "median": 4.758,
+          "min": 0.001,
+          "n": 28
+        }
+      }
+    },
+    "sssp": {
+      "comparisons": [
+        {
+          "a": "LRU",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": 0.0825,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.655361,
+          "mannwhitney_u": 216.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "LRU",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.29,
+          "magnitude": "small",
+          "mannwhitney_p": 0.11667,
+          "mannwhitney_u": 258.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "LRU",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.36,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.051462,
+          "mannwhitney_u": 272.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "SRRIP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.0825,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.655361,
+          "mannwhitney_u": 183.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "SRRIP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": 0.3075,
+          "magnitude": "small",
+          "mannwhitney_p": 0.096196,
+          "mannwhitney_u": 261.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "SRRIP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.39,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.034866,
+          "mannwhitney_u": 278.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "GRASP",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.29,
+          "magnitude": "small",
+          "mannwhitney_p": 0.11667,
+          "mannwhitney_u": 142.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.3075,
+          "magnitude": "small",
+          "mannwhitney_p": 0.096196,
+          "mannwhitney_u": 138.5,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "GRASP"
+        },
+        {
+          "a": "GRASP",
+          "b": "POPT",
+          "cliffs_delta_a_minus_b": 0.05,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.786775,
+          "mannwhitney_u": 210.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "LRU",
+          "cliffs_delta_a_minus_b": -0.36,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.051462,
+          "mannwhitney_u": 128.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "SRRIP",
+          "cliffs_delta_a_minus_b": -0.39,
+          "magnitude": "medium",
+          "mannwhitney_p": 0.034866,
+          "mannwhitney_u": 122.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        },
+        {
+          "a": "POPT",
+          "b": "GRASP",
+          "cliffs_delta_a_minus_b": -0.05,
+          "magnitude": "negligible",
+          "mannwhitney_p": 0.786775,
+          "mannwhitney_u": 190.0,
+          "n_a": 20,
+          "n_b": 20,
+          "stochastically_smaller": "POPT"
+        }
+      ],
+      "per_policy": {
+        "GRASP": {
+          "max": 70.117,
+          "mean": 7.1056,
+          "median": 0.013,
+          "min": 0.0,
+          "n": 20
+        },
+        "LRU": {
+          "max": 11.039,
+          "mean": 2.9028,
+          "median": 2.245,
+          "min": 0.0,
+          "n": 20
+        },
+        "POPT": {
+          "max": 13.82,
+          "mean": 1.7134,
+          "median": 0.175,
+          "min": 0.0,
+          "n": 20
+        },
+        "SRRIP": {
+          "max": 7.868,
+          "mean": 2.084,
+          "median": 1.756,
+          "min": 0.0,
+          "n": 20
+        }
+      }
+    }
+  }
+}

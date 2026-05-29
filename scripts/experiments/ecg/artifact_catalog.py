@@ -176,6 +176,14 @@ CATALOG = [
         "summary":   "14 large-effect (h≥0.8) dominance pairs. cc/GRASP-vs-POPT h=2.346 (largest). pr/POPT-vs-{LRU,SRRIP} h=2.014. sssp has NO large effect (max h=0.726); pinned as the kernel with weakest policy-ordering signal.",
     },
     {
+        "id":        "oracle_gap_effect_size",
+        "label":     "Cliff's delta + Mann-Whitney on gap distributions",
+        "generator": "scripts/experiments/ecg/oracle_gap_effect_size.py",
+        "gate":      "scripts/test/test_oracle_gap_effect_size.py",
+        "artifact":  "wiki/data/oracle_gap_effect_size.json",
+        "summary":   "10 large-effect (|d|≥0.474) dominance pairs on raw gap_pp distributions. pr/POPT vs LRU d=-0.911 p=0. cc/GRASP dominates all 3 at |d|≥0.474 with MW p<1e-4. Confirms gates 36–37 nonparametrically.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -255,7 +263,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (37 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (38 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
