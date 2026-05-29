@@ -263,6 +263,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_derivation_parity.py", "OGR-Der"),
     "policy_stability derivation parity (per-policy CV across apps + rank stability + headlines)":
         ("scripts/test/test_policy_stability_derivation_parity.py", "PST-Der"),
+    "l3_policy_stability derivation parity (per-(app, l3) winner aggregation + cross-L3 stability summary)":
+        ("scripts/test/test_l3_policy_stability_derivation_parity.py", "L3S-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
