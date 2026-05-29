@@ -125,6 +125,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_curvature_arithmetic.py", "OG-Curv"),
     "gap_distribution_shape Hesterberg envelope":
         ("scripts/test/test_gap_distribution_shape_envelope.py", "GDS-Env"),
+    "distribution_diagnostics envelope + marginals":
+        ("scripts/test/test_distribution_diagnostics_envelope.py", "DD-Env"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
