@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-density lit-popt-vs-grasp gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -642,7 +642,19 @@ lit-popt-vs-grasp: lit-faith
 		--json-out      $(WIKI_DATA)/popt_vs_grasp_delta.json \
 		--md-out        $(WIKI_DATA)/popt_vs_grasp_delta.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-density lit-popt-vs-grasp
+# Inventory + mechanism classification of every known_deviation row in
+# the reproduction summary. Each deviation gets a categorical label so
+# the paper's KNOWN_DEVIATIONS table is point-by-point explainable.
+lit-deviations: lit-repro lit-faith
+	@echo "$(BLUE)Regenerating literature deviations inventory...$(NC)"
+	@python3 -m scripts.experiments.ecg.literature_deviations_report \
+		--repro-csv     $(WIKI_DATA)/literature_reproduction_summary.csv \
+		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
+		--csv-out       $(WIKI_DATA)/literature_deviations.csv \
+		--json-out      $(WIKI_DATA)/literature_deviations.json \
+		--md-out        $(WIKI_DATA)/literature_deviations.md
+
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-density lit-popt-vs-grasp lit-deviations
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \

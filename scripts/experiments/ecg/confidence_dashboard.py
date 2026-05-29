@@ -89,6 +89,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_claim_density.py", "Density"),
     "POPT-vs-GRASP delta":
         ("scripts/test/test_popt_vs_grasp_delta.py", "P-vs-G"),
+    "Literature deviations inventory":
+        ("scripts/test/test_literature_deviations.py", "Lit-dev"),
 }
 
 
