@@ -1,20 +1,20 @@
 {
-  "n_artifacts": 44,
-  "ok": 44,
+  "n_artifacts": 46,
+  "ok": 46,
   "drift": [],
   "missing": [],
   "passed": true,
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "fbfc2101f47ec6f6ec867e2e605a19ea317a4cc8033c9ea873e3b9369f1dbbe0",
-      "sha_after": "fbfc2101f47ec6f6ec867e2e605a19ea317a4cc8033c9ea873e3b9369f1dbbe0",
+      "sha_before": "44c42d179630a5f5b15d1fdc3c5e5d14e208edc1decb3575ce63892e05e44b37",
+      "sha_after": "44c42d179630a5f5b15d1fdc3c5e5d14e208edc1decb3575ce63892e05e44b37",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "50f0b15d4b7716df70c7c2b116482539cf9704b0e3e8e0a1b950e7c4651a42ce",
-      "sha_after": "50f0b15d4b7716df70c7c2b116482539cf9704b0e3e8e0a1b950e7c4651a42ce",
+      "sha_before": "e9820c6c0cf8e65296277886aea4b59c0f92c5cd204d645ae9ce7076a59cc335",
+      "sha_after": "e9820c6c0cf8e65296277886aea4b59c0f92c5cd204d645ae9ce7076a59cc335",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "87a4dbf5ef777fc8d9accb662c88fe2b793af39025da2b94e4ae5f1431da6dfe",
-      "sha_after": "87a4dbf5ef777fc8d9accb662c88fe2b793af39025da2b94e4ae5f1431da6dfe",
+      "sha_before": "bc38d125d8fb496a11f745cf9ecccfe2a4168f29ff1f9268baa9c2e7e1242c4d",
+      "sha_after": "bc38d125d8fb496a11f745cf9ecccfe2a4168f29ff1f9268baa9c2e7e1242c4d",
       "status": "ok"
     },
     {
@@ -111,6 +111,18 @@
       "artifact": "wss_relative_l3.md",
       "sha_before": "35452c32fd2d04519fe67b3b83541d7f942bc9500e2e29dc94e1d1da1f490573",
       "sha_after": "35452c32fd2d04519fe67b3b83541d7f942bc9500e2e29dc94e1d1da1f490573",
+      "status": "ok"
+    },
+    {
+      "artifact": "oracle_gap_by_app_bootstrap.json",
+      "sha_before": "2d8fc316e4af4f4972e62954f0fcaa169a050f745d6079f86395c2d04fcf61f6",
+      "sha_after": "2d8fc316e4af4f4972e62954f0fcaa169a050f745d6079f86395c2d04fcf61f6",
+      "status": "ok"
+    },
+    {
+      "artifact": "oracle_gap_by_app_bootstrap.md",
+      "sha_before": "c144ea8fc2f36c70cfde3f955ccb1dff2e2cdb5b8b221ee04c8472241d2632c5",
+      "sha_after": "c144ea8fc2f36c70cfde3f955ccb1dff2e2cdb5b8b221ee04c8472241d2632c5",
       "status": "ok"
     },
     {
@@ -187,14 +199,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "0e42bd6af2abf5cfc6f4f26695dfd9a4ef8cdbd68b9a6295fbbc9733dbbb47b8",
-      "sha_after": "0e42bd6af2abf5cfc6f4f26695dfd9a4ef8cdbd68b9a6295fbbc9733dbbb47b8",
+      "sha_before": "21438a2e2f9d318280b2b6b5ab35e865cfd25378ce193b1e156c400349557fb2",
+      "sha_after": "21438a2e2f9d318280b2b6b5ab35e865cfd25378ce193b1e156c400349557fb2",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "d127617446b35d6a91cd383c8a51df99d929ce418411b1ab5729f322b561a973",
-      "sha_after": "d127617446b35d6a91cd383c8a51df99d929ce418411b1ab5729f322b561a973",
+      "sha_before": "2241b5ec9044bad689bc2f536374cafd000ac02a4f661a0c48d9cad7e4eda8d9",
+      "sha_after": "2241b5ec9044bad689bc2f536374cafd000ac02a4f661a0c48d9cad7e4eda8d9",
       "status": "ok"
     },
     {

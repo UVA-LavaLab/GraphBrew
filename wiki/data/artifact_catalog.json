@@ -133,6 +133,17 @@
       "summary": "Per-(policy, app) oracle-gap matrix exposing per-kernel winners: POPT crushes pr (0.100 pp); GRASP wins cc (0.640 pp); GRASP catastrophic on sssp (7.106 pp). No one-size-fits-all."
     },
     {
+      "artifact": "wiki/data/oracle_gap_by_app_bootstrap.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_oracle_gap_by_app_bootstrap.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/oracle_gap_by_app_bootstrap.py",
+      "generator_exists": true,
+      "id": "oracle_gap_by_app_bootstrap",
+      "label": "Per-kernel oracle-gap bootstrap CIs",
+      "summary": "CI-backed sign claims per kernel: pr\u2192POPT<all P=1.0; cc\u2192GRASP<POPT P=0.9995; bfs\u2192POPT<GRASP P=0.999; sssp\u2192POPT<GRASP P=0.971; bc has no stable ordering among GRASP/POPT/SRRIP."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -240,13 +251,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (33 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (34 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 22
+    "n_entries": 23
   }
 }

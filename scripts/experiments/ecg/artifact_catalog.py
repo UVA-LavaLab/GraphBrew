@@ -144,6 +144,14 @@ CATALOG = [
         "summary":   "Per-(policy, app) oracle-gap matrix exposing per-kernel winners: POPT crushes pr (0.100 pp); GRASP wins cc (0.640 pp); GRASP catastrophic on sssp (7.106 pp). No one-size-fits-all.",
     },
     {
+        "id":        "oracle_gap_by_app_bootstrap",
+        "label":     "Per-kernel oracle-gap bootstrap CIs",
+        "generator": "scripts/experiments/ecg/oracle_gap_by_app_bootstrap.py",
+        "gate":      "scripts/test/test_oracle_gap_by_app_bootstrap.py",
+        "artifact":  "wiki/data/oracle_gap_by_app_bootstrap.json",
+        "summary":   "CI-backed sign claims per kernel: pr→POPT<all P=1.0; cc→GRASP<POPT P=0.9995; bfs→POPT<GRASP P=0.999; sssp→POPT<GRASP P=0.971; bc has no stable ordering among GRASP/POPT/SRRIP.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -223,7 +231,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (33 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (34 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

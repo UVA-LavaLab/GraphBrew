@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -704,6 +704,18 @@ lit-oracle-gap-by-app: lit-oracle-gap
 		--json-out    $(WIKI_DATA)/oracle_gap_by_app.json \
 		--md-out      $(WIKI_DATA)/oracle_gap_by_app.md
 
+# Per-kernel oracle-gap bootstrap CIs. Turns the per-app point
+# estimates from lit-oracle-gap-by-app into CI-backed sign claims:
+# pr→POPT < all (P=1.0), cc→GRASP < POPT (P=0.9995), bfs→POPT <
+# GRASP (P=0.999), sssp→POPT < GRASP (P=0.971). Defends per-kernel
+# narrative against 'is that difference real?' reviewer pushback.
+lit-oracle-by-app-bootstrap: lit-oracle-gap
+	@echo "$(BLUE)Regenerating per-kernel oracle-gap bootstrap CIs...$(NC)"
+	@python3 -m scripts.experiments.ecg.oracle_gap_by_app_bootstrap \
+		--oracle-json $(WIKI_DATA)/oracle_gap.json \
+		--json-out    $(WIKI_DATA)/oracle_gap_by_app_bootstrap.json \
+		--md-out      $(WIKI_DATA)/oracle_gap_by_app_bootstrap.md
+
 # WSS-relative L3 axis. Bins each (graph, app, L3) cell by L3 / WSS
 # ratio (WSS proxy from corpus_diversity working_set_ratio × 1 MB).
 # Defends against "absolute L3 bytes obscure cross-graph comparisons"
@@ -766,13 +778,13 @@ lit-reproduce-smoke:
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
+lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
 	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
 	@python3 -m scripts.experiments.ecg.paper_claims_registry \
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
