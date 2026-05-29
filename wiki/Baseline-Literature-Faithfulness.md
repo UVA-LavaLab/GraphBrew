@@ -401,6 +401,13 @@ and the corpus diversity coverage on one screen, see
 (regenerate with
 `python -m scripts.experiments.ecg.confidence_dashboard --markdown wiki/data/confidence_dashboard.md`).
 
+For a paper-ready per-claim reproduction map (each published figure /
+section grouped with the corpus cells that reproduce it, plus a
+per-citation roll-up of ok / known-deviation / disagree counts), see
+[`wiki/data/literature_reproduction_summary.md`](data/literature_reproduction_summary.md)
+(regenerate with
+`python -m scripts.experiments.ecg.literature_reproduction_summary`).
+
 Cells marked "rerun w/ non-hub src" used `-r N/2` instead of `-r 0`
 because DBG re-ordering places the highest-degree vertex at index 0;
 running SSSP/BFS from it on highly-clustered graphs (Orkut CC≈0.17)
