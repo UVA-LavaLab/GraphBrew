@@ -137,6 +137,8 @@ TRACKED_ARTIFACTS = [
     "cross_tool_slope_ordering.md",
     "per_app_srrip_vs_grasp.json",
     "per_app_srrip_vs_grasp.md",
+    "cross_tool_lru_regime.json",
+    "cross_tool_lru_regime.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

@@ -464,6 +464,14 @@ CATALOG = [
         "summary":   "Per-app companion to gate 72. Reads gate 68's per_app_capacity_slope artifact and verifies that for every non-pinned app, SRRIP median slope is no more than 1.0 pp/octave shallower than GRASP. Current state: bc -0.27, cc -0.71, pr -0.70, sssp -0.12 (all SRRIP steeper or near-tied). bfs is pinned as a known kernel deviation (+2.35 pp/oct shallower SRRIP) — same frontier-driven streaming pathology that gates 65/68 already document for LRU-vs-GRASP. Verdict PASS iff (1) no missing GRASP or SRRIP medians, (2) no NEW deviating apps beyond {bfs}, (3) at least one app has strictly steeper SRRIP, (4) majority of apps show steeper SRRIP (matches global gate 72 winner).",
     },
     {
+        "id":        "cross_tool_lru_regime",
+        "label":     "Cross-tool LRU-vs-GRASP regime inversion",
+        "generator": "scripts/experiments/ecg/cross_tool_lru_regime.py",
+        "gate":      "scripts/test/test_cross_tool_lru_regime.py",
+        "artifact":  "wiki/data/cross_tool_lru_regime.json",
+        "summary":   "Formalizes the regime-dependent LRU-vs-GRASP slope finding that gates 70/71/72 surfaced as INFORMATIONAL. cache-sim sweep (1-8MB, post-WSS) shows LRU strictly steeper than GRASP (-0.97 pp/oct); both anchor tools at sub-WSS scales (4kB-2MB) show the opposite ordering (gem5 +0.84, sniper +0.24). PASS confirms (1) cache-sim post-WSS LRU is steeper by at least 0.30 pp/oct, (2) both anchor tools sub-WSS show LRU at-most negligibly steeper (within 0.20 pp/oct slack), (3) the inversion sign holds across tools, (4) regime labels match documented L3 ranges. Cross-tool sign agreement between gem5 and sniper confirms the inversion is a physical regime effect (LRU's give-up-and-stream behaviour extracts nothing from extra capacity when no policy fits the hot set; GRASP's hold-the-hot-set behaviour still secures partial reuse) rather than a tool artifact.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -543,7 +551,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (73 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (74 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
