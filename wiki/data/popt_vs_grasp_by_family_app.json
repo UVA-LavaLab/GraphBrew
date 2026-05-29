@@ -1,0 +1,201 @@
+{
+  "meta": {
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "cells_skipped_insufficient": 0,
+    "cells_with_data": 21,
+    "ci_level": 0.95,
+    "families": [
+      "citation",
+      "mesh",
+      "road",
+      "social",
+      "web"
+    ],
+    "n_paired_floor": 3,
+    "n_resamples": 2000,
+    "seed": 1729
+  },
+  "per_family_app": {
+    "citation/bc": {
+      "ci_hi": 2.529,
+      "ci_lo": -0.48,
+      "mean_delta": 1.2153,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.038
+    },
+    "citation/bfs": {
+      "ci_hi": 0.689,
+      "ci_lo": 0.106,
+      "mean_delta": 0.3917,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.0
+    },
+    "citation/cc": {
+      "ci_hi": 8.726,
+      "ci_lo": 1.528,
+      "mean_delta": 4.634,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.0
+    },
+    "citation/pr": {
+      "ci_hi": -1.052,
+      "ci_lo": -8.246,
+      "mean_delta": -4.044,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 1.0
+    },
+    "citation/sssp": {
+      "ci_hi": 1.804,
+      "ci_lo": 0.863,
+      "mean_delta": 1.4333,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.0
+    },
+    "mesh/bc": {
+      "ci_hi": null,
+      "ci_lo": null,
+      "mean_delta": null,
+      "n_paired": 0,
+      "p_popt_lt_grasp": null
+    },
+    "mesh/bfs": {
+      "ci_hi": null,
+      "ci_lo": null,
+      "mean_delta": null,
+      "n_paired": 0,
+      "p_popt_lt_grasp": null
+    },
+    "mesh/cc": {
+      "ci_hi": null,
+      "ci_lo": null,
+      "mean_delta": null,
+      "n_paired": 0,
+      "p_popt_lt_grasp": null
+    },
+    "mesh/pr": {
+      "ci_hi": 0.1176,
+      "ci_lo": -2.3768,
+      "mean_delta": -0.861,
+      "n_paired": 5,
+      "p_popt_lt_grasp": 0.917
+    },
+    "mesh/sssp": {
+      "ci_hi": null,
+      "ci_lo": null,
+      "mean_delta": null,
+      "n_paired": 0,
+      "p_popt_lt_grasp": null
+    },
+    "road/bc": {
+      "ci_hi": -0.2996,
+      "ci_lo": -10.6108,
+      "mean_delta": -4.6294,
+      "n_paired": 5,
+      "p_popt_lt_grasp": 1.0
+    },
+    "road/bfs": {
+      "ci_hi": -0.327,
+      "ci_lo": -25.0456,
+      "mean_delta": -11.4094,
+      "n_paired": 5,
+      "p_popt_lt_grasp": 0.987
+    },
+    "road/cc": {
+      "ci_hi": 0.2068,
+      "ci_lo": -2.9512,
+      "mean_delta": -1.26,
+      "n_paired": 5,
+      "p_popt_lt_grasp": 0.9215
+    },
+    "road/pr": {
+      "ci_hi": -0.2532,
+      "ci_lo": -5.05,
+      "mean_delta": -2.6484,
+      "n_paired": 5,
+      "p_popt_lt_grasp": 0.9885
+    },
+    "road/sssp": {
+      "ci_hi": -2.4886,
+      "ci_lo": -43.6824,
+      "mean_delta": -21.7874,
+      "n_paired": 5,
+      "p_popt_lt_grasp": 1.0
+    },
+    "social/bc": {
+      "ci_hi": 2.7901,
+      "ci_lo": 0.9932,
+      "mean_delta": 1.8672,
+      "n_paired": 12,
+      "p_popt_lt_grasp": 0.0
+    },
+    "social/bfs": {
+      "ci_hi": -0.0812,
+      "ci_lo": -4.9078,
+      "mean_delta": -1.8697,
+      "n_paired": 12,
+      "p_popt_lt_grasp": 0.987
+    },
+    "social/cc": {
+      "ci_hi": 8.1441,
+      "ci_lo": 2.8234,
+      "mean_delta": 5.5304,
+      "n_paired": 9,
+      "p_popt_lt_grasp": 0.0
+    },
+    "social/pr": {
+      "ci_hi": -0.9318,
+      "ci_lo": -3.8913,
+      "mean_delta": -2.3291,
+      "n_paired": 12,
+      "p_popt_lt_grasp": 0.9995
+    },
+    "social/sssp": {
+      "ci_hi": 1.1484,
+      "ci_lo": -1.6726,
+      "mean_delta": -0.261,
+      "n_paired": 9,
+      "p_popt_lt_grasp": 0.658
+    },
+    "web/bc": {
+      "ci_hi": 3.05,
+      "ci_lo": -0.513,
+      "mean_delta": 1.813,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.0405
+    },
+    "web/bfs": {
+      "ci_hi": 1.098,
+      "ci_lo": -2.481,
+      "mean_delta": -0.5897,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.757
+    },
+    "web/cc": {
+      "ci_hi": 1.268,
+      "ci_lo": 0.0,
+      "mean_delta": 0.424,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.0
+    },
+    "web/pr": {
+      "ci_hi": 1.072,
+      "ci_lo": -3.647,
+      "mean_delta": -0.871,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.728
+    },
+    "web/sssp": {
+      "ci_hi": 0.0,
+      "ci_lo": -0.858,
+      "mean_delta": -0.286,
+      "n_paired": 3,
+      "p_popt_lt_grasp": 0.6915
+    }
+  }
+}

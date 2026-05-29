@@ -152,6 +152,14 @@ CATALOG = [
         "summary":   "CI-backed sign claims per kernel: pr→POPT<all P=1.0; cc→GRASP<POPT P=0.9995; bfs→POPT<GRASP P=0.999; sssp→POPT<GRASP P=0.971; bc has no stable ordering among GRASP/POPT/SRRIP.",
     },
     {
+        "id":        "popt_vs_grasp_by_family_app",
+        "label":     "POPT-vs-GRASP per (family x app) CIs",
+        "generator": "scripts/experiments/ecg/popt_vs_grasp_by_family_app.py",
+        "gate":      "scripts/test/test_popt_vs_grasp_by_family_app.py",
+        "artifact":  "wiki/data/popt_vs_grasp_by_family_app.json",
+        "summary":   "21 (family,app) cells bootstrapped. Road is POPT-favored on every kernel (sssp -21.8pp, bfs -11.4pp). cc-counter-narrative is CI-strict on social/cc and citation/cc (P≈0.000). social/pr is CI-strict POPT (P=0.9995).",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -231,7 +239,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (34 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (35 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

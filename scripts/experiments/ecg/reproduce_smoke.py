@@ -59,6 +59,8 @@ TRACKED_ARTIFACTS = [
     "wss_relative_l3.md",
     "oracle_gap_by_app_bootstrap.json",
     "oracle_gap_by_app_bootstrap.md",
+    "popt_vs_grasp_by_family_app.json",
+    "popt_vs_grasp_by_family_app.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

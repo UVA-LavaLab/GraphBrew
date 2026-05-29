@@ -144,6 +144,17 @@
       "summary": "CI-backed sign claims per kernel: pr\u2192POPT<all P=1.0; cc\u2192GRASP<POPT P=0.9995; bfs\u2192POPT<GRASP P=0.999; sssp\u2192POPT<GRASP P=0.971; bc has no stable ordering among GRASP/POPT/SRRIP."
     },
     {
+      "artifact": "wiki/data/popt_vs_grasp_by_family_app.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_popt_vs_grasp_by_family_app.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/popt_vs_grasp_by_family_app.py",
+      "generator_exists": true,
+      "id": "popt_vs_grasp_by_family_app",
+      "label": "POPT-vs-GRASP per (family x app) CIs",
+      "summary": "21 (family,app) cells bootstrapped. Road is POPT-favored on every kernel (sssp -21.8pp, bfs -11.4pp). cc-counter-narrative is CI-strict on social/cc and citation/cc (P\u22480.000). social/pr is CI-strict POPT (P=0.9995)."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -251,13 +262,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (34 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (35 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 23
+    "n_entries": 24
   }
 }
