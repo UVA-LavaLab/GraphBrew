@@ -13,13 +13,13 @@ Verdict legend: ✅ ok · 🟡 within_tolerance · 📘 known_deviation · ⛔ d
 | Faldu et al. HPCA 2020 Fig 11 | 7 | 6 | 1 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 82 | 68 | 0 | 4 | 0 | 1 | 9 |
+| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 82 | 69 | 0 | 4 | 0 | 0 | 9 |
 | Balaji & Lucia HPCA 2021 Fig 10 | 3 | 2 | 1 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 9 | 4 | 4 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6.3 | 18 | 14 | 0 | 1 | 0 | 0 | 3 |
-| Balaji & Lucia HPCA 2021 §6.3 (extended) | 64 | 35 | 0 | 22 | 0 | 1 | 6 |
+| Balaji & Lucia HPCA 2021 §6.3 (extended) | 64 | 35 | 0 | 23 | 0 | 0 | 6 |
 | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
@@ -73,7 +73,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 ## Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
 
-_82 cell(s):_ 68 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 1 missing · 9 insufficient_data.
+_82 cell(s):_ 69 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 9 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -116,7 +116,7 @@ _82 cell(s):_ 68 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 
 | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | 🔬 |
 | soc-LiveJournal1 | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.985pp | ✅ |
 | soc-LiveJournal1 | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.877pp | ✅ |
-| soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | — | ⏳ |
+| soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.583pp | ✅ |
 | soc-LiveJournal1 | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.556pp | ✅ |
 | soc-LiveJournal1 | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.213pp | ✅ |
 | soc-LiveJournal1 | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.961pp | ✅ |
@@ -224,7 +224,7 @@ _18 cell(s):_ 14 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 
 
 ## Balaji & Lucia HPCA 2021 §6.3 (extended)
 
-_64 cell(s):_ 35 ok · 0 within_tolerance · 22 known_deviation · 0 disagree · 1 missing · 6 insufficient_data.
+_64 cell(s):_ 35 ok · 0 within_tolerance · 23 known_deviation · 0 disagree · 0 missing · 6 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -258,7 +258,7 @@ _64 cell(s):_ 35 ok · 0 within_tolerance · 22 known_deviation · 0 disagree ·
 | email-Eu-core | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.000pp | 🔬 |
 | soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.985pp | 📘 |
 | soc-LiveJournal1 | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.877pp | 📘 |
-| soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | — | ⏳ |
+| soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.583pp | 📘 |
 | soc-LiveJournal1 | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -1.556pp | ✅ |
 | soc-LiveJournal1 | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | -1.213pp | ✅ |
 | soc-LiveJournal1 | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.961pp | ✅ |

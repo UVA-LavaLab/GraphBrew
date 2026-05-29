@@ -2,7 +2,7 @@
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
 - Claims total: **264**
-- Verdict mix: **214 ok**, 2 within-tolerance, **0 DISAGREE**, 27 known-deviation, 2 missing, 19 insufficient_data
+- Verdict mix: **215 ok**, 2 within-tolerance, **0 DISAGREE**, 28 known-deviation, 0 missing, 19 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -48,7 +48,7 @@
 | email-Eu-core | pr | 8MB | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.000pp | +0.000pp |
 | soc-LiveJournal1 | bc | 1MB | 0.8432 | 0.8250 | 0.7949 | 0.8148 | -4.825pp | -2.840pp |
 | soc-LiveJournal1 | bc | 4MB | 0.6038 | 0.5828 | 0.5511 | 0.5698 | -5.271pp | -3.394pp |
-| soc-LiveJournal1 | bc | 8MB | 0.4528 | 0.4237 | — | — | — | — |
+| soc-LiveJournal1 | bc | 8MB | 0.4528 | 0.4237 | 0.3904 | 0.4062 | -6.240pp | -4.657pp |
 | soc-LiveJournal1 | bfs | 1MB | 0.7987 | 0.7829 | 0.7871 | 0.7716 | -1.154pp | -2.709pp |
 | soc-LiveJournal1 | bfs | 4MB | 0.6075 | 0.6009 | 0.6007 | 0.5886 | -0.675pp | -1.888pp |
 | soc-LiveJournal1 | bfs | 8MB | 0.5571 | 0.5521 | 0.5311 | 0.5215 | -2.603pp | -3.564pp |
@@ -217,8 +217,8 @@
 | known_deviation | soc-LiveJournal1 | bc | 4MB | POPT_GE_GRASP | +1.877pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
 | ok | soc-LiveJournal1 | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.877pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-LiveJournal1 | bc | 8MB | SRRIP | -2.911pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
-| missing | soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | — | Balaji & Lucia HPCA 2021 §6.3 (extended) |
-| missing | soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | — | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| known_deviation | soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | +1.583pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
+| ok | soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +1.583pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-LiveJournal1 | bfs | 1MB | SRRIP | -1.581pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | soc-LiveJournal1 | bfs | 1MB | GRASP | -1.154pp | Faldu et al. HPCA 2020 Fig 11 |
 | ok | soc-LiveJournal1 | bfs | 1MB | POPT_GE_GRASP | -1.556pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |
@@ -379,6 +379,7 @@
 - **com-orkut/cc L3=8MB POPT_GE_GRASP** (+6.187pp): Same CC/POPT mismatch; ~6 pp gap remains even at 8 MB on com-orkut because the static PR-ranked schedule mis-orders evictions of edge-driven CC reuse regardless of capacity.
 - **soc-LiveJournal1/bc L3=1MB POPT_GE_GRASP** (+1.985pp): BC's reverse-BFS dependency accumulation traverses high-degree pivots in topologically-derived frontier order, not PR rank; GRASP pins the pivots while POPT's static PR-rank schedule evicts them. Gap is +2.0 pp at 1MB on soc-LiveJournal1.
 - **soc-LiveJournal1/bc L3=4MB POPT_GE_GRASP** (+1.877pp): Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB entry; gap is +1.9 pp at 4MB.
+- **soc-LiveJournal1/bc L3=8MB POPT_GE_GRASP** (+1.583pp): Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB / 4MB entries: BC's reverse-BFS dependency accumulation traverses high-degree pivots in frontier order, not PR rank, so POPT's static PR-rank schedule mis-orders the pivot working set. Gap is +1.6 pp at 8MB on soc-LiveJournal1 — narrower than 1MB/4MB because the larger cache absorbs more of the misordered evictions but the algorithmic mismatch persists.
 - **soc-LiveJournal1/cc L3=4MB POPT_GE_GRASP** (+1.810pp): Same CC/POPT algorithmic mismatch as the soc-LiveJournal1/cc/1MB entry above: union-find's edge-driven parent[] reuse mis-aligns with POPT's static PR-rank schedule. Gap widens to +1.8 pp at 4MB because moderate capacity exposes more wasted evictions before the working set fits.
 - **soc-LiveJournal1/cc L3=8MB POPT_GE_GRASP** (+3.083pp): Same soc-LJ/CC mismatch; gap is widest (+3.1 pp) at 8MB where GRASP's locality preservation pays off more than POPT's static PR-rank ordering of CC's union-find edge traversal.
 - **soc-pokec/bc L3=1MB POPT_GE_GRASP** (+3.079pp): BC's forward + backward sweeps from `-r 0` (highest-PR hub) expand a frontier whose access pattern correlates with the directed sub-graph from the source rather than with global PR-rank order. POPT's static PR-ranked schedule mis-predicts reuse by ~3.1 pp at 1 MB. GRASP's hot-region pinning happens to track the BC frontier on soc-pokec. cit-Patents/bc and soc-LJ/bc do not exhibit this mismatch.

@@ -46,7 +46,7 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | email-Eu-core | pr | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | ? insufficient | — |
 | soc-LiveJournal1 | bc | 1MB | 84.32% | -1.82 | -4.83 | -2.84 | ✓ ok | — |
 | soc-LiveJournal1 | bc | 4MB | 60.38% | -2.10 | -5.27 | -3.39 | — | — |
-| soc-LiveJournal1 | bc | 8MB | 45.28% | -2.91 | — | — | — | — |
+| soc-LiveJournal1 | bc | 8MB | 45.28% | -2.91 | -6.24 | -4.66 | — | — |
 | soc-LiveJournal1 | bfs | 1MB | 79.87% | -1.58 | -1.15 | -2.71 | ✓ ok | — |
 | soc-LiveJournal1 | bfs | 4MB | 60.75% | -0.66 | -0.68 | -1.89 | — | — |
 | soc-LiveJournal1 | bfs | 8MB | 55.71% | -0.50 | -2.60 | -3.56 | — | — |

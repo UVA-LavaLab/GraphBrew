@@ -420,12 +420,12 @@ artifact, not a literature deviation.
 
 | Status | Count | Meaning |
 |---|---:|---|
-| `ok` | 214 | Observed Δ within published tolerance |
+| `ok` | 215 | Observed Δ within published tolerance |
 | `within_tolerance` | 2 | Borderline (cit-Patents/bc/1MB GRASP; soc-LJ/sssp/1MB POPT) |
 | `DISAGREE` | 0 | Unexplained deviation from literature |
-| `known_deviation` | 27 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, BC/SSSP frontier vs PR-rank mis-alignment) |
+| `known_deviation` | 28 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, BC/SSSP frontier vs PR-rank mis-alignment) |
 | `insufficient_data` | 19 | ROI ran with <10 k accesses (email-Eu-core smoke graph only) |
-| `missing` | 2 | Claim has no matching observation yet (soc-LJ/bc/8MB POPT, in-flight) |
+| `missing` | 0 | All literature-claimed cells have at least one observation |
 
 Total claims: 264 (POPT_GE_GRASP invariant now applies to bc / bfs / sssp / cc as well as pr — the oracle argument is graph-agnostic, so any cell where POPT loses to GRASP by >tolerance must be registered as a `KNOWN_DEVIATION` or fixed; this surfaces 22 additional pre-registered mismatches that were previously not reported as relational claims).
 

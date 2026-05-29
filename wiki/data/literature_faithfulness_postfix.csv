@@ -155,7 +155,9 @@ soc-LiveJournal1,bc,4MB,GRASP,0.551066,-5.2710,,no_claim,
 soc-LiveJournal1,bc,4MB,LRU,0.603776,+0.0000,,no_claim,
 soc-LiveJournal1,bc,4MB,POPT,0.569835,-3.3941,,no_claim,
 soc-LiveJournal1,bc,4MB,SRRIP,0.582806,-2.0970,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
+soc-LiveJournal1,bc,8MB,GRASP,0.390387,-6.2400,,no_claim,
 soc-LiveJournal1,bc,8MB,LRU,0.452787,+0.0000,,no_claim,
+soc-LiveJournal1,bc,8MB,POPT,0.406215,-4.6572,,no_claim,
 soc-LiveJournal1,bc,8MB,SRRIP,0.423678,-2.9109,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,bfs,1MB,GRASP,0.787126,-1.1538,,ok,Faldu et al. HPCA 2020 Fig 11
 soc-LiveJournal1,bfs,1MB,LRU,0.798664,+0.0000,,no_claim,

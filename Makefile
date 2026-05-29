@@ -482,4 +482,47 @@ publish-wiki:
 wiki-status:
 	@echo "Wiki files in $(WIKI_DIR)/:"
 	@ls -la $(WIKI_DIR)/*.md 2>/dev/null | wc -l | xargs -I {} echo "  {} markdown files"
-	@ls $(WIKI_DIR)/*.md 2>/dev/null | xargs -I {} basename {} | sed 's/^/  - /'
+
+# =========================================================
+# Confidence / literature-faithfulness convenience targets.
+#
+# These wrap the ECG comparator + dashboard so contributors can
+# get a single-screen go/no-go without remembering the long
+# python -m invocations.
+# =========================================================
+LIT_SWEEP_ROOT  ?= /tmp/graphbrew-lit-baseline
+LIT_SWEEP_SUBDIR ?= lit
+WIKI_DATA       := $(WIKI_DIR)/data
+
+.PHONY: lit-faith lit-repro confidence confidence-fast
+
+lit-faith:
+	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
+	@python3 scripts/experiments/ecg/literature_faithfulness.py \
+		--sweep-root $(LIT_SWEEP_ROOT) \
+		--sweep-subdir $(LIT_SWEEP_SUBDIR) \
+		--json-out $(WIKI_DATA)/literature_faithfulness_postfix.json \
+		--md-out   $(WIKI_DATA)/literature_faithfulness_postfix.md \
+		--csv-out  $(WIKI_DATA)/literature_faithfulness_postfix.csv
+
+lit-repro:
+	@echo "$(BLUE)Regenerating literature reproduction summary...$(NC)"
+	@python3 -m scripts.experiments.ecg.literature_reproduction_summary \
+		--lit-faith-json $(WIKI_DATA)/literature_faithfulness_postfix.json \
+		--markdown $(WIKI_DATA)/literature_reproduction_summary.md \
+		--csv      $(WIKI_DATA)/literature_reproduction_summary.csv
+
+confidence: lit-faith lit-repro
+	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
+	@python3 -m scripts.experiments.ecg.confidence_dashboard \
+		--markdown $(WIKI_DATA)/confidence_dashboard.md \
+		--json-out $(WIKI_DATA)/confidence_dashboard.json
+	@echo "$(GREEN)See $(WIKI_DATA)/confidence_dashboard.md$(NC)"
+
+# Quick variant: skip the lit-faith / lit-repro regen (assumes
+# the artifacts on disk are already current) and just rerun the
+# pytest tier gates + headline verdict. Useful in tight edit loops.
+confidence-fast:
+	@python3 -m scripts.experiments.ecg.confidence_dashboard \
+		--markdown $(WIKI_DATA)/confidence_dashboard.md \
+		--json-out $(WIKI_DATA)/confidence_dashboard.json

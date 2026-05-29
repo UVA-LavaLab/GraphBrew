@@ -192,7 +192,7 @@ def format_csv(rows: list[Row]) -> str:
               "srrip_delta_pp", "grasp_delta_pp", "popt_delta_pp",
               "grasp_verdict", "popt_verdict",
               "min_accesses"]
-    w = csv.DictWriter(buf, fieldnames=fields)
+    w = csv.DictWriter(buf, fieldnames=fields, lineterminator="\n")
     w.writeheader()
     for r in rows:
         w.writerow({

@@ -644,6 +644,14 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
     ("soc-LiveJournal1", "bc", "4MB", "POPT_GE_GRASP"):
         "Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the "
         "1MB entry; gap is +1.9 pp at 4MB.",
+    ("soc-LiveJournal1", "bc", "8MB", "POPT_GE_GRASP"):
+        "Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the "
+        "1MB / 4MB entries: BC's reverse-BFS dependency accumulation "
+        "traverses high-degree pivots in frontier order, not PR rank, "
+        "so POPT's static PR-rank schedule mis-orders the pivot working "
+        "set. Gap is +1.6 pp at 8MB on soc-LiveJournal1 — narrower than "
+        "1MB/4MB because the larger cache absorbs more of the misordered "
+        "evictions but the algorithmic mismatch persists.",
     ("com-orkut", "bc", "1MB", "POPT_GE_GRASP"):
         "Same BC/PR-rank mismatch as soc-LJ; com-orkut has even higher "
         "clustering coefficient (~0.17) so the gap widens to +2.5 pp at "

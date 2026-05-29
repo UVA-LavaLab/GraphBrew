@@ -502,7 +502,7 @@ def format_summary_csv(result: dict[str, Any]) -> str:
               "delta_vs_lru_pct", "l3_accesses", "claim_status", "claim_citation"]
     import io as _io
     buf = _io.StringIO()
-    w = csv.DictWriter(buf, fieldnames=fields)
+    w = csv.DictWriter(buf, fieldnames=fields, lineterminator="\n")
     w.writeheader()
     for r in rows:
         w.writerow(r)
