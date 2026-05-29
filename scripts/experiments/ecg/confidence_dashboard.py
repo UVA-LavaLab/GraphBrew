@@ -115,6 +115,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_internal_and_by_app.py", "Ora-Ag"),
     "GRAPH_FAMILY map duplication":
         ("scripts/test/test_graph_family_map_duplication.py", "GF-Dup"),
+    "Claim density vs literature baselines":
+        ("scripts/test/test_claim_density_vs_baselines.py", "CD-Base"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
