@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **115 gates, all GREEN, exit 0**.
+and currently reports **120 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -226,12 +226,45 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   H_TOL=1e-3, delta_p = p_a − p_b, favors picks the higher p_hat (or
   'tie' sentinel for p_a==p_b), magnitude bucket matches thresholds
   {large=0.8, medium=0.5, small=0.2}, comparisons cover full P(4,2)=12
-  permutations per app (gate 115, 14 tests).
+  permutations per app (gate 115, 14 tests); lofo ↔ leave_one_graph_out
+  robustness parity — different scopes (lofo restricts to scope_l3_sizes,
+  logo uses full corpus) so per-(app,policy) win_counts intentionally
+  differ, but app-level fragility classification must agree (both methods
+  must label the same apps fragile vs robust). Empirically: bfs+sssp
+  fragile, bc+cc+pr robust by BOTH methods — strong triangulation across
+  two independent perturbation strategies (gate 116, 15 tests);
+  multiple_testing_correction Holm-Bonferroni step-down + Benjamini-
+  Hochberg step-up ladders — 81 hypothesis tests from three sources
+  (bootstrap_paired_gap=30, mannwhitney_gap=30, popt_vs_grasp_family_app
+  =21) at α=0.05; HB threshold = α/(n−rank+1) with step-down semantics
+  (one fail → all later ranks fail), BH threshold = α·rank/n with step-up
+  semantics (everything up to k_max survives even if its own p > its own
+  threshold), BH ≥ HB always by FDR-vs-FWER guarantee, survivor counts
+  44/28/40 reproduce exactly from raw p-values (gate 117, 13 tests);
+  cache_saturation_onset step-down rule + per-policy ranking — octave
+  arithmetic (delta_gap_pp = gap_to − gap_from, slope_pp_per_octave =
+  −delta/Δlog2_MB) from oracle_gap_auc trajectories, saturation_onset
+  reproduced from the exact "smallest L3 from which every remaining
+  octave shrinks within (−0.5, 0] pp" rule, per_policy onset_counts +
+  saturation_rank_by_policy match the documented (−1MB-sat,−4MB-sat,
+  never-sat) sort key (gate 118, 11 tests); cross_tool_slope_universality
+  central roll-up — medians copy from capacity_sensitivity (cache-sim),
+  gem5_slope_replay, and sniper_slope_replay; three invariants enforced
+  (all medians negative, all medians in band [−25, −0.5], no tool span
+  > 5.0 pp/oct), violations recomputed exactly across three categories,
+  verdict='PASS' iff all checks pass (gate 119, 11 tests);
+  gem5_slope_replay OLS arithmetic + verdict — per-cell slope is the
+  OLS slope of miss_pp vs log2(L3_kB) over the 4 anchor sizes;
+  miss_pp_by_size cross-links to gem5_anchor (×100 conversion);
+  per_policy median/mean/n reproduce from per_cell slopes; cross-policy
+  deltas (lru_minus_grasp, srrip_minus_grasp) exact; verdict_checks
+  recomputed from the four monotonicity/sign/steepness invariants
+  (gate 120, 12 tests).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
   filled out the dashboard from the original 11 pytest gates to the
-  current 115. `make confidence-fast` runs the whole suite in under
+  current 120. `make confidence-fast` runs the whole suite in under
   ~3 minutes; `reproduce_smoke.py` snapshots 142 SHA-256 hashes of
   the tracked artifacts and re-runs `make lit-claims lit-catalog`
   in a subprocess to verify drift=0.
@@ -251,7 +284,7 @@ Latest additions on top of the Tier A/B/C work:
 - `scripts/experiments/ecg/regression_budget.py` — per-cell distance-
   to-disagree in pp; emits `wiki/data/regression_budget.{json,md}`.
 - `scripts/experiments/ecg/confidence_dashboard.py` — single-screen
-  view of all 115+ pytest gates + lit-faith headline + corpus diversity
+  view of all 120+ pytest gates + lit-faith headline + corpus diversity
   + regression budget.
 - 6 new pytest gate files in `scripts/test/`:
   `test_baselines_match_literature`, `test_confidence_dashboard`,

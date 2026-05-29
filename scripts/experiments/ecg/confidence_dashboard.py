@@ -139,6 +139,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cache_saturation_onset_arithmetic.py", "CSO-Step"),
     "cross_tool_slope_universality verdict + medians":
         ("scripts/test/test_cross_tool_slope_universality_arithmetic.py", "CTSU-Med"),
+    "gem5_slope_replay OLS + verdict":
+        ("scripts/test/test_gem5_slope_replay_arithmetic.py", "GSR-OLS"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
