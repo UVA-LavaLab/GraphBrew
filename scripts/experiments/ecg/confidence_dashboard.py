@@ -181,6 +181,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_per_graph_rollup_arithmetic.py", "PGR-Math"),
     "policy_auc_correlation derivation parity (z-score + Pearson)":
         ("scripts/test/test_policy_auc_correlation_derivation_parity.py", "PAC-Der"),
+    "family_policy_auc_clustering derivation parity (pooled → trapezoid → corr)":
+        ("scripts/test/test_family_policy_auc_clustering_derivation_parity.py", "FPC-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
