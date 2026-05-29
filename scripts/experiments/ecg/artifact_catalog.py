@@ -144,6 +144,14 @@ CATALOG = [
         "summary":   "Per-(policy, app) oracle-gap matrix exposing per-kernel winners: POPT crushes pr (0.100 pp); GRASP wins cc (0.640 pp); GRASP catastrophic on sssp (7.106 pp). No one-size-fits-all.",
     },
     {
+        "id":        "reproduce_smoke",
+        "label":     "Reproducibility smoke",
+        "generator": "scripts/experiments/ecg/reproduce_smoke.py",
+        "gate":      "scripts/test/test_reproduce_smoke.py",
+        "artifact":  "wiki/data/reproduce_smoke.json",
+        "summary":   "SHA-256-snapshots every tracked wiki/data aggregator, re-runs lit-claims + lit-catalog, asserts byte-identity (modulo declared volatile fields like dashboard runtime_s). Catches silent staleness across the 40-file artifact surface.",
+    },
+    {
         "id":        "winning_regime_taxonomy",
         "label":     "Winning-regime taxonomy",
         "generator": "scripts/experiments/ecg/winning_regime_taxonomy.py",
@@ -199,7 +207,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (30 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (31 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

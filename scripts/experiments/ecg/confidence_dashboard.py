@@ -103,6 +103,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_by_app.py", "OracleApp"),
     "Bootstrap CIs on load-bearing claims":
         ("scripts/test/test_bootstrap_ci.py", "Bootstrap"),
+    "Reproducibility smoke":
+        ("scripts/test/test_reproduce_smoke.py", "Repro"),
     "Artifact catalog completeness":
         ("scripts/test/test_artifact_catalog.py", "Catalog"),
 }

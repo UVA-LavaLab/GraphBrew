@@ -503,7 +503,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -724,6 +724,18 @@ lit-catalog:
 		--json-out $(WIKI_DATA)/artifact_catalog.json \
 		--md-out   $(WIKI_DATA)/artifact_catalog.md
 
+# Reproducibility smoke: SHA-256-snapshot all tracked wiki/data
+# aggregator artifacts, re-run the deterministic generator chain,
+# and assert byte-identity. Catches the failure mode where a
+# committed file silently goes stale relative to its generator.
+# Allowed volatility (e.g. dashboard runtime_s) is masked before
+# hashing — every other byte must be reproducible from inputs.
+lit-reproduce-smoke:
+	@echo "$(BLUE)Running reproducibility smoke...$(NC)"
+	@python3 -m scripts.experiments.ecg.reproduce_smoke \
+		--json-out $(WIKI_DATA)/reproduce_smoke.json \
+		--md-out   $(WIKI_DATA)/reproduce_smoke.md
+
 # Single source of truth for the paper's numerical claims. Reads all
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
@@ -734,7 +746,7 @@ lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-t
 		--json-out $(WIKI_DATA)/paper_claims.json \
 		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-claims
+confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-deviations lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-bootstrap-ci lit-catalog lit-claims lit-reproduce-smoke
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
