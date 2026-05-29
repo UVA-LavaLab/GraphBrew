@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **33 gates, all GREEN, exit 0**.
+and currently reports **35 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -281,11 +281,38 @@ Latest additions on top of the Tier A/B/C work:
     `lit-claims` in the dep chain. Documents the one-cycle
     convergence wart for future maintainers. Test
     `scripts/test/test_reproduce_smoke.py` (8 cases) pins the
-    artifact floor at 44 with the load-bearing files list.
+    artifact floor at 48 with the load-bearing files list.
+  - `scripts/experiments/ecg/oracle_gap_by_app_bootstrap.py`
+    paired-bootstraps Δ = gap(a) − gap(b) for every ordered policy
+    pair, per kernel (5 apps × 12 pairs = 60 comparisons). 2000
+    resamples, seed=1729, 95% percentile CI. Pins CI-backed sign
+    claims: pr→POPT<{LRU,SRRIP,GRASP} all P=1.000; cc→GRASP<POPT
+    P=0.9995; bfs→POPT<GRASP P=0.999 CI hi=-0.45; sssp→POPT<GRASP
+    P=0.971; bc has NO stable ordering among {GRASP, POPT, SRRIP}.
+    Output at [`wiki/data/oracle_gap_by_app_bootstrap.md`](data/oracle_gap_by_app_bootstrap.md).
+    Test `scripts/test/test_oracle_gap_by_app_bootstrap.py`
+    (11 cases) enforces P-floor 0.99 on strong claims, 0.95 on
+    stability claims.
+  - `scripts/experiments/ecg/popt_vs_grasp_by_family_app.py`
+    breaks the POPT-vs-GRASP comparison down by (family × app),
+    exposing nuance whole-app gates would average away. 21 cells
+    with paired data. Headline findings (all CI-backed):
+    **road is POPT-favored on every kernel** (sssp -21.8 pp,
+    bfs -11.4 pp, bc -4.6 pp, pr -2.6 pp, cc -1.3 pp);
+    cc-counter-narrative is CI-strict on social/cc (+5.5 pp
+    P=0.000) and citation/cc (+4.6 pp P=0.000); social/pr is
+    CI-strict POPT (P=0.9995); citation/sssp is surprisingly
+    GRASP-strict (+1.43 pp P=0.000) — contradicting the per-kernel
+    sssp→POPT claim when broken out by family. Output at
+    [`wiki/data/popt_vs_grasp_by_family_app.md`](data/popt_vs_grasp_by_family_app.md).
+    Test `scripts/test/test_popt_vs_grasp_by_family_app.py`
+    (10 cases).
 - New Make targets: `make lit-popt-vs-grasp`, `make lit-deviations`,
   `make lit-claims`, `make lit-cross-tool-winners`,
   `make lit-regime-taxonomy`, `make lit-oracle-gap`,
-  `make lit-oracle-gap-by-app`, `make lit-wss-relative-l3`,
+  `make lit-oracle-gap-by-app`, `make lit-oracle-by-app-bootstrap`,
+  `make lit-popt-vs-grasp-by-family-app`,
+  `make lit-wss-relative-l3`,
   `make lit-bootstrap-ci`, `make lit-family-sensitivity`,
   `make lit-reproduce-smoke`, `make lit-catalog` (all wired into
   the `confidence` dep chain; `lit-claims` depends on every other
