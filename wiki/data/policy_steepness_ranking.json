@@ -1,0 +1,147 @@
+{
+  "checks": {
+    "grasp_le_lru_median": {
+      "grasp": 0.2294,
+      "lru": 1.0552,
+      "ok": true
+    },
+    "non_oracle_floor": {
+      "floor": 0.5,
+      "lru": 1.0552,
+      "ok": true,
+      "srrip": 1.091
+    },
+    "oracle_aware_ceiling": {
+      "ceiling": 0.5,
+      "grasp": 0.2294,
+      "ok": true,
+      "popt": 0.0995
+    },
+    "oracle_half_of_non_oracle": {
+      "actual_ratio": 0.153248,
+      "non_oracle_median": 1.0731,
+      "ok": true,
+      "oracle_median": 0.16445,
+      "required_ratio": 0.5
+    },
+    "popt_le_grasp_median": {
+      "grasp": 0.2294,
+      "ok": true,
+      "popt": 0.0995
+    },
+    "popt_lt_srrip_median": {
+      "ok": true,
+      "popt": 0.0995,
+      "srrip": 1.091
+    },
+    "popt_min_saturates": {
+      "ceiling": 0.2,
+      "ok": true,
+      "popt_min": 0.0435
+    }
+  },
+  "medians_pp": {
+    "GRASP": 0.2294,
+    "LRU": 1.0552,
+    "POPT": 0.0995,
+    "SRRIP": 1.091
+  },
+  "meta": {
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "non_oracle": [
+      "LRU",
+      "SRRIP"
+    ],
+    "oracle_aware": [
+      "POPT",
+      "GRASP"
+    ],
+    "policies": [
+      "GRASP",
+      "LRU",
+      "POPT",
+      "SRRIP"
+    ],
+    "thresholds": {
+      "non_oracle_floor_pp": 0.5,
+      "oracle_aware_ceiling_pp": 0.5,
+      "oracle_aware_half_of_non_oracle": 0.5,
+      "popt_min_slope_ceiling_pp": 0.2
+    }
+  },
+  "non_oracle_median_pp": 1.0731,
+  "oracle_median_pp": 0.16445,
+  "per_policy": {
+    "GRASP": {
+      "max": 2.1618,
+      "mean": 0.57828,
+      "median": 0.2294,
+      "min": 0.0,
+      "n": 5,
+      "per_app": {
+        "bc": 0.0,
+        "bfs": 0.4992,
+        "cc": 0.001,
+        "pr": 2.1618,
+        "sssp": 0.2294
+      }
+    },
+    "LRU": {
+      "max": 3.8421,
+      "mean": 1.47432,
+      "median": 1.0552,
+      "min": 0.297,
+      "n": 5,
+      "per_app": {
+        "bc": 0.297,
+        "bfs": 0.5847,
+        "cc": 1.0552,
+        "pr": 3.8421,
+        "sssp": 1.5926
+      }
+    },
+    "POPT": {
+      "max": 2.057,
+      "mean": 0.47522,
+      "median": 0.0995,
+      "min": 0.0435,
+      "n": 5,
+      "per_app": {
+        "bc": 0.0995,
+        "bfs": 0.0519,
+        "cc": 2.057,
+        "pr": 0.0435,
+        "sssp": 0.1242
+      }
+    },
+    "SRRIP": {
+      "max": 3.009,
+      "mean": 1.36378,
+      "median": 1.091,
+      "min": 0.3045,
+      "n": 5,
+      "per_app": {
+        "bc": 0.3045,
+        "bfs": 0.611,
+        "cc": 1.8034,
+        "pr": 3.009,
+        "sssp": 1.091
+      }
+    }
+  },
+  "ranking_by_median": [
+    "POPT",
+    "GRASP",
+    "LRU",
+    "SRRIP"
+  ],
+  "schema": "policy_steepness_ranking/v1",
+  "source": "wiki/data/cache_saturation_onset.json",
+  "verdict_ok": true
+}

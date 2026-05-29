@@ -520,6 +520,14 @@ CATALOG = [
         "summary":   "Cross-tool anchor-cell monotonicity sister of gate 77. Walks every (graph, app, policy) anchor cell in gem5_slope_replay.json and sniper_slope_replay.json and asserts that miss_pp_by_size is non-increasing as L3 grows, with TIER-AWARE per-tool tolerances locked to the current state: gem5 (high-fidelity) must be strictly monotone (0 bumps allowed in 18 steps across 6 cells); sniper (lower-fidelity, 18 cells x 3 steps = 54 steps) is permitted bounded bumps under three per-tool ceilings (bump_rate <= 40%, hard bumps (>=0.5 pp) <= 5, max bump < 2 pp). No tool may exhibit a catastrophic (>=3 pp) bump at any L3 step. Current state: gem5 = 0/18 bumps (0.0%); sniper = 19/54 bumps (35.2%), 2 hard, max +1.18 pp. Locks the simulator-quality divergence story --- gem5 anchors stay perfectly monotone, sniper noise stays bounded --- so any regression in either simulator's plumbing (broken policy, miswired cache sizing, fresh sniper jitter) trips exactly one named check.",
     },
     {
+        "id":        "policy_steepness_ranking",
+        "label":     "Per-policy final-octave steepness ranking",
+        "generator": "scripts/experiments/ecg/policy_steepness_ranking.py",
+        "gate":      "scripts/test/test_policy_steepness_ranking.py",
+        "artifact":  "wiki/data/policy_steepness_ranking.json",
+        "summary":   "Absolute-magnitude inversion of gate 64's saturation ranking. Aggregates |final-octave slope| (4MB->8MB) per policy across all 5 apps from cache_saturation_onset.json and locks the headline ordering POPT(0.10) < GRASP(0.23) << LRU(1.06) ~ SRRIP(1.09) pp/octave. Seven checks: (1) POPT median <= GRASP median, (2) GRASP median <= LRU median, (3) POPT median < SRRIP median, (4) oracle-aware (POPT/GRASP) medians <= 0.5 pp/oct ceiling, (5) non-oracle (LRU/SRRIP) medians >= 0.5 pp/oct floor, (6) oracle-aware median < half non-oracle median (currently 0.16 vs 1.07 = 0.15x), (7) POPT min slope <= 0.2 (at least one app fully saturates with POPT). Locks the 'oracle-aware policies are less cache-hungry' story as a quantitative ordering, complementing gate 64's binary onset count and gate 72's cross-tool slope-ordering check.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -599,7 +607,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (80 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (81 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

@@ -195,6 +195,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_saturation_distance.py", "FamSat"),
     "Anchor monotonicity replay (gem5+sniper)":
         ("scripts/test/test_anchor_monotonicity_replay.py", "AnchMono"),
+    "Per-policy final-octave steepness ranking":
+        ("scripts/test/test_policy_steepness_ranking.py", "Steepness"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":

@@ -151,6 +151,8 @@ TRACKED_ARTIFACTS = [
     "family_saturation_distance.md",
     "anchor_monotonicity_replay.json",
     "anchor_monotonicity_replay.md",
+    "policy_steepness_ranking.json",
+    "policy_steepness_ranking.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
