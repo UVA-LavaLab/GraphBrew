@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "821cd7087e92fa11682be4ed621fcfc2527082c47881bad2f884b72454f9159e",
-      "sha_after": "821cd7087e92fa11682be4ed621fcfc2527082c47881bad2f884b72454f9159e",
+      "sha_before": "72844f1510a5cfd2a2e4844b9cf4b4344e8391dcef335f6aefb0cad4e0a854e6",
+      "sha_after": "72844f1510a5cfd2a2e4844b9cf4b4344e8391dcef335f6aefb0cad4e0a854e6",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "854d9efcffd7455fb09d14fd228635c7d4209698523ab62a59e359b3264494f7",
-      "sha_after": "854d9efcffd7455fb09d14fd228635c7d4209698523ab62a59e359b3264494f7",
+      "sha_before": "ef551cafc681473a69024809c0769931ab169bc2b56b3dbcf067b4a48e9165bd",
+      "sha_after": "ef551cafc681473a69024809c0769931ab169bc2b56b3dbcf067b4a48e9165bd",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "696b83dc8d5a17bec0c71f60326f39835709878e5ffc3826d71e07e2d6f5dad2",
-      "sha_after": "696b83dc8d5a17bec0c71f60326f39835709878e5ffc3826d71e07e2d6f5dad2",
+      "sha_before": "40accf0573a85c603cffa93fe9a82a86848ffbaa89818f5618db52c1b818c957",
+      "sha_after": "40accf0573a85c603cffa93fe9a82a86848ffbaa89818f5618db52c1b818c957",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "2119665de1d80edab68c1dadb686217880c8b95062c529dabc05941ea6790d6f",
-      "sha_after": "2119665de1d80edab68c1dadb686217880c8b95062c529dabc05941ea6790d6f",
+      "sha_before": "8c7214c76e83131c43ddc35cdfdc2a88e6b0b11d5ffd1c466ac556a68447e939",
+      "sha_after": "8c7214c76e83131c43ddc35cdfdc2a88e6b0b11d5ffd1c466ac556a68447e939",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "74a5f914b2b208f3308a2d1fedd2827419038221a3fca0f1097410dc16f18981",
-      "sha_after": "74a5f914b2b208f3308a2d1fedd2827419038221a3fca0f1097410dc16f18981",
+      "sha_before": "ef3df23d450cf187bd3ea173430ab44d79373f954c8e74fe1c715d5400ddd013",
+      "sha_after": "ef3df23d450cf187bd3ea173430ab44d79373f954c8e74fe1c715d5400ddd013",
       "status": "ok"
     },
     {
