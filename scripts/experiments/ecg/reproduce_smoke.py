@@ -85,6 +85,8 @@ TRACKED_ARTIFACTS = [
     "distribution_diagnostics.md",
     "lofo_robustness.json",
     "lofo_robustness.md",
+    "winner_margin_gradient.json",
+    "winner_margin_gradient.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

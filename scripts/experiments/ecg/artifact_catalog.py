@@ -256,6 +256,14 @@ CATALOG = [
         "summary":   "Strictly stronger sibling of gate 41 (LOGO): drops an entire family at a time (1-4 graphs) and re-ranks per app. 3/5 apps (bc, cc, pr) are LOFO-robust; bfs is honestly disclosed as social-sensitive (drop social -> POPT loses to GRASP) and sssp as citation-sensitive (drop citation -> GRASP loses to POPT).",
     },
     {
+        "id":        "winner_margin_gradient",
+        "label":     "Per-(app, L3) winner-margin gradient",
+        "generator": "scripts/experiments/ecg/winner_margin_gradient.py",
+        "gate":      "scripts/test/test_winner_margin_gradient.py",
+        "artifact":  "wiki/data/winner_margin_gradient.json",
+        "summary":   "Classifies all 15 (app, L3) paper-scope cells by top-vs-runner-up margin: 6 decisive (margin>=4), 6 moderate (2<=margin<4), 1 weak (sssp/1MB), 2 tied (bc/1MB + sssp/8MB). 12/15 = 80% strong cells. Honest disclosure of weak/tied cells defends against 'your winner is one cell from flipping' pushback.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -335,7 +343,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (47 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (48 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

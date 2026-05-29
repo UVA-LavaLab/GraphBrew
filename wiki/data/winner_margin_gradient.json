@@ -1,0 +1,279 @@
+{
+  "meta": {
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "class_counts": {
+      "decisive": 6,
+      "moderate": 6,
+      "tied": 2,
+      "weak": 1
+    },
+    "class_thresholds": {
+      "decisive": "margin >= 4",
+      "moderate": "2 <= margin < 4",
+      "tied": "margin == 0",
+      "weak": "margin == 1"
+    },
+    "n_apps": 5,
+    "n_cells_total": 15,
+    "n_tied_cells": 2,
+    "n_weak_cells": 1,
+    "scope_l3_sizes": [
+      "1MB",
+      "4MB",
+      "8MB"
+    ],
+    "source": "wiki/data/oracle_gap.json",
+    "strong_cell_fraction": 0.8,
+    "tied_cells": [
+      "bc__1MB",
+      "sssp__8MB"
+    ],
+    "weak_cells": [
+      "sssp__1MB"
+    ]
+  },
+  "per_cell": {
+    "bc__1MB": {
+      "app": "bc",
+      "class": "tied",
+      "l3_size": "1MB",
+      "margin": 0,
+      "n_cells_in_scope": 7,
+      "runner_up_wins": 4,
+      "tied_top_policies": [
+        "SRRIP"
+      ],
+      "top_policy": "GRASP",
+      "top_wins": 4,
+      "win_counts": {
+        "GRASP": 4,
+        "LRU": 1,
+        "POPT": 1,
+        "SRRIP": 4
+      }
+    },
+    "bc__4MB": {
+      "app": "bc",
+      "class": "decisive",
+      "l3_size": "4MB",
+      "margin": 5,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "GRASP",
+      "top_wins": 6,
+      "win_counts": {
+        "GRASP": 6,
+        "SRRIP": 1
+      }
+    },
+    "bc__8MB": {
+      "app": "bc",
+      "class": "decisive",
+      "l3_size": "8MB",
+      "margin": 4,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "GRASP",
+      "top_wins": 5,
+      "win_counts": {
+        "GRASP": 5,
+        "POPT": 1,
+        "SRRIP": 1
+      }
+    },
+    "bfs__1MB": {
+      "app": "bfs",
+      "class": "moderate",
+      "l3_size": "1MB",
+      "margin": 3,
+      "n_cells_in_scope": 7,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "GRASP",
+      "top_wins": 4,
+      "win_counts": {
+        "GRASP": 4,
+        "LRU": 1,
+        "POPT": 1,
+        "SRRIP": 1
+      }
+    },
+    "bfs__4MB": {
+      "app": "bfs",
+      "class": "decisive",
+      "l3_size": "4MB",
+      "margin": 4,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "POPT",
+      "top_wins": 5,
+      "win_counts": {
+        "GRASP": 1,
+        "POPT": 5
+      }
+    },
+    "bfs__8MB": {
+      "app": "bfs",
+      "class": "moderate",
+      "l3_size": "8MB",
+      "margin": 2,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 2,
+      "tied_top_policies": [],
+      "top_policy": "POPT",
+      "top_wins": 4,
+      "win_counts": {
+        "GRASP": 2,
+        "POPT": 4
+      }
+    },
+    "cc__1MB": {
+      "app": "cc",
+      "class": "decisive",
+      "l3_size": "1MB",
+      "margin": 4,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "GRASP",
+      "top_wins": 5,
+      "win_counts": {
+        "GRASP": 5,
+        "LRU": 1
+      }
+    },
+    "cc__4MB": {
+      "app": "cc",
+      "class": "decisive",
+      "l3_size": "4MB",
+      "margin": 5,
+      "n_cells_in_scope": 5,
+      "runner_up_wins": 0,
+      "tied_top_policies": [],
+      "top_policy": "GRASP",
+      "top_wins": 5,
+      "win_counts": {
+        "GRASP": 5
+      }
+    },
+    "cc__8MB": {
+      "app": "cc",
+      "class": "moderate",
+      "l3_size": "8MB",
+      "margin": 3,
+      "n_cells_in_scope": 5,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "GRASP",
+      "top_wins": 4,
+      "win_counts": {
+        "GRASP": 4,
+        "LRU": 1
+      }
+    },
+    "pr__1MB": {
+      "app": "pr",
+      "class": "decisive",
+      "l3_size": "1MB",
+      "margin": 6,
+      "n_cells_in_scope": 8,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "POPT",
+      "top_wins": 7,
+      "win_counts": {
+        "GRASP": 1,
+        "POPT": 7
+      }
+    },
+    "pr__4MB": {
+      "app": "pr",
+      "class": "moderate",
+      "l3_size": "4MB",
+      "margin": 2,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 2,
+      "tied_top_policies": [],
+      "top_policy": "POPT",
+      "top_wins": 4,
+      "win_counts": {
+        "GRASP": 2,
+        "POPT": 4
+      }
+    },
+    "pr__8MB": {
+      "app": "pr",
+      "class": "moderate",
+      "l3_size": "8MB",
+      "margin": 2,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 2,
+      "tied_top_policies": [],
+      "top_policy": "POPT",
+      "top_wins": 4,
+      "win_counts": {
+        "GRASP": 2,
+        "POPT": 4
+      }
+    },
+    "sssp__1MB": {
+      "app": "sssp",
+      "class": "weak",
+      "l3_size": "1MB",
+      "margin": 1,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 2,
+      "tied_top_policies": [],
+      "top_policy": "POPT",
+      "top_wins": 3,
+      "win_counts": {
+        "GRASP": 2,
+        "LRU": 1,
+        "POPT": 3
+      }
+    },
+    "sssp__4MB": {
+      "app": "sssp",
+      "class": "moderate",
+      "l3_size": "4MB",
+      "margin": 2,
+      "n_cells_in_scope": 5,
+      "runner_up_wins": 1,
+      "tied_top_policies": [],
+      "top_policy": "GRASP",
+      "top_wins": 3,
+      "win_counts": {
+        "GRASP": 3,
+        "LRU": 1,
+        "POPT": 1
+      }
+    },
+    "sssp__8MB": {
+      "app": "sssp",
+      "class": "tied",
+      "l3_size": "8MB",
+      "margin": 0,
+      "n_cells_in_scope": 5,
+      "runner_up_wins": 2,
+      "tied_top_policies": [
+        "SRRIP"
+      ],
+      "top_policy": "GRASP",
+      "top_wins": 2,
+      "win_counts": {
+        "GRASP": 2,
+        "POPT": 1,
+        "SRRIP": 2
+      }
+    }
+  }
+}

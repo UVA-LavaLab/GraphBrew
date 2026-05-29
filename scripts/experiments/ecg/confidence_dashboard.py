@@ -129,6 +129,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_distribution_diagnostics.py", "Dist"),
     "Leave-one-family-out (LOFO) robustness":
         ("scripts/test/test_lofo_robustness.py", "LOFO"),
+    "Per-(app, L3) winner-margin gradient":
+        ("scripts/test/test_winner_margin_gradient.py", "Margin"),
     "WSS-relative L3 axis":
         ("scripts/test/test_wss_relative_l3.py", "WSS-L3"),
     "Bootstrap CIs on load-bearing claims":
