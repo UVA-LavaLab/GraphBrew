@@ -55,6 +55,10 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_baselines_match_literature.py", "Lit-data"),
     "Lit-baseline structural gate":
         ("scripts/test/test_literature_baselines_structure.py", "Lit-struct"),
+    "Lit-faith no-disagree gate":
+        ("scripts/test/test_lit_faith_no_disagree.py", "Lit-faith"),
+    "ECG validation gate catalog":
+        ("scripts/test/test_ecg_validation_gates_catalog.py", "ECG-cat"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
 }

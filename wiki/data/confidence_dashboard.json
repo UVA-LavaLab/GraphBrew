@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.5174150466918945,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.34s"
+      "runtime_s": 1.9511513710021973,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.79s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.4677376747131348,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.29s"
+      "runtime_s": 1.5352706909179688,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.37s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 1,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2039339542388916,
+      "runtime_s": 0.19084739685058594,
       "raw_tail": "....x..s.s.s                                                             [100%]\n8 passed, 3 skipped, 1 xfailed in 0.03s"
     },
     {
@@ -50,8 +50,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.426039457321167,
-      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.25s"
+      "runtime_s": 0.4100775718688965,
+      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.24s"
     },
     {
       "label": "Lit-baseline structural gate",
@@ -63,8 +63,34 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3194088935852051,
+      "runtime_s": 0.30983805656433105,
       "raw_tail": "........................................................................ [ 39%]\n........................................................................ [ 79%]\n.....................................                                    [100%]\n181 passed in 0.14s"
+    },
+    {
+      "label": "Lit-faith no-disagree gate",
+      "short": "Lit-faith",
+      "path": "scripts/test/test_lit_faith_no_disagree.py",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.19285917282104492,
+      "raw_tail": "...                                                                      [100%]\n3 passed in 0.03s"
+    },
+    {
+      "label": "ECG validation gate catalog",
+      "short": "ECG-cat",
+      "path": "scripts/test/test_ecg_validation_gates_catalog.py",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 2,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.20383119583129883,
+      "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.04s"
     },
     {
       "label": "Corpus diversity profile parity",
@@ -76,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20383191108703613,
+      "runtime_s": 0.23220610618591309,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     }
   ],
