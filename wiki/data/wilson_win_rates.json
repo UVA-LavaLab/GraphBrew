@@ -1,0 +1,356 @@
+{
+  "meta": {
+    "apps": [
+      "pr",
+      "bc",
+      "cc",
+      "bfs",
+      "sssp"
+    ],
+    "ci_level": 0.95,
+    "method": "wilson_score",
+    "n_rows": 456,
+    "policies": [
+      "LRU",
+      "SRRIP",
+      "GRASP",
+      "POPT"
+    ],
+    "source": "wiki/data/oracle_gap.json",
+    "z": 1.959963984540054
+  },
+  "overall": {
+    "GRASP": {
+      "ci_hi": 0.5818,
+      "ci_lo": 0.4013,
+      "p_hat": 0.4912,
+      "total": 114,
+      "wins": 56
+    },
+    "LRU": {
+      "ci_hi": 0.1213,
+      "ci_lo": 0.0301,
+      "p_hat": 0.0614,
+      "total": 114,
+      "wins": 7
+    },
+    "POPT": {
+      "ci_hi": 0.4865,
+      "ci_lo": 0.3098,
+      "p_hat": 0.3947,
+      "total": 114,
+      "wins": 45
+    },
+    "SRRIP": {
+      "ci_hi": 0.1646,
+      "ci_lo": 0.0547,
+      "p_hat": 0.0965,
+      "total": 114,
+      "wins": 11
+    }
+  },
+  "per_app": {
+    "bc": {
+      "GRASP": {
+        "ci_hi": 0.8119,
+        "ci_lo": 0.4489,
+        "p_hat": 0.6522,
+        "total": 23,
+        "wins": 15
+      },
+      "LRU": {
+        "ci_hi": 0.2099,
+        "ci_lo": 0.0077,
+        "p_hat": 0.0435,
+        "total": 23,
+        "wins": 1
+      },
+      "POPT": {
+        "ci_hi": 0.419,
+        "ci_lo": 0.0966,
+        "p_hat": 0.2174,
+        "total": 23,
+        "wins": 5
+      },
+      "SRRIP": {
+        "ci_hi": 0.5087,
+        "ci_lo": 0.156,
+        "p_hat": 0.3043,
+        "total": 23,
+        "wins": 7
+      }
+    },
+    "bfs": {
+      "GRASP": {
+        "ci_hi": 0.5921,
+        "ci_lo": 0.2216,
+        "p_hat": 0.3913,
+        "total": 23,
+        "wins": 9
+      },
+      "LRU": {
+        "ci_hi": 0.2099,
+        "ci_lo": 0.0077,
+        "p_hat": 0.0435,
+        "total": 23,
+        "wins": 1
+      },
+      "POPT": {
+        "ci_hi": 0.7076,
+        "ci_lo": 0.3296,
+        "p_hat": 0.5217,
+        "total": 23,
+        "wins": 12
+      },
+      "SRRIP": {
+        "ci_hi": 0.2099,
+        "ci_lo": 0.0077,
+        "p_hat": 0.0435,
+        "total": 23,
+        "wins": 1
+      }
+    },
+    "cc": {
+      "GRASP": {
+        "ci_hi": 0.9476,
+        "ci_lo": 0.6396,
+        "p_hat": 0.85,
+        "total": 20,
+        "wins": 17
+      },
+      "LRU": {
+        "ci_hi": 0.301,
+        "ci_lo": 0.0279,
+        "p_hat": 0.1,
+        "total": 20,
+        "wins": 2
+      },
+      "POPT": {
+        "ci_hi": 0.1611,
+        "ci_lo": 0.0,
+        "p_hat": 0.0,
+        "total": 20,
+        "wins": 0
+      },
+      "SRRIP": {
+        "ci_hi": 0.2361,
+        "ci_lo": 0.0089,
+        "p_hat": 0.05,
+        "total": 20,
+        "wins": 1
+      }
+    },
+    "pr": {
+      "GRASP": {
+        "ci_hi": 0.4706,
+        "ci_lo": 0.1525,
+        "p_hat": 0.2857,
+        "total": 28,
+        "wins": 8
+      },
+      "LRU": {
+        "ci_hi": 0.1206,
+        "ci_lo": 0.0,
+        "p_hat": 0.0,
+        "total": 28,
+        "wins": 0
+      },
+      "POPT": {
+        "ci_hi": 0.8475,
+        "ci_lo": 0.5294,
+        "p_hat": 0.7143,
+        "total": 28,
+        "wins": 20
+      },
+      "SRRIP": {
+        "ci_hi": 0.1206,
+        "ci_lo": 0.0,
+        "p_hat": 0.0,
+        "total": 28,
+        "wins": 0
+      }
+    },
+    "sssp": {
+      "GRASP": {
+        "ci_hi": 0.5671,
+        "ci_lo": 0.1812,
+        "p_hat": 0.35,
+        "total": 20,
+        "wins": 7
+      },
+      "LRU": {
+        "ci_hi": 0.3604,
+        "ci_lo": 0.0524,
+        "p_hat": 0.15,
+        "total": 20,
+        "wins": 3
+      },
+      "POPT": {
+        "ci_hi": 0.6134,
+        "ci_lo": 0.2188,
+        "p_hat": 0.4,
+        "total": 20,
+        "wins": 8
+      },
+      "SRRIP": {
+        "ci_hi": 0.301,
+        "ci_lo": 0.0279,
+        "p_hat": 0.1,
+        "total": 20,
+        "wins": 2
+      }
+    }
+  },
+  "per_family": {
+    "citation": {
+      "GRASP": {
+        "ci_hi": 0.891,
+        "ci_lo": 0.4805,
+        "p_hat": 0.7333,
+        "total": 15,
+        "wins": 11
+      },
+      "LRU": {
+        "ci_hi": 0.2039,
+        "ci_lo": 0.0,
+        "p_hat": 0.0,
+        "total": 15,
+        "wins": 0
+      },
+      "POPT": {
+        "ci_hi": 0.4519,
+        "ci_lo": 0.0705,
+        "p_hat": 0.2,
+        "total": 15,
+        "wins": 3
+      },
+      "SRRIP": {
+        "ci_hi": 0.2982,
+        "ci_lo": 0.0119,
+        "p_hat": 0.0667,
+        "total": 15,
+        "wins": 1
+      }
+    },
+    "mesh": {
+      "GRASP": {
+        "ci_hi": 0.7693,
+        "ci_lo": 0.1176,
+        "p_hat": 0.4,
+        "total": 5,
+        "wins": 2
+      },
+      "LRU": {
+        "ci_hi": 0.4345,
+        "ci_lo": 0.0,
+        "p_hat": 0.0,
+        "total": 5,
+        "wins": 0
+      },
+      "POPT": {
+        "ci_hi": 0.8824,
+        "ci_lo": 0.2307,
+        "p_hat": 0.6,
+        "total": 5,
+        "wins": 3
+      },
+      "SRRIP": {
+        "ci_hi": 0.4345,
+        "ci_lo": 0.0,
+        "p_hat": 0.0,
+        "total": 5,
+        "wins": 0
+      }
+    },
+    "road": {
+      "GRASP": {
+        "ci_hi": 0.4343,
+        "ci_lo": 0.115,
+        "p_hat": 0.24,
+        "total": 25,
+        "wins": 6
+      },
+      "LRU": {
+        "ci_hi": 0.3465,
+        "ci_lo": 0.064,
+        "p_hat": 0.16,
+        "total": 25,
+        "wins": 4
+      },
+      "POPT": {
+        "ci_hi": 0.665,
+        "ci_lo": 0.3003,
+        "p_hat": 0.48,
+        "total": 25,
+        "wins": 12
+      },
+      "SRRIP": {
+        "ci_hi": 0.2996,
+        "ci_lo": 0.0417,
+        "p_hat": 0.12,
+        "total": 25,
+        "wins": 3
+      }
+    },
+    "social": {
+      "GRASP": {
+        "ci_hi": 0.6967,
+        "ci_lo": 0.4416,
+        "p_hat": 0.5741,
+        "total": 54,
+        "wins": 31
+      },
+      "LRU": {
+        "ci_hi": 0.0977,
+        "ci_lo": 0.0033,
+        "p_hat": 0.0185,
+        "total": 54,
+        "wins": 1
+      },
+      "POPT": {
+        "ci_hi": 0.5403,
+        "ci_lo": 0.2868,
+        "p_hat": 0.4074,
+        "total": 54,
+        "wins": 22
+      },
+      "SRRIP": {
+        "ci_hi": 0.1991,
+        "ci_lo": 0.0402,
+        "p_hat": 0.0926,
+        "total": 54,
+        "wins": 5
+      }
+    },
+    "web": {
+      "GRASP": {
+        "ci_hi": 0.6425,
+        "ci_lo": 0.1982,
+        "p_hat": 0.4,
+        "total": 15,
+        "wins": 6
+      },
+      "LRU": {
+        "ci_hi": 0.3788,
+        "ci_lo": 0.0374,
+        "p_hat": 0.1333,
+        "total": 15,
+        "wins": 2
+      },
+      "POPT": {
+        "ci_hi": 0.5829,
+        "ci_lo": 0.1518,
+        "p_hat": 0.3333,
+        "total": 15,
+        "wins": 5
+      },
+      "SRRIP": {
+        "ci_hi": 0.3788,
+        "ci_lo": 0.0374,
+        "p_hat": 0.1333,
+        "total": 15,
+        "wins": 2
+      }
+    }
+  }
+}

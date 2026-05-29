@@ -61,6 +61,8 @@ TRACKED_ARTIFACTS = [
     "oracle_gap_by_app_bootstrap.md",
     "popt_vs_grasp_by_family_app.json",
     "popt_vs_grasp_by_family_app.md",
+    "wilson_win_rates.json",
+    "wilson_win_rates.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

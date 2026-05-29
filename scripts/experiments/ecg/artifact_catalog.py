@@ -160,6 +160,14 @@ CATALOG = [
         "summary":   "21 (family,app) cells bootstrapped. Road is POPT-favored on every kernel (sssp -21.8pp, bfs -11.4pp). cc-counter-narrative is CI-strict on social/cc and citation/cc (P≈0.000). social/pr is CI-strict POPT (P=0.9995).",
     },
     {
+        "id":        "wilson_win_rates",
+        "label":     "Wilson CIs on policy win-counts",
+        "generator": "scripts/experiments/ecg/wilson_win_rates.py",
+        "gate":      "scripts/test/test_wilson_win_rates.py",
+        "artifact":  "wiki/data/wilson_win_rates.json",
+        "summary":   "Wilson 95% CIs on per-(scope,policy) win-rates. CI-strict majority: pr/POPT [0.529,0.848], cc/GRASP [0.640,0.948]. CI-strict below-chance: cc/POPT [0.000,0.161]. sssp POPT/GRASP not CI-distinguishable.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -239,7 +247,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (35 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (36 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

@@ -155,6 +155,17 @@
       "summary": "21 (family,app) cells bootstrapped. Road is POPT-favored on every kernel (sssp -21.8pp, bfs -11.4pp). cc-counter-narrative is CI-strict on social/cc and citation/cc (P\u22480.000). social/pr is CI-strict POPT (P=0.9995)."
     },
     {
+      "artifact": "wiki/data/wilson_win_rates.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_wilson_win_rates.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/wilson_win_rates.py",
+      "generator_exists": true,
+      "id": "wilson_win_rates",
+      "label": "Wilson CIs on policy win-counts",
+      "summary": "Wilson 95% CIs on per-(scope,policy) win-rates. CI-strict majority: pr/POPT [0.529,0.848], cc/GRASP [0.640,0.948]. CI-strict below-chance: cc/POPT [0.000,0.161]. sssp POPT/GRASP not CI-distinguishable."
+    },
+    {
       "artifact": "wiki/data/wss_relative_l3.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_wss_relative_l3.py",
@@ -262,13 +273,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (35 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (36 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 24
+    "n_entries": 25
   }
 }
