@@ -73,6 +73,8 @@ TRACKED_ARTIFACTS = [
     "multiple_testing_correction.md",
     "leave_one_graph_out.json",
     "leave_one_graph_out.md",
+    "cell_winner_census.json",
+    "cell_winner_census.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",

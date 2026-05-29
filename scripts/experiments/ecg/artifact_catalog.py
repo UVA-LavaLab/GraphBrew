@@ -208,6 +208,14 @@ CATALOG = [
         "summary":   "LOGO-robust apps (winner survives every single-graph drop): pr/POPT, cc/GRASP, bc/GRASP. LOGO-fragile: bfs (flips when soc-LiveJournal1 dropped), sssp (flips under com-orkut, roadNet-CA, web-Google drops). Triangulates the cross-gate weak-signal finding for sssp.",
     },
     {
+        "id":        "cell_winner_census",
+        "label":     "Cell-winner census (corpus decisiveness)",
+        "generator": "scripts/experiments/ecg/cell_winner_census.py",
+        "gate":      "scripts/test/test_cell_winner_census.py",
+        "artifact":  "wiki/data/cell_winner_census.json",
+        "summary":   "114 cells: 97.4% have unique winner, 2.6% tied (3 cells all in bc/email-Eu-core: one 4-way tie + two 2-way ties), 0% no-winner. Pins corpus decisiveness; paper must report the tied subcorpus separately.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -287,7 +295,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (41 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (42 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
