@@ -243,6 +243,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_policy_asymmetry_derivation_parity.py", "CPA-Der"),
     "saturation_slope_extremum derivation parity (bfs argmin both axes + corpus floors)":
         ("scripts/test/test_saturation_slope_extremum_derivation_parity.py", "SSE-Der"),
+    "oracle_gap_effect_size derivation parity (Cliff's delta + Mann-Whitney U)":
+        ("scripts/test/test_oracle_gap_effect_size_derivation_parity.py", "OGE-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
