@@ -237,6 +237,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_oracle_gap_by_app_derivation_parity.py", "OGA-Der"),
     "cross_tool_saturation derivation parity (per-cell classifier + summary reducers)":
         ("scripts/test/test_cross_tool_saturation_derivation_parity.py", "CTS-Der"),
+    "per_app_srrip_vs_grasp derivation parity (per-app delta + pinned bfs)":
+        ("scripts/test/test_per_app_srrip_vs_grasp_derivation_parity.py", "PSG-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
