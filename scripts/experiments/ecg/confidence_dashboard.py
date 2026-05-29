@@ -191,6 +191,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_bootstrap_ci_derivation_parity.py", "BCI-Der"),
     "gap_distribution_shape derivation parity (g1/g2 moments + envelope)":
         ("scripts/test/test_gap_distribution_shape_derivation_parity.py", "GDS-Der"),
+    "cell_winner_census derivation parity (classification + tied breakdown)":
+        ("scripts/test/test_cell_winner_census_derivation_parity.py", "CWC-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

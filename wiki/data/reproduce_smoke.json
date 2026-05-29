@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "ffb07d560c24e1bfec46fff9012c77824f8ba98e0f05d9012be4a22b46fa55b4",
-      "sha_after": "ffb07d560c24e1bfec46fff9012c77824f8ba98e0f05d9012be4a22b46fa55b4",
+      "sha_before": "7fdb03e5ede6cac18940e01026b5569d2ad74a87251036329e73b6cc632eaa64",
+      "sha_after": "7fdb03e5ede6cac18940e01026b5569d2ad74a87251036329e73b6cc632eaa64",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "13dd5e7b380669dec1a518487c3cf9d419aca6e7c7173340c2e68dc26f2a656d",
-      "sha_after": "13dd5e7b380669dec1a518487c3cf9d419aca6e7c7173340c2e68dc26f2a656d",
+      "sha_before": "1385762fbbe02e9270f0dc17a8003dcf31bf486d86093678e432c2a5951742d9",
+      "sha_after": "1385762fbbe02e9270f0dc17a8003dcf31bf486d86093678e432c2a5951742d9",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "cbc8b8463cc1e4d43754a13a12a05cb4b5c171d67623bd26660b50a26655ad76",
-      "sha_after": "cbc8b8463cc1e4d43754a13a12a05cb4b5c171d67623bd26660b50a26655ad76",
+      "sha_before": "ca57dc9ce19acd2dd50040c51cd636a0d63209176b0ec822cb0b0cd1a9217428",
+      "sha_after": "ca57dc9ce19acd2dd50040c51cd636a0d63209176b0ec822cb0b0cd1a9217428",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "bac3cf36341468f1d0048df61315a9a63cf7bbbc97cd9137521a368371f99dcd",
-      "sha_after": "bac3cf36341468f1d0048df61315a9a63cf7bbbc97cd9137521a368371f99dcd",
+      "sha_before": "cb442e19b59b1390b514b433e8a2e3c5867ddde9b9c6b6b153604759b904b458",
+      "sha_after": "cb442e19b59b1390b514b433e8a2e3c5867ddde9b9c6b6b153604759b904b458",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "ef92a74633e921fae8ca32a10faef7be71a4f8d0dd89508c0aa23b1a8fc2fce2",
-      "sha_after": "ef92a74633e921fae8ca32a10faef7be71a4f8d0dd89508c0aa23b1a8fc2fce2",
+      "sha_before": "7f54b14921f46af05da4e2a9f208ded783f10afb82231f5d92a387e392f9ac49",
+      "sha_after": "7f54b14921f46af05da4e2a9f208ded783f10afb82231f5d92a387e392f9ac49",
       "status": "ok"
     },
     {
