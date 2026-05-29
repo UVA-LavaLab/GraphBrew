@@ -1,0 +1,94 @@
+{
+  "headline": "\u2705 GREEN \u2014 every tier + gate + comparator is within tolerance",
+  "suites": [
+    {
+      "label": "Tier A \u2014 GRASP sideband registration",
+      "short": "Tier A",
+      "path": "scripts/test/test_grasp_sideband_registration.py",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 3.213346004486084,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 2.97s"
+    },
+    {
+      "label": "Tier B \u2014 POPT permutation equivalence",
+      "short": "Tier B",
+      "path": "scripts/test/test_popt_permutation_equivalence.py",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 1.8388264179229736,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.63s"
+    },
+    {
+      "label": "Tier C \u2014 GRASP vs LRU sign test",
+      "short": "Tier C",
+      "path": "scripts/test/test_grasp_sign_consistency.py",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 3,
+      "xfailed": 1,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.18552041053771973,
+      "raw_tail": "....x..s.s.s                                                             [100%]\n8 passed, 3 skipped, 1 xfailed in 0.03s"
+    },
+    {
+      "label": "Lit-baseline data-driven gate",
+      "short": "Lit-data",
+      "path": "scripts/test/test_baselines_match_literature.py",
+      "passed": 29,
+      "failed": 0,
+      "skipped": 1,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.4057636260986328,
+      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.24s"
+    },
+    {
+      "label": "Lit-baseline structural gate",
+      "short": "Lit-struct",
+      "path": "scripts/test/test_literature_baselines_structure.py",
+      "passed": 110,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.2490231990814209,
+      "raw_tail": "........................................................................ [ 65%]\n......................................                                   [100%]\n110 passed in 0.09s"
+    },
+    {
+      "label": "Corpus diversity profile parity",
+      "short": "Corpus",
+      "path": "scripts/test/test_corpus_diversity.py",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.20702505111694336,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.02s"
+    }
+  ],
+  "lit_faith_summary": {
+    "claims_total": 264,
+    "disagree": 0,
+    "insufficient_data": 19,
+    "known_deviation": 27,
+    "min_accesses_threshold": 10000,
+    "missing": 2,
+    "ok": 214,
+    "within_tolerance": 2
+  },
+  "corpus_graph_count": 6
+}

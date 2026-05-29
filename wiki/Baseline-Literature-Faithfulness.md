@@ -394,6 +394,13 @@ dense-social graphs; average degree ranges from 11 (cit-Patents) to 114
 (com-orkut), and hub concentration ranges from 0.33 (cit-Patents) to
 0.62 (soc-LiveJournal1).
 
+For an at-a-glance "is everything still green?" report covering all
+tier pytest suites, the literature-faithfulness comparator headline,
+and the corpus diversity coverage on one screen, see
+[`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
+(regenerate with
+`python -m scripts.experiments.ecg.confidence_dashboard --markdown wiki/data/confidence_dashboard.md`).
+
 Cells marked "rerun w/ non-hub src" used `-r N/2` instead of `-r 0`
 because DBG re-ordering places the highest-degree vertex at index 0;
 running SSSP/BFS from it on highly-clustered graphs (Orkut CC≈0.17)
