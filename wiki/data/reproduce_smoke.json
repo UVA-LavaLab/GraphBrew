@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "e4c6fee9eb9143cb89b4d27eb3b80f977edfec2f4a98c12eb78f59e616383061",
-      "sha_after": "e4c6fee9eb9143cb89b4d27eb3b80f977edfec2f4a98c12eb78f59e616383061",
+      "sha_before": "a74a2b1fde8a9a7697e852662dab13a719d8889eb6d76ece621b4e747b1e74eb",
+      "sha_after": "a74a2b1fde8a9a7697e852662dab13a719d8889eb6d76ece621b4e747b1e74eb",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "2088bf40cfc60eb60c11263a7c641e45ba678738a0ae44aed0ff07614981c0f7",
-      "sha_after": "2088bf40cfc60eb60c11263a7c641e45ba678738a0ae44aed0ff07614981c0f7",
+      "sha_before": "0b1e6dd8d5a75c1507b604cd495c2afa58a8fe2d00dbfecf18f8b674a81c5387",
+      "sha_after": "0b1e6dd8d5a75c1507b604cd495c2afa58a8fe2d00dbfecf18f8b674a81c5387",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "89fdbf9eeba0cad6decdd1b7241795f5871228738a45caafd0c2076ed0b50f63",
-      "sha_after": "89fdbf9eeba0cad6decdd1b7241795f5871228738a45caafd0c2076ed0b50f63",
+      "sha_before": "99bd36097af37e0fa2abc6684f641627399284d5db81a55ef5057d2f32d1a5e2",
+      "sha_after": "99bd36097af37e0fa2abc6684f641627399284d5db81a55ef5057d2f32d1a5e2",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "13a73967c8b7a9037b55e58af32bda41d6f32aa186a42e5654d33d76c4ad001c",
-      "sha_after": "13a73967c8b7a9037b55e58af32bda41d6f32aa186a42e5654d33d76c4ad001c",
+      "sha_before": "5bf979c2d3e2b7455ef75520d827539c595c5b43f9fdf5e01388c5dbb0ff9c7c",
+      "sha_after": "5bf979c2d3e2b7455ef75520d827539c595c5b43f9fdf5e01388c5dbb0ff9c7c",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "858ba36e865581fc353bb637c56bb227983221d96e4f454d55c568989f47020e",
-      "sha_after": "858ba36e865581fc353bb637c56bb227983221d96e4f454d55c568989f47020e",
+      "sha_before": "a7b7ff2639d5aed011c2a9d7a9ee4fc777e21441db9757a14c6d5d732c4adfbb",
+      "sha_after": "a7b7ff2639d5aed011c2a9d7a9ee4fc777e21441db9757a14c6d5d732c4adfbb",
       "status": "ok"
     },
     {

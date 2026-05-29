@@ -185,6 +185,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_family_policy_auc_clustering_derivation_parity.py", "FPC-Der"),
     "cohens_h_win_rates derivation parity (arcsine + magnitude buckets)":
         ("scripts/test/test_cohens_h_win_rates_derivation_parity.py", "CHW-Der"),
+    "wilson_win_rates derivation parity (z + score interval + 3 scopes)":
+        ("scripts/test/test_wilson_win_rates_derivation_parity.py", "WWR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
