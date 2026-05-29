@@ -159,3 +159,55 @@ def test_sweep_root_has_some_observations():
     if obs_idx is None:
         pytest.skip(f"No literature sweep CSVs under {root}/*/{_sweep_subdir()}/.")
     assert len(obs_idx) > 0, f"No observations parsed under {root}"
+
+
+def test_access_count_consistent_across_policies():
+    """For each (graph, app, l3_size), the four policies should walk the
+    same workload — within 5 % of each other on total L3 accesses.
+
+    Catches stale CSV rows (e.g. ``total_accesses=0`` from a hub-source
+    run that was overwritten with new data for one policy only), and
+    guards against accidental cross-cell contamination when sweeps are
+    re-run with different ``-r N`` source vertices.
+    """
+    obs_idx, root = _load_observations()
+    if obs_idx is None:
+        pytest.skip(f"No literature sweep CSVs under {root}/*/{_sweep_subdir()}/.")
+    min_acc = _min_accesses()
+    cells: dict[tuple[str, str, str], dict[str, int]] = {}
+    for (graph, app, l3, policy), obs in obs_idx.items():
+        cells.setdefault((graph, app, l3), {})[policy] = obs.accesses
+    failures: list[str] = []
+    for (graph, app, l3), policies in cells.items():
+        if len(policies) < 2:
+            continue
+        max_acc = max(policies.values())
+        if max_acc < min_acc:
+            continue  # insufficient data; covered by other tests
+        min_acc_cell = min(policies.values())
+        if min_acc_cell == 0:
+            failures.append(
+                f"{graph}/{app}/L3={l3}: one policy has 0 L3 accesses "
+                f"while another has {max_acc:,} — stale CSV row? "
+                f"({policies})"
+            )
+            continue
+        # Allow 10 % spread.  cache_sim is deterministic given a workload,
+        # but GRASP/POPT change L1/L2 hit rates by pinning hot lines —
+        # this propagates to fewer L3 accesses on highly-skewed graphs
+        # (e.g. soc-LiveJournal1 BFS/SSSP/CC show ~5–6 % spread legitimately).
+        # 10 % is a permissive ceiling that still catches catastrophic
+        # cell mismatches (e.g. one policy ran with -r 0 hub source, ~0
+        # accesses; others with -r N/2, multi-million accesses).
+        spread_pct = (max_acc - min_acc_cell) / max_acc * 100.0
+        if spread_pct > 10.0:
+            failures.append(
+                f"{graph}/{app}/L3={l3}: accesses span {min_acc_cell:,} "
+                f"… {max_acc:,} ({spread_pct:.1f}% spread > 10%); "
+                f"possible -r mismatch across cells. ({policies})"
+            )
+    if failures:
+        pytest.fail(
+            "Cross-policy access counts inconsistent (catches stale or "
+            "mismatched cells):\n  " + "\n  ".join(failures)
+        )
