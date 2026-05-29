@@ -87,6 +87,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cache_sensitivity_slope_baseline.py", "Slope-Base"),
     "WSS knee vs relative-L3 parity":
         ("scripts/test/test_wss_knee_vs_relative_l3_parity.py", "WSS-Par"),
+    "Bootstrap CI nested consistency":
+        ("scripts/test/test_bootstrap_ci_nested_consistency.py", "Boot-CI"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
