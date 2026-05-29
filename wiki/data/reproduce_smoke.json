@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "20c4541a1bceb77023e6a5024bf98be78ce2185e62dc36c75ecede3d3b08b8ab",
-      "sha_after": "20c4541a1bceb77023e6a5024bf98be78ce2185e62dc36c75ecede3d3b08b8ab",
+      "sha_before": "87a4dbf5ef777fc8d9accb662c88fe2b793af39025da2b94e4ae5f1431da6dfe",
+      "sha_after": "87a4dbf5ef777fc8d9accb662c88fe2b793af39025da2b94e4ae5f1431da6dfe",
       "status": "ok"
     },
     {

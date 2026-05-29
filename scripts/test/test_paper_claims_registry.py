@@ -126,4 +126,31 @@ def test_confidence_claim_reports_all_green(registry: dict) -> None:
     row = next(
         c for c in registry["claims"] if c["id"] == "confidence.green_gate_count"
     )
-    assert row["value"] >= 22, row
+    assert row["value"] >= 30, row
+
+
+def test_confidence_claim_n_total_matches_live_suites(registry: dict) -> None:
+    """The n_total in the headline text MUST equal the live PYTEST_SUITES
+    count. This is the gate that catches the one-cycle convergence wart
+    where confidence_dashboard.json drifted from PYTEST_SUITES because
+    `make confidence` ran lit-claims before regenerating the dashboard.
+    The registry must source n_total from the live module, not the JSON.
+    """
+    import re
+    from scripts.experiments.ecg.confidence_dashboard import PYTEST_SUITES
+    row = next(
+        c for c in registry["claims"] if c["id"] == "confidence.green_gate_count"
+    )
+    m = re.match(r"(\d+)\s*/\s*(\d+)", row["text"])
+    assert m, f"unexpected headline format: {row['text']!r}"
+    n_green, n_total = int(m.group(1)), int(m.group(2))
+    assert n_total == len(PYTEST_SUITES), (
+        f"registry headline n_total={n_total} but live PYTEST_SUITES has "
+        f"{len(PYTEST_SUITES)} entries. paper_claims_registry must source "
+        f"n_total from the live module to avoid one-cycle drift; check "
+        f"the `from scripts.experiments.ecg.confidence_dashboard import "
+        f"PYTEST_SUITES` block."
+    )
+    assert n_green == row["value"], (
+        f"headline says {n_green} green but row.value={row['value']}"
+    )

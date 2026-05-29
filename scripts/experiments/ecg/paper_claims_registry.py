@@ -300,10 +300,25 @@ def build_claims() -> list[dict]:
     # ------------------------------------------------------------------
     # 9) Confidence dashboard rollup
     # ------------------------------------------------------------------
+    # n_total is sourced from PYTEST_SUITES (the live source of truth in
+    # confidence_dashboard.py), NOT from the on-disk confidence_dashboard
+    # .json. This protects against the dependency ordering wart where the
+    # JSON could be stale relative to PYTEST_SUITES if a gate was added
+    # but `make confidence` hadn't completed its second pass yet. The
+    # n_green count still comes from the JSON because pytest results only
+    # materialise after an actual run — but if the JSON is short of the
+    # live PYTEST_SUITES, the registry honestly reports e.g. "32 / 33"
+    # instead of silently falsifying the headline as "32 / 32".
+    try:
+        from scripts.experiments.ecg.confidence_dashboard import (
+            PYTEST_SUITES as _LIVE_SUITES,
+        )
+        n_total_live = len(_LIVE_SUITES)
+    except Exception:
+        n_total_live = None
+
     suites = confidence.get("suites", []) if isinstance(confidence, dict) else []
-    if suites:
-        n_total = len(suites)
-        # Each suite is a dict with passed_all bool (newer) OR failed count (older)
+    if suites or n_total_live:
         def _green(s):
             if isinstance(s, dict):
                 if "passed_all" in s:
@@ -311,6 +326,7 @@ def build_claims() -> list[dict]:
                 return int(s.get("failed", 0)) == 0
             return False
         n_green = sum(1 for s in suites if _green(s))
+        n_total = n_total_live if n_total_live is not None else len(suites)
         claims.append({
             "id": "confidence.green_gate_count",
             "category": "meta",
