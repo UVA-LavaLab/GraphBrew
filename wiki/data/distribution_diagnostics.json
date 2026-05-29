@@ -1,0 +1,293 @@
+{
+  "meta": {
+    "bootstrap_validity_verdict": "PASS",
+    "n_cells_app_policy": 20,
+    "n_policies": 4,
+    "n_rows_in_scope": 360,
+    "observed_envelope": {
+      "worst_abs_excess_kurtosis_per_app_policy": 1.3631,
+      "worst_abs_excess_kurtosis_per_policy_marginal": 1.378,
+      "worst_abs_skewness_per_app_policy": 1.2824,
+      "worst_abs_skewness_per_policy_marginal": 0.0594
+    },
+    "scope_l3_sizes": [
+      "1MB",
+      "4MB",
+      "8MB"
+    ],
+    "source": "wiki/data/oracle_gap.json",
+    "validity_envelope": {
+      "literature_citation": "Hesterberg 2015 (Am. Statistician); Efron & Tibshirani 1993 (An Introduction to the Bootstrap).",
+      "max_abs_excess_kurtosis_for_bootstrap": 7.0,
+      "max_abs_skewness_for_bootstrap": 2.0
+    }
+  },
+  "per_app_policy": {
+    "bc__GRASP": {
+      "excess_kurtosis_g2": -1.1836,
+      "max": 0.908277,
+      "mean": 0.476954,
+      "min": 0.000121,
+      "n": 19,
+      "pearson_median_skewness": -0.4603,
+      "range_to_sd": 2.9483,
+      "sd": 0.308026,
+      "skewness_g1": -0.2498
+    },
+    "bc__LRU": {
+      "excess_kurtosis_g2": -0.959,
+      "max": 0.898992,
+      "mean": 0.492431,
+      "min": 0.000122,
+      "n": 19,
+      "pearson_median_skewness": -0.5526,
+      "range_to_sd": 2.9815,
+      "sd": 0.301485,
+      "skewness_g1": -0.4062
+    },
+    "bc__POPT": {
+      "excess_kurtosis_g2": -1.0921,
+      "max": 0.897556,
+      "mean": 0.485324,
+      "min": 0.000121,
+      "n": 19,
+      "pearson_median_skewness": -0.8458,
+      "range_to_sd": 2.994,
+      "sd": 0.299748,
+      "skewness_g1": -0.4117
+    },
+    "bc__SRRIP": {
+      "excess_kurtosis_g2": -1.0125,
+      "max": 0.89268,
+      "mean": 0.474837,
+      "min": 0.000121,
+      "n": 19,
+      "pearson_median_skewness": -0.5283,
+      "range_to_sd": 3.0137,
+      "sd": 0.296169,
+      "skewness_g1": -0.3331
+    },
+    "bfs__GRASP": {
+      "excess_kurtosis_g2": 0.7561,
+      "max": 0.99494,
+      "mean": 0.699579,
+      "min": 0.045826,
+      "n": 19,
+      "pearson_median_skewness": -0.8542,
+      "range_to_sd": 3.1699,
+      "sd": 0.299411,
+      "skewness_g1": -1.2824
+    },
+    "bfs__LRU": {
+      "excess_kurtosis_g2": -0.1276,
+      "max": 0.99728,
+      "mean": 0.691102,
+      "min": 0.045849,
+      "n": 19,
+      "pearson_median_skewness": -1.0333,
+      "range_to_sd": 2.7878,
+      "sd": 0.341283,
+      "skewness_g1": -1.1319
+    },
+    "bfs__POPT": {
+      "excess_kurtosis_g2": 0.4458,
+      "max": 0.997835,
+      "mean": 0.669029,
+      "min": 0.045841,
+      "n": 19,
+      "pearson_median_skewness": -0.826,
+      "range_to_sd": 3.0425,
+      "sd": 0.312897,
+      "skewness_g1": -1.1736
+    },
+    "bfs__SRRIP": {
+      "excess_kurtosis_g2": -0.0517,
+      "max": 0.997617,
+      "mean": 0.690457,
+      "min": 0.045832,
+      "n": 19,
+      "pearson_median_skewness": -1.0088,
+      "range_to_sd": 2.8227,
+      "sd": 0.337191,
+      "skewness_g1": -1.1355
+    },
+    "cc__GRASP": {
+      "excess_kurtosis_g2": -0.8712,
+      "max": 0.833974,
+      "mean": 0.367424,
+      "min": 0.045679,
+      "n": 16,
+      "pearson_median_skewness": 0.2763,
+      "range_to_sd": 3.1749,
+      "sd": 0.24829,
+      "skewness_g1": 0.3041
+    },
+    "cc__LRU": {
+      "excess_kurtosis_g2": -1.034,
+      "max": 0.783198,
+      "mean": 0.441925,
+      "min": 0.045641,
+      "n": 16,
+      "pearson_median_skewness": -0.3028,
+      "range_to_sd": 2.9301,
+      "sd": 0.251713,
+      "skewness_g1": -0.4329
+    },
+    "cc__POPT": {
+      "excess_kurtosis_g2": -1.3096,
+      "max": 0.793359,
+      "mean": 0.405477,
+      "min": 0.045687,
+      "n": 16,
+      "pearson_median_skewness": -0.0554,
+      "range_to_sd": 2.897,
+      "sd": 0.258083,
+      "skewness_g1": -0.019
+    },
+    "cc__SRRIP": {
+      "excess_kurtosis_g2": -1.1768,
+      "max": 0.772184,
+      "mean": 0.415416,
+      "min": 0.045658,
+      "n": 16,
+      "pearson_median_skewness": -0.411,
+      "range_to_sd": 2.9351,
+      "sd": 0.247529,
+      "skewness_g1": -0.2307
+    },
+    "pr__GRASP": {
+      "excess_kurtosis_g2": -0.939,
+      "max": 0.956439,
+      "mean": 0.348603,
+      "min": 0.007562,
+      "n": 20,
+      "pearson_median_skewness": 1.0598,
+      "range_to_sd": 3.1211,
+      "sd": 0.304019,
+      "skewness_g1": 0.6241
+    },
+    "pr__LRU": {
+      "excess_kurtosis_g2": -1.2887,
+      "max": 0.953929,
+      "mean": 0.408023,
+      "min": 0.007694,
+      "n": 20,
+      "pearson_median_skewness": 0.8265,
+      "range_to_sd": 2.8893,
+      "sd": 0.327501,
+      "skewness_g1": 0.3747
+    },
+    "pr__POPT": {
+      "excess_kurtosis_g2": -0.8655,
+      "max": 0.891772,
+      "mean": 0.322089,
+      "min": 0.007465,
+      "n": 20,
+      "pearson_median_skewness": 1.2659,
+      "range_to_sd": 3.0806,
+      "sd": 0.287054,
+      "skewness_g1": 0.7084
+    },
+    "pr__SRRIP": {
+      "excess_kurtosis_g2": -1.1375,
+      "max": 0.939378,
+      "mean": 0.382849,
+      "min": 0.007569,
+      "n": 20,
+      "pearson_median_skewness": 1.0038,
+      "range_to_sd": 2.89,
+      "sd": 0.32243,
+      "skewness_g1": 0.504
+    },
+    "sssp__GRASP": {
+      "excess_kurtosis_g2": -1.3631,
+      "max": 0.877427,
+      "mean": 0.345125,
+      "min": 0.002955,
+      "n": 16,
+      "pearson_median_skewness": 0.8796,
+      "range_to_sd": 2.8258,
+      "sd": 0.309463,
+      "skewness_g1": 0.4137
+    },
+    "sssp__LRU": {
+      "excess_kurtosis_g2": -1.3446,
+      "max": 0.852928,
+      "mean": 0.328351,
+      "min": 0.002951,
+      "n": 16,
+      "pearson_median_skewness": 1.1019,
+      "range_to_sd": 2.9523,
+      "sd": 0.287902,
+      "skewness_g1": 0.4303
+    },
+    "sssp__POPT": {
+      "excess_kurtosis_g2": -1.1506,
+      "max": 0.827043,
+      "mean": 0.308294,
+      "min": 0.002944,
+      "n": 16,
+      "pearson_median_skewness": 0.6791,
+      "range_to_sd": 3.0298,
+      "sd": 0.271997,
+      "skewness_g1": 0.4784
+    },
+    "sssp__SRRIP": {
+      "excess_kurtosis_g2": -1.2329,
+      "max": 0.849729,
+      "mean": 0.317474,
+      "min": 0.002952,
+      "n": 16,
+      "pearson_median_skewness": 1.0601,
+      "range_to_sd": 2.9971,
+      "sd": 0.282528,
+      "skewness_g1": 0.4787
+    }
+  },
+  "per_policy": {
+    "GRASP": {
+      "excess_kurtosis_g2": -1.378,
+      "max": 0.99494,
+      "mean": 0.452522,
+      "min": 0.000121,
+      "n": 90,
+      "pearson_median_skewness": -0.2282,
+      "range_to_sd": 3.1066,
+      "sd": 0.320223,
+      "skewness_g1": 0.0558
+    },
+    "LRU": {
+      "excess_kurtosis_g2": -1.3388,
+      "max": 0.99728,
+      "mean": 0.477467,
+      "min": 0.000122,
+      "n": 90,
+      "pearson_median_skewness": -0.6342,
+      "range_to_sd": 3.0834,
+      "sd": 0.323396,
+      "skewness_g1": -0.0594
+    },
+    "POPT": {
+      "excess_kurtosis_g2": -1.3572,
+      "max": 0.997835,
+      "mean": 0.442165,
+      "min": 0.000121,
+      "n": 90,
+      "pearson_median_skewness": -0.3868,
+      "range_to_sd": 3.1977,
+      "sd": 0.312005,
+      "skewness_g1": 0.0339
+    },
+    "SRRIP": {
+      "excess_kurtosis_g2": -1.3296,
+      "max": 0.997617,
+      "mean": 0.461376,
+      "min": 0.000121,
+      "n": 90,
+      "pearson_median_skewness": -0.5896,
+      "range_to_sd": 3.1015,
+      "sd": 0.32162,
+      "skewness_g1": 0.0259
+    }
+  }
+}

@@ -240,6 +240,14 @@ CATALOG = [
         "summary":   "8 graphs across 5 families. Social dominates: 4/8 graphs (50%), 216/360 paper-L3 cells (60%). Pielou evenness 0.86, Simpson's D 0.66. road + mesh capped below 4MB. Apps balanced within +/-30% of mean. Defends against 'unbalanced corpus' reviewer pushback with exact numbers + per-family L3 coverage matrix.",
     },
     {
+        "id":        "distribution_diagnostics",
+        "label":     "Per-policy miss-rate distribution diagnostics",
+        "generator": "scripts/experiments/ecg/distribution_diagnostics.py",
+        "gate":      "scripts/test/test_distribution_diagnostics.py",
+        "artifact":  "wiki/data/distribution_diagnostics.json",
+        "summary":   "Validates bootstrap CI assumptions (gates 35, 43) by pinning per-policy skewness + excess kurtosis at paper L3. Worst observed |skewness| ~ 1.3 (bfs/GRASP), worst |excess kurtosis| ~ 1.4 (sssp/GRASP); both well inside Hesterberg 2015's |skew|<2, |kurt|<7 envelope. Verdict: PASS. Future drift past envelope auto-fails this gate.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -319,7 +327,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (45 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (46 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
