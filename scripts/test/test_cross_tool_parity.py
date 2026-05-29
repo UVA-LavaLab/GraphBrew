@@ -210,3 +210,59 @@ def test_no_cell_is_completely_blank() -> None:
         f"have no policy miss_rate at all — emitter wrote shell rows. "
         f"Examples: {fully_blank[:5]}"
     )
+
+
+# ----------------------------------------------------------------------
+# Citation dead-code / coverage gate
+# ----------------------------------------------------------------------
+
+import re
+
+LIT_BASELINES_PY = REPO_ROOT / "scripts" / "experiments" / "ecg" / "literature_baselines.py"
+_CITATION_RE = re.compile(r'citation="([^"]+)"')
+
+
+def _source_citations() -> set[str]:
+    if not LIT_BASELINES_PY.exists():
+        pytest.skip(f"{LIT_BASELINES_PY.relative_to(REPO_ROOT)} not on disk")
+    return set(_CITATION_RE.findall(LIT_BASELINES_PY.read_text()))
+
+
+def _repro_csv_citations() -> set[str]:
+    repro = _read_csv(REPRO_CSV)
+    return {(r.get("citation") or "").strip() for r in repro if (r.get("citation") or "").strip()}
+
+
+def test_every_source_citation_appears_in_repro_summary() -> None:
+    """Catches dead-code citations: any ``citation="…"`` in
+    ``literature_baselines.py`` whose claim never produces a sweep row
+    (typo, stale graph name, etc.) won't appear in the reproduction
+    summary. The summary is then incomplete and a paper figure quietly
+    goes unreproduced.
+    """
+    src = _source_citations()
+    csv_cites = _repro_csv_citations()
+    missing = src - csv_cites
+    assert not missing, (
+        f"{len(missing)} citation(s) declared in literature_baselines.py "
+        f"never appear in the reproduction summary — the corresponding "
+        f"claim(s) never produced a sweep row (typo, stale graph name, "
+        f"or app mismatch). Examples: {sorted(missing)[:5]}"
+    )
+
+
+def test_no_phantom_citations_in_repro_summary() -> None:
+    """Conversely, every citation in the CSV must trace back to a
+    ``citation="…"`` literal in the source. Otherwise the summary
+    references a citation that no longer exists in the baselines
+    table — i.e. someone deleted the claim but the cached CSV is stale.
+    """
+    src = _source_citations()
+    csv_cites = _repro_csv_citations()
+    phantoms = csv_cites - src
+    assert not phantoms, (
+        f"{len(phantoms)} citation(s) appear in the reproduction "
+        f"summary but are not declared in literature_baselines.py — "
+        f"summary is stale, run `make lit-repro` to refresh. "
+        f"Examples: {sorted(phantoms)[:5]}"
+    )
