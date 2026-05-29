@@ -158,6 +158,8 @@ def render_markdown(per_claim: list[dict]) -> str:
     # Insert rollup after the legend (index 6 — right after the blank line
     # following the legend).
     out = out[:7] + rollup + out[7:]
+    while out and out[-1] == "":
+        out.pop()
     return "\n".join(out) + "\n"
 
 
@@ -169,7 +171,9 @@ def render_csv(per_claim: list[dict]) -> str:
     ]
     import io
     buf = io.StringIO()
-    w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
+    # Force \n line terminator (csv default is \r\n which git diff
+    # flags as trailing whitespace on every line).
+    w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
     w.writeheader()
     for e in per_claim:
         w.writerow({f: e.get(f) for f in fields})

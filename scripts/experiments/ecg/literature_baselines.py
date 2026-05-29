@@ -502,7 +502,9 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "gap narrows to ~5.6 pp at 4 MB because more of the parent[] "
         "array fits regardless of ordering.",
     ("web-Google", "cc", "1MB", "POPT_GE_GRASP"):
-        "Same CC/POPT mismatch as the soc-pokec entries; web-Google CC "
+        "Same CC/POPT algorithmic mismatch as the soc-pokec entries: "
+        "union-find's parent[] traversal is edge-driven, not PR-ranked, "
+        "so POPT's static schedule mis-orders evictions. web-Google CC "
         "shows the smallest gap (~1.3 pp) because the smaller graph "
         "leaves less room for ordering errors to compound.",
     ("cit-Patents", "cc", "1MB", "POPT_GE_GRASP"):
@@ -511,7 +513,12 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "(~8.7 pp) because the citation graph has weak hub structure, "
         "so PR-ranking is a particularly poor proxy for CC's reuse.",
     ("cit-Patents", "cc", "4MB", "POPT_GE_GRASP"):
-        "Same CC/POPT mismatch; gap narrows to ~3.6 pp at 4 MB.",
+        "Same CC/POPT algorithmic mismatch as the 1MB entry above: "
+        "CC's union-find parent[] reuse is edge-driven, not PR-ranked, "
+        "so POPT's static schedule mis-orders evictions. Gap narrows to "
+        "~3.6 pp at 4 MB because additional capacity masks some ordering "
+        "errors but the schedule still spends evictions on the wrong "
+        "vertices.",
     ("cit-Patents", "cc", "8MB", "POPT_GE_GRASP"):
         "Same CC/POPT mismatch; ~1.5 pp gap remains even at 8 MB on "
         "cit-Patents because the static PR-ranked schedule mis-orders "
@@ -597,7 +604,11 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "com-orkut shows the largest gap (~11 pp) due to maximal "
         "PR-rank vs edge-order mis-alignment.",
     ("com-orkut", "cc", "4MB", "POPT_GE_GRASP"):
-        "Same CC/POPT mismatch; gap persists at ~10 pp at 4MB.",
+        "Same CC/POPT algorithmic mismatch as the com-orkut/cc/1MB entry "
+        "above: union-find's edge-driven parent[] reuse is mis-aligned "
+        "with POPT's static PR-rank schedule. Gap persists at ~10 pp at "
+        "4MB because the mismatch is in ordering, not capacity (see "
+        "Balaji HPCA21 §3.3 PR-ordering assumption).",
     ("com-orkut", "cc", "8MB", "POPT_GE_GRASP"):
         "Same CC/POPT mismatch; ~6 pp gap remains even at 8 MB on "
         "com-orkut because the static PR-ranked schedule mis-orders "
@@ -608,7 +619,11 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "with POPT's PR-rank static schedule on soc-LiveJournal1 (3.8M "
         "nodes, 69M directed edges). Gap is +1.4 pp at 1MB.",
     ("soc-LiveJournal1", "cc", "4MB", "POPT_GE_GRASP"):
-        "Same soc-LJ/CC mismatch; gap widens to +1.8 pp at 4MB.",
+        "Same CC/POPT algorithmic mismatch as the soc-LiveJournal1/cc/1MB "
+        "entry above: union-find's edge-driven parent[] reuse mis-aligns "
+        "with POPT's static PR-rank schedule. Gap widens to +1.8 pp at "
+        "4MB because moderate capacity exposes more wasted evictions "
+        "before the working set fits.",
     ("soc-LiveJournal1", "cc", "8MB", "POPT_GE_GRASP"):
         "Same soc-LJ/CC mismatch; gap is widest (+3.1 pp) at 8MB where "
         "GRASP's locality preservation pays off more than POPT's "

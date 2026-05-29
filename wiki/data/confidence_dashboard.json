@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 3.213346004486084,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 2.97s"
+      "runtime_s": 3.0916659832000732,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 2.92s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.8388264179229736,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 1.63s"
+      "runtime_s": 1.7053403854370117,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 1.53s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,8 +37,8 @@
       "xfailed": 1,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.18552041053771973,
-      "raw_tail": "....x..s.s.s                                                             [100%]\n8 passed, 3 skipped, 1 xfailed in 0.03s"
+      "runtime_s": 0.20487427711486816,
+      "raw_tail": "....x..s.s.s                                                             [100%]\n8 passed, 3 skipped, 1 xfailed in 0.04s"
     },
     {
       "label": "Lit-baseline data-driven gate",
@@ -50,21 +50,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.4057636260986328,
-      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.24s"
+      "runtime_s": 0.40091562271118164,
+      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.22s"
     },
     {
       "label": "Lit-baseline structural gate",
       "short": "Lit-struct",
       "path": "scripts/test/test_literature_baselines_structure.py",
-      "passed": 110,
+      "passed": 179,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2490231990814209,
-      "raw_tail": "........................................................................ [ 65%]\n......................................                                   [100%]\n110 passed in 0.09s"
+      "runtime_s": 0.27503156661987305,
+      "raw_tail": "........................................................................ [ 40%]\n........................................................................ [ 80%]\n...................................                                      [100%]\n179 passed in 0.12s"
     },
     {
       "label": "Corpus diversity profile parity",
@@ -76,8 +76,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20702505111694336,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.02s"
+      "runtime_s": 0.19930815696716309,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.03s"
     }
   ],
   "lit_faith_summary": {

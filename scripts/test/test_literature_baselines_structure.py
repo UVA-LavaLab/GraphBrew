@@ -192,3 +192,83 @@ def test_each_app_has_at_least_one_invariant() -> None:
         f"Apps without any INVARIANT_CLAIM: {sorted(missing)}. Add at least "
         "one wildcard claim per app (e.g. SRRIP≈LRU sanity invariant)."
     )
+
+
+# Citations must locate the claim inside the cited paper. A bare
+# "Author YEAR" is rejected; we require at least one of:
+#   §N        — section reference (Faldu HPCA20 §6.1)
+#   Fig N     — figure reference  (Balaji & Lucia HPCA 2021 Fig 9)
+#   Table N   — table reference
+# (Also accept "Section N" written out and the lowercase "fig".)
+import re as _re
+
+_CITATION_LOCATOR_RE = _re.compile(
+    r"(§\s*\d|"
+    r"\bFig(?:ure)?\.?\s*\d|"
+    r"\bfig\.?\s*\d|"
+    r"\bTable\s*\d|"
+    r"\bSection\s*\d|"
+    r"\bSec\.?\s*\d)",
+    flags=_re.IGNORECASE,
+)
+
+# Anchors we accept in KNOWN_DEVIATIONS rationales when no paper-section
+# locator or code-file reference is present. These are domain terms that
+# pin the explanation to a concrete, named data structure or algorithm
+# behaviour.
+_KNOWN_STRUCT_RE = _re.compile(
+    r"\b(CSR|CSC|frontier|parent\[\]|property array|"
+    r"PR[- ]rank|PR[- ]ranked|PR[- ]ranking|rank[- ]mis[- ]alignment|"
+    r"static schedule|oracle|"
+    r"union[- ]find|Phase[- ]\d|Phase[- ]transition|"
+    r"algorithmic mismatch|"
+    r"degree|hub|clustering)",
+    flags=_re.IGNORECASE,
+)
+
+
+def _claim_id(c) -> str:
+    return f"{c.graph}/{c.app}/{c.l3_size}/{c.policy}"
+
+
+@pytest.mark.parametrize(
+    "claim", lit.INVARIANT_CLAIMS + lit.PER_GRAPH_CLAIMS, ids=_claim_id,
+)
+def test_citation_has_paper_locator(claim) -> None:
+    """Each citation must include a section / figure / table locator so a
+    reader can find the exact spot in the cited paper. A bare
+    "Author YEAR" is insufficient — we caught two such cases in the
+    early-development backlog (Jaleel et al. ISCA 2010 without the §5.2
+    suffix) which made the rationale unverifiable.
+    """
+
+    assert _CITATION_LOCATOR_RE.search(claim.citation), (
+        f"Claim {_claim_id(claim)} has citation '{claim.citation}' that "
+        "does not include a §N / Fig N / Table N locator. Add the exact "
+        "paper-section / figure / table reference so the reader can verify "
+        "the claim against the source."
+    )
+
+
+@pytest.mark.parametrize(
+    "key, reason", list(lit.KNOWN_DEVIATIONS.items()),
+    ids=lambda x: "/".join(x) if isinstance(x, tuple) else None,
+)
+def test_known_deviation_reason_names_root_cause(key, reason) -> None:
+    """Every KNOWN_DEVIATIONS rationale must name a root-cause anchor so
+    a future reader can decide whether the deviation is still valid.
+    Accept any of: a paper-section locator, a code path reference
+    (.cc / .hh / .h / .cpp / .py with line number), a quoted variable
+    name (CSR / parent[] / property array / etc.) — basically, any
+    proper noun that pins the explanation to a verifiable source.
+    """
+
+    has_paper_locator = bool(_CITATION_LOCATOR_RE.search(reason))
+    has_code_anchor = bool(_re.search(r"\.(?:cc|hh|cpp|h|py|sh)\b", reason))
+    has_known_struct = bool(_KNOWN_STRUCT_RE.search(reason))
+    anchored = has_paper_locator or has_code_anchor or has_known_struct
+    assert anchored, (
+        f"KNOWN_DEVIATIONS[{key}] rationale lacks a verifiable anchor "
+        f"(paper-section locator, code file, or known data-structure name). "
+        f"Reason text: {reason[:200]!r}"
+    )
