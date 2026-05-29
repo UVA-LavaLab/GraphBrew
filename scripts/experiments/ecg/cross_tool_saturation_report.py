@@ -308,12 +308,17 @@ def main(argv: list[str] | None = None) -> int:
     _emit_csv(cells, Path(ns.csv_out))
     _emit_json(cells, summary, Path(ns.json_out))
     _emit_md(cells, summary, Path(ns.md_out))
+    md_path = Path(ns.md_out).resolve()
+    try:
+        md_display = md_path.relative_to(REPO_ROOT)
+    except ValueError:
+        md_display = md_path
     print(
         f"[cross-tool-sat] cells={summary['n_cells']} "
         f"doubly_saturated={summary['doubly_saturated_total']} "
         f"agreed={summary['doubly_saturated_agree']} "
         f"disagreements={len(summary['disagreements'])} → "
-        f"{Path(ns.md_out).relative_to(REPO_ROOT)}"
+        f"{md_display}"
     )
     return 0
 

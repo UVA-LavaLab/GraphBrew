@@ -309,10 +309,15 @@ def main(argv: list[str] | None = None) -> int:
     _emit_csv(rows, Path(ns.csv_out))
     _emit_json(rows, agg, Path(ns.json_out))
     _emit_md(rows, agg, Path(ns.md_out))
+    md_path = Path(ns.md_out).resolve()
+    try:
+        md_display = md_path.relative_to(REPO_ROOT)
+    except ValueError:
+        md_display = md_path
     print(
         f"[small-l3-thrash] cells={agg['n_cells']} rows={agg['n_rows']} "
         f"policies={len(agg['policy_stats'])} → "
-        f"{Path(ns.md_out).relative_to(REPO_ROOT)}"
+        f"{md_display}"
     )
     return 0
 

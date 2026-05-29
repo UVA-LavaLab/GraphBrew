@@ -176,11 +176,16 @@ def main(argv: list[str] | None = None) -> int:
     _emit_csv(rows, Path(ns.csv_out))
     _emit_json(rows, summary, Path(ns.json_out))
     _emit_md(rows, summary, Path(ns.md_out))
+    md_path = Path(ns.md_out).resolve()
+    try:
+        md_display = md_path.relative_to(REPO_ROOT)
+    except ValueError:
+        md_display = md_path
     print(
         f"[claim-density] graphs={summary['n_graphs']} "
         f"claims={summary['total_claims']} "
         f"ok={summary['total_ok']} ({summary['total_ok_pct']:.1f}%) → "
-        f"{Path(ns.md_out).relative_to(REPO_ROOT)}"
+        f"{md_display}"
     )
     return 0
 
