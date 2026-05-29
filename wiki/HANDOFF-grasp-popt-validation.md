@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **160 gates, all GREEN, exit 0**.
+and currently reports **165 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–160.**
+- **Cross-artifact / cross-source derivation parity gates 151–165.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -518,6 +518,48 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   two slots. This nails down the headline saturation-rank story
   (POPT/GRASP saturate to near-zero final-octave slope while LRU/SRRIP
   stay steep) byte-exactly against its single upstream input.
+  Gate 161 (WMR-Der, 23 tests) locks winner_margin_by_regime.json:
+  joins oracle_gap.json#rows with wss_relative_l3.json#meta.wss_proxies
+  by (app, graph, l3); WSS regime classifier (L3/WSS < 0.25 → under,
+  > 4.0 → over, else near); per-cell winner via argmin(miss_rate) +
+  margin_pp = (second − best) × 100; per-(policy, regime) bespoke
+  `_median` (sorted, midpoint average for even n), sum/len mean, and
+  linear-rank p90; all rounded to 4dp; verdict = AND of
+  (all_regimes_have_wins, ≥1 oracle-aware policy with shrinking median
+  from under → near → over). Gate 162 (WSL-Der, 26 tests) locks
+  wss_relative_l3.json: WSS proxy = working_set_ratio × 1MB rounded to
+  2dp (single upstream corpus_diversity.json); same regime classifier
+  as gate 161; per-(policy, regime) statistics.fmean (NOT mean) and
+  quantiles(n=10)[-1] for p90 (only when n ≥ 10); wins via per-cell
+  argmin(gap_pp); n_cells_in_regime shared across policies in a
+  regime; per_regime_ranking sort key `(mean is None, mean or 0)` so
+  None entries sink. Gate 163 (SSX-Der, 28 tests) locks
+  slope_saturation_xcheck.json: per (app, graph, policy) cells at
+  L3 in {1MB, 4MB, 8MB}; distance_pp = mr(4MB) − mr(8MB);
+  slope_pp = OLS over L3_LOG2_MB (4dp); ratio_dist_slope =
+  distance/|slope| when |slope| > 0; SLOPE_EPSILON=0.05 partitions
+  per_cell vs flat_cells; global reducers (Pearson r, Spearman rho
+  on ranks with average tie-breaking, bespoke `_median`) on the
+  matched cohort; 4-invariant AND verdict (MIN_MATCHED_CELLS=80,
+  PEARSON_FLOOR=0.40, SPEARMAN_FLOOR=0.40, ratio band [0.70, 1.30]).
+  Gate 164 (WMG-Der, 31 tests) locks winner_margin_gradient.json:
+  per (app, L3) cells in PAPER_L3_SIZES={1MB, 4MB, 8MB}; win counter
+  per policy; tie-break `sorted(items, key=lambda kv: (-kv[1], kv[0]))`
+  picks alphabetically smallest at the top; margin = top_wins −
+  runner_up; classifier (decisive ≥ 4, moderate ≥ 2, weak == 1,
+  tied == 0); strong_cell_fraction = round((decisive + moderate) /
+  total, 4); weak_cells and tied_cells surfaced as sorted lists for
+  the "single-graph flip risk" reviewer disclosure. Gate 165 (SD-Der,
+  28 tests) locks saturation_distance.json: joins oracle_gap rows
+  with wss_proxies; per (app, graph) cell with both 4MB and 8MB
+  measurements computes distance_pp = round(best4 − best8, 4) ×
+  100 conversion via min(by_l3[l3]) * 100; pico_sentinel ≡ graph ==
+  "email-Eu-core"; non_negative_violations gated only on cells with
+  WSS > 4 MB (sub-WSS noise excluded); per-app aggregates
+  {median, mean, p90, max, min} via bespoke `_median` and `_pct`
+  with linear-rank percentile; app_diversity_range = max(median) −
+  min(median); verdict = AND of (no non-negative violations, no pico
+  violations > 0.05 pp, app_diversity_range ≥ 3.0 pp).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
