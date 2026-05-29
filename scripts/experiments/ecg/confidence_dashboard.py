@@ -183,6 +183,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_policy_auc_correlation_derivation_parity.py", "PAC-Der"),
     "family_policy_auc_clustering derivation parity (pooled → trapezoid → corr)":
         ("scripts/test/test_family_policy_auc_clustering_derivation_parity.py", "FPC-Der"),
+    "cohens_h_win_rates derivation parity (arcsine + magnitude buckets)":
+        ("scripts/test/test_cohens_h_win_rates_derivation_parity.py", "CHW-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
