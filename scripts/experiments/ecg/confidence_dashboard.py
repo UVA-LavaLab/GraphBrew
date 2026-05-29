@@ -117,6 +117,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_graph_family_map_duplication.py", "GF-Dup"),
     "Claim density vs literature baselines":
         ("scripts/test/test_claim_density_vs_baselines.py", "CD-Base"),
+    "small_l3_thrash internal + WRT-tiny disjointness":
+        ("scripts/test/test_small_l3_thrash_consistency.py", "Thr-Tiny"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
