@@ -232,6 +232,14 @@ CATALOG = [
         "summary":   "34 (graph, app) cells at paper L3 (1MB/4MB/8MB): 13 stable-unique winner, 1 stable-partial (email-Eu-core/bc multi-tie), 14 regime-change, 6 insufficient-L3 (roadNet-CA + delaunay_n19/pr only at 1MB). web-Google maximally volatile (5/5 apps flip); soc-LiveJournal1 + cit-Patents most reliable (4/5 stable each).",
     },
     {
+        "id":        "corpus_balance",
+        "label":     "Corpus tier/family balance audit",
+        "generator": "scripts/experiments/ecg/corpus_balance.py",
+        "gate":      "scripts/test/test_corpus_balance.py",
+        "artifact":  "wiki/data/corpus_balance.json",
+        "summary":   "8 graphs across 5 families. Social dominates: 4/8 graphs (50%), 216/360 paper-L3 cells (60%). Pielou evenness 0.86, Simpson's D 0.66. road + mesh capped below 4MB. Apps balanced within +/-30% of mean. Defends against 'unbalanced corpus' reviewer pushback with exact numbers + per-family L3 coverage matrix.",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -311,7 +319,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (44 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (45 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
