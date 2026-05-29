@@ -60,6 +60,22 @@ Latest additions on top of the Tier A/B/C work:
   noise-floor cache_sim deltas, cit-Patents/sssp@4kB, cit-Patents/bfs
   @4kB+32kB) tracked as xfail in `KNOWN_DISAGREEMENTS`. Tier C count:
   14 pass / 6 skip / 4 xfail (was 5 pass / 3 skip).
+- `scripts/experiments/ecg/paper_pipeline.py` now auto-emits per-(graph,
+  app) L-curve figures (`figures/l_curve_<graph>_<app>.svg`) and an
+  aggregated summary CSV whenever cache_sim rows span ≥3 distinct L3
+  sizes. Completes the `final_cache_sim_l_curve` profile end-to-end;
+  invariants pinned by 7 new tests in `test_paper_pipeline_l_curve.py`.
+- Corpus expanded from 6 → 7 graphs with **roadNet-CA** added as the
+  new "road" topology family — hub_concentration 0.140 (vs 0.337 for
+  the prior corpus minimum). The new graph is intentionally adversarial
+  to GRASP: PR @ 1 MB cache_sim shows GRASP 0.957 vs LRU 0.941
+  (GRASP +1.5 pp WORSE because there are no hubs to pin), while POPT
+  beats both (0.892). This is direct evidence for the GRASP-needs-hubs
+  hypothesis. The finding is locked in by a new theory-driven gate
+  `scripts/test/test_no_hub_graph_invariant.py` that asserts no graph
+  with `hub_concentration < 0.20` can show GRASP > LRU+0.5 pp, and that
+  the corpus must contain ≥1 such no-hub graph (load-bearing rather
+  than vacuous). Lit-faith ratio is now 240/272 ok (was 238/270).
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the

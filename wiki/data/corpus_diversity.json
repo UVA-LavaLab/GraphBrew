@@ -136,5 +136,28 @@
       "window_neighbor_overlap": 0.12909,
       "sampled_locality_score": 0.10468
     }
+  },
+  {
+    "graph": "roadNet-CA",
+    "log_path": "/tmp/graphbrew-lit-baseline/roadNet-CA-pr/lit/logs/cache_sim_pr_LRU_L31MB.log",
+    "nodes": 1971281,
+    "edges": 5533214,
+    "edges_directed": true,
+    "features": {
+      "clustering_coeff": 0.06293,
+      "avg_path_len": 76.56209,
+      "diameter_estimate": 117.0,
+      "community_count": 141,
+      "degree_variance": 0.3252,
+      "hub_concentration": 0.14053,
+      "avg_degree": 2.9062,
+      "graph_density": 0.0,
+      "modularity": 0.36892,
+      "forward_edge_fraction": 0.48641,
+      "working_set_ratio": 1.59959,
+      "vertex_sig_skew": 0.39311,
+      "window_neighbor_overlap": 0.9566,
+      "sampled_locality_score": 0.85467
+    }
   }
 ]

@@ -2704,6 +2704,43 @@
       "tolerance_pct": 2.0
     },
     {
+      "accesses": 18043324,
+      "app": "pr",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3",
+      "delta_pct": -6.4881,
+      "expected_sign": "-",
+      "graph": "roadNet-CA",
+      "grasp_miss_rate": 0.956504,
+      "l3_size": "1MB",
+      "max_abs_delta_pct": null,
+      "min_abs_delta_pct": null,
+      "policy": "POPT_GE_GRASP",
+      "popt_miss_rate": 0.891623,
+      "rationale": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic, including GRASP, by more than tolerance.",
+      "status": "ok",
+      "tolerance_pct": 1.0
+    },
+    {
+      "accesses": 18043324,
+      "app": "pr",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+      "delta_pct": 6.4881,
+      "expected_sign": "~",
+      "graph": "roadNet-CA",
+      "grasp_gain_vs_lru_pct": -1.5054,
+      "grasp_miss_rate": 0.956504,
+      "l3_size": "1MB",
+      "max_abs_delta_pct": 5.0,
+      "min_abs_delta_pct": null,
+      "note": "not in phase-transition regime; assertion not triggered",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "popt_miss_rate": 0.891623,
+      "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
+      "signed_delta_pct": -6.4881,
+      "status": "ok",
+      "tolerance_pct": 2.0
+    },
+    {
       "accesses": 159413644,
       "app": "bc",
       "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
@@ -6821,6 +6858,42 @@
       "section": 0
     },
     {
+      "app": "pr",
+      "delta_vs_lru_pct": 1.5054,
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "miss_rate": 0.956504,
+      "policy": "GRASP",
+      "section": 0
+    },
+    {
+      "app": "pr",
+      "delta_vs_lru_pct": 0.0,
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "miss_rate": 0.94145,
+      "policy": "LRU",
+      "section": 0
+    },
+    {
+      "app": "pr",
+      "delta_vs_lru_pct": -4.9827,
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "miss_rate": 0.891623,
+      "policy": "POPT",
+      "section": 0
+    },
+    {
+      "app": "pr",
+      "delta_vs_lru_pct": 0.0261,
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "miss_rate": 0.941711,
+      "policy": "SRRIP",
+      "section": 0
+    },
+    {
       "app": "bc",
       "delta_vs_lru_pct": -4.8254,
       "graph": "soc-LiveJournal1",
@@ -8442,13 +8515,13 @@
     }
   ],
   "summary": {
-    "claims_total": 270,
+    "claims_total": 272,
     "disagree": 0,
     "insufficient_data": 0,
     "known_deviation": 30,
     "min_accesses_threshold": 10000,
     "missing": 0,
-    "ok": 238,
+    "ok": 240,
     "within_tolerance": 2
   },
   "tolerated": [

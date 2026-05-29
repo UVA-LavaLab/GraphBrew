@@ -63,8 +63,9 @@ GRAPH_FAMILY = {
     "soc-pokec": "social",
     "soc-LiveJournal1": "social",
     "com-orkut": "social",
+    "roadNet-CA": "road",
     # Reserved tags for graphs we may add later:
-    "road-CA": "road",
+    "road-CA": "road",                # historical alias for roadNet-CA
     "twitter-2010": "social",
     "uk-2005": "web",
 }

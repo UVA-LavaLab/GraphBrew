@@ -760,6 +760,25 @@
     }
   },
   {
+    "accesses": 18043324,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": 1.5054000000000012,
+      "LRU": 0.0,
+      "POPT": -4.982699999999996,
+      "SRRIP": 0.02609999999999557
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "1MB",
+    "miss_rate": {
+      "GRASP": 0.956504,
+      "LRU": 0.94145,
+      "POPT": 0.891623,
+      "SRRIP": 0.941711
+    },
+    "verdict": {}
+  },
+  {
     "accesses": 162083927,
     "app": "bc",
     "delta_pp_vs_lru": {

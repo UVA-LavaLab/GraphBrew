@@ -75,6 +75,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_sniper_anchor.py", "Sniper-anchor"),
     "Lit-preflight shared helper":
         ("scripts/test/test_literature_preflight.py", "Lit-helper"),
+    "GRASP no-hub graph invariant":
+        ("scripts/test/test_no_hub_graph_invariant.py", "No-hub"),
 }
 
 

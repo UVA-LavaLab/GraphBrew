@@ -5,3 +5,4 @@ cit-Patents,3774768,16518947,False,0.06688,3.59893,4.0,195,1.13597,0.3378,11.473
 soc-pokec,1632804,22301964,False,0.02015,2.51936,3.0,128,2.00216,0.39824,41.4328,2e-05,0.36493,0.50353,6.09578,2.63349,0.05732,0.02982,/tmp/graphbrew-lit-baseline/soc-pokec-pr/lit/logs/cache_sim_pr_LRU_L31MB.log
 com-orkut,3072627,117185083,False,0.00803,1.97409,2.0,176,3.02562,0.43978,113.8932,2e-05,0.46411,0.50019,29.40424,2.00943,0.13259,0.09926,/tmp/graphbrew-lit-baseline/com-orkut-pr/lit/logs/cache_sim_pr_LRU_L31MB.log
 soc-LiveJournal1,4847571,42851237,False,0.02268,2.04546,3.0,221,2.96656,0.62347,38.1166,0.0,0.62199,0.48322,12.52803,4.2397,0.12909,0.10468,/tmp/graphbrew-lit-baseline/soc-LiveJournal1-pr/lit/logs/cache_sim_pr_LRU_L31MB.log
+roadNet-CA,1971281,5533214,True,0.06293,76.56209,117.0,141,0.3252,0.14053,2.9062,0.0,0.36892,0.48641,1.59959,0.39311,0.9566,0.85467,/tmp/graphbrew-lit-baseline/roadNet-CA-pr/lit/logs/cache_sim_pr_LRU_L31MB.log

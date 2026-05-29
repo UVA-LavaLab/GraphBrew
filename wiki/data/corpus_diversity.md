@@ -16,6 +16,7 @@ Diversity rationale: the corpus spans web (`web-Google`), citation (`cit-Patents
 | `soc-pokec` | 1,632,804 | 22,301,964 | undirected | 41.43 |
 | `com-orkut` | 3,072,627 | 117,185,083 | undirected | 113.89 |
 | `soc-LiveJournal1` | 4,847,571 | 42,851,237 | undirected | 38.12 |
+| `roadNet-CA` | 1,971,281 | 5,533,214 | directed | 2.91 |
 
 ## Topology features
 
@@ -27,6 +28,7 @@ Diversity rationale: the corpus spans web (`web-Google`), citation (`cit-Patents
 | `soc-pokec` | 0.0202 | 2.52 | 3.00 | 128 | 2.00 | 0.3982 | 41.43 | 0.0000 | 0.3649 | 0.5035 | 6.10 | 2.63 | 0.0573 | 0.0298 |
 | `com-orkut` | 0.0080 | 1.97 | 2.00 | 176 | 3.03 | 0.4398 | 113.89 | 0.0000 | 0.4641 | 0.5002 | 29.40 | 2.01 | 0.1326 | 0.0993 |
 | `soc-LiveJournal1` | 0.0227 | 2.05 | 3.00 | 221 | 2.97 | 0.6235 | 38.12 | 0.0000 | 0.6220 | 0.4832 | 12.53 | 4.24 | 0.1291 | 0.1047 |
+| `roadNet-CA` | 0.0629 | 76.56 | 117.00 | 141 | 0.3252 | 0.1405 | 2.91 | 0.0000 | 0.3689 | 0.4864 | 1.60 | 0.3931 | 0.9566 | 0.8547 |
 
 ## Interpretation
 

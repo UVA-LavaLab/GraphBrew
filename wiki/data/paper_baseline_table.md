@@ -46,6 +46,7 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | email-Eu-core | pr | 1MB | 0.81% | -0.04 | +0.33 | -0.06 | — | — |
 | email-Eu-core | pr | 4MB | 0.77% | -0.01 | -0.01 | +0.01 | — | — |
 | email-Eu-core | pr | 8MB | 0.80% | -0.02 | -0.04 | -0.02 | ✓ ok | — |
+| roadNet-CA | pr | 1MB | 94.14% | +0.03 | +1.51 | -4.98 | — | — |
 | soc-LiveJournal1 | bc | 1MB | 84.32% | -1.82 | -4.83 | -2.84 | ✓ ok | — |
 | soc-LiveJournal1 | bc | 4MB | 60.38% | -2.10 | -5.27 | -3.39 | — | — |
 | soc-LiveJournal1 | bc | 8MB | 45.28% | -2.91 | -6.24 | -4.66 | — | — |

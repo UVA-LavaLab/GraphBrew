@@ -45,6 +45,7 @@ GRAPH_ORDER = [
     "soc-pokec",
     "com-orkut",
     "soc-LiveJournal1",
+    "roadNet-CA",
 ]
 
 # GAPBS topology block fields that we want to record. Order = display order.

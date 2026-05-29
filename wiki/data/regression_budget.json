@@ -1,10 +1,10 @@
 {
   "summary": {
-    "cells_total": 270,
-    "cells_in_distribution": 240,
+    "cells_total": 272,
+    "cells_in_distribution": 242,
     "min_margin_pp": 0.1024,
-    "p10_margin_pp": 1.4633,
-    "median_margin_pp": 6.1366,
+    "p10_margin_pp": 1.47,
+    "median_margin_pp": 6.165,
     "p90_margin_pp": 10.6961,
     "max_margin_pp": 24.7511,
     "by_kind": {
@@ -14,7 +14,7 @@
         "median_pp": 6.875
       },
       "popt_ge_grasp": {
-        "n": 58,
+        "n": 59,
         "min_pp": 0.1024,
         "median_pp": 1.5008
       },
@@ -24,9 +24,9 @@
         "median_pp": 7.386
       },
       "popt_near_grasp_inactive": {
-        "n": 69,
+        "n": 70,
         "min_pp": 2.273,
-        "median_pp": 6.975
+        "median_pp": 6.9782
       }
     }
   },
@@ -2117,6 +2117,36 @@
       "max_abs_delta_pct": 5.0,
       "tolerance_pct": 2.0,
       "margin_pp": 6.9782,
+      "claim_kind": "popt_near_grasp_inactive",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "pr",
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "status": "ok",
+      "delta_pct": -6.4881,
+      "expected_sign": "-",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": null,
+      "tolerance_pct": 1.0,
+      "margin_pp": 7.4881,
+      "claim_kind": "popt_ge_grasp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3"
+    },
+    {
+      "graph": "roadNet-CA",
+      "app": "pr",
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "status": "ok",
+      "delta_pct": 6.4881,
+      "expected_sign": "~",
+      "min_abs_delta_pct": null,
+      "max_abs_delta_pct": 5.0,
+      "tolerance_pct": 2.0,
+      "margin_pp": 13.4881,
       "claim_kind": "popt_near_grasp_inactive",
       "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
     },

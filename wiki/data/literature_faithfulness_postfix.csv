@@ -155,6 +155,10 @@ email-Eu-core,pr,8MB,GRASP,0.007594,-0.0433,,ok,Faldu et al. HPCA 2020 Fig 10
 email-Eu-core,pr,8MB,LRU,0.008027,+0.0000,,no_claim,
 email-Eu-core,pr,8MB,POPT,0.007812,-0.0215,,no_claim,
 email-Eu-core,pr,8MB,SRRIP,0.007789,-0.0238,,no_claim,
+roadNet-CA,pr,1MB,GRASP,0.956504,+1.5054,,no_claim,
+roadNet-CA,pr,1MB,LRU,0.941450,+0.0000,,no_claim,
+roadNet-CA,pr,1MB,POPT,0.891623,-4.9827,,no_claim,
+roadNet-CA,pr,1MB,SRRIP,0.941711,+0.0261,,no_claim,
 soc-LiveJournal1,bc,1MB,GRASP,0.794920,-4.8254,,ok,Faldu et al. HPCA 2020 Fig 11
 soc-LiveJournal1,bc,1MB,LRU,0.843174,+0.0000,,no_claim,
 soc-LiveJournal1,bc,1MB,POPT,0.814773,-2.8401,,no_claim,

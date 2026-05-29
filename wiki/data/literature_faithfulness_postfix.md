@@ -1,8 +1,8 @@
 # Literature-faithfulness summary
 
 - Sweep root: `/tmp/graphbrew-lit-baseline`
-- Claims total: **270**
-- Verdict mix: **238 ok**, 2 within-tolerance, **0 DISAGREE**, 30 known-deviation, 0 missing, 0 insufficient_data
+- Claims total: **272**
+- Verdict mix: **240 ok**, 2 within-tolerance, **0 DISAGREE**, 30 known-deviation, 0 missing, 0 insufficient_data
 - min_accesses threshold: 10000
 
 ## Observed L3 miss-rates
@@ -48,6 +48,7 @@
 | email-Eu-core | pr | 1MB | 0.0081 | 0.0077 | 0.0113 | 0.0075 | +0.329pp | -0.059pp |
 | email-Eu-core | pr | 4MB | 0.0077 | 0.0076 | 0.0076 | 0.0078 | -0.013pp | +0.012pp |
 | email-Eu-core | pr | 8MB | 0.0080 | 0.0078 | 0.0076 | 0.0078 | -0.043pp | -0.021pp |
+| roadNet-CA | pr | 1MB | 0.9415 | 0.9417 | 0.9565 | 0.8916 | +1.505pp | -4.983pp |
 | soc-LiveJournal1 | bc | 1MB | 0.8432 | 0.8250 | 0.7949 | 0.8148 | -4.825pp | -2.840pp |
 | soc-LiveJournal1 | bc | 4MB | 0.6038 | 0.5828 | 0.5511 | 0.5698 | -5.271pp | -3.394pp |
 | soc-LiveJournal1 | bc | 8MB | 0.4528 | 0.4237 | 0.3904 | 0.4062 | -6.240pp | -4.657pp |
@@ -217,6 +218,8 @@
 | ok | email-Eu-core | pr | 8MB | GRASP | -0.043pp | Faldu et al. HPCA 2020 Fig 10 |
 | ok | email-Eu-core | pr | 8MB | POPT_GE_GRASP | +0.022pp | Balaji & Lucia HPCA 2021 §6.3 |
 | ok | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | +0.022pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
+| ok | roadNet-CA | pr | 1MB | POPT_GE_GRASP | -6.488pp | Balaji & Lucia HPCA 2021 §6.3 |
+| ok | roadNet-CA | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | +6.488pp | Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check |
 | ok | soc-LiveJournal1 | bc | 1MB | SRRIP | -1.822pp | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended) |
 | ok | soc-LiveJournal1 | bc | 1MB | GRASP | -4.825pp | Faldu et al. HPCA 2020 Fig 11 |
 | known_deviation | soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | +1.985pp | Balaji & Lucia HPCA 2021 §6.3 (extended) |

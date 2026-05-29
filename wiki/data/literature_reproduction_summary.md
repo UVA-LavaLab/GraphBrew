@@ -12,9 +12,9 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 | paper | cells | ok | within_tol | known_dev | disagree | insufficient | missing | reproduction% |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Faldu HPCA20 | 18 | 17 | 1 | 0 | 0 | 0 | 0 | 100.0% |
-| Balaji HPCA21 | 93 | 66 | 1 | 26 | 0 | 0 | 0 | 72.0% |
+| Balaji HPCA21 | 94 | 67 | 1 | 26 | 0 | 0 | 0 | 72.3% |
 | Jaleel ISCA10 | 15 | 15 | 0 | 0 | 0 | 0 | 0 | 100.0% |
-| cross-paper | 144 | 140 | 0 | 4 | 0 | 0 | 0 | 97.2% |
+| cross-paper | 145 | 141 | 0 | 4 | 0 | 0 | 0 | 97.2% |
 
 ## Per-citation roll-up
 
@@ -24,12 +24,12 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 | Faldu et al. HPCA 2020 Fig 11 | 7 | 6 | 1 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 84 | 80 | 0 | 4 | 0 | 0 | 0 |
+| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 85 | 81 | 0 | 4 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 10 | 3 | 2 | 1 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 9 | 4 | 4 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Balaji & Lucia HPCA 2021 §6.3 | 18 | 17 | 0 | 1 | 0 | 0 | 0 |
+| Balaji & Lucia HPCA 2021 §6.3 | 19 | 18 | 0 | 1 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6.3 (extended) | 66 | 41 | 0 | 25 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
@@ -84,7 +84,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 ## Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
 
-_84 cell(s):_ 80 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_85 cell(s):_ 81 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -127,6 +127,7 @@ _84 cell(s):_ 80 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 
 | email-Eu-core | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.388pp | ✅ |
 | email-Eu-core | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.025pp | ✅ |
 | email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.022pp | ✅ |
+| roadNet-CA | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +6.488pp | ✅ |
 | soc-LiveJournal1 | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.985pp | ✅ |
 | soc-LiveJournal1 | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.877pp | ✅ |
 | soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.583pp | ✅ |
@@ -212,7 +213,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 ## Balaji & Lucia HPCA 2021 §6.3
 
-_18 cell(s):_ 17 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_19 cell(s):_ 18 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
@@ -225,6 +226,7 @@ _18 cell(s):_ 17 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 
 | email-Eu-core | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.388pp | ✅ |
 | email-Eu-core | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.025pp | ✅ |
 | email-Eu-core | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.022pp | ✅ |
+| roadNet-CA | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -6.488pp | ✅ |
 | soc-LiveJournal1 | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.950pp | ✅ |
 | soc-LiveJournal1 | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.975pp | ✅ |
 | soc-LiveJournal1 | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -2.212pp | ✅ |
