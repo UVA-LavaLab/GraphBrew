@@ -271,6 +271,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_corpus_balance_derivation_parity.py", "CBL-Der"),
     "capacity_sensitivity derivation parity (per-cell OLS slope + per-policy distribution + 3-clause verdict)":
         ("scripts/test/test_capacity_sensitivity_derivation_parity.py", "CSE-Der"),
+    "per_graph_cache_slope derivation parity (per-octave slope + anti-scaling cells + per-policy/graph counters)":
+        ("scripts/test/test_per_graph_cache_slope_derivation_parity.py", "PCS-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
