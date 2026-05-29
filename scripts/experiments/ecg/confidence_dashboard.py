@@ -99,6 +99,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_winning_regime_taxonomy.py", "Regime"),
     "Oracle gap":
         ("scripts/test/test_oracle_gap.py", "Oracle"),
+    "Bootstrap CIs on load-bearing claims":
+        ("scripts/test/test_bootstrap_ci.py", "Bootstrap"),
     "Artifact catalog completeness":
         ("scripts/test/test_artifact_catalog.py", "Catalog"),
 }

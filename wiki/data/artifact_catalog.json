@@ -166,6 +166,17 @@
       "summary": "Per-graph literature claim density (8 graphs, 320 claims, 288 OK = 90.0 %). Density per graph: 2 (delaunay_n19) \u2192 12 (cit-Patents)."
     },
     {
+      "artifact": "wiki/data/bootstrap_ci.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_bootstrap_ci.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/bootstrap_ci.py",
+      "generator_exists": true,
+      "id": "bootstrap_ci",
+      "label": "Bootstrap CIs on load-bearing claims",
+      "summary": "Percentile bootstrap (5000 resamples, seed 1729) on every (policy, family) and (policy, regime) oracle-gap bucket + paired \u0394POPT\u2212GRASP per family + sign-stability fractions. Road POPT < GRASP survives 97.6 % of resamples; social/citation/web do not."
+    },
+    {
       "artifact": "wiki/data/paper_claims.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_paper_claims_registry.py",
@@ -185,13 +196,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (27 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (29 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 17
+    "n_entries": 18
   }
 }
