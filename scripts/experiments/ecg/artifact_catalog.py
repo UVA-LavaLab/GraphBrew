@@ -424,6 +424,14 @@ CATALOG = [
         "summary":   "Per-(app, policy) median OLS slope of miss_rate (pp) vs log2(L3 MB), aggregated across all graphs that scored. sssp is most cache-hungry (median-of-medians -19.47 pp/octave); bfs is least (-5.23). Per-app median-of-medians range = 14.24 pp/octave — the corpus spans a wide cache-sensitivity spectrum. bfs is pinned as a known kernel deviation: its frontier-driven access pattern inverts the global GRASP-vs-LRU ordering (LRU median -3.99 > GRASP -6.41 pp/octave), consistent with gate 65 flagging bfs as the most-saturated kernel. Verdict PASS iff (1) every (app, policy) median slope < 0, (2) no app outside the pinned set has GRASP more than 1.0 pp/octave steeper than LRU, and (3) at least one app has every policy median below the help floor.",
     },
     {
+        "id":        "slope_saturation_xcheck",
+        "label":     "Slope vs saturation-distance cross-check",
+        "generator": "scripts/experiments/ecg/slope_saturation_xcheck.py",
+        "gate":      "scripts/test/test_slope_saturation_xcheck.py",
+        "artifact":  "wiki/data/slope_saturation_xcheck.json",
+        "summary":   "Within-policy cross-check between gate 65 (saturation distance, miss(4MB)-miss(8MB)) and gate 66 (capacity-sensitivity slope, OLS over {1MB,4MB,8MB}). Both metrics derive from the same per-(app, graph, policy) miss curve, so they must be positively correlated. Observed: 102 non-flat cells (10 flat cells excluded via |slope|<0.05 pp), Pearson r=0.51, Spearman rho=0.45, median(distance/|slope|)=0.96. The correlation is moderate-not-strong because heterogeneous curve shapes (convex vs concave) decouple the upper-octave drop from the average per-octave drop. This is a regression test for the gate 65 and gate 66 generators: a sign flip in either would push the correlation negative, a scaling error would push the ratio outside [0.70, 1.30]. Verdict PASS iff (1) >= 80 matched cells, (2) Pearson r >= 0.40, (3) Spearman rho >= 0.40, (4) median ratio in [0.70, 1.30].",
+    },
+    {
         "id":        "wss_relative_l3",
         "label":     "WSS-relative L3 axis",
         "generator": "scripts/experiments/ecg/wss_relative_l3.py",
@@ -503,7 +511,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (68 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (69 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

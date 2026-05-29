@@ -1,0 +1,1037 @@
+{
+  "flat_cells": [
+    {
+      "abs_slope_pp": 0.0,
+      "app": "bc",
+      "distance_pp": -0.0001,
+      "graph": "email-Eu-core",
+      "policy": "GRASP",
+      "ratio_dist_slope": null,
+      "slope_pp": -0.0
+    },
+    {
+      "abs_slope_pp": 0.0,
+      "app": "bc",
+      "distance_pp": 0.0,
+      "graph": "email-Eu-core",
+      "policy": "LRU",
+      "ratio_dist_slope": null,
+      "slope_pp": 0.0
+    },
+    {
+      "abs_slope_pp": 0.0007,
+      "app": "bc",
+      "distance_pp": 0.0097,
+      "graph": "email-Eu-core",
+      "policy": "POPT",
+      "ratio_dist_slope": 13.8571,
+      "slope_pp": 0.0007
+    },
+    {
+      "abs_slope_pp": 0.0,
+      "app": "bc",
+      "distance_pp": 0.0,
+      "graph": "email-Eu-core",
+      "policy": "SRRIP",
+      "ratio_dist_slope": null,
+      "slope_pp": -0.0
+    },
+    {
+      "abs_slope_pp": 0.0007,
+      "app": "bfs",
+      "distance_pp": -0.002,
+      "graph": "email-Eu-core",
+      "policy": "LRU",
+      "ratio_dist_slope": -2.8571,
+      "slope_pp": 0.0007
+    },
+    {
+      "abs_slope_pp": 0.0004,
+      "app": "bfs",
+      "distance_pp": 0.0008,
+      "graph": "email-Eu-core",
+      "policy": "POPT",
+      "ratio_dist_slope": 2.0,
+      "slope_pp": -0.0004
+    },
+    {
+      "abs_slope_pp": 0.0009,
+      "app": "bfs",
+      "distance_pp": -0.0007,
+      "graph": "email-Eu-core",
+      "policy": "SRRIP",
+      "ratio_dist_slope": -0.7778,
+      "slope_pp": 0.0009
+    },
+    {
+      "abs_slope_pp": 0.0033,
+      "app": "pr",
+      "distance_pp": -0.0333,
+      "graph": "email-Eu-core",
+      "policy": "LRU",
+      "ratio_dist_slope": -10.0909,
+      "slope_pp": -0.0033
+    },
+    {
+      "abs_slope_pp": 0.0124,
+      "app": "pr",
+      "distance_pp": 0.0,
+      "graph": "email-Eu-core",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.0,
+      "slope_pp": 0.0124
+    },
+    {
+      "abs_slope_pp": 0.0029,
+      "app": "pr",
+      "distance_pp": -0.022,
+      "graph": "email-Eu-core",
+      "policy": "SRRIP",
+      "ratio_dist_slope": -7.5862,
+      "slope_pp": 0.0029
+    }
+  ],
+  "meta": {
+    "cells_flat_excluded": 10,
+    "cells_matched": 102,
+    "invariant_match_count": true,
+    "invariant_pearson_floor": true,
+    "invariant_ratio_band": true,
+    "invariant_spearman_floor": true,
+    "median_abs_slope_pp": 15.9661,
+    "median_distance_pp": 13.1975,
+    "median_ratio_distance_to_slope": 0.9639,
+    "min_matched_cells": 80,
+    "pearson_floor": 0.4,
+    "pearson_r": 0.5065,
+    "ratio_band": [
+      0.7,
+      1.3
+    ],
+    "slope_epsilon_pp": 0.05,
+    "spearman_floor": 0.4,
+    "spearman_rho": 0.453,
+    "verdict": "PASS",
+    "verdict_invariant": "PASS iff (1) >= 80 non-flat per-(app, graph, policy) cells matched, (2) Pearson r >= 0.4, (3) Spearman rho >= 0.4, (4) median (distance_pp / |slope_pp|) in [0.7, 1.3]. Cells with |slope_pp| < 0.05 are reported as flat_cells and excluded."
+  },
+  "per_cell": [
+    {
+      "abs_slope_pp": 10.9654,
+      "app": "bc",
+      "distance_pp": 15.6929,
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.4311,
+      "slope_pp": -10.9654
+    },
+    {
+      "abs_slope_pp": 9.1923,
+      "app": "bc",
+      "distance_pp": 12.474,
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.357,
+      "slope_pp": -9.1923
+    },
+    {
+      "abs_slope_pp": 9.9571,
+      "app": "bc",
+      "distance_pp": 14.7607,
+      "graph": "cit-Patents",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.4824,
+      "slope_pp": -9.9571
+    },
+    {
+      "abs_slope_pp": 9.7365,
+      "app": "bc",
+      "distance_pp": 13.6633,
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.4033,
+      "slope_pp": -9.7365
+    },
+    {
+      "abs_slope_pp": 15.2268,
+      "app": "bc",
+      "distance_pp": 18.8313,
+      "graph": "com-orkut",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.2367,
+      "slope_pp": -15.2268
+    },
+    {
+      "abs_slope_pp": 15.7197,
+      "app": "bc",
+      "distance_pp": 20.056,
+      "graph": "com-orkut",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.2759,
+      "slope_pp": -15.7197
+    },
+    {
+      "abs_slope_pp": 14.4267,
+      "app": "bc",
+      "distance_pp": 18.7721,
+      "graph": "com-orkut",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.3012,
+      "slope_pp": -14.4267
+    },
+    {
+      "abs_slope_pp": 15.8722,
+      "app": "bc",
+      "distance_pp": 19.714,
+      "graph": "com-orkut",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.242,
+      "slope_pp": -15.8722
+    },
+    {
+      "abs_slope_pp": 13.2999,
+      "app": "bc",
+      "distance_pp": 16.0679,
+      "graph": "soc-LiveJournal1",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.2081,
+      "slope_pp": -13.2999
+    },
+    {
+      "abs_slope_pp": 12.8639,
+      "app": "bc",
+      "distance_pp": 15.0989,
+      "graph": "soc-LiveJournal1",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.1737,
+      "slope_pp": -12.8639
+    },
+    {
+      "abs_slope_pp": 13.4226,
+      "app": "bc",
+      "distance_pp": 16.362,
+      "graph": "soc-LiveJournal1",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.219,
+      "slope_pp": -13.4226
+    },
+    {
+      "abs_slope_pp": 13.1946,
+      "app": "bc",
+      "distance_pp": 15.9128,
+      "graph": "soc-LiveJournal1",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.206,
+      "slope_pp": -13.1946
+    },
+    {
+      "abs_slope_pp": 18.6261,
+      "app": "bc",
+      "distance_pp": 22.108,
+      "graph": "soc-pokec",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.1869,
+      "slope_pp": -18.6261
+    },
+    {
+      "abs_slope_pp": 19.8945,
+      "app": "bc",
+      "distance_pp": 25.7444,
+      "graph": "soc-pokec",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.294,
+      "slope_pp": -19.8945
+    },
+    {
+      "abs_slope_pp": 19.5218,
+      "app": "bc",
+      "distance_pp": 23.5408,
+      "graph": "soc-pokec",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.2059,
+      "slope_pp": -19.5218
+    },
+    {
+      "abs_slope_pp": 19.9372,
+      "app": "bc",
+      "distance_pp": 24.5468,
+      "graph": "soc-pokec",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.2312,
+      "slope_pp": -19.9372
+    },
+    {
+      "abs_slope_pp": 18.9477,
+      "app": "bc",
+      "distance_pp": 20.6103,
+      "graph": "web-Google",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.0877,
+      "slope_pp": -18.9477
+    },
+    {
+      "abs_slope_pp": 18.2963,
+      "app": "bc",
+      "distance_pp": 21.7189,
+      "graph": "web-Google",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.1871,
+      "slope_pp": -18.2963
+    },
+    {
+      "abs_slope_pp": 17.686,
+      "app": "bc",
+      "distance_pp": 20.4622,
+      "graph": "web-Google",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.157,
+      "slope_pp": -17.686
+    },
+    {
+      "abs_slope_pp": 17.9236,
+      "app": "bc",
+      "distance_pp": 21.3014,
+      "graph": "web-Google",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.1885,
+      "slope_pp": -17.9236
+    },
+    {
+      "abs_slope_pp": 5.5307,
+      "app": "bfs",
+      "distance_pp": 8.4182,
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.5221,
+      "slope_pp": -5.5307
+    },
+    {
+      "abs_slope_pp": 3.1316,
+      "app": "bfs",
+      "distance_pp": 3.8743,
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.2372,
+      "slope_pp": -3.1316
+    },
+    {
+      "abs_slope_pp": 5.3447,
+      "app": "bfs",
+      "distance_pp": 8.1092,
+      "graph": "cit-Patents",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.5172,
+      "slope_pp": -5.3447
+    },
+    {
+      "abs_slope_pp": 3.1282,
+      "app": "bfs",
+      "distance_pp": 3.5022,
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.1196,
+      "slope_pp": -3.1282
+    },
+    {
+      "abs_slope_pp": 1.0567,
+      "app": "bfs",
+      "distance_pp": 1.6383,
+      "graph": "com-orkut",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.5504,
+      "slope_pp": -1.0567
+    },
+    {
+      "abs_slope_pp": 0.1039,
+      "app": "bfs",
+      "distance_pp": 0.0708,
+      "graph": "com-orkut",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.6814,
+      "slope_pp": -0.1039
+    },
+    {
+      "abs_slope_pp": 1.3965,
+      "app": "bfs",
+      "distance_pp": 1.9715,
+      "graph": "com-orkut",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.4117,
+      "slope_pp": -1.3965
+    },
+    {
+      "abs_slope_pp": 0.1036,
+      "app": "bfs",
+      "distance_pp": 0.1092,
+      "graph": "com-orkut",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.0541,
+      "slope_pp": -0.1036
+    },
+    {
+      "abs_slope_pp": 6.3405,
+      "app": "bfs",
+      "distance_pp": 0.0025,
+      "graph": "email-Eu-core",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.0004,
+      "slope_pp": -6.3405
+    },
+    {
+      "abs_slope_pp": 8.6472,
+      "app": "bfs",
+      "distance_pp": 6.9633,
+      "graph": "soc-LiveJournal1",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.8053,
+      "slope_pp": -8.6472
+    },
+    {
+      "abs_slope_pp": 8.2673,
+      "app": "bfs",
+      "distance_pp": 5.0356,
+      "graph": "soc-LiveJournal1",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.6091,
+      "slope_pp": -8.2673
+    },
+    {
+      "abs_slope_pp": 8.4528,
+      "app": "bfs",
+      "distance_pp": 6.7114,
+      "graph": "soc-LiveJournal1",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.794,
+      "slope_pp": -8.4528
+    },
+    {
+      "abs_slope_pp": 7.8914,
+      "app": "bfs",
+      "distance_pp": 4.8706,
+      "graph": "soc-LiveJournal1",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.6172,
+      "slope_pp": -7.8914
+    },
+    {
+      "abs_slope_pp": 8.024,
+      "app": "bfs",
+      "distance_pp": 7.2659,
+      "graph": "soc-pokec",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.9055,
+      "slope_pp": -8.024
+    },
+    {
+      "abs_slope_pp": 5.4293,
+      "app": "bfs",
+      "distance_pp": 2.5558,
+      "graph": "soc-pokec",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.4707,
+      "slope_pp": -5.4293
+    },
+    {
+      "abs_slope_pp": 8.8096,
+      "app": "bfs",
+      "distance_pp": 8.0845,
+      "graph": "soc-pokec",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.9177,
+      "slope_pp": -8.8096
+    },
+    {
+      "abs_slope_pp": 5.1196,
+      "app": "bfs",
+      "distance_pp": 2.5156,
+      "graph": "soc-pokec",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.4914,
+      "slope_pp": -5.1196
+    },
+    {
+      "abs_slope_pp": 6.4697,
+      "app": "bfs",
+      "distance_pp": 0.4816,
+      "graph": "web-Google",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.0744,
+      "slope_pp": -6.4697
+    },
+    {
+      "abs_slope_pp": 4.8544,
+      "app": "bfs",
+      "distance_pp": 12.7222,
+      "graph": "web-Google",
+      "policy": "LRU",
+      "ratio_dist_slope": 2.6208,
+      "slope_pp": -4.8544
+    },
+    {
+      "abs_slope_pp": 7.5983,
+      "app": "bfs",
+      "distance_pp": 2.5762,
+      "graph": "web-Google",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.339,
+      "slope_pp": -7.5983
+    },
+    {
+      "abs_slope_pp": 4.9749,
+      "app": "bfs",
+      "distance_pp": 13.1015,
+      "graph": "web-Google",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 2.6335,
+      "slope_pp": -4.9749
+    },
+    {
+      "abs_slope_pp": 13.6803,
+      "app": "cc",
+      "distance_pp": 13.0209,
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.9518,
+      "slope_pp": -13.6803
+    },
+    {
+      "abs_slope_pp": 15.5166,
+      "app": "cc",
+      "distance_pp": 13.5428,
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.8728,
+      "slope_pp": -15.5166
+    },
+    {
+      "abs_slope_pp": 16.0996,
+      "app": "cc",
+      "distance_pp": 15.1411,
+      "graph": "cit-Patents",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.9405,
+      "slope_pp": -16.0996
+    },
+    {
+      "abs_slope_pp": 14.7883,
+      "app": "cc",
+      "distance_pp": 13.3864,
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.9052,
+      "slope_pp": -14.7883
+    },
+    {
+      "abs_slope_pp": 11.8855,
+      "app": "cc",
+      "distance_pp": 14.8679,
+      "graph": "com-orkut",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.2509,
+      "slope_pp": -11.8855
+    },
+    {
+      "abs_slope_pp": 8.7067,
+      "app": "cc",
+      "distance_pp": 7.2692,
+      "graph": "com-orkut",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.8349,
+      "slope_pp": -8.7067
+    },
+    {
+      "abs_slope_pp": 13.334,
+      "app": "cc",
+      "distance_pp": 18.7355,
+      "graph": "com-orkut",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.4051,
+      "slope_pp": -13.334
+    },
+    {
+      "abs_slope_pp": 10.5827,
+      "app": "cc",
+      "distance_pp": 16.7634,
+      "graph": "com-orkut",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.584,
+      "slope_pp": -10.5827
+    },
+    {
+      "abs_slope_pp": 14.0757,
+      "app": "cc",
+      "distance_pp": 15.8132,
+      "graph": "soc-LiveJournal1",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.1234,
+      "slope_pp": -14.0757
+    },
+    {
+      "abs_slope_pp": 11.7628,
+      "app": "cc",
+      "distance_pp": 11.2319,
+      "graph": "soc-LiveJournal1",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.9549,
+      "slope_pp": -11.7628
+    },
+    {
+      "abs_slope_pp": 13.5647,
+      "app": "cc",
+      "distance_pp": 14.5398,
+      "graph": "soc-LiveJournal1",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.0719,
+      "slope_pp": -13.5647
+    },
+    {
+      "abs_slope_pp": 12.0651,
+      "app": "cc",
+      "distance_pp": 12.2538,
+      "graph": "soc-LiveJournal1",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.0156,
+      "slope_pp": -12.0651
+    },
+    {
+      "abs_slope_pp": 17.0447,
+      "app": "cc",
+      "distance_pp": 16.9086,
+      "graph": "soc-pokec",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.992,
+      "slope_pp": -17.0447
+    },
+    {
+      "abs_slope_pp": 20.5018,
+      "app": "cc",
+      "distance_pp": 33.8377,
+      "graph": "soc-pokec",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.6505,
+      "slope_pp": -20.5018
+    },
+    {
+      "abs_slope_pp": 20.4123,
+      "app": "cc",
+      "distance_pp": 22.4801,
+      "graph": "soc-pokec",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.1013,
+      "slope_pp": -20.4123
+    },
+    {
+      "abs_slope_pp": 19.8084,
+      "app": "cc",
+      "distance_pp": 27.2215,
+      "graph": "soc-pokec",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.3742,
+      "slope_pp": -19.8084
+    },
+    {
+      "abs_slope_pp": 16.0253,
+      "app": "cc",
+      "distance_pp": -0.0016,
+      "graph": "web-Google",
+      "policy": "GRASP",
+      "ratio_dist_slope": -0.0001,
+      "slope_pp": -16.0253
+    },
+    {
+      "abs_slope_pp": 18.3965,
+      "app": "cc",
+      "distance_pp": 0.0092,
+      "graph": "web-Google",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.0005,
+      "slope_pp": -18.3965
+    },
+    {
+      "abs_slope_pp": 16.4779,
+      "app": "cc",
+      "distance_pp": 0.0027,
+      "graph": "web-Google",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.0002,
+      "slope_pp": -16.4779
+    },
+    {
+      "abs_slope_pp": 17.0179,
+      "app": "cc",
+      "distance_pp": 0.0072,
+      "graph": "web-Google",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.0004,
+      "slope_pp": -17.0179
+    },
+    {
+      "abs_slope_pp": 18.6916,
+      "app": "pr",
+      "distance_pp": 23.972,
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.2825,
+      "slope_pp": -18.6916
+    },
+    {
+      "abs_slope_pp": 18.3893,
+      "app": "pr",
+      "distance_pp": 26.3165,
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.4311,
+      "slope_pp": -18.3893
+    },
+    {
+      "abs_slope_pp": 19.7147,
+      "app": "pr",
+      "distance_pp": 18.5606,
+      "graph": "cit-Patents",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.9415,
+      "slope_pp": -19.7147
+    },
+    {
+      "abs_slope_pp": 19.5827,
+      "app": "pr",
+      "distance_pp": 27.0506,
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.3814,
+      "slope_pp": -19.5827
+    },
+    {
+      "abs_slope_pp": 18.91,
+      "app": "pr",
+      "distance_pp": 13.8303,
+      "graph": "com-orkut",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.7314,
+      "slope_pp": -18.91
+    },
+    {
+      "abs_slope_pp": 18.4489,
+      "app": "pr",
+      "distance_pp": 14.6253,
+      "graph": "com-orkut",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.7927,
+      "slope_pp": -18.4489
+    },
+    {
+      "abs_slope_pp": 17.4205,
+      "app": "pr",
+      "distance_pp": 10.6377,
+      "graph": "com-orkut",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.6106,
+      "slope_pp": -17.4205
+    },
+    {
+      "abs_slope_pp": 17.858,
+      "app": "pr",
+      "distance_pp": 13.2139,
+      "graph": "com-orkut",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.7399,
+      "slope_pp": -17.858
+    },
+    {
+      "abs_slope_pp": 0.1341,
+      "app": "pr",
+      "distance_pp": -0.0032,
+      "graph": "email-Eu-core",
+      "policy": "GRASP",
+      "ratio_dist_slope": -0.0239,
+      "slope_pp": -0.1341
+    },
+    {
+      "abs_slope_pp": 16.1636,
+      "app": "pr",
+      "distance_pp": 14.9674,
+      "graph": "soc-LiveJournal1",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.926,
+      "slope_pp": -16.1636
+    },
+    {
+      "abs_slope_pp": 15.2313,
+      "app": "pr",
+      "distance_pp": 15.0528,
+      "graph": "soc-LiveJournal1",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.9883,
+      "slope_pp": -15.2313
+    },
+    {
+      "abs_slope_pp": 15.0974,
+      "app": "pr",
+      "distance_pp": 11.2041,
+      "graph": "soc-LiveJournal1",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.7421,
+      "slope_pp": -15.0974
+    },
+    {
+      "abs_slope_pp": 15.3209,
+      "app": "pr",
+      "distance_pp": 14.9062,
+      "graph": "soc-LiveJournal1",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.9729,
+      "slope_pp": -15.3209
+    },
+    {
+      "abs_slope_pp": 16.2112,
+      "app": "pr",
+      "distance_pp": 5.0931,
+      "graph": "soc-pokec",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.3142,
+      "slope_pp": -16.2112
+    },
+    {
+      "abs_slope_pp": 19.9944,
+      "app": "pr",
+      "distance_pp": 9.6521,
+      "graph": "soc-pokec",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.4827,
+      "slope_pp": -19.9944
+    },
+    {
+      "abs_slope_pp": 16.175,
+      "app": "pr",
+      "distance_pp": 3.6366,
+      "graph": "soc-pokec",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.2248,
+      "slope_pp": -16.175
+    },
+    {
+      "abs_slope_pp": 18.9808,
+      "app": "pr",
+      "distance_pp": 7.3332,
+      "graph": "soc-pokec",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.3863,
+      "slope_pp": -18.9808
+    },
+    {
+      "abs_slope_pp": 13.017,
+      "app": "pr",
+      "distance_pp": 2.1078,
+      "graph": "web-Google",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.1619,
+      "slope_pp": -13.017
+    },
+    {
+      "abs_slope_pp": 17.6765,
+      "app": "pr",
+      "distance_pp": 4.437,
+      "graph": "web-Google",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.251,
+      "slope_pp": -17.6765
+    },
+    {
+      "abs_slope_pp": 11.6488,
+      "app": "pr",
+      "distance_pp": 3.2184,
+      "graph": "web-Google",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.2763,
+      "slope_pp": -11.6488
+    },
+    {
+      "abs_slope_pp": 15.9069,
+      "app": "pr",
+      "distance_pp": 2.5678,
+      "graph": "web-Google",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.1614,
+      "slope_pp": -15.9069
+    },
+    {
+      "abs_slope_pp": 20.1144,
+      "app": "sssp",
+      "distance_pp": 27.6454,
+      "graph": "cit-Patents",
+      "policy": "GRASP",
+      "ratio_dist_slope": 1.3744,
+      "slope_pp": -20.1144
+    },
+    {
+      "abs_slope_pp": 18.7551,
+      "app": "sssp",
+      "distance_pp": 29.4141,
+      "graph": "cit-Patents",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.5683,
+      "slope_pp": -18.7551
+    },
+    {
+      "abs_slope_pp": 19.8274,
+      "app": "sssp",
+      "distance_pp": 27.8162,
+      "graph": "cit-Patents",
+      "policy": "POPT",
+      "ratio_dist_slope": 1.4029,
+      "slope_pp": -19.8274
+    },
+    {
+      "abs_slope_pp": 19.5307,
+      "app": "sssp",
+      "distance_pp": 29.4478,
+      "graph": "cit-Patents",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.5078,
+      "slope_pp": -19.5307
+    },
+    {
+      "abs_slope_pp": 20.8578,
+      "app": "sssp",
+      "distance_pp": 13.6427,
+      "graph": "com-orkut",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.6541,
+      "slope_pp": -20.8578
+    },
+    {
+      "abs_slope_pp": 21.6681,
+      "app": "sssp",
+      "distance_pp": 14.5123,
+      "graph": "com-orkut",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.6698,
+      "slope_pp": -21.6681
+    },
+    {
+      "abs_slope_pp": 19.5745,
+      "app": "sssp",
+      "distance_pp": 12.3202,
+      "graph": "com-orkut",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.6294,
+      "slope_pp": -19.5745
+    },
+    {
+      "abs_slope_pp": 20.4198,
+      "app": "sssp",
+      "distance_pp": 13.1811,
+      "graph": "com-orkut",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.6455,
+      "slope_pp": -20.4198
+    },
+    {
+      "abs_slope_pp": 19.4111,
+      "app": "sssp",
+      "distance_pp": 18.0067,
+      "graph": "soc-LiveJournal1",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.9276,
+      "slope_pp": -19.4111
+    },
+    {
+      "abs_slope_pp": 17.3154,
+      "app": "sssp",
+      "distance_pp": 19.0968,
+      "graph": "soc-LiveJournal1",
+      "policy": "LRU",
+      "ratio_dist_slope": 1.1029,
+      "slope_pp": -17.3154
+    },
+    {
+      "abs_slope_pp": 17.9616,
+      "app": "sssp",
+      "distance_pp": 17.7597,
+      "graph": "soc-LiveJournal1",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.9888,
+      "slope_pp": -17.9616
+    },
+    {
+      "abs_slope_pp": 17.8032,
+      "app": "sssp",
+      "distance_pp": 19.2172,
+      "graph": "soc-LiveJournal1",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 1.0794,
+      "slope_pp": -17.8032
+    },
+    {
+      "abs_slope_pp": 18.3368,
+      "app": "sssp",
+      "distance_pp": 6.4863,
+      "graph": "soc-pokec",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.3537,
+      "slope_pp": -18.3368
+    },
+    {
+      "abs_slope_pp": 22.0586,
+      "app": "sssp",
+      "distance_pp": 9.5776,
+      "graph": "soc-pokec",
+      "policy": "LRU",
+      "ratio_dist_slope": 0.4342,
+      "slope_pp": -22.0586
+    },
+    {
+      "abs_slope_pp": 19.738,
+      "app": "sssp",
+      "distance_pp": 7.3598,
+      "graph": "soc-pokec",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.3729,
+      "slope_pp": -19.738
+    },
+    {
+      "abs_slope_pp": 21.0214,
+      "app": "sssp",
+      "distance_pp": 8.2427,
+      "graph": "soc-pokec",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.3921,
+      "slope_pp": -21.0214
+    },
+    {
+      "abs_slope_pp": 19.2798,
+      "app": "sssp",
+      "distance_pp": 0.0025,
+      "graph": "web-Google",
+      "policy": "GRASP",
+      "ratio_dist_slope": 0.0001,
+      "slope_pp": -19.2798
+    },
+    {
+      "abs_slope_pp": 19.267,
+      "app": "sssp",
+      "distance_pp": -0.0014,
+      "graph": "web-Google",
+      "policy": "LRU",
+      "ratio_dist_slope": -0.0001,
+      "slope_pp": -19.267
+    },
+    {
+      "abs_slope_pp": 18.9734,
+      "app": "sssp",
+      "distance_pp": 0.0026,
+      "graph": "web-Google",
+      "policy": "POPT",
+      "ratio_dist_slope": 0.0001,
+      "slope_pp": -18.9734
+    },
+    {
+      "abs_slope_pp": 19.0885,
+      "app": "sssp",
+      "distance_pp": 0.0039,
+      "graph": "web-Google",
+      "policy": "SRRIP",
+      "ratio_dist_slope": 0.0002,
+      "slope_pp": -19.0885
+    }
+  ]
+}

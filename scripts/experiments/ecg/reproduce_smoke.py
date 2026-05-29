@@ -127,6 +127,8 @@ TRACKED_ARTIFACTS = [
     "family_slope_replay.md",
     "per_app_capacity_slope.json",
     "per_app_capacity_slope.md",
+    "slope_saturation_xcheck.json",
+    "slope_saturation_xcheck.md",
     "gem5_anchor.json",
     "gem5_anchor.md",
     "literature_deviations.json",
