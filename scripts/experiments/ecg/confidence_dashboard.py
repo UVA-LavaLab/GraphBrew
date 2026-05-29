@@ -161,6 +161,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_generator_gap_parity_arithmetic.py", "CGGP-Par"),
     "slope_saturation_xcheck arithmetic + statistics":
         ("scripts/test/test_slope_saturation_xcheck_arithmetic.py", "SSX-Stat"),
+    "per_graph_app_stability arithmetic + classification":
+        ("scripts/test/test_per_graph_app_stability_arithmetic.py", "PGAS-Stab"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
