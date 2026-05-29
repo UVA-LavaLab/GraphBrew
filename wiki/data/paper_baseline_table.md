@@ -46,9 +46,9 @@ Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, 
 | soc-pokec | bc | 1MB | 85.20% | -2.32 | -8.69 | -5.61 | ✓ ok | — |
 | soc-pokec | bc | 4MB | 50.09% | -3.40 | -8.05 | -6.33 | — | — |
 | soc-pokec | bc | 8MB | 24.35% | -2.20 | -4.41 | -4.13 | — | — |
-| soc-pokec | bfs | 1MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
-| soc-pokec | bfs | 4MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
-| soc-pokec | bfs | 8MB | 100.00% | +0.00 | +0.00 | +0.00 | — | — |
+| soc-pokec | bfs | 1MB | 87.17% | -0.97 | -2.87 | -1.61 | — | — |
+| soc-pokec | bfs | 4MB | 74.01% | -0.14 | -6.37 | -6.65 | — | — |
+| soc-pokec | bfs | 8MB | 71.46% | -0.10 | -11.08 | -12.18 | — | — |
 | soc-pokec | cc | 1MB | 69.94% | -3.26 | -13.11 | -2.52 | — | — |
 | soc-pokec | cc | 4MB | 39.61% | -6.61 | -16.97 | -11.36 | — | — |
 | soc-pokec | cc | 8MB | 5.77% | +0.00 | -0.04 | -0.00 | — | — |

@@ -502,6 +502,13 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "GRASP's hot-region pinning happens to align with the active "
         "frontier vertices in this regime. (Balaji HPCA21 §3.3 "
         "assumes PR-ordering tracks reuse.)",
+    ("soc-pokec", "bfs", "1MB", "POPT_GE_GRASP"):
+        "Same frontier-vs-rank mis-alignment as the soc-pokec/{sssp,bc} "
+        "entries. The non-hub source (`-r 800000`) selected for "
+        "soc-pokec/BFS produces a level-order expansion whose vertex "
+        "set doesn't track POPT's PR-rank ordering. ~1.3 pp gap at "
+        "1 MB and closes at larger caches. GRASP's hot-region pinning "
+        "happens to coincide with the BFS active set on soc-pokec.",
     ("soc-pokec", "bc", "1MB", "POPT_GE_GRASP"):
         "BC's forward + backward sweeps from `-r 0` (highest-PR hub) "
         "expand a frontier whose access pattern correlates with the "

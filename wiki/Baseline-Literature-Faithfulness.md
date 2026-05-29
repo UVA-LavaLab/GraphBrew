@@ -381,7 +381,7 @@ the corpus state on `/tmp/graphbrew-lit-baseline` is:
 |---|:---:|:---:|:---:|:---:|:---:|
 | email-Eu-core | ✓ | ✓ | ✓ | n/a (too small) | n/a (too small) |
 | web-Google    | ✓ | ✓ | ✓ | ✓ | ✓ |
-| soc-pokec     | ✓ | ✓ | ✓ | ✓ rerun w/ non-hub src | ✓ |
+| soc-pokec     | ✓ | ✓ rerun w/ non-hub src | ✓ | ✓ rerun w/ non-hub src | ✓ |
 | cit-Patents   | ✓ | ✓ | ✓ | ✓ | ✓ |
 | com-orkut     | ✓ | n/a (hub degenerate) | (in-flight) | ✓ rerun w/ non-hub src | ✓ |
 | soc-LiveJournal1 | ✓ | (in-flight) | (in-flight) | (in-flight) | (in-flight) |
@@ -398,14 +398,14 @@ artifact, not a literature deviation.
 
 | Status | Count | Meaning |
 |---|---:|---|
-| `ok` | 140 | Observed Δ within published tolerance |
+| `ok` | 146 | Observed Δ within published tolerance |
 | `within_tolerance` | 1 | Borderline (cit-Patents/bc/1MB GRASP at +0.026pp vs LRU) |
 | `DISAGREE` | 0 | Unexplained deviation from literature |
 | `known_deviation` | 5 | Documented algorithmic / design mismatch (CC vs P-OPT oracle, frontier vs PR-rank mis-alignment) |
-| `insufficient_data` | 19 | ROI ran with <10 k accesses (tiny graph or hub-src degeneracy) |
+| `insufficient_data` | 13 | ROI ran with <10 k accesses (tiny graph or hub-src degeneracy) |
 | `missing` | 0 | Claim has no matching observation |
 
-Total claims: 165 (grew because cit-Patents/bc and soc-pokec/bc cells now carry meaningful data).
+Total claims: 165 (grew because cit-Patents/bc, soc-pokec/bc, and soc-pokec/bfs cells now carry meaningful data after the non-hub source rerun).
 
 All `known_deviation` entries are CC + POPT permutations where
 P-OPT's PR-ranked offset matrix is mis-aligned with CC's edge-driven

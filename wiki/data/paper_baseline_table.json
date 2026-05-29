@@ -767,59 +767,59 @@
     "verdict": {}
   },
   {
-    "accesses": 0,
+    "accesses": 1855260,
     "app": "bfs",
     "delta_pp_vs_lru": {
-      "GRASP": 0.0,
+      "GRASP": -2.8715000000000046,
       "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
+      "POPT": -1.6097000000000028,
+      "SRRIP": -0.9724000000000066
     },
     "graph": "soc-pokec",
     "l3_size": "1MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.842981,
+      "LRU": 0.871696,
+      "POPT": 0.855599,
+      "SRRIP": 0.861972
     },
     "verdict": {}
   },
   {
-    "accesses": 0,
+    "accesses": 1852036,
     "app": "bfs",
     "delta_pp_vs_lru": {
-      "GRASP": 0.0,
+      "GRASP": -6.368499999999999,
       "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
+      "POPT": -6.651699999999994,
+      "SRRIP": -0.1374999999999904
     },
     "graph": "soc-pokec",
     "l3_size": "4MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.676437,
+      "LRU": 0.740122,
+      "POPT": 0.673605,
+      "SRRIP": 0.738747
     },
     "verdict": {}
   },
   {
-    "accesses": 0,
+    "accesses": 1851097,
     "app": "bfs",
     "delta_pp_vs_lru": {
-      "GRASP": 0.0,
+      "GRASP": -11.078600000000005,
       "LRU": 0.0,
-      "POPT": 0.0,
-      "SRRIP": 0.0
+      "POPT": -12.180400000000002,
+      "SRRIP": -0.09730000000000016
     },
     "graph": "soc-pokec",
     "l3_size": "8MB",
     "miss_rate": {
-      "GRASP": 1.0,
-      "LRU": 1.0,
-      "POPT": 1.0,
-      "SRRIP": 1.0
+      "GRASP": 0.6037779999999999,
+      "LRU": 0.714564,
+      "POPT": 0.59276,
+      "SRRIP": 0.713591
     },
     "verdict": {}
   },
