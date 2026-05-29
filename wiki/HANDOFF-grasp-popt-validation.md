@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **28 gates, all GREEN, exit 0**.
+and currently reports **30 gates, all GREEN, exit 0**.
 
 Latest additions on top of the Tier A/B/C work:
 
@@ -200,7 +200,7 @@ Latest additions on top of the Tier A/B/C work:
     winner, POPT-smallest-overall-mean (load-bearing), and the
     GRASP/road ≥ 5 pp counter-narrative.
   - `scripts/experiments/ecg/artifact_catalog.py` is the single
-    canonical index of every paper-grade aggregator (17 entries
+    canonical index of every paper-grade aggregator (19 entries
     today) with on-disk audit of (generator, gate, artifact)
     triples. Lives at [`wiki/data/artifact_catalog.md`](data/artifact_catalog.md).
     Test `scripts/test/test_artifact_catalog.py` (10 cases) pins
@@ -209,9 +209,37 @@ Latest additions on top of the Tier A/B/C work:
     must bump explicitly. This closes the long-standing five-place
     coordination gap (script + gate + Makefile + dashboard +
     HANDOFF) when adding a new aggregator.
+  - `scripts/experiments/ecg/bootstrap_ci.py` adds non-parametric
+    percentile bootstrap CIs (5000 resamples, seed 1729) on every
+    load-bearing claim: per-(policy, family) and per-(policy, regime)
+    oracle-gap means, paired ΔPOPT−GRASP per family, and 7 sign-
+    stability claims. Lives at
+    [`wiki/data/bootstrap_ci.md`](data/bootstrap_ci.md). Headlines
+    are now reported with 95% CIs so reviewers cannot dismiss them
+    as point estimates. Key findings: **POPT < GRASP on road
+    P=0.976** (bedrock), **POPT < LRU on social P=1.000** (unanimous),
+    POPT-mean-smallest headline is dominated by the road family
+    (mesh borderline at P=0.948, social/citation/web not significant).
+    Test `scripts/test/test_bootstrap_ci.py` (11 cases) pins the
+    road sign-stability floor at 0.95, POPT/mesh CI hi ≤ 1.0 pp,
+    and POPT-vs-LRU social unanimity ≥ 0.99.
+  - `scripts/experiments/ecg/oracle_gap_by_app.py` projects the
+    per-cell oracle gap onto the (policy, app) plane so the paper
+    can defend "no one-size-fits-all" with per-kernel winners
+    instead of relying solely on family-level aggregates. Lives at
+    [`wiki/data/oracle_gap_by_app.md`](data/oracle_gap_by_app.md).
+    Per-kernel rank-1 (mean gap, pp): **pr→POPT 0.100, bfs→POPT
+    1.625, cc→GRASP 0.640, bc→SRRIP 1.689, sssp→POPT** (with
+    **GRASP/sssp catastrophic at 7.106 pp**, the worst of any
+    policy on any kernel). Test
+    `scripts/test/test_oracle_gap_by_app.py` (11 cases) pins all
+    20 (policy, app) buckets present, n≥15 per bucket, pr→POPT
+    (≤0.5 pp), cc→GRASP, and the GRASP-must-not-win-sssp counter-
+    narrative.
 - New Make targets: `make lit-popt-vs-grasp`, `make lit-deviations`,
   `make lit-claims`, `make lit-cross-tool-winners`,
   `make lit-regime-taxonomy`, `make lit-oracle-gap`,
+  `make lit-oracle-gap-by-app`, `make lit-bootstrap-ci`,
   `make lit-catalog` (all wired into the `confidence` dep chain;
   `lit-claims` depends on every other `lit-*` so the registry
   values are always fresh).
