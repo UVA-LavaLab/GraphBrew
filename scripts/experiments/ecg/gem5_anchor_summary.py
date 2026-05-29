@@ -113,11 +113,14 @@ class AnchorInvariant:
     detail: str
 
 
-def evaluate_invariants(cells: list[CellSummary]) -> list[AnchorInvariant]:
+def evaluate_invariants(
+    cells: list[CellSummary],
+    apps: tuple[str, ...] = ("pr", "bc"),
+) -> list[AnchorInvariant]:
     results: list[AnchorInvariant] = []
     by_key = {(c.graph, c.app, c.l3_size): c for c in cells}
 
-    for app in ("pr", "bc"):
+    for app in apps:
         c = by_key.get(("email-Eu-core", app, HEADLINE_L3))
         name = f"GRASP_LE_LRU_headline:{app}@{HEADLINE_L3}"
         if c is None:
@@ -142,7 +145,7 @@ def evaluate_invariants(cells: list[CellSummary]) -> list[AnchorInvariant]:
                 f"tolerance ({HEADLINE_MAX_GRASP_OVER_LRU_PP:+.2f}pp)",
             ))
 
-    for app in ("pr", "bc"):
+    for app in apps:
         c = by_key.get(("email-Eu-core", app, ASYMPTOTE_L3))
         name = f"asymptote_within_{ASYMPTOTE_MAX_SPREAD_PCT}pp:{app}@{ASYMPTOTE_L3}"
         if c is None:
@@ -182,9 +185,18 @@ def evaluate_invariants(cells: list[CellSummary]) -> list[AnchorInvariant]:
     return results
 
 
-def render_markdown(cells: list[CellSummary], invariants: list[AnchorInvariant]) -> str:
-    out = ["# gem5 literature anchor", ""]
-    out.append(f"Source sweep: `{DEFAULT_SWEEP_ROOT}/<graph>-<app>/{DEFAULT_SUBDIR}`")
+def render_markdown(
+    cells: list[CellSummary],
+    invariants: list[AnchorInvariant],
+    title: str = "gem5 literature anchor",
+    sweep_root: Path | None = None,
+    sweep_subdir: str | None = None,
+) -> str:
+    out = [f"# {title}", ""]
+    if sweep_root is not None and sweep_subdir is not None:
+        out.append(f"Source sweep: `{sweep_root}/<graph>-<app>/{sweep_subdir}`")
+    else:
+        out.append(f"Source sweep: `{DEFAULT_SWEEP_ROOT}/<graph>-<app>/{DEFAULT_SUBDIR}`")
     out.append("")
     out.append("## Invariants")
     out.append("")
@@ -225,8 +237,24 @@ def main(argv: list[str] | None = None) -> int:
             "graph names once their gem5 sweeps complete."
         ),
     )
+    p.add_argument(
+        "--apps",
+        nargs="+",
+        default=["pr", "bc"],
+        help=(
+            "Apps for which to assert headline + asymptote invariants on "
+            "email-Eu-core. Default: pr bc. Pass only 'pr' when running "
+            "against a sweep that lacks bc coverage (e.g. the current "
+            "Sniper sweep)."
+        ),
+    )
     p.add_argument("--json-out", type=Path, required=True)
     p.add_argument("--md-out", type=Path)
+    p.add_argument(
+        "--title",
+        default="gem5 literature anchor",
+        help="Markdown title for the anchor (override for other simulators).",
+    )
     p.add_argument("--exit-on-disagree", action="store_true",
                    help="exit 2 if any invariant is in disagree state")
     args = p.parse_args(argv)
@@ -239,12 +267,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     cells = load_cells(args.sweep_root, args.sweep_subdir, graphs=set(args.graphs))
-    invariants = evaluate_invariants(cells)
+    invariants = evaluate_invariants(cells, apps=tuple(args.apps))
 
     payload = {
         "sweep_root": str(args.sweep_root),
         "sweep_subdir": args.sweep_subdir,
         "graphs_scope": sorted(args.graphs),
+        "apps_scope": sorted(args.apps),
         "cells": [
             {
                 "graph": c.graph, "app": c.app, "l3_size": c.l3_size,
@@ -266,7 +295,12 @@ def main(argv: list[str] | None = None) -> int:
     args.json_out.write_text(json.dumps(payload, indent=2) + "\n")
     if args.md_out:
         args.md_out.parent.mkdir(parents=True, exist_ok=True)
-        args.md_out.write_text(render_markdown(cells, invariants))
+        args.md_out.write_text(render_markdown(
+            cells, invariants,
+            title=args.title,
+            sweep_root=args.sweep_root,
+            sweep_subdir=args.sweep_subdir,
+        ))
 
     print(f"wrote {args.json_out}")
     if args.md_out:

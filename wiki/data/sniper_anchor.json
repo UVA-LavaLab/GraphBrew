@@ -1,0 +1,83 @@
+{
+  "sweep_root": "/tmp/graphbrew-grasp-sniper-sweep",
+  "sweep_subdir": "DBG",
+  "graphs_scope": [
+    "email-Eu-core"
+  ],
+  "apps_scope": [
+    "pr"
+  ],
+  "cells": [
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "256kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.11764705882352941,
+        "SRRIP": 0.12191780821917808,
+        "GRASP": 0.12092391304347826
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "2MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.11741424802110818,
+        "SRRIP": 0.11443433029908973,
+        "GRASP": 0.11889035667107001
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "32kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.12,
+        "SRRIP": 0.11972789115646258,
+        "GRASP": 0.12394366197183099
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "4kB",
+      "miss_rate_by_policy": {
+        "LRU": 0.9168975069252078,
+        "SRRIP": 0.9149519890260631,
+        "GRASP": 0.8793103448275862
+      },
+      "ok_rows": 3,
+      "error_rows": 0
+    }
+  ],
+  "invariants": [
+    {
+      "name": "GRASP_LE_LRU_headline:pr@256kB",
+      "status": "ok",
+      "detail": "grasp=0.1209 lru=0.1176 \u0394=+0.328pp (tolerance \u2264 +0.50pp)"
+    },
+    {
+      "name": "asymptote_within_1.0pp:pr@2MB",
+      "status": "ok",
+      "detail": "spread=0.446pp across ['GRASP', 'LRU', 'SRRIP'] (tolerance \u2264 1.00pp)"
+    },
+    {
+      "name": "no_error_rows",
+      "status": "ok",
+      "detail": "12 ok rows across 4 cells"
+    }
+  ],
+  "counts": {
+    "cells": 4,
+    "invariants_ok": 3,
+    "invariants_disagree": 0,
+    "invariants_missing": 0
+  }
+}

@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.1390273571014404,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.00s"
+      "runtime_s": 0.47867536544799805,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.34s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,8 +24,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.059507131576538,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.92s"
+      "runtime_s": 0.7865118980407715,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.65s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
@@ -37,7 +37,7 @@
       "xfailed": 1,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16283965110778809,
+      "runtime_s": 0.1555631160736084,
       "raw_tail": "....x....s.s                                                             [100%]\n9 passed, 2 skipped, 1 xfailed in 0.03s"
     },
     {
@@ -50,7 +50,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3140299320220947,
+      "runtime_s": 0.2969815731048584,
       "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.17s"
     },
     {
@@ -63,7 +63,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23865914344787598,
+      "runtime_s": 0.22419261932373047,
       "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.10s"
     },
     {
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15882468223571777,
+      "runtime_s": 0.15021371841430664,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.02s"
     },
     {
@@ -89,7 +89,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1681528091430664,
+      "runtime_s": 0.15608477592468262,
       "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.03s"
     },
     {
@@ -102,7 +102,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.15903401374816895,
+      "runtime_s": 0.15448546409606934,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -115,8 +115,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16228175163269043,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.03s"
+      "runtime_s": 0.1664581298828125,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
       "label": "Regression budget floor",
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1624889373779297,
+      "runtime_s": 0.15247297286987305,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.02s"
     },
     {
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1602010726928711,
+      "runtime_s": 0.15522432327270508,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.02s"
     },
     {
@@ -154,7 +154,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.158433198928833,
+      "runtime_s": 0.15096735954284668,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     },
     {
@@ -167,8 +167,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.16262459754943848,
+      "runtime_s": 0.1605069637298584,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.03s"
+    },
+    {
+      "label": "Sniper literature anchor",
+      "short": "Sniper-anchor",
+      "path": "scripts/test/test_sniper_anchor.py",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.1531672477722168,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.02s"
     }
   ],
   "lit_faith_summary": {

@@ -71,6 +71,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_paper_pipeline_lit_gate.py", "Preflight"),
     "gem5 literature anchor":
         ("scripts/test/test_gem5_anchor.py", "Gem5-anchor"),
+    "Sniper literature anchor":
+        ("scripts/test/test_sniper_anchor.py", "Sniper-anchor"),
 }
 
 

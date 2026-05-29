@@ -495,9 +495,13 @@ LIT_SWEEP_SUBDIR ?= lit
 GEM5_ANCHOR_ROOT ?= /tmp/graphbrew-grasp-gem5-sweep
 GEM5_ANCHOR_SUBDIR ?= DBG
 GEM5_ANCHOR_GRAPHS ?= email-Eu-core
+SNIPER_ANCHOR_ROOT ?= /tmp/graphbrew-grasp-sniper-sweep
+SNIPER_ANCHOR_SUBDIR ?= DBG
+SNIPER_ANCHOR_GRAPHS ?= email-Eu-core
+SNIPER_ANCHOR_APPS ?= pr
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table gem5-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table gem5-anchor sniper-anchor confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -543,6 +547,7 @@ gem5-anchor:
 			--sweep-root $(GEM5_ANCHOR_ROOT) \
 			--sweep-subdir $(GEM5_ANCHOR_SUBDIR) \
 			--graphs $(GEM5_ANCHOR_GRAPHS) \
+			--title "gem5 literature anchor" \
 			--json-out $(WIKI_DATA)/gem5_anchor.json \
 			--md-out   $(WIKI_DATA)/gem5_anchor.md \
 			--exit-on-disagree; \
@@ -550,7 +555,26 @@ gem5-anchor:
 		echo "$(BLUE)  gem5 sweep dir $(GEM5_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
 	fi
 
-confidence: lit-faith lit-repro lit-budget lit-table gem5-anchor
+# Regenerate the Sniper literature anchor. Sniper currently only
+# sweeps PR (BC variants are empty); expand SNIPER_ANCHOR_APPS once
+# BC sweeps land. Same graceful-degradation behaviour as gem5-anchor.
+sniper-anchor:
+	@echo "$(BLUE)Regenerating Sniper literature anchor...$(NC)"
+	@if [ -d "$(SNIPER_ANCHOR_ROOT)" ]; then \
+		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+			--sweep-root $(SNIPER_ANCHOR_ROOT) \
+			--sweep-subdir $(SNIPER_ANCHOR_SUBDIR) \
+			--graphs $(SNIPER_ANCHOR_GRAPHS) \
+			--apps $(SNIPER_ANCHOR_APPS) \
+			--title "Sniper literature anchor" \
+			--json-out $(WIKI_DATA)/sniper_anchor.json \
+			--md-out   $(WIKI_DATA)/sniper_anchor.md \
+			--exit-on-disagree; \
+	else \
+		echo "$(BLUE)  Sniper sweep dir $(SNIPER_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
+	fi
+
+confidence: lit-faith lit-repro lit-budget lit-table gem5-anchor sniper-anchor
 	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
 	@python3 -m scripts.experiments.ecg.confidence_dashboard \
 		--markdown $(WIKI_DATA)/confidence_dashboard.md \
