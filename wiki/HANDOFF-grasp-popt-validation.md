@@ -75,7 +75,16 @@ Latest additions on top of the Tier A/B/C work:
   `scripts/test/test_no_hub_graph_invariant.py` that asserts no graph
   with `hub_concentration < 0.20` can show GRASP > LRU+0.5 pp, and that
   the corpus must contain ≥1 such no-hub graph (load-bearing rather
-  than vacuous). Lit-faith ratio is now 240/272 ok (was 238/270).
+  than vacuous).
+- roadNet-CA PR cache_sim extended to a full L3 sweep
+  ({4 kB, 16 kB, 64 kB, 256 kB, 1 MB}) so the L-curve figure
+  `figures/l_curve_roadNet-CA_pr.svg` renders the complete working-set
+  curve. The data shows a clean inflection: GRASP only marginally
+  beats LRU when both policies are saturated at ≥99.5 % miss
+  (4–64 kB), and *loses* monotonically once partial fit appears
+  (+0.28 pp at 256 kB, +1.47 pp at 1 MB). POPT remains best at every
+  L3 size that can hold useful state. Lit-faith ratio is now 248/280 ok
+  (was 240/272); +8 derived POPT-vs-GRASP claims all "ok".
 
 See `wiki/Baseline-Literature-Faithfulness.md` → "The fifteen
 confidence gates" and "Regression budget" sections for the

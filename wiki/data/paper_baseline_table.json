@@ -760,21 +760,97 @@
     }
   },
   {
-    "accesses": 18043324,
+    "accesses": 18035357,
     "app": "pr",
     "delta_pp_vs_lru": {
-      "GRASP": 1.5054000000000012,
+      "GRASP": -0.09919999999999929,
       "LRU": 0.0,
-      "POPT": -4.982699999999996,
-      "SRRIP": 0.02609999999999557
+      "POPT": -0.06780000000000674,
+      "SRRIP": 0.0035000000000007248
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "16kB",
+    "miss_rate": {
+      "GRASP": 0.998909,
+      "LRU": 0.999901,
+      "POPT": 0.999223,
+      "SRRIP": 0.999936
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 18035576,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": 1.4720999999999984,
+      "LRU": 0.0,
+      "POPT": -4.994600000000005,
+      "SRRIP": -0.23700000000000943
     },
     "graph": "roadNet-CA",
     "l3_size": "1MB",
     "miss_rate": {
-      "GRASP": 0.956504,
-      "LRU": 0.94145,
-      "POPT": 0.891623,
-      "SRRIP": 0.941711
+      "GRASP": 0.956439,
+      "LRU": 0.941718,
+      "POPT": 0.891772,
+      "SRRIP": 0.939348
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 18037834,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": 0.2829999999999999,
+      "LRU": 0.0,
+      "POPT": -5.228300000000008,
+      "SRRIP": -0.06570000000000187
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "256kB",
+    "miss_rate": {
+      "GRASP": 0.988476,
+      "LRU": 0.985646,
+      "POPT": 0.9333629999999999,
+      "SRRIP": 0.984989
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 18034920,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.02209999999999157,
+      "LRU": 0.0,
+      "POPT": -0.023099999999998122,
+      "SRRIP": -0.00029999999999752447
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "4kB",
+    "miss_rate": {
+      "GRASP": 0.999712,
+      "LRU": 0.999933,
+      "POPT": 0.999702,
+      "SRRIP": 0.99993
+    },
+    "verdict": {}
+  },
+  {
+    "accesses": 18036611,
+    "app": "pr",
+    "delta_pp_vs_lru": {
+      "GRASP": -0.3657999999999939,
+      "LRU": 0.0,
+      "POPT": -1.6599999999999948,
+      "SRRIP": 0.03500000000000725
+    },
+    "graph": "roadNet-CA",
+    "l3_size": "64kB",
+    "miss_rate": {
+      "GRASP": 0.995596,
+      "LRU": 0.999254,
+      "POPT": 0.982654,
+      "SRRIP": 0.999604
     },
     "verdict": {}
   },
