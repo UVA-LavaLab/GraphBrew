@@ -137,6 +137,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_multiple_testing_correction_arithmetic.py", "MTC-Lad"),
     "cache_saturation_onset step-down rule + ranking":
         ("scripts/test/test_cache_saturation_onset_arithmetic.py", "CSO-Step"),
+    "cross_tool_slope_universality verdict + medians":
+        ("scripts/test/test_cross_tool_slope_universality_arithmetic.py", "CTSU-Med"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
