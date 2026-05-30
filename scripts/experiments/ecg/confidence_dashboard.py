@@ -319,6 +319,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_local_cache_screen_summary_derivation.py", "LCS-Der"),
     "cross-artifact integrity (CATALOG ↔ PYTEST_SUITES ↔ paper_claims graph consistency)":
         ("scripts/test/test_cross_artifact_integrity.py", "XAI-Int"),
+    "reproduce_smoke coverage (every catalogued artifact is in TRACKED_ARTIFACTS audit)":
+        ("scripts/test/test_reproduce_smoke_coverage.py", "RSC-Cov"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

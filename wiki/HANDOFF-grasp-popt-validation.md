@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **205 gates, all GREEN, exit 0**.
+and currently reports **210 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–205.**
+- **Cross-artifact / cross-source derivation parity gates 151–210.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -947,6 +947,68 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   table (with documented 'GB shadowed by B' quirk — no L3 size in any
   sweep uses these so not a practical bug); JSON write rule indent=2
   NO sort_keys + trailing newline.
+- **Cross-source derivation + cross-registry integrity gates 206–210.**
+  Gate 206 (SCD-Der, 28 tests) locks sign_consistency.py — the
+  canonical GRASP-vs-LRU sign comparator that lit-faith._pick_section
+  and gem5_anchor_summary._pick_canonical_section both mirror
+  (docstring-tagged); complementary to the existing integration-only
+  test_grasp_sign_consistency.py; MANDATORY_L3_SIZES=('4kB','32kB')
+  tuple; PolicyRow frozen 7-field dataclass; _coerce_int uses
+  int(float()) truncation toward zero ('3.7'→3, '-2.9'→-2) — DIFFERS
+  from gem5_anchor_summary's _coerce_int (int(text) → ValueError on
+  '3.14'); _sign ±1e-9 INCLUSIVE zero band (boundary maps to '0');
+  _pick canonical-ROI (smallest non-zero section else first);
+  compute_deltas sign convention GRASP-LRU (negative=improvement);
+  evaluate dispatch mandatory_violations vs warnings bucket; '0' sign
+  collapses to 'ok' for numerical noise. Gate 207 (LRS-Der, 36 tests)
+  locks literature_reproduction_summary.py — the paper-ready renderer
+  that groups lit-faithfulness cells by citation, outputs feed wiki
+  tables quoted in the paper introduction; _verdict_glyph 6-status
+  dispatch + unknown→pass-through; _format_delta {:+.3f} signed
+  (zero formats '+0.000pp' — load-bearing for sign-flip visibility);
+  _expected_window 4 assembly branches (sign+min+max+tolerance);
+  _key CITATION_ORDER_PREFIX ordering (Faldu Fig before §); _paper_name
+  n≥2-citations → 'cross-paper' (Faldu+Balaji extrapolations don't
+  count toward either paper's reproduction%); _paper_rollup
+  reproduction% = (ok+within_tolerance)/total EXPLICITLY EXCLUDES
+  known_deviation; render_csv lineterminator='\n' (NOT \r\n which
+  git diff flags); CSV column order pinned; render_markdown single
+  trailing '\n'. Gate 208 (LCS-Der, 29 tests) locks
+  local_cache_screen_summary.py — cache_sim diversity-screen
+  aggregator; number coercion None/empty/non-numeric → None;
+  format_number None→'' (NOT '0'; distinguishes missing from zero),
+  |v-round(v)|<1e-9 collapse, {:.6g} fall-through; input_label
+  explicit > parent > stem precedence; parse_input split('=',1) so
+  paths with '=' survive; summarize_rows drops status!='ok' rows,
+  groups by (benchmark, prefetcher, l3_size), l3_delta_vs_lru =
+  (lru_misses-row_misses)/lru_misses, missing/zero LRU → empty
+  delta (NOT 0); l3_rank by (ascending misses, lex policy tie-break);
+  FIELDNAMES 13-column public contract pinned. Gate 209 (XAI-Int,
+  21 tests) PIVOTS to GRAPH-LEVEL cross-registry integrity:
+  CATALOG ↔ PYTEST_SUITES ↔ paper_claims must stay consistent;
+  CATALOG IDs/generators/gates/artifacts all unique-and-resolve
+  (except documented ALLOWED_SHARED_GENERATORS for
+  gem5_anchor_summary.py which legitimately produces both gem5 and
+  sniper anchors); PYTEST_SUITES short tickers unique (dashboard
+  column headers); every paper-claim gate appears in CATALOG or
+  PYTEST_SUITES (except confidence.green_gate_count whose gate is
+  the dashboard generator itself — meta-claim, documented in
+  ALLOWED_SELF_GATED_CLAIMS); cross-registry uniqueness (CATALOG IDs
+  disjoint from short tickers; claim IDs disjoint from CATALOG IDs);
+  catalog summary 'N gates today' self-consistency check pins
+  CATALOG.confidence_dashboard.summary count to len(PYTEST_SUITES).
+  Gate 210 (RSC-Cov, 14 tests) locks reproduce_smoke coverage:
+  every CATALOG.artifact appears in reproduce_smoke rows (except
+  CSV_EXEMPT={literature_reproduction_summary.csv} and
+  SELF_REF_EXEMPT={reproduce_smoke.json, reproduce_smoke.md});
+  every paper_claims.source covered; every catalogued json's
+  sibling .md companion-on-disk is tracked (catches stale-MD
+  drift); TRACKED_ARTIFACTS no-dupes + all-on-disk + extensions
+  ∈ {.json, .md, .csv}; reproduce_smoke.json schema invariants
+  (n_artifacts == len(rows), ok==count of ok rows, drift==[],
+  missing==[], passed is True, sha fields are 64-hex). All five
+  gates committed in one logical commit each; regen cycle GREEN
+  at each step.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
