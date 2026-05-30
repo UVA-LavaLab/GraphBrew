@@ -327,6 +327,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_wiki_data_coverage.py", "WDC-Cov"),
     "paper claims source-value parity (every claim re-derived from source artifact)":
         ("scripts/test/test_paper_claims_value_parity.py", "PCV-Src"),
+    "paper claims schema integrity (required fields + controlled vocabularies + path resolution)":
+        ("scripts/test/test_paper_claims_schema.py", "PCS-Sch"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
