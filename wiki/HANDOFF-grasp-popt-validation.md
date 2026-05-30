@@ -8,7 +8,43 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **260 gates, all GREEN, exit 0**.
+and currently reports **261 gates, all GREEN, exit 0**.
+
+**ECG arm catalog (gate 261, refresh @261):**
+The eighth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog). Locks the cross-file consistency of every ECG arm +
+paper-shipping policy across the THREE namespaces they appear in:
+the registry side (`ECG:` prefixed namespace,
+`lit_faith_policy_registry.CANONICAL_ECG_ARMS`, 9 entries), the
+paper side (underscore namespace in `paper_pipeline.POLICY_ORDER`
+plus per-policy tables `POLICY_LABELS` / `POLICY_DESCRIPTIONS` /
+`POLICY_COLORS` / `POLICY_HATCHES`, 9 entries), and the
+measurement side (mixed-case proof-matrix labels in
+`proof_matrix.ABLATIONS` whose `policy` field points back at the
+registry namespace, 16 entries). Catches the silent-drift cases
+where a new `ECG_DBG_PRIMARY_CHARGED` ablation is added but the
+paper-side `POLICY_DESCRIPTIONS` forgets it (every figure that
+joins on paper_label gets a blank legend caption), a registry
+rename to `ECG:DBG_HEAD` breaks the proof-matrix
+`ECG_DBG_POPT.policy` reference (silently-missing bar in grid
+plots), or two ABLATIONS rows are accidentally given the same
+label (silent row-merging in the rollup CSV). 7 rules A1-A7: A1
+every paper non-baseline policy has a registry entry after
+namespace translation (`ECG_X` → `ECG:X`; `POPT_CHARGED` is
+itself); A2 every paper policy has label + description + color;
+A3 every `_CHARGED` paper policy has a hatch pattern (grayscale
+legibility); A4 every proof-matrix ablation policy is a canonical
+baseline or a registry arm key; A5 every adaptive-selector
+candidate references a real ablation label; A6 no duplicate
+ablation labels; A7 every ECG-parented registry arm has at least
+one ablation, OR (for `_CHARGED` arms) its uncharged parent does
+(since `_CHARGED` arms are post-hoc projections of the uncharged
+run; see paper_pipeline.py PAIRS). Today: 9 paper policies (2
+charged: `POPT_CHARGED` and `ECG_DBG_PRIMARY_CHARGED`), 9
+registry arms, 16 ablations (4 cache_alone + 7 ecg_replacement +
+2 pfx_only + 3 combined), 2 adaptive selectors
+(ECG_ADAPTIVE_ORACLE, ECG_ADAPTIVE_NO_FULL_POPT); 0 violations.
 
 **GAPBS CLI registry (gate 260, refresh @260):**
 The seventh in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -604,8 +640,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 260. Next refresh due
-at gate 265.
+**Refresh status:** Refresh complete at gate 261. Next refresh due
+at gate 266.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

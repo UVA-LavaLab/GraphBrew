@@ -421,6 +421,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_build_registry.py", "BuildRegistry"),
     "GAPBS CLI registry (gate 260) — 6 CL classes (CLBase/App/IterApp/PageRank/Delta/Convert), 11 kernels, 28 flags; R1-R7: getopt live-vs-canonical, src class instantiation, full-flag = chain union, no within-chain conflicts, flag regex, purpose, arity":
         ("scripts/test/test_lit_faith_cli_registry.py", "CLIRegistry"),
+    "ECG arm catalog (gate 261) — locks 9 paper policies + 9 registry arms + 16 ablations + 2 selectors across paper_pipeline/proof_matrix/policy_registry; A1-A7: paper→reg map, label/desc/color, _CHARGED hatch, ablation+selector refs, no dups":
+        ("scripts/test/test_lit_faith_arm_catalog.py", "ArmCatalog"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
