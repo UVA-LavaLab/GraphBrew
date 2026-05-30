@@ -903,6 +903,17 @@
       "summary": "Per (graph, app, l3) cell in the per_observation table: canonical policy roster {LRU, GRASP, POPT} must be present, LRU baseline row must exist, `delta_vs_lru_pct` must equal `(miss_rate - lru_miss_rate) * 100` within 0.001 pp, every non-LRU policy must cover at least 3 L3 sizes per (graph, app), and every present policy must share the same L3 axis within (graph, app). Today: 456 per_observation rows, 114 cells, 8 graphs, 5 apps, 4 policies (LRU + GRASP + POPT + SRRIP), 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_appfreq.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_appfreq.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_appfreq.py",
+      "generator_exists": true,
+      "id": "lit_faith_appfreq",
+      "label": "Literature-faithfulness app-frequency audit",
+      "summary": "Per-app axis-coverage check on per_observation: each of the 5 apps must touch >= 6 graphs / >= 3 L3 sizes / >= 3 policies (canonical roster {LRU, GRASP, POPT} per app) / >= 60 rows, every (app, graph) pair must cover >= 3 L3 sizes, and the anchor app (pr) must cover the full corpus. Today: 5 apps, 8 corpus graphs; pr=8 graphs/112 rows (full sweep), bc=bfs=7 graphs/92 rows, cc=sssp=6 graphs/80 rows. 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -944,13 +955,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (234 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (235 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 86
+    "n_entries": 87
   }
 }

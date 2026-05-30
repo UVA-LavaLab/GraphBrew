@@ -369,6 +369,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_ratgrid.py", "LIT-RatGrid"),
     "literature-faithfulness cell-completeness audit (per (graph, app, l3) canonical roster + LRU baseline + delta arithmetic + L3 sweep + axis parity)":
         ("scripts/test/test_lit_faith_cellcomp.py", "LIT-CellComp"),
+    "literature-faithfulness app-frequency audit (per-app graph / L3 / policy / row floors + canonical roster per app + anchor-app full corpus sweep)":
+        ("scripts/test/test_lit_faith_appfreq.py", "LIT-AppFreq"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

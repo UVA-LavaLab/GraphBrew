@@ -1,0 +1,548 @@
+{
+  "per_app": [
+    {
+      "app": "bc",
+      "graph_count": 7,
+      "graphs": [
+        "cit-Patents",
+        "com-orkut",
+        "email-Eu-core",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "l3_count": 7,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4MB",
+        "4kB",
+        "64kB",
+        "8MB"
+      ],
+      "policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ],
+      "policy_count": 4,
+      "row_count": 92
+    },
+    {
+      "app": "bfs",
+      "graph_count": 7,
+      "graphs": [
+        "cit-Patents",
+        "com-orkut",
+        "email-Eu-core",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "l3_count": 7,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4MB",
+        "4kB",
+        "64kB",
+        "8MB"
+      ],
+      "policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ],
+      "policy_count": 4,
+      "row_count": 92
+    },
+    {
+      "app": "cc",
+      "graph_count": 6,
+      "graphs": [
+        "cit-Patents",
+        "com-orkut",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "l3_count": 7,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4MB",
+        "4kB",
+        "64kB",
+        "8MB"
+      ],
+      "policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ],
+      "policy_count": 4,
+      "row_count": 80
+    },
+    {
+      "app": "pr",
+      "graph_count": 8,
+      "graphs": [
+        "cit-Patents",
+        "com-orkut",
+        "delaunay_n19",
+        "email-Eu-core",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "l3_count": 7,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4MB",
+        "4kB",
+        "64kB",
+        "8MB"
+      ],
+      "policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ],
+      "policy_count": 4,
+      "row_count": 112
+    },
+    {
+      "app": "sssp",
+      "graph_count": 6,
+      "graphs": [
+        "cit-Patents",
+        "com-orkut",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "l3_count": 7,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4MB",
+        "4kB",
+        "64kB",
+        "8MB"
+      ],
+      "policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ],
+      "policy_count": 4,
+      "row_count": 80
+    }
+  ],
+  "per_app_graph": [
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "l3_count": 5,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4kB",
+        "64kB"
+      ]
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "l3_count": 5,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4kB",
+        "64kB"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "l3_count": 5,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4kB",
+        "64kB"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "l3_count": 5,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4kB",
+        "64kB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "l3_count": 5,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4kB",
+        "64kB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "l3_count": 5,
+      "l3_sizes": [
+        "16kB",
+        "1MB",
+        "256kB",
+        "4kB",
+        "64kB"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_sizes": [
+        "1MB",
+        "4MB",
+        "8MB"
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "anchor_app": "pr",
+    "apps": [
+      "bc",
+      "bfs",
+      "cc",
+      "pr",
+      "sssp"
+    ],
+    "canonical_roster": [
+      "GRASP",
+      "LRU",
+      "POPT"
+    ],
+    "corpus_graph_count": 8,
+    "corpus_graphs": [
+      "cit-Patents",
+      "com-orkut",
+      "delaunay_n19",
+      "email-Eu-core",
+      "roadNet-CA",
+      "soc-LiveJournal1",
+      "soc-pokec",
+      "web-Google"
+    ],
+    "min_cells_per_app": 60,
+    "min_graphs_per_app": 6,
+    "min_l3_per_ag": 3,
+    "min_l3s_per_app": 3,
+    "min_policies_per_app": 3,
+    "total_rows": 456,
+    "violations": 0,
+    "violations_by_rule": {}
+  },
+  "violations": []
+}
