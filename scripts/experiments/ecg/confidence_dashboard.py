@@ -363,6 +363,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_stat.py", "LIT-Stat"),
     "literature-faithfulness policy-ordering audit (per family x app: hub families respect POPT/GRASP <= LRU bounds + per-app global improve-frac floor)":
         ("scripts/test/test_lit_faith_polyord.py", "LIT-PolyOrd"),
+    "literature-faithfulness deviation-explanation audit (every known_deviation reason names a mechanism + length/citation floors + reuse ceiling)":
+        ("scripts/test/test_lit_faith_devexp.py", "LIT-DevExp"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

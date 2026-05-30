@@ -681,6 +681,14 @@ CATALOG = [
         "summary":   "Per (graph_family x app) bucket: hub-bearing families (social/citation/web) must respect the literature ordering POPT/GRASP ≤ LRU (median POPT − LRU ≤ +0.5 pp, median GRASP − LRU ≤ +1.0 pp, POPT improve-frac ≥ 0.50 when n ≥ 5), while hub-less families (road/mesh) are documented exceptions and only assert classification stability. A per-app global hub-aggregate floor of 0.55 catches corpus shifts toward weakly-improving cells. Today: 114 cells across 21 (family,app) buckets (15 hub, 6 no-hub), per-app hub-aggregate POPT improve-frac runs 0.72 (bc) → 0.94 (pr), 0 violations.",
     },
     {
+        "id":        "lit_faith_devexp",
+        "label":     "Literature-faithfulness deviation-explanation audit",
+        "generator": "scripts/experiments/ecg/lit_faith_devexp.py",
+        "gate":      "scripts/test/test_lit_faith_devexp.py",
+        "artifact":  "wiki/data/lit_faith_devexp.json",
+        "summary":   "Per `status == 'known_deviation'` row: the `known_deviation_reason` text must name at least one algorithmic mechanism (PR-rank, frontier, hub, union-find, ordering, capacity, look-ahead, ...), exceed a 60-char length floor, carry a non-empty citation, resolve any cross-references against another known_deviation row, and the same reason text may not cover more than 50 % of all known_deviation rows. Today: 30 known_deviation rows, median reason length 247 chars, median mechanism hits 5, 30/30 unique texts, 16 cross-referenced, 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -711,7 +719,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (231 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (232 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
