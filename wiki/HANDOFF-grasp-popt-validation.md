@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **200 gates, all GREEN, exit 0**.
+and currently reports **205 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–200.**
+- **Cross-artifact / cross-source derivation parity gates 151–205.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -889,6 +889,64 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   when no regime plateaus; per-policy carries (per_regime, knee_regime,
   knee_rank, is_oracle_aware); verdict PASS iff
   max(oracle_ranks) < min(non_ranks) STRICT < (ties FAIL).
+  Gate 201 (PCR-Der, 25 tests) locks paper_claims.json against nine
+  upstream artifacts (corpus_diversity, claim_density,
+  literature_faithfulness_postfix, policy_winner_table,
+  small_l3_thrash, popt_vs_grasp_delta, literature_deviations,
+  cross_tool_saturation, confidence_dashboard) plus a LIVE import of
+  PYTEST_SUITES for the green-gate count (anti-staleness trick — the
+  on-disk dashboard JSON would be stale during a registry re-gen);
+  9 claim categories, 7 documented units; deterministic narrative
+  id sequence; _maybe_round 3dp float / int passthrough; JSON
+  sort_keys=True+indent=2 no trailing newline. Gate 202 (SLT-Der,
+  24 tests) locks small_l3_thrash.json: POLICY_LABEL_ORDER 9-tuple is
+  the tie-break key for `_winner` (sort by (miss_rate, index) with
+  sentinel = len(order) for unknown labels — LRU at index 0 wins
+  ties, paper's narrative-critical LRU dominance); margin_pp =
+  (runner_up.miss − winner.miss) × 100 ≥ 0; single-row cells have
+  runner_up = winner with margin = 0; policy_stats SKIPS empty
+  labels; showdown REQUIRES LRU else skipped, grasp/popt may be
+  None; lru_minus_X_pp = (X − LRU) × 100 (POSITIVE = X worse than
+  LRU); schema_version pinned at 1; JSON sort_keys=True+indent=2+
+  trailing newline. Gate 203 (CDV-Der, 28 tests) locks
+  corpus_diversity.json: top-level is a LIST (paper_claims registry
+  depends on this — would silently re-shape downstream); GRAPH_ORDER
+  is the canonical 8-tuple paper ordering; FIELDS is a 14-tuple of
+  (human_label, key, kind) triples; _coerce 4-case dispatch
+  (int via int(float(raw)), float via float(raw), empty/whitespace/
+  unparseable → None); find_log 4-tier preference (PR/LRU/1MB >
+  PR/SRRIP/1MB > any cache_sim_pr_*sorted > any cache_sim_*); collect
+  overrides parse_log's dir-derived graph name with explicit name=
+  argument (load-bearing for multi-hyphen names like
+  soc-LiveJournal1); JSON indent=2 no sort_keys no trailing newline
+  (dataclass field order is load-bearing). Gate 204 (LFE-Der,
+  28 tests) locks the comparator's predicates (complementary to
+  gate 133 LFP-Par which only sees the artifact's internal
+  consistency): _classify branches sign='-' / '+' / '~' with min_abs
+  / max_abs bound interactions and tolerance bands; POPT_GE_GRASP
+  relative-claim dispatch (diff ≤ tolerance → ok else disagree);
+  POPT_NEAR_GRASP_IF_BIG_GAP phase-transition gate (grasp_gain_pp >
+  10 STRICT triggers assertion; below → ok with skip-note); _coerce_int
+  defensive returns (None/empty/non-numeric → 0; float-string also →
+  0, predicate is int(text) NOT int(float(text))); _pick_section
+  canonical-ROI rule (smallest non-zero else first); JSON write rule
+  sort_keys=True+indent=2 no trailing newline; min_accesses_threshold
+  default 10_000 pinned. Gate 205 (GAS-Der, 28 tests) locks
+  gem5_anchor_summary's evaluate_invariants and supporting helpers
+  for BOTH gem5_anchor.json and sniper_anchor.json (single generator,
+  shared shape): HEADLINE_L3=256kB / ASYMPTOTE_L3=2MB / SMALL_CACHE_L3
+  =4kB pinned; HEADLINE_MAX_GRASP_OVER_LRU_PP=0.45 (tightened from 0.5
+  once both anchors landed — worst observed |Δ|=0.328 pp leaves
+  0.122 pp slack); ASYMPTOTE_MAX_SPREAD_PCT=1.0; SMALL_CACHE_MIN_
+  SPREAD_PP=2.0; predicate parity for all four invariants (headline ≤
+  INCLUSIVE → ok, asymptote ≤ INCLUSIVE → ok, small-cache ≥ INCLUSIVE
+  → ok else STRICT < → disagree, no_error_rows SUMS across cells);
+  missing policy → 'missing' status (NOT 'disagree' — distinguishes
+  sweep-incomplete from sweep-contradicts-paper); _pick_canonical_section
+  mirrors lit-faith / sign_consistency; _l3_sort_key unit dispatch
+  table (with documented 'GB shadowed by B' quirk — no L3 size in any
+  sweep uses these so not a practical bug); JSON write rule indent=2
+  NO sort_keys + trailing newline.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others

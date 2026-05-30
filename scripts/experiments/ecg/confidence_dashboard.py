@@ -309,6 +309,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_corpus_diversity_derivation_parity.py", "CDV-Der"),
     "literature_faithfulness evaluator derivation parity (_classify branches + POPT_GE/NEAR_GRASP dispatch)":
         ("scripts/test/test_literature_faithfulness_evaluator_derivation.py", "LFE-Der"),
+    "gem5/sniper anchor summary derivation parity (invariant predicates + tolerance constants)":
+        ("scripts/test/test_gem5_anchor_summary_derivation.py", "GAS-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
