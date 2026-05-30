@@ -291,6 +291,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_anchor_cell_census_derivation_parity.py", "ACC-Der"),
     "anchor_cross_tool_agreement derivation parity (shared-anchor slope-sign agreement + sniper-steeper invariant)":
         ("scripts/test/test_anchor_cross_tool_agreement_derivation_parity.py", "ACT-Der"),
+    "anchor_monotonicity_replay derivation parity (tier-aware bump-rate/hard-bump/max-bump ceilings)":
+        ("scripts/test/test_anchor_monotonicity_replay_derivation_parity.py", "AMR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
