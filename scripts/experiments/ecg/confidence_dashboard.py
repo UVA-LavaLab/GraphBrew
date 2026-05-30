@@ -407,6 +407,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_slurm_schema.py", "SlurmSchema"),
     "HANDOFF gate-reference registry (gate 253) — locks the contract between PYTEST_SUITES and the HANDOFF narrative; rules: no orphan (gate N) labels, headline+refresh-at == len(PYTEST_SUITES), refresh-due == refresh-at+5, max labeled == suite count":
         ("scripts/test/test_lit_faith_handoff_xref.py", "HandoffXref"),
+    "wiki/data bidirectional registry (gate 254) — locks wiki/data/*.json ↔ catalog ↔ pytest; rules W1-W8: every json catalogued/aux/self-ref, no ghost entries, non-empty fields, paths exist, sibling .md, unique ids+paths, valid aux parent_id":
+        ("scripts/test/test_lit_faith_wiki_registry.py", "WikiRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

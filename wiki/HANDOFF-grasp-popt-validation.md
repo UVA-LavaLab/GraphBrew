@@ -8,7 +8,32 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **253 gates, all GREEN, exit 0**.
+and currently reports **254 gates, all GREEN, exit 0**.
+
+**wiki/data bidirectional registry (gate 254, refresh @254):**
+Symmetric companion to gate 253 — gate 253 binds narrative ↔ live
+suite count; gate 254 binds the raw artifact filesystem itself to
+the catalog and the pytest gates. Every JSON file under `wiki/data/`
+must trace back to an `artifact_catalog` entry (with non-empty
+`generator`, `gate`, and `artifact` fields that resolve to real
+paths and to a sibling `.md` summary) OR appear in the
+`ALLOWED_AUXILIARY` allow-list with a documented purpose and a
+real parent_id, OR appear in the small `SELF_REFERENTIAL` set
+(the catalog can't catalog itself reflectively). Catches the silent
+drift where a generator ships a new JSON without catalog accounting,
+where an entry references a deleted artifact, where two entries
+claim the same artifact path, or where a `.json` artifact lacks its
+human-readable `.md` summary. 8 rules: W1 every `wiki/data/*.json`
+accounted for; W2 no ghost catalog entries (artifact files exist);
+W3 catalog entries have non-empty `generator`/`gate`/`artifact`;
+W4 generator/gate/artifact paths all exist on disk; W5 every `.json`
+artifact has a sibling `.md` summary; W6 catalog ids are unique;
+W7 catalog artifact paths are unique; W8 auxiliary `parent_id` values
+reference real catalog ids. Today: 110 wiki/data/*.json files,
+106 catalog entries (incl. this generator), 4 auxiliary entries
+(3 ECG-parity postfix + 1 ECG substrate-parity per-observation
+companion), 1 self-referential (`artifact_catalog.json`); 0
+violations.
 
 **HANDOFF gate-reference registry (gate 253, refresh @253):**
 A meta-gate that locks the contract between
@@ -390,8 +415,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 253. Next refresh due
-at gate 258.
+**Refresh status:** Refresh complete at gate 254. Next refresh due
+at gate 259.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

@@ -857,6 +857,14 @@ CATALOG = [
         "summary":   "HANDOFF gate-reference registry audit (gate 253) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are wiki/HANDOFF-grasp-popt-validation.md AND scripts/experiments/ecg/confidence_dashboard.py:PYTEST_SUITES). A meta-gate that locks the narrative HANDOFF to the live dashboard so the user-visible storytelling cannot silently lag behind the gate suite. Catches the silent-drift case where a new gate lands in the dashboard but its paragraph is never added here, where the '**N gates, all GREEN**' headline falls behind, or where the refresh cadence drifts. 7 rules: (H1) every 'gate N' / 'gates N-M' token in HANDOFF parses to a positive integer (or positive range); (H2) every PYTEST_SUITES label carrying '(gate N)' is mentioned in HANDOFF (no orphan dashboard labels); (H3) the headline '**N gates, all GREEN, exit 0**' equals len(PYTEST_SUITES); (H4) 'Refresh complete at gate N' equals len(PYTEST_SUITES); (H5) 'Next refresh due at gate M' equals refresh-at + 5 (declared cadence); (H6) no duplicate (gate N) token in dashboard labels (each gate number labels at most one suite); (H7) max(labeled_dashboard_gates) == len(PYTEST_SUITES) (the newest labeled gate equals the live count — so a new gate cannot land in the dashboard without an explicit (gate N) label). Today: 139 HANDOFF gate-refs, 12 labeled dashboard gates (gates 242..253), 253 PYTEST_SUITES total; 0 violations.",
     },
     {
+        "id":        "lit_faith_wiki_registry",
+        "label":     "wiki/data bidirectional registry",
+        "generator": "scripts/experiments/ecg/lit_faith_wiki_registry.py",
+        "gate":      "scripts/test/test_lit_faith_wiki_registry.py",
+        "artifact":  "wiki/data/lit_faith_wiki_registry.json",
+        "summary":   "wiki/data bidirectional registry audit (gate 254) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are every wiki/data/*.json file on disk AND scripts/experiments/ecg/artifact_catalog.py entries AND an in-generator ALLOWED_AUXILIARY allow-list of postfix companion artifacts). Symmetric to gate 253 (HANDOFF↔PYTEST_SUITES): gate 253 binds narrative ↔ live suite count; gate 254 binds raw artifact filesystem ↔ catalog entries ↔ pytest coverage so a generator cannot ship a new wiki/data/*.json without explicit catalog + sibling .md + pytest accounting. 8 rules: (W1) every wiki/data/*.json file is accounted for (catalog entry OR auxiliary allow-list OR self-referential set); (W2) no ghost catalog entries (every artifact file referenced exists on disk); (W3) every catalog entry has non-empty generator/gate/artifact strings; (W4) every catalog entry's generator/gate/artifact path exists in the working tree; (W5) every .json artifact in the catalog has a sibling .md summary at the same stem; (W6) catalog ids are unique; (W7) catalog artifact paths are unique (no two entries claim the same file); (W8) every auxiliary allow-list entry references a real catalog id as its parent_id. Today: 110 wiki/data/*.json files, 106 catalog entries (incl. the 254-th lit-faith generator itself), 4 auxiliary allow-list entries (3 ECG-parity postfix files + 1 ECG substrate-parity per-observation companion), 1 self-referential (artifact_catalog.json); 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -887,7 +895,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (253 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (254 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
