@@ -809,6 +809,14 @@ CATALOG = [
         "summary":   "Paper LaTeX-table emit-invariant audit (gate 247) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are the .tex files inside the latest wiki/data/paper_pipeline_YYYYMMDD/ snapshot dir AND a hand-curated TABLE_REGISTRY in the generator listing every shipped paper table with its expected caption, tabular column-spec, and header tuple). Catches silent drift between the paper's prose and the auto-generated tables: a developer can edit a table-generation script, change the column count or header, and the .tex file regenerates with no test failure even though the paper text now mismatches the table. 7 rules: (T1) every registered table file exists in the latest paper_pipeline dir; (T2) registered caption matches the in-file \\caption{...} exactly; (T3) registered tabular column-spec matches the in-file \\begin{tabular}{...} spec; (T4) registered column-header tuple matches the in-file header row; (T5) every data row has exactly len(columns) cells AND no cell is the literal string 'nan'/'NaN'/'inf'/'-inf' (NaN/Inf are sentinels that look fine in PDF but are scientifically meaningless); (T6) there is no .tex file in paper_pipeline dir that is NOT registered (defensive — catches new tables added without registration); (T7) every table ends with the \\bottomrule\\end{tabular}\\end{table} closing trio (catches truncated LaTeX). Today: 5 registered tables (ecg_mode_overhead_summary, faithfulness_summary, popt_charged_overhead, popt_storage_overhead_summary, roi_policy_summary); 78 total data rows; 0 violations.",
     },
     {
+        "id":        "lit_faith_sideband_schema",
+        "label":     "Sideband-schema registry",
+        "generator": "scripts/experiments/ecg/lit_faith_sideband_schema.py",
+        "gate":      "scripts/test/test_lit_faith_sideband_schema.py",
+        "artifact":  "wiki/data/lit_faith_sideband_schema.json",
+        "summary":   "gem5/Sniper/cache_sim sideband-schema registry audit (gate 248) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are the three C++ emit sites — graph_cache_context_gem5.hh, graph_cache_context_sniper.cc, graph_cache_context.h — AND a hand-curated SCHEMA_REGISTRY in the generator declaring the canonical field order, printf specifier, and C++ parameter type for every key=value token in the [graphctx] register region log line). Catches silent wire-format drift: a developer can re-order, rename, or drop a field in one overlay and the Tier-A sideband-registration parser (gate 1) stops matching that overlay's lines without any test failing for the obviously wrong reason. 7 rules: (S1) every registered emit-site file exists; (S2) the printf format string in each file matches the canonical schema field order byte-for-byte (after concatenating adjacent C string literals); (S3) the C++ logGraphCtxRegistration() parameter type list matches the canonical type tuple; (S4) every emit-site contains the canonical literal prefix '[graphctx] register region'; (S5) every schema field uses a printf specifier from the documented allow-list (%s, 0x%lx, %u, %d); (S6) the Tier-A parser regex anchor compiles AND round-trips a sample line built from the canonical schema (named groups match schema field names); (S7) each emit-site contains exactly one register-region fprintf (catches divergent backup emit paths added by mistake). Today: 6 schema fields (source, name, base, upper, hot_pct, grasp_region) × 3 emit sites; 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -839,7 +847,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (247 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (248 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

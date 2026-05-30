@@ -1,0 +1,4 @@
+site,exists,emit_call_count,format_string_ok
+bench/include/gem5_sim/overlays/mem/cache/replacement_policies/graph_cache_context_gem5.hh,1,1,1
+bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/graph_cache_context_sniper.cc,1,1,1
+bench/include/cache_sim/graph_cache_context.h,1,1,1

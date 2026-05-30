@@ -8,7 +8,30 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **247 gates, all GREEN, exit 0**.
+and currently reports **248 gates, all GREEN, exit 0**.
+
+**Sideband-schema registry (gate 248, refresh @248):**
+Locks the `[graphctx] register region ...` wire-format across the
+three C++ overlays (`graph_cache_context_gem5.hh`,
+`graph_cache_context_sniper.cc`, `graph_cache_context.h`) so a silent
+field rename / reorder / drop in one overlay cannot make Tier-A's
+sideband-registration parser (gate 1) stop matching that overlay
+without any test failing for the obviously wrong reason. Gate codifies
+the wire-format in a hand-curated `SCHEMA_REGISTRY` declaring each
+field's name, printf specifier, and C++ parameter type, in canonical
+*ordered* form, plus the Tier-A parser regex anchor itself. 7 rules:
+S1 every emit-site file exists; S2 in-file printf format matches the
+canonical schema byte-for-byte after concatenating adjacent C string
+literals; S3 in-file `logGraphCtxRegistration(...)` parameter type
+list matches the canonical type tuple; S4 every emit-site contains
+the canonical literal prefix `[graphctx] register region`; S5 every
+schema field uses a printf specifier from the documented allow-list
+(`%s` / `0x%lx` / `%u` / `%d`); S6 the Tier-A parser regex compiles
+AND round-trips a sample line built from the canonical schema (named
+groups match schema field names); S7 each emit-site has exactly one
+register-region `fprintf` (catches divergent backup emit paths).
+Today: 6 schema fields (`source`, `name`, `base`, `upper`, `hot_pct`,
+`grasp_region`) × 3 emit sites, 0 violations.
 
 **Paper LaTeX-table emit invariant (gate 247, refresh @247):**
 Locks the published-paper-facing .tex tables in
@@ -265,8 +288,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 247. Next refresh due
-at gate 252.
+**Refresh status:** Refresh complete at gate 248. Next refresh due
+at gate 253.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

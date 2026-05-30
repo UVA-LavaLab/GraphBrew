@@ -395,6 +395,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_citation_registry.py", "CitationRegistry"),
     "Paper LaTeX-table emit invariant (gate 247) — hand-curated TABLE_REGISTRY locks caption + tabular col-spec + column-header tuple for every .tex in paper_pipeline dir; per-row column-count + no NaN/Inf cells + clean closing trio":
         ("scripts/test/test_lit_faith_paper_tables.py", "PaperTables"),
+    "Sideband-schema registry (gate 248) — hand-curated SCHEMA_REGISTRY locks the [graphctx] register region wire-format across gem5/Sniper/cache_sim emit sites: field order, printf specifiers, C++ param types, regex round-trip + single emit per file":
+        ("scripts/test/test_lit_faith_sideband_schema.py", "SidebandSchema"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -1,0 +1,61 @@
+{
+  "status": "active",
+  "schema_field_count": 6,
+  "emit_site_count": 3,
+  "canonical_param_types": [
+    "const char*",
+    "const char*",
+    "uint64_t",
+    "uint64_t",
+    "uint32_t",
+    "bool"
+  ],
+  "canonical_format_string": "[graphctx] register region source=%s name=%s base=0x%lx upper=0x%lx hot_pct=%u grasp_region=%d\\n",
+  "tier_a_regex": "\\[graphctx\\] register region source=(?P<source>\\S+) name=(?P<name>\\S+) base=0x(?P<base>[0-9a-fA-F]+) upper=0x(?P<upper>[0-9a-fA-F]+) hot_pct=(?P<hot_pct>\\d+) grasp_region=(?P<grasp_region>\\d+)",
+  "tier_a_regex_round_trip_ok": true,
+  "site_rows": [
+    {
+      "site": "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/graph_cache_context_gem5.hh",
+      "exists": true,
+      "format_string": "[graphctx] register region source=%s name=%s base=0x%lx upper=0x%lx hot_pct=%u grasp_region=%d\\n",
+      "param_types": [
+        "const char*",
+        "const char*",
+        "uint64_t",
+        "uint64_t",
+        "uint32_t",
+        "bool"
+      ],
+      "emit_call_count": 1
+    },
+    {
+      "site": "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/graph_cache_context_sniper.cc",
+      "exists": true,
+      "format_string": "[graphctx] register region source=%s name=%s base=0x%lx upper=0x%lx hot_pct=%u grasp_region=%d\\n",
+      "param_types": [
+        "const char*",
+        "const char*",
+        "uint64_t",
+        "uint64_t",
+        "uint32_t",
+        "bool"
+      ],
+      "emit_call_count": 1
+    },
+    {
+      "site": "bench/include/cache_sim/graph_cache_context.h",
+      "exists": true,
+      "format_string": "[graphctx] register region source=%s name=%s base=0x%lx upper=0x%lx hot_pct=%u grasp_region=%d\\n",
+      "param_types": [
+        "const char*",
+        "const char*",
+        "uint64_t",
+        "uint64_t",
+        "uint32_t",
+        "bool"
+      ],
+      "emit_call_count": 1
+    }
+  ],
+  "violations": []
+}
