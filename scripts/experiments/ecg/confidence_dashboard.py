@@ -305,6 +305,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_paper_claims_registry_derivation_parity.py", "PCR-Der"),
     "small_l3_thrash derivation parity (POLICY_LABEL_ORDER tie-break + per-policy aggregates)":
         ("scripts/test/test_small_l3_thrash_derivation_parity.py", "SLT-Der"),
+    "corpus_diversity derivation parity (GAPBS log scrape + GRAPH_ORDER + _coerce rules)":
+        ("scripts/test/test_corpus_diversity_derivation_parity.py", "CDV-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
