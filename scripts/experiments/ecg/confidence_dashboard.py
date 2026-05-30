@@ -317,6 +317,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_literature_reproduction_summary_derivation.py", "LRS-Der"),
     "local_cache_screen_summary derivation parity (number coercion + LRU-base delta + rank tie-break)":
         ("scripts/test/test_local_cache_screen_summary_derivation.py", "LCS-Der"),
+    "cross-artifact integrity (CATALOG ↔ PYTEST_SUITES ↔ paper_claims graph consistency)":
+        ("scripts/test/test_cross_artifact_integrity.py", "XAI-Int"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
