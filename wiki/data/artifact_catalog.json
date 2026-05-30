@@ -1101,6 +1101,17 @@
       "summary": "Slurm SBATCH schema registry audit (gate 252) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are every *.sbatch file under scripts/experiments/ecg and scripts/experiments/vldb AND a CANONICAL_SBATCH_DIRECTIVES map in the generator declaring 14 directive names with required/optional flags + value regex patterns). Parses every shipped sbatch line-by-line (long-form --key=value tokens, multi-token lines like '--nodes=1 --ntasks=1 --cpus-per-task=16' supported), and enforces canonical agreement across the corpus. Catches silent drift like a contributor adding a typo'd directive (--mem-per-node), or shipping an sbatch missing --output, or using a non-Slurm time format. 9 rules: (S1) every #SBATCH line parses to --key[=value] (no garbage tokens); (S2) every required directive present (--job-name, --time, --nodes, --ntasks, --cpus-per-task, --mem, --output); (S3) every directive used appears in CANONICAL_SBATCH_DIRECTIVES (no rogue names); (S4) --mem / --mem-per-cpu values match \\d+[GMK]?; (S5) --time values match HH:MM:SS or D-HH:MM:SS; (S6) every shipped sbatch is single-node single-task (--nodes=1 AND --ntasks=1); (S7) --output and --error templates contain %x+%j or %A+%a (no anonymous logs); (S8) --job-name starts with gbrew- or ecg- (project prefix); (S9) --mem and --mem-per-cpu never co-occur in same file (Slurm forbids both). Today: 9 sbatch files (2 in ecg/, 7 in vldb/), 14 canonical directives, 7 required directives; 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_handoff_xref.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_handoff_xref.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_handoff_xref.py",
+      "generator_exists": true,
+      "id": "lit_faith_handoff_xref",
+      "label": "HANDOFF gate-reference registry",
+      "summary": "HANDOFF gate-reference registry audit (gate 253) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are wiki/HANDOFF-grasp-popt-validation.md AND scripts/experiments/ecg/confidence_dashboard.py:PYTEST_SUITES). A meta-gate that locks the narrative HANDOFF to the live dashboard so the user-visible storytelling cannot silently lag behind the gate suite. Catches the silent-drift case where a new gate lands in the dashboard but its paragraph is never added here, where the '**N gates, all GREEN**' headline falls behind, or where the refresh cadence drifts. 7 rules: (H1) every 'gate N' / 'gates N-M' token in HANDOFF parses to a positive integer (or positive range); (H2) every PYTEST_SUITES label carrying '(gate N)' is mentioned in HANDOFF (no orphan dashboard labels); (H3) the headline '**N gates, all GREEN, exit 0**' equals len(PYTEST_SUITES); (H4) 'Refresh complete at gate N' equals len(PYTEST_SUITES); (H5) 'Next refresh due at gate M' equals refresh-at + 5 (declared cadence); (H6) no duplicate (gate N) token in dashboard labels (each gate number labels at most one suite); (H7) max(labeled_dashboard_gates) == len(PYTEST_SUITES) (the newest labeled gate equals the live count \u2014 so a new gate cannot land in the dashboard without an explicit (gate N) label). Today: 139 HANDOFF gate-refs, 12 labeled dashboard gates (gates 242..253), 253 PYTEST_SUITES total; 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1142,13 +1153,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (252 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (253 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 104
+    "n_entries": 105
   }
 }

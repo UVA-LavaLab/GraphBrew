@@ -8,7 +8,28 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **252 gates, all GREEN, exit 0**.
+and currently reports **253 gates, all GREEN, exit 0**.
+
+**HANDOFF gate-reference registry (gate 253, refresh @253):**
+A meta-gate that locks the contract between
+`scripts/experiments/ecg/confidence_dashboard.py:PYTEST_SUITES` and
+the narrative in this very file. Catches the silent-drift case
+where a new gate lands in the dashboard but its paragraph is never
+added here, or where the "**N gates, all GREEN**" headline falls
+behind the live gate count. 7 rules: H1 every `gate N` /
+`gates N-M` token in HANDOFF parses to a positive int (or positive
+range); H2 every PYTEST_SUITES label carrying `(gate N)` is
+mentioned in HANDOFF (no orphan dashboard labels); H3 the headline
+`**N gates, all GREEN, exit 0**` equals `len(PYTEST_SUITES)`;
+H4 `Refresh complete at gate N` equals `len(PYTEST_SUITES)`;
+H5 `Next refresh due at gate M` equals refresh-at + 5 (declared
+cadence); H6 no duplicate `(gate N)` token in dashboard labels
+(each gate number labels at most one suite); H7
+`max(labeled_dashboard_gates) == len(PYTEST_SUITES)` (the newest
+labeled gate equals the live count — so a new gate cannot land in
+the dashboard without an explicit `(gate N)` label). Today: 138
+HANDOFF gate-refs, 12 labeled dashboard gates (gates 242..253),
+253 PYTEST_SUITES total; 0 violations.
 
 **Slurm SBATCH schema registry (gate 252, refresh @252):**
 Every `*.sbatch` file under `scripts/experiments/ecg` and
@@ -369,8 +390,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 252. Next refresh due
-at gate 257.
+**Refresh status:** Refresh complete at gate 253. Next refresh due
+at gate 258.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

@@ -1,0 +1,7 @@
+metric,value
+handoff_gate_refs,139
+labeled_dashboard_gates,12
+pytest_suites,253
+violations,0
+max_labeled_dashboard_gate,253
+refresh_cadence,5

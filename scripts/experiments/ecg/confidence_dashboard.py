@@ -405,6 +405,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_l3_registry.py", "L3Registry"),
     "Slurm SBATCH schema registry (gate 252) — CANONICAL_SBATCH_DIRECTIVES locks 14 directive names + 7 required; parses every *.sbatch under scripts/experiments/; rules: syntax, vocab, mem/time regex, log %x+%j or %A+%a, prefix, mem×mem-per-cpu":
         ("scripts/test/test_lit_faith_slurm_schema.py", "SlurmSchema"),
+    "HANDOFF gate-reference registry (gate 253) — locks the contract between PYTEST_SUITES and the HANDOFF narrative; rules: no orphan (gate N) labels, headline+refresh-at == len(PYTEST_SUITES), refresh-due == refresh-at+5, max labeled == suite count":
+        ("scripts/test/test_lit_faith_handoff_xref.py", "HandoffXref"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
