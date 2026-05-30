@@ -673,6 +673,14 @@ CATALOG = [
         "summary":   "Re-derives `delta_pct` from the two miss-rate columns each per_claim row compares (LRU-vs-policy, POPT_GE_GRASP, POPT_NEAR_GRASP_IF_BIG_GAP) and locks: zero NaN/inf, zero out-of-bounds miss rates, zero delta-rounding mismatches (> 0.001 pp), zero sign flips (> 0.01 pp noise floor), zero signed-delta inconsistencies, zero unknown row kinds, zero bad status labels, zero status-vs-delta inconsistencies (with the POPT_NEAR phase-transition-regime exception folded in: assertion only fires when grasp_gain_vs_lru > 10 pp AND POPT is worse than GRASP). Locks status vocabulary to {ok, within_tolerance, disagree, known_deviation, missing, insufficient_data}. Today: 330 rows, 102 LRU-vs-policy, 114 POPT_GE_GRASP, 114 POPT_NEAR_GRASP, 298 ok / 30 known_deviation / 2 within_tolerance / 0 disagree.",
     },
     {
+        "id":        "lit_faith_polyord",
+        "label":     "Literature-faithfulness policy-ordering audit",
+        "generator": "scripts/experiments/ecg/lit_faith_polyord.py",
+        "gate":      "scripts/test/test_lit_faith_polyord.py",
+        "artifact":  "wiki/data/lit_faith_polyord.json",
+        "summary":   "Per (graph_family x app) bucket: hub-bearing families (social/citation/web) must respect the literature ordering POPT/GRASP ≤ LRU (median POPT − LRU ≤ +0.5 pp, median GRASP − LRU ≤ +1.0 pp, POPT improve-frac ≥ 0.50 when n ≥ 5), while hub-less families (road/mesh) are documented exceptions and only assert classification stability. A per-app global hub-aggregate floor of 0.55 catches corpus shifts toward weakly-improving cells. Today: 114 cells across 21 (family,app) buckets (15 hub, 6 no-hub), per-app hub-aggregate POPT improve-frac runs 0.72 (bc) → 0.94 (pr), 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -703,7 +711,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (230 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (231 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

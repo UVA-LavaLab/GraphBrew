@@ -361,6 +361,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_monotonicity.py", "LIT-Mono"),
     "literature-faithfulness statistical-sanity audit (delta-arithmetic + sign-flip + miss-rate bounds + status-vocabulary + status-vs-delta consistency)":
         ("scripts/test/test_lit_faith_stat.py", "LIT-Stat"),
+    "literature-faithfulness policy-ordering audit (per family x app: hub families respect POPT/GRASP <= LRU bounds + per-app global improve-frac floor)":
+        ("scripts/test/test_lit_faith_polyord.py", "LIT-PolyOrd"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
