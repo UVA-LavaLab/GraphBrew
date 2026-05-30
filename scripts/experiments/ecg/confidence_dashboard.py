@@ -427,6 +427,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_cross_tool_schema.py", "CrossToolSchema"),
     "ECG config matrix (gate 263) — locks ecg/config.py vs canonical registries (gates 251/255/258/260); C1-C7: policies+graphs+kernels canonical, L3 anchor matches tier, sweep pow2 brackets anchor, pairs use ALL_POLICIES, ECG_MODE exhaustive":
         ("scripts/test/test_lit_faith_config_matrix.py", "ConfigMatrix"),
+    "wiki/data filename grammar (gate 264) — locks FS shape of wiki/data/; F1-F7: lower_snake_case+ext∈{json,md,csv}, json↔md trio (mod allow-lists), catalog→disk, catalog ext∈{json,csv}, stem declared or META allow-list, subdir matches DOC_SUBDIR_RE":
+        ("scripts/test/test_lit_faith_filename_grammar.py", "FilenameGrammar"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

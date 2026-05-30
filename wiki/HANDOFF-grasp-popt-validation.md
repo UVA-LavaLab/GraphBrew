@@ -8,7 +8,49 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **263 gates, all GREEN, exit 0**.
+and currently reports **264 gates, all GREEN, exit 0**.
+
+**wiki/data filename grammar (gate 264, refresh @264):**
+The eleventh in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool aggregator schema, 263 config matrix,
+264 filename grammar). Locks the file-system shape of `wiki/data/`
+— the single shipping surface for every generator artifact in the
+paper-confidence pipeline — against silent drift in filename
+casing, extension, trio-pairing, catalog cross-reference, and
+subdirectory layout. Catches the silent-drift cases where a
+contributor adds `DiscoveryResults.json` (CamelCase) to
+`wiki/data/` — every consumer that does
+`json.load(open(stem.lower() + '.json'))` `FileNotFoundError`s and
+the rollup script silently treats the report as missing; emits
+only `foo.json` without `foo.md` — the per-artifact preview-link
+template renders a broken markdown link in HANDOFF; drops an
+artifact under `wiki/data/results/foo.json` instead of
+`wiki/data/foo.json` — the catalog presence-check passes but the
+dashboard's `wiki/data/*.json` glob misses it and the gate goes
+un-scored; adds a `.txt` or `.tex` directly to `wiki/data/` — the
+trio convention becomes ambiguous and the artifact catalog grows
+by zero entries; or renames a catalog `artifact` field to a path
+that doesn't exist on disk. 7 rules F1-F7: F1 every regular file
+matches `^[a-z][a-z0-9_]*\.(json|md|csv)$` (lower_snake_case
+stem, approved extension); F2 every `.json` has a `.md` sibling
+UNLESS the stem is in `MD_OPTIONAL_STEMS` (paired-table postfix
+companions — 4 entries today); F3 every `.md` has a `.json`
+sibling OR is in `JSON_OPTIONAL_STEMS` (free-form text summaries
+— `literature_reproduction_summary` today); F4 every catalog
+`artifact` field points at a file that exists on disk; F5 every
+catalog artifact extension is in `{.json, .csv}` (the catalog
+tracks data artifacts; narrative `.md` files are implicit trio
+siblings); F6 every `wiki/data` stem is accounted for (declared
+in `artifact_catalog` or in the documented
+`IMPLICIT_PAPER_PIPELINE_STEMS = MD_OPTIONAL ∪ JSON_OPTIONAL ∪
+META_ARTIFACT` allow-list — meta-stem today is `artifact_catalog`
+itself); F7 every `wiki/data/` subdirectory name matches
+`DOCUMENTED_SUBDIR_RE` (`paper_pipeline_<YYYYMMDD>...`). Today:
+121 stems, 296 files, 1 subdir, 116/116 catalog artifacts on
+disk; 0 violations. Together with gate 263 (vocab vs canonical
+registries) this locks both the *vocabulary* and the *shape* of
+the paper-confidence pipeline.
 
 **ECG configuration matrix (gate 263, refresh @263):**
 The tenth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -721,8 +763,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 263. Next refresh due
-at gate 268. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 264. Next refresh due
+at gate 269. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.
