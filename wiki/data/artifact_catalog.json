@@ -1156,6 +1156,17 @@
       "summary": "Backend/tool vocabulary registry audit (gate 257) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are an in-generator CANONICAL_BACKENDS allow-list of 7 entries AND every backend/tool string literal harvested by AST from scripts/experiments/ecg/*.py + scripts/test/*.py AND every --backend / --source-backend / --tool / --tool-name / --suite argparse choices+default). Vocabulary-lock companion to gate 252 (Slurm SBATCH schema), gate 255 (cache-policy vocab), and gate 256 (run-profile vocab): gate 257 locks WHICH simulator backend / tool every result row, anchor pickup, cross-tool aggregator, and report-label site references \u2014 so a contributor cannot silently rename `cache_sim` to `cache_simulator`, drop the hyphen in `gem5-riscv` to `gem5riscv`, or introduce a rogue `sniperx` / `GEM5` uppercase variant without an explicit canonical entry. CANONICAL_BACKENDS today: cache_sim + its kebab-case display sibling cache-sim (analytical LRU-stack sim), gem5 + gem5-riscv + gem5-x86 (cycle-accurate, three frontends), sniper + sniper-sift (interval-sim + SIFT trace frontend). 7 rules: (R1) every harvested literal is in CANONICAL_BACKEND_NAMES; (R2) every canonical has non-empty family \u2208 {cache_sim,gem5,sniper} + non-empty paper_label; (R3) no two canonicals share a paper_label unless they are declared mutual punctuation_variants (cache_sim \u21c4 cache-sim is the only such pair today); (R4) every canonical's punctuation_variants tuple includes its own name (catches lonely-variant declarations); (R5) every harvested --backend/--source-backend/--tool/--tool-name/--suite argparse choices list AND default \u2286 CANONICAL_BACKEND_NAMES \u222a {'both'} (the 'both' literal is reserved for --suite to mean cache_sim+gem5 together); (R6) every canonical name matches `^[a-z][a-z0-9_-]*$` (lowercase ASCII; hyphen/underscore allowed; no leading digit) \u2014 catches uppercase typos like `Gem5` and prefix-clash typos like `3gem5`; (R7) every canonical token has at least one in-tree literal reference (no dead canonicals \u2014 the registry follows real usage). Today: 7 canonical tokens, 3 families, 437 literal sites, 7 distinct harvested literals, 4 argparse sites; 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_graph_registry.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_graph_registry.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_graph_registry.py",
+      "generator_exists": true,
+      "id": "lit_faith_graph_registry",
+      "label": "Graph-name canonical map",
+      "summary": "Graph-name canonical map audit (gate 258) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are an in-generator CANONICAL_GRAPHS allow-list of 26 entries AND every graph string literal harvested by AST from scripts/experiments/ecg/*.py + scripts/test/*.py AND every per-source GRAPH_FAMILY / FAMILY_OF / GRAPH_FAMILIES dict AND the EVAL_GRAPHS list in scripts/experiments/ecg/config.py). Vocabulary-lock companion to gates 252 (Slurm SBATCH schema), 255 (cache-policy vocab), 256 (run-profile vocab), and 257 (backend/tool vocab): gate 258 locks WHICH benchmark graph every per-row record, anchor-cell census, family-classifier dict, and cross-paper baseline table references \u2014 so a contributor cannot silently misspell `soc-LiveJournal1` as `soc-livejournal1` / `soc-LJ1` in one helper while every other generator still uses the SNAP casing, drop the hyphen in `cit-Patents` to `citPatents`, introduce a new graph (`com-friendster`, `twitter7`) to one stage without adding the matching family-classifier entry, or shorten `delaunay_n19` to `delaunay19` and break the SNAP-vs-synthetic provenance carried by the underscore. CANONICAL_GRAPHS today: 26 entries across 8 families \u2014 social (email-Eu-core, soc-pokec, soc-LiveJournal1, com-orkut, com-orkut-undir, twitter-2010, twitter7, soc-LJ), web (web-Google, web-BerkStan, uk-2005, web-uk), road (roadNet-CA, road-CA, roadNet-PA, roadNet-TX, USA-Road), mesh (delaunay_n18, delaunay_n19, delaunay_n20), citation (cit-Patents), kronecker (kron21, kron22, kron23), p2p (p2p-Gnutella31), content (wikipedia_link_en). 8 rules: (R1) every harvested graph literal is in CANONICAL_GRAPHS; (R2) every canonical has non-empty family + paper_label; (R3) every canonical has source \u2208 {SNAP, GAP, DIMACS, KONECT, WebGraph, synthetic, test}; (R4) every per-source family-classifier dict's keys are canonical AND map to the SAME family the canonical entry declares (catches the silent drift where roadNet-CA is 'road' in one helper and 'roads' in another); (R5) every harvested literal has at least one non-family-dict site (real corpus use, not just metadata) \u2014 unless documented_future=True for entries in RESERVED_FUTURE_KEYS lists; (R6) every canonical name matches `^[A-Za-z][A-Za-z0-9_-]*$` (alphanumeric + hyphen + underscore; no leading digit); (R7) every config.EVAL_GRAPHS entry is canonical (locks the config-driven evaluation corpus to the registry); (R8) every canonical family matches `^[a-z][a-z0-9_]*$` (lowercase ASCII with digits allowed for `p2p`). Today: 26 canonical graphs, 8 families, ~564 literal sites, ~8 family-classifier dicts, 6 EVAL_GRAPHS entries; 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1197,13 +1208,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (257 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (258 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 109
+    "n_entries": 110
   }
 }

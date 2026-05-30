@@ -8,7 +8,45 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **257 gates, all GREEN, exit 0**.
+and currently reports **258 gates, all GREEN, exit 0**.
+
+**Graph-name canonical map (gate 258, refresh @258):**
+The fifth in the vocabulary-lock series (252 SBATCH, 255 policy, 256
+profile, 257 backend, 258 graph). Locks WHICH benchmark graph every
+per-row record, anchor-cell census entry, family-classifier dict,
+and cross-paper baseline table references — so a contributor cannot
+silently misspell `soc-LiveJournal1` as `soc-livejournal1` in one
+helper while every other generator still uses the SNAP casing, drop
+the hyphen in `cit-Patents` to `citPatents`, introduce a new graph
+to one stage without adding the matching family-classifier entry,
+or shorten `delaunay_n19` to `delaunay19` and break the
+SNAP-vs-synthetic provenance carried by the underscore.
+CANONICAL_GRAPHS today: 26 entries across 8 families — social
+(email-Eu-core, soc-pokec, soc-LiveJournal1, com-orkut,
+com-orkut-undir, twitter-2010, twitter7, soc-LJ), web (web-Google,
+web-BerkStan, uk-2005, web-uk), road (roadNet-CA, road-CA,
+roadNet-PA, roadNet-TX, USA-Road), mesh (delaunay_n18, delaunay_n19,
+delaunay_n20), citation (cit-Patents), kronecker (kron21, kron22,
+kron23), p2p (p2p-Gnutella31), content (wikipedia_link_en). Source
+provenance is SNAP / GAP / DIMACS / KONECT / WebGraph / synthetic /
+test. AST-harvests every graph string literal from
+`scripts/experiments/ecg/*.py` + `scripts/test/*.py`, every
+per-source `GRAPH_FAMILY` / `FAMILY_OF` / `GRAPH_FAMILIES` /
+`GRAPH_TO_FAMILY` dict, and the `EVAL_GRAPHS` list in
+`scripts/experiments/ecg/config.py`. 8 rules: R1 every literal is
+canonical; R2 every canonical has non-empty family + paper_label;
+R3 every canonical has source in the canonical provenance set;
+R4 every family-dict key is canonical AND maps to the SAME family
+the canonical entry declares (catches the silent drift where
+roadNet-CA is `road` in one helper and `roads` in another); R5
+every harvested literal has a non-family-dict site (real corpus
+use, not just metadata) — unless `documented_future=True` for
+RESERVED_FUTURE_KEYS-style entries; R6 every canonical name matches
+`^[A-Za-z][A-Za-z0-9_-]*$`; R7 every `EVAL_GRAPHS` entry is
+canonical; R8 every canonical family matches `^[a-z][a-z0-9_]*$`
+(digits allowed after the leading letter for `p2p`). Today: 26
+canonical graphs, 8 families, ~564 literal sites, 8
+family-classifier dicts, 6 `EVAL_GRAPHS` entries; 0 violations.
 
 **Backend/tool vocabulary registry (gate 257, refresh @257):**
 A vocabulary-lock companion to gate 252 (Slurm SBATCH schema), gate
@@ -499,8 +537,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 257. Next refresh due
-at gate 262.
+**Refresh status:** Refresh complete at gate 258. Next refresh due
+at gate 263.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

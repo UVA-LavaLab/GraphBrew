@@ -1,0 +1,448 @@
+{
+  "canonical": [
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "social",
+      "name": "soc-pokec",
+      "paper_label": "soc-pokec",
+      "purpose": "Slovak social network; ~1.6M nodes / 30M edges; the smallest of the social trio used for accuracy validation.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "social",
+      "name": "soc-LiveJournal1",
+      "paper_label": "soc-LiveJournal1",
+      "purpose": "Friend-of-friend social graph; ~4.85M nodes / 69M edges; primary mid-scale social regression target.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [
+        "com-orkut-undir"
+      ],
+      "documented_future": false,
+      "family": "social",
+      "name": "com-orkut",
+      "paper_label": "com-orkut",
+      "purpose": "Community membership graph; ~3M nodes / 117M edges; highest-density social graph in the corpus.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [
+        "com-orkut"
+      ],
+      "documented_future": true,
+      "family": "social",
+      "name": "com-orkut-undir",
+      "paper_label": "com-orkut-undir",
+      "purpose": "Symmetrised (undirected) variant of com-orkut used by lit_faith_diversity for parity with literature comparisons that explicitly assume undirected community membership.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "social",
+      "name": "email-Eu-core",
+      "paper_label": "email-Eu-core",
+      "purpose": "Email exchange in an EU research org; ~1K nodes / 16K edges; the smoke-test / micro-benchmark graph used by lit_faith_accesses (SMOKE_GRAPHS).",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "citation",
+      "name": "cit-Patents",
+      "paper_label": "cit-Patents",
+      "purpose": "US patent citation network; ~3.8M nodes / 16.5M edges; low-density, citation-family canary.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "web",
+      "name": "web-Google",
+      "paper_label": "web-Google",
+      "purpose": "Google's web crawl; ~916K nodes / 4.3M edges; primary web-family regression target with mid hub concentration.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "web",
+      "name": "web-BerkStan",
+      "paper_label": "web-BerkStan",
+      "purpose": "Berkeley + Stanford web crawl; ~685K nodes / 7.6M edges; small-to-mid web-family graph used by lit_faith_diversity for web-family sensitivity across multiple crawls.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "p2p",
+      "name": "p2p-Gnutella31",
+      "paper_label": "p2p-Gnutella31",
+      "purpose": "Gnutella peer-to-peer file-sharing topology (Aug 31, 2002); ~63K nodes / 148K edges; the lone p2p-family canary used by lit_faith_diversity to ensure family coverage extends beyond social/web/road/mesh/citation.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [
+        "road-CA"
+      ],
+      "documented_future": false,
+      "family": "road",
+      "name": "roadNet-CA",
+      "paper_label": "roadNet-CA",
+      "purpose": "California state road network; ~2M nodes / 5.5M edges; low-degree, planar canary that stresses GRASP's hub heuristic (no hubs to find).",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "road",
+      "name": "roadNet-PA",
+      "paper_label": "roadNet-PA",
+      "purpose": "Pennsylvania state road network; SNAP companion to roadNet-CA; used by lit_faith_margin as a road-family sensitivity check across multiple state graphs.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "road",
+      "name": "roadNet-TX",
+      "paper_label": "roadNet-TX",
+      "purpose": "Texas state road network; SNAP companion to roadNet-CA; used by lit_faith_margin as a road-family sensitivity check across multiple state graphs.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [
+        "roadNet-CA"
+      ],
+      "documented_future": false,
+      "family": "road",
+      "name": "road-CA",
+      "paper_label": "road-CA",
+      "purpose": "Kebab-case display variant of roadNet-CA used by paper tables that strip the camel-case 'Net' suffix for compact reporting; declared so the family-classifier dicts in policy_winner_table parity tests can lock the spelling without R4 violations.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "road",
+      "name": "USA-Road",
+      "paper_label": "USA-Road",
+      "purpose": "Continental US road network (DIMACS 9th); ~24M nodes / 58M edges; large-scale road-family target referenced by EVAL_GRAPHS in config.py.",
+      "source": "DIMACS"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "content",
+      "name": "wikipedia_link_en",
+      "paper_label": "wikipedia_link_en",
+      "purpose": "English Wikipedia internal link graph; ~12M nodes / 378M edges; largest evaluation graph for sustained-throughput comparisons against the literature.",
+      "source": "KONECT"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "mesh",
+      "name": "delaunay_n18",
+      "paper_label": "delaunay_n18",
+      "purpose": "Delaunay triangulation of 2^18 random 2-D points; small-scale variant used by lit_faith_margin as a mesh-family scaling sensitivity check (companion to n19/n20).",
+      "source": "synthetic"
+    },
+    {
+      "aliases": [],
+      "documented_future": false,
+      "family": "mesh",
+      "name": "delaunay_n19",
+      "paper_label": "delaunay_n19",
+      "purpose": "Delaunay triangulation of 2^19 random 2-D points; ~524K nodes / 3.1M edges; planar, low-degree, no hubs \u2014 the synthetic complement to roadNet-CA.",
+      "source": "synthetic"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "mesh",
+      "name": "delaunay_n20",
+      "paper_label": "delaunay_n20",
+      "purpose": "Delaunay triangulation of 2^20 random 2-D points; mid-scale variant used by lit_faith_margin as a mesh-family scaling sensitivity check (companion to n18/n19).",
+      "source": "synthetic"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "kronecker",
+      "name": "kron21",
+      "paper_label": "kron21",
+      "purpose": "Kronecker R-MAT generator with scale 21 (~2M nodes); RESERVED_FUTURE_KEYS in lit_faith_graph_family; declared for future scale-up sweeps against the GAPBS reference.",
+      "source": "synthetic"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "kronecker",
+      "name": "kron22",
+      "paper_label": "kron22",
+      "purpose": "Kronecker R-MAT generator with scale 22 (~4M nodes); RESERVED_FUTURE_KEYS in lit_faith_graph_family; declared for future scale-up sweeps against the GAPBS reference.",
+      "source": "synthetic"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "kronecker",
+      "name": "kron23",
+      "paper_label": "kron23",
+      "purpose": "Kronecker R-MAT generator with scale 23 (~8M nodes); RESERVED_FUTURE_KEYS in lit_faith_graph_family; declared for future scale-up sweeps against the GAPBS reference.",
+      "source": "synthetic"
+    },
+    {
+      "aliases": [
+        "soc-LiveJournal1"
+      ],
+      "documented_future": true,
+      "family": "social",
+      "name": "soc-LJ",
+      "paper_label": "soc-LJ",
+      "purpose": "Compact paper-label alias of soc-LiveJournal1 used by RESERVED_FUTURE_KEYS in lit_faith_graph_family; the short form preferred by some baseline tables.",
+      "source": "SNAP"
+    },
+    {
+      "aliases": [
+        "twitter-2010"
+      ],
+      "documented_future": true,
+      "family": "social",
+      "name": "twitter7",
+      "paper_label": "twitter7",
+      "purpose": "Compact alias of the 2010 Twitter snapshot (~52M nodes / 1.96B edges); RESERVED_FUTURE_KEYS form used by some literature tables under the shorter spelling.",
+      "source": "WebGraph"
+    },
+    {
+      "aliases": [
+        "uk-2005"
+      ],
+      "documented_future": true,
+      "family": "web",
+      "name": "web-uk",
+      "paper_label": "web-uk",
+      "purpose": "Compact alias of uk-2005 (~39M nodes / 936M edges); RESERVED_FUTURE_KEYS form used by some literature tables under the shorter spelling.",
+      "source": "WebGraph"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "social",
+      "name": "twitter-2010",
+      "paper_label": "twitter-2010",
+      "purpose": "WebGraph snapshot of the 2010 Twitter follow network; ~42M nodes / 1.5B edges; large-scale social-family regression target referenced by policy_winner_table parity tests against the GRASP/POPT literature.",
+      "source": "WebGraph"
+    },
+    {
+      "aliases": [],
+      "documented_future": true,
+      "family": "web",
+      "name": "uk-2005",
+      "paper_label": "uk-2005",
+      "purpose": "WebGraph snapshot of the .uk top-level domain (2005); ~39M nodes / 936M edges; large-scale web-family regression target referenced by policy_winner_table parity tests against the GRASP/POPT literature.",
+      "source": "WebGraph"
+    }
+  ],
+  "eval_graphs": [
+    {
+      "name": "soc-pokec",
+      "path": "scripts/experiments/ecg/config.py"
+    },
+    {
+      "name": "soc-LiveJournal1",
+      "path": "scripts/experiments/ecg/config.py"
+    },
+    {
+      "name": "com-orkut",
+      "path": "scripts/experiments/ecg/config.py"
+    },
+    {
+      "name": "cit-Patents",
+      "path": "scripts/experiments/ecg/config.py"
+    },
+    {
+      "name": "USA-Road",
+      "path": "scripts/experiments/ecg/config.py"
+    },
+    {
+      "name": "wikipedia_link_en",
+      "path": "scripts/experiments/ecg/config.py"
+    }
+  ],
+  "family_dicts": [
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n18": "mesh",
+        "delaunay_n19": "mesh",
+        "delaunay_n20": "mesh",
+        "email-Eu-core": "social",
+        "roadNet-CA": "road",
+        "roadNet-PA": "road",
+        "roadNet-TX": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "web-Google": "web"
+      },
+      "path": "scripts/experiments/ecg/lit_faith_margin.py"
+    },
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n19": "mesh",
+        "email-Eu-core": "social",
+        "roadNet-CA": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "web-Google": "web"
+      },
+      "path": "scripts/experiments/ecg/oracle_gap_report.py"
+    },
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n19": "mesh",
+        "email-Eu-core": "social",
+        "roadNet-CA": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "web-Google": "web"
+      },
+      "path": "scripts/experiments/ecg/winning_regime_taxonomy.py"
+    },
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n19": "mesh",
+        "email-Eu-core": "social",
+        "road-CA": "road",
+        "roadNet-CA": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "twitter-2010": "social",
+        "uk-2005": "web",
+        "web-Google": "web"
+      },
+      "path": "scripts/test/test_corpus_diversity_floor.py"
+    },
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n19": "mesh",
+        "email-Eu-core": "social",
+        "roadNet-CA": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "web-Google": "web"
+      },
+      "path": "scripts/test/test_oracle_gap_derivation_parity.py"
+    },
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n19": "mesh",
+        "email-Eu-core": "social",
+        "road-CA": "road",
+        "roadNet-CA": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "twitter-2010": "social",
+        "uk-2005": "web",
+        "web-Google": "web"
+      },
+      "path": "scripts/test/test_policy_winner_table_derivation_parity.py"
+    },
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n19": "mesh",
+        "email-Eu-core": "social",
+        "roadNet-CA": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "web-Google": "web"
+      },
+      "path": "scripts/test/test_popt_vs_grasp_delta_derivation_parity.py"
+    },
+    {
+      "dict": "GRAPH_FAMILY",
+      "mapping": {
+        "cit-Patents": "citation",
+        "com-orkut": "social",
+        "delaunay_n19": "mesh",
+        "email-Eu-core": "social",
+        "roadNet-CA": "road",
+        "soc-LiveJournal1": "social",
+        "soc-pokec": "social",
+        "web-Google": "web"
+      },
+      "path": "scripts/test/test_winning_regime_taxonomy_derivation_parity.py"
+    }
+  ],
+  "harvested_tokens": [
+    "USA-Road",
+    "cit-Patents",
+    "com-orkut",
+    "com-orkut-undir",
+    "delaunay_n18",
+    "delaunay_n19",
+    "delaunay_n20",
+    "email-Eu-core",
+    "kron21",
+    "kron22",
+    "kron23",
+    "p2p-Gnutella31",
+    "road-CA",
+    "roadNet-CA",
+    "roadNet-PA",
+    "roadNet-TX",
+    "soc-LJ",
+    "soc-LiveJournal1",
+    "soc-pokec",
+    "twitter-2010",
+    "twitter7",
+    "uk-2005",
+    "web-BerkStan",
+    "web-Google",
+    "web-uk",
+    "wikipedia_link_en"
+  ],
+  "n_canonical": 26,
+  "n_distinct_literals": 26,
+  "n_eval_graphs": 6,
+  "n_families": 8,
+  "n_family_dicts": 8,
+  "n_literal_sites": 564,
+  "rules": {
+    "R1": "every harvested graph literal is in CANONICAL_GRAPHS",
+    "R2": "every canonical has non-empty family + paper_label",
+    "R3": "every canonical has source \u2208 {SNAP,GAP,DIMACS,KONECT,WebGraph,synthetic,test}",
+    "R4": "every family-classifier dict has canonical keys with matching families",
+    "R5": "every harvested literal has a non-family-dict site (unless documented_future=True)",
+    "R6": "canonical names match ^[A-Za-z][A-Za-z0-9_-]*$",
+    "R7": "every EVAL_GRAPHS entry in config.py is canonical",
+    "R8": "every canonical family matches ^[a-z][a-z0-9_]*$"
+  },
+  "status": "active",
+  "violations": []
+}

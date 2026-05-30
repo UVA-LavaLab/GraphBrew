@@ -415,6 +415,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_profile_registry.py", "ProfileRegistry"),
     "Backend vocab registry (gate 257) — AST-harvests backend literals in ecg+test; 7 canonical (cache_sim+kebab, gem5/riscv/x86, sniper/sift); R1-R7: in-canon, family+label, no dup labels, self-variant, argparse subset, name regex, all-referenced":
         ("scripts/test/test_lit_faith_backend_registry.py", "BackendRegistry"),
+    "Graph canonical map (gate 258) — AST-harvests graph literals + GRAPH_FAMILY dicts + EVAL_GRAPHS; 26 canon, 8 families; R1-R8: in-canon, family+label, source provenance, dict-keys+family-match, non-dict use site, name+family regex, EVAL subset":
+        ("scripts/test/test_lit_faith_graph_registry.py", "GraphRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
