@@ -341,6 +341,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_pytest_suites_label_parity.py", "PSL-Par"),
     "wiki .md/.json companion pair (bijection + existence + non-empty + sibling-reference resolves)":
         ("scripts/test/test_wiki_md_json_pair.py", "WMP-Pair"),
+    "literature-faithfulness diversity coverage (family/app/L3/paper floors + cross-paper triangulation)":
+        ("scripts/test/test_lit_faith_diversity.py", "LIT-Cov"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

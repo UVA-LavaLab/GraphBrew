@@ -593,6 +593,14 @@ CATALOG = [
         "summary":   "Closed-vocab mechanism classifier for known_deviation rows: 30/30 classify as popt_overhead_dominates — the exact inverse of road-graph finding.",
     },
     {
+        "id":        "lit_faith_diversity",
+        "label":     "Literature-faithfulness diversity audit",
+        "generator": "scripts/experiments/ecg/lit_faith_diversity.py",
+        "gate":      "scripts/test/test_lit_faith_diversity.py",
+        "artifact":  "wiki/data/lit_faith_diversity.json",
+        "summary":   "Coverage cube of literature-faithfulness claims by (family × app × L3 × paper × policy) plus cross-paper triangulation cells; locks per-axis breadth floors so a regen cannot silently drop a graph family or a cited paper.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -623,7 +631,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (220 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (221 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
