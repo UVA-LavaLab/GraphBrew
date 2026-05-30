@@ -1167,6 +1167,17 @@
       "summary": "Graph-name canonical map audit (gate 258) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are an in-generator CANONICAL_GRAPHS allow-list of 26 entries AND every graph string literal harvested by AST from scripts/experiments/ecg/*.py + scripts/test/*.py AND every per-source GRAPH_FAMILY / FAMILY_OF / GRAPH_FAMILIES dict AND the EVAL_GRAPHS list in scripts/experiments/ecg/config.py). Vocabulary-lock companion to gates 252 (Slurm SBATCH schema), 255 (cache-policy vocab), 256 (run-profile vocab), and 257 (backend/tool vocab): gate 258 locks WHICH benchmark graph every per-row record, anchor-cell census, family-classifier dict, and cross-paper baseline table references \u2014 so a contributor cannot silently misspell `soc-LiveJournal1` as `soc-livejournal1` / `soc-LJ1` in one helper while every other generator still uses the SNAP casing, drop the hyphen in `cit-Patents` to `citPatents`, introduce a new graph (`com-friendster`, `twitter7`) to one stage without adding the matching family-classifier entry, or shorten `delaunay_n19` to `delaunay19` and break the SNAP-vs-synthetic provenance carried by the underscore. CANONICAL_GRAPHS today: 26 entries across 8 families \u2014 social (email-Eu-core, soc-pokec, soc-LiveJournal1, com-orkut, com-orkut-undir, twitter-2010, twitter7, soc-LJ), web (web-Google, web-BerkStan, uk-2005, web-uk), road (roadNet-CA, road-CA, roadNet-PA, roadNet-TX, USA-Road), mesh (delaunay_n18, delaunay_n19, delaunay_n20), citation (cit-Patents), kronecker (kron21, kron22, kron23), p2p (p2p-Gnutella31), content (wikipedia_link_en). 8 rules: (R1) every harvested graph literal is in CANONICAL_GRAPHS; (R2) every canonical has non-empty family + paper_label; (R3) every canonical has source \u2208 {SNAP, GAP, DIMACS, KONECT, WebGraph, synthetic, test}; (R4) every per-source family-classifier dict's keys are canonical AND map to the SAME family the canonical entry declares (catches the silent drift where roadNet-CA is 'road' in one helper and 'roads' in another); (R5) every harvested literal has at least one non-family-dict site (real corpus use, not just metadata) \u2014 unless documented_future=True for entries in RESERVED_FUTURE_KEYS lists; (R6) every canonical name matches `^[A-Za-z][A-Za-z0-9_-]*$` (alphanumeric + hyphen + underscore; no leading digit); (R7) every config.EVAL_GRAPHS entry is canonical (locks the config-driven evaluation corpus to the registry); (R8) every canonical family matches `^[a-z][a-z0-9_]*$` (lowercase ASCII with digits allowed for `p2p`). Today: 26 canonical graphs, 8 families, ~564 literal sites, ~8 family-classifier dicts, 6 EVAL_GRAPHS entries; 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_build_registry.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_build_registry.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_build_registry.py",
+      "generator_exists": true,
+      "id": "lit_faith_build_registry",
+      "label": "Build-target registry",
+      "summary": "SCons/Make build-target registry audit (gate 259) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are an in-generator CANONICAL_BUILD_TARGETS allow-list of 51 (backend, kernel, variant) entries AND the root Makefile's four KERNELS_<BACKEND> lists + four CXXFLAGS_<BACKEND> declarations AND every .cc file on disk under the canonical SRC_DIRS). Vocabulary-lock companion to gates 252 (Slurm SBATCH schema), 255 (cache-policy vocab), 256 (run-profile vocab), 257 (backend/tool vocab), and 258 (graph canonical map): gate 259 locks WHICH compile targets actually produce the binaries that the downstream gates measure \u2014 so a contributor cannot silently rename `bench/bin_sim/pr` to `bench/bin_sim/pr_cs`, swap an `-O3` for `-O2` in `CXXFLAGS_GAP` (would break every cache-sim apples-to-apples comparison against the literature baseline), drop the `-fopenmp` that `ecg_preprocess` requires, introduce an undocumented gem5 frontend variant beyond {base, m5ops, riscv_m5ops}, or add a `pr_kernel_smoke` orphan to bench/src_sniper that no canonical entry tracks. CANONICAL_BUILD_TARGETS today: 4 backends (native, cache_sim, gem5, sniper) \u00d7 kernel \u00d7 variant: 9 native production kernels (bc, bfs, cc, cc_sv, pr, pr_spmv, sssp, tc, tc_p) + converter, 9 cache_sim kernels (GAP roster + ecg_preprocess), 8 gem5 kernels \u00d7 3 variants (base, m5ops, riscv_m5ops) = 24 gem5 targets, 5 sniper Phase-0 smokes (hello_roi, sg_kernel, pr_kernel_smoke, bfs_kernel_smoke, sssp_kernel_smoke) + 3 in-flight real kernels (pr, bfs, sssp). 8 rules: (R1) every (backend, kernel) in CANONICAL_BUILD_TARGETS has a matching source file under the canonical SRC_DIR; (R2) every kernel listed in the Makefile KERNELS_<BACKEND> variable is canonical for that backend; (R3) every canonical backend has a CXXFLAGS_<BACKEND> block containing all required tokens (-std=c++17, -fopenmp, -DNDEBUG, plus -DNO_M5OPS for gem5 default and -I$(SNIPER_INCLUDE) for sniper); (R4) every canonical backend maps to the canonical SRC_DIR / BIN_DIR path; (R5) every canonical kernel has a non-empty graph-algorithm family classification \u2208 {pagerank, traversal, shortest-path, connected-component, centrality, triangle, preprocess, smoke}; (R6) every backend's CXXFLAGS carries its documented optimisation level (-O3 native+sim, -O1 gem5, -O2 sniper) \u2014 apples-to-apples lock; (R7) every .cc file under the canonical SRC_DIRs maps to a canonical (backend, kernel) entry (no orphan sources); (R8) every canonical backend has a documented ROI mechanism \u2208 {m5ops, sift, sim-callback, none}. Today: 4 backends, 51 canonical targets, 26 Makefile-harvested kernels, 0 orphan sources; 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1208,13 +1219,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (258 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (259 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 110
+    "n_entries": 111
   }
 }

@@ -8,7 +8,44 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **258 gates, all GREEN, exit 0**.
+and currently reports **259 gates, all GREEN, exit 0**.
+
+**Build-target registry (gate 259, refresh @259):**
+The sixth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build). Locks WHICH
+compile targets actually produce the binaries that the downstream
+gates measure — so a contributor cannot silently rename
+`bench/bin_sim/pr` to `bench/bin_sim/pr_cs`, swap an `-O3` for
+`-O2` in `CXXFLAGS_GAP` (would break every cache-sim
+apples-to-apples comparison against the literature baseline),
+drop the `-fopenmp` that `ecg_preprocess` requires, introduce an
+undocumented gem5 frontend variant beyond {base, m5ops,
+riscv_m5ops}, or add a `pr_kernel_smoke` orphan to
+`bench/src_sniper` that no canonical entry tracks. The gate
+parses the root Makefile for the four `KERNELS_*` variables +
+four `CXXFLAGS_*` blocks + four `SRC_*_DIR` / `BIN_*_DIR` pairs,
+then cross-validates against an in-generator
+`CANONICAL_BUILD_TARGETS` allow-list of 51 (backend, kernel,
+variant) entries AND every `.cc` file on disk under the
+canonical SRC_DIRs. 8 rules R1-R8: R1 every (backend, kernel)
+has a matching `.cc` source; R2 every Makefile-declared kernel
+is canonical for its backend (no silent additions); R3 every
+`CXXFLAGS_<BACKEND>` block contains all required tokens
+(`-std=c++17`, `-fopenmp`, `-DNDEBUG`, plus `-DNO_M5OPS` for
+gem5 default and `-I$(SNIPER_INCLUDE)` for sniper); R4 every
+canonical backend maps to the canonical SRC_DIR / BIN_DIR path;
+R5 every canonical kernel has a non-empty graph-algorithm
+family classification (pagerank / traversal / shortest-path /
+connected-component / centrality / triangle / preprocess /
+smoke); R6 every backend's CXXFLAGS carries its documented
+optimisation level (`-O3` native+sim, `-O1` gem5, `-O2`
+sniper); R7 every `.cc` file maps to a canonical
+(backend, kernel) entry (no orphan sources); R8 every canonical
+backend has a documented ROI mechanism (m5ops / sift /
+sim-callback / none). Today: 4 backends, 51 canonical targets
+(10 native + 9 cache_sim + 24 gem5 base/m5ops/riscv + 8 sniper
+Phase-0+in-flight), 26 Makefile-harvested kernels, 0 orphan
+sources, 0 violations.
 
 **Graph-name canonical map (gate 258, refresh @258):**
 The fifth in the vocabulary-lock series (252 SBATCH, 255 policy, 256
@@ -537,8 +574,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 258. Next refresh due
-at gate 263.
+**Refresh status:** Refresh complete at gate 259. Next refresh due
+at gate 264.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

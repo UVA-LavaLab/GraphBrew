@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 110,
+    "catalog_entries": 111,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 114
+    "wiki_json_files": 115
   },
   "violations": [],
   "wiki_json_files": [
@@ -82,6 +82,7 @@
     "wiki/data/lit_faith_accesses.json",
     "wiki/data/lit_faith_appfreq.json",
     "wiki/data/lit_faith_backend_registry.json",
+    "wiki/data/lit_faith_build_registry.json",
     "wiki/data/lit_faith_cellcomp.json",
     "wiki/data/lit_faith_citation_registry.json",
     "wiki/data/lit_faith_citations.json",

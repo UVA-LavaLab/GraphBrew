@@ -1,0 +1,635 @@
+{
+  "bin_dirs": {
+    "cache_sim": "bench/bin_sim",
+    "gem5": "bench/bin_gem5",
+    "native": "bench/bin",
+    "sniper": "bench/bin_sniper"
+  },
+  "canonical_targets": [
+    {
+      "backend": "native",
+      "bin": "bench/bin/bc",
+      "documented_aux": false,
+      "family": "centrality",
+      "kernel": "bc",
+      "roi_mechanism": "none",
+      "src": "bench/src/bc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/bfs",
+      "documented_aux": false,
+      "family": "traversal",
+      "kernel": "bfs",
+      "roi_mechanism": "none",
+      "src": "bench/src/bfs.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/cc",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc",
+      "roi_mechanism": "none",
+      "src": "bench/src/cc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/cc_sv",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc_sv",
+      "roi_mechanism": "none",
+      "src": "bench/src/cc_sv.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/pr",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr",
+      "roi_mechanism": "none",
+      "src": "bench/src/pr.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/pr_spmv",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr_spmv",
+      "roi_mechanism": "none",
+      "src": "bench/src/pr_spmv.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/sssp",
+      "documented_aux": false,
+      "family": "shortest-path",
+      "kernel": "sssp",
+      "roi_mechanism": "none",
+      "src": "bench/src/sssp.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/tc",
+      "documented_aux": false,
+      "family": "triangle",
+      "kernel": "tc",
+      "roi_mechanism": "none",
+      "src": "bench/src/tc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/tc_p",
+      "documented_aux": false,
+      "family": "triangle",
+      "kernel": "tc_p",
+      "roi_mechanism": "none",
+      "src": "bench/src/tc_p.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "native",
+      "bin": "bench/bin/converter",
+      "documented_aux": true,
+      "family": "preprocess",
+      "kernel": "converter",
+      "roi_mechanism": "none",
+      "src": "bench/src/converter.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/pr",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/pr.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/pr_spmv",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr_spmv",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/pr_spmv.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/bfs",
+      "documented_aux": false,
+      "family": "traversal",
+      "kernel": "bfs",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/bfs.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/bc",
+      "documented_aux": false,
+      "family": "centrality",
+      "kernel": "bc",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/bc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/cc",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/cc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/cc_sv",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc_sv",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/cc_sv.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/sssp",
+      "documented_aux": false,
+      "family": "shortest-path",
+      "kernel": "sssp",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/sssp.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/tc",
+      "documented_aux": false,
+      "family": "triangle",
+      "kernel": "tc",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/tc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "cache_sim",
+      "bin": "bench/bin_sim/ecg_preprocess",
+      "documented_aux": false,
+      "family": "preprocess",
+      "kernel": "ecg_preprocess",
+      "roi_mechanism": "sim-callback",
+      "src": "bench/src_sim/ecg_preprocess.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/pr",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/pr.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/pr_m5ops",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/pr_riscv_m5ops",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/pr_spmv",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr_spmv",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/pr_spmv.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/pr_spmv_m5ops",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr_spmv",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/pr_spmv_riscv_m5ops",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr_spmv",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/bfs",
+      "documented_aux": false,
+      "family": "traversal",
+      "kernel": "bfs",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/bfs.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/bfs_m5ops",
+      "documented_aux": false,
+      "family": "traversal",
+      "kernel": "bfs",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/bfs_riscv_m5ops",
+      "documented_aux": false,
+      "family": "traversal",
+      "kernel": "bfs",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/sssp",
+      "documented_aux": false,
+      "family": "shortest-path",
+      "kernel": "sssp",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/sssp.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/sssp_m5ops",
+      "documented_aux": false,
+      "family": "shortest-path",
+      "kernel": "sssp",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/sssp_riscv_m5ops",
+      "documented_aux": false,
+      "family": "shortest-path",
+      "kernel": "sssp",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/cc",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/cc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/cc_m5ops",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/cc_riscv_m5ops",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/cc_sv",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc_sv",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/cc_sv.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/cc_sv_m5ops",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc_sv",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/cc_sv_riscv_m5ops",
+      "documented_aux": false,
+      "family": "connected-component",
+      "kernel": "cc_sv",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/bc",
+      "documented_aux": false,
+      "family": "centrality",
+      "kernel": "bc",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/bc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/bc_m5ops",
+      "documented_aux": false,
+      "family": "centrality",
+      "kernel": "bc",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/bc_riscv_m5ops",
+      "documented_aux": false,
+      "family": "centrality",
+      "kernel": "bc",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/tc",
+      "documented_aux": false,
+      "family": "triangle",
+      "kernel": "tc",
+      "roi_mechanism": "m5ops",
+      "src": "bench/src_gem5/tc.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/tc_m5ops",
+      "documented_aux": false,
+      "family": "triangle",
+      "kernel": "tc",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "m5ops"
+    },
+    {
+      "backend": "gem5",
+      "bin": "bench/bin_gem5/tc_riscv_m5ops",
+      "documented_aux": false,
+      "family": "triangle",
+      "kernel": "tc",
+      "roi_mechanism": "m5ops",
+      "src": "",
+      "variant": "riscv_m5ops"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/hello_roi",
+      "documented_aux": true,
+      "family": "smoke",
+      "kernel": "hello_roi",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/hello_roi.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/pr_kernel_smoke",
+      "documented_aux": false,
+      "family": "smoke",
+      "kernel": "pr_kernel_smoke",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/pr_kernel_smoke.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/bfs_kernel_smoke",
+      "documented_aux": false,
+      "family": "smoke",
+      "kernel": "bfs_kernel_smoke",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/bfs_kernel_smoke.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/sssp_kernel_smoke",
+      "documented_aux": false,
+      "family": "smoke",
+      "kernel": "sssp_kernel_smoke",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/sssp_kernel_smoke.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/sg_kernel",
+      "documented_aux": true,
+      "family": "smoke",
+      "kernel": "sg_kernel",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/sg_kernel.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/pr",
+      "documented_aux": false,
+      "family": "pagerank",
+      "kernel": "pr",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/pr.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/bfs",
+      "documented_aux": false,
+      "family": "traversal",
+      "kernel": "bfs",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/bfs.cc",
+      "variant": "base"
+    },
+    {
+      "backend": "sniper",
+      "bin": "bench/bin_sniper/sssp",
+      "documented_aux": false,
+      "family": "shortest-path",
+      "kernel": "sssp",
+      "roi_mechanism": "sift",
+      "src": "bench/src_sniper/sssp.cc",
+      "variant": "base"
+    }
+  ],
+  "cxxflags": {
+    "cache_sim": {
+      "live_flags": "-std=c++17 -O3 -Wall -fopenmp -g -DNDEBUG",
+      "opt_level": "-O3",
+      "required_tokens": [
+        "-std=c++17",
+        "-Wall",
+        "-fopenmp",
+        "-DNDEBUG"
+      ],
+      "var_name": "CXXFLAGS_GAP"
+    },
+    "gem5": {
+      "live_flags": "-std=c++17 -O1 -Wall -g -DNDEBUG -DNO_M5OPS -fopenmp",
+      "opt_level": "-O1",
+      "required_tokens": [
+        "-std=c++17",
+        "-Wall",
+        "-fopenmp",
+        "-DNDEBUG",
+        "-DNO_M5OPS"
+      ],
+      "var_name": "CXXFLAGS_GEM5"
+    },
+    "native": {
+      "live_flags": "-std=c++17 -O3 -Wall -fopenmp -g -DNDEBUG",
+      "opt_level": "-O3",
+      "required_tokens": [
+        "-std=c++17",
+        "-Wall",
+        "-fopenmp",
+        "-DNDEBUG"
+      ],
+      "var_name": "CXXFLAGS_GAP"
+    },
+    "sniper": {
+      "live_flags": "-std=c++17 -O2 -Wall -g -DNDEBUG -fopenmp -I$(INC_DIR) -I$(SNIPER_INCLUDE)",
+      "opt_level": "-O2",
+      "required_tokens": [
+        "-std=c++17",
+        "-Wall",
+        "-fopenmp",
+        "-DNDEBUG",
+        "-I$(SNIPER_INCLUDE)"
+      ],
+      "var_name": "CXXFLAGS_SNIPER"
+    }
+  },
+  "makefile_harvested_kernels": {
+    "cache_sim": [
+      "pr",
+      "pr_spmv",
+      "bfs",
+      "bc",
+      "cc",
+      "cc_sv",
+      "sssp",
+      "tc",
+      "ecg_preprocess"
+    ],
+    "gem5": [
+      "pr",
+      "pr_spmv",
+      "bfs",
+      "sssp",
+      "cc",
+      "cc_sv",
+      "bc",
+      "tc"
+    ],
+    "native": [
+      "bc",
+      "bfs",
+      "cc",
+      "cc_sv",
+      "pr",
+      "pr_spmv",
+      "sssp",
+      "tc",
+      "tc_p"
+    ],
+    "sniper": []
+  },
+  "n_backends": 4,
+  "n_cache_sim_kernels": 9,
+  "n_canonical_targets": 51,
+  "n_gem5_kernels": 8,
+  "n_makefile_harvested_kernels": 26,
+  "n_native_kernels": 9,
+  "n_orphan_sources": 0,
+  "n_sniper_targets": 8,
+  "roi_mechanisms": {
+    "cache_sim": "sim-callback",
+    "gem5": "m5ops",
+    "native": "none",
+    "sniper": "sift"
+  },
+  "rules": {
+    "R1": "every (backend,kernel) in CANONICAL_BUILD_TARGETS has a matching source file under SRC_DIRS[backend]",
+    "R2": "every Makefile KERNELS_<BACKEND> entry is canonical for that backend",
+    "R3": "every CXXFLAGS_<BACKEND> contains all documented required tokens",
+    "R4": "every canonical backend maps to the canonical SRC_DIR + BIN_DIR (both must exist in tree and Makefile)",
+    "R5": "every canonical kernel has a non-empty graph-algorithm family classification",
+    "R6": "every backend's CXXFLAGS carries the documented optimisation level (-O3 native+sim, -O1 gem5, -O2 sniper)",
+    "R7": "every .cc under SRC_DIRS[backend] maps to a canonical (backend,kernel) entry \u2014 no orphans",
+    "R8": "every canonical backend has a documented ROI mechanism \u2208 {m5ops, sift, sim-callback, none}"
+  },
+  "src_dirs": {
+    "cache_sim": "bench/src_sim",
+    "gem5": "bench/src_gem5",
+    "native": "bench/src",
+    "sniper": "bench/src_sniper"
+  },
+  "status": "active",
+  "violations": []
+}
