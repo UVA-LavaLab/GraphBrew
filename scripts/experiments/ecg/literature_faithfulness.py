@@ -539,7 +539,7 @@ def main(argv: list[str]) -> int:
     print(format_table(result))
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        args.json_out.write_text(json.dumps(result, indent=2, sort_keys=True))
+        args.json_out.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
         print(f"\n[lit] JSON: {args.json_out}", file=sys.stderr)
     if args.md_out:
         args.md_out.parent.mkdir(parents=True, exist_ok=True)

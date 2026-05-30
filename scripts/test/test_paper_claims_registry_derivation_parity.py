@@ -145,17 +145,17 @@ def test_category_vocabulary_pinned(artifact):
     assert not extra, f"unknown categories in artifact: {extra}"
 
 
-def test_json_byte_parity_sort_keys_indent2_no_trailing_newline(artifact):
+def test_json_byte_parity_sort_keys_indent2_trailing_newline(artifact):
     """JSON write rule is fixed: sort_keys=True, indent=2, no trailing newline.
 
     The registry deliberately uses sort_keys=True so reviewers can
     diff the artifact across runs without spurious key-order churn;
-    the no-trailing-newline rule is what `_write_json` actually emits,
-    so any future tweak that adds a '\\n' would change every byte on
-    every run and pollute the lit-reproduce-smoke hash log.
+    the canonical write rule (gate 218 / WJF-Fmt) appends exactly one
+    trailing newline so the JSON file is POSIX-clean and round-trips
+    through every common editor without spurious churn.
     """
     raw = ARTIFACT.read_text()
-    expected = json.dumps(artifact, indent=2, sort_keys=True)
+    expected = json.dumps(artifact, indent=2, sort_keys=True) + "\n"
     assert raw == expected
 
 

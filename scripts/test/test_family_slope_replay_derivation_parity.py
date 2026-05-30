@@ -282,5 +282,5 @@ def test_median_single_returns_element():
 
 def test_full_artifact_byte_parity():
     on_disk = ARTIFACT_PATH.read_text()
-    rebuilt = json.dumps(REBUILT, indent=2, sort_keys=True)
+    rebuilt = json.dumps(REBUILT, indent=2, sort_keys=True) + "\n"
     assert on_disk == rebuilt

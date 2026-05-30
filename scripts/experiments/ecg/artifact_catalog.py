@@ -623,7 +623,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (217 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (218 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
@@ -656,7 +656,7 @@ def _write_json(entries: list[dict], path: Path) -> None:
     path.write_text(json.dumps({
         "summary":  summary,
         "entries":  entries,
-    }, indent=2, sort_keys=True))
+    }, indent=2, sort_keys=True) + "\n")
 
 
 def _write_md(entries: list[dict], path: Path) -> None:

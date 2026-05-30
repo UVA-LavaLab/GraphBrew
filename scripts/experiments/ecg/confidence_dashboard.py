@@ -335,6 +335,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_catalog_generator_help.py", "CGH-Sig"),
     "wiki text quality (every tracked .md: no bad ws + no CRLF + single final newline + no double blanks + H1 first)":
         ("scripts/test/test_wiki_text_quality.py", "WTQ-Fmt"),
+    "wiki JSON format (every tracked .json: valid utf-8, parseable, no CRLF, single final newline, no trailing ws)":
+        ("scripts/test/test_wiki_json_format.py", "WJF-Fmt"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

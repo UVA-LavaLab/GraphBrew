@@ -241,7 +241,7 @@ def _write_json(summary: dict, flat: list[dict], path: Path) -> None:
     path.write_text(json.dumps({
         "summary": summary,
         "cells": flat,
-    }, indent=2, sort_keys=True))
+    }, indent=2, sort_keys=True) + "\n")
 
 
 def _write_md(summary: dict, flat: list[dict], path: Path) -> None:

@@ -271,7 +271,7 @@ def main(argv: list[str]) -> int:
         print(f"[paper-table] csv: {args.csv}", file=sys.stderr)
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(format_json(rows))
+        args.json.write_text(format_json(rows).rstrip("\n") + "\n")
         print(f"[paper-table] json: {args.json}", file=sys.stderr)
 
     if not (args.markdown or args.csv or args.json):

@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "ebde970fc10ddbe9ee004adb0d576f739ae660107442b86fc01df3670067d631",
-      "sha_after": "ebde970fc10ddbe9ee004adb0d576f739ae660107442b86fc01df3670067d631",
+      "sha_before": "c544991aaa3e0e39d976e9956b9e344941e8f88e01f106fdf9dd67a83af08781",
+      "sha_after": "c544991aaa3e0e39d976e9956b9e344941e8f88e01f106fdf9dd67a83af08781",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "dc1df4e90be7e25d9aa2ff693eb3752caf1fd59a294a4241be43c16164c747f6",
-      "sha_after": "dc1df4e90be7e25d9aa2ff693eb3752caf1fd59a294a4241be43c16164c747f6",
+      "sha_before": "b09d230beab757e850b23c6c4f3216fd7ed77d219c52424f0f0ca7729c098f87",
+      "sha_after": "b09d230beab757e850b23c6c4f3216fd7ed77d219c52424f0f0ca7729c098f87",
       "status": "ok"
     },
     {
@@ -43,14 +43,14 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "42688d6b6f73fb8b580b09f696ae865f4a41656af70a004a6858329c5f089017",
-      "sha_after": "42688d6b6f73fb8b580b09f696ae865f4a41656af70a004a6858329c5f089017",
+      "sha_before": "6c0e9d12a164de5ebdecc29346423c87950f541a85af55ea43dc4edcca364dd7",
+      "sha_after": "6c0e9d12a164de5ebdecc29346423c87950f541a85af55ea43dc4edcca364dd7",
       "status": "ok"
     },
     {
       "artifact": "confidence_dashboard.md",
-      "sha_before": "fc7356b41e7fefad9ad696de80eb5c9d33c8864afd457013bb4a6a7bf211d9c9",
-      "sha_after": "fc7356b41e7fefad9ad696de80eb5c9d33c8864afd457013bb4a6a7bf211d9c9",
+      "sha_before": "aa9efd6a99efb7b9f75dd41ebfd794fe2f881927754f9df322e0748ae47a9cf0",
+      "sha_after": "aa9efd6a99efb7b9f75dd41ebfd794fe2f881927754f9df322e0748ae47a9cf0",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "e505494c560ca06dd25c114c17f70b54f066cb7c57a607859cca969ee56b4d9f",
-      "sha_after": "e505494c560ca06dd25c114c17f70b54f066cb7c57a607859cca969ee56b4d9f",
+      "sha_before": "f3a65f6609cacec566418052bd3bd2d7f7038de88462c2f75e4dcb3b244ebdc8",
+      "sha_after": "f3a65f6609cacec566418052bd3bd2d7f7038de88462c2f75e4dcb3b244ebdc8",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "2000ce4480203f69e31dce9c0f4d4a3b7bc32af62cfa1b88b54678361d47da7f",
-      "sha_after": "2000ce4480203f69e31dce9c0f4d4a3b7bc32af62cfa1b88b54678361d47da7f",
+      "sha_before": "57b600f5d2daa7a8b3b24993327648fa443ffc8c230989ae111abf4812e81c7c",
+      "sha_after": "57b600f5d2daa7a8b3b24993327648fa443ffc8c230989ae111abf4812e81c7c",
       "status": "ok"
     },
     {

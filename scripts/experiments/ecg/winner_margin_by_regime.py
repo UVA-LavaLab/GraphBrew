@@ -223,7 +223,7 @@ def main() -> int:
     wss = json.loads(args.wss_json.read_text())
     result = build(oracle, wss["meta"])
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    args.json_out.write_text(json.dumps(result, indent=2, sort_keys=True))
+    args.json_out.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     args.md_out.write_text(render_md(result, src_label))
     m = result["meta"]
     shrinks = ",".join(ev["policy"] for ev in m["shrink_evidence"]) or "-"

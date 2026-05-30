@@ -166,7 +166,7 @@ def main() -> None:
     rows = _load_rows(args.oracle_json)
     doc = _aggregate(rows, args.n_resamples, args.seed)
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    args.json_out.write_text(json.dumps(doc, indent=2, sort_keys=True))
+    args.json_out.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
     _write_md(doc, args.md_out)
     n_cells = doc["meta"]["cells_with_data"]
     print(

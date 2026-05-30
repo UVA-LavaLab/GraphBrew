@@ -348,7 +348,7 @@ def _write_json(claims: list[dict], path: Path) -> None:
     path.write_text(json.dumps({
         "n_claims": len(claims),
         "claims": claims,
-    }, indent=2, sort_keys=True))
+    }, indent=2, sort_keys=True) + "\n")
 
 
 def _write_md(claims: list[dict], path: Path) -> None:

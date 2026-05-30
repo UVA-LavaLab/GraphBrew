@@ -215,7 +215,7 @@ def main() -> None:
         **agg,
     }
 
-    Path(args.json_out).write_text(json.dumps(payload, indent=2, sort_keys=True))
+    Path(args.json_out).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     Path(args.md_out).write_text(render_md(payload).rstrip("\n") + "\n")
 
     stable = [

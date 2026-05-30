@@ -110,12 +110,13 @@ def test_fields_pinned():
         assert kind in {"int", "float"}
 
 
-def test_json_byte_parity_indent2_no_sort_keys_no_trailing_newline(artifact):
-    """JSON write rule is fixed: indent=2, NO sort_keys (insertion
-    order is load-bearing for diff-friendliness — the dataclass
-    field order is the JSON key order), NO trailing newline."""
+def test_json_byte_parity_indent2_no_sort_keys_trailing_newline(artifact):
+    """JSON write rule (gate 218 / WJF-Fmt): indent=2, NO sort_keys
+    (insertion order is load-bearing for diff-friendliness — the
+    dataclass field order is the JSON key order), exactly one trailing
+    newline."""
     raw = ARTIFACT.read_text()
-    expected = json.dumps(artifact, indent=2)
+    expected = json.dumps(artifact, indent=2) + "\n"
     assert raw == expected
 
 

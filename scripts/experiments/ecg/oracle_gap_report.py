@@ -201,7 +201,7 @@ def _write_json(summary: dict, rows: list[dict], path: Path) -> None:
     path.write_text(json.dumps({
         "summary": summary,
         "rows": rows,
-    }, indent=2, sort_keys=True))
+    }, indent=2, sort_keys=True) + "\n")
 
 
 def _write_md(summary: dict, rows: list[dict], path: Path) -> None:

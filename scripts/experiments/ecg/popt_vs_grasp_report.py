@@ -263,7 +263,7 @@ def _write_json(summary: dict, records: list[dict], path: Path) -> None:
     path.write_text(json.dumps({
         "summary": summary,
         "cells": records,
-    }, indent=2, sort_keys=True))
+    }, indent=2, sort_keys=True) + "\n")
 
 
 def _md_stats_row(label: str, st: dict) -> str:

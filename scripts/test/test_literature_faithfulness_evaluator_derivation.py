@@ -144,13 +144,13 @@ def test_documented_status_set_used(artifact):
         )
 
 
-def test_json_byte_parity_sort_keys_indent2_no_trailing_newline(artifact):
-    """JSON write rule (line 542): json.dumps(result, indent=2,
-    sort_keys=True), NO trailing newline. The sort_keys=True is what
-    makes the artifact diff-stable across runs even though `evaluate`
-    builds dicts in insertion order."""
+def test_json_byte_parity_sort_keys_indent2_trailing_newline(artifact):
+    """JSON write rule (gate 218 / WJF-Fmt): json.dumps(result, indent=2,
+    sort_keys=True) + "\\n". The sort_keys=True is what makes the artifact
+    diff-stable across runs even though `evaluate` builds dicts in
+    insertion order; the trailing newline keeps the file POSIX-clean."""
     raw = ARTIFACT.read_text()
-    expected = json.dumps(artifact, indent=2, sort_keys=True)
+    expected = json.dumps(artifact, indent=2, sort_keys=True) + "\n"
     assert raw == expected
 
 

@@ -283,7 +283,8 @@ def write_markdown(profiles: list[GraphProfile], path: Path) -> None:
         "GRASP / POPT operating regime.\n"
     )
 
-    path.write_text("\n".join(lines))
+    body = "\n".join(lines)
+    path.write_text(body.rstrip("\n") + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -315,7 +316,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json_path:
         args.json_path.parent.mkdir(parents=True, exist_ok=True)
         args.json_path.write_text(
-            json.dumps([asdict(p) for p in profiles], indent=2)
+            json.dumps([asdict(p) for p in profiles], indent=2) + "\n"
         )
         print(f"[corpus-diversity] json: {args.json_path}")
 
