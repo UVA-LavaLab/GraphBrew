@@ -769,6 +769,14 @@ CATALOG = [
         "summary":   "Paper label-map integrity audit (gate 242) — ALWAYS ACTIVE (no deferred mode; source-of-truth is the code, not a curated fixture). Audits the canonical POLICY_LABELS / POLICY_DESCRIPTIONS / POLICY_COLORS triple in paper_pipeline.py against (a) the committed paper_pipeline_*/policy_label_map.csv (byte-for-byte equality), (b) every tracked source artifact (8 JSON files: 4 ECG postfix gates + 2 lit-faith ECG audits + literature_faithfulness_postfix + policy_winner_table) plus 5 paper_pipeline CSVs (roi_matrix_all, roi_policy_summary, ecg_mode_overhead_summary, popt_storage_overhead_summary, popt_charged_overhead). 5 rules: (G1) every POLICY_LABELS key has matching description and color (no partial additions); (G2) every figure_label is unique across the map (no collisions); (G3) every policy_label found in tracked sources is in POLICY_LABELS or in NON_PAPER_LABELS allowlist (CACHE rollup label, DROPLET / ECG_PFX prefetcher-arm names, POPT_GE_GRASP / POPT_NEAR_GRASP_IF_BIG_GAP theorem-class virtual labels); (G4) latest paper_pipeline_*/policy_label_map.csv matches code byte-for-byte (catches stale committed snapshot); (G5) every POLICY_LABELS key appears in at least one tracked source (no orphan paper labels). Catches 'added a new policy without updating the paper legend' regressions. Today: 9 labels, 13 sources, 0 violations.",
     },
     {
+        "id":        "lit_faith_color_distinguishability",
+        "label":     "POLICY_COLORS perceptual distinguishability",
+        "generator": "scripts/experiments/ecg/lit_faith_color_distinguishability.py",
+        "gate":      "scripts/test/test_lit_faith_color_distinguishability.py",
+        "artifact":  "wiki/data/lit_faith_color_distinguishability.json",
+        "summary":   "POLICY_COLORS perceptual-distinguishability audit (gate 243) — ALWAYS ACTIVE (no deferred mode; source-of-truth is paper_pipeline.py POLICY_COLORS / POLICY_HATCHES dicts loaded via importlib). Companion to gate 242: where 242 audits the policy vocabulary, 243 audits the visual quality of the palette — can a reader (or a B&W printer) actually tell the policies apart on the paper figures? 6 rules: (C1) every POLICY_LABELS key has a well-formed 7-char hex color; (C2) no two POLICY_COLORS values are exactly equal; (C3) every pair has CIE76 ΔE ≥ 12 in CIE Lab (D65) — visibly distinguishable on color print; (C4) pairs with CIE Lab lightness delta ΔL < 10 must use a POLICY_HATCHES entry, modulo the ACKNOWLEDGED_BW_PAIRS allowlist (10 grandfathered close-lightness pairs, each with rationale ≥ 60 chars) — keeps the B&W-printable contract honest while documenting current state; (C5) every color has ΔE ≥ 18 from #FFFFFF (no near-invisible policies on a white page); (C6) POLICY_HATCHES keys are a subset of POLICY_LABELS keys (no orphan hatches). Pure-stdlib sRGB → CIE Lab implementation (no third-party deps). Today: 9 colors, 36 pairs, 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -799,7 +807,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (242 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (243 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

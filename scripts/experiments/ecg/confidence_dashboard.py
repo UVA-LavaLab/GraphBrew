@@ -385,6 +385,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_ecg_pfx_vs_droplet.py", "ECG-Pfx-vs-DROPLET"),
     "Paper label-map integrity (gate 242) — POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels":
         ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
+    "POLICY_COLORS perceptual distinguishability (gate 243) — hex format + dedup + pairwise CIE76 ΔE ≥ 12 + B&W lightness-delta ≥ 10 or hatch fallback (grandfathered allowlist) + ΔE ≥ 18 from white + POLICY_HATCHES ⊆ POLICY_LABELS":
+        ("scripts/test/test_lit_faith_color_distinguishability.py", "ColorDistinguish"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -8,7 +8,28 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **242 gates, all GREEN, exit 0**.
+and currently reports **243 gates, all GREEN, exit 0**.
+
+**POLICY_COLORS perceptual distinguishability (gate 243, refresh @243):**
+Companion to gate 242 — where 242 audits the policy *vocabulary*,
+243 audits the *visual quality* of the paper palette: can a reader
+(or a B&W printer) actually tell the policies apart on the figures?
+Always-active (no scaffold/deferred mode — POLICY_COLORS /
+POLICY_HATCHES are always present in `paper_pipeline.py`, loaded via
+importlib). 6 rules: C1 every POLICY_LABELS key has a well-formed
+7-char hex color; C2 no two POLICY_COLORS values are exactly equal;
+C3 every pair has CIE76 ΔE ≥ 12 in CIE Lab (D65); C4 pairs with
+lightness delta ΔL < 10 must use a POLICY_HATCHES entry, modulo
+ACKNOWLEDGED_BW_PAIRS (10 grandfathered close-lightness pairs, each
+with rationale ≥ 60 chars documenting why the current palette is
+acceptable for color print and what fails on B&W); C5 every color
+has ΔE ≥ 18 from #FFFFFF (no near-invisible policies on a white
+page); C6 POLICY_HATCHES keys are a subset of POLICY_LABELS keys
+(no orphan hatches). Pure-stdlib sRGB → CIE Lab implementation.
+Today: 9 colors, 36 pairs, 0 violations. Caveat: the
+ACKNOWLEDGED_BW_PAIRS list documents real B&W limitations of the
+current palette and is the deliberate engineering compromise; a
+future palette refresh should aim to shrink it.
 
 **Paper label-map integrity (gate 242, refresh @242):**
 Always-active audit (no scaffold/deferred mode — source-of-truth is
@@ -142,8 +163,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 242. Next refresh due
-at gate 247.
+**Refresh status:** Refresh complete at gate 243. Next refresh due
+at gate 248.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next
