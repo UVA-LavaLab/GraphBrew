@@ -1,0 +1,3025 @@
+{
+  "rows": [
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 11: BC benefits from hot-vertex retention on power-law graphs, ...",
+      "rationale_len": 102
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 11: BFS gains are smaller than PR/BC because frontier traversal...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: cit-Patents PR shows the largest LLC-miss-rate reduction fr...",
+      "rationale_len": 123
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 9: oracle re-reference matrix beats RRIP-family policies by 5-1...",
+      "rationale_len": 125
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": true,
+      "l3_size": "8MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: cit-Patents property array (~30 MB) still spills at 8 MB LL...",
+      "rationale_len": 110
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 10: SSSP under GRASP improves over LRU but less than PR.",
+      "rationale_len": 73
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 10: cit-Patents SSSP benefits strongly from the oracle re-refer...",
+      "rationale_len": 92
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 \u00a76.1: PR on dense undirected power-law graphs should see GRASP impr...",
+      "rationale_len": 179
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 \u00a76: oracle look-ahead should beat any heuristic on com-orkut; magni...",
+      "rationale_len": 106
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": true,
+      "l3_size": "8MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 \u00a76.1 (extrapolated): com-orkut property array (~25 MB) spills at 8 ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "delaunay_n19",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "has_citation_token": true,
+      "l3_size": "8MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: tiny graphs entirely fit at 8MB LLC; gains shrink to <=1-2 ...",
+      "rationale_len": 83
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "16kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "256kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "4kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "roadNet-CA",
+      "has_citation_token": false,
+      "l3_size": "64kB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 11: soc-LJ BC shows positive but smaller-than-PR improvement; m...",
+      "rationale_len": 127
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 11: soc-LJ BFS shows modest GRASP gain; frontier traversal dilu...",
+      "rationale_len": 100
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: soc-LJ PR is the headline GRASP graph; reports the largest ...",
+      "rationale_len": 112
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 9: soc-LJ PR shows the largest P-OPT gain among power-law graph...",
+      "rationale_len": 137
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": true,
+      "l3_size": "8MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: soc-LJ property array (~38 MB) still spills at 8 MB LLC; GR...",
+      "rationale_len": 105
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 10: soc-LJ SSSP is among the strongest P-OPT cases; large verte...",
+      "rationale_len": 144
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 11: BC on soc-Pokec shows positive but smaller-than-PR improvem...",
+      "rationale_len": 84
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: soc-Pokec PR shows ~5% miss-rate reduction at 1MB LLC.",
+      "rationale_len": 75
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 9: soc-Pokec PR shows P-OPT close to OPT, well below LRU baseli...",
+      "rationale_len": 90
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": true,
+      "l3_size": "8MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: soc-pokec property array (~13 MB) marginally spills at 8 MB...",
+      "rationale_len": 107
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 10: soc-Pokec SSSP shows P-OPT beats GRASP and LRU at 1MB.",
+      "rationale_len": 75
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 11: BC on small web graphs sees modest improvement or near-pari...",
+      "rationale_len": 234
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex...",
+      "rationale_len": 133
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modul...",
+      "rationale_len": 150
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 11: BFS on web-Google should not regress significantly below LR...",
+      "rationale_len": 166
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversa...",
+      "rationale_len": 147
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-drive...",
+      "rationale_len": 91
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-f...",
+      "rationale_len": 150
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mi...",
+      "rationale_len": 234
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: web-Google PR shows a smaller but consistent improvement; s...",
+      "rationale_len": 132
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": true,
+      "l3_size": "1MB",
+      "policy": "POPT",
+      "rationale_excerpt": "P-OPT HPCA21 Fig 9: web-Google PR shows P-OPT improvement, magnitude depends on ...",
+      "rationale_len": 107
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices ...",
+      "rationale_len": 138
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": true,
+      "l3_size": "8MB",
+      "policy": "GRASP",
+      "rationale_excerpt": "GRASP HPCA20 Fig 10: web-Google property array (~7 MB) fits at 8MB LLC; gains sh...",
+      "rationale_len": 97
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic...",
+      "rationale_len": 122
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "1MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "4MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "SRRIP",
+      "rationale_excerpt": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a smal...",
+      "rationale_len": 159
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_GE_GRASP",
+      "rationale_excerpt": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial va...",
+      "rationale_len": 87
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "has_citation_token": false,
+      "l3_size": "8MB",
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "rationale_excerpt": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree ...",
+      "rationale_len": 159
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "cell_count": 115,
+    "cell_uniqueness_violations": 0,
+    "min_rationale_len": 40,
+    "min_rationales_per_policy": 1,
+    "point_policies": [
+      "GRASP",
+      "LRU",
+      "POPT"
+    ],
+    "rationale_counts_per_pol_app": {
+      "GRASP|bc": 4,
+      "GRASP|bfs": 3,
+      "GRASP|pr": 11,
+      "GRASP|sssp": 1,
+      "POPT_GE_GRASP|bc": 1,
+      "POPT_GE_GRASP|bfs": 1,
+      "POPT_GE_GRASP|cc": 1,
+      "POPT_GE_GRASP|pr": 1,
+      "POPT_GE_GRASP|sssp": 1,
+      "POPT_NEAR_GRASP_IF_BIG_GAP|bc": 1,
+      "POPT_NEAR_GRASP_IF_BIG_GAP|bfs": 1,
+      "POPT_NEAR_GRASP_IF_BIG_GAP|cc": 1,
+      "POPT_NEAR_GRASP_IF_BIG_GAP|pr": 1,
+      "POPT_NEAR_GRASP_IF_BIG_GAP|sssp": 1,
+      "POPT|pr": 5,
+      "POPT|sssp": 3,
+      "SRRIP|bc": 1,
+      "SRRIP|bfs": 1,
+      "SRRIP|cc": 1,
+      "SRRIP|pr": 1,
+      "SRRIP|sssp": 1
+    },
+    "theorem_invariance_violations": 0,
+    "theorem_policies": [
+      "POPT_GE_GRASP",
+      "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "SRRIP"
+    ],
+    "total_rows": 330,
+    "unique_rationales_per_policy": {
+      "GRASP": 19,
+      "POPT": 8,
+      "POPT_GE_GRASP": 5,
+      "POPT_NEAR_GRASP_IF_BIG_GAP": 1,
+      "SRRIP": 5
+    },
+    "violations": 0
+  },
+  "violations": []
+}

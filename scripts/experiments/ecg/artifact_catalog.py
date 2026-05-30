@@ -689,6 +689,14 @@ CATALOG = [
         "summary":   "Per `status == 'known_deviation'` row: the `known_deviation_reason` text must name at least one algorithmic mechanism (PR-rank, frontier, hub, union-find, ordering, capacity, look-ahead, ...), exceed a 60-char length floor, carry a non-empty citation, resolve any cross-references against another known_deviation row, and the same reason text may not cover more than 50 % of all known_deviation rows. Today: 30 known_deviation rows, median reason length 247 chars, median mechanism hits 5, 30/30 unique texts, 16 cross-referenced, 0 violations.",
     },
     {
+        "id":        "lit_faith_ratgrid",
+        "label":     "Literature-faithfulness rationale-grid audit",
+        "generator": "scripts/experiments/ecg/lit_faith_ratgrid.py",
+        "gate":      "scripts/test/test_lit_faith_ratgrid.py",
+        "artifact":  "wiki/data/lit_faith_ratgrid.json",
+        "summary":   "Per (policy, graph, app) cell: rationale text must be unique within the cell (theorem-class policies POPT_GE_GRASP / POPT_NEAR_GRASP_IF_BIG_GAP / SRRIP must carry exactly 1 rationale per (policy, app); point policies GRASP / POPT / LRU may carry up to 2 per (policy, graph, app) to accommodate L3-regime variants). Theorem-class policies are exempt from the citation-token rule (they state algorithmic-class theorems, not Fig references). Point-policy rationales must contain a citation token (HPCA20 / HPCA21 / Fig 9-12 / §3-7). Today: 330 rows, 115 cells, 5 policies, GRASP=19 / POPT=8 / POPT_GE_GRASP=5 / POPT_NEAR=1 / SRRIP=5 distinct rationales, 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -719,7 +727,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (232 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (233 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
