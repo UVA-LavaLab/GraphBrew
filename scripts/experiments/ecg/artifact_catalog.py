@@ -817,6 +817,14 @@ CATALOG = [
         "summary":   "gem5/Sniper/cache_sim sideband-schema registry audit (gate 248) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are the three C++ emit sites — graph_cache_context_gem5.hh, graph_cache_context_sniper.cc, graph_cache_context.h — AND a hand-curated SCHEMA_REGISTRY in the generator declaring the canonical field order, printf specifier, and C++ parameter type for every key=value token in the [graphctx] register region log line). Catches silent wire-format drift: a developer can re-order, rename, or drop a field in one overlay and the Tier-A sideband-registration parser (gate 1) stops matching that overlay's lines without any test failing for the obviously wrong reason. 7 rules: (S1) every registered emit-site file exists; (S2) the printf format string in each file matches the canonical schema field order byte-for-byte (after concatenating adjacent C string literals); (S3) the C++ logGraphCtxRegistration() parameter type list matches the canonical type tuple; (S4) every emit-site contains the canonical literal prefix '[graphctx] register region'; (S5) every schema field uses a printf specifier from the documented allow-list (%s, 0x%lx, %u, %d); (S6) the Tier-A parser regex anchor compiles AND round-trips a sample line built from the canonical schema (named groups match schema field names); (S7) each emit-site contains exactly one register-region fprintf (catches divergent backup emit paths added by mistake). Today: 6 schema fields (source, name, base, upper, hot_pct, grasp_region) × 3 emit sites; 0 violations.",
     },
     {
+        "id":        "lit_faith_graph_family",
+        "label":     "Graph-family map full-coverage",
+        "generator": "scripts/experiments/ecg/lit_faith_graph_family.py",
+        "gate":      "scripts/test/test_lit_faith_graph_family.py",
+        "artifact":  "wiki/data/lit_faith_graph_family.json",
+        "summary":   "Graph-family map full-coverage audit (gate 249) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are every .py file under scripts/experiments/ecg and scripts/test AND a CANONICAL_GRAPH_FAMILY map in the generator declaring the 8-graph shipped corpus). Gate 107 (test_graph_family_map_duplication) already locks the topology of 7 known copies (2 full + 5 short). This gate hardens that by AST-harvesting every module-level dict literal whose keys are known graph names and whose values are known family labels, then asserting that every copy agrees with the canonical map on every shared key. Catches new modules added by a future contributor that ship their own GRAPH_FAMILY copy and silently diverge from the canonical mapping. 6 rules: (F1) harvester picks up every module-level dict that looks like a GRAPH_FAMILY map; (F2) every harvested copy is a subset of canonical + reserved-future keys (no unknown graph→family pairs); (F3) every harvested copy agrees with canonical on every shared key (no value drift); (F4) canonical is non-empty AND every value is in the documented family allow-list (social, web, citation, road, mesh); (F5) no harvested copy that contains reserved-future graph tags is missing from the gate-107 FULL_SOURCES universe; (F6) out-of-universe copies are tracked for visibility. Today: canonical=8 graphs (4 social + 1 web + 1 citation + 1 road + 1 mesh); 12 harvested copies across 12 files; 7 out-of-universe but all subset-clean; 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -847,7 +855,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (248 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (249 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

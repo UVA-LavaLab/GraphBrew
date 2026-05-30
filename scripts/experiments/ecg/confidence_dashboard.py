@@ -397,6 +397,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_paper_tables.py", "PaperTables"),
     "Sideband-schema registry (gate 248) — hand-curated SCHEMA_REGISTRY locks the [graphctx] register region wire-format across gem5/Sniper/cache_sim emit sites: field order, printf specifiers, C++ param types, regex round-trip + single emit per file":
         ("scripts/test/test_lit_faith_sideband_schema.py", "SidebandSchema"),
+    "Graph-family map full-coverage (gate 249) — AST-harvests every GRAPH_FAMILY dict literal in scripts/experiments/ecg + scripts/test, asserts each agrees with canonical on every shared key; catches copies the gate-107 dup test does not yet guard":
+        ("scripts/test/test_lit_faith_graph_family.py", "GraphFamily"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

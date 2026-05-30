@@ -1,0 +1,13 @@
+site,copy_index,size,has_reserved_future_keys,is_in_gate_107_universe
+scripts/experiments/ecg/family_saturation_distance.py,0,8,0,1
+scripts/experiments/ecg/family_sensitivity.py,0,8,0,0
+scripts/experiments/ecg/literature_deviations_report.py,0,8,0,1
+scripts/experiments/ecg/oracle_gap_report.py,0,8,0,1
+scripts/experiments/ecg/popt_vs_grasp_report.py,0,8,0,1
+scripts/experiments/ecg/winning_regime_taxonomy.py,0,8,0,1
+scripts/test/test_family_saturation_distance_derivation_parity.py,0,8,0,0
+scripts/test/test_family_sensitivity_derivation_parity.py,0,8,0,0
+scripts/test/test_literature_deviations_report_derivation_parity.py,0,8,0,0
+scripts/test/test_oracle_gap_derivation_parity.py,0,8,0,0
+scripts/test/test_popt_vs_grasp_delta_derivation_parity.py,0,8,0,0
+scripts/test/test_winning_regime_taxonomy_derivation_parity.py,0,8,0,0

@@ -8,7 +8,28 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **248 gates, all GREEN, exit 0**.
+and currently reports **249 gates, all GREEN, exit 0**.
+
+**Graph-family map full-coverage (gate 249, refresh @249):**
+Gate 107 already locks the topology of 7 known `GRAPH_FAMILY` copies
+(2 full + 5 short). This gate extends that protection by
+AST-harvesting *every* module-level dict literal in
+`scripts/experiments/ecg/` and `scripts/test/` whose keys look like
+known graph names and whose values look like known family labels,
+then asserting that every harvested copy agrees with a canonical
+8-graph map declared in the generator on every shared key. Catches
+new modules added by a future contributor that ship their own
+`GRAPH_FAMILY` copy and silently diverge from the canonical mapping.
+6 rules: F1 harvester picks up every module-level GRAPH_FAMILY-shaped
+dict; F2 every harvested copy is a subset of canonical + reserved-
+future keys; F3 every harvested copy agrees with canonical on every
+shared key (no value drift); F4 canonical is non-empty AND every
+value is in the documented allow-list (`social`, `web`, `citation`,
+`road`, `mesh`); F5 no harvested copy with reserved-future keys is
+missing from the gate-107 `FULL_SOURCES` universe; F6 out-of-universe
+copies are tracked for visibility. Today: canonical=8 graphs (4
+social + 1 web + 1 citation + 1 road + 1 mesh); 12 harvested copies
+across 12 files; 7 out-of-universe but all subset-clean; 0 violations.
 
 **Sideband-schema registry (gate 248, refresh @248):**
 Locks the `[graphctx] register region ...` wire-format across the
@@ -288,8 +309,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 248. Next refresh due
-at gate 253.
+**Refresh status:** Refresh complete at gate 249. Next refresh due
+at gate 254.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next
