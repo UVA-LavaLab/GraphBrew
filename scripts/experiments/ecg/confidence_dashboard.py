@@ -409,6 +409,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_handoff_xref.py", "HandoffXref"),
     "wiki/data bidirectional registry (gate 254) — locks wiki/data/*.json ↔ catalog ↔ pytest; rules W1-W8: every json catalogued/aux/self-ref, no ghost entries, non-empty fields, paths exist, sibling .md, unique ids+paths, valid aux parent_id":
         ("scripts/test/test_lit_faith_wiki_registry.py", "WikiRegistry"),
+    "Cache-policy vocab registry (gate 255) — AST-harvests POLICIES/ALL/BASELINE/GRAPH_AWARE tuples; 8 canonical + 9 ECG arms; rules P1-P9: rogue tokens, dup, config decomposition, paper_label, 4-tuple permutation lock, alias trap, ECG-arm parent+purpose":
+        ("scripts/test/test_lit_faith_policy_registry.py", "PolicyRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

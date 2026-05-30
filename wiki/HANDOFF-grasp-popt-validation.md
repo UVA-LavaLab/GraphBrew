@@ -8,7 +8,35 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **254 gates, all GREEN, exit 0**.
+and currently reports **255 gates, all GREEN, exit 0**.
+
+**Cache-policy vocabulary registry (gate 255, refresh @255):**
+A vocabulary-lock companion to gate 251 (L3 byte literals) and gate
+248 (paper-label map). AST-harvests every `POLICIES`,
+`ALL_POLICIES`, `BASELINE_POLICIES`, and `GRAPH_AWARE_POLICIES`
+tuple/list across `scripts/experiments/ecg/*.py` and validates
+against `CANONICAL_POLICY_NAMES` (8 entries: LRU, FIFO, RANDOM,
+LFU, SRRIP, GRASP, POPT, ECG) plus `CANONICAL_ECG_ARMS` (9
+documented operational variants: POPT_CHARGED + 8 `ECG:*` arms).
+Catches a misspelled `POPT_charged` or lowercase `srrip` slipping
+into a generator, a config drift that adds GRAPH_AWARE to
+ALL_POLICIES out of order, or a 4-tuple anchor that drifts away
+from the paper's canonical (LRU, SRRIP, GRASP, POPT) ordering.
+9 rules: P1 every harvested token is canonical or a documented
+ECG arm; P2 POLICIES tuples have no duplicates; P3 `config.py`
+strictly decomposes `ALL_POLICIES == BASELINE + GRAPH_AWARE` while
+extended `ALL_POLICIES` elsewhere may add canonical-or-arm tokens
+only; P4 every canonical token has a valid family ∈
+{baseline,graph_aware} + a non-empty `paper_label`; P5 no two
+canonical tokens share the same `paper_label`; P6 every harvested
+4-tuple `POLICIES` is a permutation of CANONICAL_FOUR_TUPLE
+(LRU,SRRIP,GRASP,POPT); P7 every harvested 3-tuple is a subset of
+canonical (so the (GRASP,LRU,SRRIP) anchor triplet stays locked);
+P8 no harvested token is one of the documented forbidden aliases
+(`Lru`, lowercase `srrip`, etc.); P9 every CANONICAL_ECG_ARMS
+entry declares a real parent ∈ {POPT, ECG} plus a non-empty purpose
+string. Today: 8 canonical tokens, 9 ECG arms, 43 harvested POLICIES
+tuples, 2 ALL_POLICIES sites; 0 violations.
 
 **wiki/data bidirectional registry (gate 254, refresh @254):**
 Symmetric companion to gate 253 — gate 253 binds narrative ↔ live
@@ -415,8 +443,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 254. Next refresh due
-at gate 259.
+**Refresh status:** Refresh complete at gate 255. Next refresh due
+at gate 260.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

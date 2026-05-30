@@ -865,6 +865,14 @@ CATALOG = [
         "summary":   "wiki/data bidirectional registry audit (gate 254) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are every wiki/data/*.json file on disk AND scripts/experiments/ecg/artifact_catalog.py entries AND an in-generator ALLOWED_AUXILIARY allow-list of postfix companion artifacts). Symmetric to gate 253 (HANDOFF↔PYTEST_SUITES): gate 253 binds narrative ↔ live suite count; gate 254 binds raw artifact filesystem ↔ catalog entries ↔ pytest coverage so a generator cannot ship a new wiki/data/*.json without explicit catalog + sibling .md + pytest accounting. 8 rules: (W1) every wiki/data/*.json file is accounted for (catalog entry OR auxiliary allow-list OR self-referential set); (W2) no ghost catalog entries (every artifact file referenced exists on disk); (W3) every catalog entry has non-empty generator/gate/artifact strings; (W4) every catalog entry's generator/gate/artifact path exists in the working tree; (W5) every .json artifact in the catalog has a sibling .md summary at the same stem; (W6) catalog ids are unique; (W7) catalog artifact paths are unique (no two entries claim the same file); (W8) every auxiliary allow-list entry references a real catalog id as its parent_id. Today: 110 wiki/data/*.json files, 106 catalog entries (incl. the 254-th lit-faith generator itself), 4 auxiliary allow-list entries (3 ECG-parity postfix files + 1 ECG substrate-parity per-observation companion), 1 self-referential (artifact_catalog.json); 0 violations.",
     },
     {
+        "id":        "lit_faith_policy_registry",
+        "label":     "Cache-policy vocabulary registry",
+        "generator": "scripts/experiments/ecg/lit_faith_policy_registry.py",
+        "gate":      "scripts/test/test_lit_faith_policy_registry.py",
+        "artifact":  "wiki/data/lit_faith_policy_registry.json",
+        "summary":   "Cache-policy vocabulary registry audit (gate 255) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are scripts/experiments/ecg/config.py:ALL_POLICIES AND every POLICIES/ALL_POLICIES/BASELINE_POLICIES/GRAPH_AWARE_POLICIES tuple harvested by AST from scripts/experiments/ecg/*.py AND an in-generator CANONICAL_POLICY_NAMES + CANONICAL_ECG_ARMS allow-list). Symmetric to gate 251 (L3 byte literals) and gate 248 (paper-label map): gate 251 locks the cache-size universe; gate 248 locks the per-policy paper labels; gate 255 locks the policy-token vocabulary itself so a new misspelled `POPT_charged` or rogue `srrip` lowercase cannot enter the codebase without an explicit canonical entry or ECG-arm declaration. 9 rules: (P1) every harvested policy token is in CANONICAL_POLICY_NAMES (8: LRU/FIFO/RANDOM/LFU/SRRIP/GRASP/POPT/ECG) OR CANONICAL_ECG_ARMS (9 documented variants: POPT_CHARGED + 8 ECG:* operational arms); (P2) POLICIES tuples have no duplicates; (P3) config.py ALL_POLICIES strictly equals BASELINE_POLICIES + GRAPH_AWARE_POLICIES with no extras, while extended ALL_POLICIES in other modules (roi_matrix.py) only add canonical-or-arm tokens; (P4) every canonical token has a valid family ∈ {baseline,graph_aware} + non-empty paper_label; (P5) no two canonical tokens share the same paper_label; (P6) every harvested 4-tuple POLICIES is a permutation of CANONICAL_FOUR_TUPLE (LRU,SRRIP,GRASP,POPT) — this is the paper's canonical anchor 4-tuple, so any 4-tuple that drifts to {LRU,SRRIP,GRASP,POPT_PRIMARY} or similar trips the gate; (P7) every harvested 3-tuple POLICIES is a subset of CANONICAL (catches narrative-anchor triplets like (GRASP,LRU,SRRIP)); (P8) no harvested token is a documented forbidden alias (e.g. lowercase `lru`, `Lru`, `srrip`); (P9) every CANONICAL_ECG_ARMS entry declares a real parent ∈ {POPT, ECG} plus a non-empty purpose string explaining why the arm exists. Today: 8 canonical tokens, 9 ECG arms, 43 harvested POLICIES tuples, 2 ALL_POLICIES sites; 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -895,7 +903,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (254 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (255 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

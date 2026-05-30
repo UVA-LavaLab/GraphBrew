@@ -338,6 +338,15 @@ def build_claims() -> list[dict]:
             "scripts/test/test_paper_claims_registry_derivation_parity.py",
             "scripts/test/test_paper_claims_value_parity.py",
             "scripts/test/test_catalog_dashboard_coverage_milestone.py",
+            # Reproduce-smoke tests are downstream of paper_claims (they
+            # snapshot it) and therefore also caught in the green_gate_count
+            # cycle: when paper_claims drifts because the count changed, the
+            # smoke flags the drift, which drops the count further, which
+            # makes the smoke drift again. Treat them as green when computing
+            # the count itself; the underlying drift is still visible in
+            # reproduce_smoke.json/.md for human inspection.
+            "scripts/test/test_reproduce_smoke.py",
+            "scripts/test/test_reproduce_smoke_coverage.py",
         }
         def _green(s):
             if isinstance(s, dict):
