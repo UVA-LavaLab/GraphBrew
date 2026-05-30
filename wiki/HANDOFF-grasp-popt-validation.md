@@ -8,7 +8,63 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **230 gates, all GREEN, exit 0**.
+and currently reports **235 gates, all GREEN, exit 0**.
+
+**Literature-faithfulness deepening (gates 231-235, refresh @235):**
+After LIT-Stat closed the statistical-sanity loop on per_claim, the
+deepening track expanded into per-bucket ordering audits, per-row
+explanation depth, per-cell rationale grids, and per_observation
+axis-coverage and cell-completeness audits:
+
+- **LIT-PolyOrd** (gate 231) — per (graph_family × app) policy-ordering
+  audit. Hub families ({social, citation, web}) must satisfy median
+  POPT−LRU ≤ +0.5 pp and median GRASP−LRU ≤ +1.0 pp per bucket;
+  no-hub families ({road, mesh}) are exempt (LRU regime). Per-app
+  global hub-aggregate POPT improve-frac ≥ 0.55 with median delta
+  ≤ 0 pp. Tiny-sample exception: improve-frac floor enforced only
+  when n ≥ 5 cells per bucket. Today: 21 buckets, 114 cells,
+  hub-aggregate POPT improve fracs bc=0.72/bfs=0.89/cc=0.87/pr=0.94/
+  sssp=0.93, 0 violations.
+- **LIT-DevExp** (gate 232) — deviation-explanation depth audit. Per
+  `status == 'known_deviation'` row: the `known_deviation_reason`
+  text must (a) name >= 1 algorithmic mechanism from a 30-keyword
+  vocabulary (PR-rank, frontier, hub, union-find, ordering, capacity,
+  look-ahead, oracle, ...), (b) exceed a 60-char length floor, (c)
+  carry a non-empty citation, (d) resolve any cross-references
+  against another known_deviation row, and (e) no single reason text
+  covers more than 50% of the 30 known_deviation rows. Today: 30
+  rows, median reason length 247 chars, median 5 mechanism hits,
+  30/30 unique texts, 16 cross-referenced, 0 violations.
+- **LIT-RatGrid** (gate 233) — per-cell rationale-grid audit. Per
+  (policy, graph, app) cell: rationale text must be unique within
+  the cell. Theorem-class policies {POPT_GE_GRASP,
+  POPT_NEAR_GRASP_IF_BIG_GAP, SRRIP} must carry exactly 1 rationale
+  per (policy, app) regardless of graph (algorithmic theorem statement
+  is graph-invariant); point policies {GRASP, POPT, LRU} may carry
+  up to 2 rationales per (policy, graph, app) to accommodate L3-regime
+  variants ("spills at 1 MB" vs "fits at 8 MB"). Theorem-class is
+  exempt from the citation-token rule. Today: 330 rows, 115 cells,
+  GRASP=19/POPT=8/POPT_GE_GRASP=5/POPT_NEAR=1/SRRIP=5 distinct
+  rationales, 0 violations.
+- **LIT-CellComp** (gate 234) — per_observation cell-completeness
+  audit (parallel sibling of LIT-Stat). Per (graph, app, l3) cell:
+  canonical policy roster {LRU, GRASP, POPT} present, LRU baseline
+  row present (delta_vs_lru_pct depends on it), `delta_vs_lru_pct`
+  arithmetic matches `(miss_rate - lru_miss_rate) * 100` within
+  0.001 pp, every non-LRU policy covers >= 3 L3 sizes per (graph,
+  app), every present policy shares the same L3 axis within (graph,
+  app), miss rates in [0, 1], no duplicate rows. Today: 456 rows,
+  114 cells, 8 graphs, 5 apps, 4 policies (LRU + GRASP + POPT +
+  SRRIP), 0 violations across all 7 rules.
+- **LIT-AppFreq** (gate 235) — per-app axis-coverage audit. Each app
+  must touch >= 6 graphs, >= 3 L3 sizes, >= 3 policies (canonical
+  roster {LRU, GRASP, POPT} per app), every (app, graph) covers
+  >= 3 L3 sizes, every app contributes >= 60 observation rows, and
+  the anchor app (pr) must cover the full corpus (8/8 graphs).
+  Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
+  (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
+
+**Refresh status:** Refresh due at the next 5-gate boundary (gate 240).
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next
@@ -56,8 +112,6 @@ physical-invariant* checks on the live per_claim table itself:
   insufficient_data}. Today 330 rows: 102 LRU-vs-policy + 114
   POPT_GE_GRASP + 114 POPT_NEAR_GRASP, 298 ok / 30 known_deviation
   / 2 within_tolerance / 0 disagree.
-
-**Refresh status:** Refresh due at the next 5-gate boundary (gate 235).
 
 **Literature-faithfulness deepening (gates 221-225, refresh @225):**
 Once the 220-gate scaffold was load-bearing, the next push hardened
