@@ -8,7 +8,39 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **256 gates, all GREEN, exit 0**.
+and currently reports **257 gates, all GREEN, exit 0**.
+
+**Backend/tool vocabulary registry (gate 257, refresh @257):**
+A vocabulary-lock companion to gate 252 (Slurm SBATCH schema), gate
+255 (cache-policy vocab), and gate 256 (run-profile vocab). Locks
+WHICH simulator backend / tool every result row, anchor pickup,
+cross-tool aggregator, and report-label site references — so a
+contributor cannot silently rename `cache_sim` to `cache_simulator`,
+drop the hyphen in `gem5-riscv` to `gem5riscv`, or introduce a rogue
+`sniperx` / uppercase `GEM5` variant without an explicit canonical
+entry. CANONICAL_BACKENDS today: `cache_sim` and its kebab-case
+display sibling `cache-sim` (analytical LRU-stack sim), `gem5` +
+`gem5-riscv` + `gem5-x86` (cycle-accurate, three frontends), and
+`sniper` + `sniper-sift` (interval-sim + SIFT trace frontend). AST-
+harvests every backend string literal across
+`scripts/experiments/ecg/*.py` + `scripts/test/*.py` plus every
+`--backend / --source-backend / --tool / --tool-name / --suite`
+argparse choices+default. 7 rules: R1 every harvested literal is in
+`CANONICAL_BACKEND_NAMES`; R2 every canonical has non-empty `family
+∈ {cache_sim, gem5, sniper}` plus non-empty `paper_label`; R3 no
+two canonicals share a paper_label unless they are declared mutual
+`punctuation_variants` (`cache_sim ⇄ cache-sim` is the only such
+pair today); R4 every canonical's `punctuation_variants` tuple
+includes its own name (catches lonely-variant declarations); R5
+every harvested argparse `choices` list AND default ⊆
+`CANONICAL_BACKEND_NAMES ∪ {'both'}` (the `both` literal is reserved
+for `--suite` to mean cache_sim+gem5 together); R6 every canonical
+name matches `^[a-z][a-z0-9_-]*$` (lowercase ASCII; hyphen/underscore
+allowed; no leading digit) — catches uppercase typos like `Gem5` and
+prefix-clash typos like `3gem5`; R7 every canonical token has at
+least one in-tree literal reference (no dead canonicals). Today: 7
+canonical tokens, 3 families, 437 literal sites, 7 distinct harvested
+literals, 4 argparse sites; 0 violations.
 
 **ECG final-paper-run profile registry (gate 256, refresh @256):**
 A vocabulary-lock companion to gate 252 (Slurm SBATCH schema) and
@@ -467,8 +499,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 256. Next refresh due
-at gate 261.
+**Refresh status:** Refresh complete at gate 257. Next refresh due
+at gate 262.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

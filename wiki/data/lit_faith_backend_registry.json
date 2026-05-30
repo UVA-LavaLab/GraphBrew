@@ -1,0 +1,133 @@
+{
+  "argparse_entries": [
+    {
+      "choices": [
+        "sniper",
+        "gem5-riscv",
+        "both"
+      ],
+      "default": "both",
+      "flag": "--backend",
+      "path": "scripts/experiments/ecg/ecg_pfx_scale_proof.py"
+    },
+    {
+      "choices": [
+        "sniper",
+        "gem5-riscv",
+        "both"
+      ],
+      "default": null,
+      "flag": "--backend",
+      "path": "scripts/experiments/ecg/make_ecg_pfx_scale_shards.py"
+    },
+    {
+      "choices": [],
+      "default": "sniper-sift",
+      "flag": "--source-backend",
+      "path": "scripts/experiments/ecg/make_ecg_pfx_scale_shards.py"
+    },
+    {
+      "choices": [
+        "cache-sim",
+        "gem5",
+        "sniper",
+        "both"
+      ],
+      "default": "both",
+      "flag": "--suite",
+      "path": "scripts/experiments/ecg/roi_matrix.py"
+    }
+  ],
+  "canonical": [
+    {
+      "family": "cache_sim",
+      "name": "cache_sim",
+      "paper_label": "cache-sim",
+      "punctuation_variants": [
+        "cache_sim",
+        "cache-sim"
+      ],
+      "purpose": "Analytical LRU-stack cache simulator (single-level, per-policy hit-rate sweep). Underscore form is used as Python identifier / dict-key; the hyphen form 'cache-sim' is its display/paper-prose sibling."
+    },
+    {
+      "family": "cache_sim",
+      "name": "cache-sim",
+      "paper_label": "cache-sim",
+      "punctuation_variants": [
+        "cache_sim",
+        "cache-sim"
+      ],
+      "purpose": "Display/paper-prose form of cache_sim. Same artifact, hyphen-styled for narrative text and matplotlib labels."
+    },
+    {
+      "family": "gem5",
+      "name": "gem5",
+      "paper_label": "gem5",
+      "punctuation_variants": [
+        "gem5"
+      ],
+      "purpose": "Cycle-accurate full-system simulator (default X86 frontend in this repo). Used as the generic gem5 key in anchor pickups; the architecture-specific siblings (gem5-riscv, gem5-x86) only appear when the run explicitly distinguishes frontends (e.g. ECG scale preflight)."
+    },
+    {
+      "family": "gem5",
+      "name": "gem5-riscv",
+      "paper_label": "gem5/RISC-V",
+      "punctuation_variants": [
+        "gem5-riscv"
+      ],
+      "purpose": "gem5 RISC-V frontend (ECG scale runs). Distinct from the generic gem5 key because the binary path and the preflight checks differ. Result rows from RISC-V runs must carry this token, not 'gem5'."
+    },
+    {
+      "family": "gem5",
+      "name": "gem5-x86",
+      "paper_label": "gem5/X86",
+      "punctuation_variants": [
+        "gem5-x86"
+      ],
+      "purpose": "gem5 X86 frontend marker (cluster preflight binary label). Currently only used by ecg_cluster_preflight for human-readable diagnostic output; result rows from X86 runs still use the generic 'gem5' key."
+    },
+    {
+      "family": "sniper",
+      "name": "sniper",
+      "paper_label": "Sniper",
+      "punctuation_variants": [
+        "sniper"
+      ],
+      "purpose": "Sniper interval-simulator (Pin-based instrumentation). Used as the generic Sniper key in anchor pickups; the frontend-specific sibling (sniper-sift) only appears when the run distinguishes the SIFT trace frontend."
+    },
+    {
+      "family": "sniper",
+      "name": "sniper-sift",
+      "paper_label": "Sniper/SIFT",
+      "punctuation_variants": [
+        "sniper-sift"
+      ],
+      "purpose": "Sniper SIFT (Sniper Instruction Format trace) frontend marker. Used by ECG scale preflight + scale-status row tagging so trace-driven runs are distinguished from Pin-driven runs."
+    }
+  ],
+  "harvested_tokens": [
+    "cache-sim",
+    "cache_sim",
+    "gem5",
+    "gem5-riscv",
+    "gem5-x86",
+    "sniper",
+    "sniper-sift"
+  ],
+  "n_argparse_sites": 4,
+  "n_canonical": 7,
+  "n_distinct_literals": 7,
+  "n_families": 3,
+  "n_literal_sites": 437,
+  "rules": {
+    "R1": "every harvested backend/tool literal is in CANONICAL_BACKENDS",
+    "R2": "every canonical has non-empty family \u2208 {cache_sim,gem5,sniper} + non-empty paper_label",
+    "R3": "no two canonicals share a paper_label unless they are declared punctuation variants",
+    "R4": "every canonical's punctuation_variants includes its own name",
+    "R5": "every --backend/--tool/--suite argparse choices+default \u2286 CANONICAL_BACKENDS (+'both')",
+    "R6": "canonical token names match ^[a-z][a-z0-9_-]*$",
+    "R7": "every canonical token is referenced by at least one in-tree literal"
+  },
+  "status": "active",
+  "violations": []
+}

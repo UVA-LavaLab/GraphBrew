@@ -413,6 +413,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_policy_registry.py", "PolicyRegistry"),
     "ECG profile registry (gate 256) — locks manifest profiles ↔ stages ↔ helpers ↔ README; 30 profiles, 30 stages, 25 citations; R1-R7: stage tokens resolve, descriptions, no dead profiles, citation typos, name snake_case, stage well-formed, unique":
         ("scripts/test/test_lit_faith_profile_registry.py", "ProfileRegistry"),
+    "Backend vocab registry (gate 257) — AST-harvests backend literals in ecg+test; 7 canonical (cache_sim+kebab, gem5/riscv/x86, sniper/sift); R1-R7: in-canon, family+label, no dup labels, self-variant, argparse subset, name regex, all-referenced":
+        ("scripts/test/test_lit_faith_backend_registry.py", "BackendRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
