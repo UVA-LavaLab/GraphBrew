@@ -657,6 +657,14 @@ CATALOG = [
         "summary":   "For every (citation, expected_sign) group in the lit-faith corpus (17 groups today across 5 papers), audits the per-cell rationales for mutual coherence. Four checks: (1) **zero contradictions** — no rationale pair within a group may mix opposing-direction vocabulary (e.g., \"dominates\" vs \"underperforms\"), with negation-context handling so phrasings like \"must NOT regress\" don't falsely trigger; (2) **sign-vocabulary alignment** — every rationale must mention at least one term consistent with its `expected_sign` band; (3) **common-kernel** — every multi-rationale group shares at least one anchor token across all member rationales (large groups ≥ 5 rationales: ≥ 2 kernel terms); (4) **length-span** — `max_len/min_len ≤ 3.0` per group. Today: 0 contradictions, 0 sign misses, 0 kernel failures, 0 span failures across 35 unique rationales.",
     },
     {
+        "id":        "lit_faith_monotonicity",
+        "label":     "Literature-faithfulness cache-size monotonicity audit",
+        "generator": "scripts/experiments/ecg/lit_faith_monotonicity.py",
+        "gate":      "scripts/test/test_lit_faith_monotonicity.py",
+        "artifact":  "wiki/data/lit_faith_monotonicity.json",
+        "summary":   "Locks the physical invariant that miss rate is non-increasing in LLC size for every (graph, app, policy) triple in the lit-faith corpus (tolerance 0.5 pp). For every triple with ≥ 2 L3 samples, computes the slope per log2(L3) doubling and flags any pair where the larger cache shows ≥ 0.5 pp higher miss rate. Also flags saturated triples (< 1 pp total drop across the full sweep) — those samples sit in the capacity-bound regime where the policy can't move the needle. Today: 30 triples audited across 17 graphs / 4 apps / {GRASP, SRRIP}, 0 LRU violations, 0 policy violations, 1 saturated triple (com-orkut/bfs/SRRIP at 1MB→8MB — expected, bfs on orkut is capacity-bound below 16MB). Median slope ≈ 0.16 miss-rate-points per L3 doubling.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -687,7 +695,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (228 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (229 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

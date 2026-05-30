@@ -1,0 +1,999 @@
+{
+  "saturated_triples": [
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "l3_range": "1MB\u21928MB",
+      "policy": "SRRIP",
+      "total_lru_drop": 0.003051,
+      "total_policy_drop": 0.003118
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "max_slope_lru": 0.245026,
+    "max_slope_policy": 0.225058,
+    "median_slope_lru": 0.160066,
+    "median_slope_policy": 0.153333,
+    "min_slope_lru": 0.00094,
+    "min_slope_policy": 0.001052,
+    "rows_with_rates": 102,
+    "saturated_count": 1,
+    "total_rows": 330,
+    "triple_count": 47,
+    "triples_audited": 30,
+    "triples_singleton": 17,
+    "violations_lru": 0,
+    "violations_policy": 0
+  },
+  "tolerance": 0.005,
+  "triples": [
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.898992,
+      "lru_miss_min": 0.616659,
+      "lru_total_drop": 0.282333,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.89268,
+      "policy_miss_min": 0.592732,
+      "policy_total_drop": 0.299948,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.898992,
+          "policy_miss_rate": 0.89268
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.741399,
+          "policy_miss_rate": 0.729365
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.616659,
+          "policy_miss_rate": 0.592732
+        }
+      ],
+      "slope_lru": 0.101768,
+      "slope_policy": 0.109145
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.966509,
+      "lru_miss_min": 0.871076,
+      "lru_total_drop": 0.095433,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.962542,
+      "policy_miss_min": 0.867949,
+      "policy_total_drop": 0.094593,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.966509,
+          "policy_miss_rate": 0.962542
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.909819,
+          "policy_miss_rate": 0.902971
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.871076,
+          "policy_miss_rate": 0.867949
+        }
+      ],
+      "slope_lru": 0.033544,
+      "slope_policy": 0.032404
+    },
+    {
+      "app": "cc",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.643092,
+      "lru_miss_min": 0.181542,
+      "lru_total_drop": 0.46155,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.600965,
+      "policy_miss_min": 0.16012,
+      "policy_total_drop": 0.440845,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.643092,
+          "policy_miss_rate": 0.600965
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.31697,
+          "policy_miss_rate": 0.293984
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.181542,
+          "policy_miss_rate": 0.16012
+        }
+      ],
+      "slope_lru": 0.149245,
+      "slope_policy": 0.143677
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "l3_count": 2,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.892299,
+      "lru_miss_min": 0.324767,
+      "lru_total_drop": 0.567532,
+      "policy": "GRASP",
+      "policy_miss_max": 0.785828,
+      "policy_miss_min": 0.21452,
+      "policy_total_drop": 0.571308,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.892299,
+          "policy_miss_rate": 0.785828
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.324767,
+          "policy_miss_rate": 0.21452
+        }
+      ],
+      "slope_lru": 0.189177,
+      "slope_policy": 0.190436
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.892299,
+      "lru_miss_min": 0.324767,
+      "lru_total_drop": 0.567532,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.878032,
+      "policy_miss_min": 0.275616,
+      "policy_total_drop": 0.602416,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.892299,
+          "policy_miss_rate": 0.878032
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.587932,
+          "policy_miss_rate": 0.546122
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.324767,
+          "policy_miss_rate": 0.275616
+        }
+      ],
+      "slope_lru": 0.207674,
+      "slope_policy": 0.218231
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.852928,
+      "lru_miss_min": 0.268958,
+      "lru_total_drop": 0.58397,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.849729,
+      "policy_miss_min": 0.243975,
+      "policy_total_drop": 0.605754,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.852928,
+          "policy_miss_rate": 0.849729
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.563099,
+          "policy_miss_rate": 0.538453
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.268958,
+          "policy_miss_rate": 0.243975
+        }
+      ],
+      "slope_lru": 0.219528,
+      "slope_policy": 0.225058
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.862362,
+      "lru_miss_min": 0.382097,
+      "lru_total_drop": 0.480265,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.836956,
+      "policy_miss_min": 0.353107,
+      "policy_total_drop": 0.483849,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.862362,
+          "policy_miss_rate": 0.836956
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.582657,
+          "policy_miss_rate": 0.550247
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.382097,
+          "policy_miss_rate": 0.353107
+        }
+      ],
+      "slope_lru": 0.170206,
+      "slope_policy": 0.170247
+    },
+    {
+      "app": "bfs",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.99728,
+      "lru_miss_min": 0.994229,
+      "lru_total_drop": 0.003051,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.997617,
+      "policy_miss_min": 0.994499,
+      "policy_total_drop": 0.003118,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.99728,
+          "policy_miss_rate": 0.997617
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.994937,
+          "policy_miss_rate": 0.995591
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.994229,
+          "policy_miss_rate": 0.994499
+        }
+      ],
+      "slope_lru": 0.00094,
+      "slope_policy": 0.001052
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.688918,
+      "lru_miss_min": 0.430593,
+      "lru_total_drop": 0.258325,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.651004,
+      "policy_miss_min": 0.321163,
+      "policy_total_drop": 0.329841,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.688918,
+          "policy_miss_rate": 0.651004
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.503285,
+          "policy_miss_rate": 0.488797
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.430593,
+          "policy_miss_rate": 0.321163
+        }
+      ],
+      "slope_lru": 0.082754,
+      "slope_policy": 0.124369
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "l3_count": 2,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.710401,
+      "lru_miss_min": 0.164581,
+      "lru_total_drop": 0.54582,
+      "policy": "GRASP",
+      "policy_miss_max": 0.686721,
+      "policy_miss_min": 0.129581,
+      "policy_total_drop": 0.55714,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.710401,
+          "policy_miss_rate": 0.686721
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.164581,
+          "policy_miss_rate": 0.129581
+        }
+      ],
+      "slope_lru": 0.18194,
+      "slope_policy": 0.185713
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.710401,
+      "lru_miss_min": 0.164581,
+      "lru_total_drop": 0.54582,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.668635,
+      "policy_miss_min": 0.142183,
+      "policy_total_drop": 0.526452,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.710401,
+          "policy_miss_rate": 0.668635
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.310834,
+          "policy_miss_rate": 0.274322
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.164581,
+          "policy_miss_rate": 0.142183
+        }
+      ],
+      "slope_lru": 0.173018,
+      "slope_policy": 0.164648
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.660328,
+      "lru_miss_min": 0.024596,
+      "lru_total_drop": 0.635732,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.620433,
+      "policy_miss_min": 0.022316,
+      "policy_total_drop": 0.598117,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.660328,
+          "policy_miss_rate": 0.620433
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.169719,
+          "policy_miss_rate": 0.154127
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.024596,
+          "policy_miss_rate": 0.022316
+        }
+      ],
+      "slope_lru": 0.195214,
+      "slope_policy": 0.182482
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.843174,
+      "lru_miss_min": 0.452787,
+      "lru_total_drop": 0.390387,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.824953,
+      "policy_miss_min": 0.423678,
+      "policy_total_drop": 0.401275,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.843174,
+          "policy_miss_rate": 0.824953
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.603776,
+          "policy_miss_rate": 0.582806
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.452787,
+          "policy_miss_rate": 0.423678
+        }
+      ],
+      "slope_lru": 0.135344,
+      "slope_policy": 0.140101
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.798664,
+      "lru_miss_min": 0.557108,
+      "lru_total_drop": 0.241556,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.78285,
+      "policy_miss_min": 0.552149,
+      "policy_total_drop": 0.230701,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.798664,
+          "policy_miss_rate": 0.78285
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.607464,
+          "policy_miss_rate": 0.600855
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.557108,
+          "policy_miss_rate": 0.552149
+        }
+      ],
+      "slope_lru": 0.072978,
+      "slope_policy": 0.069852
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.783198,
+      "lru_miss_min": 0.431375,
+      "lru_total_drop": 0.351823,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.772184,
+      "policy_miss_min": 0.409854,
+      "policy_total_drop": 0.36233,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.783198,
+          "policy_miss_rate": 0.772184
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.543694,
+          "policy_miss_rate": 0.532392
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.431375,
+          "policy_miss_rate": 0.409854
+        }
+      ],
+      "slope_lru": 0.116036,
+      "slope_policy": 0.121217
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 2,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.7322,
+      "lru_miss_min": 0.275619,
+      "lru_total_drop": 0.456581,
+      "policy": "GRASP",
+      "policy_miss_max": 0.684286,
+      "policy_miss_min": 0.201771,
+      "policy_total_drop": 0.482515,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.7322,
+          "policy_miss_rate": 0.684286
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.275619,
+          "policy_miss_rate": 0.201771
+        }
+      ],
+      "slope_lru": 0.152194,
+      "slope_policy": 0.160838
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.7322,
+      "lru_miss_min": 0.275619,
+      "lru_total_drop": 0.456581,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.699437,
+      "policy_miss_min": 0.24064,
+      "policy_total_drop": 0.458797,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.7322,
+          "policy_miss_rate": 0.699437
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.426147,
+          "policy_miss_rate": 0.389702
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.275619,
+          "policy_miss_rate": 0.24064
+        }
+      ],
+      "slope_lru": 0.151777,
+      "slope_policy": 0.151965
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.687689,
+      "lru_miss_min": 0.164663,
+      "lru_total_drop": 0.523026,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.687091,
+      "policy_miss_min": 0.150166,
+      "policy_total_drop": 0.536925,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.687689,
+          "policy_miss_rate": 0.687091
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.355631,
+          "policy_miss_rate": 0.342338
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.164663,
+          "policy_miss_rate": 0.150166
+        }
+      ],
+      "slope_lru": 0.178499,
+      "slope_policy": 0.182274
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.85203,
+      "lru_miss_min": 0.243494,
+      "lru_total_drop": 0.608536,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.828838,
+      "policy_miss_min": 0.221503,
+      "policy_total_drop": 0.607335,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.85203,
+          "policy_miss_rate": 0.828838
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.500938,
+          "policy_miss_rate": 0.466971
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.243494,
+          "policy_miss_rate": 0.221503
+        }
+      ],
+      "slope_lru": 0.216495,
+      "slope_policy": 0.213201
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.871696,
+      "lru_miss_min": 0.714564,
+      "lru_total_drop": 0.157132,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.861972,
+      "policy_miss_min": 0.713591,
+      "policy_total_drop": 0.148381,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.871696,
+          "policy_miss_rate": 0.861972
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.740122,
+          "policy_miss_rate": 0.738747
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.714564,
+          "policy_miss_rate": 0.713591
+        }
+      ],
+      "slope_lru": 0.045673,
+      "slope_policy": 0.043384
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.699434,
+      "lru_miss_min": 0.057708,
+      "lru_total_drop": 0.641726,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.666805,
+      "policy_miss_min": 0.057727,
+      "policy_total_drop": 0.609078,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.699434,
+          "policy_miss_rate": 0.666805
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.396085,
+          "policy_miss_rate": 0.329942
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.057708,
+          "policy_miss_rate": 0.057727
+        }
+      ],
+      "slope_lru": 0.245026,
+      "slope_policy": 0.220323
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "l3_count": 2,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.679564,
+      "lru_miss_min": 0.100416,
+      "lru_total_drop": 0.579148,
+      "policy": "GRASP",
+      "policy_miss_max": 0.54339,
+      "policy_miss_min": 0.079289,
+      "policy_total_drop": 0.464101,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.679564,
+          "policy_miss_rate": 0.54339
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.100416,
+          "policy_miss_rate": 0.079289
+        }
+      ],
+      "slope_lru": 0.193049,
+      "slope_policy": 0.1547
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.679564,
+      "lru_miss_min": 0.100416,
+      "lru_total_drop": 0.579148,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.634395,
+      "policy_miss_min": 0.088267,
+      "policy_total_drop": 0.546128,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.679564,
+          "policy_miss_rate": 0.634395
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.196937,
+          "policy_miss_rate": 0.161599
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.100416,
+          "policy_miss_rate": 0.088267
+        }
+      ],
+      "slope_lru": 0.168917,
+      "slope_policy": 0.154865
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.639747,
+      "lru_miss_min": 0.002951,
+      "lru_total_drop": 0.636796,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.608038,
+      "policy_miss_min": 0.002952,
+      "policy_total_drop": 0.605086,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.639747,
+          "policy_miss_rate": 0.608038
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.098727,
+          "policy_miss_rate": 0.085379
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.002951,
+          "policy_miss_rate": 0.002952
+        }
+      ],
+      "slope_lru": 0.183143,
+      "slope_policy": 0.171878
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.707256,
+      "lru_miss_min": 0.151522,
+      "lru_total_drop": 0.555734,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.688876,
+      "policy_miss_min": 0.144413,
+      "policy_total_drop": 0.544463,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.707256,
+          "policy_miss_rate": 0.688876
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.368711,
+          "policy_miss_rate": 0.357427
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.151522,
+          "policy_miss_rate": 0.144413
+        }
+      ],
+      "slope_lru": 0.193231,
+      "slope_policy": 0.189369
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.970019,
+      "lru_miss_min": 0.80865,
+      "lru_total_drop": 0.161369,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.969339,
+      "policy_miss_min": 0.80384,
+      "policy_total_drop": 0.165499,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.970019,
+          "policy_miss_rate": 0.969339
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.935872,
+          "policy_miss_rate": 0.934855
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.80865,
+          "policy_miss_rate": 0.80384
+        }
+      ],
+      "slope_lru": 0.072148,
+      "slope_policy": 0.074128
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.560761,
+      "lru_miss_min": 0.045641,
+      "lru_total_drop": 0.51512,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.522174,
+      "policy_miss_min": 0.045658,
+      "policy_total_drop": 0.476516,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.560761,
+          "policy_miss_rate": 0.522174
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.045733,
+          "policy_miss_rate": 0.04573
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.045641,
+          "policy_miss_rate": 0.045658
+        }
+      ],
+      "slope_lru": 0.128803,
+      "slope_policy": 0.119147
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "l3_count": 2,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.600866,
+      "lru_miss_min": 0.097049,
+      "lru_total_drop": 0.503817,
+      "policy": "GRASP",
+      "policy_miss_max": 0.453209,
+      "policy_miss_min": 0.084516,
+      "policy_total_drop": 0.368693,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.600866,
+          "policy_miss_rate": 0.453209
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.097049,
+          "policy_miss_rate": 0.084516
+        }
+      ],
+      "slope_lru": 0.167939,
+      "slope_policy": 0.122898
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.600866,
+      "lru_miss_min": 0.097049,
+      "lru_total_drop": 0.503817,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.543887,
+      "policy_miss_min": 0.093357,
+      "policy_total_drop": 0.45053,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.600866,
+          "policy_miss_rate": 0.543887
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.141419,
+          "policy_miss_rate": 0.119035
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.097049,
+          "policy_miss_rate": 0.093357
+        }
+      ],
+      "slope_lru": 0.137047,
+      "slope_policy": 0.119052
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 0.555762,
+      "lru_miss_min": 0.016276,
+      "lru_total_drop": 0.539472,
+      "policy": "SRRIP",
+      "policy_miss_max": 0.550741,
+      "policy_miss_min": 0.016256,
+      "policy_total_drop": 0.534485,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 0.555762,
+          "policy_miss_rate": 0.550741
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 0.016276,
+          "policy_miss_rate": 0.016295
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 0.01629,
+          "policy_miss_rate": 0.016256
+        }
+      ],
+      "slope_lru": 0.134864,
+      "slope_policy": 0.133631
+    }
+  ],
+  "violations_lru": [],
+  "violations_policy": []
+}
