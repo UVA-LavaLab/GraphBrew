@@ -8,7 +8,27 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **246 gates, all GREEN, exit 0**.
+and currently reports **247 gates, all GREEN, exit 0**.
+
+**Paper LaTeX-table emit invariant (gate 247, refresh @247):**
+Locks the published-paper-facing .tex tables in
+`wiki/data/paper_pipeline_YYYYMMDD/`. A developer can edit a
+table-generation script, the .tex file regenerates with a different
+caption or column header, and the paper's prose silently mismatches
+the table — no numerical test catches this. Gate codifies each
+shipped table with a hand-curated `TABLE_REGISTRY` entry declaring
+`{filename, caption, col_spec, columns}`, plus a per-row hygiene
+sweep. 7 rules: T1 every registered file exists; T2 in-file caption
+matches; T3 `\begin{tabular}{...}` col-spec matches; T4 column-header
+tuple matches; T5 every data row has the right column count AND no
+cell is the literal `nan`/`NaN`/`inf`/`-inf` (those render fine in
+PDF but are scientifically meaningless); T6 no unregistered .tex in
+the dir (defensive — catches new tables added without registration);
+T7 every table ends with the `\bottomrule\end{tabular}\end{table}`
+closing trio. Today: 5 registered tables
+(`ecg_mode_overhead_summary`, `faithfulness_summary`,
+`popt_charged_overhead`, `popt_storage_overhead_summary`,
+`roi_policy_summary`), 78 total data rows, 0 violations.
 
 **lit-faith citation registry purity (gate 246, refresh @246):**
 Locks down the prose-citation strings carried in
@@ -245,8 +265,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 246. Next refresh due
-at gate 251.
+**Refresh status:** Refresh complete at gate 247. Next refresh due
+at gate 252.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

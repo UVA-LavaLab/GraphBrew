@@ -1035,6 +1035,17 @@
       "summary": "lit-faith citation registry purity audit (gate 246) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are the per_claim array of wiki/data/literature_faithfulness_postfix.json AND a hand-curated CITATION_REGISTRY in the generator listing every canonical literature work the lit-faith table is allowed to cite, with structured {key, title, venue, year, patterns, note} metadata). Catches three classes of bug invisible to numerical tests: (a) an author edits a per_claim row to cite a paper that does not actually carry the claim; (b) a registry entry slowly accretes typos in its prose-citation form until pattern matching breaks; (c) within a (policy, app, expected_sign) bucket \u2014 the unit the paper actually quotes \u2014 different rows silently drift apart in which canonical work they attribute the expected sign to. 5 rules: (C1) every per_claim citation matches the substring patterns of >=1 registered canonical work; (C2) every registered canonical work is referenced >=1 time in per_claim (no dead-letter registry entries); (C3) within each (policy, app, expected_sign) bucket, all rows share >=1 canonical citation key (the paper-quote anchor stays consistent); (C4) every registry entry has non-empty venue + year (keeps the registry mineable for bibliography generation); (C5) every per_claim row carries a non-empty citation string. Today: 3 canonical works (Faldu-HPCA-2020, Balaji-HPCA-2021, Jaleel-ISCA-2010); 330 per_claim rows; 24 (policy, app, sign) buckets; coverage Balaji=252, Faldu=177, Jaleel=75; 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_paper_tables.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_paper_tables.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_paper_tables.py",
+      "generator_exists": true,
+      "id": "lit_faith_paper_tables",
+      "label": "Paper LaTeX-table emit invariant",
+      "summary": "Paper LaTeX-table emit-invariant audit (gate 247) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are the .tex files inside the latest wiki/data/paper_pipeline_YYYYMMDD/ snapshot dir AND a hand-curated TABLE_REGISTRY in the generator listing every shipped paper table with its expected caption, tabular column-spec, and header tuple). Catches silent drift between the paper's prose and the auto-generated tables: a developer can edit a table-generation script, change the column count or header, and the .tex file regenerates with no test failure even though the paper text now mismatches the table. 7 rules: (T1) every registered table file exists in the latest paper_pipeline dir; (T2) registered caption matches the in-file \\caption{...} exactly; (T3) registered tabular column-spec matches the in-file \\begin{tabular}{...} spec; (T4) registered column-header tuple matches the in-file header row; (T5) every data row has exactly len(columns) cells AND no cell is the literal string 'nan'/'NaN'/'inf'/'-inf' (NaN/Inf are sentinels that look fine in PDF but are scientifically meaningless); (T6) there is no .tex file in paper_pipeline dir that is NOT registered (defensive \u2014 catches new tables added without registration); (T7) every table ends with the \\bottomrule\\end{tabular}\\end{table} closing trio (catches truncated LaTeX). Today: 5 registered tables (ecg_mode_overhead_summary, faithfulness_summary, popt_charged_overhead, popt_storage_overhead_summary, roi_policy_summary); 78 total data rows; 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1076,13 +1087,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (246 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (247 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 98
+    "n_entries": 99
   }
 }

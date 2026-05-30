@@ -393,6 +393,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_regime_classifier.py", "RegimeClassifier"),
     "lit-faith citation registry purity (gate 246) — hand-curated CITATION_REGISTRY anchors every per_claim citation to a canonical work (Faldu HPCA20, Balaji HPCA21, Jaleel ISCA10) + per-bucket citation cohesion + no dead-letter registry entries":
         ("scripts/test/test_lit_faith_citation_registry.py", "CitationRegistry"),
+    "Paper LaTeX-table emit invariant (gate 247) — hand-curated TABLE_REGISTRY locks caption + tabular col-spec + column-header tuple for every .tex in paper_pipeline dir; per-row column-count + no NaN/Inf cells + clean closing trio":
+        ("scripts/test/test_lit_faith_paper_tables.py", "PaperTables"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

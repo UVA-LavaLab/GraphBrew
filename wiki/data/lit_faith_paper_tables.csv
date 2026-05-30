@@ -1,0 +1,10 @@
+field,value
+registry_size,5
+tables_found,5
+row_total,78
+violations,0
+rows::ecg_mode_overhead_summary.tex,4
+rows::faithfulness_summary.tex,24
+rows::popt_charged_overhead.tex,20
+rows::popt_storage_overhead_summary.tex,6
+rows::roi_policy_summary.tex,24
