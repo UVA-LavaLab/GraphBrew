@@ -1,0 +1,246 @@
+{
+  "canonical_directives": {
+    "account": {
+      "note": "billing account",
+      "pattern": "^[A-Za-z][\\w\\-]*$",
+      "required": false
+    },
+    "array": {
+      "note": "array spec",
+      "pattern": "^\\d+(-\\d+)?(:\\d+)?(%\\d+)?$",
+      "required": false
+    },
+    "cpus-per-task": {
+      "note": "OMP thread count",
+      "pattern": "^\\d+$",
+      "required": true
+    },
+    "error": {
+      "note": "stderr log template",
+      "pattern": null,
+      "required": false
+    },
+    "exclusive": {
+      "note": "flag-style (no value)",
+      "pattern": "^$",
+      "required": false
+    },
+    "gres": {
+      "note": "generic resources e.g. gpu:1",
+      "pattern": null,
+      "required": false
+    },
+    "job-name": {
+      "note": "human-readable label",
+      "pattern": "^[A-Za-z][\\w\\-]*$",
+      "required": true
+    },
+    "mem": {
+      "note": "per-node memory; G|M",
+      "pattern": "^\\d+[GMK]?$",
+      "required": true
+    },
+    "mem-per-cpu": {
+      "note": "per-CPU memory",
+      "pattern": "^\\d+[GMK]?$",
+      "required": false
+    },
+    "nodes": {
+      "note": "node count",
+      "pattern": "^\\d+$",
+      "required": true
+    },
+    "ntasks": {
+      "note": "MPI task count",
+      "pattern": "^\\d+$",
+      "required": true
+    },
+    "output": {
+      "note": "stdout log template",
+      "pattern": null,
+      "required": true
+    },
+    "partition": {
+      "note": "queue / partition",
+      "pattern": "^[A-Za-z][\\w\\-]*$",
+      "required": false
+    },
+    "time": {
+      "note": "HH:MM:SS or D-HH:MM:SS",
+      "pattern": "^(\\d{1,2}:\\d{2}:\\d{2}|\\d{1,2}-\\d{1,2}:\\d{2}:\\d{2})$",
+      "required": true
+    }
+  },
+  "files": [
+    {
+      "directive_count": 8,
+      "directives": [
+        "cpus-per-task",
+        "error",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch"
+    },
+    {
+      "directive_count": 9,
+      "directives": [
+        "cpus-per-task",
+        "error",
+        "exclusive",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/ecg/slurm_final_shard.sbatch"
+    },
+    {
+      "directive_count": 10,
+      "directives": [
+        "account",
+        "cpus-per-task",
+        "error",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "partition",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/vldb/slurm/monolithic.sbatch"
+    },
+    {
+      "directive_count": 8,
+      "directives": [
+        "cpus-per-task",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "partition",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/vldb/stages/slurm/01_prep.sbatch"
+    },
+    {
+      "directive_count": 8,
+      "directives": [
+        "cpus-per-task",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "partition",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/vldb/stages/slurm/02_reorder.sbatch"
+    },
+    {
+      "directive_count": 8,
+      "directives": [
+        "cpus-per-task",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "partition",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/vldb/stages/slurm/03_cpu_perf.sbatch"
+    },
+    {
+      "directive_count": 8,
+      "directives": [
+        "cpus-per-task",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "partition",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/vldb/stages/slurm/04_cache_sim.sbatch"
+    },
+    {
+      "directive_count": 8,
+      "directives": [
+        "cpus-per-task",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "partition",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/vldb/stages/slurm/05_aggregate.sbatch"
+    },
+    {
+      "directive_count": 8,
+      "directives": [
+        "cpus-per-task",
+        "job-name",
+        "mem",
+        "nodes",
+        "ntasks",
+        "output",
+        "partition",
+        "time"
+      ],
+      "missing_required": [],
+      "path": "scripts/experiments/vldb/stages/slurm/smoke.sbatch"
+    }
+  ],
+  "job_name_prefixes": [
+    "gbrew-",
+    "ecg-"
+  ],
+  "required_directives": [
+    "cpus-per-task",
+    "job-name",
+    "mem",
+    "nodes",
+    "ntasks",
+    "output",
+    "time"
+  ],
+  "rules": {
+    "S1": "every #SBATCH line parses to --key[=value]",
+    "S2": "every required directive present",
+    "S3": "every directive in CANONICAL_SBATCH_DIRECTIVES",
+    "S4": "mem / mem-per-cpu values match \\d+[GMK]?",
+    "S5": "time values match HH:MM:SS or D-HH:MM:SS",
+    "S6": "single-node single-task (nodes=1 + ntasks=1)",
+    "S7": "log templates contain %x+%j or %A+%a",
+    "S8": "job-name starts with one of ['gbrew-', 'ecg-']",
+    "S9": "mem and mem-per-cpu never co-occur in same file"
+  },
+  "status": "active",
+  "totals": {
+    "directives_canonical": 14,
+    "directives_required": 7,
+    "files": 9,
+    "violations": 0
+  },
+  "violations": []
+}

@@ -8,7 +8,26 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **251 gates, all GREEN, exit 0**.
+and currently reports **252 gates, all GREEN, exit 0**.
+
+**Slurm SBATCH schema registry (gate 252, refresh @252):**
+Every `*.sbatch` file under `scripts/experiments/ecg` and
+`scripts/experiments/vldb` is now parsed line-by-line against a
+single `CANONICAL_SBATCH_DIRECTIVES` registry (14 directive names; 7
+required: `--job-name`, `--time`, `--nodes`, `--ntasks`,
+`--cpus-per-task`, `--mem`, `--output`). Catches silent drift like a
+contributor adding a typo'd directive (`--mem-per-node`), shipping
+an sbatch missing `--output`, using a non-Slurm time format, or
+mixing `--mem` with `--mem-per-cpu` (Slurm forbids the combination).
+9 rules: S1 syntax (every `#SBATCH` token parses to
+`--key[=value]`); S2 every required directive present; S3 every
+directive used is canonical; S4 mem regex `\\d+[GMK]?`; S5 time
+regex `HH:MM:SS` or `D-HH:MM:SS`; S6 single-node single-task
+(`--nodes=1` AND `--ntasks=1`); S7 log templates contain `%x+%j` or
+`%A+%a`; S8 `--job-name` starts with `gbrew-` or `ecg-`; S9 `--mem`
+and `--mem-per-cpu` never co-occur. Today: 9 sbatch files (2 in
+`ecg/`, 7 in `vldb/`), 14 canonical directives, 7 required; 0
+violations.
 
 **L3 cache-size registry (gate 251, refresh @251):**
 The L3-size universe (4kB..32MB) is now locked by a single
@@ -350,8 +369,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 251. Next refresh due
-at gate 256.
+**Refresh status:** Refresh complete at gate 252. Next refresh due
+at gate 257.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

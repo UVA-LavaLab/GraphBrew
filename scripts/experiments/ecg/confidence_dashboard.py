@@ -403,6 +403,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_paper_provenance.py", "PaperProvenance"),
     "L3 cache-size registry (gate 251) — CANONICAL_L3_TIERS locks 11 tokens (4kB..32MB); AST-harvests every PAPER_L3/L3_SIZES/L3_MB/L3_BYTES constant in ecg+test; rules: byte arithmetic + MB scaling + ANCHOR_TRIPLET (1MB,4MB,8MB) + cross-file agreement":
         ("scripts/test/test_lit_faith_l3_registry.py", "L3Registry"),
+    "Slurm SBATCH schema registry (gate 252) — CANONICAL_SBATCH_DIRECTIVES locks 14 directive names + 7 required; parses every *.sbatch under scripts/experiments/; rules: syntax, vocab, mem/time regex, log %x+%j or %A+%a, prefix, mem×mem-per-cpu":
+        ("scripts/test/test_lit_faith_slurm_schema.py", "SlurmSchema"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
