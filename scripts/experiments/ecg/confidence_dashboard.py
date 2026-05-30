@@ -355,6 +355,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_tolerance.py", "LIT-Tol"),
     "literature-faithfulness accesses-floor audit (warmup-noise guard + per-axis distribution + zero floor violations)":
         ("scripts/test/test_lit_faith_accesses.py", "LIT-Acc"),
+    "literature-faithfulness cross-app rationale coherence (per-citation contradiction + sign-vocabulary alignment + common kernel + length-span)":
+        ("scripts/test/test_lit_faith_citexapp.py", "LIT-CXApp"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -649,6 +649,14 @@ CATALOG = [
         "summary":   "Warmup-noise guard for the lit-faith corpus. For every (graph, app, policy, l3) row, audits the `accesses` count emitted by cache_sim and floors it against per-app thresholds — 1M for BC/CC/PR, 500k for BFS/SSSP on production graphs, with a separate looser table for the email-Eu-core dev-smoke (20k bfs / 200k pr / 2M bc). Today: 311 production rows + 19 smoke rows, production min 735,934, median 15.95M, zero floor violations. Production buckets: 0 tiny, ~25 % large+huge — well above the 25 % gate floor. Catches silent regressions where a workload silently truncates to a warmup-only trace.",
     },
     {
+        "id":        "lit_faith_citexapp",
+        "label":     "Literature-faithfulness cross-app rationale coherence",
+        "generator": "scripts/experiments/ecg/lit_faith_citexapp.py",
+        "gate":      "scripts/test/test_lit_faith_citexapp.py",
+        "artifact":  "wiki/data/lit_faith_citexapp.json",
+        "summary":   "For every (citation, expected_sign) group in the lit-faith corpus (17 groups today across 5 papers), audits the per-cell rationales for mutual coherence. Four checks: (1) **zero contradictions** — no rationale pair within a group may mix opposing-direction vocabulary (e.g., \"dominates\" vs \"underperforms\"), with negation-context handling so phrasings like \"must NOT regress\" don't falsely trigger; (2) **sign-vocabulary alignment** — every rationale must mention at least one term consistent with its `expected_sign` band; (3) **common-kernel** — every multi-rationale group shares at least one anchor token across all member rationales (large groups ≥ 5 rationales: ≥ 2 kernel terms); (4) **length-span** — `max_len/min_len ≤ 3.0` per group. Today: 0 contradictions, 0 sign misses, 0 kernel failures, 0 span failures across 35 unique rationales.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -679,7 +687,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (227 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (228 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

@@ -1,0 +1,1176 @@
+{
+  "groups": [
+    {
+      "app_set": [
+        "sssp"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 Fig 10",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "cit-Patents",
+        "soc-LiveJournal1",
+        "soc-pokec"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 4,
+      "kernel_terms": [
+        "fig",
+        "hpca21",
+        "p-opt",
+        "sssp"
+      ],
+      "length_max": 144,
+      "length_min": 75,
+      "length_span_ok": true,
+      "length_span_ratio": 1.92,
+      "member_count": 3,
+      "policy_set": [
+        "POPT"
+      ],
+      "rationale_count": 3,
+      "rationales": [
+        {
+          "length": 92,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 10: cit-Patents SSSP benefits strongly from the oracle re-reference matrix.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "benefits",
+            "oracle"
+          ]
+        },
+        {
+          "length": 144,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 10: soc-LJ SSSP is among the strongest P-OPT cases; large vertex set + iterative relaxation creates oracle-reuse opportunities.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "strongest"
+          ]
+        },
+        {
+          "length": 75,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 10: soc-Pokec SSSP shows P-OPT beats GRASP and LRU at 1MB.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "beats"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "sssp"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "cit-Patents"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 9,
+      "kernel_terms": [
+        "fig",
+        "grasp",
+        "hpca21",
+        "improves",
+        "lru",
+        "over",
+        "p-opt",
+        "sssp",
+        "under"
+      ],
+      "length_max": 73,
+      "length_min": 73,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 1,
+      "policy_set": [
+        "GRASP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 73,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 10: SSSP under GRASP improves over LRU but less than PR.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "improves"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 Fig 9",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "cit-Patents",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 3,
+      "kernel_terms": [
+        "fig",
+        "hpca21",
+        "p-opt"
+      ],
+      "length_max": 137,
+      "length_min": 90,
+      "length_span_ok": true,
+      "length_span_ratio": 1.522,
+      "member_count": 4,
+      "policy_set": [
+        "POPT"
+      ],
+      "rationale_count": 4,
+      "rationales": [
+        {
+          "length": 125,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 9: oracle re-reference matrix beats RRIP-family policies by 5-10 pp at moderate LLC sizes on cit-Patents PR.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "beats",
+            "oracle"
+          ]
+        },
+        {
+          "length": 137,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 9: soc-LJ PR shows the largest P-OPT gain among power-law graphs; oracle look-ahead beats GRASP heuristic by several pp.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "beats",
+            "gain",
+            "largest",
+            "oracle"
+          ]
+        },
+        {
+          "length": 90,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 9: soc-Pokec PR shows P-OPT close to OPT, well below LRU baseline at 1MB.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "below",
+            "close"
+          ]
+        },
+        {
+          "length": 107,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 Fig 9: web-Google PR shows P-OPT improvement, magnitude depends on graph size relative to LLC.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "improvement"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "com-orkut"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 10,
+      "kernel_terms": [
+        "beat",
+        "com-orkut",
+        "heuristic",
+        "hpca21",
+        "look-ahead",
+        "magnitude",
+        "oracle",
+        "p-opt",
+        "similar",
+        "soc-lj"
+      ],
+      "length_max": 106,
+      "length_min": 106,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 1,
+      "policy_set": [
+        "POPT"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 106,
+          "member_count": 1,
+          "rationale": "P-OPT HPCA21 \u00a76: oracle look-ahead should beat any heuristic on com-orkut; magnitude is similar to soc-LJ.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "beat",
+            "oracle"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "cit-Patents",
+        "com-orkut",
+        "delaunay_n19",
+        "email-Eu-core",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 10,
+      "kernel_terms": [
+        "cannot",
+        "construction",
+        "grasp",
+        "heuristic",
+        "including",
+        "oracle",
+        "p-opt",
+        "policy",
+        "tolerance",
+        "worse"
+      ],
+      "length_max": 122,
+      "length_min": 122,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 28,
+      "policy_set": [
+        "POPT_GE_GRASP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 122,
+          "member_count": 28,
+          "rationale": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic, including GRASP, by more than tolerance.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "oracle"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "bc",
+        "bfs",
+        "cc",
+        "sssp"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "cit-Patents",
+        "com-orkut",
+        "email-Eu-core",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 3,
+      "kernel_terms": [
+        "extended",
+        "oracle",
+        "p-opt"
+      ],
+      "length_max": 234,
+      "length_min": 87,
+      "length_span_ok": true,
+      "length_span_ratio": 2.69,
+      "member_count": 86,
+      "policy_set": [
+        "POPT_GE_GRASP"
+      ],
+      "rationale_count": 4,
+      "rationales": [
+        {
+          "length": 150,
+          "member_count": 23,
+          "rationale": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modulo the larger per-trial variance of BC's dependency-frontier traversal.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "dominates",
+            "oracle"
+          ]
+        },
+        {
+          "length": 91,
+          "member_count": 23,
+          "rationale": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-driven variance.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "dominates",
+            "oracle"
+          ]
+        },
+        {
+          "length": 234,
+          "member_count": 20,
+          "rationale": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mis-alignment for POPT's static PR-rank schedule, see KNOWN_DEVIATIONS), the oracle still cannot lose by more than tolerance outside those documented cells.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "oracle"
+          ]
+        },
+        {
+          "length": 87,
+          "member_count": 20,
+          "rationale": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial variance.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "oracle",
+            "wins"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "bc",
+        "bfs",
+        "cc",
+        "pr",
+        "sssp"
+      ],
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "~",
+      "graph_set": [
+        "cit-Patents",
+        "com-orkut",
+        "delaunay_n19",
+        "email-Eu-core",
+        "roadNet-CA",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 15,
+      "kernel_terms": [
+        "agree",
+        "bug",
+        "disagreement",
+        "grasp",
+        "improves",
+        "indicates",
+        "large",
+        "lru",
+        "one",
+        "phase-transition",
+        "policies",
+        "popt",
+        "regime",
+        "two",
+        "within"
+      ],
+      "length_max": 159,
+      "length_min": 159,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 114,
+      "policy_set": [
+        "POPT_NEAR_GRASP_IF_BIG_GAP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 159,
+          "member_count": 114,
+          "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "agree",
+            "disagreement",
+            "phase-transition",
+            "within"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Faldu et al. HPCA 2020 Fig 10",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "cit-Patents",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 3,
+      "kernel_terms": [
+        "fig",
+        "grasp",
+        "hpca20"
+      ],
+      "length_max": 132,
+      "length_min": 75,
+      "length_span_ok": true,
+      "length_span_ratio": 1.76,
+      "member_count": 6,
+      "policy_set": [
+        "GRASP"
+      ],
+      "rationale_count": 6,
+      "rationales": [
+        {
+          "length": 123,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: cit-Patents PR shows the largest LLC-miss-rate reduction from GRASP among evaluated graphs at 1MB LLC.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "largest",
+            "reduction"
+          ]
+        },
+        {
+          "length": 110,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: cit-Patents property array (~30 MB) still spills at 8 MB LLC; GRASP retains ~2-5 pp gain.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "gain",
+            "retains",
+            "spills"
+          ]
+        },
+        {
+          "length": 112,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: soc-LJ PR is the headline GRASP graph; reports the largest miss-rate reduction at 1 MB LLC.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "headline",
+            "largest",
+            "reduction"
+          ]
+        },
+        {
+          "length": 105,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: soc-LJ property array (~38 MB) still spills at 8 MB LLC; GRASP retains ~5-7 pp gain.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "gain",
+            "retains",
+            "spills"
+          ]
+        },
+        {
+          "length": 75,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: soc-Pokec PR shows ~5% miss-rate reduction at 1MB LLC.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "reduction"
+          ]
+        },
+        {
+          "length": 132,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: web-Google PR shows a smaller but consistent improvement; smaller graph fits more of the property array in 1MB.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "improvement"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Faldu et al. HPCA 2020 Fig 10",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "~",
+      "graph_set": [
+        "email-Eu-core",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 5,
+      "kernel_terms": [
+        "fig",
+        "gains",
+        "grasp",
+        "hpca20",
+        "shrink"
+      ],
+      "length_max": 107,
+      "length_min": 83,
+      "length_span_ok": true,
+      "length_span_ratio": 1.289,
+      "member_count": 3,
+      "policy_set": [
+        "GRASP"
+      ],
+      "rationale_count": 3,
+      "rationales": [
+        {
+          "length": 107,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: soc-pokec property array (~13 MB) marginally spills at 8 MB; gains shrink to <=2-3 pp.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "marginally",
+            "shrink"
+          ]
+        },
+        {
+          "length": 83,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: tiny graphs entirely fit at 8MB LLC; gains shrink to <=1-2 pp.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "fit",
+            "shrink"
+          ]
+        },
+        {
+          "length": 97,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 10: web-Google property array (~7 MB) fits at 8MB LLC; gains shrink to <=1-2 pp.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "fits",
+            "shrink"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "bc",
+        "bfs"
+      ],
+      "citation": "Faldu et al. HPCA 2020 Fig 11",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "cit-Patents",
+        "soc-LiveJournal1",
+        "soc-pokec"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 3,
+      "kernel_terms": [
+        "fig",
+        "grasp",
+        "hpca20"
+      ],
+      "length_max": 133,
+      "length_min": 84,
+      "length_span_ok": true,
+      "length_span_ratio": 1.583,
+      "member_count": 5,
+      "policy_set": [
+        "GRASP"
+      ],
+      "rationale_count": 5,
+      "rationales": [
+        {
+          "length": 102,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 11: BC benefits from hot-vertex retention on power-law graphs, slightly less than PR.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "benefits"
+          ]
+        },
+        {
+          "length": 84,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 11: BC on soc-Pokec shows positive but smaller-than-PR improvement.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "improvement",
+            "positive",
+            "smaller-than-pr"
+          ]
+        },
+        {
+          "length": 133,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 11: BFS gains are smaller than PR/BC because frontier traversal is breadth-first across all degrees, not hub-biased.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "gains"
+          ]
+        },
+        {
+          "length": 127,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 11: soc-LJ BC shows positive but smaller-than-PR improvement; multi-array property layout splits hot capacity.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "improvement",
+            "positive",
+            "smaller-than-pr"
+          ]
+        },
+        {
+          "length": 100,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 11: soc-LJ BFS shows modest GRASP gain; frontier traversal dilutes hot-vertex bias.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "gain",
+            "modest"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "bc",
+        "bfs"
+      ],
+      "citation": "Faldu et al. HPCA 2020 Fig 11",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "~",
+      "graph_set": [
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 9,
+      "kernel_terms": [
+        "below",
+        "fig",
+        "grasp",
+        "hpca20",
+        "improvement",
+        "lru",
+        "regress",
+        "significantly",
+        "small"
+      ],
+      "length_max": 234,
+      "length_min": 166,
+      "length_span_ok": true,
+      "length_span_ratio": 1.41,
+      "member_count": 2,
+      "policy_set": [
+        "GRASP"
+      ],
+      "rationale_count": 2,
+      "rationales": [
+        {
+          "length": 234,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 11: BC on small web graphs sees modest improvement or near-parity; the four-array property layout splits hot capacity across all of them so the magnitude is smaller than PR's. Must NOT regress significantly below LRU.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "modest",
+            "small"
+          ]
+        },
+        {
+          "length": 166,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 Fig 11: BFS on web-Google should not regress significantly below LRU; small improvement (or tie) is acceptable given the single-source traversal pattern.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "small",
+            "tie"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated from twitter Fig 10)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "com-orkut"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 14,
+      "kernel_terms": [
+        "access",
+        "advantage",
+        "array",
+        "com-orkut",
+        "dense",
+        "extrapolated",
+        "grasp",
+        "hpca20",
+        "pattern",
+        "positive",
+        "property",
+        "softens",
+        "spills",
+        "undirected"
+      ],
+      "length_max": 159,
+      "length_min": 159,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 1,
+      "policy_set": [
+        "GRASP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 159,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 \u00a76.1 (extrapolated): com-orkut property array (~25 MB) spills at 8 MB; dense undirected access pattern softens GRASP advantage but still positive.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "advantage",
+            "positive",
+            "spills"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated to com-orkut from twitter Fig 10)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "-",
+      "graph_set": [
+        "com-orkut"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 12,
+      "kernel_terms": [
+        "dense",
+        "directed",
+        "endpoint",
+        "graphs",
+        "grasp",
+        "hpca20",
+        "improvement",
+        "magnitude",
+        "power-law",
+        "smaller",
+        "source",
+        "undirected"
+      ],
+      "length_max": 179,
+      "length_min": 179,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 1,
+      "policy_set": [
+        "GRASP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 179,
+          "member_count": 1,
+          "rationale": "GRASP HPCA20 \u00a76.1: PR on dense undirected power-law graphs should see GRASP improvement, but magnitude can be smaller than directed graphs because every endpoint is also a source.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "improvement"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "cc"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "~",
+      "graph_set": [
+        "cit-Patents",
+        "com-orkut",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 11,
+      "kernel_terms": [
+        "bias",
+        "edge-iterative",
+        "insertion-priority",
+        "lru",
+        "outperform",
+        "scan-resistant",
+        "several",
+        "srrip",
+        "traversal",
+        "triggers",
+        "union-find"
+      ],
+      "length_max": 150,
+      "length_min": 150,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 15,
+      "policy_set": [
+        "SRRIP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 150,
+          "member_count": 15,
+          "rationale": "SRRIP on CC can outperform LRU by several pp because CC's edge-iterative union-find traversal triggers SRRIP's scan-resistant insertion-priority bias.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "scan-resistant"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "sssp"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "~",
+      "graph_set": [
+        "cit-Patents",
+        "com-orkut",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 14,
+      "kernel_terms": [
+        "behaves",
+        "delta-stepping",
+        "distinctive",
+        "near-lru",
+        "nothing",
+        "number",
+        "relaxes",
+        "scan-resistance",
+        "small",
+        "srrip",
+        "sssp",
+        "suppress",
+        "times",
+        "vertex"
+      ],
+      "length_max": 159,
+      "length_min": 159,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 15,
+      "policy_set": [
+        "SRRIP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 159,
+          "member_count": 15,
+          "rationale": "SRRIP on SSSP behaves near-LRU because delta-stepping relaxes each vertex a small number of times; SRRIP's scan-resistance has nothing distinctive to suppress.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "behaves",
+            "near-lru",
+            "small"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "pr"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "~",
+      "graph_set": [
+        "cit-Patents",
+        "com-orkut",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 17,
+      "kernel_terms": [
+        "age",
+        "behaves",
+        "cold",
+        "graph-aware",
+        "hot",
+        "insertion",
+        "like",
+        "lru",
+        "out",
+        "power-law",
+        "rate",
+        "retained",
+        "reuse",
+        "same",
+        "srrip",
+        "vertices",
+        "without"
+      ],
+      "length_max": 138,
+      "length_min": 138,
+      "length_span_ok": true,
+      "length_span_ratio": 1.0,
+      "member_count": 15,
+      "policy_set": [
+        "SRRIP"
+      ],
+      "rationale_count": 1,
+      "rationales": [
+        {
+          "length": 138,
+          "member_count": 15,
+          "rationale": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices retained by reuse, cold vertices age out at the same rate.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "behaves"
+          ]
+        }
+      ]
+    },
+    {
+      "app_set": [
+        "bc",
+        "bfs"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "contradiction_count": 0,
+      "contradictions": [],
+      "expected_sign": "~",
+      "graph_set": [
+        "cit-Patents",
+        "com-orkut",
+        "soc-LiveJournal1",
+        "soc-pokec",
+        "web-Google"
+      ],
+      "kernel_ok": true,
+      "kernel_size": 4,
+      "kernel_terms": [
+        "near-lru",
+        "signal",
+        "srrip",
+        "weak"
+      ],
+      "length_max": 147,
+      "length_min": 133,
+      "length_span_ok": true,
+      "length_span_ratio": 1.105,
+      "member_count": 30,
+      "policy_set": [
+        "SRRIP"
+      ],
+      "rationale_count": 2,
+      "rationales": [
+        {
+          "length": 133,
+          "member_count": 15,
+          "rationale": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex sets; the dynamic insertion-priority signal is weak.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "behaves",
+            "near-lru",
+            "scan",
+            "weak"
+          ]
+        },
+        {
+          "length": 147,
+          "member_count": 15,
+          "rationale": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversal has weak reuse signal beyond hot vertices that LRU also captures.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "near-lru",
+            "weak"
+          ]
+        }
+      ]
+    }
+  ],
+  "length_span_ceiling": 3.0,
+  "opposing_pairs": [
+    {
+      "neg": [
+        "regress",
+        "regresses",
+        "underperform",
+        "underperforms"
+      ],
+      "pos": [
+        "beat",
+        "beats",
+        "dominate",
+        "dominates",
+        "outperform",
+        "outperforms",
+        "win",
+        "wins"
+      ]
+    },
+    {
+      "neg": [
+        "regress",
+        "regresses",
+        "regression",
+        "worse"
+      ],
+      "pos": [
+        "better",
+        "improve",
+        "improvement",
+        "improves"
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "sign_vocab": {
+    "+": [
+      "exceeds-grasp",
+      "higher",
+      "regress",
+      "regresses",
+      "regression",
+      "underperform",
+      "underperforms",
+      "worse"
+    ],
+    "-": [
+      "advantage",
+      "beat",
+      "beats",
+      "below",
+      "benefit",
+      "benefits",
+      "better",
+      "close",
+      "dominate",
+      "dominates",
+      "exceeds",
+      "gain",
+      "gains",
+      "headline",
+      "improve",
+      "improvement",
+      "improvements",
+      "improves",
+      "largest",
+      "lead",
+      "leads",
+      "lower",
+      "modest",
+      "oracle",
+      "outperform",
+      "outperformed",
+      "outperforms",
+      "positive",
+      "reduces",
+      "reduction",
+      "retain",
+      "retains",
+      "smaller-than-pr",
+      "spill",
+      "spills",
+      "strong",
+      "stronger",
+      "strongest",
+      "win",
+      "wins"
+    ],
+    "~": [
+      "agree",
+      "agreement",
+      "agrees",
+      "behaves",
+      "comparable",
+      "cross-check",
+      "cross-checks",
+      "disagreement",
+      "fit",
+      "fits",
+      "marginally",
+      "modest",
+      "modulo",
+      "near",
+      "near-grasp",
+      "near-lru",
+      "parity",
+      "phase-transition",
+      "scan",
+      "scan-resistant",
+      "shrink",
+      "shrinks",
+      "small",
+      "tie",
+      "weak",
+      "within"
+    ]
+  },
+  "summary": {
+    "group_count": 17,
+    "groups_failing_kernel": 0,
+    "groups_failing_span": 0,
+    "multi_member_group_count": 13,
+    "rows_with_sign_miss": 0,
+    "sign_alignment_misses": 0,
+    "total_contradictions": 0,
+    "total_rows": 330,
+    "unique_rationale_total": 38
+  }
+}
