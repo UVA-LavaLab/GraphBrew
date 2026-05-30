@@ -1,0 +1,727 @@
+{
+  "cl_classes": [
+    {
+      "chain": [
+        "CLBase"
+      ],
+      "full_flags": [
+        "D",
+        "S",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "o",
+        "s",
+        "u",
+        "z"
+      ],
+      "getopt_ext": "f:g:hk:su:m:o:zj:SlD:",
+      "name": "CLBase",
+      "parent": null,
+      "purpose": "Base class: graph loader (-f/-g/-u/-k/-s/-m/-S), ordering (-o), logging (-l/-D), segmentation (-j), indegree toggle (-z)."
+    },
+    {
+      "chain": [
+        "CLApp",
+        "CLBase"
+      ],
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "getopt_ext": "an:r:v",
+      "name": "CLApp",
+      "parent": "CLBase",
+      "purpose": "Generic per-trial driver: analysis (-a), trial count (-n), start-vertex (-r), verify (-v)."
+    },
+    {
+      "chain": [
+        "CLIterApp",
+        "CLApp",
+        "CLBase"
+      ],
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "getopt_ext": "i:",
+      "name": "CLIterApp",
+      "parent": "CLApp",
+      "purpose": "CLApp + iteration count (-i). Used by bc."
+    },
+    {
+      "chain": [
+        "CLPageRank",
+        "CLApp",
+        "CLBase"
+      ],
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "z"
+      ],
+      "getopt_ext": "i:t:",
+      "name": "CLPageRank",
+      "parent": "CLApp",
+      "purpose": "CLApp + max iters (-i) + tolerance (-t). Used by pr and pr_spmv."
+    },
+    {
+      "chain": [
+        "CLDelta",
+        "CLApp",
+        "CLBase"
+      ],
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "d",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "getopt_ext": "d:",
+      "name": "CLDelta",
+      "parent": "CLApp",
+      "purpose": "CLApp + delta-stepping parameter (-d). Used by sssp."
+    },
+    {
+      "chain": [
+        "CLConvert",
+        "CLBase"
+      ],
+      "full_flags": [
+        "D",
+        "S",
+        "V",
+        "b",
+        "e",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "o",
+        "p",
+        "q",
+        "s",
+        "u",
+        "w",
+        "x",
+        "y",
+        "z"
+      ],
+      "getopt_ext": "e:b:x:q:p:y:V:w",
+      "name": "CLConvert",
+      "parent": "CLBase",
+      "purpose": "CLBase + writer options for converter (-e/-b/-x/-q/-p/-y/-V/-w)."
+    }
+  ],
+  "flag_arity": {
+    "D": true,
+    "S": false,
+    "V": true,
+    "a": false,
+    "b": true,
+    "d": true,
+    "e": true,
+    "f": true,
+    "g": true,
+    "h": false,
+    "i": true,
+    "j": true,
+    "k": true,
+    "l": false,
+    "m": true,
+    "n": true,
+    "o": true,
+    "p": true,
+    "q": true,
+    "r": true,
+    "s": false,
+    "t": true,
+    "u": true,
+    "v": false,
+    "w": false,
+    "x": true,
+    "y": true,
+    "z": false
+  },
+  "flag_purpose": {
+    "D": "database directory for JSON output",
+    "S": "keep self loops",
+    "V": "output split CSR arrays (.out_degree/.out_neigh/.offset)",
+    "a": "output last-run analysis",
+    "b": "output serialized graph (.sg)",
+    "d": "delta-stepping parameter",
+    "e": "output edge list (.el)",
+    "f": "load graph from edge-list file",
+    "g": "generate 2^scale kronecker synthetic graph",
+    "h": "print help",
+    "i": "iteration count (bc) or max iters (pr)",
+    "j": "segmentation config (type:n:m)",
+    "k": "average degree for synthetic graph",
+    "l": "log per-trial performance",
+    "m": "in-place / memory-friendly loader",
+    "n": "number of trials",
+    "o": "apply reordering strategy (POPT / GRASP / etc.)",
+    "p": "output Matrix Market (.mtx)",
+    "q": "output reordered labels serialized (.lo)",
+    "r": "starting vertex (or 'rand')",
+    "s": "symmetrize input",
+    "t": "tolerance (pr / pr_spmv)",
+    "u": "generate 2^scale uniform-random synthetic graph",
+    "v": "verify output",
+    "w": "make output weighted (.wel/.wsg)",
+    "x": "output reordered labels (.so)",
+    "y": "output Ligra adjacency (.ligra)",
+    "z": "use indegree for degree-based orderings"
+  },
+  "kernel_source_status": [
+    {
+      "backend": "native",
+      "cl": "CLIterApp",
+      "kernel": "bc",
+      "ok": true,
+      "src": "bench/src/bc.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLIterApp",
+      "kernel": "bc",
+      "ok": true,
+      "src": "bench/src_sim/bc.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLIterApp",
+      "kernel": "bc",
+      "ok": true,
+      "src": "bench/src_gem5/bc.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLApp",
+      "kernel": "bfs",
+      "ok": true,
+      "src": "bench/src/bfs.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLApp",
+      "kernel": "bfs",
+      "ok": true,
+      "src": "bench/src_sim/bfs.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLApp",
+      "kernel": "bfs",
+      "ok": true,
+      "src": "bench/src_gem5/bfs.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLApp",
+      "kernel": "cc",
+      "ok": true,
+      "src": "bench/src/cc.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLApp",
+      "kernel": "cc",
+      "ok": true,
+      "src": "bench/src_sim/cc.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLApp",
+      "kernel": "cc",
+      "ok": true,
+      "src": "bench/src_gem5/cc.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLApp",
+      "kernel": "cc_sv",
+      "ok": true,
+      "src": "bench/src/cc_sv.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLApp",
+      "kernel": "cc_sv",
+      "ok": true,
+      "src": "bench/src_sim/cc_sv.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLApp",
+      "kernel": "cc_sv",
+      "ok": true,
+      "src": "bench/src_gem5/cc_sv.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLConvert",
+      "kernel": "converter",
+      "ok": true,
+      "src": "bench/src/converter.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLApp",
+      "kernel": "ecg_preprocess",
+      "ok": true,
+      "src": "bench/src_sim/ecg_preprocess.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLPageRank",
+      "kernel": "pr",
+      "ok": true,
+      "src": "bench/src/pr.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLPageRank",
+      "kernel": "pr",
+      "ok": true,
+      "src": "bench/src_sim/pr.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLPageRank",
+      "kernel": "pr",
+      "ok": true,
+      "src": "bench/src_gem5/pr.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLPageRank",
+      "kernel": "pr_spmv",
+      "ok": true,
+      "src": "bench/src/pr_spmv.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLPageRank",
+      "kernel": "pr_spmv",
+      "ok": true,
+      "src": "bench/src_sim/pr_spmv.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLPageRank",
+      "kernel": "pr_spmv",
+      "ok": true,
+      "src": "bench/src_gem5/pr_spmv.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLDelta",
+      "kernel": "sssp",
+      "ok": true,
+      "src": "bench/src/sssp.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLDelta",
+      "kernel": "sssp",
+      "ok": true,
+      "src": "bench/src_sim/sssp.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLDelta",
+      "kernel": "sssp",
+      "ok": true,
+      "src": "bench/src_gem5/sssp.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLApp",
+      "kernel": "tc",
+      "ok": true,
+      "src": "bench/src/tc.cc"
+    },
+    {
+      "backend": "cache_sim",
+      "cl": "CLApp",
+      "kernel": "tc",
+      "ok": true,
+      "src": "bench/src_sim/tc.cc"
+    },
+    {
+      "backend": "gem5",
+      "cl": "CLApp",
+      "kernel": "tc",
+      "ok": true,
+      "src": "bench/src_gem5/tc.cc"
+    },
+    {
+      "backend": "native",
+      "cl": "CLApp",
+      "kernel": "tc_p",
+      "ok": true,
+      "src": "bench/src/tc_p.cc"
+    }
+  ],
+  "kernels": [
+    {
+      "cl_class": "CLIterApp",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "bc",
+      "n_flags": 18
+    },
+    {
+      "cl_class": "CLApp",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "bfs",
+      "n_flags": 17
+    },
+    {
+      "cl_class": "CLApp",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "cc",
+      "n_flags": 17
+    },
+    {
+      "cl_class": "CLApp",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "cc_sv",
+      "n_flags": 17
+    },
+    {
+      "cl_class": "CLConvert",
+      "full_flags": [
+        "D",
+        "S",
+        "V",
+        "b",
+        "e",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "o",
+        "p",
+        "q",
+        "s",
+        "u",
+        "w",
+        "x",
+        "y",
+        "z"
+      ],
+      "kernel": "converter",
+      "n_flags": 21
+    },
+    {
+      "cl_class": "CLApp",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "ecg_preprocess",
+      "n_flags": 17
+    },
+    {
+      "cl_class": "CLPageRank",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "pr",
+      "n_flags": 19
+    },
+    {
+      "cl_class": "CLPageRank",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "pr_spmv",
+      "n_flags": 19
+    },
+    {
+      "cl_class": "CLDelta",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "d",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "sssp",
+      "n_flags": 18
+    },
+    {
+      "cl_class": "CLApp",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "tc",
+      "n_flags": 17
+    },
+    {
+      "cl_class": "CLApp",
+      "full_flags": [
+        "D",
+        "S",
+        "a",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "r",
+        "s",
+        "u",
+        "v",
+        "z"
+      ],
+      "kernel": "tc_p",
+      "n_flags": 17
+    }
+  ],
+  "n_cl_classes": 6,
+  "n_distinct_flags": 28,
+  "n_kernel_source_checks": 27,
+  "n_kernel_source_ok": 27,
+  "n_kernels": 11,
+  "rules": {
+    "R1": "every declared CL class has a non-empty getopt extension matching the live header",
+    "R2": "every canonical kernel source instantiates the canonical CL class",
+    "R3": "every canonical kernel's flag-set is the union of its inheritance chain",
+    "R4": "no within-chain getopt-letter conflict (same letter at two levels of the same chain)",
+    "R5": "every canonical flag matches ^[A-Za-z]$",
+    "R6": "every canonical flag has a documented FLAG_PURPOSE entry",
+    "R7": "every flag's arity (takes value / no value) is consistent across all classes that declare it"
+  },
+  "status": "active",
+  "violations": []
+}

@@ -419,6 +419,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_graph_registry.py", "GraphRegistry"),
     "Build target registry (gate 259) — 4-backend × kernel × variant compile matrix vs Makefile KERNELS_* + CXXFLAGS_*; 51 targets, 0 orphans; R1-R8: src on disk, canonical, required flags, dirs, family, opt lock (-O3/-O1/-O2), ROI mechanism":
         ("scripts/test/test_lit_faith_build_registry.py", "BuildRegistry"),
+    "GAPBS CLI registry (gate 260) — 6 CL classes (CLBase/App/IterApp/PageRank/Delta/Convert), 11 kernels, 28 flags; R1-R7: getopt live-vs-canonical, src class instantiation, full-flag = chain union, no within-chain conflicts, flag regex, purpose, arity":
+        ("scripts/test/test_lit_faith_cli_registry.py", "CLIRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

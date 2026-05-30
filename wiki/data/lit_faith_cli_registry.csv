@@ -1,0 +1,46 @@
+kind,name,extra
+cl_class,CLBase,
+cl_class,CLApp,CLBase
+cl_class,CLIterApp,CLApp
+cl_class,CLPageRank,CLApp
+cl_class,CLDelta,CLApp
+cl_class,CLConvert,CLBase
+kernel,bc,CLIterApp
+kernel,bfs,CLApp
+kernel,cc,CLApp
+kernel,cc_sv,CLApp
+kernel,converter,CLConvert
+kernel,ecg_preprocess,CLApp
+kernel,pr,CLPageRank
+kernel,pr_spmv,CLPageRank
+kernel,sssp,CLDelta
+kernel,tc,CLApp
+kernel,tc_p,CLApp
+flag,D,database directory for JSON output
+flag,S,keep self loops
+flag,V,output split CSR arrays (.out_degree/.out_neigh/.offset)
+flag,a,output last-run analysis
+flag,b,output serialized graph (.sg)
+flag,d,delta-stepping parameter
+flag,e,output edge list (.el)
+flag,f,load graph from edge-list file
+flag,g,generate 2^scale kronecker synthetic graph
+flag,h,print help
+flag,i,iteration count (bc) or max iters (pr)
+flag,j,segmentation config (type:n:m)
+flag,k,average degree for synthetic graph
+flag,l,log per-trial performance
+flag,m,in-place / memory-friendly loader
+flag,n,number of trials
+flag,o,apply reordering strategy (POPT / GRASP / etc.)
+flag,p,output Matrix Market (.mtx)
+flag,q,output reordered labels serialized (.lo)
+flag,r,starting vertex (or 'rand')
+flag,s,symmetrize input
+flag,t,tolerance (pr / pr_spmv)
+flag,u,generate 2^scale uniform-random synthetic graph
+flag,v,verify output
+flag,w,make output weighted (.wel/.wsg)
+flag,x,output reordered labels (.so)
+flag,y,output Ligra adjacency (.ligra)
+flag,z,use indegree for degree-based orderings

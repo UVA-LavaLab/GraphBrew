@@ -122,9 +122,9 @@
       "gate": "scripts/experiments/ecg/confidence_dashboard.py",
       "id": "confidence.green_gate_count",
       "source": "wiki/data/confidence_dashboard.json",
-      "text": "259 / 259 confidence gates pass in the current run.",
+      "text": "260 / 260 confidence gates pass in the current run.",
       "units": "gates",
-      "value": 259
+      "value": 260
     }
   ],
   "n_claims": 14

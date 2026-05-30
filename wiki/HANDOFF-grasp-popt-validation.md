@@ -8,7 +8,37 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **259 gates, all GREEN, exit 0**.
+and currently reports **260 gates, all GREEN, exit 0**.
+
+**GAPBS CLI registry (gate 260, refresh @260):**
+The seventh in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI). Locks
+WHICH command-line flags each GAPBS-derived kernel binary actually
+accepts (per its CLBase / CLApp / CLIterApp / CLPageRank / CLDelta /
+CLConvert inheritance chain in `bench/include/external/gapbs/command_line.h`)
+— so a contributor cannot silently iterate `-i 16 -i 32` for both
+pr AND bfs (bfs uses `CLApp`, which has no `-i`; the sweep
+collapses to a single bfs measurement repeated N times), pass
+`-t 1e-7` to sssp (CLDelta intercepts `-t` as unknown and bails
+after the run starts → wasted SBATCH time), invent a long-form
+`--num-trials 5` when the getopt loop only recognises short `-n
+5`, or claim a per-kernel arg table like `args['pr_spmv']['--tolerance']`
+when the binary only accepts `-t`. The gate parses the header for
+the six `class CL*` declarations + each class's
+`get_args_ += "..."` extension string, then cross-validates against
+the live `bench/src{,_sim,_gem5}/<kernel>.cc` instantiation of the
+canonical class. 7 rules R1-R7: R1 every CL class has a non-empty
+getopt-extension matching the live header; R2 every canonical
+kernel source instantiates the canonical CL class (verified across
+all 3 backends → 27/27 OK); R3 every kernel's flag-set is the
+union of its inheritance chain (no orphan kernel-only flags); R4
+no within-chain getopt conflicts (same letter at two levels of one
+chain); R5 every canonical flag matches `^[A-Za-z]$`; R6 every
+canonical flag has a documented `FLAG_PURPOSE` entry (28 entries
+covering all distinct flags); R7 flag-arity (takes value / no
+value) is consistent across every class that declares the flag.
+Today: 6 CL classes, 11 kernels, 28 distinct flags, 27/27
+source-instantiation checks pass; 0 violations.
 
 **Build-target registry (gate 259, refresh @259):**
 The sixth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -574,8 +604,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 259. Next refresh due
-at gate 264.
+**Refresh status:** Refresh complete at gate 260. Next refresh due
+at gate 265.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next
