@@ -4,7 +4,6 @@ All Δ values are percentage-points of L3 miss-rate vs LRU at the same (graph, a
 
 Verdict suffix encodes the literature-claim outcome where applicable: `✓` ok, `~` within tolerance, `✗` DISAGREE, `?` insufficient data.
 
-
 | Graph | App | L3 | LRU miss | SRRIP Δ | GRASP Δ | POPT Δ | GRASP claim | POPT claim |
 |---|---|---|---:|---:|---:|---:|---|---|
 | cit-Patents | bc | 1MB | 89.90% | -0.63 | +0.34 | -0.14 | ~ within_tol | — |

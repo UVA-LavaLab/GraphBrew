@@ -333,6 +333,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_pytest_suite_minimum.py", "PST-Min"),
     "catalog generator --help signature (every CATALOG generator responds to --help with exit 0 + usage marker)":
         ("scripts/test/test_catalog_generator_help.py", "CGH-Sig"),
+    "wiki text quality (every tracked .md: no bad ws + no CRLF + single final newline + no double blanks + H1 first)":
+        ("scripts/test/test_wiki_text_quality.py", "WTQ-Fmt"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

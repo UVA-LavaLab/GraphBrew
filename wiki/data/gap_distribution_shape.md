@@ -33,4 +33,3 @@ Per-(app, L3, policy) skew and excess-kurtosis envelope for the paper L3 grid ['
 | pr | 4MB | POPT | 6 | 0.1828 | 2.4466 | 5.9888 |
 | pr | 8MB | POPT | 6 | 0.1393 | 2.4456 | 5.985 |
 | sssp | 1MB | GRASP | 6 | 13.0337 | 2.4302 | 5.926 |
-

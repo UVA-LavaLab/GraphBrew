@@ -330,7 +330,7 @@ def main() -> int:
 
     out = compute(args.lit_faith_json)
     args.json_out.write_text(json.dumps(out, indent=2) + "\n")
-    args.md_out.write_text(emit_markdown(out))
+    args.md_out.write_text(emit_markdown(out).rstrip("\n") + "\n")
     emit_csv(out, args.csv_out)
     s = out["summary"]
     print(

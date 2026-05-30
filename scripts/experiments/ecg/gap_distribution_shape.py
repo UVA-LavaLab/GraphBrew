@@ -343,7 +343,7 @@ def main() -> None:
 
     payload = build_payload(Path(args.oracle_json))
     Path(args.json_out).write_text(json.dumps(payload, indent=2) + "\n")
-    Path(args.md_out).write_text(emit_md(payload))
+    Path(args.md_out).write_text(emit_md(payload).rstrip("\n") + "\n")
 
     meta = payload["meta"]
     obs = meta["observed_envelope"]

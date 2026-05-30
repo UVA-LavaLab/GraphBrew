@@ -174,4 +174,3 @@ Comparisons (h on ordered pairs):
 | POPT | LRU | +0.250 | 0.574 | medium |
 | POPT | SRRIP | +0.300 | 0.726 | medium |
 | POPT | GRASP | +0.050 | 0.103 | negligible |
-

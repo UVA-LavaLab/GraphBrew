@@ -37,4 +37,3 @@ Source: `wiki/data/oracle_gap.json`  •  Paper L3 scope: 1MB, 4MB, 8MB
 
 - Weak cells (margin == 1, single-graph flip risk): ['sssp__1MB']
 - Tied cells (margin == 0, report as multi-policy tie): ['bc__1MB', 'sssp__8MB']
-

@@ -228,7 +228,7 @@ def main() -> int:
     payload = build_payload(args.oracle_json)
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    args.md_out.write_text(emit_md(payload) + "\n")
+    args.md_out.write_text(emit_md(payload).rstrip("\n") + "\n")
     m = payload["meta"]
     print(
         f"lofo: apps={m['n_apps']} families={m['n_families']}"

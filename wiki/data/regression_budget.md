@@ -58,4 +58,3 @@ gate fire later.
 | cit-Patents | sssp | 1MB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.863 | 0.637 |
 | delaunay_n19 | pr | 16kB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.332 | 0.668 |
 | cit-Patents | bfs | 8MB | POPT_GE_GRASP | popt_ge_grasp | ok | +0.689 | 0.811 |
-

@@ -56,4 +56,3 @@ Corpus: **8 graphs** across **5 families** × **5 apps**; 360 paper-L3 cells in 
 - Families capped below 4MB: ['mesh', 'road']
 - Families capped below 8MB: ['mesh', 'road']
 - Families reaching 8MB: ['citation', 'social', 'web']
-

@@ -65,4 +65,3 @@ AUC = trapezoidal area on x=log2(L3 size in MB), y=mean gap_pp across graphs at 
 
 - AUC < 1 (in gap_pp × log2(MB) units) means the policy tracks oracle *very* closely on average across the cache sweep — only pr/POPT currently achieves this.
 - AUC savings vs LRU = how many `gap_pp × log2(MB)` units the winner saves over LRU integrated across the sweep. A large value indicates a policy that is closer to oracle at *every* paper L3 size.
-

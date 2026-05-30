@@ -162,4 +162,3 @@ Pairwise tests (Cliff's d, MW-U two-sided p):
 | POPT | LRU | -0.360 | medium | 5.15e-02 |
 | POPT | SRRIP | -0.390 | medium | 3.49e-02 |
 | POPT | GRASP | -0.050 | negligible | 7.87e-01 |
-

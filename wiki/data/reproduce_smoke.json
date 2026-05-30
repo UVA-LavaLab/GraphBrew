@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "8ac8df0ef51eecaa4358167ea4b1272a27e89d64ba4c1e091bd852290c675ec3",
-      "sha_after": "8ac8df0ef51eecaa4358167ea4b1272a27e89d64ba4c1e091bd852290c675ec3",
+      "sha_before": "ebde970fc10ddbe9ee004adb0d576f739ae660107442b86fc01df3670067d631",
+      "sha_after": "ebde970fc10ddbe9ee004adb0d576f739ae660107442b86fc01df3670067d631",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "1c6a577f8885657dcdf395288717e6830768fddd2991a9918c68a2fbe9d98744",
-      "sha_after": "1c6a577f8885657dcdf395288717e6830768fddd2991a9918c68a2fbe9d98744",
+      "sha_before": "dc1df4e90be7e25d9aa2ff693eb3752caf1fd59a294a4241be43c16164c747f6",
+      "sha_after": "dc1df4e90be7e25d9aa2ff693eb3752caf1fd59a294a4241be43c16164c747f6",
       "status": "ok"
     },
     {
@@ -43,14 +43,14 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "cdb7f3e707330c07ff9b0d925fb4ecd80f4ed8637a9c57ca77d172352d2b00df",
-      "sha_after": "cdb7f3e707330c07ff9b0d925fb4ecd80f4ed8637a9c57ca77d172352d2b00df",
+      "sha_before": "42688d6b6f73fb8b580b09f696ae865f4a41656af70a004a6858329c5f089017",
+      "sha_after": "42688d6b6f73fb8b580b09f696ae865f4a41656af70a004a6858329c5f089017",
       "status": "ok"
     },
     {
       "artifact": "confidence_dashboard.md",
-      "sha_before": "7aa8924be508818bf7d7f570edb17cbb585bf13b802e3672da2120c6eb4478b4",
-      "sha_after": "7aa8924be508818bf7d7f570edb17cbb585bf13b802e3672da2120c6eb4478b4",
+      "sha_before": "fc7356b41e7fefad9ad696de80eb5c9d33c8864afd457013bb4a6a7bf211d9c9",
+      "sha_after": "fc7356b41e7fefad9ad696de80eb5c9d33c8864afd457013bb4a6a7bf211d9c9",
       "status": "ok"
     },
     {
@@ -145,8 +145,8 @@
     },
     {
       "artifact": "wilson_win_rates.md",
-      "sha_before": "9e06764496c0812270243c125a2f333d358252242eb7150cecf670f7df25789f",
-      "sha_after": "9e06764496c0812270243c125a2f333d358252242eb7150cecf670f7df25789f",
+      "sha_before": "0864a198fdb137b12b414d6b51f6684ad6f3de554dd7bce975b3f84141e29ee4",
+      "sha_after": "0864a198fdb137b12b414d6b51f6684ad6f3de554dd7bce975b3f84141e29ee4",
       "status": "ok"
     },
     {
@@ -157,8 +157,8 @@
     },
     {
       "artifact": "cohens_h_win_rates.md",
-      "sha_before": "cfd868e482572e7232959f25026036bb86f9a3c9246c7f3ca9d434bb89e439a9",
-      "sha_after": "cfd868e482572e7232959f25026036bb86f9a3c9246c7f3ca9d434bb89e439a9",
+      "sha_before": "e3cdb90f3b80c9986baaba8ae7f7cf7685ee22013ee61400b7c505fd2277b6e0",
+      "sha_after": "e3cdb90f3b80c9986baaba8ae7f7cf7685ee22013ee61400b7c505fd2277b6e0",
       "status": "ok"
     },
     {
@@ -169,8 +169,8 @@
     },
     {
       "artifact": "oracle_gap_effect_size.md",
-      "sha_before": "05d010e6ecd6cea618dc0462abd33e5864c4a151aad06642f228a9d7f2c7db13",
-      "sha_after": "05d010e6ecd6cea618dc0462abd33e5864c4a151aad06642f228a9d7f2c7db13",
+      "sha_before": "9bf1b797193cc86942bed571db9edc5cc16a378224a45416b0681128cb49c905",
+      "sha_after": "9bf1b797193cc86942bed571db9edc5cc16a378224a45416b0681128cb49c905",
       "status": "ok"
     },
     {
@@ -181,8 +181,8 @@
     },
     {
       "artifact": "l3_policy_stability.md",
-      "sha_before": "14e0942f5a2c13f752e88d2b0084e7704f2837783ca7565b9fa21240982c2f76",
-      "sha_after": "14e0942f5a2c13f752e88d2b0084e7704f2837783ca7565b9fa21240982c2f76",
+      "sha_before": "d369850143d934631fed90fe7ad0fc2f94f6cdb68a021c7bb2e2d12cc2aa9320",
+      "sha_after": "d369850143d934631fed90fe7ad0fc2f94f6cdb68a021c7bb2e2d12cc2aa9320",
       "status": "ok"
     },
     {
@@ -229,8 +229,8 @@
     },
     {
       "artifact": "family_geomean_improvement.md",
-      "sha_before": "8f8bae0dc6799433e73eded338e660dc3e6dd40a076d5d0727cdff9d97cd6b46",
-      "sha_after": "8f8bae0dc6799433e73eded338e660dc3e6dd40a076d5d0727cdff9d97cd6b46",
+      "sha_before": "82a17137a363f94368d01ec926aaccefe9316e7470ea1de433e992237c099f43",
+      "sha_after": "82a17137a363f94368d01ec926aaccefe9316e7470ea1de433e992237c099f43",
       "status": "ok"
     },
     {
@@ -241,8 +241,8 @@
     },
     {
       "artifact": "per_graph_app_stability.md",
-      "sha_before": "eed6af459ef4741a7e3284c0ca78b602fa93fb1647ffc4acc2a08ec401e3099b",
-      "sha_after": "eed6af459ef4741a7e3284c0ca78b602fa93fb1647ffc4acc2a08ec401e3099b",
+      "sha_before": "961e2418e143cbdbc2d9fe263c706c08afcb032ee733ed8db5006418caab680d",
+      "sha_after": "961e2418e143cbdbc2d9fe263c706c08afcb032ee733ed8db5006418caab680d",
       "status": "ok"
     },
     {
@@ -253,8 +253,8 @@
     },
     {
       "artifact": "corpus_balance.md",
-      "sha_before": "a6965fe0ab845640835877123a80154184e20f4a9fa7a3883fc2520848344368",
-      "sha_after": "a6965fe0ab845640835877123a80154184e20f4a9fa7a3883fc2520848344368",
+      "sha_before": "ca6adbcf1b70cbf5c9d054e5891c788200c71d4e84a0c5ea3eee5a9033235155",
+      "sha_after": "ca6adbcf1b70cbf5c9d054e5891c788200c71d4e84a0c5ea3eee5a9033235155",
       "status": "ok"
     },
     {
@@ -265,8 +265,8 @@
     },
     {
       "artifact": "distribution_diagnostics.md",
-      "sha_before": "9b174d050dfec0b6144b4eed852cbe0b153284cb4b510cb36bee7c4c08cf6ac9",
-      "sha_after": "9b174d050dfec0b6144b4eed852cbe0b153284cb4b510cb36bee7c4c08cf6ac9",
+      "sha_before": "bd95f0dd3caf6a6121cf862d22ade6d4236b3f33c416e578843042bbab99625a",
+      "sha_after": "bd95f0dd3caf6a6121cf862d22ade6d4236b3f33c416e578843042bbab99625a",
       "status": "ok"
     },
     {
@@ -277,8 +277,8 @@
     },
     {
       "artifact": "lofo_robustness.md",
-      "sha_before": "9ca33955a7620a5936120f1e03ab3237190acfa16f005d2023ac42b864f0d5b3",
-      "sha_after": "9ca33955a7620a5936120f1e03ab3237190acfa16f005d2023ac42b864f0d5b3",
+      "sha_before": "7bc7f239f91f6164435ab78ed21c33137e05de3d3208fced32bae8eca76f1f7b",
+      "sha_after": "7bc7f239f91f6164435ab78ed21c33137e05de3d3208fced32bae8eca76f1f7b",
       "status": "ok"
     },
     {
@@ -289,8 +289,8 @@
     },
     {
       "artifact": "winner_margin_gradient.md",
-      "sha_before": "36f1d23bfe953ff0bc63bddaa95cd929b405d77391d5e467f7065718338c2ced",
-      "sha_after": "36f1d23bfe953ff0bc63bddaa95cd929b405d77391d5e467f7065718338c2ced",
+      "sha_before": "7e8c5723763ef84e202f34cb0f59eb3412de31b1d704257238423ae3562b484b",
+      "sha_after": "7e8c5723763ef84e202f34cb0f59eb3412de31b1d704257238423ae3562b484b",
       "status": "ok"
     },
     {
@@ -301,8 +301,8 @@
     },
     {
       "artifact": "oracle_gap_auc.md",
-      "sha_before": "aebca21eaa3f6c5ef2cf21fbff7a248eb59b59515138cbd1693980ce5dd97b3d",
-      "sha_after": "aebca21eaa3f6c5ef2cf21fbff7a248eb59b59515138cbd1693980ce5dd97b3d",
+      "sha_before": "b976a8504c40278a6536052027068d7d3dabdc83dabe4670970ed158da54e593",
+      "sha_after": "b976a8504c40278a6536052027068d7d3dabdc83dabe4670970ed158da54e593",
       "status": "ok"
     },
     {
@@ -385,8 +385,8 @@
     },
     {
       "artifact": "gap_distribution_shape.md",
-      "sha_before": "241fadf476a3f98d33cbc38cf345e258cdc13ce29759065c9efeb6d4d824a64f",
-      "sha_after": "241fadf476a3f98d33cbc38cf345e258cdc13ce29759065c9efeb6d4d824a64f",
+      "sha_before": "752b56a64a48d1061afad2c420703ad59e8338acccf3306f0ae6a3d94e712de2",
+      "sha_after": "752b56a64a48d1061afad2c420703ad59e8338acccf3306f0ae6a3d94e712de2",
       "status": "ok"
     },
     {
@@ -397,8 +397,8 @@
     },
     {
       "artifact": "family_policy_auc_clustering.md",
-      "sha_before": "0bb2fccbd6e868d2d3a41a8bb5be175ff293c8e6f835f042c4db4d4d5147ea71",
-      "sha_after": "0bb2fccbd6e868d2d3a41a8bb5be175ff293c8e6f835f042c4db4d4d5147ea71",
+      "sha_before": "6b3298f0287ada462fb68e60d525a9e18497436dfe4c9c4127f27e7314ed2dbc",
+      "sha_after": "6b3298f0287ada462fb68e60d525a9e18497436dfe4c9c4127f27e7314ed2dbc",
       "status": "ok"
     },
     {
@@ -409,8 +409,8 @@
     },
     {
       "artifact": "oracle_gap_curvature.md",
-      "sha_before": "2de8ab66ac975174aacc6053599f5da90a2941da7260b85df9ba60fba0a065ff",
-      "sha_after": "2de8ab66ac975174aacc6053599f5da90a2941da7260b85df9ba60fba0a065ff",
+      "sha_before": "16c84102b87daefa0142df68f8343d1835b1ed8ec95ecc2b8973084df84261ef",
+      "sha_after": "16c84102b87daefa0142df68f8343d1835b1ed8ec95ecc2b8973084df84261ef",
       "status": "ok"
     },
     {
@@ -769,20 +769,20 @@
     },
     {
       "artifact": "paper_baseline_table.md",
-      "sha_before": "7f029b2bc92c16d1f168ae18d1c84a6985884e736e707f3ccd69e4f8b6731f38",
-      "sha_after": "7f029b2bc92c16d1f168ae18d1c84a6985884e736e707f3ccd69e4f8b6731f38",
+      "sha_before": "b6e680ea15d353434fffd854e84786260f99dab750251a43b0a8118120b95cac",
+      "sha_after": "b6e680ea15d353434fffd854e84786260f99dab750251a43b0a8118120b95cac",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "e9d17fdb1a6db8208eee2383127fca47c21b30801035bf14fce5304a135b4081",
-      "sha_after": "e9d17fdb1a6db8208eee2383127fca47c21b30801035bf14fce5304a135b4081",
+      "sha_before": "e505494c560ca06dd25c114c17f70b54f066cb7c57a607859cca969ee56b4d9f",
+      "sha_after": "e505494c560ca06dd25c114c17f70b54f066cb7c57a607859cca969ee56b4d9f",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "22db01c0fe0a2d337d4464281304f37085eb17ec6ec0d7c5e7bd7030789059f7",
-      "sha_after": "22db01c0fe0a2d337d4464281304f37085eb17ec6ec0d7c5e7bd7030789059f7",
+      "sha_before": "2000ce4480203f69e31dce9c0f4d4a3b7bc32af62cfa1b88b54678361d47da7f",
+      "sha_after": "2000ce4480203f69e31dce9c0f4d4a3b7bc32af62cfa1b88b54678361d47da7f",
       "status": "ok"
     },
     {
@@ -817,8 +817,8 @@
     },
     {
       "artifact": "regression_budget.md",
-      "sha_before": "8f0f54f7b229f1a16589c260d2ba3f1855147e2c495e7d15dcc35777f930be0e",
-      "sha_after": "8f0f54f7b229f1a16589c260d2ba3f1855147e2c495e7d15dcc35777f930be0e",
+      "sha_before": "0e4238245965305412f8dc38c977edcd91902316af8b230639f48bc8fb168fc3",
+      "sha_after": "0e4238245965305412f8dc38c977edcd91902316af8b230639f48bc8fb168fc3",
       "status": "ok"
     },
     {
@@ -853,8 +853,8 @@
     },
     {
       "artifact": "winning_regime_taxonomy.md",
-      "sha_before": "22327531c21c2c6cff5b10513c204cc1055020c73735075f04f67a2b07f4ac64",
-      "sha_after": "22327531c21c2c6cff5b10513c204cc1055020c73735075f04f67a2b07f4ac64",
+      "sha_before": "51644cd293300f527f931ad656f100a401d07a0c5fae54d1e082bc7d891ad2a9",
+      "sha_after": "51644cd293300f527f931ad656f100a401d07a0c5fae54d1e082bc7d891ad2a9",
       "status": "ok"
     },
     {

@@ -240,7 +240,7 @@ def main() -> None:
     }
 
     Path(args.json_out).write_text(json.dumps(payload, indent=2, sort_keys=True))
-    Path(args.md_out).write_text(render_md(payload))
+    Path(args.md_out).write_text(render_md(payload).rstrip("\n") + "\n")
 
     overall_grasp = payload["overall"].get("GRASP", {})
     overall_popt = payload["overall"].get("POPT", {})

@@ -45,4 +45,3 @@ Literature: Hesterberg 2015 (Am. Statistician); Efron & Tibshirani 1993 (An Intr
 - Skewness near 0 + negative excess kurtosis (platykurtic) means the distribution is light-tailed — the *opposite* of the pathological case (heavy tails / extreme outliers) that would bias percentile bootstrap CIs.
 - Floor on |skewness| (2.0) and on |excess kurtosis| (7.0) come from Hesterberg 2015's published rules of thumb for bootstrap-CI applicability.
 - Future regressions (corpus changes, scope changes) that push any (app, policy) cell beyond these floors will fail this gate and require switching to BCa / studentized bootstrap or reporting alternative CIs.
-

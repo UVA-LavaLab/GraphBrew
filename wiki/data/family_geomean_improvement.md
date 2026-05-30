@@ -96,4 +96,3 @@ _None — no policy CI-strictly regresses on any (family, app)._
 | web | sssp | GRASP | 3 | 0.9999 | [0.998, 1.001] | +0.01% | — |
 | web | sssp | POPT | 3 | 0.9947 | [0.985, 1.001] | +0.53% | — |
 | web | sssp | SRRIP | 3 | 0.9967 | [0.991, 1.001] | +0.33% | — |
-

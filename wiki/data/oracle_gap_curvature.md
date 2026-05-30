@@ -43,4 +43,3 @@ Per-(app, policy) discrete second derivative of the oracle-gap trajectory at the
 | sssp | LRU | 3.8558 | 3.7368 | 2.1442 | -0.0595 | -1.5926 | -1.5331 |   |
 | sssp | POPT | 2.509 | 0.6016 | 0.4774 | -0.9537 | -0.1242 | 0.8295 | ✅ |
 | sssp | SRRIP | 2.766 | 2.3996 | 1.3086 | -0.1832 | -1.091 | -0.9078 |   |
-

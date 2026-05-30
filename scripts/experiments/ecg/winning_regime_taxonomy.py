@@ -313,7 +313,7 @@ def _write_md(summary: dict, flat: list[dict], path: Path) -> None:
             f"{r['margin_pp']} | {r['hub_concentration']} | "
             f"{r['clustering_coeff']} | {r['avg_degree']} |"
         )
-    path.write_text("\n".join(lines))
+    path.write_text("\n".join(lines).rstrip("\n") + "\n")
 
 
 def main() -> int:

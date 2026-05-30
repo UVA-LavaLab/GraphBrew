@@ -140,11 +140,14 @@ def _index_claims() -> dict[tuple[str, str, str], list[Any]]:
 
 def format_markdown(rows: list[Row]) -> str:
     lines = []
-    lines.append("# Paper baseline table\n")
+    lines.append("# Paper baseline table")
+    lines.append("")
     lines.append("All Δ values are percentage-points of L3 miss-rate vs LRU "
-                 "at the same (graph, app, L3) tuple (negative = better).\n")
+                 "at the same (graph, app, L3) tuple (negative = better).")
+    lines.append("")
     lines.append("Verdict suffix encodes the literature-claim outcome where applicable: "
-                 "`✓` ok, `~` within tolerance, `✗` DISAGREE, `?` insufficient data.\n\n")
+                 "`✓` ok, `~` within tolerance, `✗` DISAGREE, `?` insufficient data.")
+    lines.append("")
     header = ("| Graph | App | L3 | LRU miss | SRRIP Δ | GRASP Δ | POPT Δ |"
               " GRASP claim | POPT claim |")
     sep = "|---|---|---|---:|---:|---:|---:|---|---|"
@@ -260,7 +263,7 @@ def main(argv: list[str]) -> int:
 
     if args.markdown:
         args.markdown.parent.mkdir(parents=True, exist_ok=True)
-        args.markdown.write_text(format_markdown(rows))
+        args.markdown.write_text(format_markdown(rows).rstrip("\n") + "\n")
         print(f"[paper-table] markdown: {args.markdown}", file=sys.stderr)
     if args.csv:
         args.csv.parent.mkdir(parents=True, exist_ok=True)

@@ -102,4 +102,3 @@ Stability fraction (excluding insufficient-L3): **46.4%**.
 | web-Google | cc | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=LRU | ∅ | regime_change |
 | web-Google | pr | 1MB,4MB,8MB | 1MB=POPT; 4MB=GRASP; 8MB=POPT | ∅ | regime_change |
 | web-Google | sssp | 1MB,4MB,8MB | 1MB=POPT; 4MB=LRU; 8MB=SRRIP | ∅ | regime_change |
-

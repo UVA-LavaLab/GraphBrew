@@ -75,4 +75,3 @@ Paper-grade L3 sizes: 1MB, 4MB, 8MB.
 | 1MB | 6 | **POPT** | 3 | 0.50 | GRASP | 1 | yes |
 | 4MB | 5 | **GRASP** | 3 | 0.60 | LRU | 2 | yes |
 | 8MB | 5 | **SRRIP** | 2 | 0.40 | GRASP | 0 | tie |
-

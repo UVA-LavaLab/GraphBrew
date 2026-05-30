@@ -30,4 +30,3 @@ For each app, drop each of the 5 families (citation, mesh, road, social, web) in
 
 - LOFO is strictly stronger than LOGO (gate 41). Where LOGO drops one graph, LOFO drops 1–4 graphs (a whole family). Surviving LOFO is therefore a higher robustness bar.
 - Fragile apps under LOFO are honestly disclosed: the paper must qualify those headline policies as 'family-sensitive' or report family-stratified winners instead.
-
