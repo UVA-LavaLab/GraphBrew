@@ -969,6 +969,17 @@
       "summary": "ECG substrate-parity audit on Sniper (gate 240) \u2014 SCAFFOLD/DEFERRED today. No matched-proof Sniper ECG sweep is available yet (/tmp/graphbrew-grasp-sniper-sweep provides LRU/SRRIP/GRASP only, no ECG_DBG_ONLY or ECG_POPT_PRIMARY rows). The postfix declares status=deferred with the expected source pattern (/tmp/graphbrew-ecg-sniper-matched-proof-*/...) and minimum observation floor (6). Audit logic is implemented end-to-end with 9 rules \u2014 when activated: (G1) roster {LRU, POPT, ECG_POPT_PRIMARY} per cell; (G1b) GRASP paired with ECG_DBG_ONLY when DBG arm present; (G2) |miss_rate(ECG_POPT_PRIMARY) - miss_rate(POPT)| \u2264 2e-3 (mirrors gem5); (G2b) optional DBG parity at \u03b5=2e-3; (G3) backend=sniper and simulator=sniper; (G4) ipc > 0 and instructions \u2265 1; (G5) LRU baseline non-zero; (G6) L3 hierarchy sanity; (G7) observation-floor from postfix. Activates automatically when ecg_sniper_parity_postfix.json transitions to status=active."
     },
     {
+      "artifact": "wiki/data/lit_faith_ecg_pfx_vs_droplet.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_ecg_pfx_vs_droplet.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_ecg_pfx_vs_droplet.py",
+      "generator_exists": true,
+      "id": "lit_faith_ecg_pfx_vs_droplet",
+      "label": "ECG PFX vs DROPLET head-to-head",
+      "summary": "ECG PFX prefetcher vs DROPLET head-to-head audit (gate 241) \u2014 SCAFFOLD/DEFERRED today. No matched-proof ECG_PFX vs DROPLET sweep is available: across /tmp/graphbrew-* the droplet_*/ecg_pfx_* columns are config-only (degrees, table sizes, delivery mode) \u2014 all runtime counters (droplet_indirect_issued, droplet_stride_issued, ecg_pfx_issued, ecg_pfx_useful) are zero. Postfix declares status=deferred with expected source pattern (/tmp/graphbrew-ecg-pfx-vs-droplet-*/...) and minimum 8 observations; arms {LRU, DROPLET, ECG_PFX}. When activated the audit emits 6 rules: (G1) arm completeness per cell; (G2) baseline neutrality |miss_rate(LRU) - miss_rate(LRU,paired)| \u2264 0.005 across pairs; (G3) useful-prefetch floor ecg_useful_frac \u2265 0.05 and droplet_useful_frac \u2265 0.05 (anything lower is essentially random); (G4) per-arm policy_label hygiene; (G5) backend identity stable across arms within a cell; (G6) observation-floor from postfix. Sibling family to the substrate-parity trinity (gates 238/239/240) but a different concern: not 'ECG mode \u2261 stock mode on the same backend?' but 'ECG PFX beats/matches DROPLET on the same baseline?'."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1010,13 +1021,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (240 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (241 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 92
+    "n_entries": 93
   }
 }

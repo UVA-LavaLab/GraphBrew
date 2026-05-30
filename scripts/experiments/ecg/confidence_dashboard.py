@@ -381,6 +381,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_ecg_gem5_parity.py", "ECG-Gem5-Parity"),
     "ECG substrate-parity audit on Sniper (scaffold/deferred today; activates on matched-proof Sniper ECG sweep — POPT-arm ECG_POPT_PRIMARY ≡ POPT and DBG-arm ECG_DBG_ONLY ≡ GRASP at ε=2e-3; backend identity; IPC/instructions/LRU floors)":
         ("scripts/test/test_lit_faith_ecg_sniper_parity.py", "ECG-Sniper-Parity"),
+    "ECG PFX prefetcher vs DROPLET head-to-head on matched baseline (scaffold/deferred today — no /tmp sweep has nonzero pf_issued/pf_useful; rules: arm completeness, baseline neutrality 0.5pp, useful floor 5%, observation floor)":
+        ("scripts/test/test_lit_faith_ecg_pfx_vs_droplet.py", "ECG-Pfx-vs-DROPLET"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -57,6 +57,14 @@ META_ALLOWLIST: set[str] = {
     # with per_observation populated, and the same allowlist entry +
     # gate-240 pytest schema/per-row invariants apply.
     "wiki/data/ecg_sniper_parity_postfix.json",
+    # Gate 241 ECG-Pfx-vs-DROPLET curated input: deferred-mode stub
+    # today (per_observation=[], status="deferred") because no
+    # matched-proof ECG_PFX-vs-DROPLET sweep is available yet
+    # (runtime prefetcher counters are zero across /tmp corpora).
+    # When such a sweep lands, this fixture transitions to
+    # status=active with per_observation populated and the gate-241
+    # pytest schema/per-row invariants apply.
+    "wiki/data/ecg_pfx_vs_droplet_postfix.json",
 }
 
 

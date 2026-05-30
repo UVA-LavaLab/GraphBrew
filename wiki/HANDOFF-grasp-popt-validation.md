@@ -8,7 +8,62 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **235 gates, all GREEN, exit 0**.
+and currently reports **241 gates, all GREEN, exit 0**.
+
+**ECG prefetcher head-to-head (gate 241, refresh @241):**
+The substrate-parity trinity (238/239/240) answers "does ECG mode
+preserve the baseline cache substrate on backend X?"; gate 241 asks
+the orthogonal question — "does ECG's PFX prefetcher beat or match
+DROPLET on the same baseline?". SCAFFOLD/DEFERRED today: across all
+`/tmp/graphbrew-*` corpora the `droplet_*` / `ecg_pfx_*` columns are
+CONFIG-ONLY (degrees, table sizes, delivery mode) — every runtime
+counter (`droplet_indirect_issued`, `droplet_stride_issued`,
+`ecg_pfx_issued`, `ecg_pfx_useful`) is zero. The postfix declares
+status="deferred" with expected source pattern
+(`/tmp/graphbrew-ecg-pfx-vs-droplet-*/`) and minimum 8 observations.
+6 rules implemented (G1 arm completeness `{LRU, DROPLET, ECG_PFX}`,
+G2 baseline neutrality at 0.5 pp, G3 useful-fraction floor at 5 %,
+G4 per-arm policy_label hygiene, G5 backend identity per cell, G6
+observation floor) so activation is a postfix-only edit. 0
+violations (deferred ⇒ no data to violate). Sibling field links
+back to gates 238/239/240 for audit-trail cross-consistency.
+
+**ECG substrate-parity trinity (gates 238-240, refresh @240):**
+The cache_sim/gem5/Sniper substrate-parity story is now complete in
+the gate ledger. Three siblings audit the same invariant (ECG mode
+≡ stock mode on L3 miss-rate) on three different backends so a
+substrate regression is impossible to land silently in any of them:
+
+- **ECG-Parity** (gate 238, cache_sim, commit `4b9b01e`) — 54-obs
+  matched-proof from email-Eu-core `proof_matrix.csv`. POPT-arm
+  (ECG_POPT_PRIMARY ≡ POPT) AND DBG-arm (ECG_DBG_ONLY ≡ GRASP)
+  active, ε=5e-4 on both arms. Adds PFX activation+useful floors
+  and encoding hygiene rules. 0 violations.
+- **ECG-Gem5-Parity** (gate 239, gem5, commit `a82766f`) — 12-obs
+  matched-proof from `/tmp/graphbrew-gem5-popt-pin-geometry-email-pr
+  -bracket/roi_matrix.csv`. POPT-arm only today (DBG arm + PFX
+  activation queued — no ECG_DBG gem5 run yet, prefetcher=none
+  everywhere in the bracket sweep). ε=2e-3 (2× headroom over
+  observed gem5 drift max 1.09e-3, looser than cache_sim's 5e-4
+  to absorb warmup/MSHR/OoO timing noise). 0 violations.
+- **ECG-Sniper-Parity** (gate 240, Sniper, commit `b08b0a9`) —
+  SCAFFOLD/DEFERRED today. `/tmp/graphbrew-grasp-sniper-sweep`
+  contains LRU/SRRIP/GRASP for {pr, bfs, sssp, bc} × {cit-Patents,
+  email-Eu-core} × {4kB, 32kB, 256kB, 2MB} but NO ECG_DBG_ONLY or
+  ECG_POPT_PRIMARY rows, so the postfix declares status="deferred"
+  with the expected source pattern documented
+  (`/tmp/graphbrew-ecg-sniper-matched-proof-*/`). 9 rules (G1, G1b,
+  G2, G2b, G3, G4, G5, G6, G7) implemented end-to-end so activation
+  is a postfix-only edit. ε=2e-3 mirrors gem5. 0 violations
+  (deferred ⇒ no data to violate).
+
+Together these lock the substrate-faithfulness invariant on every
+backend the paper uses. Cross-backend ε pattern: cache_sim 5e-4
+(no timing noise) → gem5/Sniper 2e-3 (timing noise envelope).
+Out-of-scope shared by all three: DROPLET comparison (now lives
+in gate 241 — still scaffold/deferred today, no DROPLET-active sweep
+available; runtime DROPLET counters are all zero across `/tmp`
+corpora).
 
 **Literature-faithfulness deepening (gates 231-235, refresh @235):**
 After LIT-Stat closed the statistical-sanity loop on per_claim, the
@@ -64,7 +119,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh due at the next 5-gate boundary (gate 240).
+**Refresh status:** Refresh complete at gate 241. Next refresh due
+at gate 246.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

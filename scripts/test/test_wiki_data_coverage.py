@@ -114,6 +114,11 @@ WIKI_UNTRACKED_EXEMPT: frozenset[str] = frozenset(
         # sweep. INPUT to `lit-ecg-sniper-parity`, not a regenerated
         # output; flips to status=active when curated.
         "ecg_sniper_parity_postfix.json",
+        # Gate 241 ECG-Pfx-vs-DROPLET hand-curated input: deferred
+        # stub today, no matched-proof ECG_PFX vs DROPLET sweep
+        # available. INPUT to `lit-ecg-pfx-vs-droplet`, not a
+        # regenerated output; flips to status=active when curated.
+        "ecg_pfx_vs_droplet_postfix.json",
     }
 )
 
