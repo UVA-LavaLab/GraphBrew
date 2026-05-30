@@ -609,6 +609,14 @@ CATALOG = [
         "summary":   "Per-claim distance to the nearest disagree boundary (median ~5.5 pp, 47 fragile cells under 1 pp today). Caps the fragile-cell count and locks per-family / per-status median floors so corpus drift cannot silently erode confidence in lit-faith verdicts.",
     },
     {
+        "id":        "lit_faith_signmass",
+        "label":     "Literature-faithfulness sign-mass concentration",
+        "generator": "scripts/experiments/ecg/lit_faith_signmass.py",
+        "gate":      "scripts/test/test_lit_faith_signmass.py",
+        "artifact":  "wiki/data/lit_faith_signmass.json",
+        "summary":   "Per-bucket (expected_sign × policy) sign-mass concentration with Wilson 95 % lower bounds and binomial sign-test p-values. Today: GRASP 13/13 correctly signed (p=0.0002, median -4.83 pp), POPT 7/7 (p=0.0156, median -10.74 pp), POPT≥GRASP 55/88 with 2 ties (p=0.0127, median -0.33 pp). Locks per-bucket Wilson LB / binomial-p / median-delta floors so a regression erasing the sign signal trips the gate.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -639,7 +647,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (222 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (223 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
