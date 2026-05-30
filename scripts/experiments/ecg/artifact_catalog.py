@@ -777,6 +777,14 @@ CATALOG = [
         "summary":   "POLICY_COLORS perceptual-distinguishability audit (gate 243) — ALWAYS ACTIVE (no deferred mode; source-of-truth is paper_pipeline.py POLICY_COLORS / POLICY_HATCHES dicts loaded via importlib). Companion to gate 242: where 242 audits the policy vocabulary, 243 audits the visual quality of the palette — can a reader (or a B&W printer) actually tell the policies apart on the paper figures? 6 rules: (C1) every POLICY_LABELS key has a well-formed 7-char hex color; (C2) no two POLICY_COLORS values are exactly equal; (C3) every pair has CIE76 ΔE ≥ 12 in CIE Lab (D65) — visibly distinguishable on color print; (C4) pairs with CIE Lab lightness delta ΔL < 10 must use a POLICY_HATCHES entry, modulo the ACKNOWLEDGED_BW_PAIRS allowlist (10 grandfathered close-lightness pairs, each with rationale ≥ 60 chars) — keeps the B&W-printable contract honest while documenting current state; (C5) every color has ΔE ≥ 18 from #FFFFFF (no near-invisible policies on a white page); (C6) POLICY_HATCHES keys are a subset of POLICY_LABELS keys (no orphan hatches). Pure-stdlib sRGB → CIE Lab implementation (no third-party deps). Today: 9 colors, 36 pairs, 0 violations.",
     },
     {
+        "id":        "lit_faith_paper_snapshot",
+        "label":     "Paper-figure data snapshot integrity",
+        "generator": "scripts/experiments/ecg/lit_faith_paper_snapshot.py",
+        "gate":      "scripts/test/test_lit_faith_paper_snapshot.py",
+        "artifact":  "wiki/data/lit_faith_paper_snapshot.json",
+        "summary":   "Paper-figure data snapshot integrity audit (gate 244) — ALWAYS ACTIVE (no deferred mode; source-of-truth is paper_pipeline.py POLICY_LABELS loaded via importlib + the committed wiki/data/paper_pipeline_YYYYMMDD/ snapshot dir itself). Third gate in the always-active paper-snapshot trio: 242 audits the policy vocabulary, 243 audits the visual quality of the palette, and 244 audits the actual figure-data snapshot directory. 6 rules: (F1) exactly one paper_pipeline_YYYYMMDD/ dir exists in wiki/data (no stale duplicates that confuse readers or break gate 242's latest-dir lookup); (F2) the snapshot dir name parses to a valid YYYYMMDD date AND is within MAX_SNAPSHOT_AGE_DAYS (365 today; tighter later); (F3) every row in roi_matrix_all.csv has non-empty values for pipeline_source_csv, pipeline_run_dir, and pipeline_run_name — full referential provenance so anyone can re-run the source; (F4) single-run cohesion — every row shares the same pipeline_run_dir, ruling out Frankenstein snapshots stitched from multiple runs; (F5) coverage rectangle — per (benchmark, graph, l3_size) cell the set of policy_labels equals the canonical POLICY_LABELS palette (no missing/extra bars in any paper bar chart); (F6) value hygiene — l3_miss_rate ∈ [0.0, 1.0] universally, and total_accesses ≥ 1 for HIGH_ACTIVITY_BENCHMARKS = {'pr'} (BFS/SSSP can legitimately log total_accesses=0 on short-walk ROIs and are carved out with documented rationale). Today: 1 snapshot dir (paper_pipeline_20260528), 108 rows × 9 policies × 4 graphs × 3 benchmarks × 1 L3-size, 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -807,7 +815,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (243 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (244 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

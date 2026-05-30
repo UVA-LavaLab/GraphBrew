@@ -8,7 +8,36 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **243 gates, all GREEN, exit 0**.
+and currently reports **244 gates, all GREEN, exit 0**.
+
+**Paper-figure data snapshot integrity (gate 244, refresh @244):**
+Third gate in the always-active paper-snapshot trio: 242 audits the
+policy *vocabulary*, 243 audits the visual quality of the *palette*,
+and 244 audits the actual *figure-data snapshot directory*. The paper
+plots all bar charts from a single committed
+`wiki/data/paper_pipeline_YYYYMMDD/` snapshot, which is a frozen
+subset of the live sweep — but nothing previously checked that it
+was fresh, single-sourced, or rectangular. 6 rules: F1 exactly one
+`paper_pipeline_YYYYMMDD/` directory in `wiki/data` (no stale
+duplicates that confuse readers or break gate 242's latest-dir
+lookup); F2 the dir name parses to a valid YYYYMMDD date AND is
+within `MAX_SNAPSHOT_AGE_DAYS` (365 today; can be tightened later);
+F3 every row in `roi_matrix_all.csv` has non-empty values for
+`pipeline_source_csv`, `pipeline_run_dir`, and `pipeline_run_name`
+(full referential provenance so anyone can re-run the source); F4
+single-run cohesion — every row shares the same `pipeline_run_dir`,
+ruling out Frankenstein snapshots stitched from multiple runs; F5
+coverage rectangle — per (`benchmark`, `final_graph`, `l3_size`)
+cell, the set of `policy_label`s equals the canonical `POLICY_LABELS`
+palette (no missing or extra bars in any paper bar chart); F6 value
+hygiene — `l3_miss_rate ∈ [0.0, 1.0]` universally, and
+`total_accesses ≥ 1` for `HIGH_ACTIVITY_BENCHMARKS = {"pr"}` (BFS
+and SSSP can legitimately log `total_accesses=0` on short-walk ROIs
+and are deliberately carved out with documented rationale).
+Source-of-truth: `paper_pipeline.py` POLICY_LABELS loaded via
+importlib plus the snapshot directory itself. Today: 1 snapshot dir
+(`paper_pipeline_20260528`), 108 rows × 9 policies × 4 graphs × 3
+benchmarks × 1 L3-size, 0 violations.
 
 **POLICY_COLORS perceptual distinguishability (gate 243, refresh @243):**
 Companion to gate 242 — where 242 audits the policy *vocabulary*,
@@ -163,8 +192,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 243. Next refresh due
-at gate 248.
+**Refresh status:** Refresh complete at gate 244. Next refresh due
+at gate 249.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

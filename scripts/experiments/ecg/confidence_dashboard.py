@@ -387,6 +387,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
     "POLICY_COLORS perceptual distinguishability (gate 243) — hex format + dedup + pairwise CIE76 ΔE ≥ 12 + B&W lightness-delta ≥ 10 or hatch fallback (grandfathered allowlist) + ΔE ≥ 18 from white + POLICY_HATCHES ⊆ POLICY_LABELS":
         ("scripts/test/test_lit_faith_color_distinguishability.py", "ColorDistinguish"),
+    "Paper-figure data snapshot (gate 244) — one paper_pipeline_YYYYMMDD/ dir within MAX_SNAPSHOT_AGE_DAYS, rows provenanced + single run_dir, rectangular (bench×graph×L3) palette coverage, miss_rate ∈ [0,1], total_accesses ≥ 1 for high-activity benches":
+        ("scripts/test/test_lit_faith_paper_snapshot.py", "PaperSnapshot"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
