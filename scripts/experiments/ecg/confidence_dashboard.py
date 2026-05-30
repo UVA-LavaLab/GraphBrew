@@ -311,6 +311,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_literature_faithfulness_evaluator_derivation.py", "LFE-Der"),
     "gem5/sniper anchor summary derivation parity (invariant predicates + tolerance constants)":
         ("scripts/test/test_gem5_anchor_summary_derivation.py", "GAS-Der"),
+    "sign_consistency derivation parity (_pick canonical-ROI + _sign zero band + bucket dispatch)":
+        ("scripts/test/test_sign_consistency_derivation.py", "SCD-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
