@@ -8,7 +8,26 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **249 gates, all GREEN, exit 0**.
+and currently reports **250 gates, all GREEN, exit 0**.
+
+**Paper-table CSV provenance (gate 250, refresh @250):**
+Every shipped LaTeX paper table in `wiki/data/paper_pipeline_YYYYMMDD/`
+is co-emitted with a parallel `.csv` source. `paper_pipeline.py`
+intentionally caps each `.tex` at `[:20]` or `[:24]` rows for paper
+layout, so the CSV is allowed to be a strict superset — but the
+`.tex` must NEVER carry a row that the CSV does not hold. This gate
+pairs each shipped `.tex` with its sibling `.csv` and asserts every
+paper row's key tuple (policy, benchmark, prefetcher, check, charged,
+oracle, candidate) traces to at least one CSV row after LaTeX-escape
+normalization (`ECG\_DBG\_ONLY` ⇄ `ECG_DBG_ONLY`). 7 rules: P1 every
+registered `.tex` AND `.csv` exists; P2 `tex_rows ≤ csv_rows` (subset
+row count); P3 per-pair key-column multiset is a sub-multiset of the
+CSV column after normalize; P4 every declared key column exists in
+the corresponding header tuple; P5 no empty value in tracked CSV key
+columns; P6 no unregistered `.csv` sibling of a registered `.tex`
+stem; P7 every registered CSV has a non-empty header row. Today: 5
+pairs, 78 tex rows ↔ 85 csv rows, 13 tracked key columns; 0
+violations.
 
 **Graph-family map full-coverage (gate 249, refresh @249):**
 Gate 107 already locks the topology of 7 known `GRAPH_FAMILY` copies
@@ -309,8 +328,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 249. Next refresh due
-at gate 254.
+**Refresh status:** Refresh complete at gate 250. Next refresh due
+at gate 255.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

@@ -1,0 +1,214 @@
+{
+  "per_pair": {
+    "ecg_mode_overhead_summary.tex": {
+      "csv_present": true,
+      "csv_rows": 4,
+      "key_columns": [
+        [
+          "policy",
+          "policy_short"
+        ]
+      ],
+      "tex_present": true,
+      "tex_rows": 4
+    },
+    "faithfulness_summary.tex": {
+      "csv_present": true,
+      "csv_rows": 24,
+      "key_columns": [
+        [
+          "check",
+          "check"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ],
+        [
+          "prefetcher",
+          "prefetcher"
+        ],
+        [
+          "candidate",
+          "candidate_short"
+        ]
+      ],
+      "tex_present": true,
+      "tex_rows": 24
+    },
+    "popt_charged_overhead.tex": {
+      "csv_present": true,
+      "csv_rows": 24,
+      "key_columns": [
+        [
+          "charged",
+          "charged_policy"
+        ],
+        [
+          "oracle",
+          "oracle_policy"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ]
+      ],
+      "tex_present": true,
+      "tex_rows": 20
+    },
+    "popt_storage_overhead_summary.tex": {
+      "csv_present": true,
+      "csv_rows": 6,
+      "key_columns": [
+        [
+          "policy",
+          "policy_short"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ],
+        [
+          "prefetcher",
+          "prefetcher"
+        ]
+      ],
+      "tex_present": true,
+      "tex_rows": 6
+    },
+    "roi_policy_summary.tex": {
+      "csv_present": true,
+      "csv_rows": 27,
+      "key_columns": [
+        [
+          "policy",
+          "policy_short"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ],
+        [
+          "prefetcher",
+          "prefetcher"
+        ]
+      ],
+      "tex_present": true,
+      "tex_rows": 24
+    }
+  },
+  "pipeline_dir": "wiki/data/paper_pipeline_20260528",
+  "registry": [
+    {
+      "csv_file": "ecg_mode_overhead_summary.csv",
+      "key_columns": [
+        [
+          "policy",
+          "policy_short"
+        ]
+      ],
+      "normalizer": "strip",
+      "tex_file": "ecg_mode_overhead_summary.tex"
+    },
+    {
+      "csv_file": "faithfulness_summary.csv",
+      "key_columns": [
+        [
+          "check",
+          "check"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ],
+        [
+          "prefetcher",
+          "prefetcher"
+        ],
+        [
+          "candidate",
+          "candidate_short"
+        ]
+      ],
+      "normalizer": "latex",
+      "tex_file": "faithfulness_summary.tex"
+    },
+    {
+      "csv_file": "popt_charged_overhead.csv",
+      "key_columns": [
+        [
+          "charged",
+          "charged_policy"
+        ],
+        [
+          "oracle",
+          "oracle_policy"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ]
+      ],
+      "normalizer": "latex",
+      "tex_file": "popt_charged_overhead.tex"
+    },
+    {
+      "csv_file": "popt_storage_overhead_summary.csv",
+      "key_columns": [
+        [
+          "policy",
+          "policy_short"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ],
+        [
+          "prefetcher",
+          "prefetcher"
+        ]
+      ],
+      "normalizer": "latex",
+      "tex_file": "popt_storage_overhead_summary.tex"
+    },
+    {
+      "csv_file": "roi_policy_summary.csv",
+      "key_columns": [
+        [
+          "policy",
+          "policy_short"
+        ],
+        [
+          "benchmark",
+          "benchmark"
+        ],
+        [
+          "prefetcher",
+          "prefetcher"
+        ]
+      ],
+      "normalizer": "latex",
+      "tex_file": "roi_policy_summary.tex"
+    }
+  ],
+  "registry_size": 5,
+  "rules": {
+    "P1": "every registered .tex and .csv file exists",
+    "P2": "tex data-row count \u2264 csv data-row count (subset)",
+    "P3": "every tex key-column value traces to csv (subset)",
+    "P4": "every declared key column exists in tex/csv header",
+    "P5": "no empty value in tracked CSV key columns",
+    "P6": "no unregistered CSV sibling of a registered .tex",
+    "P7": "every registered csv has a non-empty header row"
+  },
+  "status": "active",
+  "totals": {
+    "csv_rows_total": 85,
+    "pairs_found": 5,
+    "registry_size": 5,
+    "tex_rows_total": 78,
+    "tracked_columns": 14,
+    "violations": 0
+  },
+  "violations": []
+}

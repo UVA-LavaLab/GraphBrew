@@ -825,6 +825,14 @@ CATALOG = [
         "summary":   "Graph-family map full-coverage audit (gate 249) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are every .py file under scripts/experiments/ecg and scripts/test AND a CANONICAL_GRAPH_FAMILY map in the generator declaring the 8-graph shipped corpus). Gate 107 (test_graph_family_map_duplication) already locks the topology of 7 known copies (2 full + 5 short). This gate hardens that by AST-harvesting every module-level dict literal whose keys are known graph names and whose values are known family labels, then asserting that every copy agrees with the canonical map on every shared key. Catches new modules added by a future contributor that ship their own GRAPH_FAMILY copy and silently diverge from the canonical mapping. 6 rules: (F1) harvester picks up every module-level dict that looks like a GRAPH_FAMILY map; (F2) every harvested copy is a subset of canonical + reserved-future keys (no unknown graph→family pairs); (F3) every harvested copy agrees with canonical on every shared key (no value drift); (F4) canonical is non-empty AND every value is in the documented family allow-list (social, web, citation, road, mesh); (F5) no harvested copy that contains reserved-future graph tags is missing from the gate-107 FULL_SOURCES universe; (F6) out-of-universe copies are tracked for visibility. Today: canonical=8 graphs (4 social + 1 web + 1 citation + 1 road + 1 mesh); 12 harvested copies across 12 files; 7 out-of-universe but all subset-clean; 0 violations.",
     },
     {
+        "id":        "lit_faith_paper_provenance",
+        "label":     "Paper-table CSV provenance",
+        "generator": "scripts/experiments/ecg/lit_faith_paper_provenance.py",
+        "gate":      "scripts/test/test_lit_faith_paper_provenance.py",
+        "artifact":  "wiki/data/lit_faith_paper_provenance.json",
+        "summary":   "Paper-table CSV provenance audit (gate 250) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are every .tex + sibling .csv pair under wiki/data/paper_pipeline_YYYYMMDD/ AND a hand-curated PROVENANCE_REGISTRY in the generator pairing each shipped paper table with its underlying CSV and declaring the key-column tuples that must trace 1:1). The shipped .tex tables are intentionally truncated by paper_pipeline.py at [:20]/[:24] for paper layout, so the CSV is allowed to be a strict superset — but the .tex must NEVER carry a row that the CSV does not hold, and every paper row's key tuple (policy, benchmark, prefetcher, check, charged, oracle, candidate) must trace to at least one CSV row after LaTeX-escape normalization (ECG\\_DBG\\_ONLY ⇄ ECG_DBG_ONLY). Catches silent splits where paper_pipeline.py regenerates one file but not the other, or where a column rename desynchronizes the .tex header from the CSV header. 7 rules: (P1) every registered .tex AND .csv file exists in the latest paper_pipeline dir; (P2) tex_rows ≤ csv_rows (subset row count, no orphan paper rows past the truncation cap); (P3) for each (tex_header, csv_header) key-column pair, the multiset of tex values is a sub-multiset of the csv values after normalize; (P4) every declared key column exists in the corresponding tex/csv header tuple; (P5) no value in any tracked CSV key column is the empty string (every paper row must trace to non-empty CSV cells); (P6) no unregistered .csv sibling of a registered .tex stem (defensive — catches new paired CSVs added without registration); (P7) every registered CSV has a non-empty header row. Today: 5 pairs, 78 tex rows ↔ 85 csv rows, 13 tracked key columns; 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -855,7 +863,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (249 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (250 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

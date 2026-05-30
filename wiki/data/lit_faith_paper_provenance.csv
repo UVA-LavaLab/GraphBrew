@@ -1,0 +1,17 @@
+field,value
+registry_size,5
+pairs_found,5
+tracked_columns,14
+tex_rows_total,78
+csv_rows_total,85
+violations,0
+tex_rows::ecg_mode_overhead_summary.tex,4
+csv_rows::ecg_mode_overhead_summary.tex,4
+tex_rows::faithfulness_summary.tex,24
+csv_rows::faithfulness_summary.tex,24
+tex_rows::popt_charged_overhead.tex,20
+csv_rows::popt_charged_overhead.tex,24
+tex_rows::popt_storage_overhead_summary.tex,6
+csv_rows::popt_storage_overhead_summary.tex,6
+tex_rows::roi_policy_summary.tex,24
+csv_rows::roi_policy_summary.tex,27

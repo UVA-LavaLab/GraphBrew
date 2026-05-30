@@ -399,6 +399,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_sideband_schema.py", "SidebandSchema"),
     "Graph-family map full-coverage (gate 249) — AST-harvests every GRAPH_FAMILY dict literal in scripts/experiments/ecg + scripts/test, asserts each agrees with canonical on every shared key; catches copies the gate-107 dup test does not yet guard":
         ("scripts/test/test_lit_faith_graph_family.py", "GraphFamily"),
+    "Paper-table CSV provenance (gate 250) — PROVENANCE_REGISTRY pairs every shipped .tex with its sibling .csv; subset row-count and subset key-column multiset (LaTeX-normalized); every paper row traces to a CSV row past the [:20]/[:24] truncation cap":
+        ("scripts/test/test_lit_faith_paper_provenance.py", "PaperProvenance"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
