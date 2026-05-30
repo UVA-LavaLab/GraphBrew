@@ -337,6 +337,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_wiki_text_quality.py", "WTQ-Fmt"),
     "wiki JSON format (every tracked .json: valid utf-8, parseable, no CRLF, single final newline, no trailing ws)":
         ("scripts/test/test_wiki_json_format.py", "WJF-Fmt"),
+    "PYTEST_SUITES label parity (path/short/label uniqueness + format + dashboard JSON cross-source parity)":
+        ("scripts/test/test_pytest_suites_label_parity.py", "PSL-Par"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
