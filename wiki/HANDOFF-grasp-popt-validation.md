@@ -8,7 +8,30 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **241 gates, all GREEN, exit 0**.
+and currently reports **242 gates, all GREEN, exit 0**.
+
+**Paper label-map integrity (gate 242, refresh @242):**
+Always-active audit (no scaffold/deferred mode — source-of-truth is
+`paper_pipeline.py`'s `POLICY_LABELS/POLICY_DESCRIPTIONS/POLICY_COLORS`
+dicts, loaded via importlib). Catches a regression class previously
+ungated: the paper's policy-label vocabulary silently drifting from
+what the JSON/CSV artifacts actually carry. 5 rules: G1 every canonical
+policy label has a description and a hex color; G2 the figure-label
+set (POLICY_LABELS values) is unique (no two policies render to the
+same label); G3 every policy_label observed across 8 tracked JSON
+artifacts (per_observation + winner_table + lit-faith postfix) is
+either in POLICY_LABELS or in the allowlist
+({CACHE, DROPLET, ECG_PFX} ∪ THEOREM_CLASS_LABELS where the latter is
+{POPT_GE_GRASP, POPT_NEAR_GRASP_IF_BIG_GAP}); G4 same for the 5
+tracked paper_pipeline_*/CSVs (`policy_label` column only — the `policy`
+column is a family rollup containing "ECG" which is not a policy); G5
+no orphan POLICY_LABELS entries (every catalogued label must appear in
+at least one tracked source). Today: 9 policy labels, 13 sources
+scanned, 0 violations. Pattern lock: 5 of 6 wiring touchpoints (no
+postfix file → no META_ALLOWLIST / WIKI_UNTRACKED_EXEMPT). Field-name
+fragmentation discovery: lit_faith_postfix uses `policy` (not
+`policy_label`); policy_winner_table uses `winner_policy` /
+`runner_up_policy`; paper_pipeline CSVs carry both.
 
 **ECG prefetcher head-to-head (gate 241, refresh @241):**
 The substrate-parity trinity (238/239/240) answers "does ECG mode
@@ -119,8 +142,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 241. Next refresh due
-at gate 246.
+**Refresh status:** Refresh complete at gate 242. Next refresh due
+at gate 247.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

@@ -761,6 +761,14 @@ CATALOG = [
         "summary":   "ECG PFX prefetcher vs DROPLET head-to-head audit (gate 241) — SCAFFOLD/DEFERRED today. No matched-proof ECG_PFX vs DROPLET sweep is available: across /tmp/graphbrew-* the droplet_*/ecg_pfx_* columns are config-only (degrees, table sizes, delivery mode) — all runtime counters (droplet_indirect_issued, droplet_stride_issued, ecg_pfx_issued, ecg_pfx_useful) are zero. Postfix declares status=deferred with expected source pattern (/tmp/graphbrew-ecg-pfx-vs-droplet-*/...) and minimum 8 observations; arms {LRU, DROPLET, ECG_PFX}. When activated the audit emits 6 rules: (G1) arm completeness per cell; (G2) baseline neutrality |miss_rate(LRU) - miss_rate(LRU,paired)| ≤ 0.005 across pairs; (G3) useful-prefetch floor ecg_useful_frac ≥ 0.05 and droplet_useful_frac ≥ 0.05 (anything lower is essentially random); (G4) per-arm policy_label hygiene; (G5) backend identity stable across arms within a cell; (G6) observation-floor from postfix. Sibling family to the substrate-parity trinity (gates 238/239/240) but a different concern: not 'ECG mode ≡ stock mode on the same backend?' but 'ECG PFX beats/matches DROPLET on the same baseline?'.",
     },
     {
+        "id":        "lit_faith_paper_label_map",
+        "label":     "Paper label-map integrity",
+        "generator": "scripts/experiments/ecg/lit_faith_paper_label_map.py",
+        "gate":      "scripts/test/test_lit_faith_paper_label_map.py",
+        "artifact":  "wiki/data/lit_faith_paper_label_map.json",
+        "summary":   "Paper label-map integrity audit (gate 242) — ALWAYS ACTIVE (no deferred mode; source-of-truth is the code, not a curated fixture). Audits the canonical POLICY_LABELS / POLICY_DESCRIPTIONS / POLICY_COLORS triple in paper_pipeline.py against (a) the committed paper_pipeline_*/policy_label_map.csv (byte-for-byte equality), (b) every tracked source artifact (8 JSON files: 4 ECG postfix gates + 2 lit-faith ECG audits + literature_faithfulness_postfix + policy_winner_table) plus 5 paper_pipeline CSVs (roi_matrix_all, roi_policy_summary, ecg_mode_overhead_summary, popt_storage_overhead_summary, popt_charged_overhead). 5 rules: (G1) every POLICY_LABELS key has matching description and color (no partial additions); (G2) every figure_label is unique across the map (no collisions); (G3) every policy_label found in tracked sources is in POLICY_LABELS or in NON_PAPER_LABELS allowlist (CACHE rollup label, DROPLET / ECG_PFX prefetcher-arm names, POPT_GE_GRASP / POPT_NEAR_GRASP_IF_BIG_GAP theorem-class virtual labels); (G4) latest paper_pipeline_*/policy_label_map.csv matches code byte-for-byte (catches stale committed snapshot); (G5) every POLICY_LABELS key appears in at least one tracked source (no orphan paper labels). Catches 'added a new policy without updating the paper legend' regressions. Today: 9 labels, 13 sources, 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -791,7 +799,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (241 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (242 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

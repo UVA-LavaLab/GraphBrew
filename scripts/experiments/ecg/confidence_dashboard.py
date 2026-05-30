@@ -383,6 +383,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_ecg_sniper_parity.py", "ECG-Sniper-Parity"),
     "ECG PFX prefetcher vs DROPLET head-to-head on matched baseline (scaffold/deferred today — no /tmp sweep has nonzero pf_issued/pf_useful; rules: arm completeness, baseline neutrality 0.5pp, useful floor 5%, observation floor)":
         ("scripts/test/test_lit_faith_ecg_pfx_vs_droplet.py", "ECG-Pfx-vs-DROPLET"),
+    "Paper label-map integrity (gate 242) — POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels":
+        ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
