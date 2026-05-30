@@ -351,6 +351,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_citations.py", "LIT-Cite"),
     "literature-faithfulness known-deviation completeness (reason length + quantitative phrase + anchor + bijection with live faith corpus)":
         ("scripts/test/test_lit_faith_deviations.py", "LIT-Dev"),
+    "literature-faithfulness tolerance calibration (per-row distance-to-disagree slack distribution + per-policy fragility floors)":
+        ("scripts/test/test_lit_faith_tolerance.py", "LIT-Tol"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -633,6 +633,14 @@ CATALOG = [
         "summary":   "Completeness audit on `literature_baselines.KNOWN_DEVIATIONS` (the whitelist that downgrades live lit-faith `disagree` rows to `known_deviation`). All 34 entries today are well-formed: ≥ 80-char reason, contain a quantitative phrase (pp / MB / %), and mention at least one anchor (paper §, design term, or algorithmic root-cause vocabulary like `PR-rank`, `frontier`, `union-find`, `Phase 1`). Bijection enforced: zero orphan entries, zero live `known_deviation` rows without a documented explanation. Coverage: 2 policies × 5 graphs × 5 apps × 3 L3 sizes; CC + BC dominate (82 % of KDs — they're the apps whose algorithmic mismatch with POPT's PR ranking is most documented).",
     },
     {
+        "id":        "lit_faith_tolerance",
+        "label":     "Literature-faithfulness tolerance calibration",
+        "generator": "scripts/experiments/ecg/lit_faith_tolerance.py",
+        "gate":      "scripts/test/test_lit_faith_tolerance.py",
+        "artifact":  "wiki/data/lit_faith_tolerance.json",
+        "summary":   "For every literature claim whose comparator-asserted bound actually fires (202 rows today; 30 known_deviations and 98 BIG_GAP non-triggered rows excluded), computes the per-row `slack_pp` = how many pp the observed `|delta_pct|` could move toward the disagree boundary. Corpus median slack 4.94 pp; 16 fragile rows (slack < 1 pp, 7.9 %), all but one in POPT_GE_GRASP (the tightest bucket). Strict policies (GRASP, POPT, SRRIP) have zero fragile rows and min slack ≥ 1.30 pp. Negative-slack count = 0 (slack formula matches the classifier branches). Histogram + per-policy + per-app aggregates + top-15 most-fragile list emitted for reviewer triage.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -663,7 +671,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (225 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (226 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
