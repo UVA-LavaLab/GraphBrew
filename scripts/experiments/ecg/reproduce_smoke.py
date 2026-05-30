@@ -181,6 +181,27 @@ TRACKED_ARTIFACTS = [
     "sniper_anchor.md",
     "winning_regime_taxonomy.json",
     "winning_regime_taxonomy.md",
+    # ----- CSV companions of catalogued JSONs / primary CSV artifacts.
+    # All produced by lit-* targets (transitive prereqs of lit-claims)
+    # and verified byte-stable across regen cycles. literature_reproduction_summary.csv
+    # is its CATALOG entry's primary artifact; the other 14 are
+    # secondary CSV views of their .json siblings.
+    "claim_density.csv",
+    "corpus_diversity.csv",
+    "cross_tool_saturation.csv",
+    "cross_tool_winners.csv",
+    "literature_deviations.csv",
+    "literature_faithfulness_postfix.csv",
+    "literature_reproduction_summary.csv",
+    "literature_reproduction_summary.md",
+    "oracle_gap.csv",
+    "oracle_gap_by_app.csv",
+    "paper_baseline_table.csv",
+    "policy_winner_table.csv",
+    "popt_vs_grasp_delta.csv",
+    "regression_budget.csv",
+    "small_l3_thrash.csv",
+    "winning_regime_taxonomy.csv",
 ]
 
 # Make targets to run (in order) to regenerate everything.  We do NOT
