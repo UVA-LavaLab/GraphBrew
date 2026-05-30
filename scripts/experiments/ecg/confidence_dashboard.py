@@ -321,6 +321,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_cross_artifact_integrity.py", "XAI-Int"),
     "reproduce_smoke coverage (every catalogued artifact is in TRACKED_ARTIFACTS audit)":
         ("scripts/test/test_reproduce_smoke_coverage.py", "RSC-Cov"),
+    "Makefile coverage integrity (every CATALOG generator invoked or on documented allow-list)":
+        ("scripts/test/test_makefile_coverage_integrity.py", "MFC-Int"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
