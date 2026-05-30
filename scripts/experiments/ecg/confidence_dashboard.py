@@ -301,6 +301,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_literature_deviations_report_derivation_parity.py", "LDR-Der"),
     "wss_knee_location derivation parity (regime-ladder knee walk + strict ordering invariant)":
         ("scripts/test/test_wss_knee_location_derivation_parity.py", "WKL-Der"),
+    "paper_claims registry derivation parity (single-source-of-truth aggregator + JSON byte parity)":
+        ("scripts/test/test_paper_claims_registry_derivation_parity.py", "PCR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
