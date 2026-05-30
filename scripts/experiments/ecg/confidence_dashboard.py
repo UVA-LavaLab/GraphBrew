@@ -295,6 +295,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_anchor_monotonicity_replay_derivation_parity.py", "AMR-Der"),
     "gem5_slope_replay derivation parity (anchor OLS slope + 4-clause verdict matrix)":
         ("scripts/test/test_gem5_slope_replay_derivation_parity.py", "GSR-Der"),
+    "sniper_slope_replay derivation parity (anchor OLS slope + 4-clause verdict matrix)":
+        ("scripts/test/test_sniper_slope_replay_derivation_parity.py", "SSR-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
