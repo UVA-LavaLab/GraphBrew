@@ -425,6 +425,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_arm_catalog.py", "ArmCatalog"),
     "ECG cross-tool aggregator schema (gate 262) — locks on-disk JSON shape of 6 cross_tool* aggregators; S1-S7: exists, valid JSON, top-keys present, evidence non-empty, row keys present, tools ⊆ canonical, verdict type":
         ("scripts/test/test_lit_faith_cross_tool_schema.py", "CrossToolSchema"),
+    "ECG config matrix (gate 263) — locks ecg/config.py vs canonical registries (gates 251/255/258/260); C1-C7: policies+graphs+kernels canonical, L3 anchor matches tier, sweep pow2 brackets anchor, pairs use ALL_POLICIES, ECG_MODE exhaustive":
+        ("scripts/test/test_lit_faith_config_matrix.py", "ConfigMatrix"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

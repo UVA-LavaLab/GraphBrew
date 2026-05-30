@@ -8,7 +8,55 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **262 gates, all GREEN, exit 0**.
+and currently reports **263 gates, all GREEN, exit 0**.
+
+**ECG configuration matrix (gate 263, refresh @263):**
+The tenth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool aggregator schema, 263 config matrix).
+Locks the central `scripts/experiments/ecg/config.py` module —
+the one source-of-truth that the entire ECG sweep / accuracy /
+proof-matrix / final-paper-run pipeline reads cache sizes,
+benchmark lists, graph corpora, policy vocab, and (reorder,
+policy) pair lists from — against silent vocabulary drift relative
+to the canonical registries (gates 251 L3 tiers, 255 policy
+names, 258 graph names, 260 kernel CLI classes) AND against
+internal self-consistency. Catches the silent-drift cases where
+a contributor adds `'BIP'` to `BASELINE_POLICIES` without
+registering it in gate 255 (downstream parsers silently drop BIP
+rows), renames `com-orkut` → `orkut` in `EVAL_GRAPHS` without
+a corresponding alias in gate 258 (sweep runs land in
+`results/orkut/` but no plot script looks there), bumps
+`DEFAULT_CACHE['CACHE_L3_SIZE']` to `10485760` (10 MB) which
+matches no canonical L3 tier (every L3-anchored plot picks an
+arbitrary closest tier and the "8 MB anchor" claim silently
+breaks), renames `cc_sv` → `conn-comp-sv` without a corresponding
+gate 260 `KERNEL_CL_CLASS` edit (every sweep invokes a
+non-existent binary), or adds an `('-o 99', 'MAGIC')` pair to
+`REORDER_POLICY_PAIRS` where `MAGIC` isn't in `ALL_POLICIES`
+(bench runner emits zero rows but pipeline reports OK). 7 rules
+C1-C7: C1 every policy in
+`BASELINE_POLICIES ∪ GRAPH_AWARE_POLICIES ∪ PREVIEW_POLICIES`
+is in gate 255 `CANONICAL_POLICY_NAMES`; C2 every
+`EVAL_GRAPHS.name` is in gate 258 `CANONICAL_GRAPHS`; C3 every
+`BENCHMARKS` entry is a key of gate 260 `KERNEL_CL_CLASS`; C4
+`DEFAULT_CACHE.CACHE_L3_SIZE` parses to a byte count equal to
+the `bytes` field of exactly one tier in gate 251
+`CANONICAL_L3_TIERS` (today: `8388608` = 8 MB anchor); C5 every
+`CACHE_SIZES_SWEEP` entry is a power-of-2 byte count, the
+sweep brackets the L3 anchor (`min ≤ DEFAULT_L3 ≤ max`),
+entries strictly increasing; C6 every `(reorder, policy, ...)`
+tuple across `ACCURACY_PAIRS ∪ REORDER_POLICY_PAIRS` uses a
+policy in `ALL_POLICIES`; C7 every `ECG_MODE` observed in
+`ACCURACY_PAIRS` env dicts is in `ECG_MODES`, and every
+`ECG_MODES` value is paper-pipeline-recognised as
+`ECG_<mode>` in `POLICY_ORDER` or in the documented
+`ECG_PRIVATE_MODES` allow-list (`ECG_EMBEDDED` — valid ECG
+runtime mode but not a paper-figure bar). Today: 8
+`ALL_POLICIES` (5 baseline + 3 graph-aware), 5
+`PREVIEW_POLICIES`, 7 `BENCHMARKS`, 6 `EVAL_GRAPHS`, 4
+`ECG_MODES` + 1 private, 12-entry cache-sweep (32 kB → 64 MB
+powers-of-2), 21 (reorder, policy) pairs; 0 violations.
 
 **ECG cross-tool aggregator schema (gate 262, refresh @262):**
 The ninth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -673,8 +721,11 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 262. Next refresh due
-at gate 267.
+**Refresh status:** Refresh complete at gate 263. Next refresh due
+at gate 268. To refresh: `make confidence-fast` (≈12 min),
+inspect `wiki/data/confidence_dashboard.md`, then update the
+**gate-N paragraph at the top**, the headline `**N gates,
+all GREEN, exit 0**`, and this "Refresh status" line.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next
