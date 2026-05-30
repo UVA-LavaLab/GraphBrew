@@ -1079,6 +1079,17 @@
       "summary": "Paper-table CSV provenance audit (gate 250) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are every .tex + sibling .csv pair under wiki/data/paper_pipeline_YYYYMMDD/ AND a hand-curated PROVENANCE_REGISTRY in the generator pairing each shipped paper table with its underlying CSV and declaring the key-column tuples that must trace 1:1). The shipped .tex tables are intentionally truncated by paper_pipeline.py at [:20]/[:24] for paper layout, so the CSV is allowed to be a strict superset \u2014 but the .tex must NEVER carry a row that the CSV does not hold, and every paper row's key tuple (policy, benchmark, prefetcher, check, charged, oracle, candidate) must trace to at least one CSV row after LaTeX-escape normalization (ECG\\_DBG\\_ONLY \u21c4 ECG_DBG_ONLY). Catches silent splits where paper_pipeline.py regenerates one file but not the other, or where a column rename desynchronizes the .tex header from the CSV header. 7 rules: (P1) every registered .tex AND .csv file exists in the latest paper_pipeline dir; (P2) tex_rows \u2264 csv_rows (subset row count, no orphan paper rows past the truncation cap); (P3) for each (tex_header, csv_header) key-column pair, the multiset of tex values is a sub-multiset of the csv values after normalize; (P4) every declared key column exists in the corresponding tex/csv header tuple; (P5) no value in any tracked CSV key column is the empty string (every paper row must trace to non-empty CSV cells); (P6) no unregistered .csv sibling of a registered .tex stem (defensive \u2014 catches new paired CSVs added without registration); (P7) every registered CSV has a non-empty header row. Today: 5 pairs, 78 tex rows \u2194 85 csv rows, 13 tracked key columns; 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_l3_registry.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_l3_registry.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_l3_registry.py",
+      "generator_exists": true,
+      "id": "lit_faith_l3_registry",
+      "label": "L3 cache-size registry",
+      "summary": "L3 cache-size registry audit (gate 251) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are every .py module under scripts/experiments/ecg + scripts/test AND a CANONICAL_L3_TIERS map in the generator declaring 11 tokens 4kB..32MB with role + sub_tier + byte size + MB size for each). AST-harvests every module-level PAPER_L3 / PAPER_L3_SIZES / L3_SIZES tuple of string tokens AND every L3_MB / L3_BYTES dict whose keys are token strings, then enforces canonical agreement across the universe. Catches silent drift where a contributor adds a new L3 sweep size (e.g. '2MB') in one module but forgets the byte arithmetic, or where the anchor triplet (1MB, 4MB, 8MB) is reordered in a copy. 7 rules: (L1) every harvested token is in CANONICAL_L3_TIERS (no rogue size labels); (L2) every PAPER_L3-shaped tuple equals ANCHOR_TRIPLET exactly (order and content); (L3) every L3_MB dict value matches the canonical MB scaling (1MB\u21921.0, 4MB\u21924.0, 8MB\u21928.0, with float-division tolerated); (L4) every L3_BYTES dict value matches canonical byte arithmetic via AST constant-folding (so `4 * 1024` \u2261 4096 \u2261 canonical 4kB); (L5) the canonical registry itself uses only declared roles + sub_tiers (no typo'd taxonomy); (L6) every anchor token (1MB/4MB/8MB) appears in at least one harvested PAPER_L3 tuple (defensive \u2014 catches accidental anchor removal); (L7) PAPER_L3-shaped constants do not disagree across files (cross-file consistency). Today: canonical=11 tokens, 54 files harvested, 43 PAPER_L3-shaped tuples, 9 L3_MB dicts, 7 L3_BYTES dicts, 1 subset tuple (MANDATORY_L3_SIZES); 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1120,13 +1131,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (250 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (251 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 102
+    "n_entries": 103
   }
 }

@@ -8,7 +8,29 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **250 gates, all GREEN, exit 0**.
+and currently reports **251 gates, all GREEN, exit 0**.
+
+**L3 cache-size registry (gate 251, refresh @251):**
+The L3-size universe (4kB..32MB) is now locked by a single
+`CANONICAL_L3_TIERS` map (11 tokens with role + sub_tier + byte size +
+MB size each). The generator AST-harvests every module-level
+`PAPER_L3` / `PAPER_L3_SIZES` / `L3_SIZES` tuple of string tokens AND
+every `L3_MB` / `L3_BYTES` dict across `scripts/experiments/ecg` and
+`scripts/test`, then enforces canonical agreement across the whole
+universe. Catches silent drift where a contributor adds a new L3
+sweep size (e.g. `"2MB"`) in one module but forgets the byte
+arithmetic, or where the anchor triplet (`1MB`, `4MB`, `8MB`) is
+reordered in a copy. 7 rules: L1 every harvested token is canonical;
+L2 every `PAPER_L3` tuple equals `ANCHOR_TRIPLET` exactly; L3 every
+`L3_MB` value matches canonical MB scaling; L4 every `L3_BYTES` value
+matches canonical byte arithmetic via AST constant-folding (so
+`4 * 1024` ≡ 4096 ≡ canonical `4kB`); L5 the canonical registry uses
+only declared roles + sub_tiers; L6 every anchor token appears in at
+least one harvested `PAPER_L3` tuple; L7 `PAPER_L3`-shaped constants
+do not disagree across files. Today: canonical=11 tokens, 54 files
+harvested, 43 `PAPER_L3`-shaped tuples, 9 `L3_MB` dicts, 7
+`L3_BYTES` dicts, 1 subset tuple (`MANDATORY_L3_SIZES`); 0
+violations.
 
 **Paper-table CSV provenance (gate 250, refresh @250):**
 Every shipped LaTeX paper table in `wiki/data/paper_pipeline_YYYYMMDD/`
@@ -328,8 +350,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 250. Next refresh due
-at gate 255.
+**Refresh status:** Refresh complete at gate 251. Next refresh due
+at gate 256.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next
