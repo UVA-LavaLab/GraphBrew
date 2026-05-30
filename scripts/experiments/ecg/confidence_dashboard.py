@@ -429,6 +429,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_config_matrix.py", "ConfigMatrix"),
     "wiki/data filename grammar (gate 264) — locks FS shape of wiki/data/; F1-F7: lower_snake_case+ext∈{json,md,csv}, json↔md trio (mod allow-lists), catalog→disk, catalog ext∈{json,csv}, stem declared or META allow-list, subdir matches DOC_SUBDIR_RE":
         ("scripts/test/test_lit_faith_filename_grammar.py", "FilenameGrammar"),
+    "gem5/Sniper sideband filename+env-var grammar (gate 265) — 8 entries (4 gem5+4 sniper); S1-S7: filename grammar, role↔ext, env↔default_path bijection, gem5_harness/sniper cache_set+prefetcher emit-sites, roi_matrix parse-sites, no orphan literals":
+        ("scripts/test/test_lit_faith_sideband_grammar.py", "SidebandGrammar"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -8,7 +8,59 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **264 gates, all GREEN, exit 0**.
+and currently reports **265 gates, all GREEN, exit 0**.
+
+**gem5/Sniper sideband filename + env-var grammar (gate 265, refresh @265):**
+The twelfth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool aggregator schema, 263 config matrix,
+264 wiki/data filename grammar, 265 sideband filename grammar).
+Where gate 248 locks the *internal schema* of `[graphctx] register
+region` log lines (field names + printf specifiers + parser regex),
+gate 265 locks the complementary surface area: the FILENAME +
+ENV-VAR vocabulary that gem5 and Sniper overlays use to refer to
+the four runtime sideband artifacts (context JSON, popt matrix
+bin, out-edges bin, in-edges bin) at every emit-site (C++ overlay
+default-paths via `gem5_env_or_default` / `envOrDefault`) and
+every parse-site (Python sideband-path dicts in `roi_matrix.py`).
+Catches the silent-drift cases where a contributor renames
+`gem5_graphbrew_ctx.json` to `gem5_graphbrew_context.json` in the
+C++ default-path string of `gem5_harness.h` but forgets the
+Python parse-site `gem5_sideband_paths` dict — runs succeed but
+Tier-A parsing silently sees zero registered regions and pivot
+tests RED for unrelated-looking reasons; flips `SNIPER_POPT_MATRIX`
+to `SNIPER_PMATRIX` in one of three Sniper cache-set sources
+(`popt`/`grasp`/`ecg`) but not the others — the changed cache-set
+falls back to `/tmp/sniper_popt_matrix.bin` while the runner sets
+`SNIPER_PMATRIX` and the POPT vector never loads; adds a fifth
+sideband artifact under `/tmp/gem5_popt_pfx.bin` without
+registering it — the proof-matrix audit doesn't know to clean it
+up between runs and stale state silently contaminates the next
+run; changes the `graphbrew_sidebands/` subdirectory convention to
+`sidebands/` — Python parsers look in the wrong dir and silently
+treat all artifacts as missing. 7 rules S1-S7: S1 every registry
+filename matches `^(gem5|sniper)_[a-z0-9_]+\.(json|bin)$`; S2
+filename has tool-prefix matching its `tool` field, role ∈
+{context, popt_matrix, out_edges, in_edges}, context → `.json` /
+others → `.bin`; S3 `env_var = TOOL_STEM` (uppercase), `default_path
+= /tmp/<filename>` — bijection; S4 every `gem5_env_or_default(NAME,
+PATH)` call in `gem5_harness.h` for a sideband role uses a
+registered (NAME, PATH) pair; S5 every Sniper `envOrDefault(NAME,
+PATH)` call in `cache_set_{popt,grasp,ecg}.cc` +
+`{ecg_pfx,droplet}_prefetcher.cc` for a sideband role uses a
+registered pair; S6 every Python sideband-path dict entry in
+`roi_matrix.py` (`gem5_sideband_paths` / `sniper_sideband_paths`)
+points at `<sideband_dir>/<canonical-filename>`; S7 every sideband
+filename literal under `bench/include/{gem5,sniper}_sim/` and
+`roi_matrix.py` is declared in the registry — no orphan
+`(gem5|sniper)_[a-z_]+\.(json|bin)` literals (modulo
+`FILENAME_NON_SIDEBAND_ALLOW` for non-runtime config files like
+`.sniper_overlays.json`). Today: 8 registry entries (4 gem5 + 4
+sniper), 2 tools, 4 roles, 1 sideband subdir `graphbrew_sidebands/`;
+6 emit-sites + 1 parse-site audited; 0 violations. Together with
+gate 248 (schema content) and gate 264 (wiki/data filename shape)
+this completes the filename/vocabulary lock on every shipping
+surface in the paper-confidence pipeline.
 
 **wiki/data filename grammar (gate 264, refresh @264):**
 The eleventh in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -763,8 +815,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 264. Next refresh due
-at gate 269. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 265. Next refresh due
+at gate 270. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

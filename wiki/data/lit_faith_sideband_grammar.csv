@@ -1,0 +1,9 @@
+tool,role,filename,env_var,default_path
+gem5,context,gem5_graphbrew_ctx.json,GEM5_GRAPHBREW_CTX,/tmp/gem5_graphbrew_ctx.json
+gem5,popt_matrix,gem5_popt_matrix.bin,GEM5_POPT_MATRIX,/tmp/gem5_popt_matrix.bin
+gem5,out_edges,gem5_graphbrew_out_edges.bin,GEM5_GRAPHBREW_OUT_EDGES,/tmp/gem5_graphbrew_out_edges.bin
+gem5,in_edges,gem5_graphbrew_in_edges.bin,GEM5_GRAPHBREW_IN_EDGES,/tmp/gem5_graphbrew_in_edges.bin
+sniper,context,sniper_graphbrew_ctx.json,SNIPER_GRAPHBREW_CTX,/tmp/sniper_graphbrew_ctx.json
+sniper,popt_matrix,sniper_popt_matrix.bin,SNIPER_POPT_MATRIX,/tmp/sniper_popt_matrix.bin
+sniper,out_edges,sniper_graphbrew_out_edges.bin,SNIPER_GRAPHBREW_OUT_EDGES,/tmp/sniper_graphbrew_out_edges.bin
+sniper,in_edges,sniper_graphbrew_in_edges.bin,SNIPER_GRAPHBREW_IN_EDGES,/tmp/sniper_graphbrew_in_edges.bin

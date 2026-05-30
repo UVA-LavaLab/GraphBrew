@@ -1,0 +1,85 @@
+{
+  "status": "active",
+  "registry_n": 8,
+  "tools": [
+    "gem5",
+    "sniper"
+  ],
+  "roles": [
+    "context",
+    "popt_matrix",
+    "out_edges",
+    "in_edges"
+  ],
+  "sideband_subdir": "graphbrew_sidebands",
+  "emit_sites_audited": [
+    "bench/include/gem5_sim/gem5_harness.h",
+    "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/cache_set_popt.cc",
+    "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/cache_set_grasp.cc",
+    "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/cache_set_ecg.cc",
+    "bench/include/sniper_sim/overlays/common/core/memory_subsystem/parametric_dram_directory_msi/ecg_pfx_prefetcher.cc",
+    "bench/include/sniper_sim/overlays/common/core/memory_subsystem/parametric_dram_directory_msi/droplet_prefetcher.cc"
+  ],
+  "parse_sites_audited": [
+    "scripts/experiments/ecg/roi_matrix.py"
+  ],
+  "registry": [
+    {
+      "tool": "gem5",
+      "role": "context",
+      "filename": "gem5_graphbrew_ctx.json",
+      "env_var": "GEM5_GRAPHBREW_CTX",
+      "default_path": "/tmp/gem5_graphbrew_ctx.json"
+    },
+    {
+      "tool": "gem5",
+      "role": "popt_matrix",
+      "filename": "gem5_popt_matrix.bin",
+      "env_var": "GEM5_POPT_MATRIX",
+      "default_path": "/tmp/gem5_popt_matrix.bin"
+    },
+    {
+      "tool": "gem5",
+      "role": "out_edges",
+      "filename": "gem5_graphbrew_out_edges.bin",
+      "env_var": "GEM5_GRAPHBREW_OUT_EDGES",
+      "default_path": "/tmp/gem5_graphbrew_out_edges.bin"
+    },
+    {
+      "tool": "gem5",
+      "role": "in_edges",
+      "filename": "gem5_graphbrew_in_edges.bin",
+      "env_var": "GEM5_GRAPHBREW_IN_EDGES",
+      "default_path": "/tmp/gem5_graphbrew_in_edges.bin"
+    },
+    {
+      "tool": "sniper",
+      "role": "context",
+      "filename": "sniper_graphbrew_ctx.json",
+      "env_var": "SNIPER_GRAPHBREW_CTX",
+      "default_path": "/tmp/sniper_graphbrew_ctx.json"
+    },
+    {
+      "tool": "sniper",
+      "role": "popt_matrix",
+      "filename": "sniper_popt_matrix.bin",
+      "env_var": "SNIPER_POPT_MATRIX",
+      "default_path": "/tmp/sniper_popt_matrix.bin"
+    },
+    {
+      "tool": "sniper",
+      "role": "out_edges",
+      "filename": "sniper_graphbrew_out_edges.bin",
+      "env_var": "SNIPER_GRAPHBREW_OUT_EDGES",
+      "default_path": "/tmp/sniper_graphbrew_out_edges.bin"
+    },
+    {
+      "tool": "sniper",
+      "role": "in_edges",
+      "filename": "sniper_graphbrew_in_edges.bin",
+      "env_var": "SNIPER_GRAPHBREW_IN_EDGES",
+      "default_path": "/tmp/sniper_graphbrew_in_edges.bin"
+    }
+  ],
+  "violations": []
+}
