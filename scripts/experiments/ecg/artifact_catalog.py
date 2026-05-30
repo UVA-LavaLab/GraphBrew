@@ -697,6 +697,14 @@ CATALOG = [
         "summary":   "Per (policy, graph, app) cell: rationale text must be unique within the cell (theorem-class policies POPT_GE_GRASP / POPT_NEAR_GRASP_IF_BIG_GAP / SRRIP must carry exactly 1 rationale per (policy, app); point policies GRASP / POPT / LRU may carry up to 2 per (policy, graph, app) to accommodate L3-regime variants). Theorem-class policies are exempt from the citation-token rule (they state algorithmic-class theorems, not Fig references). Point-policy rationales must contain a citation token (HPCA20 / HPCA21 / Fig 9-12 / §3-7). Today: 330 rows, 115 cells, 5 policies, GRASP=19 / POPT=8 / POPT_GE_GRASP=5 / POPT_NEAR=1 / SRRIP=5 distinct rationales, 0 violations.",
     },
     {
+        "id":        "lit_faith_cellcomp",
+        "label":     "Literature-faithfulness cell-completeness audit",
+        "generator": "scripts/experiments/ecg/lit_faith_cellcomp.py",
+        "gate":      "scripts/test/test_lit_faith_cellcomp.py",
+        "artifact":  "wiki/data/lit_faith_cellcomp.json",
+        "summary":   "Per (graph, app, l3) cell in the per_observation table: canonical policy roster {LRU, GRASP, POPT} must be present, LRU baseline row must exist, `delta_vs_lru_pct` must equal `(miss_rate - lru_miss_rate) * 100` within 0.001 pp, every non-LRU policy must cover at least 3 L3 sizes per (graph, app), and every present policy must share the same L3 axis within (graph, app). Today: 456 per_observation rows, 114 cells, 8 graphs, 5 apps, 4 policies (LRU + GRASP + POPT + SRRIP), 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -727,7 +735,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (233 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (234 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
