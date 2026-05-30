@@ -315,6 +315,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_sign_consistency_derivation.py", "SCD-Der"),
     "literature_reproduction_summary derivation parity (verdict glyph + paper rollup + render byte parity)":
         ("scripts/test/test_literature_reproduction_summary_derivation.py", "LRS-Der"),
+    "local_cache_screen_summary derivation parity (number coercion + LRU-base delta + rank tie-break)":
+        ("scripts/test/test_local_cache_screen_summary_derivation.py", "LCS-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
