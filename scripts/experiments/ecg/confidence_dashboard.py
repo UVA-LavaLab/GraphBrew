@@ -347,6 +347,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_margin.py", "LIT-Mar"),
     "literature-faithfulness sign-mass concentration (per-bucket Wilson LB + binomial sign-test + median delta_pct floors)":
         ("scripts/test/test_lit_faith_signmass.py", "LIT-Sig"),
+    "literature-faithfulness citation locator integrity (bijection + anchor inventory + venue/year/locator well-formedness + docstring URL grounding)":
+        ("scripts/test/test_lit_faith_citations.py", "LIT-Cite"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -782,6 +782,17 @@
       "summary": "Per-bucket (expected_sign \u00d7 policy) sign-mass concentration with Wilson 95 % lower bounds and binomial sign-test p-values. Today: GRASP 13/13 correctly signed (p=0.0002, median -4.83 pp), POPT 7/7 (p=0.0156, median -10.74 pp), POPT\u2265GRASP 55/88 with 2 ties (p=0.0127, median -0.33 pp). Locks per-bucket Wilson LB / binomial-p / median-delta floors so a regression erasing the sign signal trips the gate."
     },
     {
+      "artifact": "wiki/data/lit_faith_citations.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_citations.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_citations.py",
+      "generator_exists": true,
+      "id": "lit_faith_citations",
+      "label": "Literature-faithfulness citation locator integrity",
+      "summary": "Bijection between the 15 unique citation strings in lit-faith and `literature_baselines.py` (zero orphans / unused), per-anchor inventory across the 3 canonical papers (Faldu HPCA 2020, Balaji & Lucia HPCA 2021, Jaleel ISCA 2010), and per-citation well-formedness check (venue tag + year + \u00a7/Fig locator + known anchor). All 15 citations well-formed today; 2/3 anchors have DOI/URL in module docstring (Jaleel ISCA 2010 intentionally unlinked)."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -823,13 +834,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (223 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (224 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 75
+    "n_entries": 76
   }
 }

@@ -1,0 +1,287 @@
+{
+  "anchors": [
+    {
+      "baseline_citations": [
+        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+        "Faldu et al. HPCA 2020 Fig 10",
+        "Faldu et al. HPCA 2020 Fig 11",
+        "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated from twitter Fig 10)",
+        "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated to com-orkut from twitter Fig 10)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
+      ],
+      "baseline_claim_count": 22,
+      "doi_or_url_prefix": "https://dl.acm.org/doi/10.1109/HPCA47549.2020",
+      "faith_citations": [
+        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+        "Faldu et al. HPCA 2020 Fig 10",
+        "Faldu et al. HPCA 2020 Fig 11",
+        "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated from twitter Fig 10)",
+        "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated to com-orkut from twitter Fig 10)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
+      ],
+      "faith_claim_count": 177,
+      "key": "faldu_hpca_2020",
+      "label": "Faldu et al. HPCA 2020 (GRASP)",
+      "venue": "HPCA 2020"
+    },
+    {
+      "baseline_citations": [
+        "Balaji & Lucia HPCA 2021 Fig 10",
+        "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
+        "Balaji & Lucia HPCA 2021 Fig 9",
+        "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+      ],
+      "baseline_claim_count": 16,
+      "doi_or_url_prefix": "https://www.cs.cmu.edu/~vbalaji/papers/popt_hpca21",
+      "faith_citations": [
+        "Balaji & Lucia HPCA 2021 Fig 10",
+        "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
+        "Balaji & Lucia HPCA 2021 Fig 9",
+        "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+      ],
+      "faith_claim_count": 252,
+      "key": "balaji_hpca_2021",
+      "label": "Balaji & Lucia HPCA 2021 (P-OPT)",
+      "venue": "HPCA 2021"
+    },
+    {
+      "baseline_citations": [
+        "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
+      ],
+      "baseline_claim_count": 5,
+      "doi_or_url_prefix": null,
+      "faith_citations": [
+        "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
+      ],
+      "faith_claim_count": 75,
+      "key": "jaleel_isca_2010",
+      "label": "Jaleel et al. ISCA 2010 (RRIP)",
+      "venue": "ISCA 2010"
+    }
+  ],
+  "baseline_short_citations": [],
+  "citation_grounding": [
+    {
+      "anchors": [
+        "balaji_hpca_2021"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 Fig 10",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 31,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "balaji_hpca_2021"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 43,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "balaji_hpca_2021"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 Fig 9",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 30,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "balaji_hpca_2021"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 68,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "balaji_hpca_2021"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 29,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "balaji_hpca_2021"
+      ],
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 40,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "faldu_hpca_2020",
+        "balaji_hpca_2021"
+      ],
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 51,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "faldu_hpca_2020"
+      ],
+      "citation": "Faldu et al. HPCA 2020 Fig 10",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 29,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "faldu_hpca_2020"
+      ],
+      "citation": "Faldu et al. HPCA 2020 Fig 11",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 29,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "faldu_hpca_2020"
+      ],
+      "citation": "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated from twitter Fig 10)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 62,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "faldu_hpca_2020"
+      ],
+      "citation": "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated to com-orkut from twitter Fig 10)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 75,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "jaleel_isca_2010"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 70,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "balaji_hpca_2021",
+        "jaleel_isca_2010"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 70,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "faldu_hpca_2020",
+        "jaleel_isca_2010"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 57,
+      "well_formed": true
+    },
+    {
+      "anchors": [
+        "faldu_hpca_2020",
+        "jaleel_isca_2010"
+      ],
+      "citation": "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)",
+      "has_location_qualifier": true,
+      "has_venue_tag": true,
+      "has_year": true,
+      "length": 68,
+      "well_formed": true
+    }
+  ],
+  "docstring_grounding": [
+    {
+      "key": "faldu_hpca_2020",
+      "url_prefix_expected": "https://dl.acm.org/doi/10.1109/HPCA47549.2020",
+      "url_prefix_present_in_docstring": true
+    },
+    {
+      "key": "balaji_hpca_2021",
+      "url_prefix_expected": "https://www.cs.cmu.edu/~vbalaji/papers/popt_hpca21",
+      "url_prefix_present_in_docstring": true
+    },
+    {
+      "key": "jaleel_isca_2010",
+      "url_prefix_expected": null,
+      "url_prefix_present_in_docstring": false
+    }
+  ],
+  "ill_formed_citations": [],
+  "only_in_baselines": [],
+  "only_in_faith": [],
+  "schema_version": 1,
+  "summary": {
+    "anchors_present_in_baselines": 3,
+    "anchors_present_in_faith": 3,
+    "anchors_total": 3,
+    "anchors_url_in_docstring": 2,
+    "baseline_claim_count": 38,
+    "baseline_short_citations": 0,
+    "baseline_unique_citations": 15,
+    "citations_ill_formed_count": 0,
+    "citations_well_formed": 15,
+    "faith_claim_count": 330,
+    "intersection_size": 15,
+    "lit_faith_unique_citations": 15,
+    "only_in_baselines_count": 0,
+    "only_in_faith_count": 0
+  }
+}
