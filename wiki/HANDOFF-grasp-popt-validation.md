@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **215 gates, all GREEN, exit 0**.
+and currently reports **220 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–215.**
+- **Cross-artifact / cross-source derivation parity gates 151–220.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -1077,6 +1077,44 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   source↔value (gate 213) + schema↔vocabulary (gate 214) +
   invocation↔coverage (gates 210, 211, 212) + collection↔runtime
   (gate 215).
+- **wiki/data formatting & registry-integrity gates 216–220.**
+  Gate 216 (CGH-Sig, 150 tests) locks generator --help signature:
+  every CATALOG generator module must accept `--help` and exit 0
+  (catches argparse-removal regressions); covered by a parametric
+  subprocess invocation per generator. Gate 217 (WTQ-Fmt, 370
+  tests) locks markdown formatting: every tracked .md is UTF-8,
+  LF-only line endings, ends with exactly one trailing newline,
+  no trailing whitespace on lines, and is non-empty; rolled out
+  with 16 generator fixes adopting the canonical pattern
+  `write_text(body.rstrip("\n") + "\n")`. Gate 218 (WJF-Fmt, 365
+  tests) locks the JSON counterpart: every tracked .json parses
+  as valid JSON, is UTF-8, LF-only, ends with exactly one
+  trailing newline, no trailing whitespace on data lines, and is
+  non-empty; rolled out with 28 generator fixes adopting the
+  canonical pattern `write_text(json.dumps(..., indent=2,
+  sort_keys=True) + "\n")`. Four pre-existing byte-parity tests
+  (CDV-Der, LFE-Der, FSR-Der, PCR-Der) were updated — not
+  exempted — to assert the new `+ "\n"` contract; docstrings cite
+  WJF-Fmt as the reason. Gate 219 (PSL-Par, 1324 tests) locks
+  PYTEST_SUITES structural integrity: all 219+ entries have unique
+  paths, unique short codes, unique labels; short codes match
+  `^[A-Z][A-Za-z0-9]*(-[A-Za-z0-9]+)*$` except the legacy
+  `PSL_LEGACY_SHORT_EXEMPT = {"Tier A", "Tier B", "Tier C"}`
+  (referenced by test_confidence_dashboard fixtures); path-on-disk
+  + path-format invariants; label length and no-control-char
+  bounds; dashboard JSON cross-source parity (source labels and
+  shorts bijection with `confidence_dashboard.json`). Gate 220
+  (WMP-Pair, 365 tests) locks .md/.json companion-pair invariants:
+  every tracked .json stem has a tracked .md companion (and vice
+  versa); both files exist on disk and are non-empty; markdown
+  inline references to `wiki/data/<stem>.{json,csv,md}` must
+  resolve to a real file; `WMP_MD_ONLY_EXEMPT =
+  {literature_reproduction_summary}` (the cross-paper synthesis
+  with no own JSON) plus an empty `WMP_JSON_ONLY_EXEMPT`, both
+  with minimality self-tests. Wiki-data integrity now sealed:
+  format-stable .md (217) + format-stable .json (218) + companion
+  pair (220) + registry parity (219) + on-disk coverage (212) +
+  generator-signature (216).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others

@@ -7,14 +7,14 @@
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "ec7c62589b1e04c4c7d2ab50f9789cc23ba3b47de60e305df3664992b8caf584",
-      "sha_after": "ec7c62589b1e04c4c7d2ab50f9789cc23ba3b47de60e305df3664992b8caf584",
+      "sha_before": "1802904f754a31cb986e799afadb52d711fda09cbf642ada45ede3580f92f923",
+      "sha_after": "1802904f754a31cb986e799afadb52d711fda09cbf642ada45ede3580f92f923",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "e088f68c895ad577f81e0793537136b87b68e4740ff45f135047cf4dfe59283b",
-      "sha_after": "e088f68c895ad577f81e0793537136b87b68e4740ff45f135047cf4dfe59283b",
+      "sha_before": "1cd9108e8a786d86b060381c84b1fd02227ec5931bd4bef5275235e2fd6c83d5",
+      "sha_after": "1cd9108e8a786d86b060381c84b1fd02227ec5931bd4bef5275235e2fd6c83d5",
       "status": "ok"
     },
     {
@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "56af013357acf34c87722f724cb7437732ce2595f5d378fabf8bb86fbd8e7b5a",
-      "sha_after": "56af013357acf34c87722f724cb7437732ce2595f5d378fabf8bb86fbd8e7b5a",
+      "sha_before": "04a340b34c21b85dc220574468e66d73248128aede522fce200efb6d3d85c216",
+      "sha_after": "04a340b34c21b85dc220574468e66d73248128aede522fce200efb6d3d85c216",
       "status": "ok"
     },
     {
@@ -775,14 +775,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "9aadd87eedae144f2175031165c5c86d35ce24a72645337768fdbbd2b093324d",
-      "sha_after": "9aadd87eedae144f2175031165c5c86d35ce24a72645337768fdbbd2b093324d",
+      "sha_before": "c42891e86ecab1ba17bbb4e56704965801653ed04bb6225d6438f2f4a32d6169",
+      "sha_after": "c42891e86ecab1ba17bbb4e56704965801653ed04bb6225d6438f2f4a32d6169",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "2c3a6a4b98a744c1d65c797eeb68e1adc763bd4267190bfd0167ecdc55cbb330",
-      "sha_after": "2c3a6a4b98a744c1d65c797eeb68e1adc763bd4267190bfd0167ecdc55cbb330",
+      "sha_before": "2524cebb9468a871a292673c82b246aa4169d5e0b44b69a1e0809b03a27394c6",
+      "sha_after": "2524cebb9468a871a292673c82b246aa4169d5e0b44b69a1e0809b03a27394c6",
       "status": "ok"
     },
     {

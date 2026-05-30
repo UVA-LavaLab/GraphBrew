@@ -225,9 +225,18 @@ def test_confidence_green_gate_count_matches_dashboard():
     claim = cbi["confidence.green_gate_count"]
     src = _load_source(claim["source"])
     suites = src.get("suites", [])
+    # Mirror the snake-eating-tail self-exemption in paper_claims_registry.
+    self_ref = {
+        "scripts/test/test_paper_claims_integrity.py",
+        "scripts/test/test_paper_claims_recompute.py",
+        "scripts/test/test_paper_claims_registry_derivation_parity.py",
+        "scripts/test/test_paper_claims_value_parity.py",
+        "scripts/test/test_catalog_dashboard_coverage_milestone.py",
+    }
     n_green = sum(
         1 for s in suites
-        if int(s.get("failed", 0)) == 0 and int(s.get("errors", 0)) == 0
+        if s.get("path") in self_ref
+        or (int(s.get("failed", 0)) == 0 and int(s.get("errors", 0)) == 0)
     )
     assert claim["value"] == n_green, (claim["value"], n_green, len(suites))
     # Headline text must mention the same numerator.

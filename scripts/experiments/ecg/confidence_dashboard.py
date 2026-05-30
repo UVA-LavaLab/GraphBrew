@@ -339,6 +339,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_wiki_json_format.py", "WJF-Fmt"),
     "PYTEST_SUITES label parity (path/short/label uniqueness + format + dashboard JSON cross-source parity)":
         ("scripts/test/test_pytest_suites_label_parity.py", "PSL-Par"),
+    "wiki .md/.json companion pair (bijection + existence + non-empty + sibling-reference resolves)":
+        ("scripts/test/test_wiki_md_json_pair.py", "WMP-Pair"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

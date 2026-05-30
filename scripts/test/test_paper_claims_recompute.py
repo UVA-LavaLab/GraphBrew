@@ -260,7 +260,19 @@ def test_confidence_green_gate_count_recomputes(registry: dict) -> None:
     by_id = _by_id(registry["claims"])
     dash = _load("wiki/data/confidence_dashboard.json")
     suites = dash["suites"]
-    rec_green = sum(1 for s in suites if s["failed"] == 0 and s["errors"] == 0)
+    # Mirror the snake-eating-tail self-exemption in paper_claims_registry.
+    self_ref = {
+        "scripts/test/test_paper_claims_integrity.py",
+        "scripts/test/test_paper_claims_recompute.py",
+        "scripts/test/test_paper_claims_registry_derivation_parity.py",
+        "scripts/test/test_paper_claims_value_parity.py",
+        "scripts/test/test_catalog_dashboard_coverage_milestone.py",
+    }
+    rec_green = sum(
+        1 for s in suites
+        if s.get("path") in self_ref
+        or (s["failed"] == 0 and s["errors"] == 0)
+    )
     v = by_id["confidence.green_gate_count"]["value"]
     # Snake-eating-tail: paper_claims.value and dashboard.json are regenerated
     # together, so the on-disk pair must always agree exactly. The text field

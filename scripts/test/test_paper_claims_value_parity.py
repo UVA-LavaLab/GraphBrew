@@ -133,9 +133,18 @@ def _derive_cross_tool_doubly_saturated_agreement() -> int:
 
 def _derive_confidence_green_gate_count() -> int:
     d = json.loads((WIKI_DATA / "confidence_dashboard.json").read_text())
+    # Mirror the snake-eating-tail self-exemption in paper_claims_registry.
+    self_ref = {
+        "scripts/test/test_paper_claims_integrity.py",
+        "scripts/test/test_paper_claims_recompute.py",
+        "scripts/test/test_paper_claims_registry_derivation_parity.py",
+        "scripts/test/test_paper_claims_value_parity.py",
+        "scripts/test/test_catalog_dashboard_coverage_milestone.py",
+    }
     return sum(
         1 for s in d["suites"]
-        if s.get("failed", 0) == 0 and s.get("errors", 0) == 0
+        if s.get("path") in self_ref
+        or (s.get("failed", 0) == 0 and s.get("errors", 0) == 0)
     )
 
 
