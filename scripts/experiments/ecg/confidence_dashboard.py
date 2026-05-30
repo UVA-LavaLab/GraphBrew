@@ -375,6 +375,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_regimesign.py", "LIT-RegimeSign"),
     "literature-faithfulness citation/date audit (per_claim citation parseability + venue whitelist + year range + per-policy originator-publication match + locator presence + distinct-citation floor)":
         ("scripts/test/test_lit_faith_citdate.py", "LIT-CitDate"),
+    "ECG substrate-parity audit (cache_sim component-proof matrix: ECG_DBG_only ≡ GRASP_DBG_only and ECG_POPT_primary ≡ POPT_only on miss-rate, PFX activation+useful floors per benchmark, encoding hygiene, baseline non-zero floor, backend coverage)":
+        ("scripts/test/test_lit_faith_ecg_parity.py", "ECG-Parity"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

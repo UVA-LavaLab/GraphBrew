@@ -729,6 +729,14 @@ CATALOG = [
         "summary":   "Per_claim citation-field structural audit. Every citation must (D1) be non-empty, (D2) parse to (author, venue, year), (D3) name a top-tier architecture venue {HPCA, ISCA, MICRO, ASPLOS, SC}, (D4) name a year in [2005, 2026], (D5) reference the policy's originator publication (GRASP→Faldu HPCA 2020, POPT[+derived]→Balaji & Lucia HPCA 2021, SRRIP→Jaleel ISCA 2010) OR be an explicit cross-attribution where the policy name appears in the citation string, (D6) contain a locator (§N | Fig N | Tab N | Section N), and (D7) the corpus as a whole must use ≥ 10 distinct citation strings. Today: 330 rows, 100% parsed, 15 distinct citations, venues={HPCA, ISCA}, years∈{2010, 2020, 2021}, 0 violations.",
     },
     {
+        "id":        "lit_faith_ecg_parity",
+        "label":     "ECG substrate-parity audit",
+        "generator": "scripts/experiments/ecg/lit_faith_ecg_parity.py",
+        "gate":      "scripts/test/test_lit_faith_ecg_parity.py",
+        "artifact":  "wiki/data/lit_faith_ecg_parity.json",
+        "summary":   "ECG cache_sim component-proof matrix faithfulness audit (gate 238). (E1) every required ablation {LRU, SRRIP, GRASP_DBG, POPT, ECG_DBG_only, ECG_POPT_primary, PFX_degree_only, PFX_POPT_only, DBG_PFX, POPT_PFX} present with status=ok per benchmark. (E2) |miss_rate(ECG_DBG_only) - miss_rate(GRASP_DBG_only)| ≤ 5e-4 per benchmark. (E3) |miss_rate(ECG_POPT_primary) - miss_rate(POPT_only)| ≤ 5e-4 per benchmark. (E4) every PFX ablation has ecg_runtime_issued ≥ 1 per benchmark. (E5) PFX ablations have prefetch_useful > 0 on PR AND prefetch_useful ≤ prefetch_requests on every benchmark. (E6) ecg_pfx_encoded ≤ ecg_pfx_candidates and every PFX counter ≥ 0. (E7) baselines have memory_accesses > 0 and l3_misses > 0. (E8) distinct backend count ≥ 1. Today: 54 observations on email-Eu-core × {pr, bfs, sssp} × 18 ablations, DBG parity = 0.0 / 0.0 / 0.0 (exact-bitwise), POPT parity = 0.0 / 2.45e-4 / 0.0, PFX issued ∈ [20, 36642], PR useful ≥ 625 across PFX_*/DBG_PFX/POPT_PFX, 0 violations. Confidence floor before any cluster-scale ECG sweep.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -759,7 +767,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (237 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (238 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

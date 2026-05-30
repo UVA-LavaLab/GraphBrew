@@ -1,0 +1,327 @@
+{
+  "constants": {
+    "backend_floor": 1,
+    "baseline_ablations": [
+      "GRASP_DBG_only",
+      "LRU_cache_only",
+      "POPT_only",
+      "SRRIP_cache_only"
+    ],
+    "bench_floor": [
+      "bfs",
+      "pr",
+      "sssp"
+    ],
+    "eps_dbg_parity": 0.0005,
+    "eps_popt_parity": 0.0005,
+    "pfx_ablations": [
+      "DBG_PFX",
+      "PFX_POPT_only",
+      "PFX_degree_only",
+      "POPT_PFX"
+    ],
+    "pfx_issued_floor": 1,
+    "required_ablations": [
+      "DBG_PFX",
+      "ECG_DBG_only",
+      "ECG_POPT_primary",
+      "GRASP_DBG_only",
+      "LRU_cache_only",
+      "PFX_POPT_only",
+      "PFX_degree_only",
+      "POPT_PFX",
+      "POPT_only",
+      "SRRIP_cache_only"
+    ]
+  },
+  "dedup_audit": [
+    {
+      "ablation": "PFX_degree_only",
+      "benchmark": "pr",
+      "ecg_pfx_candidates": 972,
+      "ecg_pfx_dedup_skips": 2833,
+      "ecg_pfx_encoded": 928,
+      "ecg_runtime_issued": 29676
+    },
+    {
+      "ablation": "PFX_POPT_only",
+      "benchmark": "pr",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 36642
+    },
+    {
+      "ablation": "DBG_PFX",
+      "benchmark": "pr",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 36642
+    },
+    {
+      "ablation": "POPT_PFX",
+      "benchmark": "pr",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 36642
+    },
+    {
+      "ablation": "DBG_POPT_PFX",
+      "benchmark": "pr",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 36642
+    },
+    {
+      "ablation": "PFX_degree_only",
+      "benchmark": "bfs",
+      "ecg_pfx_candidates": 972,
+      "ecg_pfx_dedup_skips": 2833,
+      "ecg_pfx_encoded": 928,
+      "ecg_runtime_issued": 20
+    },
+    {
+      "ablation": "PFX_POPT_only",
+      "benchmark": "bfs",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 24
+    },
+    {
+      "ablation": "DBG_PFX",
+      "benchmark": "bfs",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 24
+    },
+    {
+      "ablation": "POPT_PFX",
+      "benchmark": "bfs",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 24
+    },
+    {
+      "ablation": "DBG_POPT_PFX",
+      "benchmark": "bfs",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 24
+    },
+    {
+      "ablation": "PFX_degree_only",
+      "benchmark": "sssp",
+      "ecg_pfx_candidates": 972,
+      "ecg_pfx_dedup_skips": 2833,
+      "ecg_pfx_encoded": 928,
+      "ecg_runtime_issued": 14450
+    },
+    {
+      "ablation": "PFX_POPT_only",
+      "benchmark": "sssp",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 18005
+    },
+    {
+      "ablation": "DBG_PFX",
+      "benchmark": "sssp",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 18005
+    },
+    {
+      "ablation": "POPT_PFX",
+      "benchmark": "sssp",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 18005
+    },
+    {
+      "ablation": "DBG_POPT_PFX",
+      "benchmark": "sssp",
+      "ecg_pfx_candidates": 980,
+      "ecg_pfx_dedup_skips": 659,
+      "ecg_pfx_encoded": 980,
+      "ecg_runtime_issued": 18005
+    }
+  ],
+  "parity_dbg": [
+    {
+      "abs_delta": 0.0,
+      "benchmark": "bfs",
+      "ecg_dbg_only": 0.943862,
+      "grasp_dbg_only": 0.943862
+    },
+    {
+      "abs_delta": 0.0,
+      "benchmark": "pr",
+      "ecg_dbg_only": 0.38075800000000004,
+      "grasp_dbg_only": 0.38075800000000004
+    },
+    {
+      "abs_delta": 0.0,
+      "benchmark": "sssp",
+      "ecg_dbg_only": 0.008516999999999997,
+      "grasp_dbg_only": 0.008516999999999997
+    }
+  ],
+  "parity_popt": [
+    {
+      "abs_delta": 0.0,
+      "benchmark": "bfs",
+      "ecg_popt_primary": 0.887725,
+      "popt_only": 0.887725
+    },
+    {
+      "abs_delta": 0.0002449999999999397,
+      "benchmark": "pr",
+      "ecg_popt_primary": 0.214125,
+      "popt_only": 0.21436999999999995
+    },
+    {
+      "abs_delta": 0.0,
+      "benchmark": "sssp",
+      "ecg_popt_primary": 0.008516999999999997,
+      "popt_only": 0.008516999999999997
+    }
+  ],
+  "pfx_activation": [
+    {
+      "ablation": "DBG_PFX",
+      "benchmark": "bfs",
+      "ecg_runtime_issued": 24,
+      "prefetch_requests": 24,
+      "prefetch_useful": 18
+    },
+    {
+      "ablation": "PFX_POPT_only",
+      "benchmark": "bfs",
+      "ecg_runtime_issued": 24,
+      "prefetch_requests": 24,
+      "prefetch_useful": 17
+    },
+    {
+      "ablation": "PFX_degree_only",
+      "benchmark": "bfs",
+      "ecg_runtime_issued": 20,
+      "prefetch_requests": 20,
+      "prefetch_useful": 17
+    },
+    {
+      "ablation": "POPT_PFX",
+      "benchmark": "bfs",
+      "ecg_runtime_issued": 24,
+      "prefetch_requests": 24,
+      "prefetch_useful": 17
+    },
+    {
+      "ablation": "DBG_PFX",
+      "benchmark": "pr",
+      "ecg_runtime_issued": 36642,
+      "prefetch_requests": 36642,
+      "prefetch_useful": 3257
+    },
+    {
+      "ablation": "PFX_POPT_only",
+      "benchmark": "pr",
+      "ecg_runtime_issued": 36642,
+      "prefetch_requests": 36642,
+      "prefetch_useful": 2107
+    },
+    {
+      "ablation": "PFX_degree_only",
+      "benchmark": "pr",
+      "ecg_runtime_issued": 29676,
+      "prefetch_requests": 29676,
+      "prefetch_useful": 2427
+    },
+    {
+      "ablation": "POPT_PFX",
+      "benchmark": "pr",
+      "ecg_runtime_issued": 36642,
+      "prefetch_requests": 36642,
+      "prefetch_useful": 625
+    },
+    {
+      "ablation": "DBG_PFX",
+      "benchmark": "sssp",
+      "ecg_runtime_issued": 18005,
+      "prefetch_requests": 18005,
+      "prefetch_useful": 42
+    },
+    {
+      "ablation": "PFX_POPT_only",
+      "benchmark": "sssp",
+      "ecg_runtime_issued": 18005,
+      "prefetch_requests": 18005,
+      "prefetch_useful": 42
+    },
+    {
+      "ablation": "PFX_degree_only",
+      "benchmark": "sssp",
+      "ecg_runtime_issued": 14450,
+      "prefetch_requests": 14450,
+      "prefetch_useful": 40
+    },
+    {
+      "ablation": "POPT_PFX",
+      "benchmark": "sssp",
+      "ecg_runtime_issued": 18005,
+      "prefetch_requests": 18005,
+      "prefetch_useful": 42
+    }
+  ],
+  "rules": {
+    "E1": "every required ablation present with status=ok per benchmark",
+    "E2": "|miss_rate(ECG_DBG_only) - miss_rate(GRASP_DBG_only)| <= 0.0005",
+    "E3": "|miss_rate(ECG_POPT_primary) - miss_rate(POPT_only)| <= 0.0005",
+    "E4": "every PFX ablation has ecg_runtime_issued >= 1 per benchmark",
+    "E5": "PFX ablation has prefetch_useful > 0 on PR AND prefetch_useful <= prefetch_requests on all benchmarks",
+    "E6": "ecg_pfx_encoded <= ecg_pfx_candidates for any row with candidates; all PFX counters are non-negative (dedup_skips is intentionally unbounded vs issued \u2014 dedup is a runtime per-access counter)",
+    "E7": "baselines (LRU/SRRIP/GRASP/POPT) have strictly positive memory_accesses and l3_misses",
+    "E8": "distinct backend count >= 1"
+  },
+  "totals": {
+    "ablations_present": [
+      "DBG_PFX",
+      "DBG_POPT_PFX",
+      "ECG_ADAPTIVE_NO_FULL_POPT",
+      "ECG_ADAPTIVE_ORACLE",
+      "ECG_COMBINED",
+      "ECG_DBG_POPT",
+      "ECG_DBG_only",
+      "ECG_EMBEDDED",
+      "ECG_EPOCH_EMBEDDED",
+      "ECG_POPT_TIE",
+      "ECG_POPT_primary",
+      "GRASP_DBG_only",
+      "LRU_cache_only",
+      "PFX_POPT_only",
+      "PFX_degree_only",
+      "POPT_PFX",
+      "POPT_only",
+      "SRRIP_cache_only"
+    ],
+    "backends": [
+      "cache_sim"
+    ],
+    "benchmarks": [
+      "bfs",
+      "pr",
+      "sssp"
+    ],
+    "rows": 54
+  },
+  "violations": []
+}

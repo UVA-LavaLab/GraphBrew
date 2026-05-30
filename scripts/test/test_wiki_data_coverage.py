@@ -94,6 +94,13 @@ WIKI_UNTRACKED_EXEMPT: frozenset[str] = frozenset(
         # a chicken-and-egg loop where the audit drifts on itself.
         "reproduce_smoke.json",
         "reproduce_smoke.md",
+        # Source-of-truth postfix JSON for the ECG substrate-parity
+        # gate (gate 238). This file is a hand-curated snapshot of
+        # `scripts/experiments/ecg/proof_matrix.py` output; it is the
+        # *input* to `lit-ecg-parity`, not a regenerated output, so
+        # the reproduce_smoke chain (which exists to detect drift in
+        # *generated* artifacts) does not own it.
+        "ecg_substrate_parity_postfix.json",
     }
 )
 
