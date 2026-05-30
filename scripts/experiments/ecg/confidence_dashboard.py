@@ -329,6 +329,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_paper_claims_value_parity.py", "PCV-Src"),
     "paper claims schema integrity (required fields + controlled vocabularies + path resolution)":
         ("scripts/test/test_paper_claims_schema.py", "PCS-Sch"),
+    "per-suite test-count floor (every PYTEST_SUITES entry has >=1 AST test fn + >=1 passed test + no errors)":
+        ("scripts/test/test_pytest_suite_minimum.py", "PST-Min"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **210 gates, all GREEN, exit 0**.
+and currently reports **215 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–210.**
+- **Cross-artifact / cross-source derivation parity gates 151–215.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -1009,6 +1009,74 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   missing==[], passed is True, sha fields are 64-hex). All five
   gates committed in one logical commit each; regen cycle GREEN
   at each step.
+- **Cross-registry integrity loop closure + per-suite floor gates
+  211–215.** Gate 211 (MFC-Int, 15 tests) locks Makefile coverage
+  integrity: every CATALOG generator module must be invoked by at
+  least one Makefile target (either `python3 -m
+  scripts.experiments.ecg.X` dotted form OR `python3
+  scripts/experiments/ecg/X.py` legacy direct-script form);
+  MAKEFILE_EXEMPT_GENERATORS={"scripts.experiments.ecg.corpus_diversity"}
+  documented allow-list (corpus_diversity is hand-baked from GAPBS
+  log scraping, wiring it into make would 10x regen time);
+  allow-list minimality test ensures exempt entries are NOT
+  actually in the invoked set; PYTEST_SUITES discovered as
+  dict[label,(path,short)] in source NOT list[dict] like the JSON
+  output. Gate 212 (WDC-Cov, 14 tests) locks wiki/data/ coverage:
+  every on-disk .json/.md/.csv file is in TRACKED_ARTIFACTS or
+  WIKI_UNTRACKED_EXEMPT={reproduce_smoke.json, reproduce_smoke.md}
+  (the audit's own output, chicken-and-egg); half-tracked-pair
+  detector for CSVs with sibling json/md and for json/md pairs
+  (both-tracked-or-both-exempt invariant); floors >=50 json,
+  >=50 md, >=10 csv; TRACKED_ARTIFACTS expanded 142→158 by
+  appending the 16 newly-discovered CSV/MD siblings (15 CSVs +
+  literature_reproduction_summary.md) with an explanatory comment
+  block. Gate 213 (PCV-Src, 18 tests) locks paper claims
+  source-value parity: PAPER_CLAIMS_DERIVATIONS maps each of the
+  14 claim_ids → (derive_fn, tolerance); tolerance schedule
+  (integer claims tol=0 exact; percentage rounded-to-1dp tol=0.1pp;
+  signed pp tol=0.01); derivations exercise the full schema
+  surface (cross_tool_saturation.summary.disagreements is a list →
+  len() == claim; small_l3_thrash.cells[i].winner field NOT
+  winner_policy; policy_winner_table wins_by_policy/n_cells*100;
+  claim_density.summary.total_ok_pct; popt_vs_grasp_delta
+  by_family[X].mean_pp); 14 per-claim parametric tests +
+  test_all_claims_have_derivation + test_no_orphan_derivations +
+  no NaN/inf in either claim values or derived values. Gate 214
+  (PCS-Sch, 25 tests) locks paper claims schema integrity:
+  REQUIRED_FIELDS=(id,category,text,value,units,source,gate)
+  exhaustive parametric coverage; closed-vocabulary KNOWN_CATEGORIES
+  (9: corpus, cross_tool, deviations, lit_faith, meta,
+  popt_vs_grasp, reproduction, thrash, winner_table) +
+  KNOWN_UNITS (7: cells, claims, disagreements, gates, graphs,
+  percent, pp); _ID_RE=^[a-z0-9_]+(\\.[a-z0-9_]+)+$ enforces
+  snake.dotted form; id-prefix-vs-category mismatch is INTENTIONAL
+  (e.g. `winner.X` in category `winner_table`, `confidence.X` in
+  category `meta`) and explicitly tested for non-enforcement; bool
+  excluded from numeric validation (Python's `isinstance(True, int)
+  == True` gotcha); cross-field path resolution (source under
+  wiki/data/ and file exists; gate under scripts/ and file exists);
+  text >= 10 chars human-readability floor. Together with gate
+  213 (PCV-Src, value), gate 209 (XAI-Int, graph), and gate 210
+  (RSC-Cov, coverage), the paper claims registry is now sealed
+  end-to-end: shape-valid + vocabulary-valid + value-faithful to
+  source + reachable from catalog graph + tracked in reproduce_smoke.
+  Gate 215 (PST-Min, 655 parametric tests across 18 groups) locks
+  per-suite test-count floor: every PYTEST_SUITES entry (215 total)
+  has a parseable Python file with >=1 module-level `def test_*`
+  function (catches empty test files), at least 1 PASSED test in
+  the dashboard (catches all-skip/all-xfail suites that "pass via
+  avoidance"), zero collection errors, and AST static-count
+  <= runtime accounting (passed+skipped+xfailed+xpassed+failed+
+  errors); plus self-consistency cross-checks (dashboard suite
+  count == PYTEST_SUITES count, short codes bijection between
+  source and dashboard, unique short codes on both sides);
+  distribution sanity (>=half of suites have >=3 tests; aggregate
+  static count >=500). All five gates committed as one logical
+  commit each; regen cycle GREEN at each step. Triple-loop
+  integrity now closed: catalog↔suites↔claims (gate 209) +
+  source↔value (gate 213) + schema↔vocabulary (gate 214) +
+  invocation↔coverage (gates 210, 211, 212) + collection↔runtime
+  (gate 215).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
