@@ -373,6 +373,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_appfreq.py", "LIT-AppFreq"),
     "literature-faithfulness regime-sign audit (hub-family sign-tally no-regression + hub median ceiling + no-hub median radius + extreme magnitude cap)":
         ("scripts/test/test_lit_faith_regimesign.py", "LIT-RegimeSign"),
+    "literature-faithfulness citation/date audit (per_claim citation parseability + venue whitelist + year range + per-policy originator-publication match + locator presence + distinct-citation floor)":
+        ("scripts/test/test_lit_faith_citdate.py", "LIT-CitDate"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

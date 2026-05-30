@@ -925,6 +925,17 @@
       "summary": "Per (graph_family, app, advice-policy) bucket on per_observation: regime-aware sign-tally + magnitude ceiling. Hub families {social, citation, web} must not show majority regression (pos_cells > neg_cells AND median > +0.5 pp simultaneously) and bucket median must be <= +0.5 pp. No-hub families {road, mesh} may exhibit L-curve sign-flipping but the bucket median must stay within \u00b18 pp. No individual cell may exceed |delta_vs_lru| > 80 pp. Today: 72 buckets (45 hub + 18 no-hub), 0 extreme cells (worst is roadNet-CA / sssp / 1MB / GRASP = +70.12 pp), 0 violations across all 4 rules."
     },
     {
+      "artifact": "wiki/data/lit_faith_citdate.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_citdate.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_citdate.py",
+      "generator_exists": true,
+      "id": "lit_faith_citdate",
+      "label": "Literature-faithfulness citation/date audit",
+      "summary": "Per_claim citation-field structural audit. Every citation must (D1) be non-empty, (D2) parse to (author, venue, year), (D3) name a top-tier architecture venue {HPCA, ISCA, MICRO, ASPLOS, SC}, (D4) name a year in [2005, 2026], (D5) reference the policy's originator publication (GRASP\u2192Faldu HPCA 2020, POPT[+derived]\u2192Balaji & Lucia HPCA 2021, SRRIP\u2192Jaleel ISCA 2010) OR be an explicit cross-attribution where the policy name appears in the citation string, (D6) contain a locator (\u00a7N | Fig N | Tab N | Section N), and (D7) the corpus as a whole must use \u2265 10 distinct citation strings. Today: 330 rows, 100% parsed, 15 distinct citations, venues={HPCA, ISCA}, years\u2208{2010, 2020, 2021}, 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -966,13 +977,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (236 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (237 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 88
+    "n_entries": 89
   }
 }

@@ -721,6 +721,14 @@ CATALOG = [
         "summary":   "Per (graph_family, app, advice-policy) bucket on per_observation: regime-aware sign-tally + magnitude ceiling. Hub families {social, citation, web} must not show majority regression (pos_cells > neg_cells AND median > +0.5 pp simultaneously) and bucket median must be <= +0.5 pp. No-hub families {road, mesh} may exhibit L-curve sign-flipping but the bucket median must stay within ±8 pp. No individual cell may exceed |delta_vs_lru| > 80 pp. Today: 72 buckets (45 hub + 18 no-hub), 0 extreme cells (worst is roadNet-CA / sssp / 1MB / GRASP = +70.12 pp), 0 violations across all 4 rules.",
     },
     {
+        "id":        "lit_faith_citdate",
+        "label":     "Literature-faithfulness citation/date audit",
+        "generator": "scripts/experiments/ecg/lit_faith_citdate.py",
+        "gate":      "scripts/test/test_lit_faith_citdate.py",
+        "artifact":  "wiki/data/lit_faith_citdate.json",
+        "summary":   "Per_claim citation-field structural audit. Every citation must (D1) be non-empty, (D2) parse to (author, venue, year), (D3) name a top-tier architecture venue {HPCA, ISCA, MICRO, ASPLOS, SC}, (D4) name a year in [2005, 2026], (D5) reference the policy's originator publication (GRASP→Faldu HPCA 2020, POPT[+derived]→Balaji & Lucia HPCA 2021, SRRIP→Jaleel ISCA 2010) OR be an explicit cross-attribution where the policy name appears in the citation string, (D6) contain a locator (§N | Fig N | Tab N | Section N), and (D7) the corpus as a whole must use ≥ 10 distinct citation strings. Today: 330 rows, 100% parsed, 15 distinct citations, venues={HPCA, ISCA}, years∈{2010, 2020, 2021}, 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -751,7 +759,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (236 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (237 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
