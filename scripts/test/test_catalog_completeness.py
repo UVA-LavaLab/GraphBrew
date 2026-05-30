@@ -50,6 +50,13 @@ META_ALLOWLIST: set[str] = {
     # as gate 238: hand-curated INPUT to lit_faith_ecg_gem5_parity.py,
     # locked via the gate-239 pytest schema/per-row invariants.
     "wiki/data/ecg_gem5_parity_postfix.json",
+    # Gate 240 ECG-Sniper-Parity curated input: deferred-mode stub
+    # today (per_observation=[], status="deferred") because no
+    # matched-proof Sniper ECG sweep is available yet. When a real
+    # Sniper ECG sweep lands, this fixture transitions to status=active
+    # with per_observation populated, and the same allowlist entry +
+    # gate-240 pytest schema/per-row invariants apply.
+    "wiki/data/ecg_sniper_parity_postfix.json",
 }
 
 

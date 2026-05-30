@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "gate_id": "ECG-Sniper-Parity",
+  "gate_summary": "Gate 240 — ECG substrate-parity in Sniper. SCAFFOLD/DEFERRED today. No matched-proof Sniper ECG run is available yet (/tmp/graphbrew-grasp-sniper-sweep has LRU/SRRIP/GRASP for email-Eu-core+cit-Patents but no ECG_DBG_ONLY or ECG_POPT_PRIMARY rows). When the matched-proof Sniper ECG sweep lands, replace this stub with curated per_observation rows and the same audit logic as gate 239 will activate against Sniper backend identity (G3 becomes backend=sniper, simulator=sniper).",
+  "status": "deferred",
+  "defer_reason": "No ECG_DBG_ONLY or ECG_POPT_PRIMARY rows present in any Sniper roi_matrix.csv under /tmp/graphbrew-*sniper*. The existing /tmp/graphbrew-grasp-sniper-sweep provides LRU/SRRIP/GRASP across {pr, bfs, sssp, bc} × {cit-Patents, email-Eu-core} × {4kB, 32kB, 256kB, 2MB} L3 sizes — useful for the sniper_anchor and sniper_slope_replay gates but not for ECG substrate-parity. A future ECG-enabled Sniper sweep (target location: /tmp/graphbrew-ecg-sniper-matched-proof-*) will populate this fixture.",
+  "expected_source_pattern": "/tmp/graphbrew-ecg-sniper-matched-proof-*/{graph}-{app}/roi_matrix.csv",
+  "expected_minimum_observations": 6,
+  "expected_required_policies": ["LRU", "POPT", "ECG_POPT_PRIMARY"],
+  "expected_required_dbg_policies": ["GRASP", "ECG_DBG_ONLY"],
+  "epsilon_popt_parity": 0.002,
+  "epsilon_dbg_parity": 0.002,
+  "out_of_scope_when_activated": [
+    "PFX activation in Sniper — queued until prefetcher=ecg_pfx becomes the active Sniper backend",
+    "DROPLET comparison — queued for a DROPLET-active Sniper sweep"
+  ],
+  "siblings": [
+    {"gate": 238, "id": "ECG-Parity", "backend": "cache_sim"},
+    {"gate": 239, "id": "ECG-Gem5-Parity", "backend": "gem5"}
+  ],
+  "per_observation": []
+}

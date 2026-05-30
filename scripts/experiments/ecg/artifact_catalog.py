@@ -745,6 +745,14 @@ CATALOG = [
         "summary":   "ECG substrate-parity audit on gem5 (gate 239) — POPT-arm only. (G1) every required policy {LRU, POPT, ECG_POPT_PRIMARY} present with status=ok per (benchmark, section, L3) cell. (G2) |miss_rate(ECG_POPT_PRIMARY) - miss_rate(POPT)| ≤ 2e-3 per cell (2× headroom over observed gem5 drift max 1.09e-3, looser than cache_sim's 5e-4 to absorb timing noise). (G3) backend=gem5 and simulator=gem5 on every row (no silent cache_sim ingestion). (G4) sim_ticks ≥ 1 and ipc > 0 on every row. (G5) LRU baseline has l3_accesses > 0 and l3_misses > 0 on every cell. (G6) l3_misses ≤ l3_accesses and l3_miss_rate ∈ [0, 1] everywhere. (G7) ≥ 2 distinct sections (cold-start + re-warmed) present. Today: 12 observations on email-Eu-core PR × L3∈{16MB, 32MB} × sections∈{1,2}, POPT-arm drift = 1.09e-3 (worst) / 3.21e-4 (best), 0 violations. Out-of-scope: DBG arm (needs ECG_DBG gem5 run), PFX activation (prefetcher=none everywhere), DROPLET comparison.",
     },
     {
+        "id":        "lit_faith_ecg_sniper_parity",
+        "label":     "ECG substrate-parity audit (Sniper)",
+        "generator": "scripts/experiments/ecg/lit_faith_ecg_sniper_parity.py",
+        "gate":      "scripts/test/test_lit_faith_ecg_sniper_parity.py",
+        "artifact":  "wiki/data/lit_faith_ecg_sniper_parity.json",
+        "summary":   "ECG substrate-parity audit on Sniper (gate 240) — SCAFFOLD/DEFERRED today. No matched-proof Sniper ECG sweep is available yet (/tmp/graphbrew-grasp-sniper-sweep provides LRU/SRRIP/GRASP only, no ECG_DBG_ONLY or ECG_POPT_PRIMARY rows). The postfix declares status=deferred with the expected source pattern (/tmp/graphbrew-ecg-sniper-matched-proof-*/...) and minimum observation floor (6). Audit logic is implemented end-to-end with 9 rules — when activated: (G1) roster {LRU, POPT, ECG_POPT_PRIMARY} per cell; (G1b) GRASP paired with ECG_DBG_ONLY when DBG arm present; (G2) |miss_rate(ECG_POPT_PRIMARY) - miss_rate(POPT)| ≤ 2e-3 (mirrors gem5); (G2b) optional DBG parity at ε=2e-3; (G3) backend=sniper and simulator=sniper; (G4) ipc > 0 and instructions ≥ 1; (G5) LRU baseline non-zero; (G6) L3 hierarchy sanity; (G7) observation-floor from postfix. Activates automatically when ecg_sniper_parity_postfix.json transitions to status=active.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -775,7 +783,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (239 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (240 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

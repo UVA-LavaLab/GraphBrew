@@ -107,6 +107,13 @@ WIKI_UNTRACKED_EXEMPT: frozenset[str] = frozenset(
         # a regenerated output. Same pattern as the cache_sim postfix
         # one entry above.
         "ecg_gem5_parity_postfix.json",
+        # Source-of-truth postfix JSON for the ECG Sniper substrate-
+        # parity gate (gate 240). Today this is a SCAFFOLD/DEFERRED
+        # stub: per_observation=[], status="deferred", expected source
+        # pattern declared for the future matched-proof Sniper ECG
+        # sweep. INPUT to `lit-ecg-sniper-parity`, not a regenerated
+        # output; flips to status=active when curated.
+        "ecg_sniper_parity_postfix.json",
     }
 )
 
