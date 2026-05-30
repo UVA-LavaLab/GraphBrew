@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **190 gates, all GREEN, exit 0**.
+and currently reports **195 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–190.**
+- **Cross-artifact / cross-source derivation parity gates 151–195.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -783,6 +783,57 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   percentile formula; family qualifies iff some oracle-aware policy has
   wins in BOTH under_wss AND over_wss; shrink_evidence records only when
   under_median > over_median (STRICT >).
+  Gate 191 (FSR-Der, 33 tests) locks family_slope_replay.json: per-family
+  OLS slope on the same NON-uniform log2 axis (1MB→0, 4MB→2, 8MB→3);
+  per_policy emits ONLY when xs non-empty (NOT zero-filled, unlike
+  FCR-Der); three-clause replay invariant (LRU/SRRIP both STRICTLY
+  steeper than GRASP, every policy median STRICTLY < −5.0 pp/octave
+  help floor); social family pinned-deviating sentinel locked;
+  PINNED_DEVIATING_FAMILIES = ("social",) — non-empty in contrast to
+  the empty curvature-replay pin.
+  Gate 192 (FSE-Der, 26 tests) locks family_sensitivity.json: pinned
+  CANONICAL_FAMILY 8-graph mapping; ALL_FAMILIES 5-tuple; SIGN_CLAIMS
+  list of 7 ORDERED triples; STABILITY_FLOOR = 0.95; DEFAULT_N_RESAMPLES
+  = 2000; DEFAULT_SEED = 1729 — seed-stable bootstrap rebuild as the
+  byte-parity test runs the full generator with default args;
+  relabelings is exactly 8 × (5−1) = 32 perturbations (cartesian
+  completeness over (graph, non-canonical) pairs); per_claim_flip_count
+  keys mirror SIGN_CLAIMS-derived claim names and sum equals total
+  flipped across all relabelings (conservation); flip direction ∈
+  {lost, gained} matches canonical-stable XOR perturbed-stable at the
+  floor.
+  Gate 193 (FSD-Der, 33 tests) locks family_saturation_distance.json:
+  pinned GRAPH_FAMILY 8-graph mapping (different from Gate 192's
+  CANONICAL_FAMILY because this generator owns its own pin);
+  thresholds HIGH_HEADROOM_FLOOR_PP = LOW_HEADROOM_CEILING_PP = 5.0,
+  ORDERING_SLACK_PP = 1.0; HIGH_HEADROOM_FAMILIES =
+  ("citation","social") and PINNED_LOW_HEADROOM = ("web",) are
+  disjoint tuples; pico-sentinel filter applied at upstream
+  (is_pico_sentinel rows excluded); per_family record carries n_cells,
+  min/median/p90/max in pp + sorted-unique graphs list; six verdict
+  checks with locked polarity (nonneg/floor/ordering are INCLUSIVE ≥;
+  low-ceiling is STRICT <); JSON layout `json.dumps(..., indent=2) +
+  "\n"` WITHOUT sort_keys (insertion order load-bearing).
+  Gate 194 (ACC-Der, 28 tests) locks anchor_cell_census.json: two
+  upstreams (gem5_slope_replay + sniper_slope_replay); pinned
+  EXPECTED_L3_AXIS = ["4kB","32kB","256kB","2MB"], EXPECTED_POLICIES =
+  ["GRASP","LRU","SRRIP"], EXPECTED_GEM5_CELLS = 2 cells (email-Eu-core
+  × {bc,pr}), EXPECTED_SNIPER_CELLS = 6 cells (cit-Patents + email-Eu-
+  core × {bfs,pr,sssp}); 13-check verdict matrix covers cell count
+  INCLUSIVE ≥ baseline, subset-of-expected, EXACT L3-axis + policy list
+  equality, anchors_share_*, and cell_policy_records = |cells|×|policies|
+  product; shared_cells = sorted(gem5 ∩ sniper) with (email-Eu-core,pr)
+  baseline sentinel; insertion-order JSON layout.
+  Gate 195 (ACT-Der, 29 tests) locks anchor_cross_tool_agreement.json:
+  shared-anchor slope-sign agreement on (graph,app,policy) cells
+  present in BOTH gem5_slope_replay + sniper_slope_replay; thresholds
+  pinned MAX_ABS_SLOPE_DIFF_PP = 8.0 ceiling, SHARED_CELLS_FLOOR = 3,
+  SIGN_AGREEMENT_FLOOR = SNIPER_STEEPER_FLOOR = 1.0; per-cell predicates
+  sign_match (OR-of-equal-zero edge), both_negative (STRICT < 0),
+  sniper_steeper (INCLUSIVE |s| ≥ |g|), abs_diff_pp = ||sniper|−|gem5||;
+  rate floors evaluated with 1e-9 epsilon to absorb float rounding;
+  abs-diff ceiling INCLUSIVE ≤ with epsilon; verdict_ok iff every
+  check.ok; JSON with sort_keys=True + trailing newline.
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others
