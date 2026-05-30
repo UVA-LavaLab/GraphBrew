@@ -389,6 +389,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_color_distinguishability.py", "ColorDistinguish"),
     "Paper-figure data snapshot (gate 244) — one paper_pipeline_YYYYMMDD/ dir within MAX_SNAPSHOT_AGE_DAYS, rows provenanced + single run_dir, rectangular (bench×graph×L3) palette coverage, miss_rate ∈ [0,1], total_accesses ≥ 1 for high-activity benches":
         ("scripts/test/test_lit_faith_paper_snapshot.py", "PaperSnapshot"),
+    "L3 regime-classifier consistency (gate 245) — hand-curated REGIME_REGISTRY: every regime-classifier in ECG dir registered + within-family agreement on canonical L3 grid + vocab purity + cross-family divergence (oracle_gap_report vs v1) documented":
+        ("scripts/test/test_lit_faith_regime_classifier.py", "RegimeClassifier"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

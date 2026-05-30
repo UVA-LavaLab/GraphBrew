@@ -1,0 +1,145 @@
+{
+  "canonical_grid": [
+    "1kB",
+    "4kB",
+    "16kB",
+    "32kB",
+    "64kB",
+    "128kB",
+    "256kB",
+    "512kB",
+    "1MB",
+    "2MB",
+    "4MB",
+    "8MB",
+    "16MB"
+  ],
+  "families": {
+    "tiny_small_large_v1": {
+      "members": [
+        {
+          "func": "_l3_regime",
+          "path": "scripts/experiments/ecg/policy_winner_table.py"
+        },
+        {
+          "func": "_l3_regime",
+          "path": "scripts/experiments/ecg/popt_vs_grasp_report.py"
+        }
+      ],
+      "signature": "byte_label",
+      "vocabulary": [
+        "unknown",
+        "tiny",
+        "small",
+        "large"
+      ]
+    },
+    "tiny_small_large_v2_oracle_gap": {
+      "members": [
+        {
+          "func": "_regime",
+          "path": "scripts/experiments/ecg/oracle_gap_report.py"
+        }
+      ],
+      "signature": "byte_label",
+      "vocabulary": [
+        "unknown",
+        "tiny",
+        "small",
+        "large"
+      ]
+    },
+    "wss_range": {
+      "members": [
+        {
+          "func": "_classify_regime",
+          "path": "scripts/experiments/ecg/cross_tool_lru_regime.py"
+        }
+      ],
+      "signature": "kb_range",
+      "vocabulary": [
+        "sub-WSS",
+        "post-WSS",
+        "mixed"
+      ]
+    },
+    "wss_ratio": {
+      "members": [
+        {
+          "func": "_wss_regime",
+          "path": "scripts/experiments/ecg/wss_relative_l3.py"
+        }
+      ],
+      "signature": "ratio",
+      "vocabulary": [
+        "under_wss",
+        "near_wss",
+        "over_wss"
+      ]
+    }
+  },
+  "family_count": 4,
+  "grid_classification": {
+    "tiny_small_large_v1::_l3_regime@scripts/experiments/ecg/policy_winner_table.py": {
+      "128kB": "unknown",
+      "16MB": "unknown",
+      "16kB": "tiny",
+      "1MB": "large",
+      "1kB": "unknown",
+      "256kB": "small",
+      "2MB": "large",
+      "32kB": "unknown",
+      "4MB": "large",
+      "4kB": "tiny",
+      "512kB": "unknown",
+      "64kB": "small",
+      "8MB": "large"
+    },
+    "tiny_small_large_v1::_l3_regime@scripts/experiments/ecg/popt_vs_grasp_report.py": {
+      "128kB": "unknown",
+      "16MB": "unknown",
+      "16kB": "tiny",
+      "1MB": "large",
+      "1kB": "unknown",
+      "256kB": "small",
+      "2MB": "large",
+      "32kB": "unknown",
+      "4MB": "large",
+      "4kB": "tiny",
+      "512kB": "unknown",
+      "64kB": "small",
+      "8MB": "large"
+    },
+    "tiny_small_large_v2_oracle_gap::_regime@scripts/experiments/ecg/oracle_gap_report.py": {
+      "128kB": "unknown",
+      "16MB": "unknown",
+      "16kB": "tiny",
+      "1MB": "large",
+      "1kB": "unknown",
+      "256kB": "small",
+      "2MB": "large",
+      "32kB": "tiny",
+      "4MB": "large",
+      "4kB": "tiny",
+      "512kB": "unknown",
+      "64kB": "tiny",
+      "8MB": "large"
+    }
+  },
+  "registry_size": 5,
+  "rules": {
+    "R1": "every registered classifier resolves to a callable",
+    "R2": "byte-input classifiers return only declared-vocabulary labels",
+    "R3": "byte-input classifiers within a family agree on the canonical L3 grid",
+    "R4": "every regime-classifier function in ECG dir is registered",
+    "R5": "non-byte-label classifiers have signature + note"
+  },
+  "status": "active",
+  "totals": {
+    "canonical_labels": 13,
+    "family_count": 4,
+    "registry_size": 5,
+    "violations": 0
+  },
+  "violations": []
+}

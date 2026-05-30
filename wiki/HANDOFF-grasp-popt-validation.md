@@ -8,7 +8,36 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **244 gates, all GREEN, exit 0**.
+and currently reports **245 gates, all GREEN, exit 0**.
+
+**L3 regime-classifier consistency (gate 245, refresh @245):**
+Catches a subtle class of bug that has been latent in the codebase
+for a while: at least three regime-classifying functions across
+`scripts/experiments/ecg/` share the *vocabulary* `{tiny, small,
+large, unknown}` but use *different boundaries*. Specifically,
+`policy_winner_table._l3_regime` and `popt_vs_grasp_report._l3_regime`
+agree (both use `<` boundaries at 64 kB and 1 MB), while
+`oracle_gap_report._regime` uses `<=` boundaries at 64 kB and 256 kB,
+producing different labels at 32 kB and 64 kB. The gate codifies this
+with a hand-curated `REGIME_REGISTRY` declaring each classifier's
+*taxonomy family* and *vocabulary*; within each family, all members
+must agree on every label in a `CANONICAL_L3_GRID` (`1kB`..`16MB`),
+while cross-family divergence is allowed but must be declared with
+an explanatory note. 5 rules: R1 every registered classifier resolves
+to a callable; R2 byte-input classifiers stay inside their declared
+vocabulary; R3 byte-input classifiers within a family agree on the
+canonical grid; R4 source-pattern scan of `scripts/experiments/ecg/`
+finds no unregistered regime classifiers (catches new drift-prone
+additions); R5 non-byte-label classifiers (ratio/range-input) carry
+an explanatory `note` describing what they actually classify. Today:
+5 classifiers in 4 families — `tiny_small_large_v1` (identical
+sibling pair: `policy_winner_table` + `popt_vs_grasp_report`),
+`tiny_small_large_v2_oracle_gap` (intentionally separate),
+`wss_range` (`cross_tool_lru_regime`, classifies an L3-size range),
+`wss_ratio` (`wss_relative_l3`, classifies L3/WSS ratio). 0
+violations. **Follow-up:** a future gate could unify v1 and v2 into
+a single canonical classifier (would require auditing per-figure
+consequences on the paper's oracle-gap and per-regime bar charts).
 
 **Paper-figure data snapshot integrity (gate 244, refresh @244):**
 Third gate in the always-active paper-snapshot trio: 242 audits the
@@ -192,8 +221,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 244. Next refresh due
-at gate 249.
+**Refresh status:** Refresh complete at gate 245. Next refresh due
+at gate 250.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

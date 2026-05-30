@@ -785,6 +785,14 @@ CATALOG = [
         "summary":   "Paper-figure data snapshot integrity audit (gate 244) — ALWAYS ACTIVE (no deferred mode; source-of-truth is paper_pipeline.py POLICY_LABELS loaded via importlib + the committed wiki/data/paper_pipeline_YYYYMMDD/ snapshot dir itself). Third gate in the always-active paper-snapshot trio: 242 audits the policy vocabulary, 243 audits the visual quality of the palette, and 244 audits the actual figure-data snapshot directory. 6 rules: (F1) exactly one paper_pipeline_YYYYMMDD/ dir exists in wiki/data (no stale duplicates that confuse readers or break gate 242's latest-dir lookup); (F2) the snapshot dir name parses to a valid YYYYMMDD date AND is within MAX_SNAPSHOT_AGE_DAYS (365 today; tighter later); (F3) every row in roi_matrix_all.csv has non-empty values for pipeline_source_csv, pipeline_run_dir, and pipeline_run_name — full referential provenance so anyone can re-run the source; (F4) single-run cohesion — every row shares the same pipeline_run_dir, ruling out Frankenstein snapshots stitched from multiple runs; (F5) coverage rectangle — per (benchmark, graph, l3_size) cell the set of policy_labels equals the canonical POLICY_LABELS palette (no missing/extra bars in any paper bar chart); (F6) value hygiene — l3_miss_rate ∈ [0.0, 1.0] universally, and total_accesses ≥ 1 for HIGH_ACTIVITY_BENCHMARKS = {'pr'} (BFS/SSSP can legitimately log total_accesses=0 on short-walk ROIs and are carved out with documented rationale). Today: 1 snapshot dir (paper_pipeline_20260528), 108 rows × 9 policies × 4 graphs × 3 benchmarks × 1 L3-size, 0 violations.",
     },
     {
+        "id":        "lit_faith_regime_classifier",
+        "label":     "L3 regime-classifier consistency",
+        "generator": "scripts/experiments/ecg/lit_faith_regime_classifier.py",
+        "gate":      "scripts/test/test_lit_faith_regime_classifier.py",
+        "artifact":  "wiki/data/lit_faith_regime_classifier.json",
+        "summary":   "L3 regime-classifier consistency audit (gate 245) — ALWAYS ACTIVE (no deferred mode; source-of-truth is a hand-curated REGIME_REGISTRY of every regime-classifying function in scripts/experiments/ecg/, each loaded via importlib). Catches the subtle bug where an author tweaks one regime-boundary copy and the paper's per-regime bar groupings silently diverge between figures. 5 rules: (R1) every registered classifier resolves to an importable callable; (R2) every byte-input classifier returns only labels from its declared vocabulary when fed the canonical L3 grid (1kB..16MB); (R3) within each taxonomy family, all byte-input members agree on every canonical L3 label (catches in-family drift between siblings like policy_winner_table._l3_regime and popt_vs_grasp_report._l3_regime); (R4) source-pattern scan of scripts/experiments/ecg/*.py finds no unregistered regime classifiers (defensive — catches new drift-prone classifiers added without registration); (R5) non-byte-label classifiers (ratio-input, range-input) carry an explanatory note describing what they actually classify. Today: 5 classifiers in 4 families — tiny_small_large_v1 (policy_winner_table + popt_vs_grasp_report, identical sibling pair); tiny_small_large_v2_oracle_gap (oracle_gap_report._regime, intentionally separate because it uses <= boundaries and 256 kB small/large split instead of 1 MB); wss_range (cross_tool_lru_regime, classifies an L3-size range); wss_ratio (wss_relative_l3, classifies L3/WSS ratio). 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -815,7 +823,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (244 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (245 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
