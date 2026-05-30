@@ -353,6 +353,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_deviations.py", "LIT-Dev"),
     "literature-faithfulness tolerance calibration (per-row distance-to-disagree slack distribution + per-policy fragility floors)":
         ("scripts/test/test_lit_faith_tolerance.py", "LIT-Tol"),
+    "literature-faithfulness accesses-floor audit (warmup-noise guard + per-axis distribution + zero floor violations)":
+        ("scripts/test/test_lit_faith_accesses.py", "LIT-Acc"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

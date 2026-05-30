@@ -1,20 +1,20 @@
 {
-  "n_artifacts": 176,
-  "ok": 176,
+  "n_artifacts": 179,
+  "ok": 179,
   "drift": [],
   "missing": [],
   "passed": true,
   "rows": [
     {
       "artifact": "artifact_catalog.json",
-      "sha_before": "e9b82a2a241699216d68f70b741e099a956cd2f650f533ff6b3a85a75f7e1989",
-      "sha_after": "e9b82a2a241699216d68f70b741e099a956cd2f650f533ff6b3a85a75f7e1989",
+      "sha_before": "2bfd1efce935272af8a2048b82370877e3fb996eed5556449ad8e7011fed39e0",
+      "sha_after": "2bfd1efce935272af8a2048b82370877e3fb996eed5556449ad8e7011fed39e0",
       "status": "ok"
     },
     {
       "artifact": "artifact_catalog.md",
-      "sha_before": "b3dd6f9c62d6887dabba55d18a7b5bdc77a616c0f8e315a9f9fde75363b1ea79",
-      "sha_after": "b3dd6f9c62d6887dabba55d18a7b5bdc77a616c0f8e315a9f9fde75363b1ea79",
+      "sha_before": "2bf2f55a987845e208c70b2e52a8f2e010dcb4baee4672df1eb64bb7e5b7541f",
+      "sha_after": "2bf2f55a987845e208c70b2e52a8f2e010dcb4baee4672df1eb64bb7e5b7541f",
       "status": "ok"
     },
     {
@@ -43,14 +43,14 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "79cf6b1786f74dac14c1f349ca61667a891446810c21e8d7a00cc207a764a54b",
-      "sha_after": "79cf6b1786f74dac14c1f349ca61667a891446810c21e8d7a00cc207a764a54b",
+      "sha_before": "c7c546e5eacd6b4ceb42ff0aa88fb8014d834f847e69e255c7bcc317f4b51414",
+      "sha_after": "c7c546e5eacd6b4ceb42ff0aa88fb8014d834f847e69e255c7bcc317f4b51414",
       "status": "ok"
     },
     {
       "artifact": "confidence_dashboard.md",
-      "sha_before": "2179763c0d019c8d4abdc8feb4c11145c3aef97d62df6bdfcb1f6ecacc518e75",
-      "sha_after": "2179763c0d019c8d4abdc8feb4c11145c3aef97d62df6bdfcb1f6ecacc518e75",
+      "sha_before": "61dbdeb7da0e41c4d30bba8806d60bf1c619753ad17f9e9f87204f6807ee16b7",
+      "sha_after": "61dbdeb7da0e41c4d30bba8806d60bf1c619753ad17f9e9f87204f6807ee16b7",
       "status": "ok"
     },
     {
@@ -810,6 +810,18 @@
       "status": "ok"
     },
     {
+      "artifact": "lit_faith_accesses.json",
+      "sha_before": "91c33cb92a0fa299f06001e5ed512629d143ed9152c185c20b8de7ff2a44f446",
+      "sha_after": "91c33cb92a0fa299f06001e5ed512629d143ed9152c185c20b8de7ff2a44f446",
+      "status": "ok"
+    },
+    {
+      "artifact": "lit_faith_accesses.md",
+      "sha_before": "7da2ed7781bffb350e44a7751568f162e3bffd6c51cf4b755f42565f6af6d816",
+      "sha_after": "7da2ed7781bffb350e44a7751568f162e3bffd6c51cf4b755f42565f6af6d816",
+      "status": "ok"
+    },
+    {
       "artifact": "oracle_gap.json",
       "sha_before": "b674142de62d29c95456a8b2a3928d8b1b1263b90f038a85561cce149ccbcece",
       "sha_after": "b674142de62d29c95456a8b2a3928d8b1b1263b90f038a85561cce149ccbcece",
@@ -847,14 +859,14 @@
     },
     {
       "artifact": "paper_claims.json",
-      "sha_before": "e4ac0b2231f13606f0117a49a3e7c2e34f22da913dad5017f2e1d680c86b55da",
-      "sha_after": "e4ac0b2231f13606f0117a49a3e7c2e34f22da913dad5017f2e1d680c86b55da",
+      "sha_before": "7c08d0883a176150bef6225bf66a7cefbddf5f6f26789b017b3a046342cc2dc0",
+      "sha_after": "7c08d0883a176150bef6225bf66a7cefbddf5f6f26789b017b3a046342cc2dc0",
       "status": "ok"
     },
     {
       "artifact": "paper_claims.md",
-      "sha_before": "9fcf44c37eb67b52e7bb79450bd5c4b84cf9f9f28884c2e46cd74c983d154040",
-      "sha_after": "9fcf44c37eb67b52e7bb79450bd5c4b84cf9f9f28884c2e46cd74c983d154040",
+      "sha_before": "ba47a4bcf6d7630f3fc92cd5dc31ae7439bf45d0b9352540b0c1ee71670fc772",
+      "sha_after": "ba47a4bcf6d7630f3fc92cd5dc31ae7439bf45d0b9352540b0c1ee71670fc772",
       "status": "ok"
     },
     {
@@ -999,6 +1011,12 @@
       "artifact": "lit_faith_tolerance.csv",
       "sha_before": "72f3f717b3d4402f8d28d103eb76b2a566583216e76fc0d0b8e28fe5a720159d",
       "sha_after": "72f3f717b3d4402f8d28d103eb76b2a566583216e76fc0d0b8e28fe5a720159d",
+      "status": "ok"
+    },
+    {
+      "artifact": "lit_faith_accesses.csv",
+      "sha_before": "26304d2ccc13a9d96f6afe93f00057c5e369d1d7867ed8b6375f8ce1f1ca9c65",
+      "sha_after": "26304d2ccc13a9d96f6afe93f00057c5e369d1d7867ed8b6375f8ce1f1ca9c65",
       "status": "ok"
     },
     {

@@ -641,6 +641,14 @@ CATALOG = [
         "summary":   "For every literature claim whose comparator-asserted bound actually fires (202 rows today; 30 known_deviations and 98 BIG_GAP non-triggered rows excluded), computes the per-row `slack_pp` = how many pp the observed `|delta_pct|` could move toward the disagree boundary. Corpus median slack 4.94 pp; 16 fragile rows (slack < 1 pp, 7.9 %), all but one in POPT_GE_GRASP (the tightest bucket). Strict policies (GRASP, POPT, SRRIP) have zero fragile rows and min slack ≥ 1.30 pp. Negative-slack count = 0 (slack formula matches the classifier branches). Histogram + per-policy + per-app aggregates + top-15 most-fragile list emitted for reviewer triage.",
     },
     {
+        "id":        "lit_faith_accesses",
+        "label":     "Literature-faithfulness accesses-floor audit",
+        "generator": "scripts/experiments/ecg/lit_faith_accesses.py",
+        "gate":      "scripts/test/test_lit_faith_accesses.py",
+        "artifact":  "wiki/data/lit_faith_accesses.json",
+        "summary":   "Warmup-noise guard for the lit-faith corpus. For every (graph, app, policy, l3) row, audits the `accesses` count emitted by cache_sim and floors it against per-app thresholds — 1M for BC/CC/PR, 500k for BFS/SSSP on production graphs, with a separate looser table for the email-Eu-core dev-smoke (20k bfs / 200k pr / 2M bc). Today: 311 production rows + 19 smoke rows, production min 735,934, median 15.95M, zero floor violations. Production buckets: 0 tiny, ~25 % large+huge — well above the 25 % gate floor. Catches silent regressions where a workload silently truncates to a warmup-only trace.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -671,7 +679,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (226 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (227 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

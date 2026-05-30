@@ -1,0 +1,3974 @@
+{
+  "buckets": [
+    {
+      "name": "tiny",
+      "upper_exclusive": 100000
+    },
+    {
+      "name": "small",
+      "upper_exclusive": 1000000
+    },
+    {
+      "name": "medium",
+      "upper_exclusive": 10000000
+    },
+    {
+      "name": "large",
+      "upper_exclusive": 100000000
+    },
+    {
+      "name": "huge",
+      "upper_exclusive": null
+    }
+  ],
+  "floors": {
+    "production_per_app": {
+      "bc": 1000000,
+      "bfs": 500000,
+      "cc": 1000000,
+      "pr": 1000000,
+      "sssp": 500000
+    },
+    "smoke_graphs": [
+      "email-Eu-core"
+    ],
+    "smoke_per_app": {
+      "bc": 2000000,
+      "bfs": 20000,
+      "cc": 200000,
+      "pr": 200000,
+      "sssp": 200000
+    }
+  },
+  "per_app": {
+    "bc": {
+      "log10_median": 7.95,
+      "max": 472821929,
+      "mean": 128945000,
+      "median": 88696672,
+      "min": 2592074,
+      "n": 65,
+      "p10": 15951123,
+      "p90": 467201485
+    },
+    "bfs": {
+      "log10_median": 6.44,
+      "max": 11712164,
+      "mean": 4354050,
+      "median": 2726959,
+      "min": 21307,
+      "n": 64,
+      "p10": 1288494,
+      "p90": 11486882
+    },
+    "cc": {
+      "log10_median": 6.33,
+      "max": 10259768,
+      "mean": 3958421,
+      "median": 2119517,
+      "min": 1252516,
+      "n": 55,
+      "p10": 1253691,
+      "p90": 10200570
+    },
+    "pr": {
+      "log10_median": 7.84,
+      "max": 362421671,
+      "mean": 89692448,
+      "median": 68953119,
+      "min": 273178,
+      "n": 87,
+      "p10": 8641367,
+      "p90": 360709420
+    },
+    "sssp": {
+      "log10_median": 7.44,
+      "max": 163388583,
+      "mean": 44120626,
+      "median": 27473215,
+      "min": 735934,
+      "n": 59,
+      "p10": 736851,
+      "p90": 161797772
+    }
+  },
+  "per_graph": {
+    "cit-Patents": {
+      "log10_median": 7.44,
+      "max": 90270268,
+      "mean": 41485327,
+      "median": 27350760,
+      "min": 5143662,
+      "n": 52,
+      "p10": 5151864,
+      "p90": 88580012
+    },
+    "com-orkut": {
+      "log10_median": 8.21,
+      "max": 472821929,
+      "mean": 211448264,
+      "median": 163029592,
+      "min": 2820556,
+      "n": 48,
+      "p10": 2834457,
+      "p90": 468464822
+    },
+    "delaunay_n19": {
+      "log10_median": 6.94,
+      "max": 8671622,
+      "mean": 8648451,
+      "median": 8645934,
+      "min": 8631579,
+      "n": 10,
+      "p10": 8631579,
+      "p90": 8671622
+    },
+    "email-Eu-core": {
+      "log10_median": 5.44,
+      "max": 2602361,
+      "mean": 929490,
+      "median": 273183,
+      "min": 21307,
+      "n": 19,
+      "p10": 21309,
+      "p90": 2599051
+    },
+    "roadNet-CA": {
+      "log10_median": 6.44,
+      "max": 53253044,
+      "mean": 15314578,
+      "median": 2724100,
+      "min": 735934,
+      "n": 50,
+      "p10": 736584,
+      "p90": 52898004
+    },
+    "soc-LiveJournal1": {
+      "log10_median": 7.66,
+      "max": 162505237,
+      "mean": 67422209,
+      "median": 45611373,
+      "min": 5720455,
+      "n": 51,
+      "p10": 5791765,
+      "p90": 159014672
+    },
+    "soc-pokec": {
+      "log10_median": 7.54,
+      "max": 99282325,
+      "mean": 45660080,
+      "median": 34653042,
+      "min": 1766529,
+      "n": 50,
+      "p10": 1769194,
+      "p90": 98528637
+    },
+    "web-Google": {
+      "log10_median": 6.55,
+      "max": 16305237,
+      "mean": 7719863,
+      "median": 3519498,
+      "min": 1252516,
+      "n": 50,
+      "p10": 1253691,
+      "p90": 16032626
+    }
+  },
+  "per_graph_app": {
+    "cit-Patents::bc": {
+      "log10_median": 7.95,
+      "max": 90270268,
+      "mean": 88647874,
+      "median": 88580012,
+      "min": 87786449,
+      "n": 10,
+      "p10": 87786449,
+      "p90": 89942412
+    },
+    "cit-Patents::bfs": {
+      "log10_median": 6.71,
+      "max": 5161106,
+      "mean": 5151121,
+      "median": 5151270,
+      "min": 5143662,
+      "n": 10,
+      "p10": 5146098,
+      "p90": 5155928
+    },
+    "cit-Patents::cc": {
+      "log10_median": 7.01,
+      "max": 10259768,
+      "mean": 10219741,
+      "median": 10214846,
+      "min": 10188853,
+      "n": 9,
+      "p10": 10188853,
+      "p90": 10247171
+    },
+    "cit-Patents::pr": {
+      "log10_median": 7.84,
+      "max": 68963141,
+      "mean": 68953328,
+      "median": 68953119,
+      "min": 68938965,
+      "n": 12,
+      "p10": 68950243,
+      "p90": 68958633
+    },
+    "cit-Patents::sssp": {
+      "log10_median": 7.44,
+      "max": 27473215,
+      "mean": 27257223,
+      "median": 27262248,
+      "min": 27072422,
+      "n": 11,
+      "p10": 27072422,
+      "p90": 27446716
+    },
+    "com-orkut::bc": {
+      "log10_median": 8.67,
+      "max": 472821929,
+      "mean": 468407669,
+      "median": 468464822,
+      "min": 462012402,
+      "n": 9,
+      "p10": 462012402,
+      "p90": 472754499
+    },
+    "com-orkut::bfs": {
+      "log10_median": 7.07,
+      "max": 11712164,
+      "mean": 11632799,
+      "median": 11699745,
+      "min": 11483738,
+      "n": 9,
+      "p10": 11486043,
+      "p90": 11712164
+    },
+    "com-orkut::cc": {
+      "log10_median": 6.45,
+      "max": 2835923,
+      "mean": 2831223,
+      "median": 2832163,
+      "min": 2820556,
+      "n": 9,
+      "p10": 2823580,
+      "p90": 2835923
+    },
+    "com-orkut::pr": {
+      "log10_median": 8.56,
+      "max": 362421671,
+      "mean": 361745772,
+      "median": 362090916,
+      "min": 360709420,
+      "n": 12,
+      "p10": 360709420,
+      "p90": 362236030
+    },
+    "com-orkut::sssp": {
+      "log10_median": 8.21,
+      "max": 163388583,
+      "mean": 162524687,
+      "median": 162954269,
+      "min": 161671439,
+      "n": 9,
+      "p10": 161671439,
+      "p90": 163381729
+    },
+    "delaunay_n19::pr": {
+      "log10_median": 6.94,
+      "max": 8671622,
+      "mean": 8648451,
+      "median": 8645934,
+      "min": 8631579,
+      "n": 10,
+      "p10": 8631579,
+      "p90": 8671622
+    },
+    "email-Eu-core::bc": {
+      "log10_median": 6.41,
+      "max": 2602361,
+      "mean": 2597829,
+      "median": 2599051,
+      "min": 2592074,
+      "n": 6,
+      "p10": 2592074,
+      "p90": 2602361
+    },
+    "email-Eu-core::bfs": {
+      "log10_median": 4.33,
+      "max": 21313,
+      "mean": 21310,
+      "median": 21309,
+      "min": 21307,
+      "n": 6,
+      "p10": 21307,
+      "p90": 21313
+    },
+    "email-Eu-core::pr": {
+      "log10_median": 5.44,
+      "max": 285883,
+      "mean": 277927,
+      "median": 273183,
+      "min": 273178,
+      "n": 7,
+      "p10": 273178,
+      "p90": 285883
+    },
+    "roadNet-CA::bc": {
+      "log10_median": 7.72,
+      "max": 53253044,
+      "mean": 52975665,
+      "median": 52898004,
+      "min": 52755145,
+      "n": 10,
+      "p10": 52755145,
+      "p90": 53253044
+    },
+    "roadNet-CA::bfs": {
+      "log10_median": 6.44,
+      "max": 2728113,
+      "mean": 2724541,
+      "median": 2724100,
+      "min": 2719936,
+      "n": 10,
+      "p10": 2719936,
+      "p90": 2728113
+    },
+    "roadNet-CA::cc": {
+      "log10_median": 6.33,
+      "max": 2119517,
+      "mean": 2110717,
+      "median": 2116812,
+      "min": 2098722,
+      "n": 10,
+      "p10": 2098722,
+      "p90": 2119517
+    },
+    "roadNet-CA::pr": {
+      "log10_median": 7.26,
+      "max": 18037834,
+      "mean": 18025452,
+      "median": 18035357,
+      "min": 17983563,
+      "n": 10,
+      "p10": 17983563,
+      "p90": 18037834
+    },
+    "roadNet-CA::sssp": {
+      "log10_median": 5.87,
+      "max": 737133,
+      "mean": 736514,
+      "median": 736584,
+      "min": 735934,
+      "n": 10,
+      "p10": 735934,
+      "p90": 737133
+    },
+    "soc-LiveJournal1::bc": {
+      "log10_median": 8.2,
+      "max": 162505237,
+      "mean": 158573795,
+      "median": 159014672,
+      "min": 156464837,
+      "n": 10,
+      "p10": 156464837,
+      "p90": 160075047
+    },
+    "soc-LiveJournal1::bfs": {
+      "log10_median": 6.82,
+      "max": 6664033,
+      "mean": 6566635,
+      "median": 6575210,
+      "min": 6343082,
+      "n": 10,
+      "p10": 6561244,
+      "p90": 6625344
+    },
+    "soc-LiveJournal1::cc": {
+      "log10_median": 6.76,
+      "max": 5796685,
+      "mean": 5771693,
+      "median": 5789717,
+      "min": 5720455,
+      "n": 9,
+      "p10": 5725557,
+      "p90": 5796685
+    },
+    "soc-LiveJournal1::pr": {
+      "log10_median": 8.03,
+      "max": 106668997,
+      "mean": 106575860,
+      "median": 106620240,
+      "min": 106412266,
+      "n": 12,
+      "p10": 106412266,
+      "p90": 106664487
+    },
+    "soc-LiveJournal1::sssp": {
+      "log10_median": 7.66,
+      "max": 45971982,
+      "mean": 45627282,
+      "median": 45574030,
+      "min": 45398005,
+      "n": 10,
+      "p10": 45398005,
+      "p90": 45924149
+    },
+    "soc-pokec::bc": {
+      "log10_median": 7.99,
+      "max": 99282325,
+      "mean": 98725875,
+      "median": 98624668,
+      "min": 98484538,
+      "n": 10,
+      "p10": 98484538,
+      "p90": 99196472
+    },
+    "soc-pokec::bfs": {
+      "log10_median": 6.26,
+      "max": 1844239,
+      "mean": 1834724,
+      "median": 1835779,
+      "min": 1827541,
+      "n": 9,
+      "p10": 1827541,
+      "p90": 1840119
+    },
+    "soc-pokec::cc": {
+      "log10_median": 6.25,
+      "max": 1772476,
+      "mean": 1769038,
+      "median": 1769194,
+      "min": 1766529,
+      "n": 9,
+      "p10": 1766529,
+      "p90": 1771404
+    },
+    "soc-pokec::pr": {
+      "log10_median": 7.88,
+      "max": 76543048,
+      "mean": 76497537,
+      "median": 76506826,
+      "min": 76434881,
+      "n": 12,
+      "p10": 76440564,
+      "p90": 76539941
+    },
+    "soc-pokec::sssp": {
+      "log10_median": 7.54,
+      "max": 34665692,
+      "mean": 34534094,
+      "median": 34520326,
+      "min": 34395887,
+      "n": 10,
+      "p10": 34395887,
+      "p90": 34665692
+    },
+    "web-Google::bc": {
+      "log10_median": 7.21,
+      "max": 16305237,
+      "mean": 16093690,
+      "median": 16062473,
+      "min": 15951123,
+      "n": 10,
+      "p10": 15951123,
+      "p90": 16305237
+    },
+    "web-Google::bfs": {
+      "log10_median": 6.11,
+      "max": 1291065,
+      "mean": 1290064,
+      "median": 1290130,
+      "min": 1288494,
+      "n": 10,
+      "p10": 1289130,
+      "p90": 1291065
+    },
+    "web-Google::cc": {
+      "log10_median": 6.1,
+      "max": 1254488,
+      "mean": 1253415,
+      "median": 1253257,
+      "min": 1252516,
+      "n": 9,
+      "p10": 1252931,
+      "p90": 1253977
+    },
+    "web-Google::pr": {
+      "log10_median": 7.15,
+      "max": 14111268,
+      "mean": 14107372,
+      "median": 14106981,
+      "min": 14104305,
+      "n": 12,
+      "p10": 14106058,
+      "p90": 14109617
+    },
+    "web-Google::sssp": {
+      "log10_median": 6.55,
+      "max": 3523576,
+      "mean": 3509601,
+      "median": 3516703,
+      "min": 3480052,
+      "n": 9,
+      "p10": 3480052,
+      "p90": 3522294
+    }
+  },
+  "per_l3": {
+    "16kB": {
+      "log10_median": 6.75,
+      "max": 52829108,
+      "mean": 14177651,
+      "median": 5682733,
+      "min": 736584,
+      "n": 12,
+      "p10": 736584,
+      "p90": 52829108
+    },
+    "1MB": {
+      "log10_median": 7.2,
+      "max": 467201485,
+      "mean": 63693152,
+      "median": 15984336,
+      "min": 21307,
+      "n": 114,
+      "p10": 1289659,
+      "p90": 160075047
+    },
+    "256kB": {
+      "log10_median": 6.75,
+      "max": 53143026,
+      "mean": 14232628,
+      "median": 5679269,
+      "min": 736851,
+      "n": 12,
+      "p10": 736851,
+      "p90": 53143026
+    },
+    "4MB": {
+      "log10_median": 7.15,
+      "max": 472754499,
+      "mean": 66012146,
+      "median": 14106058,
+      "min": 21309,
+      "n": 81,
+      "p10": 1291065,
+      "p90": 161671439
+    },
+    "4kB": {
+      "log10_median": 6.76,
+      "max": 52755145,
+      "mean": 14161453,
+      "median": 5697609,
+      "min": 736068,
+      "n": 12,
+      "p10": 736068,
+      "p90": 52755145
+    },
+    "64kB": {
+      "log10_median": 6.75,
+      "max": 52898004,
+      "mean": 14192005,
+      "median": 5682935,
+      "min": 735934,
+      "n": 12,
+      "p10": 735934,
+      "p90": 52898004
+    },
+    "8MB": {
+      "log10_median": 7.15,
+      "max": 472821929,
+      "mean": 68907922,
+      "median": 14107742,
+      "min": 21313,
+      "n": 87,
+      "p10": 1290602,
+      "p90": 163029592
+    }
+  },
+  "per_policy": {
+    "GRASP": {
+      "log10_median": 7.84,
+      "max": 362233008,
+      "mean": 87444005,
+      "median": 68955281,
+      "min": 280998,
+      "n": 19,
+      "p10": 5155928,
+      "p90": 160075047
+    },
+    "POPT": {
+      "log10_median": 7.76,
+      "max": 360709420,
+      "mean": 91694336,
+      "median": 57175562,
+      "min": 14106744,
+      "n": 8,
+      "p10": 27072422,
+      "p90": 106412266
+    },
+    "POPT_GE_GRASP": {
+      "log10_median": 7.01,
+      "max": 470968331,
+      "mean": 50555094,
+      "median": 10194711,
+      "min": 21307,
+      "n": 114,
+      "p10": 1252931,
+      "p90": 156464837
+    },
+    "POPT_NEAR_GRASP_IF_BIG_GAP": {
+      "log10_median": 7.01,
+      "max": 470968331,
+      "mean": 50555094,
+      "median": 10194711,
+      "min": 21307,
+      "n": 114,
+      "p10": 1252931,
+      "p90": 156464837
+    },
+    "SRRIP": {
+      "log10_median": 7.21,
+      "max": 472821929,
+      "mean": 71501399,
+      "median": 16092320,
+      "min": 1252516,
+      "n": 75,
+      "p10": 1767814,
+      "p90": 163381729
+    }
+  },
+  "per_row": [
+    {
+      "accesses": 89128631,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.95,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 88696672,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.948,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 87853919,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.944,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 87853919,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.944,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 89942412,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.954,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 87786449,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.943,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 87786449,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.943,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 90270268,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.956,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 88580012,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.947,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 88580012,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.947,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 5161106,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 6.713,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 5155928,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 6.712,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 5146098,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 6.711,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 5146098,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 6.711,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 5153236,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 6.712,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 5150677,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 6.712,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 5150677,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 6.712,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 5143662,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 6.711,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 5151864,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 6.712,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 5151864,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 6.712,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 10214846,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.009,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 10188853,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.008,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 10188853,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.008,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 10259768,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.011,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 10200570,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.009,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 10200570,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.009,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 10229866,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.01,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 10247171,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.011,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 10247171,
+      "app": "cc",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.011,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 68958633,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.839,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 68950243,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.839,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 68953119,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.839,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 68953119,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.839,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 68953119,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.839,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 68963141,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.839,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 68952499,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.839,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 68952499,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.839,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 68938965,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.838,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 68955281,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.839,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 68954661,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.839,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 68954661,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.839,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 27446716,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.438,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 27439273,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.438,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 27072422,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.433,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 27072422,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.433,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 27072422,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.433,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 27444166,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.438,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 27142163,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.434,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 27142163,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.434,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 27473215,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.439,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 27262248,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.436,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 27262248,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.436,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 467201485,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.67,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 462012402,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.665,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 462012402,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.665,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 472754499,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.675,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 468464822,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.671,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 468464822,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.671,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 472821929,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.675,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 470968331,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.673,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 470968331,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.673,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 11486043,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 7.06,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 11707356,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 7.068,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 11707356,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 7.068,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 11483738,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 7.06,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 11712164,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 7.069,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 11712164,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 7.069,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 11486882,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 7.06,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 11699745,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 7.068,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 11699745,
+      "app": "bfs",
+      "bucket": "large",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 7.068,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2820556,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 6.45,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 2834457,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 6.452,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2834457,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 6.452,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2823580,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 6.451,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 2832163,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 6.452,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2832163,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 6.452,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2831784,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 6.452,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 2835923,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 6.453,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2835923,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 6.453,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 361981444,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.559,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 362200388,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.559,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 360709420,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.557,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 360709420,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.557,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 360709420,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.557,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 362227435,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.559,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 361642502,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.558,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 361642502,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.558,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 362421671,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.559,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 362233008,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.559,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 362236030,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.559,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 362236030,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.559,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 162954269,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.212,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 161797772,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.209,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 161797772,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "log10": 8.209,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 163381729,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.213,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 161671439,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.209,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 161671439,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "log10": 8.209,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 163388583,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.213,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 163029592,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.212,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 163029592,
+      "app": "sssp",
+      "bucket": "huge",
+      "graph": "com-orkut",
+      "l3_size": "8MB",
+      "log10": 8.212,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 8641367,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "16kB",
+      "log10": 6.937,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 8641367,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "16kB",
+      "log10": 6.937,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 8651754,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "1MB",
+      "log10": 6.937,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 8651754,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "1MB",
+      "log10": 6.937,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 8631579,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "256kB",
+      "log10": 6.936,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 8631579,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "256kB",
+      "log10": 6.936,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 8671622,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "4kB",
+      "log10": 6.938,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 8671622,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "4kB",
+      "log10": 6.938,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 8645934,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "64kB",
+      "log10": 6.937,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 8645934,
+      "app": "pr",
+      "bucket": "medium",
+      "graph": "delaunay_n19",
+      "l3_size": "64kB",
+      "log10": 6.937,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2592074,
+      "app": "bc",
+      "bucket": "medium",
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
+      "log10": 6.414,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 2592074,
+      "app": "bc",
+      "bucket": "medium",
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
+      "log10": 6.414,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 2602361,
+      "app": "bc",
+      "bucket": "medium",
+      "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "log10": 6.415,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 2602361,
+      "app": "bc",
+      "bucket": "medium",
+      "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "log10": 6.415,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 2599051,
+      "app": "bc",
+      "bucket": "medium",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "log10": 6.415,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 2599051,
+      "app": "bc",
+      "bucket": "medium",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "log10": 6.415,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 21307,
+      "app": "bfs",
+      "bucket": "tiny",
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
+      "log10": 4.329,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 21307,
+      "app": "bfs",
+      "bucket": "tiny",
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
+      "log10": 4.329,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 21309,
+      "app": "bfs",
+      "bucket": "tiny",
+      "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "log10": 4.329,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 21309,
+      "app": "bfs",
+      "bucket": "tiny",
+      "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "log10": 4.329,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 21313,
+      "app": "bfs",
+      "bucket": "tiny",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "log10": 4.329,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 21313,
+      "app": "bfs",
+      "bucket": "tiny",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "log10": 4.329,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 285883,
+      "app": "pr",
+      "bucket": "small",
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
+      "log10": 5.456,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 285883,
+      "app": "pr",
+      "bucket": "small",
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
+      "log10": 5.456,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 273183,
+      "app": "pr",
+      "bucket": "small",
+      "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "log10": 5.436,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 273183,
+      "app": "pr",
+      "bucket": "small",
+      "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "log10": 5.436,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 280998,
+      "app": "pr",
+      "bucket": "small",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "log10": 5.449,
+      "policy": "GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 273178,
+      "app": "pr",
+      "bucket": "small",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "log10": 5.436,
+      "policy": "POPT_GE_GRASP",
+      "smoke": true
+    },
+    {
+      "accesses": 273178,
+      "app": "pr",
+      "bucket": "small",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "log10": 5.436,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": true
+    },
+    {
+      "accesses": 52829108,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 7.723,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 52829108,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 7.723,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 53253044,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 7.726,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 53253044,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 7.726,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 53143026,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 7.725,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 53143026,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 7.725,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 52755145,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 7.722,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 52755145,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 7.722,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 52898004,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 7.723,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 52898004,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 7.723,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2724100,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 6.435,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2724100,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 6.435,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2728113,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 6.436,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2728113,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 6.436,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2726959,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 6.436,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2726959,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 6.436,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2723596,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 6.435,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2723596,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 6.435,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2719936,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 6.435,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2719936,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 6.435,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2099389,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 6.322,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2099389,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 6.322,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2119143,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 6.326,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2119143,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 6.326,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2119517,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 6.326,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2119517,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 6.326,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2098722,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 6.322,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2098722,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 6.322,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 2116812,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 6.326,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 2116812,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 6.326,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 18035357,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 7.256,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 18035357,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 7.256,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 18035095,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 7.256,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 18035095,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 7.256,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 18037834,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 7.256,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 18037834,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 7.256,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 17983563,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 7.255,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 17983563,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 7.255,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 18035409,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 7.256,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 18035409,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 7.256,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 736584,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 5.867,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 736584,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "16kB",
+      "log10": 5.867,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 737133,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 5.868,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 737133,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "1MB",
+      "log10": 5.868,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 736851,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 5.867,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 736851,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "256kB",
+      "log10": 5.867,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 736068,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 5.867,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 736068,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "4kB",
+      "log10": 5.867,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 735934,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 5.867,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 735934,
+      "app": "sssp",
+      "bucket": "small",
+      "graph": "roadNet-CA",
+      "l3_size": "64kB",
+      "log10": 5.867,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 159413644,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.203,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 160075047,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.204,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 156464837,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.194,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 156464837,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.194,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 159628881,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 8.203,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 156578062,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 8.195,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 156578062,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 8.195,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 162505237,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 8.211,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 159014672,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 8.201,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 159014672,
+      "app": "bc",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 8.201,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 6625344,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 6.821,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 6343082,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 6.802,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 6577350,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 6.818,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 6577350,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 6.818,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 6664033,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 6.824,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 6561244,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 6.817,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 6561244,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 6.817,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 6610565,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 6.82,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 6573071,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 6.818,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 6573071,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 6.818,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 5725557,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 6.758,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 5789717,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 6.763,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 5789717,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 6.763,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 5720455,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 6.757,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 5791765,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 6.763,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 5791765,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 6.763,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 5742888,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 6.759,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 5796685,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 6.763,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 5796685,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 6.763,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 106606848,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.028,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 106603255,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.028,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 106412266,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.027,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 106412266,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.027,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 106412266,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 8.027,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 106668997,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 8.028,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 106664487,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 8.028,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 106664487,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 8.028,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 106544859,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 8.028,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 106653323,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 8.028,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 106633633,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 8.028,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 106633633,
+      "app": "pr",
+      "bucket": "huge",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 8.028,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 45971982,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 7.662,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 45398005,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 7.657,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 45398005,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 7.657,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 45398005,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "log10": 7.657,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 45886558,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 7.662,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 45536687,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 7.658,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 45536687,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "log10": 7.658,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 45924149,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 7.662,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 45611373,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 7.659,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 45611373,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "log10": 7.659,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 99196472,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.996,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 99282325,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.997,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 98484538,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.993,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 98484538,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.993,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 98528637,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.994,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 98494529,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.993,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 98494529,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.993,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 98851778,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.995,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 98720700,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.994,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 98720700,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.994,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1844239,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 6.266,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1827541,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 6.262,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1827541,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 6.262,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1840119,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 6.265,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1832159,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 6.263,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1832159,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 6.263,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1837198,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 6.264,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1835779,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 6.264,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1835779,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 6.264,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1766797,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 6.247,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1766529,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 6.247,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1766529,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 6.247,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1772476,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 6.249,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1771404,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 6.248,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1771404,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 6.248,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1767814,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 6.247,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1769194,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 6.248,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1769194,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 6.248,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 76539941,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.884,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 76525605,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.884,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 76506826,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.884,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 76506826,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.884,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 76506826,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.884,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 76543048,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.884,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 76537927,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.884,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 76537927,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.884,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 76449509,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.883,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 76434881,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.883,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 76440564,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.883,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 76440564,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.883,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 34656505,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.54,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 34395887,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.537,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 34395887,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.537,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 34395887,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.537,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 34649580,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.54,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 34475158,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.538,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 34475158,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "log10": 7.538,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 34565494,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.539,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 34665692,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.54,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 34665692,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "log10": 7.54,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 16017549,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.205,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 16104375,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.207,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 15951123,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.203,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 15951123,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.203,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 16144684,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.208,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 16305237,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.212,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 16305237,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.212,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 16092320,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.207,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 16032626,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.205,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 16032626,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.205,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1289533,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.11,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1288494,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.11,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1289659,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.11,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1289659,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.11,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1290835,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.111,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1291065,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.111,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1291065,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.111,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1289130,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.11,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1290602,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.111,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1290602,
+      "app": "bfs",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.111,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1253977,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.098,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1253257,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.098,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1253257,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.098,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1252516,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.098,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1252931,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.098,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1252931,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.098,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1254488,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.098,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 1253691,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.098,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 1253691,
+      "app": "cc",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.098,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 14111268,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.15,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 14109617,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.15,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 14106744,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.149,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 14106744,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.149,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 14106744,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 7.149,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 14108742,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.149,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 14106058,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.149,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 14106058,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.149,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 14107742,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.149,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 14104305,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.149,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 14107218,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.149,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 14107218,
+      "app": "pr",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.149,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 3509577,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.545,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 3480052,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.542,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 3480052,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "log10": 6.542,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 3515157,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.546,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 3516703,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.546,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 3516703,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 6.546,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 3523576,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.547,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 3522294,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.547,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 3522294,
+      "app": "sssp",
+      "bucket": "medium",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 6.547,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "app_count": 5,
+    "buckets_all": {
+      "huge": 52,
+      "large": 135,
+      "medium": 120,
+      "small": 17,
+      "tiny": 6
+    },
+    "buckets_production": {
+      "huge": 52,
+      "large": 135,
+      "medium": 114,
+      "small": 10
+    },
+    "graph_count": 8,
+    "l3_count": 7,
+    "policy_count": 5,
+    "production_median_accesses": 15951123,
+    "production_min_accesses": 735934,
+    "production_rows": 311,
+    "smoke_median_accesses": 273183,
+    "smoke_min_accesses": 21307,
+    "smoke_rows": 19,
+    "total_rows": 330,
+    "violation_count": 0
+  },
+  "violations": []
+}
