@@ -8,7 +8,31 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **245 gates, all GREEN, exit 0**.
+and currently reports **246 gates, all GREEN, exit 0**.
+
+**lit-faith citation registry purity (gate 246, refresh @246):**
+Locks down the prose-citation strings carried in
+`wiki/data/literature_faithfulness_postfix.json:per_claim`. Before
+this gate, a row could be hand-edited to cite a paper that does
+not actually carry the claim, a registry entry could accrete typos
+in its prose form until pattern matching silently broke, or two
+rows in the same (policy, app, expected_sign) bucket — the *unit
+the paper actually quotes* — could drift apart in which canonical
+work they attribute the expected sign to, all without any
+numerical test failing. The gate codifies a hand-curated
+`CITATION_REGISTRY` of every canonical work the lit-faith table is
+allowed to cite (today: Faldu HPCA 2020, Balaji & Lucia HPCA 2021,
+Jaleel et al. ISCA 2010), each entry carrying {key, title, venue,
+year, patterns, note}. 5 rules: C1 every per_claim citation
+matches the substring patterns of ≥1 registered canonical work;
+C2 every registered work is referenced ≥1 time (no dead-letter
+registry entries); C3 within each (policy, app, expected_sign)
+bucket all rows share ≥1 canonical key (the paper quote stays
+anchored); C4 every registry entry has non-empty venue + year
+(keeps the registry mineable for bibliography generation); C5
+every per_claim row carries a non-empty citation. Today: 3 works,
+330 rows, 24 buckets, coverage Balaji=252 + Faldu=177 + Jaleel=75,
+0 violations.
 
 **L3 regime-classifier consistency (gate 245, refresh @245):**
 Catches a subtle class of bug that has been latent in the codebase
@@ -221,8 +245,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 245. Next refresh due
-at gate 250.
+**Refresh status:** Refresh complete at gate 246. Next refresh due
+at gate 251.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

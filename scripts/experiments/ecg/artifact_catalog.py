@@ -793,6 +793,14 @@ CATALOG = [
         "summary":   "L3 regime-classifier consistency audit (gate 245) — ALWAYS ACTIVE (no deferred mode; source-of-truth is a hand-curated REGIME_REGISTRY of every regime-classifying function in scripts/experiments/ecg/, each loaded via importlib). Catches the subtle bug where an author tweaks one regime-boundary copy and the paper's per-regime bar groupings silently diverge between figures. 5 rules: (R1) every registered classifier resolves to an importable callable; (R2) every byte-input classifier returns only labels from its declared vocabulary when fed the canonical L3 grid (1kB..16MB); (R3) within each taxonomy family, all byte-input members agree on every canonical L3 label (catches in-family drift between siblings like policy_winner_table._l3_regime and popt_vs_grasp_report._l3_regime); (R4) source-pattern scan of scripts/experiments/ecg/*.py finds no unregistered regime classifiers (defensive — catches new drift-prone classifiers added without registration); (R5) non-byte-label classifiers (ratio-input, range-input) carry an explanatory note describing what they actually classify. Today: 5 classifiers in 4 families — tiny_small_large_v1 (policy_winner_table + popt_vs_grasp_report, identical sibling pair); tiny_small_large_v2_oracle_gap (oracle_gap_report._regime, intentionally separate because it uses <= boundaries and 256 kB small/large split instead of 1 MB); wss_range (cross_tool_lru_regime, classifies an L3-size range); wss_ratio (wss_relative_l3, classifies L3/WSS ratio). 0 violations.",
     },
     {
+        "id":        "lit_faith_citation_registry",
+        "label":     "lit-faith citation registry purity",
+        "generator": "scripts/experiments/ecg/lit_faith_citation_registry.py",
+        "gate":      "scripts/test/test_lit_faith_citation_registry.py",
+        "artifact":  "wiki/data/lit_faith_citation_registry.json",
+        "summary":   "lit-faith citation registry purity audit (gate 246) — ALWAYS ACTIVE (no deferred mode; sources-of-truth are the per_claim array of wiki/data/literature_faithfulness_postfix.json AND a hand-curated CITATION_REGISTRY in the generator listing every canonical literature work the lit-faith table is allowed to cite, with structured {key, title, venue, year, patterns, note} metadata). Catches three classes of bug invisible to numerical tests: (a) an author edits a per_claim row to cite a paper that does not actually carry the claim; (b) a registry entry slowly accretes typos in its prose-citation form until pattern matching breaks; (c) within a (policy, app, expected_sign) bucket — the unit the paper actually quotes — different rows silently drift apart in which canonical work they attribute the expected sign to. 5 rules: (C1) every per_claim citation matches the substring patterns of >=1 registered canonical work; (C2) every registered canonical work is referenced >=1 time in per_claim (no dead-letter registry entries); (C3) within each (policy, app, expected_sign) bucket, all rows share >=1 canonical citation key (the paper-quote anchor stays consistent); (C4) every registry entry has non-empty venue + year (keeps the registry mineable for bibliography generation); (C5) every per_claim row carries a non-empty citation string. Today: 3 canonical works (Faldu-HPCA-2020, Balaji-HPCA-2021, Jaleel-ISCA-2010); 330 per_claim rows; 24 (policy, app, sign) buckets; coverage Balaji=252, Faldu=177, Jaleel=75; 0 violations.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -823,7 +831,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (245 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (246 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

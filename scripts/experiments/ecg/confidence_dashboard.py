@@ -391,6 +391,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_paper_snapshot.py", "PaperSnapshot"),
     "L3 regime-classifier consistency (gate 245) — hand-curated REGIME_REGISTRY: every regime-classifier in ECG dir registered + within-family agreement on canonical L3 grid + vocab purity + cross-family divergence (oracle_gap_report vs v1) documented":
         ("scripts/test/test_lit_faith_regime_classifier.py", "RegimeClassifier"),
+    "lit-faith citation registry purity (gate 246) — hand-curated CITATION_REGISTRY anchors every per_claim citation to a canonical work (Faldu HPCA20, Balaji HPCA21, Jaleel ISCA10) + per-bucket citation cohesion + no dead-letter registry entries":
+        ("scripts/test/test_lit_faith_citation_registry.py", "CitationRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

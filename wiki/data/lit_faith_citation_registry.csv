@@ -1,0 +1,8 @@
+field,value
+registry_size,3
+row_count,330
+bucket_count,24
+violations,0
+coverage::Balaji-HPCA-2021,252
+coverage::Faldu-HPCA-2020,177
+coverage::Jaleel-ISCA-2010,75
