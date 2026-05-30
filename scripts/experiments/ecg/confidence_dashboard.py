@@ -349,6 +349,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_signmass.py", "LIT-Sig"),
     "literature-faithfulness citation locator integrity (bijection + anchor inventory + venue/year/locator well-formedness + docstring URL grounding)":
         ("scripts/test/test_lit_faith_citations.py", "LIT-Cite"),
+    "literature-faithfulness known-deviation completeness (reason length + quantitative phrase + anchor + bijection with live faith corpus)":
+        ("scripts/test/test_lit_faith_deviations.py", "LIT-Dev"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

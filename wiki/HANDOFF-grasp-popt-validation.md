@@ -8,7 +8,56 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **220 gates, all GREEN, exit 0**.
+and currently reports **225 gates, all GREEN, exit 0**.
+
+**Literature-faithfulness deepening (gates 221-225, refresh @225):**
+Once the 220-gate scaffold was load-bearing, the next push hardened
+the lit-faith comparator itself rather than adding more cells. Five
+gates land that protect the literature claim corpus from silent
+drift:
+
+- **LIT-Cov** (gate 221) — diversity coverage: floors on per-family,
+  per-app, per-L3-size, per-paper cells in `literature_baselines.py`,
+  plus cross-paper triangulation (cells where ≥2 papers issue a
+  claim). Trips on a dropped graph family or paper.
+- **LIT-Mar** (gate 222) — margin distribution: per-bucket median /
+  per-family floor / fragile-claim ceiling on `delta_pct`, plus
+  classifier parity (every claim's reported status reproducibly
+  derivable from delta_pct + tolerance). Trips on a comparator
+  loosening or a corpus-wide regression.
+- **LIT-Sig** (gate 223) — sign-mass concentration: per-(expected_sign,
+  policy) Wilson 95 % lower bound on fraction-correct + exact
+  binomial sign-test p-value (lgamma-based, scipy-free) + median
+  delta_pct effect-size floors. Locks the magnitude *and* direction
+  of the literature replication signal.
+- **LIT-Cite** (gate 224) — citation locator integrity: strict
+  bijection between the 15 unique citation strings in lit-faith and
+  the 38 `LiteratureClaim` records in `literature_baselines.py`;
+  per-citation well-formedness (venue + year + § / Fig / Sec / Table
+  locator + known anchor paper); per-anchor inventory (Faldu HPCA
+  2020 ≥ 12 claims, Balaji & Lucia HPCA 2021 ≥ 10, Jaleel ISCA 2010
+  ≥ 5); DOI / URL in module docstring required for Faldu + Balaji.
+- **LIT-Dev** (gate 225) — known-deviation completeness:
+  `KNOWN_DEVIATIONS` is the whitelist that downgrades live lit-faith
+  `disagree` rows to `known_deviation`. Each entry must carry a
+  ≥ 80-char reason that quotes a quantitative magnitude (pp / MB /
+  % / MPKI / times) and mentions at least one anchor (paper § /
+  design term / algorithmic root-cause vocabulary like `PR-rank`,
+  `frontier`, `union-find`, `Phase 1`). Strict bijection with the
+  live faith corpus: zero orphan whitelist entries, zero live
+  `known_deviation` rows without a documented explanation. All 34
+  entries today well-formed; coverage 2 policies × 5 graphs × 5 apps
+  × 3 L3 sizes; CC + BC apps dominate (82 % of KDs) — these are the
+  kernels whose algorithmic mismatch with POPT's PR ranking is most
+  documented.
+
+Each LIT-* gate follows the established wiring: one generator
+(`scripts/experiments/ecg/lit_faith_*.py`), one pytest
+(`scripts/test/test_lit_faith_*.py`), `make lit-<slug>` target,
+`PYTEST_SUITES` entry in `confidence_dashboard.py`, `CATALOG` row
+in `artifact_catalog.py`, and `TRACKED_ARTIFACTS` entries in
+`reproduce_smoke.py`. Reproduce_smoke now tracks **173 artifacts,
+all stable across regen**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +

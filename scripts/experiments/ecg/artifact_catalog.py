@@ -625,6 +625,14 @@ CATALOG = [
         "summary":   "Bijection between the 15 unique citation strings in lit-faith and `literature_baselines.py` (zero orphans / unused), per-anchor inventory across the 3 canonical papers (Faldu HPCA 2020, Balaji & Lucia HPCA 2021, Jaleel ISCA 2010), and per-citation well-formedness check (venue tag + year + §/Fig locator + known anchor). All 15 citations well-formed today; 2/3 anchors have DOI/URL in module docstring (Jaleel ISCA 2010 intentionally unlinked).",
     },
     {
+        "id":        "lit_faith_deviations",
+        "label":     "Literature-faithfulness known-deviation completeness",
+        "generator": "scripts/experiments/ecg/lit_faith_deviations.py",
+        "gate":      "scripts/test/test_lit_faith_deviations.py",
+        "artifact":  "wiki/data/lit_faith_deviations.json",
+        "summary":   "Completeness audit on `literature_baselines.KNOWN_DEVIATIONS` (the whitelist that downgrades live lit-faith `disagree` rows to `known_deviation`). All 34 entries today are well-formed: ≥ 80-char reason, contain a quantitative phrase (pp / MB / %), and mention at least one anchor (paper §, design term, or algorithmic root-cause vocabulary like `PR-rank`, `frontier`, `union-find`, `Phase 1`). Bijection enforced: zero orphan entries, zero live `known_deviation` rows without a documented explanation. Coverage: 2 policies × 5 graphs × 5 apps × 3 L3 sizes; CC + BC dominate (82 % of KDs — they're the apps whose algorithmic mismatch with POPT's PR ranking is most documented).",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -655,7 +663,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (224 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (225 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
