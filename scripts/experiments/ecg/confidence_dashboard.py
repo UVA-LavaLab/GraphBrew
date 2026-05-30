@@ -359,6 +359,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_citexapp.py", "LIT-CXApp"),
     "literature-faithfulness cache-size monotonicity audit (per-triple non-increasing miss-rate + slope-per-doubling floors + saturated-triple ceiling)":
         ("scripts/test/test_lit_faith_monotonicity.py", "LIT-Mono"),
+    "literature-faithfulness statistical-sanity audit (delta-arithmetic + sign-flip + miss-rate bounds + status-vocabulary + status-vs-delta consistency)":
+        ("scripts/test/test_lit_faith_stat.py", "LIT-Stat"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -8,7 +8,56 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **225 gates, all GREEN, exit 0**.
+and currently reports **230 gates, all GREEN, exit 0**.
+
+**Literature-faithfulness deepening (gates 226-230, refresh @230):**
+After the lit-faith bijection lock-down (gates 221-225), the next
+push moved from claim-corpus structural checks to *arithmetic and
+physical-invariant* checks on the live per_claim table itself:
+
+- **LIT-Tol** (gate 226) — tolerance-calibration audit: for every
+  per_claim row, recompute the distance-to-disagree from the
+  classifier's exact branches (`_classify` mirror) and lock each
+  `ok`/`within_tolerance` row to a healthy slack against its
+  tolerance boundary. Trips on a comparator widening or a row
+  silently brushing against the band edge.
+- **LIT-Acc** (gate 227) — accesses-floor audit: warmup-noise guard.
+  Per-app accesses floors (1M BC/CC/PR, 500k BFS/SSSP for production
+  graphs; looser 20k bfs / 200k pr / 2M bc table for the email-Eu-core
+  dev-smoke) and 5-bucket distribution check. Today 311 production
+  rows + 19 smoke, production min 735,934, median 15.95M, zero floor
+  violations. Catches workloads that silently truncate to a
+  warmup-only trace.
+- **LIT-CXApp** (gate 228) — cross-app rationale coherence: for
+  every (citation, expected_sign) group, the per-cell rationales
+  must (a) carry zero direction-flipping contradictions (with
+  negation-context handling so "must NOT regress" doesn't trip), (b)
+  align with the sign-vocabulary band, (c) share a common kernel
+  token, and (d) keep the length-span ratio ≤ 3.0×. 17 groups, 35
+  unique rationales, zero failures today.
+- **LIT-Mono** (gate 229) — cache-size monotonicity audit: for every
+  (graph, app, policy) triple with ≥ 2 L3 samples, miss rate must
+  be non-increasing in L3 size (tolerance 0.5 pp). Today 30 triples
+  audited across 17 graphs × 4 apps × {GRASP, SRRIP}, zero LRU
+  violations, zero policy violations, 1 expected-saturated triple
+  (com-orkut/bfs/SRRIP at 1MB→8MB — bfs on orkut is capacity-bound
+  below 16MB). Median slope ≈ 0.16 miss-rate-points per L3 doubling.
+- **LIT-Stat** (gate 230) — statistical-sanity audit: re-derives
+  `delta_pct` from the two miss-rate columns each row compares
+  (LRU-vs-policy, POPT_GE_GRASP, POPT_NEAR_GRASP_IF_BIG_GAP) and
+  locks zero NaN/inf, zero out-of-bounds miss rates, zero rounding
+  mismatches (> 0.001 pp), zero sign flips (above 0.01 pp noise
+  floor), zero signed-delta inconsistencies on POPT_NEAR rows, zero
+  unknown row kinds, zero bad status labels, zero status-vs-delta
+  inconsistencies (with the POPT_NEAR phase-transition exception
+  folded in — assertion fires only when grasp_gain_vs_lru > 10 pp
+  AND POPT is worse than GRASP). Status vocabulary locked to {ok,
+  within_tolerance, disagree, known_deviation, missing,
+  insufficient_data}. Today 330 rows: 102 LRU-vs-policy + 114
+  POPT_GE_GRASP + 114 POPT_NEAR_GRASP, 298 ok / 30 known_deviation
+  / 2 within_tolerance / 0 disagree.
+
+**Refresh status:** Refresh due at the next 5-gate boundary (gate 235).
 
 **Literature-faithfulness deepening (gates 221-225, refresh @225):**
 Once the 220-gate scaffold was load-bearing, the next push hardened

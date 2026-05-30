@@ -665,6 +665,14 @@ CATALOG = [
         "summary":   "Locks the physical invariant that miss rate is non-increasing in LLC size for every (graph, app, policy) triple in the lit-faith corpus (tolerance 0.5 pp). For every triple with ≥ 2 L3 samples, computes the slope per log2(L3) doubling and flags any pair where the larger cache shows ≥ 0.5 pp higher miss rate. Also flags saturated triples (< 1 pp total drop across the full sweep) — those samples sit in the capacity-bound regime where the policy can't move the needle. Today: 30 triples audited across 17 graphs / 4 apps / {GRASP, SRRIP}, 0 LRU violations, 0 policy violations, 1 saturated triple (com-orkut/bfs/SRRIP at 1MB→8MB — expected, bfs on orkut is capacity-bound below 16MB). Median slope ≈ 0.16 miss-rate-points per L3 doubling.",
     },
     {
+        "id":        "lit_faith_stat",
+        "label":     "Literature-faithfulness statistical-sanity audit",
+        "generator": "scripts/experiments/ecg/lit_faith_stat.py",
+        "gate":      "scripts/test/test_lit_faith_stat.py",
+        "artifact":  "wiki/data/lit_faith_stat.json",
+        "summary":   "Re-derives `delta_pct` from the two miss-rate columns each per_claim row compares (LRU-vs-policy, POPT_GE_GRASP, POPT_NEAR_GRASP_IF_BIG_GAP) and locks: zero NaN/inf, zero out-of-bounds miss rates, zero delta-rounding mismatches (> 0.001 pp), zero sign flips (> 0.01 pp noise floor), zero signed-delta inconsistencies, zero unknown row kinds, zero bad status labels, zero status-vs-delta inconsistencies (with the POPT_NEAR phase-transition-regime exception folded in: assertion only fires when grasp_gain_vs_lru > 10 pp AND POPT is worse than GRASP). Locks status vocabulary to {ok, within_tolerance, disagree, known_deviation, missing, insufficient_data}. Today: 330 rows, 102 LRU-vs-policy, 114 POPT_GE_GRASP, 114 POPT_NEAR_GRASP, 298 ok / 30 known_deviation / 2 within_tolerance / 0 disagree.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -695,7 +703,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (229 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (230 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
