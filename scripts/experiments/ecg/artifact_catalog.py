@@ -713,6 +713,14 @@ CATALOG = [
         "summary":   "Per-app axis-coverage check on per_observation: each of the 5 apps must touch >= 6 graphs / >= 3 L3 sizes / >= 3 policies (canonical roster {LRU, GRASP, POPT} per app) / >= 60 rows, every (app, graph) pair must cover >= 3 L3 sizes, and the anchor app (pr) must cover the full corpus. Today: 5 apps, 8 corpus graphs; pr=8 graphs/112 rows (full sweep), bc=bfs=7 graphs/92 rows, cc=sssp=6 graphs/80 rows. 0 violations.",
     },
     {
+        "id":        "lit_faith_regimesign",
+        "label":     "Literature-faithfulness regime-sign audit",
+        "generator": "scripts/experiments/ecg/lit_faith_regimesign.py",
+        "gate":      "scripts/test/test_lit_faith_regimesign.py",
+        "artifact":  "wiki/data/lit_faith_regimesign.json",
+        "summary":   "Per (graph_family, app, advice-policy) bucket on per_observation: regime-aware sign-tally + magnitude ceiling. Hub families {social, citation, web} must not show majority regression (pos_cells > neg_cells AND median > +0.5 pp simultaneously) and bucket median must be <= +0.5 pp. No-hub families {road, mesh} may exhibit L-curve sign-flipping but the bucket median must stay within ±8 pp. No individual cell may exceed |delta_vs_lru| > 80 pp. Today: 72 buckets (45 hub + 18 no-hub), 0 extreme cells (worst is roadNet-CA / sssp / 1MB / GRASP = +70.12 pp), 0 violations across all 4 rules.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -743,7 +751,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (235 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (236 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
