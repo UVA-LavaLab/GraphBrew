@@ -737,6 +737,14 @@ CATALOG = [
         "summary":   "ECG cache_sim component-proof matrix faithfulness audit (gate 238). (E1) every required ablation {LRU, SRRIP, GRASP_DBG, POPT, ECG_DBG_only, ECG_POPT_primary, PFX_degree_only, PFX_POPT_only, DBG_PFX, POPT_PFX} present with status=ok per benchmark. (E2) |miss_rate(ECG_DBG_only) - miss_rate(GRASP_DBG_only)| ≤ 5e-4 per benchmark. (E3) |miss_rate(ECG_POPT_primary) - miss_rate(POPT_only)| ≤ 5e-4 per benchmark. (E4) every PFX ablation has ecg_runtime_issued ≥ 1 per benchmark. (E5) PFX ablations have prefetch_useful > 0 on PR AND prefetch_useful ≤ prefetch_requests on every benchmark. (E6) ecg_pfx_encoded ≤ ecg_pfx_candidates and every PFX counter ≥ 0. (E7) baselines have memory_accesses > 0 and l3_misses > 0. (E8) distinct backend count ≥ 1. Today: 54 observations on email-Eu-core × {pr, bfs, sssp} × 18 ablations, DBG parity = 0.0 / 0.0 / 0.0 (exact-bitwise), POPT parity = 0.0 / 2.45e-4 / 0.0, PFX issued ∈ [20, 36642], PR useful ≥ 625 across PFX_*/DBG_PFX/POPT_PFX, 0 violations. Confidence floor before any cluster-scale ECG sweep.",
     },
     {
+        "id":        "lit_faith_ecg_gem5_parity",
+        "label":     "ECG substrate-parity audit (gem5)",
+        "generator": "scripts/experiments/ecg/lit_faith_ecg_gem5_parity.py",
+        "gate":      "scripts/test/test_lit_faith_ecg_gem5_parity.py",
+        "artifact":  "wiki/data/lit_faith_ecg_gem5_parity.json",
+        "summary":   "ECG substrate-parity audit on gem5 (gate 239) — POPT-arm only. (G1) every required policy {LRU, POPT, ECG_POPT_PRIMARY} present with status=ok per (benchmark, section, L3) cell. (G2) |miss_rate(ECG_POPT_PRIMARY) - miss_rate(POPT)| ≤ 2e-3 per cell (2× headroom over observed gem5 drift max 1.09e-3, looser than cache_sim's 5e-4 to absorb timing noise). (G3) backend=gem5 and simulator=gem5 on every row (no silent cache_sim ingestion). (G4) sim_ticks ≥ 1 and ipc > 0 on every row. (G5) LRU baseline has l3_accesses > 0 and l3_misses > 0 on every cell. (G6) l3_misses ≤ l3_accesses and l3_miss_rate ∈ [0, 1] everywhere. (G7) ≥ 2 distinct sections (cold-start + re-warmed) present. Today: 12 observations on email-Eu-core PR × L3∈{16MB, 32MB} × sections∈{1,2}, POPT-arm drift = 1.09e-3 (worst) / 3.21e-4 (best), 0 violations. Out-of-scope: DBG arm (needs ECG_DBG gem5 run), PFX activation (prefetcher=none everywhere), DROPLET comparison.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -767,7 +775,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (238 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (239 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

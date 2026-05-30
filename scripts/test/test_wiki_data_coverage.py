@@ -101,6 +101,12 @@ WIKI_UNTRACKED_EXEMPT: frozenset[str] = frozenset(
         # the reproduce_smoke chain (which exists to detect drift in
         # *generated* artifacts) does not own it.
         "ecg_substrate_parity_postfix.json",
+        # Source-of-truth postfix JSON for the ECG gem5 substrate-parity
+        # gate (gate 239). Hand-curated snapshot of the gem5 bracket-
+        # sweep `roi_matrix.csv`; INPUT to `lit-ecg-gem5-parity`, not
+        # a regenerated output. Same pattern as the cache_sim postfix
+        # one entry above.
+        "ecg_gem5_parity_postfix.json",
     }
 )
 

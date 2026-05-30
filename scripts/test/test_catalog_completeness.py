@@ -45,6 +45,11 @@ META_ALLOWLIST: set[str] = {
     # registration. Its hash is locked indirectly via the gate-238
     # pytest, which asserts the file's schema + per-row invariants.
     "wiki/data/ecg_substrate_parity_postfix.json",
+    # Gate 239 ECG-Gem5-Parity curated input: 12-obs snapshot from the
+    # email-Eu-core PR gem5 bracket sweep (roi_matrix.csv). Same pattern
+    # as gate 238: hand-curated INPUT to lit_faith_ecg_gem5_parity.py,
+    # locked via the gate-239 pytest schema/per-row invariants.
+    "wiki/data/ecg_gem5_parity_postfix.json",
 }
 
 
