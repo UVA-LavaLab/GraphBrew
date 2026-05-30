@@ -140,6 +140,8 @@ def _derive_confidence_green_gate_count() -> int:
         "scripts/test/test_paper_claims_registry_derivation_parity.py",
         "scripts/test/test_paper_claims_value_parity.py",
         "scripts/test/test_catalog_dashboard_coverage_milestone.py",
+        "scripts/test/test_reproduce_smoke.py",
+        "scripts/test/test_reproduce_smoke_coverage.py",
     }
     return sum(
         1 for s in d["suites"]

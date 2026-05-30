@@ -411,6 +411,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_wiki_registry.py", "WikiRegistry"),
     "Cache-policy vocab registry (gate 255) — AST-harvests POLICIES/ALL/BASELINE/GRAPH_AWARE tuples; 8 canonical + 9 ECG arms; rules P1-P9: rogue tokens, dup, config decomposition, paper_label, 4-tuple permutation lock, alias trap, ECG-arm parent+purpose":
         ("scripts/test/test_lit_faith_policy_registry.py", "PolicyRegistry"),
+    "ECG profile registry (gate 256) — locks manifest profiles ↔ stages ↔ helpers ↔ README; 30 profiles, 30 stages, 25 citations; R1-R7: stage tokens resolve, descriptions, no dead profiles, citation typos, name snake_case, stage well-formed, unique":
+        ("scripts/test/test_lit_faith_profile_registry.py", "ProfileRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

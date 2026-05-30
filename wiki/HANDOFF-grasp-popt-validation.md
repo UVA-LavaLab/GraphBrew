@@ -8,7 +8,31 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **255 gates, all GREEN, exit 0**.
+and currently reports **256 gates, all GREEN, exit 0**.
+
+**ECG final-paper-run profile registry (gate 256, refresh @256):**
+A vocabulary-lock companion to gate 252 (Slurm SBATCH schema) and
+gate 255 (cache-policy vocab). Reads
+`scripts/experiments/ecg/final_paper_manifest.json` and validates
+that every `stage.profiles[*]` token resolves to a key in
+`manifest.profiles`, that every `manifest.profiles` key has a
+non-empty description (the descriptor that `--list-profiles` emits),
+and that every key is referenced by at least one stage, pytest
+fixture, helper script, or README walkthrough — unless its
+description starts with `Placeholder` (the documented escape hatch
+for upcoming work). Also harvests every `--profile <token>`
+adjacency from `scripts/experiments/ecg/*.py`,
+`scripts/test/*.py`, and `scripts/experiments/README.md` to catch
+typos like `--profile fianl_replacement` in published walkthroughs.
+7 rules: R1 stage tokens resolve to manifest profiles; R2 every
+manifest profile has a non-empty description; R3 every profile is
+referenced (modulo Placeholder hint); R4 every external citation
+resolves; R5 profile names match `^[a-z][a-z0-9_]*$`; R6 stage
+names match `^[0-9]+[a-z0-9]*_[a-z][a-z0-9_]*$` (digit-prefix
+preserves natural-sort run-order); R7 each stage's profiles list is
+non-empty and duplicate-free. Today: 30 manifest profiles, 30
+stages, 25 external citations across 12 distinct tokens (3 manifest
+profiles intentionally flagged Placeholder); 0 violations.
 
 **Cache-policy vocabulary registry (gate 255, refresh @255):**
 A vocabulary-lock companion to gate 251 (L3 byte literals) and gate
@@ -443,8 +467,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 255. Next refresh due
-at gate 260.
+**Refresh status:** Refresh complete at gate 256. Next refresh due
+at gate 261.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

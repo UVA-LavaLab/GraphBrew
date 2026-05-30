@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 107,
+    "catalog_entries": 108,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 111
+    "wiki_json_files": 112
   },
   "violations": [],
   "wiki_json_files": [
@@ -105,6 +105,7 @@
     "wiki/data/lit_faith_paper_tables.json",
     "wiki/data/lit_faith_policy_registry.json",
     "wiki/data/lit_faith_polyord.json",
+    "wiki/data/lit_faith_profile_registry.json",
     "wiki/data/lit_faith_ratgrid.json",
     "wiki/data/lit_faith_regime_classifier.json",
     "wiki/data/lit_faith_regimesign.json",
