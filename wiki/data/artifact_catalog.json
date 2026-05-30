@@ -760,6 +760,17 @@
       "summary": "Coverage cube of literature-faithfulness claims by (family \u00d7 app \u00d7 L3 \u00d7 paper \u00d7 policy) plus cross-paper triangulation cells; locks per-axis breadth floors so a regen cannot silently drop a graph family or a cited paper."
     },
     {
+      "artifact": "wiki/data/lit_faith_margin.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_margin.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_margin.py",
+      "generator_exists": true,
+      "id": "lit_faith_margin",
+      "label": "Literature-faithfulness margin audit",
+      "summary": "Per-claim distance to the nearest disagree boundary (median ~5.5 pp, 47 fragile cells under 1 pp today). Caps the fragile-cell count and locks per-family / per-status median floors so corpus drift cannot silently erode confidence in lit-faith verdicts."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -801,13 +812,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (221 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (222 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 73
+    "n_entries": 74
   }
 }

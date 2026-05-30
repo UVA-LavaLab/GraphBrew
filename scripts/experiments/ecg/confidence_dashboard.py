@@ -343,6 +343,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_wiki_md_json_pair.py", "WMP-Pair"),
     "literature-faithfulness diversity coverage (family/app/L3/paper floors + cross-paper triangulation)":
         ("scripts/test/test_lit_faith_diversity.py", "LIT-Cov"),
+    "literature-faithfulness margin distribution (median/per-family floors + fragile ceiling + classifier parity)":
+        ("scripts/test/test_lit_faith_margin.py", "LIT-Mar"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
