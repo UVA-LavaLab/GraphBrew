@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **195 gates, all GREEN, exit 0**.
+and currently reports **200 gates, all GREEN, exit 0**.
 
 **Major gate families added since the 42-gate baseline** (each is one
 generator + 12-test pytest + Makefile target + dashboard entry +
@@ -438,7 +438,7 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   REGIME_ORDER.index(regime)); _extract_rules break statement enforces
   at most one rule per bin; KNOWN_POLICIES pinned to four (LRU, SRRIP,
   GRASP, POPT) to catch silent upstream typos.
-- **Cross-artifact / cross-source derivation parity gates 151–195.**
+- **Cross-artifact / cross-source derivation parity gates 151–200.**
   Gate 151 (CTW-Der, 19 tests) locks cross_tool_winners.json: joins
   lit-faith CSV + gem5_anchor.json + sniper_anchor.json; per-tool winner
   = argmin(miss_rate) with stable byte tie-break on policy name; cells
@@ -834,6 +834,61 @@ catalog entry + reproduce_smoke tracking — same 10-step wiring):
   rate floors evaluated with 1e-9 epsilon to absorb float rounding;
   abs-diff ceiling INCLUSIVE ≤ with epsilon; verdict_ok iff every
   check.ok; JSON with sort_keys=True + trailing newline.
+  Gate 196 (AMR-Der, 40 tests) locks anchor_monotonicity_replay.json:
+  walks every (graph,app,policy) anchor cell across both upstreams,
+  enumerates STRICT > 0 per-step bumps along expected_sizes, and
+  applies tier-aware tolerances; gem5 tier is strict-monotone
+  ({bump_rate_max_pct:0.0, hard_bumps_max:0, max_bump_pp_max:0.0});
+  sniper tier is bounded-noise ({40.0, 5, 2.0}); HARD_BUMP_THRESHOLD_PP
+  = 0.5 INCLUSIVE ≥; universal CATASTROPHIC_BUMP_PP = 3.0 kill-switch;
+  worst_bumps capped at 6 sorted by -delta_pp; checks
+  {bump_rate_ok, hard_bumps_ok, max_bump_pp_ok, no_catastrophic}
+  all INCLUSIVE ≤ with 1e-9 epsilon; per-tool verdict_ok iff all four,
+  overall verdict_ok iff both tools; median_bump_pp uses
+  statistics.median.
+  Gate 197 (GSR-Der, 30 tests) locks gem5_slope_replay.json against
+  gem5_anchor.json: ANCHOR_L3_LOG2_KB = {4kB:2.0,32kB:5.0,256kB:8.0,
+  2MB:11.0} (NON-uniform, do not change); EXPECTED_SIZES tuple in
+  axis order; POLICIES = (GRASP,LRU,SRRIP); HELP_FLOOR_PP_OCTAVE =
+  -1.0; cell skipped iff <4 sizes present; policy skipped within
+  a cell iff missing at any size (for/else trick — no partial slope
+  emission); miss_rate × 100 conversion (rate→pp); OLS slope rounded
+  4 dp; 4-clause verdict {cache_monotonic_every_cell (INCLUSIVE ≤
+  violation predicate), all_per_policy_medians_negative (STRICT < 0),
+  srrip_at_least_as_steep_as_grasp (INCLUSIVE ≤),
+  grasp_below_help_floor (STRICT <)}; JSON indent=2 + '\\n' WITHOUT
+  sort_keys (insertion order load-bearing).
+  Gate 198 (SSR-Der, 30 tests) mirrors GSR-Der for
+  sniper_slope_replay.json against sniper_anchor.json: same axis,
+  POLICIES tuple, HELP_FLOOR, OLS rule, 4-clause verdict; sniper
+  reshape exposes the larger cell coverage (cit-Patents + email-Eu-
+  core × {bfs,pr,sssp} = 6 (app,graph) pairs) the cross-tool
+  agreement gates depend on.
+  Gate 199 (LDR-Der, 27 tests) locks literature_deviations.json
+  against its two CSV upstreams: row selection filters
+  status=='known_deviation' (conservation invariant — exactly the
+  flagged cells, no drift if status flips); GRAPH_FAMILY 8-graph
+  mapping pinned; MECHANISM_ORDER 4-tuple
+  (popt_overhead_dominates / within_extended_tolerance /
+  policy_data_missing / unclassified) load-bearing for record sort
+  key; classification has a computed-policy branch
+  (POPT_GE_GRASP/POPT_NEAR_GRASP_IF_BIG_GAP route through GRASP/POPT
+  miss-rate index, predicate popt_vs_grasp_pp > tol STRICT >) and
+  a real-policy branch (within_extended_tolerance iff |delta_pct| ≤
+  2×tol INCLUSIVE); popt_vs_grasp_pp = (popt_mr − grasp_mr) × 100
+  rounded 3 dp; JSON sort_keys=True so summary breakdowns land
+  alphabetical on write (Counter.most_common's insertion order is
+  intentionally discarded).
+  Gate 200 (WKL-Der, 28 tests) locks wss_knee_location.json against
+  wss_relative_l3.json: REGIME_LADDER = (under_wss, near_wss, over_wss)
+  tuple; POLICIES = (GRASP,LRU,POPT,SRRIP); ORACLE_AWARE = {GRASP,POPT};
+  NON_ORACLE = {LRU,SRRIP} (disjoint, union = POLICIES);
+  KNEE_THRESHOLD_PP = 0.5; _find_knee_regime walks the ladder
+  left→right and returns the first regime with median_gap_pp ≤
+  threshold (INCLUSIVE ≤); sentinel rank = len(REGIME_LADDER) = 3
+  when no regime plateaus; per-policy carries (per_regime, knee_regime,
+  knee_rank, is_oracle_aware); verdict PASS iff
+  max(oracle_ranks) < min(non_ranks) STRICT < (ties FAIL).
 - **Bootstrap / statistical-significance gates**, **policy-rank
   Kendall stability**, **WSS-knee-location**, **family-classification
   sensitivity**, **cross-policy mean-margin asymmetry**, and others

@@ -299,6 +299,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_sniper_slope_replay_derivation_parity.py", "SSR-Der"),
     "literature_deviations_report derivation parity (mechanism-label classifier + cross-tab summary)":
         ("scripts/test/test_literature_deviations_report_derivation_parity.py", "LDR-Der"),
+    "wss_knee_location derivation parity (regime-ladder knee walk + strict ordering invariant)":
+        ("scripts/test/test_wss_knee_location_derivation_parity.py", "WKL-Der"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
