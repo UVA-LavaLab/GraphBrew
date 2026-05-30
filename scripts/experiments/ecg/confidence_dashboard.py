@@ -431,6 +431,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_filename_grammar.py", "FilenameGrammar"),
     "gem5/Sniper sideband filename+env-var grammar (gate 265) — 8 entries (4 gem5+4 sniper); S1-S7: filename grammar, role↔ext, env↔default_path bijection, gem5_harness/sniper cache_set+prefetcher emit-sites, roi_matrix parse-sites, no orphan literals":
         ("scripts/test/test_lit_faith_sideband_grammar.py", "SidebandGrammar"),
+    "Sniper overlay-installation tracker (gate 266) — locks setup_sniper.py overlay contract (.sniper_overlays.json); O1-O7: copied_files grammar, on-disk presence, policies↔cc+h, prefetchers↔cc+h, patches↔fn, canonical match, no orphans":
+        ("scripts/test/test_lit_faith_overlay_tracker.py", "OverlayTracker"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

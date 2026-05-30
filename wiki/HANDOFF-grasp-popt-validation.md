@@ -8,7 +8,44 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **265 gates, all GREEN, exit 0**.
+and currently reports **266 gates, all GREEN, exit 0**.
+
+**Sniper overlay-installation tracker (gate 266, refresh @266):**
+The thirteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 wiki/data
+filename grammar, 265 sideband grammar, 266 overlay tracker). Where
+gate 265 locks the *runtime* filename + env-var vocabulary, gate 266
+locks the *build-time* overlay installation contract: what files get
+copied where, which policies/prefetchers exist, and which patches get
+applied. Catches the silent-drift cases where a contributor adds a
+new cache-set source `cache_set_xyz.cc` under `overlays/` but forgets
+to add `'xyz'` to the `POLICIES` list in `setup_sniper.py` — the file
+gets copied into Sniper but the `patches/cache_set_factory` wiring
+doesn't know about it and the new policy is silent; adds a new
+prefetcher `xyz_prefetcher.cc` but the `prefetcher_factory_droplet`
+patch doesn't get extended; removes a `copied_files` entry without
+removing the on-disk `overlays/` file — subsequent runs leave the
+orphan unreferenced; renames an overlay file but the
+`.sniper_overlays.json` tracker still lists the old name — the
+overlay-installed check passes but the actual file isn't there. 7
+rules O1-O7: O1 every `copied_files` entry has valid grammar
+(`lower_snake_case` path + `.cc`/`.h`); O2 every entry exists on
+disk under `overlays/`; O3 every policy token has both
+`cache_set_<pol>.cc` + `.h` in copied_files; O4 every prefetcher
+token has both `<pf>_prefetcher.cc` + `.h` in copied_files; O5 every
+patches token has a `patch_<token>_overlay` function in
+`setup_sniper.py` OR is in `PATCH_NON_FUNCTION_ALLOW` (4 bundled
+patches); O6 the on-disk `.sniper_overlays.json` matches the
+canonical registry (sorted-set equality on copied_files + policies +
+prefetchers + patches); O7 `copied_files` is exhaustive — every
+regular file under `overlays/` with `.cc`/`.h` is listed (modulo
+`OVERLAY_README_ALLOW` for `README.md`). Today: 12 copied files (8
+cache + 4 prefetcher), 3 policies (grasp, popt, ecg), 2 prefetchers
+(droplet, ecg_pfx), 5 patches; 0 violations. Together with gate 265
+(runtime filename/env-var grammar) and gate 248 (schema content) this
+completes full coverage on the gem5/Sniper overlay surface:
+build-time installation + runtime filename + runtime schema.
 
 **gem5/Sniper sideband filename + env-var grammar (gate 265, refresh @265):**
 The twelfth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -815,8 +852,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 265. Next refresh due
-at gate 270. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 266. Next refresh due
+at gate 271. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.
