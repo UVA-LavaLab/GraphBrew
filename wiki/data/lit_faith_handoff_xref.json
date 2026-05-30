@@ -146,7 +146,8 @@
     259,
     260,
     261,
-    266
+    262,
+    267
   ],
   "labeled_dashboard_gates": [
     242,
@@ -168,9 +169,10 @@
     258,
     259,
     260,
-    261
+    261,
+    262
   ],
-  "max_labeled_dashboard_gate": 261,
+  "max_labeled_dashboard_gate": 262,
   "refresh_cadence": 5,
   "rules": {
     "H1": "every gate-ref token parses to a positive integer (or positive range)",
@@ -183,9 +185,9 @@
   },
   "status": "active",
   "totals": {
-    "handoff_gate_refs": 147,
-    "labeled_dashboard_gates": 20,
-    "pytest_suites": 261,
+    "handoff_gate_refs": 148,
+    "labeled_dashboard_gates": 21,
+    "pytest_suites": 262,
     "violations": 0
   },
   "violations": []

@@ -423,6 +423,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_cli_registry.py", "CLIRegistry"),
     "ECG arm catalog (gate 261) — locks 9 paper policies + 9 registry arms + 16 ablations + 2 selectors across paper_pipeline/proof_matrix/policy_registry; A1-A7: paper→reg map, label/desc/color, _CHARGED hatch, ablation+selector refs, no dups":
         ("scripts/test/test_lit_faith_arm_catalog.py", "ArmCatalog"),
+    "ECG cross-tool aggregator schema (gate 262) — locks on-disk JSON shape of 6 cross_tool* aggregators; S1-S7: exists, valid JSON, top-keys present, evidence non-empty, row keys present, tools ⊆ canonical, verdict type":
+        ("scripts/test/test_lit_faith_cross_tool_schema.py", "CrossToolSchema"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

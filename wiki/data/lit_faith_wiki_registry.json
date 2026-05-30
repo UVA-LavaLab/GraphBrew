@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 113,
+    "catalog_entries": 114,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 117
+    "wiki_json_files": 118
   },
   "violations": [],
   "wiki_json_files": [
@@ -91,6 +91,7 @@
     "wiki/data/lit_faith_citexapp.json",
     "wiki/data/lit_faith_cli_registry.json",
     "wiki/data/lit_faith_color_distinguishability.json",
+    "wiki/data/lit_faith_cross_tool_schema.json",
     "wiki/data/lit_faith_devexp.json",
     "wiki/data/lit_faith_deviations.json",
     "wiki/data/lit_faith_diversity.json",

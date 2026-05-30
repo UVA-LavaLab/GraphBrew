@@ -8,7 +8,40 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **261 gates, all GREEN, exit 0**.
+and currently reports **262 gates, all GREEN, exit 0**.
+
+**ECG cross-tool aggregator schema (gate 262, refresh @262):**
+The ninth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool aggregator schema). Locks the on-disk
+JSON shape of every cross-tool aggregator artifact —
+`cross_tool_lru_regime`, `cross_tool_saturation`,
+`cross_tool_slope_ordering`, `cross_tool_slope_universality`,
+`cross_tool_winners`, and `anchor_cross_tool_agreement` — i.e.
+every report that joins cache_sim ↔ gem5 ↔ sniper at the per-cell
+or per-policy level. Catches the silent-drift cases where a
+top-level key is renamed in one aggregator (downstream rollups
+`KeyError` at the next confidence-fast, but only after a 6-minute
+pytest start-up), the per-cell `cells` list is deleted and
+replaced with a scalar summary (every cross-artifact parity
+test passes trivially with 0 rows, hiding the regression), a new
+aggregator picks a third name for the same concept (`meta` vs
+`summary` vs `schema` — this gate enforces both shape AND
+naming), or a canonical tool name is shadowed by `sniper-v8`
+(dashboard parser silently ignores half the data). 7 rules
+S1-S7: S1 artifact on disk; S2 valid JSON with top-level object;
+S3 declared top-level keys present (extra keys allowed —
+schemas can grow but cannot silently shrink); S4 declared
+evidence-bearing path (`cells` / `per_tool` / `checks` /
+`shared_cells` / `tool_results`) resolves to a non-empty
+list-or-dict; S5 every declared per-row required key
+(`app` / `graph` / `policy` / ...) is present in every evidence
+row; S6 every declared tools-path value is a subset of the
+gate 257 canonical-tool vocabulary (7 entries today including
+both punctuation variants of cache_sim); S7 every declared
+verdict-path value has the declared Python type
+(`bool` / `str` / `int` / `list` / `dict`). Today: 6
+aggregators, 25 evidence rows total; 0 violations.
 
 **ECG arm catalog (gate 261, refresh @261):**
 The eighth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -640,8 +673,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 261. Next refresh due
-at gate 266.
+**Refresh status:** Refresh complete at gate 262. Next refresh due
+at gate 267.
 
 **Literature-faithfulness deepening (gates 226-230, refresh @230):**
 After the lit-faith bijection lock-down (gates 221-225), the next

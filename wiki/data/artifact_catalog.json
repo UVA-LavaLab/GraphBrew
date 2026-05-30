@@ -1200,6 +1200,17 @@
       "summary": "ECG arm catalog registry audit (gate 261) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are the live paper_pipeline.POLICY_ORDER + POLICY_LABELS + POLICY_DESCRIPTIONS + POLICY_COLORS + POLICY_HATCHES tables, proof_matrix.ABLATIONS + ADAPTIVE_SELECTORS dataclass lists, and lit_faith_policy_registry.CANONICAL_ECG_ARMS). Eighth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog): gate 261 locks the cross-file consistency of every ECG arm + paper-shipping policy across the THREE namespaces they appear in \u2014 the registry side (ECG: prefixed, 9 entries), the paper side (underscore-namespace POLICY_ORDER + per-policy label/description/color/hatch tables, 9 entries), and the measurement side (proof_matrix mixed-case ABLATIONS pointing back at registry keys, 16 entries) \u2014 so a contributor cannot silently add a new `ECG_DBG_PRIMARY_CHARGED` ablation without bumping POLICY_DESCRIPTIONS (figure with blank legend caption), rename `ECG:DBG_PRIMARY` \u2192 `ECG:DBG_HEAD` without updating `ECG_DBG_POPT.policy` in proof_matrix (silently-missing bar in grid plots), or duplicate an ABLATIONS label (silent row-merging in the rollup CSV). 7 rules A1-A7: (A1) every paper_pipeline.POLICY_ORDER non-baseline entry has a CANONICAL_ECG_ARMS entry after namespace translation (ECG_X \u2192 ECG:X; POPT_CHARGED is itself); (A2) every POLICY_ORDER entry has a POLICY_LABELS + POLICY_DESCRIPTIONS + POLICY_COLORS entry; (A3) every paper policy with suffix `_CHARGED` has a POLICY_HATCHES entry (required for grayscale legibility); (A4) every proof_matrix.ABLATIONS.policy is a canonical baseline \u2208 {LRU,SRRIP,GRASP,POPT} or a CANONICAL_ECG_ARMS key; (A5) every proof_matrix.ADAPTIVE_SELECTORS.candidates entry references a real ablation label; (A6) proof_matrix.ABLATIONS has no duplicate labels; (A7) every CANONICAL_ECG_ARMS entry with parent='ECG' has at least one ABLATIONS row, OR (for _CHARGED arms) its uncharged parent has one (since _CHARGED arms are post-hoc projections of their uncharged parent, see paper_pipeline.py PAIRS). Today: 9 paper policies (2 charged: POPT_CHARGED + ECG_DBG_PRIMARY_CHARGED), 9 registry arms (POPT_CHARGED + 8 ECG:* arms), 16 ablations (4 cache_alone + 7 ecg_replacement + 2 pfx_only + 3 combined), 2 adaptive selectors (ECG_ADAPTIVE_ORACLE, ECG_ADAPTIVE_NO_FULL_POPT); 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_cross_tool_schema.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_cross_tool_schema.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_cross_tool_schema.py",
+      "generator_exists": true,
+      "id": "lit_faith_cross_tool_schema",
+      "label": "ECG cross-tool aggregator schema",
+      "summary": "ECG cross-tool aggregator schema registry audit (gate 262) \u2014 ALWAYS ACTIVE (no deferred mode; sources-of-truth are the in-generator CROSS_TOOL_AGGREGATORS table \u2014 6 aggregator schema declarations today \u2014 and the live on-disk JSON shape of each named aggregator artifact under wiki/data/). Ninth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool aggregator schema): gate 262 locks the on-disk JSON shape of every cross-tool aggregator artifact (cross_tool_lru_regime, cross_tool_saturation, cross_tool_slope_ordering, cross_tool_slope_universality, cross_tool_winners, anchor_cross_tool_agreement) \u2014 every report that joins cache_sim \u2194 gem5 \u2194 sniper at the per-cell or per-policy level \u2014 so a contributor cannot silently rename a top-level key in one aggregator (downstream rollup scripts KeyError at the next confidence-fast run, but only after a 6-minute pytest start-up), delete the per-cell `cells` list and replace it with a scalar summary (every cross-artifact parity test passes trivially with 0 rows), introduce a new aggregator that picks a third name for the same concept (`meta` vs `summary` vs `schema` \u2014 this gate enforces both shape AND naming), or shadow a canonical tool name (`sniper-v8` instead of `sniper`) in the tools field (dashboard parser silently ignores half the data). 7 rules S1-S7: (S1) every CROSS_TOOL_AGGREGATORS entry's artifact exists on disk; (S2) every artifact is valid JSON with a top-level object; (S3) every declared top-level key is present in the on-disk JSON (extra keys allowed \u2014 schemas grow but cannot silently shrink); (S4) every declared evidence-bearing path (cells/per_tool/checks/shared_cells/tool_results) resolves to a non-empty list or dict; (S5) every declared per-row required key (app/graph/policy/...) is present in every evidence row; (S6) every aggregator's declared tools-path value is a subset of the canonical tool vocabulary (gate 257 CANONICAL_BACKENDS \u2014 7 entries including both punctuation variants of cache_sim); (S7) every declared verdict-path value has the declared Python type (bool/str/int/list/dict). Today: 6 aggregators, 25 evidence rows total; 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1241,13 +1252,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (261 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (262 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 113
+    "n_entries": 114
   }
 }
