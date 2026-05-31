@@ -447,6 +447,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_setup_fn_signature_registry.py", "SetupFnSig"),
     "Runner CLI registry (gate 273) — locks argparse surface of ecg/runner.py (6 flags) + vldb/runner.py (12 flags); R1-R6: module importable, main() present, flag presence, action match, nargs match, exhaustive":
         ("scripts/test/test_lit_faith_runner_cli_registry.py", "RunnerCLI"),
+    "Orchestrator CLI registry (gate 274) — locks parse_args() of paper_pipeline.py (14) + final_paper_run.py (29); O1-O7: ast-parse, fn present, flag presence, action match (BooleanOptionalAction-aware), nargs match, exhaustive, required-shape":
+        ("scripts/test/test_lit_faith_orchestrator_cli_registry.py", "OrchCLI"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

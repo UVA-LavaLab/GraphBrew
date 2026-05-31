@@ -8,7 +8,42 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **273 gates, all GREEN, exit 0**.
+and currently reports **274 gates, all GREEN, exit 0**.
+
+**Orchestrator CLI registry (gate 274, refresh @274):**
+The twenty-first in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename
+grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5
+overlay tracker, 268 setup-script invariants, 269 ECG config
+deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-
+file hash registry, 272 setup-script fn signature registry, 273
+runner CLI registry, 274 orchestrator CLI registry). EXTENDS gate 273
+by locking the orchestrators that sit *above* the per-experiment
+runners: `scripts/experiments/ecg/paper_pipeline.py` (14 flags via
+`parse_args`) — drives a full paper run end-to-end (build → profile →
+aggregate → figures → copy) — and `scripts/experiments/ecg/final_paper_run.py`
+(29 flags via `parse_args`) — drives a single `final_*` profile with
+multi-stage job expansion + execution. Both are invoked by every
+SBATCH template and every documented reproduction recipe; their
+`parse_args()` surface IS the publish-reproduction contract. Adds two
+capabilities gate 273 lacks: (a) recognises
+`argparse.BooleanOptionalAction` (used by `--resume` + `--stop-on-error`
+in `final_paper_run.py` so `--resume / --no-resume` work as a pair) —
+catches the silent-drift case where someone replaces the
+`BooleanOptionalAction` with a plain `store_true` and `--no-resume`
+silently no-ops; (b) locks the `required=` shape of each flag so
+someone adding `required=True` to `--profile` silently breaks every
+existing automation that omits `--profile`. Also locks the fn_name
+(`parse_args` vs `main`) so someone moving argparse into `main()`
+doesn't silently drop the locked surface. 7 rules O1-O7: O1 module
+ast-parses; O2 locked fn_name top-level fn present; O3 flag presence;
+O4 action match (BooleanOptionalAction-aware); O5 nargs match; O6
+registry exhaustive; O7 required-shape match. Today: 43 locked flags
+total (14 paper_pipeline + 29 final_paper_run) across 2 orchestrators;
+0 violations. Together with gate 273 this completes the FULL
+user-facing CLI lock from per-experiment runner all the way up to
+top-level orchestrator.
 
 **Runner CLI registry (gate 273, refresh @273):**
 The twentieth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -1085,8 +1120,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 273. Next refresh due
-at gate 278. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 274. Next refresh due
+at gate 279. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

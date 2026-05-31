@@ -1,0 +1,216 @@
+{
+  "counts": {
+    "final_paper_run_flags": 29,
+    "orchestrators": 2,
+    "paper_pipeline_flags": 14,
+    "total_flags": 43
+  },
+  "registry": {
+    "scripts/experiments/ecg/final_paper_run.py": {
+      "flags": [
+        {
+          "action": "store",
+          "flag": "--manifest"
+        },
+        {
+          "action": "store",
+          "flag": "--profile",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--run-dir"
+        },
+        {
+          "action": "store",
+          "flag": "--graph-dir"
+        },
+        {
+          "action": "store",
+          "flag": "--only",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--skip",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--graph",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--benchmark",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--policy",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--job",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--from-job"
+        },
+        {
+          "action": "store",
+          "flag": "--limit"
+        },
+        {
+          "action": "store_true",
+          "flag": "--list"
+        },
+        {
+          "action": "store_true",
+          "flag": "--status"
+        },
+        {
+          "action": "store_true",
+          "flag": "--check-graphs"
+        },
+        {
+          "action": "store_true",
+          "flag": "--dry-run"
+        },
+        {
+          "action": "BooleanOptionalAction",
+          "flag": "--resume"
+        },
+        {
+          "action": "store_true",
+          "flag": "--force"
+        },
+        {
+          "action": "store_true",
+          "flag": "--skip-failed"
+        },
+        {
+          "action": "BooleanOptionalAction",
+          "flag": "--stop-on-error"
+        },
+        {
+          "action": "store_true",
+          "flag": "--no-build"
+        },
+        {
+          "action": "store_true",
+          "flag": "--allow-missing-graphs"
+        },
+        {
+          "action": "store_true",
+          "flag": "--skip-validation-gate"
+        },
+        {
+          "action": "store_true",
+          "flag": "--require-validation-gate"
+        },
+        {
+          "action": "store",
+          "flag": "--literature-gate-root"
+        },
+        {
+          "action": "store",
+          "flag": "--literature-gate-subdir"
+        },
+        {
+          "action": "store_true",
+          "flag": "--require-literature-gate"
+        },
+        {
+          "action": "store_true",
+          "flag": "--skip-literature-gate"
+        },
+        {
+          "action": "store",
+          "flag": "--lock-path"
+        }
+      ],
+      "fn_name": "parse_args"
+    },
+    "scripts/experiments/ecg/paper_pipeline.py": {
+      "flags": [
+        {
+          "action": "store",
+          "flag": "--profiles",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--run-root"
+        },
+        {
+          "action": "store",
+          "flag": "--input-run-dirs",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--input-run-glob",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--input-csv",
+          "nargs": "+"
+        },
+        {
+          "action": "store",
+          "flag": "--input-csv-glob",
+          "nargs": "+"
+        },
+        {
+          "action": "store_true",
+          "flag": "--skip-run"
+        },
+        {
+          "action": "store_true",
+          "flag": "--dry-run"
+        },
+        {
+          "action": "store_true",
+          "flag": "--no-build"
+        },
+        {
+          "action": "store_true",
+          "flag": "--allow-missing-graphs"
+        },
+        {
+          "action": "store_true",
+          "flag": "--force"
+        },
+        {
+          "action": "store_false",
+          "flag": "--no-stop-on-error"
+        },
+        {
+          "action": "store_true",
+          "flag": "--copy-to-paper"
+        },
+        {
+          "action": "store_true",
+          "flag": "--skip-literature-gate"
+        }
+      ],
+      "fn_name": "parse_args"
+    }
+  },
+  "rules": {
+    "O1": "orchestrator module ast-parses cleanly",
+    "O2": "locked fn_name top-level fn present",
+    "O3": "every registered flag exists in live add_argument calls",
+    "O4": "every registered flag action matches live",
+    "O5": "every registered flag nargs matches live",
+    "O6": "registry exhaustive \u2014 no surprise live flag",
+    "O7": "every registered flag required-shape matches live"
+  },
+  "schema": "lit-faith-orchestrator-cli-registry/1",
+  "status": "active",
+  "violations": []
+}

@@ -1332,6 +1332,17 @@
       "summary": "Runner CLI registry audit (gate 273) \u2014 ALWAYS ACTIVE (source-of-truth is the live argparse surface of scripts/experiments/ecg/runner.py + scripts/experiments/vldb/runner.py). Twentieth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-file hash registry, 272 setup-script fn signature registry, 273 runner CLI registry): both runners are user-facing \u2014 invoked by paper_pipeline.py, every SBATCH template, and every documented reproduction recipe. Their --exp, --graphs, --graph-dir, --preview, --dry-run surface IS the published paper-reproduction contract. Catches the silent-drift cases: someone renames --graph-dir to --graphs-dir in vldb runner and every SBATCH template + docs example silently invokes help-text fallback; someone removes --preview from ecg runner and CI / docs reproduction smokes start failing in opaque ways; someone changes --exp from nargs=\"+\" to a single value \u2014 every example using --exp A1 A2 A3 silently swallows only the last value; someone swaps the action of --all from store_true to store and every invocation gets a missing-value error; someone adds a new flag without registering it (--turbo) so reproduction recipes diverge from the documented CLI. 6 rules R1-R6: (R1) every registered runner module ast-parses cleanly; (R2) every runner has a main() top-level fn; (R3) every registered flag exists in live add_argument calls (option-string match); (R4) every registered flag's action matches live (store \u2260 store_true); (R5) every registered flag's nargs matches live (\"+\" vs \"*\" vs single); (R6) registry is exhaustive \u2014 no live flag missing from registry (catches surprise new flags). Today: 18 locked flags total (6 ECG + 12 VLDB) across 2 runners; 0 violations."
     },
     {
+      "artifact": "wiki/data/lit_faith_orchestrator_cli_registry.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_orchestrator_cli_registry.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_orchestrator_cli_registry.py",
+      "generator_exists": true,
+      "id": "lit_faith_orchestrator_cli_registry",
+      "label": "Orchestrator CLI registry",
+      "summary": "Orchestrator CLI registry audit (gate 274) \u2014 ALWAYS ACTIVE (source-of-truth is the live argparse surface of scripts/experiments/ecg/paper_pipeline.py + scripts/experiments/ecg/final_paper_run.py). Twenty-first in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-file hash registry, 272 setup-script fn signature registry, 273 runner CLI registry, 274 orchestrator CLI registry): gate 274 EXTENDS gate 273 by locking the orchestrators that sit ABOVE the per-experiment runners. paper_pipeline.py drives a full paper run end-to-end (build \u2192 profile \u2192 aggregate \u2192 figures \u2192 copy); final_paper_run.py drives a single final_* profile (multi-stage job expansion + execution). Both are invoked by every SBATCH template and every documented reproduction recipe. Their parse_args() surface IS the publish-reproduction contract. Adds two capabilities gate 273 lacks: (a) recognises argparse.BooleanOptionalAction (used by --resume + --stop-on-error in final_paper_run.py so '--resume / --no-resume' work as a pair) \u2014 catches the silent-drift case where someone replaces the BooleanOptionalAction with a plain store_true and '--no-resume' silently no-ops; (b) locks the required= shape of each flag so someone adding required=True to --profile silently breaks every existing automation that omits --profile. Also locks the fn_name (parse_args vs main) so someone moving argparse into main() doesn't silently drop the locked surface. 7 rules O1-O7: (O1) module ast-parses; (O2) locked fn_name top-level fn present; (O3) flag presence; (O4) action match (BooleanOptionalAction-aware); (O5) nargs match; (O6) registry exhaustive; (O7) required-shape match. Today: 43 locked flags total (14 paper_pipeline + 29 final_paper_run) across 2 orchestrators; 0 violations. Together with gate 273 this completes the FULL user-facing CLI lock from per-experiment runner all the way up to top-level orchestrator."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1373,13 +1384,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (273 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (274 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 125
+    "n_entries": 126
   }
 }
