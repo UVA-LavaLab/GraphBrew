@@ -443,6 +443,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_gem5_overlay_hash_registry.py", "G5OverlayHash"),
     "Sniper overlay-file hash registry (gate 271) — locks SHA-256 byte content of all 12 overlay sources under bench/include/sniper_sim/overlays/; N1-N6: hash parity, size bounds, markers, exhaustive, ext whitelist, class decls":
         ("scripts/test/test_lit_faith_sniper_overlay_hash_registry.py", "SnpOverlayHash"),
+    "Setup-script fn signature registry (gate 272) — locks positional arg names + defaults count of all 41 top-level public fns in setup_gem5.py + setup_sniper.py; F1-F7: presence, args, defaults, exhaustive, no varargs, no async, returns-annot":
+        ("scripts/test/test_lit_faith_setup_fn_signature_registry.py", "SetupFnSig"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

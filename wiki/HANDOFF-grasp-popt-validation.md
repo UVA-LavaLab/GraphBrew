@@ -8,7 +8,41 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **271 gates, all GREEN, exit 0**.
+and currently reports **272 gates, all GREEN, exit 0**.
+
+**Setup-script fn signature registry (gate 272, refresh @272):**
+The nineteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename
+grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5
+overlay tracker, 268 setup-script invariants, 269 ECG config
+deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-
+file hash registry, 272 setup-script fn signature registry). DEEPENS
+gate 268 — where 268 locks only the NAMES of canonical fns in
+`scripts/setup_gem5.py` and `scripts/setup_sniper.py`, gate 272 locks
+each fn's SIGNATURE shape: positional arg names + default-value
+count. Catches the silent-drift cases gate 268 misses entirely:
+someone adds a 4th positional arg `env=None` to `run_cmd()` in
+`setup_gem5.py` while keeping the name unchanged — every overlay
+installation call site that passes positional args silently picks up
+wrong behavior; someone swaps two args of `replace_once()` in
+`setup_sniper.py` (`old` ↔ `new`) and patches silently no-op;
+someone removes the `dry_run` default from `patch_grasp_overlay()`
+and every CI smoke test that relied on the default starts crashing
+with `TypeError`; someone renames `args` → `cli_args` in
+`apply_overlays()` and every downstream caller using keyword args
+silently breaks. 7 rules F1-F7: F1 every registered fn exists in
+live AST; F2 positional arg names match exactly (order + spelling);
+F3 default-value count matches exactly; F4 registry exhaustive over
+top-level public defs (no unregistered public fn slips in); F5 no
+`*args` / `**kwargs` in a locked fn (forces explicit signature
+evolution); F6 no async def variant of a locked fn (locks call-site
+behavior); F7 return-annotation presence is locked when declared.
+Today: 41 locked fns (14 gem5 + 27 sniper) covering every public
+top-level function in both setup scripts; 0 violations. Together
+with gates 266+267+268 this completes the FULL setup-script + overlay
+installation contract lock at NAME + SIGNATURE + INSTALLATION + BYTE-
+CONTENT layers.
 
 **Sniper overlay-file hash registry (gate 271, refresh @271):**
 The eighteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -1015,8 +1049,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 271. Next refresh due
-at gate 276. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 272. Next refresh due
+at gate 277. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

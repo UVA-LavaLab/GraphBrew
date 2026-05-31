@@ -1310,6 +1310,17 @@
       "summary": "Sniper overlay-file byte-content (SHA-256) registry audit (gate 271) \u2014 ALWAYS ACTIVE (sources-of-truth are the live overlay source files under bench/include/sniper_sim/overlays/). Eighteenth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-file hash registry): gate 271 is the symmetric counterpart to gate 270 \u2014 locks the actual BYTE CONTENT of every Sniper-side overlay source the paper depends on (cache_set_grasp.{cc,h}, cache_set_popt.{cc,h}, cache_set_ecg.{cc,h}, graph_cache_context_sniper.{cc,h}, droplet_prefetcher.{cc,h}, ecg_pfx_prefetcher.{cc,h}). Catches the silent-edit cases that the installation-contract gates 266+268 miss: someone fixes a bug in cache_set_grasp.cc between paper runs and forgets to declare it \u2014 every subsequent Sniper measurement uses a policy that doesn't match the paper text; a debug printf slips into ecg_pfx_prefetcher.cc and quietly affects timing in the Sniper build; a reformatter removes a class declaration in cache_set_popt.h. 6 rules N1-N6: (N1) every file in SNIPER_OVERLAY_HASH_REGISTRY hashes to its registered SHA-256 \u2014 any byte change forces explicit registry update; (N2) every registered file's byte length is within sane bounds [50, 500_000]; (N3) required content markers per file are present (CacheSetGRASP/POPT/ECG class tokens, GraphCacheContext, graphbrew namespace, DropletPrefetcher, EcgPfxPrefetcher); (N4) registry is exhaustive \u2014 every regular tracked file on disk is in registry; (N5) only tracked extensions appear (whitelist: .cc/.h; .md docs ignored); (N6) every prefetcher/cache-set header declares its expected class (regex ^class <Token>\\b). Today: 12 registered files (6 cache + 4 prefetcher + 2 graph-cache-context, with 3 README.md docs ignored on disk), 12 marker files, 5 class-declaration headers; 0 violations. Together with gates 266+268 this completes the FULL Sniper overlay surface lock: installation contract (266) + script orchestrator (268) + payload byte content (271). Paired with gate 270, both simulator backends are now byte-locked end-to-end."
     },
     {
+      "artifact": "wiki/data/lit_faith_setup_fn_signature_registry.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_setup_fn_signature_registry.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_setup_fn_signature_registry.py",
+      "generator_exists": true,
+      "id": "lit_faith_setup_fn_signature_registry",
+      "label": "Setup-script fn signature registry",
+      "summary": "Setup-script function signature registry audit (gate 272) \u2014 ALWAYS ACTIVE (source-of-truth is the live AST of scripts/setup_gem5.py + scripts/setup_sniper.py). Nineteenth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-file hash registry, 272 setup-script fn signature registry): gate 272 DEEPENS gate 268 \u2014 where 268 only locks the NAMES of canonical fns (14 gem5 + 27 sniper), gate 272 locks each fn's SIGNATURE shape: positional arg names + default-value count. Catches the silent-drift cases gate 268 misses entirely: someone adds a 4th positional arg env=None to run_cmd() in setup_gem5.py while keeping the name unchanged \u2014 every overlay-installation call site that passes positional args silently picks up wrong behavior; someone swaps two args of replace_once() in setup_sniper.py (old <-> new) and the function still imports cleanly but every overlay patch silently no-ops; someone removes the dry_run default from patch_grasp_overlay() and every CI smoke test that relied on the default starts crashing with TypeError; someone renames args -> cli_args in apply_overlays() and every downstream caller using keyword args silently breaks. 7 rules F1-F7: (F1) every registered fn exists in live AST; (F2) positional arg names match exactly (order + spelling); (F3) default-value count matches exactly; (F4) registry exhaustive over top-level public defs (no unregistered public fn slips in); (F5) no *args / **kwargs slipped into a locked fn (forces explicit signature evolution); (F6) no async def variant of a locked fn (locks call-site behavior); (F7) return-annotation presence is locked when declared. Today: 41 locked fns (14 gem5 + 27 sniper) covering every public top-level function in both setup scripts; 0 violations. Together with gates 266+267+268 this completes the FULL setup-script + overlay-installation contract lock at NAME + SIGNATURE + INSTALLATION + BYTE-CONTENT layers."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1351,13 +1362,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (271 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (272 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 123
+    "n_entries": 124
   }
 }
