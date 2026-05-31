@@ -8,7 +8,41 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **268 gates, all GREEN, exit 0**.
+and currently reports **269 gates, all GREEN, exit 0**.
+
+**ECG config deep-lock (gate 269, refresh @269):**
+The sixteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename
+grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5
+overlay tracker, 268 setup-script invariants, 269 ECG config
+deep-lock). Sits beside gate 263 (cross-tool config matrix) but goes
+deeper: where 263 locks the (graph × backend × cache-size × app ×
+policy) coverage matrix shape, gate 269 locks the CONTENTS of
+`scripts/experiments/ecg/config.py` that `runner.py`,
+`paper_pipeline.py`, and `reproduce_smoke.py` all import at runtime.
+Catches: a contributor lowers `DEFAULT_CACHE['CACHE_L3_SIZE']` from
+8 MiB to 4 MiB while debugging and forgets to revert — every
+subsequent confidence run silently uses the wrong baseline; a new
+`CACHE_SIZES_SWEEP` entry breaks the power-of-2 ladder; a benchmark
+crosses the ITERATIVE/TRAVERSAL boundary, scrambling regime
+classifiers; an undeclared `ECG_MODES` value crashes runners
+mid-simulation; an `EVAL_GRAPHS` rename or missing schema key breaks
+the corpus diversity gate; a typo'd `ACCURACY_PAIRS` relation label
+breaks paper-claims-registry cross-reference. 8 rules C1-C8: C1
+DEFAULT_CACHE has all 7 anchors with exact pinned values
+(L1=32K/L2=256K/L3=8M, ways 8/4/16, line=64); C2 CACHE_SIZES_SWEEP
+is exactly 12 ascending power-of-2 entries 32 KiB..64 MiB; C3
+BENCHMARKS = ITERATIVE ∪ TRAVERSAL with no overlap; C4 ALL_POLICIES
+= BASELINE ∪ GRAPH_AWARE with no overlap; C5 ECG_MODES equals the
+4-set {DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED}; C6 every
+EVAL_GRAPHS entry has all 5 required keys with a canonical type; C7
+every REORDER_VARIANTS flag matches `-o N` and the recognized
+vocabulary; C8 every ACCURACY_PAIRS relation label is snake_case
+and in the canonical relation set. Today: 7 cache anchors, 12 sweep
+points, 7 benchmarks, 8 policies, 4 ECG modes, 6 graphs; 0
+violations. Together with gate 263 (shape) this completes the
+LIT-CONFIG lock at both schema and value layers.
 
 **Setup-script invariant registry (gate 268, refresh @268):**
 The fifteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -912,8 +946,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 268. Next refresh due
-at gate 273. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 269. Next refresh due
+at gate 274. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

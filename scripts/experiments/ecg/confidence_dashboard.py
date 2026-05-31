@@ -437,6 +437,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_gem5_overlay_tracker.py", "G5OverlayTracker"),
     "Setup-script invariant registry (gate 268) — locks setup_gem5.py+setup_sniper.py against drift in repo URLs, dir-const skeleton, top-level fn inventory (14 gem5+27 sniper); S1-S7: URL, dir-const, gem5 fn, sniper fn, main, apply_overlays, exhaustive":
         ("scripts/test/test_lit_faith_setup_script_registry.py", "SetupScriptRegistry"),
+    "ECG config deep-lock (gate 269) — locks ecg/config.py: 7 DEFAULT_CACHE anchors, 12-pt CACHE_SIZES_SWEEP, bench partition, policy partition, 4 ECG_MODES, 6-graph EVAL_GRAPHS, REORDER vocab, ACCURACY_PAIRS rels; C1-C8":
+        ("scripts/test/test_lit_faith_config_deep_lock.py", "ConfigDeepLock"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
