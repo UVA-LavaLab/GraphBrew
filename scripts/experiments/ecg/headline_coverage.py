@@ -141,27 +141,46 @@ class CellKey:
 # Presence loaders
 # ---------------------------------------------------------------------------
 
-def load_cache_sim(csv_path: Path) -> set[CellKey]:
-    """Load cache_sim lit-faith rows. The lit-faith CSV is the no_pfx
-    baseline sweep — DROPLET rows live in a separate sweep root."""
+def load_cache_sim(csv_path: Path,
+                    ecg_extension_csv: Path | None = None) -> set[CellKey]:
+    """Load cache_sim cells. The canonical lit-faith CSV is restricted
+    to the 4 baseline policies (LRU/SRRIP/GRASP/POPT) so cross-tool
+    parity gates stay stable. ECG variants live in a separate
+    ``literature_faithfulness_ecg.csv`` companion and are merged here
+    when the path is supplied."""
     out: set[CellKey] = set()
-    if not csv_path.exists():
-        return out
-    with csv_path.open(newline="") as fh:
-        for r in csv.DictReader(fh):
-            graph = (r.get("graph") or "").strip()
-            app = (r.get("app") or "").strip()
-            l3 = (r.get("l3_size") or "").strip()
-            pol = (r.get("policy") or "").strip()
-            miss = (r.get("miss_rate") or "").strip()
-            if not (graph and app and l3 and pol and miss):
-                continue
-            out.add(CellKey("cache_sim", graph, app, l3, pol, "no_pfx"))
+    if csv_path.exists():
+        with csv_path.open(newline="") as fh:
+            for r in csv.DictReader(fh):
+                graph = (r.get("graph") or "").strip()
+                app = (r.get("app") or "").strip()
+                l3 = (r.get("l3_size") or "").strip()
+                pol = (r.get("policy") or "").strip()
+                miss = (r.get("miss_rate") or "").strip()
+                if not (graph and app and l3 and pol and miss):
+                    continue
+                out.add(CellKey("cache_sim", graph, app, l3, pol, "no_pfx"))
+    if ecg_extension_csv is not None and ecg_extension_csv.exists():
+        with ecg_extension_csv.open(newline="") as fh:
+            for r in csv.DictReader(fh):
+                graph = (r.get("graph") or "").strip()
+                app = (r.get("app") or "").strip()
+                l3 = (r.get("l3_size") or "").strip()
+                pol = (r.get("policy") or "").strip()
+                miss = (r.get("miss_rate") or "").strip()
+                if not (graph and app and l3 and pol and miss):
+                    continue
+                out.add(CellKey("cache_sim", graph, app, l3, pol, "no_pfx"))
     return out
 
 
 def load_anchor_json(json_path: Path, sim_name: str) -> set[CellKey]:
-    """Load gem5/sniper anchor JSON cells."""
+    """Load gem5/sniper anchor JSON cells.
+
+    Supports both the canonical anchor schema (stress-config) and the
+    headline-1MB anchor companion. Cells are normalized into CellKey
+    tuples regardless of which anchor produced them.
+    """
     out: set[CellKey] = set()
     if not json_path.exists():
         return out
@@ -180,10 +199,19 @@ def load_anchor_json(json_path: Path, sim_name: str) -> set[CellKey]:
 
 
 def load_all_presence(cache_sim_csv: Path, gem5_json: Path,
-                      sniper_json: Path) -> set[CellKey]:
-    return (load_cache_sim(cache_sim_csv)
-            | load_anchor_json(gem5_json, "gem5")
-            | load_anchor_json(sniper_json, "sniper"))
+                      sniper_json: Path,
+                      gem5_headline_1mb_json: Path | None = None,
+                      sniper_headline_1mb_json: Path | None = None,
+                      cache_sim_ecg_csv: Path | None = None) -> set[CellKey]:
+    """Union of every reporting cell across all simulator inputs."""
+    out = load_cache_sim(cache_sim_csv, ecg_extension_csv=cache_sim_ecg_csv) \
+        | load_anchor_json(gem5_json, "gem5") \
+        | load_anchor_json(sniper_json, "sniper")
+    if gem5_headline_1mb_json is not None:
+        out |= load_anchor_json(gem5_headline_1mb_json, "gem5")
+    if sniper_headline_1mb_json is not None:
+        out |= load_anchor_json(sniper_headline_1mb_json, "sniper")
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -425,10 +453,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--scope", choices=VALID_SCOPES, default=SCOPE_HEADLINE_1MB)
     p.add_argument("--cache-sim-csv", type=Path,
                    default=REPO_ROOT / "wiki/data/literature_faithfulness_postfix.csv")
+    p.add_argument("--cache-sim-ecg-csv", type=Path,
+                   default=REPO_ROOT / "wiki/data/literature_faithfulness_ecg.csv",
+                   help="ECG-variants companion to lit-faith CSV. Merged with "
+                        "the canonical lit-faith CSV when present.")
     p.add_argument("--gem5-anchor", type=Path,
                    default=REPO_ROOT / "wiki/data/gem5_anchor.json")
     p.add_argument("--sniper-anchor", type=Path,
                    default=REPO_ROOT / "wiki/data/sniper_anchor.json")
+    p.add_argument("--gem5-anchor-headline-1mb", type=Path,
+                   default=REPO_ROOT / "wiki/data/gem5_anchor_headline_1mb.json")
+    p.add_argument("--sniper-anchor-headline-1mb", type=Path,
+                   default=REPO_ROOT / "wiki/data/sniper_anchor_headline_1mb.json")
     p.add_argument("--json-out", type=Path,
                    default=REPO_ROOT / "wiki/data/headline_coverage.json")
     p.add_argument("--md-out", type=Path,
@@ -446,8 +482,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    present = load_all_presence(args.cache_sim_csv, args.gem5_anchor,
-                                  args.sniper_anchor)
+    present = load_all_presence(
+        args.cache_sim_csv, args.gem5_anchor, args.sniper_anchor,
+        gem5_headline_1mb_json=args.gem5_anchor_headline_1mb,
+        sniper_headline_1mb_json=args.sniper_anchor_headline_1mb,
+        cache_sim_ecg_csv=args.cache_sim_ecg_csv,
+    )
     required = required_cells(args.scope)
     summary = render_summary(required, present)
     per_sim_graph = render_per_sim_per_graph(required, present)

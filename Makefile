@@ -493,9 +493,11 @@ wiki-status:
 LIT_SWEEP_ROOT  ?= /tmp/graphbrew-lit-baseline
 LIT_SWEEP_SUBDIR ?= lit
 GEM5_ANCHOR_ROOT ?= /tmp/graphbrew-grasp-gem5-sweep
+GEM5_ANCHOR_ROOT_HEADLINE_1MB ?= /tmp/graphbrew-headline-1mb-gem5
 GEM5_ANCHOR_SUBDIR ?= DBG
 GEM5_ANCHOR_GRAPHS ?= email-Eu-core
 SNIPER_ANCHOR_ROOT ?= /tmp/graphbrew-grasp-sniper-sweep
+SNIPER_ANCHOR_ROOT_HEADLINE_1MB ?= /tmp/graphbrew-headline-1mb-sniper
 SNIPER_ANCHOR_SUBDIR ?= DBG
 SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 # BFS deferred: small_cache_divergence fails on both graphs (working-set vs 4kB)
@@ -503,7 +505,7 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-per-app-capacity-slope lit-slope-saturation-xcheck lit-gem5-slope-replay lit-sniper-slope-replay lit-cross-tool-slope-ordering lit-per-app-srrip-vs-grasp lit-cross-tool-lru-regime lit-saturation-slope-extremum lit-cross-tool-slope-universality lit-monotonicity-universality lit-anchor-cell-census lit-family-saturation-distance lit-anchor-monotonicity-replay lit-policy-steepness-ranking lit-anchor-cross-tool-agreement lit-deviations lit-diversity lit-margin lit-signmass lit-citations lit-knowndev lit-tolerance lit-accesses lit-citexapp lit-monotonicity lit-stat lit-polyord lit-devexp lit-ratgrid lit-cellcomp lit-appfreq lit-regimesign lit-citdate lit-ecg-parity lit-ecg-gem5-parity lit-ecg-sniper-parity lit-ecg-pfx-vs-droplet lit-paper-label-map lit-color-distinguishability lit-paper-snapshot lit-regime-classifier lit-citation-registry lit-paper-tables lit-sideband-schema lit-graph-family lit-paper-provenance lit-l3-registry lit-slurm-schema lit-handoff-xref lit-wiki-registry lit-policy-registry lit-profile-registry lit-backend-registry lit-graph-registry lit-build-registry lit-cli-registry lit-arm-catalog lit-cross-tool-schema lit-config-matrix lit-filename-grammar lit-sideband-grammar lit-overlay-tracker lit-gem5-overlay-tracker lit-setup-script-registry lit-config-deep-lock lit-gem5-overlay-hash-registry lit-sniper-overlay-hash-registry lit-setup-fn-signature-registry lit-runner-cli-registry lit-orchestrator-cli-registry lit-paper-stage-registry lit-manifest-schema lit-subprocess-argv-registry lit-receiver-cli-registry lit-job-dataclass-schema lit-receiver-dataclass-schema lit-analysis-dataclass-schema headline-coverage headline-coverage-bump headline-parity lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor confidence confidence-fast
+.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-per-app-capacity-slope lit-slope-saturation-xcheck lit-gem5-slope-replay lit-sniper-slope-replay lit-cross-tool-slope-ordering lit-per-app-srrip-vs-grasp lit-cross-tool-lru-regime lit-saturation-slope-extremum lit-cross-tool-slope-universality lit-monotonicity-universality lit-anchor-cell-census lit-family-saturation-distance lit-anchor-monotonicity-replay lit-policy-steepness-ranking lit-anchor-cross-tool-agreement lit-deviations lit-diversity lit-margin lit-signmass lit-citations lit-knowndev lit-tolerance lit-accesses lit-citexapp lit-monotonicity lit-stat lit-polyord lit-devexp lit-ratgrid lit-cellcomp lit-appfreq lit-regimesign lit-citdate lit-ecg-parity lit-ecg-gem5-parity lit-ecg-sniper-parity lit-ecg-pfx-vs-droplet lit-paper-label-map lit-color-distinguishability lit-paper-snapshot lit-regime-classifier lit-citation-registry lit-paper-tables lit-sideband-schema lit-graph-family lit-paper-provenance lit-l3-registry lit-slurm-schema lit-handoff-xref lit-wiki-registry lit-policy-registry lit-profile-registry lit-backend-registry lit-graph-registry lit-build-registry lit-cli-registry lit-arm-catalog lit-cross-tool-schema lit-config-matrix lit-filename-grammar lit-sideband-grammar lit-overlay-tracker lit-gem5-overlay-tracker lit-setup-script-registry lit-config-deep-lock lit-gem5-overlay-hash-registry lit-sniper-overlay-hash-registry lit-setup-fn-signature-registry lit-runner-cli-registry lit-orchestrator-cli-registry lit-paper-stage-registry lit-manifest-schema lit-subprocess-argv-registry lit-receiver-cli-registry lit-job-dataclass-schema lit-receiver-dataclass-schema lit-analysis-dataclass-schema headline-coverage headline-coverage-bump headline-parity lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor gem5-anchor-headline-1mb sniper-anchor-headline-1mb confidence confidence-fast
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
@@ -513,6 +515,19 @@ lit-faith:
 		--json-out $(WIKI_DATA)/literature_faithfulness_postfix.json \
 		--md-out   $(WIKI_DATA)/literature_faithfulness_postfix.md \
 		--csv-out  $(WIKI_DATA)/literature_faithfulness_postfix.csv
+
+# Companion to lit-faith: emits the ECG-variant rows (ECG_DBG_PRIMARY,
+# POPT_CHARGED, ...) that the canonical lit-faith comparator filters
+# out for cross-tool parity-gate stability. Read by gate 282
+# (headline_coverage) and gate 283 (headline_parity).
+lit-faith-ecg:
+	@echo "$(BLUE)Regenerating literature faithfulness ECG companion...$(NC)"
+	@python3 -m scripts.experiments.ecg.literature_faithfulness_ecg \
+		--sweep-root $(LIT_SWEEP_ROOT) \
+		--sweep-subdir $(LIT_SWEEP_SUBDIR) \
+		--json-out $(WIKI_DATA)/literature_faithfulness_ecg.json \
+		--md-out   $(WIKI_DATA)/literature_faithfulness_ecg.md \
+		--csv-out  $(WIKI_DATA)/literature_faithfulness_ecg.csv
 
 lit-repro:
 	@echo "$(BLUE)Regenerating literature reproduction summary...$(NC)"
@@ -602,6 +617,43 @@ sniper-anchor:
 			--exit-on-disagree; \
 	else \
 		echo "$(BLUE)  Sniper sweep dir $(SNIPER_ANCHOR_ROOT) not present; reusing on-disk snapshot.$(NC)"; \
+	fi
+
+# Separate literature-1MB anchors. Distinct artifacts because the
+# existing gem5_anchor.json / sniper_anchor.json are downstream
+# inputs to many cross-tool parity gates whose shape would silently
+# change if extra policies (POPT, ECG_DBG_PRIMARY) appeared in the
+# canonical anchor. Keeping the literature-1MB cells in a separate
+# file decouples gate 282 coverage advancement from the
+# stress-config anchor parity contract.
+gem5-anchor-headline-1mb:
+	@echo "$(BLUE)Regenerating gem5 headline-1MB anchor...$(NC)"
+	@if [ -d "$(GEM5_ANCHOR_ROOT_HEADLINE_1MB)" ]; then \
+		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+			--sweep-root $(GEM5_ANCHOR_ROOT_HEADLINE_1MB) \
+			--sweep-subdir $(GEM5_ANCHOR_SUBDIR) \
+			--graphs email-Eu-core cit-Patents \
+			--apps pr bfs sssp bc \
+			--title "gem5 headline-1MB anchor (literature canonical L3)" \
+			--json-out $(WIKI_DATA)/gem5_anchor_headline_1mb.json \
+			--md-out   $(WIKI_DATA)/gem5_anchor_headline_1mb.md; \
+	else \
+		echo "$(BLUE)  gem5 headline-1MB sweep dir $(GEM5_ANCHOR_ROOT_HEADLINE_1MB) not present; reusing on-disk snapshot.$(NC)"; \
+	fi
+
+sniper-anchor-headline-1mb:
+	@echo "$(BLUE)Regenerating Sniper headline-1MB anchor...$(NC)"
+	@if [ -d "$(SNIPER_ANCHOR_ROOT_HEADLINE_1MB)" ]; then \
+		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+			--sweep-root $(SNIPER_ANCHOR_ROOT_HEADLINE_1MB) \
+			--sweep-subdir $(SNIPER_ANCHOR_SUBDIR) \
+			--graphs email-Eu-core cit-Patents \
+			--apps pr bfs sssp \
+			--title "Sniper headline-1MB anchor (literature canonical L3)" \
+			--json-out $(WIKI_DATA)/sniper_anchor_headline_1mb.json \
+			--md-out   $(WIKI_DATA)/sniper_anchor_headline_1mb.md; \
+	else \
+		echo "$(BLUE)  Sniper headline-1MB sweep dir $(SNIPER_ANCHOR_ROOT_HEADLINE_1MB) not present; reusing on-disk snapshot.$(NC)"; \
 	fi
 
 # Pair each cache_sim lit-faith cell with the matching gem5/Sniper

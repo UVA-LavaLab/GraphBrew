@@ -83,7 +83,27 @@ def _pick_section(rows: list[Observation]) -> Observation:
     return rows[0]
 
 
-def load_observations(sweep_root: Path, subdir: str) -> list[Observation]:
+# Canonical literature-comparator policy roster. Restricts the
+# comparator output to the four baseline policies that downstream
+# cross-tool parity gates assume. ECG variants (POPT_CHARGED,
+# ECG_DBG_PRIMARY, etc.) live in the same on-disk roi_matrix.csv
+# but are siphoned off here into a SEPARATE companion artifact so
+# the cross-tool gates that consume literature_faithfulness_postfix.*
+# see a stable shape (4 policies x N L3 x N (graph, app) cells).
+CANONICAL_POLICY_ROSTER = ("LRU", "SRRIP", "GRASP", "POPT")
+
+
+def load_observations(sweep_root: Path, subdir: str,
+                       policy_filter: set[str] | None = None) -> list[Observation]:
+    """Load per-cell observations from a sweep root.
+
+    Args:
+      sweep_root: directory containing <graph>-<app>/<subdir>/roi_matrix.csv
+      subdir:    typically 'lit'
+      policy_filter: if provided, restrict to policy_label values in
+                     this set. If None, return ALL policies (used by
+                     the ECG-extension companion).
+    """
     out: list[Observation] = []
     for csv_path in sorted(sweep_root.glob(f"*/{subdir}/roi_matrix.csv")):
         graph_app = csv_path.parent.parent.name
@@ -97,16 +117,23 @@ def load_observations(sweep_root: Path, subdir: str) -> list[Observation]:
                     continue
                 if not r.get("l3_miss_rate"):
                     continue
+                # Prefer policy_label (specific variant, e.g. ECG_DBG_PRIMARY)
+                # over policy (family, e.g. ECG). For non-ECG rows the two
+                # are identical so existing LRU/SRRIP/GRASP/POPT behavior
+                # is preserved.
+                pol = r.get("policy_label") or r["policy"]
+                if policy_filter is not None and pol not in policy_filter:
+                    continue
                 obs = Observation(
                     graph=graph,
                     app=app,
                     l3_size=r["l3_size"],
-                    policy=r["policy"],
+                    policy=pol,
                     miss_rate=float(r["l3_miss_rate"]),
                     section=_coerce_int(r.get("section")),
                     accesses=_coerce_int(r.get("l3_misses")) + _coerce_int(r.get("l3_hits")),
                 )
-                rows_per_key[(r["l3_size"], r["policy"])].append(obs)
+                rows_per_key[(r["l3_size"], pol)].append(obs)
         for key, rows in rows_per_key.items():
             out.append(_pick_section(rows))
     return out
@@ -530,7 +557,8 @@ def main(argv: list[str]) -> int:
                         "tagged insufficient_data (default: 10000).")
     args = p.parse_args(argv)
 
-    obs = load_observations(args.sweep_root, args.sweep_subdir)
+    obs = load_observations(args.sweep_root, args.sweep_subdir,
+                              policy_filter=set(CANONICAL_POLICY_ROSTER))
     if not obs:
         print(f"[lit] no observations found under {args.sweep_root}/*/{args.sweep_subdir}/", file=sys.stderr)
         return 1

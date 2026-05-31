@@ -118,7 +118,7 @@
   "n_canonical": 7,
   "n_distinct_literals": 7,
   "n_families": 3,
-  "n_literal_sites": 532,
+  "n_literal_sites": 543,
   "rules": {
     "R1": "every harvested backend/tool literal is in CANONICAL_BACKENDS",
     "R2": "every canonical has non-empty family \u2208 {cache_sim,gem5,sniper} + non-empty paper_label",

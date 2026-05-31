@@ -95,7 +95,10 @@ def load_cells(sweep_root: Path, subdir: str, graphs: set[str] | None = None) ->
         status_per_key: dict[tuple[str, str], list[str]] = defaultdict(list)
         with csv_path.open() as f:
             for r in csv.DictReader(f):
-                key = (r.get("l3_size") or "", r.get("policy") or "")
+                # Prefer policy_label (specific variant, e.g. ECG_DBG_PRIMARY)
+                # over policy (family, e.g. ECG). Identical for non-ECG rows.
+                pol = r.get("policy_label") or r.get("policy") or ""
+                key = (r.get("l3_size") or "", pol)
                 status_per_key[key].append(r.get("status") or "")
                 if (r.get("status") or "") == "ok" and r.get("l3_miss_rate"):
                     rows_per_key[key].append(r)
@@ -111,6 +114,30 @@ def load_cells(sweep_root: Path, subdir: str, graphs: set[str] | None = None) ->
             cell.ok_rows += sum(1 for s in statuses if s == "ok")
             cell.error_rows += sum(1 for s in statuses if s and s != "ok")
     return sorted(cells.values(), key=lambda c: (c.graph, c.app, c.l3_size))
+
+
+def merge_cell_lists(cell_lists: list[list[CellSummary]]) -> list[CellSummary]:
+    """Merge per-sweep cell lists into a single union, summing ok/error
+    counts and union-merging per-policy miss rates. When the same
+    (graph, app, l3, policy) appears in multiple sweeps, the LATER
+    sweep wins (rationale: later sweeps are typically the freshest re-run)."""
+    merged: dict[tuple[str, str, str], CellSummary] = {}
+    for cells in cell_lists:
+        for c in cells:
+            key = (c.graph, c.app, c.l3_size)
+            if key in merged:
+                m = merged[key]
+                # Union policies; later wins on collision.
+                m.miss_rate_by_policy.update(c.miss_rate_by_policy)
+                m.ok_rows += c.ok_rows
+                m.error_rows += c.error_rows
+            else:
+                merged[key] = CellSummary(
+                    graph=c.graph, app=c.app, l3_size=c.l3_size,
+                    miss_rate_by_policy=dict(c.miss_rate_by_policy),
+                    ok_rows=c.ok_rows, error_rows=c.error_rows,
+                )
+    return sorted(merged.values(), key=lambda c: (c.graph, c.app, c.l3_size))
 
 
 def _l3_sort_key(label: str) -> int:
@@ -273,7 +300,10 @@ def render_markdown(
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--sweep-root", type=Path, default=DEFAULT_SWEEP_ROOT)
+    p.add_argument("--sweep-root", type=Path, action="append", default=None,
+                   help="Sweep root containing <graph>-<app>/<subdir>/roi_matrix.csv. "
+                        "Pass multiple times to merge cells from multiple sweeps "
+                        "(later sweeps override on (graph, app, l3, policy) collisions).")
     p.add_argument("--sweep-subdir", default=DEFAULT_SUBDIR)
     p.add_argument(
         "--graphs",
@@ -307,18 +337,26 @@ def main(argv: list[str] | None = None) -> int:
                    help="exit 2 if any invariant is in disagree state")
     args = p.parse_args(argv)
 
-    if not args.sweep_root.exists():
-        sys.stderr.write(
-            f"gem5 anchor sweep root not found: {args.sweep_root}\n"
-            f"  hint: rerun the gem5 sweep for email-Eu-core to materialise it.\n"
-        )
+    sweep_roots: list[Path] = list(args.sweep_root) if args.sweep_root else [DEFAULT_SWEEP_ROOT]
+    missing = [r for r in sweep_roots if not r.exists()]
+    if missing:
+        for r in missing:
+            sys.stderr.write(
+                f"gem5 anchor sweep root not found: {r}\n"
+                f"  hint: rerun the corresponding gem5 sweep to materialise it.\n"
+            )
         return 2
 
-    cells = load_cells(args.sweep_root, args.sweep_subdir, graphs=set(args.graphs))
+    per_root_cells = [
+        load_cells(root, args.sweep_subdir, graphs=set(args.graphs))
+        for root in sweep_roots
+    ]
+    cells = merge_cell_lists(per_root_cells) if len(per_root_cells) > 1 else per_root_cells[0]
     invariants = evaluate_invariants(cells, apps=tuple(args.apps), graphs=tuple(args.graphs))
 
     payload = {
-        "sweep_root": str(args.sweep_root),
+        "sweep_root": (str(sweep_roots[0]) if len(sweep_roots) == 1
+                       else [str(r) for r in sweep_roots]),
         "sweep_subdir": args.sweep_subdir,
         "graphs_scope": sorted(args.graphs),
         "apps_scope": sorted(args.apps),
