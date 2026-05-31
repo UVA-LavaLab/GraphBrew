@@ -8,7 +8,36 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **267 gates, all GREEN, exit 0**.
+and currently reports **268 gates, all GREEN, exit 0**.
+
+**Setup-script invariant registry (gate 268, refresh @268):**
+The fifteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 wiki/data
+filename grammar, 265 sideband grammar, 266 Sniper overlay tracker,
+267 gem5 overlay tracker, 268 setup-script invariants). Sits above
+gates 266+267 by locking the CONTAINING SETUP SCRIPTS themselves
+(`scripts/setup_gem5.py` + `scripts/setup_sniper.py`). Where 266/267
+ensure the overlay payload + installation contract is well-formed,
+gate 268 ensures the scripts that orchestrate that installation cannot
+silently lose entry points, swap upstream repositories, drop the
+directory-constant skeleton, or grow undocumented helpers. Catches:
+a refactor deletes `def apply_overlays(` from setup_sniper.py and
+the loss goes unnoticed; a contributor swaps `GEM5_REPO_URL` to a
+personal fork while debugging and forgets to revert; a rename of
+`PROJECT_ROOT` → `ROOT_DIR` breaks every downstream importer; a new
+top-level helper sneaks in without being registered. 7 rules S1-S7:
+S1 `GEM5_REPO_URL`/`SNIPER_REPO_URL` constants present and equal to
+canonical pinned values; S2 every required directory constant present
+(SCRIPT_DIR, PROJECT_ROOT, *_SIM_DIR, *_DIR, OVERLAYS_DIR — 6 per
+script); S3 every canonical gem5 entry-point function present (14
+today); S4 every canonical sniper entry-point function present (27
+today); S5 both scripts define `def main(`; S6 both scripts define
+`def apply_overlays(`; S7 actual top-level `def` set exactly equals
+canonical registry (no orphans, no missing). Today: 2 repo URLs, 12
+directory constants, 41 canonical functions; 0 violations. Together
+with gates 266+267 this completes the FULL build-time installation
+surface lock: payload + orchestrator.
 
 **gem5 overlay-installation tracker (gate 267, refresh @267):**
 The fourteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -883,8 +912,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 267. Next refresh due
-at gate 272. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 268. Next refresh due
+at gate 273. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

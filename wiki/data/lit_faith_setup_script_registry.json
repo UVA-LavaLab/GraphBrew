@@ -1,0 +1,89 @@
+{
+  "allow_lists": {
+    "SETUP_GEM5_EXTRA_ALLOW": [],
+    "SETUP_SNIPER_EXTRA_ALLOW": []
+  },
+  "gem5_constants_n": 6,
+  "gem5_functions_n": 14,
+  "registry": {
+    "gem5_dir_consts": [
+      "SCRIPT_DIR",
+      "PROJECT_ROOT",
+      "BENCH_DIR",
+      "GEM5_SIM_DIR",
+      "GEM5_DIR",
+      "OVERLAYS_DIR"
+    ],
+    "gem5_functions": [
+      "run_cmd",
+      "check_prerequisites",
+      "clone_gem5",
+      "apply_overlays",
+      "apply_patches",
+      "apply_current_vertex_pseudo_inst_patch",
+      "insert_once",
+      "apply_riscv_ecg_extract_patch",
+      "build_gem5",
+      "verify_build",
+      "install_riscv_toolchain",
+      "clean_gem5",
+      "print_summary",
+      "main"
+    ],
+    "repo_urls": {
+      "GEM5_REPO_URL": "https://github.com/gem5/gem5.git",
+      "SNIPER_REPO_URL": "https://github.com/snipersim/snipersim.git"
+    },
+    "sniper_dir_consts": [
+      "SCRIPT_DIR",
+      "PROJECT_ROOT",
+      "SNIPER_SIM_DIR",
+      "SNIPER_DIR",
+      "SNIPER_OVERLAY_DIR",
+      "SNIPER_CONFIG_DIR"
+    ],
+    "sniper_functions": [
+      "utc_now",
+      "command_text",
+      "run_cmd",
+      "git_head",
+      "clone_or_update",
+      "write_version",
+      "build_sniper",
+      "replace_once",
+      "overlay_source_files",
+      "copy_overlay_sources",
+      "install_graphbrew_configs",
+      "write_overlay_status",
+      "patch_grasp_overlay",
+      "patch_popt_overlay",
+      "patch_ecg_overlay",
+      "patch_droplet_overlay",
+      "patch_graphbrew_simuser_overlay",
+      "patch_ecg_pfx_prefetcher_overlay",
+      "apply_overlays",
+      "compiler_for_checks",
+      "header_available",
+      "check_host_dependencies",
+      "smoke_test",
+      "graphbrew_smoke_test",
+      "clean",
+      "parse_args",
+      "main"
+    ]
+  },
+  "repo_urls_n": 2,
+  "rules": {
+    "S1": "GEM5_REPO_URL and SNIPER_REPO_URL constants exist and equal canonical values",
+    "S2": "every required directory constant is present in each script",
+    "S3": "every canonical gem5 entry-point function is present in setup_gem5.py",
+    "S4": "every canonical sniper entry-point function is present in setup_sniper.py",
+    "S5": "both scripts define def main( (CLI entry point invariant)",
+    "S6": "both scripts define def apply_overlays( (overlay-install contract)",
+    "S7": "actual top-level def set equals canonical registry exactly (no unregistered helpers)"
+  },
+  "sniper_constants_n": 6,
+  "sniper_functions_n": 27,
+  "status": "active",
+  "violations": []
+}

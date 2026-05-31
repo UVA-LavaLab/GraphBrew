@@ -435,6 +435,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_overlay_tracker.py", "OverlayTracker"),
     "gem5 overlay-installation tracker (gate 267) — locks setup_gem5.py OVERLAY_FILE_MAP+PATCH_FILES; G1-G7: source grammar, on-disk presence, policies↔cc+hh, prefetchers↔cc+hh, patches on-disk, exhaustive, live↔canonical parity+identity":
         ("scripts/test/test_lit_faith_gem5_overlay_tracker.py", "G5OverlayTracker"),
+    "Setup-script invariant registry (gate 268) — locks setup_gem5.py+setup_sniper.py against drift in repo URLs, dir-const skeleton, top-level fn inventory (14 gem5+27 sniper); S1-S7: URL, dir-const, gem5 fn, sniper fn, main, apply_overlays, exhaustive":
+        ("scripts/test/test_lit_faith_setup_script_registry.py", "SetupScriptRegistry"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
