@@ -8,7 +8,39 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **281 gates, all GREEN, exit 0**.
+and currently reports **282 gates, all GREEN, exit 0**.
+
+**Headline coverage proof (gate 282, refresh @282) — FIRST PROOF GATE:**
+Gates 273-281 were vocabulary-lock AST audits (Slurm SBATCH schema …
+analysis dataclass schema). Gate 282 PIVOTS the cadence to PROOF
+gates backed by real simulator measurements on the 3 platforms
+(cache_sim, gem5, Sniper). RATCHET semantics: the test asserts
+present cell count ≥ baseline floor stored in
+``scripts/experiments/ecg/headline_coverage_baseline.json``
+(source-tree config, not a wiki/data artifact). Coverage can
+never RETREAT below the floor without an explicit
+``--bump-baseline`` call (which intentionally rewrites the floor).
+When real coverage exceeds the floor, the test PASSES with a
+notice so the human can bump on next commit. Scope is
+literature-grounded — derived dynamically from
+``literature_baselines.{INVARIANT,PER_GRAPH}_CLAIMS`` (locked by
+gate 281), so as new literature claims are added the coverage scope
+expands automatically. Today scope=``headline_1MB`` (the GRASP
+HPCA'20 + POPT HPCA'21 canonical 1MB row, LRU/SRRIP/GRASP/POPT +
+ECG_DBG_PRIMARY, no_pfx) requires **225 cells** (15 literature 1MB
+cells × 5 policies × 3 sims); ``cache_sim`` has **60/75 (80.0 %)**
+— missing the ECG_DBG_PRIMARY column on the lit-faith sweep;
+``gem5`` has **0/75** — the existing anchor sweep is at
+``4kB/32kB/256kB/2MB`` only, never the literature 1MB; ``Sniper``
+has **0/75** — same anchor L3 mismatch. Workstation-feasible
+missing cells: 110; Slurm-only missing cells: 55. Three valid
+scopes: ``headline_1MB`` (today's default), ``with_droplet`` (adds
+Droplet prefetcher column for prior-method comparison),
+``full_sweep`` (adds the 8MB convergence row from
+``LITERATURE_CACHE_ORGS['fits_8MB']``). Run
+``make headline-coverage`` to refresh the artifact;
+``make headline-coverage-bump`` to ratchet the floor up after new
+cells land.
 
 **Analysis dataclass schema (gate 281, refresh @281):**
 Twenty-eighth in the vocabulary-lock series (252 SBATCH … 280
@@ -1372,8 +1404,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 281. Next refresh due
-at gate 286. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 282. Next refresh due
+at gate 287. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

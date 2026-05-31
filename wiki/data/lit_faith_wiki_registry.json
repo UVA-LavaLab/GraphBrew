@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 133,
+    "catalog_entries": 134,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 137
+    "wiki_json_files": 138
   },
   "violations": [],
   "wiki_json_files": [
@@ -77,6 +77,7 @@
     "wiki/data/gap_distribution_shape.json",
     "wiki/data/gem5_anchor.json",
     "wiki/data/gem5_slope_replay.json",
+    "wiki/data/headline_coverage.json",
     "wiki/data/l3_policy_stability.json",
     "wiki/data/leave_one_graph_out.json",
     "wiki/data/lit_faith_accesses.json",

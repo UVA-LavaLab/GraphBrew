@@ -463,6 +463,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_receiver_dataclass_schema.py", "RecvDC"),
     "Analysis dataclass schema (gate 281) — locks 6 analysis dataclasses across 4 modules: Row (7 flds), LiteratureClaim (10 flds), CacheOrg (9 flds), GraphProfile (6 flds), CellSummary (6 flds), AnchorInvariant (3 flds); 41 fields total; H1-H7 audit":
         ("scripts/test/test_lit_faith_analysis_dataclass_schema.py", "AnaDC"),
+    "Headline coverage proof (gate 282) — PROOF GATE, RATCHET; gem5/Sniper/cache_sim coverage at literature 1MB cells (LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY) vs literature_baselines registry; floor in headline_coverage_baseline.json; cannot regress":
+        ("scripts/test/test_headline_coverage.py", "HeadCov"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

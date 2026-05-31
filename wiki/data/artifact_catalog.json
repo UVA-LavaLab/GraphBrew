@@ -1420,6 +1420,17 @@
       "summary": "Analysis dataclass schema audit (gate 281) \u2014 ALWAYS ACTIVE (source-of-truth is the live ast-extracted shape of the per-row analysis @dataclass classes inside the four ECG analysis modules). Twenty-eighth in the vocabulary-lock series (252 SBATCH \u2026 280 receiver dataclass, 281 analysis dataclass schema): gate 281 extends gate 280's receiver-side registry beyond the orchestration carriers (PolicySpec / Ablation / AdaptiveSelector) into the analysis layer \u2014 the dataclasses that aggregate sweep observations into paper-ready tables and invariant verdicts. Six dataclasses across four modules, 41 fields total: paper_baseline_table.Row (7 fields, frozen=True \u2014 paper-table per-cell row across {LRU, SRRIP, GRASP, POPT}); literature_baselines.LiteratureClaim (10 fields, frozen=True \u2014 each per-(graph, app, l3, policy) claim with expected sign, bounds, tolerance, rationale, citation); literature_baselines.CacheOrg (9 fields, frozen=True \u2014 each cache organisation: l1d/l2/l3 size+ways, line size, rationale); corpus_diversity.GraphProfile (6 fields, bare @dataclass \u2014 per-graph topology + features dict); gem5_anchor_summary.CellSummary (6 fields, bare @dataclass \u2014 per (graph, app, l3) anchor cell with miss_rate_by_policy + ok/error counts); gem5_anchor_summary.AnchorInvariant (3 fields, bare @dataclass \u2014 anchor verdict {ok/disagree/missing} + detail). Catches the silent-drift cases gates 273..280 can't catch: someone adds a new column to paper_baseline_table.Row (e.g. cycles: int) without updating the per-(graph, app, l3) builder loop \u2014 every consumer using asdict(row) silently writes cycles into the paper table with no header (H6 catches); someone changes LiteratureClaim.tolerance_pct: float \u2192 str (silently accepts string-pcts from JSON deserialisation but breaks every arithmetic claim verdict downstream \u2014 H4 catches); someone drops frozen=True from CacheOrg (the cache org tuple is mutated in-place during apply_overrides loop; literature baseline sweeps produce non-deterministic output \u2014 H7 catches); someone changes GraphProfile.features: dict = field(default_factory=dict) to features: dict = {} (classic shared-mutable-default trap \u2014 every GraphProfile shares one features dict; first call to .features['key'] silently mutates all profiles \u2014 H5 catches); someone renames AnchorInvariant.status \u2192 AnchorInvariant.verdict (every gem5 anchor consumer reading .status AttributeErrors; no gate < 281 catches because no CLI flag is named status \u2014 H3 catches). 7 rules H1-H7: (H1) target module exists and ast.parses; (H2) registered class present at module top-level; (H3) every registered field exists in live class body; (H4) every registered field annotation string matches live; (H5) every registered field default state matches (none / literal:<value> / factory:<call>); (H6) class exhaustive \u2014 no surprise live field slips in; (H7) registered @dataclass(...) kwargs preserved on live class (with reverse direction \u2014 surprise live kwargs not in registry also fail; correctly handles both bare @dataclass and @dataclass(frozen=True)). Today: 4 modules, 6 classes, 41 fields total (3 frozen + 3 bare); 0 violations. Together with gates 273+274+275+276+277+278+279+280 this completes the per-row carrier lock end-to-end: orchestration carriers (Job + receiver dataclasses) AND analysis carriers (paper-table rows + literature claims + cache orgs + graph profiles + anchor cells + invariants) all pinned by AST audit."
     },
     {
+      "artifact": "wiki/data/headline_coverage.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_headline_coverage.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/headline_coverage.py",
+      "generator_exists": true,
+      "id": "headline_coverage",
+      "label": "Headline coverage proof",
+      "summary": "Headline coverage proof (gate 282) \u2014 FIRST PROOF GATE in the series (gates 273..281 were AST/vocabulary-lock infrastructure; 282 is backed by real simulator measurements on cache_sim, gem5, and Sniper). RATCHET semantics: the test asserts present cell count >= baseline floor stored in scripts/experiments/ecg/headline_coverage_baseline.json (NOT in wiki/data \u2014 it is a source-tree config, not a published artifact). Coverage can never RETREAT below the floor without an explicit --bump-baseline call (which intentionally rewrites the floor). When real coverage exceeds the floor, the test PASSES with a notice so the human can bump on next commit. Scope is literature-grounded \u2014 derived dynamically from literature_baselines.{INVARIANT,PER_GRAPH}_CLAIMS (locked by gate 281), so as new literature claims are added the coverage scope expands automatically with no hand-tuning. Today scope=headline_1MB (the GRASP HPCA'20 + POPT HPCA'21 canonical 1MB row, baseline policies LRU/SRRIP/GRASP/POPT plus ECG_DBG_PRIMARY, no_pfx only) requires 225 cells (15 literature 1MB cells \u00d7 5 policies \u00d7 3 sims); cache_sim has 60/75 (80.0 percent; missing the ECG_DBG_PRIMARY column on the lit-faith sweep), gem5 has 0/75 (anchor sweep was at non-literature L3 sizes 4kB/32kB/256kB/2MB only), Sniper has 0/75 (same anchor L3 mismatch). Workstation-feasible missing cells: 110; Slurm-only missing cells: 55. Three valid scopes: headline_1MB (today's default), with_droplet (adds Droplet prefetcher column for prior-method comparison), full_sweep (adds the 8MB convergence row from LITERATURE_CACHE_ORGS['fits_8MB']). Together with gates 273..281 this pivots the gate cadence from vocabulary-lock insurance to actual paper-claim PROOF."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1461,13 +1472,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (281 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (282 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 133
+    "n_entries": 134
   }
 }
