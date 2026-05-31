@@ -8,7 +8,44 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **278 gates, all GREEN, exit 0**.
+and currently reports **279 gates, all GREEN, exit 0**.
+
+**Job dataclass schema (gate 279, refresh @279):**
+Twenty-sixth in the vocabulary-lock series (252 SBATCH … 278
+receiver CLI, 279 Job dataclass schema). Locks the
+ORCHESTRATION-CARRIER side of the publish-reproduction contract.
+``Job`` is the unit of subprocess orchestration in
+``scripts/experiments/ecg/final_paper_run.py`` — every gate-277 sender
+(``run_profile``, ``make_proof_job``, ``make_roi_job``) emits ``Job``
+instances and the orchestrator pipeline serialises them to log paths,
+persists their ``out_dir`` artefacts, and propagates ``env`` +
+``metadata`` into every downstream stage. Together with gates
+277+278+279 fully locks the subprocess-orchestration contract from
+job-definition through invocation through reception. Catches the
+silent-drift cases gates 277+278 alone can't catch: someone adds a
+new ``Job`` field (e.g. ``priority: int``) without updating the
+executor / manifest writer; someone changes ``log_path: Path →
+log_path: str`` (Path-vs-str silently mixes through pathlib + os.path);
+someone drops ``frozen=True`` (long-running pipelines mutate
+``Job.metadata`` in-place during iteration); someone changes
+``metadata: dict[str, Any] = field(default_factory=dict)`` to
+``= {}`` (shared-mutable-default trap — every Job ends up sharing one
+metadata dict); someone renames ``out_dir`` → ``output_dir`` (every
+consumer reading ``job.out_dir`` AttributeErrors). 7 rules F1-F7:
+(F1) target module exists and ast.parses; (F2) Job class present at
+module top-level; (F3) every registered field exists in live class
+body; (F4) every registered field annotation string matches live;
+(F5) every registered field default state matches
+(``none`` / ``literal:<value>`` / ``factory:<call>``); (F6) class
+exhaustive — no surprise live field slips in; (F7)
+``@dataclass(frozen=True)`` decorator preserved with ``frozen=True``
+kwarg. Today: 1 module, 1 class, 8 fields
+(``job_id`` / ``stage`` / ``kind`` / ``command`` / ``out_dir`` /
+``log_path`` / ``metadata`` / ``env``), ``frozen=True``; 0 violations.
+Together with gates 273+274+275+276+277+278 this completes the
+publish-reproduction contract lock: runner CLI + orchestrator CLI +
+orchestrator backbone + manifest shape + subprocess argv (sender) +
+receiver CLI + Job dataclass (orchestration carrier).
 
 **Receiver CLI registry (gate 278, refresh @278):**
 Twenty-fifth in the vocabulary-lock series (252 SBATCH … 277
@@ -1281,8 +1318,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 278. Next refresh due
-at gate 283. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 279. Next refresh due
+at gate 284. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

@@ -457,6 +457,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_subprocess_argv_registry.py", "ArgvReg"),
     "Receiver CLI registry (gate 278) — locks parse_args() of proof_matrix (17) + roi_matrix (48); 65 flags + 2 cross-pairs; E1-E7: ast-parse, parse_args present, flag presence, action, nargs, exhaustive, cross-side parity with gate 277 senders":
         ("scripts/test/test_lit_faith_receiver_cli_registry.py", "RecvCLI"),
+    "Job dataclass schema (gate 279) — locks Job dataclass shape in final_paper_run.py: 8 fields (job_id/stage/kind/command/out_dir/log_path/metadata/env) + frozen=True; F1-F7: ast-parse, class present, field, annot, default, exhaustive, decorator kwargs":
+        ("scripts/test/test_lit_faith_job_dataclass_schema.py", "JobSchema"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
