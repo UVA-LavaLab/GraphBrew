@@ -2,7 +2,7 @@
 
 Status: `active`
 
-Totals: wiki_json=126  catalog=122  auxiliary=4  self_referential=1  violations=0
+Totals: wiki_json=127  catalog=123  auxiliary=4  self_referential=1  violations=0
 
 ## Auxiliary allow-list
 

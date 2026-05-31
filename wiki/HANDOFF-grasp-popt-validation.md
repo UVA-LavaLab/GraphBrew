@@ -8,7 +8,42 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **270 gates, all GREEN, exit 0**.
+and currently reports **271 gates, all GREEN, exit 0**.
+
+**Sniper overlay-file hash registry (gate 271, refresh @271):**
+The eighteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename
+grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5
+overlay tracker, 268 setup-script invariants, 269 ECG config
+deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-
+file hash registry). Symmetric counterpart to gate 270 — locks the
+actual BYTE CONTENT (SHA-256) of every Sniper-side overlay source the
+paper depends on (`cache_set_grasp.{cc,h}`, `cache_set_popt.{cc,h}`,
+`cache_set_ecg.{cc,h}`, `graph_cache_context_sniper.{cc,h}`,
+`droplet_prefetcher.{cc,h}`, `ecg_pfx_prefetcher.{cc,h}`). Catches the
+silent-edit cases that the installation-contract gates 266+268 miss:
+someone fixes a bug in `cache_set_grasp.cc` between paper runs and
+forgets to declare it — every subsequent Sniper measurement uses a
+policy that doesn't match the paper text; a debug `printf` slips into
+`ecg_pfx_prefetcher.cc` and quietly affects timing in the Sniper
+build; a reformatter removes a class declaration in
+`cache_set_popt.h`. 6 rules N1-N6: N1 every registered file hashes
+to its registered SHA-256 (any byte change forces explicit registry
+update); N2 every registered file's byte length within [50, 500_000];
+N3 required content markers per file present (`CacheSetGRASP`/`POPT`/
+`ECG` class tokens, `GraphCacheContext`, `graphbrew` namespace,
+`DropletPrefetcher`, `EcgPfxPrefetcher`); N4 registry exhaustive over
+the overlays/ tree (modulo `.md` docs); N5 only tracked extensions
+appear (.cc/.h); N6 every prefetcher/cache-set header declares its
+expected class via `^class <Token>\b`. Today: 12 registered overlay
+sources (6 cache + 4 prefetcher + 2 graph-cache-context, with 3
+`README.md` docs ignored on disk), 12 marker files, 5 class-
+declaration headers; 0 violations. Together with gates 266+268 this
+completes the FULL Sniper overlay surface lock: installation contract
+(266) + script orchestrator (268) + payload byte content (271).
+**Paired with gate 270, both simulator backends are now byte-locked
+end-to-end.**
 
 **gem5 overlay-file hash registry (gate 270, refresh @270):**
 The seventeenth in the vocabulary-lock series (252 SBATCH, 255
@@ -980,8 +1015,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 270. Next refresh due
-at gate 275. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 271. Next refresh due
+at gate 276. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

@@ -441,6 +441,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_config_deep_lock.py", "ConfigDeepLock"),
     "gem5 overlay-file hash registry (gate 270) — locks SHA-256 byte content of all 17 overlay sources under bench/include/gem5_sim/overlays/; M1-M7: hash parity, size bounds, markers, exhaustive, ext whitelist, SimObject, patches":
         ("scripts/test/test_lit_faith_gem5_overlay_hash_registry.py", "G5OverlayHash"),
+    "Sniper overlay-file hash registry (gate 271) — locks SHA-256 byte content of all 12 overlay sources under bench/include/sniper_sim/overlays/; N1-N6: hash parity, size bounds, markers, exhaustive, ext whitelist, class decls":
+        ("scripts/test/test_lit_faith_sniper_overlay_hash_registry.py", "SnpOverlayHash"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

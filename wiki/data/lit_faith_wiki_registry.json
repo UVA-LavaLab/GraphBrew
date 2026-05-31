@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 122,
+    "catalog_entries": 123,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 126
+    "wiki_json_files": 127
   },
   "violations": [],
   "wiki_json_files": [
@@ -126,6 +126,7 @@
     "wiki/data/lit_faith_sideband_schema.json",
     "wiki/data/lit_faith_signmass.json",
     "wiki/data/lit_faith_slurm_schema.json",
+    "wiki/data/lit_faith_sniper_overlay_hash_registry.json",
     "wiki/data/lit_faith_stat.json",
     "wiki/data/lit_faith_tolerance.json",
     "wiki/data/lit_faith_wiki_registry.json",
