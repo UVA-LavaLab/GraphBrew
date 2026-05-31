@@ -1089,6 +1089,14 @@ CATALOG = [
         "summary":   "Headline coverage proof (gate 282) — FIRST PROOF GATE in the series (gates 273..281 were AST/vocabulary-lock infrastructure; 282 is backed by real simulator measurements on cache_sim, gem5, and Sniper). RATCHET semantics: the test asserts present cell count >= baseline floor stored in scripts/experiments/ecg/headline_coverage_baseline.json (NOT in wiki/data — it is a source-tree config, not a published artifact). Coverage can never RETREAT below the floor without an explicit --bump-baseline call (which intentionally rewrites the floor). When real coverage exceeds the floor, the test PASSES with a notice so the human can bump on next commit. Scope is literature-grounded — derived dynamically from literature_baselines.{INVARIANT,PER_GRAPH}_CLAIMS (locked by gate 281), so as new literature claims are added the coverage scope expands automatically with no hand-tuning. Today scope=headline_1MB (the GRASP HPCA'20 + POPT HPCA'21 canonical 1MB row, baseline policies LRU/SRRIP/GRASP/POPT plus ECG_DBG_PRIMARY, no_pfx only) requires 225 cells (15 literature 1MB cells × 5 policies × 3 sims); cache_sim has 60/75 (80.0 percent; missing the ECG_DBG_PRIMARY column on the lit-faith sweep), gem5 has 0/75 (anchor sweep was at non-literature L3 sizes 4kB/32kB/256kB/2MB only), Sniper has 0/75 (same anchor L3 mismatch). Workstation-feasible missing cells: 110; Slurm-only missing cells: 55. Three valid scopes: headline_1MB (today's default), with_droplet (adds Droplet prefetcher column for prior-method comparison), full_sweep (adds the 8MB convergence row from LITERATURE_CACHE_ORGS['fits_8MB']). Together with gates 273..281 this pivots the gate cadence from vocabulary-lock insurance to actual paper-claim PROOF.",
     },
     {
+        "id":        "headline_parity",
+        "label":     "Headline parity proof",
+        "generator": "scripts/experiments/ecg/headline_parity.py",
+        "gate":      "scripts/test/test_headline_parity.py",
+        "artifact":  "wiki/data/headline_parity.json",
+        "summary":   "Headline parity proof (gate 283) — SECOND PROOF GATE. Cross-simulator paper-table preview joining cache_sim + gem5 + Sniper at literature 1MB cells. For every cell where >=2 simulators report, computes per-sim winner policy (lowest miss-rate; deterministic tiebreak by canonical policy order LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY) and the cross-sim agreement verdict (agree/disagree/single/empty). PROOF assertion: disagreement_ratio <= MAX_DISAGREEMENT_RATIO (today 0.0 — zero tolerance for cross-sim winner disagreement, since a disagreement signals a faithfulness bug). Today's coverage: cache_sim reports on all 15 literature 1MB cells; gem5 and Sniper report on none (anchors at non-1MB L3); overlap=0, agree=0, disagree=0, single=15, empty=0 — gate vacuously armed. As gem5/Sniper anchor coverage expands to literature 1MB via Sprint Phase D's gem5_anchor / sniper_anchor at literature L3 (per workstation Makefile dispatch), this gate becomes load-bearing. Headline table preview shows POPT winning 6/15 cells (cit-Patents PR, soc-LiveJournal1 PR/BFS/SSSP, web-Google PR, com-orkut PR), GRASP winning 6/15, SRRIP winning 2 (BC), on cache_sim today.",
+    },
+    {
         "id":        "claim_density",
         "label":     "Per-graph claim density",
         "generator": "scripts/experiments/ecg/claim_density_report.py",
@@ -1119,7 +1127,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (282 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (283 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

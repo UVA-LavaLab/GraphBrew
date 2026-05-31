@@ -8,7 +8,26 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **282 gates, all GREEN, exit 0**.
+and currently reports **283 gates, all GREEN, exit 0**.
+
+**Headline parity proof (gate 283, refresh @283) — SECOND PROOF GATE:**
+Cross-simulator paper-table preview joining cache_sim + gem5 + Sniper
+at literature 1MB cells. For every cell where ≥2 simulators report,
+computes per-sim winner policy (lowest miss-rate; deterministic
+tiebreak by canonical policy order
+``LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY``) and the cross-sim
+agreement verdict (agree/disagree/single/empty). PROOF assertion:
+``disagreement_ratio <= MAX_DISAGREEMENT_RATIO`` (today **0.0** —
+zero tolerance for cross-sim winner disagreement, since a
+disagreement signals a faithfulness bug). Today's coverage:
+``cache_sim`` reports on all **15** literature 1MB cells; ``gem5``
+and ``Sniper`` report on none (anchors at non-1MB L3); overlap=0,
+agree=0, disagree=0, single=15, empty=0 — gate vacuously armed.
+As gem5/Sniper anchor coverage expands to literature 1MB, this
+gate becomes load-bearing. Headline preview (cache_sim today):
+POPT wins 6/15 cells (cit-Patents PR, soc-LiveJournal1 PR/BFS/SSSP,
+web-Google PR, com-orkut PR); GRASP wins 6/15; SRRIP wins 2 (BC).
+Run ``make headline-parity`` to refresh.
 
 **Headline coverage proof (gate 282, refresh @282) — FIRST PROOF GATE:**
 Gates 273-281 were vocabulary-lock AST audits (Slurm SBATCH schema …
@@ -1404,8 +1423,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 282. Next refresh due
-at gate 287. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 283. Next refresh due
+at gate 288. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

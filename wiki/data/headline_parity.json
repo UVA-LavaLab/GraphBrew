@@ -1,0 +1,333 @@
+{
+  "gate": 283,
+  "rows": [
+    {
+      "app": "bc",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.902363,
+          "LRU": 0.898992,
+          "POPT": 0.897556,
+          "SRRIP": 0.89268
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "SRRIP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "bfs",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.956526,
+          "LRU": 0.966509,
+          "POPT": 0.957587,
+          "SRRIP": 0.962542
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "GRASP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "pr",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.785828,
+          "LRU": 0.892299,
+          "POPT": 0.775308,
+          "SRRIP": 0.878032
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "POPT",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "sssp",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.818409,
+          "LRU": 0.852928,
+          "POPT": 0.827043,
+          "SRRIP": 0.849729
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "GRASP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "pr",
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.686721,
+          "LRU": 0.710401,
+          "POPT": 0.618423,
+          "SRRIP": 0.668635
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "POPT",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "bc",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.79492,
+          "LRU": 0.843174,
+          "POPT": 0.814773,
+          "SRRIP": 0.824953
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "GRASP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.787126,
+          "LRU": 0.798664,
+          "POPT": 0.771569,
+          "SRRIP": 0.78285
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "POPT",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "pr",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.684286,
+          "LRU": 0.7322,
+          "POPT": 0.624785,
+          "SRRIP": 0.699437
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "POPT",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.708334,
+          "LRU": 0.687689,
+          "POPT": 0.673029,
+          "SRRIP": 0.687091
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "POPT",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "bc",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.765123,
+          "LRU": 0.85203,
+          "POPT": 0.795915,
+          "SRRIP": 0.828838
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "GRASP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "pr",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.54339,
+          "LRU": 0.679564,
+          "POPT": 0.547604,
+          "SRRIP": 0.634395
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "GRASP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.529359,
+          "LRU": 0.639747,
+          "POPT": 0.570327,
+          "SRRIP": 0.608038
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "GRASP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.707452,
+          "LRU": 0.707256,
+          "POPT": 0.702327,
+          "SRRIP": 0.688876
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "SRRIP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "bfs",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.936341,
+          "LRU": 0.970019,
+          "POPT": 0.947323,
+          "SRRIP": 0.969339
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "GRASP",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    },
+    {
+      "app": "pr",
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "per_sim_miss": {
+        "cache_sim": {
+          "GRASP": 0.453209,
+          "LRU": 0.600866,
+          "POPT": 0.416735,
+          "SRRIP": 0.543887
+        },
+        "gem5": {},
+        "sniper": {}
+      },
+      "per_sim_winner": {
+        "cache_sim": "POPT",
+        "gem5": "\u2014",
+        "sniper": "\u2014"
+      },
+      "verdict": "single"
+    }
+  ],
+  "scope_l3": [
+    "1MB"
+  ],
+  "status": "active",
+  "summary": {
+    "cells_agree": 0,
+    "cells_disagree": 0,
+    "cells_empty": 0,
+    "cells_single_sim": 15,
+    "cells_total": 15,
+    "cells_with_overlap": 0,
+    "winner_agreement_pct": null
+  }
+}

@@ -465,6 +465,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_analysis_dataclass_schema.py", "AnaDC"),
     "Headline coverage proof (gate 282) — PROOF GATE, RATCHET; gem5/Sniper/cache_sim coverage at literature 1MB cells (LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY) vs literature_baselines registry; floor in headline_coverage_baseline.json; cannot regress":
         ("scripts/test/test_headline_coverage.py", "HeadCov"),
+    "Headline parity proof (gate 283) — PROOF GATE; cross-simulator paper-table preview joining cache_sim+gem5+Sniper at literature 1MB cells; asserts winner-policy agreement on cells where >=2 sims report (today overlap=0, gate vacuously armed)":
+        ("scripts/test/test_headline_parity.py", "HeadPar"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
