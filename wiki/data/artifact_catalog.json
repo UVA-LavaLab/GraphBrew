@@ -1288,6 +1288,17 @@
       "summary": "ECG config deep-lock registry audit (gate 269) \u2014 ALWAYS ACTIVE (source-of-truth is the live scripts/experiments/ecg/config.py module loaded via importlib.spec_from_file_location). Sixteenth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock): gate 269 sits beside gate 263 (cross-tool config matrix) but goes deeper \u2014 where 263 locks (graph \u00d7 backend \u00d7 cache-size \u00d7 app \u00d7 policy) coverage matrix shape, gate 269 locks the CONTENTS of ecg/config.py that the runner.py + paper_pipeline.py + reproduce_smoke.py all import at runtime. Catches: a contributor lowers DEFAULT_CACHE['CACHE_L3_SIZE'] from 8 MiB to 4 MiB while debugging a single graph and forgets to revert \u2014 every subsequent confidence run silently uses the wrong baseline anchor and every gem5/Sniper paper number drifts off the literature pin; a contributor adds a new entry to CACHE_SIZES_SWEEP that breaks the power-of-2 ladder (e.g., 48 KiB between 32 KiB and 64 KiB) and the per-cache-size slope-extraction tests start producing non-monotonic curves; a contributor moves bc from TRAVERSAL_BENCHMARKS into ITERATIVE_BENCHMARKS, breaking every per-app regime classifier downstream; a contributor introduces a new ECG_MODES value ('NEW_MODE') without updating any of the 50+ downstream gates and runners crash with KeyError mid-simulation; a contributor renames a graph in EVAL_GRAPHS or removes a required schema key (name/short/type/vertices_m/edges_m); a contributor introduces a typo'd ACCURACY_PAIRS relation label that breaks the paper-claims-registry cross-reference. 8 rules C1-C8: (C1) DEFAULT_CACHE has all 7 canonical anchors (CACHE_L1_SIZE=32768, L2_SIZE=262144, L3_SIZE=8388608, L1_WAYS=8, L2_WAYS=4, L3_WAYS=16, LINE_SIZE=64) \u2014 exact string match; (C2) CACHE_SIZES_SWEEP is exactly 12 ascending power-of-2 entries from 32 KiB to 64 MiB; (C3) BENCHMARKS = ITERATIVE_BENCHMARKS \u222a TRAVERSAL_BENCHMARKS with no overlap; (C4) ALL_POLICIES = BASELINE_POLICIES \u222a GRAPH_AWARE_POLICIES with no overlap; (C5) ECG_MODES exactly equals the canonical 4-set {DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED}; (C6) every EVAL_GRAPHS entry has all 5 required keys (name, short, type, vertices_m, edges_m) AND its type is one of {Social, Citation, Road, Web, Content, Mesh}; (C7) every REORDER_VARIANTS flag starts with `-o ` and is in the recognized vocabulary; (C8) every ACCURACY_PAIRS relation label is snake_case and in the canonical relation vocabulary. Today: 7 cache anchors, 12 sweep points (32 KiB..64 MiB), 7 benchmarks (3 iterative + 3 traversal + 1 reserved-bcsr), 8 policies (5 baseline + 3 graph-aware), 4 ECG modes, 6 EVAL_GRAPHS; 0 violations. Together with gate 263 (matrix shape) this completes the LIT-CONFIG lock at both schema and value layers."
     },
     {
+      "artifact": "wiki/data/lit_faith_gem5_overlay_hash_registry.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_gem5_overlay_hash_registry.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_gem5_overlay_hash_registry.py",
+      "generator_exists": true,
+      "id": "lit_faith_gem5_overlay_hash_registry",
+      "label": "gem5 overlay-file hash registry",
+      "summary": "gem5 overlay-file byte-content (SHA-256) registry audit (gate 270) \u2014 ALWAYS ACTIVE (sources-of-truth are the live overlay source files under bench/include/gem5_sim/overlays/). Seventeenth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock, 270 gem5 overlay-file hash registry): gate 270 sits BENEATH gates 266+267+268 \u2014 where those three lock the installation contract (payload mapping + script orchestrator), gate 270 locks the actual BYTE CONTENT of every overlay source the paper depends on. Catches the silent-edit cases that the installation-contract gates miss: someone fixes a 'small bug' in grasp_rp.cc between paper runs and forgets to declare it \u2014 every subsequent measurement uses a policy that doesn't match the paper text; someone adds a debug printf to ecg_pfx.cc that quietly affects timing in the gem5 build; someone reformats GraphReplacementPolicies.py and the reformatter inadvertently removes a SimObject class; someone edits decoder_ecg_extract.isa to change the opcode bit-pattern, breaking the riscv-toolchain pseudo-instruction. 7 rules M1-M7: (M1) every file in OVERLAY_HASH_REGISTRY hashes to its registered SHA-256 \u2014 any byte change forces explicit registry update; (M2) every registered file's byte length is within sane bounds [50, 500_000]; (M3) required content markers per file are present (GraphGraspRP/GraphPoptRP/GraphEcgRP class tokens in .cc/.hh; class/SimObject in .py; Droplet/EcgPfx in prefetcher sources); (M4) registry is exhaustive \u2014 every regular tracked file on disk is in registry (modulo OVERLAY_HASH_EXTRA_ALLOW); (M5) only tracked extensions appear (whitelist: .cc/.hh/.py/.isa/.patch; .md docs ignored); (M6) SimObject .py files declare classes for every policy/prefetcher token (regex ^class \\w*<Token>\\w*\\s*\\( in source); (M7) both expected SConscript.patch files exist (one under replacement_policies/, one under prefetch/). Today: 17 registered files (8 replacement_policies + 6 prefetch + 2 isa + 1 documentation skip), 13 marker files, 2 SimObject .py files, 2 patches; 0 violations. Together with gates 266+267+268 this completes the FULL gem5 overlay surface lock: installation mapping (267) + script orchestrator (268) + payload byte content (270)."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1329,13 +1340,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (269 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (270 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 121
+    "n_entries": 122
   }
 }

@@ -8,7 +8,41 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **269 gates, all GREEN, exit 0**.
+and currently reports **270 gates, all GREEN, exit 0**.
+
+**gem5 overlay-file hash registry (gate 270, refresh @270):**
+The seventeenth in the vocabulary-lock series (252 SBATCH, 255
+policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI,
+261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264
+filename grammar, 265 sideband grammar, 266 Sniper overlay tracker,
+267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG
+config deep-lock, 270 gem5 overlay-file hash registry). Sits BENEATH
+gates 266+267+268 — where those three lock the installation
+contract (payload map + script orchestrator), gate 270 locks the
+actual BYTE CONTENT (SHA-256) of every overlay source the paper
+depends on. Catches the silent-edit cases that the installation-
+contract gates miss: someone fixes a "small bug" in `grasp_rp.cc`
+between paper runs and forgets to declare it — every subsequent
+measurement uses a policy that doesn't match the paper text;
+someone adds a debug `printf` to `ecg_pfx.cc` that quietly affects
+timing in the gem5 build; someone reformats
+`GraphReplacementPolicies.py` and the reformatter inadvertently
+removes a SimObject class; someone edits `decoder_ecg_extract.isa`
+to change the opcode bit-pattern. 7 rules M1-M7: M1 every
+registered file hashes to its registered SHA-256 (any byte change
+forces explicit registry update); M2 every registered file's byte
+length within [50, 500_000]; M3 required content markers per file
+present (`GraphGraspRP`/`GraphPoptRP`/`GraphEcgRP` class tokens in
+.cc/.hh; `class`/`SimObject` in .py; `Droplet`/`EcgPfx` in
+prefetcher sources); M4 registry exhaustive — every regular tracked
+file on disk is in registry; M5 only tracked extensions
+(.cc/.hh/.py/.isa/.patch; .md docs ignored); M6 SimObject .py files
+declare classes for every policy/prefetcher token; M7 both expected
+`SConscript.patch` files exist. Today: 17 registered overlay
+sources, 13 marker files, 2 SimObject .py files, 2 patches; 0
+violations. Together with gates 266+267+268 this completes the FULL
+gem5 overlay surface lock: installation mapping (267) + script
+orchestrator (268) + payload byte content (270).
 
 **ECG config deep-lock (gate 269, refresh @269):**
 The sixteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -946,8 +980,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 269. Next refresh due
-at gate 274. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 270. Next refresh due
+at gate 275. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

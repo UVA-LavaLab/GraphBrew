@@ -439,6 +439,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_setup_script_registry.py", "SetupScriptRegistry"),
     "ECG config deep-lock (gate 269) — locks ecg/config.py: 7 DEFAULT_CACHE anchors, 12-pt CACHE_SIZES_SWEEP, bench partition, policy partition, 4 ECG_MODES, 6-graph EVAL_GRAPHS, REORDER vocab, ACCURACY_PAIRS rels; C1-C8":
         ("scripts/test/test_lit_faith_config_deep_lock.py", "ConfigDeepLock"),
+    "gem5 overlay-file hash registry (gate 270) — locks SHA-256 byte content of all 17 overlay sources under bench/include/gem5_sim/overlays/; M1-M7: hash parity, size bounds, markers, exhaustive, ext whitelist, SimObject, patches":
+        ("scripts/test/test_lit_faith_gem5_overlay_hash_registry.py", "G5OverlayHash"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
