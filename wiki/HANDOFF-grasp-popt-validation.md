@@ -8,7 +8,50 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **277 gates, all GREEN, exit 0**.
+and currently reports **278 gates, all GREEN, exit 0**.
+
+**Receiver CLI registry (gate 278, refresh @278):**
+Twenty-fifth in the vocabulary-lock series (252 SBATCH … 277
+subprocess argv, 278 receiver CLI registry). EXTENDS gate 277 by
+locking the RECEIVING side of every subprocess invocation. Gate 277
+locked the sender side (``--flag`` literals built into argv lists by
+``paper_pipeline.run_profile`` + ``final_paper_run.make_{proof,roi}_job``).
+Gate 278 locks the receiver side — ``parse_args()`` of
+``proof_matrix.py`` (17 flags) + ``roi_matrix.py`` (48 flags) — and
+adds a cross-side parity check (E7) that verifies every sender-side
+flag is present in the corresponding receiver's registered surface.
+Together gates 277 + 278 guarantee BOTH sides of every subprocess
+invocation agree on the flag contract, so renames + removals on
+either side fail loud at audit time rather than silently at job
+time. Catches the silent-drift cases gate 277 alone can't catch:
+someone renames ``--out-dir`` → ``--output-dir`` in BOTH sender and
+receiver simultaneously (gate 277 passes because the sender still
+builds a valid argv; gate 278 catches it because the registry pin on
+receiver side still expects ``--out-dir``); someone adds a new
+optional flag to ``proof_matrix.parse_args`` without teaching
+``make_proof_job`` to pass it (no runtime error — argparse just uses
+the default — but the receiver's contract has silently widened and
+the registry pin fails); someone changes ``--l3-sizes`` from
+``nargs='+'`` to a single value in ``roi_matrix.parse_args`` (every
+existing sender that passes multiple values silently swallows only
+the last one); someone changes ``--allow-gem5-ecg-pfx`` from
+``store_true`` to ``store`` (sender stops appending value-less flag;
+receiver gets None default). 7 rules E1-E7: E1 every registered
+receiver module exists and ast.parses; E2 every registered receiver
+has a ``parse_args()`` top-level fn; E3 every registered flag exists
+in live ``add_argument`` calls with same option string; E4 every
+registered flag action matches live (default ``store``) — catches
+``store_true`` ↔ ``store`` drift; E5 every registered flag nargs
+matches live (``+``, ``*``, ``?``, or explicit int); E6 registry
+exhaustive — no surprise live flag slips into receiver; E7
+cross-side parity: every sender-side ``--flag`` literal from gate 277
+(``make_proof_job`` → ``proof_matrix``,
+``make_roi_job`` → ``roi_matrix``) is present in the corresponding
+receiver registry. Today: 2 receivers, 65 locked ``add_argument``
+calls (17 proof + 48 roi), 2 cross-side pairs; 0 violations.
+Together with gates 273+274+275+276+277 this locks the FULL
+publish-reproduction contract end-to-end AND its dual — sender-receiver
+wire-level agreement on every ``--flag``.
 
 **Subprocess argv registry (gate 277, refresh @277):**
 The twenty-fourth in the vocabulary-lock series (252 SBATCH … 276
@@ -1238,8 +1281,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 277. Next refresh due
-at gate 282. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 278. Next refresh due
+at gate 283. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

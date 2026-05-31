@@ -455,6 +455,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_manifest_schema.py", "ManifestSchema"),
     "Subprocess argv registry (gate 277) — locks --flag literals built by run_profile + make_proof_job + make_roi_job (3 builders, 56 flags); A1-A6: module+fn present, target const referenced, no removals, no additions, exhaustive, hygiene":
         ("scripts/test/test_lit_faith_subprocess_argv_registry.py", "ArgvReg"),
+    "Receiver CLI registry (gate 278) — locks parse_args() of proof_matrix (17) + roi_matrix (48); 65 flags + 2 cross-pairs; E1-E7: ast-parse, parse_args present, flag presence, action, nargs, exhaustive, cross-side parity with gate 277 senders":
+        ("scripts/test/test_lit_faith_receiver_cli_registry.py", "RecvCLI"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
