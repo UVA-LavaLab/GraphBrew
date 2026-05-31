@@ -8,7 +8,38 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **266 gates, all GREEN, exit 0**.
+and currently reports **267 gates, all GREEN, exit 0**.
+
+**gem5 overlay-installation tracker (gate 267, refresh @267):**
+The fourteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 wiki/data
+filename grammar, 265 sideband grammar, 266 Sniper overlay tracker,
+267 gem5 overlay tracker). Mirror of gate 266 for gem5: locks
+`scripts/setup_gem5.py`'s `OVERLAY_FILE_MAP` (source→destination dict,
+14 entries) and `PATCH_FILES` list (2 SConscript patches) against
+silent drift. Catches the silent-drift cases where a contributor adds
+a new replacement policy source `mem/cache/replacement_policies/xyz_rp.cc`
+under `overlays/` but forgets to extend `OVERLAY_FILE_MAP` — the file
+ships in `overlays/` but never gets copied into the gem5 checkout and
+`--l1d_rp=GraphAwareRP_XYZ` fails with "unknown replacement policy";
+adds a `GraphReplacementPolicies.py` SimObject entry but forgets the
+`.cc`/`.hh` pair and scons link fails at deploy-time; adds a new
+SConscript.patch but forgets `PATCH_FILES` — patch is shipped but
+never applied so new SimObjects don't register. 7 rules G1-G7: G1
+every source path matches grammar (`[A-Za-z][A-Za-z0-9_/.]+\.(cc|hh|py|isa)$`);
+G2 every source exists on disk under `bench/include/gem5_sim/overlays/`;
+G3 every policy token has both `<pol>_rp.cc` + `.hh` in
+`OVERLAY_FILE_MAP`; G4 every prefetcher token has both `<pf>.cc` + `.hh`;
+G5 every `PATCH_FILES` entry exists on disk; G6 `OVERLAY_FILE_MAP +
+PATCH_FILES` is exhaustive (modulo `OVERLAY_EXTRA_ALLOW` for staging
+files like `decoder_ecg_extract.isa`); G7 the LIVE
+`setup_gem5.OVERLAY_FILE_MAP`+`PATCH_FILES` matches the canonical
+registry AND every (src, dst) pair satisfies the `src==dst` identity
+invariant. Today: 14 overlay sources (8 replacement_policies + 5
+prefetch + 1 isa), 3 policies, 2 prefetchers, 2 SConscript patches; 0
+violations. Together with gate 266 (Sniper) this completes BUILD-TIME
+overlay-installation lock on both simulator backends.
 
 **Sniper overlay-installation tracker (gate 266, refresh @266):**
 The thirteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -852,8 +883,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 266. Next refresh due
-at gate 271. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 267. Next refresh due
+at gate 272. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

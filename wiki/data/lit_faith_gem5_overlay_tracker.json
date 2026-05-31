@@ -1,0 +1,53 @@
+{
+  "allow_lists": {
+    "OVERLAY_EXTRA_ALLOW": [
+      "arch/riscv/isa/decoder_ecg_extract.isa"
+    ]
+  },
+  "patches_n": 2,
+  "policies_n": 3,
+  "prefetchers_n": 2,
+  "registry": {
+    "overlay_file_map_keys": [
+      "mem/cache/replacement_policies/grasp_rp.hh",
+      "mem/cache/replacement_policies/grasp_rp.cc",
+      "mem/cache/replacement_policies/popt_rp.hh",
+      "mem/cache/replacement_policies/popt_rp.cc",
+      "mem/cache/replacement_policies/ecg_rp.hh",
+      "mem/cache/replacement_policies/ecg_rp.cc",
+      "mem/cache/replacement_policies/graph_cache_context_gem5.hh",
+      "mem/cache/replacement_policies/GraphReplacementPolicies.py",
+      "mem/cache/prefetch/droplet.hh",
+      "mem/cache/prefetch/droplet.cc",
+      "mem/cache/prefetch/ecg_pfx.hh",
+      "mem/cache/prefetch/ecg_pfx.cc",
+      "mem/cache/prefetch/GraphPrefetchers.py",
+      "arch/riscv/isa/formats/ecg.isa"
+    ],
+    "patches": [
+      "mem/cache/replacement_policies/SConscript.patch",
+      "mem/cache/prefetch/SConscript.patch"
+    ],
+    "policies": [
+      "grasp",
+      "popt",
+      "ecg"
+    ],
+    "prefetchers": [
+      "droplet",
+      "ecg_pfx"
+    ]
+  },
+  "registry_n": 14,
+  "rules": {
+    "G1": "every OVERLAY_FILE_MAP source has valid grammar (path + .cc/.hh/.py/.isa)",
+    "G2": "every OVERLAY_FILE_MAP source exists on disk under overlays/",
+    "G3": "every policy token has both <pol>_rp.cc + .hh in OVERLAY_FILE_MAP",
+    "G4": "every prefetcher token has both <pf>.cc + .hh in OVERLAY_FILE_MAP",
+    "G5": "every PATCH_FILES entry exists on disk under overlays/",
+    "G6": "OVERLAY_FILE_MAP+PATCH_FILES is exhaustive over overlays/ (modulo OVERLAY_EXTRA_ALLOW)",
+    "G7": "live setup_gem5.OVERLAY_FILE_MAP+PATCH_FILES matches canonical registry (parity + identity invariant)"
+  },
+  "status": "active",
+  "violations": []
+}

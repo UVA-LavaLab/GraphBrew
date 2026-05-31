@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 118,
+    "catalog_entries": 119,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 122
+    "wiki_json_files": 123
   },
   "violations": [],
   "wiki_json_files": [
@@ -101,6 +101,7 @@
     "wiki/data/lit_faith_ecg_pfx_vs_droplet.json",
     "wiki/data/lit_faith_ecg_sniper_parity.json",
     "wiki/data/lit_faith_filename_grammar.json",
+    "wiki/data/lit_faith_gem5_overlay_tracker.json",
     "wiki/data/lit_faith_graph_family.json",
     "wiki/data/lit_faith_graph_registry.json",
     "wiki/data/lit_faith_handoff_xref.json",
