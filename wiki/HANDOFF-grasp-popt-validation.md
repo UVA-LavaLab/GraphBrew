@@ -8,7 +8,36 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **280 gates, all GREEN, exit 0**.
+and currently reports **281 gates, all GREEN, exit 0**.
+
+**Analysis dataclass schema (gate 281, refresh @281):**
+Twenty-eighth in the vocabulary-lock series (252 SBATCH … 280
+receiver dataclass, 281 analysis dataclass schema). Extends gate
+280's receiver-side registry beyond the orchestration carriers
+(``PolicySpec`` / ``Ablation`` / ``AdaptiveSelector``) into the
+analysis layer — the dataclasses that aggregate sweep observations
+into paper-ready tables and invariant verdicts. Six dataclasses
+across four modules, 41 fields total:
+``paper_baseline_table.Row`` (7 fields, ``frozen=True``);
+``literature_baselines.LiteratureClaim`` (10 fields,
+``frozen=True``); ``literature_baselines.CacheOrg`` (9 fields,
+``frozen=True``); ``corpus_diversity.GraphProfile`` (6 fields, bare
+``@dataclass``); ``gem5_anchor_summary.CellSummary`` (6 fields,
+bare); ``gem5_anchor_summary.AnchorInvariant`` (3 fields, bare).
+Catches: new column added to ``Row`` without updating the per-cell
+builder (H6); ``LiteratureClaim.tolerance_pct: float → str`` (H4);
+``frozen=True`` dropped from ``CacheOrg`` (H7);
+``GraphProfile.features: dict = field(default_factory=dict)``
+flipped to ``= {}`` (mutable-default trap — H5);
+``AnchorInvariant.status → AnchorInvariant.verdict`` rename (H3).
+7 rules H1-H7: (H1) module ast.parses; (H2) class present; (H3)
+field present; (H4) annotation match; (H5) default match; (H6)
+class exhaustive; (H7) decorator kwargs preserved both directions
+(handles both bare ``@dataclass`` and ``@dataclass(frozen=True)``).
+Today: 4 modules, 6 classes, 41 fields (3 frozen + 3 bare); 0
+violations. Together with gates 273+274+275+276+277+278+279+280
+this completes the per-row carrier lock end-to-end: orchestration
+carriers AND analysis carriers all pinned by AST audit.
 
 **Receiver dataclass schema (gate 280, refresh @280):**
 Twenty-seventh in the vocabulary-lock series (252 SBATCH … 279 Job
@@ -1343,8 +1372,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 280. Next refresh due
-at gate 285. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 281. Next refresh due
+at gate 286. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

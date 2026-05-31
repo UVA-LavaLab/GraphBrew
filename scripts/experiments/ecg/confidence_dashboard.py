@@ -461,6 +461,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_job_dataclass_schema.py", "JobSchema"),
     "Receiver dataclass schema (gate 280) — locks 3 frozen dataclasses: roi_matrix.PolicySpec (4 flds), proof_matrix.Ablation (6 flds), proof_matrix.AdaptiveSelector (3 flds); G1-G7: ast-parse, class present, field, annot, default, exhaustive, kwargs":
         ("scripts/test/test_lit_faith_receiver_dataclass_schema.py", "RecvDC"),
+    "Analysis dataclass schema (gate 281) — locks 6 analysis dataclasses across 4 modules: Row (7 flds), LiteratureClaim (10 flds), CacheOrg (9 flds), GraphProfile (6 flds), CellSummary (6 flds), AnchorInvariant (3 flds); 41 fields total; H1-H7 audit":
+        ("scripts/test/test_lit_faith_analysis_dataclass_schema.py", "AnaDC"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

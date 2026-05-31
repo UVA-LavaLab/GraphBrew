@@ -1,0 +1,268 @@
+{
+  "classes": 6,
+  "fields": 41,
+  "gate": 281,
+  "modules": [
+    "scripts/experiments/ecg/corpus_diversity.py",
+    "scripts/experiments/ecg/gem5_anchor_summary.py",
+    "scripts/experiments/ecg/literature_baselines.py",
+    "scripts/experiments/ecg/paper_baseline_table.py"
+  ],
+  "registry": [
+    {
+      "class": "Row",
+      "decorator_kwargs": {
+        "frozen": "True"
+      },
+      "fields": [
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "graph"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "app"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l3_size"
+        },
+        {
+          "annotation": "dict[str, float]",
+          "default": "none",
+          "name": "miss"
+        },
+        {
+          "annotation": "dict[str, float]",
+          "default": "none",
+          "name": "delta"
+        },
+        {
+          "annotation": "dict[str, str]",
+          "default": "none",
+          "name": "verdict"
+        },
+        {
+          "annotation": "int",
+          "default": "none",
+          "name": "accesses"
+        }
+      ],
+      "module": "scripts/experiments/ecg/paper_baseline_table.py"
+    },
+    {
+      "class": "LiteratureClaim",
+      "decorator_kwargs": {
+        "frozen": "True"
+      },
+      "fields": [
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "graph"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "app"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l3_size"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "policy"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "expected_sign"
+        },
+        {
+          "annotation": "float | None",
+          "default": "none",
+          "name": "min_abs_delta_pct"
+        },
+        {
+          "annotation": "float | None",
+          "default": "none",
+          "name": "max_abs_delta_pct"
+        },
+        {
+          "annotation": "float",
+          "default": "none",
+          "name": "tolerance_pct"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "rationale"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "citation"
+        }
+      ],
+      "module": "scripts/experiments/ecg/literature_baselines.py"
+    },
+    {
+      "class": "CacheOrg",
+      "decorator_kwargs": {
+        "frozen": "True"
+      },
+      "fields": [
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "name"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l1d_size"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l1d_ways"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l2_size"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l2_ways"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l3_size"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l3_ways"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "line_size"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "rationale"
+        }
+      ],
+      "module": "scripts/experiments/ecg/literature_baselines.py"
+    },
+    {
+      "class": "GraphProfile",
+      "decorator_kwargs": {},
+      "fields": [
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "graph"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "log_path"
+        },
+        {
+          "annotation": "int",
+          "default": "literal:0",
+          "name": "nodes"
+        },
+        {
+          "annotation": "int",
+          "default": "literal:0",
+          "name": "edges"
+        },
+        {
+          "annotation": "bool",
+          "default": "literal:False",
+          "name": "edges_directed"
+        },
+        {
+          "annotation": "dict",
+          "default": "factory:field(default_factory=dict)",
+          "name": "features"
+        }
+      ],
+      "module": "scripts/experiments/ecg/corpus_diversity.py"
+    },
+    {
+      "class": "CellSummary",
+      "decorator_kwargs": {},
+      "fields": [
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "graph"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "app"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "l3_size"
+        },
+        {
+          "annotation": "dict[str, float]",
+          "default": "factory:field(default_factory=dict)",
+          "name": "miss_rate_by_policy"
+        },
+        {
+          "annotation": "int",
+          "default": "literal:0",
+          "name": "ok_rows"
+        },
+        {
+          "annotation": "int",
+          "default": "literal:0",
+          "name": "error_rows"
+        }
+      ],
+      "module": "scripts/experiments/ecg/gem5_anchor_summary.py"
+    },
+    {
+      "class": "AnchorInvariant",
+      "decorator_kwargs": {},
+      "fields": [
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "name"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "status"
+        },
+        {
+          "annotation": "str",
+          "default": "none",
+          "name": "detail"
+        }
+      ],
+      "module": "scripts/experiments/ecg/gem5_anchor_summary.py"
+    }
+  ],
+  "status": "active",
+  "violations": []
+}
