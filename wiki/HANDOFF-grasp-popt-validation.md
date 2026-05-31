@@ -8,7 +8,39 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **274 gates, all GREEN, exit 0**.
+and currently reports **275 gates, all GREEN, exit 0**.
+
+**Paper-pipeline stage registry (gate 275, refresh @275):**
+The twenty-second in the vocabulary-lock series (252 SBATCH … 274
+orchestrator CLI, 275 paper-pipeline stage registry). EXTENDS gates
+273+274 from the CLI *surface* down into the orchestrator *backbone*.
+Locks 87 public top-level fn signatures in total — 50 from
+`scripts/experiments/ecg/paper_pipeline.py` (`run_profile`,
+`collect_csvs`, `summarize_roi`, `plot_metric_by_policy`,
+`plot_l_curve`, `write_latex_table`, `generate_outputs`, `main`, …)
+and 37 from `scripts/experiments/ecg/final_paper_run.py`
+(`load_manifest`, `expand_jobs`, `make_proof_job`, `make_roi_job`,
+`validate_gate`, `validate_literature_gate`, `validate_job_graphs`,
+`run_lock`, `should_run`, `run_job`, `write_run_manifest`, `main`, …).
+Catches the silent-drift cases the CLI gates can't catch: someone
+renames `run_profile` → `execute_profile` and every internal call
+breaks at runtime in the middle of an 8-hour SLURM run; someone
+reorders the positional args of `make_roi_job(args, manifest, run_dir,
+settings, graph, graph_path, benchmark)` and every job downstream
+silently uses wrong arguments; someone changes `main()`'s return type
+from `int` to `bool` and the SBATCH exit-code branch always
+evaluates to truthy; someone makes `run_lock` async and every `with
+run_lock():` block silently becomes a no-op; someone removes
+`terminate_process_group` entirely and the cleanup branch silently
+no-ops. 7 rules S1-S7: S1 orchestrator module ast-parses; S2 fn-kind
+sync/async match; S3 positional args list (names+order) match; S4
+positional defaults-presence vector match; S5 return annotation match
+(ast.unparse form); S6 vararg+kwarg+kwonly shape match; S7 registry
+exhaustive — every public top-level fn must appear. Today: 87 locked
+fns across 2 orchestrators; 0 violations. Together with gates 273+274
+this locks the FULL user-facing pipeline — from per-experiment runner
+CLI (gate 273), to orchestrator CLI (gate 274), down to orchestrator
+backbone helpers (gate 275).
 
 **Orchestrator CLI registry (gate 274, refresh @274):**
 The twenty-first in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -1120,8 +1152,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 274. Next refresh due
-at gate 279. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 275. Next refresh due
+at gate 280. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

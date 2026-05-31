@@ -449,6 +449,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_runner_cli_registry.py", "RunnerCLI"),
     "Orchestrator CLI registry (gate 274) — locks parse_args() of paper_pipeline.py (14) + final_paper_run.py (29); O1-O7: ast-parse, fn present, flag presence, action match (BooleanOptionalAction-aware), nargs match, exhaustive, required-shape":
         ("scripts/test/test_lit_faith_orchestrator_cli_registry.py", "OrchCLI"),
+    "Paper-pipeline stage registry (gate 275) — locks public top-level fn signatures of paper_pipeline.py (50) + final_paper_run.py (37); 87 fns; S1-S7: ast-parse, fn-kind, args, defaults, return annot, vararg/kwarg/kwonly, exhaustive":
+        ("scripts/test/test_lit_faith_paper_stage_registry.py", "StageReg"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
