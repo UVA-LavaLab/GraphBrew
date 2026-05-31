@@ -8,7 +8,43 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **272 gates, all GREEN, exit 0**.
+and currently reports **273 gates, all GREEN, exit 0**.
+
+**Runner CLI registry (gate 273, refresh @273):**
+The twentieth in the vocabulary-lock series (252 SBATCH, 255 policy,
+256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261
+arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename
+grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5
+overlay tracker, 268 setup-script invariants, 269 ECG config
+deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-
+file hash registry, 272 setup-script fn signature registry, 273
+runner CLI registry). Locks the argparse CLI surface of the two
+paper-experiment runners: `scripts/experiments/ecg/runner.py`
+(6 flags: `--all`, `--section`, `--exp`, `--preview`, `--dry-run`,
+`--graph-dir`) and `scripts/experiments/vldb/runner.py` (12 flags:
+`--all`, `--exp`, `--preview`, `--dry-run`, `--graphs`, `--graph-dir`,
+`--64gb`, `--local`, `--skip-setup`, `--skip-download`, `--no-figures`,
+`--figures-only`). Both runners are user-facing — invoked by
+`paper_pipeline.py`, every SBATCH template, and every documented
+reproduction recipe. Their CLI surface IS the published
+paper-reproduction contract. Catches the silent-drift cases: someone
+renames `--graph-dir` to `--graphs-dir` in vldb runner and every
+SBATCH template + docs example silently invokes help-text fallback;
+someone removes `--preview` from ecg runner and CI / docs reproduction
+smokes start failing in opaque ways; someone changes `--exp` from
+`nargs="+"` to a single value — every example using `--exp A1 A2 A3`
+silently swallows only the last value; someone swaps the action of
+`--all` from `store_true` to `store` and every invocation gets a
+missing-value error; someone adds a new flag without registering it
+(`--turbo`) so reproduction recipes diverge from the documented CLI.
+6 rules R1-R6: R1 every registered runner module ast-parses cleanly;
+R2 every runner has a `main()` top-level fn; R3 every registered flag
+exists in live `add_argument` calls (option-string match); R4 every
+registered flag's `action` matches live (store ≠ store_true); R5
+every registered flag's `nargs` matches live (`"+"` vs `"*"` vs
+single); R6 registry is exhaustive — no live flag missing from
+registry (catches surprise new flags). Today: 18 locked flags total
+(6 ECG + 12 VLDB) across 2 runners; 0 violations.
 
 **Setup-script fn signature registry (gate 272, refresh @272):**
 The nineteenth in the vocabulary-lock series (252 SBATCH, 255 policy,
@@ -1049,8 +1085,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 272. Next refresh due
-at gate 277. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 273. Next refresh due
+at gate 278. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

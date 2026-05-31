@@ -1,0 +1,100 @@
+{
+  "counts": {
+    "ecg_flags": 6,
+    "runners": 2,
+    "total_flags": 18,
+    "vldb_flags": 12
+  },
+  "registry": {
+    "scripts/experiments/ecg/runner.py": [
+      {
+        "action": "store_true",
+        "flag": "--all"
+      },
+      {
+        "action": "store",
+        "flag": "--section"
+      },
+      {
+        "action": "store",
+        "flag": "--exp",
+        "nargs": "+"
+      },
+      {
+        "action": "store_true",
+        "flag": "--preview"
+      },
+      {
+        "action": "store_true",
+        "flag": "--dry-run"
+      },
+      {
+        "action": "store",
+        "flag": "--graph-dir"
+      }
+    ],
+    "scripts/experiments/vldb/runner.py": [
+      {
+        "action": "store_true",
+        "flag": "--all"
+      },
+      {
+        "action": "store",
+        "flag": "--exp",
+        "nargs": "+"
+      },
+      {
+        "action": "store_true",
+        "flag": "--preview"
+      },
+      {
+        "action": "store_true",
+        "flag": "--dry-run"
+      },
+      {
+        "action": "store",
+        "flag": "--graphs",
+        "nargs": "+"
+      },
+      {
+        "action": "store",
+        "flag": "--graph-dir"
+      },
+      {
+        "action": "store_true",
+        "flag": "--64gb"
+      },
+      {
+        "action": "store_true",
+        "flag": "--local"
+      },
+      {
+        "action": "store_true",
+        "flag": "--skip-setup"
+      },
+      {
+        "action": "store_true",
+        "flag": "--skip-download"
+      },
+      {
+        "action": "store_true",
+        "flag": "--no-figures"
+      },
+      {
+        "action": "store_true",
+        "flag": "--figures-only"
+      }
+    ]
+  },
+  "rules": {
+    "R1": "runner module importable (ast parses)",
+    "R2": "main() top-level fn present",
+    "R3": "every registered flag exists in live add_argument calls",
+    "R4": "every registered flag action matches live",
+    "R5": "every registered flag nargs matches live",
+    "R6": "registry exhaustive \u2014 no surprise live flag"
+  },
+  "schema": "lit-faith-runner-cli-registry/1",
+  "status": "active",
+  "violations": []
+}

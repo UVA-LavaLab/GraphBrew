@@ -1321,6 +1321,17 @@
       "summary": "Setup-script function signature registry audit (gate 272) \u2014 ALWAYS ACTIVE (source-of-truth is the live AST of scripts/setup_gem5.py + scripts/setup_sniper.py). Nineteenth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-file hash registry, 272 setup-script fn signature registry): gate 272 DEEPENS gate 268 \u2014 where 268 only locks the NAMES of canonical fns (14 gem5 + 27 sniper), gate 272 locks each fn's SIGNATURE shape: positional arg names + default-value count. Catches the silent-drift cases gate 268 misses entirely: someone adds a 4th positional arg env=None to run_cmd() in setup_gem5.py while keeping the name unchanged \u2014 every overlay-installation call site that passes positional args silently picks up wrong behavior; someone swaps two args of replace_once() in setup_sniper.py (old <-> new) and the function still imports cleanly but every overlay patch silently no-ops; someone removes the dry_run default from patch_grasp_overlay() and every CI smoke test that relied on the default starts crashing with TypeError; someone renames args -> cli_args in apply_overlays() and every downstream caller using keyword args silently breaks. 7 rules F1-F7: (F1) every registered fn exists in live AST; (F2) positional arg names match exactly (order + spelling); (F3) default-value count matches exactly; (F4) registry exhaustive over top-level public defs (no unregistered public fn slips in); (F5) no *args / **kwargs slipped into a locked fn (forces explicit signature evolution); (F6) no async def variant of a locked fn (locks call-site behavior); (F7) return-annotation presence is locked when declared. Today: 41 locked fns (14 gem5 + 27 sniper) covering every public top-level function in both setup scripts; 0 violations. Together with gates 266+267+268 this completes the FULL setup-script + overlay-installation contract lock at NAME + SIGNATURE + INSTALLATION + BYTE-CONTENT layers."
     },
     {
+      "artifact": "wiki/data/lit_faith_runner_cli_registry.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_runner_cli_registry.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_runner_cli_registry.py",
+      "generator_exists": true,
+      "id": "lit_faith_runner_cli_registry",
+      "label": "Runner CLI registry",
+      "summary": "Runner CLI registry audit (gate 273) \u2014 ALWAYS ACTIVE (source-of-truth is the live argparse surface of scripts/experiments/ecg/runner.py + scripts/experiments/vldb/runner.py). Twentieth in the vocabulary-lock series (252 SBATCH, 255 policy, 256 profile, 257 backend, 258 graph, 259 build, 260 CLI, 261 arm-catalog, 262 cross-tool schema, 263 config matrix, 264 filename grammar, 265 sideband grammar, 266 Sniper overlay tracker, 267 gem5 overlay tracker, 268 setup-script invariants, 269 ECG config deep-lock, 270 gem5 overlay-file hash registry, 271 Sniper overlay-file hash registry, 272 setup-script fn signature registry, 273 runner CLI registry): both runners are user-facing \u2014 invoked by paper_pipeline.py, every SBATCH template, and every documented reproduction recipe. Their --exp, --graphs, --graph-dir, --preview, --dry-run surface IS the published paper-reproduction contract. Catches the silent-drift cases: someone renames --graph-dir to --graphs-dir in vldb runner and every SBATCH template + docs example silently invokes help-text fallback; someone removes --preview from ecg runner and CI / docs reproduction smokes start failing in opaque ways; someone changes --exp from nargs=\"+\" to a single value \u2014 every example using --exp A1 A2 A3 silently swallows only the last value; someone swaps the action of --all from store_true to store and every invocation gets a missing-value error; someone adds a new flag without registering it (--turbo) so reproduction recipes diverge from the documented CLI. 6 rules R1-R6: (R1) every registered runner module ast-parses cleanly; (R2) every runner has a main() top-level fn; (R3) every registered flag exists in live add_argument calls (option-string match); (R4) every registered flag's action matches live (store \u2260 store_true); (R5) every registered flag's nargs matches live (\"+\" vs \"*\" vs single); (R6) registry is exhaustive \u2014 no live flag missing from registry (catches surprise new flags). Today: 18 locked flags total (6 ECG + 12 VLDB) across 2 runners; 0 violations."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1362,13 +1373,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (272 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (273 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 124
+    "n_entries": 125
   }
 }

@@ -445,6 +445,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_sniper_overlay_hash_registry.py", "SnpOverlayHash"),
     "Setup-script fn signature registry (gate 272) — locks positional arg names + defaults count of all 41 top-level public fns in setup_gem5.py + setup_sniper.py; F1-F7: presence, args, defaults, exhaustive, no varargs, no async, returns-annot":
         ("scripts/test/test_lit_faith_setup_fn_signature_registry.py", "SetupFnSig"),
+    "Runner CLI registry (gate 273) — locks argparse surface of ecg/runner.py (6 flags) + vldb/runner.py (12 flags); R1-R6: module importable, main() present, flag presence, action match, nargs match, exhaustive":
+        ("scripts/test/test_lit_faith_runner_cli_registry.py", "RunnerCLI"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":
