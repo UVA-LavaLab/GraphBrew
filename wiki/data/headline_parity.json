@@ -7,10 +7,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.902363,
-          "LRU": 0.898992,
-          "POPT": 0.897556,
-          "SRRIP": 0.89268
+          "GRASP": 0.898527,
+          "LRU": 0.884326,
+          "POPT": 0.882504,
+          "SRRIP": 0.879551
         },
         "gem5": {},
         "sniper": {}
@@ -28,10 +28,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.956526,
-          "LRU": 0.966509,
-          "POPT": 0.957587,
-          "SRRIP": 0.962542
+          "GRASP": 0.959314,
+          "LRU": 0.970808,
+          "POPT": 0.960335,
+          "SRRIP": 0.966718
         },
         "gem5": {},
         "sniper": {}
@@ -49,10 +49,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.785828,
-          "LRU": 0.892299,
-          "POPT": 0.775308,
-          "SRRIP": 0.878032
+          "GRASP": 0.785538,
+          "LRU": 0.894438,
+          "POPT": 0.7713,
+          "SRRIP": 0.879756
         },
         "gem5": {},
         "sniper": {}
@@ -70,10 +70,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.818409,
-          "LRU": 0.852928,
-          "POPT": 0.827043,
-          "SRRIP": 0.849729
+          "GRASP": 0.818017,
+          "LRU": 0.848641,
+          "POPT": 0.820823,
+          "SRRIP": 0.844417
         },
         "gem5": {},
         "sniper": {}
@@ -91,10 +91,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.686721,
-          "LRU": 0.710401,
-          "POPT": 0.618423,
-          "SRRIP": 0.668635
+          "GRASP": 0.684954,
+          "LRU": 0.704728,
+          "POPT": 0.610938,
+          "SRRIP": 0.66248
         },
         "gem5": {},
         "sniper": {}
@@ -112,10 +112,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.79492,
-          "LRU": 0.843174,
-          "POPT": 0.814773,
-          "SRRIP": 0.824953
+          "GRASP": 0.794829,
+          "LRU": 0.839565,
+          "POPT": 0.809648,
+          "SRRIP": 0.817515
         },
         "gem5": {},
         "sniper": {}
@@ -133,16 +133,16 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.787126,
-          "LRU": 0.798664,
-          "POPT": 0.771569,
-          "SRRIP": 0.78285
+          "GRASP": 0.741251,
+          "LRU": 0.817558,
+          "POPT": 0.75215,
+          "SRRIP": 0.782373
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -154,10 +154,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.684286,
-          "LRU": 0.7322,
-          "POPT": 0.624785,
-          "SRRIP": 0.699437
+          "GRASP": 0.683922,
+          "LRU": 0.731927,
+          "POPT": 0.622631,
+          "SRRIP": 0.698673
         },
         "gem5": {},
         "sniper": {}
@@ -175,10 +175,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.708334,
-          "LRU": 0.687689,
-          "POPT": 0.673029,
-          "SRRIP": 0.687091
+          "GRASP": 0.658449,
+          "LRU": 0.705817,
+          "POPT": 0.658234,
+          "SRRIP": 0.679863
         },
         "gem5": {},
         "sniper": {}
@@ -196,10 +196,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.765123,
-          "LRU": 0.85203,
-          "POPT": 0.795915,
-          "SRRIP": 0.828838
+          "GRASP": 0.764632,
+          "LRU": 0.851252,
+          "POPT": 0.794644,
+          "SRRIP": 0.828495
         },
         "gem5": {},
         "sniper": {}
@@ -217,10 +217,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.54339,
-          "LRU": 0.679564,
-          "POPT": 0.547604,
-          "SRRIP": 0.634395
+          "GRASP": 0.543296,
+          "LRU": 0.679563,
+          "POPT": 0.54677,
+          "SRRIP": 0.634272
         },
         "gem5": {},
         "sniper": {}
@@ -238,10 +238,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.529359,
-          "LRU": 0.639747,
-          "POPT": 0.570327,
-          "SRRIP": 0.608038
+          "GRASP": 0.526903,
+          "LRU": 0.635137,
+          "POPT": 0.564999,
+          "SRRIP": 0.603675
         },
         "gem5": {},
         "sniper": {}
@@ -259,10 +259,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.707452,
-          "LRU": 0.707256,
-          "POPT": 0.702327,
-          "SRRIP": 0.688876
+          "GRASP": 0.708493,
+          "LRU": 0.699827,
+          "POPT": 0.703612,
+          "SRRIP": 0.688201
         },
         "gem5": {},
         "sniper": {}
@@ -280,10 +280,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.936341,
-          "LRU": 0.970019,
-          "POPT": 0.947323,
-          "SRRIP": 0.969339
+          "GRASP": 0.936261,
+          "LRU": 0.970442,
+          "POPT": 0.946723,
+          "SRRIP": 0.96989
         },
         "gem5": {},
         "sniper": {}
@@ -301,10 +301,10 @@
       "l3_size": "1MB",
       "per_sim_miss": {
         "cache_sim": {
-          "GRASP": 0.453209,
-          "LRU": 0.600866,
-          "POPT": 0.416735,
-          "SRRIP": 0.543887
+          "GRASP": 0.453134,
+          "LRU": 0.600838,
+          "POPT": 0.416835,
+          "SRRIP": 0.544159
         },
         "gem5": {},
         "sniper": {}

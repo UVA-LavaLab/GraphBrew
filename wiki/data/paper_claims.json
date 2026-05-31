@@ -41,18 +41,18 @@
       "gate": "scripts/test/test_policy_winner_table.py",
       "id": "winner.grasp_share",
       "source": "wiki/data/policy_winner_table.json",
-      "text": "GRASP wins 56 / 114 cells (49.1 %) in the lit-faith corpus.",
+      "text": "GRASP wins 60 / 114 cells (52.6 %) in the lit-faith corpus.",
       "units": "percent",
-      "value": 49.1
+      "value": 52.6
     },
     {
       "category": "winner_table",
       "gate": "scripts/test/test_policy_winner_table.py",
       "id": "winner.popt_share",
       "source": "wiki/data/policy_winner_table.json",
-      "text": "POPT wins 44 / 114 cells (38.6 %) in the lit-faith corpus.",
+      "text": "POPT wins 40 / 114 cells (35.1 %) in the lit-faith corpus.",
       "units": "percent",
-      "value": 38.6
+      "value": 35.1
     },
     {
       "category": "winner_table",
@@ -95,16 +95,16 @@
       "gate": "scripts/test/test_popt_vs_grasp_delta.py",
       "id": "popt_vs_grasp.social_family_mean",
       "source": "wiki/data/popt_vs_grasp_delta.json",
-      "text": "On social-family graphs POPT's mean lift over GRASP is only +0.360 pp across 54 cells; the permutation overhead is not always recovered, contradicting the literature's blanket POPT_GE_GRASP claim.",
+      "text": "On social-family graphs POPT's mean lift over GRASP is only +0.535 pp across 54 cells; the permutation overhead is not always recovered, contradicting the literature's blanket POPT_GE_GRASP claim.",
       "units": "pp",
-      "value": 0.36
+      "value": 0.535
     },
     {
       "category": "deviations",
       "gate": "scripts/test/test_literature_deviations.py",
       "id": "deviations.popt_overhead_share",
       "source": "wiki/data/literature_deviations.json",
-      "text": "30 / 30 documented literature deviations (100.0 %) classify as `popt_overhead_dominates` - measured POPT miss rate exceeds GRASP by more than the claim tolerance.",
+      "text": "24 / 24 documented literature deviations (100.0 %) classify as `popt_overhead_dominates` - measured POPT miss rate exceeds GRASP by more than the claim tolerance.",
       "units": "percent",
       "value": 100.0
     },

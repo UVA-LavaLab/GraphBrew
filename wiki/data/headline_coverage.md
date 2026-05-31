@@ -5,16 +5,16 @@
 ## Totals
 
 - Required cells: **225**
-- Present (in scope): **60**
-- Missing: **165**
-- Coverage: **26.7 %**
-- Extra rows on disk (out of scope): 492
+- Present (in scope): **75**
+- Missing: **150**
+- Coverage: **33.3 %**
+- Extra rows on disk (out of scope): 575
 
 ## Per-simulator coverage
 
 | sim | present | required | coverage |
 |---|---:|---:|---:|
-| `cache_sim` | 60 | 75 | 80.0 % |
+| `cache_sim` | 75 | 75 | 100.0 % |
 | `gem5` | 0 | 75 | 0.0 % |
 | `sniper` | 0 | 75 | 0.0 % |
 
@@ -22,19 +22,19 @@
 
 | tier | missing |
 |---|---:|
-| LOCAL | 44 |
-| LOCAL_TIGHT | 66 |
-| SLURM | 55 |
+| LOCAL | 40 |
+| LOCAL_TIGHT | 60 |
+| SLURM | 50 |
 
 ## Per (simulator, graph) coverage
 
 | sim | graph | tier | present/req | coverage |
 |---|---|---|---:|---:|
-| `cache_sim` | `cit-Patents` | LOCAL | 16/20 | 80.0 % |
-| `cache_sim` | `com-orkut` | SLURM | 4/5 | 80.0 % |
-| `cache_sim` | `soc-LiveJournal1` | SLURM | 16/20 | 80.0 % |
-| `cache_sim` | `soc-pokec` | LOCAL_TIGHT | 12/15 | 80.0 % |
-| `cache_sim` | `web-Google` | LOCAL_TIGHT | 12/15 | 80.0 % |
+| `cache_sim` | `cit-Patents` | LOCAL | 20/20 | 100.0 % |
+| `cache_sim` | `com-orkut` | SLURM | 5/5 | 100.0 % |
+| `cache_sim` | `soc-LiveJournal1` | SLURM | 20/20 | 100.0 % |
+| `cache_sim` | `soc-pokec` | LOCAL_TIGHT | 15/15 | 100.0 % |
+| `cache_sim` | `web-Google` | LOCAL_TIGHT | 15/15 | 100.0 % |
 | `gem5` | `cit-Patents` | LOCAL | 0/20 | 0.0 % |
 | `gem5` | `com-orkut` | SLURM | 0/5 | 0.0 % |
 | `gem5` | `soc-LiveJournal1` | SLURM | 0/20 | 0.0 % |
@@ -46,20 +46,10 @@
 | `sniper` | `soc-pokec` | LOCAL_TIGHT | 0/15 | 0.0 % |
 | `sniper` | `web-Google` | LOCAL_TIGHT | 0/15 | 0.0 % |
 
-## Workstation-runnable missing cells (110 cells)
+## Workstation-runnable missing cells (100 cells)
 
 | sim | graph | app | L3 | policy | prefetcher | tier |
 |---|---|---|---|---|---|---|
-| cache_sim | cit-Patents | bc | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL |
-| cache_sim | cit-Patents | bfs | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL |
-| cache_sim | cit-Patents | pr | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL |
-| cache_sim | cit-Patents | sssp | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL |
-| cache_sim | soc-pokec | bc | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL_TIGHT |
-| cache_sim | soc-pokec | pr | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL_TIGHT |
-| cache_sim | soc-pokec | sssp | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL_TIGHT |
-| cache_sim | web-Google | bc | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL_TIGHT |
-| cache_sim | web-Google | bfs | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL_TIGHT |
-| cache_sim | web-Google | pr | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL_TIGHT |
 | gem5 | cit-Patents | bc | 1MB | ECG_DBG_PRIMARY | no_pfx | LOCAL |
 | gem5 | cit-Patents | bc | 1MB | GRASP | no_pfx | LOCAL |
 | gem5 | cit-Patents | bc | 1MB | LRU | no_pfx | LOCAL |

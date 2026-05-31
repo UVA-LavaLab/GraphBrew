@@ -37,102 +37,102 @@
     "GRASP": {
       "n_cells": 5,
       "knee_count": 4,
-      "mean_curvature": 2.872,
-      "median_curvature": 2.9253
+      "mean_curvature": 2.8311,
+      "median_curvature": 3.004
     },
     "LRU": {
       "n_cells": 5,
       "knee_count": 0,
-      "mean_curvature": -1.6406,
-      "median_curvature": -1.5331
+      "mean_curvature": -1.7803,
+      "median_curvature": -1.6727
     },
     "POPT": {
       "n_cells": 5,
       "knee_count": 3,
-      "mean_curvature": 0.688,
-      "median_curvature": 0.8295
+      "mean_curvature": 0.6378,
+      "median_curvature": 0.5993
     },
     "SRRIP": {
       "n_cells": 5,
       "knee_count": 0,
-      "mean_curvature": -1.4264,
-      "median_curvature": -1.1444
+      "mean_curvature": -1.5095,
+      "median_curvature": -1.3858
     }
   },
   "per_app": {
     "bc": {
       "GRASP": {
-        "gap_at_1MB": 5.8506,
+        "gap_at_1MB": 6.0079,
         "gap_at_4MB": 0.0,
         "gap_at_8MB": 0.0,
-        "slope_1MB_to_4MB": -2.9253,
+        "slope_1MB_to_4MB": -3.004,
         "slope_4MB_to_8MB": 0.0,
-        "curvature_at_4MB": 2.9253,
+        "curvature_at_4MB": 3.004,
         "knee_present": true
       },
       "LRU": {
-        "gap_at_1MB": 3.4753,
-        "gap_at_4MB": 3.9845,
-        "gap_at_8MB": 3.6875,
-        "slope_1MB_to_4MB": 0.2546,
-        "slope_4MB_to_8MB": -0.297,
-        "curvature_at_4MB": -0.5516,
+        "gap_at_1MB": 3.3026,
+        "gap_at_4MB": 3.9427,
+        "gap_at_8MB": 3.5763,
+        "slope_1MB_to_4MB": 0.32,
+        "slope_4MB_to_8MB": -0.3664,
+        "curvature_at_4MB": -0.6865,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 4.559,
-        "gap_at_4MB": 2.1285,
-        "gap_at_8MB": 2.029,
-        "slope_1MB_to_4MB": -1.2153,
-        "slope_4MB_to_8MB": -0.0995,
-        "curvature_at_4MB": 1.1158,
+        "gap_at_1MB": 4.4764,
+        "gap_at_4MB": 1.8168,
+        "gap_at_8MB": 1.739,
+        "slope_1MB_to_4MB": -1.3298,
+        "slope_4MB_to_8MB": -0.0778,
+        "curvature_at_4MB": 1.252,
         "knee_present": true
       },
       "SRRIP": {
-        "gap_at_1MB": 1.8683,
-        "gap_at_4MB": 2.1402,
-        "gap_at_8MB": 1.8357,
-        "slope_1MB_to_4MB": 0.136,
-        "slope_4MB_to_8MB": -0.3045,
-        "curvature_at_4MB": -0.4405,
+        "gap_at_1MB": 1.7656,
+        "gap_at_4MB": 2.0555,
+        "gap_at_8MB": 1.857,
+        "slope_1MB_to_4MB": 0.1449,
+        "slope_4MB_to_8MB": -0.1985,
+        "curvature_at_4MB": -0.3434,
         "knee_present": false
       }
     },
     "bfs": {
       "GRASP": {
-        "gap_at_1MB": 12.5304,
-        "gap_at_4MB": 0.3795,
-        "gap_at_8MB": 0.8787,
-        "slope_1MB_to_4MB": -6.0755,
-        "slope_4MB_to_8MB": 0.4992,
-        "curvature_at_4MB": 6.5747,
+        "gap_at_1MB": 12.3081,
+        "gap_at_4MB": 0.1443,
+        "gap_at_8MB": 0.723,
+        "slope_1MB_to_4MB": -6.0819,
+        "slope_4MB_to_8MB": 0.5787,
+        "curvature_at_4MB": 6.6606,
         "knee_present": true
       },
       "LRU": {
-        "gap_at_1MB": 1.4549,
-        "gap_at_4MB": 5.4555,
-        "gap_at_8MB": 6.0402,
-        "slope_1MB_to_4MB": 2.0003,
-        "slope_4MB_to_8MB": 0.5847,
-        "curvature_at_4MB": -1.4156,
+        "gap_at_1MB": 2.1866,
+        "gap_at_4MB": 6.2392,
+        "gap_at_8MB": 6.519,
+        "slope_1MB_to_4MB": 2.0263,
+        "slope_4MB_to_8MB": 0.2798,
+        "curvature_at_4MB": -1.7465,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 5.164,
-        "gap_at_4MB": 0.0633,
-        "gap_at_8MB": 0.1152,
-        "slope_1MB_to_4MB": -2.5503,
-        "slope_4MB_to_8MB": 0.0519,
-        "curvature_at_4MB": 2.6022,
+        "gap_at_1MB": 5.3117,
+        "gap_at_4MB": 0.3562,
+        "gap_at_8MB": 0.3227,
+        "slope_1MB_to_4MB": -2.4777,
+        "slope_4MB_to_8MB": -0.0335,
+        "curvature_at_4MB": 2.4442,
         "knee_present": true
       },
       "SRRIP": {
-        "gap_at_1MB": 1.6914,
-        "gap_at_4MB": 5.2022,
-        "gap_at_8MB": 5.8132,
-        "slope_1MB_to_4MB": 1.7554,
-        "slope_4MB_to_8MB": 0.611,
-        "curvature_at_4MB": -1.1444,
+        "gap_at_1MB": 2.1464,
+        "gap_at_4MB": 5.6962,
+        "gap_at_8MB": 6.0853,
+        "slope_1MB_to_4MB": 1.7749,
+        "slope_4MB_to_8MB": 0.3891,
+        "curvature_at_4MB": -1.3858,
         "knee_present": false
       }
     },
@@ -176,77 +176,77 @@
     },
     "pr": {
       "GRASP": {
-        "gap_at_1MB": 3.5251,
-        "gap_at_4MB": 3.346,
-        "gap_at_8MB": 1.1842,
-        "slope_1MB_to_4MB": -0.0896,
-        "slope_4MB_to_8MB": -2.1618,
-        "curvature_at_4MB": -2.0723,
+        "gap_at_1MB": 3.6149,
+        "gap_at_4MB": 3.465,
+        "gap_at_8MB": 1.2415,
+        "slope_1MB_to_4MB": -0.075,
+        "slope_4MB_to_8MB": -2.2235,
+        "curvature_at_4MB": -2.1485,
         "knee_present": false
       },
       "LRU": {
-        "gap_at_1MB": 10.7899,
-        "gap_at_4MB": 9.2463,
-        "gap_at_8MB": 5.4042,
-        "slope_1MB_to_4MB": -0.7718,
-        "slope_4MB_to_8MB": -3.8421,
-        "curvature_at_4MB": -3.0703,
+        "gap_at_1MB": 10.9053,
+        "gap_at_4MB": 9.4045,
+        "gap_at_8MB": 5.4905,
+        "slope_1MB_to_4MB": -0.7504,
+        "slope_4MB_to_8MB": -3.914,
+        "curvature_at_4MB": -3.1636,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 0.0526,
-        "gap_at_4MB": 0.1828,
-        "gap_at_8MB": 0.1393,
-        "slope_1MB_to_4MB": 0.0651,
-        "slope_4MB_to_8MB": -0.0435,
-        "curvature_at_4MB": -0.1086,
+        "gap_at_1MB": 0.0434,
+        "gap_at_4MB": 0.1772,
+        "gap_at_8MB": 0.1365,
+        "slope_1MB_to_4MB": 0.0669,
+        "slope_4MB_to_8MB": -0.0407,
+        "curvature_at_4MB": -0.1076,
         "knee_present": false
       },
       "SRRIP": {
-        "gap_at_1MB": 8.1867,
-        "gap_at_4MB": 6.3695,
-        "gap_at_8MB": 3.3605,
-        "slope_1MB_to_4MB": -0.9086,
-        "slope_4MB_to_8MB": -3.009,
-        "curvature_at_4MB": -2.1004,
+        "gap_at_1MB": 8.2918,
+        "gap_at_4MB": 6.508,
+        "gap_at_8MB": 3.4092,
+        "slope_1MB_to_4MB": -0.8919,
+        "slope_4MB_to_8MB": -3.0988,
+        "curvature_at_4MB": -2.2069,
         "knee_present": false
       }
     },
     "sssp": {
       "GRASP": {
-        "gap_at_1MB": 13.0337,
+        "gap_at_1MB": 12.4487,
         "gap_at_4MB": 0.2324,
-        "gap_at_8MB": 0.003,
-        "slope_1MB_to_4MB": -6.4006,
-        "slope_4MB_to_8MB": -0.2294,
-        "curvature_at_4MB": 6.1712,
+        "gap_at_8MB": 0.0028,
+        "slope_1MB_to_4MB": -6.1082,
+        "slope_4MB_to_8MB": -0.2296,
+        "curvature_at_4MB": 5.8786,
         "knee_present": true
       },
       "LRU": {
-        "gap_at_1MB": 3.8558,
-        "gap_at_4MB": 3.7368,
-        "gap_at_8MB": 2.1442,
-        "slope_1MB_to_4MB": -0.0595,
-        "slope_4MB_to_8MB": -1.5926,
-        "curvature_at_4MB": -1.5331,
+        "gap_at_1MB": 4.3035,
+        "gap_at_4MB": 4.0072,
+        "gap_at_8MB": 2.1864,
+        "slope_1MB_to_4MB": -0.1481,
+        "slope_4MB_to_8MB": -1.8208,
+        "curvature_at_4MB": -1.6727,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 2.509,
-        "gap_at_4MB": 0.6016,
-        "gap_at_8MB": 0.4774,
-        "slope_1MB_to_4MB": -0.9537,
-        "slope_4MB_to_8MB": -0.1242,
-        "curvature_at_4MB": 0.8295,
+        "gap_at_1MB": 2.3642,
+        "gap_at_4MB": 0.7032,
+        "gap_at_8MB": 0.472,
+        "slope_1MB_to_4MB": -0.8305,
+        "slope_4MB_to_8MB": -0.2312,
+        "curvature_at_4MB": 0.5993,
         "knee_present": true
       },
       "SRRIP": {
-        "gap_at_1MB": 2.766,
-        "gap_at_4MB": 2.3996,
-        "gap_at_8MB": 1.3086,
-        "slope_1MB_to_4MB": -0.1832,
-        "slope_4MB_to_8MB": -1.091,
-        "curvature_at_4MB": -0.9078,
+        "gap_at_1MB": 2.7783,
+        "gap_at_4MB": 2.4884,
+        "gap_at_8MB": 1.2708,
+        "slope_1MB_to_4MB": -0.145,
+        "slope_4MB_to_8MB": -1.2176,
+        "curvature_at_4MB": -1.0726,
         "knee_present": false
       }
     }

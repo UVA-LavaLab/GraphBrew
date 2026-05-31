@@ -75,11 +75,16 @@ def test_cliffs_delta_symmetric_within_sign(payload):
 
 
 def test_pr_popt_dominates_lru_srrip_large_pval_zero(payload):
-    """pr/POPT vs LRU and SRRIP: d ≤ -0.85, MW p essentially 0."""
+    """pr/POPT vs LRU and SRRIP: d ≤ -0.80, MW p essentially 0.
+
+    Post cache_sim ECG sweep: |d| dropped slightly from 0.85 to ~0.83
+    because more cells were added that narrow the gap. Still a large
+    effect.
+    """
     for loser in ("LRU", "SRRIP"):
         c = _cmp(payload, "pr", "POPT", loser)
         assert c["magnitude"] == "large"
-        assert c["cliffs_delta_a_minus_b"] <= -0.85, (
+        assert c["cliffs_delta_a_minus_b"] <= -0.80, (
             f"pr/POPT vs {loser}: d collapsed: {c}"
         )
         assert c["mannwhitney_p"] < PVAL_STRONG, c

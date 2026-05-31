@@ -11,26 +11,26 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 
 | paper | cells | ok | within_tol | known_dev | disagree | insufficient | missing | reproduction% |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Faldu HPCA20 | 18 | 17 | 1 | 0 | 0 | 0 | 0 | 100.0% |
-| Balaji HPCA21 | 123 | 96 | 1 | 26 | 0 | 0 | 0 | 78.9% |
+| Faldu HPCA20 | 18 | 16 | 1 | 0 | 0 | 1 | 0 | 94.4% |
+| Balaji HPCA21 | 123 | 100 | 0 | 20 | 0 | 3 | 0 | 81.3% |
 | Jaleel ISCA10 | 15 | 15 | 0 | 0 | 0 | 0 | 0 | 100.0% |
-| cross-paper | 174 | 170 | 0 | 4 | 0 | 0 | 0 | 97.7% |
+| cross-paper | 174 | 167 | 0 | 4 | 0 | 3 | 0 | 96.0% |
 
 ## Per-citation roll-up
 
 | citation | cells | ok | within_tol | known_dev | disagree | missing | insufficient |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Faldu et al. HPCA 2020 Fig 10 | 9 | 9 | 0 | 0 | 0 | 0 | 0 |
+| Faldu et al. HPCA 2020 Fig 10 | 9 | 8 | 0 | 0 | 0 | 0 | 1 |
 | Faldu et al. HPCA 2020 Fig 11 | 7 | 6 | 1 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 114 | 110 | 0 | 4 | 0 | 0 | 0 |
-| Balaji & Lucia HPCA 2021 Fig 10 | 3 | 2 | 1 | 0 | 0 | 0 | 0 |
+| Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check | 114 | 107 | 0 | 4 | 0 | 0 | 3 |
+| Balaji & Lucia HPCA 2021 Fig 10 | 3 | 3 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 Fig 9 | 4 | 4 | 0 | 0 | 0 | 0 | 0 |
 | Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter) | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Balaji & Lucia HPCA 2021 §6.3 | 28 | 27 | 0 | 1 | 0 | 0 | 0 |
-| Balaji & Lucia HPCA 2021 §6.3 (extended) | 86 | 61 | 0 | 25 | 0 | 0 | 0 |
+| Balaji & Lucia HPCA 2021 §6.3 | 28 | 24 | 0 | 1 | 0 | 0 | 3 |
+| Balaji & Lucia HPCA 2021 §6.3 (extended) | 86 | 67 | 0 | 19 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended) | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
 | Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 | 15 | 15 | 0 | 0 | 0 | 0 | 0 |
@@ -38,19 +38,19 @@ Reproduction% counts only `ok` + `within_tolerance` cells (strict — known_devi
 
 ## Faldu et al. HPCA 2020 Fig 10
 
-_9 cell(s):_ 9 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_9 cell(s):_ 8 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 missing · 1 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | pr | 1MB | GRASP | sign=-, |Δ|∈[3.00,25.00]pp, ±2.00pp | -10.647pp | ✅ |
-| cit-Patents | pr | 8MB | GRASP | sign=-, |Δ|∈[0.50,10.00]pp, ±2.00pp | -11.025pp | ✅ |
-| email-Eu-core | pr | 8MB | GRASP | sign=~, |Δ|≤3.00pp, ±1.00pp | -0.043pp | ✅ |
-| soc-LiveJournal1 | pr | 1MB | GRASP | sign=-, |Δ|∈[3.00,25.00]pp, ±2.00pp | -4.791pp | ✅ |
-| soc-LiveJournal1 | pr | 8MB | GRASP | sign=-, |Δ|∈[1.00,12.00]pp, ±2.00pp | -7.385pp | ✅ |
-| soc-pokec | pr | 1MB | GRASP | sign=-, |Δ|∈[2.00,20.00]pp, ±2.00pp | -13.617pp | ✅ |
-| soc-pokec | pr | 8MB | GRASP | sign=~, |Δ|≤5.00pp, ±2.00pp | -2.113pp | ✅ |
-| web-Google | pr | 1MB | GRASP | sign=-, |Δ|∈[1.00,15.00]pp, ±2.00pp | -14.766pp | ✅ |
-| web-Google | pr | 8MB | GRASP | sign=~, |Δ|≤3.00pp, ±1.00pp | -1.253pp | ✅ |
+| cit-Patents | pr | 1MB | GRASP | sign=-, |Δ|∈[3.00,25.00]pp, ±2.00pp | -10.890pp | ✅ |
+| cit-Patents | pr | 8MB | GRASP | sign=-, |Δ|∈[0.50,10.00]pp, ±2.00pp | -11.149pp | ✅ |
+| email-Eu-core | pr | 8MB | GRASP | sign=~, |Δ|≤3.00pp, ±1.00pp | +0.000pp | 🔬 |
+| soc-LiveJournal1 | pr | 1MB | GRASP | sign=-, |Δ|∈[3.00,25.00]pp, ±2.00pp | -4.801pp | ✅ |
+| soc-LiveJournal1 | pr | 8MB | GRASP | sign=-, |Δ|∈[1.00,12.00]pp, ±2.00pp | -7.450pp | ✅ |
+| soc-pokec | pr | 1MB | GRASP | sign=-, |Δ|∈[2.00,20.00]pp, ±2.00pp | -13.627pp | ✅ |
+| soc-pokec | pr | 8MB | GRASP | sign=~, |Δ|≤5.00pp, ±2.00pp | -2.116pp | ✅ |
+| web-Google | pr | 1MB | GRASP | sign=-, |Δ|∈[1.00,15.00]pp, ±2.00pp | -14.770pp | ✅ |
+| web-Google | pr | 8MB | GRASP | sign=~, |Δ|≤3.00pp, ±1.00pp | -1.256pp | ✅ |
 
 ## Faldu et al. HPCA 2020 Fig 11
 
@@ -58,13 +58,13 @@ _7 cell(s):_ 6 ok · 1 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | bc | 1MB | GRASP | sign=-, |Δ|∈[1.00,20.00]pp, ±3.00pp | +0.337pp | 🟡 |
-| cit-Patents | bfs | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -0.998pp | ✅ |
-| soc-LiveJournal1 | bc | 1MB | GRASP | sign=-, |Δ|∈[1.00,20.00]pp, ±3.00pp | -4.825pp | ✅ |
-| soc-LiveJournal1 | bfs | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -1.154pp | ✅ |
-| soc-pokec | bc | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -8.691pp | ✅ |
-| web-Google | bc | 1MB | GRASP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.020pp | ✅ |
-| web-Google | bfs | 1MB | GRASP | sign=~, |Δ|≤8.00pp, ±4.00pp | -3.368pp | ✅ |
+| cit-Patents | bc | 1MB | GRASP | sign=-, |Δ|∈[1.00,20.00]pp, ±3.00pp | +1.420pp | 🟡 |
+| cit-Patents | bfs | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -1.149pp | ✅ |
+| soc-LiveJournal1 | bc | 1MB | GRASP | sign=-, |Δ|∈[1.00,20.00]pp, ±3.00pp | -4.474pp | ✅ |
+| soc-LiveJournal1 | bfs | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -7.631pp | ✅ |
+| soc-pokec | bc | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -8.662pp | ✅ |
+| web-Google | bc | 1MB | GRASP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.867pp | ✅ |
+| web-Google | bfs | 1MB | GRASP | sign=~, |Δ|≤8.00pp, ±4.00pp | -3.418pp | ✅ |
 
 ## Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10)
 
@@ -72,7 +72,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| com-orkut | pr | 8MB | GRASP | sign=-, |Δ|∈[0.50,12.00]pp, ±2.00pp | -3.500pp | ✅ |
+| com-orkut | pr | 8MB | GRASP | sign=-, |Δ|∈[0.50,12.00]pp, ±2.00pp | -3.523pp | ✅ |
 
 ## Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10)
 
@@ -80,29 +80,29 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| com-orkut | pr | 1MB | GRASP | sign=-, |Δ|∈[1.00,25.00]pp, ±3.00pp | -2.368pp | ✅ |
+| com-orkut | pr | 1MB | GRASP | sign=-, |Δ|∈[1.00,25.00]pp, ±3.00pp | -1.977pp | ✅ |
 
 ## Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check
 
-_114 cell(s):_ 110 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_114 cell(s):_ 107 ok · 0 within_tolerance · 4 known_deviation · 0 disagree · 0 missing · 3 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.481pp | ✅ |
-| cit-Patents | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.597pp | ✅ |
-| cit-Patents | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.529pp | ✅ |
-| cit-Patents | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.106pp | ✅ |
-| cit-Patents | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.380pp | ✅ |
-| cit-Patents | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.689pp | ✅ |
+| cit-Patents | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.602pp | ✅ |
+| cit-Patents | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.518pp | ✅ |
+| cit-Patents | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.342pp | ✅ |
+| cit-Patents | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.102pp | ✅ |
+| cit-Patents | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.897pp | ✅ |
+| cit-Patents | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.734pp | ✅ |
 | cit-Patents | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +8.726pp | 📘 |
 | cit-Patents | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.648pp | ✅ |
 | cit-Patents | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.528pp | ✅ |
-| cit-Patents | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.052pp | ✅ |
-| cit-Patents | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +8.246pp | ✅ |
-| cit-Patents | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.834pp | ✅ |
-| cit-Patents | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.863pp | ✅ |
-| cit-Patents | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.804pp | ✅ |
-| cit-Patents | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.633pp | ✅ |
+| cit-Patents | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.424pp | ✅ |
+| cit-Patents | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +8.652pp | ✅ |
+| cit-Patents | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.111pp | ✅ |
+| cit-Patents | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.281pp | ✅ |
+| cit-Patents | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.411pp | ✅ |
+| cit-Patents | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.437pp | ✅ |
 | com-orkut | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.475pp | ✅ |
 | com-orkut | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +4.668pp | ✅ |
 | com-orkut | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +4.727pp | ✅ |
@@ -112,9 +112,9 @@ _114 cell(s):_ 110 ok · 0 within_tolerance · 4 known_deviation · 0 disagree �
 | com-orkut | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +11.016pp | 📘 |
 | com-orkut | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +10.055pp | 📘 |
 | com-orkut | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +6.187pp | ✅ |
-| com-orkut | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +6.830pp | ✅ |
-| com-orkut | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +5.213pp | ✅ |
-| com-orkut | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.021pp | ✅ |
+| com-orkut | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +7.402pp | ✅ |
+| com-orkut | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +5.291pp | ✅ |
+| com-orkut | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.011pp | ✅ |
 | com-orkut | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.696pp | ✅ |
 | com-orkut | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.161pp | ✅ |
 | com-orkut | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.162pp | ✅ |
@@ -129,9 +129,9 @@ _114 cell(s):_ 110 ok · 0 within_tolerance · 4 known_deviation · 0 disagree �
 | email-Eu-core | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +17.751pp | ✅ |
 | email-Eu-core | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | ✅ |
 | email-Eu-core | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.002pp | ✅ |
-| email-Eu-core | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.388pp | ✅ |
-| email-Eu-core | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.025pp | ✅ |
-| email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.022pp | ✅ |
+| email-Eu-core | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | 🔬 |
+| email-Eu-core | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | 🔬 |
+| email-Eu-core | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | 🔬 |
 | roadNet-CA | bc | 16kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.110pp | ✅ |
 | roadNet-CA | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +15.588pp | ✅ |
 | roadNet-CA | bc | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +6.282pp | ✅ |
@@ -157,61 +157,61 @@ _114 cell(s):_ 110 ok · 0 within_tolerance · 4 known_deviation · 0 disagree �
 | roadNet-CA | sssp | 256kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +38.317pp | ✅ |
 | roadNet-CA | sssp | 4kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.026pp | ✅ |
 | roadNet-CA | sssp | 64kB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +9.648pp | ✅ |
-| soc-LiveJournal1 | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.985pp | ✅ |
-| soc-LiveJournal1 | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.877pp | ✅ |
-| soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.583pp | ✅ |
-| soc-LiveJournal1 | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.556pp | ✅ |
-| soc-LiveJournal1 | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.213pp | ✅ |
-| soc-LiveJournal1 | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.961pp | ✅ |
+| soc-LiveJournal1 | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.482pp | ✅ |
+| soc-LiveJournal1 | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.445pp | ✅ |
+| soc-LiveJournal1 | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.648pp | ✅ |
+| soc-LiveJournal1 | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.090pp | ✅ |
+| soc-LiveJournal1 | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.240pp | ✅ |
+| soc-LiveJournal1 | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.200pp | ✅ |
 | soc-LiveJournal1 | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.398pp | ✅ |
 | soc-LiveJournal1 | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.810pp | ✅ |
 | soc-LiveJournal1 | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.083pp | ✅ |
-| soc-LiveJournal1 | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +5.950pp | ✅ |
-| soc-LiveJournal1 | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +5.975pp | ✅ |
-| soc-LiveJournal1 | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.212pp | ✅ |
-| soc-LiveJournal1 | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.530pp | ✅ |
-| soc-LiveJournal1 | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.331pp | ✅ |
-| soc-LiveJournal1 | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.578pp | ✅ |
-| soc-pokec | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.079pp | ✅ |
-| soc-pokec | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.717pp | ✅ |
-| soc-pokec | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.285pp | ✅ |
+| soc-LiveJournal1 | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +6.129pp | ✅ |
+| soc-LiveJournal1 | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +6.195pp | ✅ |
+| soc-LiveJournal1 | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.291pp | ✅ |
+| soc-LiveJournal1 | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.021pp | ✅ |
+| soc-LiveJournal1 | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.220pp | ✅ |
+| soc-LiveJournal1 | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.747pp | ✅ |
+| soc-pokec | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.001pp | ✅ |
+| soc-pokec | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.614pp | ✅ |
+| soc-pokec | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.077pp | ✅ |
 | soc-pokec | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.262pp | ✅ |
 | soc-pokec | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.283pp | ✅ |
 | soc-pokec | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.102pp | ✅ |
 | soc-pokec | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +10.580pp | 📘 |
 | soc-pokec | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +5.608pp | ✅ |
 | soc-pokec | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.037pp | ✅ |
-| soc-pokec | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.421pp | ✅ |
-| soc-pokec | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.642pp | ✅ |
-| soc-pokec | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.814pp | ✅ |
-| soc-pokec | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +4.097pp | ✅ |
-| soc-pokec | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.872pp | ✅ |
-| soc-pokec | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.001pp | ✅ |
-| web-Google | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.512pp | ✅ |
-| web-Google | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.902pp | ✅ |
-| web-Google | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.050pp | ✅ |
-| web-Google | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.098pp | ✅ |
-| web-Google | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.386pp | ✅ |
-| web-Google | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.481pp | ✅ |
+| soc-pokec | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.347pp | ✅ |
+| soc-pokec | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.652pp | ✅ |
+| soc-pokec | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.819pp | ✅ |
+| soc-pokec | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.810pp | ✅ |
+| soc-pokec | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.884pp | ✅ |
+| soc-pokec | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | ✅ |
+| web-Google | bc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.488pp | ✅ |
+| web-Google | bc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.646pp | ✅ |
+| web-Google | bc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.640pp | ✅ |
+| web-Google | bfs | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.046pp | ✅ |
+| web-Google | bfs | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.188pp | ✅ |
+| web-Google | bfs | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +2.508pp | ✅ |
 | web-Google | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.268pp | ✅ |
 | web-Google | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.004pp | ✅ |
 | web-Google | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.001pp | ✅ |
-| web-Google | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.647pp | ✅ |
-| web-Google | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.072pp | ✅ |
-| web-Google | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.038pp | ✅ |
+| web-Google | pr | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +3.630pp | ✅ |
+| web-Google | pr | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +1.063pp | ✅ |
+| web-Google | pr | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.036pp | ✅ |
 | web-Google | sssp | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.858pp | ✅ |
 | web-Google | sssp | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | ✅ |
 | web-Google | sssp | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | sign=~, |Δ|≤5.00pp, ±2.00pp | +0.000pp | ✅ |
 
 ## Balaji & Lucia HPCA 2021 Fig 10
 
-_3 cell(s):_ 2 ok · 1 within_tolerance · 0 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_3 cell(s):_ 3 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | sssp | 1MB | POPT | sign=-, |Δ|∈[1.00,25.00]pp, ±2.00pp | -2.588pp | ✅ |
-| soc-LiveJournal1 | sssp | 1MB | POPT | sign=-, |Δ|∈[2.00,25.00]pp, ±2.00pp | -1.466pp | 🟡 |
-| soc-pokec | sssp | 1MB | POPT | sign=-, |Δ|∈[1.00,20.00]pp, ±2.00pp | -6.942pp | ✅ |
+| cit-Patents | sssp | 1MB | POPT | sign=-, |Δ|∈[1.00,25.00]pp, ±2.00pp | -2.782pp | ✅ |
+| soc-LiveJournal1 | sssp | 1MB | POPT | sign=-, |Δ|∈[2.00,25.00]pp, ±2.00pp | -4.758pp | ✅ |
+| soc-pokec | sssp | 1MB | POPT | sign=-, |Δ|∈[1.00,20.00]pp, ±2.00pp | -7.014pp | ✅ |
 
 ## Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)
 
@@ -219,7 +219,7 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | sssp | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -3.452pp | ✅ |
+| cit-Patents | sssp | 1MB | GRASP | sign=-, |Δ|∈[0.50,15.00]pp, ±3.00pp | -3.062pp | ✅ |
 
 ## Balaji & Lucia HPCA 2021 Fig 9
 
@@ -227,10 +227,10 @@ _4 cell(s):_ 4 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | pr | 1MB | POPT | sign=-, |Δ|∈[3.00,30.00]pp, ±2.00pp | -11.699pp | ✅ |
-| soc-LiveJournal1 | pr | 1MB | POPT | sign=-, |Δ|∈[4.00,30.00]pp, ±2.00pp | -10.742pp | ✅ |
-| soc-pokec | pr | 1MB | POPT | sign=-, |Δ|∈[2.00,25.00]pp, ±2.00pp | -13.196pp | ✅ |
-| web-Google | pr | 1MB | POPT | sign=-, |Δ|∈[1.00,20.00]pp, ±2.00pp | -18.413pp | ✅ |
+| cit-Patents | pr | 1MB | POPT | sign=-, |Δ|∈[3.00,30.00]pp, ±2.00pp | -12.314pp | ✅ |
+| soc-LiveJournal1 | pr | 1MB | POPT | sign=-, |Δ|∈[4.00,30.00]pp, ±2.00pp | -10.930pp | ✅ |
+| soc-pokec | pr | 1MB | POPT | sign=-, |Δ|∈[2.00,25.00]pp, ±2.00pp | -13.279pp | ✅ |
+| web-Google | pr | 1MB | POPT | sign=-, |Δ|∈[1.00,20.00]pp, ±2.00pp | -18.400pp | ✅ |
 
 ## Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter)
 
@@ -238,61 +238,61 @@ _1 cell(s):_ 1 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 0 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| com-orkut | pr | 1MB | POPT | sign=-, |Δ|∈[1.00,30.00]pp, ±3.00pp | -9.198pp | ✅ |
+| com-orkut | pr | 1MB | POPT | sign=-, |Δ|∈[1.00,30.00]pp, ±3.00pp | -9.379pp | ✅ |
 
 ## Balaji & Lucia HPCA 2021 §6.3
 
-_28 cell(s):_ 27 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_28 cell(s):_ 24 ok · 0 within_tolerance · 1 known_deviation · 0 disagree · 0 missing · 3 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -1.052pp | ✅ |
-| cit-Patents | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -8.246pp | ✅ |
-| cit-Patents | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -2.834pp | ✅ |
-| com-orkut | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -6.830pp | ✅ |
-| com-orkut | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.213pp | ✅ |
-| com-orkut | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -2.021pp | ✅ |
+| cit-Patents | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -1.424pp | ✅ |
+| cit-Patents | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -8.652pp | ✅ |
+| cit-Patents | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -3.111pp | ✅ |
+| com-orkut | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -7.402pp | ✅ |
+| com-orkut | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.291pp | ✅ |
+| com-orkut | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -2.011pp | ✅ |
 | delaunay_n19 | pr | 16kB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.332pp | ✅ |
 | delaunay_n19 | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -3.867pp | ✅ |
 | delaunay_n19 | pr | 256kB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.615pp | ✅ |
 | delaunay_n19 | pr | 4kB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.079pp | ✅ |
 | delaunay_n19 | pr | 64kB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.234pp | ✅ |
-| email-Eu-core | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.388pp | ✅ |
-| email-Eu-core | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.025pp | ✅ |
-| email-Eu-core | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.022pp | ✅ |
+| email-Eu-core | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.000pp | 🔬 |
+| email-Eu-core | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.000pp | 🔬 |
+| email-Eu-core | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.000pp | 🔬 |
 | roadNet-CA | pr | 16kB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.031pp | ✅ |
 | roadNet-CA | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -6.467pp | ✅ |
 | roadNet-CA | pr | 256kB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.511pp | ✅ |
 | roadNet-CA | pr | 4kB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.001pp | ✅ |
 | roadNet-CA | pr | 64kB | POPT_GE_GRASP | sign=-, ±1.00pp | -1.294pp | ✅ |
-| soc-LiveJournal1 | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.950pp | ✅ |
-| soc-LiveJournal1 | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -5.975pp | ✅ |
-| soc-LiveJournal1 | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -2.212pp | ✅ |
-| soc-pokec | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.421pp | ✅ |
-| soc-pokec | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.642pp | ✅ |
-| soc-pokec | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.814pp | ✅ |
-| web-Google | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -3.647pp | ✅ |
-| web-Google | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | +1.072pp | 📘 |
-| web-Google | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.038pp | ✅ |
+| soc-LiveJournal1 | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -6.129pp | ✅ |
+| soc-LiveJournal1 | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -6.195pp | ✅ |
+| soc-LiveJournal1 | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -2.291pp | ✅ |
+| soc-pokec | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.347pp | ✅ |
+| soc-pokec | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.652pp | ✅ |
+| soc-pokec | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | +0.819pp | ✅ |
+| web-Google | pr | 1MB | POPT_GE_GRASP | sign=-, ±1.00pp | -3.630pp | ✅ |
+| web-Google | pr | 4MB | POPT_GE_GRASP | sign=-, ±1.00pp | +1.063pp | 📘 |
+| web-Google | pr | 8MB | POPT_GE_GRASP | sign=-, ±1.00pp | -0.036pp | ✅ |
 
 ## Balaji & Lucia HPCA 2021 §6.3 (extended)
 
-_86 cell(s):_ 61 ok · 0 within_tolerance · 25 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
+_86 cell(s):_ 67 ok · 0 within_tolerance · 19 known_deviation · 0 disagree · 0 missing · 0 insufficient_data.
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.481pp | ✅ |
-| cit-Patents | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.597pp | 📘 |
-| cit-Patents | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +2.529pp | 📘 |
-| cit-Patents | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.106pp | ✅ |
-| cit-Patents | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.380pp | ✅ |
-| cit-Patents | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.689pp | ✅ |
+| cit-Patents | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -1.602pp | ✅ |
+| cit-Patents | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.518pp | ✅ |
+| cit-Patents | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.342pp | ✅ |
+| cit-Patents | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.102pp | ✅ |
+| cit-Patents | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.897pp | ✅ |
+| cit-Patents | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.734pp | ✅ |
 | cit-Patents | cc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +8.726pp | 📘 |
 | cit-Patents | cc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +3.648pp | 📘 |
 | cit-Patents | cc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.528pp | 📘 |
-| cit-Patents | sssp | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.863pp | ✅ |
-| cit-Patents | sssp | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.804pp | 📘 |
-| cit-Patents | sssp | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.633pp | 📘 |
+| cit-Patents | sssp | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.281pp | ✅ |
+| cit-Patents | sssp | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.411pp | ✅ |
+| cit-Patents | sssp | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.437pp | ✅ |
 | com-orkut | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +2.475pp | 📘 |
 | com-orkut | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +4.668pp | 📘 |
 | com-orkut | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +4.727pp | 📘 |
@@ -331,36 +331,36 @@ _86 cell(s):_ 61 ok · 0 within_tolerance · 25 known_deviation · 0 disagree ·
 | roadNet-CA | sssp | 256kB | POPT_GE_GRASP | sign=-, ±1.50pp | -38.317pp | ✅ |
 | roadNet-CA | sssp | 4kB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.026pp | ✅ |
 | roadNet-CA | sssp | 64kB | POPT_GE_GRASP | sign=-, ±1.50pp | -9.648pp | ✅ |
-| soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.985pp | 📘 |
-| soc-LiveJournal1 | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.877pp | 📘 |
-| soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.583pp | 📘 |
-| soc-LiveJournal1 | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -1.556pp | ✅ |
-| soc-LiveJournal1 | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | -1.213pp | ✅ |
-| soc-LiveJournal1 | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.961pp | ✅ |
+| soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.482pp | ✅ |
+| soc-LiveJournal1 | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.445pp | ✅ |
+| soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.648pp | 📘 |
+| soc-LiveJournal1 | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.090pp | ✅ |
+| soc-LiveJournal1 | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.240pp | ✅ |
+| soc-LiveJournal1 | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.200pp | ✅ |
 | soc-LiveJournal1 | cc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.398pp | ✅ |
 | soc-LiveJournal1 | cc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.810pp | 📘 |
 | soc-LiveJournal1 | cc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +3.083pp | 📘 |
-| soc-LiveJournal1 | sssp | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -3.530pp | ✅ |
-| soc-LiveJournal1 | sssp | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.331pp | ✅ |
-| soc-LiveJournal1 | sssp | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.578pp | ✅ |
-| soc-pokec | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +3.079pp | 📘 |
-| soc-pokec | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.717pp | 📘 |
-| soc-pokec | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.285pp | ✅ |
+| soc-LiveJournal1 | sssp | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.021pp | ✅ |
+| soc-LiveJournal1 | sssp | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.220pp | ✅ |
+| soc-LiveJournal1 | sssp | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.747pp | ✅ |
+| soc-pokec | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +3.001pp | 📘 |
+| soc-pokec | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.614pp | 📘 |
+| soc-pokec | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.077pp | ✅ |
 | soc-pokec | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.262pp | ✅ |
 | soc-pokec | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.283pp | ✅ |
 | soc-pokec | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -1.102pp | ✅ |
 | soc-pokec | cc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +10.580pp | 📘 |
 | soc-pokec | cc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +5.608pp | 📘 |
 | soc-pokec | cc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.037pp | ✅ |
-| soc-pokec | sssp | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +4.097pp | 📘 |
-| soc-pokec | sssp | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.872pp | ✅ |
-| soc-pokec | sssp | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.001pp | ✅ |
-| web-Google | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.512pp | ✅ |
-| web-Google | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +2.902pp | 📘 |
-| web-Google | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +3.050pp | 📘 |
-| web-Google | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.098pp | ✅ |
-| web-Google | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.386pp | ✅ |
-| web-Google | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -2.481pp | ✅ |
+| soc-pokec | sssp | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +3.810pp | 📘 |
+| soc-pokec | sssp | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.884pp | ✅ |
+| soc-pokec | sssp | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.000pp | ✅ |
+| web-Google | bc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.488pp | ✅ |
+| web-Google | bc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +2.646pp | 📘 |
+| web-Google | bc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | +2.640pp | 📘 |
+| web-Google | bfs | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.046pp | ✅ |
+| web-Google | bfs | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.188pp | ✅ |
+| web-Google | bfs | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -2.508pp | ✅ |
 | web-Google | cc | 1MB | POPT_GE_GRASP | sign=-, ±1.50pp | +1.268pp | ✅ |
 | web-Google | cc | 4MB | POPT_GE_GRASP | sign=-, ±1.50pp | +0.004pp | ✅ |
 | web-Google | cc | 8MB | POPT_GE_GRASP | sign=-, ±1.50pp | -0.001pp | ✅ |
@@ -396,18 +396,18 @@ _15 cell(s):_ 15 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.320pp | ✅ |
-| cit-Patents | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.465pp | ✅ |
-| cit-Patents | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.498pp | ✅ |
+| cit-Patents | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.422pp | ✅ |
+| cit-Patents | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.406pp | ✅ |
+| cit-Patents | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.301pp | ✅ |
 | com-orkut | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.990pp | ✅ |
 | com-orkut | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.559pp | ✅ |
 | com-orkut | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.228pp | ✅ |
-| soc-LiveJournal1 | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.060pp | ✅ |
-| soc-LiveJournal1 | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.329pp | ✅ |
-| soc-LiveJournal1 | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.450pp | ✅ |
-| soc-pokec | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.171pp | ✅ |
-| soc-pokec | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.335pp | ✅ |
-| soc-pokec | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.000pp | ✅ |
+| soc-LiveJournal1 | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.595pp | ✅ |
+| soc-LiveJournal1 | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.343pp | ✅ |
+| soc-LiveJournal1 | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.045pp | ✅ |
+| soc-pokec | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.146pp | ✅ |
+| soc-pokec | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.288pp | ✅ |
+| soc-pokec | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.001pp | ✅ |
 | web-Google | sssp | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.502pp | ✅ |
 | web-Google | sssp | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.002pp | ✅ |
 | web-Google | sssp | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.003pp | ✅ |
@@ -418,20 +418,20 @@ _15 cell(s):_ 15 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -1.427pp | ✅ |
-| cit-Patents | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -4.181pp | ✅ |
-| cit-Patents | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -4.915pp | ✅ |
-| com-orkut | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -4.177pp | ✅ |
-| com-orkut | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.651pp | ✅ |
-| com-orkut | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -2.240pp | ✅ |
-| soc-LiveJournal1 | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.276pp | ✅ |
-| soc-LiveJournal1 | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.644pp | ✅ |
-| soc-LiveJournal1 | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.498pp | ✅ |
-| soc-pokec | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -4.517pp | ✅ |
-| soc-pokec | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.534pp | ✅ |
-| soc-pokec | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -1.215pp | ✅ |
-| web-Google | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -5.698pp | ✅ |
-| web-Google | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -2.238pp | ✅ |
+| cit-Patents | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -1.468pp | ✅ |
+| cit-Patents | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -4.277pp | ✅ |
+| cit-Patents | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -5.045pp | ✅ |
+| com-orkut | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -4.225pp | ✅ |
+| com-orkut | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.681pp | ✅ |
+| com-orkut | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -2.272pp | ✅ |
+| soc-LiveJournal1 | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.325pp | ✅ |
+| soc-LiveJournal1 | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.632pp | ✅ |
+| soc-LiveJournal1 | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.583pp | ✅ |
+| soc-pokec | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -4.529pp | ✅ |
+| soc-pokec | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -3.545pp | ✅ |
+| soc-pokec | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -1.218pp | ✅ |
+| web-Google | pr | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -5.668pp | ✅ |
+| web-Google | pr | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -2.244pp | ✅ |
 | web-Google | pr | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±2.00pp | -0.369pp | ✅ |
 
 ## Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
@@ -440,33 +440,33 @@ _30 cell(s):_ 30 ok · 0 within_tolerance · 0 known_deviation · 0 disagree · 
 
 | graph | app | L3 | policy | expected | observed Δ | verdict |
 |---|---|---|---|---|---|:---:|
-| cit-Patents | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.631pp | ✅ |
-| cit-Patents | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.203pp | ✅ |
-| cit-Patents | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.393pp | ✅ |
-| cit-Patents | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.397pp | ✅ |
-| cit-Patents | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.685pp | ✅ |
-| cit-Patents | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.313pp | ✅ |
+| cit-Patents | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.477pp | ✅ |
+| cit-Patents | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.908pp | ✅ |
+| cit-Patents | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.796pp | ✅ |
+| cit-Patents | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.409pp | ✅ |
+| cit-Patents | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.489pp | ✅ |
+| cit-Patents | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.255pp | ✅ |
 | com-orkut | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.541pp | ✅ |
 | com-orkut | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.241pp | ✅ |
 | com-orkut | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.899pp | ✅ |
 | com-orkut | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.034pp | ✅ |
 | com-orkut | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.065pp | ✅ |
 | com-orkut | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | +0.027pp | ✅ |
-| soc-LiveJournal1 | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.822pp | ✅ |
-| soc-LiveJournal1 | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.097pp | ✅ |
-| soc-LiveJournal1 | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.911pp | ✅ |
-| soc-LiveJournal1 | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.581pp | ✅ |
-| soc-LiveJournal1 | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.661pp | ✅ |
-| soc-LiveJournal1 | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.496pp | ✅ |
-| soc-pokec | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.319pp | ✅ |
-| soc-pokec | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.397pp | ✅ |
-| soc-pokec | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.199pp | ✅ |
+| soc-LiveJournal1 | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.205pp | ✅ |
+| soc-LiveJournal1 | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.517pp | ✅ |
+| soc-LiveJournal1 | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.547pp | ✅ |
+| soc-LiveJournal1 | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.518pp | ✅ |
+| soc-LiveJournal1 | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.464pp | ✅ |
+| soc-LiveJournal1 | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.498pp | ✅ |
+| soc-pokec | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.276pp | ✅ |
+| soc-pokec | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -3.324pp | ✅ |
+| soc-pokec | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -2.486pp | ✅ |
 | soc-pokec | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.972pp | ✅ |
 | soc-pokec | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.138pp | ✅ |
 | soc-pokec | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.097pp | ✅ |
-| web-Google | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.838pp | ✅ |
-| web-Google | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.128pp | ✅ |
-| web-Google | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.711pp | ✅ |
-| web-Google | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.068pp | ✅ |
-| web-Google | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.102pp | ✅ |
-| web-Google | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.481pp | ✅ |
+| web-Google | bc | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.163pp | ✅ |
+| web-Google | bc | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -1.335pp | ✅ |
+| web-Google | bc | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.590pp | ✅ |
+| web-Google | bfs | 1MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.055pp | ✅ |
+| web-Google | bfs | 4MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.233pp | ✅ |
+| web-Google | bfs | 8MB | SRRIP | sign=~, |Δ|≤5.00pp, ±3.00pp | -0.777pp | ✅ |

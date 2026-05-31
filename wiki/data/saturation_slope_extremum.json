@@ -11,16 +11,16 @@
     ],
     "per_app": {
       "bc": {
-        "distance_pp": 15.5517,
-        "slope_pp_oct": -14.2775,
-        "slope_steepness": 14.2775,
+        "distance_pp": 15.4437,
+        "slope_pp_oct": -14.2654,
+        "slope_steepness": 14.2654,
         "distance_rank": 5,
         "slope_rank": 2
       },
       "bfs": {
-        "distance_pp": 4.6274,
-        "slope_pp_oct": -5.2283,
-        "slope_steepness": 5.2283,
+        "distance_pp": 4.5691,
+        "slope_pp_oct": -4.824,
+        "slope_steepness": 4.824,
         "distance_rank": 1,
         "slope_rank": 1
       },
@@ -32,16 +32,16 @@
         "slope_rank": 3
       },
       "pr": {
-        "distance_pp": 7.8327,
-        "slope_pp_oct": -16.5349,
-        "slope_steepness": 16.5349,
+        "distance_pp": 7.7448,
+        "slope_pp_oct": -16.4984,
+        "slope_steepness": 16.4984,
         "distance_rank": 2,
         "slope_rank": 4
       },
       "sssp": {
-        "distance_pp": 12.9274,
-        "slope_pp_oct": -19.4709,
-        "slope_steepness": 19.4709,
+        "distance_pp": 12.7213,
+        "slope_pp_oct": -19.4173,
+        "slope_steepness": 19.4173,
         "distance_rank": 4,
         "slope_rank": 5
       }

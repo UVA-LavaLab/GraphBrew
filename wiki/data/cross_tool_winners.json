@@ -3,7 +3,7 @@
     {
       "app": "bfs",
       "cache_sim_l3": "8MB",
-      "cache_sim_margin_pp": "0.689",
+      "cache_sim_margin_pp": "0.734",
       "cache_sim_winner": "GRASP",
       "classification": "split",
       "gem5_l3": "",
@@ -18,7 +18,7 @@
     {
       "app": "pr",
       "cache_sim_l3": "8MB",
-      "cache_sim_margin_pp": "2.834",
+      "cache_sim_margin_pp": "3.111",
       "cache_sim_winner": "POPT",
       "classification": "split",
       "gem5_l3": "",
@@ -33,7 +33,7 @@
     {
       "app": "sssp",
       "cache_sim_l3": "8MB",
-      "cache_sim_margin_pp": "1.633",
+      "cache_sim_margin_pp": "1.437",
       "cache_sim_winner": "GRASP",
       "classification": "split",
       "gem5_l3": "",
@@ -78,7 +78,7 @@
     {
       "app": "pr",
       "cache_sim_l3": "8MB",
-      "cache_sim_margin_pp": "0.019",
+      "cache_sim_margin_pp": "0.000",
       "cache_sim_winner": "GRASP",
       "classification": "split",
       "gem5_l3": "2MB",

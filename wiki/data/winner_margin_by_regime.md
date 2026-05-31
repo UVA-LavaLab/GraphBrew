@@ -12,17 +12,17 @@ cells classified: 114 (skipped 0)
 
 | policy | regime | cells won | median pp | mean pp | p90 pp | max pp |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| GRASP | under_wss | 23 | 0.863 | 2.326 | 7.478 | 10.055 |
-| GRASP | near_wss | 27 | 1.528 | 1.651 | 3.083 | 6.187 |
-| GRASP | over_wss | 6 | 0.001 | 0.149 | 0.019 | 0.872 |
+| GRASP | under_wss | 24 | 0.719 | 2.211 | 7.478 | 10.055 |
+| GRASP | near_wss | 29 | 1.268 | 1.571 | 3.083 | 6.187 |
+| GRASP | over_wss | 7 | 0.000 | 0.108 | 0.002 | 0.754 |
 | LRU | under_wss | 1 | 2.756 | 2.756 | 2.756 | 2.756 |
 | LRU | near_wss | 4 | 1.021 | 1.671 | 4.643 | 4.643 |
 | LRU | over_wss | 1 | 0.002 | 0.002 | 0.002 | 0.002 |
-| POPT | under_wss | 21 | 1.157 | 2.163 | 5.213 | 8.755 |
-| POPT | near_wss | 18 | 1.157 | 2.212 | 4.758 | 8.246 |
-| POPT | over_wss | 5 | 0.020 | 0.508 | 2.481 | 2.481 |
-| SRRIP | under_wss | 3 | 0.488 | 0.452 | 0.533 | 0.533 |
-| SRRIP | near_wss | 3 | 1.345 | 1.152 | 2.097 | 2.097 |
+| POPT | under_wss | 20 | 1.226 | 2.183 | 5.291 | 8.755 |
+| POPT | near_wss | 16 | 1.556 | 2.400 | 6.195 | 8.652 |
+| POPT | over_wss | 4 | 0.018 | 0.636 | 2.508 | 2.508 |
+| SRRIP | under_wss | 3 | 0.334 | 0.387 | 0.533 | 0.533 |
+| SRRIP | near_wss | 3 | 1.163 | 1.091 | 2.097 | 2.097 |
 | SRRIP | over_wss | 2 | 0.001 | 0.001 | 0.002 | 0.002 |
 
 ## Margin-shrink evidence
@@ -31,5 +31,5 @@ Oracle-aware policies whose under_wss median margin exceeds their over_wss media
 
 | policy | under median pp | over median pp |
 | --- | ---: | ---: |
-| GRASP | 0.863 | 0.001 |
-| POPT | 1.157 | 0.020 |
+| GRASP | 0.719 | 0.000 |
+| POPT | 1.226 | 0.018 |

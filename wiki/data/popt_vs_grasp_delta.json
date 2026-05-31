@@ -2,69 +2,69 @@
   "cells": [
     {
       "app": "bc",
-      "classification": "tie",
-      "delta_pp": "-0.481",
+      "classification": "popt_better",
+      "delta_pp": "-1.602",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.902363",
+      "grasp_miss_rate": "0.898527",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.897556"
+      "popt_miss_rate": "0.882504"
     },
     {
       "app": "bc",
       "classification": "grasp_better",
-      "delta_pp": "1.597",
+      "delta_pp": "0.518",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.720874",
+      "grasp_miss_rate": "0.711235",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.736844"
+      "popt_miss_rate": "0.716416"
     },
     {
       "app": "bc",
       "classification": "grasp_better",
-      "delta_pp": "2.529",
+      "delta_pp": "1.342",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.563945",
+      "grasp_miss_rate": "0.557531",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.589237"
+      "popt_miss_rate": "0.570949"
     },
     {
       "app": "bfs",
       "classification": "tie",
-      "delta_pp": "0.106",
+      "delta_pp": "0.102",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.956526",
+      "grasp_miss_rate": "0.959314",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.957587"
-    },
-    {
-      "app": "bfs",
-      "classification": "tie",
-      "delta_pp": "0.380",
-      "graph": "cit-Patents",
-      "graph_family": "citation",
-      "grasp_miss_rate": "0.869013",
-      "l3_regime": "large",
-      "l3_size": "4MB",
-      "popt_miss_rate": "0.872810"
+      "popt_miss_rate": "0.960335"
     },
     {
       "app": "bfs",
       "classification": "grasp_better",
-      "delta_pp": "0.689",
+      "delta_pp": "0.897",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.784831",
+      "grasp_miss_rate": "0.884627",
+      "l3_regime": "large",
+      "l3_size": "4MB",
+      "popt_miss_rate": "0.893600"
+    },
+    {
+      "app": "bfs",
+      "classification": "grasp_better",
+      "delta_pp": "0.734",
+      "graph": "cit-Patents",
+      "graph_family": "citation",
+      "grasp_miss_rate": "0.815291",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.791718"
+      "popt_miss_rate": "0.822635"
     },
     {
       "app": "cc",
@@ -102,68 +102,68 @@
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-1.052",
+      "delta_pp": "-1.424",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.785828",
+      "grasp_miss_rate": "0.785538",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.775308"
+      "popt_miss_rate": "0.771300"
     },
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-8.246",
+      "delta_pp": "-8.652",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.454240",
+      "grasp_miss_rate": "0.453908",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.371782"
+      "popt_miss_rate": "0.367391"
     },
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-2.834",
+      "delta_pp": "-3.111",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.214520",
+      "grasp_miss_rate": "0.214092",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.186176"
+      "popt_miss_rate": "0.182982"
     },
     {
       "app": "sssp",
-      "classification": "grasp_better",
-      "delta_pp": "0.863",
+      "classification": "tie",
+      "delta_pp": "0.281",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.818409",
+      "grasp_miss_rate": "0.818017",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.827043"
+      "popt_miss_rate": "0.820823"
     },
     {
       "app": "sssp",
       "classification": "grasp_better",
-      "delta_pp": "1.804",
+      "delta_pp": "1.411",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.476368",
+      "grasp_miss_rate": "0.472907",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.494406"
+      "popt_miss_rate": "0.487018"
     },
     {
       "app": "sssp",
       "classification": "grasp_better",
-      "delta_pp": "1.633",
+      "delta_pp": "1.437",
       "graph": "cit-Patents",
       "graph_family": "citation",
-      "grasp_miss_rate": "0.199914",
+      "grasp_miss_rate": "0.198014",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.216244"
+      "popt_miss_rate": "0.212382"
     },
     {
       "app": "bc",
@@ -267,35 +267,35 @@
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-6.830",
+      "delta_pp": "-7.402",
       "graph": "com-orkut",
       "graph_family": "social",
-      "grasp_miss_rate": "0.686721",
+      "grasp_miss_rate": "0.684954",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.618423"
+      "popt_miss_rate": "0.610938"
     },
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-5.213",
+      "delta_pp": "-5.291",
       "graph": "com-orkut",
       "graph_family": "social",
-      "grasp_miss_rate": "0.267884",
+      "grasp_miss_rate": "0.265294",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.215751"
+      "popt_miss_rate": "0.212380"
     },
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-2.021",
+      "delta_pp": "-2.011",
       "graph": "com-orkut",
       "graph_family": "social",
-      "grasp_miss_rate": "0.129581",
+      "grasp_miss_rate": "0.128381",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.109374"
+      "popt_miss_rate": "0.108273"
     },
     {
       "app": "sssp",
@@ -454,35 +454,35 @@
     {
       "app": "pr",
       "classification": "tie",
-      "delta_pp": "-0.388",
+      "delta_pp": "0.000",
       "graph": "email-Eu-core",
       "graph_family": "social",
-      "grasp_miss_rate": "0.011343",
+      "grasp_miss_rate": "1.000000",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.007465"
+      "popt_miss_rate": "1.000000"
     },
     {
       "app": "pr",
       "classification": "tie",
-      "delta_pp": "0.025",
+      "delta_pp": "0.000",
       "graph": "email-Eu-core",
       "graph_family": "social",
-      "grasp_miss_rate": "0.007562",
+      "grasp_miss_rate": "1.000000",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.007812"
+      "popt_miss_rate": "1.000000"
     },
     {
       "app": "pr",
       "classification": "tie",
-      "delta_pp": "0.022",
+      "delta_pp": "0.000",
       "graph": "email-Eu-core",
       "graph_family": "social",
-      "grasp_miss_rate": "0.007594",
+      "grasp_miss_rate": "1.000000",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.007812"
+      "popt_miss_rate": "1.000000"
     },
     {
       "app": "bc",
@@ -762,68 +762,68 @@
     {
       "app": "bc",
       "classification": "grasp_better",
-      "delta_pp": "1.985",
+      "delta_pp": "1.482",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.794920",
+      "grasp_miss_rate": "0.794829",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.814773"
+      "popt_miss_rate": "0.809648"
     },
     {
       "app": "bc",
       "classification": "grasp_better",
-      "delta_pp": "1.877",
+      "delta_pp": "1.445",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.551066",
+      "grasp_miss_rate": "0.549226",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.569835"
+      "popt_miss_rate": "0.563675"
     },
     {
       "app": "bc",
       "classification": "grasp_better",
-      "delta_pp": "1.583",
+      "delta_pp": "1.648",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.390387",
+      "grasp_miss_rate": "0.390898",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.406215"
+      "popt_miss_rate": "0.407374"
     },
     {
       "app": "bfs",
-      "classification": "popt_better",
-      "delta_pp": "-1.556",
+      "classification": "grasp_better",
+      "delta_pp": "1.090",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.787126",
+      "grasp_miss_rate": "0.741251",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.771569"
+      "popt_miss_rate": "0.752150"
     },
     {
       "app": "bfs",
-      "classification": "popt_better",
-      "delta_pp": "-1.213",
+      "classification": "grasp_better",
+      "delta_pp": "1.240",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.600710",
+      "grasp_miss_rate": "0.525241",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.588583"
+      "popt_miss_rate": "0.537646"
     },
     {
       "app": "bfs",
-      "classification": "popt_better",
-      "delta_pp": "-0.961",
+      "classification": "grasp_better",
+      "delta_pp": "1.200",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.531077",
+      "grasp_miss_rate": "0.447344",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.521469"
+      "popt_miss_rate": "0.459347"
     },
     {
       "app": "cc",
@@ -861,101 +861,101 @@
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-5.950",
+      "delta_pp": "-6.129",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.684286",
+      "grasp_miss_rate": "0.683922",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.624785"
+      "popt_miss_rate": "0.622631"
     },
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-5.975",
+      "delta_pp": "-6.195",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.351445",
+      "grasp_miss_rate": "0.350557",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.291691"
+      "popt_miss_rate": "0.288608"
     },
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-2.212",
+      "delta_pp": "-2.291",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.201771",
+      "grasp_miss_rate": "0.201244",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.179650"
-    },
-    {
-      "app": "sssp",
-      "classification": "popt_better",
-      "delta_pp": "-3.531",
-      "graph": "soc-LiveJournal1",
-      "graph_family": "social",
-      "grasp_miss_rate": "0.708334",
-      "l3_regime": "large",
-      "l3_size": "1MB",
-      "popt_miss_rate": "0.673029"
+      "popt_miss_rate": "0.178333"
     },
     {
       "app": "sssp",
       "classification": "tie",
-      "delta_pp": "0.331",
+      "delta_pp": "-0.021",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.308876",
+      "grasp_miss_rate": "0.658449",
       "l3_regime": "large",
-      "l3_size": "4MB",
-      "popt_miss_rate": "0.312181"
+      "l3_size": "1MB",
+      "popt_miss_rate": "0.658234"
     },
     {
       "app": "sssp",
       "classification": "grasp_better",
-      "delta_pp": "0.578",
+      "delta_pp": "1.220",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
-      "grasp_miss_rate": "0.128809",
-      "l3_regime": "large",
-      "l3_size": "8MB",
-      "popt_miss_rate": "0.134584"
-    },
-    {
-      "app": "bc",
-      "classification": "grasp_better",
-      "delta_pp": "3.079",
-      "graph": "soc-pokec",
-      "graph_family": "social",
-      "grasp_miss_rate": "0.765123",
-      "l3_regime": "large",
-      "l3_size": "1MB",
-      "popt_miss_rate": "0.795915"
-    },
-    {
-      "app": "bc",
-      "classification": "grasp_better",
-      "delta_pp": "1.717",
-      "graph": "soc-pokec",
-      "graph_family": "social",
-      "grasp_miss_rate": "0.420456",
+      "grasp_miss_rate": "0.296294",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.437630"
+      "popt_miss_rate": "0.308493"
+    },
+    {
+      "app": "sssp",
+      "classification": "grasp_better",
+      "delta_pp": "0.747",
+      "graph": "soc-LiveJournal1",
+      "graph_family": "social",
+      "grasp_miss_rate": "0.124008",
+      "l3_regime": "large",
+      "l3_size": "8MB",
+      "popt_miss_rate": "0.131480"
+    },
+    {
+      "app": "bc",
+      "classification": "grasp_better",
+      "delta_pp": "3.001",
+      "graph": "soc-pokec",
+      "graph_family": "social",
+      "grasp_miss_rate": "0.764632",
+      "l3_regime": "large",
+      "l3_size": "1MB",
+      "popt_miss_rate": "0.794644"
+    },
+    {
+      "app": "bc",
+      "classification": "grasp_better",
+      "delta_pp": "1.614",
+      "graph": "soc-pokec",
+      "graph_family": "social",
+      "grasp_miss_rate": "0.419405",
+      "l3_regime": "large",
+      "l3_size": "4MB",
+      "popt_miss_rate": "0.435549"
     },
     {
       "app": "bc",
       "classification": "tie",
-      "delta_pp": "0.285",
+      "delta_pp": "0.077",
       "graph": "soc-pokec",
       "graph_family": "social",
-      "grasp_miss_rate": "0.199376",
+      "grasp_miss_rate": "0.199387",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.202222"
+      "popt_miss_rate": "0.200160"
     },
     {
       "app": "bfs",
@@ -1026,134 +1026,134 @@
     {
       "app": "pr",
       "classification": "tie",
-      "delta_pp": "0.421",
+      "delta_pp": "0.347",
       "graph": "soc-pokec",
       "graph_family": "social",
-      "grasp_miss_rate": "0.543390",
+      "grasp_miss_rate": "0.543296",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.547604"
+      "popt_miss_rate": "0.546770"
     },
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-0.642",
+      "delta_pp": "-0.652",
       "graph": "soc-pokec",
       "graph_family": "social",
-      "grasp_miss_rate": "0.130220",
+      "grasp_miss_rate": "0.130090",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.123798"
+      "popt_miss_rate": "0.123571"
     },
     {
       "app": "pr",
       "classification": "grasp_better",
-      "delta_pp": "0.814",
+      "delta_pp": "0.819",
       "graph": "soc-pokec",
       "graph_family": "social",
-      "grasp_miss_rate": "0.079289",
+      "grasp_miss_rate": "0.079237",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.087432"
+      "popt_miss_rate": "0.087424"
     },
     {
       "app": "sssp",
       "classification": "grasp_better",
-      "delta_pp": "4.097",
+      "delta_pp": "3.810",
       "graph": "soc-pokec",
       "graph_family": "social",
-      "grasp_miss_rate": "0.529359",
+      "grasp_miss_rate": "0.526903",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.570327"
+      "popt_miss_rate": "0.564999"
     },
     {
       "app": "sssp",
       "classification": "grasp_better",
-      "delta_pp": "0.872",
+      "delta_pp": "0.884",
       "graph": "soc-pokec",
       "graph_family": "social",
-      "grasp_miss_rate": "0.067818",
+      "grasp_miss_rate": "0.066827",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.076542"
+      "popt_miss_rate": "0.075664"
     },
     {
       "app": "sssp",
       "classification": "tie",
-      "delta_pp": "-0.001",
+      "delta_pp": "-0.000",
       "graph": "soc-pokec",
       "graph_family": "social",
-      "grasp_miss_rate": "0.002955",
+      "grasp_miss_rate": "0.002917",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.002944"
+      "popt_miss_rate": "0.002914"
     },
     {
       "app": "bc",
-      "classification": "popt_better",
-      "delta_pp": "-0.512",
+      "classification": "tie",
+      "delta_pp": "-0.488",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.707452",
+      "grasp_miss_rate": "0.708493",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.702327"
+      "popt_miss_rate": "0.703612"
     },
     {
       "app": "bc",
       "classification": "grasp_better",
-      "delta_pp": "2.902",
+      "delta_pp": "2.646",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.341800",
+      "grasp_miss_rate": "0.342787",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.370817"
+      "popt_miss_rate": "0.369243"
     },
     {
       "app": "bc",
       "classification": "grasp_better",
-      "delta_pp": "3.050",
+      "delta_pp": "2.640",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.135697",
+      "grasp_miss_rate": "0.136525",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.166195"
+      "popt_miss_rate": "0.162922"
     },
     {
       "app": "bfs",
       "classification": "grasp_better",
-      "delta_pp": "1.098",
+      "delta_pp": "1.046",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.936341",
+      "grasp_miss_rate": "0.936261",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.947323"
+      "popt_miss_rate": "0.946723"
     },
     {
       "app": "bfs",
       "classification": "tie",
-      "delta_pp": "-0.386",
+      "delta_pp": "-0.188",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.759041",
+      "grasp_miss_rate": "0.757460",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.755181"
+      "popt_miss_rate": "0.755584"
     },
     {
       "app": "bfs",
       "classification": "popt_better",
-      "delta_pp": "-2.481",
+      "delta_pp": "-2.508",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.754225",
+      "grasp_miss_rate": "0.754332",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.729419"
+      "popt_miss_rate": "0.729253"
     },
     {
       "app": "cc",
@@ -1191,35 +1191,35 @@
     {
       "app": "pr",
       "classification": "popt_better",
-      "delta_pp": "-3.647",
+      "delta_pp": "-3.630",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.453209",
+      "grasp_miss_rate": "0.453134",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "popt_miss_rate": "0.416735"
+      "popt_miss_rate": "0.416835"
     },
     {
       "app": "pr",
       "classification": "grasp_better",
-      "delta_pp": "1.072",
+      "delta_pp": "1.063",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.105594",
+      "grasp_miss_rate": "0.105690",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "popt_miss_rate": "0.116316"
+      "popt_miss_rate": "0.116317"
     },
     {
       "app": "pr",
       "classification": "tie",
-      "delta_pp": "-0.038",
+      "delta_pp": "-0.036",
       "graph": "web-Google",
       "graph_family": "web",
-      "grasp_miss_rate": "0.084516",
+      "grasp_miss_rate": "0.084483",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "popt_miss_rate": "0.084132"
+      "popt_miss_rate": "0.084127"
     },
     {
       "app": "sssp",
@@ -1259,19 +1259,19 @@
     "by_app": {
       "bc": {
         "max_pp": 4.727,
-        "mean_pp": 0.363,
-        "median_pp": 1.583,
+        "mean_pp": 0.133,
+        "median_pp": 0.518,
         "min_pp": -15.588,
         "n": 23,
-        "stdev_pp": 4.068
+        "stdev_pp": 4.017
       },
       "bfs": {
         "max_pp": 1.262,
-        "mean_pp": -3.482,
-        "median_pp": -0.386,
+        "mean_pp": -3.137,
+        "median_pp": 0.002,
         "min_pp": -35.014,
         "n": 23,
-        "stdev_pp": 8.577
+        "stdev_pp": 8.709
       },
       "cc": {
         "max_pp": 11.016,
@@ -1282,30 +1282,30 @@
         "stdev_pp": 4.27
       },
       "pr": {
-        "max_pp": 1.072,
-        "mean_pp": -2.151,
-        "median_pp": -0.847,
-        "min_pp": -8.246,
+        "max_pp": 1.063,
+        "mean_pp": -2.219,
+        "median_pp": -0.973,
+        "min_pp": -8.652,
         "n": 28,
-        "stdev_pp": 2.717
+        "stdev_pp": 2.813
       },
       "sssp": {
-        "max_pp": 4.097,
-        "mean_pp": -5.392,
-        "median_pp": -0.001,
+        "max_pp": 3.81,
+        "mean_pp": -5.236,
+        "median_pp": 0.0,
         "min_pp": -60.023,
         "n": 20,
-        "stdev_pp": 15.225
+        "stdev_pp": 15.254
       }
     },
     "by_family": {
       "citation": {
         "max_pp": 8.726,
-        "mean_pp": 0.726,
-        "median_pp": 0.863,
-        "min_pp": -8.246,
+        "mean_pp": 0.389,
+        "median_pp": 0.734,
+        "min_pp": -8.652,
         "n": 15,
-        "stdev_pp": 3.44
+        "stdev_pp": 3.523
       },
       "mesh": {
         "max_pp": 0.332,
@@ -1325,29 +1325,29 @@
       },
       "social": {
         "max_pp": 11.016,
-        "mean_pp": 0.36,
-        "median_pp": 0.031,
+        "mean_pp": 0.535,
+        "median_pp": 0.225,
         "min_pp": -17.751,
         "n": 54,
-        "stdev_pp": 4.323
+        "stdev_pp": 4.296
       },
       "web": {
-        "max_pp": 3.05,
-        "mean_pp": 0.098,
+        "max_pp": 2.646,
+        "mean_pp": 0.064,
         "median_pp": 0.0,
-        "min_pp": -3.647,
+        "min_pp": -3.63,
         "n": 15,
-        "stdev_pp": 1.676
+        "stdev_pp": 1.596
       }
     },
     "by_family_regime": {
       "citation|large": {
         "max_pp": 8.726,
-        "mean_pp": 0.726,
-        "median_pp": 0.863,
-        "min_pp": -8.246,
+        "mean_pp": 0.389,
+        "median_pp": 0.734,
+        "min_pp": -8.652,
         "n": 15,
-        "stdev_pp": 3.44
+        "stdev_pp": 3.523
       },
       "mesh|large": {
         "max_pp": -3.867,
@@ -1399,29 +1399,29 @@
       },
       "social|large": {
         "max_pp": 11.016,
-        "mean_pp": 0.36,
-        "median_pp": 0.031,
+        "mean_pp": 0.535,
+        "median_pp": 0.225,
         "min_pp": -17.751,
         "n": 54,
-        "stdev_pp": 4.323
+        "stdev_pp": 4.296
       },
       "web|large": {
-        "max_pp": 3.05,
-        "mean_pp": 0.098,
+        "max_pp": 2.646,
+        "mean_pp": 0.064,
         "median_pp": 0.0,
-        "min_pp": -3.647,
+        "min_pp": -3.63,
         "n": 15,
-        "stdev_pp": 1.676
+        "stdev_pp": 1.596
       }
     },
     "by_regime": {
       "large": {
         "max_pp": 11.016,
-        "mean_pp": -1.036,
-        "median_pp": 0.016,
+        "mean_pp": -0.993,
+        "median_pp": 0.057,
         "min_pp": -60.023,
         "n": 90,
-        "stdev_pp": 8.361
+        "stdev_pp": 8.363
       },
       "small": {
         "max_pp": 0.272,
@@ -1441,8 +1441,8 @@
       }
     },
     "classification_counts": {
-      "grasp_better": 35,
-      "popt_better": 40,
+      "grasp_better": 39,
+      "popt_better": 36,
       "tie": 39
     },
     "grasp_top5_helps": [
@@ -1505,11 +1505,11 @@
     "n_cells": 114,
     "overall": {
       "max_pp": 11.016,
-      "mean_pp": -1.589,
-      "median_pp": 0.0,
+      "mean_pp": -1.555,
+      "median_pp": 0.001,
       "min_pp": -60.023,
       "n": 114,
-      "stdev_pp": 8.459
+      "stdev_pp": 8.463
     },
     "popt_top5_helps": [
       {

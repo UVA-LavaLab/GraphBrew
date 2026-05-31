@@ -13,9 +13,9 @@ policy after every drop — no single graph is driving the headline.
 | App | Full-corpus top | Wins | Robust? | Fragile drops |
 | :-- | :-------------- | ---: | :------ | :------------ |
 | `bc` | `GRASP` | 15 | ✓ ROBUST | — |
-| `bfs` | `POPT` | 12 | ✗ FRAGILE | `soc-LiveJournal1` |
+| `bfs` | `GRASP` | 12 | ✗ FRAGILE | `cit-Patents`, `soc-LiveJournal1` |
 | `cc` | `GRASP` | 17 | ✓ ROBUST | — |
-| `pr` | `POPT` | 20 | ✓ ROBUST | — |
+| `pr` | `POPT` | 22 | ✓ ROBUST | — |
 | `sssp` | `POPT` | 8 | ✗ FRAGILE | `com-orkut`, `roadNet-CA`, `web-Google` |
 
 ## Per-(app, drop) detail
@@ -33,18 +33,18 @@ policy after every drop — no single graph is driving the headline.
 | `soc-pokec` | `GRASP` | 12 | 5 | ✓ |
 | `web-Google` | `GRASP` | 13 | 7 | ✓ |
 
-### `bfs` — full top: `POPT` (12 wins)
+### `bfs` — full top: `GRASP` (12 wins)
 
 | Dropped graph | Top after drop | Wins | Margin | Same? |
 | :------------ | :------------- | ---: | -----: | :---- |
-| `cit-Patents` | `POPT` | 12 | 6 | ✓ |
-| `com-orkut` | `POPT` | 10 | 2 | ✓ |
-| `delaunay_n19` | `POPT` | 12 | 3 | ✓ |
-| `email-Eu-core` | `POPT` | 11 | 3 | ✓ |
-| `roadNet-CA` | `POPT` | 10 | 3 | ✓ |
+| `cit-Patents` | `GRASP` | 9 | 0 | ✗ |
+| `com-orkut` | `GRASP` | 11 | 4 | ✓ |
+| `delaunay_n19` | `GRASP` | 12 | 3 | ✓ |
+| `email-Eu-core` | `GRASP` | 11 | 3 | ✓ |
+| `roadNet-CA` | `GRASP` | 10 | 3 | ✓ |
 | `soc-LiveJournal1` | `GRASP` | 9 | 0 | ✗ |
-| `soc-pokec` | `POPT` | 10 | 2 | ✓ |
-| `web-Google` | `POPT` | 10 | 2 | ✓ |
+| `soc-pokec` | `GRASP` | 11 | 4 | ✓ |
+| `web-Google` | `GRASP` | 11 | 4 | ✓ |
 
 ### `cc` — full top: `GRASP` (17 wins)
 
@@ -59,18 +59,18 @@ policy after every drop — no single graph is driving the headline.
 | `soc-pokec` | `GRASP` | 14 | 12 | ✓ |
 | `web-Google` | `GRASP` | 15 | 14 | ✓ |
 
-### `pr` — full top: `POPT` (20 wins)
+### `pr` — full top: `POPT` (22 wins)
 
 | Dropped graph | Top after drop | Wins | Margin | Same? |
 | :------------ | :------------- | ---: | -----: | :---- |
-| `cit-Patents` | `POPT` | 17 | 9 | ✓ |
-| `com-orkut` | `POPT` | 17 | 9 | ✓ |
-| `delaunay_n19` | `POPT` | 17 | 11 | ✓ |
+| `cit-Patents` | `POPT` | 19 | 10 | ✓ |
+| `com-orkut` | `POPT` | 19 | 10 | ✓ |
+| `delaunay_n19` | `POPT` | 19 | 12 | ✓ |
 | `email-Eu-core` | `POPT` | 19 | 13 | ✓ |
-| `roadNet-CA` | `POPT` | 16 | 9 | ✓ |
-| `soc-LiveJournal1` | `POPT` | 17 | 9 | ✓ |
-| `soc-pokec` | `POPT` | 19 | 13 | ✓ |
-| `web-Google` | `POPT` | 18 | 11 | ✓ |
+| `roadNet-CA` | `POPT` | 18 | 10 | ✓ |
+| `soc-LiveJournal1` | `POPT` | 19 | 10 | ✓ |
+| `soc-pokec` | `POPT` | 21 | 14 | ✓ |
+| `web-Google` | `POPT` | 20 | 12 | ✓ |
 
 ### `sssp` — full top: `POPT` (8 wins)
 

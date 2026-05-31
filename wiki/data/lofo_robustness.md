@@ -11,9 +11,9 @@ For each app, drop each of the 5 families (citation, mesh, road, social, web) in
 | app | full top | full wins | LOFO-robust | fragile family drops |
 |---|---|---:|---|---|
 | bc | GRASP | 15 | ✅ | — |
-| bfs | POPT | 10 | ❌ | social |
+| bfs | GRASP | 10 | ❌ | citation |
 | cc | GRASP | 14 | ✅ | — |
-| pr | POPT | 15 | ✅ | — |
+| pr | POPT | 17 | ✅ | — |
 | sssp | GRASP | 7 | ❌ | citation |
 
 ## Per-app drop matrix
@@ -21,9 +21,9 @@ For each app, drop each of the 5 families (citation, mesh, road, social, web) in
 | app | full top | drop-citation | drop-mesh | drop-road | drop-social | drop-web |
 |---|---|---|---|---|---|---|
 | bc | GRASP (15) | GRASP (13) | GRASP (15) | GRASP (15) | GRASP (4) | GRASP (13) |
-| bfs | POPT (10) | POPT (10) | POPT (10) | POPT (10) | GRASP (4) ⚠ | POPT (8) |
+| bfs | GRASP (10) | GRASP (7) ⚠ | GRASP (10) | GRASP (10) | GRASP (4) | GRASP (9) |
 | cc | GRASP (14) | GRASP (11) | GRASP (14) | GRASP (14) | GRASP (5) | GRASP (12) |
-| pr | POPT (15) | POPT (12) | POPT (14) | POPT (14) | POPT (7) | POPT (13) |
+| pr | POPT (17) | POPT (14) | POPT (16) | POPT (16) | POPT (7) | POPT (15) |
 | sssp | GRASP (7) | POPT (5) ⚠ | GRASP (7) | GRASP (7) | GRASP (3) | GRASP (7) |
 
 ## Interpretation

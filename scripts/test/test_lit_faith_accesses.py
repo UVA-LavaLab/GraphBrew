@@ -71,9 +71,12 @@ def test_production_median_accesses_floor(audit: dict) -> None:
 
 def test_smoke_min_accesses_floor(audit: dict) -> None:
     s = audit["summary"]
-    # email-Eu-core bfs is intentionally tiny but should never collapse
-    # to zero accesses.
-    assert s["smoke_min_accesses"] >= 20_000
+    # email-Eu-core pr/bc/cc/sssp are intentionally tiny because the
+    # graph fits in L2 so L3 sees only cold-fill traffic (~2k unique
+    # cache lines). Floor at 1000 so a true zero-access trace still
+    # fails. Pre-binary-fix this was 20_000 (because the old binary
+    # incorrectly counted total accesses, not L3 accesses).
+    assert s["smoke_min_accesses"] >= 1_000
 
 
 def test_smoke_min_below_production_min(audit: dict) -> None:
@@ -197,7 +200,7 @@ def test_per_row_buckets_sum_to_total(audit: dict) -> None:
 def test_per_row_log10_finite(audit: dict) -> None:
     for r in audit["per_row"]:
         if r["log10"] is not None:
-            assert 4.0 <= r["log10"] <= 10.0, (
+            assert 3.0 <= r["log10"] <= 10.0, (
                 f"log10(accesses) out of range for {r['graph']}/{r['app']}: {r['log10']}"
             )
 
@@ -216,16 +219,21 @@ def test_violation_shortfall_pct_well_formed(audit: dict) -> None:
         assert v["shortfall"] == v["floor"] - v["accesses"]
 
 
-def test_email_eu_core_bfs_is_smallest(audit: dict) -> None:
-    """email-Eu-core/bfs is the canonical tiny dev-smoke trace; if any
-    other (graph, app) drops below it, something is wrong."""
-    key = "email-Eu-core::bfs"
-    assert key in audit["per_graph_app"]
-    eec_bfs_min = audit["per_graph_app"][key]["min"]
+def test_email_eu_core_is_smallest(audit: dict) -> None:
+    """email-Eu-core is the canonical tiny dev-smoke graph; if any other
+    graph drops below it on the smallest (graph, app) trace, something
+    is wrong. After the 2026-05-31 cache_sim binary fix, email-Eu-core
+    /pr is the new smallest trace (~2k L3 accesses, working set fits
+    in L2). Lock the invariant: no NON-email-Eu-core trace can be smaller
+    than the email-Eu-core MINIMUM across its apps."""
+    eec_keys = [k for k in audit["per_graph_app"] if k.startswith("email-Eu-core::")]
+    assert eec_keys, "email-Eu-core not in audit"
+    eec_min = min(audit["per_graph_app"][k]["min"] for k in eec_keys)
     smaller = [(k, stat["min"]) for k, stat in audit["per_graph_app"].items()
-               if k != key and stat["min"] < eec_bfs_min]
+               if not k.startswith("email-Eu-core::") and stat["min"] < eec_min]
     assert not smaller, (
-        f"non-smoke (graph, app) trace smaller than email-Eu-core/bfs: {smaller}"
+        f"non-smoke (graph, app) trace smaller than email-Eu-core min "
+        f"({eec_min}): {smaller}"
     )
 
 

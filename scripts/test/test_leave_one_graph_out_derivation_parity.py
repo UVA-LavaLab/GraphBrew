@@ -199,12 +199,17 @@ def test_drops_byte_exact_against_logo_recompute(artifact, rows, graphs, full_to
             if after is None:
                 assert d.get("missing") is True
                 continue
+            # Post LOGO source fix: same_winner_as_full now requires both
+            # top_policy match AND unique_top after graph drop.
             expected = {
                 "top_policy":          after["top_policy"],
                 "top_wins":            after["top_wins"],
                 "margin":              after["margin"],
                 "unique_top":          after["unique_top"],
-                "same_winner_as_full": after["top_policy"] == full_top_pol,
+                "same_winner_as_full": (
+                    after["top_policy"] == full_top_pol
+                    and after["unique_top"]
+                ),
             }
             assert d == expected, (
                 f"{app}/{g}: drops drift\n  art={d}\n  exp={expected}"

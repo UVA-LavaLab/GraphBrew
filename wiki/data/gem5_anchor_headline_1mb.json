@@ -1,0 +1,163 @@
+{
+  "sweep_root": "/tmp/graphbrew-headline-1mb-gem5",
+  "sweep_subdir": "DBG",
+  "graphs_scope": [
+    "cit-Patents",
+    "email-Eu-core"
+  ],
+  "apps_scope": [
+    "bc",
+    "bfs",
+    "pr",
+    "sssp"
+  ],
+  "cells": [
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "l3_size": "1MB",
+      "miss_rate_by_policy": {
+        "LRU": 0.058591,
+        "SRRIP": 0.611657,
+        "GRASP": 0.062213,
+        "POPT": 0.096154,
+        "ECG_DBG_PRIMARY": 0.059761
+      },
+      "ok_rows": 10,
+      "error_rows": 0
+    }
+  ],
+  "invariants": [
+    {
+      "name": "GRASP_LE_LRU_headline:email-Eu-core/pr@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:email-Eu-core/bfs@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:email-Eu-core/sssp@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:email-Eu-core/bc@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:cit-Patents/pr@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:cit-Patents/bfs@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:cit-Patents/sssp@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "GRASP_LE_LRU_headline:cit-Patents/bc@256kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:email-Eu-core/pr@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:email-Eu-core/bfs@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:email-Eu-core/sssp@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:email-Eu-core/bc@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:cit-Patents/pr@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:cit-Patents/bfs@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:cit-Patents/sssp@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "asymptote_within_1.0pp:cit-Patents/bc@2MB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:email-Eu-core/pr@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:email-Eu-core/bfs@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:email-Eu-core/sssp@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:email-Eu-core/bc@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:cit-Patents/pr@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:cit-Patents/bfs@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:cit-Patents/sssp@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "small_cache_divergence:cit-Patents/bc@4kB",
+      "status": "missing",
+      "detail": "cell not in sweep"
+    },
+    {
+      "name": "no_error_rows",
+      "status": "ok",
+      "detail": "10 ok rows across 1 cells"
+    }
+  ],
+  "counts": {
+    "cells": 1,
+    "invariants_ok": 1,
+    "invariants_disagree": 0,
+    "invariants_missing": 24
+  }
+}

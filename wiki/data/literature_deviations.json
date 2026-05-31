@@ -1,32 +1,6 @@
 {
   "deviations": [
     {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "1.597",
-      "expected_sign": "-",
-      "graph": "cit-Patents",
-      "graph_family": "citation",
-      "l3_size": "4MB",
-      "mechanism": "popt_overhead_dominates",
-      "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.597",
-      "tolerance_pct": "1.5"
-    },
-    {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "2.5292",
-      "expected_sign": "-",
-      "graph": "cit-Patents",
-      "graph_family": "citation",
-      "l3_size": "8MB",
-      "mechanism": "popt_overhead_dominates",
-      "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "2.529",
-      "tolerance_pct": "1.5"
-    },
-    {
       "app": "cc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
       "delta_pct": "8.7258",
@@ -76,32 +50,6 @@
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
       "popt_vs_grasp_pp": "1.528",
-      "tolerance_pct": "1.5"
-    },
-    {
-      "app": "sssp",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "1.8038",
-      "expected_sign": "-",
-      "graph": "cit-Patents",
-      "graph_family": "citation",
-      "l3_size": "4MB",
-      "mechanism": "popt_overhead_dominates",
-      "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.804",
-      "tolerance_pct": "1.5"
-    },
-    {
-      "app": "sssp",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "1.633",
-      "expected_sign": "-",
-      "graph": "cit-Patents",
-      "graph_family": "citation",
-      "l3_size": "8MB",
-      "mechanism": "popt_overhead_dominates",
-      "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.633",
       "tolerance_pct": "1.5"
     },
     {
@@ -211,40 +159,14 @@
     {
       "app": "bc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "1.9853",
-      "expected_sign": "-",
-      "graph": "soc-LiveJournal1",
-      "graph_family": "social",
-      "l3_size": "1MB",
-      "mechanism": "popt_overhead_dominates",
-      "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.985",
-      "tolerance_pct": "1.5"
-    },
-    {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "1.8769",
-      "expected_sign": "-",
-      "graph": "soc-LiveJournal1",
-      "graph_family": "social",
-      "l3_size": "4MB",
-      "mechanism": "popt_overhead_dominates",
-      "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.877",
-      "tolerance_pct": "1.5"
-    },
-    {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "1.5828",
+      "delta_pct": "1.6476",
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "graph_family": "social",
       "l3_size": "8MB",
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.583",
+      "popt_vs_grasp_pp": "1.648",
       "tolerance_pct": "1.5"
     },
     {
@@ -276,27 +198,27 @@
     {
       "app": "bc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "3.0792",
+      "delta_pct": "3.0012",
       "expected_sign": "-",
       "graph": "soc-pokec",
       "graph_family": "social",
       "l3_size": "1MB",
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "3.079",
+      "popt_vs_grasp_pp": "3.001",
       "tolerance_pct": "1.5"
     },
     {
       "app": "bc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "1.7174",
+      "delta_pct": "1.6144",
       "expected_sign": "-",
       "graph": "soc-pokec",
       "graph_family": "social",
       "l3_size": "4MB",
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.717",
+      "popt_vs_grasp_pp": "1.614",
       "tolerance_pct": "1.5"
     },
     {
@@ -341,87 +263,87 @@
     {
       "app": "sssp",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "4.0968",
+      "delta_pct": "3.8096",
       "expected_sign": "-",
       "graph": "soc-pokec",
       "graph_family": "social",
       "l3_size": "1MB",
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "4.097",
+      "popt_vs_grasp_pp": "3.810",
       "tolerance_pct": "1.5"
     },
     {
       "app": "bc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "2.9017",
+      "delta_pct": "2.6456",
       "expected_sign": "-",
       "graph": "web-Google",
       "graph_family": "web",
       "l3_size": "4MB",
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "2.902",
+      "popt_vs_grasp_pp": "2.646",
       "tolerance_pct": "1.5"
     },
     {
       "app": "bc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "delta_pct": "3.0498",
+      "delta_pct": "2.6397",
       "expected_sign": "-",
       "graph": "web-Google",
       "graph_family": "web",
       "l3_size": "8MB",
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "3.050",
+      "popt_vs_grasp_pp": "2.640",
       "tolerance_pct": "1.5"
     },
     {
       "app": "pr",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3",
-      "delta_pct": "1.0722",
+      "delta_pct": "1.0627",
       "expected_sign": "-",
       "graph": "web-Google",
       "graph_family": "web",
       "l3_size": "4MB",
       "mechanism": "popt_overhead_dominates",
       "policy": "POPT_GE_GRASP",
-      "popt_vs_grasp_pp": "1.072",
+      "popt_vs_grasp_pp": "1.063",
       "tolerance_pct": "1.0"
     }
   ],
   "summary": {
     "by_app": {
-      "bc": 12,
+      "bc": 8,
       "cc": 14,
       "pr": 1,
-      "sssp": 3
+      "sssp": 1
     },
     "by_family": {
-      "citation": 8,
-      "social": 19,
+      "citation": 4,
+      "social": 17,
       "web": 3
     },
     "by_graph": {
-      "cit-Patents": 8,
+      "cit-Patents": 4,
       "com-orkut": 8,
-      "soc-LiveJournal1": 5,
+      "soc-LiveJournal1": 3,
       "soc-pokec": 6,
       "web-Google": 3
     },
     "by_mechanism": {
-      "popt_overhead_dominates": 30
+      "popt_overhead_dominates": 24
     },
     "by_policy": {
-      "POPT_GE_GRASP": 26,
+      "POPT_GE_GRASP": 20,
       "POPT_NEAR_GRASP_IF_BIG_GAP": 4
     },
     "mechanism_family_cross_tab": {
-      "popt_overhead_dominates|citation": 8,
-      "popt_overhead_dominates|social": 19,
+      "popt_overhead_dominates|citation": 4,
+      "popt_overhead_dominates|social": 17,
       "popt_overhead_dominates|web": 3
     },
-    "n_deviations": 30
+    "n_deviations": 24
   }
 }

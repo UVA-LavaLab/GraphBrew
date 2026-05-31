@@ -75,9 +75,10 @@ Audit of 330 per-claim entries from `wiki/data/literature_faithfulness_postfix.j
 
 | Value | Count |
 |---|---|
-| `known_deviation` | 30 |
+| `insufficient_data` | 7 |
+| `known_deviation` | 24 |
 | `ok` | 298 |
-| `within_tolerance` | 2 |
+| `within_tolerance` | 1 |
 
 ## Claims by expected_sign
 

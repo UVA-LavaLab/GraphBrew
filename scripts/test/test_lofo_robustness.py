@@ -78,14 +78,20 @@ def test_cc_lofo_robust_with_grasp(payload):
     assert p["is_lofo_robust"] is True
 
 
-def test_bfs_fragile_drop_is_social(payload):
-    """bfs is honestly disclosed as family-sensitive: drop social → GRASP."""
+def test_bfs_fragile_drop_is_citation(payload):
+    """bfs is honestly disclosed as family-sensitive: drop citation → GRASP ties.
+
+    Post cache_sim ECG sweep: bfs's full-corpus winner is now GRASP (was POPT).
+    Dropping citation reduces GRASP to a tied top (no unique winner), so
+    the lofo gate marks bfs as fragile.
+    """
     p = payload["per_app"]["bfs"]
     assert p["is_lofo_robust"] is False
-    assert "social" in p["fragile_family_drops"]
-    # full-corpus winner is POPT; without social it flips to GRASP
-    assert p["full_corpus"]["top_policy"] == "POPT"
-    assert p["drops"]["social"]["top_policy"] == "GRASP"
+    assert "citation" in p["fragile_family_drops"]
+    assert p["full_corpus"]["top_policy"] == "GRASP"
+    # without citation, GRASP and POPT both end up at 7 wins → not unique
+    assert p["drops"]["citation"]["top_policy"] == "GRASP"
+    assert p["drops"]["citation"]["unique_top"] is False
 
 
 def test_sssp_fragile_drop_is_citation(payload):

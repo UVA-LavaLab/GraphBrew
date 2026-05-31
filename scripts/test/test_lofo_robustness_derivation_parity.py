@@ -217,13 +217,18 @@ def test_drops_top_policy_matches_lofo_recompute(artifact, rows_in_scope, famili
                     f"{app}/{f}: should be missing"
                 )
                 continue
+            # Post lofo source fix: same_winner_as_full requires both
+            # top_policy match AND unique_top after family drop.
             expected = {
                 "top_policy":          after["top_policy"],
                 "top_wins":            after["top_wins"],
                 "runner_up_wins":      after["runner_up_wins"],
                 "margin":              after["margin"],
                 "unique_top":          after["unique_top"],
-                "same_winner_as_full": after["top_policy"] == full_top_pol,
+                "same_winner_as_full": (
+                    after["top_policy"] == full_top_pol
+                    and after["unique_top"]
+                ),
             }
             assert d == expected, (
                 f"{app}/{f}: drops entry drift\n  art={d}\n  exp={expected}"

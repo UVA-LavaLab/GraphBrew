@@ -33,32 +33,32 @@
       "email-Eu-core"
     ],
     "smoke_per_app": {
-      "bc": 2000000,
+      "bc": 1000,
       "bfs": 20000,
-      "cc": 200000,
-      "pr": 200000,
-      "sssp": 200000
+      "cc": 1000,
+      "pr": 1000,
+      "sssp": 1000
     }
   },
   "per_app": {
     "bc": {
-      "log10_median": 7.95,
+      "log10_median": 7.96,
       "max": 472821929,
-      "mean": 128945000,
-      "median": 88696672,
+      "mean": 129906058,
+      "median": 91084930,
       "min": 2592074,
       "n": 65,
-      "p10": 15951123,
+      "p10": 16093624,
       "p90": 467201485
     },
     "bfs": {
       "log10_median": 6.44,
       "max": 11712164,
-      "mean": 4354050,
+      "mean": 4540329,
       "median": 2726959,
       "min": 21307,
       "n": 64,
-      "p10": 1288494,
+      "p10": 1288936,
       "p90": 11486882
     },
     "cc": {
@@ -73,19 +73,19 @@
     },
     "pr": {
       "log10_median": 7.84,
-      "max": 362421671,
-      "mean": 89692448,
-      "median": 68953119,
-      "min": 273178,
+      "max": 364475546,
+      "mean": 90019266,
+      "median": 68770975,
+      "min": 2134,
       "n": 87,
       "p10": 8641367,
-      "p90": 360709420
+      "p90": 364322575
     },
     "sssp": {
       "log10_median": 7.44,
       "max": 163388583,
-      "mean": 44120626,
-      "median": 27473215,
+      "mean": 44733218,
+      "median": 27521330,
       "min": 735934,
       "n": 59,
       "p10": 736851,
@@ -95,18 +95,18 @@
   "per_graph": {
     "cit-Patents": {
       "log10_median": 7.44,
-      "max": 90270268,
-      "mean": 41485327,
-      "median": 27350760,
-      "min": 5143662,
+      "max": 91172238,
+      "mean": 42066701,
+      "median": 27497719,
+      "min": 5784216,
       "n": 52,
-      "p10": 5151864,
-      "p90": 88580012
+      "p10": 5787817,
+      "p90": 91078248
     },
     "com-orkut": {
       "log10_median": 8.21,
       "max": 472821929,
-      "mean": 211448264,
+      "mean": 212111943,
       "median": 163029592,
       "min": 2820556,
       "n": 48,
@@ -124,13 +124,13 @@
       "p90": 8671622
     },
     "email-Eu-core": {
-      "log10_median": 5.44,
+      "log10_median": 4.33,
       "max": 2602361,
-      "mean": 929490,
-      "median": 273183,
-      "min": 21307,
+      "mean": 827883,
+      "median": 21309,
+      "min": 2134,
       "n": 19,
-      "p10": 21309,
+      "p10": 2134,
       "p90": 2599051
     },
     "roadNet-CA": {
@@ -144,56 +144,56 @@
       "p90": 52898004
     },
     "soc-LiveJournal1": {
-      "log10_median": 7.66,
-      "max": 162505237,
-      "mean": 67422209,
-      "median": 45611373,
+      "log10_median": 7.69,
+      "max": 163283835,
+      "mean": 68738104,
+      "median": 48813905,
       "min": 5720455,
       "n": 51,
       "p10": 5791765,
-      "p90": 159014672
+      "p90": 161889213
     },
     "soc-pokec": {
       "log10_median": 7.54,
-      "max": 99282325,
-      "mean": 45660080,
-      "median": 34653042,
+      "max": 99545516,
+      "mean": 45876862,
+      "median": 34975438,
       "min": 1766529,
       "n": 50,
       "p10": 1769194,
-      "p90": 98528637
+      "p90": 99421895
     },
     "web-Google": {
       "log10_median": 6.55,
-      "max": 16305237,
-      "mean": 7719863,
+      "max": 16260483,
+      "mean": 7737054,
       "median": 3519498,
       "min": 1252516,
       "n": 50,
       "p10": 1253691,
-      "p90": 16032626
+      "p90": 16206280
     }
   },
   "per_graph_app": {
     "cit-Patents::bc": {
-      "log10_median": 7.95,
-      "max": 90270268,
-      "mean": 88647874,
-      "median": 88580012,
-      "min": 87786449,
+      "log10_median": 7.96,
+      "max": 91172238,
+      "mean": 91059924,
+      "median": 91081589,
+      "min": 90942321,
       "n": 10,
-      "p10": 87786449,
-      "p90": 89942412
+      "p10": 90942321,
+      "p90": 91142861
     },
     "cit-Patents::bfs": {
-      "log10_median": 6.71,
-      "max": 5161106,
-      "mean": 5151121,
-      "median": 5151270,
-      "min": 5143662,
+      "log10_median": 6.76,
+      "max": 5789714,
+      "mean": 5787203,
+      "median": 5787495,
+      "min": 5784216,
       "n": 10,
-      "p10": 5146098,
-      "p90": 5155928
+      "p10": 5784216,
+      "p90": 5789714
     },
     "cit-Patents::cc": {
       "log10_median": 7.01,
@@ -207,23 +207,23 @@
     },
     "cit-Patents::pr": {
       "log10_median": 7.84,
-      "max": 68963141,
-      "mean": 68953328,
-      "median": 68953119,
-      "min": 68938965,
+      "max": 68772141,
+      "mean": 68771216,
+      "median": 68771491,
+      "min": 68769827,
       "n": 12,
-      "p10": 68950243,
-      "p90": 68958633
+      "p10": 68769827,
+      "p90": 68772141
     },
     "cit-Patents::sssp": {
       "log10_median": 7.44,
-      "max": 27473215,
-      "mean": 27257223,
-      "median": 27262248,
-      "min": 27072422,
+      "max": 27521330,
+      "mean": 27433175,
+      "median": 27486236,
+      "min": 27320062,
       "n": 11,
-      "p10": 27072422,
-      "p90": 27446716
+      "p10": 27320062,
+      "p90": 27519372
     },
     "com-orkut::bc": {
       "log10_median": 8.67,
@@ -257,13 +257,13 @@
     },
     "com-orkut::pr": {
       "log10_median": 8.56,
-      "max": 362421671,
-      "mean": 361745772,
-      "median": 362090916,
-      "min": 360709420,
+      "max": 364475546,
+      "mean": 364400489,
+      "median": 364396617,
+      "min": 364322575,
       "n": 12,
-      "p10": 360709420,
-      "p90": 362236030
+      "p10": 364322575,
+      "p90": 364465609
     },
     "com-orkut::sssp": {
       "log10_median": 8.21,
@@ -306,14 +306,14 @@
       "p90": 21313
     },
     "email-Eu-core::pr": {
-      "log10_median": 5.44,
-      "max": 285883,
-      "mean": 277927,
-      "median": 273183,
-      "min": 273178,
+      "log10_median": 3.33,
+      "max": 2134,
+      "mean": 2134,
+      "median": 2134,
+      "min": 2134,
       "n": 7,
-      "p10": 273178,
-      "p90": 285883
+      "p10": 2134,
+      "p90": 2134
     },
     "roadNet-CA::bc": {
       "log10_median": 7.72,
@@ -366,24 +366,24 @@
       "p90": 737133
     },
     "soc-LiveJournal1::bc": {
-      "log10_median": 8.2,
-      "max": 162505237,
-      "mean": 158573795,
-      "median": 159014672,
-      "min": 156464837,
+      "log10_median": 8.21,
+      "max": 163283835,
+      "mean": 161638047,
+      "median": 161889213,
+      "min": 159206835,
       "n": 10,
-      "p10": 156464837,
-      "p90": 160075047
+      "p10": 159206835,
+      "p90": 163198639
     },
     "soc-LiveJournal1::bfs": {
-      "log10_median": 6.82,
-      "max": 6664033,
-      "mean": 6566635,
-      "median": 6575210,
-      "min": 6343082,
+      "log10_median": 6.85,
+      "max": 7131978,
+      "mean": 7122376,
+      "median": 7124690,
+      "min": 7113931,
       "n": 10,
-      "p10": 6561244,
-      "p90": 6625344
+      "p10": 7114441,
+      "p90": 7131978
     },
     "soc-LiveJournal1::cc": {
       "log10_median": 6.76,
@@ -397,33 +397,33 @@
     },
     "soc-LiveJournal1::pr": {
       "log10_median": 8.03,
-      "max": 106668997,
-      "mean": 106575860,
-      "median": 106620240,
-      "min": 106412266,
+      "max": 106644060,
+      "mean": 106620323,
+      "median": 106632971,
+      "min": 106572599,
       "n": 12,
-      "p10": 106412266,
-      "p90": 106664487
+      "p10": 106572599,
+      "p90": 106642427
     },
     "soc-LiveJournal1::sssp": {
-      "log10_median": 7.66,
-      "max": 45971982,
-      "mean": 45627282,
-      "median": 45574030,
-      "min": 45398005,
+      "log10_median": 7.69,
+      "max": 48863700,
+      "mean": 48664997,
+      "median": 48751969,
+      "min": 48367078,
       "n": 10,
-      "p10": 45398005,
-      "p90": 45924149
+      "p10": 48367078,
+      "p90": 48854515
     },
     "soc-pokec::bc": {
-      "log10_median": 7.99,
-      "max": 99282325,
-      "mean": 98725875,
-      "median": 98624668,
-      "min": 98484538,
+      "log10_median": 8.0,
+      "max": 99545516,
+      "mean": 99412116,
+      "median": 99429745,
+      "min": 99184375,
       "n": 10,
-      "p10": 98484538,
-      "p90": 99196472
+      "p10": 99184375,
+      "p90": 99511621
     },
     "soc-pokec::bfs": {
       "log10_median": 6.26,
@@ -447,43 +447,43 @@
     },
     "soc-pokec::pr": {
       "log10_median": 7.88,
-      "max": 76543048,
-      "mean": 76497537,
-      "median": 76506826,
-      "min": 76434881,
+      "max": 76538248,
+      "mean": 76509738,
+      "median": 76530512,
+      "min": 76455213,
       "n": 12,
-      "p10": 76440564,
-      "p90": 76539941
+      "p10": 76455213,
+      "p90": 76537098
     },
     "soc-pokec::sssp": {
       "log10_median": 7.54,
-      "max": 34665692,
-      "mean": 34534094,
-      "median": 34520326,
-      "min": 34395887,
+      "max": 35024591,
+      "mean": 34917125,
+      "median": 34932281,
+      "min": 34807659,
       "n": 10,
-      "p10": 34395887,
-      "p90": 34665692
+      "p10": 34807659,
+      "p90": 35024591
     },
     "web-Google::bc": {
       "log10_median": 7.21,
-      "max": 16305237,
-      "mean": 16093690,
-      "median": 16062473,
-      "min": 15951123,
+      "max": 16260483,
+      "mean": 16178027,
+      "median": 16209466,
+      "min": 16093624,
       "n": 10,
-      "p10": 15951123,
-      "p90": 16305237
+      "p10": 16093624,
+      "p90": 16218728
     },
     "web-Google::bfs": {
       "log10_median": 6.11,
-      "max": 1291065,
-      "mean": 1290064,
-      "median": 1290130,
-      "min": 1288494,
+      "max": 1292849,
+      "mean": 1290430,
+      "median": 1290266,
+      "min": 1288936,
       "n": 10,
-      "p10": 1289130,
-      "p90": 1291065
+      "p10": 1289089,
+      "p90": 1291142
     },
     "web-Google::cc": {
       "log10_median": 6.1,
@@ -497,13 +497,13 @@
     },
     "web-Google::pr": {
       "log10_median": 7.15,
-      "max": 14111268,
-      "mean": 14107372,
-      "median": 14106981,
-      "min": 14104305,
+      "max": 14110147,
+      "mean": 14108416,
+      "median": 14108215,
+      "min": 14103954,
       "n": 12,
-      "p10": 14106058,
-      "p90": 14109617
+      "p10": 14108006,
+      "p90": 14110028
     },
     "web-Google::sssp": {
       "log10_median": 6.55,
@@ -528,14 +528,14 @@
       "p90": 52829108
     },
     "1MB": {
-      "log10_median": 7.2,
+      "log10_median": 7.21,
       "max": 467201485,
-      "mean": 63693152,
-      "median": 15984336,
-      "min": 21307,
+      "mean": 64210126,
+      "median": 16106516,
+      "min": 2134,
       "n": 114,
-      "p10": 1289659,
-      "p90": 160075047
+      "p10": 1290207,
+      "p90": 161797772
     },
     "256kB": {
       "log10_median": 6.75,
@@ -550,11 +550,11 @@
     "4MB": {
       "log10_median": 7.15,
       "max": 472754499,
-      "mean": 66012146,
-      "median": 14106058,
-      "min": 21309,
+      "mean": 66549134,
+      "median": 14109050,
+      "min": 2134,
       "n": 81,
-      "p10": 1291065,
+      "p10": 1290266,
       "p90": 161671439
     },
     "4kB": {
@@ -580,60 +580,60 @@
     "8MB": {
       "log10_median": 7.15,
       "max": 472821929,
-      "mean": 68907922,
-      "median": 14107742,
-      "min": 21313,
+      "mean": 69327874,
+      "median": 14110016,
+      "min": 2134,
       "n": 87,
-      "p10": 1290602,
+      "p10": 1290667,
       "p90": 163029592
     }
   },
   "per_policy": {
     "GRASP": {
       "log10_median": 7.84,
-      "max": 362233008,
-      "mean": 87444005,
-      "median": 68955281,
-      "min": 280998,
+      "max": 364465609,
+      "mean": 88031640,
+      "median": 68771566,
+      "min": 2134,
       "n": 19,
-      "p10": 5155928,
-      "p90": 160075047
+      "p10": 5788039,
+      "p90": 163283835
     },
     "POPT": {
-      "log10_median": 7.76,
-      "max": 360709420,
-      "mean": 91694336,
-      "median": 57175562,
-      "min": 14106744,
+      "log10_median": 7.77,
+      "max": 364322575,
+      "mean": 92600105,
+      "median": 58569609,
+      "min": 14108215,
       "n": 8,
-      "p10": 27072422,
-      "p90": 106412266
+      "p10": 27320062,
+      "p90": 106572599
     },
     "POPT_GE_GRASP": {
       "log10_median": 7.01,
       "max": 470968331,
-      "mean": 50555094,
+      "mean": 50938522,
       "median": 10194711,
-      "min": 21307,
+      "min": 2134,
       "n": 114,
       "p10": 1252931,
-      "p90": 156464837
+      "p90": 159206835
     },
     "POPT_NEAR_GRASP_IF_BIG_GAP": {
       "log10_median": 7.01,
       "max": 470968331,
-      "mean": 50555094,
+      "mean": 50938522,
       "median": 10194711,
-      "min": 21307,
+      "min": 2134,
       "n": 114,
       "p10": 1252931,
-      "p90": 156464837
+      "p90": 159206835
     },
     "SRRIP": {
       "log10_median": 7.21,
       "max": 472821929,
-      "mean": 71501399,
-      "median": 16092320,
+      "mean": 71943188,
+      "median": 16206280,
       "min": 1252516,
       "n": 75,
       "p10": 1767814,
@@ -642,202 +642,202 @@
   },
   "per_row": [
     {
-      "accesses": 89128631,
+      "accesses": 91172238,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.95,
+      "log10": 7.96,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 88696672,
+      "accesses": 91100530,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.948,
+      "log10": 7.96,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 87853919,
+      "accesses": 91025430,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.944,
+      "log10": 7.959,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 87853919,
+      "accesses": 91025430,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.944,
+      "log10": 7.959,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 89942412,
+      "accesses": 91142861,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 7.954,
+      "log10": 7.96,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 87786449,
+      "accesses": 90942321,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 7.943,
+      "log10": 7.959,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 87786449,
+      "accesses": 90942321,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 7.943,
+      "log10": 7.959,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 90270268,
+      "accesses": 91078248,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.956,
+      "log10": 7.959,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 88580012,
+      "accesses": 91084930,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.947,
+      "log10": 7.959,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 88580012,
+      "accesses": 91084930,
       "app": "bc",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.947,
+      "log10": 7.959,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 5161106,
+      "accesses": 5787828,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 6.713,
+      "log10": 6.763,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 5155928,
+      "accesses": 5788039,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 6.712,
+      "log10": 6.763,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 5146098,
+      "accesses": 5787174,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 6.711,
+      "log10": 6.762,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 5146098,
+      "accesses": 5787174,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 6.711,
+      "log10": 6.762,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 5153236,
+      "accesses": 5786140,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 6.712,
+      "log10": 6.762,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 5150677,
+      "accesses": 5784216,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 6.712,
+      "log10": 6.762,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 5150677,
+      "accesses": 5784216,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 6.712,
+      "log10": 6.762,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 5143662,
+      "accesses": 5787817,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 6.711,
+      "log10": 6.763,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 5151864,
+      "accesses": 5789714,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 6.712,
+      "log10": 6.763,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 5151864,
+      "accesses": 5789714,
       "app": "bfs",
       "bucket": "medium",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 6.712,
+      "log10": 6.763,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
@@ -932,232 +932,232 @@
       "smoke": false
     },
     {
-      "accesses": 68958633,
+      "accesses": 68770023,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 68950243,
+      "accesses": 68771566,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 68953119,
+      "accesses": 68772141,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "POPT",
       "smoke": false
     },
     {
-      "accesses": 68953119,
+      "accesses": 68772141,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 68953119,
+      "accesses": 68772141,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 68963141,
+      "accesses": 68771416,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 68952499,
+      "accesses": 68771936,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 68952499,
+      "accesses": 68771936,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 68938965,
+      "accesses": 68770667,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.838,
+      "log10": 7.837,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 68955281,
+      "accesses": 68770975,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 68954661,
+      "accesses": 68769827,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 68954661,
+      "accesses": 68769827,
       "app": "pr",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.839,
+      "log10": 7.837,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 27446716,
+      "accesses": 27509203,
       "app": "sssp",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "log10": 7.438,
-      "policy": "SRRIP",
-      "smoke": false
-    },
-    {
-      "accesses": 27439273,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "log10": 7.438,
-      "policy": "GRASP",
-      "smoke": false
-    },
-    {
-      "accesses": 27072422,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "log10": 7.433,
-      "policy": "POPT",
-      "smoke": false
-    },
-    {
-      "accesses": 27072422,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "log10": 7.433,
-      "policy": "POPT_GE_GRASP",
-      "smoke": false
-    },
-    {
-      "accesses": 27072422,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "log10": 7.433,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "smoke": false
-    },
-    {
-      "accesses": 27444166,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "4MB",
-      "log10": 7.438,
-      "policy": "SRRIP",
-      "smoke": false
-    },
-    {
-      "accesses": 27142163,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "4MB",
-      "log10": 7.434,
-      "policy": "POPT_GE_GRASP",
-      "smoke": false
-    },
-    {
-      "accesses": 27142163,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "4MB",
-      "log10": 7.434,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "smoke": false
-    },
-    {
-      "accesses": 27473215,
-      "app": "sssp",
-      "bucket": "large",
-      "graph": "cit-Patents",
-      "l3_size": "8MB",
       "log10": 7.439,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 27262248,
+      "accesses": 27521330,
       "app": "sssp",
       "bucket": "large",
       "graph": "cit-Patents",
-      "l3_size": "8MB",
+      "l3_size": "1MB",
+      "log10": 7.44,
+      "policy": "GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 27320062,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.436,
+      "policy": "POPT",
+      "smoke": false
+    },
+    {
+      "accesses": 27320062,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
       "log10": 7.436,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 27262248,
+      "accesses": 27320062,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "log10": 7.436,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 27519372,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.44,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 27383558,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.437,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 27383558,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "log10": 7.437,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 27515249,
       "app": "sssp",
       "bucket": "large",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "log10": 7.436,
+      "log10": 7.44,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 27486236,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.439,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 27486236,
+      "app": "sssp",
+      "bucket": "large",
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "log10": 7.439,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
@@ -1432,122 +1432,122 @@
       "smoke": false
     },
     {
-      "accesses": 361981444,
+      "accesses": 364379769,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "log10": 8.559,
+      "log10": 8.562,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 362200388,
+      "accesses": 364465609,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "log10": 8.559,
+      "log10": 8.562,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 360709420,
+      "accesses": 364322575,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "log10": 8.557,
+      "log10": 8.561,
       "policy": "POPT",
       "smoke": false
     },
     {
-      "accesses": 360709420,
+      "accesses": 364322575,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "log10": 8.557,
+      "log10": 8.561,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 360709420,
+      "accesses": 364322575,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "log10": 8.557,
+      "log10": 8.561,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 362227435,
+      "accesses": 364448607,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "log10": 8.559,
+      "log10": 8.562,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 361642502,
+      "accesses": 364376699,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "log10": 8.558,
+      "log10": 8.562,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 361642502,
+      "accesses": 364376699,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "log10": 8.558,
+      "log10": 8.562,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 362421671,
+      "accesses": 364475546,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "log10": 8.559,
+      "log10": 8.562,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 362233008,
+      "accesses": 364413465,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "log10": 8.559,
+      "log10": 8.562,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 362236030,
+      "accesses": 364450874,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "log10": 8.559,
+      "log10": 8.562,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 362236030,
+      "accesses": 364450874,
       "app": "pr",
       "bucket": "huge",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "log10": 8.559,
+      "log10": 8.562,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
@@ -1862,72 +1862,72 @@
       "smoke": true
     },
     {
-      "accesses": 285883,
+      "accesses": 2134,
       "app": "pr",
-      "bucket": "small",
+      "bucket": "tiny",
       "graph": "email-Eu-core",
       "l3_size": "1MB",
-      "log10": 5.456,
+      "log10": 3.329,
       "policy": "POPT_GE_GRASP",
       "smoke": true
     },
     {
-      "accesses": 285883,
+      "accesses": 2134,
       "app": "pr",
-      "bucket": "small",
+      "bucket": "tiny",
       "graph": "email-Eu-core",
       "l3_size": "1MB",
-      "log10": 5.456,
+      "log10": 3.329,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": true
     },
     {
-      "accesses": 273183,
+      "accesses": 2134,
       "app": "pr",
-      "bucket": "small",
+      "bucket": "tiny",
       "graph": "email-Eu-core",
       "l3_size": "4MB",
-      "log10": 5.436,
+      "log10": 3.329,
       "policy": "POPT_GE_GRASP",
       "smoke": true
     },
     {
-      "accesses": 273183,
+      "accesses": 2134,
       "app": "pr",
-      "bucket": "small",
+      "bucket": "tiny",
       "graph": "email-Eu-core",
       "l3_size": "4MB",
-      "log10": 5.436,
+      "log10": 3.329,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": true
     },
     {
-      "accesses": 280998,
+      "accesses": 2134,
       "app": "pr",
-      "bucket": "small",
+      "bucket": "tiny",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
-      "log10": 5.449,
+      "log10": 3.329,
       "policy": "GRASP",
       "smoke": true
     },
     {
-      "accesses": 273178,
+      "accesses": 2134,
       "app": "pr",
-      "bucket": "small",
+      "bucket": "tiny",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
-      "log10": 5.436,
+      "log10": 3.329,
       "policy": "POPT_GE_GRASP",
       "smoke": true
     },
     {
-      "accesses": 273178,
+      "accesses": 2134,
       "app": "pr",
-      "bucket": "small",
+      "bucket": "tiny",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
-      "log10": 5.436,
+      "log10": 3.329,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": true
     },
@@ -2432,202 +2432,202 @@
       "smoke": false
     },
     {
-      "accesses": 159413644,
+      "accesses": 162947697,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 8.203,
+      "log10": 8.212,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 160075047,
+      "accesses": 163283835,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 8.204,
+      "log10": 8.213,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 156464837,
+      "accesses": 159206835,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 8.194,
+      "log10": 8.202,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 156464837,
+      "accesses": 159206835,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 8.194,
+      "log10": 8.202,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 159628881,
+      "accesses": 163031855,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 8.203,
+      "log10": 8.212,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 156578062,
+      "accesses": 160863173,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 8.195,
+      "log10": 8.206,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 156578062,
+      "accesses": 160863173,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 8.195,
+      "log10": 8.206,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 162505237,
+      "accesses": 163198639,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 8.211,
+      "log10": 8.213,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 159014672,
+      "accesses": 161889213,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 8.201,
+      "log10": 8.209,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 159014672,
+      "accesses": 161889213,
       "app": "bc",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 8.201,
+      "log10": 8.209,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 6625344,
+      "accesses": 7114441,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 6.821,
+      "log10": 6.852,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 6343082,
+      "accesses": 7124200,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 6.802,
+      "log10": 6.853,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 6577350,
+      "accesses": 7131978,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 6.818,
+      "log10": 6.853,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 6577350,
+      "accesses": 7131978,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 6.818,
+      "log10": 6.853,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 6664033,
+      "accesses": 7126139,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 6.824,
+      "log10": 6.853,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 6561244,
+      "accesses": 7125181,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 6.817,
+      "log10": 6.853,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 6561244,
+      "accesses": 7125181,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 6.817,
+      "log10": 6.853,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 6610565,
+      "accesses": 7113931,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 6.82,
+      "log10": 6.852,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 6573071,
+      "accesses": 7115366,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 6.818,
+      "log10": 6.852,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 6573071,
+      "accesses": 7115366,
       "app": "bfs",
       "bucket": "medium",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 6.818,
+      "log10": 6.852,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
@@ -2722,7 +2722,7 @@
       "smoke": false
     },
     {
-      "accesses": 106606848,
+      "accesses": 106635798,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2732,7 +2732,7 @@
       "smoke": false
     },
     {
-      "accesses": 106603255,
+      "accesses": 106630145,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2742,37 +2742,37 @@
       "smoke": false
     },
     {
-      "accesses": 106412266,
+      "accesses": 106572599,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 8.027,
+      "log10": 8.028,
       "policy": "POPT",
       "smoke": false
     },
     {
-      "accesses": 106412266,
+      "accesses": 106572599,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 8.027,
+      "log10": 8.028,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 106412266,
+      "accesses": 106572599,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 8.027,
+      "log10": 8.028,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 106668997,
+      "accesses": 106644060,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2782,7 +2782,7 @@
       "smoke": false
     },
     {
-      "accesses": 106664487,
+      "accesses": 106627329,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2792,7 +2792,7 @@
       "smoke": false
     },
     {
-      "accesses": 106664487,
+      "accesses": 106627329,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2802,7 +2802,7 @@
       "smoke": false
     },
     {
-      "accesses": 106544859,
+      "accesses": 106642427,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2812,7 +2812,7 @@
       "smoke": false
     },
     {
-      "accesses": 106653323,
+      "accesses": 106639040,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2822,7 +2822,7 @@
       "smoke": false
     },
     {
-      "accesses": 106633633,
+      "accesses": 106639973,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2832,7 +2832,7 @@
       "smoke": false
     },
     {
-      "accesses": 106633633,
+      "accesses": 106639973,
       "app": "pr",
       "bucket": "huge",
       "graph": "soc-LiveJournal1",
@@ -2842,202 +2842,202 @@
       "smoke": false
     },
     {
-      "accesses": 45971982,
+      "accesses": 48863700,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 7.662,
+      "log10": 7.689,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 45398005,
+      "accesses": 48367078,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 7.657,
+      "log10": 7.685,
       "policy": "POPT",
       "smoke": false
     },
     {
-      "accesses": 45398005,
+      "accesses": 48367078,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 7.657,
+      "log10": 7.685,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 45398005,
+      "accesses": 48367078,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "log10": 7.657,
+      "log10": 7.685,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 45886558,
+      "accesses": 48813905,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 7.662,
+      "log10": 7.689,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 45536687,
+      "accesses": 48751969,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 7.658,
+      "log10": 7.688,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 45536687,
+      "accesses": 48751969,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "log10": 7.658,
+      "log10": 7.688,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 45924149,
+      "accesses": 48658164,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 7.662,
+      "log10": 7.687,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 45611373,
+      "accesses": 48854515,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 7.659,
+      "log10": 7.689,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 45611373,
+      "accesses": 48854515,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "log10": 7.659,
+      "log10": 7.689,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 99196472,
-      "app": "bc",
-      "bucket": "large",
-      "graph": "soc-pokec",
-      "l3_size": "1MB",
-      "log10": 7.996,
-      "policy": "SRRIP",
-      "smoke": false
-    },
-    {
-      "accesses": 99282325,
+      "accesses": 99421895,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "1MB",
       "log10": 7.997,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 99437596,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "log10": 7.998,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 98484538,
+      "accesses": 99184375,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "log10": 7.993,
+      "log10": 7.996,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 98484538,
+      "accesses": 99184375,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "log10": 7.993,
+      "log10": 7.996,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 98528637,
+      "accesses": 99545516,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "log10": 7.994,
+      "log10": 7.998,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 98494529,
+      "accesses": 99411720,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "log10": 7.993,
+      "log10": 7.997,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 98494529,
+      "accesses": 99411720,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "log10": 7.993,
+      "log10": 7.997,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 98851778,
+      "accesses": 99511621,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "log10": 7.995,
+      "log10": 7.998,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 98720700,
+      "accesses": 99506172,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "log10": 7.994,
+      "log10": 7.998,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 98720700,
+      "accesses": 99506172,
       "app": "bc",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "log10": 7.994,
+      "log10": 7.998,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
@@ -3222,7 +3222,7 @@
       "smoke": false
     },
     {
-      "accesses": 76539941,
+      "accesses": 76538248,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3232,7 +3232,7 @@
       "smoke": false
     },
     {
-      "accesses": 76525605,
+      "accesses": 76536912,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3242,7 +3242,7 @@
       "smoke": false
     },
     {
-      "accesses": 76506826,
+      "accesses": 76530512,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3252,7 +3252,7 @@
       "smoke": false
     },
     {
-      "accesses": 76506826,
+      "accesses": 76530512,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3262,7 +3262,7 @@
       "smoke": false
     },
     {
-      "accesses": 76506826,
+      "accesses": 76530512,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3272,7 +3272,7 @@
       "smoke": false
     },
     {
-      "accesses": 76543048,
+      "accesses": 76536143,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3282,7 +3282,7 @@
       "smoke": false
     },
     {
-      "accesses": 76537927,
+      "accesses": 76537098,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3292,7 +3292,7 @@
       "smoke": false
     },
     {
-      "accesses": 76537927,
+      "accesses": 76537098,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3302,7 +3302,7 @@
       "smoke": false
     },
     {
-      "accesses": 76449509,
+      "accesses": 76466683,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3312,7 +3312,7 @@
       "smoke": false
     },
     {
-      "accesses": 76434881,
+      "accesses": 76462706,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3322,7 +3322,7 @@
       "smoke": false
     },
     {
-      "accesses": 76440564,
+      "accesses": 76455213,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3332,7 +3332,7 @@
       "smoke": false
     },
     {
-      "accesses": 76440564,
+      "accesses": 76455213,
       "app": "pr",
       "bucket": "large",
       "graph": "soc-pokec",
@@ -3342,207 +3342,207 @@
       "smoke": false
     },
     {
-      "accesses": 34656505,
+      "accesses": 34883652,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "log10": 7.54,
+      "log10": 7.543,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 34395887,
+      "accesses": 34807659,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "log10": 7.537,
+      "log10": 7.542,
       "policy": "POPT",
       "smoke": false
     },
     {
-      "accesses": 34395887,
+      "accesses": 34807659,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "log10": 7.537,
+      "log10": 7.542,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 34395887,
+      "accesses": 34807659,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "log10": 7.537,
+      "log10": 7.542,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 34649580,
+      "accesses": 34984070,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "log10": 7.54,
+      "log10": 7.544,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 34475158,
+      "accesses": 34966806,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "log10": 7.538,
+      "log10": 7.544,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 34475158,
+      "accesses": 34966806,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "log10": 7.538,
+      "log10": 7.544,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 34565494,
+      "accesses": 34897756,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "log10": 7.539,
+      "log10": 7.543,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 34665692,
+      "accesses": 35024591,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "log10": 7.54,
+      "log10": 7.544,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 34665692,
+      "accesses": 35024591,
       "app": "sssp",
       "bucket": "large",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "log10": 7.54,
+      "log10": 7.544,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 16017549,
-      "app": "bc",
-      "bucket": "large",
-      "graph": "web-Google",
-      "l3_size": "1MB",
-      "log10": 7.205,
-      "policy": "SRRIP",
-      "smoke": false
-    },
-    {
-      "accesses": 16104375,
+      "accesses": 16119408,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
       "l3_size": "1MB",
       "log10": 7.207,
-      "policy": "GRASP",
+      "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 15951123,
+      "accesses": 16144092,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "log10": 7.203,
-      "policy": "POPT_GE_GRASP",
-      "smoke": false
-    },
-    {
-      "accesses": 15951123,
-      "app": "bc",
-      "bucket": "large",
-      "graph": "web-Google",
-      "l3_size": "1MB",
-      "log10": 7.203,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "smoke": false
-    },
-    {
-      "accesses": 16144684,
-      "app": "bc",
-      "bucket": "large",
-      "graph": "web-Google",
-      "l3_size": "4MB",
       "log10": 7.208,
-      "policy": "SRRIP",
+      "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 16305237,
+      "accesses": 16093624,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
-      "l3_size": "4MB",
-      "log10": 7.212,
-      "policy": "POPT_GE_GRASP",
-      "smoke": false
-    },
-    {
-      "accesses": 16305237,
-      "app": "bc",
-      "bucket": "large",
-      "graph": "web-Google",
-      "l3_size": "4MB",
-      "log10": 7.212,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "smoke": false
-    },
-    {
-      "accesses": 16092320,
-      "app": "bc",
-      "bucket": "large",
-      "graph": "web-Google",
-      "l3_size": "8MB",
+      "l3_size": "1MB",
       "log10": 7.207,
-      "policy": "SRRIP",
-      "smoke": false
-    },
-    {
-      "accesses": 16032626,
-      "app": "bc",
-      "bucket": "large",
-      "graph": "web-Google",
-      "l3_size": "8MB",
-      "log10": 7.205,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 16032626,
+      "accesses": 16093624,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
-      "l3_size": "8MB",
-      "log10": 7.205,
+      "l3_size": "1MB",
+      "log10": 7.207,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 1289533,
+      "accesses": 16260483,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.211,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 16218728,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.21,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 16218728,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "4MB",
+      "log10": 7.21,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 16206280,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.21,
+      "policy": "SRRIP",
+      "smoke": false
+    },
+    {
+      "accesses": 16212653,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.21,
+      "policy": "POPT_GE_GRASP",
+      "smoke": false
+    },
+    {
+      "accesses": 16212653,
+      "app": "bc",
+      "bucket": "large",
+      "graph": "web-Google",
+      "l3_size": "8MB",
+      "log10": 7.21,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "smoke": false
+    },
+    {
+      "accesses": 1289089,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3552,7 +3552,7 @@
       "smoke": false
     },
     {
-      "accesses": 1288494,
+      "accesses": 1288936,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3562,27 +3562,27 @@
       "smoke": false
     },
     {
-      "accesses": 1289659,
+      "accesses": 1290207,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "log10": 6.11,
+      "log10": 6.111,
       "policy": "POPT_GE_GRASP",
       "smoke": false
     },
     {
-      "accesses": 1289659,
+      "accesses": 1290207,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "log10": 6.11,
+      "log10": 6.111,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "smoke": false
     },
     {
-      "accesses": 1290835,
+      "accesses": 1291142,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3592,7 +3592,7 @@
       "smoke": false
     },
     {
-      "accesses": 1291065,
+      "accesses": 1290266,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3602,7 +3602,7 @@
       "smoke": false
     },
     {
-      "accesses": 1291065,
+      "accesses": 1290266,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3612,17 +3612,17 @@
       "smoke": false
     },
     {
-      "accesses": 1289130,
+      "accesses": 1292849,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
       "l3_size": "8MB",
-      "log10": 6.11,
+      "log10": 6.112,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 1290602,
+      "accesses": 1290667,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3632,7 +3632,7 @@
       "smoke": false
     },
     {
-      "accesses": 1290602,
+      "accesses": 1290667,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3732,17 +3732,17 @@
       "smoke": false
     },
     {
-      "accesses": 14111268,
+      "accesses": 14103954,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "log10": 7.15,
+      "log10": 7.149,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 14109617,
+      "accesses": 14110028,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3752,7 +3752,7 @@
       "smoke": false
     },
     {
-      "accesses": 14106744,
+      "accesses": 14108215,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3762,7 +3762,7 @@
       "smoke": false
     },
     {
-      "accesses": 14106744,
+      "accesses": 14108215,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3772,7 +3772,7 @@
       "smoke": false
     },
     {
-      "accesses": 14106744,
+      "accesses": 14108215,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3782,17 +3782,17 @@
       "smoke": false
     },
     {
-      "accesses": 14108742,
+      "accesses": 14110147,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
       "l3_size": "4MB",
-      "log10": 7.149,
+      "log10": 7.15,
       "policy": "SRRIP",
       "smoke": false
     },
     {
-      "accesses": 14106058,
+      "accesses": 14109050,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3802,7 +3802,7 @@
       "smoke": false
     },
     {
-      "accesses": 14106058,
+      "accesses": 14109050,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3812,7 +3812,7 @@
       "smoke": false
     },
     {
-      "accesses": 14107742,
+      "accesses": 14108006,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3822,17 +3822,17 @@
       "smoke": false
     },
     {
-      "accesses": 14104305,
+      "accesses": 14110016,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
       "l3_size": "8MB",
-      "log10": 7.149,
+      "log10": 7.15,
       "policy": "GRASP",
       "smoke": false
     },
     {
-      "accesses": 14107218,
+      "accesses": 14108046,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3842,7 +3842,7 @@
       "smoke": false
     },
     {
-      "accesses": 14107218,
+      "accesses": 14108046,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3949,8 +3949,8 @@
       "huge": 52,
       "large": 135,
       "medium": 120,
-      "small": 17,
-      "tiny": 6
+      "small": 10,
+      "tiny": 13
     },
     "buckets_production": {
       "huge": 52,
@@ -3961,11 +3961,11 @@
     "graph_count": 8,
     "l3_count": 7,
     "policy_count": 5,
-    "production_median_accesses": 15951123,
+    "production_median_accesses": 16093624,
     "production_min_accesses": 735934,
     "production_rows": 311,
-    "smoke_median_accesses": 273183,
-    "smoke_min_accesses": 21307,
+    "smoke_median_accesses": 21309,
+    "smoke_min_accesses": 2134,
     "smoke_rows": 19,
     "total_rows": 330,
     "violation_count": 0

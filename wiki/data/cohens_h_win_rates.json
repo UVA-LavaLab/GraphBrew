@@ -12,28 +12,6 @@
       "p_b": 0.0
     },
     {
-      "a": "POPT",
-      "app": "pr",
-      "b": "LRU",
-      "delta_p": 0.7143,
-      "favors": "POPT",
-      "h": 2.0137,
-      "magnitude": "large",
-      "p_a": 0.7143,
-      "p_b": 0.0
-    },
-    {
-      "a": "POPT",
-      "app": "pr",
-      "b": "SRRIP",
-      "delta_p": 0.7143,
-      "favors": "POPT",
-      "h": 2.0137,
-      "magnitude": "large",
-      "p_a": 0.7143,
-      "p_b": 0.0
-    },
-    {
       "a": "GRASP",
       "app": "cc",
       "b": "SRRIP",
@@ -56,6 +34,28 @@
       "p_b": 0.1
     },
     {
+      "a": "POPT",
+      "app": "pr",
+      "b": "LRU",
+      "delta_p": 0.6786,
+      "favors": "POPT",
+      "h": 1.5121,
+      "magnitude": "large",
+      "p_a": 0.7857,
+      "p_b": 0.1071
+    },
+    {
+      "a": "POPT",
+      "app": "pr",
+      "b": "SRRIP",
+      "delta_p": 0.6786,
+      "favors": "POPT",
+      "h": 1.5121,
+      "magnitude": "large",
+      "p_a": 0.7857,
+      "p_b": 0.1071
+    },
+    {
       "a": "GRASP",
       "app": "bc",
       "b": "LRU",
@@ -67,22 +67,11 @@
       "p_b": 0.0435
     },
     {
-      "a": "POPT",
+      "a": "GRASP",
       "app": "bfs",
       "b": "LRU",
       "delta_p": 0.4783,
-      "favors": "POPT",
-      "h": 1.1942,
-      "magnitude": "large",
-      "p_a": 0.5217,
-      "p_b": 0.0435
-    },
-    {
-      "a": "POPT",
-      "app": "bfs",
-      "b": "SRRIP",
-      "delta_p": 0.4783,
-      "favors": "POPT",
+      "favors": "GRASP",
       "h": 1.1942,
       "magnitude": "large",
       "p_a": 0.5217,
@@ -90,43 +79,43 @@
     },
     {
       "a": "GRASP",
-      "app": "pr",
-      "b": "LRU",
-      "delta_p": 0.2857,
-      "favors": "GRASP",
-      "h": 1.1279,
-      "magnitude": "large",
-      "p_a": 0.2857,
-      "p_b": 0.0
-    },
-    {
-      "a": "GRASP",
-      "app": "pr",
+      "app": "bfs",
       "b": "SRRIP",
-      "delta_p": 0.2857,
+      "delta_p": 0.4783,
       "favors": "GRASP",
-      "h": 1.1279,
+      "h": 1.1942,
       "magnitude": "large",
-      "p_a": 0.2857,
-      "p_b": 0.0
+      "p_a": 0.5217,
+      "p_b": 0.0435
     },
     {
-      "a": "GRASP",
+      "a": "POPT",
+      "app": "pr",
+      "b": "GRASP",
+      "delta_p": 0.4643,
+      "favors": "POPT",
+      "h": 0.9735,
+      "magnitude": "large",
+      "p_a": 0.7857,
+      "p_b": 0.3214
+    },
+    {
+      "a": "POPT",
       "app": "bfs",
       "b": "LRU",
       "delta_p": 0.3478,
-      "favors": "GRASP",
+      "favors": "POPT",
       "h": 0.9315,
       "magnitude": "large",
       "p_a": 0.3913,
       "p_b": 0.0435
     },
     {
-      "a": "GRASP",
+      "a": "POPT",
       "app": "bfs",
       "b": "SRRIP",
       "delta_p": 0.3478,
-      "favors": "GRASP",
+      "favors": "POPT",
       "h": 0.9315,
       "magnitude": "large",
       "p_a": 0.3913,
@@ -142,17 +131,6 @@
       "magnitude": "large",
       "p_a": 0.6522,
       "p_b": 0.2174
-    },
-    {
-      "a": "POPT",
-      "app": "pr",
-      "b": "GRASP",
-      "delta_p": 0.4286,
-      "favors": "POPT",
-      "h": 0.8858,
-      "magnitude": "large",
-      "p_a": 0.7143,
-      "p_b": 0.2857
     }
   ],
   "largest_per_app": {
@@ -168,9 +146,9 @@
     },
     "bfs": {
       "a": "LRU",
-      "b": "POPT",
+      "b": "GRASP",
       "delta_p": -0.4783,
-      "favors": "POPT",
+      "favors": "GRASP",
       "h": 1.1942,
       "magnitude": "large",
       "p_a": 0.0435,
@@ -189,12 +167,12 @@
     "pr": {
       "a": "LRU",
       "b": "POPT",
-      "delta_p": -0.7143,
+      "delta_p": -0.6786,
       "favors": "POPT",
-      "h": 2.0137,
+      "h": 1.5121,
       "magnitude": "large",
-      "p_a": 0.0,
-      "p_b": 0.7143
+      "p_a": 0.1071,
+      "p_b": 0.7857
     },
     "sssp": {
       "a": "SRRIP",
@@ -391,22 +369,22 @@
         {
           "a": "LRU",
           "b": "GRASP",
-          "delta_p": -0.3478,
-          "favors": "GRASP",
-          "h": 0.9315,
-          "magnitude": "large",
-          "p_a": 0.0435,
-          "p_b": 0.3913
-        },
-        {
-          "a": "LRU",
-          "b": "POPT",
           "delta_p": -0.4783,
-          "favors": "POPT",
+          "favors": "GRASP",
           "h": 1.1942,
           "magnitude": "large",
           "p_a": 0.0435,
           "p_b": 0.5217
+        },
+        {
+          "a": "LRU",
+          "b": "POPT",
+          "delta_p": -0.3478,
+          "favors": "POPT",
+          "h": 0.9315,
+          "magnitude": "large",
+          "p_a": 0.0435,
+          "p_b": 0.3913
         },
         {
           "a": "SRRIP",
@@ -421,89 +399,89 @@
         {
           "a": "SRRIP",
           "b": "GRASP",
-          "delta_p": -0.3478,
+          "delta_p": -0.4783,
           "favors": "GRASP",
+          "h": 1.1942,
+          "magnitude": "large",
+          "p_a": 0.0435,
+          "p_b": 0.5217
+        },
+        {
+          "a": "SRRIP",
+          "b": "POPT",
+          "delta_p": -0.3478,
+          "favors": "POPT",
           "h": 0.9315,
           "magnitude": "large",
           "p_a": 0.0435,
           "p_b": 0.3913
         },
         {
-          "a": "SRRIP",
-          "b": "POPT",
-          "delta_p": -0.4783,
-          "favors": "POPT",
-          "h": 1.1942,
-          "magnitude": "large",
-          "p_a": 0.0435,
-          "p_b": 0.5217
-        },
-        {
           "a": "GRASP",
           "b": "LRU",
-          "delta_p": 0.3478,
+          "delta_p": 0.4783,
           "favors": "GRASP",
-          "h": 0.9315,
+          "h": 1.1942,
           "magnitude": "large",
-          "p_a": 0.3913,
+          "p_a": 0.5217,
           "p_b": 0.0435
         },
         {
           "a": "GRASP",
           "b": "SRRIP",
-          "delta_p": 0.3478,
+          "delta_p": 0.4783,
           "favors": "GRASP",
-          "h": 0.9315,
+          "h": 1.1942,
           "magnitude": "large",
-          "p_a": 0.3913,
+          "p_a": 0.5217,
           "p_b": 0.0435
         },
         {
           "a": "GRASP",
           "b": "POPT",
-          "delta_p": -0.1304,
-          "favors": "POPT",
+          "delta_p": 0.1304,
+          "favors": "GRASP",
           "h": 0.2626,
           "magnitude": "small",
-          "p_a": 0.3913,
-          "p_b": 0.5217
+          "p_a": 0.5217,
+          "p_b": 0.3913
         },
         {
           "a": "POPT",
           "b": "LRU",
-          "delta_p": 0.4783,
+          "delta_p": 0.3478,
           "favors": "POPT",
-          "h": 1.1942,
+          "h": 0.9315,
           "magnitude": "large",
-          "p_a": 0.5217,
+          "p_a": 0.3913,
           "p_b": 0.0435
         },
         {
           "a": "POPT",
           "b": "SRRIP",
-          "delta_p": 0.4783,
+          "delta_p": 0.3478,
           "favors": "POPT",
-          "h": 1.1942,
+          "h": 0.9315,
           "magnitude": "large",
-          "p_a": 0.5217,
+          "p_a": 0.3913,
           "p_b": 0.0435
         },
         {
           "a": "POPT",
           "b": "GRASP",
-          "delta_p": 0.1304,
-          "favors": "POPT",
+          "delta_p": -0.1304,
+          "favors": "GRASP",
           "h": 0.2626,
           "magnitude": "small",
-          "p_a": 0.5217,
-          "p_b": 0.3913
+          "p_a": 0.3913,
+          "p_b": 0.5217
         }
       ],
       "rates": {
         "GRASP": {
-          "p_hat": 0.3913,
+          "p_hat": 0.5217,
           "total": 23,
-          "wins": 9
+          "wins": 12
         },
         "LRU": {
           "p_hat": 0.0435,
@@ -511,9 +489,9 @@
           "wins": 1
         },
         "POPT": {
-          "p_hat": 0.5217,
+          "p_hat": 0.3913,
           "total": 23,
-          "wins": 12
+          "wins": 9
         },
         "SRRIP": {
           "p_hat": 0.0435,
@@ -677,28 +655,28 @@
           "favors": "tie",
           "h": 0.0,
           "magnitude": "negligible",
-          "p_a": 0.0,
-          "p_b": 0.0
+          "p_a": 0.1071,
+          "p_b": 0.1071
         },
         {
           "a": "LRU",
           "b": "GRASP",
-          "delta_p": -0.2857,
+          "delta_p": -0.2143,
           "favors": "GRASP",
-          "h": 1.1279,
-          "magnitude": "large",
-          "p_a": 0.0,
-          "p_b": 0.2857
+          "h": 0.5386,
+          "magnitude": "medium",
+          "p_a": 0.1071,
+          "p_b": 0.3214
         },
         {
           "a": "LRU",
           "b": "POPT",
-          "delta_p": -0.7143,
+          "delta_p": -0.6786,
           "favors": "POPT",
-          "h": 2.0137,
+          "h": 1.5121,
           "magnitude": "large",
-          "p_a": 0.0,
-          "p_b": 0.7143
+          "p_a": 0.1071,
+          "p_b": 0.7857
         },
         {
           "a": "SRRIP",
@@ -707,110 +685,110 @@
           "favors": "tie",
           "h": 0.0,
           "magnitude": "negligible",
-          "p_a": 0.0,
-          "p_b": 0.0
+          "p_a": 0.1071,
+          "p_b": 0.1071
         },
         {
           "a": "SRRIP",
           "b": "GRASP",
-          "delta_p": -0.2857,
+          "delta_p": -0.2143,
           "favors": "GRASP",
-          "h": 1.1279,
-          "magnitude": "large",
-          "p_a": 0.0,
-          "p_b": 0.2857
+          "h": 0.5386,
+          "magnitude": "medium",
+          "p_a": 0.1071,
+          "p_b": 0.3214
         },
         {
           "a": "SRRIP",
           "b": "POPT",
-          "delta_p": -0.7143,
+          "delta_p": -0.6786,
           "favors": "POPT",
-          "h": 2.0137,
+          "h": 1.5121,
           "magnitude": "large",
-          "p_a": 0.0,
-          "p_b": 0.7143
+          "p_a": 0.1071,
+          "p_b": 0.7857
         },
         {
           "a": "GRASP",
           "b": "LRU",
-          "delta_p": 0.2857,
+          "delta_p": 0.2143,
           "favors": "GRASP",
-          "h": 1.1279,
-          "magnitude": "large",
-          "p_a": 0.2857,
-          "p_b": 0.0
+          "h": 0.5386,
+          "magnitude": "medium",
+          "p_a": 0.3214,
+          "p_b": 0.1071
         },
         {
           "a": "GRASP",
           "b": "SRRIP",
-          "delta_p": 0.2857,
+          "delta_p": 0.2143,
           "favors": "GRASP",
-          "h": 1.1279,
-          "magnitude": "large",
-          "p_a": 0.2857,
-          "p_b": 0.0
+          "h": 0.5386,
+          "magnitude": "medium",
+          "p_a": 0.3214,
+          "p_b": 0.1071
         },
         {
           "a": "GRASP",
           "b": "POPT",
-          "delta_p": -0.4286,
+          "delta_p": -0.4643,
           "favors": "POPT",
-          "h": 0.8858,
+          "h": 0.9735,
           "magnitude": "large",
-          "p_a": 0.2857,
-          "p_b": 0.7143
+          "p_a": 0.3214,
+          "p_b": 0.7857
         },
         {
           "a": "POPT",
           "b": "LRU",
-          "delta_p": 0.7143,
+          "delta_p": 0.6786,
           "favors": "POPT",
-          "h": 2.0137,
+          "h": 1.5121,
           "magnitude": "large",
-          "p_a": 0.7143,
-          "p_b": 0.0
+          "p_a": 0.7857,
+          "p_b": 0.1071
         },
         {
           "a": "POPT",
           "b": "SRRIP",
-          "delta_p": 0.7143,
+          "delta_p": 0.6786,
           "favors": "POPT",
-          "h": 2.0137,
+          "h": 1.5121,
           "magnitude": "large",
-          "p_a": 0.7143,
-          "p_b": 0.0
+          "p_a": 0.7857,
+          "p_b": 0.1071
         },
         {
           "a": "POPT",
           "b": "GRASP",
-          "delta_p": 0.4286,
+          "delta_p": 0.4643,
           "favors": "POPT",
-          "h": 0.8858,
+          "h": 0.9735,
           "magnitude": "large",
-          "p_a": 0.7143,
-          "p_b": 0.2857
+          "p_a": 0.7857,
+          "p_b": 0.3214
         }
       ],
       "rates": {
         "GRASP": {
-          "p_hat": 0.2857,
+          "p_hat": 0.3214,
           "total": 28,
-          "wins": 8
+          "wins": 9
         },
         "LRU": {
-          "p_hat": 0.0,
+          "p_hat": 0.1071,
           "total": 28,
-          "wins": 0
+          "wins": 3
         },
         "POPT": {
-          "p_hat": 0.7143,
+          "p_hat": 0.7857,
           "total": 28,
-          "wins": 20
+          "wins": 22
         },
         "SRRIP": {
-          "p_hat": 0.0,
+          "p_hat": 0.1071,
           "total": 28,
-          "wins": 0
+          "wins": 3
         }
       }
     },

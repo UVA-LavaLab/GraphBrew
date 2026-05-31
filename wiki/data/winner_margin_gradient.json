@@ -9,8 +9,8 @@
     ],
     "class_counts": {
       "decisive": 6,
-      "moderate": 6,
-      "tied": 2,
+      "moderate": 5,
+      "tied": 3,
       "weak": 1
     },
     "class_thresholds": {
@@ -21,7 +21,7 @@
     },
     "n_apps": 5,
     "n_cells_total": 15,
-    "n_tied_cells": 2,
+    "n_tied_cells": 3,
     "n_weak_cells": 1,
     "scope_l3_sizes": [
       "1MB",
@@ -29,9 +29,10 @@
       "8MB"
     ],
     "source": "wiki/data/oracle_gap.json",
-    "strong_cell_fraction": 0.8,
+    "strong_cell_fraction": 0.7333,
     "tied_cells": [
       "bc__1MB",
+      "bfs__8MB",
       "sssp__8MB"
     ],
     "weak_cells": [
@@ -91,40 +92,24 @@
     },
     "bfs__1MB": {
       "app": "bfs",
-      "class": "moderate",
+      "class": "decisive",
       "l3_size": "1MB",
-      "margin": 3,
+      "margin": 4,
       "n_cells_in_scope": 7,
       "runner_up_wins": 1,
       "tied_top_policies": [],
       "top_policy": "GRASP",
-      "top_wins": 4,
+      "top_wins": 5,
       "win_counts": {
-        "GRASP": 4,
+        "GRASP": 5,
         "LRU": 1,
-        "POPT": 1,
         "SRRIP": 1
       }
     },
     "bfs__4MB": {
       "app": "bfs",
-      "class": "decisive",
-      "l3_size": "4MB",
-      "margin": 4,
-      "n_cells_in_scope": 6,
-      "runner_up_wins": 1,
-      "tied_top_policies": [],
-      "top_policy": "POPT",
-      "top_wins": 5,
-      "win_counts": {
-        "GRASP": 1,
-        "POPT": 5
-      }
-    },
-    "bfs__8MB": {
-      "app": "bfs",
       "class": "moderate",
-      "l3_size": "8MB",
+      "l3_size": "4MB",
       "margin": 2,
       "n_cells_in_scope": 6,
       "runner_up_wins": 2,
@@ -134,6 +119,23 @@
       "win_counts": {
         "GRASP": 2,
         "POPT": 4
+      }
+    },
+    "bfs__8MB": {
+      "app": "bfs",
+      "class": "tied",
+      "l3_size": "8MB",
+      "margin": 0,
+      "n_cells_in_scope": 6,
+      "runner_up_wins": 3,
+      "tied_top_policies": [
+        "POPT"
+      ],
+      "top_policy": "GRASP",
+      "top_wins": 3,
+      "win_counts": {
+        "GRASP": 3,
+        "POPT": 3
       }
     },
     "cc__1MB": {
@@ -184,45 +186,51 @@
       "app": "pr",
       "class": "decisive",
       "l3_size": "1MB",
-      "margin": 6,
+      "margin": 5,
       "n_cells_in_scope": 8,
-      "runner_up_wins": 1,
+      "runner_up_wins": 2,
       "tied_top_policies": [],
       "top_policy": "POPT",
       "top_wins": 7,
       "win_counts": {
-        "GRASP": 1,
-        "POPT": 7
+        "GRASP": 2,
+        "LRU": 1,
+        "POPT": 7,
+        "SRRIP": 1
       }
     },
     "pr__4MB": {
       "app": "pr",
       "class": "moderate",
       "l3_size": "4MB",
-      "margin": 2,
+      "margin": 3,
       "n_cells_in_scope": 6,
       "runner_up_wins": 2,
       "tied_top_policies": [],
       "top_policy": "POPT",
-      "top_wins": 4,
+      "top_wins": 5,
       "win_counts": {
         "GRASP": 2,
-        "POPT": 4
+        "LRU": 1,
+        "POPT": 5,
+        "SRRIP": 1
       }
     },
     "pr__8MB": {
       "app": "pr",
       "class": "moderate",
       "l3_size": "8MB",
-      "margin": 2,
+      "margin": 3,
       "n_cells_in_scope": 6,
       "runner_up_wins": 2,
       "tied_top_policies": [],
       "top_policy": "POPT",
-      "top_wins": 4,
+      "top_wins": 5,
       "win_counts": {
         "GRASP": 2,
-        "POPT": 4
+        "LRU": 1,
+        "POPT": 5,
+        "SRRIP": 1
       }
     },
     "sssp__1MB": {

@@ -34,22 +34,22 @@
       "per_policy": {
         "GRASP": {
           "is_oracle_aware": true,
-          "mean_curvature": -1.1367,
+          "mean_curvature": -1.0941,
           "n_app_graph_cells": 5
         },
         "LRU": {
           "is_oracle_aware": false,
-          "mean_curvature": -1.2992,
+          "mean_curvature": -1.3817,
           "n_app_graph_cells": 5
         },
         "POPT": {
           "is_oracle_aware": true,
-          "mean_curvature": 0.0436,
+          "mean_curvature": 0.0043,
           "n_app_graph_cells": 5
         },
         "SRRIP": {
           "is_oracle_aware": false,
-          "mean_curvature": -1.2329,
+          "mean_curvature": -1.3105,
           "n_app_graph_cells": 5
         }
       },
@@ -61,22 +61,22 @@
       "per_policy": {
         "GRASP": {
           "is_oracle_aware": true,
-          "mean_curvature": 0.1691,
+          "mean_curvature": 0.0993,
           "n_app_graph_cells": 18
         },
         "LRU": {
           "is_oracle_aware": false,
-          "mean_curvature": -0.7213,
+          "mean_curvature": -0.8049,
           "n_app_graph_cells": 18
         },
         "POPT": {
           "is_oracle_aware": true,
-          "mean_curvature": -0.1728,
+          "mean_curvature": -0.2131,
           "n_app_graph_cells": 18
         },
         "SRRIP": {
           "is_oracle_aware": false,
-          "mean_curvature": -0.6484,
+          "mean_curvature": -0.7079,
           "n_app_graph_cells": 18
         }
       },
@@ -88,22 +88,22 @@
       "per_policy": {
         "GRASP": {
           "is_oracle_aware": true,
-          "mean_curvature": 0.6835,
+          "mean_curvature": 0.7367,
           "n_app_graph_cells": 5
         },
         "LRU": {
           "is_oracle_aware": false,
-          "mean_curvature": -1.3575,
+          "mean_curvature": -1.4314,
           "n_app_graph_cells": 5
         },
         "POPT": {
           "is_oracle_aware": true,
-          "mean_curvature": -0.1409,
+          "mean_curvature": -0.133,
           "n_app_graph_cells": 5
         },
         "SRRIP": {
           "is_oracle_aware": false,
-          "mean_curvature": -1.6702,
+          "mean_curvature": -1.6507,
           "n_app_graph_cells": 5
         }
       },

@@ -2,8 +2,8 @@
 
 Source: `wiki/data/oracle_gap.json`  •  Scope: 1MB, 4MB, 8MB
 
-Cells: **34** (stable-unique 13, stable-partial 1, regime-change 14, insufficient-L3 6).
-Stability fraction (excluding insufficient-L3): **46.4%**.
+Cells: **34** (stable-unique 14, stable-partial 2, regime-change 12, insufficient-L3 6).
+Stability fraction (excluding insufficient-L3): **50.0%**.
 
 ## Per-graph rollup
 
@@ -12,10 +12,10 @@ Stability fraction (excluding insufficient-L3): **46.4%**.
 | cit-Patents | 5 | 4 | 0 | 1 |
 | com-orkut | 5 | 3 | 0 | 2 |
 | delaunay_n19 | 1 | 0 | 0 | 0 |
-| email-Eu-core | 3 | 0 | 1 | 2 |
+| email-Eu-core | 3 | 0 | 2 | 1 |
 | roadNet-CA | 5 | 0 | 0 | 0 |
 | soc-LiveJournal1 | 5 | 4 | 0 | 1 |
-| soc-pokec | 5 | 2 | 0 | 3 |
+| soc-pokec | 5 | 3 | 0 | 2 |
 | web-Google | 5 | 0 | 0 | 5 |
 
 ## Stable-unique cells (paper-quotable without per-L3 disclaimer)
@@ -28,15 +28,17 @@ Stability fraction (excluding insufficient-L3): **46.4%**.
 - com-orkut/cc -> GRASP
 - com-orkut/pr -> POPT
 - soc-LiveJournal1/bc -> GRASP
-- soc-LiveJournal1/bfs -> POPT
+- soc-LiveJournal1/bfs -> GRASP
 - soc-LiveJournal1/cc -> GRASP
 - soc-LiveJournal1/pr -> POPT
 - soc-pokec/bc -> GRASP
 - soc-pokec/cc -> GRASP
+- soc-pokec/sssp -> GRASP
 
 ## Stable-partial cells (tied across L3)
 
 - email-Eu-core/bc -> GRASP,LRU,SRRIP
+- email-Eu-core/pr -> GRASP,LRU,POPT,SRRIP
 
 ## Regime-change cells (paper MUST break out per L3)
 
@@ -44,11 +46,9 @@ Stability fraction (excluding insufficient-L3): **46.4%**.
 - com-orkut/bfs
 - com-orkut/sssp
 - email-Eu-core/bfs
-- email-Eu-core/pr
 - soc-LiveJournal1/sssp
 - soc-pokec/bfs
 - soc-pokec/pr
-- soc-pokec/sssp
 - web-Google/bc
 - web-Google/bfs
 - web-Google/cc
@@ -81,14 +81,14 @@ Stability fraction (excluding insufficient-L3): **46.4%**.
 | delaunay_n19 | pr | 1MB | 1MB=POPT | ∅ | insufficient_l3 |
 | email-Eu-core | bc | 1MB,4MB,8MB | 1MB=GRASP,LRU,POPT,SRRIP; 4MB=GRASP,LRU,SRRIP; 8MB=GRASP,LRU,POPT,SRRIP | GRASP,LRU,SRRIP | stable_partial |
 | email-Eu-core | bfs | 1MB,4MB,8MB | 1MB=SRRIP; 4MB=GRASP,LRU,POPT,SRRIP; 8MB=GRASP | ∅ | regime_change |
-| email-Eu-core | pr | 1MB,4MB,8MB | 1MB=POPT; 4MB=GRASP; 8MB=GRASP | ∅ | regime_change |
+| email-Eu-core | pr | 1MB,4MB,8MB | 1MB=GRASP,LRU,POPT,SRRIP; 4MB=GRASP,LRU,POPT,SRRIP; 8MB=GRASP,LRU,POPT,SRRIP | GRASP,LRU,POPT,SRRIP | stable_partial |
 | roadNet-CA | bc | 1MB | 1MB=SRRIP | ∅ | insufficient_l3 |
 | roadNet-CA | bfs | 1MB | 1MB=LRU | ∅ | insufficient_l3 |
 | roadNet-CA | cc | 1MB | 1MB=LRU | ∅ | insufficient_l3 |
 | roadNet-CA | pr | 1MB | 1MB=POPT | ∅ | insufficient_l3 |
 | roadNet-CA | sssp | 1MB | 1MB=LRU | ∅ | insufficient_l3 |
 | soc-LiveJournal1 | bc | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=GRASP | GRASP | stable_unique |
-| soc-LiveJournal1 | bfs | 1MB,4MB,8MB | 1MB=POPT; 4MB=POPT; 8MB=POPT | POPT | stable_unique |
+| soc-LiveJournal1 | bfs | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=GRASP | GRASP | stable_unique |
 | soc-LiveJournal1 | cc | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=GRASP | GRASP | stable_unique |
 | soc-LiveJournal1 | pr | 1MB,4MB,8MB | 1MB=POPT; 4MB=POPT; 8MB=POPT | POPT | stable_unique |
 | soc-LiveJournal1 | sssp | 1MB,4MB,8MB | 1MB=POPT; 4MB=GRASP; 8MB=GRASP | ∅ | regime_change |
@@ -96,7 +96,7 @@ Stability fraction (excluding insufficient-L3): **46.4%**.
 | soc-pokec | bfs | 1MB,4MB,8MB | 1MB=GRASP; 4MB=POPT; 8MB=POPT | ∅ | regime_change |
 | soc-pokec | cc | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=GRASP | GRASP | stable_unique |
 | soc-pokec | pr | 1MB,4MB,8MB | 1MB=GRASP; 4MB=POPT; 8MB=GRASP | ∅ | regime_change |
-| soc-pokec | sssp | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=POPT | ∅ | regime_change |
+| soc-pokec | sssp | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=GRASP,POPT | GRASP | stable_unique_with_ties |
 | web-Google | bc | 1MB,4MB,8MB | 1MB=SRRIP; 4MB=GRASP; 8MB=GRASP | ∅ | regime_change |
 | web-Google | bfs | 1MB,4MB,8MB | 1MB=GRASP; 4MB=POPT; 8MB=POPT | ∅ | regime_change |
 | web-Google | cc | 1MB,4MB,8MB | 1MB=GRASP; 4MB=GRASP; 8MB=LRU | ∅ | regime_change |

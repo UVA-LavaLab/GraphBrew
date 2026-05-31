@@ -23,43 +23,19 @@
     "bump_pct_ceiling": 0.1,
     "cell_count": 136,
     "total_step_count": 320,
-    "bump_count": 14,
-    "bump_pct": 0.04375,
+    "bump_count": 10,
+    "bump_pct": 0.03125,
     "hard_violation_count": 0,
-    "largest_bump_pp": 0.0347,
+    "largest_bump_pp": 0.0096,
     "largest_bump_cell": {
       "graph": "email-Eu-core",
-      "app": "pr",
+      "app": "bc",
       "policy": "POPT",
       "l3_from": "1MB",
       "l3_to": "4MB",
-      "delta_pp": 0.0347
+      "delta_pp": 0.0096
     },
     "bumps": [
-      {
-        "graph": "email-Eu-core",
-        "app": "pr",
-        "policy": "POPT",
-        "l3_from": "1MB",
-        "l3_to": "4MB",
-        "delta_pp": 0.0347
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "pr",
-        "policy": "LRU",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.0333
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "pr",
-        "policy": "SRRIP",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.022
-      },
       {
         "graph": "email-Eu-core",
         "app": "bc",
@@ -75,14 +51,6 @@
         "l3_from": "4kB",
         "l3_to": "16kB",
         "delta_pp": 0.0039
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "pr",
-        "policy": "GRASP",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.0032
       },
       {
         "graph": "email-Eu-core",

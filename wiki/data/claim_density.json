@@ -27,9 +27,9 @@
       "n_cells": 15,
       "n_citations": 12,
       "n_claims": 52,
-      "n_ok": 43,
+      "n_ok": 47,
       "n_policies": 5,
-      "ok_pct": 82.6923076923077,
+      "ok_pct": 90.38461538461539,
       "policies": [
         "GRASP",
         "POPT",
@@ -38,8 +38,8 @@
         "SRRIP"
       ],
       "status_counts": {
-        "known_deviation": 8,
-        "ok": 43,
+        "known_deviation": 4,
+        "ok": 47,
         "within_tolerance": 1
       }
     },
@@ -124,16 +124,17 @@
       "n_cells": 9,
       "n_citations": 4,
       "n_claims": 19,
-      "n_ok": 19,
+      "n_ok": 12,
       "n_policies": 3,
-      "ok_pct": 100.0,
+      "ok_pct": 63.1578947368421,
       "policies": [
         "GRASP",
         "POPT_GE_GRASP",
         "POPT_NEAR_GRASP_IF_BIG_GAP"
       ],
       "status_counts": {
-        "ok": 19
+        "insufficient_data": 7,
+        "ok": 12
       }
     },
     {
@@ -191,9 +192,9 @@
       "n_cells": 15,
       "n_citations": 11,
       "n_claims": 51,
-      "n_ok": 45,
+      "n_ok": 48,
       "n_policies": 5,
-      "ok_pct": 88.23529411764706,
+      "ok_pct": 94.11764705882352,
       "policies": [
         "GRASP",
         "POPT",
@@ -202,9 +203,8 @@
         "SRRIP"
       ],
       "status_counts": {
-        "known_deviation": 5,
-        "ok": 45,
-        "within_tolerance": 1
+        "known_deviation": 3,
+        "ok": 48
       }
     },
     {

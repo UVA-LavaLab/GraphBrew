@@ -11,8 +11,8 @@
 |---|---|---:|
 | cache-sim | GRASP | -14.6513 |
 | cache-sim | LRU | -15.6181 |
-| cache-sim | POPT | -14.7621 |
-| cache-sim | SRRIP | -15.5966 |
+| cache-sim | POPT | -14.7534 |
+| cache-sim | SRRIP | -15.5942 |
 | gem5 | GRASP | -5.9607 |
 | gem5 | LRU | -5.1229 |
 | gem5 | SRRIP | -7.2113 |

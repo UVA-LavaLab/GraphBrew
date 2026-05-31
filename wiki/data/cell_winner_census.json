@@ -32,19 +32,55 @@
         "POPT",
         "SRRIP"
       ]
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "l3": "1MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "l3": "4MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "l3": "8MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
     }
   ],
   "meta": {
     "n_cells_total": 114,
     "n_no_winner": 0,
-    "n_tied_winners": 3,
-    "n_unique_winner": 111,
+    "n_tied_winners": 6,
+    "n_unique_winner": 108,
     "pct_no_winner": 0.0,
-    "pct_tied_winners": 2.63,
-    "pct_unique_winner": 97.37,
+    "pct_tied_winners": 5.26,
+    "pct_unique_winner": 94.74,
     "tied_breakdown_by_count": {
       "2": 2,
-      "4": 1
+      "4": 4
     }
   },
   "per_app": {
@@ -109,9 +145,46 @@
       "n_cells": 28,
       "no_winner": 0,
       "no_winner_cells": [],
-      "tied_cells": [],
-      "tied_winners": 0,
-      "unique_winner": 28
+      "tied_cells": [
+        {
+          "app": "pr",
+          "graph": "email-Eu-core",
+          "l3": "1MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "pr",
+          "graph": "email-Eu-core",
+          "l3": "4MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "pr",
+          "graph": "email-Eu-core",
+          "l3": "8MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        }
+      ],
+      "tied_winners": 3,
+      "unique_winner": 25
     },
     "sssp": {
       "n_cells": 20,

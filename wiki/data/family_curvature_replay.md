@@ -18,6 +18,6 @@ Positive = trajectory bending toward plateau (knee). Negative = still accelerati
 
 | family | GRASP | POPT | LRU | SRRIP | replays? |
 | --- | ---: | ---: | ---: | ---: | :---: |
-| citation | -1.137 | 0.044 | -1.299 | -1.233 | yes |
-| social | 0.169 | -0.173 | -0.721 | -0.648 | yes |
-| web | 0.683 | -0.141 | -1.357 | -1.670 | yes |
+| citation | -1.094 | 0.004 | -1.382 | -1.310 | yes |
+| social | 0.099 | -0.213 | -0.805 | -0.708 | yes |
+| web | 0.737 | -0.133 | -1.431 | -1.651 | yes |

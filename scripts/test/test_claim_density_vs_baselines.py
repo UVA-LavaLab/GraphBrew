@@ -63,6 +63,7 @@ EXPECTED_STATUSES = {
     "no_claim",
     "fail",
     "disagree",
+    "insufficient_data",
 }
 
 

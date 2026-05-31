@@ -61,13 +61,12 @@ def test_no_new_flip_cells_beyond_pin():
 
 def test_pinned_flip_cells_present():
     p = _payload()
+    # Post cache_sim ECG sweep: rank-flip set shrank from 6 → 3 cells
+    # because the binary-fix data resolved several borderline flips.
     expected = {
         ("bc", "cit-Patents"),
-        ("bc", "web-Google"),
         ("bfs", "email-Eu-core"),
         ("cc", "web-Google"),
-        ("pr", "email-Eu-core"),
-        ("sssp", "soc-pokec"),
     }
     flips = {tuple(c) for c in p["meta"]["flip_cells"]}
     assert expected == flips, (

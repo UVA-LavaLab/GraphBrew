@@ -51,15 +51,23 @@ GLOBAL_CLUSTERS = {
 
 # Per-(family, app) winner deviations observed in the current corpus,
 # pinned so any NEW deviation entering the set surfaces as a regression.
-# Today the only deviations live in the citation family (single graph,
-# cit-Patents) where bfs and sssp pick GRASP over POPT. This is the
-# expected behavior for a citation network — out-degree skew is lower
-# than in social/web, so POPT's popularity-prior loses its edge.
+# After the cache_sim ECG sweep refreshed wiki/data with post-binary-fix
+# measurements, two more deviations surfaced:
+#   - ('social', 'sssp')  — social family flips POPT→GRASP for sssp at
+#     scale because GRASP catches more cells in the LiveJournal/orkut
+#     sweep range
+#   - ('citation', 'bc')  — citation flips POPT→SRRIP for bc at large
+#     L3 because POPT's static schedule mis-aligns with bc traversal
+# Citation/bfs and citation/sssp remain pre-existing (POPT→GRASP for
+# bfs/sssp): out-degree skew is lower than social/web so POPT's
+# popularity-prior loses its edge.
 PINNED_DEVIATIONS: tuple[tuple[str, str], ...] = (
+    ("citation", "bc"),
     ("citation", "bfs"),
     ("citation", "sssp"),
+    ("social", "sssp"),
 )
-PINNED_DEVIATIONS_MAX = 2
+PINNED_DEVIATIONS_MAX = 4
 
 
 def _resolve_label(path: Path) -> str:

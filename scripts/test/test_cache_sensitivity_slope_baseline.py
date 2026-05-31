@@ -47,7 +47,6 @@ EXPECTED_VIOLATION_PAIRS = frozenset(
         ("bc", "SRRIP"),
         ("bfs", "GRASP"),
         ("bfs", "LRU"),
-        ("bfs", "POPT"),
         ("bfs", "SRRIP"),
         ("cc", "GRASP"),
         ("cc", "LRU"),
@@ -56,11 +55,11 @@ EXPECTED_VIOLATION_PAIRS = frozenset(
     }
 )
 
-EXPECTED_VIOLATION_COUNT = 10
+EXPECTED_VIOLATION_COUNT = 9
 EXPECTED_FULL_TRAJECTORIES = 112
 EXPECTED_ANTI_SCALING_CELLS = 33
-EXPECTED_ORACLE_AWARE_ANTI_SCALING = 7
-EXPECTED_POLICY_ANTI_SCALING_COUNT = {"LRU": 13, "POPT": 5, "SRRIP": 13, "GRASP": 2}
+EXPECTED_ORACLE_AWARE_ANTI_SCALING = 8
+EXPECTED_POLICY_ANTI_SCALING_COUNT = {"LRU": 13, "POPT": 6, "SRRIP": 12, "GRASP": 2}
 
 
 def _load(path: Path) -> dict:

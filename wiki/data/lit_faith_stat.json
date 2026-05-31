@@ -32,9 +32,10 @@
     "signed_delta_mismatch": 0,
     "status_bad_label": 0,
     "status_counts": {
-      "known_deviation": 30,
+      "insufficient_data": 7,
+      "known_deviation": 24,
       "ok": 298,
-      "within_tolerance": 2
+      "within_tolerance": 1
     },
     "status_inconsistent": 0,
     "total_rows": 330

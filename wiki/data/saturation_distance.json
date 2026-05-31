@@ -1,7 +1,7 @@
 {
   "meta": {
     "app_count": 5,
-    "app_diversity_range_pp": 12.8058,
+    "app_diversity_range_pp": 12.5486,
     "app_diversity_threshold": 3.0,
     "cell_count": 28,
     "invariant_app_diversity": true,
@@ -17,20 +17,20 @@
   },
   "per_app": {
     "bc": {
-      "max_pp": 22.108,
-      "mean_pp": 15.5517,
-      "median_pp": 17.4496,
+      "max_pp": 22.0018,
+      "mean_pp": 15.4437,
+      "median_pp": 17.332,
       "min_pp": 0.0,
       "n_graphs": 6,
-      "p90_pp": 20.6103
+      "p90_pp": 20.6262
     },
     "bfs": {
-      "max_pp": 8.4182,
-      "mean_pp": 4.6274,
-      "median_pp": 4.6438,
+      "max_pp": 8.0845,
+      "mean_pp": 4.5691,
+      "median_pp": 4.7834,
       "min_pp": 0.0023,
       "n_graphs": 6,
-      "p90_pp": 8.0845
+      "p90_pp": 7.7897
     },
     "cc": {
       "max_pp": 16.9086,
@@ -41,28 +41,28 @@
       "p90_pp": 16.9086
     },
     "pr": {
-      "max_pp": 18.5606,
-      "mean_pp": 7.8327,
-      "median_pp": 7.5443,
-      "min_pp": -0.0032,
+      "max_pp": 18.4409,
+      "mean_pp": 7.7448,
+      "median_pp": 7.4221,
+      "min_pp": 0.0,
       "n_graphs": 6,
-      "p90_pp": 11.2041
+      "p90_pp": 11.0275
     },
     "sssp": {
-      "max_pp": 27.6454,
-      "mean_pp": 12.9274,
+      "max_pp": 27.4893,
+      "mean_pp": 12.7213,
       "median_pp": 12.4954,
       "min_pp": 0.002,
       "n_graphs": 5,
-      "p90_pp": 27.6454
+      "p90_pp": 27.4893
     }
   },
   "per_cell": [
     {
       "app": "bc",
-      "best4_miss_pp": 72.0874,
-      "best8_miss_pp": 56.3945,
-      "distance_pp": 15.6929,
+      "best4_miss_pp": 71.1235,
+      "best8_miss_pp": 55.7531,
+      "distance_pp": 15.3704,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
@@ -87,36 +87,36 @@
     },
     {
       "app": "bc",
-      "best4_miss_pp": 55.1066,
-      "best8_miss_pp": 39.0387,
-      "distance_pp": 16.0679,
+      "best4_miss_pp": 54.9226,
+      "best8_miss_pp": 39.0898,
+      "distance_pp": 15.8328,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59
     },
     {
       "app": "bc",
-      "best4_miss_pp": 42.0456,
-      "best8_miss_pp": 19.9376,
-      "distance_pp": 22.108,
+      "best4_miss_pp": 41.9405,
+      "best8_miss_pp": 19.9387,
+      "distance_pp": 22.0018,
       "graph": "soc-pokec",
       "is_pico_sentinel": false,
       "wss_bytes": 6391888.61
     },
     {
       "app": "bc",
-      "best4_miss_pp": 34.18,
-      "best8_miss_pp": 13.5697,
-      "distance_pp": 20.6103,
+      "best4_miss_pp": 34.2787,
+      "best8_miss_pp": 13.6525,
+      "distance_pp": 20.6262,
       "graph": "web-Google",
       "is_pico_sentinel": false,
       "wss_bytes": 1538722.37
     },
     {
       "app": "bfs",
-      "best4_miss_pp": 86.9013,
-      "best8_miss_pp": 78.4831,
-      "distance_pp": 8.4182,
+      "best4_miss_pp": 88.4627,
+      "best8_miss_pp": 81.5291,
+      "distance_pp": 6.9336,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
@@ -141,9 +141,9 @@
     },
     {
       "app": "bfs",
-      "best4_miss_pp": 58.8583,
-      "best8_miss_pp": 52.1469,
-      "distance_pp": 6.7114,
+      "best4_miss_pp": 52.5241,
+      "best8_miss_pp": 44.7344,
+      "distance_pp": 7.7897,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59
@@ -159,9 +159,9 @@
     },
     {
       "app": "bfs",
-      "best4_miss_pp": 75.5181,
-      "best8_miss_pp": 72.9419,
-      "distance_pp": 2.5762,
+      "best4_miss_pp": 75.5584,
+      "best8_miss_pp": 72.9253,
+      "distance_pp": 2.6331,
       "graph": "web-Google",
       "is_pico_sentinel": false,
       "wss_bytes": 1538722.37
@@ -213,63 +213,63 @@
     },
     {
       "app": "pr",
-      "best4_miss_pp": 37.1782,
-      "best8_miss_pp": 18.6176,
-      "distance_pp": 18.5606,
+      "best4_miss_pp": 36.7391,
+      "best8_miss_pp": 18.2982,
+      "distance_pp": 18.4409,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
     },
     {
       "app": "pr",
-      "best4_miss_pp": 21.5751,
-      "best8_miss_pp": 10.9374,
-      "distance_pp": 10.6377,
+      "best4_miss_pp": 21.238,
+      "best8_miss_pp": 10.8273,
+      "distance_pp": 10.4107,
       "graph": "com-orkut",
       "is_pico_sentinel": false,
       "wss_bytes": 30832580.36
     },
     {
       "app": "pr",
-      "best4_miss_pp": 0.7562,
-      "best8_miss_pp": 0.7594,
-      "distance_pp": -0.0032,
+      "best4_miss_pp": 100.0,
+      "best8_miss_pp": 100.0,
+      "distance_pp": 0.0,
       "graph": "email-Eu-core",
       "is_pico_sentinel": true,
       "wss_bytes": 4519.36
     },
     {
       "app": "pr",
-      "best4_miss_pp": 29.1691,
-      "best8_miss_pp": 17.965,
-      "distance_pp": 11.2041,
+      "best4_miss_pp": 28.8608,
+      "best8_miss_pp": 17.8333,
+      "distance_pp": 11.0275,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59
     },
     {
       "app": "pr",
-      "best4_miss_pp": 12.3798,
-      "best8_miss_pp": 7.9289,
-      "distance_pp": 4.4509,
+      "best4_miss_pp": 12.3571,
+      "best8_miss_pp": 7.9237,
+      "distance_pp": 4.4334,
       "graph": "soc-pokec",
       "is_pico_sentinel": false,
       "wss_bytes": 6391888.61
     },
     {
       "app": "pr",
-      "best4_miss_pp": 10.5594,
-      "best8_miss_pp": 8.4132,
-      "distance_pp": 2.1462,
+      "best4_miss_pp": 10.569,
+      "best8_miss_pp": 8.4127,
+      "distance_pp": 2.1563,
       "graph": "web-Google",
       "is_pico_sentinel": false,
       "wss_bytes": 1538722.37
     },
     {
       "app": "sssp",
-      "best4_miss_pp": 47.6368,
-      "best8_miss_pp": 19.9914,
-      "distance_pp": 27.6454,
+      "best4_miss_pp": 47.2907,
+      "best8_miss_pp": 19.8014,
+      "distance_pp": 27.4893,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
@@ -285,18 +285,18 @@
     },
     {
       "app": "sssp",
-      "best4_miss_pp": 30.8876,
-      "best8_miss_pp": 12.8809,
-      "distance_pp": 18.0067,
+      "best4_miss_pp": 29.6294,
+      "best8_miss_pp": 12.4008,
+      "distance_pp": 17.2286,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59
     },
     {
       "app": "sssp",
-      "best4_miss_pp": 6.7818,
-      "best8_miss_pp": 0.2944,
-      "distance_pp": 6.4874,
+      "best4_miss_pp": 6.6827,
+      "best8_miss_pp": 0.2914,
+      "distance_pp": 6.3913,
       "graph": "soc-pokec",
       "is_pico_sentinel": false,
       "wss_bytes": 6391888.61

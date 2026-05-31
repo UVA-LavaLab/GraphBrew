@@ -11,7 +11,7 @@ Paper-grade L3 sizes: 1MB, 4MB, 8MB.
 | pr | POPT / POPT / POPT | 1 | YES | no |
 | bc | GRASP / GRASP | 1 | no | no |
 | cc | GRASP / GRASP / GRASP | 1 | YES | no |
-| bfs | GRASP / POPT / POPT | 2 | no | YES |
+| bfs | GRASP / POPT | 2 | no | YES |
 | sssp | POPT / GRASP | 2 | no | YES |
 
 ## Per-app per-L3 winner tables
@@ -24,9 +24,9 @@ Paper-grade L3 sizes: 1MB, 4MB, 8MB.
 | 16kB | 2 | **GRASP** | 2 | 1.00 | LRU | 2 | yes |
 | 64kB | 2 | **POPT** | 2 | 1.00 | LRU | 2 | yes |
 | 256kB | 2 | **POPT** | 2 | 1.00 | LRU | 2 | yes |
-| 1MB | 8 | **POPT** | 7 | 0.88 | GRASP | 6 | yes |
-| 4MB | 6 | **POPT** | 4 | 0.67 | GRASP | 2 | yes |
-| 8MB | 6 | **POPT** | 4 | 0.67 | GRASP | 2 | yes |
+| 1MB | 8 | **POPT** | 7 | 0.88 | GRASP | 5 | yes |
+| 4MB | 6 | **POPT** | 5 | 0.83 | GRASP | 3 | yes |
+| 8MB | 6 | **POPT** | 5 | 0.83 | GRASP | 3 | yes |
 
 ### bc
 
@@ -60,9 +60,9 @@ Paper-grade L3 sizes: 1MB, 4MB, 8MB.
 | 16kB | 1 | **GRASP** | 1 | 1.00 | LRU | 1 | yes |
 | 64kB | 1 | **POPT** | 1 | 1.00 | LRU | 1 | yes |
 | 256kB | 1 | **POPT** | 1 | 1.00 | LRU | 1 | yes |
-| 1MB | 7 | **GRASP** | 4 | 0.57 | LRU | 3 | yes |
-| 4MB | 6 | **POPT** | 5 | 0.83 | GRASP | 4 | yes |
-| 8MB | 6 | **POPT** | 4 | 0.67 | GRASP | 2 | yes |
+| 1MB | 7 | **GRASP** | 5 | 0.71 | LRU | 4 | yes |
+| 4MB | 6 | **POPT** | 4 | 0.67 | GRASP | 2 | yes |
+| 8MB | 6 | **GRASP** | 3 | 0.50 | POPT | 0 | tie |
 
 ### sssp
 

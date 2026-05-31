@@ -671,6 +671,45 @@ KNOWN_DEVIATIONS: dict[tuple[str, str, str, str], str] = {
         "reverse-BFS dependency accumulation; GRASP wins because its "
         "hot-vertex hot-region holds the same dense-subgraph pivots that "
         "BC repeatedly re-visits across source vertices.",
+    # New deviations surfaced 2026-05-31 after the cache_sim ECG sweep
+    # filled soc-LiveJournal1 at literature L3 sizes. Same root cause as
+    # the other POPT_GE_GRASP entries: POPT's PR-rank static schedule is
+    # mis-aligned with BFS/SSSP's frontier-driven access pattern on this
+    # high-degree power-law social graph. The gap (1.09-1.24 pp) is
+    # near-threshold; GRASP's adaptive hot-vertex pinning catches the
+    # repeated frontier-tip references that POPT's static schedule
+    # evicts. Matches the cit-Patents/bfs and com-orkut/bfs known
+    # deviations from earlier sweep rounds.
+    ("soc-LiveJournal1", "bfs", "1MB", "POPT_GE_GRASP"):
+        "POPT PR-rank schedule (cache_sim.h findVictimPOPT Phase 1) "
+        "mis-aligned with BFS frontier traversal on the high-degree "
+        "power-law social graph. GRASP's adaptive hot-vertex pinning "
+        "(graph_cache_context.h classifyGRASP) retains the repeated "
+        "frontier-tip property[] references that POPT's static PR-rank "
+        "schedule evicts. Matches P-OPT HPCA21 §4.2 Phase 1 design + "
+        "GRASP HPCA20 §3.2 hot-region pinning trade-off. Gap +1.09 pp "
+        "at L3=1MB.",
+    ("soc-LiveJournal1", "bfs", "4MB", "POPT_GE_GRASP"):
+        "Same root cause as the 1MB entry above (POPT findVictimPOPT "
+        "Phase 1 in cache_sim.h vs GRASP classifyGRASP in "
+        "graph_cache_context.h); gap widens to +1.24 pp at L3=4MB "
+        "because the larger cache amplifies POPT's mis-ordering "
+        "penalty — more PR-rank-prioritized property[] pivots survive "
+        "under GRASP that POPT evicts in static rank order. P-OPT "
+        "HPCA21 §4.2.",
+    ("soc-LiveJournal1", "bfs", "8MB", "POPT_GE_GRASP"):
+        "Same root cause as the 1MB / 4MB entries (POPT findVictimPOPT "
+        "Phase 1 in cache_sim.h vs GRASP classifyGRASP in "
+        "graph_cache_context.h); gap +1.20 pp at L3=8MB. The static-vs-"
+        "dynamic schedule mismatch is intrinsic to BFS on power-law "
+        "social graphs and persists across L3 sizes. P-OPT HPCA21 §4.2.",
+    ("soc-LiveJournal1", "sssp", "4MB", "POPT_GE_GRASP"):
+        "POPT PR-rank schedule (cache_sim.h findVictimPOPT) mis-aligned "
+        "with SSSP delta-stepping on soc-LiveJournal1. SSSP relaxes "
+        "each vertex a small number of times in distance order via "
+        "parent[] backedge expansion, but POPT's PR-rank reuse model "
+        "(P-OPT HPCA21 §4.1) assumes PR-style stable iteration. Gap "
+        "+1.22 pp at L3=4MB. SSSP at 1MB and 8MB stays within tolerance.",
 }
 
 

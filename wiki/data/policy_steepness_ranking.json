@@ -1,7 +1,7 @@
 {
   "checks": {
     "grasp_le_lru_median": {
-      "grasp": 0.2294,
+      "grasp": 0.2296,
       "lru": 1.0552,
       "ok": true
     },
@@ -9,42 +9,42 @@
       "floor": 0.5,
       "lru": 1.0552,
       "ok": true,
-      "srrip": 1.091
+      "srrip": 1.2176
     },
     "oracle_aware_ceiling": {
       "ceiling": 0.5,
-      "grasp": 0.2294,
+      "grasp": 0.2296,
       "ok": true,
-      "popt": 0.0995
+      "popt": 0.0778
     },
     "oracle_half_of_non_oracle": {
-      "actual_ratio": 0.153248,
-      "non_oracle_median": 1.0731,
+      "actual_ratio": 0.135252,
+      "non_oracle_median": 1.1364,
       "ok": true,
-      "oracle_median": 0.16445,
+      "oracle_median": 0.1537,
       "required_ratio": 0.5
     },
     "popt_le_grasp_median": {
-      "grasp": 0.2294,
+      "grasp": 0.2296,
       "ok": true,
-      "popt": 0.0995
+      "popt": 0.0778
     },
     "popt_lt_srrip_median": {
       "ok": true,
-      "popt": 0.0995,
-      "srrip": 1.091
+      "popt": 0.0778,
+      "srrip": 1.2176
     },
     "popt_min_saturates": {
       "ceiling": 0.2,
       "ok": true,
-      "popt_min": 0.0435
+      "popt_min": 0.0335
     }
   },
   "medians_pp": {
-    "GRASP": 0.2294,
+    "GRASP": 0.2296,
     "LRU": 1.0552,
-    "POPT": 0.0995,
-    "SRRIP": 1.091
+    "POPT": 0.0778,
+    "SRRIP": 1.2176
   },
   "meta": {
     "apps": [
@@ -75,63 +75,63 @@
       "popt_min_slope_ceiling_pp": 0.2
     }
   },
-  "non_oracle_median_pp": 1.0731,
-  "oracle_median_pp": 0.16445,
+  "non_oracle_median_pp": 1.1364,
+  "oracle_median_pp": 0.1537,
   "per_policy": {
     "GRASP": {
-      "max": 2.1618,
-      "mean": 0.57828,
-      "median": 0.2294,
+      "max": 2.2235,
+      "mean": 0.60656,
+      "median": 0.2296,
       "min": 0.0,
       "n": 5,
       "per_app": {
         "bc": 0.0,
-        "bfs": 0.4992,
+        "bfs": 0.5787,
         "cc": 0.001,
-        "pr": 2.1618,
-        "sssp": 0.2294
+        "pr": 2.2235,
+        "sssp": 0.2296
       }
     },
     "LRU": {
-      "max": 3.8421,
-      "mean": 1.47432,
+      "max": 3.914,
+      "mean": 1.48724,
       "median": 1.0552,
-      "min": 0.297,
+      "min": 0.2798,
       "n": 5,
       "per_app": {
-        "bc": 0.297,
-        "bfs": 0.5847,
+        "bc": 0.3664,
+        "bfs": 0.2798,
         "cc": 1.0552,
-        "pr": 3.8421,
-        "sssp": 1.5926
+        "pr": 3.914,
+        "sssp": 1.8208
       }
     },
     "POPT": {
       "max": 2.057,
-      "mean": 0.47522,
-      "median": 0.0995,
-      "min": 0.0435,
+      "mean": 0.48804,
+      "median": 0.0778,
+      "min": 0.0335,
       "n": 5,
       "per_app": {
-        "bc": 0.0995,
-        "bfs": 0.0519,
+        "bc": 0.0778,
+        "bfs": 0.0335,
         "cc": 2.057,
-        "pr": 0.0435,
-        "sssp": 0.1242
+        "pr": 0.0407,
+        "sssp": 0.2312
       }
     },
     "SRRIP": {
-      "max": 3.009,
-      "mean": 1.36378,
-      "median": 1.091,
-      "min": 0.3045,
+      "max": 3.0988,
+      "mean": 1.34148,
+      "median": 1.2176,
+      "min": 0.1985,
       "n": 5,
       "per_app": {
-        "bc": 0.3045,
-        "bfs": 0.611,
+        "bc": 0.1985,
+        "bfs": 0.3891,
         "cc": 1.8034,
-        "pr": 3.009,
-        "sssp": 1.091
+        "pr": 3.0988,
+        "sssp": 1.2176
       }
     }
   },

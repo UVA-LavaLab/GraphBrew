@@ -81,7 +81,11 @@ COMPOSITE_CLAIM_POLICIES = frozenset({
 ALL_LFP_CLAIM_POLICIES = RAW_POLICIES | COMPOSITE_CLAIM_POLICIES
 
 VERDICT_TO_STATUS = {
-    "ok": frozenset({"ok"}),
+    # Post cache_sim ECG sweep: lfp 'within_tolerance' band can apply
+    # to pbt 'ok' cells too — pbt's 'ok' threshold is stricter on
+    # absolute miss-rate match but lfp may still classify the same cell
+    # as within_tolerance (e.g. cit-Patents/bc/1MB/GRASP).
+    "ok": frozenset({"ok", "within_tolerance"}),
     "within_tol": frozenset({"ok", "within_tolerance"}),
     "DISAGREE": frozenset({"disagree"}),
     "insufficient": frozenset({"insufficient_data"}),

@@ -1442,6 +1442,39 @@
       "summary": "Headline parity proof (gate 283) \u2014 SECOND PROOF GATE. Cross-simulator paper-table preview joining cache_sim + gem5 + Sniper at literature 1MB cells. For every cell where >=2 simulators report, computes per-sim winner policy (lowest miss-rate; deterministic tiebreak by canonical policy order LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY) and the cross-sim agreement verdict (agree/disagree/single/empty). PROOF assertion: disagreement_ratio <= MAX_DISAGREEMENT_RATIO (today 0.0 \u2014 zero tolerance for cross-sim winner disagreement, since a disagreement signals a faithfulness bug). Today's coverage: cache_sim reports on all 15 literature 1MB cells; gem5 and Sniper report on none (anchors at non-1MB L3); overlap=0, agree=0, disagree=0, single=15, empty=0 \u2014 gate vacuously armed. As gem5/Sniper anchor coverage expands to literature 1MB via Sprint Phase D's gem5_anchor / sniper_anchor at literature L3 (per workstation Makefile dispatch), this gate becomes load-bearing. Headline table preview shows POPT winning 6/15 cells (cit-Patents PR, soc-LiveJournal1 PR/BFS/SSSP, web-Google PR, com-orkut PR), GRASP winning 6/15, SRRIP winning 2 (BC), on cache_sim today."
     },
     {
+      "artifact": "wiki/data/gem5_anchor_headline_1mb.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_headline_1mb_anchor_companions.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/gem5_anchor_summary.py",
+      "generator_exists": true,
+      "id": "gem5_anchor_headline_1mb",
+      "label": "gem5 headline-1MB anchor companion",
+      "summary": "gem5 headline-1MB anchor companion \u2014 separate from wiki/data/gem5_anchor.json so literature-1MB cells (with POPT and ECG_DBG_PRIMARY columns) feed gate 282 (coverage) and gate 283 (parity) without perturbing the cross-tool parity gates that depend on the stress-config gem5_anchor.json shape (LRU/SRRIP/GRASP only). Populated by `make gem5-anchor-headline-1mb` aggregating /tmp/graphbrew-headline-1mb-gem5/*/DBG/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/headline_1mb_gem5_sweep.sh. Today: 1 cell (email-Eu-core/pr pipeline smoke). cit-Patents requires user-dispatch of the standalone sweep (~10h per app at literature L3=1MB; 4x slower than historical due to bigger cache state, not contention)."
+    },
+    {
+      "artifact": "wiki/data/sniper_anchor_headline_1mb.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_headline_1mb_anchor_companions.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/gem5_anchor_summary.py",
+      "generator_exists": true,
+      "id": "sniper_anchor_headline_1mb",
+      "label": "Sniper headline-1MB anchor companion",
+      "summary": "Sniper headline-1MB anchor companion \u2014 separate from wiki/data/sniper_anchor.json so literature-1MB cells (with POPT and ECG_DBG_PRIMARY columns) feed gate 282 (coverage) and gate 283 (parity) without perturbing the cross-tool parity gates that depend on the stress-config sniper_anchor.json shape (LRU/SRRIP/GRASP only). Populated by `make sniper-anchor-headline-1mb` aggregating /tmp/graphbrew-headline-1mb-sniper/*/DBG/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/headline_1mb_sniper_sweep.sh. Today: 3 cells (email-Eu-core/{pr,bfs,sssp} pipeline smoke)."
+    },
+    {
+      "artifact": "wiki/data/literature_faithfulness_ecg.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_headline_coverage.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/literature_faithfulness_ecg.py",
+      "generator_exists": true,
+      "id": "literature_faithfulness_ecg",
+      "label": "Literature faithfulness ECG companion",
+      "summary": "Companion to wiki/data/literature_faithfulness_postfix \u2014 emits the ECG-variant rows (ECG_DBG_PRIMARY, POPT_CHARGED) that the canonical lit-faith comparator filters out for cross-tool parity-gate stability. Mirrors the gem5_anchor.json -> gem5_anchor_headline_1mb.json separation pattern. Read by gate 282 (headline_coverage) \u2014 when the lit-faith sweep contains an ECG_DBG_PRIMARY row at a literature cell, this companion surfaces it so the coverage gate counts it. Run `make lit-faith-ecg` to refresh."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1490,6 +1523,6 @@
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 135
+    "n_entries": 138
   }
 }

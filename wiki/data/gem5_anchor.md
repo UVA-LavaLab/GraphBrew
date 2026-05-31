@@ -1,6 +1,6 @@
 # gem5 literature anchor
 
-Source sweep: `/tmp/graphbrew-grasp-gem5-sweep/<graph>-<app>/DBG`
+Source sweep: `[PosixPath('/tmp/graphbrew-grasp-gem5-sweep')]/<graph>-<app>/DBG`
 
 ## Invariants
 

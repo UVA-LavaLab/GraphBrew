@@ -1,6 +1,6 @@
 # Sniper literature anchor
 
-Source sweep: `/tmp/graphbrew-grasp-sniper-sweep/<graph>-<app>/DBG`
+Source sweep: `[PosixPath('/tmp/graphbrew-grasp-sniper-sweep')]/<graph>-<app>/DBG`
 
 ## Invariants
 

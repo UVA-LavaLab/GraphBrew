@@ -10,16 +10,16 @@
   "meta": {
     "n_graph_app_pairs": 34,
     "n_insufficient_l3": 6,
-    "n_regime_change": 14,
-    "n_stable_partial": 1,
-    "n_stable_unique": 13,
+    "n_regime_change": 12,
+    "n_stable_partial": 2,
+    "n_stable_unique": 14,
     "scope_l3_sizes": [
       "1MB",
       "4MB",
       "8MB"
     ],
     "source": "wiki/data/oracle_gap.json",
-    "stability_fraction_excl_insufficient": 0.4642857142857143
+    "stability_fraction_excl_insufficient": 0.5
   },
   "per_graph_app": [
     {
@@ -392,9 +392,14 @@
     },
     {
       "app": "pr",
-      "classification": "regime_change",
+      "classification": "stable_partial",
       "graph": "email-Eu-core",
-      "intersection": [],
+      "intersection": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
@@ -402,18 +407,29 @@
       ],
       "union": [
         "GRASP",
-        "POPT"
+        "LRU",
+        "POPT",
+        "SRRIP"
       ],
       "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP",
+          "LRU",
+          "POPT",
+          "SRRIP"
         ],
         "4MB": [
-          "GRASP"
+          "GRASP",
+          "LRU",
+          "POPT",
+          "SRRIP"
         ],
         "8MB": [
-          "GRASP"
+          "GRASP",
+          "LRU",
+          "POPT",
+          "SRRIP"
         ]
       }
     },
@@ -540,7 +556,7 @@
       "classification": "stable_unique",
       "graph": "soc-LiveJournal1",
       "intersection": [
-        "POPT"
+        "GRASP"
       ],
       "l3_sizes_present": [
         "1MB",
@@ -548,18 +564,18 @@
         "8MB"
       ],
       "union": [
-        "POPT"
+        "GRASP"
       ],
       "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
-          "POPT"
+          "GRASP"
         ],
         "8MB": [
-          "POPT"
+          "GRASP"
         ]
       }
     },
@@ -758,9 +774,11 @@
     },
     {
       "app": "sssp",
-      "classification": "regime_change",
+      "classification": "stable_unique_with_ties",
       "graph": "soc-pokec",
-      "intersection": [],
+      "intersection": [
+        "GRASP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
@@ -770,7 +788,7 @@
         "GRASP",
         "POPT"
       ],
-      "unique_in_intersection": false,
+      "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
           "GRASP"
@@ -779,6 +797,7 @@
           "GRASP"
         ],
         "8MB": [
+          "GRASP",
           "POPT"
         ]
       }
@@ -941,8 +960,8 @@
     },
     "email-Eu-core": {
       "n_apps": 3,
-      "partial": 1,
-      "regime_change": 2,
+      "partial": 2,
+      "regime_change": 1,
       "stable_unique": 0
     },
     "roadNet-CA": {
@@ -960,8 +979,8 @@
     "soc-pokec": {
       "n_apps": 5,
       "partial": 0,
-      "regime_change": 3,
-      "stable_unique": 2
+      "regime_change": 2,
+      "stable_unique": 3
     },
     "web-Google": {
       "n_apps": 5,
@@ -975,11 +994,9 @@
     "com-orkut/bfs",
     "com-orkut/sssp",
     "email-Eu-core/bfs",
-    "email-Eu-core/pr",
     "soc-LiveJournal1/sssp",
     "soc-pokec/bfs",
     "soc-pokec/pr",
-    "soc-pokec/sssp",
     "web-Google/bc",
     "web-Google/bfs",
     "web-Google/cc",
@@ -987,7 +1004,8 @@
     "web-Google/sssp"
   ],
   "stable_partial_cells": [
-    "email-Eu-core/bc -> GRASP,LRU,SRRIP"
+    "email-Eu-core/bc -> GRASP,LRU,SRRIP",
+    "email-Eu-core/pr -> GRASP,LRU,POPT,SRRIP"
   ],
   "stable_unique_cells": [
     "cit-Patents/bfs -> GRASP",
@@ -998,10 +1016,11 @@
     "com-orkut/cc -> GRASP",
     "com-orkut/pr -> POPT",
     "soc-LiveJournal1/bc -> GRASP",
-    "soc-LiveJournal1/bfs -> POPT",
+    "soc-LiveJournal1/bfs -> GRASP",
     "soc-LiveJournal1/cc -> GRASP",
     "soc-LiveJournal1/pr -> POPT",
     "soc-pokec/bc -> GRASP",
-    "soc-pokec/cc -> GRASP"
+    "soc-pokec/cc -> GRASP",
+    "soc-pokec/sssp -> GRASP"
   ]
 }

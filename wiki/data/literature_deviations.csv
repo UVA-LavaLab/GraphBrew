@@ -1,12 +1,8 @@
 citation,graph,graph_family,app,l3_size,policy,expected_sign,tolerance_pct,delta_pct,popt_vs_grasp_pp,mechanism
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,bc,4MB,POPT_GE_GRASP,-,1.5,1.597,1.597,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,bc,8MB,POPT_GE_GRASP,-,1.5,2.5292,2.529,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,cc,1MB,POPT_GE_GRASP,-,1.5,8.7258,8.726,popt_overhead_dominates
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,citation,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,8.7258,8.726,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,cc,4MB,POPT_GE_GRASP,-,1.5,3.6479,3.648,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,cc,8MB,POPT_GE_GRASP,-,1.5,1.5277,1.528,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,sssp,4MB,POPT_GE_GRASP,-,1.5,1.8038,1.804,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,sssp,8MB,POPT_GE_GRASP,-,1.5,1.633,1.633,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,bc,1MB,POPT_GE_GRASP,-,1.5,2.4747,2.475,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,bc,4MB,POPT_GE_GRASP,-,1.5,4.6678,4.668,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,bc,8MB,POPT_GE_GRASP,-,1.5,4.727,4.727,popt_overhead_dominates
@@ -15,17 +11,15 @@ Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,social,cc,1MB,POP
 Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,cc,4MB,POPT_GE_GRASP,-,1.5,10.0547,10.055,popt_overhead_dominates
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,social,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,10.0547,10.055,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,cc,8MB,POPT_GE_GRASP,-,1.5,6.1871,6.187,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,bc,1MB,POPT_GE_GRASP,-,1.5,1.9853,1.985,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,bc,4MB,POPT_GE_GRASP,-,1.5,1.8769,1.877,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,bc,8MB,POPT_GE_GRASP,-,1.5,1.5828,1.583,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,bc,8MB,POPT_GE_GRASP,-,1.5,1.6476,1.648,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,cc,4MB,POPT_GE_GRASP,-,1.5,1.8098,1.810,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,cc,8MB,POPT_GE_GRASP,-,1.5,3.0832,3.083,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,bc,1MB,POPT_GE_GRASP,-,1.5,3.0792,3.079,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,bc,4MB,POPT_GE_GRASP,-,1.5,1.7174,1.717,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,bc,1MB,POPT_GE_GRASP,-,1.5,3.0012,3.001,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,bc,4MB,POPT_GE_GRASP,-,1.5,1.6144,1.614,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,cc,1MB,POPT_GE_GRASP,-,1.5,10.5803,10.580,popt_overhead_dominates
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,social,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,10.5803,10.580,popt_overhead_dominates
 Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,cc,4MB,POPT_GE_GRASP,-,1.5,5.6082,5.608,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,sssp,1MB,POPT_GE_GRASP,-,1.5,4.0968,4.097,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,web,bc,4MB,POPT_GE_GRASP,-,1.5,2.9017,2.902,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,web,bc,8MB,POPT_GE_GRASP,-,1.5,3.0498,3.050,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3,web-Google,web,pr,4MB,POPT_GE_GRASP,-,1.0,1.0722,1.072,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,sssp,1MB,POPT_GE_GRASP,-,1.5,3.8096,3.810,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,web,bc,4MB,POPT_GE_GRASP,-,1.5,2.6456,2.646,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,web,bc,8MB,POPT_GE_GRASP,-,1.5,2.6397,2.640,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3,web-Google,web,pr,4MB,POPT_GE_GRASP,-,1.0,1.0627,1.063,popt_overhead_dominates

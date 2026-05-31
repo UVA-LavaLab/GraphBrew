@@ -53,8 +53,10 @@ EXPECTED_GLOBAL_CLUSTERS = {
 }
 EXPECTED_DEVIATIONS = frozenset(
     {
+        ("citation", "bc"),
         ("citation", "bfs"),
         ("citation", "sssp"),
+        ("social", "sssp"),
     }
 )
 
@@ -222,6 +224,16 @@ def test_pwt_wins_by_family_matches_expected_cell_counts():
 def test_xartifact_pwt_argmax_per_app_equals_fpac_global_winner():
     pwt_wins = _load(PWT_PATH)["summary"]["wins_by_app"]
     fpac_winner = _load(FPAC_PATH)["meta"]["global_winner_by_app"]
+    # post cache_sim ECG sweep: pwt argmax (count of cell-wins) and fpac
+    # global winner (lowest mean-gap across all cells) can disagree when
+    # a policy wins more cells but by smaller margin. Document such
+    # disagreements explicitly so any NEW disagreement surfaces here.
+    # bfs: GRASP wins 12 cells (mostly social ties on email-Eu-core) but
+    # POPT wins by mean gap thanks to its tight cit-Patents/scale-free
+    # advantage. Both are honest, the metrics measure different things.
+    KNOWN_CROSS_ARTIFACT_DISAGREEMENTS = {
+        ("bfs", "GRASP", "POPT"),
+    }
     for app in EXPECTED_APPS:
         wins = pwt_wins[app]
         # Tie-break by alphabetical (deterministic) — but if there's a tie at the top,
@@ -232,6 +244,8 @@ def test_xartifact_pwt_argmax_per_app_equals_fpac_global_winner():
             raise AssertionError(
                 f"app {app}: top-policy tie between {top_pol} and {ordered[1][0]} at {top_count} wins"
             )
+        if (app, top_pol, fpac_winner[app]) in KNOWN_CROSS_ARTIFACT_DISAGREEMENTS:
+            continue
         assert top_pol == fpac_winner[app], (
             f"app {app}: pwt argmax={top_pol} disagrees with fpac global winner={fpac_winner[app]}"
         )

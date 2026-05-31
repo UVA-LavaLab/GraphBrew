@@ -6,41 +6,40 @@ Slope units: **gap_pp per L3 octave (log2 MB)**. Positive slope means the oracle
 
 ## Headline
 
-- ⚠️ 10 (app, policy) cells violate monotonicity. See 'Monotonic violations' below.
+- ⚠️ 9 (app, policy) cells violate monotonicity. See 'Monotonic violations' below.
 
 ## Per-policy slope summary (mean across apps)
 
 | policy | mean slope | stdev slope | min slope | max slope | n_apps |
 |---|---:|---:|---:|---:|---:|
-| **GRASP** | 2.2929 | 1.5706 | 0.5063 | 4.3436 | 5 |
-| **LRU** | 0.1467 | 1.0754 | -1.5284 | 1.7952 | 5 |
-| **POPT** | 0.9131 | 0.5948 | -0.0289 | 1.6829 | 5 |
-| **SRRIP** | 0.1685 | 0.9573 | -1.3739 | 1.6087 | 5 |
+| **GRASP** | 2.2621 | 1.5121 | 0.5063 | 4.1486 | 5 |
+| **LRU** | 0.1885 | 1.0652 | -1.4441 | 1.8049 | 5 |
+| **POPT** | 0.9132 | 0.5936 | -0.031 | 1.663 | 5 |
+| **SRRIP** | 0.1795 | 0.9463 | -1.313 | 1.6275 | 5 |
 
 ## Per-(app, policy) avg slope (gap_pp shrinkage per L3 octave)
 
 | app | GRASP | LRU | POPT | SRRIP |
 |---|---|---|---|---|
-| **bc** | 1.950 | -0.071 | 0.843 | 0.011 |
-| **bfs** | 3.884 | -1.528 | 1.683 | -1.374 |
+| **bc** | 2.003 | -0.091 | 0.912 | -0.030 |
+| **bfs** | 3.862 | -1.444 | 1.663 | -1.313 |
 | **cc** | 0.506 | -0.033 | 1.391 | 0.111 |
-| **pr** | 0.780 | 1.795 | -0.029 | 1.609 |
-| **sssp** | 4.344 | 0.571 | 0.677 | 0.486 |
+| **pr** | 0.791 | 1.805 | -0.031 | 1.627 |
+| **sssp** | 4.149 | 0.706 | 0.631 | 0.502 |
 
 ## Monotonic violations
 
 | app | policy | 1MB→4MB Δgap | 4MB→8MB Δgap |
 |---|---|---:|---:|
-| bc | LRU | 0.5092 | -0.297 |
-| bc | SRRIP | 0.2719 | -0.3045 |
-| bfs | GRASP | -12.1509 | 0.4992 |
-| bfs | LRU | 4.0006 | 0.5847 |
-| bfs | POPT | -5.1007 | 0.0519 |
-| bfs | SRRIP | 3.5108 | 0.611 |
+| bc | LRU | 0.6401 | -0.3664 |
+| bc | SRRIP | 0.2899 | -0.1985 |
+| bfs | GRASP | -12.1638 | 0.5787 |
+| bfs | LRU | 4.0526 | 0.2798 |
+| bfs | SRRIP | 3.5498 | 0.3891 |
 | cc | GRASP | -1.52 | 0.001 |
 | cc | LRU | 1.154 | -1.0552 |
 | cc | SRRIP | 1.4707 | -1.8034 |
-| pr | POPT | 0.1302 | -0.0435 |
+| pr | POPT | 0.1338 | -0.0407 |
 
 ## Interpretation
 

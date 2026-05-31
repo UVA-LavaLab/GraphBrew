@@ -1,26 +1,26 @@
 {
   "app_coverage": {
     "bc": 12,
-    "bfs": 2,
+    "bfs": 5,
     "cc": 16,
     "pr": 1,
-    "sssp": 3
+    "sssp": 4
   },
   "faith_kd_without_entry": [],
   "graph_coverage": {
     "cit-Patents": 8,
     "com-orkut": 8,
-    "soc-LiveJournal1": 6,
+    "soc-LiveJournal1": 10,
     "soc-pokec": 7,
     "web-Google": 5
   },
   "l3_size_coverage": {
-    "1MB": 14,
-    "4MB": 12,
-    "8MB": 8
+    "1MB": 15,
+    "4MB": 14,
+    "8MB": 9
   },
   "policy_coverage": {
-    "POPT_GE_GRASP": 30,
+    "POPT_GE_GRASP": 34,
     "POPT_NEAR_GRASP_IF_BIG_GAP": 4
   },
   "reason_audits": [
@@ -29,7 +29,7 @@
       "graph": "cit-Patents",
       "has_anchor": true,
       "has_quantitative_phrase": true,
-      "is_inactive": false,
+      "is_inactive": true,
       "is_orphan": false,
       "l3_size": "4MB",
       "length": 312,
@@ -46,7 +46,7 @@
       "graph": "cit-Patents",
       "has_anchor": true,
       "has_quantitative_phrase": true,
-      "is_inactive": false,
+      "is_inactive": true,
       "is_orphan": false,
       "l3_size": "8MB",
       "length": 158,
@@ -120,7 +120,7 @@
       "graph": "cit-Patents",
       "has_anchor": true,
       "has_quantitative_phrase": true,
-      "is_inactive": false,
+      "is_inactive": true,
       "is_orphan": false,
       "l3_size": "4MB",
       "length": 296,
@@ -136,7 +136,7 @@
       "graph": "cit-Patents",
       "has_anchor": true,
       "has_quantitative_phrase": true,
-      "is_inactive": false,
+      "is_inactive": true,
       "is_orphan": false,
       "l3_size": "8MB",
       "length": 136,
@@ -272,7 +272,7 @@
       "graph": "soc-LiveJournal1",
       "has_anchor": true,
       "has_quantitative_phrase": true,
-      "is_inactive": false,
+      "is_inactive": true,
       "is_orphan": false,
       "l3_size": "1MB",
       "length": 238,
@@ -289,7 +289,7 @@
       "graph": "soc-LiveJournal1",
       "has_anchor": true,
       "has_quantitative_phrase": true,
-      "is_inactive": false,
+      "is_inactive": true,
       "is_orphan": false,
       "l3_size": "4MB",
       "length": 95,
@@ -313,6 +313,62 @@
       "reason": "Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB / 4MB entries: BC's reverse-BFS dependency accumulation traverses high-degree pivots in frontier order, not PR rank, so POPT's static PR-rank schedule mis-orders the pivot working set. Gap is +1.6 pp at 8MB on soc-LiveJournal1 \u2014 narrower than 1MB/4MB because the larger cache absorbs more of the misordered evictions but the algorithmic mismatch persists.",
       "vocab_hits": [
         "frontier"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": true,
+      "is_orphan": false,
+      "l3_size": "1MB",
+      "length": 430,
+      "policy": "POPT_GE_GRASP",
+      "reason": "POPT PR-rank schedule (cache_sim.h findVictimPOPT Phase 1) mis-aligned with BFS frontier traversal on the high-degree power-law social graph. GRASP's adaptive hot-vertex pinning (graph_cache_context.h classifyGRASP) retains the repeated frontier-tip property[] references that POPT's static PR-rank schedule evicts. Matches P-OPT HPCA21 \u00a74.2 Phase 1 design + GRASP HPCA20 \u00a73.2 hot-region pinning trade-off. Gap +1.09 pp at L3=1MB.",
+      "vocab_hits": [
+        "Phase 1",
+        "P-OPT",
+        "GRASP",
+        "frontier",
+        "design"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": true,
+      "is_orphan": false,
+      "l3_size": "4MB",
+      "length": 351,
+      "policy": "POPT_GE_GRASP",
+      "reason": "Same root cause as the 1MB entry above (POPT findVictimPOPT Phase 1 in cache_sim.h vs GRASP classifyGRASP in graph_cache_context.h); gap widens to +1.24 pp at L3=4MB because the larger cache amplifies POPT's mis-ordering penalty \u2014 more PR-rank-prioritized property[] pivots survive under GRASP that POPT evicts in static rank order. P-OPT HPCA21 \u00a74.2.",
+      "vocab_hits": [
+        "Phase 1",
+        "P-OPT",
+        "GRASP"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "bfs",
+      "graph": "soc-LiveJournal1",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": true,
+      "is_orphan": false,
+      "l3_size": "8MB",
+      "length": 294,
+      "policy": "POPT_GE_GRASP",
+      "reason": "Same root cause as the 1MB / 4MB entries (POPT findVictimPOPT Phase 1 in cache_sim.h vs GRASP classifyGRASP in graph_cache_context.h); gap +1.20 pp at L3=8MB. The static-vs-dynamic schedule mismatch is intrinsic to BFS on power-law social graphs and persists across L3 sizes. P-OPT HPCA21 \u00a74.2.",
+      "vocab_hits": [
+        "Phase 1",
+        "P-OPT",
+        "GRASP"
       ],
       "well_formed": true
     },
@@ -357,6 +413,22 @@
       "reason": "Same soc-LJ/CC mismatch; gap is widest (+3.1 pp) at 8MB where GRASP's locality preservation pays off more than POPT's static PR-rank ordering of CC's union-find edge traversal.",
       "vocab_hits": [
         "GRASP"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-LiveJournal1",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": true,
+      "is_orphan": false,
+      "l3_size": "4MB",
+      "length": 362,
+      "policy": "POPT_GE_GRASP",
+      "reason": "POPT PR-rank schedule (cache_sim.h findVictimPOPT) mis-aligned with SSSP delta-stepping on soc-LiveJournal1. SSSP relaxes each vertex a small number of times in distance order via parent[] backedge expansion, but POPT's PR-rank reuse model (P-OPT HPCA21 \u00a74.1) assumes PR-style stable iteration. Gap +1.22 pp at L3=4MB. SSSP at 1MB and 8MB stays within tolerance.",
+      "vocab_hits": [
+        "P-OPT"
       ],
       "well_formed": true
     },
@@ -569,10 +641,10 @@
   "summary": {
     "apps_covered": 5,
     "faith_kd_without_entry_count": 0,
-    "faith_known_deviation_rows": 30,
+    "faith_known_deviation_rows": 24,
     "graphs_covered": 5,
-    "inactive_known_deviations": 4,
-    "known_deviations_total": 34,
+    "inactive_known_deviations": 14,
+    "known_deviations_total": 38,
     "l3_sizes_covered": 3,
     "min_reason_length": 80,
     "missing_anchor": 0,
@@ -580,15 +652,15 @@
     "orphan_known_deviations": 0,
     "policies_covered": 2,
     "short_reasons": 0,
-    "well_formed_reasons": 34
+    "well_formed_reasons": 38
   },
   "vocab_counts": {
-    "GRASP": 17,
-    "P-OPT": 4,
-    "Phase 1": 2,
+    "GRASP": 20,
+    "P-OPT": 8,
+    "Phase 1": 5,
     "SRRIP": 1,
-    "design": 2,
-    "frontier": 14,
+    "design": 3,
+    "frontier": 15,
     "property array": 1,
     "sim": 1
   }

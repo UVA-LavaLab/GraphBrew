@@ -14,9 +14,9 @@
     {
       "claim": "POPT < GRASP on social",
       "family": "social",
-      "frac": 0.2495,
-      "mean_a": 1.5013,
-      "mean_b": 1.1412,
+      "frac": 0.166,
+      "mean_a": 1.5557,
+      "mean_b": 1.0208,
       "n_a": 54,
       "n_b": 54,
       "policy_a": "POPT",
@@ -36,9 +36,9 @@
     {
       "claim": "POPT < GRASP on citation",
       "family": "citation",
-      "frac": 0.1665,
-      "mean_a": 1.5994,
-      "mean_b": 0.8733,
+      "frac": 0.3035,
+      "mean_a": 1.3946,
+      "mean_b": 1.0057,
       "n_a": 15,
       "n_b": 15,
       "policy_a": "POPT",
@@ -47,9 +47,9 @@
     {
       "claim": "POPT < GRASP on web",
       "family": "web",
-      "frac": 0.403,
-      "mean_a": 0.7164,
-      "mean_b": 0.6183,
+      "frac": 0.4355,
+      "mean_a": 0.681,
+      "mean_b": 0.6171,
       "n_a": 15,
       "n_b": 15,
       "policy_a": "POPT",
@@ -59,8 +59,8 @@
       "claim": "POPT < LRU on social",
       "family": "social",
       "frac": 1.0,
-      "mean_a": 1.5013,
-      "mean_b": 5.569,
+      "mean_a": 1.5557,
+      "mean_b": 5.9054,
       "n_a": 54,
       "n_b": 54,
       "policy_a": "POPT",
@@ -70,8 +70,8 @@
       "claim": "GRASP < LRU on social",
       "family": "social",
       "frac": 1.0,
-      "mean_a": 1.1412,
-      "mean_b": 5.569,
+      "mean_a": 1.0208,
+      "mean_b": 5.9054,
       "n_a": 54,
       "n_b": 54,
       "policy_a": "GRASP",
@@ -80,11 +80,11 @@
   ],
   "canonical_state": {
     "GRASP < LRU on social": 1.0,
-    "POPT < GRASP on citation": 0.1665,
+    "POPT < GRASP on citation": 0.3035,
     "POPT < GRASP on mesh": 0.9455,
     "POPT < GRASP on road": 0.971,
-    "POPT < GRASP on social": 0.2495,
-    "POPT < GRASP on web": 0.403,
+    "POPT < GRASP on social": 0.166,
+    "POPT < GRASP on web": 0.4355,
     "POPT < LRU on social": 1.0
   },
   "meta": {
@@ -99,7 +99,7 @@
     "POPT < GRASP on citation": 1,
     "POPT < GRASP on mesh": 14,
     "POPT < GRASP on road": 4,
-    "POPT < GRASP on social": 1,
+    "POPT < GRASP on social": 0,
     "POPT < GRASP on web": 1,
     "POPT < LRU on social": 0
   },
@@ -217,7 +217,7 @@
           "claim": "POPT < GRASP on mesh",
           "direction": "gained",
           "frac_canonical": 0.9455,
-          "frac_perturbed": 0.9875
+          "frac_perturbed": 0.9745
         }
       ],
       "graph": "email-Eu-core",
@@ -260,8 +260,8 @@
         {
           "claim": "POPT < GRASP on citation",
           "direction": "gained",
-          "frac_canonical": 0.1665,
-          "frac_perturbed": 0.9705
+          "frac_canonical": 0.3035,
+          "frac_perturbed": 0.9735
         }
       ],
       "graph": "roadNet-CA",
@@ -296,16 +296,10 @@
           "frac_perturbed": null
         },
         {
-          "claim": "POPT < GRASP on social",
-          "direction": "gained",
-          "frac_canonical": 0.2495,
-          "frac_perturbed": 0.9515
-        },
-        {
           "claim": "GRASP < LRU on social",
           "direction": "lost",
           "frac_canonical": 1.0,
-          "frac_perturbed": 0.4695
+          "frac_perturbed": 0.565
         }
       ],
       "graph": "roadNet-CA",
@@ -329,8 +323,8 @@
         {
           "claim": "POPT < GRASP on web",
           "direction": "gained",
-          "frac_canonical": 0.403,
-          "frac_perturbed": 0.974
+          "frac_canonical": 0.4355,
+          "frac_perturbed": 0.9745
         }
       ],
       "graph": "roadNet-CA",

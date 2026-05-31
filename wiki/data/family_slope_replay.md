@@ -19,5 +19,5 @@ Smaller (more negative) = more cache-hungry. Help floor: -5.0 pp/octave.
 | family | GRASP | POPT | LRU | SRRIP | n cells | replays? |
 | --- | ---: | ---: | ---: | ---: | ---: | :---: |
 | citation | -13.680 | -16.100 | -15.517 | -14.788 | 5 | yes |
-| social | -14.651 | -13.996 | -14.048 | -14.258 | 18 | no |
-| web | -16.025 | -16.478 | -18.296 | -17.018 | 5 | yes |
+| social | -14.651 | -13.996 | -14.020 | -14.128 | 18 | no |
+| web | -16.025 | -16.478 | -18.071 | -17.018 | 5 | yes |

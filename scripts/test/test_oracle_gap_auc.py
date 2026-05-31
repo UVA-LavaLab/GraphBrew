@@ -34,10 +34,15 @@ def test_meta_pins_scope(payload):
 
 
 def test_auc_winner_by_app_exact(payload):
-    """Pin AUC winners: bc=GRASP, bfs=POPT, cc=GRASP, pr=POPT, sssp=POPT.
+    """Pin AUC winners: bc=SRRIP, bfs=POPT, cc=GRASP, pr=POPT, sssp=POPT.
+
+    Post cache_sim ECG sweep: bc/AUC flipped GRASP→SRRIP after the
+    binary-fix refresh; SRRIP edges GRASP on Pearson-clustered AUC by
+    a tiny margin while GRASP still wins on cell-count. Both classifiers
+    are now exposed as borderline for bc.
     Note: sssp/POPT (AUC) differs from sssp/GRASP (cell-vote) — see test below."""
     assert payload["meta"]["auc_winner_by_app"] == {
-        "bc": "GRASP",
+        "bc": "SRRIP",
         "bfs": "POPT",
         "cc": "GRASP",
         "pr": "POPT",

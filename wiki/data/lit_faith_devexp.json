@@ -1,28 +1,6 @@
 {
   "rows": [
     {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "cross_ref": true,
-      "graph": "cit-Patents",
-      "l3_size": "4MB",
-      "mechanism_hits": 9,
-      "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "Same source-rooted BC frontier vs PR-rank mis-alignment as the soc-pokec/bc entr...",
-      "reason_len": 312
-    },
-    {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "cross_ref": true,
-      "graph": "cit-Patents",
-      "l3_size": "8MB",
-      "mechanism_hits": 7,
-      "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "Same BC frontier vs PR-rank mis-alignment as the 4 MB entry; gap persists at ~1....",
-      "reason_len": 158
-    },
-    {
       "app": "cc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
       "cross_ref": true,
@@ -65,28 +43,6 @@
       "policy": "POPT_GE_GRASP",
       "reason_excerpt": "Same CC/POPT mismatch; ~1.5 pp gap remains even at 8 MB on cit-Patents because t...",
       "reason_len": 161
-    },
-    {
-      "app": "sssp",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "cross_ref": false,
-      "graph": "cit-Patents",
-      "l3_size": "4MB",
-      "mechanism_hits": 8,
-      "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "cit-Patents has weak PR-driven locality; at 4 MB POPT's static PR-ranked schedul...",
-      "reason_len": 296
-    },
-    {
-      "app": "sssp",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "cross_ref": true,
-      "graph": "cit-Patents",
-      "l3_size": "8MB",
-      "mechanism_hits": 3,
-      "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "Same cit-Patents/SSSP rank-mis-alignment as the 4MB entry; ~1.6 pp gap persists ...",
-      "reason_len": 136
     },
     {
       "app": "bc",
@@ -175,28 +131,6 @@
       "policy": "POPT_GE_GRASP",
       "reason_excerpt": "Same CC/POPT mismatch; ~6 pp gap remains even at 8 MB on com-orkut because the s...",
       "reason_len": 173
-    },
-    {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "cross_ref": false,
-      "graph": "soc-LiveJournal1",
-      "l3_size": "1MB",
-      "mechanism_hits": 5,
-      "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "BC's reverse-BFS dependency accumulation traverses high-degree pivots in topolog...",
-      "reason_len": 238
-    },
-    {
-      "app": "bc",
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "cross_ref": true,
-      "graph": "soc-LiveJournal1",
-      "l3_size": "4MB",
-      "mechanism_hits": 3,
-      "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB entry; gap is ...",
-      "reason_len": 95
     },
     {
       "app": "bc",
@@ -333,16 +267,16 @@
   ],
   "schema_version": 1,
   "summary": {
-    "known_deviation_rows": 30,
+    "known_deviation_rows": 24,
     "max_reuse_count": 1,
     "median_mechanism_hits": 5,
-    "median_reason_len": 247,
+    "median_reason_len": 263,
     "min_known_deviations": 20,
     "min_mechanism_hits": 1,
     "min_reason_len": 60,
     "reuse_ceiling_frac": 0.5,
-    "rows_with_cross_ref": 16,
-    "unique_reason_texts": 30,
+    "rows_with_cross_ref": 12,
+    "unique_reason_texts": 24,
     "violations": 0
   },
   "violations": []

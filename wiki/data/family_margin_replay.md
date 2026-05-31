@@ -21,7 +21,7 @@ pinned deviating: 0 (-)
 | citation | no | no | — |
 | mesh | no | no | — |
 | road | no | no | — |
-| social | yes | yes | GRASP: 2.539→0.001 pp; POPT: 1.885→0.000 pp |
+| social | yes | yes | GRASP: 2.475→0.000 pp; POPT: 2.364→0.000 pp |
 | web | no | no | — |
 
 ## Per-family cell counts

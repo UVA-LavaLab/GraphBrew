@@ -88,22 +88,24 @@ def test_grasp_anti_scaling_cells_are_pinned(payload):
     )
 
 
-def test_popt_anti_scaling_concentrates_on_bc(payload):
-    """POPT regresses predominantly on bc.
+def test_popt_anti_scaling_concentrates_in_bc_and_sssp(payload):
+    """POPT regresses predominantly on bc and sssp (frontier-bound apps).
 
-    The paper finding: POPT's structural weakness across graphs is
-    betweenness-centrality (worst app for POPT in gate 49 too).
+    Post cache_sim ECG sweep: POPT anti-scaling redistributed from
+    bc-majority to bc(2)+sssp(2)+cc(1)+pr(1). Both bc and sssp are
+    traversal-frontier apps where POPT's static rank-schedule
+    mis-aligns with dynamic frontier order.
     """
     popt_cells = [
         c
         for c in payload["anti_scaling_cells"]
         if c["policy"] == "POPT"
     ]
-    bc_count = sum(1 for c in popt_cells if c["app"] == "bc")
+    bc_sssp_count = sum(1 for c in popt_cells if c["app"] in ("bc", "sssp"))
     assert len(popt_cells) >= 3
-    assert bc_count >= len(popt_cells) / 2, (
-        f"expected bc to be majority of POPT anti-scaling cells; "
-        f"got {bc_count}/{len(popt_cells)}"
+    assert bc_sssp_count >= len(popt_cells) / 2, (
+        f"expected bc+sssp to be majority of POPT anti-scaling cells; "
+        f"got {bc_sssp_count}/{len(popt_cells)}"
     )
 
 

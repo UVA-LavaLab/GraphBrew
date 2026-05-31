@@ -1,7 +1,7 @@
 graph,app,cache_sim_l3,gem5_l3,sniper_l3,n_tools,cache_sim_winner,gem5_winner,sniper_winner,cache_sim_margin_pp,gem5_margin_pp,sniper_margin_pp,classification
-cit-Patents,bfs,8MB,,2MB,2,GRASP,,SRRIP,0.689,,0.015,split
-cit-Patents,pr,8MB,,2MB,2,POPT,,GRASP,2.834,,0.120,split
-cit-Patents,sssp,8MB,,2MB,2,GRASP,,SRRIP,1.633,,0.112,split
+cit-Patents,bfs,8MB,,2MB,2,GRASP,,SRRIP,0.734,,0.015,split
+cit-Patents,pr,8MB,,2MB,2,POPT,,GRASP,3.111,,0.120,split
+cit-Patents,sssp,8MB,,2MB,2,GRASP,,SRRIP,1.437,,0.112,split
 email-Eu-core,bc,8MB,2MB,,2,POPT,GRASP,,0.000,0.006,,split
 email-Eu-core,bfs,8MB,,2MB,2,GRASP,,LRU,0.002,,0.472,split
-email-Eu-core,pr,8MB,2MB,2MB,3,GRASP,LRU,SRRIP,0.019,0.030,0.298,split
+email-Eu-core,pr,8MB,2MB,2MB,3,GRASP,LRU,SRRIP,0.000,0.030,0.298,split

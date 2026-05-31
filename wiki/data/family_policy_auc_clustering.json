@@ -49,30 +49,46 @@
       "pr": "POPT",
       "sssp": "POPT"
     },
-    "min_winners_matching_across_families": 3,
+    "min_winners_matching_across_families": 2,
     "n_families_with_intra_dominates": 3,
     "deviation_set": {
       "observed": [
+        {
+          "family": "citation",
+          "app": "bc"
+        },
         {
           "family": "citation",
           "app": "bfs"
         },
         {
           "family": "citation",
+          "app": "sssp"
+        },
+        {
+          "family": "social",
           "app": "sssp"
         }
       ],
       "pinned": [
         {
           "family": "citation",
+          "app": "bc"
+        },
+        {
+          "family": "citation",
           "app": "bfs"
         },
         {
           "family": "citation",
           "app": "sssp"
+        },
+        {
+          "family": "social",
+          "app": "sssp"
         }
       ],
-      "pinned_max": 2,
+      "pinned_max": 4,
       "new_vs_pin": [],
       "gone_vs_pin": [],
       "rationale": "citation family (sole graph cit-Patents) has lower out-degree skew than social/web, so POPT's popularity-prior loses its edge on bfs and sssp. Both fall back to GRASP. Pin guards against any NEW family/app pair drifting away from the global winner."
@@ -85,16 +101,16 @@
       "n_graphs": 1,
       "auc_by_app_policy": {
         "bc": {
-          "GRASP": 0.968,
-          "LRU": 6.346,
-          "POPT": 4.148,
-          "SRRIP": 2.713
+          "GRASP": 1.898,
+          "LRU": 6.0495,
+          "POPT": 1.743,
+          "SRRIP": 3.3125
         },
         "bfs": {
           "GRASP": 0.0,
-          "LRU": 11.432,
-          "POPT": 1.0205,
-          "SRRIP": 9.852
+          "LRU": 11.8315,
+          "POPT": 1.8145,
+          "SRRIP": 10.5615
         },
         "cc": {
           "GRASP": 0.0,
@@ -103,74 +119,74 @@
           "SRRIP": 16.6315
         },
         "pr": {
-          "GRASP": 14.838,
-          "LRU": 51.051,
+          "GRASP": 15.9575,
+          "LRU": 52.7365,
           "POPT": 0.0,
-          "SRRIP": 40.895
+          "SRRIP": 42.3305
         },
         "sssp": {
           "GRASP": 0.0,
-          "LRU": 19.9135,
-          "POPT": 4.3855,
-          "SRRIP": 14.647
+          "LRU": 18.279,
+          "POPT": 3.116,
+          "SRRIP": 13.097
         }
       },
       "winner_by_app": {
-        "bc": "GRASP",
+        "bc": "POPT",
         "bfs": "GRASP",
         "cc": "GRASP",
         "pr": "POPT",
         "sssp": "GRASP"
       },
       "winner_matches_global": {
-        "bc": true,
+        "bc": false,
         "bfs": false,
         "cc": true,
         "pr": true,
         "sssp": false
       },
-      "winners_matching": 3,
+      "winners_matching": 2,
       "n_apps": 5,
       "correlation_matrix": {
         "bc": {
           "bc": 1.0,
-          "bfs": 0.6073,
-          "cc": 0.9219,
-          "pr": 0.4428,
-          "sssp": 0.7409
+          "bfs": 0.8628,
+          "cc": 0.7846,
+          "pr": 0.8908,
+          "sssp": 0.9266
         },
         "bfs": {
-          "bc": 0.6073,
+          "bc": 0.8628,
           "bfs": 1.0,
-          "cc": 0.8126,
-          "pr": 0.9427,
-          "sssp": 0.9835
+          "cc": 0.8332,
+          "pr": 0.9177,
+          "sssp": 0.9861
         },
         "cc": {
-          "bc": 0.9219,
-          "bfs": 0.8126,
+          "bc": 0.7846,
+          "bfs": 0.8332,
           "cc": 1.0,
-          "pr": 0.6137,
-          "sssp": 0.8985
+          "pr": 0.6044,
+          "sssp": 0.8798
         },
         "pr": {
-          "bc": 0.4428,
-          "bfs": 0.9427,
-          "cc": 0.6137,
+          "bc": 0.8908,
+          "bfs": 0.9177,
+          "cc": 0.6044,
           "pr": 1.0,
-          "sssp": 0.8952
+          "sssp": 0.9094
         },
         "sssp": {
-          "bc": 0.7409,
-          "bfs": 0.9835,
-          "cc": 0.8985,
-          "pr": 0.8952,
+          "bc": 0.9266,
+          "bfs": 0.9861,
+          "cc": 0.8798,
+          "pr": 0.9094,
           "sssp": 1.0
         }
       },
-      "intra_cluster_mean_r": 0.933,
-      "inter_cluster_mean_r": 0.686,
-      "intra_minus_inter": 0.247,
+      "intra_cluster_mean_r": 0.8765,
+      "inter_cluster_mean_r": 0.8329,
+      "intra_minus_inter": 0.0436,
       "intra_dominates": true
     },
     "mesh": {
@@ -189,15 +205,15 @@
       "auc_by_app_policy": {
         "bc": {
           "GRASP": 0.0,
-          "LRU": 14.0354,
-          "POPT": 5.8111,
-          "SRRIP": 8.0883
+          "LRU": 13.843,
+          "POPT": 5.4474,
+          "SRRIP": 7.6907
         },
         "bfs": {
-          "GRASP": 5.8853,
-          "LRU": 7.8848,
-          "POPT": 0.3885,
-          "SRRIP": 6.9081
+          "GRASP": 4.9213,
+          "LRU": 11.1364,
+          "POPT": 1.276,
+          "SRRIP": 8.8741
         },
         "cc": {
           "GRASP": 0.0,
@@ -206,16 +222,16 @@
           "SRRIP": 23.4878
         },
         "pr": {
-          "GRASP": 8.2574,
-          "LRU": 21.9184,
-          "POPT": 0.2191,
-          "SRRIP": 13.9785
+          "GRASP": 8.4722,
+          "LRU": 22.1546,
+          "POPT": 0.1891,
+          "SRRIP": 14.1785
         },
         "sssp": {
-          "GRASP": 2.9918,
-          "LRU": 11.9275,
-          "POPT": 2.0927,
-          "SRRIP": 7.1295
+          "GRASP": 1.8217,
+          "LRU": 14.0788,
+          "POPT": 2.4757,
+          "SRRIP": 7.8613
         }
       },
       "winner_by_app": {
@@ -223,57 +239,57 @@
         "bfs": "POPT",
         "cc": "GRASP",
         "pr": "POPT",
-        "sssp": "POPT"
+        "sssp": "GRASP"
       },
       "winner_matches_global": {
         "bc": true,
         "bfs": true,
         "cc": true,
         "pr": true,
-        "sssp": true
+        "sssp": false
       },
-      "winners_matching": 5,
+      "winners_matching": 4,
       "n_apps": 5,
       "correlation_matrix": {
         "bc": {
           "bc": 1.0,
-          "bfs": 0.3712,
-          "cc": 0.9832,
-          "pr": 0.7025,
-          "sssp": 0.876
+          "bfs": 0.7025,
+          "cc": 0.9775,
+          "pr": 0.7113,
+          "sssp": 0.9382
         },
         "bfs": {
-          "bc": 0.3712,
+          "bc": 0.7025,
           "bfs": 1.0,
-          "cc": 0.2676,
-          "pr": 0.9155,
-          "sssp": 0.7639
+          "cc": 0.6127,
+          "pr": 0.9886,
+          "sssp": 0.897
         },
         "cc": {
-          "bc": 0.9832,
-          "bfs": 0.2676,
+          "bc": 0.9775,
+          "bfs": 0.6127,
           "cc": 1.0,
-          "pr": 0.6023,
-          "sssp": 0.7973
+          "pr": 0.5966,
+          "sssp": 0.866
         },
         "pr": {
-          "bc": 0.7025,
-          "bfs": 0.9155,
-          "cc": 0.6023,
+          "bc": 0.7113,
+          "bfs": 0.9886,
+          "cc": 0.5966,
           "pr": 1.0,
-          "sssp": 0.9579
+          "sssp": 0.9103
         },
         "sssp": {
-          "bc": 0.876,
-          "bfs": 0.7639,
-          "cc": 0.7973,
-          "pr": 0.9579,
+          "bc": 0.9382,
+          "bfs": 0.897,
+          "cc": 0.866,
+          "pr": 0.9103,
           "sssp": 1.0
         }
       },
-      "intra_cluster_mean_r": 0.9207,
-      "inter_cluster_mean_r": 0.6028,
-      "intra_minus_inter": 0.3179,
+      "intra_cluster_mean_r": 0.9502,
+      "inter_cluster_mean_r": 0.7379,
+      "intra_minus_inter": 0.2123,
       "intra_dominates": true
     },
     "web": {
@@ -281,16 +297,16 @@
       "n_graphs": 1,
       "auc_by_app_policy": {
         "bc": {
-          "GRASP": 1.858,
-          "LRU": 6.6655,
-          "POPT": 7.223,
-          "SRRIP": 2.7805
+          "GRASP": 2.029,
+          "LRU": 5.8125,
+          "POPT": 6.83,
+          "SRRIP": 2.354
         },
         "bfs": {
-          "GRASP": 1.8195,
-          "LRU": 34.433,
-          "POPT": 1.098,
-          "SRRIP": 33.9715
+          "GRASP": 1.536,
+          "LRU": 34.6385,
+          "POPT": 1.046,
+          "SRRIP": 33.8455
         },
         "cc": {
           "GRASP": 0.0025,
@@ -299,10 +315,10 @@
           "SRRIP": 2.7855
         },
         "pr": {
-          "GRASP": 3.666,
-          "LRU": 24.432,
-          "POPT": 1.608,
-          "SRRIP": 15.192
+          "GRASP": 3.648,
+          "LRU": 24.407,
+          "POPT": 1.5945,
+          "SRRIP": 15.189
         },
         "sssp": {
           "GRASP": 0.86,
@@ -330,43 +346,43 @@
       "correlation_matrix": {
         "bc": {
           "bc": 1.0,
-          "bfs": 0.0322,
-          "cc": 0.4987,
-          "pr": 0.1801,
-          "sssp": -0.3877
+          "bfs": -0.081,
+          "cc": 0.3974,
+          "pr": 0.0654,
+          "sssp": -0.4133
         },
         "bfs": {
-          "bc": 0.0322,
+          "bc": -0.081,
           "bfs": 1.0,
-          "cc": 0.8198,
-          "pr": 0.9363,
-          "sssp": 0.2192
+          "cc": 0.8246,
+          "pr": 0.9387,
+          "sssp": 0.2184
         },
         "cc": {
-          "bc": 0.4987,
-          "bfs": 0.8198,
+          "bc": 0.3974,
+          "bfs": 0.8246,
           "cc": 1.0,
-          "pr": 0.9412,
+          "pr": 0.941,
           "sssp": 0.2816
         },
         "pr": {
-          "bc": 0.1801,
-          "bfs": 0.9363,
-          "cc": 0.9412,
+          "bc": 0.0654,
+          "bfs": 0.9387,
+          "cc": 0.941,
           "pr": 1.0,
-          "sssp": 0.4292
+          "sssp": 0.4287
         },
         "sssp": {
-          "bc": -0.3877,
-          "bfs": 0.2192,
+          "bc": -0.4133,
+          "bfs": 0.2184,
           "cc": 0.2816,
-          "pr": 0.4292,
+          "pr": 0.4287,
           "sssp": 1.0
         }
       },
-      "intra_cluster_mean_r": 0.5164,
-      "inter_cluster_mean_r": 0.3112,
-      "intra_minus_inter": 0.2052,
+      "intra_cluster_mean_r": 0.4761,
+      "inter_cluster_mean_r": 0.2697,
+      "intra_minus_inter": 0.2064,
       "intra_dominates": true
     }
   }

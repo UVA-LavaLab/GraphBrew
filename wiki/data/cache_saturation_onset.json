@@ -36,10 +36,10 @@
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 5.8506,
+            "gap_from": 6.0079,
             "gap_to": 0.0,
-            "delta_gap_pp": -5.8506,
-            "slope_pp_per_octave": 2.9253
+            "delta_gap_pp": -6.0079,
+            "slope_pp_per_octave": 3.004
           },
           {
             "from": "4MB",
@@ -60,72 +60,72 @@
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 3.4753,
-            "gap_to": 3.9845,
-            "delta_gap_pp": 0.5092,
-            "slope_pp_per_octave": -0.2546
+            "gap_from": 3.3026,
+            "gap_to": 3.9427,
+            "delta_gap_pp": 0.6401,
+            "slope_pp_per_octave": -0.32
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 3.9845,
-            "gap_to": 3.6875,
-            "delta_gap_pp": -0.297,
-            "slope_pp_per_octave": 0.297
+            "gap_from": 3.9427,
+            "gap_to": 3.5763,
+            "delta_gap_pp": -0.3664,
+            "slope_pp_per_octave": 0.3664
           }
         ],
         "saturation_onset": "4MB",
         "saturated_within_paper_l3": true,
-        "final_octave_slope_pp": 0.297,
-        "final_octave_delta_pp": -0.297
+        "final_octave_slope_pp": 0.3664,
+        "final_octave_delta_pp": -0.3664
       },
       "POPT": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 4.559,
-            "gap_to": 2.1285,
-            "delta_gap_pp": -2.4305,
-            "slope_pp_per_octave": 1.2153
+            "gap_from": 4.4764,
+            "gap_to": 1.8168,
+            "delta_gap_pp": -2.6596,
+            "slope_pp_per_octave": 1.3298
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 2.1285,
-            "gap_to": 2.029,
-            "delta_gap_pp": -0.0995,
-            "slope_pp_per_octave": 0.0995
+            "gap_from": 1.8168,
+            "gap_to": 1.739,
+            "delta_gap_pp": -0.0778,
+            "slope_pp_per_octave": 0.0778
           }
         ],
         "saturation_onset": "4MB",
         "saturated_within_paper_l3": true,
-        "final_octave_slope_pp": 0.0995,
-        "final_octave_delta_pp": -0.0995
+        "final_octave_slope_pp": 0.0778,
+        "final_octave_delta_pp": -0.0778
       },
       "SRRIP": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 1.8683,
-            "gap_to": 2.1402,
-            "delta_gap_pp": 0.2719,
-            "slope_pp_per_octave": -0.136
+            "gap_from": 1.7656,
+            "gap_to": 2.0555,
+            "delta_gap_pp": 0.2899,
+            "slope_pp_per_octave": -0.1449
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 2.1402,
-            "gap_to": 1.8357,
-            "delta_gap_pp": -0.3045,
-            "slope_pp_per_octave": 0.3045
+            "gap_from": 2.0555,
+            "gap_to": 1.857,
+            "delta_gap_pp": -0.1985,
+            "slope_pp_per_octave": 0.1985
           }
         ],
         "saturation_onset": "4MB",
         "saturated_within_paper_l3": true,
-        "final_octave_slope_pp": 0.3045,
-        "final_octave_delta_pp": -0.3045
+        "final_octave_slope_pp": 0.1985,
+        "final_octave_delta_pp": -0.1985
       }
     },
     "bfs": {
@@ -134,96 +134,96 @@
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 12.5304,
-            "gap_to": 0.3795,
-            "delta_gap_pp": -12.1509,
-            "slope_pp_per_octave": 6.0755
+            "gap_from": 12.3081,
+            "gap_to": 0.1443,
+            "delta_gap_pp": -12.1638,
+            "slope_pp_per_octave": 6.0819
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 0.3795,
-            "gap_to": 0.8787,
-            "delta_gap_pp": 0.4992,
-            "slope_pp_per_octave": -0.4992
+            "gap_from": 0.1443,
+            "gap_to": 0.723,
+            "delta_gap_pp": 0.5787,
+            "slope_pp_per_octave": -0.5787
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": -0.4992,
-        "final_octave_delta_pp": 0.4992
+        "final_octave_slope_pp": -0.5787,
+        "final_octave_delta_pp": 0.5787
       },
       "LRU": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 1.4549,
-            "gap_to": 5.4555,
-            "delta_gap_pp": 4.0006,
-            "slope_pp_per_octave": -2.0003
+            "gap_from": 2.1866,
+            "gap_to": 6.2392,
+            "delta_gap_pp": 4.0526,
+            "slope_pp_per_octave": -2.0263
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 5.4555,
-            "gap_to": 6.0402,
-            "delta_gap_pp": 0.5847,
-            "slope_pp_per_octave": -0.5847
+            "gap_from": 6.2392,
+            "gap_to": 6.519,
+            "delta_gap_pp": 0.2798,
+            "slope_pp_per_octave": -0.2798
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": -0.5847,
-        "final_octave_delta_pp": 0.5847
+        "final_octave_slope_pp": -0.2798,
+        "final_octave_delta_pp": 0.2798
       },
       "POPT": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 5.164,
-            "gap_to": 0.0633,
-            "delta_gap_pp": -5.1007,
-            "slope_pp_per_octave": 2.5503
+            "gap_from": 5.3117,
+            "gap_to": 0.3562,
+            "delta_gap_pp": -4.9555,
+            "slope_pp_per_octave": 2.4777
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 0.0633,
-            "gap_to": 0.1152,
-            "delta_gap_pp": 0.0519,
-            "slope_pp_per_octave": -0.0519
+            "gap_from": 0.3562,
+            "gap_to": 0.3227,
+            "delta_gap_pp": -0.0335,
+            "slope_pp_per_octave": 0.0335
           }
         ],
-        "saturation_onset": "never",
-        "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": -0.0519,
-        "final_octave_delta_pp": 0.0519
+        "saturation_onset": "4MB",
+        "saturated_within_paper_l3": true,
+        "final_octave_slope_pp": 0.0335,
+        "final_octave_delta_pp": -0.0335
       },
       "SRRIP": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 1.6914,
-            "gap_to": 5.2022,
-            "delta_gap_pp": 3.5108,
-            "slope_pp_per_octave": -1.7554
+            "gap_from": 2.1464,
+            "gap_to": 5.6962,
+            "delta_gap_pp": 3.5498,
+            "slope_pp_per_octave": -1.7749
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 5.2022,
-            "gap_to": 5.8132,
-            "delta_gap_pp": 0.611,
-            "slope_pp_per_octave": -0.611
+            "gap_from": 5.6962,
+            "gap_to": 6.0853,
+            "delta_gap_pp": 0.3891,
+            "slope_pp_per_octave": -0.3891
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": -0.611,
-        "final_octave_delta_pp": 0.611
+        "final_octave_slope_pp": -0.3891,
+        "final_octave_delta_pp": 0.3891
       }
     },
     "cc": {
@@ -330,96 +330,96 @@
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 3.5251,
-            "gap_to": 3.346,
-            "delta_gap_pp": -0.1791,
-            "slope_pp_per_octave": 0.0896
+            "gap_from": 3.6149,
+            "gap_to": 3.465,
+            "delta_gap_pp": -0.1499,
+            "slope_pp_per_octave": 0.075
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 3.346,
-            "gap_to": 1.1842,
-            "delta_gap_pp": -2.1618,
-            "slope_pp_per_octave": 2.1618
+            "gap_from": 3.465,
+            "gap_to": 1.2415,
+            "delta_gap_pp": -2.2235,
+            "slope_pp_per_octave": 2.2235
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": 2.1618,
-        "final_octave_delta_pp": -2.1618
+        "final_octave_slope_pp": 2.2235,
+        "final_octave_delta_pp": -2.2235
       },
       "LRU": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 10.7899,
-            "gap_to": 9.2463,
-            "delta_gap_pp": -1.5436,
-            "slope_pp_per_octave": 0.7718
+            "gap_from": 10.9053,
+            "gap_to": 9.4045,
+            "delta_gap_pp": -1.5008,
+            "slope_pp_per_octave": 0.7504
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 9.2463,
-            "gap_to": 5.4042,
-            "delta_gap_pp": -3.8421,
-            "slope_pp_per_octave": 3.8421
+            "gap_from": 9.4045,
+            "gap_to": 5.4905,
+            "delta_gap_pp": -3.914,
+            "slope_pp_per_octave": 3.914
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": 3.8421,
-        "final_octave_delta_pp": -3.8421
+        "final_octave_slope_pp": 3.914,
+        "final_octave_delta_pp": -3.914
       },
       "POPT": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 0.0526,
-            "gap_to": 0.1828,
-            "delta_gap_pp": 0.1302,
-            "slope_pp_per_octave": -0.0651
+            "gap_from": 0.0434,
+            "gap_to": 0.1772,
+            "delta_gap_pp": 0.1338,
+            "slope_pp_per_octave": -0.0669
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 0.1828,
-            "gap_to": 0.1393,
-            "delta_gap_pp": -0.0435,
-            "slope_pp_per_octave": 0.0435
+            "gap_from": 0.1772,
+            "gap_to": 0.1365,
+            "delta_gap_pp": -0.0407,
+            "slope_pp_per_octave": 0.0407
           }
         ],
         "saturation_onset": "4MB",
         "saturated_within_paper_l3": true,
-        "final_octave_slope_pp": 0.0435,
-        "final_octave_delta_pp": -0.0435
+        "final_octave_slope_pp": 0.0407,
+        "final_octave_delta_pp": -0.0407
       },
       "SRRIP": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 8.1867,
-            "gap_to": 6.3695,
-            "delta_gap_pp": -1.8172,
-            "slope_pp_per_octave": 0.9086
+            "gap_from": 8.2918,
+            "gap_to": 6.508,
+            "delta_gap_pp": -1.7838,
+            "slope_pp_per_octave": 0.8919
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 6.3695,
-            "gap_to": 3.3605,
-            "delta_gap_pp": -3.009,
-            "slope_pp_per_octave": 3.009
+            "gap_from": 6.508,
+            "gap_to": 3.4092,
+            "delta_gap_pp": -3.0988,
+            "slope_pp_per_octave": 3.0988
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": 3.009,
-        "final_octave_delta_pp": -3.009
+        "final_octave_slope_pp": 3.0988,
+        "final_octave_delta_pp": -3.0988
       }
     },
     "sssp": {
@@ -428,96 +428,96 @@
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 13.0337,
+            "gap_from": 12.4487,
             "gap_to": 0.2324,
-            "delta_gap_pp": -12.8013,
-            "slope_pp_per_octave": 6.4006
+            "delta_gap_pp": -12.2163,
+            "slope_pp_per_octave": 6.1082
           },
           {
             "from": "4MB",
             "to": "8MB",
             "gap_from": 0.2324,
-            "gap_to": 0.003,
-            "delta_gap_pp": -0.2294,
-            "slope_pp_per_octave": 0.2294
+            "gap_to": 0.0028,
+            "delta_gap_pp": -0.2296,
+            "slope_pp_per_octave": 0.2296
           }
         ],
         "saturation_onset": "4MB",
         "saturated_within_paper_l3": true,
-        "final_octave_slope_pp": 0.2294,
-        "final_octave_delta_pp": -0.2294
+        "final_octave_slope_pp": 0.2296,
+        "final_octave_delta_pp": -0.2296
       },
       "LRU": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 3.8558,
-            "gap_to": 3.7368,
-            "delta_gap_pp": -0.119,
-            "slope_pp_per_octave": 0.0595
+            "gap_from": 4.3035,
+            "gap_to": 4.0072,
+            "delta_gap_pp": -0.2963,
+            "slope_pp_per_octave": 0.1481
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 3.7368,
-            "gap_to": 2.1442,
-            "delta_gap_pp": -1.5926,
-            "slope_pp_per_octave": 1.5926
+            "gap_from": 4.0072,
+            "gap_to": 2.1864,
+            "delta_gap_pp": -1.8208,
+            "slope_pp_per_octave": 1.8208
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": 1.5926,
-        "final_octave_delta_pp": -1.5926
+        "final_octave_slope_pp": 1.8208,
+        "final_octave_delta_pp": -1.8208
       },
       "POPT": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 2.509,
-            "gap_to": 0.6016,
-            "delta_gap_pp": -1.9074,
-            "slope_pp_per_octave": 0.9537
+            "gap_from": 2.3642,
+            "gap_to": 0.7032,
+            "delta_gap_pp": -1.661,
+            "slope_pp_per_octave": 0.8305
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 0.6016,
-            "gap_to": 0.4774,
-            "delta_gap_pp": -0.1242,
-            "slope_pp_per_octave": 0.1242
+            "gap_from": 0.7032,
+            "gap_to": 0.472,
+            "delta_gap_pp": -0.2312,
+            "slope_pp_per_octave": 0.2312
           }
         ],
         "saturation_onset": "4MB",
         "saturated_within_paper_l3": true,
-        "final_octave_slope_pp": 0.1242,
-        "final_octave_delta_pp": -0.1242
+        "final_octave_slope_pp": 0.2312,
+        "final_octave_delta_pp": -0.2312
       },
       "SRRIP": {
         "octaves": [
           {
             "from": "1MB",
             "to": "4MB",
-            "gap_from": 2.766,
-            "gap_to": 2.3996,
-            "delta_gap_pp": -0.3664,
-            "slope_pp_per_octave": 0.1832
+            "gap_from": 2.7783,
+            "gap_to": 2.4884,
+            "delta_gap_pp": -0.2899,
+            "slope_pp_per_octave": 0.145
           },
           {
             "from": "4MB",
             "to": "8MB",
-            "gap_from": 2.3996,
-            "gap_to": 1.3086,
-            "delta_gap_pp": -1.091,
-            "slope_pp_per_octave": 1.091
+            "gap_from": 2.4884,
+            "gap_to": 1.2708,
+            "delta_gap_pp": -1.2176,
+            "slope_pp_per_octave": 1.2176
           }
         ],
         "saturation_onset": "never",
         "saturated_within_paper_l3": false,
-        "final_octave_slope_pp": 1.091,
-        "final_octave_delta_pp": -1.091
+        "final_octave_slope_pp": 1.2176,
+        "final_octave_delta_pp": -1.2176
       }
     }
   },
@@ -536,7 +536,7 @@
         {
           "app": "bfs",
           "onset": "never",
-          "final_slope": -0.4992
+          "final_slope": -0.5787
         },
         {
           "app": "cc",
@@ -546,12 +546,12 @@
         {
           "app": "pr",
           "onset": "never",
-          "final_slope": 2.1618
+          "final_slope": 2.2235
         },
         {
           "app": "sssp",
           "onset": "4MB",
-          "final_slope": 0.2294
+          "final_slope": 0.2296
         }
       ],
       "n_saturated": 2,
@@ -566,12 +566,12 @@
         {
           "app": "bc",
           "onset": "4MB",
-          "final_slope": 0.297
+          "final_slope": 0.3664
         },
         {
           "app": "bfs",
           "onset": "never",
-          "final_slope": -0.5847
+          "final_slope": -0.2798
         },
         {
           "app": "cc",
@@ -581,12 +581,12 @@
         {
           "app": "pr",
           "onset": "never",
-          "final_slope": 3.8421
+          "final_slope": 3.914
         },
         {
           "app": "sssp",
           "onset": "never",
-          "final_slope": 1.5926
+          "final_slope": 1.8208
         }
       ],
       "n_saturated": 1,
@@ -594,19 +594,19 @@
     },
     "POPT": {
       "onset_counts": {
-        "4MB": 3,
-        "never": 2
+        "4MB": 4,
+        "never": 1
       },
       "apps": [
         {
           "app": "bc",
           "onset": "4MB",
-          "final_slope": 0.0995
+          "final_slope": 0.0778
         },
         {
           "app": "bfs",
-          "onset": "never",
-          "final_slope": -0.0519
+          "onset": "4MB",
+          "final_slope": 0.0335
         },
         {
           "app": "cc",
@@ -616,16 +616,16 @@
         {
           "app": "pr",
           "onset": "4MB",
-          "final_slope": 0.0435
+          "final_slope": 0.0407
         },
         {
           "app": "sssp",
           "onset": "4MB",
-          "final_slope": 0.1242
+          "final_slope": 0.2312
         }
       ],
-      "n_saturated": 3,
-      "n_never_saturated": 2
+      "n_saturated": 4,
+      "n_never_saturated": 1
     },
     "SRRIP": {
       "onset_counts": {
@@ -636,12 +636,12 @@
         {
           "app": "bc",
           "onset": "4MB",
-          "final_slope": 0.3045
+          "final_slope": 0.1985
         },
         {
           "app": "bfs",
           "onset": "never",
-          "final_slope": -0.611
+          "final_slope": -0.3891
         },
         {
           "app": "cc",
@@ -651,12 +651,12 @@
         {
           "app": "pr",
           "onset": "never",
-          "final_slope": 3.009
+          "final_slope": 3.0988
         },
         {
           "app": "sssp",
           "onset": "never",
-          "final_slope": 1.091
+          "final_slope": 1.2176
         }
       ],
       "n_saturated": 1,

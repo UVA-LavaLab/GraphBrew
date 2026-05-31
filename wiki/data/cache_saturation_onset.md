@@ -10,7 +10,7 @@ A cell is 'saturated at L3=Y' if every L3 octave at Y or larger shows a shrinkag
 |---|---:|---:|---:|---:|---:|
 | **GRASP** | 0 | 2 | 0 | 3 | 5 |
 | **LRU** | 0 | 1 | 0 | 4 | 5 |
-| **POPT** | 0 | 3 | 0 | 2 | 5 |
+| **POPT** | 0 | 4 | 0 | 1 | 5 |
 | **SRRIP** | 0 | 1 | 0 | 4 | 5 |
 
 **Saturation ordering (earliest → latest):** POPT > GRASP > LRU > SRRIP
@@ -20,25 +20,25 @@ A cell is 'saturated at L3=Y' if every L3 octave at Y or larger shows a shrinkag
 | app | policy | onset | final-octave slope | final-octave delta_pp |
 |---|---|---|---:|---:|
 | bc | GRASP | 4MB | -0.0000 | +0.0000 |
-| bc | LRU | 4MB | 0.2970 | -0.2970 |
-| bc | POPT | 4MB | 0.0995 | -0.0995 |
-| bc | SRRIP | 4MB | 0.3045 | -0.3045 |
-| bfs | GRASP | never | -0.4992 | +0.4992 |
-| bfs | LRU | never | -0.5847 | +0.5847 |
-| bfs | POPT | never | -0.0519 | +0.0519 |
-| bfs | SRRIP | never | -0.6110 | +0.6110 |
+| bc | LRU | 4MB | 0.3664 | -0.3664 |
+| bc | POPT | 4MB | 0.0778 | -0.0778 |
+| bc | SRRIP | 4MB | 0.1985 | -0.1985 |
+| bfs | GRASP | never | -0.5787 | +0.5787 |
+| bfs | LRU | never | -0.2798 | +0.2798 |
+| bfs | POPT | 4MB | 0.0335 | -0.0335 |
+| bfs | SRRIP | never | -0.3891 | +0.3891 |
 | cc | GRASP | never | -0.0010 | +0.0010 |
 | cc | LRU | never | 1.0552 | -1.0552 |
 | cc | POPT | never | 2.0570 | -2.0570 |
 | cc | SRRIP | never | 1.8034 | -1.8034 |
-| pr | GRASP | never | 2.1618 | -2.1618 |
-| pr | LRU | never | 3.8421 | -3.8421 |
-| pr | POPT | 4MB | 0.0435 | -0.0435 |
-| pr | SRRIP | never | 3.0090 | -3.0090 |
-| sssp | GRASP | 4MB | 0.2294 | -0.2294 |
-| sssp | LRU | never | 1.5926 | -1.5926 |
-| sssp | POPT | 4MB | 0.1242 | -0.1242 |
-| sssp | SRRIP | never | 1.0910 | -1.0910 |
+| pr | GRASP | never | 2.2235 | -2.2235 |
+| pr | LRU | never | 3.9140 | -3.9140 |
+| pr | POPT | 4MB | 0.0407 | -0.0407 |
+| pr | SRRIP | never | 3.0988 | -3.0988 |
+| sssp | GRASP | 4MB | 0.2296 | -0.2296 |
+| sssp | LRU | never | 1.8208 | -1.8208 |
+| sssp | POPT | 4MB | 0.2312 | -0.2312 |
+| sssp | SRRIP | never | 1.2176 | -1.2176 |
 
 ## Interpretation
 

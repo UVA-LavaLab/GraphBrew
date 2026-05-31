@@ -5,11 +5,11 @@
       "correctly_signed": 13,
       "correctly_signed_fraction": 1.0,
       "expected_sign": "-",
-      "max_delta_pct": -0.9983,
-      "mean_delta_pct": -6.7092,
-      "median_abs_delta_pct": 4.8254,
-      "median_delta_pct": -4.8254,
-      "min_delta_pct": -14.7657,
+      "max_delta_pct": -1.1494,
+      "mean_delta_pct": -7.1665,
+      "median_abs_delta_pct": 7.4499,
+      "median_delta_pct": -7.4499,
+      "min_delta_pct": -14.7704,
       "n_ok": 13,
       "n_total": 14,
       "policy": "GRASP",
@@ -18,54 +18,54 @@
       "wrong": 0
     },
     {
-      "binomial_sign_test_p": 0.015625,
-      "correctly_signed": 7,
+      "binomial_sign_test_p": 0.007813,
+      "correctly_signed": 8,
       "correctly_signed_fraction": 1.0,
       "expected_sign": "-",
-      "max_delta_pct": -2.5885,
-      "mean_delta_pct": -10.3969,
-      "median_abs_delta_pct": 10.7415,
-      "median_delta_pct": -10.7415,
-      "min_delta_pct": -18.4131,
-      "n_ok": 7,
+      "max_delta_pct": -2.7818,
+      "mean_delta_pct": -9.857,
+      "median_abs_delta_pct": 10.1543,
+      "median_delta_pct": -10.1543,
+      "min_delta_pct": -18.4003,
+      "n_ok": 8,
       "n_total": 8,
       "policy": "POPT",
       "tie": 0,
-      "wilson_95_lower_bound": 0.645661,
+      "wilson_95_lower_bound": 0.675584,
       "wrong": 0
     },
     {
-      "binomial_sign_test_p": 0.012673,
-      "correctly_signed": 55,
-      "correctly_signed_fraction": 0.636364,
+      "binomial_sign_test_p": 0.203117,
+      "correctly_signed": 51,
+      "correctly_signed_fraction": 0.571429,
       "expected_sign": "-",
-      "max_delta_pct": 1.3976,
-      "mean_delta_pct": -3.2296,
-      "median_abs_delta_pct": 0.7086,
-      "median_delta_pct": -0.3346,
+      "max_delta_pct": 1.4819,
+      "mean_delta_pct": -2.9432,
+      "median_abs_delta_pct": 0.8973,
+      "median_delta_pct": -0.0107,
       "min_delta_pct": -60.0226,
-      "n_ok": 88,
+      "n_ok": 91,
       "n_total": 114,
       "policy": "POPT_GE_GRASP",
       "tie": 2,
-      "wilson_95_lower_bound": 0.532111,
-      "wrong": 31
+      "wilson_95_lower_bound": 0.468896,
+      "wrong": 38
     },
     {
       "binomial_sign_test_p": null,
       "correctly_signed": 0,
       "correctly_signed_fraction": 0.5,
       "expected_sign": "~",
-      "max_delta_pct": 0.0196,
-      "mean_delta_pct": -1.3515,
-      "median_abs_delta_pct": 1.2533,
-      "median_delta_pct": -1.2533,
-      "min_delta_pct": -3.3678,
-      "n_ok": 5,
+      "max_delta_pct": 0.8666,
+      "mean_delta_pct": -1.4809,
+      "median_abs_delta_pct": 1.6861,
+      "median_delta_pct": -1.6861,
+      "min_delta_pct": -3.4181,
+      "n_ok": 4,
       "n_total": 5,
       "policy": "GRASP",
-      "tie": 5,
-      "wilson_95_lower_bound": 0.117618,
+      "tie": 4,
+      "wilson_95_lower_bound": 0.150036,
       "wrong": 0
     },
     {
@@ -74,15 +74,15 @@
       "correctly_signed_fraction": 0.5,
       "expected_sign": "~",
       "max_delta_pct": 6.1871,
-      "mean_delta_pct": -2.0141,
-      "median_abs_delta_pct": 1.1293,
-      "median_delta_pct": -0.0001,
+      "mean_delta_pct": -2.0344,
+      "median_abs_delta_pct": 1.2003,
+      "median_delta_pct": 0.0001,
       "min_delta_pct": -60.0226,
-      "n_ok": 110,
+      "n_ok": 107,
       "n_total": 114,
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "tie": 110,
-      "wilson_95_lower_bound": 0.408151,
+      "tie": 107,
+      "wilson_95_lower_bound": 0.411431,
       "wrong": 0
     },
     {
@@ -91,9 +91,9 @@
       "correctly_signed_fraction": 0.5,
       "expected_sign": "~",
       "max_delta_pct": 0.0654,
-      "mean_delta_pct": -1.9685,
-      "median_abs_delta_pct": 1.5592,
-      "median_delta_pct": -1.5592,
+      "mean_delta_pct": -2.0793,
+      "median_abs_delta_pct": 2.1422,
+      "median_delta_pct": -2.1422,
       "min_delta_pct": -10.943,
       "n_ok": 75,
       "n_total": 75,
@@ -106,7 +106,7 @@
   "rows": [
     {
       "app": "bc",
-      "delta_pct": -0.6312,
+      "delta_pct": -0.4775,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -116,7 +116,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -1.2034,
+      "delta_pct": -0.9079,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -126,7 +126,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -2.3927,
+      "delta_pct": -1.7958,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -136,7 +136,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.3967,
+      "delta_pct": -0.409,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -146,7 +146,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.6848,
+      "delta_pct": -0.4895,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -156,7 +156,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.3127,
+      "delta_pct": -0.2546,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -196,7 +196,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -1.4267,
+      "delta_pct": -1.4682,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -206,7 +206,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -4.181,
+      "delta_pct": -4.2773,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -216,7 +216,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -4.9151,
+      "delta_pct": -5.0445,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -226,7 +226,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -0.3199,
+      "delta_pct": -0.4224,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -236,7 +236,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -2.4646,
+      "delta_pct": -2.4063,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -246,7 +246,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -2.4983,
+      "delta_pct": -2.3015,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -346,7 +346,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -4.1766,
+      "delta_pct": -4.2248,
       "expected_sign": "~",
       "graph": "com-orkut",
       "l3_size": "1MB",
@@ -356,7 +356,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.6512,
+      "delta_pct": -3.6809,
       "expected_sign": "~",
       "graph": "com-orkut",
       "l3_size": "4MB",
@@ -366,7 +366,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.2398,
+      "delta_pct": -2.2724,
       "expected_sign": "~",
       "graph": "com-orkut",
       "l3_size": "8MB",
@@ -406,7 +406,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -1.8221,
+      "delta_pct": -2.205,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -416,7 +416,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -2.097,
+      "delta_pct": -2.5167,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -426,7 +426,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -2.9109,
+      "delta_pct": -2.5468,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -436,7 +436,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -1.5814,
+      "delta_pct": -3.5185,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -446,7 +446,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.6609,
+      "delta_pct": -2.4639,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -456,7 +456,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.4959,
+      "delta_pct": -1.4977,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -496,7 +496,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.2763,
+      "delta_pct": -3.3254,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -506,7 +506,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.6445,
+      "delta_pct": -3.6322,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -516,7 +516,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.4979,
+      "delta_pct": -3.5828,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -526,7 +526,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -0.0598,
+      "delta_pct": -2.5954,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -536,7 +536,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -1.3293,
+      "delta_pct": -2.3433,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -546,7 +546,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -1.4497,
+      "delta_pct": -2.0447,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -556,7 +556,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -2.3192,
+      "delta_pct": -2.2757,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -566,7 +566,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -3.3967,
+      "delta_pct": -3.3239,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -576,7 +576,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -2.1991,
+      "delta_pct": -2.4864,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -646,7 +646,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -4.5169,
+      "delta_pct": -4.5291,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -656,7 +656,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.5338,
+      "delta_pct": -3.5445,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -666,7 +666,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -1.2149,
+      "delta_pct": -1.2185,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -676,7 +676,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -3.1709,
+      "delta_pct": -3.1462,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -686,7 +686,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -1.3348,
+      "delta_pct": -1.2883,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -696,7 +696,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.0001,
+      "delta_pct": -0.0007,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -706,7 +706,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -1.838,
+      "delta_pct": -1.1626,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -716,7 +716,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -1.1284,
+      "delta_pct": -1.3346,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -726,7 +726,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -0.7109,
+      "delta_pct": -0.5895,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -736,7 +736,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.068,
+      "delta_pct": -0.0552,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -746,7 +746,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.1017,
+      "delta_pct": -0.233,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -756,7 +756,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.481,
+      "delta_pct": -0.7768,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -796,7 +796,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -5.6979,
+      "delta_pct": -5.6679,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -806,7 +806,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.2384,
+      "delta_pct": -2.2436,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -816,7 +816,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.3692,
+      "delta_pct": -0.3686,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -856,7 +856,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 0.3371,
+      "delta_pct": 1.4201,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -866,7 +866,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.9983,
+      "delta_pct": -1.1494,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -876,7 +876,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -10.6471,
+      "delta_pct": -10.89,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -886,7 +886,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -11.0247,
+      "delta_pct": -11.1489,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -896,7 +896,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -3.4519,
+      "delta_pct": -3.0624,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -906,7 +906,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.368,
+      "delta_pct": -1.9774,
       "expected_sign": "-",
       "graph": "com-orkut",
       "l3_size": "1MB",
@@ -916,7 +916,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.5,
+      "delta_pct": -3.5227,
       "expected_sign": "-",
       "graph": "com-orkut",
       "l3_size": "8MB",
@@ -926,7 +926,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -4.8254,
+      "delta_pct": -4.4736,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -936,7 +936,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -1.1538,
+      "delta_pct": -7.6307,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -946,7 +946,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -4.7914,
+      "delta_pct": -4.8005,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -956,7 +956,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -7.3848,
+      "delta_pct": -7.4499,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -966,7 +966,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -8.6907,
+      "delta_pct": -8.662,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -976,7 +976,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -13.6174,
+      "delta_pct": -13.6267,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -986,7 +986,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -14.7657,
+      "delta_pct": -14.7704,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -996,7 +996,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -0.4807,
+      "delta_pct": -1.6023,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -1006,27 +1006,27 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.597,
+      "delta_pct": 0.5181,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "4MB",
       "policy": "POPT_GE_GRASP",
       "sign_class": "wrong",
-      "status": "known_deviation"
+      "status": "ok"
     },
     {
       "app": "bc",
-      "delta_pct": 2.5292,
+      "delta_pct": 1.3418,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "8MB",
       "policy": "POPT_GE_GRASP",
       "sign_class": "wrong",
-      "status": "known_deviation"
+      "status": "ok"
     },
     {
       "app": "bfs",
-      "delta_pct": 0.1061,
+      "delta_pct": 0.1021,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -1036,7 +1036,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": 0.3797,
+      "delta_pct": 0.8973,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -1046,7 +1046,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": 0.6887,
+      "delta_pct": 0.7344,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -1086,7 +1086,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -1.052,
+      "delta_pct": -1.4238,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -1096,7 +1096,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -8.2458,
+      "delta_pct": -8.6517,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -1106,7 +1106,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.8344,
+      "delta_pct": -3.111,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -1116,7 +1116,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.8634,
+      "delta_pct": 0.2806,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -1126,23 +1126,23 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 1.8038,
+      "delta_pct": 1.4111,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "4MB",
       "policy": "POPT_GE_GRASP",
       "sign_class": "wrong",
-      "status": "known_deviation"
+      "status": "ok"
     },
     {
       "app": "sssp",
-      "delta_pct": 1.633,
+      "delta_pct": 1.4368,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "8MB",
       "policy": "POPT_GE_GRASP",
       "sign_class": "wrong",
-      "status": "known_deviation"
+      "status": "ok"
     },
     {
       "app": "bc",
@@ -1236,7 +1236,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -6.8298,
+      "delta_pct": -7.4016,
       "expected_sign": "-",
       "graph": "com-orkut",
       "l3_size": "1MB",
@@ -1246,7 +1246,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -5.2133,
+      "delta_pct": -5.2914,
       "expected_sign": "-",
       "graph": "com-orkut",
       "l3_size": "4MB",
@@ -1256,7 +1256,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.0207,
+      "delta_pct": -2.0108,
       "expected_sign": "-",
       "graph": "com-orkut",
       "l3_size": "8MB",
@@ -1406,33 +1406,33 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.3878,
+      "delta_pct": 0.0,
       "expected_sign": "-",
       "graph": "email-Eu-core",
       "l3_size": "1MB",
       "policy": "POPT_GE_GRASP",
-      "sign_class": "correct",
-      "status": "ok"
+      "sign_class": "tie",
+      "status": "insufficient_data"
     },
     {
       "app": "pr",
-      "delta_pct": 0.025,
+      "delta_pct": 0.0,
       "expected_sign": "-",
       "graph": "email-Eu-core",
       "l3_size": "4MB",
       "policy": "POPT_GE_GRASP",
-      "sign_class": "wrong",
-      "status": "ok"
+      "sign_class": "tie",
+      "status": "insufficient_data"
     },
     {
       "app": "pr",
-      "delta_pct": 0.0218,
+      "delta_pct": 0.0,
       "expected_sign": "-",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
       "policy": "POPT_GE_GRASP",
-      "sign_class": "wrong",
-      "status": "ok"
+      "sign_class": "tie",
+      "status": "insufficient_data"
     },
     {
       "app": "bc",
@@ -1686,27 +1686,27 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.9853,
+      "delta_pct": 1.4819,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
       "policy": "POPT_GE_GRASP",
       "sign_class": "wrong",
-      "status": "known_deviation"
+      "status": "ok"
     },
     {
       "app": "bc",
-      "delta_pct": 1.8769,
+      "delta_pct": 1.4449,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
       "policy": "POPT_GE_GRASP",
       "sign_class": "wrong",
-      "status": "known_deviation"
+      "status": "ok"
     },
     {
       "app": "bc",
-      "delta_pct": 1.5828,
+      "delta_pct": 1.6476,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -1716,32 +1716,32 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -1.5557,
+      "delta_pct": 1.0899,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
       "policy": "POPT_GE_GRASP",
-      "sign_class": "correct",
+      "sign_class": "wrong",
       "status": "ok"
     },
     {
       "app": "bfs",
-      "delta_pct": -1.2127,
+      "delta_pct": 1.2405,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
       "policy": "POPT_GE_GRASP",
-      "sign_class": "correct",
+      "sign_class": "wrong",
       "status": "ok"
     },
     {
       "app": "bfs",
-      "delta_pct": -0.9608,
+      "delta_pct": 1.2003,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
       "policy": "POPT_GE_GRASP",
-      "sign_class": "correct",
+      "sign_class": "wrong",
       "status": "ok"
     },
     {
@@ -1776,7 +1776,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -5.9501,
+      "delta_pct": -6.1291,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -1786,7 +1786,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -5.9754,
+      "delta_pct": -6.1949,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -1796,7 +1796,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.2121,
+      "delta_pct": -2.2911,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -1806,7 +1806,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -3.5305,
+      "delta_pct": -0.0215,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -1816,7 +1816,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.3305,
+      "delta_pct": 1.2199,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -1826,7 +1826,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.5775,
+      "delta_pct": 0.7472,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -1836,7 +1836,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 3.0792,
+      "delta_pct": 3.0012,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -1846,7 +1846,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.7174,
+      "delta_pct": 1.6144,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -1856,7 +1856,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 0.2846,
+      "delta_pct": 0.0773,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -1926,7 +1926,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": 0.4214,
+      "delta_pct": 0.3474,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -1936,7 +1936,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.6422,
+      "delta_pct": -0.6519,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -1946,7 +1946,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": 0.8143,
+      "delta_pct": 0.8187,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -1956,7 +1956,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 4.0968,
+      "delta_pct": 3.8096,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -1966,7 +1966,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.8724,
+      "delta_pct": 0.8837,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -1976,7 +1976,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -0.0011,
+      "delta_pct": -0.0003,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -1986,7 +1986,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -0.5125,
+      "delta_pct": -0.4881,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -1996,7 +1996,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 2.9017,
+      "delta_pct": 2.6456,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -2006,7 +2006,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 3.0498,
+      "delta_pct": 2.6397,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -2016,7 +2016,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": 1.0982,
+      "delta_pct": 1.0462,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -2026,7 +2026,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.386,
+      "delta_pct": -0.1876,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -2036,7 +2036,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -2.4806,
+      "delta_pct": -2.5079,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -2076,7 +2076,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.6474,
+      "delta_pct": -3.6299,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -2086,7 +2086,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": 1.0722,
+      "delta_pct": 1.0627,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -2096,7 +2096,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.0384,
+      "delta_pct": -0.0356,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -2136,7 +2136,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -0.4807,
+      "delta_pct": -1.6023,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -2146,7 +2146,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.597,
+      "delta_pct": 0.5181,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -2156,7 +2156,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 2.5292,
+      "delta_pct": 1.3418,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -2166,7 +2166,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": 0.1061,
+      "delta_pct": 0.1021,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -2176,7 +2176,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": 0.3797,
+      "delta_pct": 0.8973,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -2186,7 +2186,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": 0.6887,
+      "delta_pct": 0.7344,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -2226,7 +2226,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -1.052,
+      "delta_pct": -1.4238,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -2236,7 +2236,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -8.2458,
+      "delta_pct": -8.6517,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -2246,7 +2246,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.8344,
+      "delta_pct": -3.111,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -2256,7 +2256,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.8634,
+      "delta_pct": 0.2806,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -2266,7 +2266,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 1.8038,
+      "delta_pct": 1.4111,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "4MB",
@@ -2276,7 +2276,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 1.633,
+      "delta_pct": 1.4368,
       "expected_sign": "~",
       "graph": "cit-Patents",
       "l3_size": "8MB",
@@ -2376,7 +2376,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -6.8298,
+      "delta_pct": -7.4016,
       "expected_sign": "~",
       "graph": "com-orkut",
       "l3_size": "1MB",
@@ -2386,7 +2386,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -5.2133,
+      "delta_pct": -5.2914,
       "expected_sign": "~",
       "graph": "com-orkut",
       "l3_size": "4MB",
@@ -2396,7 +2396,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.0207,
+      "delta_pct": -2.0108,
       "expected_sign": "~",
       "graph": "com-orkut",
       "l3_size": "8MB",
@@ -2546,33 +2546,33 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.3878,
+      "delta_pct": 0.0,
       "expected_sign": "~",
       "graph": "email-Eu-core",
       "l3_size": "1MB",
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "sign_class": "tie",
-      "status": "ok"
+      "status": "insufficient_data"
     },
     {
       "app": "pr",
-      "delta_pct": 0.025,
+      "delta_pct": 0.0,
       "expected_sign": "~",
       "graph": "email-Eu-core",
       "l3_size": "4MB",
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "sign_class": "tie",
-      "status": "ok"
+      "status": "insufficient_data"
     },
     {
       "app": "pr",
-      "delta_pct": 0.0218,
+      "delta_pct": 0.0,
       "expected_sign": "~",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
       "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
       "sign_class": "tie",
-      "status": "ok"
+      "status": "insufficient_data"
     },
     {
       "app": "bc",
@@ -2826,7 +2826,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.9853,
+      "delta_pct": 1.4819,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -2836,7 +2836,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.8769,
+      "delta_pct": 1.4449,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -2846,7 +2846,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.5828,
+      "delta_pct": 1.6476,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -2856,7 +2856,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -1.5557,
+      "delta_pct": 1.0899,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -2866,7 +2866,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -1.2127,
+      "delta_pct": 1.2405,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -2876,7 +2876,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.9608,
+      "delta_pct": 1.2003,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -2916,7 +2916,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -5.9501,
+      "delta_pct": -6.1291,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -2926,7 +2926,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -5.9754,
+      "delta_pct": -6.1949,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -2936,7 +2936,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -2.2121,
+      "delta_pct": -2.2911,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -2946,7 +2946,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -3.5305,
+      "delta_pct": -0.0215,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -2956,7 +2956,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.3305,
+      "delta_pct": 1.2199,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
@@ -2966,7 +2966,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.5775,
+      "delta_pct": 0.7472,
       "expected_sign": "~",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
@@ -2976,7 +2976,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 3.0792,
+      "delta_pct": 3.0012,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -2986,7 +2986,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 1.7174,
+      "delta_pct": 1.6144,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -2996,7 +2996,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 0.2846,
+      "delta_pct": 0.0773,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -3066,7 +3066,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": 0.4214,
+      "delta_pct": 0.3474,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -3076,7 +3076,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.6422,
+      "delta_pct": -0.6519,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -3086,7 +3086,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": 0.8143,
+      "delta_pct": 0.8187,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -3096,7 +3096,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 4.0968,
+      "delta_pct": 3.8096,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -3106,7 +3106,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": 0.8724,
+      "delta_pct": 0.8837,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "4MB",
@@ -3116,7 +3116,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -0.0011,
+      "delta_pct": -0.0003,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -3126,7 +3126,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": -0.5125,
+      "delta_pct": -0.4881,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -3136,7 +3136,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 2.9017,
+      "delta_pct": 2.6456,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -3146,7 +3146,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 3.0498,
+      "delta_pct": 2.6397,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -3156,7 +3156,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": 1.0982,
+      "delta_pct": 1.0462,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -3166,7 +3166,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -0.386,
+      "delta_pct": -0.1876,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -3176,7 +3176,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -2.4806,
+      "delta_pct": -2.5079,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -3216,7 +3216,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -3.6474,
+      "delta_pct": -3.6299,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -3226,7 +3226,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": 1.0722,
+      "delta_pct": 1.0627,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "4MB",
@@ -3236,7 +3236,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.0384,
+      "delta_pct": -0.0356,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "8MB",
@@ -3276,7 +3276,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -11.6991,
+      "delta_pct": -12.3138,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -3286,7 +3286,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -2.5885,
+      "delta_pct": -2.7818,
       "expected_sign": "-",
       "graph": "cit-Patents",
       "l3_size": "1MB",
@@ -3296,7 +3296,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -9.1978,
+      "delta_pct": -9.379,
       "expected_sign": "-",
       "graph": "com-orkut",
       "l3_size": "1MB",
@@ -3306,7 +3306,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -10.7415,
+      "delta_pct": -10.9296,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
@@ -3316,17 +3316,17 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -1.466,
+      "delta_pct": -4.7583,
       "expected_sign": "-",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
       "policy": "POPT",
       "sign_class": "correct",
-      "status": "within_tolerance"
+      "status": "ok"
     },
     {
       "app": "pr",
-      "delta_pct": -13.196,
+      "delta_pct": -13.2793,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -3336,7 +3336,7 @@
     },
     {
       "app": "sssp",
-      "delta_pct": -6.942,
+      "delta_pct": -7.0138,
       "expected_sign": "-",
       "graph": "soc-pokec",
       "l3_size": "1MB",
@@ -3346,7 +3346,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -18.4131,
+      "delta_pct": -18.4003,
       "expected_sign": "-",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -3356,17 +3356,17 @@
     },
     {
       "app": "pr",
-      "delta_pct": -0.0433,
+      "delta_pct": 0.0,
       "expected_sign": "~",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
       "policy": "GRASP",
       "sign_class": "tie",
-      "status": "ok"
+      "status": "insufficient_data"
     },
     {
       "app": "pr",
-      "delta_pct": -2.1127,
+      "delta_pct": -2.1157,
       "expected_sign": "~",
       "graph": "soc-pokec",
       "l3_size": "8MB",
@@ -3376,7 +3376,7 @@
     },
     {
       "app": "bc",
-      "delta_pct": 0.0196,
+      "delta_pct": 0.8666,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -3386,7 +3386,7 @@
     },
     {
       "app": "bfs",
-      "delta_pct": -3.3678,
+      "delta_pct": -3.4181,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "1MB",
@@ -3396,7 +3396,7 @@
     },
     {
       "app": "pr",
-      "delta_pct": -1.2533,
+      "delta_pct": -1.2565,
       "expected_sign": "~",
       "graph": "web-Google",
       "l3_size": "8MB",

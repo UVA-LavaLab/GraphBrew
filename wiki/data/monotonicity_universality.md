@@ -5,8 +5,8 @@
 **L3 axis:** 4kB, 16kB, 64kB, 256kB, 1MB, 4MB, 8MB  
 **Cells (>=2 L3 points):** 136  
 **Total steps:** 320  
-**Bumps:** 14 (4.38%) ceiling 10%  
-**Largest bump:** 0.0347 pp (noise tolerance 0.50 pp)  
+**Bumps:** 10 (3.12%) ceiling 10%  
+**Largest bump:** 0.0096 pp (noise tolerance 0.50 pp)  
 **Hard violations (>= 0.5 pp):** 0
 
 ## Verdict checks
@@ -19,18 +19,14 @@
 
 ## Largest bump (worst-case cell)
 
-`email-Eu-core` / `pr` / `POPT`: 1MB -> 4MB delta = +0.0347 pp
+`email-Eu-core` / `bc` / `POPT`: 1MB -> 4MB delta = +0.0096 pp
 
 ## All bumps (sorted by magnitude)
 
 | graph | app | policy | from | to | delta pp |
 |---|---|---|---|---|---:|
-| email-Eu-core | pr | POPT | 1MB | 4MB | +0.0347 |
-| email-Eu-core | pr | LRU | 4MB | 8MB | +0.0333 |
-| email-Eu-core | pr | SRRIP | 4MB | 8MB | +0.0220 |
 | email-Eu-core | bc | POPT | 1MB | 4MB | +0.0096 |
 | delaunay_n19 | pr | LRU | 4kB | 16kB | +0.0039 |
-| email-Eu-core | pr | GRASP | 4MB | 8MB | +0.0032 |
 | email-Eu-core | bfs | SRRIP | 1MB | 4MB | +0.0021 |
 | email-Eu-core | bfs | LRU | 4MB | 8MB | +0.0020 |
 | web-Google | cc | GRASP | 4MB | 8MB | +0.0016 |

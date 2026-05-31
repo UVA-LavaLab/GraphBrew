@@ -9,7 +9,7 @@
     ],
     "auc_units": "gap_pp \u00d7 log2(MB)",
     "auc_winner_by_app": {
-      "bc": "GRASP",
+      "bc": "SRRIP",
       "bfs": "POPT",
       "cc": "GRASP",
       "pr": "POPT",
@@ -35,113 +35,113 @@
   "per_app": {
     "bc": {
       "auc_by_policy": {
-        "GRASP": 5.8506,
-        "LRU": 11.2958,
-        "POPT": 8.7662,
-        "SRRIP": 5.9964
+        "GRASP": 6.0079,
+        "LRU": 11.0047,
+        "POPT": 8.0712,
+        "SRRIP": 5.7773
       },
-      "auc_pp_savings_winner_vs_lru": 5.4452,
-      "auc_ratio_winner_over_lru": 0.5179,
-      "auc_ratio_winner_over_runner_up": 0.9757,
+      "auc_pp_savings_winner_vs_lru": 5.2274,
+      "auc_ratio_winner_over_lru": 0.525,
+      "auc_ratio_winner_over_runner_up": 0.9616,
       "ranking": [
         {
-          "auc": 5.8506,
-          "policy": "GRASP"
-        },
-        {
-          "auc": 5.9964,
+          "auc": 5.7773,
           "policy": "SRRIP"
         },
         {
-          "auc": 8.7662,
+          "auc": 6.0079,
+          "policy": "GRASP"
+        },
+        {
+          "auc": 8.0712,
           "policy": "POPT"
         },
         {
-          "auc": 11.2958,
+          "auc": 11.0047,
           "policy": "LRU"
         }
       ],
-      "runner_up": "SRRIP",
-      "runner_up_auc": 5.9964,
+      "runner_up": "GRASP",
+      "runner_up_auc": 6.0079,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 5.8506,
+          "1MB": 6.0079,
           "4MB": 0.0,
           "8MB": 0.0
         },
         "LRU": {
-          "1MB": 3.4753,
-          "4MB": 3.9845,
-          "8MB": 3.6875
+          "1MB": 3.3026,
+          "4MB": 3.9427,
+          "8MB": 3.5763
         },
         "POPT": {
-          "1MB": 4.559,
-          "4MB": 2.1285,
-          "8MB": 2.029
+          "1MB": 4.4764,
+          "4MB": 1.8168,
+          "8MB": 1.739
         },
         "SRRIP": {
-          "1MB": 1.8683,
-          "4MB": 2.1402,
-          "8MB": 1.8357
+          "1MB": 1.7656,
+          "4MB": 2.0555,
+          "8MB": 1.857
         }
       },
-      "winner": "GRASP",
-      "winner_auc": 5.8506
+      "winner": "SRRIP",
+      "winner_auc": 5.7773
     },
     "bfs": {
       "auc_by_policy": {
-        "GRASP": 13.539,
-        "LRU": 12.6582,
-        "POPT": 5.3166,
-        "SRRIP": 12.4013
+        "GRASP": 12.8861,
+        "LRU": 14.8048,
+        "POPT": 6.0073,
+        "SRRIP": 13.7333
       },
-      "auc_pp_savings_winner_vs_lru": 7.3416,
-      "auc_ratio_winner_over_lru": 0.42,
-      "auc_ratio_winner_over_runner_up": 0.4287,
+      "auc_pp_savings_winner_vs_lru": 8.7975,
+      "auc_ratio_winner_over_lru": 0.4058,
+      "auc_ratio_winner_over_runner_up": 0.4662,
       "ranking": [
         {
-          "auc": 5.3166,
+          "auc": 6.0073,
           "policy": "POPT"
         },
         {
-          "auc": 12.4013,
+          "auc": 12.8861,
+          "policy": "GRASP"
+        },
+        {
+          "auc": 13.7333,
           "policy": "SRRIP"
         },
         {
-          "auc": 12.6582,
+          "auc": 14.8048,
           "policy": "LRU"
-        },
-        {
-          "auc": 13.539,
-          "policy": "GRASP"
         }
       ],
-      "runner_up": "SRRIP",
-      "runner_up_auc": 12.4013,
+      "runner_up": "GRASP",
+      "runner_up_auc": 12.8861,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 12.5304,
-          "4MB": 0.3795,
-          "8MB": 0.8787
+          "1MB": 12.3081,
+          "4MB": 0.1443,
+          "8MB": 0.723
         },
         "LRU": {
-          "1MB": 1.4549,
-          "4MB": 5.4555,
-          "8MB": 6.0402
+          "1MB": 2.1866,
+          "4MB": 6.2392,
+          "8MB": 6.519
         },
         "POPT": {
-          "1MB": 5.164,
-          "4MB": 0.0633,
-          "8MB": 0.1152
+          "1MB": 5.3117,
+          "4MB": 0.3562,
+          "8MB": 0.3227
         },
         "SRRIP": {
-          "1MB": 1.6914,
-          "4MB": 5.2022,
-          "8MB": 5.8132
+          "1MB": 2.1464,
+          "4MB": 5.6962,
+          "8MB": 6.0853
         }
       },
       "winner": "POPT",
-      "winner_auc": 5.3166
+      "winner_auc": 6.0073
     },
     "cc": {
       "auc_by_policy": {
@@ -200,113 +200,113 @@
     },
     "pr": {
       "auc_by_policy": {
-        "GRASP": 9.1362,
-        "LRU": 27.3615,
-        "POPT": 0.3965,
-        "SRRIP": 19.4213
+        "GRASP": 9.4331,
+        "LRU": 27.7572,
+        "POPT": 0.3774,
+        "SRRIP": 19.7583
       },
-      "auc_pp_savings_winner_vs_lru": 26.965,
-      "auc_ratio_winner_over_lru": 0.0145,
-      "auc_ratio_winner_over_runner_up": 0.0434,
+      "auc_pp_savings_winner_vs_lru": 27.3798,
+      "auc_ratio_winner_over_lru": 0.0136,
+      "auc_ratio_winner_over_runner_up": 0.04,
       "ranking": [
         {
-          "auc": 0.3965,
+          "auc": 0.3774,
           "policy": "POPT"
         },
         {
-          "auc": 9.1362,
+          "auc": 9.4331,
           "policy": "GRASP"
         },
         {
-          "auc": 19.4213,
+          "auc": 19.7583,
           "policy": "SRRIP"
         },
         {
-          "auc": 27.3615,
+          "auc": 27.7572,
           "policy": "LRU"
         }
       ],
       "runner_up": "GRASP",
-      "runner_up_auc": 9.1362,
+      "runner_up_auc": 9.4331,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 3.5251,
-          "4MB": 3.346,
-          "8MB": 1.1842
+          "1MB": 3.6149,
+          "4MB": 3.465,
+          "8MB": 1.2415
         },
         "LRU": {
-          "1MB": 10.7899,
-          "4MB": 9.2463,
-          "8MB": 5.4042
+          "1MB": 10.9053,
+          "4MB": 9.4045,
+          "8MB": 5.4905
         },
         "POPT": {
-          "1MB": 0.0526,
-          "4MB": 0.1828,
-          "8MB": 0.1393
+          "1MB": 0.0434,
+          "4MB": 0.1772,
+          "8MB": 0.1365
         },
         "SRRIP": {
-          "1MB": 8.1867,
-          "4MB": 6.3695,
-          "8MB": 3.3605
+          "1MB": 8.2918,
+          "4MB": 6.508,
+          "8MB": 3.4092
         }
       },
       "winner": "POPT",
-      "winner_auc": 0.3965
+      "winner_auc": 0.3774
     },
     "sssp": {
       "auc_by_policy": {
-        "GRASP": 13.3838,
-        "LRU": 10.5331,
-        "POPT": 3.6501,
-        "SRRIP": 7.0197
+        "GRASP": 12.7987,
+        "LRU": 11.4075,
+        "POPT": 3.655,
+        "SRRIP": 7.1463
       },
-      "auc_pp_savings_winner_vs_lru": 6.883,
-      "auc_ratio_winner_over_lru": 0.3465,
-      "auc_ratio_winner_over_runner_up": 0.52,
+      "auc_pp_savings_winner_vs_lru": 7.7525,
+      "auc_ratio_winner_over_lru": 0.3204,
+      "auc_ratio_winner_over_runner_up": 0.5115,
       "ranking": [
         {
-          "auc": 3.6501,
+          "auc": 3.655,
           "policy": "POPT"
         },
         {
-          "auc": 7.0197,
+          "auc": 7.1463,
           "policy": "SRRIP"
         },
         {
-          "auc": 10.5331,
+          "auc": 11.4075,
           "policy": "LRU"
         },
         {
-          "auc": 13.3838,
+          "auc": 12.7987,
           "policy": "GRASP"
         }
       ],
       "runner_up": "SRRIP",
-      "runner_up_auc": 7.0197,
+      "runner_up_auc": 7.1463,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 13.0337,
+          "1MB": 12.4487,
           "4MB": 0.2324,
-          "8MB": 0.003
+          "8MB": 0.0028
         },
         "LRU": {
-          "1MB": 3.8558,
-          "4MB": 3.7368,
-          "8MB": 2.1442
+          "1MB": 4.3035,
+          "4MB": 4.0072,
+          "8MB": 2.1864
         },
         "POPT": {
-          "1MB": 2.509,
-          "4MB": 0.6016,
-          "8MB": 0.4774
+          "1MB": 2.3642,
+          "4MB": 0.7032,
+          "8MB": 0.472
         },
         "SRRIP": {
-          "1MB": 2.766,
-          "4MB": 2.3996,
-          "8MB": 1.3086
+          "1MB": 2.7783,
+          "4MB": 2.4884,
+          "8MB": 1.2708
         }
       },
       "winner": "POPT",
-      "winner_auc": 3.6501
+      "winner_auc": 3.655
     }
   }
 }

@@ -7,141 +7,6 @@
       "l3_size": "1MB",
       "policy": "ECG_DBG_PRIMARY",
       "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL"
-    },
-    {
-      "app": "bfs",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL"
-    },
-    {
-      "app": "pr",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL"
-    },
-    {
-      "app": "sssp",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL"
-    },
-    {
-      "app": "pr",
-      "graph": "com-orkut",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "SLURM"
-    },
-    {
-      "app": "bc",
-      "graph": "soc-LiveJournal1",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "SLURM"
-    },
-    {
-      "app": "bfs",
-      "graph": "soc-LiveJournal1",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "SLURM"
-    },
-    {
-      "app": "pr",
-      "graph": "soc-LiveJournal1",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "SLURM"
-    },
-    {
-      "app": "sssp",
-      "graph": "soc-LiveJournal1",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "SLURM"
-    },
-    {
-      "app": "bc",
-      "graph": "soc-pokec",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL_TIGHT"
-    },
-    {
-      "app": "pr",
-      "graph": "soc-pokec",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL_TIGHT"
-    },
-    {
-      "app": "sssp",
-      "graph": "soc-pokec",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL_TIGHT"
-    },
-    {
-      "app": "bc",
-      "graph": "web-Google",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL_TIGHT"
-    },
-    {
-      "app": "bfs",
-      "graph": "web-Google",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL_TIGHT"
-    },
-    {
-      "app": "pr",
-      "graph": "web-Google",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
-      "sim": "cache_sim",
-      "workstation_tier": "LOCAL_TIGHT"
-    },
-    {
-      "app": "bc",
-      "graph": "cit-Patents",
-      "l3_size": "1MB",
-      "policy": "ECG_DBG_PRIMARY",
-      "prefetcher": "no_pfx",
       "sim": "gem5",
       "workstation_tier": "LOCAL"
     },
@@ -1489,46 +1354,46 @@
   ],
   "per_sim_graph": [
     {
-      "coverage_pct": 80.0,
+      "coverage_pct": 100.0,
       "graph": "cit-Patents",
-      "missing": 4,
-      "present": 16,
+      "missing": 0,
+      "present": 20,
       "required": 20,
       "sim": "cache_sim",
       "tier": "LOCAL"
     },
     {
-      "coverage_pct": 80.0,
+      "coverage_pct": 100.0,
       "graph": "com-orkut",
-      "missing": 1,
-      "present": 4,
+      "missing": 0,
+      "present": 5,
       "required": 5,
       "sim": "cache_sim",
       "tier": "SLURM"
     },
     {
-      "coverage_pct": 80.0,
+      "coverage_pct": 100.0,
       "graph": "soc-LiveJournal1",
-      "missing": 4,
-      "present": 16,
+      "missing": 0,
+      "present": 20,
       "required": 20,
       "sim": "cache_sim",
       "tier": "SLURM"
     },
     {
-      "coverage_pct": 80.0,
+      "coverage_pct": 100.0,
       "graph": "soc-pokec",
-      "missing": 3,
-      "present": 12,
+      "missing": 0,
+      "present": 15,
       "required": 15,
       "sim": "cache_sim",
       "tier": "LOCAL_TIGHT"
     },
     {
-      "coverage_pct": 80.0,
+      "coverage_pct": 100.0,
       "graph": "web-Google",
-      "missing": 3,
-      "present": 12,
+      "missing": 0,
+      "present": 15,
       "required": 15,
       "sim": "cache_sim",
       "tier": "LOCAL_TIGHT"
@@ -1628,15 +1493,15 @@
   "status": "active",
   "summary": {
     "missing_by_workstation_tier": {
-      "LOCAL": 44,
-      "LOCAL_TIGHT": 66,
-      "SLURM": 55
+      "LOCAL": 40,
+      "LOCAL_TIGHT": 60,
+      "SLURM": 50
     },
     "per_sim": {
       "cache_sim": {
-        "coverage_pct": 80.0,
-        "missing": 15,
-        "present": 60,
+        "coverage_pct": 100.0,
+        "missing": 0,
+        "present": 75,
         "required": 75
       },
       "gem5": {
@@ -1653,10 +1518,10 @@
       }
     },
     "totals": {
-      "coverage_pct": 26.67,
-      "extra_out_of_scope": 492,
-      "missing": 165,
-      "present_in_scope": 60,
+      "coverage_pct": 33.33,
+      "extra_out_of_scope": 575,
+      "missing": 150,
+      "present_in_scope": 75,
       "required": 225
     }
   }

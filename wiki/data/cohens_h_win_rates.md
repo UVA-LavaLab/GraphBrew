@@ -8,10 +8,10 @@ Thresholds (Cohen 1988): small ≥ 0.2, medium ≥ 0.5, large ≥ 0.8.
 
 | App | Favors | Comparison | p_a | p_b | h | magnitude |
 | --- | --- | --- | ---: | ---: | ---: | --- |
-| pr | POPT | LRU vs POPT | 0.000 | 0.714 | 2.014 | **large** |
+| pr | POPT | LRU vs POPT | 0.107 | 0.786 | 1.512 | **large** |
 | bc | GRASP | LRU vs GRASP | 0.043 | 0.652 | 1.460 | **large** |
 | cc | GRASP | GRASP vs POPT | 0.850 | 0.000 | 2.346 | **large** |
-| bfs | POPT | LRU vs POPT | 0.043 | 0.522 | 1.194 | **large** |
+| bfs | GRASP | LRU vs GRASP | 0.043 | 0.522 | 1.194 | **large** |
 | sssp | POPT | SRRIP vs POPT | 0.100 | 0.400 | 0.726 | **medium** |
 
 ## All large-effect dominance pairs (h ≥ 0.8, p_a > p_b)
@@ -19,19 +19,17 @@ Thresholds (Cohen 1988): small ≥ 0.2, medium ≥ 0.5, large ≥ 0.8.
 | App | Winner | Loser | p_winner | p_loser | h |
 | --- | --- | --- | ---: | ---: | ---: |
 | cc | GRASP | POPT | 0.850 | 0.000 | 2.346 |
-| pr | POPT | LRU | 0.714 | 0.000 | 2.014 |
-| pr | POPT | SRRIP | 0.714 | 0.000 | 2.014 |
 | cc | GRASP | SRRIP | 0.850 | 0.050 | 1.895 |
 | cc | GRASP | LRU | 0.850 | 0.100 | 1.703 |
+| pr | POPT | LRU | 0.786 | 0.107 | 1.512 |
+| pr | POPT | SRRIP | 0.786 | 0.107 | 1.512 |
 | bc | GRASP | LRU | 0.652 | 0.043 | 1.460 |
-| bfs | POPT | LRU | 0.522 | 0.043 | 1.194 |
-| bfs | POPT | SRRIP | 0.522 | 0.043 | 1.194 |
-| pr | GRASP | LRU | 0.286 | 0.000 | 1.128 |
-| pr | GRASP | SRRIP | 0.286 | 0.000 | 1.128 |
-| bfs | GRASP | LRU | 0.391 | 0.043 | 0.931 |
-| bfs | GRASP | SRRIP | 0.391 | 0.043 | 0.931 |
+| bfs | GRASP | LRU | 0.522 | 0.043 | 1.194 |
+| bfs | GRASP | SRRIP | 0.522 | 0.043 | 1.194 |
+| pr | POPT | GRASP | 0.786 | 0.321 | 0.974 |
+| bfs | POPT | LRU | 0.391 | 0.043 | 0.931 |
+| bfs | POPT | SRRIP | 0.391 | 0.043 | 0.931 |
 | bc | GRASP | POPT | 0.652 | 0.217 | 0.910 |
-| pr | POPT | GRASP | 0.714 | 0.286 | 0.886 |
 
 ## Per-app full table
 
@@ -41,27 +39,27 @@ Win rates:
 
 | Policy | Wins / N | p̂ |
 | --- | ---: | ---: |
-| LRU | 0 / 28 | 0.000 |
-| SRRIP | 0 / 28 | 0.000 |
-| GRASP | 8 / 28 | 0.286 |
-| POPT | 20 / 28 | 0.714 |
+| LRU | 3 / 28 | 0.107 |
+| SRRIP | 3 / 28 | 0.107 |
+| GRASP | 9 / 28 | 0.321 |
+| POPT | 22 / 28 | 0.786 |
 
 Comparisons (h on ordered pairs):
 
 | a | b | Δp | h | magnitude |
 | --- | --- | ---: | ---: | --- |
 | LRU | SRRIP | +0.000 | 0.000 | negligible |
-| LRU | GRASP | -0.286 | 1.128 | large |
-| LRU | POPT | -0.714 | 2.014 | large |
+| LRU | GRASP | -0.214 | 0.539 | medium |
+| LRU | POPT | -0.679 | 1.512 | large |
 | SRRIP | LRU | +0.000 | 0.000 | negligible |
-| SRRIP | GRASP | -0.286 | 1.128 | large |
-| SRRIP | POPT | -0.714 | 2.014 | large |
-| GRASP | LRU | +0.286 | 1.128 | large |
-| GRASP | SRRIP | +0.286 | 1.128 | large |
-| GRASP | POPT | -0.429 | 0.886 | large |
-| POPT | LRU | +0.714 | 2.014 | large |
-| POPT | SRRIP | +0.714 | 2.014 | large |
-| POPT | GRASP | +0.429 | 0.886 | large |
+| SRRIP | GRASP | -0.214 | 0.539 | medium |
+| SRRIP | POPT | -0.679 | 1.512 | large |
+| GRASP | LRU | +0.214 | 0.539 | medium |
+| GRASP | SRRIP | +0.214 | 0.539 | medium |
+| GRASP | POPT | -0.464 | 0.974 | large |
+| POPT | LRU | +0.679 | 1.512 | large |
+| POPT | SRRIP | +0.679 | 1.512 | large |
+| POPT | GRASP | +0.464 | 0.974 | large |
 
 ### bc
 
@@ -127,25 +125,25 @@ Win rates:
 | --- | ---: | ---: |
 | LRU | 1 / 23 | 0.043 |
 | SRRIP | 1 / 23 | 0.043 |
-| GRASP | 9 / 23 | 0.391 |
-| POPT | 12 / 23 | 0.522 |
+| GRASP | 12 / 23 | 0.522 |
+| POPT | 9 / 23 | 0.391 |
 
 Comparisons (h on ordered pairs):
 
 | a | b | Δp | h | magnitude |
 | --- | --- | ---: | ---: | --- |
 | LRU | SRRIP | +0.000 | 0.000 | negligible |
-| LRU | GRASP | -0.348 | 0.931 | large |
-| LRU | POPT | -0.478 | 1.194 | large |
+| LRU | GRASP | -0.478 | 1.194 | large |
+| LRU | POPT | -0.348 | 0.931 | large |
 | SRRIP | LRU | +0.000 | 0.000 | negligible |
-| SRRIP | GRASP | -0.348 | 0.931 | large |
-| SRRIP | POPT | -0.478 | 1.194 | large |
-| GRASP | LRU | +0.348 | 0.931 | large |
-| GRASP | SRRIP | +0.348 | 0.931 | large |
-| GRASP | POPT | -0.130 | 0.263 | small |
-| POPT | LRU | +0.478 | 1.194 | large |
-| POPT | SRRIP | +0.478 | 1.194 | large |
-| POPT | GRASP | +0.130 | 0.263 | small |
+| SRRIP | GRASP | -0.478 | 1.194 | large |
+| SRRIP | POPT | -0.348 | 0.931 | large |
+| GRASP | LRU | +0.478 | 1.194 | large |
+| GRASP | SRRIP | +0.478 | 1.194 | large |
+| GRASP | POPT | +0.130 | 0.263 | small |
+| POPT | LRU | +0.348 | 0.931 | large |
+| POPT | SRRIP | +0.348 | 0.931 | large |
+| POPT | GRASP | -0.130 | 0.263 | small |
 
 ### sssp
 

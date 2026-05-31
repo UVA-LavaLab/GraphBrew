@@ -150,6 +150,9 @@ def test_ratchet_total_coverage_at_or_above_baseline():
         REPO_ROOT / "wiki/data/literature_faithfulness_postfix.csv",
         REPO_ROOT / "wiki/data/gem5_anchor.json",
         REPO_ROOT / "wiki/data/sniper_anchor.json",
+        gem5_headline_1mb_json=REPO_ROOT / "wiki/data/gem5_anchor_headline_1mb.json",
+        sniper_headline_1mb_json=REPO_ROOT / "wiki/data/sniper_anchor_headline_1mb.json",
+        cache_sim_ecg_csv=REPO_ROOT / "wiki/data/literature_faithfulness_ecg.csv",
     )
     required = mod.required_cells(scope)
     actual = len(required & present)
@@ -168,6 +171,9 @@ def test_ratchet_per_sim_coverage_at_or_above_baseline():
         REPO_ROOT / "wiki/data/literature_faithfulness_postfix.csv",
         REPO_ROOT / "wiki/data/gem5_anchor.json",
         REPO_ROOT / "wiki/data/sniper_anchor.json",
+        gem5_headline_1mb_json=REPO_ROOT / "wiki/data/gem5_anchor_headline_1mb.json",
+        sniper_headline_1mb_json=REPO_ROOT / "wiki/data/sniper_anchor_headline_1mb.json",
+        cache_sim_ecg_csv=REPO_ROOT / "wiki/data/literature_faithfulness_ecg.csv",
     )
     required = mod.required_cells(scope)
     inscope = required & present

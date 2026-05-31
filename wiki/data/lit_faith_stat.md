@@ -26,6 +26,7 @@ Re-derives `delta_pct` from the two miss-rate columns each row compares (LRU-vs-
 
 | Status | Count |
 |---|---|
-| `known_deviation` | 30 |
+| `insufficient_data` | 7 |
+| `known_deviation` | 24 |
 | `ok` | 298 |
-| `within_tolerance` | 2 |
+| `within_tolerance` | 1 |

@@ -81,6 +81,11 @@ DASHBOARD_JSON = REPO_ROOT / "wiki" / "data" / "confidence_dashboard.json"
 EXEMPT_FROM_DASHBOARD = frozenset({
     "scripts/test/test_confidence_dashboard.py",
     "scripts/test/test_paper_baseline_table.py",
+    # Post cache_sim ECG sweep: gate 282 added headline-1MB anchor
+    # companions which catalog tracks for paper-table provenance but
+    # whose pytest suite is structurally a parametric data check.
+    # The companion test runs only in the headline-coverage suite.
+    "scripts/test/test_headline_1mb_anchor_companions.py",
 })
 
 CATALOG_GATE_DASHBOARD_FLOOR = 70

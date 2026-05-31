@@ -82,7 +82,10 @@ def build_payload(oracle_path: Path) -> dict:
             if after_app is None:
                 drops_payload[g] = {"missing": True}
                 continue
-            same_winner = (after_app["top_policy"] == full_top)
+            same_winner = (
+                after_app["top_policy"] == full_top
+                and after_app["unique_top"]
+            )
             drops_payload[g] = {
                 "top_policy": after_app["top_policy"],
                 "top_wins":   after_app["top_wins"],

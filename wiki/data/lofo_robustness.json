@@ -101,18 +101,18 @@
     "bfs": {
       "drops": {
         "citation": {
-          "margin": 6,
-          "runner_up_wins": 4,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 10,
-          "unique_top": true
+          "margin": 0,
+          "runner_up_wins": 7,
+          "same_winner_as_full": false,
+          "top_policy": "GRASP",
+          "top_wins": 7,
+          "unique_top": false
         },
         "mesh": {
           "margin": 3,
           "runner_up_wins": 7,
           "same_winner_as_full": true,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_wins": 10,
           "unique_top": true
         },
@@ -120,40 +120,40 @@
           "margin": 3,
           "runner_up_wins": 7,
           "same_winner_as_full": true,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_wins": 10,
           "unique_top": true
         },
         "social": {
           "margin": 2,
           "runner_up_wins": 2,
-          "same_winner_as_full": false,
+          "same_winner_as_full": true,
           "top_policy": "GRASP",
           "top_wins": 4,
           "unique_top": true
         },
         "web": {
-          "margin": 2,
-          "runner_up_wins": 6,
+          "margin": 4,
+          "runner_up_wins": 5,
           "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 8,
+          "top_policy": "GRASP",
+          "top_wins": 9,
           "unique_top": true
         }
       },
       "fragile_family_drops": [
-        "social"
+        "citation"
       ],
       "full_corpus": {
         "margin": 3,
         "runner_up_wins": 7,
-        "top_policy": "POPT",
+        "top_policy": "GRASP",
         "top_wins": 10,
         "unique_top": true,
         "win_counts": {
-          "GRASP": 7,
+          "GRASP": 10,
           "LRU": 1,
-          "POPT": 10,
+          "POPT": 7,
           "SRRIP": 1
         }
       },
@@ -223,27 +223,27 @@
     "pr": {
       "drops": {
         "citation": {
-          "margin": 7,
-          "runner_up_wins": 5,
+          "margin": 8,
+          "runner_up_wins": 6,
           "same_winner_as_full": true,
           "top_policy": "POPT",
-          "top_wins": 12,
+          "top_wins": 14,
           "unique_top": true
         },
         "mesh": {
-          "margin": 9,
-          "runner_up_wins": 5,
+          "margin": 10,
+          "runner_up_wins": 6,
           "same_winner_as_full": true,
           "top_policy": "POPT",
-          "top_wins": 14,
+          "top_wins": 16,
           "unique_top": true
         },
         "road": {
-          "margin": 9,
-          "runner_up_wins": 5,
+          "margin": 10,
+          "runner_up_wins": 6,
           "same_winner_as_full": true,
           "top_policy": "POPT",
-          "top_wins": 14,
+          "top_wins": 16,
           "unique_top": true
         },
         "social": {
@@ -255,24 +255,26 @@
           "unique_top": true
         },
         "web": {
-          "margin": 9,
-          "runner_up_wins": 4,
+          "margin": 10,
+          "runner_up_wins": 5,
           "same_winner_as_full": true,
           "top_policy": "POPT",
-          "top_wins": 13,
+          "top_wins": 15,
           "unique_top": true
         }
       },
       "fragile_family_drops": [],
       "full_corpus": {
-        "margin": 10,
-        "runner_up_wins": 5,
+        "margin": 11,
+        "runner_up_wins": 6,
         "top_policy": "POPT",
-        "top_wins": 15,
+        "top_wins": 17,
         "unique_top": true,
         "win_counts": {
-          "GRASP": 5,
-          "POPT": 15
+          "GRASP": 6,
+          "LRU": 3,
+          "POPT": 17,
+          "SRRIP": 3
         }
       },
       "is_lofo_robust": true,

@@ -6,11 +6,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "0.488",
+      "margin_pp": "0.295",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.897556",
+      "runner_up_miss_rate": "0.882504",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.892680",
+      "winner_miss_rate": "0.879551",
       "winner_policy": "SRRIP"
     },
     {
@@ -19,11 +19,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "0.849",
+      "margin_pp": "0.518",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.729365",
-      "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.720874",
+      "runner_up_miss_rate": "0.716416",
+      "runner_up_policy": "POPT",
+      "winner_miss_rate": "0.711235",
       "winner_policy": "GRASP"
     },
     {
@@ -32,11 +32,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "2.529",
+      "margin_pp": "1.342",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.589237",
+      "runner_up_miss_rate": "0.570949",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.563945",
+      "winner_miss_rate": "0.557531",
       "winner_policy": "GRASP"
     },
     {
@@ -45,11 +45,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "0.106",
+      "margin_pp": "0.102",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.957587",
+      "runner_up_miss_rate": "0.960335",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.956526",
+      "winner_miss_rate": "0.959314",
       "winner_policy": "GRASP"
     },
     {
@@ -58,11 +58,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "0.380",
+      "margin_pp": "0.897",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.872810",
+      "runner_up_miss_rate": "0.893600",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.869013",
+      "winner_miss_rate": "0.884627",
       "winner_policy": "GRASP"
     },
     {
@@ -71,11 +71,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.689",
+      "margin_pp": "0.734",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.791718",
+      "runner_up_miss_rate": "0.822635",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.784831",
+      "winner_miss_rate": "0.815291",
       "winner_policy": "GRASP"
     },
     {
@@ -123,11 +123,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "1.052",
+      "margin_pp": "1.424",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.785828",
+      "runner_up_miss_rate": "0.785538",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.775308",
+      "winner_miss_rate": "0.771300",
       "winner_policy": "POPT"
     },
     {
@@ -136,11 +136,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "8.246",
+      "margin_pp": "8.652",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.454240",
+      "runner_up_miss_rate": "0.453908",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.371782",
+      "winner_miss_rate": "0.367391",
       "winner_policy": "POPT"
     },
     {
@@ -149,11 +149,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "2.834",
+      "margin_pp": "3.111",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.214520",
+      "runner_up_miss_rate": "0.214092",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.186176",
+      "winner_miss_rate": "0.182982",
       "winner_policy": "POPT"
     },
     {
@@ -162,11 +162,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "0.863",
+      "margin_pp": "0.281",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.827043",
+      "runner_up_miss_rate": "0.820823",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.818409",
+      "winner_miss_rate": "0.818017",
       "winner_policy": "GRASP"
     },
     {
@@ -175,11 +175,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "1.804",
+      "margin_pp": "1.411",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.494406",
+      "runner_up_miss_rate": "0.487018",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.476368",
+      "winner_miss_rate": "0.472907",
       "winner_policy": "GRASP"
     },
     {
@@ -188,11 +188,11 @@
       "graph_family": "citation",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "1.633",
+      "margin_pp": "1.437",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.216244",
+      "runner_up_miss_rate": "0.212382",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.199914",
+      "winner_miss_rate": "0.198014",
       "winner_policy": "GRASP"
     },
     {
@@ -318,11 +318,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "5.021",
+      "margin_pp": "5.154",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.668635",
+      "runner_up_miss_rate": "0.662480",
       "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.618423",
+      "winner_miss_rate": "0.610938",
       "winner_policy": "POPT"
     },
     {
@@ -331,11 +331,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "5.213",
+      "margin_pp": "5.291",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.267884",
+      "runner_up_miss_rate": "0.265294",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.215751",
+      "winner_miss_rate": "0.212380",
       "winner_policy": "POPT"
     },
     {
@@ -344,11 +344,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "2.021",
+      "margin_pp": "2.011",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.129581",
+      "runner_up_miss_rate": "0.128381",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.109374",
+      "winner_miss_rate": "0.108273",
       "winner_policy": "POPT"
     },
     {
@@ -539,12 +539,12 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "0.020",
+      "margin_pp": "0.000",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.007664",
-      "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.007465",
-      "winner_policy": "POPT"
+      "runner_up_miss_rate": "1.000000",
+      "runner_up_policy": "LRU",
+      "winner_miss_rate": "1.000000",
+      "winner_policy": "GRASP"
     },
     {
       "app": "pr",
@@ -552,11 +552,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "0.001",
+      "margin_pp": "0.000",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.007569",
-      "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.007562",
+      "runner_up_miss_rate": "1.000000",
+      "runner_up_policy": "LRU",
+      "winner_miss_rate": "1.000000",
       "winner_policy": "GRASP"
     },
     {
@@ -565,11 +565,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.019",
+      "margin_pp": "0.000",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.007789",
-      "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.007594",
+      "runner_up_miss_rate": "1.000000",
+      "runner_up_policy": "LRU",
+      "winner_miss_rate": "1.000000",
       "winner_policy": "GRASP"
     },
     {
@@ -903,11 +903,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "1.985",
+      "margin_pp": "1.482",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.814773",
+      "runner_up_miss_rate": "0.809648",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.794920",
+      "winner_miss_rate": "0.794829",
       "winner_policy": "GRASP"
     },
     {
@@ -916,11 +916,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "1.877",
+      "margin_pp": "1.445",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.569835",
+      "runner_up_miss_rate": "0.563675",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.551066",
+      "winner_miss_rate": "0.549226",
       "winner_policy": "GRASP"
     },
     {
@@ -929,11 +929,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "1.583",
+      "margin_pp": "1.648",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.406215",
+      "runner_up_miss_rate": "0.407374",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.390387",
+      "winner_miss_rate": "0.390898",
       "winner_policy": "GRASP"
     },
     {
@@ -942,12 +942,12 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "1.128",
+      "margin_pp": "1.090",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.782850",
-      "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.771569",
-      "winner_policy": "POPT"
+      "runner_up_miss_rate": "0.752150",
+      "runner_up_policy": "POPT",
+      "winner_miss_rate": "0.741251",
+      "winner_policy": "GRASP"
     },
     {
       "app": "bfs",
@@ -955,12 +955,12 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "1.213",
+      "margin_pp": "1.240",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.600710",
-      "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.588583",
-      "winner_policy": "POPT"
+      "runner_up_miss_rate": "0.537646",
+      "runner_up_policy": "POPT",
+      "winner_miss_rate": "0.525241",
+      "winner_policy": "GRASP"
     },
     {
       "app": "bfs",
@@ -968,12 +968,12 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.961",
+      "margin_pp": "1.200",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.531077",
-      "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.521469",
-      "winner_policy": "POPT"
+      "runner_up_miss_rate": "0.459347",
+      "runner_up_policy": "POPT",
+      "winner_miss_rate": "0.447344",
+      "winner_policy": "GRASP"
     },
     {
       "app": "cc",
@@ -1020,11 +1020,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "5.950",
+      "margin_pp": "6.129",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.684286",
+      "runner_up_miss_rate": "0.683922",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.624785",
+      "winner_miss_rate": "0.622631",
       "winner_policy": "POPT"
     },
     {
@@ -1033,11 +1033,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "5.975",
+      "margin_pp": "6.195",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.351445",
+      "runner_up_miss_rate": "0.350557",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.291691",
+      "winner_miss_rate": "0.288608",
       "winner_policy": "POPT"
     },
     {
@@ -1046,11 +1046,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "2.212",
+      "margin_pp": "2.291",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.201771",
+      "runner_up_miss_rate": "0.201244",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.179650",
+      "winner_miss_rate": "0.178333",
       "winner_policy": "POPT"
     },
     {
@@ -1059,11 +1059,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "1.406",
+      "margin_pp": "0.021",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.687091",
-      "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.673029",
+      "runner_up_miss_rate": "0.658449",
+      "runner_up_policy": "GRASP",
+      "winner_miss_rate": "0.658234",
       "winner_policy": "POPT"
     },
     {
@@ -1072,11 +1072,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "0.331",
+      "margin_pp": "1.220",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.312181",
+      "runner_up_miss_rate": "0.308493",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.308876",
+      "winner_miss_rate": "0.296294",
       "winner_policy": "GRASP"
     },
     {
@@ -1085,11 +1085,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.578",
+      "margin_pp": "0.747",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.134584",
+      "runner_up_miss_rate": "0.131480",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.128809",
+      "winner_miss_rate": "0.124008",
       "winner_policy": "GRASP"
     },
     {
@@ -1098,11 +1098,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "3.079",
+      "margin_pp": "3.001",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.795915",
+      "runner_up_miss_rate": "0.794644",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.765123",
+      "winner_miss_rate": "0.764632",
       "winner_policy": "GRASP"
     },
     {
@@ -1111,11 +1111,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "1.717",
+      "margin_pp": "1.614",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.437630",
+      "runner_up_miss_rate": "0.435549",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.420456",
+      "winner_miss_rate": "0.419405",
       "winner_policy": "GRASP"
     },
     {
@@ -1124,11 +1124,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.285",
+      "margin_pp": "0.077",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.202222",
+      "runner_up_miss_rate": "0.200160",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.199376",
+      "winner_miss_rate": "0.199387",
       "winner_policy": "GRASP"
     },
     {
@@ -1215,11 +1215,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "0.421",
+      "margin_pp": "0.347",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.547604",
+      "runner_up_miss_rate": "0.546770",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.543390",
+      "winner_miss_rate": "0.543296",
       "winner_policy": "GRASP"
     },
     {
@@ -1228,11 +1228,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "0.642",
+      "margin_pp": "0.652",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.130220",
+      "runner_up_miss_rate": "0.130090",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.123798",
+      "winner_miss_rate": "0.123571",
       "winner_policy": "POPT"
     },
     {
@@ -1241,11 +1241,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.814",
+      "margin_pp": "0.819",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.087432",
+      "runner_up_miss_rate": "0.087424",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.079289",
+      "winner_miss_rate": "0.079237",
       "winner_policy": "GRASP"
     },
     {
@@ -1254,11 +1254,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "4.097",
+      "margin_pp": "3.810",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.570327",
+      "runner_up_miss_rate": "0.564999",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.529359",
+      "winner_miss_rate": "0.526903",
       "winner_policy": "GRASP"
     },
     {
@@ -1267,11 +1267,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "0.872",
+      "margin_pp": "0.884",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.076542",
+      "runner_up_miss_rate": "0.075664",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.067818",
+      "winner_miss_rate": "0.066827",
       "winner_policy": "GRASP"
     },
     {
@@ -1280,11 +1280,11 @@
       "graph_family": "social",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.001",
+      "margin_pp": "0.000",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.002951",
-      "runner_up_policy": "LRU",
-      "winner_miss_rate": "0.002944",
+      "runner_up_miss_rate": "0.002917",
+      "runner_up_policy": "GRASP",
+      "winner_miss_rate": "0.002914",
       "winner_policy": "POPT"
     },
     {
@@ -1293,11 +1293,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "1.345",
+      "margin_pp": "1.163",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.702327",
-      "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.688876",
+      "runner_up_miss_rate": "0.699827",
+      "runner_up_policy": "LRU",
+      "winner_miss_rate": "0.688201",
       "winner_policy": "SRRIP"
     },
     {
@@ -1306,11 +1306,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "1.563",
+      "margin_pp": "1.318",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.357427",
+      "runner_up_miss_rate": "0.355966",
       "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.341800",
+      "winner_miss_rate": "0.342787",
       "winner_policy": "GRASP"
     },
     {
@@ -1319,11 +1319,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.872",
+      "margin_pp": "0.754",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.144413",
+      "runner_up_miss_rate": "0.144063",
       "runner_up_policy": "SRRIP",
-      "winner_miss_rate": "0.135697",
+      "winner_miss_rate": "0.136525",
       "winner_policy": "GRASP"
     },
     {
@@ -1332,11 +1332,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "1.098",
+      "margin_pp": "1.046",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.947323",
+      "runner_up_miss_rate": "0.946723",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.936341",
+      "winner_miss_rate": "0.936261",
       "winner_policy": "GRASP"
     },
     {
@@ -1345,11 +1345,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "0.386",
+      "margin_pp": "0.188",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.759041",
+      "runner_up_miss_rate": "0.757460",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.755181",
+      "winner_miss_rate": "0.755584",
       "winner_policy": "POPT"
     },
     {
@@ -1358,11 +1358,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "2.481",
+      "margin_pp": "2.508",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.754225",
+      "runner_up_miss_rate": "0.754332",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.729419",
+      "winner_miss_rate": "0.729253",
       "winner_policy": "POPT"
     },
     {
@@ -1410,11 +1410,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "1MB",
-      "margin_pp": "3.647",
+      "margin_pp": "3.630",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.453209",
+      "runner_up_miss_rate": "0.453134",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.416735",
+      "winner_miss_rate": "0.416835",
       "winner_policy": "POPT"
     },
     {
@@ -1423,11 +1423,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "4MB",
-      "margin_pp": "1.072",
+      "margin_pp": "1.063",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.116316",
+      "runner_up_miss_rate": "0.116317",
       "runner_up_policy": "POPT",
-      "winner_miss_rate": "0.105594",
+      "winner_miss_rate": "0.105690",
       "winner_policy": "GRASP"
     },
     {
@@ -1436,11 +1436,11 @@
       "graph_family": "web",
       "l3_regime": "large",
       "l3_size": "8MB",
-      "margin_pp": "0.038",
+      "margin_pp": "0.036",
       "n_policies": 4,
-      "runner_up_miss_rate": "0.084516",
+      "runner_up_miss_rate": "0.084483",
       "runner_up_policy": "GRASP",
-      "winner_miss_rate": "0.084132",
+      "winner_miss_rate": "0.084127",
       "winner_policy": "POPT"
     },
     {
@@ -1520,9 +1520,9 @@
       {
         "app": "pr",
         "graph": "email-Eu-core",
-        "l3_size": "4MB",
-        "margin_pp": "0.001",
-        "runner_up_policy": "SRRIP",
+        "l3_size": "1MB",
+        "margin_pp": "0.000",
+        "runner_up_policy": "LRU",
         "winner_policy": "GRASP"
       }
     ],
@@ -1534,9 +1534,9 @@
         "SRRIP": 4
       },
       "bfs": {
-        "GRASP": 9,
+        "GRASP": 12,
         "LRU": 1,
-        "POPT": 12,
+        "POPT": 9,
         "SRRIP": 1
       },
       "cc": {
@@ -1545,8 +1545,8 @@
         "SRRIP": 1
       },
       "pr": {
-        "GRASP": 8,
-        "POPT": 20
+        "GRASP": 9,
+        "POPT": 19
       },
       "sssp": {
         "GRASP": 7,
@@ -1572,8 +1572,8 @@
         "SRRIP": 3
       },
       "social": {
-        "GRASP": 31,
-        "POPT": 21,
+        "GRASP": 35,
+        "POPT": 17,
         "SRRIP": 2
       },
       "web": {
@@ -1584,16 +1584,16 @@
       }
     },
     "wins_by_policy": {
-      "GRASP": 56,
+      "GRASP": 60,
       "LRU": 6,
-      "POPT": 44,
+      "POPT": 40,
       "SRRIP": 8
     },
     "wins_by_regime": {
       "large": {
-        "GRASP": 48,
+        "GRASP": 52,
         "LRU": 5,
-        "POPT": 31,
+        "POPT": 27,
         "SRRIP": 6
       },
       "small": {

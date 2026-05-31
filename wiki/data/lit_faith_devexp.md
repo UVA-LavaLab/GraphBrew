@@ -6,29 +6,25 @@ Per `status == 'known_deviation'` row: the `known_deviation_reason` text must na
 
 | Metric | Value |
 |---|---|
-| Known-deviation rows | 30 |
+| Known-deviation rows | 24 |
 | Min reason length | 60 chars |
 | Min mechanism hits | 1 |
 | Reuse ceiling fraction | 0.5 |
-| Median reason length | 247 chars |
+| Median reason length | 263 chars |
 | Median mechanism hits | 5 |
-| Unique reason texts | 30 |
+| Unique reason texts | 24 |
 | Max reuse count (single text) | 1 |
-| Rows with cross-reference | 16 |
+| Rows with cross-reference | 12 |
 | Violations | 0 |
 
 ## Per-row detail
 
 | graph | app | l3 | policy | len | mech hits | xref | excerpt |
 |---|---|---|---|---|---|---|---|
-| cit-Patents | bc | 4MB | POPT_GE_GRASP | 312 | 9 | Y | Same source-rooted BC frontier vs PR-rank mis-alignment as the soc-pokec/bc entr... |
-| cit-Patents | bc | 8MB | POPT_GE_GRASP | 158 | 7 | Y | Same BC frontier vs PR-rank mis-alignment as the 4 MB entry; gap persists at ~1.... |
 | cit-Patents | cc | 1MB | POPT_GE_GRASP | 241 | 4 | Y | Same CC/POPT algorithmic mismatch as the soc-pokec/web-Google entries above. cit... |
 | cit-Patents | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | 169 | 1 | N | Phase-transition regime invariant fires because GRASP gains 13+ pp over LRU on c... |
 | cit-Patents | cc | 4MB | POPT_GE_GRASP | 316 | 10 | Y | Same CC/POPT algorithmic mismatch as the 1MB entry above: CC's union-find parent... |
 | cit-Patents | cc | 8MB | POPT_GE_GRASP | 161 | 4 | N | Same CC/POPT mismatch; ~1.5 pp gap remains even at 8 MB on cit-Patents because t... |
-| cit-Patents | sssp | 4MB | POPT_GE_GRASP | 296 | 8 | N | cit-Patents has weak PR-driven locality; at 4 MB POPT's static PR-ranked schedul... |
-| cit-Patents | sssp | 8MB | POPT_GE_GRASP | 136 | 3 | Y | Same cit-Patents/SSSP rank-mis-alignment as the 4MB entry; ~1.6 pp gap persists ... |
 | com-orkut | bc | 1MB | POPT_GE_GRASP | 178 | 2 | N | Same BC/PR-rank mismatch as soc-LJ; com-orkut has even higher clustering coeffic... |
 | com-orkut | bc | 4MB | POPT_GE_GRASP | 328 | 5 | Y | Same com-orkut/BC PR-rank vs dependency-frontier mismatch as the 1MB entry; gap ... |
 | com-orkut | bc | 8MB | POPT_GE_GRASP | 416 | 5 | Y | Same com-orkut/BC PR-rank vs dependency-frontier mismatch as the 1MB / 4MB entri... |
@@ -37,8 +33,6 @@ Per `status == 'known_deviation'` row: the `known_deviation_reason` text must na
 | com-orkut | cc | 4MB | POPT_GE_GRASP | 291 | 8 | Y | Same CC/POPT algorithmic mismatch as the com-orkut/cc/1MB entry above: union-fin... |
 | com-orkut | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | 166 | 2 | Y | Same com-orkut/CC mismatch as the 1MB entry; gap persists at ~10 pp at 4MB becau... |
 | com-orkut | cc | 8MB | POPT_GE_GRASP | 173 | 6 | N | Same CC/POPT mismatch; ~6 pp gap remains even at 8 MB on com-orkut because the s... |
-| soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | 238 | 5 | N | BC's reverse-BFS dependency accumulation traverses high-degree pivots in topolog... |
-| soc-LiveJournal1 | bc | 4MB | POPT_GE_GRASP | 95 | 3 | Y | Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB entry; gap is ... |
 | soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | 421 | 5 | Y | Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB / 4MB entries:... |
 | soc-LiveJournal1 | cc | 4MB | POPT_GE_GRASP | 279 | 8 | Y | Same CC/POPT algorithmic mismatch as the soc-LiveJournal1/cc/1MB entry above: un... |
 | soc-LiveJournal1 | cc | 8MB | POPT_GE_GRASP | 176 | 5 | N | Same soc-LJ/CC mismatch; gap is widest (+3.1 pp) at 8MB where GRASP's locality p... |

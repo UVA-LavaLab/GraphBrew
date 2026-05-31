@@ -37,17 +37,24 @@ PVG_JSON = WIKI / "popt_vs_grasp_delta.json"
 EXPECTED_TOTAL_CELLS = 114
 EXPECTED_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
 EXPECTED_NO_WINNER_COUNT = 0
-EXPECTED_TIED_WINNER_COUNT = 3
-EXPECTED_UNIQUE_WINNER_COUNT = 111
+EXPECTED_TIED_WINNER_COUNT = 6
+EXPECTED_UNIQUE_WINNER_COUNT = 108
 
-# The 3 known tied cells (all on bc/email-Eu-core, three different L3
-# sizes). Locking this exact set catches a comparator regression that
+# The 6 known tied cells. Originally just bc/email-Eu-core at 3 L3 sizes;
+# expanded to include pr/email-Eu-core at the same 3 L3 sizes after the
+# post-fix cache_sim binary (commits e292903 / 79a9a5b / 127db21)
+# correctly reports 100% L3 miss on the tiny graph (working set fits in
+# L2 so L3 sees only cold misses; all four baseline policies tie at
+# 100%). Locking this exact set catches a comparator regression that
 # could silently flip one cell to "no winner" or to a different
 # (graph, app, L3).
 EXPECTED_TIED_CELLS = {
     ("bc", "email-Eu-core", "1MB"),
     ("bc", "email-Eu-core", "4MB"),
     ("bc", "email-Eu-core", "8MB"),
+    ("pr", "email-Eu-core", "1MB"),
+    ("pr", "email-Eu-core", "4MB"),
+    ("pr", "email-Eu-core", "8MB"),
 }
 
 
