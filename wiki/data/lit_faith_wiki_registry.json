@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 128,
+    "catalog_entries": 129,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 132
+    "wiki_json_files": 133
   },
   "violations": [],
   "wiki_json_files": [
@@ -133,6 +133,7 @@
     "wiki/data/lit_faith_slurm_schema.json",
     "wiki/data/lit_faith_sniper_overlay_hash_registry.json",
     "wiki/data/lit_faith_stat.json",
+    "wiki/data/lit_faith_subprocess_argv_registry.json",
     "wiki/data/lit_faith_tolerance.json",
     "wiki/data/lit_faith_wiki_registry.json",
     "wiki/data/literature_deviations.json",

@@ -453,6 +453,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_paper_stage_registry.py", "StageReg"),
     "Manifest schema registry (gate 276) — locks final_paper_manifest.json shape: version, top-level keys, defaults vocab, stage-kind set, graph-entry shape, options_key xref, stage→profile xref; M1-M6 over 30 profiles, 30 stages, 8 graph_sets":
         ("scripts/test/test_lit_faith_manifest_schema.py", "ManifestSchema"),
+    "Subprocess argv registry (gate 277) — locks --flag literals built by run_profile + make_proof_job + make_roi_job (3 builders, 56 flags); A1-A6: module+fn present, target const referenced, no removals, no additions, exhaustive, hygiene":
+        ("scripts/test/test_lit_faith_subprocess_argv_registry.py", "ArgvReg"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

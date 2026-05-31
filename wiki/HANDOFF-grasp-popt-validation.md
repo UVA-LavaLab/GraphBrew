@@ -8,7 +8,46 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **276 gates, all GREEN, exit 0**.
+and currently reports **277 gates, all GREEN, exit 0**.
+
+**Subprocess argv registry (gate 277, refresh @277):**
+The twenty-fourth in the vocabulary-lock series (252 SBATCH … 276
+manifest schema, 277 subprocess argv registry). EXTENDS gates
+273-276 from CLI surface + orchestrator backbone + data manifest
+into the WIRE-CALL layer. Locks 56 ``--flag`` literals total across
+3 job-builders: 7 in ``paper_pipeline.run_profile`` (spawns
+``final_paper_run.py`` per profile), 10 in
+``final_paper_run.make_proof_job`` (spawns ``proof_matrix.py``),
+39 in ``final_paper_run.make_roi_job`` (spawns ``roi_matrix.py``
+including ECG_PFX/DROPLET/sniper conditional groups). Catches the
+silent-drift cases the other gates can't catch: someone renames
+``--out-dir`` → ``--output-dir`` in ``proof_matrix.py`` but not in
+``make_proof_job`` (runner-CLI lock gate 273 catches the runner
+side; orchestrator-CLI lock gate 274 catches the orchestrator
+side; THIS gate catches the wire-level argv construction so the
+rename can't go through without coordinated update); someone adds
+a new required flag to ``proof_matrix.py`` without teaching
+``make_proof_job`` to pass it (every proof run fails with argparse
+error mid-job); someone removes a conditional flag (e.g.
+``--allow-gem5-ecg-pfx``) from ``make_roi_job`` but leaves the
+``settings.get()`` branch intact (branch fires but flag never
+reaches runner so gem5 ECG_PFX silently refuses to start); someone
+renames the ``PROOF_MATRIX`` module-level Path constant to
+``PROVE_MATRIX`` without updating ``make_proof_job`` (NameError at
+job-build time, currently only caught when path is actually
+triggered). 6 rules A1-A6: A1 every target module ast-parses + every
+target fn present; A2 every target fn references its locked
+UPPERCASE command-target constant (``FINAL_RUN`` / ``PROOF_MATRIX`` /
+``ROI_MATRIX``); A3 every locked flag must appear in extracted set
+(catches removals); A4 every extracted flag must appear in locked
+set (catches surprise additions); A5 registry entry is well-formed
+and non-empty; A6 every flag matches canonical ``--[a-z0-9-]+``
+pattern. Today: 3 builders, 56 locked ``--flag`` literals, 3 target
+constants; 0 violations. Together with gates 273+274+275+276 this
+locks the FULL publish-reproduction contract end-to-end — from
+per-experiment runner CLI (gate 273), to orchestrator CLI (gate
+274), to orchestrator backbone helpers (gate 275), to data manifest
+shape (gate 276), to wire-level subprocess argv (gate 277).
 
 **Manifest schema registry (gate 276, refresh @276):**
 The twenty-third in the vocabulary-lock series (252 SBATCH … 275
@@ -1199,8 +1238,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 276. Next refresh due
-at gate 281. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 277. Next refresh due
+at gate 282. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.
