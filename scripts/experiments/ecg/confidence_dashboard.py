@@ -451,6 +451,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_orchestrator_cli_registry.py", "OrchCLI"),
     "Paper-pipeline stage registry (gate 275) — locks public top-level fn signatures of paper_pipeline.py (50) + final_paper_run.py (37); 87 fns; S1-S7: ast-parse, fn-kind, args, defaults, return annot, vararg/kwarg/kwonly, exhaustive":
         ("scripts/test/test_lit_faith_paper_stage_registry.py", "StageReg"),
+    "Manifest schema registry (gate 276) — locks final_paper_manifest.json shape: version, top-level keys, defaults vocab, stage-kind set, graph-entry shape, options_key xref, stage→profile xref; M1-M6 over 30 profiles, 30 stages, 8 graph_sets":
+        ("scripts/test/test_lit_faith_manifest_schema.py", "ManifestSchema"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

@@ -8,7 +8,54 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **275 gates, all GREEN, exit 0**.
+and currently reports **276 gates, all GREEN, exit 0**.
+
+**Manifest schema registry (gate 276, refresh @276):**
+The twenty-third in the vocabulary-lock series (252 SBATCH … 275
+paper-pipeline stage registry, 276 manifest schema registry). EXTENDS
+gates 273+274+275 from CLI *surface* + orchestrator *backbone* into
+the DATA-contract layer. Locks the JSON shape of
+`scripts/experiments/ecg/final_paper_manifest.json` — the single
+source of truth for every recipe `final_paper_run.py` expands into
+jobs. The manifest declares the `version` int (currently 1), the
+`defaults` dict (per-tool timeouts, cache sizes, sniper config
+knobs — 16 keys), the `profiles` dict (recipe-name → command-line
+tag — 30 entries), the `benchmark_options` dict (graph-set →
+benchmark → CLI options — 4 entries), the `graph_sets` dict
+(graph-set → list of graph entries with `{name, options_key,
+[path]}` — 8 entries), and the `stages` list (recipe expansion
+plans with `kind` ∈ {roi_matrix, proof_matrix} — 30 entries). Every
+published reproduction recipe shells through
+`final_paper_run --manifest scripts/experiments/ecg/final_paper_manifest.json
+--profile <name>`. The manifest's shape IS the publish-reproduction
+contract from a *data* angle (gates 274+275 lock the *code* angle).
+Catches silent-drift cases the code gates can't catch: someone bumps
+`"version": 1` → `"version": 2` to add a new field, but every
+documented recipe still loads it as v1; someone removes
+`timeout_cache` from `defaults` and every `cache_sim` stage silently
+falls back to a hard-coded 600 s timeout that's too low for
+cit-Patents; someone adds a new stage `kind: "thread_scan"` not in
+the locked set and `expand_jobs()` silently no-ops instead of
+raising; a `graph_set` entry references `options_key: "syntehtic_g12"`
+(typo) — silently re-uses the default options; a stage references
+`profiles: ["finall_cache_sim"]` (typo) and the SBATCH wrapper
+silently expands to zero jobs; a graph entry drops the `options_key`
+field and the per-graph benchmark line becomes empty. 6 rules M1-M6:
+M1 manifest exists, parses, version equals locked (1); M2 top-level
+keys match locked set + min-count floors (profiles ≥ 30, stages ≥ 30,
+graph_sets ≥ 8, benchmark_options ≥ 4); M3 defaults keys match locked
+vocabulary (16 keys); M4 graph entry shape — required `{name,
+options_key}` + optional `{path}`, all str; M5 graph entry
+`options_key` references real `benchmark_options`; M6 stage shape —
+required `{name, kind, profiles, benchmarks}`, kind ∈ locked set,
+every `stage.profiles[i]` references real `profiles` entry, every
+`stage.graph_set` (when present) references real `graph_sets` entry.
+Today: version 1, 30 profiles, 30 stages, 8 graph_sets, 4
+benchmark_options, 16 defaults keys; 0 violations. Together with
+gates 273+274+275 this locks the FULL publish-reproduction contract
+end-to-end — from per-experiment runner CLI (gate 273), to
+orchestrator CLI (gate 274), to orchestrator backbone helpers (gate
+275), to data manifest shape (gate 276).
 
 **Paper-pipeline stage registry (gate 275, refresh @275):**
 The twenty-second in the vocabulary-lock series (252 SBATCH … 274
@@ -1152,8 +1199,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 275. Next refresh due
-at gate 280. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 276. Next refresh due
+at gate 281. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

@@ -1354,6 +1354,17 @@
       "summary": "Paper-pipeline stage registry audit (gate 275) \u2014 ALWAYS ACTIVE (source-of-truth is the live ast-derived public top-level fn signatures of scripts/experiments/ecg/paper_pipeline.py + scripts/experiments/ecg/final_paper_run.py). Twenty-second in the vocabulary-lock series (252 SBATCH \u2026 274 orchestrator CLI, 275 paper-pipeline stage registry): gate 275 EXTENDS gates 273+274 from the CLI *surface* down into the orchestrator *backbone*. Locks 87 public top-level fns in total \u2014 50 from paper_pipeline.py (run_profile, collect_csvs, summarize_roi, plot_metric_by_policy, plot_l_curve, write_latex_table, generate_outputs, main, \u2026) and 37 from final_paper_run.py (load_manifest, expand_jobs, make_proof_job, make_roi_job, validate_gate, validate_literature_gate, validate_job_graphs, run_lock, should_run, run_job, write_run_manifest, main, \u2026). Catches the silent-drift cases the CLI gates can't catch: someone renames run_profile \u2192 execute_profile and every internal call still typechecks-ish (no static checker locally) but breaks at runtime in the middle of an 8-hour SLURM run; someone reorders the positional args of make_roi_job(args, manifest, run_dir, settings, graph, graph_path, benchmark) and every job downstream silently uses wrong arguments; someone changes main()'s return type from int to bool and the SBATCH exit-code branch always evaluates to truthy; someone makes run_lock async and every with run_lock(): block silently becomes a no-op; someone removes terminate_process_group entirely and the cleanup branch silently no-ops. 7 rules S1-S7: (S1) orchestrator module ast-parses; (S2) fn-kind sync/async match; (S3) positional args list (names+order) match; (S4) positional defaults-presence vector match; (S5) return annotation match (ast.unparse form); (S6) vararg+kwarg+kwonly shape match; (S7) registry exhaustive \u2014 every public top-level fn must appear. Today: 87 locked fns across 2 orchestrators; 0 violations. Together with gates 273+274 this locks the FULL user-facing pipeline \u2014 from per-experiment runner CLI (gate 273), to orchestrator CLI (gate 274), down to orchestrator backbone helpers (gate 275)."
     },
     {
+      "artifact": "wiki/data/lit_faith_manifest_schema.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_lit_faith_manifest_schema.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/lit_faith_manifest_schema.py",
+      "generator_exists": true,
+      "id": "lit_faith_manifest_schema",
+      "label": "Manifest schema registry",
+      "summary": "Manifest schema registry audit (gate 276) \u2014 ALWAYS ACTIVE (source-of-truth is the live shape of scripts/experiments/ecg/final_paper_manifest.json). Twenty-third in the vocabulary-lock series (252 SBATCH \u2026 275 paper-pipeline stage registry, 276 manifest schema registry): gate 276 EXTENDS gates 273+274+275 from CLI surface + orchestrator backbone into the DATA-contract layer. The manifest is the single source of truth for every recipe final_paper_run.py expands into jobs \u2014 it declares the version int, the defaults dict (per-tool timeouts, cache sizes, sniper knobs), the profiles dict (recipe-name \u2192 command-line tag), the benchmark_options dict (graph-set \u2192 benchmark \u2192 CLI options), the graph_sets dict (graph-set \u2192 list of graph entries with name+options_key+optional path), and the stages list (recipe expansion plans with kind \u2208 {roi_matrix, proof_matrix}). Every published reproduction recipe shells through 'final_paper_run --manifest final_paper_manifest.json --profile <name>'. The manifest's shape IS the publish-reproduction contract from a *data* angle (gates 274+275 lock the *code* angle). Catches silent-drift cases the code gates can't catch: someone bumps version 1 \u2192 2 to add a new field but every documented recipe still loads it as v1; someone removes timeout_cache from defaults and every cache_sim stage silently falls back to a hard-coded 600 s timeout that's too low for cit-Patents; someone adds a new stage kind 'thread_scan' not in the locked set and expand_jobs() silently no-ops instead of raising; a graph_set entry references options_key='syntehtic_g12' (typo) \u2014 silently re-uses the default options; a stage references profiles=['finall_cache_sim'] (typo) and the SBATCH wrapper silently expands to zero jobs; a graph entry drops the options_key field and the per-graph benchmark line becomes empty. 6 rules M1-M6: (M1) manifest exists, parses, version equals locked value (1); (M2) top-level keys match locked set {version, description, defaults, profiles, benchmark_options, graph_sets, stages} + min-count floors (profiles \u2265 30, stages \u2265 30, graph_sets \u2265 8, benchmark_options \u2265 4); (M3) defaults keys match locked vocabulary (16 keys: cache geometry + timeouts + sniper knobs + build); (M4) graph entry shape \u2014 required {name, options_key} + optional {path}, all str; (M5) graph entry options_key references real benchmark_options; (M6) stage shape \u2014 required {name, kind, profiles, benchmarks}, kind \u2208 {roi_matrix, proof_matrix}, every stage.profiles[i] references real profiles entry, every stage.graph_set (when present) references real graph_sets entry. Today: version 1, 30 profiles, 30 stages, 8 graph_sets, 4 benchmark_options, 16 defaults keys; 0 violations. Together with gates 273+274+275 this locks the FULL publish-reproduction contract \u2014 from per-experiment runner CLI (gate 273), to orchestrator CLI (gate 274), to orchestrator backbone helpers (gate 275), to data manifest shape (gate 276)."
+    },
+    {
       "artifact": "wiki/data/claim_density.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_claim_density.py",
@@ -1395,13 +1406,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (275 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (276 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 127
+    "n_entries": 128
   }
 }

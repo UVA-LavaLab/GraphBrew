@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.2092900276184082,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.05s"
+      "runtime_s": 1.2103238105773926,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.06s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,7 +24,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.1643381118774414,
+      "runtime_s": 1.1581029891967773,
       "raw_tail": "......                                                                   [100%]\n6 passed in 1.01s"
     },
     {
@@ -37,7 +37,7 @@
       "xfailed": 4,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23247694969177246,
+      "runtime_s": 0.23256206512451172,
       "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.08s"
     },
     {
@@ -50,8 +50,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.4375190734863281,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.28s"
+      "runtime_s": 0.45699191093444824,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.29s"
     },
     {
       "label": "Lit-baseline structural gate",
@@ -63,8 +63,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.29883694648742676,
-      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.14s"
+      "runtime_s": 0.34097838401794434,
+      "raw_tail": "........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................................                                [100%]\n185 passed in 0.15s"
     },
     {
       "label": "Lit-faith no-disagree gate",
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2267608642578125,
+      "runtime_s": 0.24402642250061035,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.07s"
     },
     {
@@ -89,8 +89,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23343825340270996,
-      "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.08s"
+      "runtime_s": 0.22419476509094238,
+      "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.07s"
     },
     {
       "label": "Corpus diversity floor",
@@ -102,8 +102,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22924089431762695,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.07s"
+      "runtime_s": 0.218461275100708,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.06s"
     },
     {
       "label": "Cross-tool report parity",
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2364041805267334,
+      "runtime_s": 0.22665905952453613,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
@@ -128,8 +128,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23439526557922363,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.08s"
+      "runtime_s": 0.2222273349761963,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Regression budget margin distribution",
@@ -141,7 +141,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24291658401489258,
+      "runtime_s": 0.22995924949645996,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
@@ -154,7 +154,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2333056926727295,
+      "runtime_s": 0.22689223289489746,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
     },
     {
@@ -167,7 +167,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2229452133178711,
+      "runtime_s": 0.2378227710723877,
       "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
     },
     {
@@ -180,7 +180,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.222548246383667,
+      "runtime_s": 0.23339390754699707,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -193,7 +193,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2454230785369873,
+      "runtime_s": 0.23839449882507324,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
@@ -206,8 +206,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2272052764892578,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
+      "runtime_s": 0.23104023933410645,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "Cross-tool slope-ordering cross-artifact",
@@ -219,7 +219,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21974992752075195,
+      "runtime_s": 0.2205502986907959,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -232,7 +232,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23045587539672852,
+      "runtime_s": 0.22418475151062012,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -245,7 +245,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22687602043151855,
+      "runtime_s": 0.22513365745544434,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -258,8 +258,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22952699661254883,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
+      "runtime_s": 0.22716379165649414,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
       "label": "WSS knee vs relative-L3 parity",
@@ -271,7 +271,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22313332557678223,
+      "runtime_s": 0.2259526252746582,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -284,7 +284,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2372889518737793,
+      "runtime_s": 0.22175836563110352,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -297,7 +297,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2377309799194336,
+      "runtime_s": 0.2237393856048584,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -310,7 +310,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22349166870117188,
+      "runtime_s": 0.2253410816192627,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -323,7 +323,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2216784954071045,
+      "runtime_s": 0.2315964698791504,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -336,7 +336,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22292876243591309,
+      "runtime_s": 0.22807002067565918,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -349,7 +349,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22902703285217285,
+      "runtime_s": 0.23708105087280273,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -362,7 +362,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24832463264465332,
+      "runtime_s": 0.2738025188446045,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.09s"
     },
     {
@@ -375,7 +375,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22014808654785156,
+      "runtime_s": 0.2212691307067871,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -388,7 +388,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22104597091674805,
+      "runtime_s": 0.21728181838989258,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -401,7 +401,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2342381477355957,
+      "runtime_s": 0.22309255599975586,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -414,7 +414,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2313854694366455,
+      "runtime_s": 0.22071480751037598,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -427,7 +427,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22477436065673828,
+      "runtime_s": 0.23030757904052734,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -440,8 +440,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2688882350921631,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.10s"
+      "runtime_s": 0.23514914512634277,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "GRAPH_FAMILY map duplication",
@@ -453,7 +453,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23602700233459473,
+      "runtime_s": 0.23542165756225586,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
@@ -466,7 +466,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24256420135498047,
+      "runtime_s": 0.22935271263122559,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -479,7 +479,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22908449172973633,
+      "runtime_s": 0.22031664848327637,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -492,7 +492,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2209460735321045,
+      "runtime_s": 0.22813796997070312,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -505,7 +505,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22324705123901367,
+      "runtime_s": 0.22373747825622559,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -518,7 +518,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22835540771484375,
+      "runtime_s": 0.22388529777526855,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -531,7 +531,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22420740127563477,
+      "runtime_s": 0.2272493839263916,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -544,7 +544,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21752715110778809,
+      "runtime_s": 0.23147892951965332,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -557,7 +557,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22710657119750977,
+      "runtime_s": 0.22367095947265625,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -570,7 +570,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2200620174407959,
+      "runtime_s": 0.25258493423461914,
       "raw_tail": "...............                                                          [100%]\n15 passed in 0.07s"
     },
     {
@@ -583,7 +583,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23641753196716309,
+      "runtime_s": 0.22633147239685059,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -596,8 +596,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24638748168945312,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.08s"
+      "runtime_s": 0.23182201385498047,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "cross_tool_slope_universality verdict + medians",
@@ -609,7 +609,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2713658809661865,
+      "runtime_s": 0.23490667343139648,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
@@ -622,7 +622,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23663759231567383,
+      "runtime_s": 0.2308943271636963,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -635,7 +635,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24674224853515625,
+      "runtime_s": 0.23185014724731445,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
@@ -648,7 +648,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23235678672790527,
+      "runtime_s": 0.24262022972106934,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -661,7 +661,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2464277744293213,
+      "runtime_s": 0.2444460391998291,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
     },
     {
@@ -674,7 +674,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23267793655395508,
+      "runtime_s": 0.2360246181488037,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.07s"
     },
     {
@@ -687,7 +687,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.226959228515625,
+      "runtime_s": 0.24178552627563477,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.07s"
     },
     {
@@ -700,7 +700,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2200303077697754,
+      "runtime_s": 0.2532341480255127,
       "raw_tail": "...............                                                          [100%]\n15 passed in 0.07s"
     },
     {
@@ -713,7 +713,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2313542366027832,
+      "runtime_s": 0.22671103477478027,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.07s"
     },
     {
@@ -726,7 +726,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23363947868347168,
+      "runtime_s": 0.22702407836914062,
       "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
     },
     {
@@ -739,7 +739,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22970008850097656,
+      "runtime_s": 0.2267916202545166,
       "raw_tail": "...............                                                          [100%]\n15 passed in 0.07s"
     },
     {
@@ -752,7 +752,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23914742469787598,
+      "runtime_s": 0.23214077949523926,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
     },
     {
@@ -765,7 +765,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22301340103149414,
+      "runtime_s": 0.2269296646118164,
       "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
     },
     {
@@ -778,7 +778,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22533249855041504,
+      "runtime_s": 0.21938872337341309,
       "raw_tail": "...............                                                          [100%]\n15 passed in 0.07s"
     },
     {
@@ -791,7 +791,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2249770164489746,
+      "runtime_s": 0.22650861740112305,
       "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
     },
     {
@@ -804,8 +804,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23265767097473145,
-      "raw_tail": ".................                                                        [100%]\n17 passed in 0.08s"
+      "runtime_s": 0.22827816009521484,
+      "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
     },
     {
       "label": "winner identification parity (oracle \u2194 stability)",
@@ -817,7 +817,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22605490684509277,
+      "runtime_s": 0.23860383033752441,
       "raw_tail": "......................                                                   [100%]\n22 passed in 0.07s"
     },
     {
@@ -830,7 +830,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22699499130249023,
+      "runtime_s": 0.22940969467163086,
       "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
     },
     {
@@ -843,7 +843,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23403334617614746,
+      "runtime_s": 0.2309563159942627,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -856,7 +856,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2286531925201416,
+      "runtime_s": 0.2371666431427002,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -869,7 +869,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2265911102294922,
+      "runtime_s": 0.2442011833190918,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
     },
     {
@@ -882,7 +882,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23511028289794922,
+      "runtime_s": 0.2304093837738037,
       "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
     },
     {
@@ -895,7 +895,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23236918449401855,
+      "runtime_s": 0.22785592079162598,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
     },
     {
@@ -908,7 +908,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2285304069519043,
+      "runtime_s": 0.2293102741241455,
       "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
     },
     {
@@ -921,7 +921,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22276830673217773,
+      "runtime_s": 0.230116605758667,
       "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
     },
     {
@@ -934,8 +934,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2227311134338379,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.23329687118530273,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "gap_distribution_shape derivation parity (g1/g2 moments + envelope)",
@@ -947,8 +947,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23433160781860352,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.23837804794311523,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "cell_winner_census derivation parity (classification + tied breakdown)",
@@ -960,7 +960,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2227323055267334,
+      "runtime_s": 0.22928595542907715,
       "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
     },
     {
@@ -973,7 +973,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23834657669067383,
+      "runtime_s": 0.23368453979492188,
       "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
     },
     {
@@ -986,8 +986,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24053168296813965,
-      "raw_tail": "......................                                                   [100%]\n22 passed in 0.07s"
+      "runtime_s": 0.23428010940551758,
+      "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
     },
     {
       "label": "popt_vs_grasp_delta derivation parity (delta + classification + tails)",
@@ -999,8 +999,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2886371612548828,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.09s"
+      "runtime_s": 0.24193239212036133,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
     },
     {
       "label": "winning_regime_taxonomy derivation parity (bins + extracted rules)",
@@ -1012,7 +1012,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2416830062866211,
+      "runtime_s": 0.23746395111083984,
       "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
@@ -1025,7 +1025,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2859508991241455,
+      "runtime_s": 0.23852801322937012,
       "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
@@ -1038,8 +1038,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.29195475578308105,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.13s"
+      "runtime_s": 0.29021406173706055,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.14s"
     },
     {
       "label": "family_geomean_improvement derivation parity (geomean ratio + bootstrap CI)",
@@ -1051,8 +1051,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.4511871337890625,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.28s"
+      "runtime_s": 0.4210226535797119,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.27s"
     },
     {
       "label": "policy_rank_kendall derivation parity (Kendall-tau across L3 octave)",
@@ -1064,8 +1064,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2546563148498535,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.09s"
+      "runtime_s": 0.23623275756835938,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
       "label": "claim_density derivation parity (per-graph claim aggregation)",
@@ -1077,7 +1077,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2627298831939697,
+      "runtime_s": 0.2578697204589844,
       "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
     },
     {
@@ -1090,7 +1090,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2433161735534668,
+      "runtime_s": 0.24944376945495605,
       "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
     },
     {
@@ -1103,7 +1103,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24127578735351562,
+      "runtime_s": 0.2348635196685791,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -1116,7 +1116,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2590055465698242,
+      "runtime_s": 0.23178625106811523,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -1129,7 +1129,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22577238082885742,
+      "runtime_s": 0.2416379451751709,
       "raw_tail": "........................                                                 [100%]\n24 passed in 0.07s"
     },
     {
@@ -1142,7 +1142,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23333954811096191,
+      "runtime_s": 0.2531588077545166,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
     },
     {
@@ -1155,8 +1155,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22961044311523438,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
+      "runtime_s": 0.238633394241333,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
     },
     {
       "label": "wss_relative_l3 derivation parity (WSS proxy + L3/WSS regime aggregation + ranking)",
@@ -1168,7 +1168,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2414567470550537,
+      "runtime_s": 0.2278604507446289,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
     },
     {
@@ -1181,7 +1181,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23809003829956055,
+      "runtime_s": 0.2503085136413574,
       "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
     },
     {
@@ -1194,7 +1194,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2421865463256836,
+      "runtime_s": 0.25574302673339844,
       "raw_tail": "...............................                                          [100%]\n31 passed in 0.08s"
     },
     {
@@ -1207,7 +1207,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2657778263092041,
+      "runtime_s": 0.24126267433166504,
       "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
     },
     {
@@ -1220,7 +1220,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2464580535888672,
+      "runtime_s": 0.23589491844177246,
       "raw_tail": "................................                                         [100%]\n32 passed in 0.08s"
     },
     {
@@ -1233,8 +1233,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24907708168029785,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
+      "runtime_s": 0.2309274673461914,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
       "label": "cross_tool_saturation derivation parity (per-cell classifier + summary reducers)",
@@ -1246,7 +1246,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2598080635070801,
+      "runtime_s": 0.23355412483215332,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
     },
     {
@@ -1259,8 +1259,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2510535717010498,
-      "raw_tail": ".........................                                                [100%]\n25 passed in 0.08s"
+      "runtime_s": 0.22999978065490723,
+      "raw_tail": ".........................                                                [100%]\n25 passed in 0.07s"
     },
     {
       "label": "cross_policy_asymmetry derivation parity (head-to-head margins + ratio ceiling)",
@@ -1272,8 +1272,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23242688179016113,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
+      "runtime_s": 0.23662209510803223,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.07s"
     },
     {
       "label": "saturation_slope_extremum derivation parity (bfs argmin both axes + corpus floors)",
@@ -1285,7 +1285,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23882079124450684,
+      "runtime_s": 0.236710786819458,
       "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
     },
     {
@@ -1298,7 +1298,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24240684509277344,
+      "runtime_s": 0.23304319381713867,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
     },
     {
@@ -1311,8 +1311,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2499525547027588,
-      "raw_tail": "...........................                                              [100%]\n27 passed in 0.07s"
+      "runtime_s": 0.22983741760253906,
+      "raw_tail": "...........................                                              [100%]\n27 passed in 0.08s"
     },
     {
       "label": "oracle_gap_by_app_bootstrap derivation parity (paired \u0394 seeded bootstrap + 95% CI)",
@@ -1324,8 +1324,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.8253426551818848,
-      "raw_tail": ".................                                                        [100%]\n17 passed in 0.66s"
+      "runtime_s": 0.8085746765136719,
+      "raw_tail": ".................                                                        [100%]\n17 passed in 0.65s"
     },
     {
       "label": "cross_generator_gap_parity derivation parity (three-source gap_pp reconciliation)",
@@ -1337,7 +1337,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24899864196777344,
+      "runtime_s": 0.2359015941619873,
       "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
@@ -1350,8 +1350,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.25668954849243164,
-      "raw_tail": ".........................                                                [100%]\n25 passed in 0.08s"
+      "runtime_s": 0.23343968391418457,
+      "raw_tail": ".........................                                                [100%]\n25 passed in 0.07s"
     },
     {
       "label": "leave_one_graph_out derivation parity (LOGO per-app re-rank + fragile partition)",
@@ -1363,8 +1363,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23406481742858887,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
+      "runtime_s": 0.24284648895263672,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
     },
     {
       "label": "popt_vs_grasp_by_family_app derivation parity (per-(family,app) paired bootstrap CIs)",
@@ -1376,8 +1376,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2909398078918457,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.13s"
+      "runtime_s": 0.293118953704834,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.14s"
     },
     {
       "label": "cache_saturation_onset derivation parity (per-(app,policy) octave walker + per-policy rank)",
@@ -1389,8 +1389,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22210097312927246,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.22771024703979492,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
     },
     {
       "label": "oracle_gap derivation parity (THE upstream: per-cell rows + summary stat block from CSV)",
@@ -1402,7 +1402,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.27295613288879395,
+      "runtime_s": 0.2370748519897461,
       "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
     },
     {
@@ -1415,7 +1415,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2424330711364746,
+      "runtime_s": 0.2573549747467041,
       "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
     },
     {
@@ -1428,7 +1428,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24796533584594727,
+      "runtime_s": 0.23561382293701172,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
     },
     {
@@ -1441,7 +1441,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26547837257385254,
+      "runtime_s": 0.23827552795410156,
       "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
     },
     {
@@ -1454,7 +1454,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.25844573974609375,
+      "runtime_s": 0.2369225025177002,
       "raw_tail": "..................................                                       [100%]\n34 passed in 0.08s"
     },
     {
@@ -1467,7 +1467,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24876737594604492,
+      "runtime_s": 0.25357937812805176,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
     },
     {
@@ -1480,7 +1480,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24932384490966797,
+      "runtime_s": 0.27174949645996094,
       "raw_tail": "..................................                                       [100%]\n34 passed in 0.08s"
     },
     {
@@ -1493,7 +1493,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2476043701171875,
+      "runtime_s": 0.2400188446044922,
       "raw_tail": "....................................                                     [100%]\n36 passed in 0.08s"
     },
     {
@@ -1506,7 +1506,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.30522775650024414,
+      "runtime_s": 0.23835420608520508,
       "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
@@ -1519,8 +1519,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2377772331237793,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.07s"
+      "runtime_s": 0.24307608604431152,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
     },
     {
       "label": "family_margin_replay derivation parity (WSS-regime classifier + winner-margin distribution + shrink evidence)",
@@ -1532,7 +1532,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24399375915527344,
+      "runtime_s": 0.2506523132324219,
       "raw_tail": "................................                                         [100%]\n32 passed in 0.08s"
     },
     {
@@ -1545,7 +1545,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24956631660461426,
+      "runtime_s": 0.26425933837890625,
       "raw_tail": ".................................                                        [100%]\n33 passed in 0.08s"
     },
     {
@@ -1558,8 +1558,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 6.202510595321655,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 6.03s"
+      "runtime_s": 6.162582874298096,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 6.00s"
     },
     {
       "label": "family_saturation_distance derivation parity (per-family upper-octave headroom + pinned web outlier)",
@@ -1571,7 +1571,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23601365089416504,
+      "runtime_s": 0.22706842422485352,
       "raw_tail": ".................................                                        [100%]\n33 passed in 0.08s"
     },
     {
@@ -1584,8 +1584,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.241668701171875,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
+      "runtime_s": 0.23001885414123535,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.07s"
     },
     {
       "label": "anchor_cross_tool_agreement derivation parity (shared-anchor slope-sign agreement + sniper-steeper invariant)",
@@ -1597,7 +1597,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24456048011779785,
+      "runtime_s": 0.23467254638671875,
       "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
     },
     {
@@ -1610,7 +1610,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.298598051071167,
+      "runtime_s": 0.2732822895050049,
       "raw_tail": "........................................                                 [100%]\n40 passed in 0.12s"
     },
     {
@@ -1623,7 +1623,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26636290550231934,
+      "runtime_s": 0.257159948348999,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.11s"
     },
     {
@@ -1636,7 +1636,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.270430326461792,
+      "runtime_s": 0.2633821964263916,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.11s"
     },
     {
@@ -1649,7 +1649,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.27012109756469727,
+      "runtime_s": 0.26367712020874023,
       "raw_tail": "...........................                                              [100%]\n27 passed in 0.11s"
     },
     {
@@ -1662,8 +1662,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.25267934799194336,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.10s"
+      "runtime_s": 0.2622554302215576,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.11s"
     },
     {
       "label": "paper_claims registry derivation parity (single-source-of-truth aggregator + JSON byte parity)",
@@ -1675,7 +1675,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24206233024597168,
+      "runtime_s": 0.23872709274291992,
       "raw_tail": ".........................                                                [100%]\n25 passed in 0.08s"
     },
     {
@@ -1688,7 +1688,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24341940879821777,
+      "runtime_s": 0.23073387145996094,
       "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
@@ -1701,7 +1701,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.261380672454834,
+      "runtime_s": 0.25269055366516113,
       "raw_tail": "............................                                             [100%]\n28 passed in 0.09s"
     },
     {
@@ -1714,8 +1714,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2400350570678711,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.09s"
+      "runtime_s": 0.23940038681030273,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
     },
     {
       "label": "gem5/sniper anchor summary derivation parity (invariant predicates + tolerance constants)",
@@ -1727,8 +1727,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2294936180114746,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.07s"
+      "runtime_s": 0.2292928695678711,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
     },
     {
       "label": "sign_consistency derivation parity (_pick canonical-ROI + _sign zero band + bucket dispatch)",
@@ -1740,7 +1740,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23517680168151855,
+      "runtime_s": 0.22479009628295898,
       "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
     },
     {
@@ -1753,8 +1753,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22975897789001465,
-      "raw_tail": "....................................                                     [100%]\n36 passed in 0.07s"
+      "runtime_s": 0.23339271545410156,
+      "raw_tail": "....................................                                     [100%]\n36 passed in 0.08s"
     },
     {
       "label": "local_cache_screen_summary derivation parity (number coercion + LRU-base delta + rank tie-break)",
@@ -1766,7 +1766,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23357629776000977,
+      "runtime_s": 0.22825217247009277,
       "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
     },
     {
@@ -1779,7 +1779,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24365448951721191,
+      "runtime_s": 0.23334097862243652,
       "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
@@ -1792,7 +1792,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2352762222290039,
+      "runtime_s": 0.24217534065246582,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
@@ -1805,7 +1805,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23202157020568848,
+      "runtime_s": 0.2377634048461914,
       "raw_tail": "...............                                                          [100%]\n15 passed in 0.08s"
     },
     {
@@ -1818,7 +1818,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2476184368133545,
+      "runtime_s": 0.23383522033691406,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
@@ -1831,7 +1831,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2393660545349121,
+      "runtime_s": 0.2316417694091797,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
     },
     {
@@ -1844,86 +1844,86 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22840523719787598,
+      "runtime_s": 0.23095202445983887,
       "raw_tail": ".........................                                                [100%]\n25 passed in 0.07s"
     },
     {
       "label": "per-suite test-count floor (every PYTEST_SUITES entry has >=1 AST test fn + >=1 passed test + no errors)",
       "short": "PST-Min",
       "path": "scripts/test/test_pytest_suite_minimum.py",
-      "passed": 838,
+      "passed": 841,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.48280668258667,
-      "raw_tail": "........................................................................ [  8%]\n........................................................................ [ 17%]\n........................................................................ [ 25%]\n........................................................................ [ 34%]\n........................................................................ [ 42%]\n........................................................................ [ 51%]\n........................................................................ [ 60%]\n........................................................................ [ 68%]\n........................................................................ [ 77%]\n........................................................................ [ 85%]\n........................................................................ [ 94%]\n..............................................                           [100%]\n838 passed in 2.32s"
+      "runtime_s": 2.5283539295196533,
+      "raw_tail": "........................................................................ [  8%]\n........................................................................ [ 17%]\n........................................................................ [ 25%]\n........................................................................ [ 34%]\n........................................................................ [ 42%]\n........................................................................ [ 51%]\n........................................................................ [ 59%]\n........................................................................ [ 68%]\n........................................................................ [ 77%]\n........................................................................ [ 85%]\n........................................................................ [ 94%]\n.................................................                        [100%]\n841 passed in 2.36s"
     },
     {
       "label": "catalog generator --help signature (every CATALOG generator responds to --help with exit 0 + usage marker)",
       "short": "CGH-Sig",
       "path": "scripts/test/test_catalog_generator_help.py",
-      "passed": 260,
+      "passed": 262,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 12.630781412124634,
-      "raw_tail": "........................................................................ [ 27%]\n........................................................................ [ 55%]\n........................................................................ [ 83%]\n............................................                             [100%]\n260 passed in 12.46s"
+      "runtime_s": 12.39542007446289,
+      "raw_tail": "........................................................................ [ 27%]\n........................................................................ [ 54%]\n........................................................................ [ 82%]\n..............................................                           [100%]\n262 passed in 12.21s"
     },
     {
       "label": "wiki text quality (every tracked .md: no bad ws + no CRLF + single final newline + no double blanks + H1 first)",
       "short": "WTQ-Fmt",
       "path": "scripts/test/test_wiki_text_quality.py",
+      "passed": 650,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.5605640411376953,
+      "raw_tail": "........................................................................ [ 11%]\n........................................................................ [ 22%]\n........................................................................ [ 33%]\n........................................................................ [ 44%]\n........................................................................ [ 55%]\n........................................................................ [ 66%]\n........................................................................ [ 77%]\n........................................................................ [ 88%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n650 passed in 0.39s"
+    },
+    {
+      "label": "wiki JSON format (every tracked .json: valid utf-8, parseable, no CRLF, single final newline, no trailing ws)",
+      "short": "WJF-Fmt",
+      "path": "scripts/test/test_wiki_json_format.py",
       "passed": 645,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.577465295791626,
-      "raw_tail": "........................................................................ [ 11%]\n........................................................................ [ 22%]\n........................................................................ [ 33%]\n........................................................................ [ 44%]\n........................................................................ [ 55%]\n........................................................................ [ 66%]\n........................................................................ [ 78%]\n........................................................................ [ 89%]\n.....................................................................    [100%]\n645 passed in 0.38s"
-    },
-    {
-      "label": "wiki JSON format (every tracked .json: valid utf-8, parseable, no CRLF, single final newline, no trailing ws)",
-      "short": "WJF-Fmt",
-      "path": "scripts/test/test_wiki_json_format.py",
-      "passed": 640,
-      "failed": 0,
-      "skipped": 0,
-      "xfailed": 0,
-      "xpassed": 0,
-      "errors": 0,
-      "runtime_s": 0.6249544620513916,
-      "raw_tail": "........................................................................ [ 11%]\n........................................................................ [ 22%]\n........................................................................ [ 33%]\n........................................................................ [ 45%]\n........................................................................ [ 56%]\n........................................................................ [ 67%]\n........................................................................ [ 78%]\n........................................................................ [ 90%]\n................................................................         [100%]\n640 passed in 0.45s"
+      "runtime_s": 0.6111874580383301,
+      "raw_tail": "........................................................................ [ 11%]\n........................................................................ [ 22%]\n........................................................................ [ 33%]\n........................................................................ [ 44%]\n........................................................................ [ 55%]\n........................................................................ [ 66%]\n........................................................................ [ 78%]\n........................................................................ [ 89%]\n.....................................................................    [100%]\n645 passed in 0.44s"
     },
     {
       "label": "PYTEST_SUITES label parity (path/short/label uniqueness + format + dashboard JSON cross-source parity)",
       "short": "PSL-Par",
       "path": "scripts/test/test_pytest_suites_label_parity.py",
-      "passed": 1660,
+      "passed": 1666,
       "failed": 0,
       "skipped": 3,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.983313798904419,
-      "raw_tail": "........................................................................ [ 47%]\n........................................................................ [ 51%]\n........................................................................ [ 56%]\n........................................................................ [ 60%]\n........................................................................ [ 64%]\n........................................................................ [ 69%]\n........................................................................ [ 73%]\n........................................................................ [ 77%]\n........................................................................ [ 82%]\n........................................................................ [ 86%]\n........................................................................ [ 90%]\n........................................................................ [ 95%]\n........................................................................ [ 99%]\n.......                                                                  [100%]\n1660 passed, 3 skipped in 0.78s"
+      "runtime_s": 1.0537610054016113,
+      "raw_tail": "........................................................................ [ 47%]\n........................................................................ [ 51%]\n........................................................................ [ 56%]\n........................................................................ [ 60%]\n........................................................................ [ 64%]\n........................................................................ [ 69%]\n........................................................................ [ 73%]\n........................................................................ [ 77%]\n........................................................................ [ 81%]\n........................................................................ [ 86%]\n........................................................................ [ 90%]\n........................................................................ [ 94%]\n........................................................................ [ 99%]\n.............                                                            [100%]\n1666 passed, 3 skipped in 0.84s"
     },
     {
       "label": "wiki .md/.json companion pair (bijection + existence + non-empty + sibling-reference resolves)",
       "short": "WMP-Pair",
       "path": "scripts/test/test_wiki_md_json_pair.py",
-      "passed": 640,
+      "passed": 645,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5503315925598145,
-      "raw_tail": "........................................................................ [ 11%]\n........................................................................ [ 22%]\n........................................................................ [ 33%]\n........................................................................ [ 45%]\n........................................................................ [ 56%]\n........................................................................ [ 67%]\n........................................................................ [ 78%]\n........................................................................ [ 90%]\n................................................................         [100%]\n640 passed in 0.37s"
+      "runtime_s": 0.5494928359985352,
+      "raw_tail": "........................................................................ [ 11%]\n........................................................................ [ 22%]\n........................................................................ [ 33%]\n........................................................................ [ 44%]\n........................................................................ [ 55%]\n........................................................................ [ 66%]\n........................................................................ [ 78%]\n........................................................................ [ 89%]\n.....................................................................    [100%]\n645 passed in 0.38s"
     },
     {
       "label": "literature-faithfulness diversity coverage (family/app/L3/paper floors + cross-paper triangulation)",
@@ -1935,7 +1935,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23037290573120117,
+      "runtime_s": 0.2260911464691162,
       "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
     },
     {
@@ -1948,7 +1948,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2268531322479248,
+      "runtime_s": 0.23777413368225098,
       "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
     },
     {
@@ -1961,7 +1961,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23299789428710938,
+      "runtime_s": 0.24549150466918945,
       "raw_tail": "................................                                         [100%]\n32 passed in 0.08s"
     },
     {
@@ -1974,8 +1974,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24096155166625977,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
+      "runtime_s": 0.22109317779541016,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
     },
     {
       "label": "literature-faithfulness known-deviation completeness (reason length + quantitative phrase + anchor + bijection with live faith corpus)",
@@ -1987,8 +1987,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2356112003326416,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.07s"
+      "runtime_s": 0.2593810558319092,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.09s"
     },
     {
       "label": "literature-faithfulness tolerance calibration (per-row distance-to-disagree slack distribution + per-policy fragility floors)",
@@ -2000,7 +2000,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23236393928527832,
+      "runtime_s": 0.2379920482635498,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
     },
     {
@@ -2013,7 +2013,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22408246994018555,
+      "runtime_s": 0.2564079761505127,
       "raw_tail": "........................                                                 [100%]\n24 passed in 0.07s"
     },
     {
@@ -2026,7 +2026,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21744871139526367,
+      "runtime_s": 0.24980425834655762,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -2039,7 +2039,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22079944610595703,
+      "runtime_s": 0.2368781566619873,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
     },
     {
@@ -2052,8 +2052,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24640798568725586,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.09s"
+      "runtime_s": 0.2462451457977295,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
       "label": "literature-faithfulness policy-ordering audit (per family x app: hub families respect POPT/GRASP <= LRU bounds + per-app global improve-frac floor)",
@@ -2065,7 +2065,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22551727294921875,
+      "runtime_s": 0.2287445068359375,
       "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
     },
     {
@@ -2078,7 +2078,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2180168628692627,
+      "runtime_s": 0.23146533966064453,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
     },
     {
@@ -2091,7 +2091,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22847604751586914,
+      "runtime_s": 0.23908782005310059,
       "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
     },
     {
@@ -2104,7 +2104,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22091364860534668,
+      "runtime_s": 0.24013161659240723,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -2117,8 +2117,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.257753849029541,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.09s"
+      "runtime_s": 0.23016905784606934,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
       "label": "literature-faithfulness regime-sign audit (hub-family sign-tally no-regression + hub median ceiling + no-hub median radius + extreme magnitude cap)",
@@ -2130,7 +2130,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2282576560974121,
+      "runtime_s": 0.23291587829589844,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -2143,7 +2143,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22811174392700195,
+      "runtime_s": 0.22066950798034668,
       "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
     },
     {
@@ -2156,7 +2156,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2245941162109375,
+      "runtime_s": 0.22719240188598633,
       "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
     },
     {
@@ -2169,7 +2169,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22850298881530762,
+      "runtime_s": 0.22975635528564453,
       "raw_tail": "......................                                                   [100%]\n22 passed in 0.07s"
     },
     {
@@ -2182,7 +2182,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23347210884094238,
+      "runtime_s": 0.22653770446777344,
       "raw_tail": ".......sssssssssss........                                               [100%]\n15 passed, 11 skipped in 0.07s"
     },
     {
@@ -2195,7 +2195,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23666834831237793,
+      "runtime_s": 0.2266855239868164,
       "raw_tail": ".......ssssss........                                                    [100%]\n15 passed, 6 skipped in 0.07s"
     },
     {
@@ -2208,7 +2208,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21773219108581543,
+      "runtime_s": 0.23134422302246094,
       "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
     },
     {
@@ -2221,8 +2221,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.6224319934844971,
-      "raw_tail": "...........................                                              [100%]\n27 passed in 0.36s"
+      "runtime_s": 0.6359586715698242,
+      "raw_tail": "...........................                                              [100%]\n27 passed in 0.35s"
     },
     {
       "label": "Paper-figure data snapshot (gate 244) \u2014 one paper_pipeline_YYYYMMDD/ dir within MAX_SNAPSHOT_AGE_DAYS, rows provenanced + single run_dir, rectangular (bench\u00d7graph\u00d7L3) palette coverage, miss_rate \u2208 [0,1], total_accesses \u2265 1 for high-activity benches",
@@ -2234,8 +2234,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.6699297428131104,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.38s"
+      "runtime_s": 0.6543924808502197,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.39s"
     },
     {
       "label": "L3 regime-classifier consistency (gate 245) \u2014 hand-curated REGIME_REGISTRY: every regime-classifier in ECG dir registered + within-family agreement on canonical L3 grid + vocab purity + cross-family divergence (oracle_gap_report vs v1) documented",
@@ -2247,7 +2247,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.29216599464416504,
+      "runtime_s": 0.28753209114074707,
       "raw_tail": ".....................                                                    [100%]\n21 passed in 0.13s"
     },
     {
@@ -2260,8 +2260,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22771358489990234,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.07s"
+      "runtime_s": 0.231001615524292,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
       "label": "Paper LaTeX-table emit invariant (gate 247) \u2014 hand-curated TABLE_REGISTRY locks caption + tabular col-spec + column-header tuple for every .tex in paper_pipeline dir; per-row column-count + no NaN/Inf cells + clean closing trio",
@@ -2273,7 +2273,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2316114902496338,
+      "runtime_s": 0.2524256706237793,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
     },
     {
@@ -2286,7 +2286,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2437605857849121,
+      "runtime_s": 0.24202251434326172,
       "raw_tail": "...............................                                          [100%]\n31 passed in 0.08s"
     },
     {
@@ -2299,8 +2299,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.1190309524536133,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 1.96s"
+      "runtime_s": 2.127567768096924,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 1.97s"
     },
     {
       "label": "Paper-table CSV provenance (gate 250) \u2014 PROVENANCE_REGISTRY pairs every shipped .tex with its sibling .csv; subset row-count and subset key-column multiset (LaTeX-normalized); every paper row traces to a CSV row past the [:20]/[:24] truncation cap",
@@ -2312,7 +2312,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23316335678100586,
+      "runtime_s": 0.24905014038085938,
       "raw_tail": "................................                                         [100%]\n32 passed in 0.08s"
     },
     {
@@ -2325,8 +2325,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.8536272048950195,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.69s"
+      "runtime_s": 0.8703193664550781,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.70s"
     },
     {
       "label": "Slurm SBATCH schema registry (gate 252) \u2014 CANONICAL_SBATCH_DIRECTIVES locks 14 directive names + 7 required; parses every *.sbatch under scripts/experiments/; rules: syntax, vocab, mem/time regex, log %x+%j or %A+%a, prefix, mem\u00d7mem-per-cpu",
@@ -2338,7 +2338,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2587308883666992,
+      "runtime_s": 0.24865365028381348,
       "raw_tail": ".................................                                        [100%]\n33 passed in 0.09s"
     },
     {
@@ -2351,7 +2351,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2445056438446045,
+      "runtime_s": 0.24076414108276367,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
     },
     {
@@ -2364,7 +2364,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2479698657989502,
+      "runtime_s": 0.25469160079956055,
       "raw_tail": "................................                                         [100%]\n32 passed in 0.09s"
     },
     {
@@ -2377,7 +2377,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.4961912631988525,
+      "runtime_s": 1.497199296951294,
       "raw_tail": ".................................                                        [100%]\n33 passed in 1.34s"
     },
     {
@@ -2390,8 +2390,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.50120210647583,
-      "raw_tail": "................................                                         [100%]\n32 passed in 2.32s"
+      "runtime_s": 2.5254361629486084,
+      "raw_tail": "................................                                         [100%]\n32 passed in 2.36s"
     },
     {
       "label": "Backend vocab registry (gate 257) \u2014 AST-harvests backend literals in ecg+test; 7 canonical (cache_sim+kebab, gem5/riscv/x86, sniper/sift); R1-R7: in-canon, family+label, no dup labels, self-variant, argparse subset, name regex, all-referenced",
@@ -2403,8 +2403,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.8684098720550537,
-      "raw_tail": "...............................                                          [100%]\n31 passed in 2.71s"
+      "runtime_s": 3.018939971923828,
+      "raw_tail": "...............................                                          [100%]\n31 passed in 2.85s"
     },
     {
       "label": "Graph canonical map (gate 258) \u2014 AST-harvests graph literals + GRAPH_FAMILY dicts + EVAL_GRAPHS; 26 canon, 8 families; R1-R8: in-canon, family+label, source provenance, dict-keys+family-match, non-dict use site, name+family regex, EVAL subset",
@@ -2416,8 +2416,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 6.87138032913208,
-      "raw_tail": "............................                                             [100%]\n28 passed in 6.72s"
+      "runtime_s": 7.172155141830444,
+      "raw_tail": "............................                                             [100%]\n28 passed in 7.01s"
     },
     {
       "label": "Build target registry (gate 259) \u2014 4-backend \u00d7 kernel \u00d7 variant compile matrix vs Makefile KERNELS_* + CXXFLAGS_*; 51 targets, 0 orphans; R1-R8: src on disk, canonical, required flags, dirs, family, opt lock (-O3/-O1/-O2), ROI mechanism",
@@ -2429,8 +2429,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23388385772705078,
-      "raw_tail": "....................................                                     [100%]\n36 passed in 0.08s"
+      "runtime_s": 0.2381434440612793,
+      "raw_tail": "....................................                                     [100%]\n36 passed in 0.09s"
     },
     {
       "label": "GAPBS CLI registry (gate 260) \u2014 6 CL classes (CLBase/App/IterApp/PageRank/Delta/Convert), 11 kernels, 28 flags; R1-R7: getopt live-vs-canonical, src class instantiation, full-flag = chain union, no within-chain conflicts, flag regex, purpose, arity",
@@ -2442,7 +2442,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2896077632904053,
+      "runtime_s": 0.29464006423950195,
       "raw_tail": "......................................                                   [100%]\n38 passed in 0.13s"
     },
     {
@@ -2455,8 +2455,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.0187735557556152,
-      "raw_tail": ".................................                                        [100%]\n33 passed in 0.76s"
+      "runtime_s": 0.9349257946014404,
+      "raw_tail": ".................................                                        [100%]\n33 passed in 0.73s"
     },
     {
       "label": "ECG cross-tool aggregator schema (gate 262) \u2014 locks on-disk JSON shape of 6 cross_tool* aggregators; S1-S7: exists, valid JSON, top-keys present, evidence non-empty, row keys present, tools \u2286 canonical, verdict type",
@@ -2468,8 +2468,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3005056381225586,
-      "raw_tail": "........................................                                 [100%]\n40 passed in 0.13s"
+      "runtime_s": 0.30395936965942383,
+      "raw_tail": "........................................                                 [100%]\n40 passed in 0.14s"
     },
     {
       "label": "ECG config matrix (gate 263) \u2014 locks ecg/config.py vs canonical registries (gates 251/255/258/260); C1-C7: policies+graphs+kernels canonical, L3 anchor matches tier, sweep pow2 brackets anchor, pairs use ALL_POLICIES, ECG_MODE exhaustive",
@@ -2481,8 +2481,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.6363832950592041,
-      "raw_tail": "........................................                                 [100%]\n40 passed in 0.38s"
+      "runtime_s": 0.5689449310302734,
+      "raw_tail": "........................................                                 [100%]\n40 passed in 0.37s"
     },
     {
       "label": "wiki/data filename grammar (gate 264) \u2014 locks FS shape of wiki/data/; F1-F7: lower_snake_case+ext\u2208{json,md,csv}, json\u2194md trio (mod allow-lists), catalog\u2192disk, catalog ext\u2208{json,csv}, stem declared or META allow-list, subdir matches DOC_SUBDIR_RE",
@@ -2494,7 +2494,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24937677383422852,
+      "runtime_s": 0.23666715621948242,
       "raw_tail": "................................                                         [100%]\n32 passed in 0.09s"
     },
     {
@@ -2507,7 +2507,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26050734519958496,
+      "runtime_s": 0.24948430061340332,
       "raw_tail": "..............................................................           [100%]\n62 passed in 0.09s"
     },
     {
@@ -2520,7 +2520,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2443239688873291,
+      "runtime_s": 0.269852876663208,
       "raw_tail": "..........................................................               [100%]\n58 passed in 0.09s"
     },
     {
@@ -2533,8 +2533,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.25341343879699707,
-      "raw_tail": "...............................................................          [100%]\n63 passed in 0.09s"
+      "runtime_s": 0.24894475936889648,
+      "raw_tail": "...............................................................          [100%]\n63 passed in 0.10s"
     },
     {
       "label": "Setup-script invariant registry (gate 268) \u2014 locks setup_gem5.py+setup_sniper.py against drift in repo URLs, dir-const skeleton, top-level fn inventory (14 gem5+27 sniper); S1-S7: URL, dir-const, gem5 fn, sniper fn, main, apply_overlays, exhaustive",
@@ -2546,7 +2546,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.242753267288208,
+      "runtime_s": 0.2484884262084961,
       "raw_tail": ".......................................                                  [100%]\n39 passed in 0.09s"
     },
     {
@@ -2559,7 +2559,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23963236808776855,
+      "runtime_s": 0.2623767852783203,
       "raw_tail": ".........................................                                [100%]\n41 passed in 0.08s"
     },
     {
@@ -2572,7 +2572,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.27252984046936035,
+      "runtime_s": 0.2765650749206543,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.12s"
     },
     {
@@ -2585,8 +2585,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26354527473449707,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.11s"
+      "runtime_s": 0.2752726078033447,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.12s"
     },
     {
       "label": "Setup-script fn signature registry (gate 272) \u2014 locks positional arg names + defaults count of all 41 top-level public fns in setup_gem5.py + setup_sniper.py; F1-F7: presence, args, defaults, exhaustive, no varargs, no async, returns-annot",
@@ -2598,7 +2598,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.6073265075683594,
+      "runtime_s": 0.6070265769958496,
       "raw_tail": "..............................                                           [100%]\n30 passed in 0.46s"
     },
     {
@@ -2611,8 +2611,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.1470427513122559,
-      "raw_tail": "......................................                                   [100%]\n38 passed in 0.99s"
+      "runtime_s": 1.1712679862976074,
+      "raw_tail": "......................................                                   [100%]\n38 passed in 1.01s"
     },
     {
       "label": "Orchestrator CLI registry (gate 274) \u2014 locks parse_args() of paper_pipeline.py (14) + final_paper_run.py (29); O1-O7: ast-parse, fn present, flag presence, action match (BooleanOptionalAction-aware), nargs match, exhaustive, required-shape",
@@ -2624,8 +2624,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.085710287094116,
-      "raw_tail": "...........................................                              [100%]\n43 passed in 1.93s"
+      "runtime_s": 2.0246405601501465,
+      "raw_tail": "...........................................                              [100%]\n43 passed in 1.86s"
     },
     {
       "label": "Paper-pipeline stage registry (gate 275) \u2014 locks public top-level fn signatures of paper_pipeline.py (50) + final_paper_run.py (37); 87 fns; S1-S7: ast-parse, fn-kind, args, defaults, return annot, vararg/kwarg/kwonly, exhaustive",
@@ -2637,8 +2637,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.5941596031188965,
-      "raw_tail": "........................................................                 [100%]\n56 passed in 2.44s"
+      "runtime_s": 2.4976508617401123,
+      "raw_tail": "........................................................                 [100%]\n56 passed in 2.34s"
+    },
+    {
+      "label": "Manifest schema registry (gate 276) \u2014 locks final_paper_manifest.json shape: version, top-level keys, defaults vocab, stage-kind set, graph-entry shape, options_key xref, stage\u2192profile xref; M1-M6 over 30 profiles, 30 stages, 8 graph_sets",
+      "short": "ManifestSchema",
+      "path": "scripts/test/test_lit_faith_manifest_schema.py",
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.34540414810180664,
+      "raw_tail": ".............................................                            [100%]\n45 passed in 0.18s"
     },
     {
       "label": "Corpus diversity profile parity",
@@ -2650,7 +2663,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23180627822875977,
+      "runtime_s": 0.2206401824951172,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.07s"
     },
     {
@@ -2663,7 +2676,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.6237609386444092,
+      "runtime_s": 0.6407649517059326,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.37s"
     },
     {
@@ -2676,8 +2689,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.237213134765625,
-      "raw_tail": "................                                                         [100%]\n16 passed in 0.08s"
+      "runtime_s": 0.24200034141540527,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.09s"
     },
     {
       "label": "Sniper literature anchor",
@@ -2689,8 +2702,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22966575622558594,
-      "raw_tail": "................                                                         [100%]\n16 passed in 0.07s"
+      "runtime_s": 0.23948907852172852,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.08s"
     },
     {
       "label": "Lit-preflight shared helper",
@@ -2702,7 +2715,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23149824142456055,
+      "runtime_s": 0.24391603469848633,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.07s"
     },
     {
@@ -2715,7 +2728,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24136805534362793,
+      "runtime_s": 0.25774621963500977,
       "raw_tail": "..........................                                               [100%]\n26 passed in 0.09s"
     },
     {
@@ -2728,8 +2741,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22170138359069824,
-      "raw_tail": "..                                                                       [100%]\n2 passed in 0.06s"
+      "runtime_s": 0.23877692222595215,
+      "raw_tail": "..                                                                       [100%]\n2 passed in 0.07s"
     },
     {
       "label": "Policy-winner table sanity",
@@ -2741,8 +2754,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2448129653930664,
-      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.10s"
+      "runtime_s": 0.2549126148223877,
+      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.11s"
     },
     {
       "label": "Small-L3 thrash sanity",
@@ -2754,8 +2767,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21647071838378906,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
+      "runtime_s": 0.21597552299499512,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Cross-tool saturation soundness",
@@ -2767,8 +2780,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.210906982421875,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
+      "runtime_s": 0.21491336822509766,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Cross-tool winner agreement",
@@ -2780,8 +2793,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23801732063293457,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
+      "runtime_s": 0.2359154224395752,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Per-graph claim density",
@@ -2793,8 +2806,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2137598991394043,
-      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.06s"
+      "runtime_s": 0.24932861328125,
+      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.07s"
     },
     {
       "label": "POPT-vs-GRASP delta",
@@ -2806,8 +2819,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2168591022491455,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
+      "runtime_s": 0.22184205055236816,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Literature deviations inventory",
@@ -2819,7 +2832,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.217681884765625,
+      "runtime_s": 0.219451904296875,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
     },
     {
@@ -2832,7 +2845,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21862053871154785,
+      "runtime_s": 0.22235989570617676,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     },
     {
@@ -2845,7 +2858,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22264981269836426,
+      "runtime_s": 0.2184751033782959,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.07s"
     },
     {
@@ -2858,8 +2871,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21947693824768066,
-      "raw_tail": ".........                                                                [100%]\n9 passed in 0.06s"
+      "runtime_s": 0.21800947189331055,
+      "raw_tail": ".........                                                                [100%]\n9 passed in 0.07s"
     },
     {
       "label": "Per-kernel oracle gap",
@@ -2871,7 +2884,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2248685359954834,
+      "runtime_s": 0.23457789421081543,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
@@ -2884,8 +2897,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21750116348266602,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.23223090171813965,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "POPT-vs-GRASP per (family x app) CIs",
@@ -2897,8 +2910,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23598575592041016,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.06s"
+      "runtime_s": 0.22539448738098145,
+      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     },
     {
       "label": "Wilson CIs on win-counts",
@@ -2910,7 +2923,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2201244831085205,
+      "runtime_s": 0.21818971633911133,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
@@ -2923,7 +2936,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22499775886535645,
+      "runtime_s": 0.22577667236328125,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -2936,7 +2949,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22472071647644043,
+      "runtime_s": 0.22364115715026855,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
@@ -2949,7 +2962,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2281360626220703,
+      "runtime_s": 0.22780990600585938,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
@@ -2962,7 +2975,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2367856502532959,
+      "runtime_s": 0.22153949737548828,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -2975,7 +2988,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2213149070739746,
+      "runtime_s": 0.22387385368347168,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -2988,7 +3001,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21773791313171387,
+      "runtime_s": 0.23405909538269043,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3001,7 +3014,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22675490379333496,
+      "runtime_s": 0.22330188751220703,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3014,7 +3027,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2326359748840332,
+      "runtime_s": 0.2393815517425537,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3027,7 +3040,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22972917556762695,
+      "runtime_s": 0.21535181999206543,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3040,7 +3053,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22059297561645508,
+      "runtime_s": 0.21756935119628906,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3053,8 +3066,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21541428565979004,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.22114086151123047,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-(app, L3) winner-margin gradient",
@@ -3066,8 +3079,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21196818351745605,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.22911310195922852,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-(app, policy) oracle-gap AUC",
@@ -3079,8 +3092,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2227015495300293,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.21465730667114258,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "Cross-app policy-AUC correlation matrix",
@@ -3092,7 +3105,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21858620643615723,
+      "runtime_s": 0.2155909538269043,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3105,8 +3118,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22100114822387695,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.2153608798980713,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-(app, policy) cache-sensitivity slope",
@@ -3118,8 +3131,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2149055004119873,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.21738648414611816,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-graph oracle-gap cache-sensitivity slope",
@@ -3131,7 +3144,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24083805084228516,
+      "runtime_s": 0.23946118354797363,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3144,7 +3157,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2189927101135254,
+      "runtime_s": 0.22144436836242676,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3157,8 +3170,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21836566925048828,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.22040677070617676,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
       "label": "Per-cell gap-distribution shape envelope",
@@ -3170,7 +3183,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22690939903259277,
+      "runtime_s": 0.21950674057006836,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3183,8 +3196,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22196340560913086,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.21172523498535156,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
       "label": "Oracle-gap trajectory curvature",
@@ -3196,7 +3209,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22080445289611816,
+      "runtime_s": 0.2185192108154297,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3209,7 +3222,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22050690650939941,
+      "runtime_s": 0.21903347969055176,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3222,7 +3235,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22314929962158203,
+      "runtime_s": 0.21428513526916504,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3235,7 +3248,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21945834159851074,
+      "runtime_s": 0.21108365058898926,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3248,7 +3261,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24436521530151367,
+      "runtime_s": 0.21895170211791992,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3261,7 +3274,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22462916374206543,
+      "runtime_s": 0.2162003517150879,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3274,7 +3287,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22242426872253418,
+      "runtime_s": 0.22137165069580078,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3287,7 +3300,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21883702278137207,
+      "runtime_s": 0.22388792037963867,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3300,7 +3313,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22256708145141602,
+      "runtime_s": 0.21589088439941406,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3313,7 +3326,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23419976234436035,
+      "runtime_s": 0.21274709701538086,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3326,7 +3339,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2224409580230713,
+      "runtime_s": 0.21844005584716797,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3339,7 +3352,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21886396408081055,
+      "runtime_s": 0.22614407539367676,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3352,8 +3365,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2188854217529297,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.21167516708374023,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
       "label": "Sniper anchor slope sanity",
@@ -3365,8 +3378,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22133302688598633,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.2219257354736328,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
       "label": "Cross-tool SRRIP-vs-GRASP slope ordering",
@@ -3378,8 +3391,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21324610710144043,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.22079896926879883,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
       "label": "Per-app SRRIP-vs-GRASP slope ordering",
@@ -3391,7 +3404,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21650290489196777,
+      "runtime_s": 0.21274566650390625,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
@@ -3404,8 +3417,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2216348648071289,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.21379637718200684,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
       "label": "Per-app saturation-vs-slope extremum",
@@ -3417,8 +3430,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21922874450683594,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.23441863059997559,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.09s"
     },
     {
       "label": "Cross-tool slope-sign universality",
@@ -3430,7 +3443,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22809958457946777,
+      "runtime_s": 0.23111820220947266,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3443,7 +3456,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2130119800567627,
+      "runtime_s": 0.2149977684020996,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
     },
     {
@@ -3456,7 +3469,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21294403076171875,
+      "runtime_s": 0.21708917617797852,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -3469,7 +3482,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22080659866333008,
+      "runtime_s": 0.21979141235351562,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3482,7 +3495,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23431825637817383,
+      "runtime_s": 0.20917248725891113,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3495,7 +3508,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23199129104614258,
+      "runtime_s": 0.2496037483215332,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -3508,7 +3521,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22385144233703613,
+      "runtime_s": 0.2220003604888916,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -3521,7 +3534,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21724295616149902,
+      "runtime_s": 0.21636557579040527,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.06s"
     },
     {
@@ -3534,7 +3547,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2158489227294922,
+      "runtime_s": 0.2173452377319336,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
     },
     {
@@ -3547,8 +3560,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2289445400238037,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.06s"
+      "runtime_s": 0.24562692642211914,
+      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     },
     {
       "label": "Reproducibility smoke",
@@ -3560,7 +3573,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22014284133911133,
+      "runtime_s": 0.22075390815734863,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
     },
     {
@@ -3573,7 +3586,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22409987449645996,
+      "runtime_s": 0.2178497314453125,
       "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     }
   ],
