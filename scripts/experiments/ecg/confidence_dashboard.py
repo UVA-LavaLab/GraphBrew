@@ -459,6 +459,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_receiver_cli_registry.py", "RecvCLI"),
     "Job dataclass schema (gate 279) — locks Job dataclass shape in final_paper_run.py: 8 fields (job_id/stage/kind/command/out_dir/log_path/metadata/env) + frozen=True; F1-F7: ast-parse, class present, field, annot, default, exhaustive, decorator kwargs":
         ("scripts/test/test_lit_faith_job_dataclass_schema.py", "JobSchema"),
+    "Receiver dataclass schema (gate 280) — locks 3 frozen dataclasses: roi_matrix.PolicySpec (4 flds), proof_matrix.Ablation (6 flds), proof_matrix.AdaptiveSelector (3 flds); G1-G7: ast-parse, class present, field, annot, default, exhaustive, kwargs":
+        ("scripts/test/test_lit_faith_receiver_dataclass_schema.py", "RecvDC"),
     "Corpus diversity profile parity":
         ("scripts/test/test_corpus_diversity.py", "Corpus"),
     "Paper-pipeline literature pre-flight gate":

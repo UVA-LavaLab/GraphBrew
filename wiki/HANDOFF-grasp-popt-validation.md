@@ -8,7 +8,32 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **279 gates, all GREEN, exit 0**.
+and currently reports **280 gates, all GREEN, exit 0**.
+
+**Receiver dataclass schema (gate 280, refresh @280):**
+Twenty-seventh in the vocabulary-lock series (252 SBATCH … 279 Job
+dataclass, 280 receiver dataclass schema). Receiver-side mirror of
+gate 279. Gate 279 locked the SENDER orchestration carrier
+(``final_paper_run.Job``). Gate 280 locks the RECEIVER orchestration
+carriers — the per-row dataclasses each receiver iterates after
+argparse: ``roi_matrix.PolicySpec`` (4 fields),
+``proof_matrix.Ablation`` (6 fields),
+``proof_matrix.AdaptiveSelector`` (3 fields) — all three
+``frozen=True``. Together with gates 277+278+279+280 the FULL
+orchestration contract is locked end-to-end: sender argv (277) →
+receiver argv (278) → sender carrier (279) → receiver carriers
+(280). Catches: new column added to PolicySpec without updating
+downstream consumers (G6); ``Ablation.pfx_lookahead: int → str``
+annotation drift (G4); ``frozen=True`` dropped (G7); mutable list
+default vs ``factory:tuple()`` shared-mutable trap (G5);
+``Ablation.policy → Ablation.policy_name`` rename (G3). 7 rules
+G1-G7: (G1) module ast.parses; (G2) class present; (G3) field
+present; (G4) annotation match; (G5) default match; (G6) class
+exhaustive; (G7) decorator kwargs preserved both directions. Today:
+2 modules, 3 classes, 13 fields, all frozen=True; 0 violations.
+Together with gates 273+274+275+276+277+278+279 the orchestration
+contract is now LOCKED SYMMETRIC: every wire-crossing AND every
+data-carrier on both sides is pinned by AST audit.
 
 **Job dataclass schema (gate 279, refresh @279):**
 Twenty-sixth in the vocabulary-lock series (252 SBATCH … 278
@@ -1318,8 +1343,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 279. Next refresh due
-at gate 284. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 280. Next refresh due
+at gate 285. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.
