@@ -132,11 +132,27 @@ def test_dashboard_artifact_exists():
 def test_every_suite_has_at_least_one_passed_test():
     d = _load_dashboard()
     by_short = {s["short"]: s for s in d["suites"]}
+    # Suites whose tests legitimately all skip-when-deferred today.
+    # These are scaffolds for claim gates that activate the moment
+    # their upstream postfix flips status=deferred → status=active.
+    # Re-validate by re-running the upstream sweep + activator
+    # (see HANDOFF gate paragraphs).
+    DEFERRED_SCAFFOLD_SUITES = {"PfxClaims"}
     failures = []
     for _, (path, short) in PYTEST_SUITES.items():
         s = by_short.get(short)
         if s is None:
             failures.append(f"{short}: not in dashboard")
+            continue
+        if short in DEFERRED_SCAFFOLD_SUITES:
+            # Require >=1 skipped (proves tests exist and ran), but
+            # do not require positive verification yet — it lands
+            # once the upstream sweep activates the postfix.
+            if s.get("skipped", 0) < 1:
+                failures.append(
+                    f"{short}: deferred-scaffold but skipped=0 "
+                    f"(test file may have been emptied)"
+                )
             continue
         if s.get("passed", 0) < 1:
             failures.append(

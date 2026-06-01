@@ -383,6 +383,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_ecg_sniper_parity.py", "ECG-Sniper-Parity"),
     "ECG PFX prefetcher vs DROPLET head-to-head on matched baseline (scaffold/deferred today — no /tmp sweep has nonzero pf_issued/pf_useful; rules: arm completeness, baseline neutrality 0.5pp, useful floor 5%, observation floor)":
         ("scripts/test/test_lit_faith_ecg_pfx_vs_droplet.py", "ECG-Pfx-vs-DROPLET"),
+    "ECG_PFX publish claims (gate 284) — useful-frac ≥ 5%, ECG_PFX ≤ DROPLET on pr/bc/bfs/sssp, ECG_PFX beats no_pfx by ≥ 0.5pp, baseline-neutral when pf_issued=0 (skips until gate 241 sweep activates)":
+        ("scripts/test/test_ecg_pfx_prefetcher_claims.py", "PfxClaims"),
     "Paper label-map integrity (gate 242) — POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels":
         ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
     "POLICY_COLORS perceptual distinguishability (gate 243) — hex format + dedup + pairwise CIE76 ΔE ≥ 12 + B&W lightness-delta ≥ 10 or hatch fallback (grandfathered allowlist) + ΔE ≥ 18 from white + POLICY_HATCHES ⊆ POLICY_LABELS":
@@ -649,8 +651,12 @@ def _parse_pytest_summary(text: str) -> dict[str, int]:
     for line in text.splitlines()[::-1]:
         # The summary line looks like:  "== 6 passed, 1 skipped in 0.12s =="
         # or "== 6 passed, 1 failed in 0.12s =="; numbers may appear in any
-        # order so we scan for individual keywords.
-        if " passed" not in line and " failed" not in line and " error" not in line:
+        # order so we scan for individual keywords. Suites whose tests
+        # all skip (e.g. scaffolds awaiting a sweep activation) only
+        # produce "4 skipped in 0.07s" without a "passed"/"failed"
+        # keyword — accept that line too.
+        if (" passed" not in line and " failed" not in line
+                and " error" not in line and " skipped" not in line):
             continue
         for key in out:
             m = re.search(rf"(\d+)\s+{key}", line)

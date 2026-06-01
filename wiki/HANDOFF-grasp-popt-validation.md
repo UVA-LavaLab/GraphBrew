@@ -8,9 +8,9 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **283 gates, all GREEN, exit 0**.
+and currently reports **284 gates, all GREEN, exit 0**.
 
-**Headline parity proof (gate 283, refresh @283) — SECOND PROOF GATE:**
+**Headline parity proof (gate 283, refresh @284) — SECOND PROOF GATE:**
 Cross-simulator paper-table preview joining cache_sim + gem5 + Sniper
 at literature 1MB cells. For every cell where ≥2 simulators report,
 computes per-sim winner policy (lowest miss-rate; deterministic
@@ -28,6 +28,32 @@ gate becomes load-bearing. Headline preview (cache_sim today):
 POPT wins 6/15 cells (cit-Patents PR, soc-LiveJournal1 PR/BFS/SSSP,
 web-Google PR, com-orkut PR); GRASP wins 6/15; SRRIP wins 2 (BC).
 Run ``make headline-parity`` to refresh.
+
+**ECG_PFX publish claim gates (gate 284, refresh @284) — PREFETCHER AXIS:**
+4-test bundle locking the ECG_PFX vs DROPLET vs no_pfx comparison
+once the matched-proof sweep activates gate 241. Scaffolds today
+(skip-when-deferred); become load-bearing the moment
+``scripts/experiments/ecg/sweeps/pfx_matched_proof_sweep.sh``
+finishes and
+``scripts/experiments/ecg/ecg_pfx_vs_droplet_postfix_builder.py
+--activate`` flips the postfix to active. The 4 assertions:
+``test_ecg_pfx_useful_fraction_floor`` (gate 293, useful/issued ≥ 5%
+on hint-rich apps), ``test_ecg_pfx_ge_droplet_on_hint_rich``
+(gate 294, ECG_PFX miss-rate ≤ DROPLET miss-rate + 0.5 pp on
+pr/bc/bfs/sssp — ECG_PFX should match DROPLET when both fire),
+``test_ecg_pfx_beats_nopfx`` (gate 295, ECG_PFX miss-rate <
+LRU baseline miss-rate by ≥ 0.5 pp — the whole point of running
+a prefetcher), ``test_ecg_pfx_baseline_neutral_when_inactive``
+(gate 296, when ``pf_issued=0`` ECG_PFX must not degrade the
+baseline ± 0.5 pp — guards against CPU-cycle parasitism).
+Companion to gate 241's audit, which validates arm completeness
+and useful floors at the postfix level; these gates assert the
+publish-grade prefetcher claims at the head-to-head row level.
+Activation chain (sprint 6b commits ``a0b0e8f`` + ``a31e56f``):
+sg_kernel emits ``SNIPER_ECG_PFX_TARGET`` env-gated → matched-proof
+sweep dispatches 3 arms per cell → postfix builder ingests CSVs
+→ audit flips ``status=active`` → these 4 gates become
+load-bearing.
 
 **Headline coverage proof (gate 282, refresh @282) — FIRST PROOF GATE:**
 Gates 273-281 were vocabulary-lock AST audits (Slurm SBATCH schema …
@@ -1423,8 +1449,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 283. Next refresh due
-at gate 288. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 284. Next refresh due
+at gate 289. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

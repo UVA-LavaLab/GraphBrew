@@ -8,7 +8,7 @@
     "F6": "l3_miss_rate \u2208 [0.0, 1.0] (all rows); total_accesses \u2265 1 for high-activity benchmarks (pr)"
   },
   "snapshot": {
-    "age_days": 3,
+    "age_days": 4,
     "benchmark_count": 3,
     "graph_count": 4,
     "l3_size_count": 1,
