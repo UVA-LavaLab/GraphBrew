@@ -113,6 +113,15 @@ int run_pr(const Graph& graph, int max_iters) {
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
+            // ECG_PFX lookahead-1 hint: emit the next vertex so the
+            // prefetcher can warm its scores/contrib lines before we
+            // touch them. The emission is env-gated by
+            // SNIPER_ENABLE_ECG_PFX_HINTS inside set_prefetch_target,
+            // so non-ECG_PFX runs pay nothing.
+            NodeID pfx_target = node + 1;
+            if (pfx_target < graph.num_nodes()) {
+                SNIPER_ECG_PFX_TARGET(pfx_target);
+            }
             ScoreT incoming_total = 0.0f;
             for (NodeID neighbor : graph.in_neigh(node)) {
                 incoming_total += contrib[neighbor];
@@ -152,8 +161,12 @@ int run_bfs(const Graph& graph, NodeID source) {
         NodeID node = frontier.front();
         frontier.pop();
         SNIPER_SET_VERTEX(node);
+        // ECG_PFX hint: emit the first unvisited neighbor as the
+        // lookahead target so the prefetcher can warm parent[] before
+        // we write it. Env-gated inside set_prefetch_target.
         for (NodeID neighbor : graph.out_neigh(node)) {
             if (parent[neighbor] == -1) {
+                SNIPER_ECG_PFX_TARGET(neighbor);
                 parent[neighbor] = node;
                 frontier.push(neighbor);
             }
@@ -193,7 +206,11 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         frontier.pop();
         in_queue[node] = 0;
         SNIPER_SET_VERTEX(node);
+        // ECG_PFX hint: emit each candidate neighbor as a prefetch
+        // target so dist[edge.v] can be warmed before the comparison.
+        // Env-gated inside set_prefetch_target.
         for (WNode edge : graph.out_neigh(node)) {
+            SNIPER_ECG_PFX_TARGET(edge.v);
             WeightT candidate = dist[node] + edge.w;
             if (candidate < dist[edge.v]) {
                 dist[edge.v] = candidate;
