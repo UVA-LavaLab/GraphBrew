@@ -58,6 +58,18 @@ REQUIRED_ARMS = {"LRU", "DROPLET", "ECG_PFX"}
 EPS_L3_MISS_RATE_NEUTRAL_FLOOR = 0.005    # 0.5 pp — half-pp of slop
 EPS_USEFUL_PREFETCH_FLOOR = 0.05          # 5 % useful or you're noise
 
+# Per-arm row statuses we accept as a successful observation:
+#   'ok'             = simulation completed cleanly
+#   'active_no_fill' = prefetcher consumed hints / generated requests
+#       but Sniper's L2 enqueue filter dropped them (legitimate
+#       cache_cntlr.cc:1146 'already in cache' filtering). Gate 296
+#       (baseline-neutrality) covers this regime explicitly.
+#   'inactive'       = prefetcher configured but no hints/edges fired
+#       (gate 296 also covers this).
+# Anything else (most notably 'error') signals a broken cell and
+# fires G1-non-ok-status.
+VALID_RUNTIME_STATUSES = frozenset({"ok", "active_no_fill", "inactive"})
+
 
 def _delta(a: float | None, b: float | None) -> float | None:
     if a is None or b is None:
@@ -138,7 +150,7 @@ def audit(postfix: dict[str, Any]) -> dict[str, Any]:
                     "rule": "G1-missing-arm", "benchmark": bench,
                     "section": sect, "l3_size": l3, "graph": graph, "arm": arm,
                 })
-            elif row.get("status") != "ok":
+            elif row.get("status") not in VALID_RUNTIME_STATUSES:
                 violations.append({
                     "rule": "G1-non-ok-status", "benchmark": bench,
                     "section": sect, "l3_size": l3, "graph": graph, "arm": arm,

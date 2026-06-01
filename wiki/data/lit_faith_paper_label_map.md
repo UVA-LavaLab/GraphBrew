@@ -28,7 +28,7 @@
 | source | status | label_count | labels |
 |---|---|---:|---|
 | ecg_gem5_parity_postfix.json | ok | 3 | ECG_POPT_PRIMARY, LRU, POPT |
-| ecg_pfx_vs_droplet_postfix.json | ok | 0 | — |
+| ecg_pfx_vs_droplet_postfix.json | ok | 1 | LRU |
 | ecg_sniper_parity_postfix.json | ok | 0 | — |
 | ecg_substrate_parity_postfix.json | ok | 0 | — |
 | lit_faith_ecg_gem5_parity.json | ok | 0 | — |

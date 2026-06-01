@@ -137,7 +137,7 @@ def test_every_suite_has_at_least_one_passed_test():
     # their upstream postfix flips status=deferred → status=active.
     # Re-validate by re-running the upstream sweep + activator
     # (see HANDOFF gate paragraphs).
-    DEFERRED_SCAFFOLD_SUITES = {"PfxClaims"}
+    DEFERRED_SCAFFOLD_SUITES: set[str] = set()
     failures = []
     for _, (path, short) in PYTEST_SUITES.items():
         s = by_short.get(short)

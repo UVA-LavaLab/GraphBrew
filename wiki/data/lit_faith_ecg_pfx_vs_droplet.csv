@@ -1,1 +1,4 @@
 benchmark,section,l3_size,lru,droplet,ecg_pfx,droplet_vs_lru,ecg_vs_lru,ecg_vs_droplet,droplet_useful,ecg_useful
+bfs,0,1MB,1.0,1.0,1.0,0.0,0.0,0.0,1.0,None
+pr,0,1MB,1.0,1.0,1.0,0.0,0.0,0.0,1.0,None
+sssp,0,1MB,0.959983831851253,0.8562669071235347,0.9580152671755725,0.10371692472771832,0.0019685646756805175,0.1017483600520378,0.8837368661489264,1.0

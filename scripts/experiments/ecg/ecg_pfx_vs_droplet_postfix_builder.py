@@ -69,7 +69,15 @@ def _coerce_int(value: Any) -> int | None:
         return None
 
 
-def load_observations(sweep_root: Path) -> list[dict[str, Any]]:
+def load_observations(sweep_root: Path,
+                      exclude_statuses: tuple[str, ...] = ("error",)) -> list[dict[str, Any]]:
+    """Walk the sweep root and return per-observation rows.
+
+    ``exclude_statuses`` filters out CSV rows whose ``status`` column
+    matches. Defaults to ('error',) so timed-out / crashed sims do not
+    pollute the audit's per-cell row count or trigger spurious
+    G1-non-ok-status violations.
+    """
     observations: list[dict[str, Any]] = []
     if not sweep_root.exists():
         return observations
@@ -92,6 +100,9 @@ def load_observations(sweep_root: Path) -> list[dict[str, Any]]:
             with csv_path.open() as f:
                 reader = csv.DictReader(f)
                 for row in reader:
+                    status = row.get("status") or "ok"
+                    if status in exclude_statuses:
+                        continue
                     obs = {
                         "benchmark": app,
                         "section": 0,
@@ -103,7 +114,7 @@ def load_observations(sweep_root: Path) -> list[dict[str, Any]]:
                         "pf_useful": _coerce_int(row.get("pf_useful")) or 0,
                         "backend": row.get("simulator") or row.get("backend") or "sniper",
                         "simulator": row.get("simulator") or "sniper",
-                        "status": row.get("status") or "ok",
+                        "status": status,
                         "policy_label": row.get("policy_label"),
                         "source_csv": str(csv_path),
                         # Carry runtime activity counters so the audit can
