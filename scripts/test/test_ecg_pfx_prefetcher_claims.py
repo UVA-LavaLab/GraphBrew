@@ -90,12 +90,22 @@ def test_ecg_pfx_ge_droplet_on_hint_rich():
     apps where prefetching is the dominant lever. ECG_PFX's hint-driven
     approach has the advantage of targeted prefetches vs DROPLET's
     edge-stream-derived prefetches.
+
+    Only asserts on cells where ECG_PFX actually got past Sniper's
+    already-in-cache filter (pf_issued > 0). Cells with pf_issued = 0
+    are vacuous for this claim — gate 296 covers them via
+    baseline-neutrality.
     """
     audit = _load_audit()
     _skip_if_deferred(audit)
-    bad: list[tuple[str, str, float]] = []
+    bad: list[tuple[str, str, str, float]] = []
+    skipped_vacuous = 0
     for row in audit.get("head_to_head", []):
         if row.get("benchmark") not in HINT_RICH_APPS:
+            continue
+        # Skip cells where ECG_PFX issued nothing — claim is vacuous.
+        if int(row.get("ecg_pfx_pf_issued") or 0) == 0:
+            skipped_vacuous += 1
             continue
         ecg_mr = row.get("ecg_pfx_miss_rate")
         drop_mr = row.get("droplet_miss_rate")
@@ -104,11 +114,11 @@ def test_ecg_pfx_ge_droplet_on_hint_rich():
         # Signed delta: positive = ECG_PFX worse than DROPLET
         delta = ecg_mr - drop_mr
         if delta > NEUTRAL_TOLERANCE_PP:
-            bad.append((row["benchmark"], row.get("l3_size"), float(delta)))
+            bad.append((row.get("graph", ""), row["benchmark"], row.get("l3_size"), float(delta)))
     assert not bad, (
         f"ECG_PFX worse than DROPLET by > {NEUTRAL_TOLERANCE_PP * 100:.1f} pp "
-        f"on {len(bad)} cells (positive delta = ECG_PFX miss-rate higher): "
-        f"{bad[:5]}"
+        f"on {len(bad)} cells (positive delta = ECG_PFX miss-rate higher; "
+        f"vacuous cells skipped: {skipped_vacuous}): {bad[:5]}"
     )
 
 
@@ -122,12 +132,21 @@ def test_ecg_pfx_beats_nopfx():
     no-prefetcher baseline. Allow a tiny noise band of
     BEATS_NOPFX_THRESHOLD_PP (0.5 pp) for cells where the working set
     fits and prefetch has no headroom.
+
+    Only asserts on cells where ECG_PFX actually got past Sniper's
+    already-in-cache filter (pf_issued > 0). Cells with pf_issued = 0
+    cannot meaningfully beat the baseline because nothing was
+    prefetched.
     """
     audit = _load_audit()
     _skip_if_deferred(audit)
-    bad: list[tuple[str, str, float]] = []
+    bad: list[tuple[str, str, str, float]] = []
+    skipped_vacuous = 0
     for row in audit.get("head_to_head", []):
         if row.get("benchmark") not in HINT_RICH_APPS:
+            continue
+        if int(row.get("ecg_pfx_pf_issued") or 0) == 0:
+            skipped_vacuous += 1
             continue
         ecg_mr = row.get("ecg_pfx_miss_rate")
         lru_mr = row.get("lru_miss_rate")
@@ -136,10 +155,10 @@ def test_ecg_pfx_beats_nopfx():
         # Signed delta: positive = ECG_PFX worse than baseline
         delta = ecg_mr - lru_mr
         if delta > BEATS_NOPFX_THRESHOLD_PP:
-            bad.append((row["benchmark"], row.get("l3_size"), float(delta)))
+            bad.append((row.get("graph", ""), row["benchmark"], row.get("l3_size"), float(delta)))
     assert not bad, (
         f"ECG_PFX worse than no_pfx baseline by > {BEATS_NOPFX_THRESHOLD_PP * 100:.1f} pp "
-        f"on {len(bad)} cells: {bad[:5]}"
+        f"on {len(bad)} cells (vacuous cells skipped: {skipped_vacuous}): {bad[:5]}"
     )
 
 

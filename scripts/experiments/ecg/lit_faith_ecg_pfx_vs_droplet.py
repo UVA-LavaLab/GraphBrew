@@ -163,6 +163,15 @@ def audit(postfix: dict[str, Any]) -> dict[str, Any]:
             "droplet_vs_lru_delta": _delta(drop_mr, lru_mr),
             "ecg_pfx_vs_lru_delta": _delta(ecg_mr, lru_mr),
             "ecg_vs_droplet_delta": _delta(ecg_mr, drop_mr),
+            # Surface runtime activity so consumers can skip vacuous cells
+            # where the prefetcher returned zero addresses after Sniper's
+            # already-in-cache filter (cache_cntlr.cc:1146).
+            "droplet_pf_issued": drop.get("pf_issued") or 0,
+            "droplet_pf_useful": drop.get("pf_useful") or 0,
+            "ecg_pfx_pf_issued": ecg.get("pf_issued") or 0,
+            "ecg_pfx_pf_useful": ecg.get("pf_useful") or 0,
+            "ecg_pfx_target_hints_seen": ecg.get("ecg_pfx_target_hints_seen") or 0,
+            "ecg_pfx_issued": ecg.get("ecg_pfx_issued") or 0,
         }
         head_to_head.append(h2h)
 

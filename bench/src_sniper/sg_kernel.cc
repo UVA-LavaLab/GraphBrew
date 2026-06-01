@@ -110,15 +110,26 @@ int run_pr(const Graph& graph, int max_iters) {
     export_popt_for_graph<Graph, ScoreT>(graph);
 
     SNIPER_ROI_BEGIN();
+    // Lookahead distance for ECG_PFX hints. node+1 is too close on
+    // small graphs (Sniper's cache_cntlr.cc:1146 filters
+    // already-in-cache addresses, dropping ECG_PFX hints whose target
+    // line is still warm from the previous vertex). Pull from env so
+    // sweeps can tune per-graph; default 8 gives PREFETCH_INTERVAL
+    // ~250 cycles × 8 vertex iterations ≈ 2000 cycles of head-start.
+    const char* pfx_lookahead_env = std::getenv("SNIPER_ECG_PFX_LOOKAHEAD");
+    const NodeID pfx_lookahead =
+        (pfx_lookahead_env && pfx_lookahead_env[0])
+            ? std::max(1, std::atoi(pfx_lookahead_env))
+            : 8;
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
-            // ECG_PFX lookahead-1 hint: emit the next vertex so the
-            // prefetcher can warm its scores/contrib lines before we
-            // touch them. The emission is env-gated by
-            // SNIPER_ENABLE_ECG_PFX_HINTS inside set_prefetch_target,
-            // so non-ECG_PFX runs pay nothing.
-            NodeID pfx_target = node + 1;
+            // ECG_PFX hint: emit a future vertex so the prefetcher can
+            // warm its scores/contrib lines before we touch them. The
+            // emission is env-gated by SNIPER_ENABLE_ECG_PFX_HINTS
+            // inside set_prefetch_target, so non-ECG_PFX runs pay
+            // nothing.
+            NodeID pfx_target = node + pfx_lookahead;
             if (pfx_target < graph.num_nodes()) {
                 SNIPER_ECG_PFX_TARGET(pfx_target);
             }
