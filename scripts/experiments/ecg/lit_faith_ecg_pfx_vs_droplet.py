@@ -75,13 +75,17 @@ def _build_cells(rows: list[dict[str, Any]]):
         sect = r.get("section")
         l3 = r.get("l3_size")
         arm = r.get("arm")
+        graph = r.get("graph", "")
         backends.add(r.get("backend", "unknown"))
         if bench:
             benches.add(bench)
         if sect is not None:
             sections.add(int(sect))
         if bench and sect is not None and l3 and arm:
-            by_cell[(bench, int(sect), l3)][arm] = r
+            # Include graph in the cell key so observations across
+            # multiple graphs at the same (bench, section, l3) don't
+            # collapse and overwrite each other.
+            by_cell[(bench, int(sect), l3, graph)][arm] = r
     return by_cell, sections, backends, benches
 
 
@@ -124,7 +128,7 @@ def audit(postfix: dict[str, Any]) -> dict[str, Any]:
     expected_backend = postfix.get("expected_backend")
 
     for cell, table in sorted(by_cell.items()):
-        bench, sect, l3 = cell
+        bench, sect, l3, graph = cell
         if bench not in bench_floor:
             continue
         for arm in sorted(REQUIRED_ARMS):
@@ -132,18 +136,18 @@ def audit(postfix: dict[str, Any]) -> dict[str, Any]:
             if row is None:
                 violations.append({
                     "rule": "G1-missing-arm", "benchmark": bench,
-                    "section": sect, "l3_size": l3, "arm": arm,
+                    "section": sect, "l3_size": l3, "graph": graph, "arm": arm,
                 })
             elif row.get("status") != "ok":
                 violations.append({
                     "rule": "G1-non-ok-status", "benchmark": bench,
-                    "section": sect, "l3_size": l3, "arm": arm,
+                    "section": sect, "l3_size": l3, "graph": graph, "arm": arm,
                     "status": row.get("status"),
                 })
 
     head_to_head: list[dict[str, Any]] = []
     for cell, table in sorted(by_cell.items()):
-        bench, sect, l3 = cell
+        bench, sect, l3, graph = cell
         lru = table.get("LRU", {})
         drop = table.get("DROPLET", {})
         ecg = table.get("ECG_PFX", {})
@@ -151,7 +155,7 @@ def audit(postfix: dict[str, Any]) -> dict[str, Any]:
         drop_mr = drop.get("l3_miss_rate")
         ecg_mr = ecg.get("l3_miss_rate")
         h2h = {
-            "benchmark": bench, "section": sect, "l3_size": l3,
+            "benchmark": bench, "section": sect, "l3_size": l3, "graph": graph,
             "lru_miss_rate": lru_mr,
             "droplet_miss_rate": drop_mr, "ecg_pfx_miss_rate": ecg_mr,
             "droplet_useful_frac": _useful(drop),
@@ -170,6 +174,7 @@ def audit(postfix: dict[str, Any]) -> dict[str, Any]:
                     violations.append({
                         "rule": "G2-baseline-neutral-broken",
                         "benchmark": bench, "section": sect, "l3_size": l3,
+                        "graph": graph,
                         "arm": arm, "arm_miss_rate": mr,
                         "lru_miss_rate": lru_mr,
                         "delta": mr - lru_mr,
@@ -181,6 +186,7 @@ def audit(postfix: dict[str, Any]) -> dict[str, Any]:
                     violations.append({
                         "rule": "G3-useful-fraction-low",
                         "benchmark": bench, "section": sect, "l3_size": l3,
+                        "graph": graph,
                         "arm": arm, "pf_issued": issued,
                         "pf_useful": useful, "useful_frac": u_frac,
                         "epsilon": EPS_USEFUL_PREFETCH_FLOOR,

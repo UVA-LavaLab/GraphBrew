@@ -79,17 +79,23 @@ declare -A SSSP_SRC=(
 ARMS=(none DROPLET ECG_PFX)
 
 cell_arm_complete() {
-  # cell_arm_complete <csv-path>
-  # OK if CSV exists, has 1 row, prefetcher field matches arm, and
-  # for prefetcher!=none we expect sideband_loaded=1.
+  # cell_arm_complete <csv-path> <arm>
+  # OK if CSV exists, has 1 row, AND status is not 'error' (skip
+  # forces a re-run on timed-out cells).
   local csv="$1" arm="$2"
   [ -f "$csv" ] || return 1
   local lines
   lines="$(wc -l < "$csv")"
   [ "$lines" -ge 2 ] || return 1
-  # Trivial existence check is enough — re-running a single arm
-  # is cheap; the wrapper above gives idempotency at the (graph,
-  # app, arm) granularity.
+  # Reject status=error rows so we retry timed-out cells.
+  local status
+  status="$(awk -F, '
+    NR==1 { for (i=1;i<=NF;i++) if($i=="status") si=i; next }
+    si { print $si }
+  ' "$csv" | head -1)"
+  if [ "$status" = "error" ]; then
+    return 1
+  fi
   return 0
 }
 
@@ -137,7 +143,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
         pfx_arg=(--prefetcher "$arm" --prefetcher-level l2)
       fi
       date +"%T BEGIN ${short}/${app}/${arm} opts='${opts}'" | tee -a "$LOG"
-      if timeout 600 python3 scripts/experiments/ecg/roi_matrix.py \
+      if timeout 1800 python3 scripts/experiments/ecg/roi_matrix.py \
           --suite sniper --no-build \
           --benchmark "$app" \
           --sniper-workload sg_kernel --allow-sniper-sg-kernel-workload \
@@ -148,7 +154,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
           --l2-size 256kB --l2-ways 8 \
           --l3-sizes 1MB --l3-ways 16 \
           --line-size 64 \
-          --timeout-sniper 480 \
+          --timeout-sniper 1500 \
           --out-dir "$outdir" >> "$LOG" 2>&1; then
         date +"%T OK    ${short}/${app}/${arm}" | tee -a "$LOG"
         run_count=$((run_count + 1))
