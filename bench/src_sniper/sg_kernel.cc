@@ -172,12 +172,19 @@ int run_bfs(const Graph& graph, NodeID source) {
         NodeID node = frontier.front();
         frontier.pop();
         SNIPER_SET_VERTEX(node);
-        // ECG_PFX hint: emit the first unvisited neighbor as the
-        // lookahead target so the prefetcher can warm parent[] before
-        // we write it. Env-gated inside set_prefetch_target.
+        // ECG_PFX hint: emit the head of the frontier (the node we'll
+        // expand next after this iteration completes) so the
+        // prefetcher can warm parent[next_node] before we touch it.
+        // Lookahead = current frontier depth, which on real BFS is
+        // typically 10s of nodes — gives Sniper's PREFETCH_INTERVAL
+        // ~250 cycles × queue-depth iterations of head-start.
+        // Filtering inside set_prefetch_target via
+        // SNIPER_ENABLE_ECG_PFX_HINTS so non-ECG_PFX runs pay nothing.
+        if (!frontier.empty()) {
+            SNIPER_ECG_PFX_TARGET(frontier.front());
+        }
         for (NodeID neighbor : graph.out_neigh(node)) {
             if (parent[neighbor] == -1) {
-                SNIPER_ECG_PFX_TARGET(neighbor);
                 parent[neighbor] = node;
                 frontier.push(neighbor);
             }
@@ -217,11 +224,15 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         frontier.pop();
         in_queue[node] = 0;
         SNIPER_SET_VERTEX(node);
-        // ECG_PFX hint: emit each candidate neighbor as a prefetch
-        // target so dist[edge.v] can be warmed before the comparison.
-        // Env-gated inside set_prefetch_target.
+        // ECG_PFX hint: emit the head of the frontier (next node to
+        // expand after this iteration) so the prefetcher can warm
+        // its dist[next]/edge entries before we touch them.
+        // Lookahead = current frontier depth — gives PREFETCH_INTERVAL
+        // queue-depth iterations of head-start. Env-gated.
+        if (!frontier.empty()) {
+            SNIPER_ECG_PFX_TARGET(frontier.front());
+        }
         for (WNode edge : graph.out_neigh(node)) {
-            SNIPER_ECG_PFX_TARGET(edge.v);
             WeightT candidate = dist[node] + edge.w;
             if (candidate < dist[edge.v]) {
                 dist[edge.v] = candidate;
