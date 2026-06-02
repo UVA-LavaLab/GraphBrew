@@ -1464,6 +1464,17 @@
       "summary": "Sniper headline-1MB anchor companion \u2014 separate from wiki/data/sniper_anchor.json so literature-1MB cells (with POPT and ECG_DBG_PRIMARY columns) feed gate 282 (coverage) and gate 283 (parity) without perturbing the cross-tool parity gates that depend on the stress-config sniper_anchor.json shape (LRU/SRRIP/GRASP only). Populated by `make sniper-anchor-headline-1mb` aggregating /tmp/graphbrew-headline-1mb-sniper/*/DBG/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/headline_1mb_sniper_sweep.sh. Today: 3 cells (email-Eu-core/{pr,bfs,sssp} pipeline smoke)."
     },
     {
+      "artifact": "wiki/data/paper_table_prefetcher.json",
+      "artifact_exists": true,
+      "gate": "scripts/test/test_ecg_combined_scale_claims.py",
+      "gate_exists": true,
+      "generator": "scripts/experiments/ecg/paper_table_prefetcher.py",
+      "generator_exists": true,
+      "id": "paper_table_prefetcher",
+      "label": "Paper Table 4 \u2014 ECG combined-mask vs literature baselines",
+      "summary": "Paper Table 4 (gate 285 PfxScale) \u2014 ECG combined-mask claim at literature L3=1MB. Emits cache_sim L3 miss-rates per (graph, app) for LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY/ECG_DBG_ONLY/ECG_DBG_ONLY+ECG_PFX, plus deltas vs LRU/GRASP/POPT. Source: cache_sim sweep at /tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined}/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/pfx_cache_sim_scale_sweep.sh with ECG_CONTAINER_BITS=64 and runtime ECG_PREFETCH_LOOKAHEAD=8 (ECG_PREFETCH_MODE=2 popt-ranked). The ECG_CONTAINER_BITS=64 setting is load-bearing \u2014 at default 32, multi-million-vertex graphs leave PFX with 0 bits and the mask silently encodes nothing (sprint 6c root-cause finding, see docs/findings/ecg_pfx_recovery_2026-06-01.md). Outputs JSON/MD/CSV/TeX (the TeX is paste-ready for the paper). First-light soc-LiveJournal1: bfs \u0394 vs LRU = -7.70 pp, pr \u0394 vs LRU = -4.79 pp, useful-rate 100% on 20.9M prefetches."
+    },
+    {
       "artifact": "wiki/data/literature_faithfulness_ecg.json",
       "artifact_exists": true,
       "gate": "scripts/test/test_headline_coverage.py",
@@ -1516,13 +1527,13 @@
       "generator_exists": true,
       "id": "confidence_dashboard",
       "label": "Confidence dashboard",
-      "summary": "Single-screen verdict (284 gates today, all GREEN). The dashboard this catalog sits next to."
+      "summary": "Single-screen verdict (285 gates today, all GREEN). The dashboard this catalog sits next to."
     }
   ],
   "summary": {
     "missing_artifacts": [],
     "missing_gates": [],
     "missing_generators": [],
-    "n_entries": 138
+    "n_entries": 139
   }
 }

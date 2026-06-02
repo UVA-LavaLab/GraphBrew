@@ -992,7 +992,7 @@ lit-paper-table-prefetcher:
 		--json-out   $(WIKI_DATA)/paper_table_prefetcher.json \
 		--md-out     $(WIKI_DATA)/paper_table_prefetcher.md \
 		--csv-out    $(WIKI_DATA)/paper_table_prefetcher.csv \
-		--tex-out    $(WIKI_DATA)/paper_table_prefetcher.tex
+		--tex-out    docs/paper_tables/paper_table_prefetcher.tex
 
 
 # Paper label-map integrity. Source-of-truth is the code itself

@@ -1,4 +1,6 @@
 graph,app,LRU,SRRIP,GRASP,POPT,ECG_DBG_PRIMARY,ECG_DBG_ONLY,ECG_DBG_ONLY + ECG_PFX,delta_vs_LRU_pp,delta_vs_GRASP_pp,delta_vs_POPT_pp,prefetch_fills,prefetch_useful,prefetch_requests
+cit-Patents,pr,,,,,,,,,,,,,
+soc-LiveJournal1,bc,,,,,,,,,,,,,
 soc-LiveJournal1,bfs,0.8182,0.7836,0.7402,0.7525,0.7318,0.7397,0.7412,-7.7,0.1,-1.13,672287,672281,1683527
 soc-LiveJournal1,pr,0.7318,0.6986,0.6839,0.6225,0.6827,0.6839,0.6839,-4.79,-0.0,6.14,20877192,20876962,51349413
-soc-LiveJournal1,sssp,,,,,,,,,,,,,
+soc-LiveJournal1,sssp,0.7063,0.6814,0.6586,0.6582,0.6563,0.6573,0.658,-4.83,-0.06,-0.02,10401629,10401357,25431799

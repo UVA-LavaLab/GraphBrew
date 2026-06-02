@@ -8,7 +8,7 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **284 gates, all GREEN, exit 0**.
+and currently reports **285 gates, all GREEN, exit 0**.
 
 **Headline parity proof (gate 283, refresh @284) — SECOND PROOF GATE:**
 Cross-simulator paper-table preview joining cache_sim + gem5 + Sniper
@@ -54,6 +54,29 @@ sg_kernel emits ``SNIPER_ECG_PFX_TARGET`` env-gated → matched-proof
 sweep dispatches 3 arms per cell → postfix builder ingests CSVs
 → audit flips ``status=active`` → these 4 gates become
 load-bearing.
+
+**ECG combined-mask scale claims (gate 285, refresh @285) — PUBLISH HEADLINE:**
+After sprint 6c (commits ``e2b3a1a`` + ``7d99586``) recovered the
+ECG_PFX value story — Sniper measurements on email-Eu-core misled
+toward "ECG_PFX is useless" because (a) ``ECG_CONTAINER_BITS=32``
+default leaves PFX with 0 bits on multi-million-vertex graphs,
+(b) email-Eu-core fits in L1d so any prefetcher target is L1-hit,
+(c) ECG_PFX with LRU eviction has its prefetches evicted before use —
+the new gate 285 locks the 4 publish claims at scale: cache_sim
+sweep across literature graphs at L3=1MB with
+``ECG_CONTAINER_BITS=64`` and runtime ``ECG_PREFETCH_LOOKAHEAD=8``.
+Sub-gates ``test_full_data_cell_count_floor`` (297, ratchet),
+``test_ecg_combined_vs_lru_mean_floor`` (298, mean Δ ≤ -3 pp —
+combined mask wins on average across the corpus),
+``test_no_per_cell_regression_vs_lru`` (299, no cell regresses
+> 0.5 pp), ``test_prefetch_useful_rate_floor`` (300, mean
+prefetch_useful / prefetch_fills ≥ 90% on active cells). First-light
+soc-LiveJournal1: bfs Δ = -7.70 pp vs LRU, pr Δ = -4.79 pp,
+useful-rate 100% on 20.9M prefetches. Source artifact:
+``wiki/data/paper_table_prefetcher.json`` produced by
+``scripts/experiments/ecg/paper_table_prefetcher.py`` from the
+matched cache_sim scale sweep at
+``/tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined}/roi_matrix.csv``.
 
 **Headline coverage proof (gate 282, refresh @282) — FIRST PROOF GATE:**
 Gates 273-281 were vocabulary-lock AST audits (Slurm SBATCH schema …
@@ -1449,8 +1472,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 284. Next refresh due
-at gate 289. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 285. Next refresh due
+at gate 290. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

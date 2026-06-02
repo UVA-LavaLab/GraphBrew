@@ -41,7 +41,7 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-BASELINE_POLICIES = (
+BASELINE_LABELS = (
     "LRU",
     "SRRIP",
     "GRASP",
@@ -96,7 +96,7 @@ def load_cells(sweep_root: Path) -> list[dict[str, Any]]:
         base_csv = cell_dir / "baselines" / "roi_matrix.csv"
         pfx_csv = cell_dir / "pfx_combined" / "roi_matrix.csv"
         row: dict[str, Any] = {"graph": graph, "app": app}
-        for pol in BASELINE_POLICIES:
+        for pol in BASELINE_LABELS:
             br = _read_baseline_row(base_csv, pol)
             row[pol] = _coerce_float(br.get("l3_miss_rate")) if br else None
         pfx_row = _read_pfx_row(pfx_csv)
@@ -118,7 +118,7 @@ def load_cells(sweep_root: Path) -> list[dict[str, Any]]:
 
 
 def emit_csv(cells: list[dict], path: Path) -> None:
-    cols = ["graph", "app"] + list(BASELINE_POLICIES) + [PFX_LABEL] + \
+    cols = ["graph", "app"] + list(BASELINE_LABELS) + [PFX_LABEL] + \
         [f"delta_vs_{b}_pp" for b in DELTA_BASES] + \
         ["prefetch_fills", "prefetch_useful", "prefetch_requests"]
     with path.open("w") as f:
@@ -127,7 +127,7 @@ def emit_csv(cells: list[dict], path: Path) -> None:
         for c in cells:
             row = {k: c.get(k) for k in cols}
             # Round miss-rates for readability
-            for pol in list(BASELINE_POLICIES) + [PFX_LABEL]:
+            for pol in list(BASELINE_LABELS) + [PFX_LABEL]:
                 v = row.get(pol)
                 if v is not None:
                     row[pol] = round(v, 4)
@@ -264,7 +264,7 @@ def main() -> int:
             "schema_version": 1,
             "source": "scripts.experiments.ecg.paper_table_prefetcher",
             "sweep_root": str(args.sweep_root),
-            "baselines": list(BASELINE_POLICIES),
+            "baselines": list(BASELINE_LABELS),
             "pfx_label": PFX_LABEL,
             "delta_bases": list(DELTA_BASES),
             "summary": summary,

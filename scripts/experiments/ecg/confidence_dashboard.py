@@ -385,6 +385,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_lit_faith_ecg_pfx_vs_droplet.py", "ECG-Pfx-vs-DROPLET"),
     "ECG_PFX publish claims (gate 284) — useful-frac ≥ 5%, ECG_PFX ≤ DROPLET on pr/bc/bfs/sssp, ECG_PFX beats no_pfx by ≥ 0.5pp, baseline-neutral when pf_issued=0 (skips until gate 241 sweep activates)":
         ("scripts/test/test_ecg_pfx_prefetcher_claims.py", "PfxClaims"),
+    "ECG combined-mask scale claims (gate 285) — gates 297-300 cache_sim scale sweep with ECG_CONTAINER_BITS=64: full-data cell count floor, mean Δ ECG_DBG+ECG_PFX vs LRU ≤ -3pp, no per-cell regression > 0.5pp, mean prefetch useful-rate ≥ 90%":
+        ("scripts/test/test_ecg_combined_scale_claims.py", "PfxScale"),
     "Paper label-map integrity (gate 242) — POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels":
         ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
     "POLICY_COLORS perceptual distinguishability (gate 243) — hex format + dedup + pairwise CIE76 ΔE ≥ 12 + B&W lightness-delta ≥ 10 or hatch fallback (grandfathered allowlist) + ΔE ≥ 18 from white + POLICY_HATCHES ⊆ POLICY_LABELS":

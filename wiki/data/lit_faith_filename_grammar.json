@@ -19,13 +19,13 @@
   "meta_artifact_stems": [
     "artifact_catalog"
   ],
-  "n_catalog": 138,
-  "n_catalog_stems": 138,
-  "n_csv": 79,
-  "n_files": 360,
-  "n_json": 142,
-  "n_md": 139,
-  "n_stems": 143,
+  "n_catalog": 139,
+  "n_catalog_stems": 139,
+  "n_csv": 80,
+  "n_files": 363,
+  "n_json": 143,
+  "n_md": 140,
+  "n_stems": 144,
   "n_subdirs": 1,
   "rules": {
     "F1": "every file in wiki/data/ matches `^[a-z][a-z0-9_]*\\.(json|md|csv)$`",

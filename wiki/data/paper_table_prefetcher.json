@@ -17,20 +17,48 @@
     "POPT"
   ],
   "summary": {
-    "n_cells_total": 3,
-    "n_cells_with_full_row": 2,
-    "mean_delta_vs_LRU_pp": -6.240349999999994,
+    "n_cells_total": 5,
+    "n_cells_with_full_row": 3,
+    "mean_delta_vs_LRU_pp": -5.769066666666663,
     "min_delta_vs_LRU_pp": -7.695199999999991,
     "max_delta_vs_LRU_pp": -4.785499999999998,
-    "mean_delta_vs_GRASP_pp": 0.04994999999999861,
-    "min_delta_vs_GRASP_pp": -0.0016000000000016001,
+    "mean_delta_vs_GRASP_pp": 0.014266666666666131,
+    "min_delta_vs_GRASP_pp": -0.05709999999999882,
     "max_delta_vs_GRASP_pp": 0.10149999999999881,
-    "mean_delta_vs_POPT_pp": 2.505550000000006,
+    "mean_delta_vs_POPT_pp": 1.6630666666666718,
     "min_delta_vs_POPT_pp": -1.1269999999999891,
     "max_delta_vs_POPT_pp": 6.138100000000001,
-    "mean_useful_rate": 0.9999900292164732
+    "mean_useful_rate": 0.9999846362275829
   },
   "cells": [
+    {
+      "graph": "cit-Patents",
+      "app": "pr",
+      "LRU": null,
+      "SRRIP": null,
+      "GRASP": null,
+      "POPT": null,
+      "ECG_DBG_PRIMARY": null,
+      "ECG_DBG_ONLY": null,
+      "ECG_DBG_ONLY + ECG_PFX": null,
+      "delta_vs_LRU_pp": null,
+      "delta_vs_GRASP_pp": null,
+      "delta_vs_POPT_pp": null
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "app": "bc",
+      "LRU": null,
+      "SRRIP": null,
+      "GRASP": null,
+      "POPT": null,
+      "ECG_DBG_PRIMARY": null,
+      "ECG_DBG_ONLY": null,
+      "ECG_DBG_ONLY + ECG_PFX": null,
+      "delta_vs_LRU_pp": null,
+      "delta_vs_GRASP_pp": null,
+      "delta_vs_POPT_pp": null
+    },
     {
       "graph": "soc-LiveJournal1",
       "app": "bfs",
@@ -68,16 +96,19 @@
     {
       "graph": "soc-LiveJournal1",
       "app": "sssp",
-      "LRU": null,
-      "SRRIP": null,
-      "GRASP": null,
-      "POPT": null,
-      "ECG_DBG_PRIMARY": null,
-      "ECG_DBG_ONLY": null,
-      "ECG_DBG_ONLY + ECG_PFX": null,
-      "delta_vs_LRU_pp": null,
-      "delta_vs_GRASP_pp": null,
-      "delta_vs_POPT_pp": null
+      "LRU": 0.706269,
+      "SRRIP": 0.681377,
+      "GRASP": 0.658575,
+      "POPT": 0.658223,
+      "ECG_DBG_PRIMARY": 0.656253,
+      "ECG_DBG_ONLY": 0.657324,
+      "ECG_DBG_ONLY + ECG_PFX": 0.658004,
+      "prefetch_fills": 10401629,
+      "prefetch_useful": 10401357,
+      "prefetch_requests": 25431799,
+      "delta_vs_LRU_pp": -4.8265,
+      "delta_vs_GRASP_pp": -0.05709999999999882,
+      "delta_vs_POPT_pp": -0.021899999999996922
     }
   ]
 }

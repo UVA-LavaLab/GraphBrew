@@ -1113,6 +1113,15 @@ CATALOG = [
         "summary":   "Sniper headline-1MB anchor companion — separate from wiki/data/sniper_anchor.json so literature-1MB cells (with POPT and ECG_DBG_PRIMARY columns) feed gate 282 (coverage) and gate 283 (parity) without perturbing the cross-tool parity gates that depend on the stress-config sniper_anchor.json shape (LRU/SRRIP/GRASP only). Populated by `make sniper-anchor-headline-1mb` aggregating /tmp/graphbrew-headline-1mb-sniper/*/DBG/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/headline_1mb_sniper_sweep.sh. Today: 3 cells (email-Eu-core/{pr,bfs,sssp} pipeline smoke).",
     },
     {
+        "id":        "paper_table_prefetcher",
+        "label":     "Paper Table 4 — ECG combined-mask vs literature baselines",
+        "generator": "scripts/experiments/ecg/paper_table_prefetcher.py",
+        "gate":      "scripts/test/test_ecg_combined_scale_claims.py",
+        "artifact":  "wiki/data/paper_table_prefetcher.json",
+        "summary":   "Paper Table 4 (gate 285 PfxScale) — ECG combined-mask claim at literature L3=1MB. Emits cache_sim L3 miss-rates per (graph, app) for LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY/ECG_DBG_ONLY/ECG_DBG_ONLY+ECG_PFX, plus deltas vs LRU/GRASP/POPT. Source: cache_sim sweep at /tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined}/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/pfx_cache_sim_scale_sweep.sh with ECG_CONTAINER_BITS=64 and runtime ECG_PREFETCH_LOOKAHEAD=8 (ECG_PREFETCH_MODE=2 popt-ranked). The ECG_CONTAINER_BITS=64 setting is load-bearing — at default 32, multi-million-vertex graphs leave PFX with 0 bits and the mask silently encodes nothing (sprint 6c root-cause finding, see docs/findings/ecg_pfx_recovery_2026-06-01.md). Outputs JSON/MD/CSV/TeX (the TeX is paste-ready for the paper). First-light soc-LiveJournal1: bfs Δ vs LRU = -7.70 pp, pr Δ vs LRU = -4.79 pp, useful-rate 100% on 20.9M prefetches.",
+    },
+
+    {
         "id":        "literature_faithfulness_ecg",
         "label":     "Literature faithfulness ECG companion",
         "generator": "scripts/experiments/ecg/literature_faithfulness_ecg.py",
@@ -1151,7 +1160,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (284 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (285 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
