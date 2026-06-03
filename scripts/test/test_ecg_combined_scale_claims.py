@@ -198,3 +198,32 @@ def test_ecg_pfx_matches_droplet():
         f"ECG_PFX worse than DROPLET by > {ECG_VS_DROPLET_TOLERANCE_PP} pp "
         f"on {len(bad)} cells (skipped {no_droplet} cells without DROPLET data): {bad[:5]}"
     )
+
+
+ECG_PFX_EFFICIENCY_MAX_RATIO = 1.0  # ECG_PFX req/useful must be ≤ DROPLET's
+
+
+# --- gate 302 ---
+
+
+def test_ecg_pfx_more_efficient_than_droplet():
+    """Gate 302: ECG_PFX uses fewer prefetch requests per useful hit
+    than DROPLET on the same baseline eviction.
+
+    Aggregate efficiency claim: total ECG_PFX requests-per-useful ≤
+    total DROPLET requests-per-useful. With L3-miss-rate parity (gate 301),
+    this is the cleaner story — ECG_PFX achieves the same miss-rate
+    reduction with less prefetch bandwidth, less cache pollution.
+    """
+    payload = _load()
+    _skip_if_no_data(payload)
+    summary = payload.get("summary", {})
+    ecg_rpu = summary.get("ecg_pfx_req_per_useful")
+    drop_rpu = summary.get("droplet_req_per_useful")
+    if ecg_rpu is None or drop_rpu is None:
+        pytest.skip("no DROPLET aggregate data in summary")
+    ratio = ecg_rpu / drop_rpu
+    assert ratio <= ECG_PFX_EFFICIENCY_MAX_RATIO, (
+        f"ECG_PFX req/useful={ecg_rpu:.3f} > DROPLET req/useful={drop_rpu:.3f} "
+        f"(ratio={ratio:.3f}, max {ECG_PFX_EFFICIENCY_MAX_RATIO})"
+    )

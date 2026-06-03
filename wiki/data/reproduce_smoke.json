@@ -43,8 +43,8 @@
     },
     {
       "artifact": "confidence_dashboard.json",
-      "sha_before": "bb94fdce03f10987d5ef35556e4d6e9c635601ed47d63b15a69efef5585ee24c",
-      "sha_after": "bb94fdce03f10987d5ef35556e4d6e9c635601ed47d63b15a69efef5585ee24c",
+      "sha_before": "2579a7dd12d44a76186f53f662d3aeebf6d24f2aff89a67899d415fe885d7a63",
+      "sha_after": "2579a7dd12d44a76186f53f662d3aeebf6d24f2aff89a67899d415fe885d7a63",
       "status": "ok"
     },
     {
@@ -1015,14 +1015,14 @@
     },
     {
       "artifact": "lit_faith_paper_snapshot.json",
-      "sha_before": "dc591935e70600aea2c2ff56d4d6e43aa5db00ac7bae56f30021f38f89283499",
-      "sha_after": "dc591935e70600aea2c2ff56d4d6e43aa5db00ac7bae56f30021f38f89283499",
+      "sha_before": "d4b517b812f554d7d52347887d41a77be462309932359280f1d99dcef5fd1ac2",
+      "sha_after": "d4b517b812f554d7d52347887d41a77be462309932359280f1d99dcef5fd1ac2",
       "status": "ok"
     },
     {
       "artifact": "lit_faith_paper_snapshot.md",
-      "sha_before": "9f27fa1ff170b40edc5c48117684f5b26aee4fa8ce026d00caab0f46e6634ed6",
-      "sha_after": "9f27fa1ff170b40edc5c48117684f5b26aee4fa8ce026d00caab0f46e6634ed6",
+      "sha_before": "b5a99ba7d4ffd7b2b63d59143130041182fc6e1b70ffd930f51876444018a323",
+      "sha_after": "b5a99ba7d4ffd7b2b63d59143130041182fc6e1b70ffd930f51876444018a323",
       "status": "ok"
     },
     {
@@ -1579,14 +1579,14 @@
     },
     {
       "artifact": "paper_table_prefetcher.json",
-      "sha_before": "68bd9083e77180bd63623ff127b0a61dd8b527fa80368edf9d17a8ebf8b0c889",
-      "sha_after": "68bd9083e77180bd63623ff127b0a61dd8b527fa80368edf9d17a8ebf8b0c889",
+      "sha_before": "8d353391b0a08420bc2bb503fcc5ceca1259222feb35ceddcd74d86aabdc87d5",
+      "sha_after": "8d353391b0a08420bc2bb503fcc5ceca1259222feb35ceddcd74d86aabdc87d5",
       "status": "ok"
     },
     {
       "artifact": "paper_table_prefetcher.md",
-      "sha_before": "312a10c90a26726534e06cf1d2e191d29748d02034b6bfe56309b4281837c9aa",
-      "sha_after": "312a10c90a26726534e06cf1d2e191d29748d02034b6bfe56309b4281837c9aa",
+      "sha_before": "06b0ff29a8d697adb9b49ec4a68e36d81888b136ef32b3f7921e0f5d402aff61",
+      "sha_after": "06b0ff29a8d697adb9b49ec4a68e36d81888b136ef32b3f7921e0f5d402aff61",
       "status": "ok"
     },
     {
@@ -1849,8 +1849,8 @@
     },
     {
       "artifact": "lit_faith_paper_snapshot.csv",
-      "sha_before": "19e26a8231b1fdc9bdc7fc7b20e1fd5c21768186e18e6975f3b3d566eb74b970",
-      "sha_after": "19e26a8231b1fdc9bdc7fc7b20e1fd5c21768186e18e6975f3b3d566eb74b970",
+      "sha_before": "6a899d4337a777067c37b7c45628de9cd8efc7c2d207982f4266796849f08111",
+      "sha_after": "6a899d4337a777067c37b7c45628de9cd8efc7c2d207982f4266796849f08111",
       "status": "ok"
     },
     {

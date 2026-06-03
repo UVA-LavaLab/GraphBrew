@@ -32,7 +32,17 @@
     "mean_delta_vs_DROPLET_COMBINED_pp": 0.004914285714287457,
     "min_delta_vs_DROPLET_COMBINED_pp": -0.06909999999999972,
     "max_delta_vs_DROPLET_COMBINED_pp": 0.04950000000001342,
-    "mean_useful_rate": 0.999919702504704
+    "mean_useful_rate": 0.999919702504704,
+    "ecg_pfx_total_requests": 145084233,
+    "ecg_pfx_total_fills": 75642417,
+    "ecg_pfx_total_useful": 75634816,
+    "ecg_pfx_req_per_useful": 1.9182202148809353,
+    "droplet_total_requests": 475145125,
+    "droplet_total_fills": 211297216,
+    "droplet_total_useful": 211157873,
+    "droplet_req_per_useful": 2.2501890090548504,
+    "droplet_requests_over_ecg_pfx": 3.2749604500442167,
+    "droplet_useful_over_ecg_pfx": 2.791807849443304
   },
   "cells": [
     {

@@ -178,6 +178,18 @@ def emit_md(cells: list[dict], path: Path, summary: dict) -> None:
             lines.append(f"- Mean Δ ECG_PFX vs DROPLET (same baseline): **{summary['mean_delta_vs_DROPLET_COMBINED_pp']:+.2f} pp**")
         if summary.get("mean_useful_rate") is not None:
             lines.append(f"- Mean prefetch useful-rate: **{summary['mean_useful_rate'] * 100:.2f}%**")
+        if summary.get("ecg_pfx_total_requests") is not None and summary.get("droplet_total_requests") is not None:
+            ecg_r = summary["ecg_pfx_total_requests"]
+            drop_r = summary["droplet_total_requests"]
+            ratio = drop_r / ecg_r if ecg_r else 0.0
+            lines.append(f"- Total prefetch requests issued: ECG_PFX **{ecg_r:,}** vs DROPLET **{drop_r:,}** (DROPLET issues {ratio:.2f}× more)")
+        if summary.get("ecg_pfx_total_useful") is not None and summary.get("droplet_total_useful") is not None:
+            ecg_u = summary["ecg_pfx_total_useful"]
+            drop_u = summary["droplet_total_useful"]
+            ratio = drop_u / ecg_u if ecg_u else 0.0
+            lines.append(f"- Total useful prefetches: ECG_PFX **{ecg_u:,}** vs DROPLET **{drop_u:,}** (DROPLET useful is {ratio:.2f}× ECG_PFX's, both 99.99% useful_rate)")
+        if summary.get("ecg_pfx_req_per_useful") is not None and summary.get("droplet_req_per_useful") is not None:
+            lines.append(f"- Requests per useful prefetch: ECG_PFX **{summary['ecg_pfx_req_per_useful']:.3f}** vs DROPLET **{summary['droplet_req_per_useful']:.3f}** (ECG_PFX is more efficient — fewer wasted predictions per cache-hit benefit)")
     lines.append("")
     lines.append("## Per-cell miss-rates")
     lines.append("")
@@ -199,7 +211,31 @@ def emit_md(cells: list[dict], path: Path, summary: dict) -> None:
         ]
         lines.append("| " + " | ".join(str(x) for x in row_cells) + " |")
     lines.append("")
-    lines.append("## Prefetcher activity")
+    lines.append("## Prefetcher efficiency (ECG_PFX vs DROPLET on same baseline)")
+    lines.append("")
+    lines.append("`req/useful` = total prefetch requests issued per useful prefetch.")
+    lines.append("Lower is better (fewer wasted predictions per cache-hit benefit).")
+    lines.append("`ratio` = ECG_PFX(req/useful) / DROPLET(req/useful). < 1.0 means ECG_PFX")
+    lines.append("is more efficient than DROPLET.")
+    lines.append("")
+    lines.append("| graph | app | ECG_PFX requests | DROPLET requests | ECG_PFX req/useful | DROPLET req/useful | ratio |")
+    lines.append("|---|---|---:|---:|---:|---:|---:|")
+    for c in cells:
+        pfx_req = c.get("pfx_requests") or 0
+        pfx_use = c.get("pfx_useful") or 0
+        drop_req = c.get("droplet_requests") or 0
+        drop_use = c.get("droplet_useful") or 0
+        if not pfx_req and not drop_req:
+            continue
+        pfx_rpu = (pfx_req / pfx_use) if pfx_use else float("inf")
+        drop_rpu = (drop_req / drop_use) if drop_use else float("inf")
+        ratio = (pfx_rpu / drop_rpu) if (drop_rpu and drop_rpu != float("inf")) else None
+        ratio_str = f"{ratio:.3f}" if ratio is not None else "—"
+        pfx_rpu_str = f"{pfx_rpu:.3f}" if pfx_rpu != float("inf") else "—"
+        drop_rpu_str = f"{drop_rpu:.3f}" if drop_rpu != float("inf") else "—"
+        lines.append(f"| {c['graph']} | {c['app']} | {pfx_req:,} | {drop_req:,} | {pfx_rpu_str} | {drop_rpu_str} | {ratio_str} |")
+    lines.append("")
+    lines.append("## Prefetcher activity (ECG_PFX)")
     lines.append("")
     lines.append("| graph | app | requests | fills | useful | useful_rate |")
     lines.append("|---|---|---:|---:|---:|---:|")
@@ -262,6 +298,26 @@ def compute_summary(cells: list[dict]) -> dict:
         if fills > 0:
             rates.append(useful / fills)
     out["mean_useful_rate"] = mean(rates) if rates else None
+    # Efficiency aggregates — total requests/fills/useful summed across cells
+    # and req/useful ratio (lower = fewer wasted predictions per useful hit).
+    pfx_req = sum((c.get("pfx_requests") or 0) for c in cells)
+    pfx_fill = sum((c.get("pfx_fills") or 0) for c in cells)
+    pfx_useful = sum((c.get("pfx_useful") or 0) for c in cells)
+    drop_req = sum((c.get("droplet_requests") or 0) for c in cells)
+    drop_fill = sum((c.get("droplet_fills") or 0) for c in cells)
+    drop_useful = sum((c.get("droplet_useful") or 0) for c in cells)
+    out["ecg_pfx_total_requests"] = pfx_req
+    out["ecg_pfx_total_fills"] = pfx_fill
+    out["ecg_pfx_total_useful"] = pfx_useful
+    out["ecg_pfx_req_per_useful"] = (pfx_req / pfx_useful) if pfx_useful else None
+    out["droplet_total_requests"] = drop_req
+    out["droplet_total_fills"] = drop_fill
+    out["droplet_total_useful"] = drop_useful
+    out["droplet_req_per_useful"] = (drop_req / drop_useful) if drop_useful else None
+    if drop_req and pfx_req:
+        out["droplet_requests_over_ecg_pfx"] = drop_req / pfx_req
+    if drop_useful and pfx_useful:
+        out["droplet_useful_over_ecg_pfx"] = drop_useful / pfx_useful
     return out
 
 

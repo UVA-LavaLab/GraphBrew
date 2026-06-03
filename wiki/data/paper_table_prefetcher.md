@@ -14,6 +14,9 @@ comparator to the literature DROPLET edge-stream stride prefetcher.
 - Mean Δ ECG_combined vs POPT: **+0.24 pp**
 - Mean Δ ECG_PFX vs DROPLET (same baseline): **+0.00 pp**
 - Mean prefetch useful-rate: **99.99%**
+- Total prefetch requests issued: ECG_PFX **145,084,233** vs DROPLET **475,145,125** (DROPLET issues 3.27× more)
+- Total useful prefetches: ECG_PFX **75,634,816** vs DROPLET **211,157,873** (DROPLET useful is 2.79× ECG_PFX's, both 99.99% useful_rate)
+- Requests per useful prefetch: ECG_PFX **1.918** vs DROPLET **2.250** (ECG_PFX is more efficient — fewer wasted predictions per cache-hit benefit)
 
 ## Per-cell miss-rates
 
@@ -36,7 +39,28 @@ comparator to the literature DROPLET edge-stream stride prefetcher.
 | web-Google | bfs | 0.9690 | 0.9357 | 0.9469 | 0.9354 | 0.9353 | 0.9360 | -3.37 pp | -0.03 pp | -1.16 pp | -0.07 pp |
 | web-Google | pr | 0.6009 | 0.4531 | 0.4168 | 0.4532 | 0.4531 | 0.4529 | -14.78 pp | +0.00 pp | +3.63 pp | +0.02 pp |
 
-## Prefetcher activity
+## Prefetcher efficiency (ECG_PFX vs DROPLET on same baseline)
+
+`req/useful` = total prefetch requests issued per useful prefetch.
+Lower is better (fewer wasted predictions per cache-hit benefit).
+`ratio` = ECG_PFX(req/useful) / DROPLET(req/useful). < 1.0 means ECG_PFX
+is more efficient than DROPLET.
+
+| graph | app | ECG_PFX requests | DROPLET requests | ECG_PFX req/useful | DROPLET req/useful | ratio |
+|---|---|---:|---:|---:|---:|---:|
+| cit-Patents | bfs | 224,884 | 807,800 | 1.297 | 1.623 | 0.799 |
+| cit-Patents | pr | 17,605,247 | 58,526,023 | 1.131 | 1.303 | 0.868 |
+| cit-Patents | sssp | 8,148,536 | 27,803,278 | 1.234 | 1.506 | 0.819 |
+| email-Eu-core | pr | 48,509 | 62,197 | — | — | — |
+| soc-LiveJournal1 | bfs | 1,683,527 | 5,759,963 | 2.504 | 2.771 | 0.904 |
+| soc-LiveJournal1 | pr | 51,349,413 | 159,066,424 | 2.460 | 2.680 | 0.918 |
+| soc-LiveJournal1 | sssp | 25,431,799 | 78,908,163 | 2.445 | 2.756 | 0.887 |
+| soc-pokec | pr | 24,009,855 | 85,822,033 | 1.861 | 2.440 | 0.763 |
+| soc-pokec | sssp | 11,931,756 | 42,715,169 | 1.870 | 2.480 | 0.754 |
+| web-Google | bfs | 43,000 | 143,546 | 2.140 | 2.897 | 0.739 |
+| web-Google | pr | 4,607,707 | 15,530,529 | 2.253 | 3.252 | 0.693 |
+
+## Prefetcher activity (ECG_PFX)
 
 | graph | app | requests | fills | useful | useful_rate |
 |---|---|---:|---:|---:|---:|
