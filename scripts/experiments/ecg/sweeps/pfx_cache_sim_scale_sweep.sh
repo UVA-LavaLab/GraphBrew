@@ -144,14 +144,14 @@ for short in "${!GRAPH_PATHS[@]}"; do
       date +"%T SKIP  ${short}/${app} baselines (cached)" | tee -a "$LOG"
     else
     date +"%T BEGIN ${short}/${app} BASELINES" | tee -a "$LOG"
-    if ECG_CONTAINER_BITS=64 timeout 1200 python3 scripts/experiments/ecg/roi_matrix.py \
+    if ECG_CONTAINER_BITS=64 timeout 3600 python3 scripts/experiments/ecg/roi_matrix.py \
         --suite cache-sim --no-build \
         --benchmark "$app" --options "$opts" \
         --policies "${BASELINES[@]}" \
         --l1d-size 32kB --l1d-ways 8 \
         --l2-size 256kB --l2-ways 8 \
         --l3-sizes 1MB --l3-ways 16 \
-        --line-size 64 --timeout-cache 600 \
+        --line-size 64 --timeout-cache 1800 \
         --out-dir "$cell_dir/baselines" >> "$LOG" 2>&1; then
       date +"%T OK    ${short}/${app} baselines" | tee -a "$LOG"
     else
@@ -171,7 +171,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
       date +"%T SKIP  ${short}/${app} pfx_combined (cached)" | tee -a "$LOG"
     else
     date +"%T BEGIN ${short}/${app} PFX_COMBINED (ECG:DBG_ONLY + ECG_PFX)" | tee -a "$LOG"
-    if ECG_CONTAINER_BITS=64 timeout 1200 python3 scripts/experiments/ecg/roi_matrix.py \
+    if ECG_CONTAINER_BITS=64 timeout 3600 python3 scripts/experiments/ecg/roi_matrix.py \
         --suite cache-sim --no-build \
         --benchmark "$app" --options "$opts" \
         --policies "$PFX_POLICY" \
@@ -179,7 +179,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
         --l1d-size 32kB --l1d-ways 8 \
         --l2-size 256kB --l2-ways 8 \
         --l3-sizes 1MB --l3-ways 16 \
-        --line-size 64 --timeout-cache 600 \
+        --line-size 64 --timeout-cache 1800 \
         --out-dir "$cell_dir/pfx_combined" >> "$LOG" 2>&1; then
       date +"%T OK    ${short}/${app} pfx_combined" | tee -a "$LOG"
       cell_count=$((cell_count + 1))
@@ -199,7 +199,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
       date +"%T SKIP  ${short}/${app} droplet_combined (cached)" | tee -a "$LOG"
     else
     date +"%T BEGIN ${short}/${app} DROPLET_COMBINED (ECG:DBG_ONLY + DROPLET)" | tee -a "$LOG"
-    if ECG_CONTAINER_BITS=64 timeout 1200 python3 scripts/experiments/ecg/roi_matrix.py \
+    if ECG_CONTAINER_BITS=64 timeout 3600 python3 scripts/experiments/ecg/roi_matrix.py \
         --suite cache-sim --no-build \
         --benchmark "$app" --options "$opts" \
         --policies "$PFX_POLICY" \
@@ -207,7 +207,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
         --l1d-size 32kB --l1d-ways 8 \
         --l2-size 256kB --l2-ways 8 \
         --l3-sizes 1MB --l3-ways 16 \
-        --line-size 64 --timeout-cache 600 \
+        --line-size 64 --timeout-cache 1800 \
         --out-dir "$cell_dir/droplet_combined" >> "$LOG" 2>&1; then
       date +"%T OK    ${short}/${app} droplet_combined" | tee -a "$LOG"
     else
