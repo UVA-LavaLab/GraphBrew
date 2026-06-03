@@ -120,33 +120,61 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                 // ECG: read contrib[v] with mask. With lookahead enabled, issue
                 // the prefetch from upcoming incoming-neighbor IDs before their
                 // demand read; otherwise use the per-vertex PFX target directly.
+                //
+                // Prefetch modes:
+                //   1 = degree-ranked (ECG_PFX): pick most-popular among next K
+                //   2 = POPT-ranked   (ECG_PFX): pick lowest-POPT-rank among next K
+                //   3 = sequential    (DROPLET): prefetch ALL next K (no selection)
+                //
+                // Mode 3 = DROPLET-in-cache_sim. DROPLET's Sniper impl monitors
+                // edge stream and stride-prefetches destination properties.
+                // Cache_sim has explicit edge access markers so we can deliver
+                // the same semantic (prefetch next-K in-neighbors' contrib[])
+                // without the runtime stride detection. Faithful comparator
+                // for the ECG_PFX claim.
                 if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
-                    uint32_t lookahead_target = UINT32_MAX;
-                    auto jt = it;
-                    for (int step = 0; step < pfx_lookahead; step++) {
-                        ++jt;
-                        if (jt == in_neigh.end()) break;
-                        NodeID candidate = *jt;
-                        if (candidate < 0) continue;
-                        if (graph_ctx.mask_config.prefetch_mode == 1) {
-                            if (lookahead_target == UINT32_MAX ||
-                                g.out_degree(candidate) > g.out_degree(lookahead_target)) {
-                                lookahead_target = static_cast<uint32_t>(candidate);
-                            }
-                        } else {
-                            uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
-                            if (lookahead_target == UINT32_MAX ||
-                                candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
-                                lookahead_target = static_cast<uint32_t>(candidate);
+                    if (graph_ctx.mask_config.prefetch_mode == 3) {
+                        // DROPLET-style: prefetch every next-K in-neighbor
+                        // sequentially. No target selection — just sweep the
+                        // upcoming edge stream's destinations.
+                        auto jt = it;
+                        for (int step = 0; step < pfx_lookahead; step++) {
+                            ++jt;
+                            if (jt == in_neigh.end()) break;
+                            NodeID candidate = *jt;
+                            if (candidate < 0) continue;
+                            SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr,
+                                static_cast<uint32_t>(candidate), graph_ctx);
+                        }
+                        SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
+                    } else {
+                        uint32_t lookahead_target = UINT32_MAX;
+                        auto jt = it;
+                        for (int step = 0; step < pfx_lookahead; step++) {
+                            ++jt;
+                            if (jt == in_neigh.end()) break;
+                            NodeID candidate = *jt;
+                            if (candidate < 0) continue;
+                            if (graph_ctx.mask_config.prefetch_mode == 1) {
+                                if (lookahead_target == UINT32_MAX ||
+                                    g.out_degree(candidate) > g.out_degree(lookahead_target)) {
+                                    lookahead_target = static_cast<uint32_t>(candidate);
+                                }
+                            } else {
+                                uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
+                                if (lookahead_target == UINT32_MAX ||
+                                    candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
+                                    lookahead_target = static_cast<uint32_t>(candidate);
+                                }
                             }
                         }
+                        if (lookahead_target != UINT32_MAX) {
+                            SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, lookahead_target, graph_ctx);
+                        } else {
+                            graph_ctx.recordPrefetchNoTarget();
+                        }
+                        SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                     }
-                    if (lookahead_target != UINT32_MAX) {
-                        SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, lookahead_target, graph_ctx);
-                    } else {
-                        graph_ctx.recordPrefetchNoTarget();
-                    }
-                    SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                 } else {
                     SIM_CACHE_READ_MASKED_PREFETCH(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                 }

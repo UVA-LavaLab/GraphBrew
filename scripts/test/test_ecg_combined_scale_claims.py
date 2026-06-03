@@ -42,6 +42,7 @@ FULL_DATA_FLOOR = 1  # ratchet up as more cells land
 LRU_DELTA_HEADLINE_PP = -3.0  # mean ECG_combined vs LRU must be ≤ -3 pp
 LRU_REGRESSION_THRESHOLD_PP = 0.5  # no cell may regress vs LRU by more than this
 USEFUL_RATE_FLOOR = 0.90  # mean prefetch_useful / prefetch_fills
+ECG_VS_DROPLET_TOLERANCE_PP = 0.5  # ECG_PFX must not lose to DROPLET by more than this on any cell
 
 
 def _load() -> dict[str, Any]:
@@ -164,4 +165,36 @@ def test_prefetch_useful_rate_floor():
         pytest.skip("no cells with prefetch_fills > 0 in current sweep data")
     assert rate >= USEFUL_RATE_FLOOR, (
         f"mean prefetch_useful_rate = {rate:.4f}, expected ≥ {USEFUL_RATE_FLOOR}"
+    )
+
+
+# --- gate 301 ---
+
+
+def test_ecg_pfx_matches_droplet():
+    """Gate 301: ECG_PFX is competitive with the literature SOTA prefetcher
+    DROPLET when paired with the same eviction policy.
+
+    For each cell, ECG_PFX miss-rate must be ≤ DROPLET miss-rate + 0.5 pp.
+    This is THE paper claim: ECG_PFX's hint-driven approach matches or
+    beats DROPLET's edge-stream stride approach on the same baseline.
+
+    Skips cells where DROPLET measurement is missing (e.g. sweep didn't
+    complete that cell's third pass).
+    """
+    payload = _load()
+    _skip_if_no_data(payload)
+    cells = _full_cells(payload)
+    bad: list[tuple[str, str, float]] = []
+    no_droplet = 0
+    for cell in cells:
+        delta = cell.get("delta_vs_DROPLET_COMBINED_pp")
+        if delta is None:
+            no_droplet += 1
+            continue
+        if delta > ECG_VS_DROPLET_TOLERANCE_PP:
+            bad.append((cell["graph"], cell["app"], float(delta)))
+    assert not bad, (
+        f"ECG_PFX worse than DROPLET by > {ECG_VS_DROPLET_TOLERANCE_PP} pp "
+        f"on {len(bad)} cells (skipped {no_droplet} cells without DROPLET data): {bad[:5]}"
     )

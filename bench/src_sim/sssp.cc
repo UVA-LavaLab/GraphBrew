@@ -40,31 +40,45 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
     for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
         WNode wn = *it;
         if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
-            uint32_t lookahead_target = UINT32_MAX;
-            auto jt = it;
-            for (int step = 0; step < pfx_lookahead; step++) {
-                ++jt;
-                if (jt == out_neigh.end()) break;
-                WNode candidate_node = *jt;
-                NodeID candidate = candidate_node.v;
-                if (candidate < 0) continue;
-                if (graph_ctx.mask_config.prefetch_mode == 1) {
-                    if (lookahead_target == UINT32_MAX ||
-                        g.out_degree(candidate) > g.out_degree(lookahead_target)) {
-                        lookahead_target = static_cast<uint32_t>(candidate);
-                    }
-                } else {
-                    uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
-                    if (lookahead_target == UINT32_MAX ||
-                        candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
-                        lookahead_target = static_cast<uint32_t>(candidate);
+            if (graph_ctx.mask_config.prefetch_mode == 3) {
+                // DROPLET-style: prefetch every next-K out-neighbor.
+                auto jt = it;
+                for (int step = 0; step < pfx_lookahead; step++) {
+                    ++jt;
+                    if (jt == out_neigh.end()) break;
+                    WNode candidate_node = *jt;
+                    NodeID candidate = candidate_node.v;
+                    if (candidate < 0) continue;
+                    SIM_CACHE_PREFETCH_VERTEX(cache, dist.data(),
+                        static_cast<uint32_t>(candidate), graph_ctx);
+                }
+            } else {
+                uint32_t lookahead_target = UINT32_MAX;
+                auto jt = it;
+                for (int step = 0; step < pfx_lookahead; step++) {
+                    ++jt;
+                    if (jt == out_neigh.end()) break;
+                    WNode candidate_node = *jt;
+                    NodeID candidate = candidate_node.v;
+                    if (candidate < 0) continue;
+                    if (graph_ctx.mask_config.prefetch_mode == 1) {
+                        if (lookahead_target == UINT32_MAX ||
+                            g.out_degree(candidate) > g.out_degree(lookahead_target)) {
+                            lookahead_target = static_cast<uint32_t>(candidate);
+                        }
+                    } else {
+                        uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
+                        if (lookahead_target == UINT32_MAX ||
+                            candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
+                            lookahead_target = static_cast<uint32_t>(candidate);
+                        }
                     }
                 }
-            }
-            if (lookahead_target != UINT32_MAX) {
-                SIM_CACHE_PREFETCH_VERTEX(cache, dist.data(), lookahead_target, graph_ctx);
-            } else {
-                graph_ctx.recordPrefetchNoTarget();
+                if (lookahead_target != UINT32_MAX) {
+                    SIM_CACHE_PREFETCH_VERTEX(cache, dist.data(), lookahead_target, graph_ctx);
+                } else {
+                    graph_ctx.recordPrefetchNoTarget();
+                }
             }
         }
         WeightT old_dist = dist[wn.v];

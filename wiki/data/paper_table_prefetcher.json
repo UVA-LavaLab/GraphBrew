@@ -14,7 +14,8 @@
   "delta_bases": [
     "LRU",
     "GRASP",
-    "POPT"
+    "POPT",
+    "DROPLET_COMBINED"
   ],
   "summary": {
     "n_cells_total": 16,
@@ -28,6 +29,9 @@
     "mean_delta_vs_POPT_pp": 0.24132142857143138,
     "min_delta_vs_POPT_pp": -3.6177000000000015,
     "max_delta_vs_POPT_pp": 6.138100000000001,
+    "mean_delta_vs_DROPLET_COMBINED_pp": 0.004914285714287457,
+    "min_delta_vs_DROPLET_COMBINED_pp": -0.06909999999999972,
+    "max_delta_vs_DROPLET_COMBINED_pp": 0.04950000000001342,
     "mean_useful_rate": 0.999919702504704
   },
   "cells": [
@@ -41,12 +45,21 @@
       "ECG_DBG_PRIMARY": 0.895,
       "ECG_DBG_ONLY": 0.898597,
       "ECG_DBG_ONLY + ECG_PFX": 0.898405,
+      "ECG_DBG_ONLY + DROPLET": 0.898964,
+      "DROPLET_COMBINED": 0.898964,
+      "pfx_fills": 0,
+      "pfx_useful": 0,
+      "pfx_requests": 0,
       "prefetch_fills": 0,
       "prefetch_useful": 0,
       "prefetch_requests": 0,
+      "droplet_fills": 0,
+      "droplet_useful": 0,
+      "droplet_requests": 0,
       "delta_vs_LRU_pp": 1.408100000000001,
       "delta_vs_GRASP_pp": -0.010299999999996423,
-      "delta_vs_POPT_pp": 1.6059000000000045
+      "delta_vs_POPT_pp": 1.6059000000000045,
+      "delta_vs_DROPLET_COMBINED_pp": -0.05589999999999762
     },
     {
       "graph": "cit-Patents",
@@ -58,12 +71,21 @@
       "ECG_DBG_PRIMARY": 0.954497,
       "ECG_DBG_ONLY": 0.959564,
       "ECG_DBG_ONLY + ECG_PFX": 0.959694,
+      "ECG_DBG_ONLY + DROPLET": 0.959541,
+      "DROPLET_COMBINED": 0.959541,
+      "pfx_fills": 173356,
+      "pfx_useful": 173355,
+      "pfx_requests": 224884,
       "prefetch_fills": 173356,
       "prefetch_useful": 173355,
       "prefetch_requests": 224884,
+      "droplet_fills": 497859,
+      "droplet_useful": 497766,
+      "droplet_requests": 807800,
       "delta_vs_LRU_pp": -1.050299999999993,
       "delta_vs_GRASP_pp": 0.06950000000000012,
-      "delta_vs_POPT_pp": -0.05129999999999857
+      "delta_vs_POPT_pp": -0.05129999999999857,
+      "delta_vs_DROPLET_COMBINED_pp": 0.015300000000006975
     },
     {
       "graph": "cit-Patents",
@@ -75,12 +97,21 @@
       "ECG_DBG_PRIMARY": 0.786964,
       "ECG_DBG_ONLY": 0.785651,
       "ECG_DBG_ONLY + ECG_PFX": 0.785544,
+      "ECG_DBG_ONLY + DROPLET": 0.785462,
+      "DROPLET_COMBINED": 0.785462,
+      "pfx_fills": 15564263,
+      "pfx_useful": 15559302,
+      "pfx_requests": 17605247,
       "prefetch_fills": 15564263,
       "prefetch_useful": 15559302,
       "prefetch_requests": 17605247,
+      "droplet_fills": 45037580,
+      "droplet_useful": 44913068,
+      "droplet_requests": 58526023,
       "delta_vs_LRU_pp": -10.816099999999995,
       "delta_vs_GRASP_pp": -0.014499999999995072,
-      "delta_vs_POPT_pp": 1.1133999999999977
+      "delta_vs_POPT_pp": 1.1133999999999977,
+      "delta_vs_DROPLET_COMBINED_pp": 0.00820000000000265
     },
     {
       "graph": "cit-Patents",
@@ -92,12 +123,21 @@
       "ECG_DBG_PRIMARY": 0.816588,
       "ECG_DBG_ONLY": 0.8179339999999999,
       "ECG_DBG_ONLY + ECG_PFX": 0.817702,
+      "ECG_DBG_ONLY + DROPLET": 0.817476,
+      "DROPLET_COMBINED": 0.817476,
+      "pfx_fills": 6605749,
+      "pfx_useful": 6605649,
+      "pfx_requests": 8148536,
       "prefetch_fills": 6605749,
       "prefetch_useful": 6605649,
       "prefetch_requests": 8148536,
+      "droplet_fills": 18467025,
+      "droplet_useful": 18460008,
+      "droplet_requests": 27803278,
       "delta_vs_LRU_pp": -3.0598000000000014,
       "delta_vs_GRASP_pp": 0.004000000000004,
-      "delta_vs_POPT_pp": -0.3934999999999911
+      "delta_vs_POPT_pp": -0.3934999999999911,
+      "delta_vs_DROPLET_COMBINED_pp": 0.02260000000000595
     },
     {
       "graph": "com-orkut",
@@ -109,9 +149,12 @@
       "ECG_DBG_PRIMARY": null,
       "ECG_DBG_ONLY": null,
       "ECG_DBG_ONLY + ECG_PFX": null,
+      "ECG_DBG_ONLY + DROPLET": null,
+      "DROPLET_COMBINED": null,
       "delta_vs_LRU_pp": null,
       "delta_vs_GRASP_pp": null,
-      "delta_vs_POPT_pp": null
+      "delta_vs_POPT_pp": null,
+      "delta_vs_DROPLET_COMBINED_pp": null
     },
     {
       "graph": "email-Eu-core",
@@ -123,12 +166,21 @@
       "ECG_DBG_PRIMARY": 1.0,
       "ECG_DBG_ONLY": 1.0,
       "ECG_DBG_ONLY + ECG_PFX": 1.0,
+      "ECG_DBG_ONLY + DROPLET": 1.0,
+      "DROPLET_COMBINED": 1.0,
+      "pfx_fills": 0,
+      "pfx_useful": 0,
+      "pfx_requests": 48509,
       "prefetch_fills": 0,
       "prefetch_useful": 0,
       "prefetch_requests": 48509,
+      "droplet_fills": 0,
+      "droplet_useful": 0,
+      "droplet_requests": 62197,
       "delta_vs_LRU_pp": 0.0,
       "delta_vs_GRASP_pp": 0.0,
-      "delta_vs_POPT_pp": 0.0
+      "delta_vs_POPT_pp": 0.0,
+      "delta_vs_DROPLET_COMBINED_pp": 0.0
     },
     {
       "graph": "soc-LiveJournal1",
@@ -140,9 +192,12 @@
       "ECG_DBG_PRIMARY": null,
       "ECG_DBG_ONLY": null,
       "ECG_DBG_ONLY + ECG_PFX": null,
+      "ECG_DBG_ONLY + DROPLET": null,
+      "DROPLET_COMBINED": null,
       "delta_vs_LRU_pp": null,
       "delta_vs_GRASP_pp": null,
-      "delta_vs_POPT_pp": null
+      "delta_vs_POPT_pp": null,
+      "delta_vs_DROPLET_COMBINED_pp": null
     },
     {
       "graph": "soc-LiveJournal1",
@@ -154,12 +209,21 @@
       "ECG_DBG_PRIMARY": 0.731846,
       "ECG_DBG_ONLY": 0.7396780000000001,
       "ECG_DBG_ONLY + ECG_PFX": 0.7412380000000001,
+      "ECG_DBG_ONLY + DROPLET": 0.7407429999999999,
+      "DROPLET_COMBINED": 0.7407429999999999,
+      "pfx_fills": 672287,
+      "pfx_useful": 672281,
+      "pfx_requests": 1683527,
       "prefetch_fills": 672287,
       "prefetch_useful": 672281,
       "prefetch_requests": 1683527,
+      "droplet_fills": 2078956,
+      "droplet_useful": 2078914,
+      "droplet_requests": 5759963,
       "delta_vs_LRU_pp": -7.695199999999991,
       "delta_vs_GRASP_pp": 0.10149999999999881,
-      "delta_vs_POPT_pp": -1.1269999999999891
+      "delta_vs_POPT_pp": -1.1269999999999891,
+      "delta_vs_DROPLET_COMBINED_pp": 0.04950000000001342
     },
     {
       "graph": "soc-LiveJournal1",
@@ -171,12 +235,21 @@
       "ECG_DBG_PRIMARY": 0.6826570000000001,
       "ECG_DBG_ONLY": 0.683937,
       "ECG_DBG_ONLY + ECG_PFX": 0.683926,
+      "ECG_DBG_ONLY + DROPLET": 0.683872,
+      "DROPLET_COMBINED": 0.683872,
+      "pfx_fills": 20877192,
+      "pfx_useful": 20876962,
+      "pfx_requests": 51349413,
       "prefetch_fills": 20877192,
       "prefetch_useful": 20876962,
       "prefetch_requests": 51349413,
+      "droplet_fills": 59361432,
+      "droplet_useful": 59360496,
+      "droplet_requests": 159066424,
       "delta_vs_LRU_pp": -4.785499999999998,
       "delta_vs_GRASP_pp": -0.0016000000000016001,
-      "delta_vs_POPT_pp": 6.138100000000001
+      "delta_vs_POPT_pp": 6.138100000000001,
+      "delta_vs_DROPLET_COMBINED_pp": 0.005399999999999849
     },
     {
       "graph": "soc-LiveJournal1",
@@ -188,12 +261,21 @@
       "ECG_DBG_PRIMARY": 0.656253,
       "ECG_DBG_ONLY": 0.657324,
       "ECG_DBG_ONLY + ECG_PFX": 0.658004,
+      "ECG_DBG_ONLY + DROPLET": 0.658217,
+      "DROPLET_COMBINED": 0.658217,
+      "pfx_fills": 10401629,
+      "pfx_useful": 10401357,
+      "pfx_requests": 25431799,
       "prefetch_fills": 10401629,
       "prefetch_useful": 10401357,
       "prefetch_requests": 25431799,
+      "droplet_fills": 28627590,
+      "droplet_useful": 28626910,
+      "droplet_requests": 78908163,
       "delta_vs_LRU_pp": -4.8265,
       "delta_vs_GRASP_pp": -0.05709999999999882,
-      "delta_vs_POPT_pp": -0.021899999999996922
+      "delta_vs_POPT_pp": -0.021899999999996922,
+      "delta_vs_DROPLET_COMBINED_pp": -0.021300000000001873
     },
     {
       "graph": "soc-pokec",
@@ -205,12 +287,21 @@
       "ECG_DBG_PRIMARY": 0.769136,
       "ECG_DBG_ONLY": 0.764787,
       "ECG_DBG_ONLY + ECG_PFX": 0.764778,
+      "ECG_DBG_ONLY + DROPLET": 0.764494,
+      "DROPLET_COMBINED": 0.764494,
+      "pfx_fills": 0,
+      "pfx_useful": 0,
+      "pfx_requests": 0,
       "prefetch_fills": 0,
       "prefetch_useful": 0,
       "prefetch_requests": 0,
+      "droplet_fills": 0,
+      "droplet_useful": 0,
+      "droplet_requests": 0,
       "delta_vs_LRU_pp": -8.7391,
       "delta_vs_GRASP_pp": -0.0037999999999982492,
-      "delta_vs_POPT_pp": -2.973200000000009
+      "delta_vs_POPT_pp": -2.973200000000009,
+      "delta_vs_DROPLET_COMBINED_pp": 0.028399999999995096
     },
     {
       "graph": "soc-pokec",
@@ -222,12 +313,21 @@
       "ECG_DBG_PRIMARY": 0.54142,
       "ECG_DBG_ONLY": 0.543327,
       "ECG_DBG_ONLY + ECG_PFX": 0.543247,
+      "ECG_DBG_ONLY + DROPLET": 0.5430820000000001,
+      "DROPLET_COMBINED": 0.5430820000000001,
+      "pfx_fills": 12900265,
+      "pfx_useful": 12898548,
+      "pfx_requests": 24009855,
       "prefetch_fills": 12900265,
       "prefetch_useful": 12898548,
       "prefetch_requests": 24009855,
+      "droplet_fills": 35176574,
+      "droplet_useful": 35171688,
+      "droplet_requests": 85822033,
       "delta_vs_LRU_pp": -13.63399999999999,
       "delta_vs_GRASP_pp": -0.007999999999996898,
-      "delta_vs_POPT_pp": -0.3417999999999921
+      "delta_vs_POPT_pp": -0.3417999999999921,
+      "delta_vs_DROPLET_COMBINED_pp": 0.016499999999997073
     },
     {
       "graph": "soc-pokec",
@@ -239,12 +339,21 @@
       "ECG_DBG_PRIMARY": 0.5295909999999999,
       "ECG_DBG_ONLY": 0.528221,
       "ECG_DBG_ONLY + ECG_PFX": 0.527702,
+      "ECG_DBG_ONLY + DROPLET": 0.527219,
+      "DROPLET_COMBINED": 0.527219,
+      "pfx_fills": 6381922,
+      "pfx_useful": 6381722,
+      "pfx_requests": 11931756,
       "prefetch_fills": 6381922,
       "prefetch_useful": 6381722,
       "prefetch_requests": 11931756,
+      "droplet_fills": 17224092,
+      "droplet_useful": 17223613,
+      "droplet_requests": 42715169,
       "delta_vs_LRU_pp": -10.890699999999997,
       "delta_vs_GRASP_pp": -0.003999999999992898,
-      "delta_vs_POPT_pp": -3.6177000000000015
+      "delta_vs_POPT_pp": -3.6177000000000015,
+      "delta_vs_DROPLET_COMBINED_pp": 0.04830000000000112
     },
     {
       "graph": "web-Google",
@@ -256,12 +365,21 @@
       "ECG_DBG_PRIMARY": 0.697616,
       "ECG_DBG_ONLY": 0.709249,
       "ECG_DBG_ONLY + ECG_PFX": 0.708449,
+      "ECG_DBG_ONLY + DROPLET": 0.708476,
+      "DROPLET_COMBINED": 0.708476,
+      "pfx_fills": 0,
+      "pfx_useful": 0,
+      "pfx_requests": 0,
       "prefetch_fills": 0,
       "prefetch_useful": 0,
       "prefetch_requests": 0,
+      "droplet_fills": 0,
+      "droplet_useful": 0,
+      "droplet_requests": 0,
       "delta_vs_LRU_pp": 0.4098000000000046,
       "delta_vs_GRASP_pp": 0.13480000000000159,
-      "delta_vs_POPT_pp": 0.5734000000000017
+      "delta_vs_POPT_pp": 0.5734000000000017,
+      "delta_vs_DROPLET_COMBINED_pp": -0.0026999999999999247
     },
     {
       "graph": "web-Google",
@@ -273,12 +391,21 @@
       "ECG_DBG_PRIMARY": 0.931719,
       "ECG_DBG_ONLY": 0.9354439999999999,
       "ECG_DBG_ONLY + ECG_PFX": 0.935324,
+      "ECG_DBG_ONLY + DROPLET": 0.936015,
+      "DROPLET_COMBINED": 0.936015,
+      "pfx_fills": 20098,
+      "pfx_useful": 20094,
+      "pfx_requests": 43000,
       "prefetch_fills": 20098,
       "prefetch_useful": 20094,
       "prefetch_requests": 43000,
+      "droplet_fills": 49555,
+      "droplet_useful": 49545,
+      "droplet_requests": 143546,
       "delta_vs_LRU_pp": -3.3676999999999957,
       "delta_vs_GRASP_pp": -0.03329999999999167,
-      "delta_vs_POPT_pp": -1.159499999999991
+      "delta_vs_POPT_pp": -1.159499999999991,
+      "delta_vs_DROPLET_COMBINED_pp": -0.06909999999999972
     },
     {
       "graph": "web-Google",
@@ -290,12 +417,21 @@
       "ECG_DBG_PRIMARY": 0.44569800000000004,
       "ECG_DBG_ONLY": 0.453159,
       "ECG_DBG_ONLY + ECG_PFX": 0.45311100000000004,
+      "ECG_DBG_ONLY + DROPLET": 0.452875,
+      "DROPLET_COMBINED": 0.452875,
+      "pfx_fills": 2045656,
+      "pfx_useful": 2045546,
+      "pfx_requests": 4607707,
       "prefetch_fills": 2045656,
       "prefetch_useful": 2045546,
       "prefetch_requests": 4607707,
+      "droplet_fills": 4776553,
+      "droplet_useful": 4775865,
+      "droplet_requests": 15530529,
       "delta_vs_LRU_pp": -14.7783,
       "delta_vs_GRASP_pp": 0.004000000000004,
-      "delta_vs_POPT_pp": 3.6336000000000035
+      "delta_vs_POPT_pp": 3.6336000000000035,
+      "delta_vs_DROPLET_COMBINED_pp": 0.023600000000001398
     }
   ]
 }

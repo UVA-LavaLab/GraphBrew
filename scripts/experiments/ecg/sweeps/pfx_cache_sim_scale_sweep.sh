@@ -81,20 +81,23 @@ PFX_POLICY="ECG:DBG_ONLY"
 PFX_LABEL_SUFFIX="_with_PFX"
 
 cell_is_complete() {
-  # Skip if baseline CSV exists with all baselines (>=5 policy_labels) AND
-  # the PFX-augmented CSV exists.
+  # Skip if baseline CSV exists with all baselines (>=5 policy_labels),
+  # PFX-augmented CSV exists, AND DROPLET-augmented CSV exists.
   local cell_dir="$1"
   local base_csv="${cell_dir}/baselines/roi_matrix.csv"
   local pfx_csv="${cell_dir}/pfx_combined/roi_matrix.csv"
+  local drop_csv="${cell_dir}/droplet_combined/roi_matrix.csv"
   [ -f "$base_csv" ] || return 1
   [ -f "$pfx_csv" ] || return 1
+  [ -f "$drop_csv" ] || return 1
   local actual
   actual="$(awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="policy_label")p=i;next} p{print $p}' "$base_csv" | sort -u | wc -l)"
   [ "$actual" -ge 5 ] || return 1
-  # PFX should have status=ok (cache_sim doesn't time out)
-  local pfx_status
+  local pfx_status drop_status
   pfx_status="$(awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="status")s=i;next} s{print $s; exit}' "$pfx_csv")"
   [ "$pfx_status" = "ok" ] || return 1
+  drop_status="$(awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="status")s=i;next} s{print $s; exit}' "$drop_csv")"
+  [ "$drop_status" = "ok" ] || return 1
   return 0
 }
 
@@ -120,7 +123,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
       skip_count=$((skip_count + 1))
       continue
     fi
-    mkdir -p "$cell_dir/baselines" "$cell_dir/pfx_combined"
+    mkdir -p "$cell_dir/baselines" "$cell_dir/pfx_combined" "$cell_dir/droplet_combined"
     bfs_src="${BFS_SRC[$short]:-0}"
     sssp_src="${SSSP_SRC[$short]:-0}"
     bc_src="${BC_SRC[$short]:-0}"
@@ -130,6 +133,16 @@ for short in "${!GRAPH_PATHS[@]}"; do
     opts="${opts//\{bc_src\}/$bc_src}"
 
     # --- Pass 1: baselines (no prefetcher) ---
+    if [ -f "$cell_dir/baselines/roi_matrix.csv" ]; then
+      base_status="$(awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="status")s=i;next} s{print $s; exit}' "$cell_dir/baselines/roi_matrix.csv" 2>/dev/null || echo '')"
+      base_polcount="$(awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="policy_label")p=i;next} p{print $p}' "$cell_dir/baselines/roi_matrix.csv" 2>/dev/null | sort -u | wc -l)"
+    else
+      base_status=''
+      base_polcount=0
+    fi
+    if [ "$base_status" = "ok" ] && [ "$base_polcount" -ge 5 ]; then
+      date +"%T SKIP  ${short}/${app} baselines (cached)" | tee -a "$LOG"
+    else
     date +"%T BEGIN ${short}/${app} BASELINES" | tee -a "$LOG"
     if ECG_CONTAINER_BITS=64 timeout 1200 python3 scripts/experiments/ecg/roi_matrix.py \
         --suite cache-sim --no-build \
@@ -146,8 +159,17 @@ for short in "${!GRAPH_PATHS[@]}"; do
       fail_count=$((fail_count + 1))
       continue
     fi
+    fi
 
     # --- Pass 2: ECG_DBG eviction + ECG_PFX prefetcher (combined arm) ---
+    if [ -f "$cell_dir/pfx_combined/roi_matrix.csv" ]; then
+      pfx_status="$(awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="status")s=i;next} s{print $s; exit}' "$cell_dir/pfx_combined/roi_matrix.csv" 2>/dev/null || echo '')"
+    else
+      pfx_status=''
+    fi
+    if [ "$pfx_status" = "ok" ]; then
+      date +"%T SKIP  ${short}/${app} pfx_combined (cached)" | tee -a "$LOG"
+    else
     date +"%T BEGIN ${short}/${app} PFX_COMBINED (ECG:DBG_ONLY + ECG_PFX)" | tee -a "$LOG"
     if ECG_CONTAINER_BITS=64 timeout 1200 python3 scripts/experiments/ecg/roi_matrix.py \
         --suite cache-sim --no-build \
@@ -164,6 +186,34 @@ for short in "${!GRAPH_PATHS[@]}"; do
     else
       date +"%T FAIL  ${short}/${app} pfx_combined" | tee -a "$LOG"
       fail_count=$((fail_count + 1))
+    fi
+    fi
+
+    # --- Pass 3: ECG_DBG eviction + DROPLET prefetcher (comparator) ---
+    if [ -f "$cell_dir/droplet_combined/roi_matrix.csv" ]; then
+      drop_status="$(awk -F, 'NR==1{for(i=1;i<=NF;i++)if($i=="status")s=i;next} s{print $s; exit}' "$cell_dir/droplet_combined/roi_matrix.csv" 2>/dev/null || echo '')"
+    else
+      drop_status=''
+    fi
+    if [ "$drop_status" = "ok" ]; then
+      date +"%T SKIP  ${short}/${app} droplet_combined (cached)" | tee -a "$LOG"
+    else
+    date +"%T BEGIN ${short}/${app} DROPLET_COMBINED (ECG:DBG_ONLY + DROPLET)" | tee -a "$LOG"
+    if ECG_CONTAINER_BITS=64 timeout 1200 python3 scripts/experiments/ecg/roi_matrix.py \
+        --suite cache-sim --no-build \
+        --benchmark "$app" --options "$opts" \
+        --policies "$PFX_POLICY" \
+        --prefetcher DROPLET --ecg-pfx-lookahead 8 \
+        --l1d-size 32kB --l1d-ways 8 \
+        --l2-size 256kB --l2-ways 8 \
+        --l3-sizes 1MB --l3-ways 16 \
+        --line-size 64 --timeout-cache 600 \
+        --out-dir "$cell_dir/droplet_combined" >> "$LOG" 2>&1; then
+      date +"%T OK    ${short}/${app} droplet_combined" | tee -a "$LOG"
+    else
+      date +"%T FAIL  ${short}/${app} droplet_combined" | tee -a "$LOG"
+      fail_count=$((fail_count + 1))
+    fi
     fi
   done
 done

@@ -154,12 +154,25 @@ GEM5_PREFETCH_STAT_KEYS = {
 ECG_PFX_MODE_VALUES = {
     "degree": "1",
     "popt": "2",
+    "droplet": "3",  # DROPLET-style: sequential prefetch (no target selection)
     "1": "1",
     "2": "2",
+    "3": "3",
 }
 
 
 def ecg_pfx_env(args: argparse.Namespace) -> dict[str, str]:
+    # For cache_sim, DROPLET maps to ECG_PREFETCH_MODE=3 (sequential
+    # lookahead, no target selection — faithful comparator for the
+    # ECG_PFX claim). The Sniper/gem5 DROPLET overlays use a separate
+    # path (perf_model/.../prefetcher/droplet), so this only affects
+    # cache_sim env.
+    if args.prefetcher == "DROPLET":
+        return {
+            "ECG_PREFETCH_MODE": "3",
+            "ECG_PREFETCH_WINDOW": str(args.ecg_pfx_window),
+            "ECG_PREFETCH_LOOKAHEAD": str(args.ecg_pfx_lookahead),
+        }
     if args.prefetcher != "ECG_PFX":
         return {}
     return {

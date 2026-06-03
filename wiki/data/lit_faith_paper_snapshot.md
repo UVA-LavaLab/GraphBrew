@@ -6,7 +6,7 @@
 
 - name: `paper_pipeline_20260528`
 - name date: 2026-05-28
-- age days: 4
+- age days: 5
 - rows: 108
 - policies: 9
 - graphs: 4

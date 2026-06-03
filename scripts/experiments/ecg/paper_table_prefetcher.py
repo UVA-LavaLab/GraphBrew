@@ -50,7 +50,8 @@ BASELINE_LABELS = (
     "ECG_DBG_ONLY",
 )
 PFX_LABEL = "ECG_DBG_ONLY + ECG_PFX"
-DELTA_BASES = ("LRU", "GRASP", "POPT")
+DROPLET_LABEL = "ECG_DBG_ONLY + DROPLET"
+DELTA_BASES = ("LRU", "GRASP", "POPT", "DROPLET_COMBINED")
 
 
 def _read_baseline_row(csv_path: Path, policy_label: str) -> dict | None:
@@ -63,12 +64,12 @@ def _read_baseline_row(csv_path: Path, policy_label: str) -> dict | None:
     return None
 
 
-def _read_pfx_row(csv_path: Path) -> dict | None:
+def _read_pfx_row(csv_path: Path, prefetcher: str = "ECG_PFX") -> dict | None:
     if not csv_path.exists():
         return None
     with csv_path.open() as f:
         for r in csv.DictReader(f):
-            if r.get("prefetcher") == "ECG_PFX":
+            if r.get("prefetcher") == prefetcher:
                 return r
     return None
 
@@ -95,17 +96,30 @@ def load_cells(sweep_root: Path) -> list[dict[str, Any]]:
         graph, app = name.rsplit("-", 1)
         base_csv = cell_dir / "baselines" / "roi_matrix.csv"
         pfx_csv = cell_dir / "pfx_combined" / "roi_matrix.csv"
+        drop_csv = cell_dir / "droplet_combined" / "roi_matrix.csv"
         row: dict[str, Any] = {"graph": graph, "app": app}
         for pol in BASELINE_LABELS:
             br = _read_baseline_row(base_csv, pol)
             row[pol] = _coerce_float(br.get("l3_miss_rate")) if br else None
-        pfx_row = _read_pfx_row(pfx_csv)
+        pfx_row = _read_pfx_row(pfx_csv, "ECG_PFX")
         row[PFX_LABEL] = _coerce_float(pfx_row.get("l3_miss_rate")) if pfx_row else None
+        drop_row = _read_pfx_row(drop_csv, "DROPLET")
+        row[DROPLET_LABEL] = _coerce_float(drop_row.get("l3_miss_rate")) if drop_row else None
+        # Synthetic key for the delta-vs-DROPLET calculation
+        row["DROPLET_COMBINED"] = row[DROPLET_LABEL]
         # Capture activity counters for table footnote / validation
         if pfx_row:
-            row["prefetch_fills"] = int(pfx_row.get("prefetch_fills") or 0)
-            row["prefetch_useful"] = int(pfx_row.get("prefetch_useful") or 0)
-            row["prefetch_requests"] = int(pfx_row.get("prefetch_requests") or 0)
+            row["pfx_fills"] = int(pfx_row.get("prefetch_fills") or 0)
+            row["pfx_useful"] = int(pfx_row.get("prefetch_useful") or 0)
+            row["pfx_requests"] = int(pfx_row.get("prefetch_requests") or 0)
+            # Backward-compat keys (legacy field names from sprint 6c-1)
+            row["prefetch_fills"] = row["pfx_fills"]
+            row["prefetch_useful"] = row["pfx_useful"]
+            row["prefetch_requests"] = row["pfx_requests"]
+        if drop_row:
+            row["droplet_fills"] = int(drop_row.get("prefetch_fills") or 0)
+            row["droplet_useful"] = int(drop_row.get("prefetch_useful") or 0)
+            row["droplet_requests"] = int(drop_row.get("prefetch_requests") or 0)
         for base in DELTA_BASES:
             base_mr = row.get(base)
             pfx_mr = row.get(PFX_LABEL)
@@ -118,16 +132,17 @@ def load_cells(sweep_root: Path) -> list[dict[str, Any]]:
 
 
 def emit_csv(cells: list[dict], path: Path) -> None:
-    cols = ["graph", "app"] + list(BASELINE_LABELS) + [PFX_LABEL] + \
+    cols = ["graph", "app"] + list(BASELINE_LABELS) + [PFX_LABEL, DROPLET_LABEL] + \
         [f"delta_vs_{b}_pp" for b in DELTA_BASES] + \
-        ["prefetch_fills", "prefetch_useful", "prefetch_requests"]
+        ["pfx_fills", "pfx_useful", "pfx_requests",
+         "droplet_fills", "droplet_useful", "droplet_requests"]
     with path.open("w") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader()
         for c in cells:
             row = {k: c.get(k) for k in cols}
             # Round miss-rates for readability
-            for pol in list(BASELINE_LABELS) + [PFX_LABEL]:
+            for pol in list(BASELINE_LABELS) + [PFX_LABEL, DROPLET_LABEL]:
                 v = row.get(pol)
                 if v is not None:
                     row[pol] = round(v, 4)
@@ -144,6 +159,9 @@ def emit_md(cells: list[dict], path: Path, summary: dict) -> None:
     lines.append("")
     lines.append("Cache simulator with `ECG_CONTAINER_BITS=64` and runtime")
     lines.append("`ECG_PREFETCH_LOOKAHEAD=8` (`ECG_PREFETCH_MODE=2`, popt-ranked).")
+    lines.append("DROPLET-combined column uses the same lookahead window with")
+    lines.append("sequential target selection (`ECG_PREFETCH_MODE=3`) — faithful")
+    lines.append("comparator to the literature DROPLET edge-stream stride prefetcher.")
     lines.append("")
     lines.append("## Headline summary")
     lines.append("")
@@ -156,12 +174,14 @@ def emit_md(cells: list[dict], path: Path, summary: dict) -> None:
             lines.append(f"- Mean Δ ECG_combined vs GRASP: **{summary['mean_delta_vs_GRASP_pp']:+.2f} pp**")
         if summary.get("mean_delta_vs_POPT_pp") is not None:
             lines.append(f"- Mean Δ ECG_combined vs POPT: **{summary['mean_delta_vs_POPT_pp']:+.2f} pp**")
+        if summary.get("mean_delta_vs_DROPLET_COMBINED_pp") is not None:
+            lines.append(f"- Mean Δ ECG_PFX vs DROPLET (same baseline): **{summary['mean_delta_vs_DROPLET_COMBINED_pp']:+.2f} pp**")
         if summary.get("mean_useful_rate") is not None:
             lines.append(f"- Mean prefetch useful-rate: **{summary['mean_useful_rate'] * 100:.2f}%**")
     lines.append("")
     lines.append("## Per-cell miss-rates")
     lines.append("")
-    head = ["graph", "app", "LRU", "SRRIP", "GRASP", "POPT", "ECG_DBG_ONLY", "ECG+PFX", "Δ vs LRU", "Δ vs GRASP", "Δ vs POPT"]
+    head = ["graph", "app", "LRU", "GRASP", "POPT", "ECG_DBG", "ECG+PFX", "ECG+DROP", "Δ LRU", "Δ GRASP", "Δ POPT", "Δ DROPLET"]
     lines.append("| " + " | ".join(head) + " |")
     lines.append("|" + "|".join(["---"] * len(head)) + "|")
     for c in cells:
@@ -170,11 +190,12 @@ def emit_md(cells: list[dict], path: Path, summary: dict) -> None:
             return fmt.format(v) if v is not None else default
         row_cells = [
             c["graph"], c["app"],
-            f("LRU"), f("SRRIP"), f("GRASP"), f("POPT"),
-            f("ECG_DBG_ONLY"), f(PFX_LABEL),
+            f("LRU"), f("GRASP"), f("POPT"),
+            f("ECG_DBG_ONLY"), f(PFX_LABEL), f(DROPLET_LABEL),
             f("delta_vs_LRU_pp", "{:+.2f} pp"),
             f("delta_vs_GRASP_pp", "{:+.2f} pp"),
             f("delta_vs_POPT_pp", "{:+.2f} pp"),
+            f("delta_vs_DROPLET_COMBINED_pp", "{:+.2f} pp"),
         ]
         lines.append("| " + " | ".join(str(x) for x in row_cells) + " |")
     lines.append("")
