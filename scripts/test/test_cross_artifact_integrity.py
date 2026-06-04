@@ -135,6 +135,13 @@ def test_catalog_generator_paths_unique():
         # sniper_anchor.json — single generator, two artifacts, shared
         # invariant-evaluator. Documented in the script's docstring.
         "scripts/experiments/ecg/gem5_anchor_summary.py",
+        # paper_table_prefetcher.py generates both
+        # paper_table_prefetcher.json (literature corpus, 16 cells from
+        # /tmp/graphbrew-ecg-pfx-cache_sim-scale) and
+        # paper_table_prefetcher_kronecker.json (synthetic Kronecker
+        # extrapolation, 3 cells from /tmp/graphbrew-ecg-pfx-cache_sim-
+        # kronecker) — same emit code, different --sweep-root.
+        "scripts/experiments/ecg/paper_table_prefetcher.py",
     }
     gens = [e["generator"] for e in _cat.CATALOG]
     duplicates = [

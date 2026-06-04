@@ -117,7 +117,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
       fi
       # ECG_PFX needs container=64 to give PFX bits room (per sprint 6c)
       date +"%T BEGIN ${short}/${app}/${arm} opts='${opts}'" | tee -a "$LOG"
-      if ECG_CONTAINER_BITS=64 timeout 2400 python3 scripts/experiments/ecg/roi_matrix.py \
+      if ECG_CONTAINER_BITS=64 timeout 6000 python3 scripts/experiments/ecg/roi_matrix.py \
           --suite sniper --no-build \
           --benchmark "$app" \
           --sniper-workload sg_kernel --allow-sniper-sg-kernel-workload \
@@ -128,7 +128,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
           --l2-size 256kB --l2-ways 8 \
           --l3-sizes 1MB --l3-ways 16 \
           --line-size 64 \
-          --timeout-sniper 2100 \
+          --timeout-sniper 5400 \
           --out-dir "$outdir" >> "$LOG" 2>&1; then
         date +"%T OK    ${short}/${app}/${arm}" | tee -a "$LOG"
         run_count=$((run_count + 1))

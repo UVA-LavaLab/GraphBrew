@@ -1118,7 +1118,15 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/paper_table_prefetcher.py",
         "gate":      "scripts/test/test_ecg_combined_scale_claims.py",
         "artifact":  "wiki/data/paper_table_prefetcher.json",
-        "summary":   "Paper Table 4 (gate 285 PfxScale) — ECG combined-mask claim at literature L3=1MB. Emits cache_sim L3 miss-rates per (graph, app) for LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY/ECG_DBG_ONLY/ECG_DBG_ONLY+ECG_PFX, plus deltas vs LRU/GRASP/POPT. Source: cache_sim sweep at /tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined}/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/pfx_cache_sim_scale_sweep.sh with ECG_CONTAINER_BITS=64 and runtime ECG_PREFETCH_LOOKAHEAD=8 (ECG_PREFETCH_MODE=2 popt-ranked). The ECG_CONTAINER_BITS=64 setting is load-bearing — at default 32, multi-million-vertex graphs leave PFX with 0 bits and the mask silently encodes nothing (sprint 6c root-cause finding, see docs/findings/ecg_pfx_recovery_2026-06-01.md). Outputs JSON/MD/CSV/TeX (the TeX is paste-ready for the paper). First-light soc-LiveJournal1: bfs Δ vs LRU = -7.70 pp, pr Δ vs LRU = -4.79 pp, useful-rate 100% on 20.9M prefetches.",
+        "summary":   "Paper Table 4 (gate 285 PfxScale) — ECG combined-mask claim at literature L3=1MB. Emits cache_sim L3 miss-rates per (graph, app) for LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY/ECG_DBG_ONLY/ECG_DBG_ONLY+ECG_PFX, plus deltas vs LRU/GRASP/POPT. Source: cache_sim sweep at /tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined}/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/pfx_cache_sim_scale_sweep.sh with ECG_CONTAINER_BITS=64 and runtime ECG_PREFETCH_LOOKAHEAD=8 (ECG_PREFETCH_MODE=2 popt-ranked). The ECG_CONTAINER_BITS=64 setting is load-bearing — at default 32, multi-million-vertex graphs leave PFX with 0 bits and the mask silently encodes nothing (sprint 6c root-cause finding, see docs/findings/ecg_pfx_recovery_2026-06-01.md). Outputs JSON/MD/CSV/TeX (the TeX is paste-ready for the paper). 16/16 cells today: mean Δ vs LRU = -5.52 pp, mean Δ vs DROPLET = +0.00 pp, ECG_PFX 1.75x fewer total prefetches than DROPLET (gate 302).",
+    },
+    {
+        "id":        "paper_table_prefetcher_kronecker",
+        "label":     "Paper Table 4-K — ECG combined-mask on synthetic Kronecker",
+        "generator": "scripts/experiments/ecg/paper_table_prefetcher.py",
+        "gate":      "scripts/test/test_ecg_combined_scale_claims.py",
+        "artifact":  "wiki/data/paper_table_prefetcher_kronecker.json",
+        "summary":   "Paper Table 4-K (gate 286 PfxScaleSynthetic) — ECG combined-mask claim extrapolated to synthetic Kronecker graphs at 4.2M and 16.7M vertices (kron-s22, kron-s24), beyond the largest literature graph soc-LiveJournal1 at 4.8M. Source: cache_sim sweep at /tmp/graphbrew-ecg-pfx-cache_sim-kronecker/{graph}-{app}/{baselines,pfx_combined,droplet_combined}/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/pfx_cache_sim_kronecker_sweep.sh. Generated locally with `bench/bin/converter -g {22,24} -k 16 -s -b ...`. 3 cells (kron-s22/{pr,bfs} + kron-s24/pr): mean Δ vs LRU = -13.19 pp (vs literature -5.52 pp — gains amplify at scale), max -21.78 pp on kron-s24/pr. Mean Δ ECG_PFX vs DROPLET = +0.03 pp (statistically identical miss rates), ECG_PFX issues 1.79x fewer total prefetches. Confirms the efficiency claim extrapolates beyond the literature corpus.",
     },
 
     {
@@ -1160,7 +1168,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (285 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (286 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

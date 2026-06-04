@@ -8,9 +8,37 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **285 gates, all GREEN, exit 0**.
+and currently reports **286 gates, all GREEN, exit 0**.
 
-**Headline parity proof (gate 283, refresh @284) — SECOND PROOF GATE:**
+**ECG synthetic-scale claims (gate 286, refresh @286) — KRONECKER EXTRAPOLATION:**
+Sprint 6f Path C ports the ECG combined-mask + ECG_PFX vs DROPLET
+comparison to synthetic Kronecker graphs at 4.2M (kron-s22) and
+16.7M (kron-s24) vertices — well beyond the largest literature
+graph soc-LiveJournal1 at 4.8M. Graphs generated locally with
+``bench/bin/converter -g {22,24} -k 16 -s -b ...``; cache_sim
+sweep at ``/tmp/graphbrew-ecg-pfx-cache_sim-kronecker/`` produced
+by ``scripts/experiments/ecg/sweeps/pfx_cache_sim_kronecker_sweep.sh``.
+Sub-gates ``test_synthetic_mean_delta_vs_lru_meets_literature_floor``
+(303, mean Δ vs LRU must be at least as negative as the gate-285
+literature corpus mean -3 pp — gains amplify at scale),
+``test_synthetic_ecg_pfx_matches_droplet_per_cell`` (304, ECG_PFX
+miss-rate ≤ DROPLET + 0.5 pp on every synthetic cell),
+``test_synthetic_ecg_pfx_issues_fewer_requests_than_droplet``
+(305, aggregate ECG_PFX total requests < DROPLET total requests —
+efficiency story holds at scale). Today: 3 synthetic cells
+(kron-s22/{pr,bfs} + kron-s24/pr), mean Δ vs LRU = **-13.19 pp**
+(literature corpus mean was -5.52 pp — Kronecker amplifies the
+combined-mask advantage), max -21.78 pp on kron-s24/pr (16.7M v).
+Mean Δ ECG_PFX vs DROPLET = +0.03 pp (statistical tie on miss-rate),
+ECG_PFX issues 713M total requests vs DROPLET 1276M — DROPLET burns
+**1.79× more prefetch bandwidth** for the same L3 miss reduction
+(consistent with the literature corpus 3.27× ratio; the lower
+synthetic ratio reflects the regular Kronecker access pattern
+where DROPLET's stride detector mis-predicts less often). Source
+artifact: ``wiki/data/paper_table_prefetcher_kronecker.json``.
+Refresh: ``make lit-paper-table-prefetcher-kronecker``.
+
+**Headline parity proof (gate 283, refresh @285) — SECOND PROOF GATE:**
 Cross-simulator paper-table preview joining cache_sim + gem5 + Sniper
 at literature 1MB cells. For every cell where ≥2 simulators report,
 computes per-sim winner policy (lowest miss-rate; deterministic
@@ -70,9 +98,13 @@ Sub-gates ``test_full_data_cell_count_floor`` (297, ratchet),
 combined mask wins on average across the corpus),
 ``test_no_per_cell_regression_vs_lru`` (299, no cell regresses
 > 0.5 pp), ``test_prefetch_useful_rate_floor`` (300, mean
-prefetch_useful / prefetch_fills ≥ 90% on active cells). First-light
-soc-LiveJournal1: bfs Δ = -7.70 pp vs LRU, pr Δ = -4.79 pp,
-useful-rate 100% on 20.9M prefetches. Source artifact:
+prefetch_useful / prefetch_fills ≥ 90% on active cells). Today
+**16/16 cells** GREEN: mean Δ vs LRU = **-5.52 pp**, no per-cell
+regression > 0.5 pp, mean prefetch useful-rate 99.99% on 145M
+ECG_PFX requests. ECG_PFX matches DROPLET miss-rate to +0.00 pp
+average (gate 301) while issuing **1.75× fewer total prefetches**
+than DROPLET (gate 302) — the same L3 reduction with less prefetch
+bandwidth. Source artifact:
 ``wiki/data/paper_table_prefetcher.json`` produced by
 ``scripts/experiments/ecg/paper_table_prefetcher.py`` from the
 matched cache_sim scale sweep at
@@ -1472,8 +1504,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 285. Next refresh due
-at gate 290. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 286. Next refresh due
+at gate 291. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

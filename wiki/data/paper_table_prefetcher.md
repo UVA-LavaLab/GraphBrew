@@ -8,15 +8,15 @@ comparator to the literature DROPLET edge-stream stride prefetcher.
 
 ## Headline summary
 
-- Cells with full data: **14** of 16
-- Mean Δ ECG_combined vs LRU: **-5.84 pp**
+- Cells with full data: **16** of 16
+- Mean Δ ECG_combined vs LRU: **-5.52 pp**
 - Mean Δ ECG_combined vs GRASP: **+0.01 pp**
-- Mean Δ ECG_combined vs POPT: **+0.24 pp**
+- Mean Δ ECG_combined vs POPT: **+0.55 pp**
 - Mean Δ ECG_PFX vs DROPLET (same baseline): **+0.00 pp**
 - Mean prefetch useful-rate: **99.99%**
-- Total prefetch requests issued: ECG_PFX **145,084,233** vs DROPLET **475,145,125** (DROPLET issues 3.27× more)
-- Total useful prefetches: ECG_PFX **75,634,816** vs DROPLET **211,157,873** (DROPLET useful is 2.79× ECG_PFX's, both 99.99% useful_rate)
-- Requests per useful prefetch: ECG_PFX **1.918** vs DROPLET **2.250** (ECG_PFX is more efficient — fewer wasted predictions per cache-hit benefit)
+- Total prefetch requests issued: ECG_PFX **272,555,455** vs DROPLET **937,407,051** (DROPLET issues 3.44× more)
+- Total useful prefetches: ECG_PFX **137,608,493** vs DROPLET **429,561,791** (DROPLET useful is 3.12× ECG_PFX's, both 99.99% useful_rate)
+- Requests per useful prefetch: ECG_PFX **1.981** vs DROPLET **2.182** (ECG_PFX is more efficient — fewer wasted predictions per cache-hit benefit)
 
 ## Per-cell miss-rates
 
@@ -26,9 +26,9 @@ comparator to the literature DROPLET edge-stream stride prefetcher.
 | cit-Patents | bfs | 0.9702 | 0.9590 | 0.9602 | 0.9596 | 0.9597 | 0.9595 | -1.05 pp | +0.07 pp | -0.05 pp | +0.02 pp |
 | cit-Patents | pr | 0.8937 | 0.7857 | 0.7744 | 0.7857 | 0.7855 | 0.7855 | -10.82 pp | -0.01 pp | +1.11 pp | +0.01 pp |
 | cit-Patents | sssp | 0.8483 | 0.8177 | 0.8216 | 0.8179 | 0.8177 | 0.8175 | -3.06 pp | +0.00 pp | -0.39 pp | +0.02 pp |
-| com-orkut | pr | — | — | — | — | — | — | — | — | — | — |
+| com-orkut | pr | 0.7050 | 0.6848 | 0.6125 | 0.6849 | 0.6848 | 0.6847 | -2.02 pp | -0.01 pp | +7.23 pp | +0.00 pp |
 | email-Eu-core | pr | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | +0.00 pp | +0.00 pp | +0.00 pp | +0.00 pp |
-| soc-LiveJournal1 | bc | — | — | — | — | — | — | — | — | — | — |
+| soc-LiveJournal1 | bc | 0.8390 | 0.7949 | 0.8129 | 0.7948 | 0.7948 | 0.7950 | -4.42 pp | -0.01 pp | -1.80 pp | -0.02 pp |
 | soc-LiveJournal1 | bfs | 0.8182 | 0.7402 | 0.7525 | 0.7397 | 0.7412 | 0.7407 | -7.70 pp | +0.10 pp | -1.13 pp | +0.05 pp |
 | soc-LiveJournal1 | pr | 0.7318 | 0.6839 | 0.6225 | 0.6839 | 0.6839 | 0.6839 | -4.79 pp | -0.00 pp | +6.14 pp | +0.01 pp |
 | soc-LiveJournal1 | sssp | 0.7063 | 0.6586 | 0.6582 | 0.6573 | 0.6580 | 0.6582 | -4.83 pp | -0.06 pp | -0.02 pp | -0.02 pp |
@@ -51,6 +51,7 @@ is more efficient than DROPLET.
 | cit-Patents | bfs | 224,884 | 807,800 | 1.297 | 1.623 | 0.799 |
 | cit-Patents | pr | 17,605,247 | 58,526,023 | 1.131 | 1.303 | 0.868 |
 | cit-Patents | sssp | 8,148,536 | 27,803,278 | 1.234 | 1.506 | 0.819 |
+| com-orkut | pr | 127,471,222 | 462,261,926 | 2.057 | 2.117 | 0.972 |
 | email-Eu-core | pr | 48,509 | 62,197 | — | — | — |
 | soc-LiveJournal1 | bfs | 1,683,527 | 5,759,963 | 2.504 | 2.771 | 0.904 |
 | soc-LiveJournal1 | pr | 51,349,413 | 159,066,424 | 2.460 | 2.680 | 0.918 |
@@ -68,7 +69,7 @@ is more efficient than DROPLET.
 | cit-Patents | bfs | 224,884 | 173,356 | 173,355 | 100.00% |
 | cit-Patents | pr | 17,605,247 | 15,564,263 | 15,559,302 | 99.97% |
 | cit-Patents | sssp | 8,148,536 | 6,605,749 | 6,605,649 | 100.00% |
-| com-orkut | pr | 0 | 0 | 0 | 0.00% |
+| com-orkut | pr | 127,471,222 | 61,977,867 | 61,973,677 | 99.99% |
 | email-Eu-core | pr | 48,509 | 0 | 0 | 0.00% |
 | soc-LiveJournal1 | bc | 0 | 0 | 0 | 0.00% |
 | soc-LiveJournal1 | bfs | 1,683,527 | 672,287 | 672,281 | 100.00% |
