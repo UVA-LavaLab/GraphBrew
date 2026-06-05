@@ -1,0 +1,46 @@
+{
+  "source_sniper_root": "/tmp/graphbrew-pfx-sniper-mode6",
+  "source_cache_sim_csv": "wiki/data/paper_table_mode6_corpus.csv",
+  "cells": [
+    {
+      "cell": "email-Eu-core-pr",
+      "sniper_arm_none_status": "pending",
+      "sniper_arm_droplet_status": "pending",
+      "sniper_arm_ecg_pfx_status": "pending",
+      "sniper_baseline_l3_miss_rate": null,
+      "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_ecg_pfx_pp_savings": null,
+      "cache_sim_mode6_pp_savings": null
+    },
+    {
+      "cell": "delaunay_n19-pr",
+      "sniper_arm_none_status": "pending",
+      "sniper_arm_droplet_status": "pending",
+      "sniper_arm_ecg_pfx_status": "pending",
+      "sniper_baseline_l3_miss_rate": null,
+      "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_ecg_pfx_pp_savings": null,
+      "cache_sim_mode6_pp_savings": null
+    },
+    {
+      "cell": "roadNet-CA-pr",
+      "sniper_arm_none_status": "pending",
+      "sniper_arm_droplet_status": "pending",
+      "sniper_arm_ecg_pfx_status": "pending",
+      "sniper_baseline_l3_miss_rate": null,
+      "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_ecg_pfx_pp_savings": null,
+      "cache_sim_mode6_pp_savings": null
+    },
+    {
+      "cell": "web-Google-pr",
+      "sniper_arm_none_status": "pending",
+      "sniper_arm_droplet_status": "pending",
+      "sniper_arm_ecg_pfx_status": "pending",
+      "sniper_baseline_l3_miss_rate": null,
+      "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_ecg_pfx_pp_savings": null,
+      "cache_sim_mode6_pp_savings": null
+    }
+  ]
+}

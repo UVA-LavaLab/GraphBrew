@@ -1043,6 +1043,16 @@ lit-paper-table-grasp-parity:
 		--csv-out    $(WIKI_DATA)/paper_table_grasp_parity.csv \
 		--tex-out    docs/paper_tables/paper_table_grasp_parity.tex
 
+lit-paper-table-mode6-cross-sim:
+	@echo "$(BLUE)Regenerating paper Table 8 (Sniper cross-sim mode 6 corroboration)...$(NC)"
+	@python3 -m scripts.experiments.ecg.paper_table_mode6_cross_sim \
+		--sniper-root   /tmp/graphbrew-pfx-sniper-mode6 \
+		--cache-sim-csv $(WIKI_DATA)/paper_table_mode6_corpus.csv \
+		--json-out      $(WIKI_DATA)/paper_table_mode6_cross_sim.json \
+		--md-out        $(WIKI_DATA)/paper_table_mode6_cross_sim.md \
+		--csv-out       $(WIKI_DATA)/paper_table_mode6_cross_sim.csv \
+		--tex-out       docs/paper_tables/paper_table_mode6_cross_sim.tex
+
 
 # Paper label-map integrity. Source-of-truth is the code itself
 # (POLICY_LABELS / POLICY_DESCRIPTIONS / POLICY_COLORS in
