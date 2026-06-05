@@ -84,6 +84,15 @@ Hypothesis (not verified, requires gem5-expert follow-up):
 - Alternatively: the m5op-handler delivering hints may run in a
   thread context that produces packets gem5 cannot enqueue to the
   L2 prefetcher queue.
+- Single-slot mailbox limitation: `setPrefetchTargetHint()` in
+  `graph_cache_context_gem5.hh:109` uses a single `std::atomic<uint32_t>`
+  slot for the hint. Each kernel call OVERWRITES the prior unconsumed
+  hint. The kernel emits thousands of hints per PR iteration; the L2
+  prefetcher only calls `consumePrefetchTargetHint` on its
+  notification events. Mismatched rates lose hints. This explains
+  WHY the hint count consumed is small (most are overwritten before
+  consumption), but does NOT explain `pfIssued = 0` given that AT
+  LEAST ONE hint was consumed (per "first target vertex=4" log).
 
 Next debug step (NOT done in this session): add an instrumentation
 counter inside ecg_pfx.cc to count `addresses.push_back()` calls,
