@@ -87,13 +87,20 @@ def test_ecg_per_vertex_storage_below_popt():
 # --- gate 315 ---
 
 
-def test_ecg_is_pareto_unique_isa_plus_storage():
-    """Gate 315: assert ECG is the ONLY component that uses BOTH ISA
-    extensions and per-vertex storage. This locks the paper's
-    Pareto-frontier framing: ECG is not Pareto-dominant on any single
-    axis but occupies a unique substrate-design point that DROPLET
-    (no ISA, no per-vertex), POPT (no ISA, per-vertex matrix), and
-    GRASP (no ISA, fixed tier tags) do not occupy.
+def test_ecg_design_point_uncovered_by_prior_art():
+    """Gate 315 (revised): assert that among the compared prior-art
+    substrates (DROPLET, POPT, GRASP), none combines software-visible
+    hints (ISA extensions) with per-vertex masks. This is a descriptive
+    observation about prior-art coverage — NOT a Pareto-dominance claim.
+
+    Rubber-duck critique 2026-06-04 noted that the original "Pareto-unique"
+    framing was tautological (ECG is unique because we defined it that
+    way). Reformulated as a check on the prior-art design space: if a
+    future paper adds a substrate that also combines ISA + per-vertex
+    storage, this test will fail and we should re-examine the framing.
+
+    The gate also ensures every component declares all axes accurately
+    so the descriptive comparison stays honest.
     """
     payload = _load()
     by_name = {c["name"].split(" (")[0]: c for c in payload["components"]}
@@ -103,7 +110,7 @@ def test_ecg_is_pareto_unique_isa_plus_storage():
         "ECG must have per-vertex storage > 0 (gate 309)"
     )
     assert ecg["axis_isa_extensions"].startswith("2 magic"), (
-        "ECG must declare ISA extensions (the architectural-simplicity story)"
+        "ECG must declare ISA extensions (architectural-simplicity story)"
     )
     others_with_both = []
     for name, c in by_name.items():

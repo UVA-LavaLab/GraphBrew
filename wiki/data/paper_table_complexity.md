@@ -19,30 +19,36 @@ five axes.
 
 ## Storage summary
 
-| Component | Per-vertex (B) | Fixed (B) | Per-access cycles | ISA |
-|---|---:|---:|---:|---|
-| ECG (this work) | 8 | 0 | 1 ev / 2 pf | 2 magic |
-| DROPLET (Basak HPCA'19) | 0 | 16,384 | 0 ev / 4 pf | none |
-| POPT (Balaji HPCA'21) | 16 | 0 | 2 ev / 0 pf | none |
-| GRASP (Faldu HPCA'20) | 0 | 20,480 | 0 ev / 0 pf | none |
+| Component | Per-vertex (B) | Fixed state | ISA | Notes |
+|---|---:|---|---|---|
+| ECG (this work) | 8 | 0 B | 2 magic | This work |
+| DROPLET (Basak HPCA'19) | 0 | ~10-20 KB (estimated; not given exactly in Basak HPCA'19) | none | Basak et al. |
+| POPT (Balaji HPCA'21) | 16 | 0 B | none | Balaji and Lustig |
+| GRASP (Faldu HPCA'20) | 0 | ~16-20 KB at L3=1MB (1B per L3 cache-line tag + region table; scales with L3 size) | none | Faldu et al. |
+
+> Per-access cycle counts are simulator-modeled and depend on
+> the host's microarchitecture configuration (see Methodology).
+> Absolute cycle-count claims are omitted from the main paper
+> because none of the compared components have published
+> synthesis-derived numbers for the relevant cache controllers.
 
 ## Hardware datapath comparison
 
 ### ECG (this work)
 
-1 per-access mask decoder: 1 bit-shift + 2 range compares + 1 OR. ~15 gates of combinational logic + 1 4-input MUX for hint hand-off to L2 prefetch port. Mask itself is a uint32_t/uint64_t array in memory (no SRAM-resident table).
+Per-access mask decoder: bit-shift + range compare + OR to route the three mask fields. The mask itself is a uint32_t / uint64_t array in memory; software supplies the mask value as a register hint via the simulator magic-instruction interface (see ISA extensions). No SRAM-resident table is associated with the mask. Detailed gate-count is left to a future synthesis study.
 
 ### DROPLET (Basak HPCA'19)
 
-2 prefetch engines: (a) stride detector with 64-entry stride table tracking edge-list access pattern; (b) indirect-property engine issuing K=16 prefetches per stride trigger. Both engines snoop L2 access stream + property-region monitors. ~5,000 gates of combinational logic + state machines per engine (estimated from Basak HPCA'19 ASIC synthesis numbers).
+2 prefetch engines per Basak HPCA'19: (a) stride detector tracking edge-list access pattern; (b) indirect-property engine issuing K prefetches per stride trigger (K=16 in the paper). Both engines snoop L2 access stream + property-region monitors. Exact gate count not reported in the paper; described as ‘moderate hardware overhead’.
 
 ### POPT (Balaji HPCA'21)
 
-Per-access re-reference matrix lookup unit. Each LLC access computes cache_line_index = addr / line_size + epoch_index = cycle / epoch_length, then indexes a 2-D rereference matrix (numEpochs × numCacheLines bytes) to get the predicted reuse distance. ~500 gates of address computation + matrix read port. The matrix itself is multi-MB and typically lives in dedicated SRAM next to the LLC (per Balaji HPCA'21 Section 4).
+Per-access re-reference matrix lookup unit. Each LLC access computes cache_line_index = addr / line_size + epoch_index = cycle / epoch_length, then indexes a 2-D rereference matrix (numEpochs × numCacheLines bytes) to get the predicted reuse distance. Exact lookup-unit gate count not reported in the paper. The matrix itself is multi-MB and typically lives in dedicated SRAM next to the LLC (per Balaji HPCA'21 Section 4).
 
 ### GRASP (Faldu HPCA'20)
 
-Per-line degree-bucket tag + range-classification monitor. GRASP adds a 1-2-bit tier tag to every L3 cache line + a small region table tracking vertex-property address ranges. The replacement policy reads the tier tag to bias eviction. ~200 gates per tier comparator + small region tag lookup.
+Per-line degree-bucket tag + range-classification monitor. GRASP adds a 1-2-bit tier tag to every L3 cache line + a small region table tracking vertex-property address ranges. The replacement policy reads the tier tag to bias eviction. Exact gate count not reported in Faldu HPCA'20.
 
 ## ISA extensions
 

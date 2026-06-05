@@ -54,10 +54,13 @@ ECG = {
     "axis_storage_per_n_vertices_bytes": 8,
     "axis_fixed_state_bytes": 0,  # all state is per-vertex in the mask array
     "axis_hardware_datapath": (
-        "1 per-access mask decoder: 1 bit-shift + 2 range compares + 1 OR. "
-        "~15 gates of combinational logic + 1 4-input MUX for hint hand-off "
-        "to L2 prefetch port. Mask itself is a uint32_t/uint64_t array in "
-        "memory (no SRAM-resident table)."
+        "Per-access mask decoder: bit-shift + range compare + OR to "
+        "route the three mask fields. The mask itself is a uint32_t / "
+        "uint64_t array in memory; software supplies the mask value as "
+        "a register hint via the simulator magic-instruction interface "
+        "(see ISA extensions). No SRAM-resident table is associated "
+        "with the mask. Detailed gate-count is left to a future "
+        "synthesis study."
     ),
     "axis_isa_extensions": (
         "2 magic instructions wired through Sniper SimMagic / gem5 MAGIC / "
@@ -70,8 +73,8 @@ ECG = {
     "axis_offline_preprocessing_wall_time_email_eu_core_s": 0.001,
     "axis_offline_preprocessing_wall_time_cit_patents_s": 0.079,
     "axis_offline_preprocessing_wall_time_kron_s24_s": 1.55,
-    "axis_per_access_cycles_no_prefetch": 1,  # mask decode + cache lookup
-    "axis_per_access_cycles_with_prefetch": 2,  # decode + lookup + non-blocking issue
+    "axis_per_access_cycles_no_prefetch": "simulator-modeled — see §4",
+    "axis_per_access_cycles_with_prefetch": "simulator-modeled — non-blocking enqueue",
     "axis_per_access_tables_traversed": 1,  # the mask array (already a memory access for graph data)
     "axis_software_kernel_changes": (
         "Inner loop adds SIM_CACHE_READ_MASKED(...) before demand load + "
@@ -84,14 +87,14 @@ ECG = {
 DROPLET = {
     "name": "DROPLET (Basak HPCA'19)",
     "axis_storage_per_n_vertices_bytes": 0,  # state is fixed-size, not per-vertex
-    "axis_fixed_state_bytes": 16 * 1024,  # ~16 KB (1 KB stride table + 8 KB indirect + 4 KB region + 3 KB misc)
+    "axis_fixed_state_bytes": "~10-20 KB (estimated; not given exactly in Basak HPCA'19)",
     "axis_hardware_datapath": (
-        "2 prefetch engines: (a) stride detector with 64-entry stride table "
-        "tracking edge-list access pattern; (b) indirect-property engine "
-        "issuing K=16 prefetches per stride trigger. Both engines snoop "
-        "L2 access stream + property-region monitors. ~5,000 gates of "
-        "combinational logic + state machines per engine (estimated from "
-        "Basak HPCA'19 ASIC synthesis numbers)."
+        "2 prefetch engines per Basak HPCA'19: (a) stride detector "
+        "tracking edge-list access pattern; (b) indirect-property "
+        "engine issuing K prefetches per stride trigger (K=16 in the "
+        "paper). Both engines snoop L2 access stream + property-region "
+        "monitors. Exact gate count not reported in the paper; "
+        "described as ‘moderate hardware overhead’."
     ),
     "axis_isa_extensions": (
         "Zero ISA changes — transparent hardware. The CPU emits ordinary "
@@ -102,8 +105,8 @@ DROPLET = {
     "axis_offline_preprocessing_wall_time_email_eu_core_s": 0.0,
     "axis_offline_preprocessing_wall_time_cit_patents_s": 0.0,
     "axis_offline_preprocessing_wall_time_kron_s24_s": 0.0,
-    "axis_per_access_cycles_no_prefetch": 0,  # transparent — no per-demand overhead
-    "axis_per_access_cycles_with_prefetch": 4,  # stride classify + indirect table lookup + issue K prefetches
+    "axis_per_access_cycles_no_prefetch": "transparent — no per-demand overhead",
+    "axis_per_access_cycles_with_prefetch": "simulator-modeled — stride classify + indirect lookup + K-issue",
     "axis_per_access_tables_traversed": 2,  # stride table + indirect history
     "axis_software_kernel_changes": "None — transparent hardware",
     "axis_paper_citation": "Basak et al., HPCA 2019, \"Analysis and Optimization of the Memory Hierarchy for Graph Processing Workloads\"",
@@ -118,7 +121,7 @@ POPT = {
         "computes cache_line_index = addr / line_size + epoch_index = "
         "cycle / epoch_length, then indexes a 2-D rereference matrix "
         "(numEpochs × numCacheLines bytes) to get the predicted reuse "
-        "distance. ~500 gates of address computation + matrix read port. "
+        "distance. Exact lookup-unit gate count not reported in the paper. "
         "The matrix itself is multi-MB and typically lives in dedicated "
         "SRAM next to the LLC (per Balaji HPCA'21 Section 4)."
     ),
@@ -131,8 +134,8 @@ POPT = {
     "axis_offline_preprocessing_wall_time_email_eu_core_s": 0.002,
     "axis_offline_preprocessing_wall_time_cit_patents_s": 0.094,  # P-OPT quantize + offsets + transpose from kernel banner
     "axis_offline_preprocessing_wall_time_kron_s24_s": 6.0,  # extrapolated linearly
-    "axis_per_access_cycles_no_prefetch": 2,  # matrix index + lookup before cache-replacement decision
-    "axis_per_access_cycles_with_prefetch": 0,  # POPT does eviction only, not prefetch
+    "axis_per_access_cycles_no_prefetch": "simulator-modeled — matrix index + lookup",
+    "axis_per_access_cycles_with_prefetch": "POPT is eviction-only — no prefetch",
     "axis_per_access_tables_traversed": 1,  # the matrix (1 row per access)
     "axis_software_kernel_changes": (
         "None at the kernel level (transparent hardware), BUT the matrix "
@@ -145,13 +148,13 @@ POPT = {
 GRASP = {
     "name": "GRASP (Faldu HPCA'20)",
     "axis_storage_per_n_vertices_bytes": 0,  # per-line not per-vertex
-    "axis_fixed_state_bytes": 16 * 1024 + 4 * 1024,  # 16k cache lines × 1 byte tag + 4 KB region table = ~20 KB
+    "axis_fixed_state_bytes": "~16-20 KB at L3=1MB (1B per L3 cache-line tag + region table; scales with L3 size)",
     "axis_hardware_datapath": (
         "Per-line degree-bucket tag + range-classification monitor. "
         "GRASP adds a 1-2-bit tier tag to every L3 cache line + a small "
         "region table tracking vertex-property address ranges. The "
         "replacement policy reads the tier tag to bias eviction. "
-        "~200 gates per tier comparator + small region tag lookup."
+        "Exact gate count not reported in Faldu HPCA'20."
     ),
     "axis_isa_extensions": (
         "Zero ISA changes — transparent hardware. GRASP infers vertex "
@@ -161,8 +164,8 @@ GRASP = {
     "axis_offline_preprocessing_wall_time_email_eu_core_s": 0.001,
     "axis_offline_preprocessing_wall_time_cit_patents_s": 0.017,  # DBG Map Time from kernel banner
     "axis_offline_preprocessing_wall_time_kron_s24_s": 0.4,  # extrapolated linearly
-    "axis_per_access_cycles_no_prefetch": 0,  # tier comparison happens during normal eviction
-    "axis_per_access_cycles_with_prefetch": 0,  # no prefetch
+    "axis_per_access_cycles_no_prefetch": "integrated with eviction logic — 0 added cycles modeled",
+    "axis_per_access_cycles_with_prefetch": "no prefetch component",
     "axis_per_access_tables_traversed": 0,  # tag is co-located with cache line
     "axis_software_kernel_changes": (
         "Software must declare property-array address ranges at program "
@@ -197,17 +200,24 @@ def emit_md(rows: list[dict], path: Path) -> None:
     out.append("")
     out.append("## Storage summary")
     out.append("")
-    out.append("| Component | Per-vertex (B) | Fixed (B) | Per-access cycles | ISA |")
-    out.append("|---|---:|---:|---:|---|")
+    out.append("| Component | Per-vertex (B) | Fixed state | ISA | Notes |")
+    out.append("|---|---:|---|---|---|")
     for r in rows:
-        out.append("| {} | {} | {:,} | {} ev / {} pf | {} |".format(
-            r["name"],
-            r["axis_storage_per_n_vertices_bytes"],
-            r["axis_fixed_state_bytes"],
-            r["axis_per_access_cycles_no_prefetch"],
-            r["axis_per_access_cycles_with_prefetch"],
-            "2 magic" if r["axis_isa_extensions"].startswith("2 magic") else "none",
+        fixed = r["axis_fixed_state_bytes"]
+        fixed_s = f"{fixed:,} B" if isinstance(fixed, (int, float)) else str(fixed)
+        isa_s = "2 magic" if r["axis_isa_extensions"].startswith("2 magic") else "none"
+        cit = r.get("axis_paper_citation", "")
+        cit_short = cit.split(",")[0] if "," in cit else cit
+        out.append("| {} | {} | {} | {} | {} |".format(
+            r["name"], r["axis_storage_per_n_vertices_bytes"],
+            fixed_s, isa_s, cit_short,
         ))
+    out.append("")
+    out.append("> Per-access cycle counts are simulator-modeled and depend on")
+    out.append("> the host's microarchitecture configuration (see Methodology).")
+    out.append("> Absolute cycle-count claims are omitted from the main paper")
+    out.append("> because none of the compared components have published")
+    out.append("> synthesis-derived numbers for the relevant cache controllers.")
     out.append("")
     out.append("## Hardware datapath comparison")
     out.append("")
@@ -290,22 +300,23 @@ def emit_tex(rows: list[dict], path: Path) -> None:
     out.append(r"% Do not edit by hand — re-run `make lit-paper-table-complexity`")
     out.append(r"\begin{table*}[t]")
     out.append(r"  \centering")
-    out.append(r"  \caption{Cache-substrate complexity comparison. ECG occupies a different Pareto-frontier point than DROPLET (transparent hardware, no preprocessing, but expensive runtime engines), POPT (transparent hardware, MB-scale matrix, expensive per-access lookup), and GRASP (transparent hardware, lightweight tier tags, eviction-only).}")
+    out.append(r"  \caption{Cache-substrate design-space comparison. Among the compared prior substrates, none combines software-visible ISA hints with per-vertex masks; ECG explores that uncovered design point. This is a descriptive observation about prior-art coverage, not a Pareto-dominance claim --- POPT and DROPLET remain attractive when zero software changes are required.}")
     out.append(r"  \label{tab:ecg_complexity}")
     out.append(r"  \small")
-    out.append(r"  \begin{tabular}{lrrrl}")
+    out.append(r"  \begin{tabular}{lrll}")
     out.append(r"    \toprule")
-    out.append(r"    Component & Per-vertex (B) & Fixed state (B) & Per-access (cycles) & ISA extensions \\")
+    out.append(r"    Component & Per-vertex (B) & Fixed state & ISA \\")
     out.append(r"    \midrule")
     for r in rows:
         name = r["name"].split(" (")[0]
-        out.append("    {} & {} & {:,} & {} ev / {} pf & {} \\\\".format(
-            name,
-            r["axis_storage_per_n_vertices_bytes"],
-            r["axis_fixed_state_bytes"],
-            r["axis_per_access_cycles_no_prefetch"],
-            r["axis_per_access_cycles_with_prefetch"],
-            "2 magic" if r["axis_isa_extensions"].startswith("2 magic") else "none",
+        fixed = r["axis_fixed_state_bytes"]
+        if isinstance(fixed, (int, float)):
+            fixed_s = f"{fixed:,} B" if fixed > 0 else "--"
+        else:
+            fixed_s = str(fixed).split(" (")[0].replace("~", r"$\sim$")
+        isa_s = "2 magic" if r["axis_isa_extensions"].startswith("2 magic") else "none"
+        out.append("    {} & {} & {} & {} \\\\".format(
+            name, r["axis_storage_per_n_vertices_bytes"], fixed_s, isa_s,
         ))
     out.append(r"    \bottomrule")
     out.append(r"  \end{tabular}")
