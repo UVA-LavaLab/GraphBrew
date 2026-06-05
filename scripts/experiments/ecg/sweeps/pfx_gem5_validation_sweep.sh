@@ -2,6 +2,15 @@
 # pfx_gem5_validation_sweep.sh — gem5 cycle-accurate validation of the
 # ECG mode 6 (per-edge mask) result from sprint 6f-5.
 #
+# ⚠️ KNOWN LIMITATION (2026-06-05): the gem5 ECG_PFX SimObject has a
+# hint-to-issue gap (pfIssued = 0 even when hints are correctly
+# consumed). Sweeps will complete OK status but the ECG_PFX arm rows
+# will report zero useful prefetches. See
+# docs/findings/gem5_ecg_pfx_simobject_gap.md for the full diagnosis.
+# This sweep is provided as scaffolding for the future fix; until the
+# SimObject gap is closed, prefer pfx_sniper_mode6_sweep.sh for the
+# paper's cycle-accurate mode 6 validation.
+#
 # Mirrors pfx_sniper_validation_sweep.sh but drives gem5. Runs the 3-arm
 # matched-proof sweep (none/DROPLET/ECG_PFX@mode6) on graphs that fit
 # the workstation gem5 budget.
