@@ -312,3 +312,38 @@ def test_droplet_marginal_demand_memory_validates_paper_claim():
         "Our DROPLET implementation should reproduce Basak HPCA'19 "
         "15-45% LLC reduction. If gate is RED, the implementation is broken."
     )
+
+
+# === Per-request efficiency gate (sprint 6f-5 closeout) ============
+# === Locks the "ECG_PFX is more efficient per prefetch" claim from ==
+# === sprint 6f-3 Top-K experiment + sprint 6f-5 findings doc. ======
+
+ECG_PFX_EFFICIENCY_MIN_RATIO = 1.05  # ECG_PFX pp/Mreq ≥ 1.05× DROPLET (5% advantage)
+
+
+# --- gate 312 ---
+
+
+def test_ecg_pfx_per_request_efficiency_beats_droplet():
+    """Gate 312: ECG_PFX delivers more demand-memory reduction per
+    million prefetch requests than DROPLET — the per-request efficiency
+    win documented in sprint 6f-3.
+
+    Even though ECG_PFX and DROPLET converge on absolute miss-rate at
+    matched bandwidth (gate 301 / saturation finding), ECG_PFX's
+    POPT-quality target selection wastes fewer prefetches when budget
+    is constrained (K=1 default).
+    """
+    payload = _load()
+    summary = payload.get("summary", {})
+    ecg_pp = summary.get("ecg_pfx_pp_per_mreq")
+    drop_pp = summary.get("droplet_pp_per_mreq")
+    if ecg_pp is None or drop_pp is None:
+        pytest.skip("no per-request efficiency data in summary")
+    if drop_pp <= 0:
+        pytest.skip(f"DROPLET pp/Mreq = {drop_pp} (no useful prefetcher activity)")
+    ratio = ecg_pp / drop_pp
+    assert ratio >= ECG_PFX_EFFICIENCY_MIN_RATIO, (
+        f"ECG_PFX pp/Mreq = {ecg_pp:.4f} is NOT ≥ {ECG_PFX_EFFICIENCY_MIN_RATIO:.2f}× "
+        f"DROPLET pp/Mreq = {drop_pp:.4f}; ratio = {ratio:.3f}"
+    )
