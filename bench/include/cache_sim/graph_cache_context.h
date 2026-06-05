@@ -1493,7 +1493,7 @@ struct GraphCacheContext {
             deg_arr[v] = static_cast<uint32_t>(g.out_degree(v));
 
         std::vector<uint8_t> avg_reref_by_line;
-        if (rereference.matrix && (popt_max > 0 || mask_config.prefetch_mode == 2)) {
+        if (rereference.matrix && (popt_max > 0 || mask_config.prefetch_mode == 2 || mask_config.prefetch_mode == 4)) {
             avg_reref_by_line.resize(rereference.num_cache_lines, 0);
 #ifdef _OPENMP
             #pragma omp parallel for schedule(static)
@@ -1594,6 +1594,67 @@ struct GraphCacheContext {
                                 best_dist = dist;
                                 best_target = ngh;
                             }
+                        }
+                    }
+                } else if (mask_config.prefetch_mode == 4) {
+                    // FAR-FUTURE mode (sprint 6f-5 P2): target is selected from
+                    // a global hot vertex pool (graph-wide top-K by degree),
+                    // NOT from v's immediate neighbors. Uses hot_table when
+                    // populated (prefetch_direct=false), else builds a
+                    // GLOBAL_HOT_LIMIT-sized hot list on-the-fly from deg_arr.
+                    //
+                    // Why this beats DROPLET's mechanism:
+                    // - DROPLET scans v's edge stream and prefetches next-K
+                    //   neighbors. It physically CANNOT see a hot vertex that
+                    //   isn't in v's next-K. ECG mode 4 encodes such vertices
+                    //   directly.
+                    // - On hub-and-spoke graphs, the hot working set is small
+                    //   (top GLOBAL_HOT_LIMIT vertices) and reused by many
+                    //   sources. Pulling these into L3 early benefits future
+                    //   iterations DROPLET cannot reach.
+                    //
+                    // Encoding: rotate the global-hot index by (v + v_pos_hint)
+                    // so consecutive v values emit different targets, then
+                    // probe forward up to 8 entries until a non-deduped target
+                    // is found.
+                    constexpr uint32_t GLOBAL_HOT_LIMIT = 4096;
+                    constexpr int numVtxPerLine = 16;
+
+                    // Lazily-built sorted list of (degree, vertex) descending —
+                    // capture once per build via static thread-safe init.
+                    static thread_local std::vector<uint32_t> global_hot_cache;
+                    static thread_local const std::vector<uint32_t>* cached_deg_ptr = nullptr;
+                    static thread_local uint32_t cached_n = 0;
+                    if (cached_deg_ptr != &deg_arr || cached_n != n) {
+                        cached_deg_ptr = &deg_arr;
+                        cached_n = n;
+                        uint32_t hot_n = std::min(GLOBAL_HOT_LIMIT, n);
+                        std::vector<std::pair<uint32_t, uint32_t>> by_deg;
+                        by_deg.reserve(n);
+                        for (uint32_t u = 0; u < n; u++) by_deg.emplace_back(deg_arr[u], u);
+                        std::partial_sort(by_deg.begin(), by_deg.begin() + hot_n, by_deg.end(),
+                            [](auto& a, auto& b) { return a.first > b.first; });
+                        global_hot_cache.clear();
+                        global_hot_cache.reserve(hot_n);
+                        for (uint32_t i = 0; i < hot_n; i++)
+                            global_hot_cache.push_back(by_deg[i].second);
+                    }
+                    const auto& hot_pool = !hot_table.empty() ? hot_table : global_hot_cache;
+                    if (!hot_pool.empty()) {
+                        uint8_t v_pos_hint = (rereference.matrix && (v / numVtxPerLine) < avg_reref_by_line.size())
+                            ? avg_reref_by_line[v / numVtxPerLine] : 0;
+                        uint32_t pool_n = static_cast<uint32_t>(hot_pool.size());
+                        uint32_t base_idx = (static_cast<uint32_t>(v_pos_hint) + v) % pool_n;
+                        uint32_t probe_limit = std::min<uint32_t>(8u, pool_n);
+                        for (uint32_t step = 0; step < probe_limit; step++) {
+                            uint32_t idx = (base_idx + step) % pool_n;
+                            uint32_t hot_v = hot_pool[idx];
+                            if (build_dedup.contains(hot_v)) {
+                                pfx_dedup_skips++;
+                                continue;
+                            }
+                            best_target = hot_v;
+                            break;
                         }
                     }
                 }

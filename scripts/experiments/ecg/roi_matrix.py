@@ -155,9 +155,11 @@ ECG_PFX_MODE_VALUES = {
     "degree": "1",
     "popt": "2",
     "droplet": "3",  # DROPLET-style: sequential prefetch (no target selection)
+    "far_future": "4",  # FAR-FUTURE: target from global hot_table (not v's neighbors)
     "1": "1",
     "2": "2",
     "3": "3",
+    "4": "4",
 }
 
 
