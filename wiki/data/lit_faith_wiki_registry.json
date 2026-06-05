@@ -34,10 +34,10 @@
   "status": "active",
   "totals": {
     "auxiliary_entries": 4,
-    "catalog_entries": 142,
+    "catalog_entries": 143,
     "self_referential": 1,
     "violations": 0,
-    "wiki_json_files": 146
+    "wiki_json_files": 147
   },
   "violations": [],
   "wiki_json_files": [
@@ -159,6 +159,7 @@
     "wiki/data/paper_claims.json",
     "wiki/data/paper_table_complexity.json",
     "wiki/data/paper_table_metadata_cost.json",
+    "wiki/data/paper_table_mode6_corpus.json",
     "wiki/data/paper_table_prefetcher.json",
     "wiki/data/paper_table_prefetcher_kronecker.json",
     "wiki/data/per_app_capacity_slope.json",

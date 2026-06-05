@@ -8,9 +8,38 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **288 gates, all GREEN, exit 0**.
+and currently reports **289 gates, all GREEN, exit 0**.
 
-**ECG complexity comparison (gate 288, refresh @288) — RUBBER-DUCK FOLLOWUP TABLE 6:**
+**ECG mode 6 corpus efficiency (gate 289, refresh @289) — PER-EDGE PAPER DESIGN PARETO POINT:**
+Sprint 6f-5 spike implementing the ECG paper's actual instruction design
+(per-edge mask in CSR, packed 64-bit `dest[24]|DBG[2]|POPT[7]|prefetch_target[31]`).
+Mode 6 builds the mask offline (`buildInEdgeMasks_PR` in
+``bench/include/cache_sim/graph_cache_context.h``) and pr.cc decodes the
+dest from mask at runtime — the "fat edge" semantics. Corpus = 4 cells
+(cit-Patents/pr, soc-LiveJournal1/pr, com-orkut/pr, web-Google/pr) at
+L3=1MB; raw data at ``/tmp/mode6_corpus/`` + ``/tmp/mode6_smoke/``.
+Headline: at matched bandwidth (201M total prefetch requests across the
+corpus), mode 6 delivers **+14.2% higher demand-memory reduction per
+million prefetch requests** than mode 2 K=1 runtime lookahead (0.1499 vs
+0.1312 pp/Mreq) and **+34.9% vs DROPLET LH=8** (0.1111 pp/Mreq).
+Sub-gates: ``test_mode6_corpus_data_present`` (316, ≥3 of 4 cells have
+mode 6 data), ``test_mode6_more_efficient_than_mode2_corpus`` (317,
+corpus pp/Mreq ratio ≥ 1.05×), ``test_mode6_more_efficient_than_droplet_corpus``
+(318, corpus pp/Mreq ratio ≥ 1.10×). Wins absolute 2/4 cells (cit-Patents/pr
++2.79pp, com-orkut/pr +1.99pp), ties 1/4 (soc-LiveJournal1/pr), loses 1/4
+(web-Google/pr -1.04pp). **Honest framing**: mode 6 does NOT beat DROPLET
+on absolute miss reduction; DROPLET issues 2.6× the bandwidth (695M reqs)
+and achieves 2.6× the savings (77.3pp vs 30.1pp). The value is the
+Pareto-frontier efficiency point, not breaking the saturation cap
+(``docs/findings/prefetcher_saturation_under_eviction.md``). Iterations
+mode 7 (cross-iteration K_JUMP) and mode 8 (PR-recurrence) both failed
+during the spike — documented as the negative finding that confirms the
+saturation cap. Source artifact:
+``wiki/data/paper_table_mode6_corpus.json`` produced by
+``scripts/experiments/ecg/paper_table_mode6_corpus.py``. Refresh:
+``make lit-paper-table-mode6-corpus``.
+
+**ECG complexity comparison (gate 288, refresh @289) — RUBBER-DUCK FOLLOWUP TABLE 6:**
 Sprint 6f-5 rubber-duck review downgraded claim "ECG = 2 magic instructions
 vs DROPLET's 2 prefetch engines" from STRONG to MODERATE because the
 framing was apples-to-oranges (transparent hardware vs software-assisted).
@@ -1558,8 +1587,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 288. Next refresh due
-at gate 293. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 289. Next refresh due
+at gate 294. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

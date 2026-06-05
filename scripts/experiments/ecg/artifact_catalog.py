@@ -1129,6 +1129,14 @@ CATALOG = [
         "summary":   "Paper Table 5 (gate 287 MetadataCost) — ECG architectural-simplicity primary claim. Static computation from MaskConfig defaults (bench/include/cache_sim/graph_cache_context.h:213-292) and POPT matrix dimensions (bench/src_sim/pr.cc:76 makeOffsetMatrix args). ECG per-vertex mask: 2 DBG + 7 POPT + 32 prefetch + 23 reserved = 64 bits. POPT rereference matrix: 256 epochs × (n/16) cache_lines × 8 bits = 128 × n bits per graph. ECG / POPT = 0.500x (2x smaller) across all 10 graphs in the corpus (literature 8 + Kronecker 2). ECG / (GRASP + POPT + DROPLET combined) = 0.500x. Beyond bytes, ECG requires only 2 magic instructions vs DROPLET's 2 prefetch engines + state machines, and a per-access mask decoder (few gates) vs POPT's per-access matrix lookup unit. This is the PRIMARY paper novelty axis after sprint 6f-5's discovery that the prefetcher-axis story converges with DROPLET at saturation.",
     },
     {
+        "id":        "paper_table_mode6_corpus",
+        "label":     "Paper Table 7 — ECG mode 6 (per-edge mask) corpus efficiency",
+        "generator": "scripts/experiments/ecg/paper_table_mode6_corpus.py",
+        "gate":      "scripts/test/test_ecg_mode6_corpus_efficiency.py",
+        "artifact":  "wiki/data/paper_table_mode6_corpus.json",
+        "summary":   "Paper Table 7 (gate 289 Mode6Corpus) — sprint 6f-5 spike corpus extension. The per-edge ECG mask (mode 6) is the paper's actual ECG instruction design: each edge in CSR carries a 64-bit mask packed dest[24]|DBG[2]|POPT[7]|prefetch_target[31]. The per-edge prefetch target is offline-computed as the POPT-ranked best dest in src's next-K in-neighbors. Mode 6 runtime decodes dest from mask (replacing direct CSR load — the 'fat edge' semantics) and fires the encoded prefetch. Corpus = 4 cells (cit-Patents/pr, soc-LiveJournal1/pr, com-orkut/pr, web-Google/pr) at L3=1MB. Headline: at matched bandwidth (201M total prefetch requests), mode 6 delivers +14% higher demand-memory reduction per Mreq than mode 2 K=1 runtime lookahead (0.1499 vs 0.1312 pp/Mreq) and +35% vs DROPLET (0.1111). Wins 2/4 cells absolute (cit-Patents/pr +2.79pp, com-orkut/pr +1.99pp), ties 1/4 (soc-LiveJournal1/pr), loses 1/4 (web-Google/pr -1.04pp). Honest framing: mode 6 does NOT beat DROPLET on absolute miss reduction; DROPLET issues 2.6× the bandwidth (695M reqs) and achieves 2.6× the savings (77.3pp vs 30.1pp). The value is Pareto-frontier efficiency, not breaking saturation. Iterations (mode 7 cross-iteration K_JUMP, mode 8 PR-recurrence) failed for the saturation-cap reasons documented in docs/findings/prefetcher_saturation_under_eviction.md.",
+    },
+    {
         "id":        "paper_table_complexity",
         "label":     "Paper Table 6 — cache-substrate complexity comparison",
         "generator": "scripts/experiments/ecg/complexity_comparison.py",
@@ -1184,7 +1192,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (288 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (289 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 

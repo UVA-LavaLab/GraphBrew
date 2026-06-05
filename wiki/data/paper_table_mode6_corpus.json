@@ -1,0 +1,103 @@
+{
+  "cells": [
+    {
+      "cell": "cit-Patents-pr",
+      "baseline_demand": 0.33299984133018523,
+      "mode2": {
+        "demand": 0.23698904439133003,
+        "delta_pp": -9.60107969388552,
+        "reqs": 17605247
+      },
+      "mode6": {
+        "demand": 0.20907577011933362,
+        "delta_pp": -12.392407121085162,
+        "reqs": 17605248
+      },
+      "droplet": {
+        "demand": 0.05662602313080675,
+        "delta_pp": -27.637381819937843,
+        "reqs": 58526023
+      }
+    },
+    {
+      "cell": "soc-LiveJournal1-pr",
+      "baseline_demand": 0.19112813049751684,
+      "mode2": {
+        "demand": 0.13644537249232727,
+        "delta_pp": -5.468275800518957,
+        "reqs": 51349413
+      },
+      "mode6": {
+        "demand": 0.1364336454928852,
+        "delta_pp": -5.469448500463164,
+        "reqs": 51349380
+      },
+      "droplet": {
+        "demand": 0.03557875073104552,
+        "delta_pp": -15.554937976647132,
+        "reqs": 159066424
+      }
+    },
+    {
+      "cell": "com-orkut-pr",
+      "baseline_demand": 0.2593257825215531,
+      "mode2": {
+        "demand": 0.19497249178451842,
+        "delta_pp": -6.435329073703466,
+        "reqs": 127471222
+      },
+      "mode6": {
+        "demand": 0.17501173181185042,
+        "delta_pp": -8.431405070970266,
+        "reqs": 127471213
+      },
+      "droplet": {
+        "demand": 0.03248418126372105,
+        "delta_pp": -22.684160125783205,
+        "reqs": 462261926
+      }
+    },
+    {
+      "cell": "web-Google-pr",
+      "baseline_demand": 0.1525121843573297,
+      "mode2": {
+        "demand": 0.10370772699480135,
+        "delta_pp": -4.880445736252834,
+        "reqs": 4607707
+      },
+      "mode6": {
+        "demand": 0.11406855013062023,
+        "delta_pp": -3.844363422670946,
+        "reqs": 4607668
+      },
+      "droplet": {
+        "demand": 0.038539478730371925,
+        "delta_pp": -11.397270562695777,
+        "reqs": 15530529
+      }
+    }
+  ],
+  "summary": {
+    "mode2": {
+      "n_cells": 4,
+      "total_savings_pp": 26.385130304360775,
+      "total_reqs": 201033589,
+      "pp_per_mreq": 0.13124737232025827
+    },
+    "mode6": {
+      "n_cells": 4,
+      "total_savings_pp": 30.13762411518954,
+      "total_reqs": 201033509,
+      "pp_per_mreq": 0.14991343614854544
+    },
+    "droplet": {
+      "n_cells": 4,
+      "total_savings_pp": 77.27375048506396,
+      "total_reqs": 695384902,
+      "pp_per_mreq": 0.11112371042686796
+    },
+    "mode6_vs_mode2_ratio": 1.1422204764811588,
+    "mode6_vs_droplet_ratio": 1.3490679493392683
+  },
+  "method": "cache_sim demand-memory rate (memory_accesses/total_accesses)"
+}
