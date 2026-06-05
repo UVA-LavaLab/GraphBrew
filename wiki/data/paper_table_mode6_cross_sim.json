@@ -4,14 +4,14 @@
   "cells": [
     {
       "cell": "email-Eu-core-pr",
-      "sniper_arm_none_status": "pending",
-      "sniper_arm_droplet_status": "pending",
-      "sniper_arm_ecg_pfx_status": "pending",
-      "sniper_baseline_l3_miss_rate": null,
-      "sniper_droplet_l3_miss_rate": null,
-      "sniper_ecg_pfx_l3_miss_rate": null,
-      "sniper_droplet_pp_savings": null,
-      "sniper_ecg_pfx_pp_savings": null,
+      "sniper_arm_none_status": "ok",
+      "sniper_arm_droplet_status": "ok",
+      "sniper_arm_ecg_pfx_status": "ok",
+      "sniper_baseline_l3_miss_rate": 1.0,
+      "sniper_droplet_l3_miss_rate": 1.0,
+      "sniper_ecg_pfx_l3_miss_rate": 0.37638978321528227,
+      "sniper_droplet_pp_savings": 0.0,
+      "sniper_ecg_pfx_pp_savings": 62.36102167847177,
       "cache_sim_mode6_pp_savings": null,
       "cache_sim_droplet_pp_savings": null
     },
