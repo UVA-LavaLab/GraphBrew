@@ -136,8 +136,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     // Build the per-edge mask array once before iteration begins. When
     // GEM5_ECG_PFX_MODE=6 the inner loop reads pre-encoded prefetch targets
     // from this array instead of computing them at runtime.
-    int ecg_pfx_mode = gem5_env_int_clamped("GEM5_ECG_PFX_MODE", 0, 0, 7);
-    int edge_mask_lookahead = gem5_env_int_clamped("GEM5_ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64);
+    // (Also accepts ECG_PREFETCH_MODE for compatibility with roi_matrix.py's
+    // cache_sim env naming.)
+    int ecg_pfx_mode = gem5_env_int_clamped("GEM5_ECG_PFX_MODE", -1, -1, 7);
+    if (ecg_pfx_mode < 0) {
+        ecg_pfx_mode = gem5_env_int_clamped("ECG_PREFETCH_MODE", 0, 0, 7);
+    }
+    int edge_mask_lookahead = gem5_env_int_clamped("GEM5_ECG_EDGE_MASK_LOOKAHEAD",
+        gem5_env_int_clamped("ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64), 1, 64);
     vector<vector<uint64_t>> in_edge_masks_by_src;
     if (ecg_prefetch_enabled && ecg_pfx_mode == 6) {
         vector<uint8_t> avg_reref_by_line;

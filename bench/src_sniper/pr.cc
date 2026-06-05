@@ -108,10 +108,17 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
         0, 64);
 
     // === Mode 6: Per-Edge ECG Mask (paper's ECG design, sprint 6f-5) ===
+    // Also accepts ECG_PREFETCH_MODE for compatibility with roi_matrix.py's
+    // cache_sim env naming.
     int ecg_pfx_mode = graphbrew_sniper::env_int_clamped(
-        "SNIPER_ECG_PFX_MODE", 0, 0, 7);
+        "SNIPER_ECG_PFX_MODE", -1, -1, 7);
+    if (ecg_pfx_mode < 0) {
+        ecg_pfx_mode = graphbrew_sniper::env_int_clamped("ECG_PREFETCH_MODE", 0, 0, 7);
+    }
     int edge_mask_lookahead = graphbrew_sniper::env_int_clamped(
-        "SNIPER_ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64);
+        "SNIPER_ECG_EDGE_MASK_LOOKAHEAD",
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64),
+        1, 64);
     vector<vector<uint64_t>> in_edge_masks_by_src;
     if (ecg_prefetch_enabled && ecg_pfx_mode == 6) {
         vector<uint8_t> avg_reref_by_line;

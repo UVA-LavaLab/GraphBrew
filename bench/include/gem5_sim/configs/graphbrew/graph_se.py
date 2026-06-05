@@ -82,6 +82,17 @@ def benchmark_environment(args):
         f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
         f"GEM5_ENABLE_ECG_EXTRACT={1 if args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction' else 0}",
     ]
+    # Propagate ECG mode + per-edge-mask lookahead from the outer harness
+    # env so kernel-side `ecg_pfx_mode` reads the value roi_matrix.py set.
+    for pass_name in (
+        "GEM5_ECG_PFX_MODE",
+        "ECG_PREFETCH_MODE",
+        "GEM5_ECG_EDGE_MASK_LOOKAHEAD",
+        "ECG_EDGE_MASK_LOOKAHEAD",
+    ):
+        outer = os.environ.get(pass_name)
+        if outer is not None and outer != "":
+            env.append(f"{pass_name}={outer}")
     for env_name, default_path in RUNTIME_SIDEBAND_FILES:
         env.append(f"{env_name}={os.environ.get(env_name, default_path)}")
     return tuple(env)

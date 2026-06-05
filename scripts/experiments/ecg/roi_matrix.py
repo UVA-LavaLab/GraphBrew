@@ -707,6 +707,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     env["GEM5_POPT_MATRIX"] = str(sidebands["popt_matrix"])
     env["GEM5_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["GEM5_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
+    if args.prefetcher == "ECG_PFX":
+        env.update(ecg_pfx_env(args))
+        env["GEM5_ENABLE_ECG_PFX_HINTS"] = "1"
+        env["GEM5_ECG_PFX_LOOKAHEAD"] = effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD")
 
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_gem5, log_path, args.dry_run)
     if args.dry_run:
@@ -960,6 +964,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env.update(ecg_pfx_env(args))
         env["SNIPER_ENABLE_ECG_PFX_HINTS"] = "1"
         env["SNIPER_ECG_PFX_LOOKAHEAD"] = effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD")
+        env["SNIPER_ECG_PFX_MODE"] = effective_ecg_pfx_value(args, "ECG_PREFETCH_MODE")
         env["SNIPER_ECG_PFX_HINT_FILTER"] = str(args.ecg_pfx_hint_filter)
         env["SNIPER_ECG_PFX_FILTER_ELEM_SIZE"] = "4"
         env["SNIPER_ECG_PFX_FILTER_LINE_SIZE"] = str(args.line_size)

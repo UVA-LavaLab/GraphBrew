@@ -15,6 +15,9 @@
 #include "graphbrew/partition/cagra/popt.h"
 #include "sniper_sim/sniper_harness.h"
 
+// ECG mode 6 (per-edge mask) builder — shared with cache_sim and gem5.
+#include "ecg_mode6_builder.h"
+
 // File-backed kernel diagnostic target. Native execution is intentionally kept
 // lightweight for checking .sg parameters and sideband export. Do not use this
 // as a default Sniper/SDE workload until the frontend high-memory run mode is
@@ -107,7 +110,17 @@ int run_pr(const Graph& graph, int max_iters) {
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(graph, edge_regions, 2, true);
     sniper_export_context(regions, 2, graph, nullptr, edge_regions, num_edge_regions);
-    export_popt_for_graph<Graph, ScoreT>(graph);
+
+    // Build POPT matrix inline (was export_popt_for_graph helper) so we
+    // can reuse the matrix to derive the per-edge mode 6 mask.
+    constexpr int kNumEpochs = 256;
+    const int num_vtx_per_line = std::max<int>(1, 64 / static_cast<int>(sizeof(ScoreT)));
+    pvector<uint8_t> popt_matrix;
+    makeOffsetMatrix(graph, popt_matrix, num_vtx_per_line, kNumEpochs);
+    const int popt_num_cache_lines =
+        (graph.num_nodes() + num_vtx_per_line - 1) / num_vtx_per_line;
+    sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
+                              kNumEpochs, graph.num_nodes());
 
     SNIPER_ROI_BEGIN();
     // Lookahead distance for ECG_PFX hints. node+1 is too close on
@@ -121,22 +134,64 @@ int run_pr(const Graph& graph, int max_iters) {
         (pfx_lookahead_env && pfx_lookahead_env[0])
             ? std::max(1, std::atoi(pfx_lookahead_env))
             : 8;
+
+    // === Mode 6: Per-Edge ECG Mask (paper's ECG design) ===
+    // SNIPER_ECG_PFX_MODE (preferred) or ECG_PREFETCH_MODE selects the
+    // prefetch policy. Mode 6 = per-edge mask path; anything else falls
+    // back to the trivial linear-lookahead path below.
+    const char* mode_env = std::getenv("SNIPER_ECG_PFX_MODE");
+    if (!mode_env || !mode_env[0]) mode_env = std::getenv("ECG_PREFETCH_MODE");
+    const int ecg_pfx_mode = (mode_env && mode_env[0]) ? std::atoi(mode_env) : 0;
+    const char* ecg_enable_env = std::getenv("SNIPER_ENABLE_ECG_PFX_HINTS");
+    const bool ecg_enabled = ecg_enable_env && std::string(ecg_enable_env) != "0";
+
+    std::vector<std::vector<uint64_t>> in_edge_masks_by_src;
+    if (ecg_enabled && ecg_pfx_mode == 6) {
+        std::vector<uint8_t> avg_reref_by_line;
+        ecg_mode6::computeAvgRerefByLine(popt_matrix.data(), popt_num_cache_lines,
+                                         kNumEpochs, avg_reref_by_line);
+        std::vector<uint8_t> tiers;
+        ecg_mode6::computeDegreeTiers(graph, tiers);
+        ecg_mode6::buildInEdgeMasks(graph, tiers, avg_reref_by_line,
+                                    pfx_lookahead, num_vtx_per_line,
+                                    in_edge_masks_by_src, "sniper-sg-PR");
+        std::printf("[sniper-sg ECG mode 6] lookahead=%d (per-edge mask path active)\n",
+                    pfx_lookahead);
+    }
+
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
-            // ECG_PFX hint: emit a future vertex so the prefetcher can
-            // warm its scores/contrib lines before we touch them. The
-            // emission is env-gated by SNIPER_ENABLE_ECG_PFX_HINTS
-            // inside set_prefetch_target, so non-ECG_PFX runs pay
-            // nothing.
-            NodeID pfx_target = node + pfx_lookahead;
-            if (pfx_target < graph.num_nodes()) {
-                SNIPER_ECG_PFX_TARGET(pfx_target);
-            }
             ScoreT incoming_total = 0.0f;
-            for (NodeID neighbor : graph.in_neigh(node)) {
-                incoming_total += contrib[neighbor];
+
+            // Mode 6: walk in_neigh by edge position; decode dest from
+            // the mask and fire the encoded prefetch target.
+            if (ecg_enabled && ecg_pfx_mode == 6 &&
+                node < static_cast<NodeID>(in_edge_masks_by_src.size())) {
+                const auto& src_masks = in_edge_masks_by_src[node];
+                size_t edge_pos = 0;
+                for (NodeID neighbor : graph.in_neigh(node)) {
+                    uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
+                    ++edge_pos;
+                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
+                    if (prefetch_target != 0 &&
+                        prefetch_target < static_cast<uint32_t>(graph.num_nodes())) {
+                        SNIPER_ECG_PFX_TARGET(prefetch_target);
+                    }
+                    incoming_total += contrib[neighbor];
+                }
+            } else {
+                // Default: trivial linear lookahead (preserves prior
+                // behavior when mode != 6).
+                NodeID pfx_target = node + pfx_lookahead;
+                if (pfx_target < graph.num_nodes()) {
+                    SNIPER_ECG_PFX_TARGET(pfx_target);
+                }
+                for (NodeID neighbor : graph.in_neigh(node)) {
+                    incoming_total += contrib[neighbor];
+                }
             }
+
             scores[node] = base_score + kDamp * incoming_total;
             int64_t degree = graph.out_degree(node);
             contrib[node] = degree > 0 ? scores[node] / degree : 0.0f;
