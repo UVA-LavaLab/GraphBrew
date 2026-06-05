@@ -8,9 +8,30 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **287 gates, all GREEN, exit 0**.
+and currently reports **288 gates, all GREEN, exit 0**.
 
-**ECG metadata-cost claim (gate 287, refresh @287) — PRIMARY ARCHITECTURAL-SIMPLICITY NOVELTY:**
+**ECG complexity comparison (gate 288, refresh @288) — RUBBER-DUCK FOLLOWUP TABLE 6:**
+Sprint 6f-5 rubber-duck review downgraded claim "ECG = 2 magic instructions
+vs DROPLET's 2 prefetch engines" from STRONG to MODERATE because the
+framing was apples-to-oranges (transparent hardware vs software-assisted).
+Gate 288 backs the corrected claim with a 7-axis comparison table across
+ECG, DROPLET (Basak HPCA'19), POPT (Balaji HPCA'21), and GRASP (Faldu HPCA'20):
+per-vertex storage bytes, fixed SRAM state, hardware datapath complexity,
+ISA extensions, offline preprocessing complexity + wall time, per-access
+runtime cost, and software kernel changes. Sub-gates
+``test_every_component_has_all_axes`` (313, schema integrity),
+``test_ecg_per_vertex_storage_below_popt`` (314, mirrors gate 309's
+2x-smaller storage claim in this artifact), ``test_ecg_is_pareto_unique_isa_plus_storage``
+(315, locks the Pareto-frontier framing — ECG is the only substrate
+combining BOTH ISA extensions AND per-vertex storage). Honest framing:
+ECG is NOT Pareto-dominant on any single axis; POPT and DROPLET both
+achieve transparent hardware (no ISA changes) while ECG unifies three
+separate mechanisms into one mask substrate. Source artifact:
+``wiki/data/paper_table_complexity.json`` produced by
+``scripts/experiments/ecg/complexity_comparison.py``. Refresh:
+``make lit-paper-table-complexity``.
+
+**ECG metadata-cost claim (gate 287, refresh @288) — PRIMARY ARCHITECTURAL-SIMPLICITY NOVELTY:**
 After sprint 6f-5 revealed the ECG_PFX prefetcher converges with DROPLET
 at cache saturation (both achieve identical demand-memory reduction at
 matched bandwidth — gates 297-308 lock the secondary efficiency claim
@@ -1537,8 +1558,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 287. Next refresh due
-at gate 292. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 288. Next refresh due
+at gate 293. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.

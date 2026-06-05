@@ -391,6 +391,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_ecg_synthetic_scale_claims.py", "PfxScaleSynthetic"),
     "ECG metadata-cost (gate 287) — architectural-simplicity primary novelty: gate 309 ECG mask ≤ POPT matrix / 1.5x per graph, gate 310 ECG mask ≤ (GRASP+POPT+DROPLET) sum / 1.5x, gate 311 bit budget integrity":
         ("scripts/test/test_ecg_metadata_cost_claims.py", "MetadataCost"),
+    "ECG complexity comparison (gate 288) — hardware/software complexity vs DROPLET/POPT/GRASP: gate 313 every component has all 7 axes, gate 314 ECG per-vertex storage ≤ POPT/1.5x, gate 315 ECG Pareto-unique on ISA+per-vertex":
+        ("scripts/test/test_ecg_complexity_claims.py", "ComplexityCompare"),
     "Paper label-map integrity (gate 242) — POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels":
         ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
     "POLICY_COLORS perceptual distinguishability (gate 243) — hex format + dedup + pairwise CIE76 ΔE ≥ 12 + B&W lightness-delta ≥ 10 or hatch fallback (grandfathered allowlist) + ΔE ≥ 18 from white + POLICY_HATCHES ⊆ POLICY_LABELS":

@@ -1129,6 +1129,14 @@ CATALOG = [
         "summary":   "Paper Table 5 (gate 287 MetadataCost) — ECG architectural-simplicity primary claim. Static computation from MaskConfig defaults (bench/include/cache_sim/graph_cache_context.h:213-292) and POPT matrix dimensions (bench/src_sim/pr.cc:76 makeOffsetMatrix args). ECG per-vertex mask: 2 DBG + 7 POPT + 32 prefetch + 23 reserved = 64 bits. POPT rereference matrix: 256 epochs × (n/16) cache_lines × 8 bits = 128 × n bits per graph. ECG / POPT = 0.500x (2x smaller) across all 10 graphs in the corpus (literature 8 + Kronecker 2). ECG / (GRASP + POPT + DROPLET combined) = 0.500x. Beyond bytes, ECG requires only 2 magic instructions vs DROPLET's 2 prefetch engines + state machines, and a per-access mask decoder (few gates) vs POPT's per-access matrix lookup unit. This is the PRIMARY paper novelty axis after sprint 6f-5's discovery that the prefetcher-axis story converges with DROPLET at saturation.",
     },
     {
+        "id":        "paper_table_complexity",
+        "label":     "Paper Table 6 — cache-substrate complexity comparison",
+        "generator": "scripts/experiments/ecg/complexity_comparison.py",
+        "gate":      "scripts/test/test_ecg_complexity_claims.py",
+        "artifact":  "wiki/data/paper_table_complexity.json",
+        "summary":   "Paper Table 6 (gate 288 ComplexityCompare) — sprint 6f-5 rubber-duck followup: the prior 'ECG = 2 magic instructions vs DROPLET 2 prefetch engines' framing was apples-to-oranges. Table 6 compares ECG, DROPLET, POPT, and GRASP across 7 axes: per-vertex storage, fixed SRAM state, hardware datapath complexity, ISA extensions, offline preprocessing complexity + wall time, per-access runtime cost, and software kernel changes. ECG occupies a unique Pareto-frontier point: it is the only substrate that combines BOTH ISA extensions AND per-vertex storage (gate 315), trading hardware engine count (DROPLET) and per-vertex matrix bytes (POPT halved) for software preprocessing + 2 magic instructions. Honest framing: ECG is not Pareto-dominant on any single axis — POPT and DROPLET both achieve transparent hardware (no ISA changes) — but ECG unifies three separate mechanisms into one mask substrate.",
+    },
+    {
         "id":        "paper_table_prefetcher_kronecker",
         "label":     "Paper Table 4-K — ECG combined-mask on synthetic Kronecker",
         "generator": "scripts/experiments/ecg/paper_table_prefetcher.py",
@@ -1176,7 +1184,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (287 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (288 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
