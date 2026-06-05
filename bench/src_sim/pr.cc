@@ -70,7 +70,7 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
         const char* policy_env = getenv("CACHE_POLICY");
         std::string policy_str = policy_env ? policy_env : "";
         const char* pfx_env = getenv("ECG_PREFETCH_MODE");
-        bool popt_prefetch = pfx_env && (atoi(pfx_env) == 2 || atoi(pfx_env) == 4);
+        bool popt_prefetch = pfx_env && (atoi(pfx_env) == 2 || atoi(pfx_env) == 4 || atoi(pfx_env) == 6 || atoi(pfx_env) == 7);
         if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
             constexpr int numEpochs = 256;
@@ -88,6 +88,20 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     graph_ctx.printSummary();
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
     int pfx_top_k = GraphSimEnvIntClamped("ECG_PREFETCH_TOP_K", 1, 1, 64);
+    bool edge_mask_charged = GraphSimEnvIntClamped("ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    if (graph_ctx.mask_config.prefetch_mode == 6 || graph_ctx.mask_config.prefetch_mode == 7) {
+        int edge_mask_lookahead = GraphSimEnvIntClamped("ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64);
+        int edge_mask_k_jump = GraphSimEnvIntClamped("ECG_EDGE_MASK_K_JUMP", 4, 1, 1024);
+        cout << "PR per-edge ECG mask: mode=" << int(graph_ctx.mask_config.prefetch_mode)
+             << " charged=" << (edge_mask_charged ? "yes" : "no") << endl;
+        if (graph_ctx.mask_config.prefetch_mode == 6) {
+            cout << "  lookahead=" << edge_mask_lookahead << " (mode 6 = next-K in src's own edges)" << endl;
+            graph_ctx.buildInEdgeMasks_PR(g, edge_mask_lookahead);
+        } else {
+            cout << "  k_jump=" << edge_mask_k_jump << " (mode 7 = cross-iteration prefetch)" << endl;
+            graph_ctx.buildInEdgeMasks_PR_CrossIter(g, edge_mask_k_jump);
+        }
+    }
     if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
         cout << "PR PFX lookahead: window=" << pfx_lookahead
              << " mode=" << int(graph_ctx.mask_config.prefetch_mode)
@@ -109,12 +123,69 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
         #pragma omp parallel for reduction(+ : error) schedule(dynamic, 64)
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             ScoreT incoming_total = 0;
-            
+
             // P-OPT: update current destination vertex for rereference lookup
             SIM_SET_VERTEX(cache, u);
-            
+
             // Iterate over incoming neighbors with CSR edge tracking
             auto in_neigh = g.in_neigh(u);
+
+            // === Mode 6: per-edge ECG mask path (the ECG paper's actual design) ===
+            // Each src has a precomputed mask per edge in its in_neigh list.
+            // Mask is 64-bit packed: dest_id|DBG|POPT|prefetch_target. dest_id
+            // is decoded from the mask (so the mask effectively replaces the
+            // direct CSR load); prefetch_target is src-iteration-aware.
+            //
+            // ECG_EDGE_MASK_CHARGED=1 (default): explicitly model the cache
+            // traffic for reading the mask array (fair comparison)
+            // ECG_EDGE_MASK_CHARGED=0: idealized — mask is "free" register hint
+            // (to isolate whether the mechanism CAN help, separate from traffic cost)
+            if (graph_ctx.mask_config.prefetch_mode == 6 || graph_ctx.mask_config.prefetch_mode == 7) {
+                const auto& src_masks = graph_ctx.in_edge_masks_by_src[u];
+                size_t edge_pos = 0;
+                for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
+                    uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
+                    // Charge mask-array load if requested
+                    if (edge_mask_charged && !src_masks.empty()) {
+                        SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
+                    }
+                    // Decode dest from mask (replaces direct CSR edge read)
+                    NodeID v = static_cast<NodeID>(GraphCacheContext::edgeMaskDest(mask));
+                    // Still track edge access for the CSR backbone (the edge
+                    // list itself is read either way; charged mode adds the
+                    // mask array on top).
+                    SIM_CACHE_READ_EDGE(cache, it);
+                    // Issue prefetch for the encoded target
+                    uint32_t prefetch_target = GraphCacheContext::edgeMaskPrefetch(mask);
+                    if (prefetch_target != 0) {
+                        SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, prefetch_target, graph_ctx);
+                    }
+                    // HYBRID MODE: when ECG_EDGE_MASK_AMPLIFY > 0, ALSO fire
+                    // the next-N dests in src's edge list (low cost — masks
+                    // already loaded). Trades bandwidth for absolute miss
+                    // reduction. AMPLIFY=0 is pure per-edge precision.
+                    int amplify = GraphSimEnvIntClamped("ECG_EDGE_MASK_AMPLIFY", 0, 0, 8);
+                    for (int step = 1; step <= amplify && edge_pos + step < src_masks.size(); step++) {
+                        uint32_t fwd_dest = GraphCacheContext::edgeMaskDest(src_masks[edge_pos + step]);
+                        SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, fwd_dest, graph_ctx);
+                    }
+                    // Demand load with DBG+POPT hints supplied via lower 32 bits of mask
+                    uint32_t demand_hint = static_cast<uint32_t>(mask & 0xFFFFFFFFu);
+                    SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, demand_hint);
+                    incoming_total += outgoing_contrib[v];
+                }
+                // Score update (replicated here so mode 6 matches the canonical path)
+                SIM_CACHE_READ(cache, scores_ptr, u);
+                ScoreT old_score = scores[u];
+                ScoreT new_score = base_score + kDamp * incoming_total;
+                SIM_CACHE_WRITE(cache, scores_ptr, u);
+                scores[u] = new_score;
+                error += fabs(new_score - old_score);
+                SIM_CACHE_WRITE(cache, contrib_ptr, u);
+                outgoing_contrib[u] = new_score / g.out_degree(u);
+                continue;  // skip the rest of this u's body (we handled it above)
+            }
+
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
                 // Track CSR edge list read (reading neighbor ID from edge array)
                 SIM_CACHE_READ_EDGE(cache, it);

@@ -944,6 +944,19 @@ struct GraphCacheContext {
     MaskArray  mask_array;
     std::vector<uint32_t> hot_table;  // Hot vertex table for indexed prefetch
 
+    // Per-edge ECG mask (sprint 6f-5 spike): the ECG paper's actual design.
+    // Stored as per-src vector of 64-bit packed masks parallel to that src's
+    // in_neigh list. Built once per graph by buildInEdgeMasks_PR(). Mode 6
+    // ("per_edge") in pr.cc reads from this. See sprint plan + rubber-duck
+    // critique for design rationale.
+    //
+    // Per-mask 64-bit layout (for graphs with up to 2^24 vertices):
+    //   [0:24]  = dest_id (decoded by mask, replaces direct CSR read)
+    //   [24:26] = DBG eviction tier
+    //   [26:33] = POPT reuse quantization (7 bits)
+    //   [33:64] = prefetch target vertex ID (31 bits)
+    std::vector<std::vector<uint64_t>> in_edge_masks_by_src;
+
     ~GraphCacheContext() {
         if (mask_config.enabled) printECGStats();
     }
@@ -1722,6 +1735,261 @@ struct GraphCacheContext {
                   << " pfx_dedup_skips=" << ecg_stats.pfx_dedup_skips
                   << std::defaultfloat << std::endl;
         return masks;
+    }
+
+    // ================================================================
+    // Per-Edge ECG Mask Builder (sprint 6f-5 spike — ECG paper design)
+    // ================================================================
+    //
+    // Build the per-edge mask array for PR's in_neigh traversal pattern.
+    // The ECG paper's actual design: each edge in the CSR carries a packed
+    // mask encoding (dest_id | DBG_tier | POPT_quant | prefetch_target).
+    // The prefetch_target is selected from src's iteration context — the
+    // "next-K POPT-best dest" in src's in_neighbors after the current one.
+    //
+    // Stored in `in_edge_masks_by_src[src]` parallel to src's in_neigh list.
+    // Caller: pr.cc when ECG_PREFETCH_MODE=6 (per_edge).
+    //
+    // Mask layout (64-bit, for graphs with up to 2^24 vertices):
+    //   [0:24]  dest_id (24 bits)
+    //   [24:26] DBG tier (2 bits)
+    //   [26:33] POPT quant (7 bits)
+    //   [33:64] prefetch target (31 bits)
+    template<typename GraphT>
+    void buildInEdgeMasks_PR(const GraphT& g, int k_lookahead) {
+        using Clock = std::chrono::steady_clock;
+        auto build_start = Clock::now();
+        uint32_t n = g.num_nodes();
+        in_edge_masks_by_src.clear();
+        in_edge_masks_by_src.resize(n);
+        if (n == 0) return;
+
+        // Build degree array + tiers (reuse computeVertexTiers if not already)
+        auto tiers = computeVertexTiers(g);
+        std::vector<uint32_t> deg_arr(n);
+#ifdef _OPENMP
+        #pragma omp parallel for
+#endif
+        for (uint32_t v = 0; v < n; v++)
+            deg_arr[v] = static_cast<uint32_t>(g.out_degree(v));
+
+        // Build avg_reref_by_line if not already populated
+        constexpr int numVtxPerLine = 16;
+        std::vector<uint8_t> avg_reref_by_line;
+        if (rereference.matrix) {
+            avg_reref_by_line.resize(rereference.num_cache_lines, 0);
+#ifdef _OPENMP
+            #pragma omp parallel for schedule(static)
+#endif
+            for (int64_t cline_i = 0; cline_i < static_cast<int64_t>(rereference.num_cache_lines); ++cline_i) {
+                uint32_t cline = static_cast<uint32_t>(cline_i);
+                uint32_t total_dist = 0;
+                uint32_t count = 0;
+                for (uint32_t e = 0; e < rereference.num_epochs; e++) {
+                    uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + cline];
+                    if ((entry & 0x80) == 0) {
+                        total_dist += (entry & 0x7F);
+                        count++;
+                    }
+                }
+                avg_reref_by_line[cline] = count > 0
+                    ? static_cast<uint8_t>(std::min(total_dist / count, uint32_t(127)))
+                    : 0;
+            }
+        }
+
+        uint64_t edge_count = 0;
+        uint64_t encoded_count = 0;
+
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 128) reduction(+:edge_count, encoded_count)
+#endif
+        for (uint32_t src = 0; src < n; src++) {
+            // Materialize this src's in-neighbors into a small vector so we
+            // can index by position (the iterator's underlying offset).
+            std::vector<uint32_t> neighbors;
+            neighbors.reserve(64);
+            for (auto v : g.in_neigh(src)) neighbors.push_back(static_cast<uint32_t>(v));
+
+            auto& masks = in_edge_masks_by_src[src];
+            masks.resize(neighbors.size(), 0);
+
+            for (size_t i = 0; i < neighbors.size(); i++) {
+                uint32_t dest = neighbors[i];
+                edge_count++;
+
+                // POPT/DBG fields for dest
+                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                uint8_t popt = 0;
+                if (!avg_reref_by_line.empty()) {
+                    uint32_t dest_cline = dest / numVtxPerLine;
+                    if (dest_cline < avg_reref_by_line.size())
+                        popt = avg_reref_by_line[dest_cline] & 0x7F;
+                }
+
+                // Per-edge prefetch target: scan ahead K in src's in_neighbors
+                // (positions i+1 .. i+K), pick the one with shortest POPT
+                // reuse distance (lower = sooner-reused = higher value).
+                uint32_t prefetch_target = 0;
+                if (k_lookahead > 0 && !avg_reref_by_line.empty()) {
+                    uint8_t best_dist = 128;
+                    int probe = std::min<int>(k_lookahead, static_cast<int>(neighbors.size()) - static_cast<int>(i) - 1);
+                    for (int step = 1; step <= probe; step++) {
+                        uint32_t cand = neighbors[i + step];
+                        uint32_t cand_cline = cand / numVtxPerLine;
+                        if (cand_cline < avg_reref_by_line.size()) {
+                            uint8_t dist = avg_reref_by_line[cand_cline];
+                            if (dist < best_dist) {
+                                best_dist = dist;
+                                prefetch_target = cand;
+                            }
+                        }
+                    }
+                }
+                if (prefetch_target != 0) encoded_count++;
+
+                // Pack: [0:24]=dest [24:26]=dbg [26:33]=popt [33:64]=prefetch
+                uint64_t mask = static_cast<uint64_t>(dest & 0xFFFFFFu);
+                mask |= static_cast<uint64_t>(dbg & 0x3u) << 24;
+                mask |= static_cast<uint64_t>(popt & 0x7Fu) << 26;
+                mask |= static_cast<uint64_t>(prefetch_target & 0x7FFFFFFFu) << 33;
+                masks[i] = mask;
+            }
+        }
+
+        auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
+            Clock::now() - build_start).count();
+        std::cout << "ECG per-edge mask build: vertices=" << n
+                  << " edges=" << edge_count
+                  << " encoded=" << encoded_count
+                  << " (" << (encoded_count * 100.0 / std::max<uint64_t>(edge_count, 1)) << "%)"
+                  << " time_s=" << std::fixed << std::setprecision(4)
+                  << (build_us / 1e6) << std::defaultfloat << std::endl;
+    }
+
+    // Build the per-edge mask array with CROSS-ITERATION prefetch targets
+    // (sprint 6f-5 spike iteration 2 / mode 7).
+    //
+    // Unlike mode 6 (which picks the prefetch target from src's OWN next-K
+    // edges — equivalent to precomputed mode-2 lookahead), mode 7 picks the
+    // target from a FUTURE src's edge list: src + K_JUMP where K_JUMP is
+    // configurable. This is DROPLET-inaccessible because DROPLET cannot
+    // project across u-iteration boundaries — it only sees the immediate
+    // address stream.
+    //
+    // For each (src, edge_i): prefetch_target = best-POPT dest of (src + K_JUMP)
+    // When kernel processes src and reads dest_i, the cache pre-fetches a
+    // vertex from K_JUMP iterations ahead — giving the cache time to fill
+    // BEFORE the demand arrives.
+    template<typename GraphT>
+    void buildInEdgeMasks_PR_CrossIter(const GraphT& g, int k_jump) {
+        using Clock = std::chrono::steady_clock;
+        auto build_start = Clock::now();
+        uint32_t n = g.num_nodes();
+        in_edge_masks_by_src.clear();
+        in_edge_masks_by_src.resize(n);
+        if (n == 0) return;
+
+        auto tiers = computeVertexTiers(g);
+        constexpr int numVtxPerLine = 16;
+        std::vector<uint8_t> avg_reref_by_line;
+        if (rereference.matrix) {
+            avg_reref_by_line.resize(rereference.num_cache_lines, 0);
+#ifdef _OPENMP
+            #pragma omp parallel for schedule(static)
+#endif
+            for (int64_t cline_i = 0; cline_i < static_cast<int64_t>(rereference.num_cache_lines); ++cline_i) {
+                uint32_t cline = static_cast<uint32_t>(cline_i);
+                uint32_t total_dist = 0, count = 0;
+                for (uint32_t e = 0; e < rereference.num_epochs; e++) {
+                    uint8_t entry = rereference.matrix[e * rereference.num_cache_lines + cline];
+                    if ((entry & 0x80) == 0) {
+                        total_dist += (entry & 0x7F);
+                        count++;
+                    }
+                }
+                avg_reref_by_line[cline] = count > 0
+                    ? static_cast<uint8_t>(std::min(total_dist / count, uint32_t(127)))
+                    : 0;
+            }
+        }
+
+        uint64_t edge_count = 0, encoded_count = 0;
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 128) reduction(+:edge_count, encoded_count)
+#endif
+        for (uint32_t src = 0; src < n; src++) {
+            // Materialize src's in-neighbors
+            std::vector<uint32_t> neighbors;
+            neighbors.reserve(64);
+            for (auto v : g.in_neigh(src)) neighbors.push_back(static_cast<uint32_t>(v));
+
+            // CROSS-ITERATION: look at src + K_JUMP — find its best dest
+            // (lowest POPT reuse distance among its in-neighbors).
+            // DROPLET cannot predict this target because it requires knowing
+            // the future kernel iteration's in-neighbor set.
+            uint32_t future_src = (src + k_jump < n) ? (src + k_jump) : (src);  // wrap-clamp
+            uint32_t cross_iter_target = 0;
+            if (future_src != src && !avg_reref_by_line.empty()) {
+                uint8_t best_dist = 128;
+                int probe_limit = 0;
+                for (auto v : g.in_neigh(future_src)) {
+                    if (probe_limit++ >= 32) break;  // cap probe to bound cost
+                    uint32_t cline = uint32_t(v) / numVtxPerLine;
+                    if (cline < avg_reref_by_line.size()) {
+                        uint8_t dist = avg_reref_by_line[cline];
+                        if (dist < best_dist) {
+                            best_dist = dist;
+                            cross_iter_target = uint32_t(v);
+                        }
+                    }
+                }
+            }
+
+            auto& masks = in_edge_masks_by_src[src];
+            masks.resize(neighbors.size(), 0);
+
+            for (size_t i = 0; i < neighbors.size(); i++) {
+                uint32_t dest = neighbors[i];
+                edge_count++;
+                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                uint8_t popt = 0;
+                if (!avg_reref_by_line.empty()) {
+                    uint32_t cl = dest / numVtxPerLine;
+                    if (cl < avg_reref_by_line.size()) popt = avg_reref_by_line[cl] & 0x7F;
+                }
+                if (cross_iter_target != 0) encoded_count++;
+                uint64_t mask = static_cast<uint64_t>(dest & 0xFFFFFFu);
+                mask |= static_cast<uint64_t>(dbg & 0x3u) << 24;
+                mask |= static_cast<uint64_t>(popt & 0x7Fu) << 26;
+                mask |= static_cast<uint64_t>(cross_iter_target & 0x7FFFFFFFu) << 33;
+                masks[i] = mask;
+            }
+        }
+
+        auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
+            Clock::now() - build_start).count();
+        std::cout << "ECG per-edge CROSS-ITER mask build: vertices=" << n
+                  << " edges=" << edge_count
+                  << " encoded=" << encoded_count
+                  << " (" << (encoded_count * 100.0 / std::max<uint64_t>(edge_count, 1)) << "%)"
+                  << " K_JUMP=" << k_jump
+                  << " time_s=" << std::fixed << std::setprecision(4)
+                  << (build_us / 1e6) << std::defaultfloat << std::endl;
+    }
+
+    // Helper to extract fields from a per-edge mask
+    static inline uint32_t edgeMaskDest(uint64_t mask) {
+        return static_cast<uint32_t>(mask & 0xFFFFFFu);
+    }
+    static inline uint8_t edgeMaskDBG(uint64_t mask) {
+        return static_cast<uint8_t>((mask >> 24) & 0x3u);
+    }
+    static inline uint8_t edgeMaskPOPT(uint64_t mask) {
+        return static_cast<uint8_t>((mask >> 26) & 0x7Fu);
+    }
+    static inline uint32_t edgeMaskPrefetch(uint64_t mask) {
+        return static_cast<uint32_t>((mask >> 33) & 0x7FFFFFFFu);
     }
 
     void printECGStats(std::ostream& os = std::cout) const {
