@@ -71,7 +71,7 @@ for short in "${!GRAPH_PATHS[@]}"; do
       if ECG_CONTAINER_BITS=64 timeout 7200 python3 scripts/experiments/ecg/roi_matrix.py \
           --suite cache-sim --no-build \
           --benchmark "$app" --options "$opts" \
-          --policies LRU SRRIP GRASP POPT ECG_DBG ECG_PRIMARY \
+          --policies LRU SRRIP GRASP POPT ECG_DBG_PRIMARY ECG_DBG_ONLY \
           --l1d-size 32kB --l1d-ways 8 \
           --l2-size 256kB --l2-ways 8 \
           --l3-sizes 1MB --l3-ways 16 --line-size 64 \

@@ -227,3 +227,88 @@ def test_ecg_pfx_more_efficient_than_droplet():
         f"ECG_PFX req/useful={ecg_rpu:.3f} > DROPLET req/useful={drop_rpu:.3f} "
         f"(ratio={ratio:.3f}, max {ECG_PFX_EFFICIENCY_MAX_RATIO})"
     )
+
+
+# === Demand-memory gates (sprint 6f-2 — added after the prefetcher-metric ===
+# === fix; cache_sim L3 miss-rate counts prefetch-triggered L3 misses,    ===
+# === which masks prefetcher value. memory_accesses_/total_accesses_ is   ===
+# === demand-only by design (cache_sim.h:1450+1463). These gates enforce  ===
+# === the prefetcher-aware metric as the headline going forward.          ===
+
+DEMAND_MEMORY_HEADLINE_PP = -3.0  # ECG_combined vs LRU on demand-memory
+PFX_MARGINAL_MIN_PP = -1.0  # ECG_PFX must provide >=1pp marginal gain over ECG_DBG
+DROPLET_MARGINAL_MIN_PP = -3.0  # DROPLET must provide >=3pp marginal gain over ECG_DBG
+
+
+# --- gate 306 ---
+
+
+def test_demand_memory_headline_floor():
+    """Gate 306: ECG_combined demand-memory rate beats LRU by mean ≥ 3 pp.
+
+    The prefetcher-aware demand-memory rate (memory_accesses /
+    total_accesses) is the headline metric — L3 miss rate is a
+    misleading-when-prefetcher-active fallback.
+    """
+    payload = _load()
+    _skip_if_no_data(payload)
+    summary = payload.get("summary", {})
+    mean_delta = summary.get("mean_demand_delta_vs_LRU_pp")
+    if mean_delta is None:
+        pytest.skip("no demand-memory data in summary — re-emit Table 4")
+    assert mean_delta <= DEMAND_MEMORY_HEADLINE_PP, (
+        f"Mean Δ demand-memory ECG_combined vs LRU = {mean_delta:.2f} pp "
+        f"> threshold {DEMAND_MEMORY_HEADLINE_PP:.2f} pp"
+    )
+
+
+# --- gate 307 ---
+
+
+def test_pfx_marginal_demand_memory_gain():
+    """Gate 307: ECG_PFX prefetcher delivers real demand-memory
+    reduction on top of ECG_DBG eviction (active-cell mean ≥ 1 pp).
+
+    Cells where the kernel emits no hints (BC) are excluded — only
+    cells with ≥1k prefetch requests count toward the active-cell
+    mean. This catches the "prefetcher fires but doesn't reduce
+    demand" failure mode the L3 miss-rate metric was hiding.
+    """
+    payload = _load()
+    summary = payload.get("summary", {})
+    active_marg = summary.get("mean_pfx_marginal_demand_active_pp")
+    n_active = summary.get("n_pfx_active_cells", 0)
+    if active_marg is None or n_active < 1:
+        pytest.skip("no active ECG_PFX cells in summary")
+    assert active_marg <= PFX_MARGINAL_MIN_PP, (
+        f"ECG_PFX active-cell marginal demand-memory delta = {active_marg:.2f} pp "
+        f"(n_active={n_active}) is too small (threshold {PFX_MARGINAL_MIN_PP:.2f} pp). "
+        "The prefetcher is firing but not reducing demand memory traffic — "
+        "shadow-tracking the eviction policy?"
+    )
+
+
+# --- gate 308 ---
+
+
+def test_droplet_marginal_demand_memory_validates_paper_claim():
+    """Gate 308: DROPLET prefetcher delivers ≥3pp demand-memory
+    reduction on top of ECG_DBG eviction (active-cell mean).
+
+    Validates our cache_sim DROPLET implementation reproduces the
+    Basak HPCA'19 reduction-vs-no-prefetch claim. If this gate fails,
+    our DROPLET port is broken — not a "small effect" but a
+    measurement/implementation bug.
+    """
+    payload = _load()
+    summary = payload.get("summary", {})
+    active_marg = summary.get("mean_droplet_marginal_demand_active_pp")
+    n_active = summary.get("n_droplet_active_cells", 0)
+    if active_marg is None or n_active < 1:
+        pytest.skip("no active DROPLET cells in summary")
+    assert active_marg <= DROPLET_MARGINAL_MIN_PP, (
+        f"DROPLET active-cell marginal demand-memory delta = {active_marg:.2f} pp "
+        f"(n_active={n_active}) is too small (threshold {DROPLET_MARGINAL_MIN_PP:.2f} pp). "
+        "Our DROPLET implementation should reproduce Basak HPCA'19 "
+        "15-45% LLC reduction. If gate is RED, the implementation is broken."
+    )

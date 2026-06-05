@@ -57,9 +57,21 @@ DELTA_BASES = ("LRU", "GRASP", "POPT", "DROPLET_COMBINED")
 def _read_baseline_row(csv_path: Path, policy_label: str) -> dict | None:
     if not csv_path.exists():
         return None
+    # Accept short-form aliases used by older sweep scripts that pass
+    # `--policies ECG_DBG ECG_PRIMARY` instead of the canonical
+    # `--policies ECG_DBG_PRIMARY ECG_DBG_ONLY`. The cache_sim emits
+    # policy_label=ECG_DBG for the former and ECG_DBG_ONLY for the latter,
+    # so we treat them as the same eviction-only ablation.
+    aliases = {
+        "ECG_DBG_ONLY": ("ECG_DBG_ONLY", "ECG_DBG"),
+        "ECG_DBG_PRIMARY": ("ECG_DBG_PRIMARY", "ECG_PRIMARY"),
+    }
+    accept = aliases.get(policy_label, (policy_label,))
     with csv_path.open() as f:
         for r in csv.DictReader(f):
-            if r.get("policy_label") == policy_label or r.get("policy") == policy_label:
+            label = r.get("policy_label", "")
+            pol = r.get("policy", "")
+            if label in accept or pol in accept:
                 return r
     return None
 
@@ -83,6 +95,26 @@ def _coerce_float(value: Any) -> float | None:
         return None
 
 
+def _demand_rate(row: dict | None) -> float | None:
+    """Demand-only L3 miss-rate proxy.
+
+    cache_sim counts prefetch-triggered L3 fetches toward l3_misses,
+    which masks prefetcher value when the prefetcher is active. The
+    correct prefetcher-aware metric is demand memory traffic per L1
+    access — cache_sim's ``memory_accesses_++`` counter (see
+    bench/include/cache_sim/cache_sim.h line 1450) is only
+    incremented on the demand path; ``prefetch()`` explicitly does
+    NOT touch it (line 1463 comment).
+    """
+    if row is None:
+        return None
+    total = _coerce_float(row.get("total_accesses"))
+    mem = _coerce_float(row.get("memory_accesses"))
+    if total is None or mem is None or total == 0:
+        return None
+    return mem / total
+
+
 def load_cells(sweep_root: Path) -> list[dict[str, Any]]:
     cells: list[dict[str, Any]] = []
     if not sweep_root.exists():
@@ -101,12 +133,16 @@ def load_cells(sweep_root: Path) -> list[dict[str, Any]]:
         for pol in BASELINE_LABELS:
             br = _read_baseline_row(base_csv, pol)
             row[pol] = _coerce_float(br.get("l3_miss_rate")) if br else None
+            row[f"{pol}_demand"] = _demand_rate(br)
         pfx_row = _read_pfx_row(pfx_csv, "ECG_PFX")
         row[PFX_LABEL] = _coerce_float(pfx_row.get("l3_miss_rate")) if pfx_row else None
+        row[f"{PFX_LABEL}_demand"] = _demand_rate(pfx_row)
         drop_row = _read_pfx_row(drop_csv, "DROPLET")
         row[DROPLET_LABEL] = _coerce_float(drop_row.get("l3_miss_rate")) if drop_row else None
+        row[f"{DROPLET_LABEL}_demand"] = _demand_rate(drop_row)
         # Synthetic key for the delta-vs-DROPLET calculation
         row["DROPLET_COMBINED"] = row[DROPLET_LABEL]
+        row["DROPLET_COMBINED_demand"] = row[f"{DROPLET_LABEL}_demand"]
         # Capture activity counters for table footnote / validation
         if pfx_row:
             row["pfx_fills"] = int(pfx_row.get("prefetch_fills") or 0)
@@ -127,29 +163,63 @@ def load_cells(sweep_root: Path) -> list[dict[str, Any]]:
                 row[f"delta_vs_{base}_pp"] = (pfx_mr - base_mr) * 100
             else:
                 row[f"delta_vs_{base}_pp"] = None
+            # Demand-only deltas — the prefetcher-aware metric.
+            base_dr = row.get(f"{base}_demand")
+            pfx_dr = row.get(f"{PFX_LABEL}_demand")
+            if base_dr is not None and pfx_dr is not None:
+                row[f"demand_delta_vs_{base}_pp"] = (pfx_dr - base_dr) * 100
+            else:
+                row[f"demand_delta_vs_{base}_pp"] = None
+        # Marginal prefetcher gain ON TOP OF ECG_DBG eviction —
+        # the honest "is the prefetcher doing anything?" measurement.
+        dbg_only_demand = row.get("ECG_DBG_ONLY_demand")
+        pfx_combined_demand = row.get(f"{PFX_LABEL}_demand")
+        drop_combined_demand = row.get(f"{DROPLET_LABEL}_demand")
+        if dbg_only_demand is not None and pfx_combined_demand is not None:
+            row["pfx_marginal_demand_pp"] = (pfx_combined_demand - dbg_only_demand) * 100
+        else:
+            row["pfx_marginal_demand_pp"] = None
+        if dbg_only_demand is not None and drop_combined_demand is not None:
+            row["droplet_marginal_demand_pp"] = (drop_combined_demand - dbg_only_demand) * 100
+        else:
+            row["droplet_marginal_demand_pp"] = None
         cells.append(row)
     return cells
 
 
 def emit_csv(cells: list[dict], path: Path) -> None:
     cols = ["graph", "app"] + list(BASELINE_LABELS) + [PFX_LABEL, DROPLET_LABEL] + \
+        [f"{pol}_demand" for pol in BASELINE_LABELS] + \
+        [f"{PFX_LABEL}_demand", f"{DROPLET_LABEL}_demand"] + \
         [f"delta_vs_{b}_pp" for b in DELTA_BASES] + \
-        ["pfx_fills", "pfx_useful", "pfx_requests",
+        [f"demand_delta_vs_{b}_pp" for b in DELTA_BASES] + \
+        ["pfx_marginal_demand_pp", "droplet_marginal_demand_pp",
+         "pfx_fills", "pfx_useful", "pfx_requests",
          "droplet_fills", "droplet_useful", "droplet_requests"]
     with path.open("w") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader()
         for c in cells:
             row = {k: c.get(k) for k in cols}
-            # Round miss-rates for readability
+            # Round miss-rates / demand-rates for readability
             for pol in list(BASELINE_LABELS) + [PFX_LABEL, DROPLET_LABEL]:
                 v = row.get(pol)
                 if v is not None:
                     row[pol] = round(v, 4)
+                v = row.get(f"{pol}_demand")
+                if v is not None:
+                    row[f"{pol}_demand"] = round(v, 4)
             for b in DELTA_BASES:
                 v = row.get(f"delta_vs_{b}_pp")
                 if v is not None:
                     row[f"delta_vs_{b}_pp"] = round(v, 2)
+                v = row.get(f"demand_delta_vs_{b}_pp")
+                if v is not None:
+                    row[f"demand_delta_vs_{b}_pp"] = round(v, 2)
+            for k in ("pfx_marginal_demand_pp", "droplet_marginal_demand_pp"):
+                v = row.get(k)
+                if v is not None:
+                    row[k] = round(v, 2)
             w.writerow(row)
 
 
@@ -160,22 +230,60 @@ def emit_md(cells: list[dict], path: Path, summary: dict) -> None:
     lines.append("Cache simulator with `ECG_CONTAINER_BITS=64` and runtime")
     lines.append("`ECG_PREFETCH_LOOKAHEAD=8` (`ECG_PREFETCH_MODE=2`, popt-ranked).")
     lines.append("DROPLET-combined column uses the same lookahead window with")
-    lines.append("sequential target selection (`ECG_PREFETCH_MODE=3`) — faithful")
-    lines.append("comparator to the literature DROPLET edge-stream stride prefetcher.")
+    lines.append("sequential target selection (`ECG_PREFETCH_MODE=3`) — best-case")
+    lines.append("oracle comparator to literature DROPLET (Basak HPCA'19); the")
+    lines.append("real DROPLET stride detector would add mis-prediction overhead.")
     lines.append("")
-    lines.append("## Headline summary")
+    lines.append("## How to read this table")
+    lines.append("")
+    lines.append("Two metrics are reported. **The prefetcher-aware metric is the")
+    lines.append("`demand-memory` rate**, not L3 miss-rate:")
+    lines.append("")
+    lines.append("- **`l3_miss_rate`** = `l3.misses / l3.accesses`. cache_sim's")
+    lines.append("  l3.misses counter is incremented on every L3 lookup that misses,")
+    lines.append("  including prefetch-triggered lookups (`prefetch()` calls")
+    lines.append("  `l3->access()` which increments `misses_++`; see")
+    lines.append("  bench/include/cache_sim/cache_sim.h:465 + 1480). When a")
+    lines.append("  prefetcher is active, the prefetcher itself triggers L3 misses")
+    lines.append("  (the fetch from memory IS an L3 miss), so L3 miss-rate barely")
+    lines.append("  moves even when the prefetcher eliminates demand misses 1-for-1.")
+    lines.append("- **`demand-memory` rate** = `memory_accesses / total_accesses`.")
+    lines.append("  `memory_accesses_++` only fires on the demand path (cache_sim.h:1450)")
+    lines.append("  and `prefetch()` explicitly does NOT increment it (cache_sim.h:1463")
+    lines.append("  comment). This is demand misses to memory per demand access —")
+    lines.append("  the metric the DROPLET paper's claims map onto.")
+    lines.append("")
+    lines.append("## Headline summary — demand-memory metric (prefetcher-aware)")
     lines.append("")
     if summary:
         if summary.get("n_cells_with_full_row") is not None:
             lines.append(f"- Cells with full data: **{summary['n_cells_with_full_row']}** of {len(cells)}")
+        if summary.get("mean_demand_delta_vs_LRU_pp") is not None:
+            lines.append(f"- Mean Δ ECG_combined demand-memory vs LRU: **{summary['mean_demand_delta_vs_LRU_pp']:+.2f} pp**")
+        if summary.get("mean_pfx_marginal_demand_pp") is not None:
+            lines.append(f"- **Marginal ECG_PFX gain on top of ECG_DBG eviction: `{summary['mean_pfx_marginal_demand_pp']:+.2f}` pp**  ← the honest prefetcher value")
+        if summary.get("mean_droplet_marginal_demand_pp") is not None:
+            lines.append(f"- **Marginal DROPLET gain on top of ECG_DBG eviction: `{summary['mean_droplet_marginal_demand_pp']:+.2f}` pp**")
+        if summary.get("n_pfx_active_cells") is not None:
+            lines.append(f"- Active prefetcher cells (≥1k requests issued): ECG_PFX **{summary['n_pfx_active_cells']}**, DROPLET **{summary['n_droplet_active_cells']}** of {len(cells)}")
+        if summary.get("mean_pfx_marginal_demand_active_pp") is not None:
+            lines.append(f"- Active-cell mean marginal: ECG_PFX **{summary['mean_pfx_marginal_demand_active_pp']:+.2f}** pp, DROPLET **{summary['mean_droplet_marginal_demand_active_pp']:+.2f}** pp")
+        if summary.get("ecg_pfx_pp_per_mreq") is not None and summary.get("droplet_pp_per_mreq") is not None:
+            lines.append(f"- Prefetcher efficiency (pp demand-memory reduction per million requests, active cells):")
+            lines.append(f"  - ECG_PFX: **{summary['ecg_pfx_pp_per_mreq']:.4f}** pp/Mreq")
+            lines.append(f"  - DROPLET: **{summary['droplet_pp_per_mreq']:.4f}** pp/Mreq")
+    lines.append("")
+    lines.append("## L3 miss-rate (pre-prefetch-aware metric; eviction story only)")
+    lines.append("")
+    if summary:
         if summary.get("mean_delta_vs_LRU_pp") is not None:
-            lines.append(f"- Mean Δ ECG_combined vs LRU: **{summary['mean_delta_vs_LRU_pp']:+.2f} pp**")
+            lines.append(f"- Mean Δ ECG_combined L3 miss vs LRU: **{summary['mean_delta_vs_LRU_pp']:+.2f} pp** ← eviction component dominates")
         if summary.get("mean_delta_vs_GRASP_pp") is not None:
-            lines.append(f"- Mean Δ ECG_combined vs GRASP: **{summary['mean_delta_vs_GRASP_pp']:+.2f} pp**")
+            lines.append(f"- Mean Δ ECG_combined L3 miss vs GRASP: **{summary['mean_delta_vs_GRASP_pp']:+.2f} pp**")
         if summary.get("mean_delta_vs_POPT_pp") is not None:
-            lines.append(f"- Mean Δ ECG_combined vs POPT: **{summary['mean_delta_vs_POPT_pp']:+.2f} pp**")
+            lines.append(f"- Mean Δ ECG_combined L3 miss vs POPT: **{summary['mean_delta_vs_POPT_pp']:+.2f} pp**")
         if summary.get("mean_delta_vs_DROPLET_COMBINED_pp") is not None:
-            lines.append(f"- Mean Δ ECG_PFX vs DROPLET (same baseline): **{summary['mean_delta_vs_DROPLET_COMBINED_pp']:+.2f} pp**")
+            lines.append(f"- Mean Δ ECG_PFX L3 miss vs DROPLET (same baseline): **{summary['mean_delta_vs_DROPLET_COMBINED_pp']:+.2f} pp** ← misleading: see demand-memory metric above")
         if summary.get("mean_useful_rate") is not None:
             lines.append(f"- Mean prefetch useful-rate: **{summary['mean_useful_rate'] * 100:.2f}%**")
         if summary.get("ecg_pfx_total_requests") is not None and summary.get("droplet_total_requests") is not None:
@@ -183,15 +291,30 @@ def emit_md(cells: list[dict], path: Path, summary: dict) -> None:
             drop_r = summary["droplet_total_requests"]
             ratio = drop_r / ecg_r if ecg_r else 0.0
             lines.append(f"- Total prefetch requests issued: ECG_PFX **{ecg_r:,}** vs DROPLET **{drop_r:,}** (DROPLET issues {ratio:.2f}× more)")
-        if summary.get("ecg_pfx_total_useful") is not None and summary.get("droplet_total_useful") is not None:
-            ecg_u = summary["ecg_pfx_total_useful"]
-            drop_u = summary["droplet_total_useful"]
-            ratio = drop_u / ecg_u if ecg_u else 0.0
-            lines.append(f"- Total useful prefetches: ECG_PFX **{ecg_u:,}** vs DROPLET **{drop_u:,}** (DROPLET useful is {ratio:.2f}× ECG_PFX's, both 99.99% useful_rate)")
-        if summary.get("ecg_pfx_req_per_useful") is not None and summary.get("droplet_req_per_useful") is not None:
-            lines.append(f"- Requests per useful prefetch: ECG_PFX **{summary['ecg_pfx_req_per_useful']:.3f}** vs DROPLET **{summary['droplet_req_per_useful']:.3f}** (ECG_PFX is more efficient — fewer wasted predictions per cache-hit benefit)")
     lines.append("")
-    lines.append("## Per-cell miss-rates")
+    lines.append("## Per-cell demand-memory rate (prefetcher-aware)")
+    lines.append("")
+    head = ["graph", "app", "LRU", "ECG_DBG", "ECG+PFX", "ECG+DROP", "Δ DBG vs LRU", "Marg. PFX", "Marg. DROP"]
+    lines.append("| " + " | ".join(head) + " |")
+    lines.append("|" + "|".join(["---"] * len(head)) + "|")
+    for c in cells:
+        def fd(key, fmt="{:.4f}", default="—"):
+            v = c.get(key)
+            return fmt.format(v) if v is not None else default
+        lru_d = c.get("LRU_demand")
+        dbg_d = c.get("ECG_DBG_ONLY_demand")
+        dbg_lru_delta_pp = (dbg_d - lru_d) * 100 if (dbg_d is not None and lru_d is not None) else None
+        row_cells = [
+            c["graph"], c["app"],
+            fd("LRU_demand"), fd("ECG_DBG_ONLY_demand"),
+            fd(f"{PFX_LABEL}_demand"), fd(f"{DROPLET_LABEL}_demand"),
+            f"{dbg_lru_delta_pp:+.2f} pp" if dbg_lru_delta_pp is not None else "—",
+            fd("pfx_marginal_demand_pp", "{:+.2f} pp"),
+            fd("droplet_marginal_demand_pp", "{:+.2f} pp"),
+        ]
+        lines.append("| " + " | ".join(str(x) for x in row_cells) + " |")
+    lines.append("")
+    lines.append("## Per-cell L3 miss-rates (legacy — kept for cross-reference)")
     lines.append("")
     head = ["graph", "app", "LRU", "GRASP", "POPT", "ECG_DBG", "ECG+PFX", "ECG+DROP", "Δ LRU", "Δ GRASP", "Δ POPT", "Δ DROPLET"]
     lines.append("| " + " | ".join(head) + " |")
@@ -291,6 +414,33 @@ def compute_summary(cells: list[dict]) -> dict:
         out[f"mean_delta_vs_{base}_pp"] = mean(deltas) if deltas else None
         out[f"min_delta_vs_{base}_pp"] = min(deltas) if deltas else None
         out[f"max_delta_vs_{base}_pp"] = max(deltas) if deltas else None
+        # Demand-only deltas — the prefetcher-aware metric.
+        demand_deltas = [c[f"demand_delta_vs_{base}_pp"] for c in full
+                         if c.get(f"demand_delta_vs_{base}_pp") is not None]
+        out[f"mean_demand_delta_vs_{base}_pp"] = mean(demand_deltas) if demand_deltas else None
+        out[f"min_demand_delta_vs_{base}_pp"] = min(demand_deltas) if demand_deltas else None
+        out[f"max_demand_delta_vs_{base}_pp"] = max(demand_deltas) if demand_deltas else None
+    # Marginal prefetcher gain on top of ECG_DBG eviction —
+    # the "is the prefetcher doing anything?" headline metric.
+    pfx_marg = [c["pfx_marginal_demand_pp"] for c in cells
+                if c.get("pfx_marginal_demand_pp") is not None]
+    drop_marg = [c["droplet_marginal_demand_pp"] for c in cells
+                 if c.get("droplet_marginal_demand_pp") is not None]
+    out["mean_pfx_marginal_demand_pp"] = mean(pfx_marg) if pfx_marg else None
+    out["mean_droplet_marginal_demand_pp"] = mean(drop_marg) if drop_marg else None
+    # Active-cell-only summary (cells where prefetcher actually fired) —
+    # avoids diluting the prefetcher claim with no-hint cells (e.g. BC kernel
+    # which emits zero hints).
+    pfx_active = [c["pfx_marginal_demand_pp"] for c in cells
+                  if c.get("pfx_marginal_demand_pp") is not None
+                  and (c.get("pfx_requests") or 0) >= 1000]
+    drop_active = [c["droplet_marginal_demand_pp"] for c in cells
+                   if c.get("droplet_marginal_demand_pp") is not None
+                   and (c.get("droplet_requests") or 0) >= 1000]
+    out["n_pfx_active_cells"] = len(pfx_active)
+    out["n_droplet_active_cells"] = len(drop_active)
+    out["mean_pfx_marginal_demand_active_pp"] = mean(pfx_active) if pfx_active else None
+    out["mean_droplet_marginal_demand_active_pp"] = mean(drop_active) if drop_active else None
     rates: list[float] = []
     for c in cells:
         fills = c.get("prefetch_fills") or 0
@@ -318,6 +468,28 @@ def compute_summary(cells: list[dict]) -> dict:
         out["droplet_requests_over_ecg_pfx"] = drop_req / pfx_req
     if drop_useful and pfx_useful:
         out["droplet_useful_over_ecg_pfx"] = drop_useful / pfx_useful
+    # Prefetcher demand-memory reduction per million requests —
+    # honest efficiency metric (pp of demand-memory reduction per Mreq).
+    # Aggregate demand-memory savings across active cells, divided by total
+    # requests on those same cells.
+    pfx_active_savings_pp = sum(-(c["pfx_marginal_demand_pp"]) for c in cells
+                                if c.get("pfx_marginal_demand_pp") is not None
+                                and (c.get("pfx_requests") or 0) >= 1000)
+    drop_active_savings_pp = sum(-(c["droplet_marginal_demand_pp"]) for c in cells
+                                 if c.get("droplet_marginal_demand_pp") is not None
+                                 and (c.get("droplet_requests") or 0) >= 1000)
+    pfx_active_reqs = sum((c.get("pfx_requests") or 0) for c in cells
+                          if (c.get("pfx_requests") or 0) >= 1000)
+    drop_active_reqs = sum((c.get("droplet_requests") or 0) for c in cells
+                           if (c.get("droplet_requests") or 0) >= 1000)
+    out["ecg_pfx_pp_per_mreq"] = (
+        pfx_active_savings_pp / (pfx_active_reqs / 1_000_000)
+        if pfx_active_reqs else None
+    )
+    out["droplet_pp_per_mreq"] = (
+        drop_active_savings_pp / (drop_active_reqs / 1_000_000)
+        if drop_active_reqs else None
+    )
     return out
 
 

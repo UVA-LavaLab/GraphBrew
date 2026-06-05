@@ -3,22 +3,72 @@
 Cache simulator with `ECG_CONTAINER_BITS=64` and runtime
 `ECG_PREFETCH_LOOKAHEAD=8` (`ECG_PREFETCH_MODE=2`, popt-ranked).
 DROPLET-combined column uses the same lookahead window with
-sequential target selection (`ECG_PREFETCH_MODE=3`) — faithful
-comparator to the literature DROPLET edge-stream stride prefetcher.
+sequential target selection (`ECG_PREFETCH_MODE=3`) — best-case
+oracle comparator to literature DROPLET (Basak HPCA'19); the
+real DROPLET stride detector would add mis-prediction overhead.
 
-## Headline summary
+## How to read this table
+
+Two metrics are reported. **The prefetcher-aware metric is the
+`demand-memory` rate**, not L3 miss-rate:
+
+- **`l3_miss_rate`** = `l3.misses / l3.accesses`. cache_sim's
+  l3.misses counter is incremented on every L3 lookup that misses,
+  including prefetch-triggered lookups (`prefetch()` calls
+  `l3->access()` which increments `misses_++`; see
+  bench/include/cache_sim/cache_sim.h:465 + 1480). When a
+  prefetcher is active, the prefetcher itself triggers L3 misses
+  (the fetch from memory IS an L3 miss), so L3 miss-rate barely
+  moves even when the prefetcher eliminates demand misses 1-for-1.
+- **`demand-memory` rate** = `memory_accesses / total_accesses`.
+  `memory_accesses_++` only fires on the demand path (cache_sim.h:1450)
+  and `prefetch()` explicitly does NOT increment it (cache_sim.h:1463
+  comment). This is demand misses to memory per demand access —
+  the metric the DROPLET paper's claims map onto.
+
+## Headline summary — demand-memory metric (prefetcher-aware)
 
 - Cells with full data: **16** of 16
-- Mean Δ ECG_combined vs LRU: **-5.52 pp**
-- Mean Δ ECG_combined vs GRASP: **+0.01 pp**
-- Mean Δ ECG_combined vs POPT: **+0.55 pp**
-- Mean Δ ECG_PFX vs DROPLET (same baseline): **+0.00 pp**
+- Mean Δ ECG_combined demand-memory vs LRU: **-7.24 pp**
+- **Marginal ECG_PFX gain on top of ECG_DBG eviction: `-4.72` pp**  ← the honest prefetcher value
+- **Marginal DROPLET gain on top of ECG_DBG eviction: `-13.35` pp**
+- Active prefetcher cells (≥1k requests issued): ECG_PFX **12**, DROPLET **12** of 16
+- Active-cell mean marginal: ECG_PFX **-6.31** pp, DROPLET **-17.80** pp
+- Prefetcher efficiency (pp demand-memory reduction per million requests, active cells):
+  - ECG_PFX: **0.2780** pp/Mreq
+  - DROPLET: **0.2278** pp/Mreq
+
+## L3 miss-rate (pre-prefetch-aware metric; eviction story only)
+
+- Mean Δ ECG_combined L3 miss vs LRU: **-5.52 pp** ← eviction component dominates
+- Mean Δ ECG_combined L3 miss vs GRASP: **+0.01 pp**
+- Mean Δ ECG_combined L3 miss vs POPT: **+0.55 pp**
+- Mean Δ ECG_PFX L3 miss vs DROPLET (same baseline): **+0.00 pp** ← misleading: see demand-memory metric above
 - Mean prefetch useful-rate: **99.99%**
 - Total prefetch requests issued: ECG_PFX **272,555,455** vs DROPLET **937,407,051** (DROPLET issues 3.44× more)
-- Total useful prefetches: ECG_PFX **137,608,493** vs DROPLET **429,561,791** (DROPLET useful is 3.12× ECG_PFX's, both 99.99% useful_rate)
-- Requests per useful prefetch: ECG_PFX **1.981** vs DROPLET **2.182** (ECG_PFX is more efficient — fewer wasted predictions per cache-hit benefit)
 
-## Per-cell miss-rates
+## Per-cell demand-memory rate (prefetcher-aware)
+
+| graph | app | LRU | ECG_DBG | ECG+PFX | ECG+DROP | Δ DBG vs LRU | Marg. PFX | Marg. DROP |
+|---|---|---|---|---|---|---|---|---|
+| cit-Patents | bc | 0.6922 | 0.7034 | 0.7032 | 0.7023 | +1.12 pp | -0.02 pp | -0.11 pp |
+| cit-Patents | bfs | 0.1025 | 0.1013 | 0.0981 | 0.0922 | -0.12 pp | -0.31 pp | -0.91 pp |
+| cit-Patents | pr | 0.3790 | 0.3330 | 0.2370 | 0.0566 | -4.60 pp | -9.60 pp | -27.64 pp |
+| cit-Patents | sssp | 0.5755 | 0.5551 | 0.3923 | 0.0995 | -2.04 pp | -16.28 pp | -45.56 pp |
+| com-orkut | pr | 0.2670 | 0.2593 | 0.1950 | 0.0325 | -0.77 pp | -6.44 pp | -22.68 pp |
+| email-Eu-core | pr | 0.0156 | 0.0156 | 0.0156 | 0.0156 | +0.00 pp | +0.00 pp | +0.00 pp |
+| soc-LiveJournal1 | bc | 0.5360 | 0.5081 | 0.5085 | 0.5089 | -2.79 pp | +0.04 pp | +0.08 pp |
+| soc-LiveJournal1 | bfs | 0.1434 | 0.1299 | 0.1132 | 0.0787 | -1.35 pp | -1.66 pp | -5.12 pp |
+| soc-LiveJournal1 | pr | 0.2045 | 0.1911 | 0.1364 | 0.0356 | -1.34 pp | -5.47 pp | -15.55 pp |
+| soc-LiveJournal1 | sssp | 0.3612 | 0.3370 | 0.2279 | 0.0369 | -2.41 pp | -10.92 pp | -30.02 pp |
+| soc-pokec | bc | 0.6974 | 0.6259 | 0.6259 | 0.6255 | -7.15 pp | -0.00 pp | -0.04 pp |
+| soc-pokec | pr | 0.2716 | 0.2172 | 0.1498 | 0.0335 | -5.45 pp | -6.74 pp | -18.37 pp |
+| soc-pokec | sssp | 0.4664 | 0.3856 | 0.2526 | 0.0264 | -8.09 pp | -13.29 pp | -35.91 pp |
+| web-Google | bc | 0.4232 | 0.4245 | 0.4259 | 0.4249 | +0.12 pp | +0.15 pp | +0.05 pp |
+| web-Google | bfs | 0.1021 | 0.0986 | 0.0969 | 0.0945 | -0.35 pp | -0.16 pp | -0.41 pp |
+| web-Google | pr | 0.2023 | 0.1525 | 0.1037 | 0.0385 | -4.98 pp | -4.88 pp | -11.40 pp |
+
+## Per-cell L3 miss-rates (legacy — kept for cross-reference)
 
 | graph | app | LRU | GRASP | POPT | ECG_DBG | ECG+PFX | ECG+DROP | Δ LRU | Δ GRASP | Δ POPT | Δ DROPLET |
 |---|---|---|---|---|---|---|---|---|---|---|---|
