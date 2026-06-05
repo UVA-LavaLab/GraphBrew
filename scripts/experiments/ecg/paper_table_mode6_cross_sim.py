@@ -116,7 +116,12 @@ def _read_cache_sim_table(csv_path: Path) -> dict[str, dict]:
             cell = row.get("cell") or row.get("Cell") or row.get("graph_app")
             if not cell:
                 continue
-            out[cell] = row
+            # Normalize the cache_sim corpus columns to our generic keys.
+            out[cell] = {
+                "ecg_pfx_pp_savings": row.get("mode6_delta_pp"),
+                "mode6_pp_savings": row.get("mode6_delta_pp"),
+                **row,
+            }
     return out
 
 

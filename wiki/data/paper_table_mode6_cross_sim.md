@@ -9,6 +9,6 @@ Sprint 6f-6 cross-sim audit: pairs Sniper mode 6 cells (from pfx_sniper_mode6_sw
 | Cell | Sniper baseline | Sniper ECG_PFX | Sniper Δ | cache_sim Δ |
 |---|---:|---:|---:|---:|
 | email-Eu-core-pr | — | — | pending | pending |
-| delaunay_n19-pr | — | — | pending | pending |
+| delaunay_n19-pr | 0.9619 | — | pending | pending |
 | roadNet-CA-pr | — | — | pending | pending |
-| web-Google-pr | — | — | pending | pending |
+| web-Google-pr | — | — | pending | -3.84pp |
