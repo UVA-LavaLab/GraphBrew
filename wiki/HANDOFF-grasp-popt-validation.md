@@ -111,32 +111,37 @@ sweep dispatches 3 arms per cell → postfix builder ingests CSVs
 → audit flips ``status=active`` → these 4 gates become
 load-bearing.
 
-**ECG combined-mask scale claims (gate 285, refresh @285) — PUBLISH HEADLINE:**
+**ECG combined-mask scale claims (gate 285, refresh @287) — CORRECTED PUBLISH HEADLINE:**
 After sprint 6c (commits ``e2b3a1a`` + ``7d99586``) recovered the
 ECG_PFX value story — Sniper measurements on email-Eu-core misled
 toward "ECG_PFX is useless" because (a) ``ECG_CONTAINER_BITS=32``
 default leaves PFX with 0 bits on multi-million-vertex graphs,
 (b) email-Eu-core fits in L1d so any prefetcher target is L1-hit,
 (c) ECG_PFX with LRU eviction has its prefetches evicted before use —
-the new gate 285 locks the 4 publish claims at scale: cache_sim
-sweep across literature graphs at L3=1MB with
+gate 285 locked the 4 cache_sim scale claims at L3=1MB with
 ``ECG_CONTAINER_BITS=64`` and runtime ``ECG_PREFETCH_LOOKAHEAD=8``.
 Sub-gates ``test_full_data_cell_count_floor`` (297, ratchet),
-``test_ecg_combined_vs_lru_mean_floor`` (298, mean Δ ≤ -3 pp —
+``test_ecg_combined_vs_lru_mean_floor`` (298, mean L3 Δ ≤ -3 pp —
 combined mask wins on average across the corpus),
 ``test_no_per_cell_regression_vs_lru`` (299, no cell regresses
 > 0.5 pp), ``test_prefetch_useful_rate_floor`` (300, mean
 prefetch_useful / prefetch_fills ≥ 90% on active cells). Today
-**16/16 cells** GREEN: mean Δ vs LRU = **-5.52 pp**, no per-cell
-regression > 0.5 pp, mean prefetch useful-rate 99.99% on 145M
-ECG_PFX requests. ECG_PFX matches DROPLET miss-rate to +0.00 pp
-average (gate 301) while issuing **1.75× fewer total prefetches**
-than DROPLET (gate 302) — the same L3 reduction with less prefetch
-bandwidth. Source artifact:
-``wiki/data/paper_table_prefetcher.json`` produced by
+**16/16 cells** GREEN with corrected demand-memory metric
+(sprint 6f-2 metric fix, commit ``800191d``): mean ECG_combined
+Δ vs LRU = **-7.24 pp demand-memory** (L3 miss-rate -5.52 pp was
+the pre-fix metric and is misleading when prefetcher active — see
+``docs/findings/prefetcher_saturation_under_eviction.md``).
+**Honest reframe of prefetcher claims** (sprint 6f-4 + 6f-5):
+ECG_PFX and DROPLET CONVERGE at saturation — both achieve identical
+demand-memory reduction at matched bandwidth. ECG_PFX wins per-request
+efficiency by ~7.6% at K=1, but the absolute reduction is bounded by
+the cache hot-working-set ceiling (gate 287 prefetcher-cap finding).
+The ECG_DBG eviction component delivers the headline gain; the
+prefetcher is a bandwidth/quality knob, not a primary novelty.
+Source artifact: ``wiki/data/paper_table_prefetcher.json`` produced by
 ``scripts/experiments/ecg/paper_table_prefetcher.py`` from the
 matched cache_sim scale sweep at
-``/tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined}/roi_matrix.csv``.
+``/tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined,droplet_combined}/roi_matrix.csv``.
 
 **Headline coverage proof (gate 282, refresh @282) — FIRST PROOF GATE:**
 Gates 273-281 were vocabulary-lock AST audits (Slurm SBATCH schema …
