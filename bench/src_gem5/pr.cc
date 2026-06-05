@@ -22,6 +22,9 @@
 
 #include "gem5_sim/gem5_harness.h"
 
+// ECG mode 6 (per-edge mask) builder — shared with cache_sim and Sniper.
+#include "ecg_mode6_builder.h"
+
 using namespace std;
 
 typedef float ScoreT;
@@ -55,14 +58,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
 
     // Build P-OPT rereference matrix (matching standalone src_sim/pr.cc)
     // Predicts future cache line accesses from graph structure.
+    static pvector<uint8_t> popt_matrix;
+    constexpr int kNumVtxPerLine = 64 / sizeof(ScoreT);  // 16 floats per line
+    constexpr int kNumEpochs = 256;
+    int popt_num_cache_lines = (g.num_nodes() + kNumVtxPerLine - 1) / kNumVtxPerLine;
     {
-        constexpr int numVtxPerLine = 64 / sizeof(ScoreT);  // 16 floats per line
-        constexpr int numEpochs = 256;
-        static pvector<uint8_t> popt_matrix;
-        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
-        int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-        gem5_export_popt_matrix(popt_matrix.data(), numCacheLines,
-                                numEpochs, g.num_nodes());
+        makeOffsetMatrix(g, popt_matrix, kNumVtxPerLine, kNumEpochs);
+        gem5_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
+                                kNumEpochs, g.num_nodes());
     }
 
     // === ECG Adaptive Prefetch ===
@@ -129,6 +132,26 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     bool ecg_prefetch_enabled = ecg_prefetch_env && string(ecg_prefetch_env) != "0";
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
 
+    // === Mode 6: Per-Edge ECG Mask (paper's ECG design, sprint 6f-5) ===
+    // Build the per-edge mask array once before iteration begins. When
+    // GEM5_ECG_PFX_MODE=6 the inner loop reads pre-encoded prefetch targets
+    // from this array instead of computing them at runtime.
+    int ecg_pfx_mode = gem5_env_int_clamped("GEM5_ECG_PFX_MODE", 0, 0, 7);
+    int edge_mask_lookahead = gem5_env_int_clamped("GEM5_ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64);
+    vector<vector<uint64_t>> in_edge_masks_by_src;
+    if (ecg_prefetch_enabled && ecg_pfx_mode == 6) {
+        vector<uint8_t> avg_reref_by_line;
+        ecg_mode6::computeAvgRerefByLine(popt_matrix.data(), popt_num_cache_lines,
+                                         kNumEpochs, avg_reref_by_line);
+        vector<uint8_t> tiers;
+        ecg_mode6::computeDegreeTiers(g, tiers);
+        ecg_mode6::buildInEdgeMasks(g, tiers, avg_reref_by_line,
+                                    edge_mask_lookahead, kNumVtxPerLine,
+                                    in_edge_masks_by_src, "gem5-PR");
+        printf("[gem5 ECG mode 6] lookahead=%d (per-edge mask path active)\n",
+               edge_mask_lookahead);
+    }
+
     for (NodeID n = 0; n < g.num_nodes(); n++)
         outgoing_contrib[n] = init_score / g.out_degree(n);
 
@@ -146,6 +169,43 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
             ScoreT incoming_total = 0;
 
             auto in_neigh = g.in_neigh(u);
+
+            // === Mode 6: per-edge ECG mask path (ECG paper's design) ===
+            // Pre-encoded mask at in_edge_masks_by_src[u][edge_pos] carries
+            // the dest, DBG/POPT bits, and a POPT-ranked prefetch target.
+            // We decode dest from the mask and issue the prefetch hint;
+            // demand load on outgoing_contrib[v] happens as normal.
+            if (ecg_prefetch_enabled && ecg_pfx_mode == 6
+                && u < static_cast<NodeID>(in_edge_masks_by_src.size())) {
+                const auto& src_masks = in_edge_masks_by_src[u];
+                size_t edge_pos = 0;
+                for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
+                    uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
+                    NodeID v = static_cast<NodeID>(ecg_mode6::extractDest(mask));
+                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
+                    if (prefetch_target != 0) {
+                        bool in_window = false;
+                        for (int w = 0; w < PREFETCH_WINDOW; w++) {
+                            if (pfx_window[w] == static_cast<NodeID>(prefetch_target)) {
+                                in_window = true;
+                                break;
+                            }
+                        }
+                        if (!in_window) {
+                            GEM5_ECG_PFX_TARGET(prefetch_target);
+                            pfx_window[pfx_window_pos % PREFETCH_WINDOW] = prefetch_target;
+                            pfx_window_pos++;
+                        }
+                    }
+                    incoming_total += outgoing_contrib[v];
+                }
+                ScoreT old_score = scores[u];
+                scores[u] = base_score + kDamp * incoming_total;
+                error += fabs(scores[u] - old_score);
+                outgoing_contrib[u] = scores[u] / g.out_degree(u);
+                continue;
+            }
+
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
                 NodeID v = *it;
                 if (ecg_prefetch_enabled && pfx_lookahead > 0) {

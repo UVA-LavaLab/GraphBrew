@@ -20,6 +20,9 @@
 #include "graphbrew/partition/cagra/popt.h"
 #include "sniper_sim/sniper_harness.h"
 
+// ECG mode 6 (per-edge mask) builder — shared with cache_sim and gem5.
+#include "ecg_mode6_builder.h"
+
 using namespace std;
 
 typedef float ScoreT;
@@ -47,14 +50,14 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
     int num_edge_regions = sniper_make_edge_regions(g, edge_regions, 2, true);
     sniper_export_context(regions, 2, g, nullptr, edge_regions, num_edge_regions);
 
+    static pvector<uint8_t> popt_matrix;
+    constexpr int kNumVtxPerLine = 64 / sizeof(ScoreT);
+    constexpr int kNumEpochs = 256;
+    int popt_num_cache_lines = (g.num_nodes() + kNumVtxPerLine - 1) / kNumVtxPerLine;
     {
-        constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
-        constexpr int numEpochs = 256;
-        static pvector<uint8_t> popt_matrix;
-        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
-        int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-        sniper_export_popt_matrix(popt_matrix.data(), numCacheLines,
-                                  numEpochs, g.num_nodes());
+        makeOffsetMatrix(g, popt_matrix, kNumVtxPerLine, kNumEpochs);
+        sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
+                                  kNumEpochs, g.num_nodes());
     }
 
     uint8_t id_bits = 1;
@@ -104,6 +107,25 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
         graphbrew_sniper::env_int_clamped("ECG_PREFETCH_LOOKAHEAD", 4, 0, 64),
         0, 64);
 
+    // === Mode 6: Per-Edge ECG Mask (paper's ECG design, sprint 6f-5) ===
+    int ecg_pfx_mode = graphbrew_sniper::env_int_clamped(
+        "SNIPER_ECG_PFX_MODE", 0, 0, 7);
+    int edge_mask_lookahead = graphbrew_sniper::env_int_clamped(
+        "SNIPER_ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64);
+    vector<vector<uint64_t>> in_edge_masks_by_src;
+    if (ecg_prefetch_enabled && ecg_pfx_mode == 6) {
+        vector<uint8_t> avg_reref_by_line;
+        ecg_mode6::computeAvgRerefByLine(popt_matrix.data(), popt_num_cache_lines,
+                                         kNumEpochs, avg_reref_by_line);
+        vector<uint8_t> tiers;
+        ecg_mode6::computeDegreeTiers(g, tiers);
+        ecg_mode6::buildInEdgeMasks(g, tiers, avg_reref_by_line,
+                                    edge_mask_lookahead, kNumVtxPerLine,
+                                    in_edge_masks_by_src, "sniper-PR");
+        printf("[sniper ECG mode 6] lookahead=%d (per-edge mask path active)\n",
+               edge_mask_lookahead);
+    }
+
     for (NodeID n = 0; n < g.num_nodes(); n++) {
         outgoing_contrib[n] = init_score / g.out_degree(n);
     }
@@ -120,6 +142,44 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
             ScoreT incoming_total = 0;
 
             auto in_neigh = g.in_neigh(u);
+
+            // === Mode 6: per-edge ECG mask path (paper's ECG design) ===
+            if (ecg_prefetch_enabled && ecg_pfx_mode == 6
+                && u < static_cast<NodeID>(in_edge_masks_by_src.size())) {
+                const auto& src_masks = in_edge_masks_by_src[u];
+                size_t edge_pos = 0;
+                for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
+                    uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
+                    NodeID v = static_cast<NodeID>(ecg_mode6::extractDest(mask));
+                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
+                    if (prefetch_target != 0) {
+                        bool in_window = false;
+                        for (int w = 0; w < PREFETCH_WINDOW; w++) {
+                            if (pfx_window[w] == static_cast<NodeID>(prefetch_target)) {
+                                in_window = true;
+                                break;
+                            }
+                        }
+                        if (!in_window) {
+#if GRAPHBREW_SNIPER_HAS_SIM_API
+                            SNIPER_ECG_PFX_TARGET(prefetch_target);
+#else
+                            volatile ScoreT pf = outgoing_contrib[prefetch_target];
+                            (void)pf;
+#endif
+                            pfx_window[pfx_window_pos % PREFETCH_WINDOW] = prefetch_target;
+                            pfx_window_pos++;
+                        }
+                    }
+                    incoming_total += outgoing_contrib[v];
+                }
+                ScoreT old_score = scores[u];
+                scores[u] = base_score + kDamp * incoming_total;
+                error += fabs(scores[u] - old_score);
+                outgoing_contrib[u] = scores[u] / g.out_degree(u);
+                continue;
+            }
+
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
                 NodeID v = *it;
                 if (ecg_prefetch_enabled && pfx_lookahead > 0) {
