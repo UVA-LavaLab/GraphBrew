@@ -133,3 +133,35 @@ this saturation observation is itself a **paper-worthy negative result**.
   raw cache_sim CSVs
 - Paper Table 4 (prefetcher comparison): `wiki/data/paper_table_prefetcher.{json,md,csv}`
 - Paper Table 5 (metadata cost — primary novelty): `wiki/data/paper_table_metadata_cost.{json,md,csv}`
+
+## Addendum (sprint 6f-5 closeout, Sniper A retry harvest)
+
+### DROPLET cache pollution on uniform meshes
+
+Sniper cycle-accurate validation on `delaunay_n19` (uniform 2-D mesh,
+524k vertices, avg degree 6) at L3=1MB revealed a workload class where
+**DROPLET hurts performance via cache pollution**:
+
+| Arm | L3 miss rate | Δ vs no-pfx |
+|-----|------------:|------------:|
+| none | 0.3441 | — |
+| **DROPLET** | **0.6505** | **+30.64 pp WORSE** |
+| ECG_PFX | 0.3404 | -0.37 pp (neutral) |
+
+DROPLET's sequential stride engine emits K=16 indirect prefetches per
+edge-stride trigger. On uniform meshes the access pattern is NOT
+sequential — DROPLET's prefetches pollute the cache by evicting lines
+the demand stream needs.
+
+ECG_PFX (mode 2 K=1 POPT-ranked) issues 1 prefetch per demand and
+that target is POPT-quality filtered. On meshes the POPT prediction
+correctly identifies "no useful target → skip" → ECG_PFX stays
+near-neutral.
+
+**This is a DROPLET vulnerability ECG_PFX does not share.** Worth a
+paper paragraph: ECG_PFX is "do no harm" by design (quality-filtered)
+while DROPLET is bandwidth-aggressive (sweep-everything).
+
+Confirmed on delaunay_n19/bfs only (delaunay_n19/pr + sssp timed out
+at the wrapper's 6000s budget — would need 3+ hour per-cell budget
+to capture).
