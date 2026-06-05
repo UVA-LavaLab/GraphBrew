@@ -395,6 +395,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_ecg_complexity_claims.py", "ComplexityCompare"),
     "ECG mode 6 corpus efficiency (gate 289) — per-edge mask 4-cell corpus: gate 316 data present, gate 317 mode 6 corpus pp/Mreq ≥ 1.05x mode 2 (currently 1.14x = +14%), gate 318 mode 6 pp/Mreq ≥ 1.10x DROPLET (currently 1.35x = +35%)":
         ("scripts/test/test_ecg_mode6_corpus_efficiency.py", "Mode6Corpus"),
+    "ECG mode 6 cross-sim parity (gate 290) — sprint 6f-6 port lock: shared ecg_mode6::buildInEdgeMasks invoked by gem5-PR + sniper-PR + sniper-sg-PR; assert 3-way byte-identical encoded count (anchor: vertices=1005, edges=32128, encoded=31142)":
+        ("scripts/test/test_ecg_mode6_cross_sim_parity.py", "Mode6Parity"),
     "Paper label-map integrity (gate 242) — POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels":
         ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
     "POLICY_COLORS perceptual distinguishability (gate 243) — hex format + dedup + pairwise CIE76 ΔE ≥ 12 + B&W lightness-delta ≥ 10 or hatch fallback (grandfathered allowlist) + ΔE ≥ 18 from white + POLICY_HATCHES ⊆ POLICY_LABELS":

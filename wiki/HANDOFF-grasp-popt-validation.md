@@ -8,7 +8,27 @@ Tier A/B/C have all landed. The work has since expanded into a full
 "is everything still green?" gate suite that runs on a single
 `make confidence` invocation. The dashboard lives at
 [`wiki/data/confidence_dashboard.md`](data/confidence_dashboard.md)
-and currently reports **289 gates, all GREEN, exit 0**.
+and currently reports **290 gates, all GREEN, exit 0**.
+
+**ECG mode 6 cross-sim parity (gate 290, refresh @290) — SPRINT 6f-6 PORT LOCK:**
+The paper's headline mode 6 result was cache_sim-only before sprint
+6f-6. The shared header ``bench/include/ecg_mode6_builder.h`` was
+extracted and gem5 + Sniper PR kernels (``bench/src_gem5/pr.cc``,
+``bench/src_sniper/pr.cc``, ``bench/src_sniper/sg_kernel.cc``) all
+now call ``ecg_mode6::buildInEdgeMasks`` for the per-edge mask
+construction. Cross-sim parity is locked by gates 319 (anchor:
+email-Eu-core produces vertices=1005 edges=32128 encoded=31142,
+96.9%) and 320 (3-way equality across gem5-PR, sniper-PR,
+sniper-sg-PR binaries). The gate runs the three binaries at test
+time with ``ECG_PREFETCH_MODE=6`` and asserts byte-identical
+encoded counts; any change to the shared builder, the kernel
+wiring, or env-knob plumbing trips this gate.
+
+Companion: docs/findings/gem5_ecg_pfx_simobject_gap.md records the
+gem5 ECG_PFX SimObject hint-to-issue gap discovered during port
+validation (gem5 receives hints but reports pfIssued=0; pre-existing
+tech debt, not a port bug; §6.3 of the paper already documents
+this limitation).
 
 **ECG mode 6 corpus efficiency (gate 289, refresh @289) — PER-EDGE PAPER DESIGN PARETO POINT:**
 Sprint 6f-5 spike implementing the ECG paper's actual instruction design
@@ -1587,8 +1607,8 @@ axis-coverage and cell-completeness audits:
   Catches "axis collapse" regressions. Today: pr=8 graphs/112 rows
   (full sweep), bc=bfs=7/92, cc=sssp=6/80, 0 violations.
 
-**Refresh status:** Refresh complete at gate 289. Next refresh due
-at gate 294. To refresh: `make confidence-fast` (≈12 min),
+**Refresh status:** Refresh complete at gate 290. Next refresh due
+at gate 295. To refresh: `make confidence-fast` (≈12 min),
 inspect `wiki/data/confidence_dashboard.md`, then update the
 **gate-N paragraph at the top**, the headline `**N gates,
 all GREEN, exit 0**`, and this "Refresh status" line.
