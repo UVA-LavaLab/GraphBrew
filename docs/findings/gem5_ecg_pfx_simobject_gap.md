@@ -50,8 +50,51 @@ Note that `pfHitInCache = 0` rules out (2) as the main cause (the addresses aren
 2. If queue capacity is non-zero, instrument `calculatePrefetch` to dump `addresses.size()` per call. If non-zero, the gap is downstream.
 3. Compare with the DROPLET-class indirect prefetcher in the same overlay tree (`bench/include/gem5_sim/overlays/mem/cache/prefetch/droplet.{cc,hh}`) — if DROPLET issues prefetches but ECG_PFX doesn't on the same workload, the gap is ECG_PFX-specific.
 
+## Smoking gun comparison (added 2026-06-05 14:10)
+
+Side-by-side gem5 smoke with identical L1/L2/L3 config (32kB/256kB/1MB)
+on email-Eu-core/pr at -i 2 iterations:
+
+| Arm    | calculatePrefetch fires | addresses.push_back | pfIssued | pfUseful |
+|--------|------------------------|--------------------:|---------:|---------:|
+| DROPLET| many (every cache acc) | many (per-edge)     | **867**  | **776**  |
+| ECG_PFX| at least 1 (log line)  | at least 1          | **0**    | 0        |
+
+So gem5's prefetcher infrastructure DOES work end-to-end (DROPLET
+issues 867 prefetches with 89% accuracy in the same gem5 build).
+The ECG_PFX-specific gap is between `addresses.push_back()` in
+`calculatePrefetch()` and `pfIssued` being incremented.
+
+Differential analysis:
+- Same base class: both extend `Queued` (gem5 QueuedPrefetcher).
+- Same config params: `prefetch_on_access=True, on_inst=False,
+  use_virtual_addresses=True, queue_size=32` (default).
+- Same `addresses.push_back(AddrPriority(addr, 0))` call.
+- DROPLET pushes on EVERY cache access in `isEdgeArrayAccess` range;
+  ECG_PFX pushes only when a hint is queued by the kernel
+  (sparse, kernel-driven via m5op `setPrefetchTargetHint`).
+
+Hypothesis (not verified, requires gem5-expert follow-up):
+- gem5's Queued base class inserts pushed addresses into an internal
+  prefetch queue. Queue draining happens in `issuePrefetch()` which
+  is called from the cache's `tick()` loop. If the prefetch queue
+  inserts a packet that references a virtual address far from the
+  current PC's translation context (or that crosses a page bound),
+  the `Queued::translateFunctional()` step may silently drop it.
+- Alternatively: the m5op-handler delivering hints may run in a
+  thread context that produces packets gem5 cannot enqueue to the
+  L2 prefetcher queue.
+
+Next debug step (NOT done in this session): add an instrumentation
+counter inside ecg_pfx.cc to count `addresses.push_back()` calls,
+compare against `pfIssued`. If push count >> 0 but issued = 0,
+the gap is in `Queued::issuePrefetch()` for the ECG_PFX SimObject
+specifically; if push count = 0, the gap is in
+`consumePrefetchTargetHint()` not returning true.
+
 ## Status
 
 - Documented in this finding.
 - Sniper mode 6 sweep (commit `1aa1b24b` + sprint 6f-6) provides the cross-sim audit path the paper needs.
-- gem5 cycle-accurate ECG_PFX validation is deferred to a follow-on hardware-synthesis study (already framed this way in §6.3).
+- gem5 cycle-accurate ECG_PFX validation is deferred to a follow-on study.
+- §6.3 of the paper documents this scope limitation honestly.
