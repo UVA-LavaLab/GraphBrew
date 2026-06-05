@@ -389,6 +389,8 @@ PYTEST_SUITES: dict[str, tuple[str, str]] = {
         ("scripts/test/test_ecg_combined_scale_claims.py", "PfxScale"),
     "ECG synthetic-scale claims (gate 286) — Kronecker extrapolation at 4M (kron-s22) + 16M (kron-s24): gate 303 synthetic mean Δ vs LRU ≤ -3pp, gate 304 ECG_PFX ≤ DROPLET+0.5pp per cell, gate 305 ECG_PFX total requests < DROPLET total":
         ("scripts/test/test_ecg_synthetic_scale_claims.py", "PfxScaleSynthetic"),
+    "ECG metadata-cost (gate 287) — architectural-simplicity primary novelty: gate 309 ECG mask ≤ POPT matrix / 1.5x per graph, gate 310 ECG mask ≤ (GRASP+POPT+DROPLET) sum / 1.5x, gate 311 bit budget integrity":
+        ("scripts/test/test_ecg_metadata_cost_claims.py", "MetadataCost"),
     "Paper label-map integrity (gate 242) — POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels":
         ("scripts/test/test_lit_faith_paper_label_map.py", "PaperLabelMap"),
     "POLICY_COLORS perceptual distinguishability (gate 243) — hex format + dedup + pairwise CIE76 ΔE ≥ 12 + B&W lightness-delta ≥ 10 or hatch fallback (grandfathered allowlist) + ΔE ≥ 18 from white + POLICY_HATCHES ⊆ POLICY_LABELS":

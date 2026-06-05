@@ -1121,6 +1121,14 @@ CATALOG = [
         "summary":   "Paper Table 4 (gate 285 PfxScale) — ECG combined-mask claim at literature L3=1MB. Emits cache_sim L3 miss-rates per (graph, app) for LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY/ECG_DBG_ONLY/ECG_DBG_ONLY+ECG_PFX, plus deltas vs LRU/GRASP/POPT. Source: cache_sim sweep at /tmp/graphbrew-ecg-pfx-cache_sim-scale/{graph}-{app}/{baselines,pfx_combined}/roi_matrix.csv produced by scripts/experiments/ecg/sweeps/pfx_cache_sim_scale_sweep.sh with ECG_CONTAINER_BITS=64 and runtime ECG_PREFETCH_LOOKAHEAD=8 (ECG_PREFETCH_MODE=2 popt-ranked). The ECG_CONTAINER_BITS=64 setting is load-bearing — at default 32, multi-million-vertex graphs leave PFX with 0 bits and the mask silently encodes nothing (sprint 6c root-cause finding, see docs/findings/ecg_pfx_recovery_2026-06-01.md). Outputs JSON/MD/CSV/TeX (the TeX is paste-ready for the paper). 16/16 cells today: mean Δ vs LRU = -5.52 pp, mean Δ vs DROPLET = +0.00 pp, ECG_PFX 1.75x fewer total prefetches than DROPLET (gate 302).",
     },
     {
+        "id":        "paper_table_metadata_cost",
+        "label":     "Paper Table 5 — ECG vs DROPLET vs POPT metadata cost",
+        "generator": "scripts/experiments/ecg/metadata_cost.py",
+        "gate":      "scripts/test/test_ecg_metadata_cost_claims.py",
+        "artifact":  "wiki/data/paper_table_metadata_cost.json",
+        "summary":   "Paper Table 5 (gate 287 MetadataCost) — ECG architectural-simplicity primary claim. Static computation from MaskConfig defaults (bench/include/cache_sim/graph_cache_context.h:213-292) and POPT matrix dimensions (bench/src_sim/pr.cc:76 makeOffsetMatrix args). ECG per-vertex mask: 2 DBG + 7 POPT + 32 prefetch + 23 reserved = 64 bits. POPT rereference matrix: 256 epochs × (n/16) cache_lines × 8 bits = 128 × n bits per graph. ECG / POPT = 0.500x (2x smaller) across all 10 graphs in the corpus (literature 8 + Kronecker 2). ECG / (GRASP + POPT + DROPLET combined) = 0.500x. Beyond bytes, ECG requires only 2 magic instructions vs DROPLET's 2 prefetch engines + state machines, and a per-access mask decoder (few gates) vs POPT's per-access matrix lookup unit. This is the PRIMARY paper novelty axis after sprint 6f-5's discovery that the prefetcher-axis story converges with DROPLET at saturation.",
+    },
+    {
         "id":        "paper_table_prefetcher_kronecker",
         "label":     "Paper Table 4-K — ECG combined-mask on synthetic Kronecker",
         "generator": "scripts/experiments/ecg/paper_table_prefetcher.py",
@@ -1168,7 +1176,7 @@ CATALOG = [
         "generator": "scripts/experiments/ecg/confidence_dashboard.py",
         "gate":      "scripts/test/test_confidence_dashboard.py",
         "artifact":  "wiki/data/confidence_dashboard.json",
-        "summary":   "Single-screen verdict (286 gates today, all GREEN). The dashboard this catalog sits next to.",
+        "summary":   "Single-screen verdict (287 gates today, all GREEN). The dashboard this catalog sits next to.",
     },
 ]
 
