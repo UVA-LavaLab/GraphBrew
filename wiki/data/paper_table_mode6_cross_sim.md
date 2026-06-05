@@ -2,13 +2,13 @@
 
 **Status: 0/4 cells with valid Sniper ECG_PFX data.**
 
-Sprint 6f-6 cross-sim audit: pairs Sniper mode 6 cells (from pfx_sniper_mode6_sweep.sh) with their cache_sim mode 6 counterparts. Cells in 'pending' state are still simulating or have not yet been launched.
+Sprint 6f-6 cross-sim audit: pairs Sniper mode 6 cells (from pfx_sniper_mode6_sweep.sh) with their cache_sim mode 6 counterparts. Cells in 'pending' state are still simulating or have not yet been launched. The DROPLET column is the Sniper-side baseline-stronger comparator (different prefetching mechanism than ECG_PFX mode 6).
 
-## Per-cell pp-savings
+## Per-cell Sniper measurements (l3_miss_rate; pp = baseline minus arm)
 
-| Cell | Sniper baseline | Sniper ECG_PFX | Sniper Δ | cache_sim Δ |
-|---|---:|---:|---:|---:|
-| email-Eu-core-pr | — | — | pending | pending |
-| delaunay_n19-pr | 0.9619 | — | pending | pending |
-| roadNet-CA-pr | — | — | pending | pending |
-| web-Google-pr | — | — | pending | -3.84pp |
+| Cell | none | DROPLET | ECG_PFX | DROPLET Δ | ECG_PFX Δ | cache_sim mode 6 Δ |
+|---|---:|---:|---:|---:|---:|---:|
+| email-Eu-core-pr | — | — | — | pending | pending | pending |
+| delaunay_n19-pr | 0.9619 | 0.9596 | — | +0.24pp | pending | pending |
+| roadNet-CA-pr | — | — | — | pending | pending | pending |
+| web-Google-pr | — | — | — | pending | pending | -3.84pp |

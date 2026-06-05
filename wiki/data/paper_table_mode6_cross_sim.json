@@ -8,19 +8,25 @@
       "sniper_arm_droplet_status": "pending",
       "sniper_arm_ecg_pfx_status": "pending",
       "sniper_baseline_l3_miss_rate": null,
+      "sniper_droplet_l3_miss_rate": null,
       "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_droplet_pp_savings": null,
       "sniper_ecg_pfx_pp_savings": null,
-      "cache_sim_mode6_pp_savings": null
+      "cache_sim_mode6_pp_savings": null,
+      "cache_sim_droplet_pp_savings": null
     },
     {
       "cell": "delaunay_n19-pr",
       "sniper_arm_none_status": "ok",
-      "sniper_arm_droplet_status": "pending",
+      "sniper_arm_droplet_status": "ok",
       "sniper_arm_ecg_pfx_status": "pending",
       "sniper_baseline_l3_miss_rate": 0.9619386678988765,
+      "sniper_droplet_l3_miss_rate": 0.9595518082982027,
       "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_droplet_pp_savings": 0.2386859600673752,
       "sniper_ecg_pfx_pp_savings": null,
-      "cache_sim_mode6_pp_savings": null
+      "cache_sim_mode6_pp_savings": null,
+      "cache_sim_droplet_pp_savings": null
     },
     {
       "cell": "roadNet-CA-pr",
@@ -28,9 +34,12 @@
       "sniper_arm_droplet_status": "pending",
       "sniper_arm_ecg_pfx_status": "pending",
       "sniper_baseline_l3_miss_rate": null,
+      "sniper_droplet_l3_miss_rate": null,
       "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_droplet_pp_savings": null,
       "sniper_ecg_pfx_pp_savings": null,
-      "cache_sim_mode6_pp_savings": null
+      "cache_sim_mode6_pp_savings": null,
+      "cache_sim_droplet_pp_savings": null
     },
     {
       "cell": "web-Google-pr",
@@ -38,9 +47,12 @@
       "sniper_arm_droplet_status": "pending",
       "sniper_arm_ecg_pfx_status": "pending",
       "sniper_baseline_l3_miss_rate": null,
+      "sniper_droplet_l3_miss_rate": null,
       "sniper_ecg_pfx_l3_miss_rate": null,
+      "sniper_droplet_pp_savings": null,
       "sniper_ecg_pfx_pp_savings": null,
-      "cache_sim_mode6_pp_savings": -3.84
+      "cache_sim_mode6_pp_savings": -3.84,
+      "cache_sim_droplet_pp_savings": -11.4
     }
   ]
 }

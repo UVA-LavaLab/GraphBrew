@@ -134,10 +134,14 @@ def _build_rows(sniper_data: dict[str, dict],
         cs = cache_sim_data.get(cell, {})
 
         baseline_lmr = sn.get("none", {}).get("l3_miss_rate")
+        droplet_lmr = sn.get("DROPLET", {}).get("l3_miss_rate")
         ecg_pfx_lmr = sn.get("ECG_PFX", {}).get("l3_miss_rate")
-        sniper_pp = None
+        droplet_pp = None
+        ecg_pfx_pp = None
+        if baseline_lmr is not None and droplet_lmr is not None:
+            droplet_pp = (baseline_lmr - droplet_lmr) * 100.0
         if baseline_lmr is not None and ecg_pfx_lmr is not None:
-            sniper_pp = (baseline_lmr - ecg_pfx_lmr) * 100.0
+            ecg_pfx_pp = (baseline_lmr - ecg_pfx_lmr) * 100.0
 
         rows.append({
             "cell": cell,
@@ -145,11 +149,14 @@ def _build_rows(sniper_data: dict[str, dict],
             "sniper_arm_droplet_status": sn.get("DROPLET", {}).get("status", "pending"),
             "sniper_arm_ecg_pfx_status": sn.get("ECG_PFX", {}).get("status", "pending"),
             "sniper_baseline_l3_miss_rate": baseline_lmr,
+            "sniper_droplet_l3_miss_rate": droplet_lmr,
             "sniper_ecg_pfx_l3_miss_rate": ecg_pfx_lmr,
-            "sniper_ecg_pfx_pp_savings": sniper_pp,
-            # cache_sim companion from the existing mode 6 corpus table
+            "sniper_droplet_pp_savings": droplet_pp,
+            "sniper_ecg_pfx_pp_savings": ecg_pfx_pp,
+            # cache_sim companions from the existing mode 6 corpus table
             "cache_sim_mode6_pp_savings": _f(cs.get("ecg_pfx_pp_savings")
                                               or cs.get("mode6_pp_savings")),
+            "cache_sim_droplet_pp_savings": _f(cs.get("droplet_delta_pp")),
         })
     return rows
 
@@ -166,12 +173,14 @@ def _render_md(rows: list[dict]) -> str:
         ("Sprint 6f-6 cross-sim audit: pairs Sniper mode 6 cells (from "
          "pfx_sniper_mode6_sweep.sh) with their cache_sim mode 6 "
          "counterparts. Cells in 'pending' state are still simulating "
-         "or have not yet been launched."),
+         "or have not yet been launched. The DROPLET column is the "
+         "Sniper-side baseline-stronger comparator (different "
+         "prefetching mechanism than ECG_PFX mode 6)."),
         "",
-        "## Per-cell pp-savings",
+        "## Per-cell Sniper measurements (l3_miss_rate; pp = baseline minus arm)",
         "",
-        "| Cell | Sniper baseline | Sniper ECG_PFX | Sniper Δ | cache_sim Δ |",
-        "|---|---:|---:|---:|---:|",
+        "| Cell | none | DROPLET | ECG_PFX | DROPLET Δ | ECG_PFX Δ | cache_sim mode 6 Δ |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for r in rows:
         def _fmt(v):
@@ -181,7 +190,9 @@ def _render_md(rows: list[dict]) -> str:
         lines.append(
             f"| {r['cell']} "
             f"| {_fmt(r['sniper_baseline_l3_miss_rate'])} "
+            f"| {_fmt(r['sniper_droplet_l3_miss_rate'])} "
             f"| {_fmt(r['sniper_ecg_pfx_l3_miss_rate'])} "
+            f"| {_ppfmt(r['sniper_droplet_pp_savings'])} "
             f"| {_ppfmt(r['sniper_ecg_pfx_pp_savings'])} "
             f"| {_ppfmt(r['cache_sim_mode6_pp_savings'])} |"
         )
@@ -197,14 +208,16 @@ def _render_tex(rows: list[dict]) -> str:
         "  \\centering",
         "  \\footnotesize",
         ("  \\caption{Sniper cross-simulator mode 6 corroboration. "
-         "Per-cell ECG\\_PFX pp-savings under Sniper paired with the "
-         f"matching cache\\_sim mode 6 result. Status: {n_complete} of "
-         f"{n_total} cells complete; remaining cells are simulating or "
-         "have timed out at the per-cell wall-clock budget.}"),
+         "Per-cell pp-savings under Sniper for DROPLET and ECG\\_PFX "
+         "(mode 6) arms, paired with the matching cache\\_sim mode 6 "
+         f"result. Status: {n_complete} of {n_total} cells complete; "
+         "remaining cells are simulating or have timed out at the "
+         "per-cell wall-clock budget.}"),
         "  \\label{tab:ecg_mode6_cross_sim}",
-        "  \\begin{tabular}{lrrr}",
+        "  \\begin{tabular}{lrrrrrr}",
         "    \\toprule",
-        "    Cell & Sniper baseline LMR & Sniper $\\Delta$ pp & cache\\_sim $\\Delta$ pp \\\\",
+        "    Cell & none & DROPLET & ECG\\_PFX & DROPLET $\\Delta$ "
+        "& ECG\\_PFX $\\Delta$ & cs $\\Delta$ \\\\",
         "    \\midrule",
     ]
     for r in rows:
@@ -215,6 +228,9 @@ def _render_tex(rows: list[dict]) -> str:
         lines.append(
             f"    {r['cell'].replace('_', '\\_')} & "
             f"{_fmt(r['sniper_baseline_l3_miss_rate'])} & "
+            f"{_fmt(r['sniper_droplet_l3_miss_rate'])} & "
+            f"{_fmt(r['sniper_ecg_pfx_l3_miss_rate'])} & "
+            f"{_ppfmt(r['sniper_droplet_pp_savings'])} & "
             f"{_ppfmt(r['sniper_ecg_pfx_pp_savings'])} & "
             f"{_ppfmt(r['cache_sim_mode6_pp_savings'])} \\\\"
         )
