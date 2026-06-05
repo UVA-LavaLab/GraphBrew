@@ -35,7 +35,7 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                            vector<vector<NodeID>> &local_bins,
                            CacheType &cache, GraphCacheContext &graph_ctx,
                            const vector<uint32_t> &vertex_masks,
-                           int pfx_lookahead) {
+                           int pfx_lookahead, int pfx_top_k = 1) {
     auto out_neigh = g.out_neigh(u);
     for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
         WNode wn = *it;
@@ -53,7 +53,10 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                         static_cast<uint32_t>(candidate), graph_ctx);
                 }
             } else {
-                uint32_t lookahead_target = UINT32_MAX;
+                // Top-K POPT/degree-ranked selection (sprint 6f-3).
+                struct Cand { uint32_t v; uint16_t key; };
+                Cand cands[64];
+                int n_cand = 0;
                 auto jt = it;
                 for (int step = 0; step < pfx_lookahead; step++) {
                     ++jt;
@@ -61,23 +64,31 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                     WNode candidate_node = *jt;
                     NodeID candidate = candidate_node.v;
                     if (candidate < 0) continue;
+                    uint16_t key;
                     if (graph_ctx.mask_config.prefetch_mode == 1) {
-                        if (lookahead_target == UINT32_MAX ||
-                            g.out_degree(candidate) > g.out_degree(lookahead_target)) {
-                            lookahead_target = static_cast<uint32_t>(candidate);
-                        }
+                        uint64_t od = g.out_degree(candidate);
+                        key = od > 65535 ? 0 : static_cast<uint16_t>(65535 - od);
                     } else {
-                        uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
-                        if (lookahead_target == UINT32_MAX ||
-                            candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
-                            lookahead_target = static_cast<uint32_t>(candidate);
-                        }
+                        key = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
                     }
+                    cands[n_cand++] = {static_cast<uint32_t>(candidate), key};
                 }
-                if (lookahead_target != UINT32_MAX) {
-                    SIM_CACHE_PREFETCH_VERTEX(cache, dist.data(), lookahead_target, graph_ctx);
-                } else {
+                if (n_cand == 0) {
                     graph_ctx.recordPrefetchNoTarget();
+                } else if (pfx_top_k <= 1) {
+                    int best = 0;
+                    for (int i = 1; i < n_cand; i++)
+                        if (cands[i].key < cands[best].key) best = i;
+                    SIM_CACHE_PREFETCH_VERTEX(cache, dist.data(), cands[best].v, graph_ctx);
+                } else {
+                    int k_eff = pfx_top_k < n_cand ? pfx_top_k : n_cand;
+                    for (int i = 0; i < k_eff; i++) {
+                        int best = i;
+                        for (int j = i + 1; j < n_cand; j++)
+                            if (cands[j].key < cands[best].key) best = j;
+                        if (best != i) std::swap(cands[i], cands[best]);
+                        SIM_CACHE_PREFETCH_VERTEX(cache, dist.data(), cands[i].v, graph_ctx);
+                    }
                 }
             }
         }
@@ -140,9 +151,11 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     auto vertex_masks = graph_ctx.computeVertexMasks(g);
     graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
+    int pfx_top_k = GraphSimEnvIntClamped("ECG_PREFETCH_TOP_K", 1, 1, 64);
     if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
         cout << "SSSP relax PFX lookahead: window=" << pfx_lookahead
-             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
+             << " mode=" << int(graph_ctx.mask_config.prefetch_mode)
+             << " top_k=" << pfx_top_k << endl;
     }
 
     pvector<NodeID> frontier(g.num_edges_directed());
@@ -167,7 +180,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                 SIM_CACHE_READ(cache, dist.data(), u);
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
-                                   graph_ctx, vertex_masks, pfx_lookahead);
+                                   graph_ctx, vertex_masks, pfx_lookahead, pfx_top_k);
             }
 
             while (curr_bin_index < local_bins.size() &&
@@ -179,7 +192,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                     SIM_SET_VERTEX(cache, u);
                     SIM_CACHE_READ(cache, dist.data(), u);
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
-                                   graph_ctx, vertex_masks, pfx_lookahead);
+                                   graph_ctx, vertex_masks, pfx_lookahead, pfx_top_k);
                 }
             }
             

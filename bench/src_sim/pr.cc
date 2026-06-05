@@ -87,9 +87,11 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
     graph_ctx.printSummary();
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
+    int pfx_top_k = GraphSimEnvIntClamped("ECG_PREFETCH_TOP_K", 1, 1, 64);
     if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
         cout << "PR PFX lookahead: window=" << pfx_lookahead
-             << " mode=" << int(graph_ctx.mask_config.prefetch_mode) << endl;
+             << " mode=" << int(graph_ctx.mask_config.prefetch_mode)
+             << " top_k=" << pfx_top_k << endl;
     }
     
     // Initialize outgoing contributions
@@ -148,30 +150,53 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         }
                         SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                     } else {
-                        uint32_t lookahead_target = UINT32_MAX;
+                        // Mode 1 = degree-ranked, Mode 2 = POPT-ranked.
+                        // Top-K extension (sprint 6f-3): instead of issuing
+                        // just the single best target, collect all candidates
+                        // from the lookahead window and issue prefetches for
+                        // the top-K ranked. K=1 reproduces the original
+                        // single-best behavior; K>1 trades selection quality
+                        // for higher prefetch volume (closer to DROPLET in
+                        // bandwidth, but still POPT-quality filtered).
+                        struct Cand { uint32_t v; uint16_t key; };
+                        Cand cands[64];  // max lookahead is 64
+                        int n_cand = 0;
                         auto jt = it;
                         for (int step = 0; step < pfx_lookahead; step++) {
                             ++jt;
                             if (jt == in_neigh.end()) break;
                             NodeID candidate = *jt;
                             if (candidate < 0) continue;
+                            uint16_t key;
                             if (graph_ctx.mask_config.prefetch_mode == 1) {
-                                if (lookahead_target == UINT32_MAX ||
-                                    g.out_degree(candidate) > g.out_degree(lookahead_target)) {
-                                    lookahead_target = static_cast<uint32_t>(candidate);
-                                }
+                                // Larger out_degree = "more popular" — invert
+                                // for sorting (smaller key = higher priority).
+                                uint64_t od = g.out_degree(candidate);
+                                key = od > 65535 ? 0 : static_cast<uint16_t>(65535 - od);
                             } else {
-                                uint8_t candidate_popt = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
-                                if (lookahead_target == UINT32_MAX ||
-                                    candidate_popt < graph_ctx.mask_config.decodePOPT(vertex_masks[lookahead_target])) {
-                                    lookahead_target = static_cast<uint32_t>(candidate);
-                                }
+                                // Lower POPT rank = sooner-rereferenced = higher priority.
+                                key = graph_ctx.mask_config.decodePOPT(vertex_masks[candidate]);
                             }
+                            cands[n_cand++] = {static_cast<uint32_t>(candidate), key};
                         }
-                        if (lookahead_target != UINT32_MAX) {
-                            SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, lookahead_target, graph_ctx);
-                        } else {
+                        if (n_cand == 0) {
                             graph_ctx.recordPrefetchNoTarget();
+                        } else if (pfx_top_k <= 1) {
+                            // Fast path: single best target — match historical mode-2 behavior bit-for-bit.
+                            int best = 0;
+                            for (int i = 1; i < n_cand; i++)
+                                if (cands[i].key < cands[best].key) best = i;
+                            SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, cands[best].v, graph_ctx);
+                        } else {
+                            // Top-K path: partial sort by key (ascending), issue first K.
+                            int k_eff = pfx_top_k < n_cand ? pfx_top_k : n_cand;
+                            for (int i = 0; i < k_eff; i++) {
+                                int best = i;
+                                for (int j = i + 1; j < n_cand; j++)
+                                    if (cands[j].key < cands[best].key) best = j;
+                                if (best != i) std::swap(cands[i], cands[best]);
+                                SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, cands[i].v, graph_ctx);
+                            }
                         }
                         SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, vertex_masks[v]);
                     }
