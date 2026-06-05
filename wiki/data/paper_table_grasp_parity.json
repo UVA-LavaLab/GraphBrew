@@ -1,0 +1,126 @@
+{
+  "cells": [
+    {
+      "graph": "cit-Patents",
+      "app": "bc",
+      "GRASP": 0.898508,
+      "ECG_DBG": 0.898597,
+      "delta_pp": 0.008900000000000574
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "bfs",
+      "GRASP": 0.958999,
+      "ECG_DBG": 0.959564,
+      "delta_pp": 0.05649999999999267
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "pr",
+      "GRASP": 0.785689,
+      "ECG_DBG": 0.785651,
+      "delta_pp": -0.0037999999999982492
+    },
+    {
+      "graph": "cit-Patents",
+      "app": "sssp",
+      "GRASP": 0.817662,
+      "ECG_DBG": 0.8179339999999999,
+      "delta_pp": 0.027199999999993896
+    },
+    {
+      "graph": "com-orkut",
+      "app": "pr",
+      "GRASP": 0.6848339999999999,
+      "ECG_DBG": 0.684856,
+      "delta_pp": 0.0022000000000077513
+    },
+    {
+      "graph": "email-Eu-core",
+      "app": "pr",
+      "GRASP": 1.0,
+      "ECG_DBG": 1.0,
+      "delta_pp": 0.0
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "app": "bc",
+      "GRASP": 0.79494,
+      "ECG_DBG": 0.794763,
+      "delta_pp": -0.017699999999998273
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "app": "bfs",
+      "GRASP": 0.7402230000000001,
+      "ECG_DBG": 0.7396780000000001,
+      "delta_pp": -0.05450000000000177
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "app": "pr",
+      "GRASP": 0.683942,
+      "ECG_DBG": 0.683937,
+      "delta_pp": -0.0005000000000032756
+    },
+    {
+      "graph": "soc-LiveJournal1",
+      "app": "sssp",
+      "GRASP": 0.658575,
+      "ECG_DBG": 0.657324,
+      "delta_pp": -0.1251000000000002
+    },
+    {
+      "graph": "soc-pokec",
+      "app": "bc",
+      "GRASP": 0.7648159999999999,
+      "ECG_DBG": 0.764787,
+      "delta_pp": -0.0028999999999945736
+    },
+    {
+      "graph": "soc-pokec",
+      "app": "pr",
+      "GRASP": 0.543327,
+      "ECG_DBG": 0.543327,
+      "delta_pp": 0.0
+    },
+    {
+      "graph": "soc-pokec",
+      "app": "sssp",
+      "GRASP": 0.5277419999999999,
+      "ECG_DBG": 0.528221,
+      "delta_pp": 0.04790000000001182
+    },
+    {
+      "graph": "web-Google",
+      "app": "bc",
+      "GRASP": 0.707101,
+      "ECG_DBG": 0.709249,
+      "delta_pp": 0.21480000000000388
+    },
+    {
+      "graph": "web-Google",
+      "app": "bfs",
+      "GRASP": 0.935657,
+      "ECG_DBG": 0.9354439999999999,
+      "delta_pp": -0.021300000000001873
+    },
+    {
+      "graph": "web-Google",
+      "app": "pr",
+      "GRASP": 0.453071,
+      "ECG_DBG": 0.453159,
+      "delta_pp": 0.008799999999997699
+    }
+  ],
+  "summary": {
+    "n_cells": 16,
+    "mean_delta_pp": 0.008781250000000629,
+    "max_abs_delta_pp": 0.21480000000000388,
+    "n_tied_lt_0p1": 14,
+    "n_close_lt_0p5": 2,
+    "n_differ_ge_0p5": 0
+  },
+  "source": "wiki/data/paper_table_prefetcher.json",
+  "method": "ECG_DBG_ONLY vs GRASP L3 miss-rate per cell"
+}

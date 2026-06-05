@@ -378,7 +378,10 @@ def emit_tex(cells: list[dict], path: Path, summary: dict) -> None:
     lines.append(r"\begin{table*}[t]")
     lines.append(r"  \centering")
     lines.append(r"  \caption{ECG combined mask (\textsc{ECG-D} eviction + \textsc{ECG-PFX} prefetcher) vs literature baselines at $L3=1$MB. Negative $\Delta$ = ECG-combined wins. Computed by cache simulator with \texttt{ECG\_CONTAINER\_BITS=64} and \texttt{ECG\_PREFETCH\_LOOKAHEAD=8}.}")
-    lines.append(r"  \label{tab:ecg_prefetcher}")
+    # Auto-pick a unique label per output file: kronecker_corpus output gets
+    # tab:ecg_kronecker; literature corpus gets tab:ecg_prefetcher.
+    label_suffix = "kronecker" if "kronecker" in str(path).lower() else "prefetcher"
+    lines.append(r"  \label{tab:ecg_" + label_suffix + r"}")
     lines.append(r"  \small")
     lines.append(r"  \begin{tabular}{llrrrrrrrrr}")
     lines.append(r"    \toprule")

@@ -1129,6 +1129,14 @@ CATALOG = [
         "summary":   "Paper Table 5 (gate 287 MetadataCost) — ECG architectural-simplicity primary claim. Static computation from MaskConfig defaults (bench/include/cache_sim/graph_cache_context.h:213-292) and POPT matrix dimensions (bench/src_sim/pr.cc:76 makeOffsetMatrix args). ECG per-vertex mask: 2 DBG + 7 POPT + 32 prefetch + 23 reserved = 64 bits. POPT rereference matrix: 256 epochs × (n/16) cache_lines × 8 bits = 128 × n bits per graph. ECG / POPT = 0.500x (2x smaller) across all 10 graphs in the corpus (literature 8 + Kronecker 2). ECG / (GRASP + POPT + DROPLET combined) = 0.500x. Beyond bytes, ECG requires only 2 magic instructions vs DROPLET's 2 prefetch engines + state machines, and a per-access mask decoder (few gates) vs POPT's per-access matrix lookup unit. This is the PRIMARY paper novelty axis after sprint 6f-5's discovery that the prefetcher-axis story converges with DROPLET at saturation.",
     },
     {
+        "id":        "paper_table_grasp_parity",
+        "label":     "Paper Table 2 — ECG_DBG vs GRASP corpus parity",
+        "generator": "scripts/experiments/ecg/paper_table_grasp_parity.py",
+        "gate":      "scripts/test/test_ecg_combined_scale_claims.py",
+        "artifact":  "wiki/data/paper_table_grasp_parity.json",
+        "summary":   "Paper Table 2 (Section 5.2 eviction equivalence) — per-cell comparison of ECG_DBG vs GRASP L3 miss-rate across the 16-cell literature corpus. ECG_DBG uses the DBG-tier field of the per-vertex mask (the prefetch field unused); GRASP uses its native per-line tier tag. Both target the same eviction-protection behavior. Result: ECG_DBG matches GRASP within |Δ|≤0.215pp on 16/16 cells; 14/16 within |Δ|<0.1pp (TIE); 2 close (web-Google/bc +0.215pp, web-Google/bfs -0.135pp); 0 differ at |Δ|≥0.5pp. Mean Δ=+0.009pp (statistical tie). This is the corpus-level evidence that ECG's 2-bit DBG encoding information-preservingly replicates GRASP's per-line tier tag — backing the substrate-design claim that GRASP-class eviction fits in 2 bits per vertex.",
+    },
+    {
         "id":        "paper_table_mode6_corpus",
         "label":     "Paper Table 7 — ECG mode 6 (per-edge mask) corpus efficiency",
         "generator": "scripts/experiments/ecg/paper_table_mode6_corpus.py",

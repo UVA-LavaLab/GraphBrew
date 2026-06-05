@@ -4,14 +4,14 @@ Status: **active**
 
 ## Totals
 
-- n_files: 375
-- n_stems: 148
-- n_json: 147
-- n_md: 144
-- n_csv: 84
+- n_files: 378
+- n_stems: 149
+- n_json: 148
+- n_md: 145
+- n_csv: 85
 - n_subdirs: 1
-- n_catalog: 143
-- n_catalog_stems: 143
+- n_catalog: 144
+- n_catalog_stems: 144
 
 ## Rules
 
