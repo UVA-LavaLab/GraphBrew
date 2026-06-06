@@ -189,15 +189,27 @@ int run_pr(const Graph& graph, int max_iters) {
             SNIPER_SET_VERTEX(node);
             ScoreT incoming_total = 0.0f;
 
-            // Mode 6: walk in_neigh by edge position; decode dest from
-            // the mask and fire the encoded prefetch target.
+            // Mode 6: per-edge ECG fat-mask path (paper's ECG ISA design).
+            //
+            // The fat-mask REPLACES the CSR edge entry: instead of
+            // loading a 4-byte vertex ID from CSR + a separate 8-byte
+            // mask, we load ONE 8-byte fat-mask that contains both
+            // the dest (lower 24 bits) and the prefetch info (upper
+            // bits). This matches §3.2 of the paper: ecg_extract
+            // takes a single 64-bit fat-ID register and decodes
+            // vertex + DBG + POPT + prefetch atomically.
+            //
+            // Earlier revision (sprint 6f-6 initial port) read BOTH
+            // the CSR and the mask per edge, doubling memory cost
+            // and producing an 8x DRAM-traffic regression on Sniper.
+            // The current implementation iterates ONLY the mask
+            // array; CSR is bypassed entirely in this path.
             if (ecg_enabled && ecg_pfx_mode == 6 &&
                 node < static_cast<NodeID>(in_edge_masks_by_src.size())) {
                 const auto& src_masks = in_edge_masks_by_src[node];
-                size_t edge_pos = 0;
-                for (NodeID neighbor : graph.in_neigh(node)) {
-                    uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
-                    ++edge_pos;
+                for (uint64_t mask : src_masks) {
+                    NodeID neighbor = static_cast<NodeID>(ecg_mode6::extractDest(mask));
+                    if (neighbor < 0 || neighbor >= graph.num_nodes()) continue;
                     uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
                     if (prefetch_target != 0 &&
                         prefetch_target < static_cast<uint32_t>(graph.num_nodes())) {
