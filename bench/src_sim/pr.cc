@@ -149,12 +149,17 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                     if (edge_mask_charged && !src_masks.empty()) {
                         SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
                     }
-                    // Decode dest from mask (replaces direct CSR edge read)
+                    // Decode dest from mask (REPLACES the CSR edge read).
+                    // Paper design intent (sprint 6f-7 audit, matching the
+                    // Sniper fix in commit 9812edf9): the per-edge mask
+                    // carries the destination ID, so the CSR edge load is
+                    // no longer required when mode 6/7 is active. Honest
+                    // per-edge cost is mask(8B) + demand(4B), NOT
+                    // mask(8B) + CSR(4B) + demand(4B). The earlier
+                    // SIM_CACHE_READ_EDGE here inflated memory_accesses
+                    // by ~33% per edge and was the cache_sim mirror of
+                    // the Sniper CSR-double-read bug.
                     NodeID v = static_cast<NodeID>(GraphCacheContext::edgeMaskDest(mask));
-                    // Still track edge access for the CSR backbone (the edge
-                    // list itself is read either way; charged mode adds the
-                    // mask array on top).
-                    SIM_CACHE_READ_EDGE(cache, it);
                     // Issue prefetch for the encoded target
                     uint32_t prefetch_target = GraphCacheContext::edgeMaskPrefetch(mask);
                     if (prefetch_target != 0) {
