@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -96,27 +97,58 @@ inline uint32_t getCurrentVertexHint() {
     return currentVertexHintStorage().load(std::memory_order_acquire);
 }
 
-inline std::atomic<uint32_t>& prefetchTargetHintStorage() {
-    static std::atomic<uint32_t> vertex{0};
-    return vertex;
-}
+// === Prefetch-target hint queue (sprint 6f-6 ring-buffer fix) ===
+//
+// Earlier revision used a single atomic<uint32_t> mailbox. The kernel
+// emits thousands of hints per PR iteration; the L2 prefetcher only
+// runs calculatePrefetch on cache notification events. With a single
+// slot, each new kernel hint OVERWRITES the prior unconsumed hint —
+// ~99% of hints were lost on email-Eu-core (38 issued of ~2360 emitted).
+//
+// Ring buffer of N entries (default 256) lets the kernel queue up to
+// N hints between prefetcher invocations. Reads (consume) are
+// single-consumer (gem5 main-thread prefetcher); writes (set) are
+// single-producer (kernel m5op handler in the same thread for SE-mode).
+// Multi-producer multi-consumer is not required for SE-mode 1-core
+// runs; the atomics are kept for the (rare) case where the prefetcher
+// runs concurrently with hint emission.
+inline constexpr std::size_t kHintQueueSize = 256;
 
-inline std::atomic<bool>& prefetchTargetHintValidStorage() {
-    static std::atomic<bool> valid{false};
-    return valid;
+struct HintQueueState {
+    std::atomic<uint32_t> entries[kHintQueueSize];
+    std::atomic<std::size_t> head{0};  // next consume index
+    std::atomic<std::size_t> tail{0};  // next produce index
+};
+
+inline HintQueueState& prefetchTargetHintQueue() {
+    static HintQueueState q;
+    return q;
 }
 
 inline void setPrefetchTargetHint(uint64_t vertex) {
     uint32_t clamped = vertex > UINT32_MAX ? UINT32_MAX : static_cast<uint32_t>(vertex);
-    prefetchTargetHintStorage().store(clamped, std::memory_order_release);
-    prefetchTargetHintValidStorage().store(true, std::memory_order_release);
+    auto& q = prefetchTargetHintQueue();
+    std::size_t t = q.tail.load(std::memory_order_relaxed);
+    std::size_t next = (t + 1) % kHintQueueSize;
+    if (next == q.head.load(std::memory_order_acquire)) {
+        // Queue full — drop oldest entry by advancing head one slot,
+        // then write the new entry. This preserves FIFO order for
+        // the most-recent N entries (the kernel's recency window).
+        q.head.store((q.head.load(std::memory_order_relaxed) + 1) % kHintQueueSize,
+                     std::memory_order_release);
+    }
+    q.entries[t].store(clamped, std::memory_order_relaxed);
+    q.tail.store(next, std::memory_order_release);
 }
 
 inline bool consumePrefetchTargetHint(uint32_t& vertex) {
-    if (!prefetchTargetHintValidStorage().exchange(false, std::memory_order_acq_rel)) {
-        return false;
+    auto& q = prefetchTargetHintQueue();
+    std::size_t h = q.head.load(std::memory_order_relaxed);
+    if (h == q.tail.load(std::memory_order_acquire)) {
+        return false;  // empty
     }
-    vertex = prefetchTargetHintStorage().load(std::memory_order_acquire);
+    vertex = q.entries[h].load(std::memory_order_relaxed);
+    q.head.store((h + 1) % kHintQueueSize, std::memory_order_release);
     return true;
 }
 

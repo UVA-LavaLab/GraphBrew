@@ -1,6 +1,9 @@
 #include "graph_cache_context_sniper.h"
 
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -137,38 +140,93 @@ void clearCurrentVertexHint(uint32_t core_id)
     vertexValidStorage()[core_id].store(false, std::memory_order_release);
 }
 
+// === Per-core prefetch-target hint ring buffer (sprint 6f-6 fix) ===
+//
+// Previously used a single atomic<uint32_t> mailbox per core. Kernel
+// emits thousands of hints per PR iteration; the L2 prefetcher only
+// runs getNextAddress() on cache notification events. With a single
+// slot, each new kernel hint OVERWROTE the prior unconsumed hint —
+// ~99% of hints were lost on email-Eu-core (38 issued of ~2360
+// emitted). Ring buffer of N entries lets the kernel queue up to N
+// hints between prefetcher invocations.
+
+static constexpr std::size_t kHintQueueSize = 256;
+
+struct PerCoreHintQueue {
+    std::array<std::atomic<uint32_t>, kHintQueueSize> entries{};
+    std::atomic<std::size_t> head{0};
+    std::atomic<std::size_t> tail{0};
+};
+
+std::array<PerCoreHintQueue, MAX_TRACKED_CORES>& prefetchTargetHintQueues()
+{
+    static std::array<PerCoreHintQueue, MAX_TRACKED_CORES> queues;
+    return queues;
+}
+
 void setPrefetchTargetHint(uint32_t core_id, uint64_t vertex)
 {
     if (core_id >= MAX_TRACKED_CORES) return;
-    prefetchTargetStorage()[core_id].store(clampVertex(vertex), std::memory_order_release);
+    auto& q = prefetchTargetHintQueues()[core_id];
+    std::size_t t = q.tail.load(std::memory_order_relaxed);
+    std::size_t next = (t + 1) % kHintQueueSize;
+    if (next == q.head.load(std::memory_order_acquire)) {
+        // Queue full: drop oldest by advancing head one slot.
+        q.head.store((q.head.load(std::memory_order_relaxed) + 1) % kHintQueueSize,
+                     std::memory_order_release);
+    }
+    q.entries[t].store(clampVertex(vertex), std::memory_order_relaxed);
+    q.tail.store(next, std::memory_order_release);
+    // Keep the legacy "valid" flag alive for has/getPrefetchTargetHint
+    // callers that may exist outside the consume path. It now means
+    // "queue is non-empty."
     prefetchTargetValidStorage()[core_id].store(true, std::memory_order_release);
 }
 
 bool hasPrefetchTargetHint(uint32_t core_id)
 {
-    return core_id < MAX_TRACKED_CORES &&
-        prefetchTargetValidStorage()[core_id].load(std::memory_order_acquire);
+    if (core_id >= MAX_TRACKED_CORES) return false;
+    auto& q = prefetchTargetHintQueues()[core_id];
+    return q.head.load(std::memory_order_acquire) !=
+           q.tail.load(std::memory_order_acquire);
 }
 
 uint32_t getPrefetchTargetHint(uint32_t core_id)
 {
+    // Returns the oldest entry without consuming it. Used for
+    // diagnostics; callers wanting to consume should call
+    // consumePrefetchTargetHint instead.
     if (core_id >= MAX_TRACKED_CORES) return 0;
-    return prefetchTargetStorage()[core_id].load(std::memory_order_acquire);
+    auto& q = prefetchTargetHintQueues()[core_id];
+    std::size_t h = q.head.load(std::memory_order_acquire);
+    if (h == q.tail.load(std::memory_order_acquire)) return 0;
+    return q.entries[h].load(std::memory_order_acquire);
 }
 
 bool consumePrefetchTargetHint(uint32_t core_id, uint32_t& vertex)
 {
     if (core_id >= MAX_TRACKED_CORES) return false;
-    if (!prefetchTargetValidStorage()[core_id].exchange(false, std::memory_order_acq_rel)) {
+    auto& q = prefetchTargetHintQueues()[core_id];
+    std::size_t h = q.head.load(std::memory_order_relaxed);
+    if (h == q.tail.load(std::memory_order_acquire)) {
+        prefetchTargetValidStorage()[core_id].store(false, std::memory_order_release);
         return false;
     }
-    vertex = prefetchTargetStorage()[core_id].load(std::memory_order_acquire);
+    vertex = q.entries[h].load(std::memory_order_relaxed);
+    std::size_t next = (h + 1) % kHintQueueSize;
+    q.head.store(next, std::memory_order_release);
+    if (next == q.tail.load(std::memory_order_acquire)) {
+        prefetchTargetValidStorage()[core_id].store(false, std::memory_order_release);
+    }
     return true;
 }
 
 void clearPrefetchTargetHint(uint32_t core_id)
 {
     if (core_id >= MAX_TRACKED_CORES) return;
+    auto& q = prefetchTargetHintQueues()[core_id];
+    q.head.store(0, std::memory_order_release);
+    q.tail.store(0, std::memory_order_release);
     prefetchTargetValidStorage()[core_id].store(false, std::memory_order_release);
 }
 
