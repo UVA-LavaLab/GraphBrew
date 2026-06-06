@@ -347,39 +347,40 @@ def _render_tex(rows: list[dict]) -> str:
         "\\begin{table}[t]",
         "  \\centering",
         "  \\footnotesize",
-        ("  \\caption{Sniper cross-simulator mode 6 corroboration "
-         "(\\textbf{l3\\_miss\\_rate metric caveat applies}: "
-         "both DROPLET and ECG\\_PFX are attached at L2 in our config, "
-         "so DROPLET's useful prefetches hide L2 latency without "
-         "reducing L3 demand misses; ECG\\_PFX's mask-cost-charged "
-         "accesses inflate the l3\\_miss\\_rate denominator. See "
-         "the markdown companion for the honest pf\\_useful "
-         "counter readout). "
-         "Per-cell pp-savings under Sniper for DROPLET and ECG\\_PFX "
-         "(mode 6) arms, paired with the matching cache\\_sim mode 6 "
-         f"result. Status: {n_complete} of {n_total} cells complete; "
+        ("  \\caption{Sniper cross-simulator mode 6 corroboration. "
+         "\\textbf{Headline metric is DRAM demand-request ratio} "
+         "(arm/baseline; $<$1 = better, $\\approx$1 = neutral, "
+         "$>$1 = worse). The L3 miss-rate column is reported but "
+         "interpretation requires the caveat in \\S\\ref{sec:methodology:metrics}: "
+         "both DROPLET and ECG\\_PFX attach at L2, so DROPLET's "
+         "useful prefetches hide L2 latency without reducing L3 "
+         "demand; ECG\\_PFX's mask-cost-charged accesses inflate "
+         "the L3 miss-rate denominator. "
+         f"Status: {n_complete} of {n_total} cells complete; "
          "remaining cells are simulating or have timed out at the "
          "per-cell wall-clock budget.}"),
         "  \\label{tab:ecg_mode6_cross_sim}",
-        "  \\begin{tabular}{lrrrrrr}",
+        "  \\begin{tabular}{lrrrrr}",
         "    \\toprule",
-        "    Cell & none & DROPLET & ECG\\_PFX & DROPLET $\\Delta$ "
-        "& ECG\\_PFX $\\Delta$ & cs $\\Delta$ \\\\",
+        "    \\multirow{2}{*}{Cell} & \\multicolumn{3}{c}{DRAM demand req (\\S\\ref{sec:methodology:metrics})} & \\multicolumn{2}{c}{L3 miss-rate $\\Delta$} \\\\",
+        "    \\cmidrule(lr){2-4} \\cmidrule(lr){5-6}",
+        "    & none & DROPLET/base & ECG\\_PFX/base & DROPLET & ECG\\_PFX \\\\",
         "    \\midrule",
     ]
     for r in rows:
-        def _fmt(v):
-            return f"{v:.4f}" if isinstance(v, float) else "---"
+        def _ifmt(v):
+            return f"{v:,}" if isinstance(v, int) else "---"
+        def _rfmt(v):
+            return f"{v:.2f}$\\times$" if isinstance(v, float) else "pending"
         def _ppfmt(v):
-            return f"{v:+.2f}" if isinstance(v, float) else "pending"
+            return f"{v:+.2f}pp" if isinstance(v, float) else "pending"
         lines.append(
             f"    {r['cell'].replace('_', '\\_')} & "
-            f"{_fmt(r['sniper_baseline_l3_miss_rate'])} & "
-            f"{_fmt(r['sniper_droplet_l3_miss_rate'])} & "
-            f"{_fmt(r['sniper_ecg_pfx_l3_miss_rate'])} & "
+            f"{_ifmt(r['sniper_baseline_dram_requests'])} & "
+            f"{_rfmt(r['sniper_droplet_dram_ratio'])} & "
+            f"{_rfmt(r['sniper_ecg_pfx_dram_ratio'])} & "
             f"{_ppfmt(r['sniper_droplet_pp_savings'])} & "
-            f"{_ppfmt(r['sniper_ecg_pfx_pp_savings'])} & "
-            f"{_ppfmt(r['cache_sim_mode6_pp_savings'])} \\\\"
+            f"{_ppfmt(r['sniper_ecg_pfx_pp_savings'])} \\\\"
         )
     lines.extend([
         "    \\bottomrule",
