@@ -10,7 +10,14 @@ namespace prefetch {
 
 GraphEcgPfxPrefetcher::GraphEcgPfxPrefetcher(const Params &p)
     : Queued(p),
-      recentFilterSize(p.recent_filter_size)
+      recentFilterSize([&p]() -> int {
+          const char* v = std::getenv("GEM5_ECG_PFX_RECENT_FILTER_SIZE");
+          if (!v || !v[0]) return static_cast<int>(p.recent_filter_size);
+          long parsed = std::atol(v);
+          if (parsed <= 0) return static_cast<int>(p.recent_filter_size);
+          if (parsed > (1L << 20)) parsed = (1L << 20);
+          return static_cast<int>(parsed);
+      }())
 {
 }
 

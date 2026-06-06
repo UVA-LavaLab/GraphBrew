@@ -28,7 +28,20 @@ const char* envOrDefault(const char* name, const char* fallback)
 EcgPfxPrefetcher::EcgPfxPrefetcher(String configName, core_id_t core_id)
    : m_core_id(core_id)
    , m_cache_line_size(64)
-   , m_recent_filter_size(256)
+   , m_recent_filter_size(
+       []() {
+           // ENV override: SNIPER_ECG_PFX_RECENT_FILTER_SIZE.
+           // Default 256 is sufficient for graphs ≤16K cache-lines
+           // of property data; larger graphs need a bigger filter
+           // to avoid redundant re-prefetches as the recency window
+           // cycles. Capped at 1<<20 to keep memory bounded.
+           const char* v = std::getenv("SNIPER_ECG_PFX_RECENT_FILTER_SIZE");
+           if (!v || !v[0]) return UInt32{256};
+           long parsed = std::atol(v);
+           if (parsed <= 0) return UInt32{256};
+           if (parsed > (1L << 20)) parsed = (1L << 20);
+           return static_cast<UInt32>(parsed);
+       }())
 {
    (void)configName;
    registerStatsMetric("ecg-pfx-prefetcher", core_id, "sideband-loaded", &m_stat_sideband_loaded);
