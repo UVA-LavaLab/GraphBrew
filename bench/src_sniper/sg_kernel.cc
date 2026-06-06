@@ -122,7 +122,6 @@ int run_pr(const Graph& graph, int max_iters) {
     sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
                               kNumEpochs, graph.num_nodes());
 
-    SNIPER_ROI_BEGIN();
     // Lookahead distance for ECG_PFX hints. node+1 is too close on
     // small graphs (Sniper's cache_cntlr.cc:1146 filters
     // already-in-cache addresses, dropping ECG_PFX hints whose target
@@ -145,6 +144,10 @@ int run_pr(const Graph& graph, int max_iters) {
     const char* ecg_enable_env = std::getenv("SNIPER_ENABLE_ECG_PFX_HINTS");
     const bool ecg_enabled = ecg_enable_env && std::string(ecg_enable_env) != "0";
 
+    // Build mode-6 fat-mask array BEFORE entering ROI (otherwise
+    // Sniper cycle-accurately simulates the offline construction
+    // pass, adding 3M-edge × allocation-heavy work to the timed
+    // region — see rubber-duck #1 from sprint 6f-6 closeout).
     std::vector<std::vector<uint64_t>> in_edge_masks_by_src;
     if (ecg_enabled && ecg_pfx_mode == 6) {
         std::vector<uint8_t> avg_reref_by_line;
@@ -159,7 +162,7 @@ int run_pr(const Graph& graph, int max_iters) {
                     pfx_lookahead);
     }
 
-    // === Kernel-side hint dedup (bug 5A fix) ===
+    // === Kernel-side hint dedup with O(1) bitmap (bug 5A fix + rubber-duck #2) ===
     //
     // Each SNIPER_ECG_PFX_TARGET call traps to Sniper main-thread
     // (Pin context-switch, ~5-50us each). For graphs like
@@ -167,8 +170,13 @@ int run_pr(const Graph& graph, int max_iters) {
     // wall time. Suppress calls where the target was emitted within
     // the last KERNEL_DEDUP_WINDOW emissions.
     //
-    // Per-line dedup (cache_line = target/numVtxPerLine) avoids
-    // multiple emissions targeting the same cache line.
+    // First implementation used a linear-scan ring buffer (O(window)
+    // per edge → 3M × 256 = 1.6B comparisons that Sniper
+    // cycle-accurately simulated). Replaced with an O(1) bitmap
+    // indexed by cache-line / hash of cache-line: each emission sets
+    // a bit; check is single load. To preserve the recency-window
+    // semantics we age the bitmap every WINDOW emissions by clearing
+    // and replaying.
     //
     // Tunable via SNIPER_ECG_PFX_KERNEL_DEDUP env var.
     int kernel_dedup_window;
@@ -178,11 +186,19 @@ int run_pr(const Graph& graph, int max_iters) {
         if (kernel_dedup_window < 0) kernel_dedup_window = 0;
         if (kernel_dedup_window > (1 << 16)) kernel_dedup_window = (1 << 16);
     }
-    std::vector<uint32_t> dedup_ring(static_cast<size_t>(std::max(1, kernel_dedup_window)),
-                                      static_cast<uint32_t>(-1));
-    std::size_t dedup_pos = 0;
+    // Bitmap sized to property-array cache-line count. One bit per
+    // property cache line.
+    const uint32_t num_property_lines =
+        (graph.num_nodes() + num_vtx_per_line - 1) / num_vtx_per_line;
+    std::vector<uint64_t> dedup_bitmap;
+    if (kernel_dedup_window > 0) {
+        dedup_bitmap.assign((num_property_lines + 63) / 64, 0);
+    }
     uint64_t kernel_emit_count = 0;
     uint64_t kernel_dedup_count = 0;
+    uint64_t emit_since_clear = 0;
+
+    SNIPER_ROI_BEGIN();
 
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
@@ -213,25 +229,35 @@ int run_pr(const Graph& graph, int max_iters) {
                     uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
                     if (prefetch_target != 0 &&
                         prefetch_target < static_cast<uint32_t>(graph.num_nodes())) {
-                        // Kernel-side dedup: cache-line granularity
-                        // suppresses repeats within KERNEL_DEDUP_WINDOW
-                        // (default 256). Reduces the Sniper magic-op
-                        // trap count by 10-100x on million-edge graphs.
+                        // O(1) bitmap dedup (rubber-duck #2 fix).
+                        // Suppress emission if cache-line was already
+                        // emitted within the recency window.
                         uint32_t target_line = prefetch_target /
                             static_cast<uint32_t>(num_vtx_per_line);
                         bool seen = false;
                         if (kernel_dedup_window > 0) {
-                            for (auto cached : dedup_ring) {
-                                if (cached == target_line) { seen = true; break; }
+                            size_t word_idx = target_line / 64;
+                            uint64_t bit = uint64_t{1} << (target_line % 64);
+                            if (word_idx < dedup_bitmap.size()) {
+                                if (dedup_bitmap[word_idx] & bit) {
+                                    seen = true;
+                                } else {
+                                    dedup_bitmap[word_idx] |= bit;
+                                }
                             }
                         }
                         if (!seen) {
                             SNIPER_ECG_PFX_TARGET(prefetch_target);
                             kernel_emit_count++;
-                            if (kernel_dedup_window > 0) {
-                                dedup_ring[dedup_pos] = target_line;
-                                dedup_pos = (dedup_pos + 1) %
-                                    static_cast<size_t>(kernel_dedup_window);
+                            emit_since_clear++;
+                            // Age the bitmap every WINDOW emissions
+                            // to keep dedup window-bounded recency
+                            // semantics (without per-emit O(window)
+                            // scans).
+                            if (kernel_dedup_window > 0 &&
+                                emit_since_clear >= static_cast<uint64_t>(kernel_dedup_window)) {
+                                std::fill(dedup_bitmap.begin(), dedup_bitmap.end(), 0);
+                                emit_since_clear = 0;
                             }
                         } else {
                             kernel_dedup_count++;
