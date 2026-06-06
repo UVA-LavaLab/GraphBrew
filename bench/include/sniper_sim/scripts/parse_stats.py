@@ -92,6 +92,16 @@ def extract_graphbrew_metrics(rows: dict[str, Any]) -> dict[str, Any]:
         "pf_useful": first_value("L2.hits-prefetch", "L1-D.hits-prefetch"),
         "pf_evicted_before_use": first_value("L2.evict-prefetch", "L1-D.evict-prefetch"),
         "pf_invalidated_before_use": first_value("L2.invalidate-prefetch", "L1-D.invalidate-prefetch"),
+        # DRAM-level demand request count (sprint 6f-6 bug 1 fix).
+        # l3_miss_rate is unsafe with prefetchers + mask-charged
+        # accesses; demand-DRAM traffic is the metric §4.3 of the
+        # paper recommends. Aggregated across all dram-bank-group-*.
+        "dram_demand_requests": sum(
+            float(value) for key, value in rows.items()
+            if key.endswith(".num-requests")
+            and key.startswith("dram-bank-group-")
+            and isinstance(value, (int, float))
+        ),
         "droplet_sideband_loaded": first_value("droplet-prefetcher.sideband-loaded"),
         "droplet_edge_accesses": first_value("droplet-prefetcher.edge-accesses"),
         "droplet_stride_issued": first_value("droplet-prefetcher.stride-issued"),

@@ -23,12 +23,25 @@ Until the demand-memory rate (`memory_accesses / total_accesses`) is wired into 
 | roadNet-CA-pr | — | — | — | pending | pending | pending |
 | web-Google-pr | — | — | — | pending | pending | -3.84pp |
 
+## DRAM-level demand traffic (the §4.3-safe metric)
+
+Aggregated `dram-bank-group-*.num-requests` counters across all DRAM banks. Ratio >1 means MORE DRAM traffic than baseline (worse); ratio <1 means LESS DRAM traffic (better).
+
+| Cell | none (req) | DROPLET (req) | ECG_PFX (req) | DROPLET/base | ECG_PFX/base |
+|---|---:|---:|---:|---:|---:|
+| email-Eu-core-pr | 2,360 | 2,359 | 15,312 | 1.00× ≈ | 6.49× ✗ |
+| delaunay_n19-pr | 1,192,536 | 1,190,929 | — | 1.00× ≈ | pending |
+| roadNet-CA-pr | — | — | — | pending | pending |
+| web-Google-pr | — | — | — | pending | pending |
+
 ## Honest reading of the email-Eu-core row
 
 Raw Sniper counters (not in the table above):
 
-- baseline: l3_accesses=2360, l3_misses=2360, pf_useful=0
-- DROPLET: l3_accesses=2359, l3_misses=2359, pf_issued=1969, **pf_useful=1969** (100% accuracy at L2)
-- ECG_PFX: l3_accesses=23295, l3_misses=8768, pf_issued=38, pf_useful=38
+- baseline: l3_accesses=2360, l3_misses=2360, DRAM requests=2360, pf_useful=0
+- DROPLET: l3_accesses=2359, l3_misses=2359, DRAM requests=2359, **pf_useful=1969** (100% L2-hit accuracy, but doesn't reduce DRAM traffic)
+- ECG_PFX: l3_accesses=23295, l3_misses=8768, **DRAM requests=15312 (6.5× MORE)**, pf_issued=38, pf_useful=38
 
-DROPLET's 1,969 useful L2 prefetches do not reduce L3 miss rate (because L3 sees the same demand stream), but they do hide latency at L2 — the headline `+62pp` ECG_PFX number in the table is denominator-driven, not a real demand-miss reduction. ECG_PFX issued only 38 prefetches because the single-slot mailbox in `graph_cache_context_gem5.hh:109` loses ~99% of kernel hints to overwrites; this is a known issue documented in `docs/findings/gem5_ecg_pfx_simobject_gap.md`.
+Under the L3-miss-rate metric ECG_PFX appeared to win +62pp; under the §4.3-safe DRAM-traffic metric, ECG_PFX **increases** DRAM traffic 6.5× on email-Eu-core because the per-edge mask reads themselves miss to DRAM. DROPLET's 1,969 useful L2 prefetches do not reduce DRAM traffic (those lines were cold-misses regardless) but they do hide L2 miss latency. email-Eu-core is structurally too small to demonstrate prefetching at L3 boundary: the entire property array fits in L1d (4 KB << 32 KB L1d). Cells larger than L1d (delaunay_n19's 2 MB and above) are needed to measure prefetcher value cleanly.
+
+This is **NOT** a refutation of the cache_sim mode 6 corpus finding (which uses million-vertex graphs where the property array exceeds L3). It IS a demonstration that the convergence story (§5.4 of the paper) holds: when the cache hierarchy already captures the working set, prefetcher state adds bandwidth without benefit.

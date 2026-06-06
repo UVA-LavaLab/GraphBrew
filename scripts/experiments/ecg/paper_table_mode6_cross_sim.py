@@ -81,6 +81,31 @@ def _i(value: str | None) -> int | None:
         return None
 
 
+def _dram_requests_from_sim_stats(cell_dir: Path, arm: str) -> int | None:
+    """Fallback: parse dram-bank-group-*.num-requests directly from
+    sim.stats when the CSV doesn't yet carry the dram_demand_requests
+    column (pre-bug-1 sweep output).
+    """
+    pattern = (cell_dir / arm / "sniper").glob("sniper_*/simulation/sim.stats")
+    for stats_path in pattern:
+        if not stats_path.is_file():
+            continue
+        total = 0
+        try:
+            for line in stats_path.read_text(errors="replace").splitlines():
+                if line.startswith("dram-bank-group-") and ".num-requests =" in line:
+                    parts = line.split("=", 1)
+                    if len(parts) == 2:
+                        try:
+                            total += int(float(parts[1].strip()))
+                        except ValueError:
+                            pass
+        except OSError:
+            return None
+        return total
+    return None
+
+
 def _harvest_sniper(sniper_root: Path, cells: list[str]) -> dict[str, dict]:
     """For each "graph-app" cell, return {arm: {l3_miss_rate, mem_accs}}."""
     out: dict[str, dict] = {}
@@ -95,10 +120,16 @@ def _harvest_sniper(sniper_root: Path, cells: list[str]) -> dict[str, dict]:
             csv_path = cell_dir / arm / "roi_matrix.csv"
             row = _read_first_row(csv_path)
             if row:
+                dram = _i(row.get("dram_demand_requests"))
+                if dram is None:
+                    dram = _dram_requests_from_sim_stats(cell_dir, arm)
                 cell_data[arm] = {
                     "l3_miss_rate": _f(row.get("l3_miss_rate")),
                     "memory_accesses": _i(row.get("memory_accesses")),
                     "total_accesses": _i(row.get("total_accesses")),
+                    "dram_demand_requests": dram,
+                    "pf_issued": _i(row.get("pf_issued")),
+                    "pf_useful": _i(row.get("pf_useful")),
                     "status": row.get("status"),
                 }
         if cell_data:
@@ -143,6 +174,19 @@ def _build_rows(sniper_data: dict[str, dict],
         if baseline_lmr is not None and ecg_pfx_lmr is not None:
             ecg_pfx_pp = (baseline_lmr - ecg_pfx_lmr) * 100.0
 
+        # DRAM-level demand request count is the §4.3-safe metric.
+        # Δ values here are ratios (DROPLET/baseline, ECG/baseline)
+        # so values >1 mean "more DRAM traffic" (worse).
+        baseline_dram = sn.get("none", {}).get("dram_demand_requests")
+        droplet_dram = sn.get("DROPLET", {}).get("dram_demand_requests")
+        ecg_pfx_dram = sn.get("ECG_PFX", {}).get("dram_demand_requests")
+        droplet_dram_ratio = None
+        ecg_pfx_dram_ratio = None
+        if baseline_dram and droplet_dram is not None:
+            droplet_dram_ratio = droplet_dram / baseline_dram
+        if baseline_dram and ecg_pfx_dram is not None:
+            ecg_pfx_dram_ratio = ecg_pfx_dram / baseline_dram
+
         rows.append({
             "cell": cell,
             "sniper_arm_none_status": sn.get("none", {}).get("status", "pending"),
@@ -153,6 +197,15 @@ def _build_rows(sniper_data: dict[str, dict],
             "sniper_ecg_pfx_l3_miss_rate": ecg_pfx_lmr,
             "sniper_droplet_pp_savings": droplet_pp,
             "sniper_ecg_pfx_pp_savings": ecg_pfx_pp,
+            # DRAM demand traffic (sprint 6f-6 bug 1 fix)
+            "sniper_baseline_dram_requests": baseline_dram,
+            "sniper_droplet_dram_requests": droplet_dram,
+            "sniper_ecg_pfx_dram_requests": ecg_pfx_dram,
+            "sniper_droplet_dram_ratio": droplet_dram_ratio,
+            "sniper_ecg_pfx_dram_ratio": ecg_pfx_dram_ratio,
+            # Prefetcher activity counters
+            "sniper_droplet_pf_useful": sn.get("DROPLET", {}).get("pf_useful"),
+            "sniper_ecg_pfx_pf_useful": sn.get("ECG_PFX", {}).get("pf_useful"),
             # cache_sim companions from the existing mode 6 corpus table
             "cache_sim_mode6_pp_savings": _f(cs.get("ecg_pfx_pp_savings")
                                               or cs.get("mode6_pp_savings")),
@@ -227,22 +280,61 @@ def _render_md(rows: list[dict]) -> str:
         )
     lines.extend([
         "",
+        "## DRAM-level demand traffic (the §4.3-safe metric)",
+        "",
+        ("Aggregated `dram-bank-group-*.num-requests` counters across "
+         "all DRAM banks. Ratio >1 means MORE DRAM traffic than baseline "
+         "(worse); ratio <1 means LESS DRAM traffic (better)."),
+        "",
+        "| Cell | none (req) | DROPLET (req) | ECG_PFX (req) | DROPLET/base | ECG_PFX/base |",
+        "|---|---:|---:|---:|---:|---:|",
+    ])
+    for r in rows:
+        def _ifmt(v):
+            return f"{v:,}" if isinstance(v, int) else "—"
+        def _rfmt(v):
+            if not isinstance(v, float):
+                return "pending"
+            sign = "✓" if v < 0.95 else ("≈" if v <= 1.05 else "✗")
+            return f"{v:.2f}× {sign}"
+        lines.append(
+            f"| {r['cell']} "
+            f"| {_ifmt(r['sniper_baseline_dram_requests'])} "
+            f"| {_ifmt(r['sniper_droplet_dram_requests'])} "
+            f"| {_ifmt(r['sniper_ecg_pfx_dram_requests'])} "
+            f"| {_rfmt(r['sniper_droplet_dram_ratio'])} "
+            f"| {_rfmt(r['sniper_ecg_pfx_dram_ratio'])} |"
+        )
+    lines.extend([
+        "",
         "## Honest reading of the email-Eu-core row",
         "",
         ("Raw Sniper counters (not in the table above):"),
         "",
-        ("- baseline: l3_accesses=2360, l3_misses=2360, pf_useful=0"),
-        ("- DROPLET: l3_accesses=2359, l3_misses=2359, pf_issued=1969, **pf_useful=1969** (100% accuracy at L2)"),
-        ("- ECG_PFX: l3_accesses=23295, l3_misses=8768, pf_issued=38, pf_useful=38"),
+        ("- baseline: l3_accesses=2360, l3_misses=2360, DRAM requests=2360, pf_useful=0"),
+        ("- DROPLET: l3_accesses=2359, l3_misses=2359, DRAM requests=2359, "
+         "**pf_useful=1969** (100% L2-hit accuracy, but doesn't reduce DRAM traffic)"),
+        ("- ECG_PFX: l3_accesses=23295, l3_misses=8768, **DRAM requests=15312 (6.5× MORE)**, "
+         "pf_issued=38, pf_useful=38"),
         "",
-        ("DROPLET's 1,969 useful L2 prefetches do not reduce L3 miss "
-         "rate (because L3 sees the same demand stream), but they do "
-         "hide latency at L2 — the headline `+62pp` ECG_PFX number "
-         "in the table is denominator-driven, not a real demand-miss "
-         "reduction. ECG_PFX issued only 38 prefetches because the "
-         "single-slot mailbox in `graph_cache_context_gem5.hh:109` "
-         "loses ~99% of kernel hints to overwrites; this is a known "
-         "issue documented in `docs/findings/gem5_ecg_pfx_simobject_gap.md`."),
+        ("Under the L3-miss-rate metric ECG_PFX appeared to win +62pp; "
+         "under the §4.3-safe DRAM-traffic metric, ECG_PFX **increases** "
+         "DRAM traffic 6.5× on email-Eu-core because the per-edge mask "
+         "reads themselves miss to DRAM. DROPLET's 1,969 useful L2 "
+         "prefetches do not reduce DRAM traffic (those lines were "
+         "cold-misses regardless) but they do hide L2 miss latency. "
+         "email-Eu-core is structurally too small to demonstrate "
+         "prefetching at L3 boundary: the entire property array fits "
+         "in L1d (4 KB << 32 KB L1d). Cells larger than L1d "
+         "(delaunay_n19's 2 MB and above) are needed to measure "
+         "prefetcher value cleanly."),
+        "",
+        ("This is **NOT** a refutation of the cache_sim mode 6 corpus "
+         "finding (which uses million-vertex graphs where the property "
+         "array exceeds L3). It IS a demonstration that the "
+         "convergence story (§5.4 of the paper) holds: when the cache "
+         "hierarchy already captures the working set, prefetcher state "
+         "adds bandwidth without benefit."),
     ])
     return "\n".join(lines) + "\n"
 
