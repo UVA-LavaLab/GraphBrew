@@ -159,6 +159,31 @@ int run_pr(const Graph& graph, int max_iters) {
                     pfx_lookahead);
     }
 
+    // === Kernel-side hint dedup (bug 5A fix) ===
+    //
+    // Each SNIPER_ECG_PFX_TARGET call traps to Sniper main-thread
+    // (Pin context-switch, ~5-50us each). For graphs like
+    // delaunay_n19 (3M edges × 2 iter = 6.3M calls), this dominates
+    // wall time. Suppress calls where the target was emitted within
+    // the last KERNEL_DEDUP_WINDOW emissions.
+    //
+    // Per-line dedup (cache_line = target/numVtxPerLine) avoids
+    // multiple emissions targeting the same cache line.
+    //
+    // Tunable via SNIPER_ECG_PFX_KERNEL_DEDUP env var.
+    int kernel_dedup_window;
+    {
+        const char* v = std::getenv("SNIPER_ECG_PFX_KERNEL_DEDUP");
+        kernel_dedup_window = (v && v[0]) ? std::atoi(v) : 256;
+        if (kernel_dedup_window < 0) kernel_dedup_window = 0;
+        if (kernel_dedup_window > (1 << 16)) kernel_dedup_window = (1 << 16);
+    }
+    std::vector<uint32_t> dedup_ring(static_cast<size_t>(std::max(1, kernel_dedup_window)),
+                                      static_cast<uint32_t>(-1));
+    std::size_t dedup_pos = 0;
+    uint64_t kernel_emit_count = 0;
+    uint64_t kernel_dedup_count = 0;
+
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
@@ -176,7 +201,29 @@ int run_pr(const Graph& graph, int max_iters) {
                     uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
                     if (prefetch_target != 0 &&
                         prefetch_target < static_cast<uint32_t>(graph.num_nodes())) {
-                        SNIPER_ECG_PFX_TARGET(prefetch_target);
+                        // Kernel-side dedup: cache-line granularity
+                        // suppresses repeats within KERNEL_DEDUP_WINDOW
+                        // (default 256). Reduces the Sniper magic-op
+                        // trap count by 10-100x on million-edge graphs.
+                        uint32_t target_line = prefetch_target /
+                            static_cast<uint32_t>(num_vtx_per_line);
+                        bool seen = false;
+                        if (kernel_dedup_window > 0) {
+                            for (auto cached : dedup_ring) {
+                                if (cached == target_line) { seen = true; break; }
+                            }
+                        }
+                        if (!seen) {
+                            SNIPER_ECG_PFX_TARGET(prefetch_target);
+                            kernel_emit_count++;
+                            if (kernel_dedup_window > 0) {
+                                dedup_ring[dedup_pos] = target_line;
+                                dedup_pos = (dedup_pos + 1) %
+                                    static_cast<size_t>(kernel_dedup_window);
+                            }
+                        } else {
+                            kernel_dedup_count++;
+                        }
                     }
                     incoming_total += contrib[neighbor];
                 }
@@ -198,6 +245,13 @@ int run_pr(const Graph& graph, int max_iters) {
         }
     }
     SNIPER_ROI_END();
+
+    if (ecg_enabled && ecg_pfx_mode == 6) {
+        std::printf("[sniper-sg ECG mode 6] emit=%llu kernel-dedup-skip=%llu (window=%d)\n",
+                    static_cast<unsigned long long>(kernel_emit_count),
+                    static_cast<unsigned long long>(kernel_dedup_count),
+                    kernel_dedup_window);
+    }
 
     ScoreT checksum = 0.0f;
     for (ScoreT score : scores) checksum += score;
