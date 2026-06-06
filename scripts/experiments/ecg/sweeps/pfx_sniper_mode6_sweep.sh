@@ -49,6 +49,10 @@ declare -A APP_OPTS=(
 )
 
 ARMS=(none DROPLET ECG_PFX)
+# Where to attach the prefetcher. Default is l2 (matches the prior
+# sweep). Set PREFETCH_LEVEL=l1d for paper-faithful comparison with
+# the original DROPLET design (Basak HPCA'19), which prefetches at L1.
+PREFETCH_LEVEL="${PREFETCH_LEVEL:-l2}"
 
 cell_arm_complete() {
   local csv="$1"
@@ -107,9 +111,9 @@ for short in "${!GRAPH_PATHS[@]}"; do
       pfx_arg=()
       mode_arg=()
       if [ "$arm" = "DROPLET" ]; then
-        pfx_arg=(--prefetcher DROPLET --prefetcher-level l2)
+        pfx_arg=(--prefetcher DROPLET --prefetcher-level "$PREFETCH_LEVEL")
       elif [ "$arm" = "ECG_PFX" ]; then
-        pfx_arg=(--prefetcher ECG_PFX --prefetcher-level l2)
+        pfx_arg=(--prefetcher ECG_PFX --prefetcher-level "$PREFETCH_LEVEL")
         mode_arg=(--ecg-pfx-mode per_edge)
       fi
       date +"%T BEGIN ${short}/${app}/${arm} opts='${opts}'" | tee -a "$LOG"
