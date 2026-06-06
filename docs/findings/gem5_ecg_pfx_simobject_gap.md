@@ -107,3 +107,52 @@ specifically; if push count = 0, the gap is in
 - Sniper mode 6 sweep (commit `1aa1b24b` + sprint 6f-6) provides the cross-sim audit path the paper needs.
 - gem5 cycle-accurate ECG_PFX validation is deferred to a follow-on study.
 - §6.3 of the paper documents this scope limitation honestly.
+
+## Bug 4 finding (2026-06-05 22:08) — cell-selection / Sniper budget gap
+
+Attempted to fill the cycle-accurate cross-sim audit gap by running
+`delaunay_n19/pr/ECG_PFX` (524K vertices, 2 MB property array, larger
+than L1d/L2/L3) with a 4-hour Sniper wall-clock budget (was 5400s in
+the prior sweep that hit `exit_code=124`).
+
+Result: **timed out at 14400s = 4 hours**. Same `exit_code=124`.
+
+Comparison of arms on delaunay_n19/pr at -i 2 iterations:
+  none    : 65 min (completed, status=ok)
+  DROPLET : 56 min (completed, status=ok)
+  ECG_PFX : timed out at 4h (status=error, exit_code=124)
+
+Mode 6's per-edge mask reads add cycle-accurate work proportional
+to the edge count (~3M edges × 8B mask = 24 MB of additional access
+stream Sniper must instrument). At Sniper's typical 100k-cycle/s
+host rate, this would take 6+ hours wall to complete -- exceeding
+any realistic per-cell budget on a workstation.
+
+**Cell-selection implications:**
+- email-Eu-core (4 KB property): fits in L1d → ECG_PFX appears worse
+  (6.5× DRAM); useful as a NEGATIVE corroboration of the convergence
+  finding (when cache hierarchy captures working set, prefetcher is
+  pure overhead)
+- delaunay_n19 (2 MB property): exceeds L3 (1 MB) → would be the
+  ideal sweet-spot cell, but cycle-accurate Sniper budget can't
+  finish ECG_PFX in <4h
+- cit-Patents / com-orkut / soc-LiveJournal1 (millions of vertices):
+  cache_sim has corpus data; cycle-accurate Sniper is impossible
+  at any reasonable budget
+
+**Recommended workarounds (deferred):**
+1. Reduce iterations: `-i 1` instead of `-i 2` would halve Sniper's
+   work (~2h ECG_PFX wall, possibly within budget). Trades statistical
+   stability for one usable data point.
+2. Use a smaller delaunay mesh (delaunay_n17 = 130k vertices,
+   ~500K edges) where the property array (520 KB) still exceeds L1d
+   and L2 but Sniper can finish in ≤1h.
+3. Accept the gap: §4.6 / §6.3 already document partial Sniper
+   coverage on the prefetcher axis. The cache_sim corpus + the
+   email-Eu-core negative case give the cross-sim story enough
+   nuance to publish honestly.
+
+Status today: cache_sim mode 6 corpus result stands;
+email-Eu-core cycle-accurate confirms convergence story for
+small-cell regime; delaunay_n19 cycle-accurate ECG_PFX data
+remains a documented limitation.
