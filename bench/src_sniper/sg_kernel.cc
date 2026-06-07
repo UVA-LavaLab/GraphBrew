@@ -186,6 +186,26 @@ int run_pr(const Graph& graph, int max_iters) {
         if (kernel_dedup_window < 0) kernel_dedup_window = 0;
         if (kernel_dedup_window > (1 << 16)) kernel_dedup_window = (1 << 16);
     }
+
+    // Sprint 6f-7 Phase 3: per-edge AMPLIFY (matches cache_sim mode 6).
+    //
+    // For each edge, after emitting the encoded prefetch_target from
+    // the mask, also emit prefetches for the next AMPLIFY masks'
+    // decoded destinations. AMPLIFY=0 (default) preserves prior
+    // single-target-per-edge behavior. AMPLIFY=N adds N sequential
+    // next-dest prefetches per edge (mirrors cache_sim's
+    // ECG_EDGE_MASK_AMPLIFY env var).
+    //
+    // Per cache_sim Phase 2.6 finding, AMPLIFY saturates at 1 because
+    // the dedup window absorbs additional candidates. AMPLIFY=1 is
+    // the cache_sim-validated sweet spot.
+    int amplify;
+    {
+        const char* v = std::getenv("SNIPER_ECG_EDGE_MASK_AMPLIFY");
+        amplify = (v && v[0]) ? std::atoi(v) : 0;
+        if (amplify < 0) amplify = 0;
+        if (amplify > 8) amplify = 8;
+    }
     // Bitmap sized to property-array cache-line count. One bit per
     // property cache line.
     const uint32_t num_property_lines =
@@ -223,7 +243,9 @@ int run_pr(const Graph& graph, int max_iters) {
             if (ecg_enabled && ecg_pfx_mode == 6 &&
                 node < static_cast<NodeID>(in_edge_masks_by_src.size())) {
                 const auto& src_masks = in_edge_masks_by_src[node];
-                for (uint64_t mask : src_masks) {
+                const size_t num_masks = src_masks.size();
+                for (size_t edge_idx = 0; edge_idx < num_masks; ++edge_idx) {
+                    const uint64_t mask = src_masks[edge_idx];
                     NodeID neighbor = static_cast<NodeID>(ecg_mode6::extractDest(mask));
                     if (neighbor < 0 || neighbor >= graph.num_nodes()) continue;
                     uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
@@ -254,6 +276,43 @@ int run_pr(const Graph& graph, int max_iters) {
                             // to keep dedup window-bounded recency
                             // semantics (without per-emit O(window)
                             // scans).
+                            if (kernel_dedup_window > 0 &&
+                                emit_since_clear >= static_cast<uint64_t>(kernel_dedup_window)) {
+                                std::fill(dedup_bitmap.begin(), dedup_bitmap.end(), 0);
+                                emit_since_clear = 0;
+                            }
+                        } else {
+                            kernel_dedup_count++;
+                        }
+                    }
+                    // Sprint 6f-7 Phase 3: AMPLIFY = emit next-N decoded
+                    // dests as additional prefetches. Mirrors cache_sim
+                    // mode 6 AMPLIFY semantics. AMPLIFY=0 (default)
+                    // = no extra emissions = unchanged from before.
+                    for (int step = 1; step <= amplify; ++step) {
+                        const size_t fwd_idx = edge_idx + static_cast<size_t>(step);
+                        if (fwd_idx >= num_masks) break;
+                        const uint32_t fwd_dest = ecg_mode6::extractDest(src_masks[fwd_idx]);
+                        if (fwd_dest == 0 ||
+                            fwd_dest >= static_cast<uint32_t>(graph.num_nodes())) continue;
+                        uint32_t fwd_line = fwd_dest /
+                            static_cast<uint32_t>(num_vtx_per_line);
+                        bool fwd_seen = false;
+                        if (kernel_dedup_window > 0) {
+                            size_t word_idx = fwd_line / 64;
+                            uint64_t bit = uint64_t{1} << (fwd_line % 64);
+                            if (word_idx < dedup_bitmap.size()) {
+                                if (dedup_bitmap[word_idx] & bit) {
+                                    fwd_seen = true;
+                                } else {
+                                    dedup_bitmap[word_idx] |= bit;
+                                }
+                            }
+                        }
+                        if (!fwd_seen) {
+                            SNIPER_ECG_PFX_TARGET(fwd_dest);
+                            kernel_emit_count++;
+                            emit_since_clear++;
                             if (kernel_dedup_window > 0 &&
                                 emit_since_clear >= static_cast<uint64_t>(kernel_dedup_window)) {
                                 std::fill(dedup_bitmap.begin(), dedup_bitmap.end(), 0);
