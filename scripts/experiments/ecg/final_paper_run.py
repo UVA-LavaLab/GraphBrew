@@ -321,6 +321,21 @@ def make_roi_job(
     env = {}
     if "omp_threads" in settings:
         env["OMP_NUM_THREADS"] = str(settings["omp_threads"])
+    # Sprint 6f-7 / HPCA mode 6 evaluation: allow manifest stages to set
+    # arbitrary env vars (e.g. ECG_EDGE_MASK_CHARGED, ECG_EDGE_MASK_AMPLIFY,
+    # ECG_EDGE_MASK_LOOKAHEAD) which the cache_sim/Sniper binaries read
+    # directly. These knobs are not first-class roi_matrix.py CLI args yet,
+    # so manifest-level env propagation is the cleanest way to pass them
+    # while preserving record-of-truth in the resolved manifest.
+    stage_env = settings.get("env")
+    if stage_env:
+        if not isinstance(stage_env, dict):
+            raise SystemExit(
+                f"stage {settings.get('name')!r} 'env' must be a dict, "
+                f"got {type(stage_env).__name__}"
+            )
+        for k, v in stage_env.items():
+            env[str(k)] = str(v)
     return Job(
         job_id=job_id,
         stage=str(settings["name"]),
@@ -338,6 +353,12 @@ def make_roi_job(
             "options": options,
             "policies": policies,
             "prefetcher": settings.get("prefetcher", "none"),
+            # Sprint 6f-7 / HPCA mode 6: record env knobs for reproducibility.
+            # Stage env vars (e.g. ECG_EDGE_MASK_CHARGED, _AMPLIFY, _LOOKAHEAD)
+            # are not visible in the subprocess command line, so without this
+            # metadata field the jobs.csv would not record the actual
+            # experimental knobs the binary ran with.
+            "env": dict(env),
         },
     )
 
