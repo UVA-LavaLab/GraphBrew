@@ -291,6 +291,14 @@ def make_roi_job(
         if settings.get("allow_gem5_ecg_pfx"):
             command.append("--allow-gem5-ecg-pfx")
     if str(settings.get("prefetcher", "none")) == "DROPLET":
+        # Sprint 6f-7 audit: DROPLET prefetcher in cache_sim mode 3 reads
+        # `--ecg-pfx-lookahead` (since cache_sim shares the lookahead knob
+        # between mode 3 / DROPLET-style and ECG_PFX modes). Without this
+        # pass-through, DROPLET silently defaults to lookahead=4 even when
+        # the manifest sets ecg_pfx_lookahead=8 or 16. This was caught
+        # before the HPCA mode 6 go/no-go run (rubber-duck #1 blocker).
+        if "ecg_pfx_lookahead" in settings:
+            command.extend(["--ecg-pfx-lookahead", str(settings["ecg_pfx_lookahead"])])
         if "droplet_prefetch_degree" in settings:
             command.extend(["--droplet-prefetch-degree", str(settings["droplet_prefetch_degree"])])
         if "droplet_indirect_degree" in settings:
