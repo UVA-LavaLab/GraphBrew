@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "description": "HPCA Mode 6 evaluation manifest v2. Three-axis arm naming per docs/findings/hpca_naming_convention_v1.md: {selection}__{delivery}__{bandwidth_k}. See docs/findings/hpca_evaluation_plan_v1.md for the full phased plan and gates. All stages target the canonical config (1-core, L1=32KB/8w, L2=256KB/8w, L3=2MB matched per-core to DROPLET/GRASP).",
+  "version": 1,
+  "description": "HPCA Mode 6 evaluation manifest. Phased & gated by kill switches. See docs/findings/hpca_evaluation_plan_v1.md for full plan and gates. All stages target the canonical config (1-core, L1=32KB/8w, L2=256KB/8w, L3=2MB matched per-core to DROPLET/GRASP).",
   "defaults": {
     "l1d_size": "32kB",
     "l1d_ways": "8",
@@ -22,12 +22,12 @@
     "no_build": true
   },
   "profiles": {
-    "smoke":       "Phase 1.3: 15-min toolchain end-to-end verification on email-Eu-core.",
-    "go_no_go":    "Phase 1.5: 1-2h GO/NO-GO gates before full sweep.",
-    "baselines":   "Phase 2: minimal baseline stability on common graphs.",
-    "buildup":     "Phase 3: incremental ECG build-up (selection axis sweep).",
-    "sensitivity": "Phase 4: sensitivity sweeps (L3 size, bandwidth_k, dedup, delivery).",
-    "cycle_acc":   "Phase 5: cycle-accurate cross-validation (Sniper, optional gem5)."
+    "smoke":      "Phase 1.3: 15-min toolchain end-to-end verification on email-Eu-core.",
+    "killswitch": "Phase 1.5: 1-2h GO/NO-GO gates before full sweep.",
+    "phase_2":    "Phase 2: minimal baseline stability on common graphs.",
+    "phase_3":    "Phase 3: incremental ECG build-up.",
+    "phase_4":    "Phase 4: sensitivity sweeps (L3, AMPLIFY, dedup, CHARGED).",
+    "phase_5":    "Phase 5: cycle-accurate cross-validation (Sniper, optional gem5)."
   },
   "benchmark_options": {
     "file_dbg": {
@@ -40,15 +40,15 @@
     "smoke": [
       {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"}
     ],
-    "go_no_go_large": [
+    "killswitch_large": [
       {"name": "com-orkut",         "path": "results/graphs/com-orkut/com-orkut.sg",                 "options_key": "file_dbg"},
       {"name": "soc-LiveJournal1",  "path": "results/graphs/soc-LiveJournal1/soc-LiveJournal1.sg",  "options_key": "file_dbg"}
     ],
-    "go_no_go_baseline_parity": [
+    "killswitch_baseline_parity": [
       {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"},
       {"name": "web-Google",    "path": "results/graphs/web-Google/web-Google.sg",       "options_key": "file_dbg"}
     ],
-    "go_no_go_sniper": [
+    "killswitch_sniper": [
       {"name": "delaunay_n19",  "path": "results/graphs/delaunay_n19/delaunay_n19.sg",   "options_key": "file_dbg"}
     ],
     "common_corpus": [
@@ -61,8 +61,7 @@
   },
   "stages": [
     {
-      "name": "smoke__baselines__no_prefetcher",
-      "description": "Smoke: replacement-only baselines (LRU/GRASP/POPT/ECG_DBG/ECG_POPT) on email-Eu-core/pr. Verifies all eviction policies load+run end-to-end.",
+      "name": "phase_1_3_smoke_replacement",
       "kind": "roi_matrix",
       "profiles": ["smoke"],
       "suite": "cache-sim",
@@ -70,11 +69,10 @@
       "benchmarks": ["pr"],
       "policies": ["LRU", "GRASP", "POPT", "ECG:DBG_ONLY", "ECG:POPT_PRIMARY"],
       "prefetcher": "none",
-      "out_subdir": "smoke/baselines__no_prefetcher"
+      "out_subdir": "phase_1_3_smoke/replacement"
     },
     {
-      "name": "smoke__seq__sw__k16",
-      "description": "Smoke: DROPLET-style sequential prefetcher (k=16, paper-default lookahead) under ECG_DBG eviction. Tests prefetcher activation path.",
+      "name": "phase_1_3_smoke_droplet",
       "kind": "roi_matrix",
       "profiles": ["smoke"],
       "suite": "cache-sim",
@@ -83,11 +81,10 @@
       "policies": ["ECG:DBG_ONLY"],
       "prefetcher": "DROPLET",
       "ecg_pfx_lookahead": "16",
-      "out_subdir": "smoke/seq__sw__k16"
+      "out_subdir": "phase_1_3_smoke/droplet_lh16"
     },
     {
-      "name": "smoke__popt_off__isa__k2",
-      "description": "Smoke: HEADLINE arm — offline POPT-ranked per-edge mask + ISA-extension delivery + k=2 bandwidth (1 selected + 1 sequential). Tests CHARGED=0 env propagation.",
+      "name": "phase_1_3_smoke_mode6_charged0_amp1",
       "kind": "roi_matrix",
       "profiles": ["smoke"],
       "suite": "cache-sim",
@@ -102,43 +99,40 @@
         "ECG_EDGE_MASK_AMPLIFY": "1",
         "ECG_EDGE_MASK_LOOKAHEAD": "8"
       },
-      "out_subdir": "smoke/popt_off__isa__k2"
+      "out_subdir": "phase_1_3_smoke/mode6_charged0_amp1"
     },
     {
-      "name": "go_no_go__seq__sw__k8",
-      "description": "GO/NO-GO kill-switch 1A: DROPLET-style k=8 on large graphs at L3=2MB and L3=8MB. Baseline for the headline comparison.",
+      "name": "phase_1_5_kill1_droplet_lh8",
       "kind": "roi_matrix",
-      "profiles": ["go_no_go"],
+      "profiles": ["killswitch"],
       "suite": "cache-sim",
-      "graph_set": "go_no_go_large",
+      "graph_set": "killswitch_large",
       "benchmarks": ["pr"],
       "policies": ["ECG:DBG_ONLY"],
       "prefetcher": "DROPLET",
       "ecg_pfx_lookahead": "8",
       "l3_sizes": ["2MB", "8MB"],
-      "out_subdir": "go_no_go/seq__sw__k8"
+      "out_subdir": "phase_1_5_kill1/droplet_lh8"
     },
     {
-      "name": "go_no_go__seq__sw__k16",
-      "description": "GO/NO-GO kill-switch 1B: DROPLET-style k=16 (paper default) on large graphs at L3=2MB and L3=8MB.",
+      "name": "phase_1_5_kill1_droplet_lh16",
       "kind": "roi_matrix",
-      "profiles": ["go_no_go"],
+      "profiles": ["killswitch"],
       "suite": "cache-sim",
-      "graph_set": "go_no_go_large",
+      "graph_set": "killswitch_large",
       "benchmarks": ["pr"],
       "policies": ["ECG:DBG_ONLY"],
       "prefetcher": "DROPLET",
       "ecg_pfx_lookahead": "16",
       "l3_sizes": ["2MB", "8MB"],
-      "out_subdir": "go_no_go/seq__sw__k16"
+      "out_subdir": "phase_1_5_kill1/droplet_lh16"
     },
     {
-      "name": "go_no_go__popt_off__isa__k2",
-      "description": "GO/NO-GO kill-switch 1C: HEADLINE arm on large graphs at L3=2MB and L3=8MB. Must beat seq__sw__k8 on demand_saved AND total DRAM to pass.",
+      "name": "phase_1_5_kill1_mode6_charged0_amp1",
       "kind": "roi_matrix",
-      "profiles": ["go_no_go"],
+      "profiles": ["killswitch"],
       "suite": "cache-sim",
-      "graph_set": "go_no_go_large",
+      "graph_set": "killswitch_large",
       "benchmarks": ["pr"],
       "policies": ["ECG:DBG_ONLY"],
       "prefetcher": "ECG_PFX",
@@ -150,51 +144,47 @@
         "ECG_EDGE_MASK_LOOKAHEAD": "8"
       },
       "l3_sizes": ["2MB", "8MB"],
-      "out_subdir": "go_no_go/popt_off__isa__k2"
+      "out_subdir": "phase_1_5_kill1/mode6_charged0_amp1"
     },
     {
-      "name": "go_no_go__baseline_parity",
-      "description": "GO/NO-GO kill-switch 2: baseline parity check. ECG:DBG_ONLY should match GRASP within ~5%; ECG:POPT_PRIMARY should match POPT within ~5%. Validates our eviction-policy implementations are sane.",
+      "name": "phase_1_5_kill2_baseline_parity",
       "kind": "roi_matrix",
-      "profiles": ["go_no_go"],
+      "profiles": ["killswitch"],
       "suite": "cache-sim",
-      "graph_set": "go_no_go_baseline_parity",
+      "graph_set": "killswitch_baseline_parity",
       "benchmarks": ["pr"],
       "policies": ["LRU", "GRASP", "POPT", "ECG:DBG_ONLY", "ECG:POPT_PRIMARY"],
       "prefetcher": "none",
       "l3_sizes": ["2MB"],
-      "out_subdir": "go_no_go/baseline_parity"
+      "out_subdir": "phase_1_5_kill2/baseline_parity"
     },
     {
-      "name": "baselines__no_prefetcher",
-      "description": "Phase 2: replacement-only sweep on common corpus. 5 graphs x 5 eviction policies, no prefetcher.",
+      "name": "phase_2_baselines_lru",
       "kind": "roi_matrix",
-      "profiles": ["baselines"],
+      "profiles": ["phase_2"],
       "suite": "cache-sim",
       "graph_set": "common_corpus",
       "benchmarks": ["pr"],
       "policies": ["LRU", "GRASP", "POPT", "ECG:DBG_ONLY", "ECG:POPT_PRIMARY"],
       "prefetcher": "none",
-      "out_subdir": "baselines/no_prefetcher"
+      "out_subdir": "phase_2_baselines/lru_noprefetch"
     },
     {
-      "name": "baselines__seq__sw__k8",
-      "description": "Phase 2: DROPLET-style k=8 baseline on common corpus under ECG_DBG eviction.",
+      "name": "phase_2_baselines_droplet_lh8",
       "kind": "roi_matrix",
-      "profiles": ["baselines"],
+      "profiles": ["phase_2"],
       "suite": "cache-sim",
       "graph_set": "common_corpus",
       "benchmarks": ["pr"],
       "policies": ["ECG:DBG_ONLY"],
       "prefetcher": "DROPLET",
       "ecg_pfx_lookahead": "8",
-      "out_subdir": "baselines/seq__sw__k8"
+      "out_subdir": "phase_2_baselines/droplet_lh8"
     },
     {
-      "name": "buildup__popt_rt__sw__k1",
-      "description": "Phase 3a: ECG_PFX mode 2 - runtime POPT-ranked single best target from K=1 LH=8 lookahead window. Validates online lookahead can match DROPLET miss-rate at lower bandwidth.",
+      "name": "phase_3_ecg_buildup_mode2",
       "kind": "roi_matrix",
-      "profiles": ["buildup"],
+      "profiles": ["phase_3"],
       "suite": "cache-sim",
       "graph_set": "common_corpus",
       "benchmarks": ["pr"],
@@ -203,13 +193,12 @@
       "ecg_pfx_mode": "popt",
       "ecg_pfx_lookahead": "8",
       "ecg_pfx_window": "16",
-      "out_subdir": "buildup/popt_rt__sw__k1"
+      "out_subdir": "phase_3_buildup/mode2_popt_k1_lh8"
     },
     {
-      "name": "buildup__popt_off__isa__k1",
-      "description": "Phase 3b: ECG_PFX mode 6 (per-edge offline POPT) + ISA delivery + k=1 bandwidth. Tests the selection-quality value with minimum bandwidth.",
+      "name": "phase_3_ecg_buildup_mode6_amp0_charged0",
       "kind": "roi_matrix",
-      "profiles": ["buildup"],
+      "profiles": ["phase_3"],
       "suite": "cache-sim",
       "graph_set": "common_corpus",
       "benchmarks": ["pr"],
@@ -222,13 +211,12 @@
         "ECG_EDGE_MASK_AMPLIFY": "0",
         "ECG_EDGE_MASK_LOOKAHEAD": "8"
       },
-      "out_subdir": "buildup/popt_off__isa__k1"
+      "out_subdir": "phase_3_buildup/mode6_charged0_amp0"
     },
     {
-      "name": "buildup__popt_off__isa__k2",
-      "description": "Phase 3c: HEADLINE ARM. Per-edge offline POPT + ISA delivery + k=2 (1 selected + 1 sequential = AMPLIFY=1 sweet spot).",
+      "name": "phase_3_ecg_buildup_mode6_amp1_charged0",
       "kind": "roi_matrix",
-      "profiles": ["buildup"],
+      "profiles": ["phase_3"],
       "suite": "cache-sim",
       "graph_set": "common_corpus",
       "benchmarks": ["pr"],
@@ -241,13 +229,12 @@
         "ECG_EDGE_MASK_AMPLIFY": "1",
         "ECG_EDGE_MASK_LOOKAHEAD": "8"
       },
-      "out_subdir": "buildup/popt_off__isa__k2"
+      "out_subdir": "phase_3_buildup/mode6_charged0_amp1"
     },
     {
-      "name": "buildup__popt_off__sw__k2_negctrl",
-      "description": "Phase 3d (negative control): same as headline but with software-delivered mask (CHARGED=1). Must lose to headline to confirm the ISA-delivery contribution.",
+      "name": "phase_3_ecg_buildup_mode6_amp1_charged1",
       "kind": "roi_matrix",
-      "profiles": ["buildup"],
+      "profiles": ["phase_3"],
       "suite": "cache-sim",
       "graph_set": "common_corpus",
       "benchmarks": ["pr"],
@@ -260,7 +247,7 @@
         "ECG_EDGE_MASK_AMPLIFY": "1",
         "ECG_EDGE_MASK_LOOKAHEAD": "8"
       },
-      "out_subdir": "buildup/popt_off__sw__k2_negctrl"
+      "out_subdir": "phase_3_buildup/mode6_charged1_amp1_negcontrol"
     }
   ]
 }
