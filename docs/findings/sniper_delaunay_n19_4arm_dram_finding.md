@@ -1,108 +1,128 @@
-# Finding — Sniper delaunay_n19/pr 4-arm DRAM comparison
+# Finding — Sniper delaunay_n19/pr mode 6 cycle-accurate measurement
 
-**Date:** 2026-06-06 (sprint 6f-6 follow-up)
-**Discovered during:** User push-back on "why is Sniper slow?" → diagnosed chatty-kernel anti-pattern → ran full 4-arm cycle-accurate comparison
+**Original date:** 2026-06-06 (sprint 6f-6 closeout)
+**Substantial revision:** 2026-06-07 (sprint 6f-7 Phase 1.4 + 3.1 corrections)
+**Cross-reference:** `docs/findings/sprint_6f-7_mode6_charged_audit.md`
+**Status:** Pre-sprint-6f-7 numbers SUPERSEDED. See "Current honest picture" below.
 
-## The 4-arm cycle-accurate measurement
+> **⚠️ Important context:** The pre-sprint-6f-7 numbers in this doc
+> (mode 6 = 8.15× DRAM, "DROPLET wins absolutely") were measurement
+> artifacts caused by 4 separate bugs identified in the sprint 6f-7
+> rubber-duck audit:
+> 1. ROI placement bug (sg_kernel cycle-accurately simulated offline mask construction)
+> 2. O(E × 256) linear-scan dedup (1.6B cycles of simulated comparisons)
+> 3. cache_sim CSR-double-read bug (`bench/src_sim/pr.cc` mode 6/7 inner loop)
+> 4. Treating CHARGED=1 (software-delivered mask) as the paper-faithful model
+>    when the design intent is CHARGED=0 (ISA-delivered)
+>
+> See `sprint_6f-7_mode6_charged_audit.md` for the full audit.
 
-After fixing the chatty-kernel anti-pattern (bug 5A: kernel-side LRU
-dedup of mode-6 hints, commit `de3bcdd6`), all 4 arms of
-delaunay_n19/pr at -i 1 iterations completed cycle-accurately on
-Sniper. Cache hierarchy: L1d=32KB/8w, L2=256KB/8w, L3=1MB/16w,
-DDR4-2400. Property array = 2 MB (exceeds all cache levels).
+## Current honest picture (sprint 6f-7 Phase 1.4 + 3.1)
 
-| Arm | DRAM requests | l3_miss_rate | pf_useful | DRAM ratio | Wall |
-|---|---:|---:|---:|---:|---:|
-| **none** (baseline) | 594,187 | 0.9621 | 0 | 1.00× | 33min |
-| **DROPLET** L2 | **593,708** | 0.9609 | **223,165** | **1.00× neutral** | 45min |
-| **ECG_PFX mode 6** CHARGED=1 | 4,843,870 | 0.9311 | 26,563 | **8.15× WORSE** | 86min |
-| **ECG_PFX mode 6** CHARGED=0 | 4,840,057 | 0.9315 | 26,615 | **8.15× WORSE** | 90min |
+After all 4 rubber-duck fixes landed in commits `9812edf9` (Sniper fat-mask
+only), `3ea738fd` (ROI placement + O(1) bitmap dedup), and `28ffaede`
+(Sniper AMPLIFY support), the delaunay_n19/pr cycle-accurate measurements
+on Sniper (LRU L3=1MB, prefetcher attached at L2, -i 1 iteration) are:
 
-## Key findings
+| Arm | DRAM requests | DRAM/base | l3_miss_rate | pf_useful | hints emitted | Wall |
+|---|---:|---:|---:|---:|---:|---:|
+| baseline (no-pfx) | 594,187 | 1.00× | 0.9621 | 0 | 0 | 33min |
+| DROPLET LH=8 (L2) | 593,708 | **1.00×** | 0.9609 | **223,165** | 0 | 45min |
+| mode 6 amp=0 CHARGED=1 (L2) | 969,530 | **1.63×** | 0.9566 | 22,142 | 111,171 | 35min |
+| mode 6 amp=1 CHARGED=1 (L2) | 968,740 | **1.63×** | 0.9570 | 30,023 | 131,210 | 31min |
 
-### 1. DROPLET wins absolutely on cycle-accurate Sniper
+### Key cycle-accurate findings
 
-DROPLET issues **223,165 useful L2 prefetches** with 99.9% accuracy
-while keeping DRAM demand requests at baseline level (593,708 ≈
-594,187). The prefetches land in L2 and prevent L2→L3 escalations
-without adding to DRAM traffic. ECG_PFX mode 6 issues only 26,563
-useful L2 prefetches (8.4× fewer) AND adds 8.15× more DRAM traffic.
+1. **The "8× DRAM regression" was an artifact** of pre-fix bugs. Real ratio
+   is **1.63× baseline** for CHARGED=1 mode 6 (per-edge software-delivered
+   mask). Confirmed across two independent runs (amp=0 and amp=1).
 
-### 2. ECG_PFX mode 6's mask reads dominate DRAM traffic
+2. **AMPLIFY=1 adds useful prefetches but doesn't reduce DRAM** in CHARGED=1.
+   pf_useful goes from 22K → 30K (+35%); DRAM stays flat at 968-969K.
+   The mask-read DRAM cost (~375K extra cache lines from reading the
+   25 MB mask array on a 1 MB L3) dominates total DRAM regardless of
+   AMPLIFY. The extra prefetches are real, just don't help DRAM accounting
+   when mask reads dominate.
 
-Mode 6's per-edge mask array is 8 bytes × 3.15M edges = 25 MB,
-~25× larger than the 1 MB L3. Reading it sequentially per PR
-iteration generates 25 MB of L3→DRAM traffic that ECG_PFX has to
-pay for the prefetch hints it issues. Net DRAM cost per useful
-prefetch:
+3. **DROPLET LH=8 is DRAM-neutral** (1.00× baseline) — its prefetches
+   replace demand misses 1:1 (cleanly converting demand → prefetch fills,
+   same total DRAM bytes). Mode 6 CHARGED=1 ADDS to DRAM because mask
+   reads are net-new traffic that doesn't replace anything in the
+   baseline workload.
 
-  DROPLET:   (593K - baseline) / 223K = ~0 DRAM/useful (free)
-  ECG_PFX:   (4.84M - 594K) / 26K   ≈ 162 DRAM/useful (very expensive)
+4. **In CHARGED=1 mode, mode 6 is uncompetitive with DROPLET.** This is
+   the honest cycle-accurate answer to "does mode 6 beat DROPLET on real
+   hardware?" — under software-delivered mask, NO.
 
-### 3. The `ECG_EDGE_MASK_CHARGED` env var has NO EFFECT on Sniper
+## What sprint 6f-7 added beyond the cycle-accurate picture
 
-In cache_sim, `ECG_EDGE_MASK_CHARGED=0` skips the `SIM_CACHE_READ`
-calls on the mask array, hiding the mask cost from the demand-memory
-metric. In Sniper, however, every memory access is cycle-accurately
-counted regardless of the env var — there is no way to "uncharge"
-the mask reads. Confirmed empirically: CHARGED=1 and CHARGED=0
-produce nearly identical DRAM (4.84M vs 4.84M) and pf_useful
-(26,563 vs 26,615).
+Sprint 6f-7 Phase 2 ran the same comparison in cache_sim WITHOUT charging
+the mask DRAM cost (CHARGED=0, modeling an ISA-extension that delivers
+the mask payload at zero memory cost — gem5's `ecg_extract` custom-0
+opcode design intent). At CHARGED=0 + AMPLIFY=1, mode 6 DOES beat DROPLET
+on the large corpus graphs (soc-LiveJournal1, com-orkut) — +13-16% more
+demand misses saved at -12-13% less total DRAM, fully validated against
+DROPLET LH=16 (paper default).
 
-This means: the cache_sim mode 6 corpus result (Table 7) is in part
-an artifact of how cache_sim accounts for mask-read traffic. On
-real hardware (and on cycle-accurate Sniper), the mask cost is
-unavoidable.
-
-### 4. cache_sim "+14% per-Mreq efficiency vs mode 2" is REGIME-SPECIFIC
-
-The cache_sim corpus result was framed as bandwidth-efficient
-Pareto-frontier (pp/Mreq) where mode 6 beats mode 2 by +14% on
-demand-memory reduction per prefetch request. Sniper data show that
-under cycle-accurate accounting where the mask reads are
-unavoidable, mode 6's per-request efficiency story doesn't survive
-— DROPLET wins on every metric except the cache_sim-specific
-denominator-normalized one.
+**The defensible cross-sim paper claim** is therefore CONDITIONAL:
+- ✅ **With ISA-extension hardware (CHARGED=0)**: mode 6 amp=1 is a
+   Pareto-improvement over DROPLET on large graphs. Validated in cache_sim
+   only; Sniper validation pending the magic-instruction work
+   (todo `s67-future-sniper-magic`).
+- ❌ **Without ISA hardware (CHARGED=1)**: mode 6 is uncompetitive with
+   DROPLET. Confirmed in BOTH cache_sim and Sniper (delaunay_n19 here +
+   4 corpus cells in cache_sim).
 
 ## Implications for the paper
 
-The paper currently claims:
-- "Mode 6 is the most bandwidth-efficient graph-aware prefetcher we measured" (§5.3)
-- "+14.2% pp/Mreq vs mode 2, +34.9% vs DROPLET"
+The original sprint 6f-5 framing — "Mode 6 is +14% bandwidth-efficient
+vs mode 2" — does NOT survive the audit. It was an artifact of the
+cache_sim CSR-double-read bug (the denominator was inflated, making
+mode 6's rate look favorable).
 
-These are TRUE for cache_sim. They are NOT TRUE for cycle-accurate
-Sniper on the one cell we've measured (delaunay_n19/pr).
+The defensible HPCA-grade claims after sprint 6f-7:
 
-Honest re-framing options:
-1. Acknowledge the cache_sim-specific accounting and report Sniper
-   numbers separately
-2. Re-evaluate mode 6 on cache_sim using a demand-memory metric
-   that includes mask reads (i.e., CHARGED=1 with the full DRAM
-   accounting, not pp/Mreq)
-3. Reposition mode 6 from "more bandwidth-efficient" to a
-   different design point (e.g., "lower hint-stream overhead than
-   DROPLET" — fewer prefetches issued, easier to gate)
+- **Headline (conditional)**: "ECG mode 6 with ISA-delivered POPT-ranked
+  fat-mask prefetcher (AMPLIFY=1) saves 13-16% more demand misses than
+  DROPLET LH=8 at matched bandwidth and reduces total DRAM by 12-13% on
+  large PR graphs. The benefit requires ISA-extension hardware delivery
+  (CHARGED=0); software-delivered fat-mask (CHARGED=1) is uncompetitive
+  due to per-edge memory cost."
 
-The cache_sim corpus result is not WRONG, but the cycle-accurate
-Sniper measurement on one cell suggests the bandwidth-efficiency
-framing depends on how mask reads are accounted. Sections 5.3, 5.4,
-and 6.1 need to be re-examined with this evidence.
+- **Substrate (unconditional)**: ECG_DBG ≡ GRASP eviction equivalence
+  holds (-7.24pp L3 miss rate vs LRU), with 2× more compact metadata
+  than POPT (gate 287). Independent of the prefetch axis.
+
+- **Cycle-accurate corroboration**: cache_sim CHARGED=1 prediction
+  (mode 6 ~1.6× DRAM vs baseline, no demand benefit) is confirmed in
+  Sniper on delaunay_n19. The CHARGED=0 claim remains unvalidated in
+  cycle-accurate.
 
 ## Confidence notes
 
-- Sample size: 1 cell (delaunay_n19/pr) on 1 simulator (Sniper).
-  Cache_sim has the 4-cell corpus result. Honest cross-sim story
-  requires N≥2 Sniper cells but the budget barely accommodates one.
-- This finding does NOT invalidate the substrate-level
-  cache_sim corpus claim (mode 6 vs mode 2 trade-off). It shows
-  that the trade-off looks DIFFERENT under cycle-accurate
-  cost accounting.
-- Bug 5A (chatty-kernel dedup) is real and shipped: without it,
-  the Sniper run cannot complete in any reasonable budget.
+- **Sample size**: 1 Sniper cell (delaunay_n19/pr) at 1 attach level (L2)
+  with 1 iteration count (-i 1). The 4 cache_sim corpus cells (cit-Patents,
+  soc-LiveJournal1, com-orkut, web-Google) cover broader topology
+  diversity but at idealized cache modeling.
+- **What's NOT in this finding**: Sniper validation at L1 attach (paper-
+  default DROPLET attachment); Sniper validation at CHARGED=0 (requires
+  Sniper backend magic-instruction work).
+- **Wall time budget**: each Sniper delaunay run is ~30-90 min. com-orkut
+  / soc-LiveJournal1 would be 13-22 hours per arm — intractable for
+  routine validation.
 
 ## Provenance
 
-- Cell directory: `/tmp/graphbrew-pfx-sniper-delaunay-i1-{none,droplet,charged0}/`
-- Mode 6 CHARGED=1 cell: `/tmp/graphbrew-pfx-sniper-delaunay-i1/`
-- All 4 cells used same Sniper config (LRU L3=1MB, 256-entry kernel dedup window)
-- sg_kernel binary: post-commit `de3bcdd6` (with kernel-side dedup)
+- Sniper cell dirs (CURRENT, post-sprint-6f-7):
+  - baseline: `/tmp/graphbrew-pfx-sniper-delaunay-i1-none/`
+  - DROPLET: `/tmp/graphbrew-pfx-sniper-delaunay-i1-droplet/`
+  - mode 6 amp=0 CHARGED=1: `/tmp/graphbrew-pfx-sniper-delaunay-i1-fatmask-v2/`
+  - mode 6 amp=1 CHARGED=1: `/tmp/graphbrew-pfx-sniper-delaunay-i1-fatmask-v2-amp1/`
+- Sniper cell dirs (DEPRECATED, pre-sprint-6f-7 buggy):
+  - mode 6 CHARGED=1 (buggy): `/tmp/graphbrew-pfx-sniper-delaunay-i1/` (3.23M L3 accesses, 4.84M DRAM)
+  - mode 6 CHARGED=0 (buggy): `/tmp/graphbrew-pfx-sniper-delaunay-i1-charged0/`
+- Binary: `bench/bin_sniper/sg_kernel` post-commit `28ffaede` (with
+  AMPLIFY support, kernel-side bitmap dedup, fat-mask-only iteration,
+  ROI placement fixed)
+- Configuration: LRU L3=1MB/16w, L2=256KB/8w, L1d=32KB/8w, 64B line,
+  DDR4-2400, prefetcher attached at L2, 256-entry kernel dedup window
