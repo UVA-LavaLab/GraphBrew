@@ -162,6 +162,54 @@ inline uint32_t gem5_ecg_pfx_target_instruction(uint32_t target_vertex) {
 #endif
 }
 
+// === S69PRE-M1-MASK: full mode-6 mask emission via ecg.extract ===
+//
+// The S69-pre M1 wiring extends RISCV ecg.extract delivery from
+// just the prefetch target to the full 64-bit per-edge mode-6 mask
+// (dest + DBG + POPT + PFX). The decoder unpacks all 4 fields and
+// populates the per-vertex ECG metadata table; ECG_RP consumes that
+// table during replacement decisions.
+//
+// On X86 the work_begin path can only carry one uint64_t threadid
+// argument, which happens to be exactly the 64-bit mask. The
+// pseudo_inst handler treats the threadid as a packed mask when the
+// new work_id is used. (Backward-compat: GEM5_WORK_ECG_PFX_TARGET
+// continues to deliver a bare vertex via setPrefetchTargetHint.)
+
+inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
+#if defined(__riscv)
+    uint64_t real_vertex = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x00, %0, %1, x0"
+                  : "=r"(real_vertex)
+                  : "r"(fat_mask)
+                  : "memory");
+    return static_cast<uint32_t>(real_vertex);
+#elif defined(__x86_64__)
+    // X86 fallback: deliver just the prefetch target (high 31 bits of mask).
+    // ECG_RP metadata channel is RISCV-only on X86 today.
+    uint32_t pfx_target = static_cast<uint32_t>((fat_mask >> 33) & 0x7FFFFFFFULL);
+    if (pfx_target == 0) {
+        pfx_target = static_cast<uint32_t>(fat_mask & 0xFFFFFFULL);  // dest
+    }
+    gem5_x86_work_begin_instruction(GEM5_WORK_ECG_PFX_TARGET,
+                                    static_cast<uint64_t>(pfx_target));
+    return pfx_target;
+#else
+    return static_cast<uint32_t>(fat_mask & 0xFFFFFFULL);  // dest
+#endif
+}
+
+// GEM5_ECG_EXTRACT_MASK(mask_u64): emit the full mode-6 mask via the
+// RISCV ecg.extract opcode (or the X86 fallback). Bypasses the dedup
+// filter — caller is responsible for not over-emitting.
+#define GEM5_ECG_EXTRACT_MASK(mask_u64) \
+    do { \
+        if (gem5_ecg_pfx_hints_enabled() && gem5_ecg_extract_enabled()) { \
+            (void)gem5_ecg_extract_mask_instruction(static_cast<uint64_t>(mask_u64)); \
+        } \
+    } while (0)
+
+
 #if defined(__riscv)
 #define GEM5_ECG_PFX_TARGET(vertex_id) \
     do { \

@@ -127,6 +127,29 @@ GraphEcgRP::reset(
                 std::min(dist, uint32_t(127)) >> 3);
         }
 
+        // === S69PRE-M1-MASK: prefer ISA-delivered metadata over sideband ===
+        // When the kernel has emitted an ecg.extract opcode for the vertex
+        // owning this cache line, the per-vertex metadata table holds the
+        // CHARGED=0 paper-faithful DBG tier + POPT quant. Prefer those over
+        // the sideband-JSON-derived values. Falls back to sideband if the
+        // table has no entry for this vertex.
+        if (data->is_property_data && ctx.loaded && ctx.num_regions > 0) {
+            const auto& region = ctx.regions[0];
+            uint32_t vertex = graph::addressToVertex(
+                data->line_addr,
+                region.base_address, region.upper_bound,
+                region.elem_size);
+            if (vertex != UINT32_MAX) {
+                uint8_t isa_dbg = 0, isa_popt = 0;
+                if (graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt)) {
+                    // Use ISA-delivered metadata directly.
+                    data->ecg_dbg_tier = isa_dbg;
+                    // POPT quant is 7 bits; ECG_RP stores as 8-bit; range OK.
+                    data->ecg_popt_hint = isa_popt;
+                }
+            }
+        }
+
         if (ecgMode == graph::ECGMode::POPT_PRIMARY) {
             data->rrpv = (rrpvMax > 0) ? rrpvMax - 1 : 0;
         } else if (ecgMode == graph::ECGMode::ECG_COMBINED) {

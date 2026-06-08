@@ -179,6 +179,68 @@ inline void setDecodedEcgExtractHint(uint32_t real_vertex,
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
 }
 
+// === S69PRE-M1-MASK: Per-vertex ECG metadata table ===
+//
+// The legacy setDecodedEcgExtractHint above is a single-slot mailbox.
+// For paper-faithful CHARGED=0 the replacement policy needs to look
+// up DBG/POPT metadata BY VERTEX when a cache miss for property[v]
+// is being resolved. A direct-mapped 4K-entry table provides
+// constant-time lookup without dynamic allocation. The kernel emits
+// hints in spatial order (PR pull: for u, for v in in_neigh(u))
+// matching the cache miss pattern, so direct-mapped collisions are
+// rare in practice.
+
+inline constexpr std::size_t kEcgMetadataTableSize = 4096;
+
+struct EcgMetadataEntry {
+    std::atomic<uint32_t> vertex{UINT32_MAX};  // sentinel = invalid
+    std::atomic<uint8_t>  dbg_tier{0};
+    std::atomic<uint8_t>  popt_quant{0};
+};
+
+inline std::array<EcgMetadataEntry, kEcgMetadataTableSize>& ecgMetadataTable() {
+    static std::array<EcgMetadataEntry, kEcgMetadataTableSize> table;
+    return table;
+}
+
+inline void storeEcgMetadataByVertex(uint32_t vertex,
+                                     uint8_t dbg_tier,
+                                     uint8_t popt_quant) {
+    auto& entry = ecgMetadataTable()[vertex % kEcgMetadataTableSize];
+    entry.dbg_tier.store(dbg_tier, std::memory_order_relaxed);
+    entry.popt_quant.store(popt_quant, std::memory_order_relaxed);
+    // Store vertex LAST so a concurrent reader sees a coherent
+    // (vertex, dbg, popt) triple — happens-before via the release on
+    // vertex.
+    entry.vertex.store(vertex, std::memory_order_release);
+}
+
+inline bool lookupEcgMetadataByVertex(uint32_t vertex,
+                                      uint8_t& dbg_tier_out,
+                                      uint8_t& popt_quant_out) {
+    auto& entry = ecgMetadataTable()[vertex % kEcgMetadataTableSize];
+    if (entry.vertex.load(std::memory_order_acquire) != vertex) {
+        return false;  // miss (sentinel, evicted, or different vertex hashed to same slot)
+    }
+    dbg_tier_out  = entry.dbg_tier.load(std::memory_order_relaxed);
+    popt_quant_out = entry.popt_quant.load(std::memory_order_relaxed);
+    return true;
+}
+
+// Address-to-vertex helper for ECG_RP. Property region base + elem_size
+// come from the sideband JSON. Returns UINT32_MAX if addr is not in any
+// known property region.
+inline uint32_t addressToVertex(uint64_t addr,
+                                uint64_t property_base,
+                                uint64_t property_end,
+                                uint32_t elem_size) {
+    if (addr < property_base || addr >= property_end || elem_size == 0) {
+        return UINT32_MAX;
+    }
+    return static_cast<uint32_t>((addr - property_base) / elem_size);
+}
+
+
 // ============================================================================
 // ECGMode: Controls eviction tiebreaker priority
 // ============================================================================

@@ -198,7 +198,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                             }
                         }
                         if (!in_window) {
-                            GEM5_ECG_PFX_TARGET(prefetch_target);
+                            // S69PRE-M1-MASK: emit FULL mode-6 mask via ecg.extract
+                            // when ISA-delivered metadata channel is enabled.
+                            // Else fall back to the legacy prefetch-target-only path.
+                            if (gem5_ecg_extract_enabled()) {
+                                GEM5_ECG_EXTRACT_MASK(mask);
+                            } else {
+                                GEM5_ECG_PFX_TARGET(prefetch_target);
+                            }
                             pfx_window[pfx_window_pos % PREFETCH_WINDOW] = prefetch_target;
                             pfx_window_pos++;
                         }

@@ -4,16 +4,34 @@
             format EcgExtractOp {
                 0x0: decode FUNCT7 {
                     0x00: ecg_extract({{
-                        uint64_t fat_id = Rs1;
-                        uint32_t real_vertex = static_cast<uint32_t>(fat_id & 0xffffffffULL);
-                        uint8_t dbg_hint = static_cast<uint8_t>((fat_id >> 32) & 0xffULL);
-                        uint8_t popt_hint = static_cast<uint8_t>((fat_id >> 40) & 0xffULL);
-                        uint16_t pfx_hint = static_cast<uint16_t>((fat_id >> 48) & 0xffffULL);
-                        uint32_t pfx_target = pfx_hint ? static_cast<uint32_t>(pfx_hint) : real_vertex;
+                        // S69PRE-M1-MASK: use mode-6 mask layout (matches
+                        // bench/include/ecg_mode6_builder.h packMask):
+                        //   [0:24]   dest_id (demand load vertex)
+                        //   [24:26]  DBG tier (0..3)
+                        //   [26:33]  POPT quant (0..127)
+                        //   [33:64]  prefetch target (0 = no prefetch)
+                        uint64_t fat_mask = Rs1;
+                        uint32_t dest_id     = static_cast<uint32_t>((fat_mask >>  0) & 0xFFFFFFULL);
+                        uint8_t  dbg_tier    = static_cast<uint8_t> ((fat_mask >> 24) & 0x3ULL);
+                        uint8_t  popt_quant  = static_cast<uint8_t> ((fat_mask >> 26) & 0x7FULL);
+                        uint32_t pfx_target  = static_cast<uint32_t>((fat_mask >> 33) & 0x7FFFFFFFULL);
+                        // Populate per-vertex metadata table so ECG_RP can
+                        // consume ISA-delivered DBG/POPT for paper-faithful
+                        // CHARGED=0 replacement.
+                        gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                            dest_id, dbg_tier, popt_quant);
+                        // Legacy storage (single-slot mailbox; kept for
+                        // back-compat with non-ECG_RP consumers).
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint(
-                            real_vertex, dbg_hint, popt_hint, pfx_hint);
-                        gem5::replacement_policy::graph::setPrefetchTargetHint(pfx_target);
-                        Rd = rvZext(real_vertex);
+                            dest_id, dbg_tier, popt_quant, 0);
+                        // Queue the prefetch hint (or fall back to demand
+                        // vertex if no prefetch encoded).
+                        if (pfx_target != 0) {
+                            gem5::replacement_policy::graph::setPrefetchTargetHint(pfx_target);
+                        } else {
+                            gem5::replacement_policy::graph::setPrefetchTargetHint(dest_id);
+                        }
+                        Rd = rvZext(dest_id);
                     }});
                 }
             }
