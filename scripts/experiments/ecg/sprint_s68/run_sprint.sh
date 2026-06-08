@@ -34,11 +34,12 @@ declare -A MILESTONES=(
   [M3]="s68-m3-multi-graph:m3_multi_graph.sh"
   [M4]="s68-m4-rebuild-riscv:m4_rebuild_riscv.sh"
   [M5]="s68-m5-isa-smoke:m5_isa_smoke.sh"
+  [M5b]="s68-m5b-latency-guard:m5b_latency_guard.sh"
   [M6]="s68-m6-parity-check:m6_parity_check.sh"
   [M7]="s68-m7-verdict-doc:m7_verdict_doc.sh"
 )
 
-ORDER=(M1 M1b M2 M3 M4 M5 M6 M7)
+ORDER=(M1 M1b M2 M3 M4 M5 M5b M6 M7)
 
 status_of() {
   local m_id="$1"
@@ -200,6 +201,6 @@ case "${1:-next}" in
   --status|status) cmd_status ;;
   --all|all)       cmd_all ;;
   --next|next)     cmd_next ;;
-  M[1-7]|M1b)      run_one "$1" ;;
+  M[1-7]|M1b|M5b)  run_one "$1" ;;
   *) echo "usage: $0 [--status|--next|--all|M1|M1b|M2..M7]"; exit 2 ;;
 esac
