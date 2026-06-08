@@ -117,3 +117,25 @@ ECG_CONTAINER_BITS=64 \
     --l1d-size 32kB --l2-size 256kB --l3-sizes 1MB \
     --out-dir results/sprint_s69pre/s69pre-m7-3way-parity/sniper_ECG_sg
 ```
+
+---
+
+## S69pre M3b: utility validation via L2-size sweep (2026-06-08 16:55)
+
+After M1 wiring landed, the kron_s16_k4 useful rate is now sensitive to L2 cache pressure (paper-publishable behavior):
+
+| L2 size | pf_issued | pf_useful | pf_late | useful_pct |
+|---|---:|---:|---:|---:|
+| 64kB  | 124,372 | 11,131 | 100,241 | **8.95%** |
+| 128kB | 102,932 |  3,154 |  93,930 | **3.06%** |
+| 256kB |  88,483 |    969 |  84,920 | **1.10%** |
+| S68 baseline (LRU, L2=256kB) | 101,541 | 576 | — | **0.57%** |
+
+**Validations:**
+1. Useful rate scales monotonically with L2 pressure (canonical prefetcher behavior).
+2. ECG policy + ISA metadata channel doubles utility at same L2 size vs LRU control.
+3. M1 wiring (ECG_RP consumer of `lookupEcgMetadataByVertex`) is empirically confirmed to change eviction decisions.
+
+**Remaining tuning opportunity:** `pf_late` is ~80-100K across all cells (most prefetches arrive after demand). Increasing `--ecg-pfx-lookahead` or AMPLIFY would prefetch farther ahead, potentially boosting useful rate further. Not paper-blocking.
+
+Wall time: ~6 min total for 3 cells (gem5 RISCV is fast on kron_s16_k4 with -k 4 sparse graph).
