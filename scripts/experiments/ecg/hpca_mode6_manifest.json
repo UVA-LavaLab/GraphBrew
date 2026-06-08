@@ -51,6 +51,11 @@
     "go_no_go_sniper": [
       {"name": "delaunay_n19",  "path": "results/graphs/delaunay_n19/delaunay_n19.sg",   "options_key": "file_dbg"}
     ],
+    "sensitivity_small_corpus": [
+      {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"},
+      {"name": "web-Google",    "path": "results/graphs/web-Google/web-Google.sg",       "options_key": "file_dbg"},
+      {"name": "cit-Patents",   "path": "results/graphs/cit-Patents/cit-Patents.sg",     "options_key": "file_dbg"}
+    ],
     "common_corpus": [
       {"name": "email-Eu-core",     "path": "results/graphs/email-Eu-core/email-Eu-core.sg",         "options_key": "file_dbg"},
       {"name": "web-Google",        "path": "results/graphs/web-Google/web-Google.sg",               "options_key": "file_dbg"},
@@ -341,6 +346,101 @@
       },
       "l3_sizes": ["2MB"],
       "out_subdir": "sensitivity/amplify_sweep__amp1"
+    },
+    {
+      "name": "overnight__l3_sweep__none__small",
+      "description": "Overnight extension: L3 sweep on small/medium graphs (email-Eu-core, web-Google, cit-Patents) under no-prefetcher baseline. Completes the L3 scaling claim to 5/5 corpus graphs (Phase 4 covered only com-orkut + soc-LJ).",
+      "kind": "roi_matrix",
+      "profiles": ["overnight"],
+      "suite": "cache-sim",
+      "graph_set": "sensitivity_small_corpus",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "none",
+      "l3_sizes": ["1MB", "2MB", "4MB", "8MB", "16MB"],
+      "out_subdir": "overnight/l3_sweep__none"
+    },
+    {
+      "name": "overnight__l3_sweep__seq__sw__k8__small",
+      "description": "Overnight extension: DROPLET-style k=8 L3 sweep on small/medium graphs.",
+      "kind": "roi_matrix",
+      "profiles": ["overnight"],
+      "suite": "cache-sim",
+      "graph_set": "sensitivity_small_corpus",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "DROPLET",
+      "ecg_pfx_lookahead": "8",
+      "l3_sizes": ["1MB", "2MB", "4MB", "8MB", "16MB"],
+      "out_subdir": "overnight/l3_sweep__seq__sw__k8"
+    },
+    {
+      "name": "overnight__l3_sweep__popt_off__isa__k2__small",
+      "description": "Overnight extension: HEADLINE arm L3 sweep on small/medium graphs.",
+      "kind": "roi_matrix",
+      "profiles": ["overnight"],
+      "suite": "cache-sim",
+      "graph_set": "sensitivity_small_corpus",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "ECG_PFX",
+      "ecg_pfx_mode": "per_edge",
+      "ecg_pfx_lookahead": "8",
+      "env": {
+        "ECG_EDGE_MASK_CHARGED": "0",
+        "ECG_EDGE_MASK_AMPLIFY": "1",
+        "ECG_EDGE_MASK_LOOKAHEAD": "8"
+      },
+      "l3_sizes": ["1MB", "2MB", "4MB", "8MB", "16MB"],
+      "out_subdir": "overnight/l3_sweep__popt_off__isa__k2"
+    },
+    {
+      "name": "overnight__droplet_lh__k4",
+      "description": "Overnight extension: DROPLET LH=4 sensitivity (counters 'you gimped DROPLET at k=8' reviewer concern). 2 large graphs at L3={2MB, 8MB}.",
+      "kind": "roi_matrix",
+      "profiles": ["overnight_droplet"],
+      "suite": "cache-sim",
+      "graph_set": "go_no_go_large",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "DROPLET",
+      "ecg_pfx_lookahead": "4",
+      "l3_sizes": ["2MB", "8MB"],
+      "out_subdir": "overnight/droplet_lh__k4"
+    },
+    {
+      "name": "overnight__droplet_lh__k32",
+      "description": "Overnight extension: DROPLET LH=32 (above paper default 16 — tests saturation).",
+      "kind": "roi_matrix",
+      "profiles": ["overnight_droplet"],
+      "suite": "cache-sim",
+      "graph_set": "go_no_go_large",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "DROPLET",
+      "ecg_pfx_lookahead": "32",
+      "l3_sizes": ["2MB", "8MB"],
+      "out_subdir": "overnight/droplet_lh__k32"
+    },
+    {
+      "name": "overnight__amplify_sweep",
+      "description": "Overnight extension: explicit AMPLIFY sweep {0, 1, 2, 4} on large graphs at L3=2MB. Per Phase 3 finding, AMPLIFY > 1 should saturate; we verify here with the FRAMEWORK manifest. NOTE: each AMPLIFY value requires a separate stage (env block per stage).",
+      "kind": "roi_matrix",
+      "profiles": ["overnight_amp_4"],
+      "suite": "cache-sim",
+      "graph_set": "go_no_go_large",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "ECG_PFX",
+      "ecg_pfx_mode": "per_edge",
+      "ecg_pfx_lookahead": "8",
+      "env": {
+        "ECG_EDGE_MASK_CHARGED": "0",
+        "ECG_EDGE_MASK_AMPLIFY": "4",
+        "ECG_EDGE_MASK_LOOKAHEAD": "8"
+      },
+      "l3_sizes": ["2MB"],
+      "out_subdir": "overnight/amplify_sweep__amp4"
     }
   ]
 }
