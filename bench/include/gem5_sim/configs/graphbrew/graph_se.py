@@ -207,13 +207,45 @@ def create_system(args):
         }
         if args.prefetcher_level == "l1d":
             system.cpu.dcache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
+            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
+            # prefetches unless prefetcher.mmu is set. See
+            # docs/findings/gem5_implementation_audit_v1.md.
+            _pf = system.cpu.dcache.prefetcher
+            if hasattr(system.cpu, 'mmu'):
+                _pf.registerMMU(system.cpu.mmu)
+            elif hasattr(system.cpu, 'dtb'):
+                _pf.registerMMU(system.cpu.dtb)
         else:
             system.l2cache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
+            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
+            # prefetches unless prefetcher.mmu is set. See
+            # docs/findings/gem5_implementation_audit_v1.md.
+            _pf = system.l2cache.prefetcher
+            if hasattr(system.cpu, 'mmu'):
+                _pf.registerMMU(system.cpu.mmu)
+            elif hasattr(system.cpu, 'dtb'):
+                _pf.registerMMU(system.cpu.dtb)
     elif args.prefetcher == "ECG_PFX":
         if args.prefetcher_level == "l1d":
             system.cpu.dcache.prefetcher = make_ecg_pfx_prefetcher()
+            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
+            # prefetches unless prefetcher.mmu is set. See
+            # docs/findings/gem5_implementation_audit_v1.md.
+            _pf = system.cpu.dcache.prefetcher
+            if hasattr(system.cpu, 'mmu'):
+                _pf.registerMMU(system.cpu.mmu)
+            elif hasattr(system.cpu, 'dtb'):
+                _pf.registerMMU(system.cpu.dtb)
         else:
             system.l2cache.prefetcher = make_ecg_pfx_prefetcher()
+            # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
+            # prefetches unless prefetcher.mmu is set. See
+            # docs/findings/gem5_implementation_audit_v1.md.
+            _pf = system.l2cache.prefetcher
+            if hasattr(system.cpu, 'mmu'):
+                _pf.registerMMU(system.cpu.mmu)
+            elif hasattr(system.cpu, 'dtb'):
+                _pf.registerMMU(system.cpu.dtb)
 
     # ── Memory bus connections ──
     system.membus = SystemXBar()
