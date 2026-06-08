@@ -274,6 +274,73 @@
         "ECG_EDGE_MASK_LOOKAHEAD": "8"
       },
       "out_subdir": "buildup/popt_off__sw__k2_negctrl"
+    },
+    {
+      "name": "sensitivity__l3_sweep__none",
+      "description": "Phase 4a: L3 size sweep on com-orkut + soc-LiveJournal1 (no prefetcher baseline). L3 in {1, 2, 4, 8, 16 MB} to validate 'advantage grows with L3' theory directly.",
+      "kind": "roi_matrix",
+      "profiles": ["sensitivity"],
+      "suite": "cache-sim",
+      "graph_set": "go_no_go_large",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "none",
+      "l3_sizes": ["1MB", "2MB", "4MB", "8MB", "16MB"],
+      "out_subdir": "sensitivity/l3_sweep__none"
+    },
+    {
+      "name": "sensitivity__l3_sweep__seq__sw__k8",
+      "description": "Phase 4b: L3 size sweep for DROPLET-style k=8 on com-orkut + soc-LJ.",
+      "kind": "roi_matrix",
+      "profiles": ["sensitivity"],
+      "suite": "cache-sim",
+      "graph_set": "go_no_go_large",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "DROPLET",
+      "ecg_pfx_lookahead": "8",
+      "l3_sizes": ["1MB", "2MB", "4MB", "8MB", "16MB"],
+      "out_subdir": "sensitivity/l3_sweep__seq__sw__k8"
+    },
+    {
+      "name": "sensitivity__l3_sweep__popt_off__isa__k2",
+      "description": "Phase 4c: L3 size sweep for HEADLINE arm on com-orkut + soc-LJ. The 'advantage grows with L3' curve is the proof of the working-set theory.",
+      "kind": "roi_matrix",
+      "profiles": ["sensitivity"],
+      "suite": "cache-sim",
+      "graph_set": "go_no_go_large",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "ECG_PFX",
+      "ecg_pfx_mode": "per_edge",
+      "ecg_pfx_lookahead": "8",
+      "env": {
+        "ECG_EDGE_MASK_CHARGED": "0",
+        "ECG_EDGE_MASK_AMPLIFY": "1",
+        "ECG_EDGE_MASK_LOOKAHEAD": "8"
+      },
+      "l3_sizes": ["1MB", "2MB", "4MB", "8MB", "16MB"],
+      "out_subdir": "sensitivity/l3_sweep__popt_off__isa__k2"
+    },
+    {
+      "name": "sensitivity__amplify_sweep",
+      "description": "Phase 4d: AMPLIFY sweep at canonical config (L3=2MB, com-orkut + soc-LJ). Per sprint 6f-7 Phase 2.6, expected to saturate at AMPLIFY=1 due to dedup window absorbing extras.",
+      "kind": "roi_matrix",
+      "profiles": ["sensitivity_amp"],
+      "suite": "cache-sim",
+      "graph_set": "go_no_go_large",
+      "benchmarks": ["pr"],
+      "policies": ["ECG:DBG_ONLY"],
+      "prefetcher": "ECG_PFX",
+      "ecg_pfx_mode": "per_edge",
+      "ecg_pfx_lookahead": "8",
+      "env": {
+        "ECG_EDGE_MASK_CHARGED": "0",
+        "ECG_EDGE_MASK_AMPLIFY": "1",
+        "ECG_EDGE_MASK_LOOKAHEAD": "8"
+      },
+      "l3_sizes": ["2MB"],
+      "out_subdir": "sensitivity/amplify_sweep__amp1"
     }
   ]
 }
