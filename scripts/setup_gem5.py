@@ -85,6 +85,18 @@ PATCH_FILES = [
     "mem/cache/prefetch/SConscript.patch",
 ]
 
+# Unified-diff patches to apply via `patch -p1` (relative to overlays/).
+# Each entry: (overlay_relpath, target_dir_relative_to_gem5_root)
+# These are tracked as patches (not full file copies) so upstream gem5
+# changes are easier to merge.
+UNIFIED_DIFF_PATCHES = [
+    # S68 queue-servicing fix: nextPrefetchReadyTime returns curTick()
+    # when pfqMissingTranslation has entries even if pfq is empty.
+    # Required for prefetchers like ECG_PFX that emit only cross-page
+    # candidates. See docs/findings/gem5_implementation_audit_v1.md.
+    ("mem/cache/prefetch/queued_hh.patch", "."),
+]
+
 
 # =============================================================================
 # Utility Functions
@@ -268,6 +280,56 @@ def apply_patches():
             f.write("\n".join(missing_lines) + "\n")
 
         log.success(f"  Patched: {patch_dir}/SConscript")
+
+
+def apply_unified_diff_patches():
+    """Apply unified-diff patches (via `patch -p1`) under gem5/.
+
+    Each patch is checked for idempotency via `patch --dry-run` before
+    actually applying. Re-runs are safe and produce no-op output if the
+    patch is already applied.
+    """
+    import subprocess
+    log.info("Applying unified-diff patches under gem5/...")
+
+    for overlay_rel, target_dir in UNIFIED_DIFF_PATCHES:
+        patch_file = OVERLAYS_DIR / overlay_rel
+        if not patch_file.exists():
+            log.warn(f"  Patch file not found: {overlay_rel}")
+            continue
+
+        target = GEM5_DIR / target_dir
+        if not target.exists():
+            log.warn(f"  Target dir not found: {target}")
+            continue
+
+        # Dry-run forward to see if already applied
+        dry_fwd = subprocess.run(
+            ["patch", "-p1", "--dry-run", "--silent", "-i", str(patch_file)],
+            cwd=target, capture_output=True, text=True,
+        )
+        # If dry-run forward says "already applied" or "reversed", skip
+        if "previously applied" in (dry_fwd.stdout + dry_fwd.stderr).lower() or \
+           "reversed" in (dry_fwd.stdout + dry_fwd.stderr).lower():
+            log.info(f"  Patch already applied (skip): {overlay_rel}")
+            continue
+
+        if dry_fwd.returncode != 0:
+            log.warn(f"  Dry-run failed for {overlay_rel}:")
+            log.warn(f"    {dry_fwd.stdout.strip()}")
+            log.warn(f"    {dry_fwd.stderr.strip()}")
+            continue
+
+        apply = subprocess.run(
+            ["patch", "-p1", "-i", str(patch_file)],
+            cwd=target, capture_output=True, text=True,
+        )
+        if apply.returncode == 0:
+            log.success(f"  Applied: {overlay_rel}")
+        else:
+            log.warn(f"  Apply failed for {overlay_rel}:")
+            log.warn(f"    {apply.stdout.strip()}")
+            log.warn(f"    {apply.stderr.strip()}")
 
 
 def apply_current_vertex_pseudo_inst_patch():
@@ -562,6 +624,7 @@ def main():
     apply_patches()
     apply_current_vertex_pseudo_inst_patch()
     apply_riscv_ecg_extract_patch()
+    apply_unified_diff_patches()
 
     if not args.skip_build:
         # Step 5: Build
