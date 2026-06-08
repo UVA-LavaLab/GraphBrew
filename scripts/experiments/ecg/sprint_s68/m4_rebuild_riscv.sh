@@ -27,7 +27,11 @@ log "overlay latest commit ts=${OVERLAY_LATEST_TS}"
 log "current RISCV binary mtime=${CURRENT_BIN_TS}"
 
 if [ "${CURRENT_BIN_TS}" -gt "${OVERLAY_LATEST_TS}" ]; then
-  if strings "${RISCV_BIN}" 2>/dev/null | grep -q "GEM5_ECG_PFX_RECENT_FILTER_SIZE"; then
+  SYM_FOUND=0
+  ( set +o pipefail
+    strings "${RISCV_BIN}" 2>/dev/null | grep -q "GEM5_ECG_PFX_RECENT_FILTER_SIZE"
+  ) && SYM_FOUND=1 || true
+  if [ "${SYM_FOUND}" -eq 1 ]; then
     log "RISCV binary already fresh AND has post-6f-6 symbols — idempotent skip"
     milestone_done "${M_ID}" \
       "rebuild_skipped=true" \
@@ -55,7 +59,14 @@ if [ "${NEW_TS}" -le "${OVERLAY_LATEST_TS}" ]; then
   exit 1
 fi
 
-if ! strings "${RISCV_BIN}" 2>/dev/null | grep -q "GEM5_ECG_PFX_RECENT_FILTER_SIZE"; then
+SYM_FOUND=0
+# Note: must disable pipefail for this check. With pipefail, when grep -q
+# finds a match it exits early, sending SIGPIPE to strings (exit 141). The
+# whole pipeline then reports failure even though the symbol IS present.
+( set +o pipefail
+  strings "${RISCV_BIN}" 2>/dev/null | grep -q "GEM5_ECG_PFX_RECENT_FILTER_SIZE"
+) && SYM_FOUND=1 || true
+if [ "${SYM_FOUND}" -ne 1 ]; then
   milestone_fail "${M_ID}" "post-6f-6 symbol GEM5_ECG_PFX_RECENT_FILTER_SIZE missing from rebuilt binary" \
     "bin_mtime=${NEW_TS}"
   exit 1

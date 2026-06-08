@@ -43,7 +43,14 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "roi_matrix"
 
-GEM5_OPT = PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt"
+GEM5_OPT = Path(os.environ.get(
+    "GEM5_OPT",
+    PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt",
+))
+# S68 M5: override the kernel binary suffix to select RISCV via
+# GEM5_KERNEL_SUFFIX=_riscv_m5ops for the ISA-delivery smoke. Default
+# remains _m5ops (X86 build).
+GEM5_KERNEL_SUFFIX = os.environ.get("GEM5_KERNEL_SUFFIX", "_m5ops")
 GEM5_CONFIG = PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "configs" / "graphbrew" / "graph_se.py"
 GEM5_RUNTIME_SIDEBAND_FILES = (
     Path(os.environ.get("GEM5_GRAPHBREW_CTX", "/tmp/gem5_graphbrew_ctx.json")),
@@ -650,7 +657,7 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
 
 
 def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size: str) -> list[dict[str, Any]]:
-    binary = PROJECT_ROOT / "bench" / "bin_gem5" / f"{args.benchmark}_m5ops"
+    binary = PROJECT_ROOT / "bench" / "bin_gem5" / f"{args.benchmark}{GEM5_KERNEL_SUFFIX}"
     label = f"gem5_{args.benchmark}_{spec.safe_label}_L3{sanitize(l3_size)}"
     gem5_out = out_dir / "gem5" / label
     log_path = out_dir / "logs" / f"{label}.log"
