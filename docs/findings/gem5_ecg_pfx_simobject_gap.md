@@ -156,3 +156,15 @@ Status today: cache_sim mode 6 corpus result stands;
 email-Eu-core cycle-accurate confirms convergence story for
 small-cell regime; delaunay_n19 cycle-accurate ECG_PFX data
 remains a documented limitation.
+
+## SUPERSEDED by sprint S68
+
+The root cause hypothesis in this doc (single-slot mailbox / hint loss)
+was empirically refuted by sprint S68. The mailbox fix landed
+(commit `10ea8097`, ring buffer) but pf_issued remained 0 on the
+fresh binary. The actual root cause was identified in sprint S68 M1:
+gem5 `Queued::notify` drops cross-page prefetches unless
+`prefetcher.mmu != nullptr`. The fix is one Python line in
+`graph_se.py` calling
+`BasePrefetcher.registerMMU(system.cpu.mmu)`. See
+`docs/findings/gem5_implementation_audit_v1.md` (M1-M7 verdict section).

@@ -95,6 +95,10 @@ UNIFIED_DIFF_PATCHES = [
     # Required for prefetchers like ECG_PFX that emit only cross-page
     # candidates. See docs/findings/gem5_implementation_audit_v1.md.
     ("mem/cache/prefetch/queued_hh.patch", "."),
+    # S68 latency-readiness guard: getPacket() returns nullptr if the
+    # front-of-queue prefetch's tick is in the future, preserving the
+    # prefetcher's latency contract for cycle-accurate parity.
+    ("mem/cache/prefetch/queued_cc_latency.patch", "."),
 ]
 
 

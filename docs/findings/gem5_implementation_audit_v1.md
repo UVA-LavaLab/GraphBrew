@@ -412,3 +412,60 @@ with open('/tmp/gem5_audit_smoke/ECG_PFX/roi_matrix.csv') as f:
   commit `1aa1b24b`
 - Ring-buffer hint queue fix: commit `10ea8097`
 - ECG_PFX recent_filter env knob: commit `7ef72444`
+
+## Post-fix verdict (sprint S68, 2026-06-08)
+
+Automated rubber-duck-gated pipeline closed the gem5 ECG_PFX `pf_issued=0` gap end-to-end. All 9 milestones (M1, M1b, M2, M3, M4, M5, M5b, M6, M7) reached `status=ok` after iterating through 3 rubber-duck-caught defects (page-cross filter, queue-servicing scheduling, silent X86 substitution). Sprint overview: `docs/findings/sprint_s68_overview.md`.
+
+### Per-milestone evidence
+
+| Milestone | Status | Rubber-duck | Key evidence |
+|---|---|---|---|
+| M1  MMU plumbing | ok | 🟢 GREEN | 8 `registerMMU` calls in graph_se.py (4 prefetcher attachment sites × 2 cpu.mmu/dtb branches) |
+| M1b Queue servicing | ok | 🟡 YELLOW | queued.hh nextPrefetchReadyTime() returns curTick() when pfqMissingTranslation non-empty; X86 incremental rebuild 86s |
+| M2  Smoke diff (email-Eu-core/pr) | ok | 🟢 GREEN | ECG_PFX pf_identified: 0 → **63**; pf_issued: 0 → **63**; DROPLET control unchanged at 1673 |
+| M3  Multi-graph (kron_s16_k4/pr) | ok | 🟡 YELLOW | pf_identified=101541, pf_issued=101541, pf_useful=**576** (utility proof) — pivoted from delaunay_n19 + kron_s17 (both timed out at gem5 X86 wall budget) |
+| M4  RISCV rebuild | ok | 🟢 GREEN | RISCV gem5.opt rebuilt with all post-6f-6 + M1b patches; symbol `GEM5_ECG_PFX_RECENT_FILTER_SIZE` present |
+| M5  ISA smoke (ecg.extract on RISCV) | ok | 🟡 YELLOW | pf_identified=64, pf_issued=64 via RISCV custom-0 opcode; isa_path_used=1, isa_kernel_used=1 (verified post-run via gem5 log + config.ini assertions) |
+| M5b Latency guard | ok | 🟢 GREEN | queued.cc getPacket() now returns nullptr if pfq.front().tick > curTick(); preserves prefetcher latency contract |
+| M6  Mechanism corroboration | ok | 🟡 YELLOW | Reframed from absolute byte parity (out of scope) to "both sims show non-zero mechanism activity on same cell": gem5 pf_issued=64, cache_sim total_traffic=126, cache_sim ecg_runtime_issued=62,149 |
+| M7  Verdict doc | ok | — | This section |
+
+### Defects caught by rubber-duck (paper-critical)
+
+1. **M2 → M1b**: M1 alone was insufficient. Page-cross filter passed (pf_identified 0 → 63), but pf_issued stayed 0. Rubber-duck identified `nextPrefetchReadyTime()` returning MaxTick → cache never woke up to drain `pfqMissingTranslation`. Result: M1b 3-line patch unlocked the full pipeline.
+2. **M3 → Pivot B**: Original M3 exit criteria required `pf_useful > 0` on both cells. email-Eu-core (4KB property region fits L1d) inherently can't achieve this. Rubber-duck split criteria into "mechanism" (email) + "utility" (medium graph). After 2 timeouts (delaunay_n19, kron_s17), settled on kron_s16_k4 (65K verts, fits gem5 wall budget).
+3. **M5 → M5 v2**: Silent X86 substitution. roi_matrix.py hard-coded GEM5_OPT=X86 path, so M5 v1's "RISCV ecg.extract smoke" actually ran X86 m5op delivery — the "ECG_PFX: first target vertex" log line fires regardless of path. Fixed by adding env-var overrides + post-run assertions on gem5 log + config.ini.
+4. **M5b**: M1b's wake-on-pending-translation patch could let getPacket() issue a prefetch on the SAME tick its translation completed, bypassing the latency contract. M5b added a `pfq.front().tick > curTick()` guard before issuance.
+5. **M6 reframing**: Original M6 attempted absolute DRAM-byte parity between functional cache_sim and cycle-accurate gem5 — rubber-duck verdict: invalid metric. cache_sim sees only the instrumented kernel ROI; gem5 SE-mode sees the full process lifetime (libc init, syscall emul, m5op machinery, etc.). Reframed as mechanism corroboration.
+
+### Durable patch infrastructure
+
+The two queued.{hh,cc} patches are gitignored under the vendor gem5 tree, so we added:
+
+- `bench/include/gem5_sim/overlays/mem/cache/prefetch/queued_hh.patch` (M1b)
+- `bench/include/gem5_sim/overlays/mem/cache/prefetch/queued_cc_latency.patch` (M5b)
+- `scripts/setup_gem5.py::apply_unified_diff_patches()` applies them via `patch -p1` with `--dry-run` idempotency check
+- `UNIFIED_DIFF_PATCHES` manifest entry registers both patches
+
+Both patches survive `setup_gem5.py --rebuild` and `--clean` cycles.
+
+### Paper-ready blurb (§6.3 future work / scope)
+
+> The gem5 cycle-accurate validation of ECG mode-6 prefetcher mechanism required three implementation fixes beyond the published gem5 v24.0 source: (1) MMU plumbing to allow cross-page prefetches in `BasePrefetcher` SimObjects; (2) a `nextPrefetchReadyTime()` patch so the cache wakes up to drain `pfqMissingTranslation` even when `pfq` is empty (critical for prefetchers that emit only cross-page candidates, like ECG_PFX targeting `property[random_v]`); (3) a `getPacket()` latency-readiness guard that preserves the prefetcher's `latency` cycle contract under (2). With these fixes, the RISC-V custom-0 `ecg.extract` opcode (32-bit container packing real_vertex + DBG/POPT/PFX hints) successfully delivers fat-id payloads from the GAPBS PR kernel to the L2 ECG_PFX prefetcher SimObject, which issues hardware prefetches end-to-end. We use gem5 as cycle-accurate mechanism corroboration rather than absolute DRAM-byte parity peer to cache_sim: the two simulators have fundamentally different stat scopes (cache_sim instruments only the kernel ROI; gem5 SE-mode tracks the full process lifetime).
+
+### Open follow-ups (non-blocking for paper closeout)
+
+- M3b: characterize the kron_s16_k4 pf_useful=576 vs pf_issued=101,541 (0.57% useful rate) by sweeping L2 size 64kB / 128kB / 256kB. Investigate whether lookahead/AMPLIFY tuning improves accuracy.
+- Sniper mechanism corroboration on the same email-Eu-core cell (out of scope for S68; deferred).
+- Packed fat-id DBG/POPT/PFX high-bit semantics in `ecg.extract` are wired but not exercised in S68 — the smoke uses only the PFX-target low 32 bits.
+
+### Reproducibility
+
+```bash
+bash scripts/experiments/ecg/sprint_s68/run_sprint.sh --status
+bash scripts/experiments/ecg/sprint_s68/run_sprint.sh --all   # full sprint
+bash scripts/experiments/ecg/sprint_s68/run_sprint.sh M1       # specific milestone
+```
+
+Each milestone is idempotent (marker-guarded patches, mtime-checked rebuilds). Rubber-duck verdicts written to `results/sprint_s68/<m_id>/rubber_duck_verdict.md`. Sprint advances on GREEN/YELLOW, halts on RED.
