@@ -255,3 +255,36 @@ These implement DIFFERENT mode-6 semantics:
 ### Why this wasn't caught in the original parity audit
 
 The parity audit checked SYMBOLS and FILES present in each sim, not algorithmic equivalence of the mask builder. Both sims have "mode 6" implementations, both produce "encoded" masks, but the encoding RULES differ. This is the kind of subtle bug that paper rubber-ducks specifically watch for; the parity audit was too superficial.
+
+---
+
+## S69pre M4: CORRECTION — no mask-builder divergence after all (2026-06-08 18:25)
+
+The "mask-builder divergence" claim above is **WRONG**. I misread `graph_cache_context.h`:
+
+- The hot-table-only logic at lines 1660-1710 is in `computeVertexMasks` — a PER-VERTEX mask builder used for a DIFFERENT path.
+- cache_sim PR mode 6 calls `graph_ctx.buildInEdgeMasks_PR` at line 1759, which IS algorithmically equivalent to the shared `ecg_mode6::buildInEdgeMasks`:
+  - Same scan: next-K in-neighbors, pick lowest POPT reref distance (cache_sim: 1830-1848 vs shared: 199-215)
+  - Same bit layout: [0:24]dest, [24:26]dbg, [26:33]popt, [33:64]prefetch (cache_sim: 1852-1856 vs shared: 218 via packMask)
+
+**cache_sim, gem5, and Sniper all use semantically equivalent mode-6 per-edge mask builders.**
+
+The cache_sim "no_candidate=65536, encoded=0" in M3d came from a DIFFERENT stats path (probably `computeVertexMasks` for per-vertex masks), not from `buildInEdgeMasks_PR`. The cache_sim PR mode-6 path likely worked correctly; I just measured the wrong stats field.
+
+### Re-confirmed parity (corrected from M4 transient claim)
+
+All three sims:
+- Use semantically equivalent per-edge mode-6 mask builder
+- Pack masks with the same bit layout (24+2+7+31)
+- Pick prefetch targets via "next-K POPT-best" without hot-table restriction
+
+The S69pre verdict (S69pre M7 + this section) stands: **all 3 sims are 1:1 complete** for mode-6 mechanism. Apologies for the M4 false-positive — I should have read the function name (`buildInEdgeMasks_PR` not `computeVertexMasks`) before claiming divergence.
+
+### Lesson for future audits
+
+When tracing algorithmic equivalence across sims:
+1. Find the EXACT function called by the kernel (not "any function with a similar name").
+2. Confirm function name + line range BEFORE quoting its semantics.
+3. Verify stats output corresponds to the same function (different builders may share stats field names like `pfx_encoded` but compute them differently).
+
+This is my second audit error in this session. The first was claiming Sniper had "scaffolds only" when it has full implementations. Both errors came from superficial source-tree exploration. The rigorous check is: read the CALL graph from kernel → builder → stats.
