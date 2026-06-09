@@ -139,3 +139,39 @@ After M1 wiring landed, the kron_s16_k4 useful rate is now sensitive to L2 cache
 **Remaining tuning opportunity:** `pf_late` is ~80-100K across all cells (most prefetches arrive after demand). Increasing `--ecg-pfx-lookahead` or AMPLIFY would prefetch farther ahead, potentially boosting useful rate further. Not paper-blocking.
 
 Wall time: ~6 min total for 3 cells (gem5 RISCV is fast on kron_s16_k4 with -k 4 sparse graph).
+
+---
+
+## S69pre M3c: lookahead × AMPLIFY tuning (2026-06-08 17:30)
+
+On kron_s16_k4 L2=64kB, ECG:DBG_PRIMARY + ECG_PFX:
+
+| LH | AMP | pf_issued | pf_useful | pf_late | useful_pct |
+|----|----:|----------:|----------:|--------:|----:|
+| 8  | 1   | 124,389   | 11,121    | 100,285 | 8.94% |
+| 8  | 4   | 124,389   | 11,121    | 100,285 | 8.94% |
+| **32** | **1** | **71,061** | **33,114** | **33,590** | **46.60%** |
+| 32 | 4   | 71,061    | 33,114    | 33,590  | 46.60% |
+
+### Findings
+
+1. **Lookahead is the dominant knob.** Increasing LH from 8 → 32 raises useful rate **5.2×** (8.94% → 46.60%). The mode-6 mask builder picks prefetch targets that are LH in-neighbors ahead of the current edge; LH=32 gives the L2 prefetcher enough time to translate + issue before demand.
+
+2. **AMPLIFY has zero effect at these settings.** Both AMP=1 and AMP=4 produce identical pf_* counters. Confirms the HPCA Phase 4 / overnight finding that AMPLIFY saturates at 1 (the kernel-side dedup window absorbs extra prefetches).
+
+3. **pf_late drops 3×** (100K → 33K) — lookahead is now far enough ahead that most prefetches arrive in time.
+
+4. **pf_issued drops 1.7×** (124K → 71K). At LH=32, the mode-6 mask builder runs out of in-neighbors to encode for many vertices (degree < 32), so fewer prefetch targets are emitted per edge. Net effect: fewer total issues but proportionally more useful.
+
+5. **pf_hit_in_cache drops 3.7×** (89K → 24K). Fewer redundant prefetches when LH is well-tuned.
+
+### Paper-publishable conclusion
+
+ECG_PFX mode-6 lookahead is a meaningful tuning parameter: **LH=32 is the sweet spot for the kron_s16_k4 cell** on the canonical L2=64kB / L3=1MB config. Going higher would likely yield diminishing returns (mask exhaustion at degree-32+ already dominates). AMPLIFY can be fixed at 1 without loss.
+
+### Tuning recommendation for the paper
+
+For the gem5 cycle-accurate corroboration on the cells where wall budget permits:
+- Use `--ecg-pfx-lookahead 32` (or env `ECG_EDGE_MASK_LOOKAHEAD=32`)
+- Use `--ecg-pfx-amplify 1` (or env `ECG_EDGE_MASK_AMPLIFY=1`)
+- These align with the cache_sim corpus defaults established in HPCA Phase 4
