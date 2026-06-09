@@ -26,10 +26,13 @@
                             dest_id, dbg_tier, popt_quant, 0);
                         // Queue the prefetch hint (or fall back to demand
                         // vertex if no prefetch encoded).
+                        // S69PRE-M4-NO-FALLBACK: only emit a prefetch hint when
+                        // the mode-6 mask encoded a non-zero prefetch target. NO
+                        // demand-target fallback (the prior version polluted
+                        // utility metrics on sparse graphs where the builder
+                        // produces no candidates).
                         if (pfx_target != 0) {
                             gem5::replacement_policy::graph::setPrefetchTargetHint(pfx_target);
-                        } else {
-                            gem5::replacement_policy::graph::setPrefetchTargetHint(dest_id);
                         }
                         Rd = rvZext(dest_id);
                     }});
