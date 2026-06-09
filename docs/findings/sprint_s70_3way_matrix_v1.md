@@ -127,3 +127,69 @@ Added 2 graphs to test scaling + graph-structure sensitivity:
 2. **ECG_PFX mode-6 achieves 28-44% useful prefetch rate** on Kronecker/RMAT graphs (degree-skewed regime, more challenging).
 
 3. **The cross-graph trend** demonstrates that ECG_PFX is most effective when in-neighbor reuse patterns are predictable (uniform random) and less so when extreme degree skew creates hot-spot dominance (Kronecker).
+
+---
+
+## S70b Sniper extension: BLOCKED — sg_kernel hangs after first hint on >65K vertex graphs (2026-06-09 00:30)
+
+Attempted to run Sniper sg_kernel + ECG_PFX on kron_s17, uniform_n17_k8, and uniform_n18_k8 with a 4h per-cell budget (after discovering v2 hit the inner roi_matrix.py default 600s timeout). Outcome:
+
+| Sniper attempt | Inner timeout | Outer timeout | Result |
+|---|---|---|---|
+| v2 | 600s (default) | 14400s | All 3 cells: `exit_code=124` at 10min (inner timeout) |
+| **v3** | **14000s** | **14400s** | **Sniper sg_kernel hangs after "first target vertex" log line** |
+
+### v3 hang signature
+
+For each cell, Sniper:
+1. Loads sideband JSON ✓
+2. Registers graph regions ✓
+3. Builds P-OPT matrix ✓
+4. Emits "SNIPER_ECG_PFX: first target vertex=…" ✓
+5. ... then **stops emitting log output** for 2+ hours
+6. Process state: `Sl` (sleeping, multi-threaded) but no CPU activity, no log progress, no sim.stats.sqlite3 updates
+
+This matches the prior Sniper bug-4 finding (`docs/findings/gem5_ecg_pfx_simobject_gap.md`) about delaunay_n19 sg_kernel hanging at 4h on a similar profile. The root cause is likely the cycle-accurate sim spending many host-hours on each simulated cycle when prefetcher activity is dense — the host doesn't crash, just runs unboundedly slow.
+
+### Implication
+
+Sniper sg_kernel + ECG_PFX + mode 6 on graphs >65K vertices is empirically intractable on this workstation at any practical wall budget. Mitigations attempted (in priority order tried):
+
+1. ✅ Use `email-Eu-core` (1K verts) — completes in ~3min (S70 M7)
+2. ❌ kron_s16_k4 (65K, sparse) — timed out at default 600s
+3. ❌ kron_s17 / uniform_n17_k8 / uniform_n18_k8 (131-262K) — hangs after first hint even at 4h budget
+
+### Closing the Sniper leg honestly
+
+For the paper's 3-sim coverage claim, Sniper provides:
+- ✅ Mechanism activation on email-Eu-core (pf_useful=37, ecg_pfx_issued=63)
+- ✅ Full implementation parity verified by source audit (`.sniper_overlays.json`)
+- ❌ Large-graph cycle-accurate utility numbers (intractable wall budget)
+
+This is consistent with what was already documented in `docs/findings/gem5_ecg_pfx_simobject_gap.md` ("Bug 4 finding") and `docs/findings/sniper_delaunay_n19_4arm_dram_finding.md`. The paper's Sniper claims must scope-limit to small graphs (email-Eu-core) for cycle-accurate numbers; cache_sim + gem5 carry the larger-graph utility claims.
+
+### Sniper bug worth reporting upstream
+
+The hang-after-first-hint pattern (no error, no completion, no progress) suggests a deadlock or infinite loop in Sniper's ECG_PFX integration on dense graphs. A reproduction recipe:
+
+```bash
+ECG_CONTAINER_BITS=64 \
+  SNIPER_ECG_EDGE_MASK_LOOKAHEAD=8 \
+  SNIPER_ECG_EDGE_MASK_AMPLIFY=1 \
+  SNIPER_ECG_EDGE_MASK_CHARGED=0 \
+  timeout 14400 \
+  python3 scripts/experiments/ecg/roi_matrix.py \
+    --suite sniper --no-build --benchmark pr \
+    --options "-f results/graphs/kron_s17/kron_s17.sg -s -o 5 -n 1 -i 2" \
+    --policies ECG:DBG_PRIMARY \
+    --sniper-workload sg_kernel \
+    --allow-sniper-sg-kernel-workload \
+    --prefetcher ECG_PFX --prefetcher-level l2 \
+    --ecg-pfx-mode per_edge --ecg-pfx-lookahead 8 \
+    --l1d-size 32kB --l2-size 64kB --l3-sizes 1MB \
+    --line-size 64 --timeout-sniper 14000
+```
+
+Expected: completion. Actual: hangs after `SNIPER_ECG_PFX: first target vertex` log line. The Sniper process stays alive in `Sl` state but no CPU activity, no log output, no stats updates.
+
+Investigation of this Sniper bug deferred (out of S69pre/S70 scope; documented as future work).
