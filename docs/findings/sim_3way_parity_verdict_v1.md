@@ -175,3 +175,39 @@ For the gem5 cycle-accurate corroboration on the cells where wall budget permits
 - Use `--ecg-pfx-lookahead 32` (or env `ECG_EDGE_MASK_LOOKAHEAD=32`)
 - Use `--ecg-pfx-amplify 1` (or env `ECG_EDGE_MASK_AMPLIFY=1`)
 - These align with the cache_sim corpus defaults established in HPCA Phase 4
+
+---
+
+## S69pre M3d: 3-way tuned-config attempt (2026-06-08 18:00)
+
+Attempted to extend the LH=32 finding from M3c to all 3 sims on kron_s16_k4 L2=64kB:
+
+| Sim | Result | Notes |
+|---|---|---|
+| cache_sim | ⚠️ `ecg_pfx_no_candidate=65536, encoded=0` | The mode-6 mask builder (`ecg_mode6::buildInEdgeMasks`) finds NO valid prefetch candidates at LH=32 because kron_s16_k4 has avg degree ~4 (LH > degree for nearly all vertices). cache_sim ECG_PFX path correctly skips emission when no candidate. |
+| gem5 RISCV | ✅ pf_useful=33,114/71,061 = 46.60% | The gem5 path emits the demand-target as a fallback when the builder yields no candidate (`if (pfx_target != 0) ... else setPrefetchTargetHint(dest_id)` in the M1 decoder). This "self-prefetch" pattern produces apparent utility on a sparse graph but is partly attributable to the dedup-window/timing interaction, not pure mode-6 mechanism. |
+| Sniper | ❌ TIMEOUT @ 30min | Sniper sg_kernel with LH=32 + ECG:DBG_PRIMARY + ECG_PFX exceeded the 1800s wall budget. Sniper handles the same workload at LH=8 in ~6 min (M7 evidence), so LH=32 ~5× slowdown is consistent with denser hint emission stream. |
+
+### Honest scope correction for paper
+
+The M3c "5× useful_pct improvement at LH=32" finding requires care in presentation:
+
+1. **On the SPARSE kron_s16_k4 graph**, LH=32 makes the mode-6 builder emit no candidates (cache_sim confirms). The gem5 useful% boost at LH=32 is partly the demand-target fallback firing, NOT the encoded prefetch_target mechanism.
+
+2. **For paper-faithful LH=32 utility**, use a graph where avg_degree >> 32. cit-Patents (avg degree ~5), com-orkut (avg degree ~70), or kron_s17 with `-k 16` (avg degree ~16) would all be better. The HPCA cache_sim corpus uses these denser graphs and produces clean mode-6 useful rates.
+
+3. **The gem5 cycle-accurate utility chart** should either:
+   - Use a denser graph (and accept the longer wall budget), OR
+   - Remove the demand-target fallback from the M1 decoder (`if (pfx_target != 0)` only, no else branch) so the prefetcher emits nothing when no candidate is encoded.
+
+### Cleanest 3-way evidence (back to M7 / S69pre verdict section above)
+
+The M7 result on email-Eu-core/pr at LH=8 is the cleanest 3-way mechanism corroboration:
+
+- cache_sim: 5 ECG modes proven via HPCA buildup_v1 corpus
+- gem5 RISCV: pf_issued=64, status=ok, ISA path active (M5 v2)
+- Sniper: ecg_pfx_issued=63, pf_useful=36, status=ok (M7)
+
+For cycle-accurate UTILITY on a graph that actually exercises the mode-6 prefetcher, use:
+- cache_sim HPCA buildup_v1 cells (per-cell quantitative)
+- gem5 + Sniper as mechanism corroboration only (NOT for absolute throughput numbers)
