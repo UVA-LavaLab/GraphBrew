@@ -211,3 +211,47 @@ The M7 result on email-Eu-core/pr at LH=8 is the cleanest 3-way mechanism corrob
 For cycle-accurate UTILITY on a graph that actually exercises the mode-6 prefetcher, use:
 - cache_sim HPCA buildup_v1 cells (per-cell quantitative)
 - gem5 + Sniper as mechanism corroboration only (NOT for absolute throughput numbers)
+
+---
+
+## S69pre M4: removed demand-target fallback — exposes mask-builder divergence (2026-06-08 18:15)
+
+### M4 results (no fallback)
+
+On kron_s16_k4 L2=64kB with the fallback removed:
+
+| Config | pf_issued | pf_useful | useful_pct |
+|---|---:|---:|---:|
+| LH=8  WITH fallback (M3c) | 124,389 | 11,121 | 8.94% |
+| LH=8  NO fallback (M4) | 124,389 | 11,120 | 8.94% |
+| LH=32 WITH fallback (M3c) | 71,061 | 33,114 | 46.60% |
+| LH=32 NO fallback (M4) | 71,061 | 33,111 | 46.60% |
+
+**The fallback was never firing.** The shared `ecg_mode6::buildInEdgeMasks` (used by gem5+Sniper) IS encoding prefetch targets even on sparse graphs like kron_s16_k4 (avg degree ~4) — it just picks ANY future in-neighbor with low POPT rereference distance, with NO hot-table requirement.
+
+### Mask-builder divergence
+
+| Builder | Used by | Prefetch target selection | File |
+|---|---|---|---|
+| `ecg_mode6::buildInEdgeMasks` (shared) | gem5, Sniper | Picks ANY future in-neighbor with lowest POPT rereference | bench/include/ecg_mode6_builder.h:152-220 |
+| `graph_ctx.buildInEdgeMasks_PR` (cache_sim-only) | cache_sim | Requires target to be in HOT TABLE; falls back to scanning out_neighbors for hot vertices | bench/include/cache_sim/graph_cache_context.h:1660-1717 |
+
+These implement DIFFERENT mode-6 semantics:
+- **Shared (gem5+Sniper)**: paper-faithful "next-K POPT-best dest" — encodes prefetch on EVERY edge with low-rereference future neighbors.
+- **cache_sim-only**: stricter — only emits prefetches when targeting HOT vertices (presumably to model the LLC-hot-region claim from the paper).
+
+### Implications for paper
+
+1. **HPCA 157-row cache_sim corpus** uses the conservative hot-table-only builder.
+2. **gem5+Sniper cycle-accurate evidence** uses the more permissive shared builder.
+3. **Cross-sim numerical comparison is contaminated by this divergence.** Two sets of evidence test different mode-6 implementations.
+4. **For paper integrity**, either:
+   - **Option A**: Update cache_sim to use the shared builder + re-run HPCA corpus (~5-10h compute). This is the scientifically correct path — cache_sim becomes paper-faithful and 1:1 with gem5/Sniper.
+   - **Option B**: Update gem5+Sniper to use cache_sim's stricter hot-table-only builder. Smaller code change but requires gem5/Sniper rebuild.
+   - **Option C**: Document the divergence honestly. Present cache_sim as the conservative reference and gem5/Sniper as the aggressive variant. Weakens cross-sim claims.
+
+**Recommended: Option A** — cache_sim should call `ecg_mode6::buildInEdgeMasks` like the other two, then re-run the relevant HPCA cells. The corpus regeneration is wall-time-bounded but mechanically straightforward (existing HPCA manifest).
+
+### Why this wasn't caught in the original parity audit
+
+The parity audit checked SYMBOLS and FILES present in each sim, not algorithmic equivalence of the mask builder. Both sims have "mode 6" implementations, both produce "encoded" masks, but the encoding RULES differ. This is the kind of subtle bug that paper rubber-ducks specifically watch for; the parity audit was too superficial.
