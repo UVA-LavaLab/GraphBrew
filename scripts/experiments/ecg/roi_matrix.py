@@ -583,6 +583,11 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
         "CACHE_L3_WAYS": effective_l3_ways,
         "CACHE_LINE_SIZE": args.line_size,
         "CACHE_OUTPUT_JSON": str(json_path),
+        # cache_sim MUST run single-threaded for deterministic/reproducible
+        # results: the OpenMP-parallel kernel records cache accesses in
+        # nondeterministic interleaved order, so >1 thread yields
+        # non-reproducible, thread-count-dependent miss counts.
+        "OMP_NUM_THREADS": str(args.cache_sim_omp_threads),
     })
     env.update(ecg_pfx_env(args))
     if spec.ecg_mode:
@@ -1227,6 +1232,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--l2-size", default="2kB")
     parser.add_argument("--l2-ways", default="4")
     parser.add_argument("--l3-sizes", nargs="+", default=["32kB"])
+    parser.add_argument("--cache-sim-omp-threads", type=int, default=1,
+                        help="OMP threads for cache_sim. MUST be 1 for deterministic/reproducible "
+                             "results: the parallel kernel records cache accesses in nondeterministic "
+                             "interleaved order, so >1 thread gives non-reproducible, "
+                             "thread-count-dependent miss counts.")
     parser.add_argument("--l3-ways", default="16")
     parser.add_argument("--line-size", default="64")
     parser.add_argument("--popt-property-bytes", default="4",

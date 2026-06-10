@@ -22,6 +22,11 @@ web-verification of the GRASP paper spec.
 | **GRASP** | ✅ all sims use 50% | ❌ **paper says 10%** | 🔴 **PAPER-FIDELITY BUG** |
 | **P-OPT** | ✅ identical | ✅ Balaji Alg.2 | **CLEAN** (MSB polarity doc'd) |
 
+**Update (later same day):** while re-running the corrected GRASP baselines, found a
+**second, broader bug — cache_sim is non-deterministic under multithreading** (see
+§6). It affects the reproducibility of *every* `roi_matrix` cache_sim stage, not just
+GRASP.
+
 **One real paper-integrity bug found: GRASP uses `hot_fraction = 0.50` in all three
 simulators, but Faldu HPCA'20 specifies 10%.** Cross-sim parity is intact (all three
 agree), so this is a uniform 5× deviation from the paper, not a cross-sim divergence.
@@ -178,3 +183,43 @@ to a paper-literal decoder. Worth a one-line artifact note.
 **Cross-sim parity itself is sound** for all four algorithms — the simulators agree with
 each other. The single substantive issue is fidelity to the GRASP paper, uniform across
 all three.
+
+---
+
+## 6. cache_sim non-determinism under multithreading (found 2026-06-09, post-fix)
+
+**Bug:** the cache_sim kernels (`bench/src_sim/{pr,bfs,sssp}.cc`) run the GAPBS
+compute loop under `#pragma omp parallel for`. The `SIM_CACHE_READ/WRITE` macros
+record every access into a single shared simulated cache. With >1 OpenMP thread the
+accesses interleave in **nondeterministic order**, so the simulated miss counts are
+both **non-reproducible run-to-run** and **dependent on the thread count**.
+
+**Evidence** (kron_s16_k4 / PR, L3=4kB, LRU L3 misses):
+
+| OMP_NUM_THREADS | run A | run B |
+|---|---:|---:|
+| 1  | 141,783 | 141,783 (identical — deterministic) |
+| 16 | 297,802 | 309,591 (differ — nondeterministic, ~2× the 1-thread count) |
+
+**Why it matters:** `roi_matrix.py` did **not** pin `OMP_NUM_THREADS` for the
+cache-sim suite (it only set it for Sniper). `final_paper_run.py:330` only exports
+`OMP_NUM_THREADS` when a stage carries an `omp_threads` setting — and the
+`final_paper_manifest.json` cache_sim stages (`10_cache_sim_large_replacement`,
+`10b`, `11`, `11a`, `12`, `12a`, `12b`) **do not** set it. So those stages ran with
+ambient thread count → non-reproducible numbers. (The `proof_matrix.py` path is fine:
+it already defaults `--omp-threads 1`.)
+
+Confirmed against the May-28 baseline: current single-thread cit-Patents/PR LRU =
+72,025,276; 16-thread = 92,262,749; the committed May-28 baseline = 83,521,142 — **none
+match**, i.e. the published cache_sim large-replacement matrix is not regenerable.
+
+**Fix (committed):** `roi_matrix.py` now pins `OMP_NUM_THREADS` for the cache-sim
+suite via a new `--cache-sim-omp-threads` arg (**default 1**). cache_sim is now
+deterministic by default (verified: kron_s16_k4 LRU = 786,255 on two consecutive
+harness runs).
+
+**Consequence for the paper:** every cache_sim `roi_matrix` table (blocks 10–12, not
+just GRASP) should be **regenerated single-threaded** for a reproducible, self-
+consistent matrix. The corrected-GRASP re-run is being done at 1 thread and doubles as
+the deterministic regeneration of the large-graph replacement matrix (block 10).
+Cycle-accurate sims (gem5/Sniper) are unaffected — they already run single-core.
