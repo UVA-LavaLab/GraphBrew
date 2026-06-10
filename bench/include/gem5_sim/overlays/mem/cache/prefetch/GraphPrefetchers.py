@@ -23,12 +23,12 @@ class GraphDropletPrefetcher(QueuedPrefetcher):
     cxx_header = "mem/cache/prefetch/droplet.hh"
     cxx_class = 'gem5::prefetch::GraphDropletPrefetcher'
 
-    prefetch_degree = Param.Int(4,
-        "Number of edge-list cache lines to prefetch ahead.")
-    indirect_degree = Param.Int(8,
-        "Number of indirect property prefetches per edge access.")
-    stride_table_size = Param.Int(16,
-        "Number of entries in the stride detector table.")
+    prefetch_degree = Param.Int(1,
+        "Number of edge-list cache lines to prefetch ahead (Basak HPCA'19 default: 1).")
+    indirect_degree = Param.Int(16,
+        "Number of indirect property prefetches per edge access (Basak HPCA'19 default: 16 = one 64B line of 4B IDs).")
+    stride_table_size = Param.Int(64,
+        "Number of entries in the stride detector table (Basak HPCA'19 default: 64).")
 
 
 class GraphEcgPfxPrefetcher(QueuedPrefetcher):

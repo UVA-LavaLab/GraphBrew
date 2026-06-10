@@ -128,7 +128,7 @@ GraphGraspRP::ReuseTier
 GraphGraspRP::classifyAddress(uint64_t addr) const
 {
     if (ctx.loaded) {
-        uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+        uint32_t tier = ctx.classifyGRASP(addr, llcSize, hotFraction);
         if (tier == 1) return ReuseTier::HIGH;
         if (tier == 2) return ReuseTier::MODERATE;
         return ReuseTier::LOW;
@@ -152,7 +152,7 @@ GraphGraspRP::promoteOnHit(GraspReplData* data) const
 {
     if (ctx.loaded && ctx.isPropertyData(data->line_addr)) {
         data->is_property_data = true;
-        uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize);
+        uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize, hotFraction);
         if (tier == 1) {
             data->rrpv = 0;
         } else if (data->rrpv > 0) {

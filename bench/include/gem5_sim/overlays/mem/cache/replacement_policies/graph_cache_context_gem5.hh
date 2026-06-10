@@ -487,8 +487,11 @@ struct GraphCacheContext {
         return 127;
     }
 
-    uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
-        constexpr double hot_fraction = 0.50;
+    uint32_t classifyGRASP(uint64_t addr, size_t llc_size,
+                           double hot_fraction = 0.10) const {
+        // Faldu HPCA'20 GRASP reserves 10% of LLC for the hot region.
+        // The GRASP policy passes its configured hot_fraction Param; other
+        // callers (e.g. ECG DBG tiers) use the 10% paper default.
         uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
         for (uint32_t i = 0; i < num_regions; ++i) {
             if (!regions[i].grasp_region) continue;
@@ -559,11 +562,11 @@ struct GraphCacheContext {
                     regions[num_regions].bucket_bounds[1] = regions[num_regions].base_address + 2 * third;
                     regions[num_regions].bucket_bounds[2] = regions[num_regions].upper_bound;
 
-                    // Tier A sanity: gem5 sideband loader hard-codes
-                    // hot_fraction=0.50 (frontier_frac=50, matching upstream
-                    // GRASP PR/BC/Radii traces). BellmanFordOpt (frac=100) is
-                    // not yet plumbed through the gem5 sideband.
-                    constexpr uint32_t kSidebandHotPct = 50;
+                    // GRASP hot region = 10% of LLC (Faldu HPCA'20 "f" parameter).
+                    // Actual classification reads the GraphGraspRP hot_fraction
+                    // Param (default 0.10) in classifyGRASP(); this is just the
+                    // logged registration value.
+                    constexpr uint32_t kSidebandHotPct = 10;
                     logGraphCtxRegistration("gem5", nullptr,
                                             regions[num_regions].base_address,
                                             regions[num_regions].upper_bound,
