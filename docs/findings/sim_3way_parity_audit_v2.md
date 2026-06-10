@@ -223,3 +223,43 @@ just GRASP) should be **regenerated single-threaded** for a reproducible, self-
 consistent matrix. The corrected-GRASP re-run is being done at 1 thread and doubles as
 the deterministic regeneration of the large-graph replacement matrix (block 10).
 Cycle-accurate sims (gem5/Sniper) are unaffected — they already run single-core.
+
+---
+
+## 7. Corrected cache_sim baselines (single-thread, deterministic, GRASP=10%)
+
+Regenerated block-10 large-graph replacement matrix at `OMP_NUM_THREADS=1` with the
+corrected GRASP hot_fraction=0.10. L1=1kB/L2=2kB/L3=4kB (component-proof stress regime),
+options `-s -o 5 -n 1 -i 2` (pr). **These are the functional component-proof reference;
+the paper headline comes from Sniper/gem5.**
+
+| graph | bench | LRU | GRASP(10%) | ECG:DBG_ONLY | GRASP≡DBG_ONLY |
+|---|---|---:|---:|---:|:--:|
+| cit-Patents | pr | 72,025,276 | 73,690,184 | 73,690,184 | ✅ |
+| cit-Patents | bfs | 5,275,492 | 5,329,390 | 5,329,390 | ✅ |
+| cit-Patents | sssp | 30,271,486 | 32,038,956 | 32,038,956 | ✅ |
+| soc-pokec | pr | 90,780,932 | 92,828,982 | 92,828,982 | ✅ |
+| soc-LiveJournal1 | pr | 132,720,980 | 139,938,639 | 139,938,639 | ✅ |
+| soc-LiveJournal1 | bfs | 6,009,565 | 6,008,674 | 6,008,674 | ✅ |
+| soc-LiveJournal1 | sssp | 61,042,727 | 64,029,341 | 64,029,341 | ✅ |
+| com-orkut | pr | 438,883,396 | 446,284,692 | 446,284,692 | ✅ |
+
+(soc-pokec/bfs+sssp and com-orkut/bfs+sssp produce ~0–1 L3 misses at 4kB — trivial-ROI
+config artifacts, omitted.)
+
+**Validation:** `GRASP == ECG:DBG_ONLY` exactly in **all 12 cells** — the paper's §A3
+equivalence invariant (ECG in DBG-only mode reduces to GRASP) holds after the fix.
+At the 4kB stress cache the DBG-tier policies trail LRU slightly (expected; degree
+protection has little headroom in a 64-line LLC). The decisive ECG-vs-GRASP comparison
+is on Sniper/gem5 at realistic LLCs.
+
+## 8. Sniper large-cell wall-time limit (scope note)
+
+The Sniper ECG_PFX overnight batch confirmed the mechanism on the tractable cells
+(kron_s16_k4 = 99.998% useful, uniform_n17_k8 = 100% useful). The denser large cells
+exceed Sniper's practical wall budget: **kron_s17 hit the inner `--timeout-sniper 25000`
+(~6.9 h) at ~78%** (status=error/exit 124 = timeout, not a crash); uniform_n18_k8 (262K
+verts) is expected to behave similarly. Sniper paper coverage is therefore the
+≤131K-vertex tractable set; cache_sim/gem5 cover the larger graphs. (The batch ran the
+pre-fix Sniper binary — `hot_pct=50` in its log — which only affects the incidental
+ECG:DBG replacement tier, not the ECG_PFX prefetch-coverage metric being measured.)
