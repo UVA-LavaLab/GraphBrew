@@ -83,7 +83,7 @@ def make_replacement_policy(name, **kwargs):
         return GraphGraspRP(
             max_rrpv=kwargs.get("max_rrpv", 7),
             num_buckets=kwargs.get("num_buckets", 11),
-            hot_fraction=kwargs.get("hot_fraction", 0.5),
+            hot_fraction=kwargs.get("hot_fraction", 0.15),
             llc_size_bytes=kwargs.get("llc_size_bytes", 8388608),
             sideband_path=sideband_path,
         )

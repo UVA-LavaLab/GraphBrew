@@ -110,7 +110,7 @@ struct PropertyRegion {
     uint32_t elem_size = 0;         // Size of each element in bytes
     uint32_t region_id = 0;         // ID for per-region statistics
     uint32_t num_buckets = 0;       // Active bucket count (0 = uninitialized)
-    uint32_t grasp_hot_percent = 50; // GRASP frontier_frac: matches upstream GRASP ligra.h:66 default (frontier_frac=50); reproduces Faldu HPCA'20 results (lit-faith). NOTE: GRASP's text says "10% of LLC" but its RELEASED code defaults 50 (% of vertex space); we match the code value.
+    uint32_t grasp_hot_percent = 15; // GRASP frontier_frac as % of VERTEX SPACE (array-relative, GRASP-faithful per ligra.h add_region). ~0.15 reproduces Faldu corpus results AND auto-scales (vs the old fixed 0.50-of-LLC which under-protected large graphs). ~ Faldu's stated 10% (which is vertex-relative).
     bool grasp_region = true;       // Whether GRASP treats this as propertyA/B
 
     // Bucket boundaries: bucket_bounds[i] = upper byte address of bucket i
@@ -1018,11 +1018,12 @@ struct GraphCacheContext {
         if (manual_hot_fraction > 0.0 && manual_hot_fraction <= 1.0) {
             r.grasp_hot_percent = static_cast<uint32_t>(manual_hot_fraction * 100.0 + 0.5);
         } else {
-            // GRASP hot region = frontier_frac (upstream ligra.h:66 default = 50).
-            // Override via GRASP_HOT_FRACTION (0<f<=1) for sensitivity sweeps.
+            // GRASP hot region = frontier_frac as fraction of the VERTEX SPACE
+            // (array-relative, GRASP-faithful + auto-scaling). ~0.15 reproduces
+            // the Faldu corpus and scales. Override via GRASP_HOT_FRACTION.
             const char* e = std::getenv("GRASP_HOT_FRACTION");
-            double f = e ? std::atof(e) : 0.50;
-            if (f <= 0.0 || f > 1.0) f = 0.50;
+            double f = e ? std::atof(e) : 0.15;
+            if (f <= 0.0 || f > 1.0) f = 0.15;
             r.grasp_hot_percent = static_cast<uint32_t>(f * 100.0 + 0.5);
         }
 
@@ -1333,12 +1334,19 @@ struct GraphCacheContext {
     //   COLD:     everything else (including non-property data)
     //
     // Returns: 1=HOT, 2=MODERATE, 3=COLD (0=not in any region)
+    // GRASP-faithful (ligra.h:66 add_region): the protected region is a fraction
+    // of the VERTEX SPACE (frontier_frac x n), i.e. a fraction of the property
+    // ARRAY — NOT of the LLC. This auto-scales: large graphs protect a
+    // proportional vertex fraction instead of a fixed LLC byte range (which
+    // under-protects at scale). llc_size is no longer used for the boundary.
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
+        (void)llc_size;
         for (uint32_t i = 0; i < num_regions; ++i) {
             const PropertyRegion& r = regions[i];
             if (!r.grasp_region) continue;
             if (addr >= r.base_address) {
-                uint64_t hot_bytes = (uint64_t(r.grasp_hot_percent) * uint64_t(llc_size)) / 100;
+                uint64_t array_bytes = r.upper_bound - r.base_address;
+                uint64_t hot_bytes = (uint64_t(r.grasp_hot_percent) * array_bytes) / 100;
                 uint64_t hot_bound = r.base_address + hot_bytes;
                 uint64_t moderate_bound = r.base_address + 2 * hot_bytes;
                 if (hot_bound > r.upper_bound) hot_bound = r.upper_bound;

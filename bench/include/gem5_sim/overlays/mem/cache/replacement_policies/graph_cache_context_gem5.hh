@@ -496,16 +496,19 @@ struct GraphCacheContext {
     }
 
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size,
-                           double hot_fraction = 0.50) const {
-        // GRASP hot region = frontier_frac (upstream GRASP ligra.h:66 default=50).
-        // The GRASP policy passes its configured hot_fraction Param; other
-        // callers (e.g. ECG DBG tiers) use the 0.50 default. NOTE: GRASP's text
-        // says "10% of LLC" but its released code defaults 50 (% of vertices);
-        // we match the code value (reproduces Faldu results, lit-faith).
-        uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
+                           double hot_fraction = 0.15) const {
+        // GRASP-faithful (ligra.h add_region): the hot region is a fraction of the
+        // VERTEX SPACE (frontier_frac x n) = a fraction of the property ARRAY, NOT
+        // of the LLC. Auto-scales with graph size (a fixed LLC byte range
+        // under-protects large graphs). Default ~0.15 (~Faldu's vertex-relative
+        // "10%") reproduces the corpus AND scales. GRASP policy passes its Param;
+        // ECG DBG-tier callers use the default.
+        (void)llc_size;
         for (uint32_t i = 0; i < num_regions; ++i) {
             if (!regions[i].grasp_region) continue;
             if (regions[i].contains(addr)) {
+                uint64_t array_bytes = regions[i].upper_bound - regions[i].base_address;
+                uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * array_bytes);
                 uint64_t hot_bound = regions[i].base_address + hot_bytes;
                 uint64_t moderate_bound = regions[i].base_address + 2 * hot_bytes;
                 if (hot_bound > regions[i].upper_bound) hot_bound = regions[i].upper_bound;

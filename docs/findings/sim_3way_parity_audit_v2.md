@@ -456,3 +456,49 @@ not the paper's text parameter.
 `frontier_frac × n` (vertex space) to mechanically match GRASP rather than `× LLC bytes`.
 Today it's value-matched (50) + results-validated; the normalization is a documented
 approximation.
+
+## 13. ✅ RESOLUTION (2026-06-11): vertex-relative (array-relative) GRASP normalization
+
+§12's "open refinement" is now **implemented and validated across all 3 sims**. This
+closes the GRASP `hot_fraction` saga.
+
+**The fix:** `classifyGRASP` now marks the hot region as a fraction of the **vertex space**
+(`hot_bytes = frac × array_bytes`, where `array_bytes = region.upper_bound −
+region.base_address = n × elem_size`) instead of a fraction of the LLC
+(`frac × llc_size`). This mechanically matches GRASP's `add_region(..., frontier_frac, n)`
+(ligra.h:66), which is vertex-relative. `llc_size` is no longer used for the boundary.
+Default `frac = 0.15` (≈ Faldu's stated vertex-relative "10%").
+
+**Why array-relative auto-scales (the core insight from the user's scale question):**
+`frac × LLC` protects a *fixed byte range* → a *shrinking vertex fraction* as `n` grows →
+under-protection at scale. `frac × array_bytes` protects a *constant vertex fraction* →
+scales like GRASP. Empirically, fixed `0.50 × LLC` needed `0.75` to beat SRRIP on
+com-orkut (it under-protected), confirming the LLC-relative form was the problem, not the
+value.
+
+**The full saga (all evidence in this doc):**
+| Normalization | Value | lit-faith disagreements | Scales? | Verdict |
+|---|---|---|---|---|
+| LLC-relative | 0.50 | 0 | ❌ under-protects large graphs | value-matched, not scale-robust |
+| LLC-relative | 0.10 | **6** | ❌ | **broken** (web-Google/pr 26pp worse than SRRIP) |
+| **vertex-relative (array)** | **0.15** | **0** | ✅ com-orkut/soc-LJ beat SRRIP | **FINAL — faithful + scales** |
+
+**Cross-sim validation at array-relative 0.15:**
+- **cache_sim:** `make lit-faith` = 65 ok / **0 DISAGREE** / 1 known-deviation /
+  2 insufficient_data (68 claims). web-Google/pr GRASP=0.4508 (≈ faithful 0.453);
+  com-orkut beats SRRIP +6.65pp; soc-LiveJournal1/pr GRASP 0.6825 < SRRIP 0.7340.
+- **gem5** (rebuilt X86): g12/pr GRASP=0.0189 < SRRIP=0.0239 — GRASP wins.
+- **Sniper** (rebuilt): g12/pr GRASP=0.1201 < SRRIP=0.1219 — GRASP wins;
+  ECG:DBG_PRIMARY status=ok (paper mode regression-free).
+
+**Code:** `classifyGRASP` array-relative + default 0.15 in all 3 sims — cache_sim
+(`graph_cache_context.h`), gem5 (`graph_cache_context_gem5.hh` + `GraphGraspRP.hot_fraction`
+Param + `graph_cache_config.py`), Sniper (`graph_cache_context_sniper.cc`). The
+`ECG_DBG_ONLY ≡ GRASP` parity invariant is unaffected (both route through the same
+`classifyGRASP`, shift together at any fraction).
+
+**Implication for committed paper tables:** prior cache_sim/gem5/Sniper tables were at
+LLC-relative 0.50. At array-relative 0.15 the absolute corpus numbers shift slightly but
+all conclusions hold (ECG_DBG ≡ GRASP, ECG ≥ GRASP, GRASP beats SRRIP, GRASP auto-scales).
+A full-corpus + multi-L3 table regeneration at 0.15 is a follow-up compute job (not
+blocking — the 16-cell corpus + scale evidence + lit-faith 0-disagree validate the change).

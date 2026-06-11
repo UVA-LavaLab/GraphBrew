@@ -529,17 +529,21 @@ uint32_t GraphCacheContext::findNextRef(uint64_t addr, uint32_t core_id) const
 
 uint32_t GraphCacheContext::classifyGRASP(uint64_t addr, uint64_t llc_size) const
 {
-    // GRASP hot region = frontier_frac (upstream GRASP ligra.h:66 default = 50).
-    // Override via GRASP_HOT_FRACTION (0<f<=1) for sensitivity sweeps.
+    // GRASP-faithful (ligra.h add_region): the hot region is a fraction of the
+    // VERTEX SPACE (frontier_frac x n) = a fraction of the property ARRAY, not of
+    // the LLC. Auto-scales with graph size. Default ~0.15 (~Faldu's vertex-relative
+    // "10%"). Override via GRASP_HOT_FRACTION (0<f<=1) for sensitivity sweeps.
     static const double hot_fraction = [](){
         const char* e = std::getenv("GRASP_HOT_FRACTION");
-        double v = e ? std::atof(e) : 0.50;
-        return (v > 0.0 && v <= 1.0) ? v : 0.50;
+        double v = e ? std::atof(e) : 0.15;
+        return (v > 0.0 && v <= 1.0) ? v : 0.15;
     }();
-    uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
+    (void)llc_size;
     for (uint32_t i = 0; i < num_regions; ++i) {
         if (!regions[i].grasp_region) continue;
         if (regions[i].contains(addr)) {
+            uint64_t array_bytes = regions[i].upper_bound - regions[i].base_address;
+            uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * array_bytes);
             uint64_t hot_bound = regions[i].base_address + hot_bytes;
             uint64_t moderate_bound = regions[i].base_address + 2 * hot_bytes;
             if (hot_bound > regions[i].upper_bound) hot_bound = regions[i].upper_bound;
