@@ -412,10 +412,10 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
                 region.bucket_bounds[1] = region.base_address + 2 * third;
                 region.bucket_bounds[2] = region.upper_bound;
 
-                // GRASP hot region = 10% of LLC (Faldu HPCA'20 "f" parameter).
-                // Actual classification reads GRASP_HOT_FRACTION (default 0.10)
+                // GRASP hot region = frontier_frac (upstream ligra.h:66 default=50).
+                // Actual classification reads GRASP_HOT_FRACTION (default 0.50)
                 // in classifyGRASP(); this is just the logged registration value.
-                constexpr uint32_t kSidebandHotPct = 10;
+                constexpr uint32_t kSidebandHotPct = 50;
                 logGraphCtxRegistration("sniper", region.name.c_str(),
                                         region.base_address,
                                         region.upper_bound,
@@ -529,12 +529,12 @@ uint32_t GraphCacheContext::findNextRef(uint64_t addr, uint32_t core_id) const
 
 uint32_t GraphCacheContext::classifyGRASP(uint64_t addr, uint64_t llc_size) const
 {
-    // Faldu HPCA'20 GRASP reserves 10% of LLC for the hot region.
+    // GRASP hot region = frontier_frac (upstream GRASP ligra.h:66 default = 50).
     // Override via GRASP_HOT_FRACTION (0<f<=1) for sensitivity sweeps.
     static const double hot_fraction = [](){
         const char* e = std::getenv("GRASP_HOT_FRACTION");
-        double v = e ? std::atof(e) : 0.10;
-        return (v > 0.0 && v <= 1.0) ? v : 0.10;
+        double v = e ? std::atof(e) : 0.50;
+        return (v > 0.0 && v <= 1.0) ? v : 0.50;
     }();
     uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
     for (uint32_t i = 0; i < num_regions; ++i) {

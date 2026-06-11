@@ -34,8 +34,9 @@ class GraphGraspRP(BaseReplacementPolicy):
         "Maximum RRPV value (2^rrpv_bits - 1). Default 7 for 3-bit RRPV.")
     num_buckets = Param.Unsigned(11,
         "Number of degree buckets for vertex classification (matching DBG).")
-    hot_fraction = Param.Float(0.1,
-        "Fraction of LLC capacity reserved for high-degree hub vertices.")
+    hot_fraction = Param.Float(0.5,
+        "GRASP frontier_frac (upstream ligra.h:66 default=50). Fraction reserved for "
+        "high-degree hub vertices. NOTE: paper text says 10% but released code defaults 50.")
     llc_size_bytes = Param.Unsigned(8388608,
         "LLC size in bytes (default 8MB). Used for GRASP hot-region boundary.")
     sideband_path = Param.String("/tmp/gem5_graphbrew_ctx.json",

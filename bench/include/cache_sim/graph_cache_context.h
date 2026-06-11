@@ -110,7 +110,7 @@ struct PropertyRegion {
     uint32_t elem_size = 0;         // Size of each element in bytes
     uint32_t region_id = 0;         // ID for per-region statistics
     uint32_t num_buckets = 0;       // Active bucket count (0 = uninitialized)
-    uint32_t grasp_hot_percent = 10; // GRASP "f" parameter: percent of LLC for hot region (Faldu HPCA'20 = 10%)
+    uint32_t grasp_hot_percent = 50; // GRASP frontier_frac: matches upstream GRASP ligra.h:66 default (frontier_frac=50); reproduces Faldu HPCA'20 results (lit-faith). NOTE: GRASP's text says "10% of LLC" but its RELEASED code defaults 50 (% of vertex space); we match the code value.
     bool grasp_region = true;       // Whether GRASP treats this as propertyA/B
 
     // Bucket boundaries: bucket_bounds[i] = upper byte address of bucket i
@@ -1018,11 +1018,11 @@ struct GraphCacheContext {
         if (manual_hot_fraction > 0.0 && manual_hot_fraction <= 1.0) {
             r.grasp_hot_percent = static_cast<uint32_t>(manual_hot_fraction * 100.0 + 0.5);
         } else {
-            // Faldu HPCA'20 GRASP reserves 10% of LLC for the hot region.
+            // GRASP hot region = frontier_frac (upstream ligra.h:66 default = 50).
             // Override via GRASP_HOT_FRACTION (0<f<=1) for sensitivity sweeps.
             const char* e = std::getenv("GRASP_HOT_FRACTION");
-            double f = e ? std::atof(e) : 0.10;
-            if (f <= 0.0 || f > 1.0) f = 0.10;
+            double f = e ? std::atof(e) : 0.50;
+            if (f <= 0.0 || f > 1.0) f = 0.50;
             r.grasp_hot_percent = static_cast<uint32_t>(f * 100.0 + 0.5);
         }
 

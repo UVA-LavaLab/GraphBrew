@@ -496,10 +496,12 @@ struct GraphCacheContext {
     }
 
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size,
-                           double hot_fraction = 0.10) const {
-        // Faldu HPCA'20 GRASP reserves 10% of LLC for the hot region.
+                           double hot_fraction = 0.50) const {
+        // GRASP hot region = frontier_frac (upstream GRASP ligra.h:66 default=50).
         // The GRASP policy passes its configured hot_fraction Param; other
-        // callers (e.g. ECG DBG tiers) use the 10% paper default.
+        // callers (e.g. ECG DBG tiers) use the 0.50 default. NOTE: GRASP's text
+        // says "10% of LLC" but its released code defaults 50 (% of vertices);
+        // we match the code value (reproduces Faldu results, lit-faith).
         uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * llc_size);
         for (uint32_t i = 0; i < num_regions; ++i) {
             if (!regions[i].grasp_region) continue;
@@ -570,11 +572,11 @@ struct GraphCacheContext {
                     regions[num_regions].bucket_bounds[1] = regions[num_regions].base_address + 2 * third;
                     regions[num_regions].bucket_bounds[2] = regions[num_regions].upper_bound;
 
-                    // GRASP hot region = 10% of LLC (Faldu HPCA'20 "f" parameter).
+                    // GRASP hot region = frontier_frac (upstream ligra.h:66 default=50).
                     // Actual classification reads the GraphGraspRP hot_fraction
-                    // Param (default 0.10) in classifyGRASP(); this is just the
+                    // Param (default 0.50) in classifyGRASP(); this is just the
                     // logged registration value.
-                    constexpr uint32_t kSidebandHotPct = 10;
+                    constexpr uint32_t kSidebandHotPct = 50;
                     logGraphCtxRegistration("gem5", nullptr,
                                             regions[num_regions].base_address,
                                             regions[num_regions].upper_bound,
