@@ -370,3 +370,28 @@ misreads of the ECG thesis and are downgraded below.
 - DBG_ONLY ≡ GRASP (exact in cache_sim; ≈ in cycle-accurate) — §A3 invariant holds.
 - P-OPT baseline uses the rereference matrix (its own mechanism); ECG doesn't get
   "secret" oracle info beyond what's charged.
+
+---
+
+## 11. Paper-writeup framing check (2026-06-11) — prose already honest; numbers need corrected-GRASP regen
+
+Audited whether the paper PROSE overstates the §10 framing issues. **It does not** — all
+four are already handled honestly (the §10 agent concerns came from manifest/config
+defaults, not the paper text):
+
+| §10 concern | Paper reality | Citation |
+|---|---|---|
+| "CHARGED=0 free-metadata headline" | CHARGED=1 is headline; CHARGED=0 reported as a sensitivity that is *worse* (cache-warming) | section5_results.tex:174-180; section4_methodology.tex:193-243 |
+| "99.998% useful is misleading" | Framed as bandwidth-efficiency (Pareto); useful-rate failure mode explained; not led with | section5_results.tex:182-189,259-289 |
+| "no speedup but claims it" | Metrics are demand-memory/bandwidth pp-deltas; L3-miss-rate explicitly NOT the headline; IPC/energy limited to Sniper | section4_methodology.tex:150-164; section6_discussion.tex:170 |
+| "4 kB cherry-picked headline" | Headline L3 = **1 MB** (literature-standard); 4 kB is only the component-proof regime; sensitivity studied | section4_methodology.tex:73,79-80 |
+
+**Numerical follow-up (the real remaining work):** the GRASP-dependent tables
+(`paper_table_grasp_parity`, baseline tables) were generated at the old `hot_fraction=0.50`
+and at the 1 MB headline config. They need regeneration at the corrected 0.10. **However the
+§A3 parity conclusion is robust**: GRASP and ECG_DBG both route through the same
+`classifyGRASP`, so the corrected fraction shifts BOTH columns together — Δ(ECG_DBG−GRASP)
+stays ≈0. Only the absolute miss-rates move. (cache_sim verified ECG_DBG_ONLY ≡ GRASP
+*exactly* at 10% in §7.) No paper conclusion changes; the numbers should be refreshed via a
+corrected-GRASP literature-corpus sweep at 1 MB → regenerate JSON → `make
+lit-paper-table-grasp-parity`.
