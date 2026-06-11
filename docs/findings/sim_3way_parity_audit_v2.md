@@ -417,3 +417,42 @@ these are deterministic. Raw CSVs: results/grasp_parity_1mb/.)
 at 1 MB (all policies, for the LRU/SRRIP/POPT columns too), then `make
 lit-paper-table-grasp-parity`. Conclusions (ECG_DBG≡GRASP, ECG≥GRASP, ECG≈POPT) are
 unchanged; only absolute numbers refresh.
+
+---
+
+## 12. ⚠️ CORRECTION (2026-06-11): the GRASP hot_fraction "fix" was WRONG — reverted
+
+§3 / commit ba92bcf2 changed GRASP `hot_fraction` 0.50→0.10, citing Faldu's paper text
+("10% of LLC") and a repo note. **That was a regression and has been reverted to 0.50**
+(commit reverting it). Root cause of my error: I trusted the paper *text* over GRASP's
+*released code*.
+
+**Authoritative evidence (GRASP source):** faldupriyank/grasp `ligra/ligra.h:66`:
+`int frontier_frac = 50;` — GRASP's released default is **50**, not 10. GRASP marks the
+protected region as `add_region("propertyB", frontierAddr, frontier_frac, n)` — a
+percentage of the **vertex space n**, default 50%. The original code's `hot_fraction=0.50`
+(comment "frontier_frac=50, matching upstream GRASP traces") was correct.
+
+**Empirical confirmation (same cells):**
+- web-Google/pr GRASP: 0.50 → 0.4524 (beats SRRIP by 8.8pp, matches Faldu Fig 10 + prior
+  committed 0.4531); 0.10 → 0.8062 (26pp WORSE than SRRIP — GRASP broken).
+- `lit-faith`: 0.50 → 0 disagreements; 0.10 → 6 GRASP disagreements (Faldu Fig 10/11) on
+  cells that passed at 0.50.
+
+**Implication for §7, §9, §11 of this doc:** those tables were generated at the wrong
+0.10 ("corrected" was a misnomer). The PARITY findings still hold (ECG_DBG_ONLY ≡ GRASP
+shifts both columns together, so Δ≈0 at any fraction — verified). But the absolute
+miss-rates in §7/§9/§11 are at 0.10 and should be disregarded; the faithful numbers are
+at 0.50 (= the prior committed values, now reproduced deterministically).
+
+**Net of the GRASP saga:** the original 0.50 was correct all along. The genuinely valuable
+fixes from this session stand: cache_sim determinism (OMP_NUM_THREADS=1 pin), Sniper
+ECG_EMBEDDED implementation, unsupported-mode guards, DROPLET SimObject-default hygiene.
+The lasting GRASP lesson: a known normalization approximation (LLC-bytes vs vertex-%) is
+calibrated/validated at value 50 via lit-faith; reproduce-the-results is the authority,
+not the paper's text parameter.
+
+**Open refinement (optional, not blocking):** make `classifyGRASP` mark hot/cold as
+`frontier_frac × n` (vertex space) to mechanically match GRASP rather than `× LLC bytes`.
+Today it's value-matched (50) + results-validated; the normalization is a documented
+approximation.
