@@ -353,13 +353,18 @@ misreads of the ECG thesis and are downgraded below.
   primary + degree tiebreak vs pure P-OPT (which itself uses the matrix). Fair as long as
   metadata is charged (CHARGED variants exist). NOT a bug.
 
-### Latent code bug (NOT paper-affecting — unused modes)
+### Latent code bug (NOT paper-affecting — unused modes) — ✅ RESOLVED 2026-06-11
 
-- **Sniper `ECG_EMBEDDED` falls through to `findDBGPrimaryVictim`** (cache_set_ecg.cc:319)
-  → ECG_EMBEDDED ≡ DBG_PRIMARY in Sniper. **But the paper only uses DBG_ONLY / DBG_PRIMARY
-  / DBG_PRIMARY_CHARGED / POPT_PRIMARY**, so this is latent. Same for missing modes
-  (POPT_TIE, ECG_EPOCH_EMBEDDED absent in gem5/Sniper) — unused. Fix or delete for a clean
-  public release.
+- **Sniper `ECG_EMBEDDED` silently aliased `DBG_PRIMARY`** (cache_set_ecg.cc fell through to
+  `findDBGPrimaryVictim`). **Fixed** (commit 117ab885): added `findECGEmbeddedVictim`
+  matching gem5/cache_sim (max-RRPV → highest stored P-OPT hint → highest DBG tier).
+  Verified distinct: email-Eu-core/pr ECG_EMBEDDED 656 vs DBG_PRIMARY 675 (were identical).
+- **Silent fallback for unknown/cache_sim-only modes** (POPT_TIE, ECG_EPOCH_EMBEDDED, typos):
+  `stringToECGMode` returned DBG_PRIMARY silently, mislabeling result rows. **Fixed** (commit
+  28bc7a0a): gem5 + Sniper now fail loudly (`FATAL: unsupported ECG mode ...` + abort) for
+  unrecognized modes; empty/DBG_PRIMARY default preserved. gem5 also already rejected bad
+  `--ecg-mode` via argparse; this is the C++/env-path defense (the one Sniper uses). Paper
+  modes (DBG_ONLY/DBG_PRIMARY/POPT_PRIMARY) verified unchanged (status=ok).
 
 ### Verified-good
 - DBG_ONLY ≡ GRASP (exact in cache_sim; ≈ in cycle-accurate) — §A3 invariant holds.
