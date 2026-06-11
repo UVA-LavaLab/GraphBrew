@@ -257,7 +257,15 @@ inline ECGMode stringToECGMode(const std::string& s) {
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
     if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
     if (s == "ECG_COMBINED" || s == "ecg_combined" || s == "combined") return ECGMode::ECG_COMBINED;
-    return ECGMode::DBG_PRIMARY;
+    if (s.empty() || s == "DBG_PRIMARY" || s == "dbg_primary") return ECGMode::DBG_PRIMARY;
+    // Fail fast instead of silently aliasing an unknown/typo'd mode to
+    // DBG_PRIMARY (which would mislabel result rows). POPT_TIE and
+    // ECG_EPOCH_EMBEDDED are cache_sim-only experimental modes.
+    std::fprintf(stderr,
+        "[graphctx] FATAL: unsupported ECG mode '%s' for gem5. Supported: "
+        "DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED, ECG_COMBINED "
+        "(POPT_TIE / ECG_EPOCH_EMBEDDED are cache_sim-only).\n", s.c_str());
+    std::abort();
 }
 
 inline std::string ecgModeToString(ECGMode mode) {
