@@ -299,6 +299,44 @@ CacheSetECG::findDBGPrimaryVictim(CacheCntlr *cntlr)
 }
 
 UInt32
+CacheSetECG::findECGEmbeddedVictim(CacheCntlr *cntlr)
+{
+   (void)cntlr;
+   // ECG_EMBEDDED: among the max-RRPV lines, evict the one with the highest
+   // stored P-OPT hint (furthest predicted reuse); tie-break by highest DBG
+   // tier. Mirrors gem5 GraphEcgRP ECG_EMBEDDED (ecg_rp.cc:296-317) and
+   // cache_sim findVictimECG. Uses the per-line hint captured at insertion
+   // (m_popt_hints), so it carries zero extra LLC lookup cost.
+   while (true) {
+      UInt32 max_count = 0;
+      UInt8 max_hint = 0;
+      for (UInt32 way = 0; way < m_associativity; way++) {
+         if (m_rrip_bits[way] >= m_rrip_max) {
+            max_count++;
+            max_hint = std::max(max_hint, m_popt_hints[way]);
+         }
+      }
+      if (max_count > 0) {
+         UInt32 best = m_associativity;
+         UInt8 best_dbg = 0;
+         for (UInt32 way = 0; way < m_associativity; way++) {
+            if (m_rrip_bits[way] < m_rrip_max || m_popt_hints[way] != max_hint) continue;
+            if (best == m_associativity || m_dbg_tiers[way] > best_dbg) {
+               best = way;
+               best_dbg = m_dbg_tiers[way];
+            }
+         }
+         applyPendingInsertion(best);
+         LOG_ASSERT_ERROR(isValidReplacement(best), "ECG EMBEDDED selected an invalid replacement candidate");
+         return best;
+      }
+      for (UInt32 way = 0; way < m_associativity; way++) {
+         if (m_rrip_bits[way] < m_rrip_max) m_rrip_bits[way]++;
+      }
+   }
+}
+
+UInt32
 CacheSetECG::getReplacementIndex(CacheCntlr *cntlr)
 {
    for (UInt32 way = 0; way < m_associativity; way++) {
@@ -312,6 +350,7 @@ CacheSetECG::getReplacementIndex(CacheCntlr *cntlr)
    }
    tryLoadContext();
    if (m_mode == graphbrew::sniper::ECGMode::POPT_PRIMARY) return findPOPTVictim(cntlr);
+   if (m_mode == graphbrew::sniper::ECGMode::ECG_EMBEDDED) return findECGEmbeddedVictim(cntlr);
    if (m_mode == graphbrew::sniper::ECGMode::DBG_ONLY ||
        m_mode == graphbrew::sniper::ECGMode::ECG_COMBINED) {
       return findSRRIPVictim(cntlr);
