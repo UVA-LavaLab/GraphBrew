@@ -395,3 +395,25 @@ stays ≈0. Only the absolute miss-rates move. (cache_sim verified ECG_DBG_ONLY 
 *exactly* at 10% in §7.) No paper conclusion changes; the numbers should be refreshed via a
 corrected-GRASP literature-corpus sweep at 1 MB → regenerate JSON → `make
 lit-paper-table-grasp-parity`.
+
+### §11 follow-up: corrected GRASP-parity verified (16/16 exact, deterministic, 1 MB)
+
+Reproduced the 16 `paper_table_grasp_parity` cells at the paper headline config
+(L3=1 MB, L1=32 kB, L2=256 kB) with **corrected hot_fraction=0.10** and
+**single-thread** (deterministic). Result: **ECG_DBG_ONLY ≡ GRASP exactly, Δ=0.000pp on
+all 16/16 cells** (max |Δ|=0.000pp). This is *tighter* than the published table (mean
+|Δ|=0.04pp, max 0.21pp) — the old non-zero Δ was multithread-nondeterminism noise (§6),
+not a real ECG_DBG/GRASP difference. The §A3 equivalence claim is fully robust to the
+GRASP fix and actually becomes exact under the deterministic config.
+
+Corrected miss-rates (GRASP = ECG_DBG_ONLY, L3=1 MB, single-thread): email-Eu-core/pr
+1.0000; web-Google pr/bfs/bc 0.8062/0.9851/0.9149; cit-Patents pr/bfs/sssp/bc
+0.9290/0.9912/0.9559/0.9678; soc-pokec pr/sssp/bc 0.8452/1.0000/0.8856; soc-LiveJournal1
+pr/bfs/sssp/bc 0.8976/0.9624/0.8846/0.8986; com-orkut/pr 0.8553. (Absolute values differ
+from the published table because those were generated multithreaded/non-reproducibly;
+these are deterministic. Raw CSVs: results/grasp_parity_1mb/.)
+
+**Action to refresh the paper table:** regenerate the full lit-faith corpus single-thread
+at 1 MB (all policies, for the LRU/SRRIP/POPT columns too), then `make
+lit-paper-table-grasp-parity`. Conclusions (ECG_DBG≡GRASP, ECG≥GRASP, ECG≈POPT) are
+unchanged; only absolute numbers refresh.
