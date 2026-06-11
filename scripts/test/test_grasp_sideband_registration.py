@@ -4,10 +4,10 @@
 Locks the invariant that each simulator (``cache_sim``, ``gem5``-native,
 ``sniper``-native) registers exactly two property regions for PageRank on
 ``email-Eu-core`` and that *both* of those regions are classified as
-GRASP regions at the upstream-faithful ``hot_pct=50`` band.
+GRASP regions at the GRASP-faithful array-relative ``hot_pct=15`` band.
 
 The handoff (``wiki/HANDOFF-grasp-popt-validation.md``) calls for "exactly 2
-regions with ``grasp_region=1`` and the expected ``hot_pct`` (50 for
+regions with ``grasp_region=1`` and the expected ``hot_pct`` (15 for
 PR/BC/Radii, 100 for BellmanFord)".  Two contexts apply:
 
 * **Upstream GRASP trace replay**: header carries both ``propertyA`` and
@@ -65,11 +65,12 @@ class AppSpec:
 
 
 # Apps with their expected GRASP frontier fractions.  The mapping mirrors the
-# handoff: PR/BC/Radii use a 50%-of-LLC hot band; BellmanFordOpt uses 100%.
+# handoff: PR/BC/Radii use a 15%-of-vertex-array hot band (array-relative,
+# GRASP-faithful per ligra.h add_region); BellmanFordOpt uses a full 100%.
 APP_EXPECTED_HOT_PCT = {
-    "pr": 50,
-    "bc": 50,
-    "radii": 50,
+    "pr": 15,
+    "bc": 15,
+    "radii": 15,
     "bellmanford": 100,
 }
 
@@ -145,10 +146,12 @@ def _parse_sideband_regions(json_path: Path, sideband_hot_pct: int) -> list[dict
 
     The JSON shape today is ``{"property_regions": [{name, base, size, count,
     elem_size, grasp}, ...]}``.  ``loadFromSideband`` (the parser exercised
-    inside the live simulator) hard-codes ``hot_fraction=0.50``, so we
-    synthesise the same ``hot_pct`` here for symmetry with the cache_sim
-    stderr line.  This keeps the invariant single-sourced for now and will be
-    promoted to a real per-region field when BellmanFord is wired through.
+    inside the live simulator) logs ``hot_pct=15`` (the GRASP-faithful
+    array-relative default; classifyGRASP itself reads the configured
+    ``hot_fraction``), so we synthesise the same ``hot_pct`` here for symmetry
+    with the cache_sim stderr line.  This keeps the invariant single-sourced for
+    now and will be promoted to a real per-region field when BellmanFord is
+    wired through.
     """
 
     payload = json.loads(json_path.read_text())
@@ -255,7 +258,7 @@ def test_gem5_grasp_sideband_registration(app_name: str, tmp_path: Path) -> None
     )
     assert ctx_path.exists(), f"gem5 sideband not written at {ctx_path}"
 
-    regions = _parse_sideband_regions(ctx_path, sideband_hot_pct=50)
+    regions = _parse_sideband_regions(ctx_path, sideband_hot_pct=15)
     _assert_grasp_invariant(regions, spec)
 
 
@@ -287,7 +290,7 @@ def test_sniper_grasp_sideband_registration(app_name: str, tmp_path: Path) -> No
     )
     assert ctx_path.exists(), f"sniper sideband not written at {ctx_path}"
 
-    regions = _parse_sideband_regions(ctx_path, sideband_hot_pct=50)
+    regions = _parse_sideband_regions(ctx_path, sideband_hot_pct=15)
     _assert_grasp_invariant(regions, spec)
 
 
@@ -325,12 +328,12 @@ def test_registration_log_present_in_all_contexts() -> None:
 
 
 def test_expected_hot_pct_mapping_covers_supported_apps() -> None:
-    """Encode the {PR/BC/Radii: 50, BellmanFord: 100} table so additions
+    """Encode the {PR/BC/Radii: 15, BellmanFord: 100} table so additions
     to the mapping are deliberate."""
 
     assert APP_EXPECTED_HOT_PCT == {
-        "pr": 50,
-        "bc": 50,
-        "radii": 50,
+        "pr": 15,
+        "bc": 15,
+        "radii": 15,
         "bellmanford": 100,
     }

@@ -30,15 +30,22 @@ def test_grasp_trace_header_fraction_and_cold_fill_are_upstream_faithful():
     compare_script = read("scripts/experiments/ecg/upstream_policy_compare.py")
 
     assert "grasp_hot_percent" in graph_ctx
-    assert "grasp_hot_percent = 50" in graph_ctx
+    assert "grasp_hot_percent = 15" in graph_ctx
     assert "bool grasp_region = true" in graph_ctx
     assert "if (!r.grasp_region) continue;" in graph_ctx
     assert "registerGRASPTraceRegion" in graph_ctx
     assert "double hot_fraction = 0.5" in cache_sim
     assert "hot_bound += 8" in graph_ctx
     assert "moderate_bound += 8" in graph_ctx
-    assert "constexpr double hot_fraction = 0.50" in gem5_context
-    assert "constexpr double hot_fraction = 0.50" in sniper_context
+    # GRASP-faithful array-relative normalization (sim_3way_parity_audit_v2.md
+    # §13): classifyGRASP marks the hot region as a fraction of the VERTEX ARRAY
+    # (frac x array_bytes), NOT of the LLC; default 0.15 (~ Faldu's vertex-relative
+    # "10%"). This auto-scales where the old fixed 0.50-of-LLC under-protected.
+    assert "double hot_fraction = 0.15" in gem5_context
+    assert "std::atof(e) : 0.15" in sniper_context
+    assert "array_bytes = " in graph_ctx
+    assert "array_bytes = " in gem5_context
+    assert "array_bytes = " in sniper_context
     assert "if (!regions[i].grasp_region) continue;" in gem5_context
     assert "if (!regions[i].grasp_region) continue;" in sniper_context
     assert "policy_ == EvictionPolicy::GRASP" in cache_sim

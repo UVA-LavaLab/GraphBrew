@@ -575,11 +575,11 @@ struct GraphCacheContext {
                     regions[num_regions].bucket_bounds[1] = regions[num_regions].base_address + 2 * third;
                     regions[num_regions].bucket_bounds[2] = regions[num_regions].upper_bound;
 
-                    // GRASP hot region = frontier_frac (upstream ligra.h:66 default=50).
-                    // Actual classification reads the GraphGraspRP hot_fraction
-                    // Param (default 0.50) in classifyGRASP(); this is just the
-                    // logged registration value.
-                    constexpr uint32_t kSidebandHotPct = 50;
+                    // GRASP hot region = frontier_frac as % of the VERTEX SPACE
+                    // (array-relative, GRASP-faithful). Actual classification reads
+                    // the GraphGraspRP hot_fraction Param (default 0.15) in
+                    // classifyGRASP(); this is just the logged registration value.
+                    constexpr uint32_t kSidebandHotPct = 15;
                     logGraphCtxRegistration("gem5", nullptr,
                                             regions[num_regions].base_address,
                                             regions[num_regions].upper_bound,

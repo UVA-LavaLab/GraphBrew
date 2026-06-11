@@ -144,7 +144,7 @@ def test_s6_regex_groups_match_schema():
 def test_s6_regex_extracts_real_values():
     line = (
         "[graphctx] register region source=gem5 name=property "
-        "base=0xdeadbeef upper=0xfeedface hot_pct=50 grasp_region=1"
+        "base=0xdeadbeef upper=0xfeedface hot_pct=15 grasp_region=1"
     )
     m = re.search(MOD.TIER_A_REGEX, line)
     assert m is not None
@@ -152,7 +152,7 @@ def test_s6_regex_extracts_real_values():
     assert m.group("name") == "property"
     assert m.group("base") == "deadbeef"
     assert m.group("upper") == "feedface"
-    assert m.group("hot_pct") == "50"
+    assert m.group("hot_pct") == "15"
     assert m.group("grasp_region") == "1"
 
 

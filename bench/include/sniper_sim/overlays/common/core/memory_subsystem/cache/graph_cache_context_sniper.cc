@@ -412,10 +412,11 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
                 region.bucket_bounds[1] = region.base_address + 2 * third;
                 region.bucket_bounds[2] = region.upper_bound;
 
-                // GRASP hot region = frontier_frac (upstream ligra.h:66 default=50).
-                // Actual classification reads GRASP_HOT_FRACTION (default 0.50)
-                // in classifyGRASP(); this is just the logged registration value.
-                constexpr uint32_t kSidebandHotPct = 50;
+                // GRASP hot region = frontier_frac as % of the VERTEX SPACE
+                // (array-relative, GRASP-faithful). Actual classification reads
+                // GRASP_HOT_FRACTION (default 0.15) in classifyGRASP(); this is
+                // just the logged registration value.
+                constexpr uint32_t kSidebandHotPct = 15;
                 logGraphCtxRegistration("sniper", region.name.c_str(),
                                         region.base_address,
                                         region.upper_bound,
