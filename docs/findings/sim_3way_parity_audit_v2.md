@@ -303,3 +303,65 @@ rebuilt with the fix and verified to log `hot_pct=10` (gem5's previously-dead
 longer cycle-accurate wall time; not required to establish the corrected invariants,
 which hold across all 12 email/g12 cells above plus the 12-cell deterministic cache_sim
 matrix (§7).
+
+---
+
+## 10. Evaluation / metric flaw audit (2026-06-11, 3 parallel sub-agents + ground-truthing)
+
+Second-pass hunt for implementation/evaluation flaws beyond the GRASP + determinism
+bugs. Every agent claim was manually verified; several agent "CRITICAL" flags were
+misreads of the ECG thesis and are downgraded below.
+
+### REAL issues to address in the writeup (not code bugs)
+
+1. **ECG_PFX mode-6 headline assumes FREE metadata (CHARGED=0).** The 8 B/edge fat mask
+   is uncharged in the paper headline (`hpca_mode6` manifest sets
+   `ECG_EDGE_MASK_CHARGED=0`). At CHARGED=1 (software-realistic) mode-6 is **1.22× DRAM
+   traffic** (sprint_6f-7_mode6_charged_audit). Disclosed in docs, but the paper must
+   frame mode-6 as an **ISA-extension target** and show the CHARGED=1 software cost.
+   The *replacement* policies are charged symmetrically (POPT_CHARGED /
+   ECG_DBG_PRIMARY_CHARGED both pay for the P-OPT matrix) — that part is fair.
+2. **`useful_rate` is "hit-on-prefetch", not "miss-prevention".** Sniper maps
+   `pf_useful=L2.hits-prefetch` / `pf_issued=L2.prefetches`. The 99.998% headline is on
+   `pf_issued`, which already excludes ~742K in-cache-filtered prefetches (uniform_n17_k8);
+   **per emitted hint precision is ~79%**. There is no timeliness (`pf_late`) metric, so a
+   prefetch counts useful even if it hid ~0 latency. Frame honestly.
+3. **No speedup is claimable from ECG_PFX cycle-accurate runs.** The harness sets
+   `timing_valid_for_speedup=0` for all ECG_PFX gem5/Sniper runs (IPC≈1.3e-5, dominated by
+   magic-trap hint delivery). ECG_PFX evidence = miss-reduction + bandwidth only. (The ECG
+   *eviction* cells DO have valid timing — `timing_valid_for_speedup=1`, IPC≈0.13, and
+   ECG:DBG_ONLY IPC 0.138 > GRASP 0.134 > LRU 0.131 — so eviction speedup is claimable.)
+4. **4 kB L3 headline is a stress regime.** An L-curve sweep (4 kB→1 MB) exists; lead with
+   realistic sizes / show the curve so the win isn't seen as cherry-picked at 4 kB.
+
+### Reviewer-attack vectors that are DEFENSIBLE (verified)
+
+- **`-i 2` iterations:** verified ECG's advantage + full policy ordering are **stable from
+  -i 2 to -i 20** (kron_s16_k4/PR: ECG:DBG 0.7903→0.7885, LRU 0.9115→0.9107; identical
+  ordering). PageRank's per-iteration access pattern is steady, so -i 2 is representative.
+- **Reordering `-o 5` (DBG):** applied uniformly to ALL policies — no differential edge.
+- **DROPLET knob asymmetry:** DROPLET gets MORE bandwidth (indirect_degree 16 vs ECG's
+  best-1-of-8) → biases AGAINST ECG; ECG wins on efficiency anyway. Conservative.
+- **Selection bias:** paper-table generators iterate ALL (graph,app,L3) cells; no
+  cherry-pick logic found.
+
+### Agent claims DOWNGRADED (misread the ECG design)
+
+- **"POPT_PRIMARY / DBG_PRIMARY use info the GRASP/P-OPT baselines lack → unfair":** This
+  is the ECG **contribution** (combine degree + rereference), not cheating. ECG:DBG_PRIMARY
+  = degree-primary + rereference tiebreak vs pure GRASP; ECG:POPT_PRIMARY = rereference-
+  primary + degree tiebreak vs pure P-OPT (which itself uses the matrix). Fair as long as
+  metadata is charged (CHARGED variants exist). NOT a bug.
+
+### Latent code bug (NOT paper-affecting — unused modes)
+
+- **Sniper `ECG_EMBEDDED` falls through to `findDBGPrimaryVictim`** (cache_set_ecg.cc:319)
+  → ECG_EMBEDDED ≡ DBG_PRIMARY in Sniper. **But the paper only uses DBG_ONLY / DBG_PRIMARY
+  / DBG_PRIMARY_CHARGED / POPT_PRIMARY**, so this is latent. Same for missing modes
+  (POPT_TIE, ECG_EPOCH_EMBEDDED absent in gem5/Sniper) — unused. Fix or delete for a clean
+  public release.
+
+### Verified-good
+- DBG_ONLY ≡ GRASP (exact in cache_sim; ≈ in cycle-accurate) — §A3 invariant holds.
+- P-OPT baseline uses the rereference matrix (its own mechanism); ECG doesn't get
+  "secret" oracle info beyond what's charged.
