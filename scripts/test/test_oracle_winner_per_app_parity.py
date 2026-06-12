@@ -37,10 +37,13 @@ PWT_PATH = Path("wiki/data/policy_winner_table.json")
 EXPECTED_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
 ALLOWED_DISAGREEMENTS = {
     # (app, oracle_rank1, winner_top1)
-    ("bc", "SRRIP", "GRASP"),
-    # post-cache_sim-ECG-sweep: bfs winner shifted to GRASP at scale
-    # (more cells where GRASP edges POPT after honest binary fix)
+    # array-relative GRASP 0.15 (single-thread): bc now AGREES (oracle
+    # rank1 GRASP == winner GRASP); the frontier kernels bfs and sssp
+    # disagree — POPT has the lowest mean oracle-gap (rank1) but GRASP wins
+    # the most individual cells (POPT's wins are concentrated in a few
+    # large-gap cells while GRASP wins broadly).
     ("bfs", "POPT", "GRASP"),
+    ("sssp", "POPT", "GRASP"),
 }
 FULL_AGREEMENT_FLOOR = 3   # at least 3 of 5 apps must fully agree (was 4 pre-sweep)
 RANK1_WINS_FLOOR = 1       # oracle rank-1 must have >= 1 outright win
@@ -165,13 +168,17 @@ def test_sssp_oracle_rank1_is_popt():
     assert r1["sssp"] == "POPT", r1["sssp"]
 
 
-def test_bc_disagreement_documented():
-    """Sanity: the documented bc disagreement still holds, otherwise the
-    ALLOWED_DISAGREEMENTS set may be hiding a healthy state."""
+def test_sssp_disagreement_documented():
+    """Sanity: the documented sssp disagreement still holds (oracle rank1
+    POPT but GRASP wins the most cells), otherwise the ALLOWED_DISAGREEMENTS
+    set may be hiding a healthy state. bc now AGREES (oracle == winner ==
+    GRASP) at array-relative GRASP 0.15."""
     r1 = _rank1_by_app()
     wins = _winners_by_app()
-    assert r1["bc"] == "SRRIP", r1["bc"]
-    assert _top1(wins["bc"]) == "GRASP", wins["bc"]
+    assert r1["sssp"] == "POPT", r1["sssp"]
+    assert _top1(wins["sssp"]) == "GRASP", wins["sssp"]
+    # bc is now an agreement, not a disagreement:
+    assert r1["bc"] == _top1(wins["bc"]), (r1["bc"], wins["bc"])
 
 
 def test_no_app_has_lru_as_oracle_rank1():

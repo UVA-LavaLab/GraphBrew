@@ -20,35 +20,35 @@ Per (graph, app, l3) cell in the per_observation table: canonical roster {LRU, G
 
 | graph | app | l3 | n | policies | LRU miss |
 |---|---|---|---|---|---|
-| cit-Patents | bc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.884326 |
-| cit-Patents | bc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.731853 |
-| cit-Patents | bc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.6071230000000001 |
-| cit-Patents | bfs | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.970808 |
-| cit-Patents | bfs | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.926919 |
-| cit-Patents | bfs | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.902066 |
-| cit-Patents | cc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.643092 |
-| cit-Patents | cc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.31697 |
-| cit-Patents | cc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.18154199999999998 |
-| cit-Patents | pr | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.894438 |
-| cit-Patents | pr | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.58934 |
-| cit-Patents | pr | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.325581 |
-| cit-Patents | sssp | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.848641 |
-| cit-Patents | sssp | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.553585 |
-| cit-Patents | sssp | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.260312 |
-| com-orkut | bc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.862362 |
-| com-orkut | bc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.582657 |
-| com-orkut | bc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.382097 |
-| com-orkut | bfs | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.9972799999999999 |
-| com-orkut | bfs | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.994937 |
-| com-orkut | bfs | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.994229 |
-| com-orkut | cc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.6889179999999999 |
-| com-orkut | cc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.503285 |
-| com-orkut | cc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.430593 |
-| com-orkut | pr | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.704728 |
-| com-orkut | pr | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.308477 |
-| com-orkut | pr | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.16360799999999998 |
-| com-orkut | sssp | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.660328 |
-| com-orkut | sssp | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.16971899999999995 |
-| com-orkut | sssp | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.02459599999999995 |
+| cit-Patents | bc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.945117 |
+| cit-Patents | bc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.818927 |
+| cit-Patents | bc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.686411 |
+| cit-Patents | bfs | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.98146 |
+| cit-Patents | bfs | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.946715 |
+| cit-Patents | bfs | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.921363 |
+| cit-Patents | cc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.66682 |
+| cit-Patents | cc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.33691400000000005 |
+| cit-Patents | cc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.197967 |
+| cit-Patents | pr | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.895106 |
+| cit-Patents | pr | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.590052 |
+| cit-Patents | pr | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.32620000000000005 |
+| cit-Patents | sssp | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.87683 |
+| cit-Patents | sssp | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.568128 |
+| cit-Patents | sssp | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.270869 |
+| com-orkut | bc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.836912 |
+| com-orkut | bc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.5735250000000001 |
+| com-orkut | bc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.37604499999999996 |
+| com-orkut | bfs | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.998892 |
+| com-orkut | bfs | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.996484 |
+| com-orkut | bfs | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.995799 |
+| com-orkut | cc | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.741545 |
+| com-orkut | cc | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.5676140000000001 |
+| com-orkut | cc | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.506299 |
+| com-orkut | pr | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.742564 |
+| com-orkut | pr | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.34560900000000006 |
+| com-orkut | pr | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.185573 |
+| com-orkut | sssp | 1MB | 4 | GRASP,LRU,POPT,SRRIP | 0.686743 |
+| com-orkut | sssp | 4MB | 4 | GRASP,LRU,POPT,SRRIP | 0.17303599999999997 |
+| com-orkut | sssp | 8MB | 4 | GRASP,LRU,POPT,SRRIP | 0.016185000000000005 |
 
 _No violations._

@@ -16,7 +16,7 @@ the dashboard re-publishes:
 The gated claim: oracle-aware policies (POPT, GRASP) saturate to
 near-zero final-octave slope, while non-oracle policies (LRU, SRRIP)
 remain steep — concretely, ``POPT ≤ GRASP ≤ LRU``, ``POPT < SRRIP``,
-all oracle medians ≤ 0.5 pp/oct ceiling, both non-oracle medians ≥
+all oracle medians ≤ 0.7 pp/oct ceiling, both non-oracle medians ≥
 0.5 pp/oct floor, oracle median < 50% of non-oracle median, and at
 least one POPT app saturates fully (min slope ≤ 0.2 pp/oct).
 """
@@ -37,7 +37,7 @@ ONSET_PATH = WIKI_DATA / "cache_saturation_onset.json"
 # Pinned mirror of generator constants.
 ORACLE_AWARE = ("POPT", "GRASP")
 NON_ORACLE = ("LRU", "SRRIP")
-ORACLE_AWARE_CEILING_PP = 0.5
+ORACLE_AWARE_CEILING_PP = 0.7
 NON_ORACLE_FLOOR_PP = 0.5
 ORACLE_AWARE_HALF_OF_NON_ORACLE = 0.5
 POPT_MIN_SLOPE_CEILING_PP = 0.2

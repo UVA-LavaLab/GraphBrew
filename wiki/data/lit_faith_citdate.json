@@ -23,21 +23,20 @@
       "rows": 8
     },
     "POPT_GE_GRASP": {
-      "distinct_citation_count": 2,
+      "distinct_citation_count": 1,
       "distinct_citations": [
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)"
       ],
-      "parses_ok": 114,
-      "rows": 114
+      "parses_ok": 84,
+      "rows": 84
     },
     "POPT_NEAR_GRASP_IF_BIG_GAP": {
       "distinct_citation_count": 1,
       "distinct_citations": [
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
       ],
-      "parses_ok": 114,
-      "rows": 114
+      "parses_ok": 84,
+      "rows": 84
     },
     "SRRIP": {
       "distinct_citation_count": 4,
@@ -47,8 +46,8 @@
         "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
         "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
       ],
-      "parses_ok": 75,
-      "rows": 75
+      "parses_ok": 84,
+      "rows": 84
     }
   },
   "constants": {
@@ -103,18 +102,17 @@
   },
   "totals": {
     "author_tally": {
-      "Balaji": 252,
-      "Faldu": 177,
-      "Jaleel": 75
+      "Balaji": 192,
+      "Faldu": 156,
+      "Jaleel": 84
     },
-    "distinct_citation_count": 15,
+    "distinct_citation_count": 14,
     "distinct_citations": [
       "Balaji & Lucia HPCA 2021 Fig 10",
       "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
       "Balaji & Lucia HPCA 2021 Fig 9",
       "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
-      "Balaji & Lucia HPCA 2021 \u00a76.3",
-      "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
       "Faldu et al. HPCA 2020 Fig 10",
       "Faldu et al. HPCA 2020 Fig 11",
@@ -125,16 +123,16 @@
       "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
       "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
     ],
-    "rows": 330,
-    "rows_parsed_ok": 330,
+    "rows": 279,
+    "rows_parsed_ok": 279,
     "venue_tally": {
-      "HPCA": 429,
-      "ISCA": 75
+      "HPCA": 348,
+      "ISCA": 84
     },
     "year_tally": {
-      "2010": 75,
-      "2020": 177,
-      "2021": 252
+      "2010": 84,
+      "2020": 156,
+      "2021": 192
     }
   },
   "violations": []

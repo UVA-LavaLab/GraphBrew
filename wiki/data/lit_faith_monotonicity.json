@@ -5,23 +5,47 @@
       "graph": "com-orkut",
       "l3_range": "1MB\u21928MB",
       "policy": "SRRIP",
-      "total_lru_drop": 0.003051,
-      "total_policy_drop": 0.003118
+      "total_lru_drop": 0.003093,
+      "total_policy_drop": 0.003034
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "l3_range": "1MB\u21928MB",
+      "policy": "SRRIP",
+      "total_lru_drop": 0.0,
+      "total_policy_drop": 0.0
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "l3_range": "1MB\u21928MB",
+      "policy": "SRRIP",
+      "total_lru_drop": 0.0,
+      "total_policy_drop": 0.0
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "l3_range": "1MB\u21928MB",
+      "policy": "SRRIP",
+      "total_lru_drop": 0.0,
+      "total_policy_drop": 0.0
     }
   ],
   "schema_version": 1,
   "summary": {
-    "max_slope_lru": 0.245026,
-    "max_slope_policy": 0.224836,
-    "median_slope_lru": 0.159996,
-    "median_slope_policy": 0.153376,
-    "min_slope_lru": 0.00094,
-    "min_slope_policy": 0.001052,
-    "rows_with_rates": 102,
-    "saturated_count": 1,
-    "total_rows": 330,
-    "triple_count": 47,
-    "triples_audited": 30,
+    "max_slope_lru": 0.266518,
+    "max_slope_policy": 0.238651,
+    "median_slope_lru": 0.156802,
+    "median_slope_policy": 0.152398,
+    "min_slope_lru": 0.0,
+    "min_slope_policy": 0.0,
+    "rows_with_rates": 111,
+    "saturated_count": 4,
+    "total_rows": 279,
+    "triple_count": 50,
+    "triples_audited": 33,
     "triples_singleton": 17,
     "violations_lru": 0,
     "violations_policy": 0
@@ -34,32 +58,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.884326,
-      "lru_miss_min": 0.607123,
-      "lru_total_drop": 0.277203,
+      "lru_miss_max": 0.945117,
+      "lru_miss_min": 0.686411,
+      "lru_total_drop": 0.258706,
       "policy": "SRRIP",
-      "policy_miss_max": 0.879551,
-      "policy_miss_min": 0.589165,
-      "policy_total_drop": 0.290386,
+      "policy_miss_max": 0.942569,
+      "policy_miss_min": 0.666055,
+      "policy_total_drop": 0.276514,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.884326,
-          "policy_miss_rate": 0.879551
+          "lru_miss_rate": 0.945117,
+          "policy_miss_rate": 0.942569
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.731853,
-          "policy_miss_rate": 0.722774
+          "lru_miss_rate": 0.818927,
+          "policy_miss_rate": 0.808237
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.607123,
-          "policy_miss_rate": 0.589165
+          "lru_miss_rate": 0.686411,
+          "policy_miss_rate": 0.666055
         }
       ],
-      "slope_lru": 0.100483,
-      "slope_policy": 0.105999
+      "slope_lru": 0.097805,
+      "slope_policy": 0.104674
     },
     {
       "app": "bfs",
@@ -67,32 +91,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.970808,
-      "lru_miss_min": 0.902066,
-      "lru_total_drop": 0.068742,
+      "lru_miss_max": 0.98146,
+      "lru_miss_min": 0.921363,
+      "lru_total_drop": 0.060097,
       "policy": "SRRIP",
-      "policy_miss_max": 0.966718,
-      "policy_miss_min": 0.89952,
-      "policy_total_drop": 0.067198,
+      "policy_miss_max": 0.979057,
+      "policy_miss_min": 0.918701,
+      "policy_total_drop": 0.060356,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.970808,
-          "policy_miss_rate": 0.966718
+          "lru_miss_rate": 0.98146,
+          "policy_miss_rate": 0.979057
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.926919,
-          "policy_miss_rate": 0.922024
+          "lru_miss_rate": 0.946715,
+          "policy_miss_rate": 0.941754
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.902066,
-          "policy_miss_rate": 0.89952
+          "lru_miss_rate": 0.921363,
+          "policy_miss_rate": 0.918701
         }
       ],
-      "slope_lru": 0.023399,
-      "slope_policy": 0.022425
+      "slope_lru": 0.021362,
+      "slope_policy": 0.020852
     },
     {
       "app": "cc",
@@ -100,32 +124,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.643092,
-      "lru_miss_min": 0.181542,
-      "lru_total_drop": 0.46155,
+      "lru_miss_max": 0.66682,
+      "lru_miss_min": 0.197967,
+      "lru_total_drop": 0.468853,
       "policy": "SRRIP",
-      "policy_miss_max": 0.600965,
-      "policy_miss_min": 0.16012,
-      "policy_total_drop": 0.440845,
+      "policy_miss_max": 0.626239,
+      "policy_miss_min": 0.175707,
+      "policy_total_drop": 0.450532,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.643092,
-          "policy_miss_rate": 0.600965
+          "lru_miss_rate": 0.66682,
+          "policy_miss_rate": 0.626239
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.31697,
-          "policy_miss_rate": 0.293984
+          "lru_miss_rate": 0.336914,
+          "policy_miss_rate": 0.313595
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.181542,
-          "policy_miss_rate": 0.16012
+          "lru_miss_rate": 0.197967,
+          "policy_miss_rate": 0.175707
         }
       ],
-      "slope_lru": 0.149245,
-      "slope_policy": 0.143677
+      "slope_lru": 0.15195,
+      "slope_policy": 0.147105
     },
     {
       "app": "pr",
@@ -133,27 +157,27 @@
       "l3_count": 2,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.894438,
-      "lru_miss_min": 0.325581,
-      "lru_total_drop": 0.568857,
+      "lru_miss_max": 0.895106,
+      "lru_miss_min": 0.3262,
+      "lru_total_drop": 0.568906,
       "policy": "GRASP",
-      "policy_miss_max": 0.785538,
-      "policy_miss_min": 0.214092,
-      "policy_total_drop": 0.571446,
+      "policy_miss_max": 0.818199,
+      "policy_miss_min": 0.224824,
+      "policy_total_drop": 0.593375,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.894438,
-          "policy_miss_rate": 0.785538
+          "lru_miss_rate": 0.895106,
+          "policy_miss_rate": 0.818199
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.325581,
-          "policy_miss_rate": 0.214092
+          "lru_miss_rate": 0.3262,
+          "policy_miss_rate": 0.224824
         }
       ],
-      "slope_lru": 0.189619,
-      "slope_policy": 0.190482
+      "slope_lru": 0.189635,
+      "slope_policy": 0.197792
     },
     {
       "app": "pr",
@@ -161,32 +185,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.894438,
-      "lru_miss_min": 0.325581,
-      "lru_total_drop": 0.568857,
+      "lru_miss_max": 0.895106,
+      "lru_miss_min": 0.3262,
+      "lru_total_drop": 0.568906,
       "policy": "SRRIP",
-      "policy_miss_max": 0.879756,
-      "policy_miss_min": 0.275136,
-      "policy_total_drop": 0.60462,
+      "policy_miss_max": 0.880294,
+      "policy_miss_min": 0.274511,
+      "policy_total_drop": 0.605783,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.894438,
-          "policy_miss_rate": 0.879756
+          "lru_miss_rate": 0.895106,
+          "policy_miss_rate": 0.880294
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.58934,
-          "policy_miss_rate": 0.546567
+          "lru_miss_rate": 0.590052,
+          "policy_miss_rate": 0.546644
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.325581,
-          "policy_miss_rate": 0.275136
+          "lru_miss_rate": 0.3262,
+          "policy_miss_rate": 0.274511
         }
       ],
-      "slope_lru": 0.208154,
-      "slope_policy": 0.219013
+      "slope_lru": 0.208189,
+      "slope_policy": 0.219479
     },
     {
       "app": "sssp",
@@ -194,32 +218,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.848641,
-      "lru_miss_min": 0.260312,
-      "lru_total_drop": 0.588329,
+      "lru_miss_max": 0.87683,
+      "lru_miss_min": 0.270869,
+      "lru_total_drop": 0.605961,
       "policy": "SRRIP",
-      "policy_miss_max": 0.844417,
-      "policy_miss_min": 0.237297,
-      "policy_total_drop": 0.60712,
+      "policy_miss_max": 0.87007,
+      "policy_miss_min": 0.249261,
+      "policy_total_drop": 0.620809,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.848641,
-          "policy_miss_rate": 0.844417
+          "lru_miss_rate": 0.87683,
+          "policy_miss_rate": 0.87007
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.553585,
-          "policy_miss_rate": 0.529522
+          "lru_miss_rate": 0.568128,
+          "policy_miss_rate": 0.546124
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.260312,
-          "policy_miss_rate": 0.237297
+          "lru_miss_rate": 0.270869,
+          "policy_miss_rate": 0.249261
         }
       ],
-      "slope_lru": 0.2204,
-      "slope_policy": 0.224836
+      "slope_lru": 0.225805,
+      "slope_policy": 0.229418
     },
     {
       "app": "bc",
@@ -227,32 +251,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.862362,
-      "lru_miss_min": 0.382097,
-      "lru_total_drop": 0.480265,
+      "lru_miss_max": 0.836912,
+      "lru_miss_min": 0.376045,
+      "lru_total_drop": 0.460867,
       "policy": "SRRIP",
-      "policy_miss_max": 0.836956,
-      "policy_miss_min": 0.353107,
-      "policy_total_drop": 0.483849,
+      "policy_miss_max": 0.820532,
+      "policy_miss_min": 0.349875,
+      "policy_total_drop": 0.470657,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.862362,
-          "policy_miss_rate": 0.836956
+          "lru_miss_rate": 0.836912,
+          "policy_miss_rate": 0.820532
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.582657,
-          "policy_miss_rate": 0.550247
+          "lru_miss_rate": 0.573525,
+          "policy_miss_rate": 0.546997
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.382097,
-          "policy_miss_rate": 0.353107
+          "lru_miss_rate": 0.376045,
+          "policy_miss_rate": 0.349875
         }
       ],
-      "slope_lru": 0.170206,
-      "slope_policy": 0.170247
+      "slope_lru": 0.164587,
+      "slope_policy": 0.166945
     },
     {
       "app": "bfs",
@@ -260,32 +284,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.99728,
-      "lru_miss_min": 0.994229,
-      "lru_total_drop": 0.003051,
+      "lru_miss_max": 0.998892,
+      "lru_miss_min": 0.995799,
+      "lru_total_drop": 0.003093,
       "policy": "SRRIP",
-      "policy_miss_max": 0.997617,
-      "policy_miss_min": 0.994499,
-      "policy_total_drop": 0.003118,
+      "policy_miss_max": 0.998793,
+      "policy_miss_min": 0.995759,
+      "policy_total_drop": 0.003034,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.99728,
-          "policy_miss_rate": 0.997617
+          "lru_miss_rate": 0.998892,
+          "policy_miss_rate": 0.998793
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.994937,
-          "policy_miss_rate": 0.995591
+          "lru_miss_rate": 0.996484,
+          "policy_miss_rate": 0.996442
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.994229,
-          "policy_miss_rate": 0.994499
+          "lru_miss_rate": 0.995799,
+          "policy_miss_rate": 0.995759
         }
       ],
-      "slope_lru": 0.00094,
-      "slope_policy": 0.001052
+      "slope_lru": 0.000945,
+      "slope_policy": 0.000929
     },
     {
       "app": "cc",
@@ -293,32 +317,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.688918,
-      "lru_miss_min": 0.430593,
-      "lru_total_drop": 0.258325,
+      "lru_miss_max": 0.741545,
+      "lru_miss_min": 0.506299,
+      "lru_total_drop": 0.235246,
       "policy": "SRRIP",
-      "policy_miss_max": 0.651004,
-      "policy_miss_min": 0.321163,
-      "policy_total_drop": 0.329841,
+      "policy_miss_max": 0.708078,
+      "policy_miss_min": 0.42201,
+      "policy_total_drop": 0.286068,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.688918,
-          "policy_miss_rate": 0.651004
+          "lru_miss_rate": 0.741545,
+          "policy_miss_rate": 0.708078
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.503285,
-          "policy_miss_rate": 0.488797
+          "lru_miss_rate": 0.567614,
+          "policy_miss_rate": 0.5532
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.430593,
-          "policy_miss_rate": 0.321163
+          "lru_miss_rate": 0.506299,
+          "policy_miss_rate": 0.42201
         }
       ],
-      "slope_lru": 0.082754,
-      "slope_policy": 0.124369
+      "slope_lru": 0.07414,
+      "slope_policy": 0.104315
     },
     {
       "app": "pr",
@@ -326,27 +350,27 @@
       "l3_count": 2,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.704728,
-      "lru_miss_min": 0.163608,
-      "lru_total_drop": 0.54112,
+      "lru_miss_max": 0.742564,
+      "lru_miss_min": 0.185573,
+      "lru_total_drop": 0.556991,
       "policy": "GRASP",
-      "policy_miss_max": 0.684954,
-      "policy_miss_min": 0.128381,
-      "policy_total_drop": 0.556573,
+      "policy_miss_max": 0.638302,
+      "policy_miss_min": 0.159906,
+      "policy_total_drop": 0.478396,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.704728,
-          "policy_miss_rate": 0.684954
+          "lru_miss_rate": 0.742564,
+          "policy_miss_rate": 0.638302
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.163608,
-          "policy_miss_rate": 0.128381
+          "lru_miss_rate": 0.185573,
+          "policy_miss_rate": 0.159906
         }
       ],
-      "slope_lru": 0.180373,
-      "slope_policy": 0.185524
+      "slope_lru": 0.185664,
+      "slope_policy": 0.159465
     },
     {
       "app": "pr",
@@ -354,32 +378,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.704728,
-      "lru_miss_min": 0.163608,
-      "lru_total_drop": 0.54112,
+      "lru_miss_max": 0.742564,
+      "lru_miss_min": 0.185573,
+      "lru_total_drop": 0.556991,
       "policy": "SRRIP",
-      "policy_miss_max": 0.66248,
-      "policy_miss_min": 0.140884,
-      "policy_total_drop": 0.521596,
+      "policy_miss_max": 0.706531,
+      "policy_miss_min": 0.159476,
+      "policy_total_drop": 0.547055,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.704728,
-          "policy_miss_rate": 0.66248
+          "lru_miss_rate": 0.742564,
+          "policy_miss_rate": 0.706531
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.308477,
-          "policy_miss_rate": 0.271668
+          "lru_miss_rate": 0.345609,
+          "policy_miss_rate": 0.303554
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.163608,
-          "policy_miss_rate": 0.140884
+          "lru_miss_rate": 0.185573,
+          "policy_miss_rate": 0.159476
         }
       ],
-      "slope_lru": 0.171497,
-      "slope_policy": 0.163095
+      "slope_lru": 0.179257,
+      "slope_policy": 0.172783
     },
     {
       "app": "sssp",
@@ -387,32 +411,131 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.660328,
-      "lru_miss_min": 0.024596,
-      "lru_total_drop": 0.635732,
+      "lru_miss_max": 0.686743,
+      "lru_miss_min": 0.016185,
+      "lru_total_drop": 0.670558,
       "policy": "SRRIP",
-      "policy_miss_max": 0.620433,
-      "policy_miss_min": 0.022316,
-      "policy_total_drop": 0.598117,
+      "policy_miss_max": 0.653862,
+      "policy_miss_min": 0.015217,
+      "policy_total_drop": 0.638645,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.660328,
-          "policy_miss_rate": 0.620433
+          "lru_miss_rate": 0.686743,
+          "policy_miss_rate": 0.653862
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.169719,
-          "policy_miss_rate": 0.154127
+          "lru_miss_rate": 0.173036,
+          "policy_miss_rate": 0.152881
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.024596,
-          "policy_miss_rate": 0.022316
+          "lru_miss_rate": 0.016185,
+          "policy_miss_rate": 0.015217
         }
       ],
-      "slope_lru": 0.195214,
-      "slope_policy": 0.182482
+      "slope_lru": 0.206852,
+      "slope_policy": 0.194077
+    },
+    {
+      "app": "bc",
+      "graph": "email-Eu-core",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 1.0,
+      "lru_miss_min": 1.0,
+      "lru_total_drop": 0.0,
+      "policy": "SRRIP",
+      "policy_miss_max": 1.0,
+      "policy_miss_min": 1.0,
+      "policy_total_drop": 0.0,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        }
+      ],
+      "slope_lru": 0.0,
+      "slope_policy": 0.0
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 1.0,
+      "lru_miss_min": 1.0,
+      "lru_total_drop": 0.0,
+      "policy": "SRRIP",
+      "policy_miss_max": 1.0,
+      "policy_miss_min": 1.0,
+      "policy_total_drop": 0.0,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        }
+      ],
+      "slope_lru": 0.0,
+      "slope_policy": 0.0
+    },
+    {
+      "app": "pr",
+      "graph": "email-Eu-core",
+      "l3_count": 3,
+      "l3_max": "8MB",
+      "l3_min": "1MB",
+      "lru_miss_max": 1.0,
+      "lru_miss_min": 1.0,
+      "lru_total_drop": 0.0,
+      "policy": "SRRIP",
+      "policy_miss_max": 1.0,
+      "policy_miss_min": 1.0,
+      "policy_total_drop": 0.0,
+      "samples": [
+        {
+          "l3_size": "1MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        },
+        {
+          "l3_size": "4MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        },
+        {
+          "l3_size": "8MB",
+          "lru_miss_rate": 1.0,
+          "policy_miss_rate": 1.0
+        }
+      ],
+      "slope_lru": 0.0,
+      "slope_policy": 0.0
     },
     {
       "app": "bc",
@@ -420,32 +543,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.839565,
-      "lru_miss_min": 0.450242,
-      "lru_total_drop": 0.389323,
+      "lru_miss_max": 0.864855,
+      "lru_miss_min": 0.502491,
+      "lru_total_drop": 0.362364,
       "policy": "SRRIP",
-      "policy_miss_max": 0.817515,
-      "policy_miss_min": 0.424774,
-      "policy_total_drop": 0.392741,
+      "policy_miss_max": 0.850112,
+      "policy_miss_min": 0.471911,
+      "policy_total_drop": 0.378201,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.839565,
-          "policy_miss_rate": 0.817515
+          "lru_miss_rate": 0.864855,
+          "policy_miss_rate": 0.850112
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.60209,
-          "policy_miss_rate": 0.576923
+          "lru_miss_rate": 0.655187,
+          "policy_miss_rate": 0.629684
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.450242,
-          "policy_miss_rate": 0.424774
+          "lru_miss_rate": 0.502491,
+          "policy_miss_rate": 0.471911
         }
       ],
-      "slope_lru": 0.135293,
-      "slope_policy": 0.136223
+      "slope_lru": 0.128765,
+      "slope_policy": 0.133994
     },
     {
       "app": "bfs",
@@ -453,32 +576,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.817558,
-      "lru_miss_min": 0.510594,
-      "lru_total_drop": 0.306964,
+      "lru_miss_max": 0.835709,
+      "lru_miss_min": 0.563191,
+      "lru_total_drop": 0.272518,
       "policy": "SRRIP",
-      "policy_miss_max": 0.782373,
-      "policy_miss_min": 0.495617,
-      "policy_total_drop": 0.286756,
+      "policy_miss_max": 0.810706,
+      "policy_miss_min": 0.545957,
+      "policy_total_drop": 0.264749,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.817558,
-          "policy_miss_rate": 0.782373
+          "lru_miss_rate": 0.835709,
+          "policy_miss_rate": 0.810706
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.588816,
-          "policy_miss_rate": 0.564177
+          "lru_miss_rate": 0.644598,
+          "policy_miss_rate": 0.618504
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.510594,
-          "policy_miss_rate": 0.495617
+          "lru_miss_rate": 0.563191,
+          "policy_miss_rate": 0.545957
         }
       ],
-      "slope_lru": 0.096297,
-      "slope_policy": 0.088829
+      "slope_lru": 0.088481,
+      "slope_policy": 0.084324
     },
     {
       "app": "cc",
@@ -486,32 +609,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.783198,
-      "lru_miss_min": 0.431375,
-      "lru_total_drop": 0.351823,
+      "lru_miss_max": 0.798646,
+      "lru_miss_min": 0.468595,
+      "lru_total_drop": 0.330051,
       "policy": "SRRIP",
-      "policy_miss_max": 0.772184,
-      "policy_miss_min": 0.409854,
-      "policy_total_drop": 0.36233,
+      "policy_miss_max": 0.774459,
+      "policy_miss_min": 0.435289,
+      "policy_total_drop": 0.33917,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.783198,
-          "policy_miss_rate": 0.772184
+          "lru_miss_rate": 0.798646,
+          "policy_miss_rate": 0.774459
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.543694,
-          "policy_miss_rate": 0.532392
+          "lru_miss_rate": 0.575481,
+          "policy_miss_rate": 0.553523
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.431375,
-          "policy_miss_rate": 0.409854
+          "lru_miss_rate": 0.468595,
+          "policy_miss_rate": 0.435289
         }
       ],
-      "slope_lru": 0.116036,
-      "slope_policy": 0.121217
+      "slope_lru": 0.109234,
+      "slope_policy": 0.114351
     },
     {
       "app": "pr",
@@ -519,27 +642,27 @@
       "l3_count": 2,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.731927,
-      "lru_miss_min": 0.275743,
-      "lru_total_drop": 0.456184,
+      "lru_miss_max": 0.765369,
+      "lru_miss_min": 0.299897,
+      "lru_total_drop": 0.465472,
       "policy": "GRASP",
-      "policy_miss_max": 0.683922,
-      "policy_miss_min": 0.201244,
-      "policy_total_drop": 0.482678,
+      "policy_miss_max": 0.682525,
+      "policy_miss_min": 0.225332,
+      "policy_total_drop": 0.457193,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.731927,
-          "policy_miss_rate": 0.683922
+          "lru_miss_rate": 0.765369,
+          "policy_miss_rate": 0.682525
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.275743,
-          "policy_miss_rate": 0.201244
+          "lru_miss_rate": 0.299897,
+          "policy_miss_rate": 0.225332
         }
       ],
-      "slope_lru": 0.152061,
-      "slope_policy": 0.160893
+      "slope_lru": 0.155157,
+      "slope_policy": 0.152398
     },
     {
       "app": "pr",
@@ -547,32 +670,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.731927,
-      "lru_miss_min": 0.275743,
-      "lru_total_drop": 0.456184,
+      "lru_miss_max": 0.765369,
+      "lru_miss_min": 0.299897,
+      "lru_total_drop": 0.465472,
       "policy": "SRRIP",
-      "policy_miss_max": 0.698673,
-      "policy_miss_min": 0.239915,
-      "policy_total_drop": 0.458758,
+      "policy_miss_max": 0.733963,
+      "policy_miss_min": 0.259415,
+      "policy_total_drop": 0.474548,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.731927,
-          "policy_miss_rate": 0.698673
+          "lru_miss_rate": 0.765369,
+          "policy_miss_rate": 0.733963
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.425744,
-          "policy_miss_rate": 0.389422
+          "lru_miss_rate": 0.461634,
+          "policy_miss_rate": 0.420129
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.275743,
-          "policy_miss_rate": 0.239915
+          "lru_miss_rate": 0.299897,
+          "policy_miss_rate": 0.259415
         }
       ],
-      "slope_lru": 0.151546,
-      "slope_policy": 0.152066
+      "slope_lru": 0.156802,
+      "slope_policy": 0.158815
     },
     {
       "app": "sssp",
@@ -580,32 +703,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.705817,
-      "lru_miss_min": 0.1687,
-      "lru_total_drop": 0.537117,
+      "lru_miss_max": 0.743896,
+      "lru_miss_min": 0.16963,
+      "lru_total_drop": 0.574266,
       "policy": "SRRIP",
-      "policy_miss_max": 0.679863,
-      "policy_miss_min": 0.148253,
-      "policy_total_drop": 0.53161,
+      "policy_miss_max": 0.71767,
+      "policy_miss_min": 0.151842,
+      "policy_total_drop": 0.565828,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.705817,
-          "policy_miss_rate": 0.679863
+          "lru_miss_rate": 0.743896,
+          "policy_miss_rate": 0.71767
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.362723,
-          "policy_miss_rate": 0.33929
+          "lru_miss_rate": 0.383581,
+          "policy_miss_rate": 0.353797
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.1687,
-          "policy_miss_rate": 0.148253
+          "lru_miss_rate": 0.16963,
+          "policy_miss_rate": 0.151842
         }
       ],
-      "slope_lru": 0.182785,
-      "slope_policy": 0.180662
+      "slope_lru": 0.197054,
+      "slope_policy": 0.191946
     },
     {
       "app": "bc",
@@ -613,32 +736,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.851252,
-      "lru_miss_min": 0.245411,
-      "lru_total_drop": 0.605841,
+      "lru_miss_max": 0.859729,
+      "lru_miss_min": 0.267741,
+      "lru_total_drop": 0.591988,
       "policy": "SRRIP",
-      "policy_miss_max": 0.828495,
-      "policy_miss_min": 0.220547,
-      "policy_total_drop": 0.607948,
+      "policy_miss_max": 0.844165,
+      "policy_miss_min": 0.24122,
+      "policy_total_drop": 0.602945,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.851252,
-          "policy_miss_rate": 0.828495
+          "lru_miss_rate": 0.859729,
+          "policy_miss_rate": 0.844165
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.497522,
-          "policy_miss_rate": 0.464283
+          "lru_miss_rate": 0.530069,
+          "policy_miss_rate": 0.496445
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.245411,
-          "policy_miss_rate": 0.220547
+          "lru_miss_rate": 0.267741,
+          "policy_miss_rate": 0.24122
         }
       ],
-      "slope_lru": 0.214488,
-      "slope_policy": 0.212921
+      "slope_lru": 0.213579,
+      "slope_policy": 0.214543
     },
     {
       "app": "bfs",
@@ -646,32 +769,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.871696,
-      "lru_miss_min": 0.714564,
-      "lru_total_drop": 0.157132,
+      "lru_miss_max": 0.906293,
+      "lru_miss_min": 0.759638,
+      "lru_total_drop": 0.146655,
       "policy": "SRRIP",
-      "policy_miss_max": 0.861972,
-      "policy_miss_min": 0.713591,
-      "policy_total_drop": 0.148381,
+      "policy_miss_max": 0.892223,
+      "policy_miss_min": 0.753612,
+      "policy_total_drop": 0.138611,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.871696,
-          "policy_miss_rate": 0.861972
+          "lru_miss_rate": 0.906293,
+          "policy_miss_rate": 0.892223
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.740122,
-          "policy_miss_rate": 0.738747
+          "lru_miss_rate": 0.787277,
+          "policy_miss_rate": 0.781166
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.714564,
-          "policy_miss_rate": 0.713591
+          "lru_miss_rate": 0.759638,
+          "policy_miss_rate": 0.753612
         }
       ],
-      "slope_lru": 0.045673,
-      "slope_policy": 0.043384
+      "slope_lru": 0.043573,
+      "slope_policy": 0.041541
     },
     {
       "app": "cc",
@@ -679,32 +802,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.699434,
-      "lru_miss_min": 0.057708,
-      "lru_total_drop": 0.641726,
+      "lru_miss_max": 0.728107,
+      "lru_miss_min": 0.062926,
+      "lru_total_drop": 0.665181,
       "policy": "SRRIP",
-      "policy_miss_max": 0.666805,
-      "policy_miss_min": 0.057727,
-      "policy_total_drop": 0.609078,
+      "policy_miss_max": 0.701253,
+      "policy_miss_min": 0.062926,
+      "policy_total_drop": 0.638327,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.699434,
-          "policy_miss_rate": 0.666805
+          "lru_miss_rate": 0.728107,
+          "policy_miss_rate": 0.701253
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.396085,
-          "policy_miss_rate": 0.329942
+          "lru_miss_rate": 0.463819,
+          "policy_miss_rate": 0.379204
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.057708,
-          "policy_miss_rate": 0.057727
+          "lru_miss_rate": 0.062926,
+          "policy_miss_rate": 0.062926
         }
       ],
-      "slope_lru": 0.245026,
-      "slope_policy": 0.220323
+      "slope_lru": 0.266518,
+      "slope_policy": 0.238651
     },
     {
       "app": "pr",
@@ -712,27 +835,27 @@
       "l3_count": 2,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.679563,
-      "lru_miss_min": 0.100394,
-      "lru_total_drop": 0.579169,
+      "lru_miss_max": 0.696151,
+      "lru_miss_min": 0.107292,
+      "lru_total_drop": 0.588859,
       "policy": "GRASP",
-      "policy_miss_max": 0.543296,
-      "policy_miss_min": 0.079237,
-      "policy_total_drop": 0.464059,
+      "policy_miss_max": 0.555685,
+      "policy_miss_min": 0.091342,
+      "policy_total_drop": 0.464343,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.679563,
-          "policy_miss_rate": 0.543296
+          "lru_miss_rate": 0.696151,
+          "policy_miss_rate": 0.555685
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.100394,
-          "policy_miss_rate": 0.079237
+          "lru_miss_rate": 0.107292,
+          "policy_miss_rate": 0.091342
         }
       ],
-      "slope_lru": 0.193056,
-      "slope_policy": 0.154686
+      "slope_lru": 0.196286,
+      "slope_policy": 0.154781
     },
     {
       "app": "pr",
@@ -740,32 +863,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.679563,
-      "lru_miss_min": 0.100394,
-      "lru_total_drop": 0.579169,
+      "lru_miss_max": 0.696151,
+      "lru_miss_min": 0.107292,
+      "lru_total_drop": 0.588859,
       "policy": "SRRIP",
-      "policy_miss_max": 0.634272,
-      "policy_miss_min": 0.088209,
-      "policy_total_drop": 0.546063,
+      "policy_miss_max": 0.651728,
+      "policy_miss_min": 0.094371,
+      "policy_total_drop": 0.557357,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.679563,
-          "policy_miss_rate": 0.634272
+          "lru_miss_rate": 0.696151,
+          "policy_miss_rate": 0.651728
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.196913,
-          "policy_miss_rate": 0.161468
+          "lru_miss_rate": 0.209387,
+          "policy_miss_rate": 0.170262
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.100394,
-          "policy_miss_rate": 0.088209
+          "lru_miss_rate": 0.107292,
+          "policy_miss_rate": 0.094371
         }
       ],
-      "slope_lru": 0.168922,
-      "slope_policy": 0.15483
+      "slope_lru": 0.172738,
+      "slope_policy": 0.158312
     },
     {
       "app": "sssp",
@@ -773,32 +896,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.635137,
-      "lru_miss_min": 0.002931,
-      "lru_total_drop": 0.632206,
+      "lru_miss_max": 0.671944,
+      "lru_miss_min": 0.003288,
+      "lru_total_drop": 0.668656,
       "policy": "SRRIP",
-      "policy_miss_max": 0.603675,
-      "policy_miss_min": 0.002924,
-      "policy_total_drop": 0.600751,
+      "policy_miss_max": 0.636608,
+      "policy_miss_min": 0.003288,
+      "policy_total_drop": 0.63332,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.635137,
-          "policy_miss_rate": 0.603675
+          "lru_miss_rate": 0.671944,
+          "policy_miss_rate": 0.636608
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.09763,
-          "policy_miss_rate": 0.084747
+          "lru_miss_rate": 0.099742,
+          "policy_miss_rate": 0.086994
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.002931,
-          "policy_miss_rate": 0.002924
+          "lru_miss_rate": 0.003288,
+          "policy_miss_rate": 0.003288
         }
       ],
-      "slope_lru": 0.181726,
-      "slope_policy": 0.170643
+      "slope_lru": 0.191278,
+      "slope_policy": 0.179257
     },
     {
       "app": "bc",
@@ -806,32 +929,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.699827,
-      "lru_miss_min": 0.149958,
-      "lru_total_drop": 0.549869,
+      "lru_miss_max": 0.802694,
+      "lru_miss_min": 0.221011,
+      "lru_total_drop": 0.581683,
       "policy": "SRRIP",
-      "policy_miss_max": 0.688201,
-      "policy_miss_min": 0.144063,
-      "policy_total_drop": 0.544138,
+      "policy_miss_max": 0.806937,
+      "policy_miss_min": 0.211406,
+      "policy_total_drop": 0.595531,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.699827,
-          "policy_miss_rate": 0.688201
+          "lru_miss_rate": 0.802694,
+          "policy_miss_rate": 0.806937
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.369312,
-          "policy_miss_rate": 0.355966
+          "lru_miss_rate": 0.516173,
+          "policy_miss_rate": 0.498883
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.149958,
-          "policy_miss_rate": 0.144063
+          "lru_miss_rate": 0.221011,
+          "policy_miss_rate": 0.211406
         }
       ],
-      "slope_lru": 0.192306,
-      "slope_policy": 0.18901
+      "slope_lru": 0.219211,
+      "slope_policy": 0.220752
     },
     {
       "app": "bfs",
@@ -839,32 +962,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.970442,
-      "lru_miss_min": 0.809071,
-      "lru_total_drop": 0.161371,
+      "lru_miss_max": 0.980402,
+      "lru_miss_min": 0.819363,
+      "lru_total_drop": 0.161039,
       "policy": "SRRIP",
-      "policy_miss_max": 0.96989,
-      "policy_miss_min": 0.801303,
-      "policy_total_drop": 0.168587,
+      "policy_miss_max": 0.979611,
+      "policy_miss_min": 0.813627,
+      "policy_total_drop": 0.165984,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.970442,
-          "policy_miss_rate": 0.96989
+          "lru_miss_rate": 0.980402,
+          "policy_miss_rate": 0.979611
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.937114,
-          "policy_miss_rate": 0.934784
+          "lru_miss_rate": 0.948578,
+          "policy_miss_rate": 0.947337
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.809071,
-          "policy_miss_rate": 0.801303
+          "lru_miss_rate": 0.819363,
+          "policy_miss_rate": 0.813627
         }
       ],
-      "slope_lru": 0.072354,
-      "slope_policy": 0.075517
+      "slope_lru": 0.072563,
+      "slope_policy": 0.074924
     },
     {
       "app": "cc",
@@ -872,32 +995,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.560761,
-      "lru_miss_min": 0.045641,
-      "lru_total_drop": 0.51512,
+      "lru_miss_max": 0.585926,
+      "lru_miss_min": 0.051919,
+      "lru_total_drop": 0.534007,
       "policy": "SRRIP",
-      "policy_miss_max": 0.522174,
-      "policy_miss_min": 0.045658,
-      "policy_total_drop": 0.476516,
+      "policy_miss_max": 0.556854,
+      "policy_miss_min": 0.051919,
+      "policy_total_drop": 0.504935,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.560761,
-          "policy_miss_rate": 0.522174
+          "lru_miss_rate": 0.585926,
+          "policy_miss_rate": 0.556854
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.045733,
-          "policy_miss_rate": 0.04573
+          "lru_miss_rate": 0.051919,
+          "policy_miss_rate": 0.051919
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.045641,
-          "policy_miss_rate": 0.045658
+          "lru_miss_rate": 0.051919,
+          "policy_miss_rate": 0.051919
         }
       ],
-      "slope_lru": 0.128803,
-      "slope_policy": 0.119147
+      "slope_lru": 0.133502,
+      "slope_policy": 0.126234
     },
     {
       "app": "pr",
@@ -905,27 +1028,27 @@
       "l3_count": 2,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.600838,
-      "lru_miss_min": 0.097048,
-      "lru_total_drop": 0.50379,
+      "lru_miss_max": 0.598361,
+      "lru_miss_min": 0.097157,
+      "lru_total_drop": 0.501204,
       "policy": "GRASP",
-      "policy_miss_max": 0.453134,
-      "policy_miss_min": 0.084483,
-      "policy_total_drop": 0.368651,
+      "policy_miss_max": 0.450908,
+      "policy_miss_min": 0.106849,
+      "policy_total_drop": 0.344059,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.600838,
-          "policy_miss_rate": 0.453134
+          "lru_miss_rate": 0.598361,
+          "policy_miss_rate": 0.450908
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.097048,
-          "policy_miss_rate": 0.084483
+          "lru_miss_rate": 0.097157,
+          "policy_miss_rate": 0.106849
         }
       ],
-      "slope_lru": 0.16793,
-      "slope_policy": 0.122884
+      "slope_lru": 0.167068,
+      "slope_policy": 0.114686
     },
     {
       "app": "pr",
@@ -933,32 +1056,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.600838,
-      "lru_miss_min": 0.097048,
-      "lru_total_drop": 0.50379,
+      "lru_miss_max": 0.598361,
+      "lru_miss_min": 0.097157,
+      "lru_total_drop": 0.501204,
       "policy": "SRRIP",
-      "policy_miss_max": 0.544159,
-      "policy_miss_min": 0.093362,
-      "policy_total_drop": 0.450797,
+      "policy_miss_max": 0.540871,
+      "policy_miss_min": 0.093367,
+      "policy_total_drop": 0.447504,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.600838,
-          "policy_miss_rate": 0.544159
+          "lru_miss_rate": 0.598361,
+          "policy_miss_rate": 0.540871
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.141431,
-          "policy_miss_rate": 0.118995
+          "lru_miss_rate": 0.142111,
+          "policy_miss_rate": 0.119179
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.097048,
-          "policy_miss_rate": 0.093362
+          "lru_miss_rate": 0.097157,
+          "policy_miss_rate": 0.093367
         }
       ],
-      "slope_lru": 0.137043,
-      "slope_policy": 0.119108
+      "slope_lru": 0.136539,
+      "slope_policy": 0.118329
     },
     {
       "app": "sssp",
@@ -966,32 +1089,32 @@
       "l3_count": 3,
       "l3_max": "8MB",
       "l3_min": "1MB",
-      "lru_miss_max": 0.555762,
-      "lru_miss_min": 0.016276,
-      "lru_total_drop": 0.539472,
+      "lru_miss_max": 0.663779,
+      "lru_miss_min": 0.023478,
+      "lru_total_drop": 0.640301,
       "policy": "SRRIP",
-      "policy_miss_max": 0.550741,
-      "policy_miss_min": 0.016256,
-      "policy_total_drop": 0.534485,
+      "policy_miss_max": 0.65618,
+      "policy_miss_min": 0.023478,
+      "policy_total_drop": 0.632702,
       "samples": [
         {
           "l3_size": "1MB",
-          "lru_miss_rate": 0.555762,
-          "policy_miss_rate": 0.550741
+          "lru_miss_rate": 0.663779,
+          "policy_miss_rate": 0.65618
         },
         {
           "l3_size": "4MB",
-          "lru_miss_rate": 0.016276,
-          "policy_miss_rate": 0.016295
+          "lru_miss_rate": 0.023478,
+          "policy_miss_rate": 0.023478
         },
         {
           "l3_size": "8MB",
-          "lru_miss_rate": 0.01629,
-          "policy_miss_rate": 0.016256
+          "lru_miss_rate": 0.023478,
+          "policy_miss_rate": 0.023478
         }
       ],
-      "slope_lru": 0.134864,
-      "slope_policy": 0.133631
+      "slope_lru": 0.160075,
+      "slope_policy": 0.158175
     }
   ],
   "violations_lru": [],

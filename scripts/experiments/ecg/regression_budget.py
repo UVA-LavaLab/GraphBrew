@@ -110,6 +110,14 @@ def _margin_for(claim: Any, entry: dict[str, Any], classify) -> tuple[float, str
         margin = max(0.0, tol - diff_pct)
         return margin, "popt_ge_grasp"
 
+    if policy == "POPT_GE_GRASP_GEOMEAN":
+        # Corpus geomean gate (the authoritative POPT-vs-GRASP claim): ok iff
+        # (popt_geomean - grasp_geomean)*100 <= tol. delta_pct carries that
+        # signed geomean diff (positive = POPT geomean worse). Margin = how many
+        # pp the POPT geomean can rise before it would flip to disagree.
+        diff_pct = float(entry.get("delta_pct") or 0.0)
+        return max(0.0, tol - diff_pct), "popt_ge_grasp_geomean"
+
     if policy == "POPT_NEAR_GRASP_IF_BIG_GAP":
         max_abs = claim.max_abs_delta_pct or 0.0
         # signed_delta is the signed gap (positive = POPT worse than
@@ -171,10 +179,13 @@ def compute(lit_faith_json: Path) -> dict[str, Any]:
 
         # Find the underlying claim object so we can re-evaluate.
         claim = None
-        for c in lit.claims_for(graph, app, l3):
-            if c.policy == policy:
-                claim = c
-                break
+        if policy == "POPT_GE_GRASP_GEOMEAN":
+            claim = getattr(lit, "POPT_GE_GRASP_GEOMEAN_CLAIM", None)
+        else:
+            for c in lit.claims_for(graph, app, l3):
+                if c.policy == policy:
+                    claim = c
+                    break
         if claim is None or delta_pct is None:
             continue
 

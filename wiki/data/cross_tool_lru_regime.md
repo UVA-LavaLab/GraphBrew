@@ -9,7 +9,7 @@
 
 | tool | L3 range | regime | GRASP | LRU | LRU-GRASP |
 |---|---|---|---:|---:|---:|
-| cache-sim | 1024kB-8192kB | post-WSS | -14.6513 | -15.6181 | -0.9668 |
+| cache-sim | 1024kB-8192kB | post-WSS | -14.7124 | -15.6105 | -0.8981 |
 | gem5 | 4kB-2048kB | sub-WSS | -5.9607 | -5.1229 | +0.8378 |
 | sniper | 4kB-2048kB | sub-WSS | -7.6445 | -7.4015 | +0.2430 |
 

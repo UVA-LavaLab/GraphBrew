@@ -4,8 +4,8 @@ For each (expected_sign × policy) bucket: how often the observed delta_pct has 
 
 ## Summary
 
-- Total claims (with computable delta_pct): **330**
-- ok-status rows across all buckets: **298**
+- Total claims (with computable delta_pct): **279**
+- ok-status rows across all buckets: **234**
 - Buckets (sign × policy): **6**
 - Buckets with at least one ok row: **6**
 
@@ -15,12 +15,12 @@ Sign-classes: correct (delta has the expected sign), tie (delta == 0 or expected
 
 | sign | policy | n_ok | correct | ties | wrong | frac | wilson 95 LB | binom p | median Δpp | mean Δpp |
 |---|---|---|---|---|---|---|---|---|---|---|
-| - | GRASP | 13 | 13 | 0 | 0 | 1.000 | 0.772 | 0.0002 | -7.4499 | -7.1665 |
-| - | POPT | 8 | 8 | 0 | 0 | 1.000 | 0.676 | 0.0078 | -10.1543 | -9.857 |
-| - | POPT_GE_GRASP | 91 | 51 | 2 | 38 | 0.571 | 0.469 | 0.2031 | -0.0107 | -2.9432 |
-| ~ | GRASP | 4 | 0 | 4 | 0 | 0.500 | 0.150 | — | -1.6861 | -1.4809 |
-| ~ | POPT_NEAR_GRASP_IF_BIG_GAP | 107 | 0 | 107 | 0 | 0.500 | 0.411 | — | 0.0001 | -2.0344 |
-| ~ | SRRIP | 75 | 0 | 75 | 0 | 0.500 | 0.396 | — | -2.1422 | -2.0793 |
+| - | GRASP | 14 | 14 | 0 | 0 | 1.000 | 0.785 | 0.0001 | -6.3266 | -6.8179 |
+| - | POPT | 8 | 8 | 0 | 0 | 1.000 | 0.676 | 0.0078 | -12.0716 | -12.3701 |
+| - | POPT_GE_GRASP | 60 | 38 | 3 | 19 | 0.658 | 0.541 | 0.0163 | -0.3729 | -2.1915 |
+| ~ | GRASP | 4 | 0 | 4 | 0 | 0.500 | 0.150 | — | -0.3129 | -0.5299 |
+| ~ | POPT_NEAR_GRASP_IF_BIG_GAP | 73 | 0 | 73 | 0 | 0.500 | 0.382 | — | -0.0574 | -1.1605 |
+| ~ | SRRIP | 75 | 0 | 75 | 0 | 0.500 | 0.396 | — | -2.0356 | -2.0863 |
 
 ## Interpretation
 

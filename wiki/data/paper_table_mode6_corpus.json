@@ -1,202 +1,24 @@
 {
-  "cells": [
-    {
-      "cell": "cit-Patents-pr",
-      "baseline_demand": 0.33299984133018523,
-      "baseline_traffic": {
-        "memory_accesses": 54062431,
-        "prefetch_fills": 0,
-        "total_traffic": 54062431,
-        "total_accesses": 162349720
-      },
-      "mode2": {
-        "demand": 0.23698904439133003,
-        "delta_pp": -9.60107969388552,
-        "reqs": 17605247,
-        "memory_accesses": 38475105,
-        "prefetch_fills": 15564263,
-        "total_traffic": 54039368,
-        "total_accesses": 162349720,
-        "total_traffic_ratio": 0.9995734006116003,
-        "total_accesses_ratio": 1.0
-      },
-      "mode6": {
-        "demand": 0.31270045307130806,
-        "delta_pp": -2.029938825887717,
-        "reqs": 17605243,
-        "memory_accesses": 50766831,
-        "prefetch_fills": 15972969,
-        "total_traffic": 66739800,
-        "total_accesses": 162349720,
-        "total_traffic_ratio": 1.2344949859912884,
-        "total_accesses_ratio": 1.0
-      },
-      "droplet": {
-        "demand": 0.05662602313080675,
-        "delta_pp": -27.637381819937843,
-        "reqs": 58526023,
-        "memory_accesses": 9193219,
-        "prefetch_fills": 45037580,
-        "total_traffic": 54230799,
-        "total_accesses": 162349720,
-        "total_traffic_ratio": 1.0031143253620984,
-        "total_accesses_ratio": 1.0
-      }
-    },
-    {
-      "cell": "soc-LiveJournal1-pr",
-      "baseline_demand": 0.19112813049751684,
-      "baseline_traffic": {
-        "memory_accesses": 72932672,
-        "prefetch_fills": 0,
-        "total_traffic": 72932672,
-        "total_accesses": 381590464
-      },
-      "mode2": {
-        "demand": 0.13644537249232727,
-        "delta_pp": -5.468275800518957,
-        "reqs": 51349413,
-        "memory_accesses": 52066253,
-        "prefetch_fills": 20877192,
-        "total_traffic": 72943445,
-        "total_accesses": 381590464,
-        "total_traffic_ratio": 1.0001477115770556,
-        "total_accesses_ratio": 1.0
-      },
-      "mode6": {
-        "demand": 0.18592183163151582,
-        "delta_pp": -0.5206298866001019,
-        "reqs": 51349404,
-        "memory_accesses": 70945998,
-        "prefetch_fills": 21271233,
-        "total_traffic": 92217231,
-        "total_accesses": 381590464,
-        "total_traffic_ratio": 1.2644159122539758,
-        "total_accesses_ratio": 1.0
-      },
-      "droplet": {
-        "demand": 0.03557875073104552,
-        "delta_pp": -15.554937976647132,
-        "reqs": 159066424,
-        "memory_accesses": 13576512,
-        "prefetch_fills": 59361432,
-        "total_traffic": 72937944,
-        "total_accesses": 381590464,
-        "total_traffic_ratio": 1.0000722858474183,
-        "total_accesses_ratio": 1.0
-      }
-    },
-    {
-      "cell": "com-orkut-pr",
-      "baseline_demand": 0.2593257825215531,
-      "baseline_traffic": {
-        "memory_accesses": 249487398,
-        "prefetch_fills": 0,
-        "total_traffic": 249487398,
-        "total_accesses": 962061680
-      },
-      "mode2": {
-        "demand": 0.19497249178451842,
-        "delta_pp": -6.435329073703466,
-        "reqs": 127471222,
-        "memory_accesses": 187575563,
-        "prefetch_fills": 61977867,
-        "total_traffic": 249553430,
-        "total_accesses": 962061680,
-        "total_traffic_ratio": 1.0002646706828855,
-        "total_accesses_ratio": 1.0
-      },
-      "mode6": {
-        "demand": 0.24145841771808227,
-        "delta_pp": -1.7867364803470815,
-        "reqs": 127471223,
-        "memory_accesses": 232297891,
-        "prefetch_fills": 64249982,
-        "total_traffic": 296547873,
-        "total_accesses": 962061680,
-        "total_traffic_ratio": 1.1886286657252323,
-        "total_accesses_ratio": 1.0
-      },
-      "droplet": {
-        "demand": 0.03248418126372105,
-        "delta_pp": -22.684160125783205,
-        "reqs": 462261926,
-        "memory_accesses": 31251786,
-        "prefetch_fills": 218411254,
-        "total_traffic": 249663040,
-        "total_accesses": 962061680,
-        "total_traffic_ratio": 1.0007040115108339,
-        "total_accesses_ratio": 1.0
-      }
-    },
-    {
-      "cell": "web-Google-pr",
-      "baseline_demand": 0.1525121843573297,
-      "baseline_traffic": {
-        "memory_accesses": 6391455,
-        "prefetch_fills": 0,
-        "total_traffic": 6391455,
-        "total_accesses": 41907832
-      },
-      "mode2": {
-        "demand": 0.10370772699480135,
-        "delta_pp": -4.880445736252834,
-        "reqs": 4607707,
-        "memory_accesses": 4346166,
-        "prefetch_fills": 2045656,
-        "total_traffic": 6391822,
-        "total_accesses": 41907832,
-        "total_traffic_ratio": 1.0000574204152262,
-        "total_accesses_ratio": 1.0
-      },
-      "mode6": {
-        "demand": 0.18089454019000553,
-        "delta_pp": 2.8382355832675845,
-        "reqs": 4607699,
-        "memory_accesses": 7580898,
-        "prefetch_fills": 2634248,
-        "total_traffic": 10215146,
-        "total_accesses": 41907832,
-        "total_traffic_ratio": 1.5982504766129153,
-        "total_accesses_ratio": 1.0
-      },
-      "droplet": {
-        "demand": 0.038539478730371925,
-        "delta_pp": -11.397270562695777,
-        "reqs": 15530529,
-        "memory_accesses": 1615106,
-        "prefetch_fills": 4776553,
-        "total_traffic": 6391659,
-        "total_accesses": 41907832,
-        "total_traffic_ratio": 1.0000319176150032,
-        "total_accesses_ratio": 1.0
-      }
-    }
-  ],
+  "cells": [],
   "summary": {
     "mode2": {
-      "n_cells": 4,
-      "total_savings_pp": 26.385130304360775,
-      "total_reqs": 201033589,
-      "pp_per_mreq": 0.13124737232025827
+      "n_cells": 0,
+      "total_savings_pp": 0.0,
+      "total_reqs": 0,
+      "pp_per_mreq": null
     },
     "mode6": {
-      "n_cells": 4,
-      "total_savings_pp": 1.4990696095673162,
-      "total_reqs": 201033569,
-      "pp_per_mreq": 0.007456812397173908
+      "n_cells": 0,
+      "total_savings_pp": 0.0,
+      "total_reqs": 0,
+      "pp_per_mreq": null
     },
     "droplet": {
-      "n_cells": 4,
-      "total_savings_pp": 77.27375048506396,
-      "total_reqs": 695384902,
-      "pp_per_mreq": 0.11112371042686796
-    },
-    "mode6_vs_mode2_ratio": 0.05681494619929191,
-    "mode6_vs_droplet_ratio": 0.06710370242794708,
-    "mode6_dram_inflation_max_pct": 59.82504766129153,
-    "mode6_dram_inflation_avg_pct": 32.144751014585296,
-    "mode6_dram_inflation_flag": true
+      "n_cells": 0,
+      "total_savings_pp": 0.0,
+      "total_reqs": 0,
+      "pp_per_mreq": null
+    }
   },
   "method": "cache_sim demand-memory rate (memory_accesses/total_accesses)"
 }

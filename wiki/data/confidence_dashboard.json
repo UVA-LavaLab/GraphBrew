@@ -1,5 +1,5 @@
 {
-  "headline": "\u2705 GREEN \u2014 every tier + gate + comparator is within tolerance",
+  "headline": "\u26d4 RED \u2014 Catalog \u2194 dashboard coverage milestone, per-suite test-count floor (every PYTEST_SUITES entry has >=1 AST test fn + >=1 passed test + no errors), ECG combined-mask scale claims (gate 285) \u2014 gates 297-300 cache_sim scale sweep with ECG_CONTAINER_BITS=64: full-data cell count floor, mean \u0394 ECG_DBG+ECG_PFX vs LRU \u2264 -3pp, no per-cell regression > 0.5pp, mean prefetch useful-rate \u2265 90%, ECG mode 6 corpus efficiency (gate 289) \u2014 per-edge mask 4-cell corpus: gate 316 data present, gate 317 mode 6 corpus pp/Mreq \u2265 1.05x mode 2 (currently 1.14x = +14%), gate 318 mode 6 pp/Mreq \u2265 1.10x DROPLET (currently 1.35x = +35%) failing",
   "suites": [
     {
       "label": "Tier A \u2014 GRASP sideband registration",
@@ -11,8 +11,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.1782732009887695,
-      "raw_tail": ".....                                                                    [100%]\n5 passed in 1.01s"
+      "runtime_s": 1.013709545135498,
+      "raw_tail": ".....                                                                    [100%]\n5 passed in 0.87s"
     },
     {
       "label": "Tier B \u2014 POPT permutation equivalence",
@@ -24,21 +24,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.9839961528778076,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.85s"
+      "runtime_s": 1.0650660991668701,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.93s"
     },
     {
       "label": "Tier C \u2014 GRASP vs LRU sign test",
       "short": "Tier C",
       "path": "scripts/test/test_grasp_sign_consistency.py",
-      "passed": 14,
+      "passed": 0,
       "failed": 0,
-      "skipped": 6,
-      "xfailed": 4,
+      "skipped": 24,
+      "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21989870071411133,
-      "raw_tail": "........x.ss..ss.sx..sxx                                                 [100%]\n14 passed, 6 skipped, 4 xfailed in 0.08s"
+      "runtime_s": 0.2182931900024414,
+      "raw_tail": "ssssssssssssssssssssssss                                                 [100%]\n24 skipped in 0.08s"
     },
     {
       "label": "Lit-baseline data-driven gate",
@@ -50,21 +50,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.41484713554382324,
-      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.28s"
+      "runtime_s": 0.4655747413635254,
+      "raw_tail": ".........s....................                                           [100%]\n29 passed, 1 skipped in 0.33s"
     },
     {
       "label": "Lit-baseline structural gate",
       "short": "Lit-struct",
       "path": "scripts/test/test_literature_baselines_structure.py",
-      "passed": 193,
+      "passed": 151,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.285325288772583,
-      "raw_tail": "........................................................................ [ 37%]\n........................................................................ [ 74%]\n.................................................                        [100%]\n193 passed in 0.14s"
+      "runtime_s": 0.2750728130340576,
+      "raw_tail": "........................................................................ [ 47%]\n........................................................................ [ 95%]\n.......                                                                  [100%]\n151 passed in 0.13s"
     },
     {
       "label": "Lit-faith no-disagree gate",
@@ -76,7 +76,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20492053031921387,
+      "runtime_s": 0.20762133598327637,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.07s"
     },
     {
@@ -89,8 +89,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31720733642578125,
-      "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.12s"
+      "runtime_s": 0.21900606155395508,
+      "raw_tail": ".................s..s                                                    [100%]\n19 passed, 2 skipped in 0.08s"
     },
     {
       "label": "Corpus diversity floor",
@@ -102,8 +102,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2035214900970459,
-      "raw_tail": "......                                                                   [100%]\n6 passed in 0.06s"
+      "runtime_s": 0.20782113075256348,
+      "raw_tail": "......                                                                   [100%]\n6 passed in 0.07s"
     },
     {
       "label": "Cross-tool report parity",
@@ -115,7 +115,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21100139617919922,
+      "runtime_s": 0.21245408058166504,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
@@ -128,7 +128,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20592880249023438,
+      "runtime_s": 0.21215248107910156,
       "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
@@ -141,8 +141,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2994115352630615,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.11s"
+      "runtime_s": 0.21897578239440918,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
       "label": "Paper-claims registry integrity",
@@ -154,8 +154,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3017137050628662,
-      "raw_tail": "..................                                                       [100%]\n18 passed in 0.12s"
+      "runtime_s": 0.21961307525634766,
+      "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
     },
     {
       "label": "Cross-artifact aggregate consistency",
@@ -167,8 +167,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.29823803901672363,
-      "raw_tail": ".................                                                        [100%]\n17 passed in 0.12s"
+      "runtime_s": 0.21756815910339355,
+      "raw_tail": ".................                                                        [100%]\n17 passed in 0.08s"
     },
     {
       "label": "Per-app oracle-vs-winner parity",
@@ -180,8 +180,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31078529357910156,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.21245884895324707,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "Artifact-catalog completeness",
@@ -193,8 +193,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31903648376464844,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.14s"
+      "runtime_s": 0.22482681274414062,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.09s"
     },
     {
       "label": "Family-sensitivity cross-artifact",
@@ -206,7 +206,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20427203178405762,
+      "runtime_s": 0.21420574188232422,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -219,7 +219,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1996309757232666,
+      "runtime_s": 0.21311450004577637,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -232,7 +232,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20641565322875977,
+      "runtime_s": 0.2081143856048584,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -245,8 +245,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3013031482696533,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.11s"
+      "runtime_s": 0.20895004272460938,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
       "label": "Cache-sensitivity slope baseline",
@@ -258,8 +258,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3105754852294922,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.12s"
+      "runtime_s": 0.2161087989807129,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
       "label": "WSS knee vs relative-L3 parity",
@@ -271,8 +271,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3088655471801758,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.2138514518737793,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "Bootstrap CI nested consistency",
@@ -284,8 +284,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.29904794692993164,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.22182345390319824,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "Family clustering 3-way agreement",
@@ -297,8 +297,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23860478401184082,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.09s"
+      "runtime_s": 0.2157135009765625,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "AUC correlation cross-artifact parity",
@@ -310,8 +310,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2978830337524414,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.20976614952087402,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "Family geomean vs margin replay parity",
@@ -323,8 +323,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2936279773712158,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.21123957633972168,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "Oracle-gap curvature vs effect-size parity",
@@ -336,34 +336,34 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.310727596282959,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.21648192405700684,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "Monotonicity universality vs anchor replay",
       "short": "Mono-Anch",
       "path": "scripts/test/test_monotonicity_universality_vs_anchor_replay.py",
-      "passed": 13,
+      "passed": 12,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20540595054626465,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.2099895477294922,
+      "raw_tail": "..s..........                                                            [100%]\n12 passed, 1 skipped in 0.07s"
     },
     {
       "label": "Catalog \u2194 dashboard coverage milestone",
       "short": "Cat-Dash",
       "path": "scripts/test/test_catalog_dashboard_coverage_milestone.py",
-      "passed": 13,
-      "failed": 0,
+      "passed": 12,
+      "failed": 1,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.329082727432251,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.14s"
+      "runtime_s": 0.23093867301940918,
+      "raw_tail": "...........F.                                                            [100%]\n=========================== short test summary info ============================\nFAILED scripts/test/test_catalog_dashboard_coverage_milestone.py::test_dashboard_json_all_suites_green\n1 failed, 12 passed in 0.09s"
     },
     {
       "label": "Deviations vs regime taxonomy parity",
@@ -375,8 +375,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2929072380065918,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.20619606971740723,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "Corpus diversity vs regime taxonomy parity",
@@ -388,8 +388,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.30806708335876465,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.21101021766662598,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "Paper claims registry recompute parity",
@@ -401,8 +401,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20747733116149902,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.21742796897888184,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "Family tri-artifact agreement",
@@ -414,8 +414,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20303940773010254,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.2138230800628662,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "Regression budget vs lit_faith parity",
@@ -427,8 +427,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20816445350646973,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.2172679901123047,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "Oracle-gap internal and by-app aggregation",
@@ -440,8 +440,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20690274238586426,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.219390869140625,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "GRAPH_FAMILY map duplication",
@@ -453,7 +453,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21661782264709473,
+      "runtime_s": 0.22055459022521973,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
@@ -466,8 +466,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20769906044006348,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.21521735191345215,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "small_l3_thrash internal + WRT-tiny disjointness",
@@ -479,8 +479,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20719599723815918,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.21872448921203613,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "bootstrap_ci + oracle_gap_by_app_bootstrap parity",
@@ -492,8 +492,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20536541938781738,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.22162699699401855,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "oracle_gap_curvature arithmetic + knee rule",
@@ -505,8 +505,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3112461566925049,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.21361446380615234,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "gap_distribution_shape Hesterberg envelope",
@@ -518,8 +518,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3061561584472656,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.21896648406982422,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "distribution_diagnostics envelope + marginals",
@@ -531,8 +531,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20095181465148926,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.06s"
+      "runtime_s": 0.21608757972717285,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "cross_tool_winners classification arithmetic",
@@ -544,8 +544,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20297884941101074,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
+      "runtime_s": 0.21493816375732422,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "cohens_h \u2194 wilson win-rate parity",
@@ -557,8 +557,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.27295756340026855,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.11s"
+      "runtime_s": 0.21466970443725586,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
       "label": "lofo \u2194 leave_one_graph_out robustness parity",
@@ -570,8 +570,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2914412021636963,
-      "raw_tail": "...............                                                          [100%]\n15 passed in 0.11s"
+      "runtime_s": 0.2190859317779541,
+      "raw_tail": "...............                                                          [100%]\n15 passed in 0.08s"
     },
     {
       "label": "multiple_testing_correction HB+BH arithmetic",
@@ -583,8 +583,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2864985466003418,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.22273707389831543,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.08s"
     },
     {
       "label": "cache_saturation_onset step-down rule + ranking",
@@ -596,8 +596,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2934293746948242,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.11s"
+      "runtime_s": 0.21277213096618652,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.08s"
     },
     {
       "label": "cross_tool_slope_universality verdict + medians",
@@ -609,7 +609,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20821762084960938,
+      "runtime_s": 0.21109962463378906,
       "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
@@ -622,7 +622,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20655107498168945,
+      "runtime_s": 0.21374058723449707,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -635,8 +635,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31461358070373535,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.11s"
+      "runtime_s": 0.22240924835205078,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.08s"
     },
     {
       "label": "policy_steepness_ranking checks + arithmetic",
@@ -648,8 +648,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3139183521270752,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.11s"
+      "runtime_s": 0.21944093704223633,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
       "label": "cross_policy_asymmetry head-to-head arithmetic",
@@ -661,8 +661,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2478621006011963,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.10s"
+      "runtime_s": 0.22463274002075195,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.09s"
     },
     {
       "label": "saturation_slope_extremum arithmetic + verdict",
@@ -674,8 +674,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20305228233337402,
-      "raw_tail": "................                                                         [100%]\n16 passed in 0.07s"
+      "runtime_s": 0.21637654304504395,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.08s"
     },
     {
       "label": "winner_margin_gradient arithmetic + classification",
@@ -687,8 +687,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3146481513977051,
-      "raw_tail": "................                                                         [100%]\n16 passed in 0.12s"
+      "runtime_s": 0.21532273292541504,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.08s"
     },
     {
       "label": "per_app_srrip_vs_grasp arithmetic + verdict",
@@ -700,8 +700,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2945525646209717,
-      "raw_tail": "...............                                                          [100%]\n15 passed in 0.11s"
+      "runtime_s": 0.21247363090515137,
+      "raw_tail": "...............                                                          [100%]\n15 passed in 0.08s"
     },
     {
       "label": "corpus_balance arithmetic + diversity metrics",
@@ -713,8 +713,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2832622528076172,
-      "raw_tail": "................                                                         [100%]\n16 passed in 0.11s"
+      "runtime_s": 0.21639013290405273,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.08s"
     },
     {
       "label": "family_curvature_replay arithmetic + verdict",
@@ -726,7 +726,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22215628623962402,
+      "runtime_s": 0.21094036102294922,
       "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
     },
     {
@@ -739,8 +739,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.28076696395874023,
-      "raw_tail": "...............                                                          [100%]\n15 passed in 0.12s"
+      "runtime_s": 0.2122361660003662,
+      "raw_tail": "...............                                                          [100%]\n15 passed in 0.08s"
     },
     {
       "label": "slope_saturation_xcheck arithmetic + statistics",
@@ -752,8 +752,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20467829704284668,
-      "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
+      "runtime_s": 0.21616530418395996,
+      "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
     },
     {
       "label": "per_graph_app_stability arithmetic + classification",
@@ -765,8 +765,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31432175636291504,
-      "raw_tail": ".................                                                        [100%]\n17 passed in 0.12s"
+      "runtime_s": 0.21622109413146973,
+      "raw_tail": ".................                                                        [100%]\n17 passed in 0.08s"
     },
     {
       "label": "paper_baseline_table arithmetic + parity",
@@ -778,7 +778,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2066783905029297,
+      "runtime_s": 0.20910239219665527,
       "raw_tail": "...............                                                          [100%]\n15 passed in 0.07s"
     },
     {
@@ -791,8 +791,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20383620262145996,
-      "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
+      "runtime_s": 0.2124309539794922,
+      "raw_tail": ".................                                                        [100%]\n17 passed in 0.08s"
     },
     {
       "label": "cross-artifact miss + delta parity",
@@ -804,8 +804,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21241426467895508,
-      "raw_tail": ".................                                                        [100%]\n17 passed in 0.07s"
+      "runtime_s": 0.21470236778259277,
+      "raw_tail": ".................                                                        [100%]\n17 passed in 0.08s"
     },
     {
       "label": "winner identification parity (oracle \u2194 stability)",
@@ -817,8 +817,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2161703109741211,
-      "raw_tail": "......................                                                   [100%]\n22 passed in 0.07s"
+      "runtime_s": 0.23357105255126953,
+      "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
     },
     {
       "label": "oracle_gap arithmetic + is_winner + summary rollups",
@@ -830,8 +830,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2101888656616211,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
+      "runtime_s": 0.21641826629638672,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
       "label": "oracle_gap_auc derivation parity (trapezoidal on log2)",
@@ -843,8 +843,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2097492218017578,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.2143392562866211,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "cache_sensitivity_slope derivation parity (auc \u2192 slope)",
@@ -856,8 +856,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21566057205200195,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.21584105491638184,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "per_graph_rollup arithmetic + meta counts",
@@ -869,7 +869,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20610356330871582,
+      "runtime_s": 0.21072888374328613,
       "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
     },
     {
@@ -882,8 +882,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2221677303314209,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.2179872989654541,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "family_policy_auc_clustering derivation parity (pooled \u2192 trapezoid \u2192 corr)",
@@ -895,8 +895,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20907115936279297,
-      "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
+      "runtime_s": 0.2150745391845703,
+      "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
     },
     {
       "label": "cohens_h_win_rates derivation parity (arcsine + magnitude buckets)",
@@ -908,8 +908,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2099440097808838,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.21667909622192383,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "wilson_win_rates derivation parity (z + score interval + 3 scopes)",
@@ -921,8 +921,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20759057998657227,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.2109394073486328,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "bootstrap_ci derivation parity (aggregation + width + sign logic)",
@@ -934,8 +934,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21943974494934082,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.2140049934387207,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "gap_distribution_shape derivation parity (g1/g2 moments + envelope)",
@@ -947,8 +947,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2282264232635498,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.22336745262145996,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "cell_winner_census derivation parity (classification + tied breakdown)",
@@ -960,8 +960,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20716190338134766,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.21362066268920898,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "policy_winner_table derivation parity (argmin + summary aggregation)",
@@ -973,8 +973,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2256147861480713,
-      "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
+      "runtime_s": 0.22725629806518555,
+      "raw_tail": "......................                                                   [100%]\n22 passed in 0.09s"
     },
     {
       "label": "monotonicity_universality derivation parity (bump count + verdict logic)",
@@ -986,8 +986,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20853090286254883,
-      "raw_tail": "......................                                                   [100%]\n22 passed in 0.07s"
+      "runtime_s": 0.2187051773071289,
+      "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
     },
     {
       "label": "popt_vs_grasp_delta derivation parity (delta + classification + tails)",
@@ -999,8 +999,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21598339080810547,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
+      "runtime_s": 0.23320388793945312,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.09s"
     },
     {
       "label": "winning_regime_taxonomy derivation parity (bins + extracted rules)",
@@ -1012,8 +1012,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21139860153198242,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
+      "runtime_s": 0.22036242485046387,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
       "label": "cross_tool_winners derivation parity (max-L3 collapse + classification)",
@@ -1025,8 +1025,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21893596649169922,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.219252347946167,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "regression_budget derivation parity (per-cell distance to disagree)",
@@ -1038,8 +1038,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2620069980621338,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.12s"
+      "runtime_s": 0.2799654006958008,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.14s"
     },
     {
       "label": "family_geomean_improvement derivation parity (geomean ratio + bootstrap CI)",
@@ -1051,8 +1051,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.40276432037353516,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.26s"
+      "runtime_s": 0.41159677505493164,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.27s"
     },
     {
       "label": "policy_rank_kendall derivation parity (Kendall-tau across L3 octave)",
@@ -1064,8 +1064,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20987462997436523,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
+      "runtime_s": 0.2247486114501953,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.09s"
     },
     {
       "label": "claim_density derivation parity (per-graph claim aggregation)",
@@ -1077,8 +1077,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21569442749023438,
-      "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
+      "runtime_s": 0.22228312492370605,
+      "raw_tail": "......................                                                   [100%]\n22 passed in 0.09s"
     },
     {
       "label": "paper_baseline_table derivation parity (per_observation + PER_GRAPH_CLAIMS)",
@@ -1090,8 +1090,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22093486785888672,
-      "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
+      "runtime_s": 0.22436141967773438,
+      "raw_tail": "......................                                                   [100%]\n22 passed in 0.09s"
     },
     {
       "label": "cross_tool_lru_regime derivation parity (per-tool slope medians + regime classifier)",
@@ -1103,8 +1103,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2104630470275879,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.21659350395202637,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "cross_tool_slope_universality derivation parity (per-(tool,policy) slope sign + physical band)",
@@ -1116,8 +1116,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2076582908630371,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.2138233184814453,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "cross_tool_slope_ordering derivation parity (SRRIP-vs-GRASP gap_floor + strict-tool count)",
@@ -1129,8 +1129,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20779991149902344,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.07s"
+      "runtime_s": 0.21828985214233398,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
       "label": "policy_steepness_ranking derivation parity (final-octave |slope| reducers + ordering checks)",
@@ -1142,8 +1142,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2198348045349121,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.07s"
+      "runtime_s": 0.22584843635559082,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.09s"
     },
     {
       "label": "winner_margin_by_regime derivation parity (per-(policy, wss_regime) margin reducers + shrink-evidence)",
@@ -1155,8 +1155,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20937561988830566,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
+      "runtime_s": 0.219879150390625,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
     },
     {
       "label": "wss_relative_l3 derivation parity (WSS proxy + L3/WSS regime aggregation + ranking)",
@@ -1168,8 +1168,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21248912811279297,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.22981905937194824,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.09s"
     },
     {
       "label": "slope_saturation_xcheck derivation parity (OLS slope vs upper-octave distance + correlation)",
@@ -1181,8 +1181,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21231937408447266,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.07s"
+      "runtime_s": 0.22570157051086426,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.09s"
     },
     {
       "label": "winner_margin_gradient derivation parity (per-(app, L3) win counts + classifier)",
@@ -1194,8 +1194,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23127460479736328,
-      "raw_tail": "...............................                                          [100%]\n31 passed in 0.07s"
+      "runtime_s": 0.22552013397216797,
+      "raw_tail": "...............................                                          [100%]\n31 passed in 0.09s"
     },
     {
       "label": "saturation_distance derivation parity (4MB->8MB best-policy gap + pico-sentinel)",
@@ -1207,8 +1207,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21123933792114258,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.07s"
+      "runtime_s": 0.22151899337768555,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
     },
     {
       "label": "per_app_capacity_slope derivation parity (per-(app, policy) OLS slope + cache-hungriness ranking)",
@@ -1220,8 +1220,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2164759635925293,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.08s"
+      "runtime_s": 0.22872400283813477,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.09s"
     },
     {
       "label": "oracle_gap_by_app derivation parity (per-(policy, app) bucket + per-app ranking)",
@@ -1233,8 +1233,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21466898918151855,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
+      "runtime_s": 0.221405029296875,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
       "label": "cross_tool_saturation derivation parity (per-cell classifier + summary reducers)",
@@ -1246,8 +1246,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20687484741210938,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.2169189453125,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
     },
     {
       "label": "per_app_srrip_vs_grasp derivation parity (per-app delta + pinned bfs)",
@@ -1259,8 +1259,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2082536220550537,
-      "raw_tail": ".........................                                                [100%]\n25 passed in 0.07s"
+      "runtime_s": 0.21654939651489258,
+      "raw_tail": ".........................                                                [100%]\n25 passed in 0.08s"
     },
     {
       "label": "cross_policy_asymmetry derivation parity (head-to-head margins + ratio ceiling)",
@@ -1272,8 +1272,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21089458465576172,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.07s"
+      "runtime_s": 0.22056293487548828,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
     },
     {
       "label": "saturation_slope_extremum derivation parity (bfs argmin both axes + corpus floors)",
@@ -1285,8 +1285,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21874260902404785,
-      "raw_tail": ".............................                                            [100%]\n29 passed in 0.07s"
+      "runtime_s": 0.2241976261138916,
+      "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
     },
     {
       "label": "oracle_gap_effect_size derivation parity (Cliff's delta + Mann-Whitney U)",
@@ -1298,8 +1298,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21225810050964355,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
+      "runtime_s": 0.22548437118530273,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.09s"
     },
     {
       "label": "oracle_gap_curvature derivation parity (log2-octave second derivative + knee threshold)",
@@ -1311,8 +1311,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2481536865234375,
-      "raw_tail": "...........................                                              [100%]\n27 passed in 0.10s"
+      "runtime_s": 0.2239854335784912,
+      "raw_tail": "...........................                                              [100%]\n27 passed in 0.09s"
     },
     {
       "label": "oracle_gap_by_app_bootstrap derivation parity (paired \u0394 seeded bootstrap + 95% CI)",
@@ -1324,8 +1324,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.7879214286804199,
-      "raw_tail": ".................                                                        [100%]\n17 passed in 0.64s"
+      "runtime_s": 0.8020880222320557,
+      "raw_tail": ".................                                                        [100%]\n17 passed in 0.66s"
     },
     {
       "label": "cross_generator_gap_parity derivation parity (three-source gap_pp reconciliation)",
@@ -1337,7 +1337,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2665119171142578,
+      "runtime_s": 0.22153544425964355,
       "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
@@ -1350,8 +1350,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2081148624420166,
-      "raw_tail": ".........................                                                [100%]\n25 passed in 0.07s"
+      "runtime_s": 0.22226285934448242,
+      "raw_tail": ".........................                                                [100%]\n25 passed in 0.08s"
     },
     {
       "label": "leave_one_graph_out derivation parity (LOGO per-app re-rank + fragile partition)",
@@ -1363,8 +1363,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21259164810180664,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
+      "runtime_s": 0.2198030948638916,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
     },
     {
       "label": "popt_vs_grasp_by_family_app derivation parity (per-(family,app) paired bootstrap CIs)",
@@ -1376,8 +1376,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26867246627807617,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.13s"
+      "runtime_s": 0.28062963485717773,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.14s"
     },
     {
       "label": "cache_saturation_onset derivation parity (per-(app,policy) octave walker + per-policy rank)",
@@ -1389,8 +1389,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21048879623413086,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.21853065490722656,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
     },
     {
       "label": "oracle_gap derivation parity (THE upstream: per-cell rows + summary stat block from CSV)",
@@ -1402,8 +1402,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21504926681518555,
-      "raw_tail": ".............................                                            [100%]\n29 passed in 0.08s"
+      "runtime_s": 0.2341780662536621,
+      "raw_tail": ".............................                                            [100%]\n29 passed in 0.09s"
     },
     {
       "label": "policy_stability derivation parity (per-policy CV across apps + rank stability + headlines)",
@@ -1415,8 +1415,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2297372817993164,
-      "raw_tail": ".............................                                            [100%]\n29 passed in 0.07s"
+      "runtime_s": 0.23846983909606934,
+      "raw_tail": ".............................                                            [100%]\n29 passed in 0.09s"
     },
     {
       "label": "l3_policy_stability derivation parity (per-(app, l3) winner aggregation + cross-L3 stability summary)",
@@ -1428,8 +1428,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21300148963928223,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.22542333602905273,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.09s"
     },
     {
       "label": "multiple_testing_correction derivation parity (HB step-down + BH step-up + p-value collection)",
@@ -1441,8 +1441,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21250581741333008,
-      "raw_tail": ".............................                                            [100%]\n29 passed in 0.07s"
+      "runtime_s": 0.22621440887451172,
+      "raw_tail": ".............................                                            [100%]\n29 passed in 0.09s"
     },
     {
       "label": "corpus_balance derivation parity (Shannon entropy + Pielou evenness + Simpson + dominance + L3 coverage)",
@@ -1454,8 +1454,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21454739570617676,
-      "raw_tail": "..................................                                       [100%]\n34 passed in 0.08s"
+      "runtime_s": 0.2273409366607666,
+      "raw_tail": "..................................                                       [100%]\n34 passed in 0.09s"
     },
     {
       "label": "capacity_sensitivity derivation parity (per-cell OLS slope + per-policy distribution + 3-clause verdict)",
@@ -1467,8 +1467,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2137889862060547,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.08s"
+      "runtime_s": 0.2250838279724121,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.09s"
     },
     {
       "label": "per_graph_cache_slope derivation parity (per-octave slope + anti-scaling cells + per-policy/graph counters)",
@@ -1480,8 +1480,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21500587463378906,
-      "raw_tail": "..................................                                       [100%]\n34 passed in 0.08s"
+      "runtime_s": 0.2309401035308838,
+      "raw_tail": "..................................                                       [100%]\n34 passed in 0.09s"
     },
     {
       "label": "per_graph_app_stability derivation parity (4-class winner stability + per-graph rollup + tie tolerance)",
@@ -1493,8 +1493,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21731996536254883,
-      "raw_tail": "....................................                                     [100%]\n36 passed in 0.08s"
+      "runtime_s": 0.22737526893615723,
+      "raw_tail": "....................................                                     [100%]\n36 passed in 0.09s"
     },
     {
       "label": "distribution_diagnostics derivation parity (Fisher g1/g2 skewness/kurtosis + bootstrap validity envelope)",
@@ -1506,8 +1506,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2212386131286621,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
+      "runtime_s": 0.23258256912231445,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.09s"
     },
     {
       "label": "family_curvature_replay derivation parity (log2-axis 2nd-derivative + per-family replay sign test)",
@@ -1519,8 +1519,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2220144271850586,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.07s"
+      "runtime_s": 0.22505831718444824,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.09s"
     },
     {
       "label": "family_margin_replay derivation parity (WSS-regime classifier + winner-margin distribution + shrink evidence)",
@@ -1532,8 +1532,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21054840087890625,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.07s"
+      "runtime_s": 0.23813629150390625,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.09s"
     },
     {
       "label": "family_slope_replay derivation parity (per-family OLS slope replay + pinned social deviation)",
@@ -1545,8 +1545,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24877595901489258,
-      "raw_tail": ".................................                                        [100%]\n33 passed in 0.08s"
+      "runtime_s": 0.2298727035522461,
+      "raw_tail": ".................................                                        [100%]\n33 passed in 0.09s"
     },
     {
       "label": "family_sensitivity derivation parity (relabel sweep + sign-claim flip detector + seed-stable bootstrap)",
@@ -1558,8 +1558,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 5.973863840103149,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 5.83s"
+      "runtime_s": 5.89678692817688,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 5.76s"
     },
     {
       "label": "family_saturation_distance derivation parity (per-family upper-octave headroom + pinned web outlier)",
@@ -1571,8 +1571,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21027064323425293,
-      "raw_tail": ".................................                                        [100%]\n33 passed in 0.07s"
+      "runtime_s": 0.22741484642028809,
+      "raw_tail": ".................................                                        [100%]\n33 passed in 0.09s"
     },
     {
       "label": "anchor_cell_census derivation parity (gem5+Sniper anchor coverage + 13-check verdict matrix)",
@@ -1584,8 +1584,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21184325218200684,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.07s"
+      "runtime_s": 0.2275242805480957,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.09s"
     },
     {
       "label": "anchor_cross_tool_agreement derivation parity (shared-anchor slope-sign agreement + sniper-steeper invariant)",
@@ -1597,8 +1597,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21761322021484375,
-      "raw_tail": ".............................                                            [100%]\n29 passed in 0.07s"
+      "runtime_s": 0.23056602478027344,
+      "raw_tail": ".............................                                            [100%]\n29 passed in 0.09s"
     },
     {
       "label": "anchor_monotonicity_replay derivation parity (tier-aware bump-rate/hard-bump/max-bump ceilings)",
@@ -1610,8 +1610,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.25971508026123047,
-      "raw_tail": "........................................                                 [100%]\n40 passed in 0.11s"
+      "runtime_s": 0.2705404758453369,
+      "raw_tail": "........................................                                 [100%]\n40 passed in 0.13s"
     },
     {
       "label": "gem5_slope_replay derivation parity (anchor OLS slope + 4-clause verdict matrix)",
@@ -1623,8 +1623,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.25710630416870117,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.10s"
+      "runtime_s": 0.25531983375549316,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.12s"
     },
     {
       "label": "sniper_slope_replay derivation parity (anchor OLS slope + 4-clause verdict matrix)",
@@ -1636,8 +1636,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.257251501083374,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.10s"
+      "runtime_s": 0.25838613510131836,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.12s"
     },
     {
       "label": "literature_deviations_report derivation parity (mechanism-label classifier + cross-tab summary)",
@@ -1649,8 +1649,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31737780570983887,
-      "raw_tail": "...........................                                              [100%]\n27 passed in 0.15s"
+      "runtime_s": 0.2659182548522949,
+      "raw_tail": "...........................                                              [100%]\n27 passed in 0.12s"
     },
     {
       "label": "wss_knee_location derivation parity (regime-ladder knee walk + strict ordering invariant)",
@@ -1662,8 +1662,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.336958646774292,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.14s"
+      "runtime_s": 0.25819993019104004,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.11s"
     },
     {
       "label": "paper_claims registry derivation parity (single-source-of-truth aggregator + JSON byte parity)",
@@ -1675,8 +1675,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2246568202972412,
-      "raw_tail": ".........................                                                [100%]\n25 passed in 0.08s"
+      "runtime_s": 0.22866010665893555,
+      "raw_tail": ".........................                                                [100%]\n25 passed in 0.09s"
     },
     {
       "label": "small_l3_thrash derivation parity (POLICY_LABEL_ORDER tie-break + per-policy aggregates)",
@@ -1688,8 +1688,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2214348316192627,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.07s"
+      "runtime_s": 0.22839593887329102,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.09s"
     },
     {
       "label": "corpus_diversity derivation parity (GAPBS log scrape + GRAPH_ORDER + _coerce rules)",
@@ -1701,21 +1701,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22497153282165527,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
+      "runtime_s": 0.24543428421020508,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.11s"
     },
     {
       "label": "literature_faithfulness evaluator derivation parity (_classify branches + POPT_GE/NEAR_GRASP dispatch)",
       "short": "LFE-Der",
       "path": "scripts/test/test_literature_faithfulness_evaluator_derivation.py",
-      "passed": 28,
+      "passed": 29,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.22414803504943848,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.08s"
+      "runtime_s": 0.24194717407226562,
+      "raw_tail": ".............................                                            [100%]\n29 passed in 0.10s"
     },
     {
       "label": "gem5/sniper anchor summary derivation parity (invariant predicates + tolerance constants)",
@@ -1727,8 +1727,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.32372474670410156,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.12s"
+      "runtime_s": 0.22548484802246094,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.09s"
     },
     {
       "label": "sign_consistency derivation parity (_pick canonical-ROI + _sign zero band + bucket dispatch)",
@@ -1740,8 +1740,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31946396827697754,
-      "raw_tail": "............................                                             [100%]\n28 passed in 0.13s"
+      "runtime_s": 0.2323596477508545,
+      "raw_tail": "............................                                             [100%]\n28 passed in 0.10s"
     },
     {
       "label": "literature_reproduction_summary derivation parity (verdict glyph + paper rollup + render byte parity)",
@@ -1753,8 +1753,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21144604682922363,
-      "raw_tail": "....................................                                     [100%]\n36 passed in 0.07s"
+      "runtime_s": 0.22620439529418945,
+      "raw_tail": "....................................                                     [100%]\n36 passed in 0.09s"
     },
     {
       "label": "local_cache_screen_summary derivation parity (number coercion + LRU-base delta + rank tie-break)",
@@ -1766,8 +1766,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3223297595977783,
-      "raw_tail": ".............................                                            [100%]\n29 passed in 0.13s"
+      "runtime_s": 0.24098920822143555,
+      "raw_tail": ".............................                                            [100%]\n29 passed in 0.10s"
     },
     {
       "label": "cross-artifact integrity (CATALOG \u2194 PYTEST_SUITES \u2194 paper_claims graph consistency)",
@@ -1779,7 +1779,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2126779556274414,
+      "runtime_s": 0.22049617767333984,
       "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
@@ -1792,7 +1792,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21649527549743652,
+      "runtime_s": 0.21959614753723145,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
@@ -1805,8 +1805,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21700072288513184,
-      "raw_tail": "...............                                                          [100%]\n15 passed in 0.07s"
+      "runtime_s": 0.21785855293273926,
+      "raw_tail": "...............                                                          [100%]\n15 passed in 0.08s"
     },
     {
       "label": "wiki/data/ coverage (every on-disk .json/.md/.csv tracked or exempt)",
@@ -1818,8 +1818,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3258090019226074,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.13s"
+      "runtime_s": 0.21960663795471191,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.08s"
     },
     {
       "label": "paper claims source-value parity (every claim re-derived from source artifact)",
@@ -1831,8 +1831,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31322646141052246,
-      "raw_tail": "..................                                                       [100%]\n18 passed in 0.13s"
+      "runtime_s": 0.2199690341949463,
+      "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
     },
     {
       "label": "paper claims schema integrity (required fields + controlled vocabularies + path resolution)",
@@ -1844,60 +1844,60 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31469011306762695,
-      "raw_tail": ".........................                                                [100%]\n25 passed in 0.12s"
+      "runtime_s": 0.2098827362060547,
+      "raw_tail": ".........................                                                [100%]\n25 passed in 0.07s"
     },
     {
       "label": "per-suite test-count floor (every PYTEST_SUITES entry has >=1 AST test fn + >=1 passed test + no errors)",
       "short": "PST-Min",
       "path": "scripts/test/test_pytest_suite_minimum.py",
-      "passed": 883,
-      "failed": 0,
+      "passed": 882,
+      "failed": 1,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 4.032455921173096,
-      "raw_tail": "........................................................................ [  8%]\n........................................................................ [ 16%]\n........................................................................ [ 24%]\n........................................................................ [ 32%]\n........................................................................ [ 40%]\n........................................................................ [ 48%]\n........................................................................ [ 57%]\n........................................................................ [ 65%]\n........................................................................ [ 73%]\n........................................................................ [ 81%]\n........................................................................ [ 89%]\n........................................................................ [ 97%]\n...................                                                      [100%]\n883 passed in 3.82s"
+      "runtime_s": 2.420471429824829,
+      "raw_tail": "........................................................................ [ 16%]\n........................................................................ [ 24%]\n........................................................................ [ 32%]\n........................................................................ [ 40%]\n........................................................................ [ 48%]\n........................................................................ [ 57%]\n........................................................................ [ 65%]\n........................................................................ [ 73%]\n........................................................................ [ 81%]\n........................................................................ [ 89%]\n........................................................................ [ 97%]\n.........F.........                                                      [100%]\n=========================== short test summary info ============================\nFAILED scripts/test/test_pytest_suite_minimum.py::test_every_suite_has_at_least_one_passed_test\n1 failed, 882 passed in 2.27s"
     },
     {
       "label": "catalog generator --help signature (every CATALOG generator responds to --help with exit 0 + usage marker)",
       "short": "CGH-Sig",
       "path": "scripts/test/test_catalog_generator_help.py",
-      "passed": 288,
+      "passed": 290,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 14.04788613319397,
-      "raw_tail": "........................................................................ [ 25%]\n........................................................................ [ 50%]\n........................................................................ [ 75%]\n........................................................................ [100%]\n288 passed in 13.88s"
+      "runtime_s": 13.083666324615479,
+      "raw_tail": "........................................................................ [ 24%]\n........................................................................ [ 49%]\n........................................................................ [ 74%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n290 passed in 12.94s"
     },
     {
       "label": "wiki text quality (every tracked .md: no bad ws + no CRLF + single final newline + no double blanks + H1 first)",
       "short": "WTQ-Fmt",
       "path": "scripts/test/test_wiki_text_quality.py",
+      "passed": 735,
+      "failed": 0,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0,
+      "errors": 0,
+      "runtime_s": 0.5561263561248779,
+      "raw_tail": "........................................................................ [  9%]\n........................................................................ [ 19%]\n........................................................................ [ 29%]\n........................................................................ [ 39%]\n........................................................................ [ 48%]\n........................................................................ [ 58%]\n........................................................................ [ 68%]\n........................................................................ [ 78%]\n........................................................................ [ 88%]\n........................................................................ [ 97%]\n...............                                                          [100%]\n735 passed in 0.41s"
+    },
+    {
+      "label": "wiki JSON format (every tracked .json: valid utf-8, parseable, no CRLF, single final newline, no trailing ws)",
+      "short": "WJF-Fmt",
+      "path": "scripts/test/test_wiki_json_format.py",
       "passed": 730,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5439088344573975,
-      "raw_tail": "........................................................................ [  9%]\n........................................................................ [ 19%]\n........................................................................ [ 29%]\n........................................................................ [ 39%]\n........................................................................ [ 49%]\n........................................................................ [ 59%]\n........................................................................ [ 69%]\n........................................................................ [ 78%]\n........................................................................ [ 88%]\n........................................................................ [ 98%]\n..........                                                               [100%]\n730 passed in 0.40s"
-    },
-    {
-      "label": "wiki JSON format (every tracked .json: valid utf-8, parseable, no CRLF, single final newline, no trailing ws)",
-      "short": "WJF-Fmt",
-      "path": "scripts/test/test_wiki_json_format.py",
-      "passed": 725,
-      "failed": 0,
-      "skipped": 0,
-      "xfailed": 0,
-      "xpassed": 0,
-      "errors": 0,
-      "runtime_s": 0.6081624031066895,
-      "raw_tail": "........................................................................ [  9%]\n........................................................................ [ 19%]\n........................................................................ [ 29%]\n........................................................................ [ 39%]\n........................................................................ [ 49%]\n........................................................................ [ 59%]\n........................................................................ [ 69%]\n........................................................................ [ 79%]\n........................................................................ [ 89%]\n........................................................................ [ 99%]\n.....                                                                    [100%]\n725 passed in 0.46s"
+      "runtime_s": 0.613569974899292,
+      "raw_tail": "........................................................................ [  9%]\n........................................................................ [ 19%]\n........................................................................ [ 29%]\n........................................................................ [ 39%]\n........................................................................ [ 49%]\n........................................................................ [ 59%]\n........................................................................ [ 69%]\n........................................................................ [ 78%]\n........................................................................ [ 88%]\n........................................................................ [ 98%]\n..........                                                               [100%]\n730 passed in 0.47s"
     },
     {
       "label": "PYTEST_SUITES label parity (path/short/label uniqueness + format + dashboard JSON cross-source parity)",
@@ -1909,21 +1909,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.9455420970916748,
-      "raw_tail": "........................................................................ [ 49%]\n........................................................................ [ 53%]\n........................................................................ [ 57%]\n........................................................................ [ 61%]\n........................................................................ [ 65%]\n........................................................................ [ 69%]\n........................................................................ [ 73%]\n........................................................................ [ 78%]\n........................................................................ [ 82%]\n........................................................................ [ 86%]\n........................................................................ [ 90%]\n........................................................................ [ 94%]\n........................................................................ [ 98%]\n.........................                                                [100%]\n1750 passed, 3 skipped in 0.79s"
+      "runtime_s": 0.9623870849609375,
+      "raw_tail": "........................................................................ [ 49%]\n........................................................................ [ 53%]\n........................................................................ [ 57%]\n........................................................................ [ 61%]\n........................................................................ [ 65%]\n........................................................................ [ 69%]\n........................................................................ [ 73%]\n........................................................................ [ 78%]\n........................................................................ [ 82%]\n........................................................................ [ 86%]\n........................................................................ [ 90%]\n........................................................................ [ 94%]\n........................................................................ [ 98%]\n.........................                                                [100%]\n1750 passed, 3 skipped in 0.80s"
     },
     {
       "label": "wiki .md/.json companion pair (bijection + existence + non-empty + sibling-reference resolves)",
       "short": "WMP-Pair",
       "path": "scripts/test/test_wiki_md_json_pair.py",
-      "passed": 725,
+      "passed": 730,
       "failed": 0,
       "skipped": 0,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.8358030319213867,
-      "raw_tail": "........................................................................ [  9%]\n........................................................................ [ 19%]\n........................................................................ [ 29%]\n........................................................................ [ 39%]\n........................................................................ [ 49%]\n........................................................................ [ 59%]\n........................................................................ [ 69%]\n........................................................................ [ 79%]\n........................................................................ [ 89%]\n........................................................................ [ 99%]\n.....                                                                    [100%]\n725 passed in 0.64s"
+      "runtime_s": 0.5579967498779297,
+      "raw_tail": "........................................................................ [  9%]\n........................................................................ [ 19%]\n........................................................................ [ 29%]\n........................................................................ [ 39%]\n........................................................................ [ 49%]\n........................................................................ [ 59%]\n........................................................................ [ 69%]\n........................................................................ [ 78%]\n........................................................................ [ 88%]\n........................................................................ [ 98%]\n..........                                                               [100%]\n730 passed in 0.41s"
     },
     {
       "label": "literature-faithfulness diversity coverage (family/app/L3/paper floors + cross-paper triangulation)",
@@ -1935,21 +1935,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.29198122024536133,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.12s"
+      "runtime_s": 0.21832823753356934,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness margin distribution (median/per-family floors + fragile ceiling + classifier parity)",
       "short": "LIT-Mar",
       "path": "scripts/test/test_lit_faith_margin.py",
-      "passed": 23,
+      "passed": 20,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 1,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.29588794708251953,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.12s"
+      "runtime_s": 0.22132039070129395,
+      "raw_tail": "...........s.........                                                    [100%]\n20 passed, 1 skipped in 0.08s"
     },
     {
       "label": "literature-faithfulness sign-mass concentration (per-bucket Wilson LB + binomial sign-test + median delta_pct floors)",
@@ -1961,8 +1961,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21189212799072266,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.07s"
+      "runtime_s": 0.2303910255432129,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.09s"
     },
     {
       "label": "literature-faithfulness citation locator integrity (bijection + anchor inventory + venue/year/locator well-formedness + docstring URL grounding)",
@@ -1974,8 +1974,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20737361907958984,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.2177112102508545,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness known-deviation completeness (reason length + quantitative phrase + anchor + bijection with live faith corpus)",
@@ -1987,8 +1987,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21028780937194824,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.07s"
+      "runtime_s": 0.22310757637023926,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness tolerance calibration (per-row distance-to-disagree slack distribution + per-policy fragility floors)",
@@ -2000,8 +2000,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21314764022827148,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.2193748950958252,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness accesses-floor audit (warmup-noise guard + per-axis distribution + zero floor violations)",
@@ -2013,8 +2013,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3152036666870117,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.12s"
+      "runtime_s": 0.23058414459228516,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness cross-app rationale coherence (per-citation contradiction + sign-vocabulary alignment + common kernel + length-span)",
@@ -2026,8 +2026,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.30434274673461914,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.12s"
+      "runtime_s": 0.21770572662353516,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness cache-size monotonicity audit (per-triple non-increasing miss-rate + slope-per-doubling floors + saturated-triple ceiling)",
@@ -2039,8 +2039,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.30319976806640625,
-      "raw_tail": "..................                                                       [100%]\n18 passed in 0.11s"
+      "runtime_s": 0.21557283401489258,
+      "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness statistical-sanity audit (delta-arithmetic + sign-flip + miss-rate bounds + status-vocabulary + status-vs-delta consistency)",
@@ -2052,7 +2052,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20740938186645508,
+      "runtime_s": 0.21047472953796387,
       "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
     },
     {
@@ -2065,8 +2065,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20569467544555664,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.07s"
+      "runtime_s": 0.21572661399841309,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness deviation-explanation audit (every known_deviation reason names a mechanism + length/citation floors + reuse ceiling)",
@@ -2078,8 +2078,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2041466236114502,
-      "raw_tail": "..................                                                       [100%]\n18 passed in 0.07s"
+      "runtime_s": 0.21224641799926758,
+      "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness rationale-grid audit (per (policy, graph, app) rationale uniqueness + theorem-class invariance + per-policy citation floor)",
@@ -2091,8 +2091,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3184342384338379,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.12s"
+      "runtime_s": 0.21641302108764648,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness cell-completeness audit (per (graph, app, l3) canonical roster + LRU baseline + delta arithmetic + L3 sweep + axis parity)",
@@ -2104,8 +2104,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20941543579101562,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.22034549713134766,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness app-frequency audit (per-app graph / L3 / policy / row floors + canonical roster per app + anchor-app full corpus sweep)",
@@ -2117,8 +2117,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20282697677612305,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.2150256633758545,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness regime-sign audit (hub-family sign-tally no-regression + hub median ceiling + no-hub median radius + extreme magnitude cap)",
@@ -2130,8 +2130,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20799994468688965,
-      "raw_tail": "....................                                                     [100%]\n20 passed in 0.07s"
+      "runtime_s": 0.21744537353515625,
+      "raw_tail": "....................                                                     [100%]\n20 passed in 0.08s"
     },
     {
       "label": "literature-faithfulness citation/date audit (per_claim citation parseability + venue whitelist + year range + per-policy originator-publication match + locator presence + distinct-citation floor)",
@@ -2143,8 +2143,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20525074005126953,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.07s"
+      "runtime_s": 0.21550250053405762,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "ECG substrate-parity audit (cache_sim component-proof matrix: ECG_DBG_only \u2261 GRASP_DBG_only and ECG_POPT_primary \u2261 POPT_only on miss-rate, PFX activation+useful floors per benchmark, encoding hygiene, baseline non-zero floor, backend coverage)",
@@ -2156,8 +2156,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20635604858398438,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.07s"
+      "runtime_s": 0.21781182289123535,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.08s"
     },
     {
       "label": "ECG substrate-parity audit on gem5 (POPT-arm: ECG_POPT_PRIMARY \u2261 POPT in cycle-accurate timing on matched-proof bracket sweep; section + L3 coverage floors; backend identity; LRU baseline non-zero; L3 hierarchy sanity)",
@@ -2169,8 +2169,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3024861812591553,
-      "raw_tail": "......................                                                   [100%]\n22 passed in 0.12s"
+      "runtime_s": 0.22118616104125977,
+      "raw_tail": "......................                                                   [100%]\n22 passed in 0.08s"
     },
     {
       "label": "ECG substrate-parity audit on Sniper (scaffold/deferred today; activates on matched-proof Sniper ECG sweep \u2014 POPT-arm ECG_POPT_PRIMARY \u2261 POPT and DBG-arm ECG_DBG_ONLY \u2261 GRASP at \u03b5=2e-3; backend identity; IPC/instructions/LRU floors)",
@@ -2182,8 +2182,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3047444820404053,
-      "raw_tail": ".......sssssssssss........                                               [100%]\n15 passed, 11 skipped in 0.12s"
+      "runtime_s": 0.22572851181030273,
+      "raw_tail": ".......sssssssssss........                                               [100%]\n15 passed, 11 skipped in 0.09s"
     },
     {
       "label": "ECG PFX prefetcher vs DROPLET head-to-head on matched baseline (scaffold/deferred today \u2014 no /tmp sweep has nonzero pf_issued/pf_useful; rules: arm completeness, baseline neutrality 0.5pp, useful floor 5%, observation floor)",
@@ -2195,8 +2195,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2819082736968994,
-      "raw_tail": "....sss........s.....                                                    [100%]\n17 passed, 4 skipped in 0.12s"
+      "runtime_s": 0.22424578666687012,
+      "raw_tail": "....sss........s.....                                                    [100%]\n17 passed, 4 skipped in 0.08s"
     },
     {
       "label": "ECG_PFX publish claims (gate 284) \u2014 useful-frac \u2265 5%, ECG_PFX \u2264 DROPLET on pr/bc/bfs/sssp, ECG_PFX beats no_pfx by \u2265 0.5pp, baseline-neutral when pf_issued=0 (skips until gate 241 sweep activates)",
@@ -2208,34 +2208,34 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20287513732910156,
+      "runtime_s": 0.19804668426513672,
       "raw_tail": "....                                                                     [100%]\n4 passed in 0.06s"
     },
     {
       "label": "ECG combined-mask scale claims (gate 285) \u2014 gates 297-300 cache_sim scale sweep with ECG_CONTAINER_BITS=64: full-data cell count floor, mean \u0394 ECG_DBG+ECG_PFX vs LRU \u2264 -3pp, no per-cell regression > 0.5pp, mean prefetch useful-rate \u2265 90%",
       "short": "PfxScale",
       "path": "scripts/test/test_ecg_combined_scale_claims.py",
-      "passed": 10,
-      "failed": 0,
-      "skipped": 0,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 9,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20504403114318848,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
+      "runtime_s": 0.20589828491210938,
+      "raw_tail": "Fsssssssss                                                               [100%]\n=========================== short test summary info ============================\nFAILED scripts/test/test_ecg_combined_scale_claims.py::test_full_data_cell_count_floor\n1 failed, 9 skipped in 0.07s"
     },
     {
       "label": "ECG synthetic-scale claims (gate 286) \u2014 Kronecker extrapolation at 4M (kron-s22) + 16M (kron-s24): gate 303 synthetic mean \u0394 vs LRU \u2264 -3pp, gate 304 ECG_PFX \u2264 DROPLET+0.5pp per cell, gate 305 ECG_PFX total requests < DROPLET total",
       "short": "PfxScaleSynthetic",
       "path": "scripts/test/test_ecg_synthetic_scale_claims.py",
-      "passed": 3,
+      "passed": 0,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 3,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2958071231842041,
-      "raw_tail": "...                                                                      [100%]\n3 passed in 0.10s"
+      "runtime_s": 0.20028328895568848,
+      "raw_tail": "sss                                                                      [100%]\n3 skipped in 0.06s"
     },
     {
       "label": "ECG metadata-cost (gate 287) \u2014 architectural-simplicity primary novelty: gate 309 ECG mask \u2264 POPT matrix / 1.5x per graph, gate 310 ECG mask \u2264 (GRASP+POPT+DROPLET) sum / 1.5x, gate 311 bit budget integrity",
@@ -2247,7 +2247,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1977543830871582,
+      "runtime_s": 0.19852828979492188,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.06s"
     },
     {
@@ -2260,21 +2260,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.1965169906616211,
+      "runtime_s": 0.20396733283996582,
       "raw_tail": "...                                                                      [100%]\n3 passed in 0.06s"
     },
     {
       "label": "ECG mode 6 corpus efficiency (gate 289) \u2014 per-edge mask 4-cell corpus: gate 316 data present, gate 317 mode 6 corpus pp/Mreq \u2265 1.05x mode 2 (currently 1.14x = +14%), gate 318 mode 6 pp/Mreq \u2265 1.10x DROPLET (currently 1.35x = +35%)",
       "short": "Mode6Corpus",
       "path": "scripts/test/test_ecg_mode6_corpus_efficiency.py",
-      "passed": 3,
-      "failed": 0,
-      "skipped": 0,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 2,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.27954530715942383,
-      "raw_tail": "...                                                                      [100%]\n3 passed in 0.11s"
+      "runtime_s": 0.20293140411376953,
+      "raw_tail": "Fss                                                                      [100%]\n=========================== short test summary info ============================\nFAILED scripts/test/test_ecg_mode6_corpus_efficiency.py::test_mode6_corpus_data_present\n1 failed, 2 skipped in 0.07s"
     },
     {
       "label": "ECG mode 6 cross-sim parity (gate 290) \u2014 sprint 6f-6 port lock: shared ecg_mode6::buildInEdgeMasks invoked by gem5-PR + sniper-PR + sniper-sg-PR; assert 3-way byte-identical encoded count (anchor: vertices=1005, edges=32128, encoded=31142)",
@@ -2286,8 +2286,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.9873225688934326,
-      "raw_tail": "..                                                                       [100%]\n2 passed in 0.85s"
+      "runtime_s": 1.1900434494018555,
+      "raw_tail": "..                                                                       [100%]\n2 passed in 1.05s"
     },
     {
       "label": "Paper label-map integrity (gate 242) \u2014 POLICY_LABELS/DESCRIPTIONS/COLORS in paper_pipeline.py vs committed paper_pipeline_*/policy_label_map.csv + every policy_label in tracked sources mapped + figure_labels unique + no orphan labels",
@@ -2299,8 +2299,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.289292573928833,
-      "raw_tail": "...................                                                      [100%]\n19 passed in 0.10s"
+      "runtime_s": 0.21485471725463867,
+      "raw_tail": "...................                                                      [100%]\n19 passed in 0.08s"
     },
     {
       "label": "POLICY_COLORS perceptual distinguishability (gate 243) \u2014 hex format + dedup + pairwise CIE76 \u0394E \u2265 12 + B&W lightness-delta \u2265 10 or hatch fallback (grandfathered allowlist) + \u0394E \u2265 18 from white + POLICY_HATCHES \u2286 POLICY_LABELS",
@@ -2312,8 +2312,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5227968692779541,
-      "raw_tail": "...........................                                              [100%]\n27 passed in 0.33s"
+      "runtime_s": 0.5350663661956787,
+      "raw_tail": "...........................                                              [100%]\n27 passed in 0.34s"
     },
     {
       "label": "Paper-figure data snapshot (gate 244) \u2014 one paper_pipeline_YYYYMMDD/ dir within MAX_SNAPSHOT_AGE_DAYS, rows provenanced + single run_dir, rectangular (bench\u00d7graph\u00d7L3) palette coverage, miss_rate \u2208 [0,1], total_accesses \u2265 1 for high-activity benches",
@@ -2325,8 +2325,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.7876496315002441,
-      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.54s"
+      "runtime_s": 0.5402569770812988,
+      "raw_tail": ".......................                                                  [100%]\n23 passed in 0.36s"
     },
     {
       "label": "L3 regime-classifier consistency (gate 245) \u2014 hand-curated REGIME_REGISTRY: every regime-classifier in ECG dir registered + within-family agreement on canonical L3 grid + vocab purity + cross-family divergence (oracle_gap_report vs v1) documented",
@@ -2338,8 +2338,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2704944610595703,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.13s"
+      "runtime_s": 0.29251718521118164,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 0.15s"
     },
     {
       "label": "lit-faith citation registry purity (gate 246) \u2014 hand-curated CITATION_REGISTRY anchors every per_claim citation to a canonical work (Faldu HPCA20, Balaji HPCA21, Jaleel ISCA10) + per-bucket citation cohesion + no dead-letter registry entries",
@@ -2351,8 +2351,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2154827117919922,
-      "raw_tail": "........................                                                 [100%]\n24 passed in 0.08s"
+      "runtime_s": 0.22246265411376953,
+      "raw_tail": "........................                                                 [100%]\n24 passed in 0.09s"
     },
     {
       "label": "Paper LaTeX-table emit invariant (gate 247) \u2014 hand-curated TABLE_REGISTRY locks caption + tabular col-spec + column-header tuple for every .tex in paper_pipeline dir; per-row column-count + no NaN/Inf cells + clean closing trio",
@@ -2364,8 +2364,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.210158109664917,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.07s"
+      "runtime_s": 0.2232215404510498,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.09s"
     },
     {
       "label": "Sideband-schema registry (gate 248) \u2014 hand-curated SCHEMA_REGISTRY locks the [graphctx] register region wire-format across gem5/Sniper/cache_sim emit sites: field order, printf specifiers, C++ param types, regex round-trip + single emit per file",
@@ -2377,8 +2377,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21294021606445312,
-      "raw_tail": "...............................                                          [100%]\n31 passed in 0.08s"
+      "runtime_s": 0.22531366348266602,
+      "raw_tail": "...............................                                          [100%]\n31 passed in 0.09s"
     },
     {
       "label": "Graph-family map full-coverage (gate 249) \u2014 AST-harvests every GRAPH_FAMILY dict literal in scripts/experiments/ecg + scripts/test, asserts each agrees with canonical on every shared key; catches copies the gate-107 dup test does not yet guard",
@@ -2390,8 +2390,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 3.6140592098236084,
-      "raw_tail": ".....................                                                    [100%]\n21 passed in 3.44s"
+      "runtime_s": 2.1252965927124023,
+      "raw_tail": ".....................                                                    [100%]\n21 passed in 1.99s"
     },
     {
       "label": "Paper-table CSV provenance (gate 250) \u2014 PROVENANCE_REGISTRY pairs every shipped .tex with its sibling .csv; subset row-count and subset key-column multiset (LaTeX-normalized); every paper row traces to a CSV row past the [:20]/[:24] truncation cap",
@@ -2403,8 +2403,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3211784362792969,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.13s"
+      "runtime_s": 0.24557042121887207,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.10s"
     },
     {
       "label": "L3 cache-size registry (gate 251) \u2014 CANONICAL_L3_TIERS locks 11 tokens (4kB..32MB); AST-harvests every PAPER_L3/L3_SIZES/L3_MB/L3_BYTES constant in ecg+test; rules: byte arithmetic + MB scaling + ANCHOR_TRIPLET (1MB,4MB,8MB) + cross-file agreement",
@@ -2416,8 +2416,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.1063406467437744,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.94s"
+      "runtime_s": 0.8676517009735107,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.73s"
     },
     {
       "label": "Slurm SBATCH schema registry (gate 252) \u2014 CANONICAL_SBATCH_DIRECTIVES locks 14 directive names + 7 required; parses every *.sbatch under scripts/experiments/; rules: syntax, vocab, mem/time regex, log %x+%j or %A+%a, prefix, mem\u00d7mem-per-cpu",
@@ -2429,8 +2429,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3244168758392334,
-      "raw_tail": ".................................                                        [100%]\n33 passed in 0.13s"
+      "runtime_s": 0.2315211296081543,
+      "raw_tail": ".................................                                        [100%]\n33 passed in 0.09s"
     },
     {
       "label": "HANDOFF gate-reference registry (gate 253) \u2014 locks the contract between PYTEST_SUITES and the HANDOFF narrative; rules: no orphan (gate N) labels, headline+refresh-at == len(PYTEST_SUITES), refresh-due == refresh-at+5, max labeled == suite count",
@@ -2442,8 +2442,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3236987590789795,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.14s"
+      "runtime_s": 0.23533964157104492,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.10s"
     },
     {
       "label": "wiki/data bidirectional registry (gate 254) \u2014 locks wiki/data/*.json \u2194 catalog \u2194 pytest; rules W1-W8: every json catalogued/aux/self-ref, no ghost entries, non-empty fields, paths exist, sibling .md, unique ids+paths, valid aux parent_id",
@@ -2455,8 +2455,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3013486862182617,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.15s"
+      "runtime_s": 0.23793864250183105,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.10s"
     },
     {
       "label": "Cache-policy vocab registry (gate 255) \u2014 AST-harvests POLICIES/ALL/BASELINE/GRAPH_AWARE tuples; 8 canonical + 9 ECG arms; rules P1-P9: rogue tokens, dup, config decomposition, paper_label, 4-tuple permutation lock, alias trap, ECG-arm parent+purpose",
@@ -2468,8 +2468,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.0556256771087646,
-      "raw_tail": ".................................                                        [100%]\n33 passed in 1.89s"
+      "runtime_s": 1.4721705913543701,
+      "raw_tail": ".................................                                        [100%]\n33 passed in 1.33s"
     },
     {
       "label": "ECG profile registry (gate 256) \u2014 locks manifest profiles \u2194 stages \u2194 helpers \u2194 README; 30 profiles, 30 stages, 25 citations; R1-R7: stage tokens resolve, descriptions, no dead profiles, citation typos, name snake_case, stage well-formed, unique",
@@ -2481,8 +2481,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.4443464279174805,
-      "raw_tail": "................................                                         [100%]\n32 passed in 2.31s"
+      "runtime_s": 2.4903311729431152,
+      "raw_tail": "................................                                         [100%]\n32 passed in 2.35s"
     },
     {
       "label": "Backend vocab registry (gate 257) \u2014 AST-harvests backend literals in ecg+test; 7 canonical (cache_sim+kebab, gem5/riscv/x86, sniper/sift); R1-R7: in-canon, family+label, no dup labels, self-variant, argparse subset, name regex, all-referenced",
@@ -2494,8 +2494,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.8921968936920166,
-      "raw_tail": "...............................                                          [100%]\n31 passed in 2.74s"
+      "runtime_s": 2.888490676879883,
+      "raw_tail": "...............................                                          [100%]\n31 passed in 2.75s"
     },
     {
       "label": "Graph canonical map (gate 258) \u2014 AST-harvests graph literals + GRAPH_FAMILY dicts + EVAL_GRAPHS; 26 canon, 8 families; R1-R8: in-canon, family+label, source provenance, dict-keys+family-match, non-dict use site, name+family regex, EVAL subset",
@@ -2507,8 +2507,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 6.877934217453003,
-      "raw_tail": "............................                                             [100%]\n28 passed in 6.74s"
+      "runtime_s": 6.86142635345459,
+      "raw_tail": "............................                                             [100%]\n28 passed in 6.72s"
     },
     {
       "label": "Build target registry (gate 259) \u2014 4-backend \u00d7 kernel \u00d7 variant compile matrix vs Makefile KERNELS_* + CXXFLAGS_*; 51 targets, 0 orphans; R1-R8: src on disk, canonical, required flags, dirs, family, opt lock (-O3/-O1/-O2), ROI mechanism",
@@ -2520,8 +2520,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2554793357849121,
-      "raw_tail": "....................................                                     [100%]\n36 passed in 0.08s"
+      "runtime_s": 0.23535919189453125,
+      "raw_tail": "....................................                                     [100%]\n36 passed in 0.09s"
     },
     {
       "label": "GAPBS CLI registry (gate 260) \u2014 6 CL classes (CLBase/App/IterApp/PageRank/Delta/Convert), 11 kernels, 28 flags; R1-R7: getopt live-vs-canonical, src class instantiation, full-flag = chain union, no within-chain conflicts, flag regex, purpose, arity",
@@ -2533,7 +2533,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2805638313293457,
+      "runtime_s": 0.2876861095428467,
       "raw_tail": "......................................                                   [100%]\n38 passed in 0.14s"
     },
     {
@@ -2546,8 +2546,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.871326208114624,
-      "raw_tail": ".................................                                        [100%]\n33 passed in 0.68s"
+      "runtime_s": 0.8524162769317627,
+      "raw_tail": ".................................                                        [100%]\n33 passed in 0.66s"
     },
     {
       "label": "ECG cross-tool aggregator schema (gate 262) \u2014 locks on-disk JSON shape of 6 cross_tool* aggregators; S1-S7: exists, valid JSON, top-keys present, evidence non-empty, row keys present, tools \u2286 canonical, verdict type",
@@ -2559,7 +2559,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2939162254333496,
+      "runtime_s": 0.2764902114868164,
       "raw_tail": "........................................                                 [100%]\n40 passed in 0.13s"
     },
     {
@@ -2572,8 +2572,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5573904514312744,
-      "raw_tail": "........................................                                 [100%]\n40 passed in 0.36s"
+      "runtime_s": 0.5558993816375732,
+      "raw_tail": "........................................                                 [100%]\n40 passed in 0.37s"
     },
     {
       "label": "wiki/data filename grammar (gate 264) \u2014 locks FS shape of wiki/data/; F1-F7: lower_snake_case+ext\u2208{json,md,csv}, json\u2194md trio (mod allow-lists), catalog\u2192disk, catalog ext\u2208{json,csv}, stem declared or META allow-list, subdir matches DOC_SUBDIR_RE",
@@ -2585,8 +2585,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26058411598205566,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.09s"
+      "runtime_s": 0.24819540977478027,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.11s"
     },
     {
       "label": "gem5/Sniper sideband filename+env-var grammar (gate 265) \u2014 8 entries (4 gem5+4 sniper); S1-S7: filename grammar, role\u2194ext, env\u2194default_path bijection, gem5_harness/sniper cache_set+prefetcher emit-sites, roi_matrix parse-sites, no orphan literals",
@@ -2598,8 +2598,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2539079189300537,
-      "raw_tail": "..............................................................           [100%]\n62 passed in 0.09s"
+      "runtime_s": 0.24289250373840332,
+      "raw_tail": "..............................................................           [100%]\n62 passed in 0.10s"
     },
     {
       "label": "Sniper overlay-installation tracker (gate 266) \u2014 locks setup_sniper.py overlay contract (.sniper_overlays.json); O1-O7: copied_files grammar, on-disk presence, policies\u2194cc+h, prefetchers\u2194cc+h, patches\u2194fn, canonical match, no orphans",
@@ -2611,8 +2611,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24074482917785645,
-      "raw_tail": "..........................................................               [100%]\n58 passed in 0.09s"
+      "runtime_s": 0.24709177017211914,
+      "raw_tail": "..........................................................               [100%]\n58 passed in 0.10s"
     },
     {
       "label": "gem5 overlay-installation tracker (gate 267) \u2014 locks setup_gem5.py OVERLAY_FILE_MAP+PATCH_FILES; G1-G7: source grammar, on-disk presence, policies\u2194cc+hh, prefetchers\u2194cc+hh, patches on-disk, exhaustive, live\u2194canonical parity+identity",
@@ -2624,8 +2624,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23342370986938477,
-      "raw_tail": "...............................................................          [100%]\n63 passed in 0.09s"
+      "runtime_s": 0.24977517127990723,
+      "raw_tail": "...............................................................          [100%]\n63 passed in 0.11s"
     },
     {
       "label": "Setup-script invariant registry (gate 268) \u2014 locks setup_gem5.py+setup_sniper.py against drift in repo URLs, dir-const skeleton, top-level fn inventory (14 gem5+27 sniper); S1-S7: URL, dir-const, gem5 fn, sniper fn, main, apply_overlays, exhaustive",
@@ -2637,8 +2637,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23070621490478516,
-      "raw_tail": ".......................................                                  [100%]\n39 passed in 0.09s"
+      "runtime_s": 0.2517225742340088,
+      "raw_tail": ".......................................                                  [100%]\n39 passed in 0.11s"
     },
     {
       "label": "ECG config deep-lock (gate 269) \u2014 locks ecg/config.py: 7 DEFAULT_CACHE anchors, 12-pt CACHE_SIZES_SWEEP, bench partition, policy partition, 4 ECG_MODES, 6-graph EVAL_GRAPHS, REORDER vocab, ACCURACY_PAIRS rels; C1-C8",
@@ -2650,8 +2650,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.231428861618042,
-      "raw_tail": ".........................................                                [100%]\n41 passed in 0.08s"
+      "runtime_s": 0.24278783798217773,
+      "raw_tail": ".........................................                                [100%]\n41 passed in 0.10s"
     },
     {
       "label": "gem5 overlay-file hash registry (gate 270) \u2014 locks SHA-256 byte content of all 17 overlay sources under bench/include/gem5_sim/overlays/; M1-M7: hash parity, size bounds, markers, exhaustive, ext whitelist, SimObject, patches",
@@ -2663,8 +2663,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2502095699310303,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.11s"
+      "runtime_s": 0.26691198348999023,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.13s"
     },
     {
       "label": "Sniper overlay-file hash registry (gate 271) \u2014 locks SHA-256 byte content of all 12 overlay sources under bench/include/sniper_sim/overlays/; N1-N6: hash parity, size bounds, markers, exhaustive, ext whitelist, class decls",
@@ -2676,8 +2676,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24862384796142578,
-      "raw_tail": "................................                                         [100%]\n32 passed in 0.11s"
+      "runtime_s": 0.2614309787750244,
+      "raw_tail": "................................                                         [100%]\n32 passed in 0.12s"
     },
     {
       "label": "Setup-script fn signature registry (gate 272) \u2014 locks positional arg names + defaults count of all 41 top-level public fns in setup_gem5.py + setup_sniper.py; F1-F7: presence, args, defaults, exhaustive, no varargs, no async, returns-annot",
@@ -2689,8 +2689,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5591375827789307,
-      "raw_tail": "..............................                                           [100%]\n30 passed in 0.42s"
+      "runtime_s": 0.6088759899139404,
+      "raw_tail": "..............................                                           [100%]\n30 passed in 0.47s"
     },
     {
       "label": "Runner CLI registry (gate 273) \u2014 locks argparse surface of ecg/runner.py (6 flags) + vldb/runner.py (12 flags); R1-R6: module importable, main() present, flag presence, action match, nargs match, exhaustive",
@@ -2702,8 +2702,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.738556146621704,
-      "raw_tail": "......................................                                   [100%]\n38 passed in 1.53s"
+      "runtime_s": 1.0476465225219727,
+      "raw_tail": "......................................                                   [100%]\n38 passed in 0.91s"
     },
     {
       "label": "Orchestrator CLI registry (gate 274) \u2014 locks parse_args() of paper_pipeline.py (14) + final_paper_run.py (29); O1-O7: ast-parse, fn present, flag presence, action match (BooleanOptionalAction-aware), nargs match, exhaustive, required-shape",
@@ -2715,8 +2715,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 2.8961760997772217,
-      "raw_tail": "...........................................                              [100%]\n43 passed in 2.70s"
+      "runtime_s": 1.7696468830108643,
+      "raw_tail": "...........................................                              [100%]\n43 passed in 1.63s"
     },
     {
       "label": "Paper-pipeline stage registry (gate 275) \u2014 locks public top-level fn signatures of paper_pipeline.py (50) + final_paper_run.py (37); 87 fns; S1-S7: ast-parse, fn-kind, args, defaults, return annot, vararg/kwarg/kwonly, exhaustive",
@@ -2728,8 +2728,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 3.51619815826416,
-      "raw_tail": "........................................................                 [100%]\n56 passed in 3.33s"
+      "runtime_s": 2.0875391960144043,
+      "raw_tail": "........................................................                 [100%]\n56 passed in 1.95s"
     },
     {
       "label": "Manifest schema registry (gate 276) \u2014 locks final_paper_manifest.json shape: version, top-level keys, defaults vocab, stage-kind set, graph-entry shape, options_key xref, stage\u2192profile xref; M1-M6 over 30 profiles, 30 stages, 8 graph_sets",
@@ -2741,8 +2741,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.44193530082702637,
-      "raw_tail": ".............................................                            [100%]\n45 passed in 0.26s"
+      "runtime_s": 0.3222668170928955,
+      "raw_tail": ".............................................                            [100%]\n45 passed in 0.18s"
     },
     {
       "label": "Subprocess argv registry (gate 277) \u2014 locks --flag literals built by run_profile + make_proof_job + make_roi_job (3 builders, 56 flags); A1-A6: module+fn present, target const referenced, no removals, no additions, exhaustive, hygiene",
@@ -2754,7 +2754,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5096056461334229,
+      "runtime_s": 0.5127894878387451,
       "raw_tail": "...................................                                      [100%]\n35 passed in 0.37s"
     },
     {
@@ -2767,8 +2767,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.3011982440948486,
-      "raw_tail": "..................................                                       [100%]\n34 passed in 1.17s"
+      "runtime_s": 1.4828603267669678,
+      "raw_tail": "..................................                                       [100%]\n34 passed in 1.34s"
     },
     {
       "label": "Job dataclass schema (gate 279) \u2014 locks Job dataclass shape in final_paper_run.py: 8 fields (job_id/stage/kind/command/out_dir/log_path/metadata/env) + frozen=True; F1-F7: ast-parse, class present, field, annot, default, exhaustive, decorator kwargs",
@@ -2780,8 +2780,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 1.0635178089141846,
-      "raw_tail": "....................................                                     [100%]\n36 passed in 0.90s"
+      "runtime_s": 0.8634061813354492,
+      "raw_tail": "....................................                                     [100%]\n36 passed in 0.72s"
     },
     {
       "label": "Receiver dataclass schema (gate 280) \u2014 locks 3 frozen dataclasses: roi_matrix.PolicySpec (4 flds), proof_matrix.Ablation (6 flds), proof_matrix.AdaptiveSelector (3 flds); G1-G7: ast-parse, class present, field, annot, default, exhaustive, kwargs",
@@ -2793,7 +2793,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.35603833198547363,
+      "runtime_s": 0.3210480213165283,
       "raw_tail": "................................                                         [100%]\n32 passed in 0.18s"
     },
     {
@@ -2806,8 +2806,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.26630377769470215,
-      "raw_tail": "...................................                                      [100%]\n35 passed in 0.12s"
+      "runtime_s": 0.28141283988952637,
+      "raw_tail": "...................................                                      [100%]\n35 passed in 0.14s"
     },
     {
       "label": "Headline coverage proof (gate 282) \u2014 PROOF GATE, RATCHET; gem5/Sniper/cache_sim coverage at literature 1MB cells (LRU/SRRIP/GRASP/POPT/ECG_DBG_PRIMARY) vs literature_baselines registry; floor in headline_coverage_baseline.json; cannot regress",
@@ -2819,8 +2819,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2241191864013672,
-      "raw_tail": "..................                                                       [100%]\n18 passed in 0.08s"
+      "runtime_s": 0.2457106113433838,
+      "raw_tail": "..................                                                       [100%]\n18 passed in 0.10s"
     },
     {
       "label": "Headline parity proof (gate 283) \u2014 PROOF GATE; cross-simulator paper-table preview joining cache_sim+gem5+Sniper at literature 1MB cells; asserts winner-policy agreement on cells where >=2 sims report (today overlap=0, gate vacuously armed)",
@@ -2832,8 +2832,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21544361114501953,
-      "raw_tail": "...............                                                          [100%]\n15 passed in 0.08s"
+      "runtime_s": 0.2313849925994873,
+      "raw_tail": "...............                                                          [100%]\n15 passed in 0.09s"
     },
     {
       "label": "Corpus diversity profile parity",
@@ -2845,7 +2845,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20636582374572754,
+      "runtime_s": 0.2089540958404541,
       "raw_tail": ".....                                                                    [100%]\n5 passed in 0.07s"
     },
     {
@@ -2858,7 +2858,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.5138895511627197,
+      "runtime_s": 0.5166540145874023,
       "raw_tail": "......                                                                   [100%]\n6 passed in 0.33s"
     },
     {
@@ -2871,8 +2871,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21875357627868652,
-      "raw_tail": "................                                                         [100%]\n16 passed in 0.08s"
+      "runtime_s": 0.2216484546661377,
+      "raw_tail": "................                                                         [100%]\n16 passed in 0.09s"
     },
     {
       "label": "Sniper literature anchor",
@@ -2884,7 +2884,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2107102870941162,
+      "runtime_s": 0.21131014823913574,
       "raw_tail": "................                                                         [100%]\n16 passed in 0.07s"
     },
     {
@@ -2897,7 +2897,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20595049858093262,
+      "runtime_s": 0.2109992504119873,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.07s"
     },
     {
@@ -2910,8 +2910,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3516581058502197,
-      "raw_tail": "..........................                                               [100%]\n26 passed in 0.15s"
+      "runtime_s": 0.22956418991088867,
+      "raw_tail": "..........................                                               [100%]\n26 passed in 0.09s"
     },
     {
       "label": "L-curve monotonicity gate",
@@ -2923,8 +2923,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24669981002807617,
-      "raw_tail": "..                                                                       [100%]\n2 passed in 0.10s"
+      "runtime_s": 0.19840693473815918,
+      "raw_tail": "..                                                                       [100%]\n2 passed in 0.06s"
     },
     {
       "label": "Policy-winner table sanity",
@@ -2936,8 +2936,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.23512506484985352,
-      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.09s"
+      "runtime_s": 0.2345750331878662,
+      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.10s"
     },
     {
       "label": "Small-L3 thrash sanity",
@@ -2949,8 +2949,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20425748825073242,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
+      "runtime_s": 0.2019481658935547,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Cross-tool saturation soundness",
@@ -2962,8 +2962,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.30014705657958984,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.11s"
+      "runtime_s": 0.20158600807189941,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Cross-tool winner agreement",
@@ -2975,8 +2975,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.27554869651794434,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.11s"
+      "runtime_s": 0.20339465141296387,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Per-graph claim density",
@@ -2988,8 +2988,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.258620023727417,
-      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.11s"
+      "runtime_s": 0.20084857940673828,
+      "raw_tail": ".......                                                                  [100%]\n7 passed in 0.07s"
     },
     {
       "label": "POPT-vs-GRASP delta",
@@ -3001,8 +3001,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3115408420562744,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.11s"
+      "runtime_s": 0.20290064811706543,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Literature deviations inventory",
@@ -3014,8 +3014,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2951638698577881,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.11s"
+      "runtime_s": 0.20187687873840332,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Paper claims registry",
@@ -3027,8 +3027,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20296502113342285,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.06s"
+      "runtime_s": 0.20504355430603027,
+      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     },
     {
       "label": "Winning-regime taxonomy",
@@ -3040,8 +3040,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3041520118713379,
-      "raw_tail": ".........                                                                [100%]\n9 passed in 0.11s"
+      "runtime_s": 0.21544909477233887,
+      "raw_tail": ".........                                                                [100%]\n9 passed in 0.07s"
     },
     {
       "label": "Oracle gap",
@@ -3053,7 +3053,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.205216646194458,
+      "runtime_s": 0.20275092124938965,
       "raw_tail": ".........                                                                [100%]\n9 passed in 0.07s"
     },
     {
@@ -3066,8 +3066,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20612359046936035,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.20187711715698242,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "Per-kernel bootstrap CIs",
@@ -3079,8 +3079,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20429611206054688,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.209122896194458,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "POPT-vs-GRASP per (family x app) CIs",
@@ -3092,8 +3092,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19909095764160156,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.06s"
+      "runtime_s": 0.20566368103027344,
+      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     },
     {
       "label": "Wilson CIs on win-counts",
@@ -3105,8 +3105,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2025899887084961,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.21185755729675293,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "Cohen's h on win-rate gaps",
@@ -3118,8 +3118,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20330452919006348,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20510077476501465,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Cliff's delta on gap distributions",
@@ -3131,8 +3131,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20252561569213867,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.20557689666748047,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "Per-L3 policy stability",
@@ -3144,8 +3144,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20222687721252441,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.20436644554138184,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "Multiple-testing correction",
@@ -3157,7 +3157,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2174985408782959,
+      "runtime_s": 0.21015381813049316,
       "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
@@ -3170,8 +3170,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20085430145263672,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.2077171802520752,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Cell-winner census",
@@ -3183,8 +3183,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.204176664352417,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20509696006774902,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Family geomean improvement vs LRU",
@@ -3196,8 +3196,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2008676528930664,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20720958709716797,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-(graph, app) L3 stability",
@@ -3209,8 +3209,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20318865776062012,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20790362358093262,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Corpus tier/family balance audit",
@@ -3222,8 +3222,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20458197593688965,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.21660923957824707,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.08s"
     },
     {
       "label": "Per-policy miss-rate distribution diagnostics",
@@ -3235,8 +3235,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21298956871032715,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.2054917812347412,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Leave-one-family-out (LOFO) robustness",
@@ -3248,8 +3248,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31493186950683594,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.21007966995239258,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-(app, L3) winner-margin gradient",
@@ -3261,8 +3261,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3010902404785156,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20845341682434082,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-(app, policy) oracle-gap AUC",
@@ -3274,8 +3274,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.30878305435180664,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.11s"
+      "runtime_s": 0.2061312198638916,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "Cross-app policy-AUC correlation matrix",
@@ -3287,8 +3287,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3120591640472412,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.2090311050415039,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-policy stability index",
@@ -3300,8 +3300,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31032729148864746,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20981431007385254,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-(app, policy) cache-sensitivity slope",
@@ -3313,8 +3313,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20601153373718262,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20946359634399414,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-graph oracle-gap cache-sensitivity slope",
@@ -3326,8 +3326,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20026111602783203,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20970702171325684,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Cross-generator gap_pp parity",
@@ -3339,7 +3339,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20929384231567383,
+      "runtime_s": 0.20661568641662598,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3352,7 +3352,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2045133113861084,
+      "runtime_s": 0.21152901649475098,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3365,8 +3365,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.31286096572875977,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.12s"
+      "runtime_s": 0.21294069290161133,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.08s"
     },
     {
       "label": "Per-family policy-AUC clustering replay",
@@ -3378,8 +3378,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2522447109222412,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.10s"
+      "runtime_s": 0.2081000804901123,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Oracle-gap trajectory curvature",
@@ -3391,7 +3391,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20418071746826172,
+      "runtime_s": 0.2080087661743164,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3404,7 +3404,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20014309883117676,
+      "runtime_s": 0.20459389686584473,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3417,8 +3417,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2050178050994873,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.21138954162597656,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-family curvature replay",
@@ -3430,8 +3430,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20326805114746094,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20443415641784668,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Winner-margin distribution by WSS regime",
@@ -3443,8 +3443,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.28147196769714355,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20615005493164062,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-family winner-margin replay",
@@ -3456,8 +3456,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.24867677688598633,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.10s"
+      "runtime_s": 0.21109843254089355,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Cross-policy mean-margin asymmetry",
@@ -3469,8 +3469,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3065028190612793,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20812296867370605,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-app saturation distance (4MB->8MB)",
@@ -3482,7 +3482,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20419979095458984,
+      "runtime_s": 0.21092867851257324,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3495,7 +3495,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21578288078308105,
+      "runtime_s": 0.21222734451293945,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3508,8 +3508,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2053816318511963,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.06s"
+      "runtime_s": 0.20498180389404297,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-app capacity-sensitivity slope",
@@ -3521,7 +3521,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20202970504760742,
+      "runtime_s": 0.20355510711669922,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3534,8 +3534,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3073842525482178,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.2119886875152588,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Gem5 anchor slope sanity",
@@ -3547,8 +3547,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3082256317138672,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20705747604370117,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Sniper anchor slope sanity",
@@ -3560,8 +3560,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.30326342582702637,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.2048346996307373,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Cross-tool SRRIP-vs-GRASP slope ordering",
@@ -3573,8 +3573,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2930324077606201,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20679545402526855,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-app SRRIP-vs-GRASP slope ordering",
@@ -3586,7 +3586,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20231270790100098,
+      "runtime_s": 0.20641160011291504,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3599,8 +3599,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2884860038757324,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20879292488098145,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-app saturation-vs-slope extremum",
@@ -3612,8 +3612,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.3022196292877197,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20484495162963867,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Cross-tool slope-sign universality",
@@ -3625,21 +3625,21 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2046828269958496,
+      "runtime_s": 0.2055530548095703,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "L3-sweep monotonicity universality",
       "short": "Monoton",
       "path": "scripts/test/test_monotonicity_universality.py",
-      "passed": 12,
+      "passed": 10,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 2,
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20760393142700195,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
+      "runtime_s": 0.20413661003112793,
+      "raw_tail": ".........ss.                                                             [100%]\n10 passed, 2 skipped in 0.07s"
     },
     {
       "label": "Anchor cell-pair census",
@@ -3651,7 +3651,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20667290687561035,
+      "runtime_s": 0.20418405532836914,
       "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
@@ -3664,7 +3664,7 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2166581153869629,
+      "runtime_s": 0.20872235298156738,
       "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
@@ -3677,8 +3677,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2889523506164551,
-      "raw_tail": "............                                                             [100%]\n12 passed in 0.11s"
+      "runtime_s": 0.20290184020996094,
+      "raw_tail": "............                                                             [100%]\n12 passed in 0.07s"
     },
     {
       "label": "Per-policy final-octave steepness ranking",
@@ -3690,8 +3690,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2638578414916992,
-      "raw_tail": "..............                                                           [100%]\n14 passed in 0.11s"
+      "runtime_s": 0.2047710418701172,
+      "raw_tail": "..............                                                           [100%]\n14 passed in 0.07s"
     },
     {
       "label": "Cross-tool shared-anchor slope agreement",
@@ -3703,8 +3703,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.28760218620300293,
-      "raw_tail": ".............                                                            [100%]\n13 passed in 0.11s"
+      "runtime_s": 0.20563602447509766,
+      "raw_tail": ".............                                                            [100%]\n13 passed in 0.07s"
     },
     {
       "label": "WSS-relative L3 axis",
@@ -3716,8 +3716,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.2936129570007324,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.11s"
+      "runtime_s": 0.20386242866516113,
+      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     },
     {
       "label": "Bootstrap CIs on load-bearing claims",
@@ -3729,8 +3729,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20176291465759277,
-      "raw_tail": "...........                                                              [100%]\n11 passed in 0.06s"
+      "runtime_s": 0.21097779273986816,
+      "raw_tail": "...........                                                              [100%]\n11 passed in 0.07s"
     },
     {
       "label": "Family-classification sensitivity",
@@ -3742,8 +3742,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.20336318016052246,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.06s"
+      "runtime_s": 0.20431995391845703,
+      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     },
     {
       "label": "Reproducibility smoke",
@@ -3755,8 +3755,8 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.21169400215148926,
-      "raw_tail": "........                                                                 [100%]\n8 passed in 0.06s"
+      "runtime_s": 0.20130467414855957,
+      "raw_tail": "........                                                                 [100%]\n8 passed in 0.07s"
     },
     {
       "label": "Artifact catalog completeness",
@@ -3768,48 +3768,50 @@
       "xfailed": 0,
       "xpassed": 0,
       "errors": 0,
-      "runtime_s": 0.19994330406188965,
-      "raw_tail": "..........                                                               [100%]\n10 passed in 0.06s"
+      "runtime_s": 0.20233654975891113,
+      "raw_tail": "..........                                                               [100%]\n10 passed in 0.07s"
     }
   ],
   "lit_faith_summary": {
-    "claims_total": 330,
+    "claims_total": 279,
     "disagree": 0,
-    "insufficient_data": 7,
-    "known_deviation": 24,
+    "insufficient_data": 28,
+    "known_deviation": 17,
     "min_accesses_threshold": 10000,
     "missing": 0,
-    "ok": 298,
-    "within_tolerance": 1
+    "ok": 234,
+    "popt_ge_grasp_geomean_delta_pct": -1.9265,
+    "popt_ge_grasp_geomean_status": "ok",
+    "within_tolerance": 0
   },
   "regression_budget_summary": {
-    "cells_total": 330,
-    "cells_in_distribution": 299,
-    "min_margin_pp": 0.0181,
-    "p10_margin_pp": 1.2281,
-    "median_margin_pp": 6.1163,
-    "p90_margin_pp": 11.87,
-    "max_margin_pp": 67.0226,
+    "cells_total": 279,
+    "cells_in_distribution": 234,
+    "min_margin_pp": 0.001,
+    "p10_margin_pp": 1.4124,
+    "median_margin_pp": 6.386,
+    "p90_margin_pp": 11.64,
+    "max_margin_pp": 24.4778,
     "by_kind": {
       "cache_policy": {
         "n": 101,
-        "min_pp": 0.58,
-        "median_pp": 6.715
+        "min_pp": 1.255,
+        "median_pp": 6.82
       },
       "popt_ge_grasp": {
-        "n": 91,
-        "min_pp": 0.0181,
-        "median_pp": 1.5003
+        "n": 60,
+        "min_pp": 0.001,
+        "median_pp": 1.9325
       },
       "popt_near_grasp_active": {
         "n": 12,
-        "min_pp": 0.8129,
-        "median_pp": 8.1018
+        "min_pp": 0.8523,
+        "median_pp": 7.2968
       },
       "popt_near_grasp_inactive": {
-        "n": 95,
-        "min_pp": 2.273,
-        "median_pp": 6.9985
+        "n": 61,
+        "min_pp": 1.2023,
+        "median_pp": 7.0574
       }
     }
   },

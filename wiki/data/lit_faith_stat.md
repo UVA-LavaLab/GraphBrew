@@ -6,10 +6,10 @@ Re-derives `delta_pct` from the two miss-rate columns each row compares (LRU-vs-
 
 | Metric | Value |
 |---|---|
-| Total rows | 330 |
-| LRU-vs-policy rows | 102 |
-| POPT_GE_GRASP rows | 114 |
-| POPT_NEAR_GRASP rows | 114 |
+| Total rows | 279 |
+| LRU-vs-policy rows | 111 |
+| POPT_GE_GRASP rows | 84 |
+| POPT_NEAR_GRASP rows | 84 |
 | Unknown-kind rows | 0 |
 | Missing-pair rows | 0 |
 | NaN / inf values | 0 |
@@ -26,7 +26,6 @@ Re-derives `delta_pct` from the two miss-rate columns each row compares (LRU-vs-
 
 | Status | Count |
 |---|---|
-| `insufficient_data` | 7 |
-| `known_deviation` | 24 |
-| `ok` | 298 |
-| `within_tolerance` | 1 |
+| `insufficient_data` | 28 |
+| `known_deviation` | 17 |
+| `ok` | 234 |

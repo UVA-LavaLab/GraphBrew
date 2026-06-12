@@ -31,8 +31,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT = REPO_ROOT / "wiki" / "data" / "lit_faith_signmass.json"
 
-CLAIMS_TOTAL_FLOOR = 300
-OK_ROWS_FLOOR = 250
+CLAIMS_TOTAL_FLOOR = 270
+OK_ROWS_FLOOR = 220
 BUCKETS_TOTAL_EXPECTED = 6
 BUCKETS_WITH_OK_FLOOR = 6
 

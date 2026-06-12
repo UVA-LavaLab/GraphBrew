@@ -8,9 +8,7 @@
       "pr",
       "sssp"
     ],
-    "deviating_apps": [
-      "bfs"
-    ],
+    "deviating_apps": [],
     "help_floor_pp_octave": -5.0,
     "invariant_all_negative": true,
     "invariant_at_least_one_cache_sensitive_app": true,
@@ -26,166 +24,164 @@
     "per_app": {
       "bc": {
         "GRASP": {
-          "max_pp": -0.0,
-          "mean_pp": -12.8621,
-          "median_pp": -14.261,
-          "min_pp": -18.9541,
+          "max_pp": 0.0,
+          "mean_pp": -12.4289,
+          "median_pp": -13.886,
+          "min_pp": -19.3223,
           "n_cells": 6
         },
         "LRU": {
           "max_pp": 0.0,
-          "mean_pp": -12.5761,
-          "median_pp": -14.2698,
-          "min_pp": -19.8364,
+          "mean_pp": -12.188,
+          "median_pp": -13.4499,
+          "min_pp": -19.2687,
           "n_cells": 6
         },
         "POPT": {
-          "max_pp": 0.0007,
-          "mean_pp": -12.5252,
-          "median_pp": -13.8386,
-          "min_pp": -19.5502,
+          "max_pp": 0.0,
+          "mean_pp": -11.8128,
+          "median_pp": -12.8713,
+          "min_pp": -19.4155,
           "n_cells": 6
         },
         "SRRIP": {
-          "max_pp": -0.0,
-          "mean_pp": -12.6867,
-          "median_pp": -14.406,
-          "min_pp": -19.9715,
+          "max_pp": 0.0,
+          "mean_pp": -12.5946,
+          "median_pp": -13.8907,
+          "min_pp": -19.7107,
           "n_cells": 6
         }
       },
       "bfs": {
         "GRASP": {
-          "max_pp": -1.0567,
-          "mean_pp": -6.0808,
-          "median_pp": -6.4078,
-          "min_pp": -9.9403,
+          "max_pp": 0.0,
+          "mean_pp": -3.0877,
+          "median_pp": -2.2657,
+          "min_pp": -9.3374,
           "n_cells": 6
         },
         "LRU": {
-          "max_pp": 0.0007,
-          "mean_pp": -3.8438,
-          "median_pp": -3.5631,
-          "min_pp": -10.4043,
+          "max_pp": 0.0,
+          "mean_pp": -3.5151,
+          "median_pp": -3.3968,
+          "min_pp": -9.1513,
           "n_cells": 6
         },
         "POPT": {
-          "max_pp": -0.0004,
-          "mean_pp": -5.349,
-          "median_pp": -5.9948,
-          "min_pp": -9.898,
+          "max_pp": 0.0,
+          "mean_pp": -5.0588,
+          "median_pp": -5.9031,
+          "min_pp": -9.4604,
           "n_cells": 6
         },
         "SRRIP": {
-          "max_pp": 0.0009,
-          "mean_pp": -3.7134,
-          "median_pp": -3.6533,
-          "min_pp": -9.7516,
+          "max_pp": 0.0,
+          "mean_pp": -3.4597,
+          "median_pp": -3.3722,
+          "min_pp": -8.9371,
           "n_cells": 6
         }
       },
       "cc": {
         "GRASP": {
-          "max_pp": -11.8855,
-          "mean_pp": -14.5423,
-          "median_pp": -14.0757,
-          "min_pp": -17.0447,
+          "max_pp": -12.7939,
+          "mean_pp": -15.2469,
+          "median_pp": -14.4638,
+          "min_pp": -17.9912,
           "n_cells": 5
         },
         "LRU": {
-          "max_pp": -8.7067,
-          "mean_pp": -14.9769,
-          "median_pp": -15.5166,
-          "min_pp": -20.5018,
+          "max_pp": -7.9637,
+          "mean_pp": -14.9409,
+          "median_pp": -15.7523,
+          "min_pp": -20.8929,
           "n_cells": 5
         },
         "POPT": {
-          "max_pp": -13.334,
-          "mean_pp": -15.9777,
-          "median_pp": -16.0996,
-          "min_pp": -20.4123,
+          "max_pp": -10.1251,
+          "mean_pp": -13.9811,
+          "median_pp": -13.5026,
+          "min_pp": -18.882,
           "n_cells": 5
         },
         "SRRIP": {
-          "max_pp": -10.5827,
-          "mean_pp": -14.8525,
-          "median_pp": -14.7883,
-          "min_pp": -19.8084,
+          "max_pp": -9.2796,
+          "mean_pp": -14.8451,
+          "median_pp": -15.1055,
+          "min_pp": -20.5383,
           "n_cells": 5
         }
       },
       "pr": {
         "GRASP": {
           "max_pp": 0.0,
-          "mean_pp": -13.8321,
-          "median_pp": -16.1912,
-          "min_pp": -18.8997,
+          "mean_pp": -13.2149,
+          "median_pp": -15.695,
+          "min_pp": -19.5606,
           "n_cells": 6
         },
         "LRU": {
           "max_pp": 0.0,
-          "mean_pp": -14.9358,
-          "median_pp": -17.9832,
-          "min_pp": -19.9952,
+          "mean_pp": -15.0887,
+          "median_pp": -18.0062,
+          "min_pp": -20.3014,
           "n_cells": 6
         },
         "POPT": {
           "max_pp": 0.0,
-          "mean_pp": -13.2971,
-          "median_pp": -15.6136,
-          "min_pp": -19.6942,
+          "mean_pp": -12.8131,
+          "median_pp": -15.1218,
+          "min_pp": -18.4848,
           "n_cells": 6
         },
         "SRRIP": {
           "max_pp": 0.0,
-          "mean_pp": -14.5935,
-          "median_pp": -16.8056,
-          "min_pp": -19.6548,
+          "mean_pp": -14.8602,
+          "median_pp": -17.1544,
+          "min_pp": -19.6913,
           "n_cells": 6
         }
       },
       "sssp": {
         "GRASP": {
-          "max_pp": -17.8566,
-          "mean_pp": -19.2862,
-          "median_pp": -19.2798,
-          "min_pp": -20.8578,
+          "max_pp": -18.0877,
+          "mean_pp": -19.5051,
+          "median_pp": -19.6472,
+          "min_pp": -20.927,
           "n_cells": 5
         },
         "LRU": {
-          "max_pp": -17.7969,
-          "mean_pp": -19.9103,
-          "median_pp": -19.267,
-          "min_pp": -21.9024,
+          "max_pp": -18.9813,
+          "mean_pp": -21.4774,
+          "median_pp": -22.8281,
+          "min_pp": -23.1916,
           "n_cells": 5
         },
         "POPT": {
-          "max_pp": -17.5483,
-          "mean_pp": -19.0839,
-          "median_pp": -19.5548,
-          "min_pp": -19.7683,
+          "max_pp": -17.8043,
+          "mean_pp": -20.0629,
+          "median_pp": -20.1719,
+          "min_pp": -22.0899,
           "n_cells": 5
         },
         "SRRIP": {
-          "max_pp": -17.6215,
-          "mean_pp": -19.5192,
-          "median_pp": -19.5955,
-          "min_pp": -20.8709,
+          "max_pp": -18.7656,
+          "mean_pp": -21.0519,
+          "median_pp": -21.8254,
+          "min_pp": -22.5965,
           "n_cells": 5
         }
       }
     },
     "per_app_median_of_medians_pp": {
-      "bc": -14.2654,
-      "bfs": -4.824,
-      "cc": -15.1524,
-      "pr": -16.4984,
-      "sssp": -19.4173
+      "bc": -13.6679,
+      "bfs": -3.3845,
+      "cc": -14.7846,
+      "pr": -16.4247,
+      "sssp": -20.9986
     },
-    "per_app_median_range_pp": 14.5933,
-    "pinned_deviating_apps": [
-      "bfs"
-    ],
+    "per_app_median_range_pp": 17.6141,
+    "pinned_deviating_apps": [],
     "policies": [
       "GRASP",
       "LRU",
@@ -201,63 +197,63 @@
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -11.0805
+      "slope_pp": -9.2909
     },
     {
       "app": "bc",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -9.0092
+      "slope_pp": -8.293
     },
     {
       "app": "bc",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -10.0879
+      "slope_pp": -8.5229
     },
     {
       "app": "bc",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -9.4166
+      "slope_pp": -8.8599
     },
     {
       "app": "bc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -15.2268
+      "slope_pp": -14.9609
     },
     {
       "app": "bc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -15.7197
+      "slope_pp": -15.049
     },
     {
       "app": "bc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -14.4267
+      "slope_pp": -13.3418
     },
     {
       "app": "bc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -15.8722
+      "slope_pp": -15.4012
     },
     {
       "app": "bc",
       "graph": "email-Eu-core",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -0.0
+      "slope_pp": 0.0
     },
     {
       "app": "bc",
@@ -271,462 +267,462 @@
       "graph": "email-Eu-core",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": 0.0007
+      "slope_pp": 0.0
     },
     {
       "app": "bc",
       "graph": "email-Eu-core",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -0.0
+      "slope_pp": 0.0
     },
     {
       "app": "bc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -13.2952
+      "slope_pp": -12.811
     },
     {
       "app": "bc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -12.8198
+      "slope_pp": -11.8509
     },
     {
       "app": "bc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -13.2505
+      "slope_pp": -12.4008
     },
     {
       "app": "bc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -12.9397
+      "slope_pp": -12.3802
     },
     {
       "app": "bc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -18.6158
+      "slope_pp": -19.3223
     },
     {
       "app": "bc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -19.8364
+      "slope_pp": -19.2687
     },
     {
       "app": "bc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -19.5502
+      "slope_pp": -19.4155
     },
     {
       "app": "bc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -19.9715
+      "slope_pp": -19.7107
     },
     {
       "app": "bc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -18.9541
+      "slope_pp": -18.1881
     },
     {
       "app": "bc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -18.0714
+      "slope_pp": -18.6661
     },
     {
       "app": "bc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -17.8366
+      "slope_pp": -17.1959
     },
     {
       "app": "bc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -17.9199
+      "slope_pp": -19.2156
     },
     {
       "app": "bfs",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -4.6484
+      "slope_pp": -3.4408
     },
     {
       "app": "bfs",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -2.2775
+      "slope_pp": -1.9652
     },
     {
       "app": "bfs",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -4.411
+      "slope_pp": -4.2156
     },
     {
       "app": "bfs",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -2.2392
+      "slope_pp": -1.9909
     },
     {
       "app": "bfs",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -1.0567
+      "slope_pp": -0.618
     },
     {
       "app": "bfs",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -0.1039
+      "slope_pp": -0.1056
     },
     {
       "app": "bfs",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -1.3965
+      "slope_pp": -0.8434
     },
     {
       "app": "bfs",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -0.1036
+      "slope_pp": -0.1035
     },
     {
       "app": "bfs",
       "graph": "email-Eu-core",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -6.3405
+      "slope_pp": 0.0
     },
     {
       "app": "bfs",
       "graph": "email-Eu-core",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": 0.0007
+      "slope_pp": 0.0
     },
     {
       "app": "bfs",
       "graph": "email-Eu-core",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -0.0004
+      "slope_pp": 0.0
     },
     {
       "app": "bfs",
       "graph": "email-Eu-core",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": 0.0009
+      "slope_pp": 0.0
     },
     {
       "app": "bfs",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -9.9403
+      "slope_pp": -9.3374
     },
     {
       "app": "bfs",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -10.4043
+      "slope_pp": -9.1513
     },
     {
       "app": "bfs",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -9.898
+      "slope_pp": -9.4604
     },
     {
       "app": "bfs",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -9.7516
+      "slope_pp": -8.9371
     },
     {
       "app": "bfs",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -8.024
+      "slope_pp": -4.0396
     },
     {
       "app": "bfs",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -5.4293
+      "slope_pp": -5.0403
     },
     {
       "app": "bfs",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -8.8096
+      "slope_pp": -8.2426
     },
     {
       "app": "bfs",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -5.1196
+      "slope_pp": -4.7536
     },
     {
       "app": "bfs",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -6.4751
+      "slope_pp": -1.0906
     },
     {
       "app": "bfs",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -4.8487
+      "slope_pp": -4.8284
     },
     {
       "app": "bfs",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -7.5787
+      "slope_pp": -7.5906
     },
     {
       "app": "bfs",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -5.0675
+      "slope_pp": -4.9729
     },
     {
       "app": "cc",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -13.6803
+      "slope_pp": -14.4638
     },
     {
       "app": "cc",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -15.5166
+      "slope_pp": -15.7523
     },
     {
       "app": "cc",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -16.0996
+      "slope_pp": -13.5026
     },
     {
       "app": "cc",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -14.7883
+      "slope_pp": -15.1055
     },
     {
       "app": "cc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -11.8855
+      "slope_pp": -12.7939
     },
     {
       "app": "cc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -8.7067
+      "slope_pp": -7.9637
     },
     {
       "app": "cc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -13.334
+      "slope_pp": -11.5137
     },
     {
       "app": "cc",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -10.5827
+      "slope_pp": -9.2796
     },
     {
       "app": "cc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -14.0757
+      "slope_pp": -13.5612
     },
     {
       "app": "cc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -11.7628
+      "slope_pp": -11.0241
     },
     {
       "app": "cc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -13.5647
+      "slope_pp": -10.1251
     },
     {
       "app": "cc",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -12.0651
+      "slope_pp": -11.2687
     },
     {
       "app": "cc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -17.0447
+      "slope_pp": -17.9912
     },
     {
       "app": "cc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -20.5018
+      "slope_pp": -20.8929
     },
     {
       "app": "cc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -20.4123
+      "slope_pp": -18.882
     },
     {
       "app": "cc",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -19.8084
+      "slope_pp": -20.5383
     },
     {
       "app": "cc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -16.0253
+      "slope_pp": -17.4242
     },
     {
       "app": "cc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -18.3965
+      "slope_pp": -19.0717
     },
     {
       "app": "cc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -16.4779
+      "slope_pp": -15.882
     },
     {
       "app": "cc",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -17.0179
+      "slope_pp": -18.0334
     },
     {
       "app": "pr",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -18.6958
+      "slope_pp": -19.5606
     },
     {
       "app": "pr",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -18.4323
+      "slope_pp": -18.4334
     },
     {
       "app": "pr",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -19.6942
+      "slope_pp": -18.4848
     },
     {
       "app": "pr",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -19.6548
+      "slope_pp": -19.6913
     },
     {
       "app": "pr",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -18.8997
+      "slope_pp": -16.087
     },
     {
       "app": "pr",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -18.2909
+      "slope_pp": -18.7494
     },
     {
       "app": "pr",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -17.2087
+      "slope_pp": -17.6658
     },
     {
       "app": "pr",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -17.6943
+      "slope_pp": -18.5085
     },
     {
       "app": "pr",
@@ -761,224 +757,224 @@
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -16.172
+      "slope_pp": -15.303
     },
     {
       "app": "pr",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -15.2209
+      "slope_pp": -15.4687
     },
     {
       "app": "pr",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -15.0801
+      "slope_pp": -14.9869
     },
     {
       "app": "pr",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -15.3163
+      "slope_pp": -15.8002
     },
     {
       "app": "pr",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -16.2103
+      "slope_pp": -16.2099
     },
     {
       "app": "pr",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -19.9952
+      "slope_pp": -20.3014
     },
     {
       "app": "pr",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -16.147
+      "slope_pp": -15.2567
     },
     {
       "app": "pr",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -18.979
+      "slope_pp": -19.3635
     },
     {
       "app": "pr",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -13.0146
+      "slope_pp": -12.1289
     },
     {
       "app": "pr",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -17.6755
+      "slope_pp": -17.579
     },
     {
       "app": "pr",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -11.6525
+      "slope_pp": -10.4844
     },
     {
       "app": "pr",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -15.9168
+      "slope_pp": -15.7979
     },
     {
       "app": "sssp",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -20.1794
+      "slope_pp": -19.6969
     },
     {
       "app": "sssp",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -18.9169
+      "slope_pp": -19.5182
     },
     {
       "app": "sssp",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -19.7683
+      "slope_pp": -19.8836
     },
     {
       "app": "sssp",
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -19.5955
+      "slope_pp": -20.0513
     },
     {
       "app": "sssp",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -20.8578
+      "slope_pp": -19.6472
     },
     {
       "app": "sssp",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -21.6681
+      "slope_pp": -22.8281
     },
     {
       "app": "sssp",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -19.5745
+      "slope_pp": -20.3648
     },
     {
       "app": "sssp",
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -20.4198
+      "slope_pp": -21.8254
     },
     {
       "app": "sssp",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -17.8566
+      "slope_pp": -18.0877
     },
     {
       "app": "sssp",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -17.7969
+      "slope_pp": -18.9813
     },
     {
       "app": "sssp",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -17.5483
+      "slope_pp": -17.8043
     },
     {
       "app": "sssp",
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -17.6215
+      "slope_pp": -18.7656
     },
     {
       "app": "sssp",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -18.2573
+      "slope_pp": -19.1669
     },
     {
       "app": "sssp",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -21.9024
+      "slope_pp": -23.1916
     },
     {
       "app": "sssp",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -19.5548
+      "slope_pp": -20.1719
     },
     {
       "app": "sssp",
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -20.8709
+      "slope_pp": -22.0207
     },
     {
       "app": "sssp",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -19.2798
+      "slope_pp": -20.927
     },
     {
       "app": "sssp",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "LRU",
-      "slope_pp": -19.267
+      "slope_pp": -22.8679
     },
     {
       "app": "sssp",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -18.9734
+      "slope_pp": -22.0899
     },
     {
       "app": "sssp",
       "graph": "web-Google",
       "n_points": 3,
       "policy": "SRRIP",
-      "slope_pp": -19.0885
+      "slope_pp": -22.5965
     }
   ]
 }

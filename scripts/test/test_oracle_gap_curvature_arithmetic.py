@@ -169,12 +169,19 @@ def test_knee_lead_verdict_consistent_with_top2_agreement(curv):
     # lead_agrees == sat_rank[0] == knee_rank[0]
     expected_lead_agrees = sat_rank[0] == knee_rank[0]
     assert cgc["lead_agrees"] == expected_lead_agrees, cgc
-    # knee_lead_verdict is PASS iff the top-2 sets agree
-    top2_sat = set(sat_rank[:2])
-    top2_knee = set(knee_rank[:2])
-    expected_verdict = "PASS" if top2_sat == top2_knee else "FAIL"
+    # knee_lead_verdict (per generator): PASS iff every oracle-aware policy
+    # (GRASP, POPT) has strictly more knee cells than every non-oracle
+    # policy (LRU, SRRIP). It is NOT a saturation-vs-knee top-2 agreement
+    # check — the generator documents that gates 55 and 58 may disagree on
+    # the lead (oracle-aware have an EARLY knee but, post single-thread,
+    # saturate LATE), and that disagreement is itself informative.
+    pps = curv["per_policy_summary"]
+    min_oracle_knee = min(pps[p]["knee_count"] for p in ("GRASP", "POPT"))
+    max_nonoracle_knee = max(pps[p]["knee_count"] for p in ("LRU", "SRRIP"))
+    expected_verdict = "PASS" if min_oracle_knee > max_nonoracle_knee else "FAIL"
     assert curv["meta"]["knee_lead_verdict"] == expected_verdict, (
-        curv["meta"]["knee_lead_verdict"], expected_verdict, top2_sat, top2_knee
+        curv["meta"]["knee_lead_verdict"], expected_verdict,
+        min_oracle_knee, max_nonoracle_knee,
     )
 
 

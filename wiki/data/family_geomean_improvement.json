@@ -2,236 +2,237 @@
   "headline_improvements_ge_10pct": [
     {
       "app": "pr",
-      "ci_hi_improve_pct": 43.798,
-      "ci_hi_ratio": 0.862329,
-      "ci_lo_improve_pct": 13.767,
-      "ci_lo_ratio": 0.562017,
+      "ci_hi_improve_pct": 45.178,
+      "ci_hi_ratio": 0.815678,
+      "ci_lo_improve_pct": 18.432,
+      "ci_lo_ratio": 0.548216,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 32.899,
-      "geomean_ratio": 0.671009,
+      "geomean_improve_pct": 35.907,
+      "geomean_ratio": 0.640927,
       "n_cells": 3,
       "policy": "POPT"
     },
     {
       "app": "cc",
-      "ci_hi_improve_pct": 35.501,
-      "ci_hi_ratio": 0.818206,
-      "ci_lo_improve_pct": 18.179,
-      "ci_lo_ratio": 0.644986,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "citation",
-      "geomean_improve_pct": 25.606,
-      "geomean_ratio": 0.743944,
-      "n_cells": 3,
-      "policy": "GRASP"
-    },
-    {
-      "app": "pr",
-      "ci_hi_improve_pct": 34.243,
-      "ci_hi_ratio": 0.878248,
-      "ci_lo_improve_pct": 12.175,
-      "ci_lo_ratio": 0.657569,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "citation",
-      "geomean_improve_pct": 23.666,
-      "geomean_ratio": 0.763344,
-      "n_cells": 3,
-      "policy": "GRASP"
-    },
-    {
-      "app": "cc",
-      "ci_hi_improve_pct": 33.898,
-      "ci_hi_ratio": 0.874073,
-      "ci_lo_improve_pct": 12.593,
-      "ci_lo_ratio": 0.661022,
+      "ci_hi_improve_pct": 36.401,
+      "ci_hi_ratio": 0.8563,
+      "ci_lo_improve_pct": 14.37,
+      "ci_lo_ratio": 0.635986,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 23.362,
-      "geomean_ratio": 0.766378,
+      "geomean_improve_pct": 25.637,
+      "geomean_ratio": 0.743629,
       "n_cells": 9,
       "policy": "GRASP"
     },
     {
-      "app": "pr",
-      "ci_hi_improve_pct": 25.271,
-      "ci_hi_ratio": 0.870528,
-      "ci_lo_improve_pct": 12.947,
-      "ci_lo_ratio": 0.74729,
+      "app": "cc",
+      "ci_hi_improve_pct": 36.287,
+      "ci_hi_ratio": 0.83836,
+      "ci_lo_improve_pct": 16.164,
+      "ci_lo_ratio": 0.637131,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
-      "family": "web",
-      "geomean_improve_pct": 21.13,
-      "geomean_ratio": 0.788703,
+      "family": "citation",
+      "geomean_improve_pct": 25.035,
+      "geomean_ratio": 0.749648,
       "n_cells": 3,
       "policy": "GRASP"
     },
     {
       "app": "pr",
-      "ci_hi_improve_pct": 30.624,
-      "ci_hi_ratio": 0.86686,
-      "ci_lo_improve_pct": 13.314,
-      "ci_lo_ratio": 0.693756,
+      "ci_hi_improve_pct": 35.82,
+      "ci_hi_ratio": 0.868193,
+      "ci_lo_improve_pct": 13.181,
+      "ci_lo_ratio": 0.641802,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 20.917,
-      "geomean_ratio": 0.790833,
+      "geomean_improve_pct": 23.335,
+      "geomean_ratio": 0.766648,
       "n_cells": 3,
       "policy": "POPT"
     },
     {
       "app": "pr",
-      "ci_hi_improve_pct": 27.809,
-      "ci_hi_ratio": 0.876712,
-      "ci_lo_improve_pct": 12.329,
-      "ci_lo_ratio": 0.721909,
+      "ci_hi_improve_pct": 30.217,
+      "ci_hi_ratio": 0.862288,
+      "ci_lo_improve_pct": 13.771,
+      "ci_lo_ratio": 0.697826,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 20.394,
-      "geomean_ratio": 0.796063,
+      "geomean_improve_pct": 22.42,
+      "geomean_ratio": 0.775804,
       "n_cells": 12,
       "policy": "POPT"
     },
     {
       "app": "cc",
-      "ci_hi_improve_pct": 27.086,
-      "ci_hi_ratio": 0.953892,
-      "ci_lo_improve_pct": 4.611,
-      "ci_lo_ratio": 0.729137,
+      "ci_hi_improve_pct": 26.945,
+      "ci_hi_ratio": 0.821755,
+      "ci_lo_improve_pct": 17.824,
+      "ci_lo_ratio": 0.730551,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 14.607,
-      "geomean_ratio": 0.853933,
+      "geomean_improve_pct": 21.551,
+      "geomean_ratio": 0.784494,
       "n_cells": 3,
       "policy": "POPT"
     },
     {
       "app": "pr",
-      "ci_hi_improve_pct": 20.849,
-      "ci_hi_ratio": 0.919554,
-      "ci_lo_improve_pct": 8.045,
-      "ci_lo_ratio": 0.791513,
+      "ci_hi_improve_pct": 31.078,
+      "ci_hi_ratio": 0.914081,
+      "ci_lo_improve_pct": 8.592,
+      "ci_lo_ratio": 0.689221,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 21.491,
+      "geomean_ratio": 0.78509,
+      "n_cells": 3,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "ci_hi_improve_pct": 23.576,
+      "ci_hi_ratio": 0.910249,
+      "ci_lo_improve_pct": 8.975,
+      "ci_lo_ratio": 0.764242,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 14.457,
-      "geomean_ratio": 0.855429,
+      "geomean_improve_pct": 16.237,
+      "geomean_ratio": 0.83763,
+      "n_cells": 9,
+      "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 19.417,
+      "ci_hi_ratio": 0.913219,
+      "ci_lo_improve_pct": 8.678,
+      "ci_lo_ratio": 0.805832,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 14.147,
+      "geomean_ratio": 0.858533,
       "n_cells": 12,
       "policy": "GRASP"
     },
     {
       "app": "sssp",
-      "ci_hi_improve_pct": 23.932,
-      "ci_hi_ratio": 0.963914,
-      "ci_lo_improve_pct": 3.609,
-      "ci_lo_ratio": 0.760679,
+      "ci_hi_improve_pct": 16.933,
+      "ci_hi_ratio": 0.93863,
+      "ci_lo_improve_pct": 6.137,
+      "ci_lo_ratio": 0.830666,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 11.953,
+      "geomean_ratio": 0.880474,
+      "n_cells": 9,
+      "policy": "POPT"
+    },
+    {
+      "app": "sssp",
+      "ci_hi_improve_pct": 15.746,
+      "ci_hi_ratio": 0.950753,
+      "ci_lo_improve_pct": 4.925,
+      "ci_lo_ratio": 0.842544,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 14.439,
-      "geomean_ratio": 0.855613,
+      "geomean_improve_pct": 11.129,
+      "geomean_ratio": 0.888708,
       "n_cells": 3,
       "policy": "GRASP"
     },
     {
-      "app": "sssp",
-      "ci_hi_improve_pct": 20.498,
-      "ci_hi_ratio": 0.92865,
-      "ci_lo_improve_pct": 7.135,
-      "ci_lo_ratio": 0.795017,
+      "app": "bfs",
+      "ci_hi_improve_pct": 19.423,
+      "ci_hi_ratio": 0.974715,
+      "ci_lo_improve_pct": 2.528,
+      "ci_lo_ratio": 0.805765,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 13.916,
-      "geomean_ratio": 0.860841,
-      "n_cells": 9,
-      "policy": "GRASP"
-    },
-    {
-      "app": "cc",
-      "ci_hi_improve_pct": 21.012,
-      "ci_hi_ratio": 0.957841,
-      "ci_lo_improve_pct": 4.216,
-      "ci_lo_ratio": 0.789875,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 12.369,
-      "geomean_ratio": 0.876314,
-      "n_cells": 9,
+      "family": "web",
+      "geomean_improve_pct": 10.907,
+      "geomean_ratio": 0.890927,
+      "n_cells": 3,
       "policy": "POPT"
     },
     {
       "app": "sssp",
-      "ci_hi_improve_pct": 16.405,
-      "ci_hi_ratio": 0.930561,
-      "ci_lo_improve_pct": 6.944,
-      "ci_lo_ratio": 0.835955,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 11.735,
-      "geomean_ratio": 0.882648,
-      "n_cells": 9,
-      "policy": "POPT"
-    },
-    {
-      "app": "sssp",
-      "ci_hi_improve_pct": 18.413,
-      "ci_hi_ratio": 0.967221,
-      "ci_lo_improve_pct": 3.278,
-      "ci_lo_ratio": 0.815875,
+      "ci_hi_improve_pct": 16.249,
+      "ci_hi_ratio": 0.957637,
+      "ci_lo_improve_pct": 4.236,
+      "ci_lo_ratio": 0.837512,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 11.454,
-      "geomean_ratio": 0.885462,
+      "geomean_improve_pct": 10.532,
+      "geomean_ratio": 0.89468,
       "n_cells": 3,
       "policy": "POPT"
     },
     {
-      "app": "bfs",
-      "ci_hi_improve_pct": 19.371,
-      "ci_hi_ratio": 0.975559,
-      "ci_lo_improve_pct": 2.444,
-      "ci_lo_ratio": 0.806288,
+      "app": "pr",
+      "ci_hi_improve_pct": 16.137,
+      "ci_hi_ratio": 0.960991,
+      "ci_lo_improve_pct": 3.901,
+      "ci_lo_ratio": 0.838633,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 10.831,
-      "geomean_ratio": 0.891686,
+      "geomean_improve_pct": 10.021,
+      "geomean_ratio": 0.899789,
+      "n_cells": 3,
+      "policy": "SRRIP"
+    }
+  ],
+  "headline_regressions_ci_strict": [
+    {
+      "app": "bc",
+      "ci_hi_improve_pct": -2.35,
+      "ci_hi_ratio": 1.308654,
+      "ci_lo_improve_pct": -30.865,
+      "ci_lo_ratio": 1.023503,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": true,
+      "family": "web",
+      "geomean_improve_pct": -12.141,
+      "geomean_ratio": 1.121406,
       "n_cells": 3,
       "policy": "POPT"
     },
     {
-      "app": "bfs",
-      "ci_hi_improve_pct": 19.171,
-      "ci_hi_ratio": 0.964778,
-      "ci_lo_improve_pct": 3.522,
-      "ci_lo_ratio": 0.80829,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
+      "app": "bc",
+      "ci_hi_improve_pct": -0.471,
+      "ci_hi_ratio": 1.192108,
+      "ci_lo_improve_pct": -19.211,
+      "ci_lo_ratio": 1.004712,
+      "ci_strict_improvement_vs_lru": false,
+      "ci_strict_regression_vs_lru": true,
       "family": "web",
-      "geomean_improve_pct": 10.08,
-      "geomean_ratio": 0.899201,
+      "geomean_improve_pct": -7.12,
+      "geomean_ratio": 1.071198,
       "n_cells": 3,
       "policy": "GRASP"
     }
   ],
-  "headline_regressions_ci_strict": [],
   "meta": {
     "alpha": 0.05,
     "bootstrap_iters": 2000,
     "bootstrap_seed": 1729,
-    "n_ci_strict_improvements": 34,
-    "n_ci_strict_regressions": 0,
+    "n_ci_strict_improvements": 33,
+    "n_ci_strict_regressions": 2,
     "n_records": 63,
     "scope_l3_sizes": [
       "1MB",
@@ -247,34 +248,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.884326,
-          "mr_policy": 0.898527,
-          "ratio": 1.0160585575907528
+          "mr_lru": 0.945117,
+          "mr_policy": 0.929529,
+          "ratio": 0.9835068039195148
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.731853,
-          "mr_policy": 0.711235,
-          "ratio": 0.9718276757764196
+          "mr_lru": 0.818927,
+          "mr_policy": 0.782743,
+          "ratio": 0.9558153535052575
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.607123,
-          "mr_policy": 0.557531,
-          "ratio": 0.918316387288902
+          "mr_lru": 0.686411,
+          "mr_policy": 0.641045,
+          "ratio": 0.93390840181757
         }
       ],
-      "ci_hi_improve_pct": 8.168,
-      "ci_hi_ratio": 1.016059,
-      "ci_lo_improve_pct": -1.606,
-      "ci_lo_ratio": 0.918316,
-      "ci_strict_improvement_vs_lru": false,
+      "ci_hi_improve_pct": 6.609,
+      "ci_hi_ratio": 0.983507,
+      "ci_lo_improve_pct": 1.649,
+      "ci_lo_ratio": 0.933908,
+      "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 3.209,
-      "geomean_ratio": 0.967907,
+      "geomean_improve_pct": 4.247,
+      "geomean_ratio": 0.957529,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -284,34 +285,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.884326,
-          "mr_policy": 0.882504,
-          "ratio": 0.9979396738306914
+          "mr_lru": 0.945117,
+          "mr_policy": 0.928955,
+          "ratio": 0.9828994717056195
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.731853,
-          "mr_policy": 0.716416,
-          "ratio": 0.9789069662896785
+          "mr_lru": 0.818927,
+          "mr_policy": 0.794997,
+          "ratio": 0.970778836208844
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.607123,
-          "mr_policy": 0.570949,
-          "ratio": 0.9404173454143561
+          "mr_lru": 0.686411,
+          "mr_policy": 0.664142,
+          "ratio": 0.9675573380962718
         }
       ],
-      "ci_hi_improve_pct": 5.958,
-      "ci_hi_ratio": 0.99794,
-      "ci_lo_improve_pct": 0.206,
-      "ci_lo_ratio": 0.940417,
+      "ci_hi_improve_pct": 3.244,
+      "ci_hi_ratio": 0.982899,
+      "ci_lo_improve_pct": 1.71,
+      "ci_lo_ratio": 0.967557,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 2.787,
-      "geomean_ratio": 0.972125,
+      "geomean_improve_pct": 2.628,
+      "geomean_ratio": 0.973723,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -321,34 +322,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.884326,
-          "mr_policy": 0.879551,
-          "ratio": 0.9946004075420151
+          "mr_lru": 0.945117,
+          "mr_policy": 0.942569,
+          "ratio": 0.9973040374895383
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.731853,
-          "mr_policy": 0.722774,
-          "ratio": 0.9875945032677328
+          "mr_lru": 0.818927,
+          "mr_policy": 0.808237,
+          "ratio": 0.9869463334338714
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.607123,
-          "mr_policy": 0.589165,
-          "ratio": 0.9704211502446787
+          "mr_lru": 0.686411,
+          "mr_policy": 0.666055,
+          "ratio": 0.9703442980954559
         }
       ],
-      "ci_hi_improve_pct": 2.958,
-      "ci_hi_ratio": 0.9946,
-      "ci_lo_improve_pct": 0.54,
-      "ci_lo_ratio": 0.970421,
+      "ci_hi_improve_pct": 2.966,
+      "ci_hi_ratio": 0.997304,
+      "ci_lo_improve_pct": 0.27,
+      "ci_lo_ratio": 0.970344,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 1.585,
-      "geomean_ratio": 0.984153,
+      "geomean_improve_pct": 1.52,
+      "geomean_ratio": 0.984802,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -358,34 +359,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.970808,
-          "mr_policy": 0.959314,
-          "ratio": 0.9881603777471961
+          "mr_lru": 0.98146,
+          "mr_policy": 0.973837,
+          "ratio": 0.9922329998165997
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.926919,
-          "mr_policy": 0.884627,
-          "ratio": 0.9543735752530695
+          "mr_lru": 0.946715,
+          "mr_policy": 0.902658,
+          "ratio": 0.9534632914868783
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.902066,
-          "mr_policy": 0.815291,
-          "ratio": 0.903804156236905
+          "mr_lru": 0.921363,
+          "mr_policy": 0.871203,
+          "ratio": 0.9455589165182452
         }
       ],
-      "ci_hi_improve_pct": 9.62,
-      "ci_hi_ratio": 0.98816,
-      "ci_lo_improve_pct": 1.184,
-      "ci_lo_ratio": 0.903804,
+      "ci_hi_improve_pct": 5.444,
+      "ci_hi_ratio": 0.992233,
+      "ci_lo_improve_pct": 0.777,
+      "ci_lo_ratio": 0.945559,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 5.186,
-      "geomean_ratio": 0.948142,
+      "geomean_improve_pct": 3.646,
+      "geomean_ratio": 0.963538,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -395,34 +396,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.970808,
-          "mr_policy": 0.960335,
-          "ratio": 0.9892120790104738
+          "mr_lru": 0.98146,
+          "mr_policy": 0.972364,
+          "ratio": 0.9907321745155178
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.926919,
-          "mr_policy": 0.8936,
-          "ratio": 0.9640540327687748
+          "mr_lru": 0.946715,
+          "mr_policy": 0.910449,
+          "ratio": 0.9616928008957288
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.902066,
-          "mr_policy": 0.822635,
-          "ratio": 0.911945467404824
+          "mr_lru": 0.921363,
+          "mr_policy": 0.840295,
+          "ratio": 0.9120129634031321
         }
       ],
-      "ci_hi_improve_pct": 8.805,
-      "ci_hi_ratio": 0.989212,
-      "ci_lo_improve_pct": 1.079,
-      "ci_lo_ratio": 0.911945,
+      "ci_hi_improve_pct": 8.799,
+      "ci_hi_ratio": 0.990732,
+      "ci_lo_improve_pct": 0.927,
+      "ci_lo_ratio": 0.912013,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 4.548,
-      "geomean_ratio": 0.954523,
+      "geomean_improve_pct": 4.574,
+      "geomean_ratio": 0.954255,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -432,34 +433,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.970808,
-          "mr_policy": 0.966718,
-          "ratio": 0.9957870145281044
+          "mr_lru": 0.98146,
+          "mr_policy": 0.979057,
+          "ratio": 0.9975516067898844
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.926919,
-          "mr_policy": 0.922024,
-          "ratio": 0.9947190639095757
+          "mr_lru": 0.946715,
+          "mr_policy": 0.941754,
+          "ratio": 0.9947597745889735
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.902066,
-          "mr_policy": 0.89952,
-          "ratio": 0.9971775901098145
+          "mr_lru": 0.921363,
+          "mr_policy": 0.918701,
+          "ratio": 0.997110802148556
         }
       ],
-      "ci_hi_improve_pct": 0.528,
-      "ci_hi_ratio": 0.997178,
-      "ci_lo_improve_pct": 0.282,
-      "ci_lo_ratio": 0.994719,
+      "ci_hi_improve_pct": 0.524,
+      "ci_hi_ratio": 0.997552,
+      "ci_lo_improve_pct": 0.245,
+      "ci_lo_ratio": 0.99476,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 0.411,
-      "geomean_ratio": 0.995894,
+      "geomean_improve_pct": 0.353,
+      "geomean_ratio": 0.996473,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -469,34 +470,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.643092,
-          "mr_policy": 0.526182,
-          "ratio": 0.8182064152562931
+          "mr_lru": 0.66682,
+          "mr_policy": 0.559035,
+          "ratio": 0.8383596772742269
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.31697,
-          "mr_policy": 0.247301,
-          "ratio": 0.7802031738019372
+          "mr_lru": 0.336914,
+          "mr_policy": 0.265725,
+          "ratio": 0.7887027550057285
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.181542,
-          "mr_policy": 0.117092,
-          "ratio": 0.6449857333289266
+          "mr_lru": 0.197967,
+          "mr_policy": 0.126131,
+          "ratio": 0.637131441098769
         }
       ],
-      "ci_hi_improve_pct": 35.501,
-      "ci_hi_ratio": 0.818206,
-      "ci_lo_improve_pct": 18.179,
-      "ci_lo_ratio": 0.644986,
+      "ci_hi_improve_pct": 36.287,
+      "ci_hi_ratio": 0.83836,
+      "ci_lo_improve_pct": 16.164,
+      "ci_lo_ratio": 0.637131,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 25.606,
-      "geomean_ratio": 0.743944,
+      "geomean_improve_pct": 25.035,
+      "geomean_ratio": 0.749648,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -506,34 +507,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.643092,
-          "mr_policy": 0.61344,
-          "ratio": 0.9538915116344162
+          "mr_lru": 0.66682,
+          "mr_policy": 0.547963,
+          "ratio": 0.8217554962358657
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.31697,
-          "mr_policy": 0.28378,
-          "ratio": 0.8952897750575765
+          "mr_lru": 0.336914,
+          "mr_policy": 0.270953,
+          "ratio": 0.8042200680292301
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.181542,
-          "mr_policy": 0.132369,
-          "ratio": 0.7291370591929139
+          "mr_lru": 0.197967,
+          "mr_policy": 0.144625,
+          "ratio": 0.7305510514378659
         }
       ],
-      "ci_hi_improve_pct": 27.086,
-      "ci_hi_ratio": 0.953892,
-      "ci_lo_improve_pct": 4.611,
-      "ci_lo_ratio": 0.729137,
+      "ci_hi_improve_pct": 26.945,
+      "ci_hi_ratio": 0.821755,
+      "ci_lo_improve_pct": 17.824,
+      "ci_lo_ratio": 0.730551,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 14.607,
-      "geomean_ratio": 0.853933,
+      "geomean_improve_pct": 21.551,
+      "geomean_ratio": 0.784494,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -543,34 +544,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.643092,
-          "mr_policy": 0.600965,
-          "ratio": 0.9344930429860735
+          "mr_lru": 0.66682,
+          "mr_policy": 0.626239,
+          "ratio": 0.9391424972256381
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.31697,
-          "mr_policy": 0.293984,
-          "ratio": 0.9274820960974226
+          "mr_lru": 0.336914,
+          "mr_policy": 0.313595,
+          "ratio": 0.9307864915082188
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.181542,
-          "mr_policy": 0.16012,
-          "ratio": 0.8819997576318428
+          "mr_lru": 0.197967,
+          "mr_policy": 0.175707,
+          "ratio": 0.887557017078604
         }
       ],
-      "ci_hi_improve_pct": 11.8,
-      "ci_hi_ratio": 0.934493,
-      "ci_lo_improve_pct": 6.551,
-      "ci_lo_ratio": 0.882,
+      "ci_hi_improve_pct": 11.244,
+      "ci_hi_ratio": 0.939142,
+      "ci_lo_improve_pct": 6.086,
+      "ci_lo_ratio": 0.887557,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 8.564,
-      "geomean_ratio": 0.914359,
+      "geomean_improve_pct": 8.112,
+      "geomean_ratio": 0.918881,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -580,34 +581,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.894438,
-          "mr_policy": 0.785538,
-          "ratio": 0.8782475699824918
+          "mr_lru": 0.895106,
+          "mr_policy": 0.818199,
+          "ratio": 0.9140805669943002
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.58934,
-          "mr_policy": 0.453908,
-          "ratio": 0.7701971697152747
+          "mr_lru": 0.590052,
+          "mr_policy": 0.453217,
+          "ratio": 0.7680967101204639
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.325581,
-          "mr_policy": 0.214092,
-          "ratio": 0.6575690841910308
+          "mr_lru": 0.3262,
+          "mr_policy": 0.224824,
+          "ratio": 0.6892213366033109
         }
       ],
-      "ci_hi_improve_pct": 34.243,
-      "ci_hi_ratio": 0.878248,
-      "ci_lo_improve_pct": 12.175,
-      "ci_lo_ratio": 0.657569,
+      "ci_hi_improve_pct": 31.078,
+      "ci_hi_ratio": 0.914081,
+      "ci_lo_improve_pct": 8.592,
+      "ci_lo_ratio": 0.689221,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 23.666,
-      "geomean_ratio": 0.763344,
+      "geomean_improve_pct": 21.491,
+      "geomean_ratio": 0.78509,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -617,34 +618,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.894438,
-          "mr_policy": 0.7713,
-          "ratio": 0.862329194421525
+          "mr_lru": 0.895106,
+          "mr_policy": 0.730118,
+          "ratio": 0.8156776962728437
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.58934,
-          "mr_policy": 0.367391,
-          "ratio": 0.6233939661316049
+          "mr_lru": 0.590052,
+          "mr_policy": 0.347413,
+          "ratio": 0.588783700419624
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.325581,
-          "mr_policy": 0.182982,
-          "ratio": 0.562016825306145
+          "mr_lru": 0.3262,
+          "mr_policy": 0.178828,
+          "ratio": 0.5482158185162477
         }
       ],
-      "ci_hi_improve_pct": 43.798,
-      "ci_hi_ratio": 0.862329,
-      "ci_lo_improve_pct": 13.767,
-      "ci_lo_ratio": 0.562017,
+      "ci_hi_improve_pct": 45.178,
+      "ci_hi_ratio": 0.815678,
+      "ci_lo_improve_pct": 18.432,
+      "ci_lo_ratio": 0.548216,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 32.899,
-      "geomean_ratio": 0.671009,
+      "geomean_improve_pct": 35.907,
+      "geomean_ratio": 0.640927,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -654,34 +655,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.894438,
-          "mr_policy": 0.879756,
-          "ratio": 0.9835852233469509
+          "mr_lru": 0.895106,
+          "mr_policy": 0.880294,
+          "ratio": 0.9834522391761423
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.58934,
-          "mr_policy": 0.546567,
-          "ratio": 0.9274222011063225
+          "mr_lru": 0.590052,
+          "mr_policy": 0.546644,
+          "ratio": 0.9264336024621559
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.325581,
-          "mr_policy": 0.275136,
-          "ratio": 0.845061597574797
+          "mr_lru": 0.3262,
+          "mr_policy": 0.274511,
+          "ratio": 0.8415419987737585
         }
       ],
-      "ci_hi_improve_pct": 15.494,
-      "ci_hi_ratio": 0.983585,
-      "ci_lo_improve_pct": 1.641,
-      "ci_lo_ratio": 0.845062,
+      "ci_hi_improve_pct": 15.846,
+      "ci_hi_ratio": 0.983452,
+      "ci_lo_improve_pct": 1.655,
+      "ci_lo_ratio": 0.841542,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 8.309,
-      "geomean_ratio": 0.916908,
+      "geomean_improve_pct": 8.473,
+      "geomean_ratio": 0.915267,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -691,34 +692,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.848641,
-          "mr_policy": 0.818017,
-          "ratio": 0.9639140696713923
+          "mr_lru": 0.87683,
+          "mr_policy": 0.833649,
+          "ratio": 0.9507532817079707
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.553585,
-          "mr_policy": 0.472907,
-          "ratio": 0.8542626696893884
+          "mr_lru": 0.568128,
+          "mr_policy": 0.497809,
+          "ratio": 0.8762268362059255
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.260312,
-          "mr_policy": 0.198014,
-          "ratio": 0.7606794923015459
+          "mr_lru": 0.270869,
+          "mr_policy": 0.228219,
+          "ratio": 0.8425438126917439
         }
       ],
-      "ci_hi_improve_pct": 23.932,
-      "ci_hi_ratio": 0.963914,
-      "ci_lo_improve_pct": 3.609,
-      "ci_lo_ratio": 0.760679,
+      "ci_hi_improve_pct": 15.746,
+      "ci_hi_ratio": 0.950753,
+      "ci_lo_improve_pct": 4.925,
+      "ci_lo_ratio": 0.842544,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 14.439,
-      "geomean_ratio": 0.855613,
+      "geomean_improve_pct": 11.129,
+      "geomean_ratio": 0.888708,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -728,34 +729,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.848641,
-          "mr_policy": 0.820823,
-          "ratio": 0.9672205325926982
+          "mr_lru": 0.87683,
+          "mr_policy": 0.839685,
+          "ratio": 0.957637170261054
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.553585,
-          "mr_policy": 0.487018,
-          "ratio": 0.8797528834776954
+          "mr_lru": 0.568128,
+          "mr_policy": 0.507291,
+          "ratio": 0.8929167370733357
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.260312,
-          "mr_policy": 0.212382,
-          "ratio": 0.8158747963981683
+          "mr_lru": 0.270869,
+          "mr_policy": 0.226856,
+          "ratio": 0.8375118599765938
         }
       ],
-      "ci_hi_improve_pct": 18.413,
-      "ci_hi_ratio": 0.967221,
-      "ci_lo_improve_pct": 3.278,
-      "ci_lo_ratio": 0.815875,
+      "ci_hi_improve_pct": 16.249,
+      "ci_hi_ratio": 0.957637,
+      "ci_lo_improve_pct": 4.236,
+      "ci_lo_ratio": 0.837512,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 11.454,
-      "geomean_ratio": 0.885462,
+      "geomean_improve_pct": 10.532,
+      "geomean_ratio": 0.89468,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -765,34 +766,34 @@
         {
           "graph": "cit-Patents",
           "l3_size": "1MB",
-          "mr_lru": 0.848641,
-          "mr_policy": 0.844417,
-          "ratio": 0.9950226302995023
+          "mr_lru": 0.87683,
+          "mr_policy": 0.87007,
+          "ratio": 0.9922904097715635
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
-          "mr_lru": 0.553585,
-          "mr_policy": 0.529522,
-          "ratio": 0.9565324204954976
+          "mr_lru": 0.568128,
+          "mr_policy": 0.546124,
+          "ratio": 0.9612692914272841
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
-          "mr_lru": 0.260312,
-          "mr_policy": 0.237297,
-          "ratio": 0.911586864992778
+          "mr_lru": 0.270869,
+          "mr_policy": 0.249261,
+          "ratio": 0.9202271208591607
         }
       ],
-      "ci_hi_improve_pct": 8.841,
-      "ci_hi_ratio": 0.995023,
-      "ci_lo_improve_pct": 0.498,
-      "ci_lo_ratio": 0.911587,
+      "ci_hi_improve_pct": 7.977,
+      "ci_hi_ratio": 0.99229,
+      "ci_lo_improve_pct": 0.771,
+      "ci_lo_ratio": 0.920227,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 4.623,
-      "geomean_ratio": 0.95377,
+      "geomean_improve_pct": 4.253,
+      "geomean_ratio": 0.957472,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -802,9 +803,9 @@
         {
           "graph": "delaunay_n19",
           "l3_size": "1MB",
-          "mr_lru": 0.953929,
-          "mr_policy": 0.816632,
-          "ratio": 0.8560720976089415
+          "mr_lru": 0.966764,
+          "mr_policy": 0.851601,
+          "ratio": 0.8808778564365244
         }
       ],
       "family": "mesh",
@@ -818,9 +819,9 @@
         {
           "graph": "delaunay_n19",
           "l3_size": "1MB",
-          "mr_lru": 0.953929,
-          "mr_policy": 0.777958,
-          "ratio": 0.8155302962799118
+          "mr_lru": 0.966764,
+          "mr_policy": 0.790367,
+          "ratio": 0.8175387167912749
         }
       ],
       "family": "mesh",
@@ -834,9 +835,9 @@
         {
           "graph": "delaunay_n19",
           "l3_size": "1MB",
-          "mr_lru": 0.953929,
-          "mr_policy": 0.939378,
-          "ratio": 0.9847462442173369
+          "mr_lru": 0.966764,
+          "mr_policy": 0.951847,
+          "ratio": 0.9845701743134829
         }
       ],
       "family": "mesh",
@@ -850,9 +851,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.547962,
-          "mr_policy": 0.908277,
-          "ratio": 1.6575547209478032
+          "mr_lru": 0.648506,
+          "mr_policy": 0.810849,
+          "ratio": 1.2503338442512482
         }
       ],
       "family": "road",
@@ -866,9 +867,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.547962,
-          "mr_policy": 0.752401,
-          "ratio": 1.3730897397994752
+          "mr_lru": 0.648506,
+          "mr_policy": 0.812494,
+          "ratio": 1.2528704437584233
         }
       ],
       "family": "road",
@@ -882,9 +883,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.547962,
-          "mr_policy": 0.526995,
-          "ratio": 0.9617363977794081
+          "mr_lru": 0.648506,
+          "mr_policy": 0.654958,
+          "ratio": 1.0099490212889317
         }
       ],
       "family": "road",
@@ -898,9 +899,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.255352,
-          "mr_policy": 0.939395,
-          "ratio": 3.67882374134528
+          "mr_lru": 0.241059,
+          "mr_policy": 0.866917,
+          "ratio": 3.596285556647958
         }
       ],
       "family": "road",
@@ -914,9 +915,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.255352,
-          "mr_policy": 0.589257,
-          "ratio": 2.30762633541151
+          "mr_lru": 0.241059,
+          "mr_policy": 0.58397,
+          "ratio": 2.422518968385333
         }
       ],
       "family": "road",
@@ -930,9 +931,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.255352,
-          "mr_policy": 0.301779,
-          "ratio": 1.18181568971459
+          "mr_lru": 0.241059,
+          "mr_policy": 0.284867,
+          "ratio": 1.1817314433395973
         }
       ],
       "family": "road",
@@ -946,9 +947,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.742777,
-          "mr_policy": 0.833974,
-          "ratio": 1.1227784382122763
+          "mr_lru": 0.991693,
+          "mr_policy": 0.865354,
+          "ratio": 0.8726027107179338
         }
       ],
       "family": "road",
@@ -962,9 +963,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.742777,
-          "mr_policy": 0.793359,
-          "ratio": 1.0680985006267023
+          "mr_lru": 0.991693,
+          "mr_policy": 0.931169,
+          "ratio": 0.9389690156126946
         }
       ],
       "family": "road",
@@ -978,9 +979,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.742777,
-          "mr_policy": 0.748151,
-          "ratio": 1.0072350113156439
+          "mr_lru": 0.991693,
+          "mr_policy": 0.990865,
+          "ratio": 0.9991650641882114
         }
       ],
       "family": "road",
@@ -994,9 +995,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.941718,
-          "mr_policy": 0.956439,
-          "ratio": 1.01563206819876
+          "mr_lru": 0.952502,
+          "mr_policy": 0.978026,
+          "ratio": 1.0267967941274665
         }
       ],
       "family": "road",
@@ -1010,9 +1011,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.941718,
-          "mr_policy": 0.891772,
-          "ratio": 0.9469628912264605
+          "mr_lru": 0.952502,
+          "mr_policy": 0.907752,
+          "ratio": 0.9530184713522911
         }
       ],
       "family": "road",
@@ -1026,9 +1027,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.941718,
-          "mr_policy": 0.939348,
-          "ratio": 0.9974833230330098
+          "mr_lru": 0.952502,
+          "mr_policy": 0.953039,
+          "ratio": 1.0005637783437724
         }
       ],
       "family": "road",
@@ -1042,9 +1043,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.176259,
-          "mr_policy": 0.877427,
-          "ratio": 4.978055021303876
+          "mr_lru": 0.166549,
+          "mr_policy": 0.724823,
+          "ratio": 4.352010519426715
         }
       ],
       "family": "road",
@@ -1058,9 +1059,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.176259,
-          "mr_policy": 0.277201,
-          "ratio": 1.5726913235636193
+          "mr_lru": 0.166549,
+          "mr_policy": 0.25454,
+          "ratio": 1.5283189932092056
         }
       ],
       "family": "road",
@@ -1074,9 +1075,9 @@
         {
           "graph": "roadNet-CA",
           "l3_size": "1MB",
-          "mr_lru": 0.176259,
-          "mr_policy": 0.191299,
-          "ratio": 1.0853289761090215
+          "mr_lru": 0.166549,
+          "mr_policy": 0.177961,
+          "ratio": 1.0685203753850219
         }
       ],
       "family": "road",
@@ -1090,97 +1091,97 @@
         {
           "graph": "com-orkut",
           "l3_size": "1MB",
-          "mr_lru": 0.862362,
-          "mr_policy": 0.799916,
-          "ratio": 0.9275872545404366
+          "mr_lru": 0.836912,
+          "mr_policy": 0.796393,
+          "ratio": 0.9515851128912001
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
-          "mr_lru": 0.582657,
-          "mr_policy": 0.524215,
-          "ratio": 0.8996974206093808
+          "mr_lru": 0.573525,
+          "mr_policy": 0.52504,
+          "ratio": 0.9154614009851357
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
-          "mr_lru": 0.382097,
-          "mr_policy": 0.335902,
-          "ratio": 0.8791013800160691
+          "mr_lru": 0.376045,
+          "mr_policy": 0.3406,
+          "ratio": 0.9057426637769416
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "1MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000122,
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
           "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "4MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000121,
-          "ratio": 0.9918032786885246
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "8MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000122,
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
           "ratio": 1.0
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
-          "mr_lru": 0.839565,
-          "mr_policy": 0.794829,
-          "ratio": 0.9467152632613318
+          "mr_lru": 0.864855,
+          "mr_policy": 0.831167,
+          "ratio": 0.9610478057015337
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
-          "mr_lru": 0.60209,
-          "mr_policy": 0.549226,
-          "ratio": 0.9121991728811307
+          "mr_lru": 0.655187,
+          "mr_policy": 0.600089,
+          "ratio": 0.9159049248535152
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
-          "mr_lru": 0.450242,
-          "mr_policy": 0.390898,
-          "ratio": 0.8681953260690918
+          "mr_lru": 0.502491,
+          "mr_policy": 0.44055,
+          "ratio": 0.8767321205752938
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
-          "mr_lru": 0.851252,
-          "mr_policy": 0.764632,
-          "ratio": 0.8982439982519864
+          "mr_lru": 0.859729,
+          "mr_policy": 0.810808,
+          "ratio": 0.9430971852758253
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
-          "mr_lru": 0.497522,
-          "mr_policy": 0.419405,
-          "ratio": 0.8429878477735657
+          "mr_lru": 0.530069,
+          "mr_policy": 0.457949,
+          "ratio": 0.8639422414817693
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
-          "mr_lru": 0.245411,
-          "mr_policy": 0.199387,
-          "ratio": 0.8124615441035651
+          "mr_lru": 0.267741,
+          "mr_policy": 0.222744,
+          "ratio": 0.8319383284592199
         }
       ],
-      "ci_hi_improve_pct": 11.951,
-      "ci_hi_ratio": 0.94587,
-      "ci_lo_improve_pct": 5.413,
-      "ci_lo_ratio": 0.880488,
+      "ci_hi_improve_pct": 10.232,
+      "ci_hi_ratio": 0.958802,
+      "ci_lo_improve_pct": 4.12,
+      "ci_lo_ratio": 0.897682,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 8.696,
-      "geomean_ratio": 0.913037,
+      "geomean_improve_pct": 7.109,
+      "geomean_ratio": 0.928911,
       "n_cells": 12,
       "policy": "GRASP"
     },
@@ -1190,97 +1191,97 @@
         {
           "graph": "com-orkut",
           "l3_size": "1MB",
-          "mr_lru": 0.862362,
-          "mr_policy": 0.824663,
-          "ratio": 0.9562840199359435
+          "mr_lru": 0.836912,
+          "mr_policy": 0.804792,
+          "ratio": 0.9616208155696178
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
-          "mr_lru": 0.582657,
-          "mr_policy": 0.570893,
-          "ratio": 0.979809733685513
+          "mr_lru": 0.573525,
+          "mr_policy": 0.561793,
+          "ratio": 0.9795440477747265
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
-          "mr_lru": 0.382097,
-          "mr_policy": 0.383172,
-          "ratio": 1.0028134217227562
+          "mr_lru": 0.376045,
+          "mr_policy": 0.398577,
+          "ratio": 1.0599183608344747
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "1MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000122,
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
           "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "4MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000218,
-          "ratio": 1.7868852459016396
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "8MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000121,
-          "ratio": 0.9918032786885246
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
-          "mr_lru": 0.839565,
-          "mr_policy": 0.809648,
-          "ratio": 0.964366070524617
+          "mr_lru": 0.864855,
+          "mr_policy": 0.825139,
+          "ratio": 0.9540778512004902
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
-          "mr_lru": 0.60209,
-          "mr_policy": 0.563675,
-          "ratio": 0.936197246258865
+          "mr_lru": 0.655187,
+          "mr_policy": 0.602828,
+          "ratio": 0.9200854107300664
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
-          "mr_lru": 0.450242,
-          "mr_policy": 0.407374,
-          "ratio": 0.9047889801484535
+          "mr_lru": 0.502491,
+          "mr_policy": 0.44669,
+          "ratio": 0.8889512448979184
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
-          "mr_lru": 0.851252,
-          "mr_policy": 0.794644,
-          "ratio": 0.9335003030829884
+          "mr_lru": 0.859729,
+          "mr_policy": 0.809683,
+          "ratio": 0.941788633394942
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
-          "mr_lru": 0.497522,
-          "mr_policy": 0.435549,
-          "ratio": 0.8754366641073159
+          "mr_lru": 0.530069,
+          "mr_policy": 0.459569,
+          "ratio": 0.8669984473719459
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
-          "mr_lru": 0.245411,
-          "mr_policy": 0.20016,
-          "ratio": 0.8156113621638802
+          "mr_lru": 0.267741,
+          "mr_policy": 0.217668,
+          "ratio": 0.8129797080013894
         }
       ],
-      "ci_hi_improve_pct": 8.559,
-      "ci_hi_ratio": 1.117848,
-      "ci_lo_improve_pct": -11.785,
-      "ci_lo_ratio": 0.914413,
-      "ci_strict_improvement_vs_lru": false,
+      "ci_hi_improve_pct": 9.405,
+      "ci_hi_ratio": 0.981318,
+      "ci_lo_improve_pct": 1.868,
+      "ci_lo_ratio": 0.905954,
+      "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 0.813,
-      "geomean_ratio": 0.991869,
+      "geomean_improve_pct": 5.346,
+      "geomean_ratio": 0.946535,
       "n_cells": 12,
       "policy": "POPT"
     },
@@ -1290,97 +1291,97 @@
         {
           "graph": "com-orkut",
           "l3_size": "1MB",
-          "mr_lru": 0.862362,
-          "mr_policy": 0.836956,
-          "ratio": 0.9705390543646405
+          "mr_lru": 0.836912,
+          "mr_policy": 0.820532,
+          "ratio": 0.9804280497830119
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
-          "mr_lru": 0.582657,
-          "mr_policy": 0.550247,
-          "ratio": 0.9443755073739782
+          "mr_lru": 0.573525,
+          "mr_policy": 0.546997,
+          "ratio": 0.9537456954797088
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
-          "mr_lru": 0.382097,
-          "mr_policy": 0.353107,
-          "ratio": 0.9241292132626008
+          "mr_lru": 0.376045,
+          "mr_policy": 0.349875,
+          "ratio": 0.9304072650879548
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "1MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000122,
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
           "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "4MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000121,
-          "ratio": 0.9918032786885246
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "8MB",
-          "mr_lru": 0.000122,
-          "mr_policy": 0.000121,
-          "ratio": 0.9918032786885246
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
-          "mr_lru": 0.839565,
-          "mr_policy": 0.817515,
-          "ratio": 0.973736399206732
+          "mr_lru": 0.864855,
+          "mr_policy": 0.850112,
+          "ratio": 0.9829532118100721
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
-          "mr_lru": 0.60209,
-          "mr_policy": 0.576923,
-          "ratio": 0.9582006012390173
+          "mr_lru": 0.655187,
+          "mr_policy": 0.629684,
+          "ratio": 0.9610752350092417
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
-          "mr_lru": 0.450242,
-          "mr_policy": 0.424774,
-          "ratio": 0.9434348639176265
+          "mr_lru": 0.502491,
+          "mr_policy": 0.471911,
+          "ratio": 0.9391431886342243
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
-          "mr_lru": 0.851252,
-          "mr_policy": 0.828495,
-          "ratio": 0.9732664357910465
+          "mr_lru": 0.859729,
+          "mr_policy": 0.844165,
+          "ratio": 0.9818966209119386
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
-          "mr_lru": 0.497522,
-          "mr_policy": 0.464283,
-          "ratio": 0.933190894071016
+          "mr_lru": 0.530069,
+          "mr_policy": 0.496445,
+          "ratio": 0.9365667488572242
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
-          "mr_lru": 0.245411,
-          "mr_policy": 0.220547,
-          "ratio": 0.8986842480573406
+          "mr_lru": 0.267741,
+          "mr_policy": 0.24122,
+          "ratio": 0.9009453165559252
         }
       ],
-      "ci_hi_improve_pct": 5.924,
-      "ci_hi_ratio": 0.974602,
-      "ci_lo_improve_pct": 2.54,
-      "ci_lo_ratio": 0.940758,
+      "ci_hi_improve_pct": 5.504,
+      "ci_hi_ratio": 0.980402,
+      "ci_lo_improve_pct": 1.96,
+      "ci_lo_ratio": 0.944958,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 4.186,
-      "geomean_ratio": 0.958142,
+      "geomean_improve_pct": 3.657,
+      "geomean_ratio": 0.963431,
       "n_cells": 12,
       "policy": "SRRIP"
     },
@@ -1390,913 +1391,913 @@
         {
           "graph": "com-orkut",
           "l3_size": "1MB",
-          "mr_lru": 0.99728,
-          "mr_policy": 0.99494,
-          "ratio": 0.9976536178405262
+          "mr_lru": 0.998892,
+          "mr_policy": 0.99812,
+          "ratio": 0.9992271436751922
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
-          "mr_lru": 0.994937,
-          "mr_policy": 0.978458,
-          "ratio": 0.983437142251218
+          "mr_lru": 0.996484,
+          "mr_policy": 0.981189,
+          "ratio": 0.984651033032141
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
-          "mr_lru": 0.994229,
-          "mr_policy": 0.962075,
-          "ratio": 0.9676593621791357
+          "mr_lru": 0.995799,
+          "mr_policy": 0.980723,
+          "ratio": 0.9848603985342423
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "1MB",
-          "mr_lru": 0.045849,
-          "mr_policy": 0.223364,
-          "ratio": 4.871731117363519
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "4MB",
-          "mr_lru": 0.045853,
-          "mr_policy": 0.045851,
-          "ratio": 0.9999563823522999
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "email-Eu-core",
           "l3_size": "8MB",
-          "mr_lru": 0.045873,
-          "mr_policy": 0.045826,
-          "ratio": 0.9989754321714298
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
-          "mr_lru": 0.817558,
-          "mr_policy": 0.741251,
-          "ratio": 0.9066647259277018
+          "mr_lru": 0.835709,
+          "mr_policy": 0.783742,
+          "ratio": 0.9378168716622652
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
-          "mr_lru": 0.588816,
-          "mr_policy": 0.525241,
-          "ratio": 0.8920290888834542
+          "mr_lru": 0.644598,
+          "mr_policy": 0.572008,
+          "ratio": 0.887387177744889
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
-          "mr_lru": 0.510594,
-          "mr_policy": 0.447344,
-          "ratio": 0.8761246704818311
+          "mr_lru": 0.563191,
+          "mr_policy": 0.509865,
+          "ratio": 0.905314538051922
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
-          "mr_lru": 0.871696,
-          "mr_policy": 0.842981,
-          "ratio": 0.967058469925295
+          "mr_lru": 0.906293,
+          "mr_policy": 0.859369,
+          "ratio": 0.948224249773528
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
-          "mr_lru": 0.740122,
-          "mr_policy": 0.676437,
-          "ratio": 0.9139533752543499
+          "mr_lru": 0.787277,
+          "mr_policy": 0.755891,
+          "ratio": 0.9601334727167185
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
-          "mr_lru": 0.714564,
-          "mr_policy": 0.603778,
-          "ratio": 0.8449600035826043
+          "mr_lru": 0.759638,
+          "mr_policy": 0.743854,
+          "ratio": 0.9792216819063817
         }
       ],
-      "ci_hi_improve_pct": 8.321,
-      "ci_hi_ratio": 1.439678,
-      "ci_lo_improve_pct": -43.968,
-      "ci_lo_ratio": 0.916794,
+      "ci_hi_improve_pct": 5.734,
+      "ci_hi_ratio": 0.984112,
+      "ci_lo_improve_pct": 1.589,
+      "ci_lo_ratio": 0.942655,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 3.516,
+      "geomean_ratio": 0.964842,
+      "n_cells": 12,
+      "policy": "GRASP"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.998892,
+          "mr_policy": 0.9981,
+          "ratio": 0.9992071214906115
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.996484,
+          "mr_policy": 0.989118,
+          "ratio": 0.9926080097623243
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.995799,
+          "mr_policy": 0.970827,
+          "ratio": 0.9749226500528722
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.835709,
+          "mr_policy": 0.786012,
+          "ratio": 0.9405331281582465
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.644598,
+          "mr_policy": 0.586998,
+          "ratio": 0.91064198151406
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.563191,
+          "mr_policy": 0.504653,
+          "ratio": 0.8960601288017742
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.906293,
+          "mr_policy": 0.872956,
+          "ratio": 0.9632160901606874
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.787277,
+          "mr_policy": 0.708089,
+          "ratio": 0.8994153264988053
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.759638,
+          "mr_policy": 0.625682,
+          "ratio": 0.8236581108370038
+        }
+      ],
+      "ci_hi_improve_pct": 8.543,
+      "ci_hi_ratio": 0.978764,
+      "ci_lo_improve_pct": 2.124,
+      "ci_lo_ratio": 0.914566,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 5.16,
+      "geomean_ratio": 0.948399,
+      "n_cells": 12,
+      "policy": "POPT"
+    },
+    {
+      "app": "bfs",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.998892,
+          "mr_policy": 0.998793,
+          "ratio": 0.9999008901863264
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.996484,
+          "mr_policy": 0.996442,
+          "ratio": 0.9999578518069533
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.995799,
+          "mr_policy": 0.995759,
+          "ratio": 0.9999598312510858
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.835709,
+          "mr_policy": 0.810706,
+          "ratio": 0.9700816911149694
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.644598,
+          "mr_policy": 0.618504,
+          "ratio": 0.9595189560004841
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.563191,
+          "mr_policy": 0.545957,
+          "ratio": 0.9693993689529841
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.906293,
+          "mr_policy": 0.892223,
+          "ratio": 0.9844752193826941
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.787277,
+          "mr_policy": 0.781166,
+          "ratio": 0.9922378019426453
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.759638,
+          "mr_policy": 0.753612,
+          "ratio": 0.9920672741490024
+        }
+      ],
+      "ci_hi_improve_pct": 1.944,
+      "ci_hi_ratio": 0.996147,
+      "ci_lo_improve_pct": 0.385,
+      "ci_lo_ratio": 0.980557,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 1.113,
+      "geomean_ratio": 0.988866,
+      "n_cells": 12,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.741545,
+          "mr_policy": 0.639883,
+          "ratio": 0.862905150732592
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.567614,
+          "mr_policy": 0.41063,
+          "ratio": 0.7234317687724405
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.506299,
+          "mr_policy": 0.249408,
+          "ratio": 0.49261009798557764
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.798646,
+          "mr_policy": 0.727663,
+          "ratio": 0.9111208219912201
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.575481,
+          "mr_policy": 0.47069,
+          "ratio": 0.8179071072720038
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.468595,
+          "mr_policy": 0.317264,
+          "ratio": 0.6770537457719352
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.728107,
+          "mr_policy": 0.604195,
+          "ratio": 0.8298162220662624
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.463819,
+          "mr_policy": 0.2505,
+          "ratio": 0.5400813679474106
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.062926,
+          "mr_policy": 0.062926,
+          "ratio": 1.0
+        }
+      ],
+      "ci_hi_improve_pct": 36.401,
+      "ci_hi_ratio": 0.8563,
+      "ci_lo_improve_pct": 14.37,
+      "ci_lo_ratio": 0.635986,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 25.637,
+      "geomean_ratio": 0.743629,
+      "n_cells": 9,
+      "policy": "GRASP"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.741545,
+          "mr_policy": 0.699313,
+          "ratio": 0.9430486349446088
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.567614,
+          "mr_policy": 0.527796,
+          "ratio": 0.9298502151109734
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.506299,
+          "mr_policy": 0.339212,
+          "ratio": 0.6699835472714739
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.798646,
+          "mr_policy": 0.681907,
+          "ratio": 0.8538288553376591
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.575481,
+          "mr_policy": 0.490627,
+          "ratio": 0.8525511702384613
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.468595,
+          "mr_policy": 0.375347,
+          "ratio": 0.8010051323637682
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.728107,
+          "mr_policy": 0.641433,
+          "ratio": 0.880959803984854
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.463819,
+          "mr_policy": 0.311977,
+          "ratio": 0.6726266064995182
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.062926,
+          "mr_policy": 0.062926,
+          "ratio": 1.0
+        }
+      ],
+      "ci_hi_improve_pct": 23.576,
+      "ci_hi_ratio": 0.910249,
+      "ci_lo_improve_pct": 8.975,
+      "ci_lo_ratio": 0.764242,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 16.237,
+      "geomean_ratio": 0.83763,
+      "n_cells": 9,
+      "policy": "POPT"
+    },
+    {
+      "app": "cc",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.741545,
+          "mr_policy": 0.708078,
+          "ratio": 0.9548685514702412
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.567614,
+          "mr_policy": 0.5532,
+          "ratio": 0.9746059822344059
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.506299,
+          "mr_policy": 0.42201,
+          "ratio": 0.8335193235617687
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.798646,
+          "mr_policy": 0.774459,
+          "ratio": 0.9697149926250179
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.575481,
+          "mr_policy": 0.553523,
+          "ratio": 0.9618440921594283
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.468595,
+          "mr_policy": 0.435289,
+          "ratio": 0.9289236974359522
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.728107,
+          "mr_policy": 0.701253,
+          "ratio": 0.9631180581974903
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.463819,
+          "mr_policy": 0.379204,
+          "ratio": 0.8175689223597998
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.062926,
+          "mr_policy": 0.062926,
+          "ratio": 1.0
+        }
+      ],
+      "ci_hi_improve_pct": 11.142,
+      "ci_hi_ratio": 0.97029,
+      "ci_lo_improve_pct": 2.971,
+      "ci_lo_ratio": 0.888575,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 6.827,
+      "geomean_ratio": 0.931732,
+      "n_cells": 9,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.742564,
+          "mr_policy": 0.638302,
+          "ratio": 0.8595919004961189
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.345609,
+          "mr_policy": 0.299712,
+          "ratio": 0.8671996388982925
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.185573,
+          "mr_policy": 0.159906,
+          "ratio": 0.8616878532976241
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.765369,
+          "mr_policy": 0.682525,
+          "ratio": 0.8917593997143862
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.461634,
+          "mr_policy": 0.368881,
+          "ratio": 0.7990767577778067
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.299897,
+          "mr_policy": 0.225332,
+          "ratio": 0.7513646351914157
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.696151,
+          "mr_policy": 0.555685,
+          "ratio": 0.7982248104218769
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.209387,
+          "mr_policy": 0.143667,
+          "ratio": 0.6861314217215013
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.107292,
+          "mr_policy": 0.091342,
+          "ratio": 0.8513402676807218
+        }
+      ],
+      "ci_hi_improve_pct": 19.417,
+      "ci_hi_ratio": 0.913219,
+      "ci_lo_improve_pct": 8.678,
+      "ci_lo_ratio": 0.805832,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 14.147,
+      "geomean_ratio": 0.858533,
+      "n_cells": 12,
+      "policy": "GRASP"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.742564,
+          "mr_policy": 0.635334,
+          "ratio": 0.8555949386180853
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.345609,
+          "mr_policy": 0.224549,
+          "ratio": 0.649719770029137
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.185573,
+          "mr_policy": 0.119728,
+          "ratio": 0.6451800639101594
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.765369,
+          "mr_policy": 0.631166,
+          "ratio": 0.8246558196111942
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.461634,
+          "mr_policy": 0.30041,
+          "ratio": 0.6507536273324755
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.299897,
+          "mr_policy": 0.189314,
+          "ratio": 0.6312634004341491
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.696151,
+          "mr_policy": 0.5266,
+          "ratio": 0.7564450815986761
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.209387,
+          "mr_policy": 0.124883,
+          "ratio": 0.5964219364143906
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.107292,
+          "mr_policy": 0.093044,
+          "ratio": 0.8672035193677069
+        }
+      ],
+      "ci_hi_improve_pct": 30.217,
+      "ci_hi_ratio": 0.862288,
+      "ci_lo_improve_pct": 13.771,
+      "ci_lo_ratio": 0.697826,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 22.42,
+      "geomean_ratio": 0.775804,
+      "n_cells": 12,
+      "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.742564,
+          "mr_policy": 0.706531,
+          "ratio": 0.9514748897064765
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.345609,
+          "mr_policy": 0.303554,
+          "ratio": 0.8783162475514237
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.185573,
+          "mr_policy": 0.159476,
+          "ratio": 0.8593707058677718
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "1MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "4MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "email-Eu-core",
+          "l3_size": "8MB",
+          "mr_lru": 1.0,
+          "mr_policy": 1.0,
+          "ratio": 1.0
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.765369,
+          "mr_policy": 0.733963,
+          "ratio": 0.9589661980038388
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.461634,
+          "mr_policy": 0.420129,
+          "ratio": 0.910091111139994
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.299897,
+          "mr_policy": 0.259415,
+          "ratio": 0.8650136546881095
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.696151,
+          "mr_policy": 0.651728,
+          "ratio": 0.9361876949110178
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.209387,
+          "mr_policy": 0.170262,
+          "ratio": 0.8131450376575432
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.107292,
+          "mr_policy": 0.094371,
+          "ratio": 0.8795716362822951
+        }
+      ],
+      "ci_hi_improve_pct": 11.689,
+      "ci_hi_ratio": 0.953847,
+      "ci_lo_improve_pct": 4.615,
+      "ci_lo_ratio": 0.883112,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "social",
+      "geomean_improve_pct": 8.097,
+      "geomean_ratio": 0.919028,
+      "n_cells": 12,
+      "policy": "SRRIP"
+    },
+    {
+      "app": "sssp",
+      "cells": [
+        {
+          "graph": "com-orkut",
+          "l3_size": "1MB",
+          "mr_lru": 0.686743,
+          "mr_policy": 0.592884,
+          "ratio": 0.8633273291464201
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "4MB",
+          "mr_lru": 0.173036,
+          "mr_policy": 0.146198,
+          "ratio": 0.8448993273076123
+        },
+        {
+          "graph": "com-orkut",
+          "l3_size": "8MB",
+          "mr_lru": 0.016185,
+          "mr_policy": 0.016905,
+          "ratio": 1.0444856348470806
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "1MB",
+          "mr_lru": 0.743896,
+          "mr_policy": 0.682024,
+          "ratio": 0.9168270833557378
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "4MB",
+          "mr_lru": 0.383581,
+          "mr_policy": 0.318344,
+          "ratio": 0.8299264040711088
+        },
+        {
+          "graph": "soc-LiveJournal1",
+          "l3_size": "8MB",
+          "mr_lru": 0.16963,
+          "mr_policy": 0.139874,
+          "ratio": 0.8245829157578258
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "1MB",
+          "mr_lru": 0.671944,
+          "mr_policy": 0.558075,
+          "ratio": 0.8305379614967914
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "4MB",
+          "mr_lru": 0.099742,
+          "mr_policy": 0.07655,
+          "ratio": 0.7674800986545288
+        },
+        {
+          "graph": "soc-pokec",
+          "l3_size": "8MB",
+          "mr_lru": 0.003288,
+          "mr_policy": 0.007613,
+          "ratio": 2.315389294403893
+        }
+      ],
+      "ci_hi_improve_pct": 17.047,
+      "ci_hi_ratio": 1.221843,
+      "ci_lo_improve_pct": -22.184,
+      "ci_lo_ratio": 0.82953,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": -7.735,
-      "geomean_ratio": 1.077348,
-      "n_cells": 12,
-      "policy": "GRASP"
-    },
-    {
-      "app": "bfs",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.99728,
-          "mr_policy": 0.997835,
-          "ratio": 1.0005565137173111
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.994937,
-          "mr_policy": 0.974505,
-          "ratio": 0.9794640263654885
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.994229,
-          "mr_policy": 0.95479,
-          "ratio": 0.9603320764129794
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "1MB",
-          "mr_lru": 0.045849,
-          "mr_policy": 0.045853,
-          "ratio": 1.0000872429060612
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "4MB",
-          "mr_lru": 0.045853,
-          "mr_policy": 0.045849,
-          "ratio": 0.9999127647045996
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "8MB",
-          "mr_lru": 0.045873,
-          "mr_policy": 0.045841,
-          "ratio": 0.9993024219039522
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.817558,
-          "mr_policy": 0.75215,
-          "ratio": 0.919995890199839
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.588816,
-          "mr_policy": 0.537646,
-          "ratio": 0.9130967908480747
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.510594,
-          "mr_policy": 0.459347,
-          "ratio": 0.8996325847933975
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.871696,
-          "mr_policy": 0.855599,
-          "ratio": 0.9815336998219563
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.740122,
-          "mr_policy": 0.673605,
-          "ratio": 0.9101269790656136
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.714564,
-          "mr_policy": 0.59276,
-          "ratio": 0.8295408109000733
-        }
-      ],
-      "ci_hi_improve_pct": 8.416,
-      "ci_hi_ratio": 0.977485,
-      "ci_lo_improve_pct": 2.252,
-      "ci_lo_ratio": 0.915841,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 5.203,
-      "geomean_ratio": 0.947975,
-      "n_cells": 12,
-      "policy": "POPT"
-    },
-    {
-      "app": "bfs",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.99728,
-          "mr_policy": 0.997617,
-          "ratio": 1.000337919140061
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.994937,
-          "mr_policy": 0.995591,
-          "ratio": 1.0006573280519269
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.994229,
-          "mr_policy": 0.994499,
-          "ratio": 1.0002715672143943
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "1MB",
-          "mr_lru": 0.045849,
-          "mr_policy": 0.045832,
-          "ratio": 0.9996292176492398
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "4MB",
-          "mr_lru": 0.045853,
-          "mr_policy": 0.045853,
-          "ratio": 1.0
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "8MB",
-          "mr_lru": 0.045873,
-          "mr_policy": 0.04586,
-          "ratio": 0.9997166088984806
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.817558,
-          "mr_policy": 0.782373,
-          "ratio": 0.9569632980167768
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.588816,
-          "mr_policy": 0.564177,
-          "ratio": 0.9581550093747453
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.510594,
-          "mr_policy": 0.495617,
-          "ratio": 0.9706674970720376
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.871696,
-          "mr_policy": 0.861972,
-          "ratio": 0.9888447348616948
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.740122,
-          "mr_policy": 0.738747,
-          "ratio": 0.9981421981781383
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.714564,
-          "mr_policy": 0.713591,
-          "ratio": 0.9986383305064347
-        }
-      ],
-      "ci_hi_improve_pct": 2.058,
-      "ci_hi_ratio": 0.997808,
-      "ci_lo_improve_pct": 0.219,
-      "ci_lo_ratio": 0.979415,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 1.08,
-      "geomean_ratio": 0.989198,
-      "n_cells": 12,
-      "policy": "SRRIP"
-    },
-    {
-      "app": "cc",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.688918,
-          "mr_policy": 0.58369,
-          "ratio": 0.8472561320795798
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.503285,
-          "mr_policy": 0.369839,
-          "ratio": 0.7348500352682873
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.430593,
-          "mr_policy": 0.22116,
-          "ratio": 0.5136172673499104
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.783198,
-          "mr_policy": 0.745014,
-          "ratio": 0.9512460450614021
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.543694,
-          "mr_policy": 0.477399,
-          "ratio": 0.8780656030782021
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.431375,
-          "mr_policy": 0.319267,
-          "ratio": 0.7401147493480151
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.699434,
-          "mr_policy": 0.568383,
-          "ratio": 0.8126327859383444
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.396085,
-          "mr_policy": 0.226401,
-          "ratio": 0.5715970056932224
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.057708,
-          "mr_policy": 0.057315,
-          "ratio": 0.993189852360158
-        }
-      ],
-      "ci_hi_improve_pct": 33.898,
-      "ci_hi_ratio": 0.874073,
-      "ci_lo_improve_pct": 12.593,
-      "ci_lo_ratio": 0.661022,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 23.362,
-      "geomean_ratio": 0.766378,
-      "n_cells": 9,
-      "policy": "GRASP"
-    },
-    {
-      "app": "cc",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.688918,
-          "mr_policy": 0.693854,
-          "ratio": 1.007164858517269
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.503285,
-          "mr_policy": 0.470386,
-          "ratio": 0.9346314712339927
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.430593,
-          "mr_policy": 0.283031,
-          "ratio": 0.6573051582352708
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.783198,
-          "mr_policy": 0.75899,
-          "ratio": 0.9690908301604448
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.543694,
-          "mr_policy": 0.495497,
-          "ratio": 0.9113527094284652
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.431375,
-          "mr_policy": 0.350099,
-          "ratio": 0.8115885250651984
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.699434,
-          "mr_policy": 0.674186,
-          "ratio": 0.9639022409548291
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.396085,
-          "mr_policy": 0.282483,
-          "ratio": 0.7131878258454624
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.057708,
-          "mr_policy": 0.057682,
-          "ratio": 0.9995494558813335
-        }
-      ],
-      "ci_hi_improve_pct": 21.012,
-      "ci_hi_ratio": 0.957841,
-      "ci_lo_improve_pct": 4.216,
-      "ci_lo_ratio": 0.789875,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 12.369,
-      "geomean_ratio": 0.876314,
-      "n_cells": 9,
-      "policy": "POPT"
-    },
-    {
-      "app": "cc",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.688918,
-          "mr_policy": 0.651004,
-          "ratio": 0.9449658740227429
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.503285,
-          "mr_policy": 0.488797,
-          "ratio": 0.9712131297376239
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.430593,
-          "mr_policy": 0.321163,
-          "ratio": 0.7458621017991467
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.783198,
-          "mr_policy": 0.772184,
-          "ratio": 0.9859371448854568
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.543694,
-          "mr_policy": 0.532392,
-          "ratio": 0.9792125717775071
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.431375,
-          "mr_policy": 0.409854,
-          "ratio": 0.9501106925528832
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.699434,
-          "mr_policy": 0.666805,
-          "ratio": 0.9533494225330768
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.396085,
-          "mr_policy": 0.329942,
-          "ratio": 0.8330080664503832
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.057708,
-          "mr_policy": 0.057727,
-          "ratio": 1.0003292437790254
-        }
-      ],
-      "ci_hi_improve_pct": 13.247,
-      "ci_hi_ratio": 0.974758,
-      "ci_lo_improve_pct": 2.524,
-      "ci_lo_ratio": 0.867531,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 7.437,
-      "geomean_ratio": 0.925629,
-      "n_cells": 9,
-      "policy": "SRRIP"
-    },
-    {
-      "app": "pr",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.704728,
-          "mr_policy": 0.684954,
-          "ratio": 0.9719409474293628
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.308477,
-          "mr_policy": 0.265294,
-          "ratio": 0.8600122537498743
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.163608,
-          "mr_policy": 0.128381,
-          "ratio": 0.7846865678939905
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "1MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "4MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "8MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.731927,
-          "mr_policy": 0.683922,
-          "ratio": 0.9344128581128993
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.425744,
-          "mr_policy": 0.350557,
-          "ratio": 0.8233985681536322
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.275743,
-          "mr_policy": 0.201244,
-          "ratio": 0.7298245105043464
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.679563,
-          "mr_policy": 0.543296,
-          "ratio": 0.7994784883815039
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.196913,
-          "mr_policy": 0.13009,
-          "ratio": 0.6606470878001961
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.100394,
-          "mr_policy": 0.079237,
-          "ratio": 0.7892603143614161
-        }
-      ],
-      "ci_hi_improve_pct": 20.849,
-      "ci_hi_ratio": 0.919554,
-      "ci_lo_improve_pct": 8.045,
-      "ci_lo_ratio": 0.791513,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 14.457,
-      "geomean_ratio": 0.855429,
-      "n_cells": 12,
-      "policy": "GRASP"
-    },
-    {
-      "app": "pr",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.704728,
-          "mr_policy": 0.610938,
-          "ratio": 0.8669131920400495
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.308477,
-          "mr_policy": 0.21238,
-          "ratio": 0.6884792059051404
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.163608,
-          "mr_policy": 0.108273,
-          "ratio": 0.6617830423940149
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "1MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "4MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "8MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.731927,
-          "mr_policy": 0.622631,
-          "ratio": 0.8506736327529932
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.425744,
-          "mr_policy": 0.288608,
-          "ratio": 0.6778909391559246
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.275743,
-          "mr_policy": 0.178333,
-          "ratio": 0.6467362725436365
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.679563,
-          "mr_policy": 0.54677,
-          "ratio": 0.8045905971926075
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.196913,
-          "mr_policy": 0.123571,
-          "ratio": 0.6275410968295643
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.100394,
-          "mr_policy": 0.087424,
-          "ratio": 0.8708090124907863
-        }
-      ],
-      "ci_hi_improve_pct": 27.809,
-      "ci_hi_ratio": 0.876712,
-      "ci_lo_improve_pct": 12.329,
-      "ci_lo_ratio": 0.721909,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 20.394,
-      "geomean_ratio": 0.796063,
-      "n_cells": 12,
-      "policy": "POPT"
-    },
-    {
-      "app": "pr",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.704728,
-          "mr_policy": 0.66248,
-          "ratio": 0.9400506294627146
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.308477,
-          "mr_policy": 0.271668,
-          "ratio": 0.8806750584322333
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.163608,
-          "mr_policy": 0.140884,
-          "ratio": 0.8611070363307418
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "1MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "4MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "email-Eu-core",
-          "l3_size": "8MB",
-          "mr_lru": 1.0,
-          "mr_policy": 1.0,
-          "ratio": 1.0
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.731927,
-          "mr_policy": 0.698673,
-          "ratio": 0.9545665073156203
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.425744,
-          "mr_policy": 0.389422,
-          "ratio": 0.9146858205870194
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.275743,
-          "mr_policy": 0.239915,
-          "ratio": 0.870067417849229
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.679563,
-          "mr_policy": 0.634272,
-          "ratio": 0.9333527575809747
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.196913,
-          "mr_policy": 0.161468,
-          "ratio": 0.8199966482659855
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.100394,
-          "mr_policy": 0.088209,
-          "ratio": 0.8786282048728011
-        }
-      ],
-      "ci_hi_improve_pct": 11.432,
-      "ci_hi_ratio": 0.953185,
-      "ci_lo_improve_pct": 4.681,
-      "ci_lo_ratio": 0.885683,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 8.073,
-      "geomean_ratio": 0.91927,
-      "n_cells": 12,
-      "policy": "SRRIP"
-    },
-    {
-      "app": "sssp",
-      "cells": [
-        {
-          "graph": "com-orkut",
-          "l3_size": "1MB",
-          "mr_lru": 0.660328,
-          "mr_policy": 0.633754,
-          "ratio": 0.9597563635041979
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "4MB",
-          "mr_lru": 0.169719,
-          "mr_policy": 0.158877,
-          "ratio": 0.936117936117936
-        },
-        {
-          "graph": "com-orkut",
-          "l3_size": "8MB",
-          "mr_lru": 0.024596,
-          "mr_policy": 0.02245,
-          "ratio": 0.9127500406570175
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "1MB",
-          "mr_lru": 0.705817,
-          "mr_policy": 0.658449,
-          "ratio": 0.9328891199843584
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "4MB",
-          "mr_lru": 0.362723,
-          "mr_policy": 0.296294,
-          "ratio": 0.8168602487297469
-        },
-        {
-          "graph": "soc-LiveJournal1",
-          "l3_size": "8MB",
-          "mr_lru": 0.1687,
-          "mr_policy": 0.124008,
-          "ratio": 0.7350800237107291
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "1MB",
-          "mr_lru": 0.635137,
-          "mr_policy": 0.526903,
-          "ratio": 0.8295895216307664
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "4MB",
-          "mr_lru": 0.09763,
-          "mr_policy": 0.066827,
-          "ratio": 0.6844924715763597
-        },
-        {
-          "graph": "soc-pokec",
-          "l3_size": "8MB",
-          "mr_lru": 0.002931,
-          "mr_policy": 0.002917,
-          "ratio": 0.995223473217332
-        }
-      ],
-      "ci_hi_improve_pct": 20.498,
-      "ci_hi_ratio": 0.92865,
-      "ci_lo_improve_pct": 7.135,
-      "ci_lo_ratio": 0.795017,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 13.916,
-      "geomean_ratio": 0.860841,
+      "geomean_improve_pct": 3.802,
+      "geomean_ratio": 0.96198,
       "n_cells": 9,
       "policy": "GRASP"
     },
@@ -2306,76 +2307,76 @@
         {
           "graph": "com-orkut",
           "l3_size": "1MB",
-          "mr_lru": 0.660328,
-          "mr_policy": 0.596793,
-          "ratio": 0.9037826655843763
+          "mr_lru": 0.686743,
+          "mr_policy": 0.612615,
+          "ratio": 0.8920586012525793
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
-          "mr_lru": 0.169719,
-          "mr_policy": 0.14727,
-          "ratio": 0.8677284216852562
+          "mr_lru": 0.173036,
+          "mr_policy": 0.143065,
+          "ratio": 0.8267932684528075
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
-          "mr_lru": 0.024596,
-          "mr_policy": 0.024068,
-          "ratio": 0.9785330948121646
+          "mr_lru": 0.016185,
+          "mr_policy": 0.017233,
+          "ratio": 1.0647513129440838
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
-          "mr_lru": 0.705817,
-          "mr_policy": 0.658234,
-          "ratio": 0.9325845084490738
+          "mr_lru": 0.743896,
+          "mr_policy": 0.670688,
+          "ratio": 0.9015883940765913
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
-          "mr_lru": 0.362723,
-          "mr_policy": 0.308493,
-          "ratio": 0.8504919732137196
+          "mr_lru": 0.383581,
+          "mr_policy": 0.31922,
+          "ratio": 0.8322101459665625
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
-          "mr_lru": 0.1687,
-          "mr_policy": 0.13148,
-          "ratio": 0.7793716656787197
+          "mr_lru": 0.16963,
+          "mr_policy": 0.135403,
+          "ratio": 0.7982255497258739
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
-          "mr_lru": 0.635137,
-          "mr_policy": 0.564999,
-          "ratio": 0.8895702816872582
+          "mr_lru": 0.671944,
+          "mr_policy": 0.582991,
+          "ratio": 0.8676184324884217
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
-          "mr_lru": 0.09763,
-          "mr_policy": 0.075664,
-          "ratio": 0.7750076820649391
+          "mr_lru": 0.099742,
+          "mr_policy": 0.077731,
+          "ratio": 0.7793206472699564
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
-          "mr_lru": 0.002931,
-          "mr_policy": 0.002914,
-          "ratio": 0.9941999317639031
+          "mr_lru": 0.003288,
+          "mr_policy": 0.003288,
+          "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 16.405,
-      "ci_hi_ratio": 0.930561,
-      "ci_lo_improve_pct": 6.944,
-      "ci_lo_ratio": 0.835955,
+      "ci_hi_improve_pct": 16.933,
+      "ci_hi_ratio": 0.93863,
+      "ci_lo_improve_pct": 6.137,
+      "ci_lo_ratio": 0.830666,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 11.735,
-      "geomean_ratio": 0.882648,
+      "geomean_improve_pct": 11.953,
+      "geomean_ratio": 0.880474,
       "n_cells": 9,
       "policy": "POPT"
     },
@@ -2385,76 +2386,76 @@
         {
           "graph": "com-orkut",
           "l3_size": "1MB",
-          "mr_lru": 0.660328,
-          "mr_policy": 0.620433,
-          "ratio": 0.9395830556935341
+          "mr_lru": 0.686743,
+          "mr_policy": 0.653862,
+          "ratio": 0.9521203710849621
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
-          "mr_lru": 0.169719,
-          "mr_policy": 0.154127,
-          "ratio": 0.9081304980585555
+          "mr_lru": 0.173036,
+          "mr_policy": 0.152881,
+          "ratio": 0.8835213481587646
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
-          "mr_lru": 0.024596,
-          "mr_policy": 0.022316,
-          "ratio": 0.9073020003252561
+          "mr_lru": 0.016185,
+          "mr_policy": 0.015217,
+          "ratio": 0.9401915353722582
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
-          "mr_lru": 0.705817,
-          "mr_policy": 0.679863,
-          "ratio": 0.9632284288987089
+          "mr_lru": 0.743896,
+          "mr_policy": 0.71767,
+          "ratio": 0.9647450718917698
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
-          "mr_lru": 0.362723,
-          "mr_policy": 0.33929,
-          "ratio": 0.935396983372987
+          "mr_lru": 0.383581,
+          "mr_policy": 0.353797,
+          "ratio": 0.9223527755545764
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
-          "mr_lru": 0.1687,
-          "mr_policy": 0.148253,
-          "ratio": 0.8787966804979254
+          "mr_lru": 0.16963,
+          "mr_policy": 0.151842,
+          "ratio": 0.8951364735011496
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
-          "mr_lru": 0.635137,
-          "mr_policy": 0.603675,
-          "ratio": 0.9504642305518337
+          "mr_lru": 0.671944,
+          "mr_policy": 0.636608,
+          "ratio": 0.9474122843570297
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
-          "mr_lru": 0.09763,
-          "mr_policy": 0.084747,
-          "ratio": 0.8680426098535287
+          "mr_lru": 0.099742,
+          "mr_policy": 0.086994,
+          "ratio": 0.8721902508471858
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
-          "mr_lru": 0.002931,
-          "mr_policy": 0.002924,
-          "ratio": 0.997611736608666
+          "mr_lru": 0.003288,
+          "mr_policy": 0.003288,
+          "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 9.797,
-      "ci_hi_ratio": 0.953878,
-      "ci_lo_improve_pct": 4.612,
-      "ci_lo_ratio": 0.902034,
+      "ci_hi_improve_pct": 9.531,
+      "ci_hi_ratio": 0.956046,
+      "ci_lo_improve_pct": 4.395,
+      "ci_lo_ratio": 0.904685,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 7.32,
-      "geomean_ratio": 0.926803,
+      "geomean_improve_pct": 6.997,
+      "geomean_ratio": 0.93003,
       "n_cells": 9,
       "policy": "SRRIP"
     },
@@ -2464,34 +2465,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.699827,
-          "mr_policy": 0.708493,
-          "ratio": 1.0123830603849238
+          "mr_lru": 0.802694,
+          "mr_policy": 0.823764,
+          "ratio": 1.02624910613509
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.369312,
-          "mr_policy": 0.342787,
-          "ratio": 0.9281772593362795
+          "mr_lru": 0.516173,
+          "mr_policy": 0.518605,
+          "ratio": 1.0047115986306916
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.149958,
-          "mr_policy": 0.136525,
-          "ratio": 0.9104215847103856
+          "mr_lru": 0.221011,
+          "mr_policy": 0.263469,
+          "ratio": 1.1921080851179353
         }
       ],
-      "ci_hi_improve_pct": 8.958,
-      "ci_hi_ratio": 1.012383,
-      "ci_lo_improve_pct": -1.238,
-      "ci_lo_ratio": 0.910422,
+      "ci_hi_improve_pct": -0.471,
+      "ci_hi_ratio": 1.192108,
+      "ci_lo_improve_pct": -19.211,
+      "ci_lo_ratio": 1.004712,
       "ci_strict_improvement_vs_lru": false,
-      "ci_strict_regression_vs_lru": false,
+      "ci_strict_regression_vs_lru": true,
       "family": "web",
-      "geomean_improve_pct": 5.069,
-      "geomean_ratio": 0.949306,
+      "geomean_improve_pct": -7.12,
+      "geomean_ratio": 1.071198,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -2501,34 +2502,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.699827,
-          "mr_policy": 0.703612,
-          "ratio": 1.0054084795242253
+          "mr_lru": 0.802694,
+          "mr_policy": 0.82156,
+          "ratio": 1.023503352460589
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.369312,
-          "mr_policy": 0.369243,
-          "ratio": 0.9998131661034573
+          "mr_lru": 0.516173,
+          "mr_policy": 0.543463,
+          "ratio": 1.0528698711478517
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.149958,
-          "mr_policy": 0.162922,
-          "ratio": 1.0864508729110818
+          "mr_lru": 0.221011,
+          "mr_policy": 0.289227,
+          "ratio": 1.3086543203731942
         }
       ],
-      "ci_hi_improve_pct": 0.019,
-      "ci_hi_ratio": 1.086451,
-      "ci_lo_improve_pct": -8.645,
-      "ci_lo_ratio": 0.999813,
+      "ci_hi_improve_pct": -2.35,
+      "ci_hi_ratio": 1.308654,
+      "ci_lo_improve_pct": -30.865,
+      "ci_lo_ratio": 1.023503,
       "ci_strict_improvement_vs_lru": false,
-      "ci_strict_regression_vs_lru": false,
+      "ci_strict_regression_vs_lru": true,
       "family": "web",
-      "geomean_improve_pct": -2.981,
-      "geomean_ratio": 1.02981,
+      "geomean_improve_pct": -12.141,
+      "geomean_ratio": 1.121406,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2538,34 +2539,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.699827,
-          "mr_policy": 0.688201,
-          "ratio": 0.9833873228669371
+          "mr_lru": 0.802694,
+          "mr_policy": 0.806937,
+          "ratio": 1.0052859495648403
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.369312,
-          "mr_policy": 0.355966,
-          "ratio": 0.9638625335759468
+          "mr_lru": 0.516173,
+          "mr_policy": 0.498883,
+          "ratio": 0.9665034784849266
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.149958,
-          "mr_policy": 0.144063,
-          "ratio": 0.960688992918017
+          "mr_lru": 0.221011,
+          "mr_policy": 0.211406,
+          "ratio": 0.95654062467479
         }
       ],
-      "ci_hi_improve_pct": 3.931,
-      "ci_hi_ratio": 0.983387,
-      "ci_lo_improve_pct": 1.661,
-      "ci_lo_ratio": 0.960689,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 4.346,
+      "ci_hi_ratio": 1.005286,
+      "ci_lo_improve_pct": -0.529,
+      "ci_lo_ratio": 0.956541,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 3.074,
-      "geomean_ratio": 0.969261,
+      "geomean_improve_pct": 2.411,
+      "geomean_ratio": 0.975885,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -2575,34 +2576,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.970442,
-          "mr_policy": 0.936261,
-          "ratio": 0.9647779053256145
+          "mr_lru": 0.980402,
+          "mr_policy": 0.944392,
+          "ratio": 0.9632701687675056
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.937114,
-          "mr_policy": 0.75746,
-          "ratio": 0.8082901333242274
+          "mr_lru": 0.948578,
+          "mr_policy": 0.919123,
+          "ratio": 0.9689482572861694
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.809071,
-          "mr_policy": 0.754332,
-          "ratio": 0.932343391371091
+          "mr_lru": 0.819363,
+          "mr_policy": 0.91254,
+          "ratio": 1.1137188279187613
         }
       ],
-      "ci_hi_improve_pct": 19.171,
-      "ci_hi_ratio": 0.964778,
-      "ci_lo_improve_pct": 3.522,
-      "ci_lo_ratio": 0.80829,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 3.673,
+      "ci_hi_ratio": 1.113719,
+      "ci_lo_improve_pct": -11.372,
+      "ci_lo_ratio": 0.96327,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 10.08,
-      "geomean_ratio": 0.899201,
+      "geomean_improve_pct": -1.3,
+      "geomean_ratio": 1.012997,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -2612,34 +2613,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.970442,
-          "mr_policy": 0.946723,
-          "ratio": 0.975558559913936
+          "mr_lru": 0.980402,
+          "mr_policy": 0.955613,
+          "ratio": 0.9747154738566425
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.937114,
-          "mr_policy": 0.755584,
-          "ratio": 0.8062882424123426
+          "mr_lru": 0.948578,
+          "mr_policy": 0.764331,
+          "ratio": 0.8057650504228434
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.809071,
-          "mr_policy": 0.729253,
-          "ratio": 0.90134611177511
+          "mr_lru": 0.819363,
+          "mr_policy": 0.737762,
+          "ratio": 0.9004092203333566
         }
       ],
-      "ci_hi_improve_pct": 19.371,
-      "ci_hi_ratio": 0.975559,
-      "ci_lo_improve_pct": 2.444,
-      "ci_lo_ratio": 0.806288,
+      "ci_hi_improve_pct": 19.423,
+      "ci_hi_ratio": 0.974715,
+      "ci_lo_improve_pct": 2.528,
+      "ci_lo_ratio": 0.805765,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 10.831,
-      "geomean_ratio": 0.891686,
+      "geomean_improve_pct": 10.907,
+      "geomean_ratio": 0.890927,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2649,34 +2650,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.970442,
-          "mr_policy": 0.96989,
-          "ratio": 0.999431187026118
+          "mr_lru": 0.980402,
+          "mr_policy": 0.979611,
+          "ratio": 0.9991931881003915
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.937114,
-          "mr_policy": 0.934784,
-          "ratio": 0.9975136429505908
+          "mr_lru": 0.948578,
+          "mr_policy": 0.947337,
+          "ratio": 0.9986917259308142
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.809071,
-          "mr_policy": 0.801303,
-          "ratio": 0.9903988648709445
+          "mr_lru": 0.819363,
+          "mr_policy": 0.813627,
+          "ratio": 0.9929994398087295
         }
       ],
-      "ci_hi_improve_pct": 0.96,
-      "ci_hi_ratio": 0.999431,
-      "ci_lo_improve_pct": 0.057,
-      "ci_lo_ratio": 0.990399,
+      "ci_hi_improve_pct": 0.7,
+      "ci_hi_ratio": 0.999193,
+      "ci_lo_improve_pct": 0.081,
+      "ci_lo_ratio": 0.992999,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 0.423,
-      "geomean_ratio": 0.995774,
+      "geomean_improve_pct": 0.304,
+      "geomean_ratio": 0.996957,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -2686,34 +2687,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.560761,
-          "mr_policy": 0.4944,
-          "ratio": 0.8816590312093745
+          "mr_lru": 0.585926,
+          "mr_policy": 0.539798,
+          "ratio": 0.9212733348579856
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.045733,
-          "mr_policy": 0.045679,
-          "ratio": 0.9988192333763365
+          "mr_lru": 0.051919,
+          "mr_policy": 0.051919,
+          "ratio": 1.0
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.045641,
-          "mr_policy": 0.045695,
-          "ratio": 1.0011831467321048
+          "mr_lru": 0.051919,
+          "mr_policy": 0.051919,
+          "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 11.834,
-      "ci_hi_ratio": 1.001183,
-      "ci_lo_improve_pct": -0.118,
-      "ci_lo_ratio": 0.881659,
+      "ci_hi_improve_pct": 7.873,
+      "ci_hi_ratio": 1.0,
+      "ci_lo_improve_pct": 0.0,
+      "ci_lo_ratio": 0.921273,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 4.111,
-      "geomean_ratio": 0.958886,
+      "geomean_improve_pct": 2.696,
+      "geomean_ratio": 0.973037,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -2723,34 +2724,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.560761,
-          "mr_policy": 0.507075,
-          "ratio": 0.9042622436296391
+          "mr_lru": 0.585926,
+          "mr_policy": 0.496614,
+          "ratio": 0.8475711949973206
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.045733,
-          "mr_policy": 0.045714,
-          "ratio": 0.999584545076859
+          "mr_lru": 0.051919,
+          "mr_policy": 0.051919,
+          "ratio": 1.0
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.045641,
-          "mr_policy": 0.045687,
-          "ratio": 1.0010078657347559
+          "mr_lru": 0.051919,
+          "mr_policy": 0.051919,
+          "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 9.574,
-      "ci_hi_ratio": 1.001008,
-      "ci_lo_improve_pct": -0.101,
-      "ci_lo_ratio": 0.904262,
+      "ci_hi_improve_pct": 15.243,
+      "ci_hi_ratio": 1.0,
+      "ci_lo_improve_pct": 0.0,
+      "ci_lo_ratio": 0.847571,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 3.28,
-      "geomean_ratio": 0.967202,
+      "geomean_improve_pct": 5.363,
+      "geomean_ratio": 0.946365,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2760,34 +2761,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.560761,
-          "mr_policy": 0.522174,
-          "ratio": 0.9311881532417555
+          "mr_lru": 0.585926,
+          "mr_policy": 0.556854,
+          "ratio": 0.9503828128466735
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.045733,
-          "mr_policy": 0.04573,
-          "ratio": 0.9999344018542409
+          "mr_lru": 0.051919,
+          "mr_policy": 0.051919,
+          "ratio": 1.0
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.045641,
-          "mr_policy": 0.045658,
-          "ratio": 1.0003724721193663
+          "mr_lru": 0.051919,
+          "mr_policy": 0.051919,
+          "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 6.881,
-      "ci_hi_ratio": 1.000372,
-      "ci_lo_improve_pct": -0.037,
-      "ci_lo_ratio": 0.931188,
+      "ci_hi_improve_pct": 4.962,
+      "ci_hi_ratio": 1.0,
+      "ci_lo_improve_pct": 0.0,
+      "ci_lo_ratio": 0.950383,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 2.338,
-      "geomean_ratio": 0.976615,
+      "geomean_improve_pct": 1.682,
+      "geomean_ratio": 0.98318,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -2797,34 +2798,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.600838,
-          "mr_policy": 0.453134,
-          "ratio": 0.7541700092204554
+          "mr_lru": 0.598361,
+          "mr_policy": 0.450908,
+          "ratio": 0.7535718404107219
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.141431,
-          "mr_policy": 0.10569,
-          "ratio": 0.7472901980471043
+          "mr_lru": 0.142111,
+          "mr_policy": 0.129092,
+          "ratio": 0.9083885132044671
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.097048,
-          "mr_policy": 0.084483,
-          "ratio": 0.870527986151183
+          "mr_lru": 0.097157,
+          "mr_policy": 0.106849,
+          "ratio": 1.0997560649258418
         }
       ],
-      "ci_hi_improve_pct": 25.271,
-      "ci_hi_ratio": 0.870528,
-      "ci_lo_improve_pct": 12.947,
-      "ci_lo_ratio": 0.74729,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 24.643,
+      "ci_hi_ratio": 1.099756,
+      "ci_lo_improve_pct": -9.976,
+      "ci_lo_ratio": 0.753572,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 21.13,
-      "geomean_ratio": 0.788703,
+      "geomean_improve_pct": 9.03,
+      "geomean_ratio": 0.909699,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -2834,34 +2835,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.600838,
-          "mr_policy": 0.416835,
-          "ratio": 0.6937560540445179
+          "mr_lru": 0.598361,
+          "mr_policy": 0.384029,
+          "ratio": 0.6418015211552892
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.141431,
-          "mr_policy": 0.116317,
-          "ratio": 0.8224293118198981
+          "mr_lru": 0.142111,
+          "mr_policy": 0.114921,
+          "ratio": 0.8086706869981916
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.097048,
-          "mr_policy": 0.084127,
-          "ratio": 0.8668596982936279
+          "mr_lru": 0.097157,
+          "mr_policy": 0.084351,
+          "ratio": 0.8681927190012042
         }
       ],
-      "ci_hi_improve_pct": 30.624,
-      "ci_hi_ratio": 0.86686,
-      "ci_lo_improve_pct": 13.314,
-      "ci_lo_ratio": 0.693756,
+      "ci_hi_improve_pct": 35.82,
+      "ci_hi_ratio": 0.868193,
+      "ci_lo_improve_pct": 13.181,
+      "ci_lo_ratio": 0.641802,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 20.917,
-      "geomean_ratio": 0.790833,
+      "geomean_improve_pct": 23.335,
+      "geomean_ratio": 0.766648,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2871,34 +2872,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.600838,
-          "mr_policy": 0.544159,
-          "ratio": 0.9056667521028963
+          "mr_lru": 0.598361,
+          "mr_policy": 0.540871,
+          "ratio": 0.9039208771962076
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.141431,
-          "mr_policy": 0.118995,
-          "ratio": 0.8413643402082994
+          "mr_lru": 0.142111,
+          "mr_policy": 0.119179,
+          "ratio": 0.838633181104911
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.097048,
-          "mr_policy": 0.093362,
-          "ratio": 0.9620187948231803
+          "mr_lru": 0.097157,
+          "mr_policy": 0.093367,
+          "ratio": 0.9609909733729943
         }
       ],
-      "ci_hi_improve_pct": 15.864,
-      "ci_hi_ratio": 0.962019,
-      "ci_lo_improve_pct": 3.798,
-      "ci_lo_ratio": 0.841364,
+      "ci_hi_improve_pct": 16.137,
+      "ci_hi_ratio": 0.960991,
+      "ci_lo_improve_pct": 3.901,
+      "ci_lo_ratio": 0.838633,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 9.833,
-      "geomean_ratio": 0.901665,
+      "geomean_improve_pct": 10.021,
+      "geomean_ratio": 0.899789,
       "n_cells": 3,
       "policy": "SRRIP"
     },
@@ -2908,34 +2909,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.555762,
-          "mr_policy": 0.556102,
-          "ratio": 1.0006117726652777
+          "mr_lru": 0.663779,
+          "mr_policy": 0.640313,
+          "ratio": 0.9646478722586885
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.016276,
-          "mr_policy": 0.016287,
-          "ratio": 1.000675841730155
+          "mr_lru": 0.023478,
+          "mr_policy": 0.081619,
+          "ratio": 3.4764034415197207
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.01629,
-          "mr_policy": 0.016262,
-          "ratio": 0.998281154082259
+          "mr_lru": 0.023478,
+          "mr_policy": 0.047541,
+          "ratio": 2.024916943521595
         }
       ],
-      "ci_hi_improve_pct": 0.172,
-      "ci_hi_ratio": 1.000676,
-      "ci_lo_improve_pct": -0.068,
-      "ci_lo_ratio": 0.998281,
+      "ci_hi_improve_pct": 3.535,
+      "ci_hi_ratio": 3.476403,
+      "ci_lo_improve_pct": -247.64,
+      "ci_lo_ratio": 0.964648,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 0.014,
-      "geomean_ratio": 0.999856,
+      "geomean_improve_pct": -89.366,
+      "geomean_ratio": 1.89366,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -2945,34 +2946,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.555762,
-          "mr_policy": 0.547522,
-          "ratio": 0.9851735095238608
+          "mr_lru": 0.663779,
+          "mr_policy": 0.641996,
+          "ratio": 0.9671833547008869
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.016276,
-          "mr_policy": 0.016288,
-          "ratio": 1.0007372818874418
+          "mr_lru": 0.023478,
+          "mr_policy": 0.023478,
+          "ratio": 1.0
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.01629,
-          "mr_policy": 0.016262,
-          "ratio": 0.998281154082259
+          "mr_lru": 0.023478,
+          "mr_policy": 0.023478,
+          "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 1.483,
-      "ci_hi_ratio": 1.000737,
-      "ci_lo_improve_pct": -0.074,
-      "ci_lo_ratio": 0.985174,
+      "ci_hi_improve_pct": 3.282,
+      "ci_hi_ratio": 1.0,
+      "ci_lo_improve_pct": 0.0,
+      "ci_lo_ratio": 0.967183,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 0.529,
-      "geomean_ratio": 0.994707,
+      "geomean_improve_pct": 1.106,
+      "geomean_ratio": 0.988939,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2982,34 +2983,34 @@
         {
           "graph": "web-Google",
           "l3_size": "1MB",
-          "mr_lru": 0.555762,
-          "mr_policy": 0.550741,
-          "ratio": 0.990965557198945
+          "mr_lru": 0.663779,
+          "mr_policy": 0.65618,
+          "ratio": 0.9885519126094678
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
-          "mr_lru": 0.016276,
-          "mr_policy": 0.016295,
-          "ratio": 1.0011673629884494
+          "mr_lru": 0.023478,
+          "mr_policy": 0.023478,
+          "ratio": 1.0
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
-          "mr_lru": 0.01629,
-          "mr_policy": 0.016256,
-          "ratio": 0.9979128299570289
+          "mr_lru": 0.023478,
+          "mr_policy": 0.023478,
+          "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 0.903,
-      "ci_hi_ratio": 1.001167,
-      "ci_lo_improve_pct": -0.117,
-      "ci_lo_ratio": 0.990966,
+      "ci_hi_improve_pct": 1.145,
+      "ci_hi_ratio": 1.0,
+      "ci_lo_improve_pct": 0.0,
+      "ci_lo_ratio": 0.988552,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 0.333,
-      "geomean_ratio": 0.996673,
+      "geomean_improve_pct": 0.383,
+      "geomean_ratio": 0.996169,
       "n_cells": 3,
       "policy": "SRRIP"
     }

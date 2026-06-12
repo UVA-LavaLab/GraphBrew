@@ -53,22 +53,17 @@ PRODUCTION_PER_APP_FLOOR: Dict[str, int] = {
     "sssp": 500_000,
 }
 
-# Per-app floors for `email-Eu-core` only. BFS on email-Eu-core is the
-# canonical 21k-access dev smoke; we keep it intentional but floor at
-# 20k so a true zero-access trace still fails. PR/CC/SSSP/BC floors
-# updated 2026-05-31 after the cache_sim binary fix (commits e292903,
-# 79a9a5b, 127db21) — accesses now report L3-layer accesses only, not
-# the larger total-accesses count. email-Eu-core's working set fits in
-# L2 entirely, so L3 sees only cold-fill traffic (~2k accesses at any
-# L3 size). Floor lowered to 1000 to still trip on a true degenerate-
-# source run (single-access from hub-zero, ~1-10 accesses) while
-# accepting the honest cold-only behavior on tiny graphs.
+# Per-app floors for `email-Eu-core` only. Single-thread deterministic
+# cache_sim reports L3-layer accesses; email-Eu-core's working set fits
+# low in the hierarchy, so L3 may see only a few hundred cold-fill lines.
+# Floor at 300 keeps a true zero/degenerate trace failing while accepting
+# the honest power-law smoke behavior.
 SMOKE_PER_APP_FLOOR: Dict[str, int] = {
-    "bc":      1_000,
-    "bfs":    20_000,
-    "pr":      1_000,
-    "cc":      1_000,
-    "sssp":    1_000,
+    "bc":        300,
+    "bfs":       300,
+    "pr":        300,
+    "cc":        300,
+    "sssp":      300,
 }
 
 # Bucket boundaries (right-exclusive, except `huge` is right-unbounded).

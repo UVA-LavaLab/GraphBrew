@@ -49,18 +49,10 @@
       "pr": "POPT",
       "sssp": "POPT"
     },
-    "min_winners_matching_across_families": 2,
-    "n_families_with_intra_dominates": 3,
+    "min_winners_matching_across_families": 3,
+    "n_families_with_intra_dominates": 2,
     "deviation_set": {
       "observed": [
-        {
-          "family": "citation",
-          "app": "bc"
-        },
-        {
-          "family": "citation",
-          "app": "bfs"
-        },
         {
           "family": "citation",
           "app": "sssp"
@@ -68,24 +60,32 @@
         {
           "family": "social",
           "app": "sssp"
+        },
+        {
+          "family": "web",
+          "app": "bc"
+        },
+        {
+          "family": "web",
+          "app": "cc"
         }
       ],
       "pinned": [
         {
           "family": "citation",
-          "app": "bc"
-        },
-        {
-          "family": "citation",
-          "app": "bfs"
-        },
-        {
-          "family": "citation",
           "app": "sssp"
         },
         {
           "family": "social",
           "app": "sssp"
+        },
+        {
+          "family": "web",
+          "app": "bc"
+        },
+        {
+          "family": "web",
+          "app": "cc"
         }
       ],
       "pinned_max": 4,
@@ -101,137 +101,34 @@
       "n_graphs": 1,
       "auc_by_app_policy": {
         "bc": {
-          "GRASP": 1.898,
-          "LRU": 6.0495,
-          "POPT": 1.743,
-          "SRRIP": 3.3125
+          "GRASP": 0.057,
+          "LRU": 9.3115,
+          "POPT": 2.9925,
+          "SRRIP": 6.435
         },
         "bfs": {
-          "GRASP": 0.0,
-          "LRU": 11.8315,
-          "POPT": 1.8145,
-          "SRRIP": 10.5615
+          "GRASP": 1.6925,
+          "LRU": 11.5725,
+          "POPT": 1.1685,
+          "SRRIP": 10.4545
         },
         "cc": {
-          "GRASP": 0.0,
-          "LRU": 25.364,
-          "POPT": 14.962,
-          "SRRIP": 16.6315
+          "GRASP": 1.107,
+          "LRU": 26.1565,
+          "POPT": 1.709,
+          "SRRIP": 17.4875
         },
         "pr": {
-          "GRASP": 15.9575,
-          "LRU": 52.7365,
+          "GRASP": 26.978,
+          "LRU": 60.2635,
           "POPT": 0.0,
-          "SRRIP": 42.3305
+          "SRRIP": 49.6865
         },
         "sssp": {
-          "GRASP": 0.0,
-          "LRU": 18.279,
-          "POPT": 3.116,
-          "SRRIP": 13.097
-        }
-      },
-      "winner_by_app": {
-        "bc": "POPT",
-        "bfs": "GRASP",
-        "cc": "GRASP",
-        "pr": "POPT",
-        "sssp": "GRASP"
-      },
-      "winner_matches_global": {
-        "bc": false,
-        "bfs": false,
-        "cc": true,
-        "pr": true,
-        "sssp": false
-      },
-      "winners_matching": 2,
-      "n_apps": 5,
-      "correlation_matrix": {
-        "bc": {
-          "bc": 1.0,
-          "bfs": 0.8628,
-          "cc": 0.7846,
-          "pr": 0.8908,
-          "sssp": 0.9266
-        },
-        "bfs": {
-          "bc": 0.8628,
-          "bfs": 1.0,
-          "cc": 0.8332,
-          "pr": 0.9177,
-          "sssp": 0.9861
-        },
-        "cc": {
-          "bc": 0.7846,
-          "bfs": 0.8332,
-          "cc": 1.0,
-          "pr": 0.6044,
-          "sssp": 0.8798
-        },
-        "pr": {
-          "bc": 0.8908,
-          "bfs": 0.9177,
-          "cc": 0.6044,
-          "pr": 1.0,
-          "sssp": 0.9094
-        },
-        "sssp": {
-          "bc": 0.9266,
-          "bfs": 0.9861,
-          "cc": 0.8798,
-          "pr": 0.9094,
-          "sssp": 1.0
-        }
-      },
-      "intra_cluster_mean_r": 0.8765,
-      "inter_cluster_mean_r": 0.8329,
-      "intra_minus_inter": 0.0436,
-      "intra_dominates": true
-    },
-    "mesh": {
-      "qualified": false,
-      "reason": "incomplete paper-L3 coverage in at least one cell",
-      "n_graphs": 1
-    },
-    "road": {
-      "qualified": false,
-      "reason": "incomplete paper-L3 coverage in at least one cell",
-      "n_graphs": 1
-    },
-    "social": {
-      "qualified": true,
-      "n_graphs": 4,
-      "auc_by_app_policy": {
-        "bc": {
-          "GRASP": 0.0,
-          "LRU": 13.843,
-          "POPT": 5.4474,
-          "SRRIP": 7.6907
-        },
-        "bfs": {
-          "GRASP": 4.9213,
-          "LRU": 11.1364,
-          "POPT": 1.276,
-          "SRRIP": 8.8741
-        },
-        "cc": {
-          "GRASP": 0.0,
-          "LRU": 32.9852,
-          "POPT": 17.9523,
-          "SRRIP": 23.4878
-        },
-        "pr": {
-          "GRASP": 8.4722,
-          "LRU": 22.1546,
-          "POPT": 0.1891,
-          "SRRIP": 14.1785
-        },
-        "sssp": {
-          "GRASP": 1.8217,
-          "LRU": 14.0788,
-          "POPT": 2.4757,
-          "SRRIP": 7.8613
+          "GRASP": 0.068,
+          "LRU": 17.0665,
+          "POPT": 2.026,
+          "SRRIP": 12.0105
         }
       },
       "winner_by_app": {
@@ -253,78 +150,88 @@
       "correlation_matrix": {
         "bc": {
           "bc": 1.0,
-          "bfs": 0.7025,
-          "cc": 0.9775,
-          "pr": 0.7113,
-          "sssp": 0.9382
+          "bfs": 0.918,
+          "cc": 0.9604,
+          "pr": 0.7398,
+          "sssp": 0.9782
         },
         "bfs": {
-          "bc": 0.7025,
+          "bc": 0.918,
           "bfs": 1.0,
-          "cc": 0.6127,
-          "pr": 0.9886,
-          "sssp": 0.897
+          "cc": 0.9765,
+          "pr": 0.9221,
+          "sssp": 0.9751
         },
         "cc": {
-          "bc": 0.9775,
-          "bfs": 0.6127,
+          "bc": 0.9604,
+          "bfs": 0.9765,
           "cc": 1.0,
-          "pr": 0.5966,
-          "sssp": 0.866
+          "pr": 0.8968,
+          "sssp": 0.9964
         },
         "pr": {
-          "bc": 0.7113,
-          "bfs": 0.9886,
-          "cc": 0.5966,
+          "bc": 0.7398,
+          "bfs": 0.9221,
+          "cc": 0.8968,
           "pr": 1.0,
-          "sssp": 0.9103
+          "sssp": 0.863
         },
         "sssp": {
-          "bc": 0.9382,
-          "bfs": 0.897,
-          "cc": 0.866,
-          "pr": 0.9103,
+          "bc": 0.9782,
+          "bfs": 0.9751,
+          "cc": 0.9964,
+          "pr": 0.863,
           "sssp": 1.0
         }
       },
-      "intra_cluster_mean_r": 0.9502,
-      "inter_cluster_mean_r": 0.7379,
-      "intra_minus_inter": 0.2123,
+      "intra_cluster_mean_r": 0.9362,
+      "inter_cluster_mean_r": 0.9176,
+      "intra_minus_inter": 0.0186,
       "intra_dominates": true
     },
-    "web": {
+    "mesh": {
+      "qualified": false,
+      "reason": "incomplete paper-L3 coverage in at least one cell",
+      "n_graphs": 1
+    },
+    "road": {
+      "qualified": false,
+      "reason": "incomplete paper-L3 coverage in at least one cell",
+      "n_graphs": 1
+    },
+    "social": {
       "qualified": true,
-      "n_graphs": 1,
+      "n_graphs": 4,
       "auc_by_app_policy": {
         "bc": {
-          "GRASP": 2.029,
-          "LRU": 5.8125,
-          "POPT": 6.83,
-          "SRRIP": 2.354
+          "GRASP": 0.2422,
+          "LRU": 11.6893,
+          "POPT": 2.5531,
+          "SRRIP": 6.2693
         },
         "bfs": {
-          "GRASP": 1.536,
-          "LRU": 34.6385,
-          "POPT": 1.046,
-          "SRRIP": 33.8455
+          "GRASP": 3.459,
+          "LRU": 11.4759,
+          "POPT": 1.256,
+          "SRRIP": 8.9956
         },
         "cc": {
-          "GRASP": 0.0025,
-          "LRU": 6.6435,
-          "POPT": 1.2765,
-          "SRRIP": 2.7855
+          "GRASP": 1.5253,
+          "LRU": 41.9685,
+          "POPT": 15.6165,
+          "SRRIP": 31.1423
         },
         "pr": {
-          "GRASP": 3.648,
-          "LRU": 24.407,
-          "POPT": 1.5945,
-          "SRRIP": 15.189
+          "GRASP": 9.1284,
+          "LRU": 26.4334,
+          "POPT": 0.0213,
+          "SRRIP": 18.043
         },
         "sssp": {
-          "GRASP": 0.86,
-          "LRU": 0.8255,
-          "POPT": 0.002,
-          "SRRIP": 0.325
+          "GRASP": 0.7092,
+          "LRU": 15.8713,
+          "POPT": 1.625,
+          "SRRIP": 9.2758
         }
       },
       "winner_by_app": {
@@ -332,58 +239,151 @@
         "bfs": "POPT",
         "cc": "GRASP",
         "pr": "POPT",
-        "sssp": "POPT"
+        "sssp": "GRASP"
       },
       "winner_matches_global": {
         "bc": true,
         "bfs": true,
         "cc": true,
         "pr": true,
-        "sssp": true
+        "sssp": false
       },
-      "winners_matching": 5,
+      "winners_matching": 4,
       "n_apps": 5,
       "correlation_matrix": {
         "bc": {
           "bc": 1.0,
-          "bfs": -0.081,
-          "cc": 0.3974,
-          "pr": 0.0654,
-          "sssp": -0.4133
+          "bfs": 0.8987,
+          "cc": 0.9714,
+          "pr": 0.8568,
+          "sssp": 0.9874
         },
         "bfs": {
-          "bc": -0.081,
+          "bc": 0.8987,
           "bfs": 1.0,
-          "cc": 0.8246,
-          "pr": 0.9387,
-          "sssp": 0.2184
+          "cc": 0.866,
+          "pr": 0.9848,
+          "sssp": 0.9566
         },
         "cc": {
-          "bc": 0.3974,
-          "bfs": 0.8246,
+          "bc": 0.9714,
+          "bfs": 0.866,
           "cc": 1.0,
-          "pr": 0.941,
-          "sssp": 0.2816
+          "pr": 0.7863,
+          "sssp": 0.9546
         },
         "pr": {
-          "bc": 0.0654,
-          "bfs": 0.9387,
-          "cc": 0.941,
+          "bc": 0.8568,
+          "bfs": 0.9848,
+          "cc": 0.7863,
           "pr": 1.0,
-          "sssp": 0.4287
+          "sssp": 0.9248
         },
         "sssp": {
-          "bc": -0.4133,
-          "bfs": 0.2184,
-          "cc": 0.2816,
-          "pr": 0.4287,
+          "bc": 0.9874,
+          "bfs": 0.9566,
+          "cc": 0.9546,
+          "pr": 0.9248,
           "sssp": 1.0
         }
       },
-      "intra_cluster_mean_r": 0.4761,
-      "inter_cluster_mean_r": 0.2697,
-      "intra_minus_inter": 0.2064,
+      "intra_cluster_mean_r": 0.9618,
+      "inter_cluster_mean_r": 0.8916,
+      "intra_minus_inter": 0.0702,
       "intra_dominates": true
+    },
+    "web": {
+      "qualified": true,
+      "n_graphs": 1,
+      "auc_by_app_policy": {
+        "bc": {
+          "GRASP": 7.668,
+          "LRU": 3.074,
+          "POPT": 12.465,
+          "SRRIP": 0.424
+        },
+        "bfs": {
+          "GRASP": 31.9575,
+          "LRU": 35.3185,
+          "POPT": 1.122,
+          "SRRIP": 34.7665
+        },
+        "cc": {
+          "GRASP": 4.318,
+          "LRU": 8.931,
+          "POPT": 0.0,
+          "SRRIP": 6.024
+        },
+        "pr": {
+          "GRASP": 9.9385,
+          "LRU": 26.152,
+          "POPT": 0.0,
+          "SRRIP": 16.774
+        },
+        "sssp": {
+          "GRASP": 9.924,
+          "LRU": 2.347,
+          "POPT": 0.168,
+          "SRRIP": 1.587
+        }
+      },
+      "winner_by_app": {
+        "bc": "SRRIP",
+        "bfs": "POPT",
+        "cc": "POPT",
+        "pr": "POPT",
+        "sssp": "POPT"
+      },
+      "winner_matches_global": {
+        "bc": false,
+        "bfs": true,
+        "cc": false,
+        "pr": true,
+        "sssp": true
+      },
+      "winners_matching": 3,
+      "n_apps": 5,
+      "correlation_matrix": {
+        "bc": {
+          "bc": 1.0,
+          "bfs": -0.8655,
+          "cc": -0.855,
+          "pr": -0.8472,
+          "sssp": 0.0463
+        },
+        "bfs": {
+          "bc": -0.8655,
+          "bfs": 1.0,
+          "cc": 0.8962,
+          "pr": 0.8433,
+          "sssp": 0.4324
+        },
+        "cc": {
+          "bc": -0.855,
+          "bfs": 0.8962,
+          "cc": 1.0,
+          "pr": 0.9933,
+          "sssp": 0.1182
+        },
+        "pr": {
+          "bc": -0.8472,
+          "bfs": 0.8433,
+          "cc": 0.9933,
+          "pr": 1.0,
+          "sssp": 0.0087
+        },
+        "sssp": {
+          "bc": 0.0463,
+          "bfs": 0.4324,
+          "cc": 0.1182,
+          "pr": 0.0087,
+          "sssp": 1.0
+        }
+      },
+      "intra_cluster_mean_r": -0.0851,
+      "inter_cluster_mean_r": 0.0569,
+      "intra_minus_inter": -0.142,
+      "intra_dominates": false
     }
   }
 }

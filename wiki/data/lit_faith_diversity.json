@@ -1,58 +1,49 @@
 {
   "by_app": {
-    "bc": 65,
-    "bfs": 64,
-    "cc": 55,
-    "pr": 87,
-    "sssp": 59
+    "bc": 58,
+    "bfs": 57,
+    "cc": 45,
+    "pr": 70,
+    "sssp": 49
   },
   "by_expected_sign": {
-    "-": 136,
-    "~": 194
+    "-": 106,
+    "~": 173
   },
   "by_family": {
     "citation": 52,
-    "mesh": 10,
-    "road": 50,
-    "social": 168,
+    "social": 177,
     "web": 50
   },
   "by_graph": {
     "cit-Patents": 52,
     "com-orkut": 48,
-    "delaunay_n19": 10,
-    "email-Eu-core": 19,
-    "roadNet-CA": 50,
+    "email-Eu-core": 28,
     "soc-LiveJournal1": 51,
     "soc-pokec": 50,
     "web-Google": 50
   },
   "by_l3_size": {
-    "16kB": 12,
-    "1MB": 114,
-    "256kB": 12,
-    "4MB": 81,
-    "4kB": 12,
-    "64kB": 12,
-    "8MB": 87
+    "1MB": 105,
+    "4MB": 84,
+    "8MB": 90
   },
   "by_paper": {
-    "Balaji HPCA21": 252,
-    "Faldu HPCA20": 177,
-    "Jaleel ISCA10": 75
+    "Balaji HPCA21": 192,
+    "Faldu HPCA20": 156,
+    "Jaleel ISCA10": 84
   },
   "by_policy": {
     "GRASP": 19,
     "POPT": 8,
-    "POPT_GE_GRASP": 114,
-    "POPT_NEAR_GRASP_IF_BIG_GAP": 114,
-    "SRRIP": 75
+    "POPT_GE_GRASP": 84,
+    "POPT_NEAR_GRASP_IF_BIG_GAP": 84,
+    "SRRIP": 84
   },
   "by_status": {
-    "insufficient_data": 7,
-    "known_deviation": 24,
-    "ok": 298,
-    "within_tolerance": 1
+    "insufficient_data": 28,
+    "known_deviation": 17,
+    "ok": 234
   },
   "family_x_app": {
     "citation|bc": 10,
@@ -60,16 +51,10 @@
     "citation|cc": 9,
     "citation|pr": 12,
     "citation|sssp": 11,
-    "mesh|pr": 10,
-    "road|bc": 10,
-    "road|bfs": 10,
-    "road|cc": 10,
-    "road|pr": 10,
-    "road|sssp": 10,
-    "social|bc": 35,
-    "social|bfs": 34,
+    "social|bc": 38,
+    "social|bfs": 37,
     "social|cc": 27,
-    "social|pr": 43,
+    "social|pr": 46,
     "social|sssp": 29,
     "web|bc": 10,
     "web|bfs": 10,
@@ -81,39 +66,29 @@
     "citation|1MB": 21,
     "citation|4MB": 15,
     "citation|8MB": 16,
-    "mesh|16kB": 2,
-    "mesh|1MB": 2,
-    "mesh|256kB": 2,
-    "mesh|4kB": 2,
-    "mesh|64kB": 2,
-    "road|16kB": 10,
-    "road|1MB": 10,
-    "road|256kB": 10,
-    "road|4kB": 10,
-    "road|64kB": 10,
-    "social|1MB": 62,
-    "social|4MB": 51,
-    "social|8MB": 55,
+    "social|1MB": 65,
+    "social|4MB": 54,
+    "social|8MB": 58,
     "web|1MB": 19,
     "web|4MB": 15,
     "web|8MB": 16
   },
   "sign_inconsistent_cells": [],
   "summary": {
-    "claims_total": 330,
-    "min_app_count": 55,
-    "min_family_count": 10,
-    "min_graph_count": 10,
-    "min_l3_count": 12,
-    "min_paper_count": 75,
+    "claims_total": 279,
+    "min_app_count": 45,
+    "min_family_count": 50,
+    "min_graph_count": 28,
+    "min_l3_count": 84,
+    "min_paper_count": 84,
     "n_apps": 5,
-    "n_families": 5,
-    "n_graphs": 8,
-    "n_l3_sizes": 7,
+    "n_families": 3,
+    "n_graphs": 6,
+    "n_l3_sizes": 3,
     "n_papers": 3,
     "n_policies": 5,
     "n_sign_inconsistent_cells": 0,
-    "n_triangulated_cells": 174
+    "n_triangulated_cells": 153
   },
   "triangulated_cells": [
     {
@@ -927,72 +902,12 @@
       "sign_consistent": true
     },
     {
-      "app": "pr",
+      "app": "bc",
       "expected_signs": [
         "~"
       ],
-      "graph": "delaunay_n19",
-      "l3_size": "16kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "delaunay_n19",
+      "graph": "email-Eu-core",
       "l3_size": "1MB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "delaunay_n19",
-      "l3_size": "256kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "delaunay_n19",
-      "l3_size": "4kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "delaunay_n19",
-      "l3_size": "64kB",
       "n_papers": 2,
       "papers": [
         "Balaji HPCA21",
@@ -1010,10 +925,10 @@
       "l3_size": "1MB",
       "n_papers": 2,
       "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
       ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "policy": "SRRIP",
       "sign_consistent": true
     },
     {
@@ -1037,7 +952,52 @@
         "~"
       ],
       "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "n_papers": 2,
+      "papers": [
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
+      ],
+      "policy": "SRRIP",
+      "sign_consistent": true
+    },
+    {
+      "app": "bc",
+      "expected_signs": [
+        "~"
+      ],
+      "graph": "email-Eu-core",
       "l3_size": "8MB",
+      "n_papers": 2,
+      "papers": [
+        "Balaji HPCA21",
+        "Faldu HPCA20"
+      ],
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "sign_consistent": true
+    },
+    {
+      "app": "bc",
+      "expected_signs": [
+        "~"
+      ],
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "n_papers": 2,
+      "papers": [
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
+      ],
+      "policy": "SRRIP",
+      "sign_consistent": true
+    },
+    {
+      "app": "bfs",
+      "expected_signs": [
+        "~"
+      ],
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
       "n_papers": 2,
       "papers": [
         "Balaji HPCA21",
@@ -1055,10 +1015,10 @@
       "l3_size": "1MB",
       "n_papers": 2,
       "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
       ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "policy": "SRRIP",
       "sign_consistent": true
     },
     {
@@ -1082,7 +1042,52 @@
         "~"
       ],
       "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "n_papers": 2,
+      "papers": [
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
+      ],
+      "policy": "SRRIP",
+      "sign_consistent": true
+    },
+    {
+      "app": "bfs",
+      "expected_signs": [
+        "~"
+      ],
+      "graph": "email-Eu-core",
       "l3_size": "8MB",
+      "n_papers": 2,
+      "papers": [
+        "Balaji HPCA21",
+        "Faldu HPCA20"
+      ],
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "sign_consistent": true
+    },
+    {
+      "app": "bfs",
+      "expected_signs": [
+        "~"
+      ],
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
+      "n_papers": 2,
+      "papers": [
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
+      ],
+      "policy": "SRRIP",
+      "sign_consistent": true
+    },
+    {
+      "app": "pr",
+      "expected_signs": [
+        "~"
+      ],
+      "graph": "email-Eu-core",
+      "l3_size": "1MB",
       "n_papers": 2,
       "papers": [
         "Balaji HPCA21",
@@ -1100,10 +1105,10 @@
       "l3_size": "1MB",
       "n_papers": 2,
       "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
       ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "policy": "SRRIP",
       "sign_consistent": true
     },
     {
@@ -1127,6 +1132,21 @@
         "~"
       ],
       "graph": "email-Eu-core",
+      "l3_size": "4MB",
+      "n_papers": 2,
+      "papers": [
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
+      ],
+      "policy": "SRRIP",
+      "sign_consistent": true
+    },
+    {
+      "app": "pr",
+      "expected_signs": [
+        "~"
+      ],
+      "graph": "email-Eu-core",
       "l3_size": "8MB",
       "n_papers": 2,
       "papers": [
@@ -1137,378 +1157,18 @@
       "sign_consistent": true
     },
     {
-      "app": "bc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "16kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "1MB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "256kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "4kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "64kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bfs",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "16kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bfs",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "1MB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bfs",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "256kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bfs",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "4kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "bfs",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "64kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "cc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "16kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "cc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "1MB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "cc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "256kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "cc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "4kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "cc",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "64kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
       "app": "pr",
       "expected_signs": [
         "~"
       ],
-      "graph": "roadNet-CA",
-      "l3_size": "16kB",
+      "graph": "email-Eu-core",
+      "l3_size": "8MB",
       "n_papers": 2,
       "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
+        "Faldu HPCA20",
+        "Jaleel ISCA10"
       ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "1MB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "256kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "4kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "pr",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "64kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "sssp",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "16kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "sssp",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "1MB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "sssp",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "256kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "sssp",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "4kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "sign_consistent": true
-    },
-    {
-      "app": "sssp",
-      "expected_signs": [
-        "~"
-      ],
-      "graph": "roadNet-CA",
-      "l3_size": "64kB",
-      "n_papers": 2,
-      "papers": [
-        "Balaji HPCA21",
-        "Faldu HPCA20"
-      ],
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "policy": "SRRIP",
       "sign_consistent": true
     },
     {

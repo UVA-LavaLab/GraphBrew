@@ -6,58 +6,58 @@ Significant anti-scaling threshold: **+1.0 pp** per octave. A cell that grows it
 
 ## Headline
 
-- Cells with significant anti-scaling: **33 / 112**
-- Of those, **8** belong to the oracle-aware policies (GRASP + POPT). The remainder are LRU + SRRIP.
+- Cells with significant anti-scaling: **44 / 112**
+- Of those, **16** belong to the oracle-aware policies (GRASP + POPT). The remainder are LRU + SRRIP.
 
 ## Per-policy anti-scaling cell count
 
 | policy | n_cells_with_anti_scaling |
 |---|---:|
-| **GRASP** | 2 |
-| **LRU** | 13 |
-| **POPT** | 6 |
+| **GRASP** | 8 |
+| **LRU** | 16 |
+| **POPT** | 8 |
 | **SRRIP** | 12 |
 
 ## Per-graph anti-scaling cell count
 
 | graph | family | n_cells_with_anti_scaling |
 |---|---|---:|
-| cit-Patents | citation | 10 |
-| com-orkut | social | 5 |
+| cit-Patents | citation | 12 |
+| com-orkut | social | 8 |
 | email-Eu-core | social | 0 |
-| soc-LiveJournal1 | social | 8 |
-| soc-pokec | social | 3 |
+| soc-LiveJournal1 | social | 10 |
+| soc-pokec | social | 7 |
 | web-Google | web | 7 |
 
 ## Top anti-scaling cells (largest single-octave gap growth)
 
 | graph | family | app | policy | max octave growth | 1MB → 4MB → 8MB gap |
 |---|---|---|---|---:|---|
-| web-Google | web | bfs | LRU | +14.73 pp | 3.42 → 18.15 → 7.98 |
-| web-Google | web | bfs | SRRIP | +14.56 pp | 3.36 → 17.92 → 7.21 |
-| cit-Patents | citation | pr | LRU | +9.88 pp | 12.31 → 22.20 → 14.26 |
-| com-orkut | social | cc | LRU | +7.60 pp | 10.52 → 13.35 → 20.94 |
-| cit-Patents | citation | pr | GRASP | +7.23 pp | 1.42 → 8.65 → 3.11 |
-| cit-Patents | citation | pr | SRRIP | +7.07 pp | 10.85 → 17.92 → 9.21 |
-| soc-pokec | social | bfs | SRRIP | +5.57 pp | 1.90 → 6.51 → 12.08 |
-| soc-pokec | social | bfs | LRU | +5.53 pp | 2.87 → 6.65 → 12.18 |
-| com-orkut | social | cc | SRRIP | +5.17 pp | 6.73 → 11.90 → 10.00 |
-| cit-Patents | citation | sssp | LRU | +5.01 pp | 3.06 → 8.07 → 6.23 |
-| cit-Patents | citation | bfs | SRRIP | +4.68 pp | 0.74 → 3.74 → 8.42 |
-| soc-LiveJournal1 | social | cc | LRU | +4.58 pp | 3.82 → 6.63 → 11.21 |
-| cit-Patents | citation | bfs | LRU | +4.45 pp | 1.15 → 4.23 → 8.68 |
-| soc-pokec | social | cc | LRU | +3.86 pp | 13.11 → 16.97 → 0.04 |
-| soc-LiveJournal1 | social | cc | SRRIP | +3.56 pp | 2.72 → 5.50 → 9.06 |
-| cit-Patents | citation | sssp | SRRIP | +3.02 pp | 2.64 → 5.66 → 3.93 |
-| cit-Patents | citation | bc | LRU | +2.90 pp | 0.48 → 2.06 → 4.96 |
-| soc-LiveJournal1 | social | pr | LRU | +2.78 pp | 10.93 → 13.71 → 9.74 |
-| soc-LiveJournal1 | social | pr | SRRIP | +2.48 pp | 7.60 → 10.08 → 6.16 |
-| web-Google | web | bfs | GRASP | +2.32 pp | 0.00 → 0.19 → 2.51 |
-| com-orkut | social | bc | POPT | +2.19 pp | 2.48 → 4.67 → 4.73 |
-| soc-LiveJournal1 | social | sssp | SRRIP | +2.14 pp | 2.16 → 4.30 → 2.42 |
-| cit-Patents | citation | bc | SRRIP | +2.01 pp | 0.00 → 1.15 → 3.16 |
-| com-orkut | social | bfs | LRU | +1.90 pp | 0.23 → 2.04 → 3.94 |
-| soc-LiveJournal1 | social | sssp | LRU | +1.89 pp | 4.76 → 6.64 → 4.47 |
+| web-Google | web | bfs | GRASP | +15.48 pp | 0.00 → 15.48 → 17.48 |
+| web-Google | web | bfs | LRU | +14.82 pp | 3.60 → 18.43 → 8.16 |
+| web-Google | web | bfs | SRRIP | +14.78 pp | 3.52 → 18.30 → 7.59 |
+| com-orkut | social | cc | LRU | +9.99 pp | 10.17 → 15.70 → 25.69 |
+| soc-pokec | social | cc | LRU | +8.94 pp | 12.39 → 21.33 → 0.00 |
+| cit-Patents | citation | pr | LRU | +7.76 pp | 16.50 → 24.26 → 14.74 |
+| com-orkut | social | cc | SRRIP | +7.44 pp | 6.82 → 14.26 → 17.26 |
+| com-orkut | social | pr | GRASP | +7.22 pp | 0.30 → 7.52 → 4.02 |
+| soc-pokec | social | bfs | GRASP | +7.04 pp | 0.00 → 4.78 → 11.82 |
+| web-Google | web | sssp | GRASP | +5.81 pp | 0.00 → 5.81 → 2.41 |
+| com-orkut | social | cc | POPT | +5.77 pp | 5.94 → 11.72 → 8.98 |
+| soc-pokec | social | bfs | SRRIP | +5.49 pp | 3.29 → 7.31 → 12.79 |
+| soc-pokec | social | bfs | LRU | +5.48 pp | 4.69 → 7.92 → 13.40 |
+| cit-Patents | citation | pr | SRRIP | +4.91 pp | 15.02 → 19.92 → 9.57 |
+| soc-LiveJournal1 | social | cc | LRU | +4.65 pp | 11.67 → 10.48 → 15.13 |
+| cit-Patents | citation | bfs | SRRIP | +3.93 pp | 0.67 → 3.91 → 7.84 |
+| soc-LiveJournal1 | social | cc | POPT | +3.81 pp | 0.00 → 1.99 → 5.81 |
+| cit-Patents | citation | bfs | LRU | +3.70 pp | 0.91 → 4.41 → 8.11 |
+| soc-LiveJournal1 | social | cc | SRRIP | +3.52 pp | 9.26 → 8.28 → 11.80 |
+| web-Google | web | bc | POPT | +3.32 pp | 1.89 → 4.46 → 7.78 |
+| web-Google | web | bc | GRASP | +3.23 pp | 2.11 → 1.97 → 5.21 |
+| soc-pokec | social | cc | SRRIP | +3.16 pp | 9.71 → 12.87 → 0.00 |
+| cit-Patents | citation | bfs | GRASP | +3.09 pp | 0.15 → 0.00 → 3.09 |
+| com-orkut | social | bc | POPT | +2.83 pp | 0.84 → 3.67 → 5.80 |
+| cit-Patents | citation | sssp | LRU | +2.71 pp | 4.32 → 7.03 → 4.40 |
 
 ## Interpretation
 

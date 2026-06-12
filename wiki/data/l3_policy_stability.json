@@ -38,19 +38,19 @@
           }
         },
         "1MB": {
-          "margin": 0,
+          "margin": 1,
           "n_cells": 7,
-          "runner_up": "GRASP",
-          "runner_up_wins": 4,
-          "top_policy": "SRRIP",
+          "runner_up": "LRU",
+          "runner_up_wins": 3,
+          "top_policy": "POPT",
           "top_share": 0.5714,
           "top_wins": 4,
-          "unique_winner": false,
+          "unique_winner": true,
           "wins": {
-            "GRASP": 4,
-            "LRU": 1,
-            "POPT": 1,
-            "SRRIP": 4
+            "GRASP": 2,
+            "LRU": 3,
+            "POPT": 4,
+            "SRRIP": 1
           }
         },
         "256kB": {
@@ -58,26 +58,28 @@
           "n_cells": 1,
           "runner_up": "LRU",
           "runner_up_wins": 0,
-          "top_policy": "SRRIP",
+          "top_policy": "GRASP",
           "top_share": 1.0,
           "top_wins": 1,
           "unique_winner": true,
           "wins": {
-            "SRRIP": 1
+            "GRASP": 1
           }
         },
         "4MB": {
-          "margin": 5,
+          "margin": 3,
           "n_cells": 6,
           "runner_up": "SRRIP",
-          "runner_up_wins": 1,
+          "runner_up_wins": 2,
           "top_policy": "GRASP",
-          "top_share": 1.0,
-          "top_wins": 6,
+          "top_share": 0.8333,
+          "top_wins": 5,
           "unique_winner": true,
           "wins": {
-            "GRASP": 6,
-            "SRRIP": 1
+            "GRASP": 5,
+            "LRU": 1,
+            "POPT": 1,
+            "SRRIP": 2
           }
         },
         "4kB": {
@@ -107,31 +109,34 @@
           }
         },
         "8MB": {
-          "margin": 4,
+          "margin": 2,
           "n_cells": 6,
           "runner_up": "SRRIP",
-          "runner_up_wins": 1,
+          "runner_up_wins": 2,
           "top_policy": "GRASP",
-          "top_share": 0.8333,
-          "top_wins": 5,
+          "top_share": 0.6667,
+          "top_wins": 4,
           "unique_winner": true,
           "wins": {
-            "GRASP": 5,
-            "POPT": 1,
-            "SRRIP": 1
+            "GRASP": 4,
+            "LRU": 1,
+            "POPT": 2,
+            "SRRIP": 2
           }
         }
       },
       "stability": {
-        "has_regime_change": false,
+        "has_regime_change": true,
         "is_stable_single_winner": false,
-        "n_unique_top_policies": 1,
+        "n_unique_top_policies": 2,
         "paper_l3_tops": [
+          "POPT",
           "GRASP",
           "GRASP"
         ],
         "unique_top_policies_at_paper_l3": [
-          "GRASP"
+          "GRASP",
+          "POPT"
         ]
       }
     },
@@ -151,17 +156,18 @@
           }
         },
         "1MB": {
-          "margin": 4,
+          "margin": 1,
           "n_cells": 7,
-          "runner_up": "LRU",
-          "runner_up_wins": 1,
+          "runner_up": "POPT",
+          "runner_up_wins": 3,
           "top_policy": "GRASP",
-          "top_share": 0.7143,
-          "top_wins": 5,
+          "top_share": 0.5714,
+          "top_wins": 4,
           "unique_winner": true,
           "wins": {
-            "GRASP": 5,
-            "LRU": 1,
+            "GRASP": 4,
+            "LRU": 2,
+            "POPT": 3,
             "SRRIP": 1
           }
         },
@@ -179,17 +185,19 @@
           }
         },
         "4MB": {
-          "margin": 2,
+          "margin": 1,
           "n_cells": 6,
-          "runner_up": "GRASP",
-          "runner_up_wins": 2,
-          "top_policy": "POPT",
+          "runner_up": "POPT",
+          "runner_up_wins": 3,
+          "top_policy": "GRASP",
           "top_share": 0.6667,
           "top_wins": 4,
           "unique_winner": true,
           "wins": {
-            "GRASP": 2,
-            "POPT": 4
+            "GRASP": 4,
+            "LRU": 1,
+            "POPT": 3,
+            "SRRIP": 1
           }
         },
         "4kB": {
@@ -210,26 +218,28 @@
           "n_cells": 1,
           "runner_up": "LRU",
           "runner_up_wins": 0,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_share": 1.0,
           "top_wins": 1,
           "unique_winner": true,
           "wins": {
-            "POPT": 1
+            "GRASP": 1
           }
         },
         "8MB": {
-          "margin": 0,
+          "margin": 5,
           "n_cells": 6,
-          "runner_up": "POPT",
-          "runner_up_wins": 3,
-          "top_policy": "GRASP",
-          "top_share": 0.5,
-          "top_wins": 3,
-          "unique_winner": false,
+          "runner_up": "LRU",
+          "runner_up_wins": 1,
+          "top_policy": "POPT",
+          "top_share": 1.0,
+          "top_wins": 6,
+          "unique_winner": true,
           "wins": {
-            "GRASP": 3,
-            "POPT": 3
+            "GRASP": 1,
+            "LRU": 1,
+            "POPT": 6,
+            "SRRIP": 1
           }
         }
       },
@@ -238,6 +248,7 @@
         "is_stable_single_winner": false,
         "n_unique_top_policies": 2,
         "paper_l3_tops": [
+          "GRASP",
           "GRASP",
           "POPT"
         ],
@@ -263,17 +274,17 @@
           }
         },
         "1MB": {
-          "margin": 4,
+          "margin": 0,
           "n_cells": 6,
-          "runner_up": "LRU",
-          "runner_up_wins": 1,
+          "runner_up": "POPT",
+          "runner_up_wins": 3,
           "top_policy": "GRASP",
-          "top_share": 0.8333,
-          "top_wins": 5,
-          "unique_winner": true,
+          "top_share": 0.5,
+          "top_wins": 3,
+          "unique_winner": false,
           "wins": {
-            "GRASP": 5,
-            "LRU": 1
+            "GRASP": 3,
+            "POPT": 3
           }
         },
         "256kB": {
@@ -281,25 +292,28 @@
           "n_cells": 1,
           "runner_up": "LRU",
           "runner_up_wins": 0,
-          "top_policy": "SRRIP",
+          "top_policy": "GRASP",
           "top_share": 1.0,
           "top_wins": 1,
           "unique_winner": true,
           "wins": {
-            "SRRIP": 1
+            "GRASP": 1
           }
         },
         "4MB": {
-          "margin": 5,
+          "margin": 4,
           "n_cells": 5,
           "runner_up": "LRU",
-          "runner_up_wins": 0,
+          "runner_up_wins": 1,
           "top_policy": "GRASP",
           "top_share": 1.0,
           "top_wins": 5,
           "unique_winner": true,
           "wins": {
-            "GRASP": 5
+            "GRASP": 5,
+            "LRU": 1,
+            "POPT": 1,
+            "SRRIP": 1
           }
         },
         "4kB": {
@@ -332,23 +346,24 @@
           "margin": 3,
           "n_cells": 5,
           "runner_up": "LRU",
-          "runner_up_wins": 1,
+          "runner_up_wins": 2,
           "top_policy": "GRASP",
-          "top_share": 0.8,
-          "top_wins": 4,
+          "top_share": 1.0,
+          "top_wins": 5,
           "unique_winner": true,
           "wins": {
-            "GRASP": 4,
-            "LRU": 1
+            "GRASP": 5,
+            "LRU": 2,
+            "POPT": 2,
+            "SRRIP": 2
           }
         }
       },
       "stability": {
         "has_regime_change": false,
-        "is_stable_single_winner": true,
+        "is_stable_single_winner": false,
         "n_unique_top_policies": 1,
         "paper_l3_tops": [
-          "GRASP",
           "GRASP",
           "GRASP"
         ],
@@ -360,31 +375,32 @@
     "pr": {
       "l3": {
         "16kB": {
-          "margin": 2,
+          "margin": 0,
           "n_cells": 2,
-          "runner_up": "LRU",
-          "runner_up_wins": 0,
+          "runner_up": "POPT",
+          "runner_up_wins": 1,
           "top_policy": "GRASP",
-          "top_share": 1.0,
-          "top_wins": 2,
-          "unique_winner": true,
+          "top_share": 0.5,
+          "top_wins": 1,
+          "unique_winner": false,
           "wins": {
-            "GRASP": 2
+            "GRASP": 1,
+            "POPT": 1
           }
         },
         "1MB": {
-          "margin": 5,
+          "margin": 7,
           "n_cells": 8,
-          "runner_up": "GRASP",
-          "runner_up_wins": 2,
+          "runner_up": "LRU",
+          "runner_up_wins": 1,
           "top_policy": "POPT",
-          "top_share": 0.875,
-          "top_wins": 7,
+          "top_share": 1.0,
+          "top_wins": 8,
           "unique_winner": true,
           "wins": {
-            "GRASP": 2,
+            "GRASP": 1,
             "LRU": 1,
-            "POPT": 7,
+            "POPT": 8,
             "SRRIP": 1
           }
         },
@@ -402,33 +418,32 @@
           }
         },
         "4MB": {
-          "margin": 3,
+          "margin": 5,
           "n_cells": 6,
-          "runner_up": "GRASP",
-          "runner_up_wins": 2,
+          "runner_up": "LRU",
+          "runner_up_wins": 1,
           "top_policy": "POPT",
-          "top_share": 0.8333,
-          "top_wins": 5,
+          "top_share": 1.0,
+          "top_wins": 6,
           "unique_winner": true,
           "wins": {
-            "GRASP": 2,
+            "GRASP": 1,
             "LRU": 1,
-            "POPT": 5,
+            "POPT": 6,
             "SRRIP": 1
           }
         },
         "4kB": {
-          "margin": 0,
+          "margin": 2,
           "n_cells": 2,
-          "runner_up": "POPT",
-          "runner_up_wins": 1,
+          "runner_up": "LRU",
+          "runner_up_wins": 0,
           "top_policy": "GRASP",
-          "top_share": 0.5,
-          "top_wins": 1,
-          "unique_winner": false,
+          "top_share": 1.0,
+          "top_wins": 2,
+          "unique_winner": true,
           "wins": {
-            "GRASP": 1,
-            "POPT": 1
+            "GRASP": 2
           }
         },
         "64kB": {
@@ -482,47 +497,47 @@
           "n_cells": 1,
           "runner_up": "LRU",
           "runner_up_wins": 0,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_share": 1.0,
           "top_wins": 1,
           "unique_winner": true,
           "wins": {
-            "POPT": 1
+            "GRASP": 1
           }
         },
         "1MB": {
-          "margin": 1,
+          "margin": 3,
           "n_cells": 6,
-          "runner_up": "GRASP",
-          "runner_up_wins": 2,
-          "top_policy": "POPT",
-          "top_share": 0.5,
-          "top_wins": 3,
+          "runner_up": "LRU",
+          "runner_up_wins": 1,
+          "top_policy": "GRASP",
+          "top_share": 0.6667,
+          "top_wins": 4,
           "unique_winner": true,
           "wins": {
-            "GRASP": 2,
+            "GRASP": 4,
             "LRU": 1,
-            "POPT": 3
+            "POPT": 1
           }
         },
         "256kB": {
           "margin": 1,
           "n_cells": 1,
-          "runner_up": "SRRIP",
+          "runner_up": "LRU",
           "runner_up_wins": 0,
-          "top_policy": "LRU",
+          "top_policy": "SRRIP",
           "top_share": 1.0,
           "top_wins": 1,
           "unique_winner": true,
           "wins": {
-            "LRU": 1
+            "SRRIP": 1
           }
         },
         "4MB": {
-          "margin": 2,
+          "margin": 1,
           "n_cells": 5,
-          "runner_up": "LRU",
-          "runner_up_wins": 1,
+          "runner_up": "POPT",
+          "runner_up_wins": 2,
           "top_policy": "GRASP",
           "top_share": 0.6,
           "top_wins": 3,
@@ -530,7 +545,8 @@
           "wins": {
             "GRASP": 3,
             "LRU": 1,
-            "POPT": 1
+            "POPT": 2,
+            "SRRIP": 1
           }
         },
         "4kB": {
@@ -538,12 +554,12 @@
           "n_cells": 1,
           "runner_up": "LRU",
           "runner_up_wins": 0,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_share": 1.0,
           "top_wins": 1,
           "unique_winner": true,
           "wins": {
-            "POPT": 1
+            "GRASP": 1
           }
         },
         "64kB": {
@@ -551,27 +567,27 @@
           "n_cells": 1,
           "runner_up": "LRU",
           "runner_up_wins": 0,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_share": 1.0,
           "top_wins": 1,
           "unique_winner": true,
           "wins": {
-            "POPT": 1
+            "GRASP": 1
           }
         },
         "8MB": {
-          "margin": 0,
+          "margin": 1,
           "n_cells": 5,
-          "runner_up": "GRASP",
-          "runner_up_wins": 2,
-          "top_policy": "SRRIP",
-          "top_share": 0.4,
-          "top_wins": 2,
-          "unique_winner": false,
+          "runner_up": "SRRIP",
+          "runner_up_wins": 3,
+          "top_policy": "POPT",
+          "top_share": 0.8,
+          "top_wins": 4,
+          "unique_winner": true,
           "wins": {
-            "GRASP": 2,
-            "POPT": 1,
-            "SRRIP": 2
+            "LRU": 2,
+            "POPT": 4,
+            "SRRIP": 3
           }
         }
       },
@@ -580,8 +596,9 @@
         "is_stable_single_winner": false,
         "n_unique_top_policies": 2,
         "paper_l3_tops": [
-          "POPT",
-          "GRASP"
+          "GRASP",
+          "GRASP",
+          "POPT"
         ],
         "unique_top_policies_at_paper_l3": [
           "GRASP",

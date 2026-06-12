@@ -23,100 +23,12 @@
     "bump_pct_ceiling": 0.1,
     "cell_count": 136,
     "total_step_count": 320,
-    "bump_count": 10,
-    "bump_pct": 0.03125,
+    "bump_count": 0,
+    "bump_pct": 0.0,
     "hard_violation_count": 0,
-    "largest_bump_pp": 0.0096,
-    "largest_bump_cell": {
-      "graph": "email-Eu-core",
-      "app": "bc",
-      "policy": "POPT",
-      "l3_from": "1MB",
-      "l3_to": "4MB",
-      "delta_pp": 0.0096
-    },
-    "bumps": [
-      {
-        "graph": "email-Eu-core",
-        "app": "bc",
-        "policy": "POPT",
-        "l3_from": "1MB",
-        "l3_to": "4MB",
-        "delta_pp": 0.0096
-      },
-      {
-        "graph": "delaunay_n19",
-        "app": "pr",
-        "policy": "LRU",
-        "l3_from": "4kB",
-        "l3_to": "16kB",
-        "delta_pp": 0.0039
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "bfs",
-        "policy": "SRRIP",
-        "l3_from": "1MB",
-        "l3_to": "4MB",
-        "delta_pp": 0.0021
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "bfs",
-        "policy": "LRU",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.002
-      },
-      {
-        "graph": "web-Google",
-        "app": "cc",
-        "policy": "GRASP",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.0016
-      },
-      {
-        "graph": "web-Google",
-        "app": "sssp",
-        "policy": "LRU",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.0014
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "bfs",
-        "policy": "SRRIP",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.0007
-      },
-      {
-        "graph": "roadNet-CA",
-        "app": "pr",
-        "policy": "SRRIP",
-        "l3_from": "4kB",
-        "l3_to": "16kB",
-        "delta_pp": 0.0006
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "bfs",
-        "policy": "LRU",
-        "l3_from": "1MB",
-        "l3_to": "4MB",
-        "delta_pp": 0.0004
-      },
-      {
-        "graph": "email-Eu-core",
-        "app": "bc",
-        "policy": "GRASP",
-        "l3_from": "4MB",
-        "l3_to": "8MB",
-        "delta_pp": 0.0001
-      }
-    ],
+    "largest_bump_pp": 0.0,
+    "largest_bump_cell": null,
+    "bumps": [],
     "verdict_checks": {
       "no_hard_violations": true,
       "bump_pct_under_ceiling": true,

@@ -23,45 +23,45 @@
   },
   "per_policy": {
     "GRASP": {
-      "auc_mean_across_apps": 8.5293,
-      "auc_stdev_across_apps": 4.3245,
-      "auc_cv": 0.507,
+      "auc_mean_across_apps": 9.3595,
+      "auc_stdev_across_apps": 5.7486,
+      "auc_cv": 0.6142,
       "best_app": "cc",
-      "best_app_auc": 1.5205,
+      "best_app_auc": 1.6668,
       "worst_app": "bfs",
-      "worst_app_auc": 12.8861,
-      "worst_over_best_ratio": 8.4749,
+      "worst_app_auc": 16.8516,
+      "worst_over_best_ratio": 10.1102,
       "ranks_by_app": {
-        "bc": 2,
-        "bfs": 2,
+        "bc": 1,
+        "bfs": 4,
         "cc": 1,
         "pr": 2,
-        "sssp": 4
+        "sssp": 3
       },
       "rank_mean": 2.2,
-      "rank_stdev": 0.9798,
+      "rank_stdev": 1.1662,
       "best_rank": 1,
       "worst_rank": 4,
-      "n_wins": 1,
+      "n_wins": 2,
       "n_lasts": 1,
       "always_top_2": false,
       "always_bot_2": false
     },
     "LRU": {
-      "auc_mean_across_apps": 17.9282,
-      "auc_stdev_across_apps": 6.9603,
-      "auc_cv": 0.3882,
+      "auc_mean_across_apps": 20.1684,
+      "auc_stdev_across_apps": 9.8132,
+      "auc_cv": 0.4866,
       "best_app": "bc",
-      "best_app_auc": 11.0047,
-      "worst_app": "pr",
-      "worst_app_auc": 27.7572,
-      "worst_over_best_ratio": 2.5223,
+      "best_app_auc": 9.5084,
+      "worst_app": "cc",
+      "worst_app_auc": 32.4693,
+      "worst_over_best_ratio": 3.4148,
       "ranks_by_app": {
         "bc": 4,
-        "bfs": 4,
+        "bfs": 3,
         "cc": 4,
         "pr": 4,
-        "sssp": 3
+        "sssp": 4
       },
       "rank_mean": 3.8,
       "rank_stdev": 0.4,
@@ -73,14 +73,14 @@
       "always_bot_2": true
     },
     "POPT": {
-      "auc_mean_across_apps": 6.3747,
-      "auc_stdev_across_apps": 4.4935,
-      "auc_cv": 0.7049,
+      "auc_mean_across_apps": 5.1632,
+      "auc_stdev_across_apps": 3.5671,
+      "auc_cv": 0.6909,
       "best_app": "pr",
-      "best_app_auc": 0.3774,
+      "best_app_auc": 0.0142,
       "worst_app": "cc",
-      "worst_app_auc": 13.7625,
-      "worst_over_best_ratio": 36.4666,
+      "worst_app_auc": 10.4865,
+      "worst_over_best_ratio": 738.4859,
       "ranks_by_app": {
         "bc": 3,
         "bfs": 1,
@@ -98,26 +98,26 @@
       "always_bot_2": false
     },
     "SRRIP": {
-      "auc_mean_across_apps": 12.6992,
-      "auc_stdev_across_apps": 5.4561,
-      "auc_cv": 0.4296,
+      "auc_mean_across_apps": 14.8182,
+      "auc_stdev_across_apps": 7.7679,
+      "auc_cv": 0.5242,
       "best_app": "bc",
-      "best_app_auc": 5.7773,
-      "worst_app": "pr",
-      "worst_app_auc": 19.7583,
-      "worst_over_best_ratio": 3.42,
+      "best_app_auc": 5.1733,
+      "worst_app": "cc",
+      "worst_app_auc": 24.1584,
+      "worst_over_best_ratio": 4.6698,
       "ranks_by_app": {
-        "bc": 1,
-        "bfs": 3,
+        "bc": 2,
+        "bfs": 2,
         "cc": 3,
         "pr": 3,
         "sssp": 2
       },
       "rank_mean": 2.4,
-      "rank_stdev": 0.8,
-      "best_rank": 1,
+      "rank_stdev": 0.4899,
+      "best_rank": 2,
       "worst_rank": 3,
-      "n_wins": 1,
+      "n_wins": 0,
       "n_lasts": 0,
       "always_top_2": false,
       "always_bot_2": false
@@ -126,37 +126,37 @@
   "ranking_by_cv_ascending": [
     {
       "policy": "LRU",
-      "auc_cv": 0.3882
+      "auc_cv": 0.4866
     },
     {
       "policy": "SRRIP",
-      "auc_cv": 0.4296
+      "auc_cv": 0.5242
     },
     {
       "policy": "GRASP",
-      "auc_cv": 0.507
+      "auc_cv": 0.6142
     },
     {
       "policy": "POPT",
-      "auc_cv": 0.7049
+      "auc_cv": 0.6909
     }
   ],
   "ranking_by_mean_auc_ascending": [
     {
       "policy": "POPT",
-      "auc_mean": 6.3747
+      "auc_mean": 5.1632
     },
     {
       "policy": "GRASP",
-      "auc_mean": 8.5293
+      "auc_mean": 9.3595
     },
     {
       "policy": "SRRIP",
-      "auc_mean": 12.6992
+      "auc_mean": 14.8182
     },
     {
       "policy": "LRU",
-      "auc_mean": 17.9282
+      "auc_mean": 20.1684
     }
   ]
 }

@@ -8,18 +8,18 @@ verdict: **PASS**
 
 apps observed: bc, bfs, cc, pr, sssp
 
-most cache-hungry app:  **sssp** (median-of-medians -19.4173 pp/octave)
+most cache-hungry app:  **sssp** (median-of-medians -20.9986 pp/octave)
 
-least cache-hungry app: **bfs** (median-of-medians -4.824 pp/octave)
+least cache-hungry app: **bfs** (median-of-medians -3.3845 pp/octave)
 
-per-app median-of-medians range: 14.593 pp/octave
+per-app median-of-medians range: 17.614 pp/octave
 
 ## Per-(app, policy) median slope (pp / log2(L3 MB))
 
 | app | GRASP | POPT | LRU | SRRIP | n cells |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| bc | -14.261 | -13.839 | -14.270 | -14.406 | 6 |
-| bfs | -6.408 | -5.995 | -3.563 | -3.653 | 6 |
-| cc | -14.076 | -16.100 | -15.517 | -14.788 | 5 |
-| pr | -16.191 | -15.614 | -17.983 | -16.806 | 6 |
-| sssp | -19.280 | -19.555 | -19.267 | -19.596 | 5 |
+| bc | -13.886 | -12.871 | -13.450 | -13.891 | 6 |
+| bfs | -2.266 | -5.903 | -3.397 | -3.372 | 6 |
+| cc | -14.464 | -13.503 | -15.752 | -15.105 | 5 |
+| pr | -15.695 | -15.122 | -18.006 | -17.154 | 6 |
+| sssp | -19.647 | -20.172 | -22.828 | -21.825 | 5 |

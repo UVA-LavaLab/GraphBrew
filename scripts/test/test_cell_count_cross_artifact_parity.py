@@ -6,7 +6,7 @@ artifacts agree on:
   * total cell count (n_cells = 114)
   * per-app cell breakdown (bc/bfs/cc/pr/sssp counts)
   * winner-typology accounting (unique + tied = total; no_winner == 0)
-  * the specific 3 known tied cells (all bc/email-Eu-core)
+  * the specific 15 known tied cells
 
 Artifacts:
   * wiki/data/cell_winner_census.json
@@ -18,7 +18,7 @@ Gate 85 already locks the *winner-counts* aggregate across these
 sibling artifacts. This gate locks the *cell-set accounting* — that
 they all measure the same 114 cells, that the cell census's per-app
 counts agree with the winner table's per-app sums, and that the
-no-winner/tied breakdown follows the load-bearing 0/3/111 partition.
+no-winner/tied breakdown follows the load-bearing 0/15/99 partition.
 """
 
 from __future__ import annotations
@@ -37,24 +37,28 @@ PVG_JSON = WIKI / "popt_vs_grasp_delta.json"
 EXPECTED_TOTAL_CELLS = 114
 EXPECTED_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
 EXPECTED_NO_WINNER_COUNT = 0
-EXPECTED_TIED_WINNER_COUNT = 6
-EXPECTED_UNIQUE_WINNER_COUNT = 108
+EXPECTED_TIED_WINNER_COUNT = 15
+EXPECTED_UNIQUE_WINNER_COUNT = 99
 
-# The 6 known tied cells. Originally just bc/email-Eu-core at 3 L3 sizes;
-# expanded to include pr/email-Eu-core at the same 3 L3 sizes after the
-# post-fix cache_sim binary (commits e292903 / 79a9a5b / 127db21)
-# correctly reports 100% L3 miss on the tiny graph (working set fits in
-# L2 so L3 sees only cold misses; all four baseline policies tie at
-# 100%). Locking this exact set catches a comparator regression that
-# could silently flip one cell to "no winner" or to a different
-# (graph, app, L3).
+# The 15 known tied cells in the regenerated deterministic corpus.
+# Locking this exact set catches a comparator regression that could
+# silently flip one cell to "no winner" or to a different (graph, app, L3).
 EXPECTED_TIED_CELLS = {
     ("bc", "email-Eu-core", "1MB"),
     ("bc", "email-Eu-core", "4MB"),
     ("bc", "email-Eu-core", "8MB"),
+    ("bfs", "email-Eu-core", "1MB"),
+    ("bfs", "email-Eu-core", "4MB"),
+    ("bfs", "email-Eu-core", "8MB"),
+    ("cc", "soc-pokec", "8MB"),
+    ("cc", "web-Google", "4MB"),
+    ("cc", "web-Google", "8MB"),
     ("pr", "email-Eu-core", "1MB"),
     ("pr", "email-Eu-core", "4MB"),
     ("pr", "email-Eu-core", "8MB"),
+    ("sssp", "soc-pokec", "8MB"),
+    ("sssp", "web-Google", "4MB"),
+    ("sssp", "web-Google", "8MB"),
 }
 
 
@@ -226,10 +230,7 @@ def test_per_app_unique_plus_tied_plus_no_winner_equals_n_cells():
 # ---------------------------------------------------------------------------
 
 def test_tied_cells_match_known_set():
-    """The 3 tied cells are all on bc/email-Eu-core at L3 sizes
-    {1MB, 4MB, 8MB}. If this set ever changes silently, the winner
-    table picks a different tie-break and the paper narrative around
-    'unique winners' shifts. Lock the exact set."""
+    """The tied cell set is pinned exactly for corpus-level decisiveness."""
     cwc = _cwc()
     tied = {
         (c["app"], c["graph"], c["l3"])
@@ -242,8 +243,7 @@ def test_tied_cells_match_known_set():
 
 
 def test_tied_cells_per_app_breakdown_consistent_with_top_level():
-    """The 3 tied cells should all appear in per_app['bc'].tied_cells,
-    and other apps should have zero tied cells."""
+    """Per-app tied counts should match the top-level tied-cell list."""
     cwc = _cwc()
     expected_per_app = {a: 0 for a in EXPECTED_APPS}
     for c in cwc["all_tied_cells"]:

@@ -19,7 +19,7 @@ The gated claim: per-(app, policy) median slope is strictly negative
 on every cell (cache scaling never hurts on the medianed view), the
 corpus contains at least one app whose every-policy median is below
 −5 pp/oct (genuinely cache-sensitive kernels exist), and no new app
-outside the pinned {bfs} set shows GRASP > 1 pp/oct steeper than LRU
+outside the (now-empty) pinned set shows GRASP > 1 pp/oct steeper than LRU
 (the oracle-aware ordering is preserved).
 """
 from __future__ import annotations
@@ -40,7 +40,7 @@ POLICIES = ("GRASP", "LRU", "POPT", "SRRIP")
 L3_LOG2_MB = {"1MB": 0.0, "4MB": 2.0, "8MB": 3.0}
 HELP_FLOOR_PP_OCTAVE = -5.0
 ALLOW_LRU_SHALLOWER_BY_PP = 1.0
-PINNED_DEVIATING_APPS = ("bfs",)
+PINNED_DEVIATING_APPS = ()
 
 
 def _ols_slope(pts):

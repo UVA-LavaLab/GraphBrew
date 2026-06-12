@@ -34,13 +34,13 @@ def test_meta_pins_scope(payload):
 
 
 def test_robust_apps_inventory_exact(payload):
-    """At current corpus: bc, cc, pr are LOFO-robust."""
-    assert payload["meta"]["robust_apps"] == ["bc", "cc", "pr"]
+    """At current corpus: bfs, cc, pr are LOFO-robust."""
+    assert payload["meta"]["robust_apps"] == ["bfs", "cc", "pr"]
 
 
 def test_fragile_apps_inventory_exact(payload):
-    """At current corpus: bfs, sssp are LOFO-fragile (family-sensitive)."""
-    assert payload["meta"]["fragile_apps"] == ["bfs", "sssp"]
+    """At current corpus: bc, sssp are LOFO-fragile (family-sensitive)."""
+    assert payload["meta"]["fragile_apps"] == ["bc", "sssp"]
 
 
 def test_robustness_fraction_at_least_60pct(payload):
@@ -64,11 +64,12 @@ def test_pr_lofo_robust_with_popt(payload):
         assert d["top_policy"] == "POPT", f"pr/drop-{fam} flipped to {d['top_policy']}"
 
 
-def test_bc_lofo_robust_with_grasp(payload):
-    """The headline bc/GRASP claim must survive every family drop."""
+def test_bc_lofo_fragile_with_grasp(payload):
+    """bc/GRASP is now LOFO-fragile under the social-family drop."""
     p = payload["per_app"]["bc"]
     assert p["full_corpus"]["top_policy"] == "GRASP"
-    assert p["is_lofo_robust"] is True
+    assert p["is_lofo_robust"] is False
+    assert p["fragile_family_drops"] == ["social"]
 
 
 def test_cc_lofo_robust_with_grasp(payload):
@@ -78,20 +79,14 @@ def test_cc_lofo_robust_with_grasp(payload):
     assert p["is_lofo_robust"] is True
 
 
-def test_bfs_fragile_drop_is_citation(payload):
-    """bfs is honestly disclosed as family-sensitive: drop citation → GRASP ties.
-
-    Post cache_sim ECG sweep: bfs's full-corpus winner is now GRASP (was POPT).
-    Dropping citation reduces GRASP to a tied top (no unique winner), so
-    the lofo gate marks bfs as fragile.
-    """
+def test_bfs_is_lofo_robust_with_popt(payload):
+    """bfs is now LOFO-robust with POPT as the full-corpus winner."""
     p = payload["per_app"]["bfs"]
-    assert p["is_lofo_robust"] is False
-    assert "citation" in p["fragile_family_drops"]
-    assert p["full_corpus"]["top_policy"] == "GRASP"
-    # without citation, GRASP and POPT both end up at 7 wins → not unique
-    assert p["drops"]["citation"]["top_policy"] == "GRASP"
-    assert p["drops"]["citation"]["unique_top"] is False
+    assert p["is_lofo_robust"] is True
+    assert p["fragile_family_drops"] == []
+    assert p["full_corpus"]["top_policy"] == "POPT"
+    assert p["drops"]["citation"]["top_policy"] == "POPT"
+    assert p["drops"]["citation"]["unique_top"] is True
 
 
 def test_sssp_fragile_drop_is_citation(payload):

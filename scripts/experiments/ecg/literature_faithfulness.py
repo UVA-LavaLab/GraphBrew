@@ -261,6 +261,14 @@ def evaluate(
                     entry["grasp_miss_rate"] = grasp.miss_rate
                     entry["delta_pct"] = round(diff_pct, 4)
                     entry["accesses"] = popt.accesses
+                    # Per-cell POPT-vs-GRASP is a DIAGNOSTIC, not the paper's
+                    # claim: P-OPT (Balaji & Lucia HPCA'21) demonstrate a GEOMEAN
+                    # win over GRASP, not per-cell dominance (P-OPT is an offline
+                    # OPT *approximation* that can lose on irregular cc/bc/frontier
+                    # cells and graph classes it never tested). The authoritative
+                    # POPT-vs-GRASP gate is the corpus POPT_GE_GRASP_GEOMEAN row
+                    # below; per-cell losses are surfaced here and documented as
+                    # KNOWN_DEVIATIONS (transparency: which cells underperform).
                     if diff_pct <= claim.tolerance_pct:
                         entry["status"] = "ok"
                     else:
@@ -308,8 +316,10 @@ def evaluate(
                     entry["signed_delta_pct"] = round(signed_pp, 4)
                     entry["grasp_gain_vs_lru_pct"] = round(grasp_gain_pp, 4)
                     entry["accesses"] = popt.accesses
-                    # Trigger threshold: only assert when GRASP outperforms
-                    # LRU by >10pp (the phase-transition regime).
+                    # Diagnostic cross-check (the authoritative POPT-vs-GRASP gate
+                    # is POPT_GE_GRASP_GEOMEAN). Only fires when GRASP beats LRU
+                    # by >10pp (phase-transition regime); a per-cell gap there is
+                    # surfaced and documented as a KNOWN_DEVIATION.
                     if grasp_gain_pp <= 10.0:
                         entry["status"] = "ok"
                         entry["note"] = "not in phase-transition regime; assertion not triggered"
@@ -322,6 +332,56 @@ def evaluate(
                     else:
                         entry["status"] = "disagree"
                 per_claim.append(entry)
+
+    # ---- Corpus-level POPT_GE_GRASP geomean gate (the paper's actual claim) ----
+    # Balaji & Lucia (P-OPT, HPCA'21) demonstrate P-OPT beats GRASP on the
+    # GEOMEAN LLC miss rate across the evaluated workloads (NOT per-cell — P-OPT
+    # is an offline OPT approximation that can lose on individual cells). We
+    # assert that affirmative geomean claim over the whole corpus here; this is
+    # the authoritative POPT-vs-GRASP pass/fail (the per-cell rows above are
+    # informational only).
+    # Corpus-level POPT_GE_GRASP geomean gate — stored as a SEPARATE summary
+    # field (NOT a per_claim row) so it does not pollute the many per-cell
+    # consumers of per_claim (which assume every row has accesses / miss_rate).
+    geomean_gate: dict[str, Any] | None = None
+    geo_claim = getattr(_lit, "POPT_GE_GRASP_GEOMEAN_CLAIM", None)
+    if geo_claim is not None:
+        import math
+        # Scope to the power-law graphs P-OPT & GRASP actually evaluated (the
+        # geomean claim's graph="*power_law*"); road/mesh are out of scope.
+        power_law = getattr(_lit, "POWER_LAW_GRAPHS", set())
+        pairs: list[tuple[float, float]] = []
+        for (g, a, l) in sorted(seen_pairs):
+            if power_law and g not in power_law:
+                continue
+            popt = obs_by_key.get((g, a, l, "POPT"))
+            grasp = obs_by_key.get((g, a, l, "GRASP"))
+            if (popt is not None and grasp is not None
+                    and popt.miss_rate > 0 and grasp.miss_rate > 0
+                    and min(popt.accesses, grasp.accesses) >= min_accesses):
+                pairs.append((popt.miss_rate, grasp.miss_rate))
+        entry = {
+            "graph": "*", "app": "*", "l3_size": "*",
+            "policy": "POPT_GE_GRASP_GEOMEAN",
+            "expected_sign": geo_claim.expected_sign,
+            "min_abs_delta_pct": None, "max_abs_delta_pct": None,
+            "tolerance_pct": geo_claim.tolerance_pct,
+            "rationale": geo_claim.rationale, "citation": geo_claim.citation,
+        }
+        if not pairs:
+            entry["status"] = "insufficient_data"
+            entry["n_cells"] = 0
+            entry["delta_pct"] = None
+        else:
+            gp = math.exp(sum(math.log(p) for p, _ in pairs) / len(pairs))
+            gg = math.exp(sum(math.log(g) for _, g in pairs) / len(pairs))
+            entry["popt_geomean"] = round(gp, 6)
+            entry["grasp_geomean"] = round(gg, 6)
+            entry["n_cells"] = len(pairs)
+            entry["delta_pct"] = round((gp - gg) * 100.0, 4)
+            # ok when geomean(POPT) <= geomean(GRASP) within a small noise band.
+            entry["status"] = "ok" if (gp - gg) * 100.0 <= geo_claim.tolerance_pct else "disagree"
+        geomean_gate = entry
 
     per_observation: list[dict[str, Any]] = []
     for (g, a, l, p), o in sorted(obs_by_key.items()):
@@ -357,6 +417,7 @@ def evaluate(
     return {
         "per_claim": per_claim,
         "per_observation": per_observation,
+        "popt_ge_grasp_geomean": geomean_gate,
         "summary": {
             "claims_total": len(per_claim),
             "ok": sum(1 for e in per_claim if e["status"] == "ok"),
@@ -366,6 +427,8 @@ def evaluate(
             "insufficient_data": len(insufficient),
             "known_deviation": len(deviated),
             "min_accesses_threshold": min_accesses,
+            "popt_ge_grasp_geomean_status": (geomean_gate or {}).get("status"),
+            "popt_ge_grasp_geomean_delta_pct": (geomean_gate or {}).get("delta_pct"),
         },
         "disagreements": disagreements,
         "tolerated": tolerated,
@@ -413,6 +476,13 @@ def format_table(result: dict[str, Any]) -> str:
         f"{s['missing']} missing, {s.get('insufficient_data', 0)} insufficient_data  "
         f"(total claims: {s['claims_total']}; min_accesses={s.get('min_accesses_threshold', '?')})"
     )
+    geo = result.get("popt_ge_grasp_geomean")
+    if geo:
+        out.append(
+            f"  POPT_GE_GRASP_GEOMEAN gate (power-law): {str(geo.get('status', '?')).upper()} "
+            f"— POPT geomean={geo.get('popt_geomean')}, GRASP={geo.get('grasp_geomean')}, "
+            f"Δ={geo.get('delta_pct')}pp over n={geo.get('n_cells')} cells"
+        )
     return "\n".join(out)
 
 
@@ -578,6 +648,11 @@ def main(argv: list[str]) -> int:
         args.csv_out.write_text(format_summary_csv(result))
         print(f"[lit] CSV: {args.csv_out}", file=sys.stderr)
     if result["summary"]["disagree"] and not args.no_exit_on_disagree:
+        return 2
+    # The POPT_GE_GRASP geomean gate (summary-level, power-law scoped) is also
+    # authoritative: a geomean disagreement fails lit-faith.
+    geo = result.get("popt_ge_grasp_geomean") or {}
+    if geo.get("status") == "disagree" and not args.no_exit_on_disagree:
         return 2
     return 0
 

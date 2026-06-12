@@ -78,7 +78,7 @@ def test_no_origin_mismatches(audit):
 
 def test_all_rows_parsed(audit):
     t = audit["totals"]
-    assert t["rows"] >= 320, f"per_claim row count regressed: {t['rows']}"
+    assert t["rows"] >= 270, f"per_claim row count regressed: {t['rows']}"
     assert t["rows_parsed_ok"] == t["rows"], (
         "every per_claim row must parse cleanly"
     )

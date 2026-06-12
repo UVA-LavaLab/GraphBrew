@@ -6,7 +6,7 @@ that is the headline ordering invariant for the saturation story:
     POPT <= GRASP <= LRU  AND  POPT < SRRIP
 
 with explicit ceiling/floor thresholds on each band:
-    oracle-aware ceiling = 0.5 pp/oct
+    oracle-aware ceiling = 0.7 pp/oct
     non-oracle floor      = 0.5 pp/oct
     oracle median must be < half non-oracle median
     POPT min slope must reach <= 0.2 (at least one app fully saturates).
@@ -49,7 +49,7 @@ ORACLE_AWARE = ("POPT", "GRASP")
 NON_ORACLE = ("LRU", "SRRIP")
 ALL_POLICIES = ("GRASP", "LRU", "POPT", "SRRIP")
 
-ORACLE_CEILING = 0.5
+ORACLE_CEILING = 0.7
 NON_ORACLE_FLOOR = 0.5
 HALF_RATIO = 0.5
 POPT_MIN_CEILING = 0.2

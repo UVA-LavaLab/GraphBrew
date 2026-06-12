@@ -3,10 +3,11 @@ Confidence gate 114 — cross_tool_winners.json arithmetic + classification.
 
 Locks the cross-tool winners table that pivots per-cell (app, graph)
 winners across three simulators (cache_sim, gem5, sniper) and
-classifies each cell as 'split' (≥2 non-empty winners disagree) or
-'majority' (≥2 non-empty winners agree).
+classifies each cell as 'split' (≥2 non-empty winners disagree),
+'majority' (some but not all non-empty winners agree), or 'unanimous'
+(all non-empty winners agree).
 
-The current snapshot has 6 cells, all 'split', which is a strong negative
+The current snapshot has 6 cells: 5 split and 1 unanimous, which is a strong negative
 result for the paper's claim that the winner picked by cache_sim does not
 reliably transfer to gem5/sniper. The gate enforces:
 
@@ -35,7 +36,7 @@ KNOWN_POLICIES = {"LRU", "SRRIP", "GRASP", "POPT", "POPT_CHARGED",
                   "ECG_DBG_ONLY", "ECG_DBG_PRIMARY", "ECG_DBG_PRIMARY_CHARGED",
                   "ECG_POPT_PRIMARY"}
 KNOWN_APPS = {"bc", "bfs", "cc", "pr", "sssp", "radii"}
-KNOWN_CLASSIFICATIONS = {"split", "majority"}
+KNOWN_CLASSIFICATIONS = {"split", "majority", "unanimous"}
 PROJECTED_FIELDS = ("app", "graph", "cache_sim_winner", "gem5_winner", "sniper_winner")
 
 
@@ -53,7 +54,10 @@ def _classify(cell: dict) -> str:
     w = _winners(cell)
     if len(w) < 2:
         return "single"            # cannot classify cross-tool agreement
-    return "majority" if len(set(w)) == 1 else "split"
+    if len(set(w)) == 1:
+        return "unanimous"
+    counts = collections.Counter(w)
+    return "majority" if max(counts.values()) > 1 else "split"
 
 
 # ---------------------------------------------------------------------------

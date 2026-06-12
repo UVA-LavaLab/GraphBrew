@@ -16,19 +16,19 @@ Cross-simulator headline table at literature L3 scope **1MB**, joining cache_sim
 
 | graph | app | L3 | cache_sim | gem5 | Sniper | verdict |
 |---|---|---|---|---|---|---|
-| `cit-Patents` | bc | 1MB | SRRIP | — | — | 🟡 single |
-| `cit-Patents` | bfs | 1MB | GRASP | — | — | 🟡 single |
+| `cit-Patents` | bc | 1MB | POPT | — | — | 🟡 single |
+| `cit-Patents` | bfs | 1MB | POPT | — | — | 🟡 single |
 | `cit-Patents` | pr | 1MB | POPT | — | — | 🟡 single |
 | `cit-Patents` | sssp | 1MB | GRASP | — | — | 🟡 single |
 | `com-orkut` | pr | 1MB | POPT | — | — | 🟡 single |
-| `soc-LiveJournal1` | bc | 1MB | GRASP | — | — | 🟡 single |
+| `soc-LiveJournal1` | bc | 1MB | POPT | — | — | 🟡 single |
 | `soc-LiveJournal1` | bfs | 1MB | GRASP | — | — | 🟡 single |
 | `soc-LiveJournal1` | pr | 1MB | POPT | — | — | 🟡 single |
 | `soc-LiveJournal1` | sssp | 1MB | POPT | — | — | 🟡 single |
-| `soc-pokec` | bc | 1MB | GRASP | — | — | 🟡 single |
-| `soc-pokec` | pr | 1MB | GRASP | — | — | 🟡 single |
+| `soc-pokec` | bc | 1MB | POPT | — | — | 🟡 single |
+| `soc-pokec` | pr | 1MB | POPT | — | — | 🟡 single |
 | `soc-pokec` | sssp | 1MB | GRASP | — | — | 🟡 single |
-| `web-Google` | bc | 1MB | SRRIP | — | — | 🟡 single |
+| `web-Google` | bc | 1MB | LRU | — | — | 🟡 single |
 | `web-Google` | bfs | 1MB | GRASP | — | — | 🟡 single |
 | `web-Google` | pr | 1MB | POPT | — | — | 🟡 single |
 
@@ -38,88 +38,88 @@ Cross-simulator headline table at literature L3 scope **1MB**, joining cache_sim
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.8843 | 0.8796 | 0.8985 | 0.8825 | — | **SRRIP** |
+| `cache_sim` | 0.9451 | 0.9426 | 0.9295 | 0.9290 | — | **POPT** |
 
 ### `cit-Patents` / bfs / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.9708 | 0.9667 | 0.9593 | 0.9603 | — | **GRASP** |
+| `cache_sim` | 0.9815 | 0.9791 | 0.9738 | 0.9724 | — | **POPT** |
 
 ### `cit-Patents` / pr / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.8944 | 0.8798 | 0.7855 | 0.7713 | — | **POPT** |
+| `cache_sim` | 0.8951 | 0.8803 | 0.8182 | 0.7301 | — | **POPT** |
 
 ### `cit-Patents` / sssp / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.8486 | 0.8444 | 0.8180 | 0.8208 | — | **GRASP** |
+| `cache_sim` | 0.8768 | 0.8701 | 0.8336 | 0.8397 | — | **GRASP** |
 
 ### `com-orkut` / pr / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.7047 | 0.6625 | 0.6850 | 0.6109 | — | **POPT** |
+| `cache_sim` | 0.7426 | 0.7065 | 0.6383 | 0.6353 | — | **POPT** |
 
 ### `soc-LiveJournal1` / bc / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.8396 | 0.8175 | 0.7948 | 0.8096 | — | **GRASP** |
+| `cache_sim` | 0.8649 | 0.8501 | 0.8312 | 0.8251 | — | **POPT** |
 
 ### `soc-LiveJournal1` / bfs / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.8176 | 0.7824 | 0.7413 | 0.7521 | — | **GRASP** |
+| `cache_sim` | 0.8357 | 0.8107 | 0.7837 | 0.7860 | — | **GRASP** |
 
 ### `soc-LiveJournal1` / pr / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.7319 | 0.6987 | 0.6839 | 0.6226 | — | **POPT** |
+| `cache_sim` | 0.7654 | 0.7340 | 0.6825 | 0.6312 | — | **POPT** |
 
 ### `soc-LiveJournal1` / sssp / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.7058 | 0.6799 | 0.6584 | 0.6582 | — | **POPT** |
+| `cache_sim` | 0.7439 | 0.7177 | 0.6820 | 0.6707 | — | **POPT** |
 
 ### `soc-pokec` / bc / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.8513 | 0.8285 | 0.7646 | 0.7946 | — | **GRASP** |
+| `cache_sim` | 0.8597 | 0.8442 | 0.8108 | 0.8097 | — | **POPT** |
 
 ### `soc-pokec` / pr / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.6796 | 0.6343 | 0.5433 | 0.5468 | — | **GRASP** |
+| `cache_sim` | 0.6962 | 0.6517 | 0.5557 | 0.5266 | — | **POPT** |
 
 ### `soc-pokec` / sssp / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.6351 | 0.6037 | 0.5269 | 0.5650 | — | **GRASP** |
+| `cache_sim` | 0.6719 | 0.6366 | 0.5581 | 0.5830 | — | **GRASP** |
 
 ### `web-Google` / bc / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.6998 | 0.6882 | 0.7085 | 0.7036 | — | **SRRIP** |
+| `cache_sim` | 0.8027 | 0.8069 | 0.8238 | 0.8216 | — | **LRU** |
 
 ### `web-Google` / bfs / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.9704 | 0.9699 | 0.9363 | 0.9467 | — | **GRASP** |
+| `cache_sim` | 0.9804 | 0.9796 | 0.9444 | 0.9556 | — | **GRASP** |
 
 ### `web-Google` / pr / 1MB
 
 | sim | LRU | SRRIP | GRASP | POPT | ECG_DBG_PRIMARY | winner |
 |---|---:|---:|---:|---:|---:|---|
-| `cache_sim` | 0.6008 | 0.5442 | 0.4531 | 0.4168 | — | **POPT** |
+| `cache_sim` | 0.5984 | 0.5409 | 0.4509 | 0.3840 | — | **POPT** |

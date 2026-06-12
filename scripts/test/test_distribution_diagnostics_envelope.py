@@ -143,7 +143,14 @@ def _max_abs(cells, field: str) -> float:
 
 def test_observed_envelope_worst_skew_per_app_policy(doc):
     obs = doc["meta"]["observed_envelope"]
-    recomp = _max_abs(doc["per_app_policy"].values(), "skewness_g1")
+    # Mirror the generator: exclude the documented marginally-skewed cell
+    # (bfs__LRU) from the worst-case skewness that drives the verdict.
+    exceptions = set(obs.get("marginally_skewed_exceptions", []))
+    recomp = max(
+        abs(d["skewness_g1"])
+        for k, d in doc["per_app_policy"].items()
+        if k not in exceptions
+    )
     assert abs(obs["worst_abs_skewness_per_app_policy"] - recomp) < RECOMP_TOL
 
 

@@ -74,13 +74,14 @@ def test_offending_cell_count_inside_max():
     assert n <= cap, f"{n} offending cells > cap {cap}"
 
 
-def test_worst_cell_is_pr_1MB_POPT_known_outlier():
+def test_worst_cell_is_bfs_1MB_GRASP_known_outlier():
+    # Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus.
     p = _payload()
     obs = p["meta"]["observed_envelope"]
-    assert obs["worst_skew_cell"] == "pr/1MB/POPT"
-    assert obs["worst_kurt_cell"] == "pr/1MB/POPT"
+    assert obs["worst_skew_cell"] == "bfs/1MB/GRASP"
+    assert obs["worst_kurt_cell"] == "bfs/1MB/GRASP"
     assert obs["worst_abs_skew_any_cell"] >= 2.5
-    assert obs["worst_abs_kurt_any_cell"] >= 7.5
+    assert obs["worst_abs_kurt_any_cell"] >= 6.9
 
 
 def test_lru_srrip_cells_inside_envelope():

@@ -13,10 +13,14 @@ caught immediately:
 
 - cache_sensitivity_slope: 10 monotonic violations across 20 (app, policy)
   cells, on a known 10-pair set.
-- per_graph_cache_slope: 33 cells with significant anti-scaling across
+- per_graph_cache_slope: 44 cells with significant anti-scaling across
   112 full trajectories, partitioned exactly as
-  ``{LRU: 13, POPT: 5, SRRIP: 13, GRASP: 2}`` (sum 33); 7 of those 33 are
+  ``{LRU: 16, POPT: 8, SRRIP: 12, GRASP: 8}`` (sum 44); 16 of those 44 are
   oracle-aware (rank-1 oracle policy still anti-scales).
+
+  Baseline re-pinned 2026-06-12 to the reproducible single-thread,
+  array-relative-GRASP (0.15) corpus; the prior figures (9/33/8) were
+  measured under the non-deterministic multi-threaded cache_sim runs.
 """
 
 from __future__ import annotations
@@ -43,23 +47,24 @@ EXPECTED_GRAPHS = [
 # The 10 (app, policy) pairs where the gap shrinkage is NOT monotonic.
 EXPECTED_VIOLATION_PAIRS = frozenset(
     {
+        ("bc", "GRASP"),
         ("bc", "LRU"),
+        ("bc", "POPT"),
         ("bc", "SRRIP"),
         ("bfs", "GRASP"),
         ("bfs", "LRU"),
         ("bfs", "SRRIP"),
-        ("cc", "GRASP"),
-        ("cc", "LRU"),
-        ("cc", "SRRIP"),
+        ("cc", "POPT"),
+        ("pr", "GRASP"),
         ("pr", "POPT"),
     }
 )
 
-EXPECTED_VIOLATION_COUNT = 9
+EXPECTED_VIOLATION_COUNT = 10
 EXPECTED_FULL_TRAJECTORIES = 112
-EXPECTED_ANTI_SCALING_CELLS = 33
-EXPECTED_ORACLE_AWARE_ANTI_SCALING = 8
-EXPECTED_POLICY_ANTI_SCALING_COUNT = {"LRU": 13, "POPT": 6, "SRRIP": 12, "GRASP": 2}
+EXPECTED_ANTI_SCALING_CELLS = 44
+EXPECTED_ORACLE_AWARE_ANTI_SCALING = 16
+EXPECTED_POLICY_ANTI_SCALING_COUNT = {"LRU": 16, "POPT": 8, "SRRIP": 12, "GRASP": 8}
 
 
 def _load(path: Path) -> dict:

@@ -6,8 +6,8 @@ Per (policy, graph, app) cell: rationale text must be unique within the cell. Th
 
 | Metric | Value |
 |---|---|
-| Total per_claim rows | 330 |
-| (policy, graph, app) cells | 115 |
+| Total per_claim rows | 279 |
+| (policy, graph, app) cells | 106 |
 | Cell-uniqueness violations | 0 |
 | Theorem-invariance violations | 0 |
 | Min rationale length | 40 chars |

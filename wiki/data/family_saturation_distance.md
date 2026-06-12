@@ -10,9 +10,9 @@
 
 | family | n_cells | min pp | median pp | p90 pp | max pp | graphs |
 |---|---:|---:|---:|---:|---:|---|
-| citation | 5 | +6.9336 | +15.3704 | +27.4893 | +27.4893 | cit-Patents |
-| social | 15 | +1.9715 | +12.4954 | +18.8313 | +22.0018 | com-orkut, soc-LiveJournal1, soc-pokec |
-| web | 5 | +0.0020 | +2.1563 | +20.6262 | +20.6262 | web-Google |
+| citation | 5 | +6.2363 | +14.1698 | +27.0953 | +27.0953 | cit-Patents |
+| social | 15 | +1.0362 | +12.7848 | +18.7574 | +24.0281 | com-orkut, soc-LiveJournal1, soc-pokec |
+| web | 5 | +0.0000 | +2.6569 | +28.7477 | +28.7477 | web-Google |
 
 ## Verdict checks
 

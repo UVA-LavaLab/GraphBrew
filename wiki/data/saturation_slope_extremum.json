@@ -11,37 +11,37 @@
     ],
     "per_app": {
       "bc": {
-        "distance_pp": 15.4437,
-        "slope_pp_oct": -14.2654,
-        "slope_steepness": 14.2654,
+        "distance_pp": 16.8906,
+        "slope_pp_oct": -13.6679,
+        "slope_steepness": 13.6679,
         "distance_rank": 5,
         "slope_rank": 2
       },
       "bfs": {
-        "distance_pp": 4.5691,
-        "slope_pp_oct": -4.824,
-        "slope_steepness": 4.824,
+        "distance_pp": 4.1509,
+        "slope_pp_oct": -3.3845,
+        "slope_steepness": 3.3845,
         "distance_rank": 1,
         "slope_rank": 1
       },
       "cc": {
-        "distance_pp": 12.1229,
-        "slope_pp_oct": -15.1524,
-        "slope_steepness": 15.1524,
+        "distance_pp": 12.8363,
+        "slope_pp_oct": -14.7846,
+        "slope_steepness": 14.7846,
         "distance_rank": 3,
         "slope_rank": 3
       },
       "pr": {
-        "distance_pp": 7.7448,
-        "slope_pp_oct": -16.4984,
-        "slope_steepness": 16.4984,
+        "distance_pp": 7.4769,
+        "slope_pp_oct": -16.4247,
+        "slope_steepness": 16.4247,
         "distance_rank": 2,
         "slope_rank": 4
       },
       "sssp": {
-        "distance_pp": 12.7213,
-        "slope_pp_oct": -19.4173,
-        "slope_steepness": 19.4173,
+        "distance_pp": 13.1001,
+        "slope_pp_oct": -20.9986,
+        "slope_steepness": 20.9986,
         "distance_rank": 4,
         "slope_rank": 5
       }

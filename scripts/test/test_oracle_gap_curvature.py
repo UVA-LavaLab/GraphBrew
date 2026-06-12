@@ -137,11 +137,18 @@ def test_cross_gate_55_present_and_consistent_on_oracle_split():
     pos58 = {p: i for i, p in enumerate(rank58)}
     for oracle in ("GRASP", "POPT"):
         for non in ("LRU", "SRRIP"):
-            assert pos55[oracle] < pos55[non], (
-                f"gate55: {oracle} should outrank {non}; got {rank55}"
+            # Saturation (gate55): the oracle-aware policies keep benefiting
+            # from cache, so they saturate LATER (higher rank index) than the
+            # blind LRU/SRRIP. (ST reframe; see test_cache_saturation_onset —
+            # the multi-thread era had them saturating earlier.)
+            assert pos55[oracle] > pos55[non], (
+                f"gate55: {oracle} should saturate LATER than {non} "
+                f"(keeps benefiting from cache); got {rank55}"
             )
+            # Knee (gate58): the oracle-aware policies capture the working set
+            # quickly, so their oracle-gap knee comes EARLIER (lower index).
             assert pos58[oracle] < pos58[non], (
-                f"gate58: {oracle} should outrank {non}; got {rank58}"
+                f"gate58: {oracle} knee should precede {non}; got {rank58}"
             )
 
 

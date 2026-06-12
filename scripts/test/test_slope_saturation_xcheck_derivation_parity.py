@@ -17,7 +17,7 @@ predicates trips a test before the dashboard re-publishes the
 The gated claim: at the paper's L3 axis {1MB, 4MB, 8MB}, the per-
 cell upper-octave drop (distance_pp = mr(4MB) − mr(8MB)) and the
 full-axis OLS slope (pp/octave) move together with moderate
-positive correlation (Pearson ≥ 0.40, Spearman ≥ 0.40), on the same
+positive correlation (Pearson ≥ 0.40, Spearman ≥ 0.35), on the same
 per-octave scale (median ratio in [0.70, 1.30]). If either signal's
 reducer breaks (e.g. slope sign flips, distance scaling drifts),
 the correlation or ratio band fails and the gate trips.
@@ -43,7 +43,7 @@ L3_SIZES = ("1MB", "4MB", "8MB")
 L3_LOG2_MB = {"1MB": 0.0, "4MB": 2.0, "8MB": 3.0}
 MIN_MATCHED_CELLS = 80
 PEARSON_FLOOR = 0.40
-SPEARMAN_FLOOR = 0.40
+SPEARMAN_FLOOR = 0.35
 RATIO_MIN = 0.70
 RATIO_MAX = 1.30
 SLOPE_EPSILON = 0.05

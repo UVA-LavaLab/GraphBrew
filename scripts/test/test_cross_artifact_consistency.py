@@ -59,10 +59,22 @@ def test_popt_vs_grasp_delta_graphs_subset_of_corpus():
     assert not extra, extra
 
 
-def test_claim_density_n_graphs_matches_corpus():
+def test_claim_density_n_graphs_matches_power_law_claim_corpus():
+    """POPT literature claims are power-law-scoped (road/mesh carry no POPT
+    claims; P-OPT only tested power-law graphs), so claim_density covers the
+    power-law claim graphs (6: cit-Patents, com-orkut, email-Eu-core,
+    soc-LiveJournal1, soc-pokec, web-Google) — a subset of the 8-graph
+    descriptive corpus."""
     corpus = _corpus_graphs()
     cd = _load("claim_density.json")
-    assert cd["summary"]["n_graphs"] == len(corpus)
+    assert cd["summary"]["n_graphs"] <= len(corpus), (
+        f"claim_density n_graphs {cd['summary']['n_graphs']} exceeds corpus "
+        f"{len(corpus)}"
+    )
+    assert cd["summary"]["n_graphs"] == 6, (
+        f"claim_density n_graphs={cd['summary']['n_graphs']}; expected 6 "
+        f"power-law claim graphs (road/mesh excluded from POPT claims)"
+    )
 
 
 # ---------- family parity ----------

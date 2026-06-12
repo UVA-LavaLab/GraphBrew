@@ -85,7 +85,7 @@ declare -A SRC=(
   [roadNet-CA]=1000000
 )
 
-POLICIES=(LRU SRRIP GRASP POPT "ECG:DBG_PRIMARY")
+POLICIES=(LRU SRRIP GRASP POPT "ECG:DBG_PRIMARY" "ECG:POPT_PRIMARY")
 
 cell_is_complete() {
   # <csv-path> <expected-policy-count> <expected-l3-count>

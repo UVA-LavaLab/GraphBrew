@@ -1,7 +1,7 @@
 {
   "meta": {
     "every_pair_both_win": true,
-    "max_asymmetry_ratio": 3.6535,
+    "max_asymmetry_ratio": 3.0335,
     "max_ratio_under_ceiling": true,
     "pair_count": 6,
     "policies": [
@@ -16,64 +16,64 @@
   },
   "per_pair": {
     "GRASP_vs_LRU": {
-      "a_mean_margin_pp": 5.01,
+      "a_mean_margin_pp": 5.5092,
       "a_policy": "GRASP",
-      "a_wins": 92,
-      "asymmetry_ratio": 3.2933,
-      "b_mean_margin_pp": 16.4992,
+      "a_wins": 88,
+      "asymmetry_ratio": 2.4153,
+      "b_mean_margin_pp": 13.3065,
       "b_policy": "LRU",
-      "b_wins": 17,
-      "ties": 5
+      "b_wins": 14,
+      "ties": 12
     },
     "GRASP_vs_POPT": {
-      "a_mean_margin_pp": 1.9731,
+      "a_mean_margin_pp": 2.1146,
       "a_policy": "GRASP",
-      "a_wins": 58,
-      "asymmetry_ratio": 2.8992,
-      "b_mean_margin_pp": 5.7204,
+      "a_wins": 50,
+      "asymmetry_ratio": 2.4591,
+      "b_mean_margin_pp": 5.2,
       "b_policy": "POPT",
-      "b_wins": 51,
-      "ties": 5
+      "b_wins": 52,
+      "ties": 12
     },
     "GRASP_vs_SRRIP": {
-      "a_mean_margin_pp": 3.554,
+      "a_mean_margin_pp": 3.831,
       "a_policy": "GRASP",
-      "a_wins": 87,
-      "asymmetry_ratio": 3.6535,
-      "b_mean_margin_pp": 12.9845,
+      "a_wins": 86,
+      "asymmetry_ratio": 3.0335,
+      "b_mean_margin_pp": 11.6212,
       "b_policy": "SRRIP",
-      "b_wins": 22,
-      "ties": 5
+      "b_wins": 16,
+      "ties": 12
     },
     "LRU_vs_POPT": {
-      "a_mean_margin_pp": 5.3445,
+      "a_mean_margin_pp": 8.6588,
       "a_policy": "LRU",
-      "a_wins": 16,
-      "asymmetry_ratio": 1.1334,
-      "b_mean_margin_pp": 4.7153,
+      "a_wins": 9,
+      "asymmetry_ratio": 1.3921,
+      "b_mean_margin_pp": 6.2198,
       "b_policy": "POPT",
-      "b_wins": 94,
-      "ties": 4
+      "b_wins": 87,
+      "ties": 18
     },
     "LRU_vs_SRRIP": {
-      "a_mean_margin_pp": 0.5682,
+      "a_mean_margin_pp": 1.329,
       "a_policy": "LRU",
-      "a_wins": 17,
-      "asymmetry_ratio": 3.1861,
-      "b_mean_margin_pp": 1.8103,
+      "a_wins": 5,
+      "asymmetry_ratio": 1.5203,
+      "b_mean_margin_pp": 2.0205,
       "b_policy": "SRRIP",
-      "b_wins": 92,
-      "ties": 5
+      "b_wins": 80,
+      "ties": 29
     },
     "POPT_vs_SRRIP": {
-      "a_mean_margin_pp": 3.4636,
+      "a_mean_margin_pp": 4.5109,
       "a_policy": "POPT",
-      "a_wins": 85,
-      "asymmetry_ratio": 1.1255,
-      "b_mean_margin_pp": 3.8984,
+      "a_wins": 86,
+      "asymmetry_ratio": 1.7677,
+      "b_mean_margin_pp": 7.9741,
       "b_policy": "SRRIP",
-      "b_wins": 24,
-      "ties": 5
+      "b_wins": 10,
+      "ties": 18
     }
   }
 }

@@ -10,17 +10,16 @@ Negative ``cliffs_delta_a_minus_b`` ↔ policy *a* has stochastically smaller ga
 
 | App | Better (a) | Worse (b) | d (a−b) | MW p | n_a | n_b |
 | --- | --- | --- | ---: | ---: | ---: | ---: |
-| cc | GRASP | POPT | -0.843 | 5.00e-06 | 20 | 20 |
-| pr | POPT | LRU | -0.829 | 0.00e+00 | 28 | 28 |
-| pr | POPT | SRRIP | -0.824 | 0.00e+00 | 28 | 28 |
-| cc | GRASP | SRRIP | -0.815 | 1.00e-05 | 20 | 20 |
-| cc | GRASP | LRU | -0.797 | 1.60e-05 | 20 | 20 |
-| bc | GRASP | LRU | -0.618 | 3.28e-04 | 23 | 23 |
-| bfs | POPT | SRRIP | -0.618 | 3.28e-04 | 23 | 23 |
-| bfs | POPT | LRU | -0.584 | 6.88e-04 | 23 | 23 |
-| pr | POPT | GRASP | -0.561 | 3.12e-04 | 28 | 28 |
-| bfs | GRASP | SRRIP | -0.516 | 2.71e-03 | 23 | 23 |
-| bfs | GRASP | LRU | -0.501 | 3.60e-03 | 23 | 23 |
+| pr | POPT | LRU | -0.833 | 0.00e+00 | 28 | 28 |
+| pr | POPT | SRRIP | -0.833 | 0.00e+00 | 28 | 28 |
+| cc | GRASP | LRU | -0.777 | 2.60e-05 | 20 | 20 |
+| cc | GRASP | SRRIP | -0.777 | 2.60e-05 | 20 | 20 |
+| pr | POPT | GRASP | -0.723 | 3.00e-06 | 28 | 28 |
+| bfs | POPT | SRRIP | -0.596 | 5.40e-04 | 23 | 23 |
+| bfs | POPT | LRU | -0.556 | 1.24e-03 | 23 | 23 |
+| cc | GRASP | POPT | -0.555 | 2.68e-03 | 20 | 20 |
+| cc | POPT | LRU | -0.492 | 7.71e-03 | 20 | 20 |
+| bc | GRASP | LRU | -0.478 | 5.45e-03 | 23 | 23 |
 
 ## Per-app distributions and pairwise tests
 
@@ -30,27 +29,27 @@ Distribution (gap_pp):
 
 | Policy | n | median | mean | min | max |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LRU | 28 | 5.228 | 6.818 | 0.000 | 22.195 |
-| SRRIP | 28 | 4.758 | 5.004 | 0.000 | 17.918 |
-| GRASP | 28 | 1.294 | 2.315 | 0.000 | 8.652 |
-| POPT | 28 | 0.000 | 0.095 | 0.000 | 1.063 |
+| LRU | 28 | 6.584 | 7.734 | 0.000 | 24.264 |
+| SRRIP | 28 | 4.538 | 5.867 | 0.000 | 19.923 |
+| GRASP | 28 | 2.909 | 3.339 | 0.000 | 10.580 |
+| POPT | 28 | 0.000 | 0.009 | 0.000 | 0.170 |
 
 Pairwise tests (Cliff's d, MW-U two-sided p):
 
 | a | b | d (a−b) | magnitude | MW p |
 | --- | --- | ---: | --- | ---: |
-| LRU | SRRIP | +0.138 | negligible | 3.76e-01 |
-| LRU | GRASP | +0.427 | medium | 6.05e-03 |
-| LRU | POPT | +0.829 | large | 0.00e+00 |
-| SRRIP | LRU | -0.138 | negligible | 3.76e-01 |
-| SRRIP | GRASP | +0.341 | medium | 2.87e-02 |
-| SRRIP | POPT | +0.824 | large | 0.00e+00 |
-| GRASP | LRU | -0.427 | medium | 6.05e-03 |
-| GRASP | SRRIP | -0.341 | medium | 2.87e-02 |
-| GRASP | POPT | +0.561 | large | 3.12e-04 |
-| POPT | LRU | -0.829 | large | 0.00e+00 |
-| POPT | SRRIP | -0.824 | large | 0.00e+00 |
-| POPT | GRASP | -0.561 | large | 3.12e-04 |
+| LRU | SRRIP | +0.131 | negligible | 3.99e-01 |
+| LRU | GRASP | +0.311 | small | 4.56e-02 |
+| LRU | POPT | +0.833 | large | 0.00e+00 |
+| SRRIP | LRU | -0.131 | negligible | 3.99e-01 |
+| SRRIP | GRASP | +0.222 | small | 1.54e-01 |
+| SRRIP | POPT | +0.833 | large | 0.00e+00 |
+| GRASP | LRU | -0.311 | small | 4.56e-02 |
+| GRASP | SRRIP | -0.222 | small | 1.54e-01 |
+| GRASP | POPT | +0.723 | large | 3.00e-06 |
+| POPT | LRU | -0.833 | large | 0.00e+00 |
+| POPT | SRRIP | -0.833 | large | 0.00e+00 |
+| POPT | GRASP | -0.723 | large | 3.00e-06 |
 
 ### bc
 
@@ -58,27 +57,27 @@ Distribution (gap_pp):
 
 | Policy | n | median | mean | min | max |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LRU | 23 | 2.097 | 3.109 | 0.000 | 8.662 |
-| SRRIP | 23 | 1.318 | 1.641 | 0.000 | 6.386 |
-| GRASP | 23 | 0.000 | 2.172 | 0.000 | 38.128 |
-| POPT | 23 | 1.445 | 2.304 | 0.000 | 22.541 |
+| LRU | 23 | 3.545 | 2.867 | 0.000 | 7.388 |
+| SRRIP | 23 | 1.361 | 1.705 | 0.000 | 7.208 |
+| GRASP | 23 | 0.000 | 1.173 | 0.000 | 16.234 |
+| POPT | 23 | 0.274 | 2.119 | 0.000 | 16.399 |
 
 Pairwise tests (Cliff's d, MW-U two-sided p):
 
 | a | b | d (a−b) | magnitude | MW p |
 | --- | --- | ---: | --- | ---: |
-| LRU | SRRIP | +0.318 | small | 6.50e-02 |
-| LRU | GRASP | +0.618 | large | 3.28e-04 |
-| LRU | POPT | +0.287 | small | 9.50e-02 |
-| SRRIP | LRU | -0.318 | small | 6.50e-02 |
-| SRRIP | GRASP | +0.410 | medium | 1.71e-02 |
-| SRRIP | POPT | -0.015 | negligible | 9.30e-01 |
-| GRASP | LRU | -0.618 | large | 3.28e-04 |
-| GRASP | SRRIP | -0.410 | medium | 1.71e-02 |
-| GRASP | POPT | -0.471 | medium | 6.24e-03 |
-| POPT | LRU | -0.287 | small | 9.50e-02 |
-| POPT | SRRIP | +0.015 | negligible | 9.30e-01 |
-| POPT | GRASP | +0.471 | medium | 6.24e-03 |
+| LRU | SRRIP | +0.257 | small | 1.35e-01 |
+| LRU | GRASP | +0.478 | large | 5.45e-03 |
+| LRU | POPT | +0.278 | small | 1.06e-01 |
+| SRRIP | LRU | -0.257 | small | 1.35e-01 |
+| SRRIP | GRASP | +0.452 | medium | 8.66e-03 |
+| SRRIP | POPT | +0.149 | small | 3.86e-01 |
+| GRASP | LRU | -0.478 | large | 5.45e-03 |
+| GRASP | SRRIP | -0.452 | medium | 8.66e-03 |
+| GRASP | POPT | -0.214 | small | 2.15e-01 |
+| POPT | LRU | -0.278 | small | 1.06e-01 |
+| POPT | SRRIP | -0.149 | small | 3.86e-01 |
+| POPT | GRASP | +0.214 | small | 2.15e-01 |
 
 ### cc
 
@@ -86,27 +85,27 @@ Distribution (gap_pp):
 
 | Policy | n | median | mean | min | max |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LRU | 20 | 6.629 | 6.484 | 0.000 | 20.943 |
-| SRRIP | 20 | 4.303 | 4.316 | 0.000 | 11.896 |
-| GRASP | 20 | 0.000 | 0.639 | 0.000 | 9.120 |
-| POPT | 20 | 1.810 | 3.572 | 0.004 | 11.016 |
+| LRU | 20 | 10.166 | 8.786 | 0.000 | 25.689 |
+| SRRIP | 20 | 6.820 | 6.590 | 0.000 | 17.260 |
+| GRASP | 20 | 0.000 | 0.500 | 0.000 | 4.576 |
+| POPT | 20 | 1.849 | 2.844 | 0.000 | 11.717 |
 
 Pairwise tests (Cliff's d, MW-U two-sided p):
 
 | a | b | d (a−b) | magnitude | MW p |
 | --- | --- | ---: | --- | ---: |
-| LRU | SRRIP | +0.168 | small | 3.65e-01 |
-| LRU | GRASP | +0.797 | large | 1.60e-05 |
-| LRU | POPT | +0.203 | small | 2.73e-01 |
-| SRRIP | LRU | -0.168 | small | 3.65e-01 |
-| SRRIP | GRASP | +0.815 | large | 1.00e-05 |
-| SRRIP | POPT | +0.022 | negligible | 9.03e-01 |
-| GRASP | LRU | -0.797 | large | 1.60e-05 |
-| GRASP | SRRIP | -0.815 | large | 1.00e-05 |
-| GRASP | POPT | -0.843 | large | 5.00e-06 |
-| POPT | LRU | -0.203 | small | 2.73e-01 |
-| POPT | SRRIP | -0.022 | negligible | 9.03e-01 |
-| POPT | GRASP | +0.843 | large | 5.00e-06 |
+| LRU | SRRIP | +0.160 | small | 3.87e-01 |
+| LRU | GRASP | +0.777 | large | 2.60e-05 |
+| LRU | POPT | +0.492 | large | 7.71e-03 |
+| SRRIP | LRU | -0.160 | small | 3.87e-01 |
+| SRRIP | GRASP | +0.777 | large | 2.60e-05 |
+| SRRIP | POPT | +0.415 | medium | 2.48e-02 |
+| GRASP | LRU | -0.777 | large | 2.60e-05 |
+| GRASP | SRRIP | -0.777 | large | 2.60e-05 |
+| GRASP | POPT | -0.555 | large | 2.68e-03 |
+| POPT | LRU | -0.492 | large | 7.71e-03 |
+| POPT | SRRIP | -0.415 | medium | 2.48e-02 |
+| POPT | GRASP | +0.555 | large | 2.68e-03 |
 
 ### bfs
 
@@ -114,27 +113,27 @@ Distribution (gap_pp):
 
 | Policy | n | median | mean | min | max |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LRU | 23 | 3.418 | 4.598 | 0.000 | 18.153 |
-| SRRIP | 23 | 3.740 | 4.221 | 0.000 | 17.920 |
-| GRASP | 23 | 0.000 | 4.937 | 0.000 | 68.404 |
-| POPT | 23 | 0.044 | 1.801 | 0.000 | 33.391 |
+| LRU | 23 | 4.406 | 4.811 | 0.000 | 18.425 |
+| SRRIP | 23 | 3.522 | 4.477 | 0.000 | 18.301 |
+| GRASP | 23 | 0.000 | 5.347 | 0.000 | 62.586 |
+| POPT | 23 | 0.000 | 1.988 | 0.000 | 34.291 |
 
 Pairwise tests (Cliff's d, MW-U two-sided p):
 
 | a | b | d (a−b) | magnitude | MW p |
 | --- | --- | ---: | --- | ---: |
-| LRU | SRRIP | +0.025 | negligible | 8.86e-01 |
-| LRU | GRASP | +0.501 | large | 3.60e-03 |
-| LRU | POPT | +0.584 | large | 6.88e-04 |
-| SRRIP | LRU | -0.025 | negligible | 8.86e-01 |
-| SRRIP | GRASP | +0.516 | large | 2.71e-03 |
-| SRRIP | POPT | +0.618 | large | 3.28e-04 |
-| GRASP | LRU | -0.501 | large | 3.60e-03 |
-| GRASP | SRRIP | -0.516 | large | 2.71e-03 |
-| GRASP | POPT | -0.068 | negligible | 6.93e-01 |
-| POPT | LRU | -0.584 | large | 6.88e-04 |
-| POPT | SRRIP | -0.618 | large | 3.28e-04 |
-| POPT | GRASP | +0.068 | negligible | 6.93e-01 |
+| LRU | SRRIP | +0.059 | negligible | 7.33e-01 |
+| LRU | GRASP | +0.338 | medium | 4.93e-02 |
+| LRU | POPT | +0.556 | large | 1.24e-03 |
+| SRRIP | LRU | -0.059 | negligible | 7.33e-01 |
+| SRRIP | GRASP | +0.357 | medium | 3.79e-02 |
+| SRRIP | POPT | +0.596 | large | 5.40e-04 |
+| GRASP | LRU | -0.338 | medium | 4.93e-02 |
+| GRASP | SRRIP | -0.357 | medium | 3.79e-02 |
+| GRASP | POPT | +0.104 | negligible | 5.46e-01 |
+| POPT | LRU | -0.556 | large | 1.24e-03 |
+| POPT | SRRIP | -0.596 | large | 5.40e-04 |
+| POPT | GRASP | -0.104 | negligible | 5.46e-01 |
 
 ### sssp
 
@@ -142,24 +141,24 @@ Distribution (gap_pp):
 
 | Policy | n | median | mean | min | max |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LRU | 20 | 3.062 | 3.115 | 0.000 | 10.823 |
-| SRRIP | 20 | 2.163 | 2.100 | 0.000 | 7.677 |
-| GRASP | 20 | 0.013 | 6.930 | 0.000 | 70.117 |
-| POPT | 20 | 0.175 | 1.694 | 0.000 | 13.820 |
+| LRU | 20 | 2.997 | 3.739 | 0.000 | 11.387 |
+| SRRIP | 20 | 1.587 | 2.520 | 0.000 | 9.701 |
+| GRASP | 20 | 0.136 | 4.584 | 0.000 | 55.827 |
+| POPT | 20 | 0.168 | 1.444 | 0.000 | 8.799 |
 
 Pairwise tests (Cliff's d, MW-U two-sided p):
 
 | a | b | d (a−b) | magnitude | MW p |
 | --- | --- | ---: | --- | ---: |
-| LRU | SRRIP | +0.138 | negligible | 4.57e-01 |
-| LRU | GRASP | +0.355 | medium | 5.48e-02 |
-| LRU | POPT | +0.380 | medium | 3.98e-02 |
-| SRRIP | LRU | -0.138 | negligible | 4.57e-01 |
-| SRRIP | GRASP | +0.385 | medium | 3.73e-02 |
-| SRRIP | POPT | +0.415 | medium | 2.48e-02 |
-| GRASP | LRU | -0.355 | medium | 5.48e-02 |
-| GRASP | SRRIP | -0.385 | medium | 3.73e-02 |
-| GRASP | POPT | -0.020 | negligible | 9.14e-01 |
-| POPT | LRU | -0.380 | medium | 3.98e-02 |
-| POPT | SRRIP | -0.415 | medium | 2.48e-02 |
-| POPT | GRASP | +0.020 | negligible | 9.14e-01 |
+| LRU | SRRIP | +0.182 | small | 3.23e-01 |
+| LRU | GRASP | +0.400 | medium | 3.05e-02 |
+| LRU | POPT | +0.390 | medium | 3.49e-02 |
+| SRRIP | LRU | -0.182 | small | 3.23e-01 |
+| SRRIP | GRASP | +0.335 | medium | 6.99e-02 |
+| SRRIP | POPT | +0.273 | small | 1.40e-01 |
+| GRASP | LRU | -0.400 | medium | 3.05e-02 |
+| GRASP | SRRIP | -0.335 | medium | 6.99e-02 |
+| GRASP | POPT | -0.100 | negligible | 5.89e-01 |
+| POPT | LRU | -0.390 | medium | 3.49e-02 |
+| POPT | SRRIP | -0.273 | small | 1.40e-01 |
+| POPT | GRASP | +0.100 | negligible | 5.89e-01 |

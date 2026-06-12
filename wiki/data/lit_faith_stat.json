@@ -22,23 +22,22 @@
     "delta_rounding_tol_pp": 0.001,
     "miss_rate_oob": 0,
     "nan_inf": 0,
-    "rows_lru_vs_policy": 102,
+    "rows_lru_vs_policy": 111,
     "rows_missing_pair": 0,
-    "rows_popt_ge_grasp": 114,
-    "rows_popt_near_grasp": 114,
+    "rows_popt_ge_grasp": 84,
+    "rows_popt_near_grasp": 84,
     "rows_unknown_kind": 0,
     "sign_mismatch": 0,
     "sign_noise_floor_pp": 0.01,
     "signed_delta_mismatch": 0,
     "status_bad_label": 0,
     "status_counts": {
-      "insufficient_data": 7,
-      "known_deviation": 24,
-      "ok": 298,
-      "within_tolerance": 1
+      "insufficient_data": 28,
+      "known_deviation": 17,
+      "ok": 234
     },
     "status_inconsistent": 0,
-    "total_rows": 330
+    "total_rows": 279
   },
   "unknown_kind": []
 }

@@ -56,17 +56,15 @@ PAIRS = list(itertools.combinations(L3_SIZES, 2))  # 3 pairs
 #      oracle-pinning hurts because there is no replacement pressure.
 #      Cells: cc/web-Google, sssp/soc-pokec.
 #
-# Verdict tracks "no NEW flip cells beyond this pin set" so any new graph
-# that introduces additional rank-flip behavior is flagged.
+# Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus:
+# rank flips are now concentrated in sssp frontier cells, matching the
+# reproducible regime-dependence/degree-protection-misalignment pattern.
 PINNED_FLIP_CELLS: tuple[tuple[str, str], ...] = (
-    ("bc",   "cit-Patents"),
-    ("bc",   "web-Google"),
-    ("bfs",  "email-Eu-core"),
-    ("cc",   "web-Google"),
-    ("pr",   "email-Eu-core"),
+    ("sssp", "com-orkut"),
     ("sssp", "soc-pokec"),
+    ("sssp", "web-Google"),
 )
-PINNED_FLIP_CELLS_MAX = 6
+PINNED_FLIP_CELLS_MAX = 3
 
 
 def _kendall_tau(rank_a: list[int], rank_b: list[int]) -> float:

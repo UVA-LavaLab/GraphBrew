@@ -1,331 +1,280 @@
 citation,graph,app,l3_size,policy,expected_sign,min_abs_delta_pct,max_abs_delta_pct,tolerance_pct,delta_pct,status
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bc,1MB,SRRIP,~,,5.0,3.0,-0.4775,ok
-Faldu et al. HPCA 2020 Fig 11,cit-Patents,bc,1MB,GRASP,-,1.0,20.0,3.0,1.4201,within_tolerance
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,bc,1MB,POPT_GE_GRASP,-,,,1.5,-1.6023,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.6023,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bc,4MB,SRRIP,~,,5.0,3.0,-0.9079,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,bc,4MB,POPT_GE_GRASP,-,,,1.5,0.5181,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.5181,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bc,8MB,SRRIP,~,,5.0,3.0,-1.7958,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,bc,8MB,POPT_GE_GRASP,-,,,1.5,1.3418,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.3418,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bfs,1MB,SRRIP,~,,5.0,3.0,-0.409,ok
-Faldu et al. HPCA 2020 Fig 11,cit-Patents,bfs,1MB,GRASP,-,0.5,15.0,3.0,-1.1494,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,bfs,1MB,POPT_GE_GRASP,-,,,1.5,0.1021,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1021,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bfs,4MB,SRRIP,~,,5.0,3.0,-0.4895,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,bfs,4MB,POPT_GE_GRASP,-,,,1.5,0.8973,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.8973,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bfs,8MB,SRRIP,~,,5.0,3.0,-0.2546,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,bfs,8MB,POPT_GE_GRASP,-,,,1.5,0.7344,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.7344,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),cit-Patents,cc,1MB,SRRIP,~,,10.0,3.0,-4.2127,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,cc,1MB,POPT_GE_GRASP,-,,,1.5,8.7258,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,8.7258,known_deviation
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),cit-Patents,cc,4MB,SRRIP,~,,10.0,3.0,-2.2986,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,cc,4MB,POPT_GE_GRASP,-,,,1.5,3.6479,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.6479,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),cit-Patents,cc,8MB,SRRIP,~,,10.0,3.0,-2.1422,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,cc,8MB,POPT_GE_GRASP,-,,,1.5,1.5277,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.5277,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,cit-Patents,pr,1MB,SRRIP,~,,5.0,2.0,-1.4682,ok
-Faldu et al. HPCA 2020 Fig 10,cit-Patents,pr,1MB,GRASP,-,3.0,25.0,2.0,-10.89,ok
-Balaji & Lucia HPCA 2021 Fig 9,cit-Patents,pr,1MB,POPT,-,3.0,30.0,2.0,-12.3138,ok
-Balaji & Lucia HPCA 2021 §6.3,cit-Patents,pr,1MB,POPT_GE_GRASP,-,,,1.0,-1.4238,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.4238,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,cit-Patents,pr,4MB,SRRIP,~,,5.0,2.0,-4.2773,ok
-Balaji & Lucia HPCA 2021 §6.3,cit-Patents,pr,4MB,POPT_GE_GRASP,-,,,1.0,-8.6517,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,8.6517,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,cit-Patents,pr,8MB,SRRIP,~,,5.0,2.0,-5.0445,ok
-Faldu et al. HPCA 2020 Fig 10,cit-Patents,pr,8MB,GRASP,-,0.5,10.0,2.0,-11.1489,ok
-Balaji & Lucia HPCA 2021 §6.3,cit-Patents,pr,8MB,POPT_GE_GRASP,-,,,1.0,-3.111,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.111,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,1MB,SRRIP,~,,5.0,3.0,-0.4224,ok
-Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar),cit-Patents,sssp,1MB,GRASP,-,0.5,15.0,3.0,-3.0624,ok
-Balaji & Lucia HPCA 2021 Fig 10,cit-Patents,sssp,1MB,POPT,-,1.0,25.0,2.0,-2.7818,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,1MB,POPT_GE_GRASP,-,,,1.5,0.2806,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2806,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,4MB,SRRIP,~,,5.0,3.0,-2.4063,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,4MB,POPT_GE_GRASP,-,,,1.5,1.4111,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.4111,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,8MB,SRRIP,~,,5.0,3.0,-2.3015,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,8MB,POPT_GE_GRASP,-,,,1.5,1.4368,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.4368,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,1MB,SRRIP,~,,5.0,3.0,-2.5406,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bc,1MB,POPT_GE_GRASP,-,,,1.5,2.4747,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.4747,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,4MB,SRRIP,~,,5.0,3.0,-3.241,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bc,4MB,POPT_GE_GRASP,-,,,1.5,4.6678,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.6678,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,8MB,SRRIP,~,,5.0,3.0,-2.899,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bc,8MB,POPT_GE_GRASP,-,,,1.5,4.727,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.727,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bfs,1MB,SRRIP,~,,5.0,3.0,0.0337,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bfs,1MB,POPT_GE_GRASP,-,,,1.5,0.2895,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2895,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bfs,4MB,SRRIP,~,,5.0,3.0,0.0654,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bfs,4MB,POPT_GE_GRASP,-,,,1.5,-0.3953,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.3953,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bfs,8MB,SRRIP,~,,5.0,3.0,0.027,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-0.7285,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.7285,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),com-orkut,cc,1MB,SRRIP,~,,10.0,3.0,-3.7914,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,cc,1MB,POPT_GE_GRASP,-,,,1.5,11.0164,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,11.0164,known_deviation
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),com-orkut,cc,4MB,SRRIP,~,,10.0,3.0,-1.4488,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,cc,4MB,POPT_GE_GRASP,-,,,1.5,10.0547,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,10.0547,known_deviation
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),com-orkut,cc,8MB,SRRIP,~,,10.0,3.0,-10.943,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,cc,8MB,POPT_GE_GRASP,-,,,1.5,6.1871,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.1871,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,com-orkut,pr,1MB,SRRIP,~,,5.0,2.0,-4.2248,ok
-Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10),com-orkut,pr,1MB,GRASP,-,1.0,25.0,3.0,-1.9774,ok
-Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter),com-orkut,pr,1MB,POPT,-,1.0,30.0,3.0,-9.379,ok
-Balaji & Lucia HPCA 2021 §6.3,com-orkut,pr,1MB,POPT_GE_GRASP,-,,,1.0,-7.4016,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,7.4016,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,com-orkut,pr,4MB,SRRIP,~,,5.0,2.0,-3.6809,ok
-Balaji & Lucia HPCA 2021 §6.3,com-orkut,pr,4MB,POPT_GE_GRASP,-,,,1.0,-5.2914,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.2914,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,com-orkut,pr,8MB,SRRIP,~,,5.0,2.0,-2.2724,ok
-Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10),com-orkut,pr,8MB,GRASP,-,0.5,12.0,2.0,-3.5227,ok
-Balaji & Lucia HPCA 2021 §6.3,com-orkut,pr,8MB,POPT_GE_GRASP,-,,,1.0,-2.0108,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.0108,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,1MB,SRRIP,~,,5.0,3.0,-3.9895,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,1MB,POPT_GE_GRASP,-,,,1.5,-3.6961,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.6961,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,4MB,SRRIP,~,,5.0,3.0,-1.5592,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,4MB,POPT_GE_GRASP,-,,,1.5,-1.1607,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.1607,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,8MB,SRRIP,~,,5.0,3.0,-0.228,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,8MB,POPT_GE_GRASP,-,,,1.5,0.1618,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1618,ok
-Balaji & Lucia HPCA 2021 §6.3,delaunay_n19,pr,16kB,POPT_GE_GRASP,-,,,1.0,0.3319,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,delaunay_n19,pr,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.3319,ok
-Balaji & Lucia HPCA 2021 §6.3,delaunay_n19,pr,1MB,POPT_GE_GRASP,-,,,1.0,-3.8674,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,delaunay_n19,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.8674,ok
-Balaji & Lucia HPCA 2021 §6.3,delaunay_n19,pr,256kB,POPT_GE_GRASP,-,,,1.0,-0.6154,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,delaunay_n19,pr,256kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.6154,ok
-Balaji & Lucia HPCA 2021 §6.3,delaunay_n19,pr,4kB,POPT_GE_GRASP,-,,,1.0,0.0789,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,delaunay_n19,pr,4kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0789,ok
-Balaji & Lucia HPCA 2021 §6.3,delaunay_n19,pr,64kB,POPT_GE_GRASP,-,,,1.0,-0.2339,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,delaunay_n19,pr,64kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2339,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),email-Eu-core,bc,1MB,POPT_GE_GRASP,-,,,1.5,0.0,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),email-Eu-core,bc,4MB,POPT_GE_GRASP,-,,,1.5,0.0097,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0097,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),email-Eu-core,bc,8MB,POPT_GE_GRASP,-,,,1.5,-0.0001,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0001,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),email-Eu-core,bfs,1MB,POPT_GE_GRASP,-,,,1.5,-17.7511,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,17.7511,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),email-Eu-core,bfs,4MB,POPT_GE_GRASP,-,,,1.5,-0.0002,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0002,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),email-Eu-core,bfs,8MB,POPT_GE_GRASP,-,,,1.5,0.0015,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0015,ok
-Balaji & Lucia HPCA 2021 §6.3,email-Eu-core,pr,1MB,POPT_GE_GRASP,-,,,1.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bc,1MB,SRRIP,~,,5.0,3.0,-0.2548,ok
+Faldu et al. HPCA 2020 Fig 11,cit-Patents,bc,1MB,GRASP,-,1.0,20.0,3.0,-1.5588,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,bc,1MB,POPT_GE_GRASP,-,,,1.5,-0.0574,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0574,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bc,4MB,SRRIP,~,,5.0,3.0,-1.069,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,bc,4MB,POPT_GE_GRASP,-,,,1.5,1.2254,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.2254,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bc,8MB,SRRIP,~,,5.0,3.0,-2.0356,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,bc,8MB,POPT_GE_GRASP,-,,,1.5,2.3097,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.3097,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bfs,1MB,SRRIP,~,,5.0,3.0,-0.2403,ok
+Faldu et al. HPCA 2020 Fig 11,cit-Patents,bfs,1MB,GRASP,-,0.5,15.0,3.0,-0.7623,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,bfs,1MB,POPT_GE_GRASP,-,,,1.5,-0.1473,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1473,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bfs,4MB,SRRIP,~,,5.0,3.0,-0.4961,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,bfs,4MB,POPT_GE_GRASP,-,,,1.5,0.7791,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.7791,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),cit-Patents,bfs,8MB,SRRIP,~,,5.0,3.0,-0.2662,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-3.0908,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.0908,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),cit-Patents,cc,1MB,SRRIP,~,,10.0,3.0,-4.0581,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,cc,1MB,POPT_GE_GRASP,-,,,1.5,-1.1072,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.1072,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),cit-Patents,cc,4MB,SRRIP,~,,10.0,3.0,-2.3319,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,cc,4MB,POPT_GE_GRASP,-,,,1.5,0.5228,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.5228,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),cit-Patents,cc,8MB,SRRIP,~,,10.0,3.0,-2.226,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,cc,8MB,POPT_GE_GRASP,-,,,1.5,1.8494,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.8494,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,cit-Patents,pr,1MB,SRRIP,~,,5.0,2.0,-1.4812,ok
+Faldu et al. HPCA 2020 Fig 10,cit-Patents,pr,1MB,GRASP,-,3.0,25.0,2.0,-7.6907,ok
+Balaji & Lucia HPCA 2021 Fig 9,cit-Patents,pr,1MB,POPT,-,3.0,30.0,2.0,-16.4988,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,pr,1MB,POPT_GE_GRASP,-,,,1.0,-8.8081,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,8.8081,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,cit-Patents,pr,4MB,SRRIP,~,,5.0,2.0,-4.3408,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,pr,4MB,POPT_GE_GRASP,-,,,1.0,-10.5804,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,10.5804,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,cit-Patents,pr,8MB,SRRIP,~,,5.0,2.0,-5.1689,ok
+Faldu et al. HPCA 2020 Fig 10,cit-Patents,pr,8MB,GRASP,-,0.5,10.0,2.0,-10.1376,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,pr,8MB,POPT_GE_GRASP,-,,,1.0,-4.5996,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.5996,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,1MB,SRRIP,~,,5.0,3.0,-0.676,ok
+Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar),cit-Patents,sssp,1MB,GRASP,-,0.5,15.0,3.0,-4.3181,ok
+Balaji & Lucia HPCA 2021 Fig 10,cit-Patents,sssp,1MB,POPT,-,1.0,25.0,2.0,-3.7145,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,sssp,1MB,POPT_GE_GRASP,-,,,1.5,0.6036,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.6036,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,4MB,SRRIP,~,,5.0,3.0,-2.2004,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,sssp,4MB,POPT_GE_GRASP,-,,,1.5,0.9482,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.9482,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,sssp,8MB,SRRIP,~,,5.0,3.0,-2.1608,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,sssp,8MB,POPT_GE_GRASP,-,,,1.5,-0.1363,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1363,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,1MB,SRRIP,~,,5.0,3.0,-1.638,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,bc,1MB,POPT_GE_GRASP,-,,,1.5,0.8399,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.8399,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,4MB,SRRIP,~,,5.0,3.0,-2.6528,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,bc,4MB,POPT_GE_GRASP,-,,,1.5,3.6753,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.6753,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bc,8MB,SRRIP,~,,5.0,3.0,-2.617,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,bc,8MB,POPT_GE_GRASP,-,,,1.5,5.7977,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.7977,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bfs,1MB,SRRIP,~,,5.0,3.0,-0.0099,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,bfs,1MB,POPT_GE_GRASP,-,,,1.5,-0.002,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.002,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bfs,4MB,SRRIP,~,,5.0,3.0,-0.0042,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,bfs,4MB,POPT_GE_GRASP,-,,,1.5,0.7929,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.7929,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),com-orkut,bfs,8MB,SRRIP,~,,5.0,3.0,-0.004,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-0.9896,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.9896,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),com-orkut,cc,1MB,SRRIP,~,,10.0,3.0,-3.3467,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,cc,1MB,POPT_GE_GRASP,-,,,1.5,5.943,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.943,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),com-orkut,cc,4MB,SRRIP,~,,10.0,3.0,-1.4414,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,cc,4MB,POPT_GE_GRASP,-,,,1.5,11.7166,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,11.7166,known_deviation
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),com-orkut,cc,8MB,SRRIP,~,,10.0,3.0,-8.4289,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,cc,8MB,POPT_GE_GRASP,-,,,1.5,8.9804,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,8.9804,known_deviation
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,com-orkut,pr,1MB,SRRIP,~,,5.0,2.0,-3.6033,ok
+Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10),com-orkut,pr,1MB,GRASP,-,1.0,25.0,3.0,-10.4262,ok
+Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter),com-orkut,pr,1MB,POPT,-,1.0,30.0,3.0,-10.723,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,pr,1MB,POPT_GE_GRASP,-,,,1.0,-0.2968,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2968,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,com-orkut,pr,4MB,SRRIP,~,,5.0,2.0,-4.2055,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,pr,4MB,POPT_GE_GRASP,-,,,1.0,-7.5163,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,7.5163,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,com-orkut,pr,8MB,SRRIP,~,,5.0,2.0,-2.6097,ok
+Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10),com-orkut,pr,8MB,GRASP,-,0.5,12.0,2.0,-2.5667,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,pr,8MB,POPT_GE_GRASP,-,,,1.0,-4.0178,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.0178,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,1MB,SRRIP,~,,5.0,3.0,-3.2881,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,sssp,1MB,POPT_GE_GRASP,-,,,1.5,1.9731,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.9731,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,4MB,SRRIP,~,,5.0,3.0,-2.0155,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,sssp,4MB,POPT_GE_GRASP,-,,,1.5,-0.3133,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.3133,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,sssp,8MB,SRRIP,~,,5.0,3.0,-0.0968,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,sssp,8MB,POPT_GE_GRASP,-,,,1.5,0.0328,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0328,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),email-Eu-core,bc,1MB,SRRIP,~,,5.0,3.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,bc,1MB,POPT_GE_GRASP,-,,,1.5,0.0,insufficient_data
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),email-Eu-core,bc,4MB,SRRIP,~,,5.0,3.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,bc,4MB,POPT_GE_GRASP,-,,,1.5,0.0,insufficient_data
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),email-Eu-core,bc,8MB,SRRIP,~,,5.0,3.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,bc,8MB,POPT_GE_GRASP,-,,,1.5,0.0,insufficient_data
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),email-Eu-core,bfs,1MB,SRRIP,~,,5.0,3.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,bfs,1MB,POPT_GE_GRASP,-,,,1.5,0.0,insufficient_data
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),email-Eu-core,bfs,4MB,SRRIP,~,,5.0,3.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,bfs,4MB,POPT_GE_GRASP,-,,,1.5,0.0,insufficient_data
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),email-Eu-core,bfs,8MB,SRRIP,~,,5.0,3.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,bfs,8MB,POPT_GE_GRASP,-,,,1.5,0.0,insufficient_data
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,email-Eu-core,pr,1MB,SRRIP,~,,5.0,2.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,pr,1MB,POPT_GE_GRASP,-,,,1.0,0.0,insufficient_data
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
-Balaji & Lucia HPCA 2021 §6.3,email-Eu-core,pr,4MB,POPT_GE_GRASP,-,,,1.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,email-Eu-core,pr,4MB,SRRIP,~,,5.0,2.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,pr,4MB,POPT_GE_GRASP,-,,,1.0,0.0,insufficient_data
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,email-Eu-core,pr,8MB,SRRIP,~,,5.0,2.0,0.0,insufficient_data
 Faldu et al. HPCA 2020 Fig 10,email-Eu-core,pr,8MB,GRASP,~,,3.0,1.0,0.0,insufficient_data
-Balaji & Lucia HPCA 2021 §6.3,email-Eu-core,pr,8MB,POPT_GE_GRASP,-,,,1.0,0.0,insufficient_data
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),email-Eu-core,pr,8MB,POPT_GE_GRASP,-,,,1.0,0.0,insufficient_data
 Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,email-Eu-core,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,insufficient_data
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,16kB,POPT_GE_GRASP,-,,,1.5,-0.1098,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1098,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,1MB,POPT_GE_GRASP,-,,,1.5,-15.5876,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,15.5876,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,256kB,POPT_GE_GRASP,-,,,1.5,-6.2817,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,256kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.2817,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,4kB,POPT_GE_GRASP,-,,,1.5,-0.0107,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,4kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0107,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bc,64kB,POPT_GE_GRASP,-,,,1.5,-1.1568,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bc,64kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.1568,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bfs,16kB,POPT_GE_GRASP,-,,,1.5,0.1219,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bfs,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1219,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bfs,1MB,POPT_GE_GRASP,-,,,1.5,-35.0138,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,35.0138,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bfs,256kB,POPT_GE_GRASP,-,,,1.5,-20.2333,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bfs,256kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,20.2333,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bfs,4kB,POPT_GE_GRASP,-,,,1.5,0.0445,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bfs,4kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0445,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,bfs,64kB,POPT_GE_GRASP,-,,,1.5,-1.9665,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,bfs,64kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.9665,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,cc,16kB,POPT_GE_GRASP,-,,,1.5,0.2153,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,cc,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2153,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,cc,1MB,POPT_GE_GRASP,-,,,1.5,-4.0615,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.0615,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,cc,256kB,POPT_GE_GRASP,-,,,1.5,-2.7847,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,cc,256kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.7847,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,cc,4kB,POPT_GE_GRASP,-,,,1.5,0.06,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,cc,4kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.06,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,cc,64kB,POPT_GE_GRASP,-,,,1.5,0.2719,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,cc,64kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2719,ok
-Balaji & Lucia HPCA 2021 §6.3,roadNet-CA,pr,16kB,POPT_GE_GRASP,-,,,1.0,0.0314,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,pr,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0314,ok
-Balaji & Lucia HPCA 2021 §6.3,roadNet-CA,pr,1MB,POPT_GE_GRASP,-,,,1.0,-6.4667,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.4667,ok
-Balaji & Lucia HPCA 2021 §6.3,roadNet-CA,pr,256kB,POPT_GE_GRASP,-,,,1.0,-5.5113,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,pr,256kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.5113,ok
-Balaji & Lucia HPCA 2021 §6.3,roadNet-CA,pr,4kB,POPT_GE_GRASP,-,,,1.0,-0.001,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,pr,4kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.001,ok
-Balaji & Lucia HPCA 2021 §6.3,roadNet-CA,pr,64kB,POPT_GE_GRASP,-,,,1.0,-1.2942,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,pr,64kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.2942,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,sssp,16kB,POPT_GE_GRASP,-,,,1.5,-0.9229,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,sssp,16kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.9229,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,sssp,1MB,POPT_GE_GRASP,-,,,1.5,-60.0226,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,60.0226,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,sssp,256kB,POPT_GE_GRASP,-,,,1.5,-38.317,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,sssp,256kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,38.317,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,sssp,4kB,POPT_GE_GRASP,-,,,1.5,-0.0261,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,sssp,4kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0261,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),roadNet-CA,sssp,64kB,POPT_GE_GRASP,-,,,1.5,-9.6476,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,roadNet-CA,sssp,64kB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,9.6476,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bc,1MB,SRRIP,~,,5.0,3.0,-2.205,ok
-Faldu et al. HPCA 2020 Fig 11,soc-LiveJournal1,bc,1MB,GRASP,-,1.0,20.0,3.0,-4.4736,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,bc,1MB,POPT_GE_GRASP,-,,,1.5,1.4819,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.4819,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bc,4MB,SRRIP,~,,5.0,3.0,-2.5167,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,bc,4MB,POPT_GE_GRASP,-,,,1.5,1.4449,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.4449,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bc,8MB,SRRIP,~,,5.0,3.0,-2.5468,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,bc,8MB,POPT_GE_GRASP,-,,,1.5,1.6476,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.6476,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bfs,1MB,SRRIP,~,,5.0,3.0,-3.5185,ok
-Faldu et al. HPCA 2020 Fig 11,soc-LiveJournal1,bfs,1MB,GRASP,-,0.5,15.0,3.0,-7.6307,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,bfs,1MB,POPT_GE_GRASP,-,,,1.5,1.0899,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.0899,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bfs,4MB,SRRIP,~,,5.0,3.0,-2.4639,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,bfs,4MB,POPT_GE_GRASP,-,,,1.5,1.2405,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.2405,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bfs,8MB,SRRIP,~,,5.0,3.0,-1.4977,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,bfs,8MB,POPT_GE_GRASP,-,,,1.5,1.2003,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.2003,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-LiveJournal1,cc,1MB,SRRIP,~,,10.0,3.0,-1.1014,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,cc,1MB,POPT_GE_GRASP,-,,,1.5,1.3976,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.3976,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-LiveJournal1,cc,4MB,SRRIP,~,,10.0,3.0,-1.1302,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,cc,4MB,POPT_GE_GRASP,-,,,1.5,1.8098,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.8098,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-LiveJournal1,cc,8MB,SRRIP,~,,10.0,3.0,-2.1521,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,cc,8MB,POPT_GE_GRASP,-,,,1.5,3.0832,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.0832,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-LiveJournal1,pr,1MB,SRRIP,~,,5.0,2.0,-3.3254,ok
-Faldu et al. HPCA 2020 Fig 10,soc-LiveJournal1,pr,1MB,GRASP,-,3.0,25.0,2.0,-4.8005,ok
-Balaji & Lucia HPCA 2021 Fig 9,soc-LiveJournal1,pr,1MB,POPT,-,4.0,30.0,2.0,-10.9296,ok
-Balaji & Lucia HPCA 2021 §6.3,soc-LiveJournal1,pr,1MB,POPT_GE_GRASP,-,,,1.0,-6.1291,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.1291,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-LiveJournal1,pr,4MB,SRRIP,~,,5.0,2.0,-3.6322,ok
-Balaji & Lucia HPCA 2021 §6.3,soc-LiveJournal1,pr,4MB,POPT_GE_GRASP,-,,,1.0,-6.1949,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.1949,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-LiveJournal1,pr,8MB,SRRIP,~,,5.0,2.0,-3.5828,ok
-Faldu et al. HPCA 2020 Fig 10,soc-LiveJournal1,pr,8MB,GRASP,-,1.0,12.0,2.0,-7.4499,ok
-Balaji & Lucia HPCA 2021 §6.3,soc-LiveJournal1,pr,8MB,POPT_GE_GRASP,-,,,1.0,-2.2911,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.2911,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,1MB,SRRIP,~,,5.0,3.0,-2.5954,ok
-Balaji & Lucia HPCA 2021 Fig 10,soc-LiveJournal1,sssp,1MB,POPT,-,2.0,25.0,2.0,-4.7583,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,1MB,POPT_GE_GRASP,-,,,1.5,-0.0215,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0215,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,4MB,SRRIP,~,,5.0,3.0,-2.3433,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,4MB,POPT_GE_GRASP,-,,,1.5,1.2199,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.2199,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,8MB,SRRIP,~,,5.0,3.0,-2.0447,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,8MB,POPT_GE_GRASP,-,,,1.5,0.7472,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.7472,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bc,1MB,SRRIP,~,,5.0,3.0,-2.2757,ok
-Faldu et al. HPCA 2020 Fig 11,soc-pokec,bc,1MB,GRASP,-,0.5,15.0,3.0,-8.662,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,bc,1MB,POPT_GE_GRASP,-,,,1.5,3.0012,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.0012,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bc,4MB,SRRIP,~,,5.0,3.0,-3.3239,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,bc,4MB,POPT_GE_GRASP,-,,,1.5,1.6144,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.6144,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bc,8MB,SRRIP,~,,5.0,3.0,-2.4864,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,bc,8MB,POPT_GE_GRASP,-,,,1.5,0.0773,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0773,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bfs,1MB,SRRIP,~,,5.0,3.0,-0.9724,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,bfs,1MB,POPT_GE_GRASP,-,,,1.5,1.2618,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.2618,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bfs,4MB,SRRIP,~,,5.0,3.0,-0.1375,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,bfs,4MB,POPT_GE_GRASP,-,,,1.5,-0.2832,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2832,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bfs,8MB,SRRIP,~,,5.0,3.0,-0.0973,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-1.1018,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.1018,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-pokec,cc,1MB,SRRIP,~,,10.0,3.0,-3.2629,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,cc,1MB,POPT_GE_GRASP,-,,,1.5,10.5803,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,10.5803,known_deviation
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-pokec,cc,4MB,SRRIP,~,,10.0,3.0,-6.6143,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,cc,4MB,POPT_GE_GRASP,-,,,1.5,5.6082,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.6082,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-pokec,cc,8MB,SRRIP,~,,10.0,3.0,0.0019,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,cc,8MB,POPT_GE_GRASP,-,,,1.5,0.0367,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0367,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-pokec,pr,1MB,SRRIP,~,,5.0,2.0,-4.5291,ok
-Faldu et al. HPCA 2020 Fig 10,soc-pokec,pr,1MB,GRASP,-,2.0,20.0,2.0,-13.6267,ok
-Balaji & Lucia HPCA 2021 Fig 9,soc-pokec,pr,1MB,POPT,-,2.0,25.0,2.0,-13.2793,ok
-Balaji & Lucia HPCA 2021 §6.3,soc-pokec,pr,1MB,POPT_GE_GRASP,-,,,1.0,0.3474,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.3474,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-pokec,pr,4MB,SRRIP,~,,5.0,2.0,-3.5445,ok
-Balaji & Lucia HPCA 2021 §6.3,soc-pokec,pr,4MB,POPT_GE_GRASP,-,,,1.0,-0.6519,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.6519,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-pokec,pr,8MB,SRRIP,~,,5.0,2.0,-1.2185,ok
-Faldu et al. HPCA 2020 Fig 10,soc-pokec,pr,8MB,GRASP,~,,5.0,2.0,-2.1157,ok
-Balaji & Lucia HPCA 2021 §6.3,soc-pokec,pr,8MB,POPT_GE_GRASP,-,,,1.0,0.8187,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.8187,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,1MB,SRRIP,~,,5.0,3.0,-3.1462,ok
-Balaji & Lucia HPCA 2021 Fig 10,soc-pokec,sssp,1MB,POPT,-,1.0,20.0,2.0,-7.0138,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,1MB,POPT_GE_GRASP,-,,,1.5,3.8096,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.8096,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,4MB,SRRIP,~,,5.0,3.0,-1.2883,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,4MB,POPT_GE_GRASP,-,,,1.5,0.8837,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.8837,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,8MB,SRRIP,~,,5.0,3.0,-0.0007,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,8MB,POPT_GE_GRASP,-,,,1.5,-0.0003,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0003,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bc,1MB,SRRIP,~,,5.0,3.0,-1.1626,ok
-Faldu et al. HPCA 2020 Fig 11,web-Google,bc,1MB,GRASP,~,,5.0,3.0,0.8666,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,bc,1MB,POPT_GE_GRASP,-,,,1.5,-0.4881,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.4881,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bc,4MB,SRRIP,~,,5.0,3.0,-1.3346,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,bc,4MB,POPT_GE_GRASP,-,,,1.5,2.6456,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.6456,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bc,8MB,SRRIP,~,,5.0,3.0,-0.5895,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,bc,8MB,POPT_GE_GRASP,-,,,1.5,2.6397,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.6397,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bfs,1MB,SRRIP,~,,5.0,3.0,-0.0552,ok
-Faldu et al. HPCA 2020 Fig 11,web-Google,bfs,1MB,GRASP,~,,8.0,4.0,-3.4181,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,bfs,1MB,POPT_GE_GRASP,-,,,1.5,1.0462,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.0462,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bfs,4MB,SRRIP,~,,5.0,3.0,-0.233,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,bfs,4MB,POPT_GE_GRASP,-,,,1.5,-0.1876,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1876,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bfs,8MB,SRRIP,~,,5.0,3.0,-0.7768,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-2.5079,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.5079,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),web-Google,cc,1MB,SRRIP,~,,10.0,3.0,-3.8587,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,cc,1MB,POPT_GE_GRASP,-,,,1.5,1.2675,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.2675,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),web-Google,cc,4MB,SRRIP,~,,10.0,3.0,-0.0003,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,cc,4MB,POPT_GE_GRASP,-,,,1.5,0.0035,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0035,ok
-Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),web-Google,cc,8MB,SRRIP,~,,10.0,3.0,0.0017,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,cc,8MB,POPT_GE_GRASP,-,,,1.5,-0.0008,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0008,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,web-Google,pr,1MB,SRRIP,~,,5.0,2.0,-5.6679,ok
-Faldu et al. HPCA 2020 Fig 10,web-Google,pr,1MB,GRASP,-,1.0,15.0,2.0,-14.7704,ok
-Balaji & Lucia HPCA 2021 Fig 9,web-Google,pr,1MB,POPT,-,1.0,20.0,2.0,-18.4003,ok
-Balaji & Lucia HPCA 2021 §6.3,web-Google,pr,1MB,POPT_GE_GRASP,-,,,1.0,-3.6299,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.6299,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,web-Google,pr,4MB,SRRIP,~,,5.0,2.0,-2.2436,ok
-Balaji & Lucia HPCA 2021 §6.3,web-Google,pr,4MB,POPT_GE_GRASP,-,,,1.0,1.0627,known_deviation
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.0627,ok
-Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,web-Google,pr,8MB,SRRIP,~,,5.0,2.0,-0.3686,ok
-Faldu et al. HPCA 2020 Fig 10,web-Google,pr,8MB,GRASP,~,,3.0,1.0,-1.2565,ok
-Balaji & Lucia HPCA 2021 §6.3,web-Google,pr,8MB,POPT_GE_GRASP,-,,,1.0,-0.0356,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0356,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,1MB,SRRIP,~,,5.0,3.0,-0.5021,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,1MB,POPT_GE_GRASP,-,,,1.5,-0.858,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.858,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,4MB,SRRIP,~,,5.0,3.0,0.0019,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,4MB,POPT_GE_GRASP,-,,,1.5,0.0001,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0001,ok
-Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,8MB,SRRIP,~,,5.0,3.0,-0.0034,ok
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,8MB,POPT_GE_GRASP,-,,,1.5,0.0,ok
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bc,1MB,SRRIP,~,,5.0,3.0,-1.4743,ok
+Faldu et al. HPCA 2020 Fig 11,soc-LiveJournal1,bc,1MB,GRASP,-,1.0,20.0,3.0,-3.3688,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,bc,1MB,POPT_GE_GRASP,-,,,1.5,-0.6028,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.6028,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bc,4MB,SRRIP,~,,5.0,3.0,-2.5503,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,bc,4MB,POPT_GE_GRASP,-,,,1.5,0.2739,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2739,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bc,8MB,SRRIP,~,,5.0,3.0,-3.058,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,bc,8MB,POPT_GE_GRASP,-,,,1.5,0.614,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.614,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bfs,1MB,SRRIP,~,,5.0,3.0,-2.5003,ok
+Faldu et al. HPCA 2020 Fig 11,soc-LiveJournal1,bfs,1MB,GRASP,-,0.5,15.0,3.0,-5.1967,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,bfs,1MB,POPT_GE_GRASP,-,,,1.5,0.227,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.227,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bfs,4MB,SRRIP,~,,5.0,3.0,-2.6094,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,bfs,4MB,POPT_GE_GRASP,-,,,1.5,1.499,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.499,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-LiveJournal1,bfs,8MB,SRRIP,~,,5.0,3.0,-1.7234,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-0.5212,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.5212,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-LiveJournal1,cc,1MB,SRRIP,~,,10.0,3.0,-2.4187,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,cc,1MB,POPT_GE_GRASP,-,,,1.5,-4.5756,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.5756,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-LiveJournal1,cc,4MB,SRRIP,~,,10.0,3.0,-2.1958,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,cc,4MB,POPT_GE_GRASP,-,,,1.5,1.9937,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.9937,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-LiveJournal1,cc,8MB,SRRIP,~,,10.0,3.0,-3.3306,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,cc,8MB,POPT_GE_GRASP,-,,,1.5,5.8083,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.8083,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-LiveJournal1,pr,1MB,SRRIP,~,,5.0,2.0,-3.1406,ok
+Faldu et al. HPCA 2020 Fig 10,soc-LiveJournal1,pr,1MB,GRASP,-,3.0,25.0,2.0,-8.2844,ok
+Balaji & Lucia HPCA 2021 Fig 9,soc-LiveJournal1,pr,1MB,POPT,-,4.0,30.0,2.0,-13.4203,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,pr,1MB,POPT_GE_GRASP,-,,,1.0,-5.1359,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.1359,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-LiveJournal1,pr,4MB,SRRIP,~,,5.0,2.0,-4.1505,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,pr,4MB,POPT_GE_GRASP,-,,,1.0,-6.8471,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.8471,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-LiveJournal1,pr,8MB,SRRIP,~,,5.0,2.0,-4.0482,ok
+Faldu et al. HPCA 2020 Fig 10,soc-LiveJournal1,pr,8MB,GRASP,-,1.0,12.0,2.0,-7.4565,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,pr,8MB,POPT_GE_GRASP,-,,,1.0,-3.6018,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.6018,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,1MB,SRRIP,~,,5.0,3.0,-2.6226,ok
+Balaji & Lucia HPCA 2021 Fig 10,soc-LiveJournal1,sssp,1MB,POPT,-,2.0,25.0,2.0,-7.3208,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,sssp,1MB,POPT_GE_GRASP,-,,,1.5,-1.1336,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.1336,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,4MB,SRRIP,~,,5.0,3.0,-2.9784,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,sssp,4MB,POPT_GE_GRASP,-,,,1.5,0.0876,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0876,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,sssp,8MB,SRRIP,~,,5.0,3.0,-1.7788,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,sssp,8MB,POPT_GE_GRASP,-,,,1.5,-0.4471,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-LiveJournal1,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.4471,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bc,1MB,SRRIP,~,,5.0,3.0,-1.5564,ok
+Faldu et al. HPCA 2020 Fig 11,soc-pokec,bc,1MB,GRASP,-,0.5,15.0,3.0,-4.8921,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,bc,1MB,POPT_GE_GRASP,-,,,1.5,-0.1125,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1125,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bc,4MB,SRRIP,~,,5.0,3.0,-3.3624,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,bc,4MB,POPT_GE_GRASP,-,,,1.5,0.162,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.162,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bc,8MB,SRRIP,~,,5.0,3.0,-2.6521,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,bc,8MB,POPT_GE_GRASP,-,,,1.5,-0.5076,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.5076,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bfs,1MB,SRRIP,~,,5.0,3.0,-1.407,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,bfs,1MB,POPT_GE_GRASP,-,,,1.5,1.3587,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.3587,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bfs,4MB,SRRIP,~,,5.0,3.0,-0.6111,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,bfs,4MB,POPT_GE_GRASP,-,,,1.5,-4.7802,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.7802,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),soc-pokec,bfs,8MB,SRRIP,~,,5.0,3.0,-0.6026,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-11.8172,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,11.8172,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-pokec,cc,1MB,SRRIP,~,,10.0,3.0,-2.6854,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,cc,1MB,POPT_GE_GRASP,-,,,1.5,3.7238,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,3.7238,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-pokec,cc,4MB,SRRIP,~,,10.0,3.0,-8.4615,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,cc,4MB,POPT_GE_GRASP,-,,,1.5,6.1477,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.1477,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),soc-pokec,cc,8MB,SRRIP,~,,10.0,3.0,0.0,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,cc,8MB,POPT_GE_GRASP,-,,,1.5,0.0,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-pokec,pr,1MB,SRRIP,~,,5.0,2.0,-4.4423,ok
+Faldu et al. HPCA 2020 Fig 10,soc-pokec,pr,1MB,GRASP,-,2.0,20.0,2.0,-14.0466,ok
+Balaji & Lucia HPCA 2021 Fig 9,soc-pokec,pr,1MB,POPT,-,2.0,25.0,2.0,-16.9551,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,pr,1MB,POPT_GE_GRASP,-,,,1.0,-2.9085,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.9085,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-pokec,pr,4MB,SRRIP,~,,5.0,2.0,-3.9125,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,pr,4MB,POPT_GE_GRASP,-,,,1.0,-1.8784,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.8784,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,soc-pokec,pr,8MB,SRRIP,~,,5.0,2.0,-1.2921,ok
+Faldu et al. HPCA 2020 Fig 10,soc-pokec,pr,8MB,GRASP,~,,5.0,2.0,-1.595,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,pr,8MB,POPT_GE_GRASP,-,,,1.0,0.1702,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1702,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,1MB,SRRIP,~,,5.0,3.0,-3.5336,ok
+Balaji & Lucia HPCA 2021 Fig 10,soc-pokec,sssp,1MB,POPT,-,1.0,20.0,2.0,-8.8953,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,sssp,1MB,POPT_GE_GRASP,-,,,1.5,2.4916,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.4916,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,4MB,SRRIP,~,,5.0,3.0,-1.2748,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,sssp,4MB,POPT_GE_GRASP,-,,,1.5,0.1181,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1181,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,sssp,8MB,SRRIP,~,,5.0,3.0,0.0,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,sssp,8MB,POPT_GE_GRASP,-,,,1.5,-0.4325,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.4325,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bc,1MB,SRRIP,~,,5.0,3.0,0.4243,ok
+Faldu et al. HPCA 2020 Fig 11,web-Google,bc,1MB,GRASP,~,,5.0,3.0,2.107,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,bc,1MB,POPT_GE_GRASP,-,,,1.5,-0.2204,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.2204,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bc,4MB,SRRIP,~,,5.0,3.0,-1.729,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,bc,4MB,POPT_GE_GRASP,-,,,1.5,2.4858,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.4858,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bc,8MB,SRRIP,~,,5.0,3.0,-0.9605,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,bc,8MB,POPT_GE_GRASP,-,,,1.5,2.5758,known_deviation
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.5758,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bfs,1MB,SRRIP,~,,5.0,3.0,-0.0791,ok
+Faldu et al. HPCA 2020 Fig 11,web-Google,bfs,1MB,GRASP,~,,8.0,4.0,-3.601,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,bfs,1MB,POPT_GE_GRASP,-,,,1.5,1.1221,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bfs,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.1221,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bfs,4MB,SRRIP,~,,5.0,3.0,-0.1241,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,bfs,4MB,POPT_GE_GRASP,-,,,1.5,-15.4792,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bfs,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,15.4792,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended),web-Google,bfs,8MB,SRRIP,~,,5.0,3.0,-0.5736,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,bfs,8MB,POPT_GE_GRASP,-,,,1.5,-17.4778,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,bfs,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,17.4778,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),web-Google,cc,1MB,SRRIP,~,,10.0,3.0,-2.9072,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,cc,1MB,POPT_GE_GRASP,-,,,1.5,-4.3184,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,4.3184,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),web-Google,cc,4MB,SRRIP,~,,10.0,3.0,0.0,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,cc,4MB,POPT_GE_GRASP,-,,,1.5,0.0,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,ok
+Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC),web-Google,cc,8MB,SRRIP,~,,10.0,3.0,0.0,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,cc,8MB,POPT_GE_GRASP,-,,,1.5,0.0,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.0,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,web-Google,pr,1MB,SRRIP,~,,5.0,2.0,-5.749,ok
+Faldu et al. HPCA 2020 Fig 10,web-Google,pr,1MB,GRASP,-,1.0,15.0,2.0,-14.7453,ok
+Balaji & Lucia HPCA 2021 Fig 9,web-Google,pr,1MB,POPT,-,1.0,20.0,2.0,-21.4332,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,pr,1MB,POPT_GE_GRASP,-,,,1.0,-6.6879,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,pr,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,6.6879,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,web-Google,pr,4MB,SRRIP,~,,5.0,2.0,-2.2932,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,pr,4MB,POPT_GE_GRASP,-,,,1.0,-1.4171,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,pr,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,1.4171,ok
+Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1,web-Google,pr,8MB,SRRIP,~,,5.0,2.0,-0.379,ok
+Faldu et al. HPCA 2020 Fig 10,web-Google,pr,8MB,GRASP,~,,3.0,1.0,0.9692,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,pr,8MB,POPT_GE_GRASP,-,,,1.0,-2.2498,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,pr,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.2498,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,1MB,SRRIP,~,,5.0,3.0,-0.7599,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,sssp,1MB,POPT_GE_GRASP,-,,,1.5,0.1683,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,sssp,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,0.1683,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,4MB,SRRIP,~,,5.0,3.0,0.0,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,sssp,4MB,POPT_GE_GRASP,-,,,1.5,-5.8141,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,sssp,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,5.8141,ok
+Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,sssp,8MB,SRRIP,~,,5.0,3.0,0.0,ok
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,sssp,8MB,POPT_GE_GRASP,-,,,1.5,-2.4063,ok
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,web-Google,sssp,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,,5.0,2.0,2.4063,ok

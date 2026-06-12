@@ -110,21 +110,22 @@ class StubClaim:
 
 
 def test_top_level_keys_pinned(artifact):
-    """The JSON has exactly six top-level keys; no field drifts in."""
+    """The JSON has exactly seven top-level keys; no field drifts in."""
     assert set(artifact.keys()) == {
         "disagreements", "known_deviations", "per_claim",
-        "per_observation", "summary", "tolerated",
+        "per_observation", "popt_ge_grasp_geomean", "summary", "tolerated",
     }
 
 
 def test_summary_keys_pinned(artifact):
-    """summary keys are the eight-element set; min_accesses_threshold
+    """summary keys are the ten-element set; min_accesses_threshold
     is required (load-bearing for the lit-faith comparator gates that
     filter on it). Adding a key here must be intentional."""
     assert set(artifact["summary"].keys()) == {
         "claims_total", "disagree", "insufficient_data",
         "known_deviation", "min_accesses_threshold", "missing",
-        "ok", "within_tolerance",
+        "ok", "popt_ge_grasp_geomean_delta_pct",
+        "popt_ge_grasp_geomean_status", "within_tolerance",
     }
 
 
@@ -379,7 +380,9 @@ def test_popt_ge_grasp_diff_le_tolerance_is_ok(patch_claims_for):
 
 
 def test_popt_ge_grasp_diff_above_tolerance_is_disagree(patch_claims_for):
-    """diff_pct > tolerance → disagree."""
+    """diff_pct > tolerance → disagree (per-cell diagnostic). The authoritative
+    POPT-vs-GRASP claim is the corpus POPT_GE_GRASP_GEOMEAN gate; per-cell
+    disagreements are documented as KNOWN_DEVIATIONS."""
     claim = StubClaim(
         policy="POPT_GE_GRASP", tolerance_pct=0.5, expected_sign="-",
     )
@@ -390,9 +393,35 @@ def test_popt_ge_grasp_diff_above_tolerance_is_disagree(patch_claims_for):
         _build_obs("g", "a", "1MB", "LRU", 0.600),
     ])
     result = lf.evaluate(obs_idx)
-    rel = [e for e in result["per_claim"] if e["policy"] == "POPT_GE_GRASP"]
+    rel = [e for e in result["per_claim"]
+           if e["policy"] == "POPT_GE_GRASP" and e["l3_size"] != "*"]
     assert rel[0]["status"] == "disagree"
     assert rel[0]["delta_pct"] == 1.0  # > tolerance
+
+
+def test_popt_ge_grasp_geomean_gate_is_emitted(patch_claims_for):
+    """The corpus geomean gate (POPT_GE_GRASP_GEOMEAN) is emitted in the SUMMARY
+    (result['popt_ge_grasp_geomean'], not per_claim) and is OK when
+    geomean(POPT) <= geomean(GRASP) + tolerance — the paper's actual claim
+    (Balaji & Lucia HPCA'21). Power-law scoped, so we use a power-law graph."""
+    claim = StubClaim(
+        policy="POPT_GE_GRASP", tolerance_pct=0.5, expected_sign="-",
+    )
+    patch_claims_for([claim])
+    # com-orkut is in POWER_LAW_GRAPHS. POPT loses one cell but wins another by
+    # more → geomean favors POPT.
+    obs_idx = lf.index([
+        _build_obs("com-orkut", "a", "1MB", "POPT", 0.520), _build_obs("com-orkut", "a", "1MB", "GRASP", 0.500),
+        _build_obs("com-orkut", "a", "1MB", "LRU", 0.600),
+        _build_obs("com-orkut", "b", "1MB", "POPT", 0.300), _build_obs("com-orkut", "b", "1MB", "GRASP", 0.400),
+        _build_obs("com-orkut", "b", "1MB", "LRU", 0.600),
+    ])
+    result = lf.evaluate(obs_idx, min_accesses=0)
+    geo = result["popt_ge_grasp_geomean"]
+    assert geo is not None
+    assert "POPT_GE_GRASP_GEOMEAN" not in {e["policy"] for e in result["per_claim"]}
+    assert geo["status"] == "ok"
+    assert geo["delta_pct"] <= geo["tolerance_pct"]
 
 
 def test_popt_ge_grasp_missing_observation(patch_claims_for):
@@ -486,9 +515,9 @@ def test_popt_near_grasp_above_threshold_within_tolerance_is_ok(patch_claims_for
 def test_popt_near_grasp_above_threshold_beyond_tolerance_is_disagree(
     patch_claims_for,
 ):
-    """grasp_gain_pp > 10 AND signed_pp > max_abs + tol → disagree.
-    POPT diverges from GRASP in the phase-transition regime — one
-    of the two oracle-aware policies is misbehaving."""
+    """grasp_gain_pp > 10 AND signed_pp > max_abs + tol → disagree (per-cell
+    diagnostic; documented as a KNOWN_DEVIATION). The authoritative POPT-vs-GRASP
+    claim is the corpus POPT_GE_GRASP_GEOMEAN gate."""
     claim = StubClaim(
         policy="POPT_NEAR_GRASP_IF_BIG_GAP",
         max_abs_delta_pct=2.0,

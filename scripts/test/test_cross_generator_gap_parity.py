@@ -95,29 +95,21 @@ def test_raw_means_have_at_least_5_graphs(payload):
 
 
 def test_known_anchor_pr_popt_1mb(payload):
-    """Pin pr/POPT/1MB to ~0.04 pp across all three generators.
-
-    Post cache_sim ECG sweep: shifted from 0.053 to 0.043. Loosen
-    tolerance to 0.02 pp (still tight, still excludes drift).
-    """
+    """Pin pr/POPT/1MB to ~0.0 pp across all three generators."""
     by_triple = {(c["app"], c["policy"], c["l3_size"]): c for c in payload["cells"]}
     c = by_triple[("pr", "POPT", "1MB")]
-    assert abs(c["raw_mean_gap_pp"] - 0.0434) < 0.02
-    assert abs(c["auc_trajectory_gap_pp"] - 0.0434) < 0.02
-    assert abs(c["slope_gap_pp"] - 0.0434) < 0.02
+    assert abs(c["raw_mean_gap_pp"] - 0.0) < 0.02
+    assert abs(c["auc_trajectory_gap_pp"] - 0.0) < 0.02
+    assert abs(c["slope_gap_pp"] - 0.0) < 0.02
 
 
 def test_known_anchor_pr_lru_8mb(payload):
-    """Pin pr/LRU/8MB to ~5.49 pp across all three generators.
-
-    Post cache_sim ECG sweep: shifted from 5.40 to 5.49. Loosen
-    tolerance to 0.10 pp to absorb honest data refresh.
-    """
+    """Pin pr/LRU/8MB to ~5.88 pp across all three generators."""
     by_triple = {(c["app"], c["policy"], c["l3_size"]): c for c in payload["cells"]}
     c = by_triple[("pr", "LRU", "8MB")]
-    assert abs(c["raw_mean_gap_pp"] - 5.4905) < 0.10
-    assert abs(c["auc_trajectory_gap_pp"] - 5.4905) < 0.10
-    assert abs(c["slope_gap_pp"] - 5.4905) < 0.10
+    assert abs(c["raw_mean_gap_pp"] - 5.8758) < 0.10
+    assert abs(c["auc_trajectory_gap_pp"] - 5.8758) < 0.10
+    assert abs(c["slope_gap_pp"] - 5.8758) < 0.10
 
 
 def test_popt_beats_lru_at_largest_l3(payload):

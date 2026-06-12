@@ -1,6 +1,6 @@
 # lit-faith citation registry purity (gate 246)
 
-**Status:** active  •  registered works: 3  •  per_claim rows: 330  •  violations: 0
+**Status:** active  •  registered works: 3  •  per_claim rows: 279  •  violations: 0
 
 ## Rules
 - **C1** — every per_claim citation matches >=1 registered canonical work
@@ -13,9 +13,9 @@
 
 | key | venue | year | per_claim references |
 |---|---|---:|---:|
-| `Faldu-HPCA-2020` | HPCA | 2020 | 177 |
-| `Balaji-HPCA-2021` | HPCA | 2021 | 252 |
-| `Jaleel-ISCA-2010` | ISCA | 2010 | 75 |
+| `Faldu-HPCA-2020` | HPCA | 2020 | 156 |
+| `Balaji-HPCA-2021` | HPCA | 2021 | 192 |
+| `Jaleel-ISCA-2010` | ISCA | 2010 | 84 |
 
 ## Shared canonical keys per (policy, app, sign) bucket
 

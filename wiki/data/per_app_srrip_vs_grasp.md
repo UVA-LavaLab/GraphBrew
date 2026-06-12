@@ -3,18 +3,18 @@
 **Verdict:** PASS  
 **Source:** `per_app_capacity_slope.json`  
 **Apps:** 5  
-**Pinned deviating:** bfs  
+**Pinned deviating:** none  
 **Allowed SRRIP-shallower-than-GRASP slack:** 1.0 pp/octave
 
 ## Per-app medians (pp/octave)
 
 | app | GRASP median | SRRIP median | SRRIP-GRASP | deviates |
 |---|---:|---:|---:|:---:|
-| bc | -14.2610 | -14.4060 | -0.1450 | ✅ |
-| bfs (pinned) | -6.4078 | -3.6533 | +2.7545 | 📌 |
-| cc | -14.0757 | -14.7883 | -0.7126 | ✅ |
-| pr | -16.1912 | -16.8056 | -0.6144 | ✅ |
-| sssp | -19.2798 | -19.5955 | -0.3157 | ✅ |
+| bc | -13.8860 | -13.8907 | -0.0047 | ✅ |
+| bfs | -2.2657 | -3.3722 | -1.1065 | ✅ |
+| cc | -14.4638 | -15.1055 | -0.6417 | ✅ |
+| pr | -15.6950 | -17.1544 | -1.4594 | ✅ |
+| sssp | -19.6472 | -21.8254 | -2.1782 | ✅ |
 
 ## Verdict checks
 

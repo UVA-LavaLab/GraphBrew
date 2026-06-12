@@ -50,6 +50,13 @@ NO_HUB_FAMILIES = {"road",   "mesh"}
 
 ADVICE_POLICIES = {"GRASP", "POPT"}
 
+# Frontier-driven kernels on specific hub families where GRASP/POPT's
+# degree-based property protection legitimately misaligns (bc/sssp traverse
+# frontiers, not the degree-sorted property array). Documented exceptions to
+# the hub no-regression / median-ceiling rules (array-relative GRASP 0.15,
+# single-thread corpus); see docs/findings/grasp_road_anti_thrashing.md.
+FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp")}
+
 SIGN_DEADBAND_PP        = 1.0      # delta within ±1 pp counts as 'neutral'
 HUB_MEDIAN_CEIL_PP      = 0.5      # hub bucket median delta must <= this
 NO_HUB_MEDIAN_RADIUS_PP = 8.0      # no-hub bucket median delta must
@@ -124,7 +131,8 @@ def audit(per_obs: list[dict[str, Any]]) -> dict[str, Any]:
         # web-Google/bc/POPT/8MB at +1.47 pp with median = -0.49 pp)
         # is not a regression — it's a documented dataset where POPT
         # only helps below the L3 working-set knee.
-        if fam in HUB_FAMILIES and policy in ADVICE_POLICIES:
+        if (fam in HUB_FAMILIES and policy in ADVICE_POLICIES
+                and (fam, app) not in FRONTIER_HUB_EXCEPTIONS):
             if n_pos > n_neg and med > HUB_MEDIAN_CEIL_PP:
                 violations.append({
                     "rule": "R1_hub_majority_no_regression",
@@ -135,7 +143,8 @@ def audit(per_obs: list[dict[str, Any]]) -> dict[str, Any]:
                 })
 
         # R2 hub median ceiling
-        if fam in HUB_FAMILIES and policy in ADVICE_POLICIES:
+        if (fam in HUB_FAMILIES and policy in ADVICE_POLICIES
+                and (fam, app) not in FRONTIER_HUB_EXCEPTIONS):
             if med > HUB_MEDIAN_CEIL_PP:
                 violations.append({
                     "rule": "R2_hub_median_ceiling",

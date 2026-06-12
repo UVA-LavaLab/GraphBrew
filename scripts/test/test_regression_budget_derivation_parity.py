@@ -144,6 +144,7 @@ def test_claim_kind_in_known_set(artifact: dict[str, Any]) -> None:
     known = {
         "cache_policy",
         "popt_ge_grasp",
+        "popt_ge_grasp_geomean",
         "popt_near_grasp_active",
         "popt_near_grasp_inactive",
         # generator emits the lowercased policy name when the row is excluded

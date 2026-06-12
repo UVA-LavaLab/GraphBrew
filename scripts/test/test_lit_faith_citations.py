@@ -25,9 +25,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 ARTIFACT = REPO_ROOT / "wiki" / "data" / "lit_faith_citations.json"
 
 # Sample-size and shape floors.
-UNIQUE_CITATIONS_FLOOR = 15
+UNIQUE_CITATIONS_FLOOR = 13
 BASELINE_CLAIM_COUNT_FLOOR = 38
-FAITH_CLAIM_COUNT_FLOOR = 300
+FAITH_CLAIM_COUNT_FLOOR = 270
 WELL_FORMED_FRACTION_FLOOR = 1.0  # every citation must be well-formed today
 
 # Per-anchor minimum baseline claim counts. If any of these drop, the

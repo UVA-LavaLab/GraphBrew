@@ -78,6 +78,34 @@ CLUSTER_LOW_THRESHOLD = 0.10
 # the surprising result that violates the design's stated assumption.
 GRASP_WIN_NOISE_FLOOR_PP = 0.5
 
+# Documented road-like GRASP wins (array-relative GRASP 0.15, single-thread
+# corpus). The "GRASP needs a reusable hot set" premise holds at the literature
+# operating point (L3 = 1 MB) for the property-array-reuse kernels (pr/bfs/bc:
+# GRASP ties or trails LRU there), but breaks in TWO mechanistically-understood
+# regimes, both of which are legitimate and are pinned here as known exceptions:
+#   (a) SUB-WSS caches (< 1 MB): roadNet-CA's working set vastly exceeds a
+#       64-256 kB L3, so LRU thrashes; GRASP's array-relative biased retention
+#       holds a fixed DBG-front subset resident and cuts conflict/capacity
+#       misses (an anti-thrashing effect, not hot-set reuse).
+#   (b) cc at any size: connected-components' union-find repeatedly re-reads
+#       component-representative (high-degree, DBG-front) vertices, so GRASP
+#       captures genuine reuse even on a road graph.
+# A GRASP win on a road-like cell OUTSIDE this set is the surprising result the
+# gate must still catch. Re-pin only with a mechanism write-up (see
+# docs/findings/grasp_road_anti_thrashing.md).
+KNOWN_ROAD_GRASP_WIN_CELLS = frozenset({
+    ("roadNet-CA", "bc", "256kB"),
+    ("roadNet-CA", "bc", "64kB"),
+    ("roadNet-CA", "bfs", "256kB"),
+    ("roadNet-CA", "bfs", "64kB"),
+    ("roadNet-CA", "cc", "1MB"),
+    ("roadNet-CA", "cc", "256kB"),
+    ("roadNet-CA", "cc", "64kB"),
+    ("roadNet-CA", "pr", "256kB"),
+    ("roadNet-CA", "sssp", "16kB"),
+    ("roadNet-CA", "sssp", "64kB"),
+})
+
 
 def _load_corpus() -> list[dict]:
     if not CORPUS_JSON.exists():
@@ -192,13 +220,23 @@ def test_grasp_does_not_beat_lru_on_road_like_graphs(
             f"(have lru={lru!r}, grasp={grasp!r})"
         )
     grasp_minus_lru_pp = (grasp - lru) * 100.0
+    if cell in KNOWN_ROAD_GRASP_WIN_CELLS:
+        # Documented anti-thrashing / cc-reuse exception (see module header).
+        # Assert it STILL wins so a stale pin (cell that stopped winning) is
+        # surfaced for removal rather than silently masking a regression.
+        assert grasp_minus_lru_pp < -GRASP_WIN_NOISE_FLOOR_PP, (
+            f"{graph}/{app}@{l3} is pinned in KNOWN_ROAD_GRASP_WIN_CELLS as a "
+            f"documented road-like GRASP win, but GRASP no longer beats LRU here "
+            f"(grasp={grasp:.4f} lru={lru:.4f}, Δ={grasp_minus_lru_pp:+.3f}pp). "
+            f"Remove this cell from the pinned set."
+        )
+        return
     assert grasp_minus_lru_pp > -GRASP_WIN_NOISE_FLOOR_PP, (
         f"GRASP beats LRU by {-grasp_minus_lru_pp:.3f}pp on road-like graph "
-        f"{graph}/{app}@{l3} (grasp={grasp:.4f} lru={lru:.4f}); this "
-        f"contradicts the GRASP-paper design assumption that GRASP wins "
-        f"by pinning a hot set in L3. Either the corpus_diversity "
-        f"hub_concentration / clustering_coeff is mis-measured, or GRASP "
-        f"has gained a locality-free improvement that needs to be "
-        f"documented. Loosen GRASP_WIN_NOISE_FLOOR_PP only after writing "
-        f"up the cause."
+        f"{graph}/{app}@{l3} (grasp={grasp:.4f} lru={lru:.4f}) and is NOT in the "
+        f"documented KNOWN_ROAD_GRASP_WIN_CELLS set; this contradicts the "
+        f"GRASP-paper design assumption that GRASP wins by pinning a hot set in "
+        f"L3. Either the corpus_diversity hub_concentration / clustering_coeff is "
+        f"mis-measured, or GRASP has gained a locality-free improvement that needs "
+        f"to be documented. Add to the pinned set only after writing up the cause."
     )

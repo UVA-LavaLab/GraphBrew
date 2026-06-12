@@ -372,13 +372,14 @@ def test_total_winner_cells_matches_oracle_winner_count(published, oracle_rows):
 # ---------------------------------------------------------------------------
 
 
-def test_cc_grasp_wins_all_paper_l3_if_present(published):
-    # Documented claim: cc/GRASP wins at every PAPER_L3 size if cc is in the corpus.
+def test_cc_grasp_gray_zone_if_present(published):
+    # Documented claim: cc is tied at 1MB, with GRASP the only unique paper-L3 winner.
     cc = published["per_app"].get("cc")
     if cc is None:
         pytest.skip("cc not in corpus")
     s = cc["stability"]
-    assert s["is_stable_single_winner"], s
+    assert not s["is_stable_single_winner"], s
+    assert not s["has_regime_change"], s
     assert s["unique_top_policies_at_paper_l3"] == ["GRASP"], s
 
 

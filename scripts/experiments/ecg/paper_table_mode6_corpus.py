@@ -22,6 +22,7 @@ CLI::
 
 from __future__ import annotations
 
+import sys
 import argparse
 import csv
 import json
@@ -338,6 +339,17 @@ def main() -> int:
     args = p.parse_args()
 
     rows = gather(args.mode6_root, args.scale_root, args.mode6_citpat_fallback)
+    if not rows:
+        # The mode6 PREFETCHER sweep (/tmp) is ephemeral and separate from the
+        # lit-faith cache-replacement corpus; it may be absent. When there is no
+        # fresh data, PRESERVE the committed Table 7 artifacts rather than
+        # overwrite them with empty/None (which crashes the formatters and would
+        # regress the paper table). Refreshing this table requires re-running the
+        # mode6 prefetcher sweep.
+        print(f"[mode6-corpus-table] no mode6 data under {args.mode6_root} / "
+              f"{args.scale_root}; preserving committed {args.json_out.name} "
+              "(re-run the mode6 prefetcher sweep to refresh).", file=sys.stderr)
+        return 0
     summary = compute_summary(rows)
     payload = {'cells': rows, 'summary': summary,
                'method': 'cache_sim demand-memory rate (memory_accesses/total_accesses)'}

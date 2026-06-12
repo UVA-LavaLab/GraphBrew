@@ -35,11 +35,11 @@ MARGIN_PATH = REPO_ROOT / "wiki" / "data" / "lit_faith_margin.json"
 
 # --------- floors pinned to today's observed minimums ----------
 
-CLAIMS_TOTAL_FLOOR = 300
+CLAIMS_TOTAL_FLOOR = 270
 MEDIAN_MARGIN_FLOOR_PP = 4.5
 MEAN_MARGIN_FLOOR_PP = 4.5
 P25_MARGIN_FLOOR_PP = 1.0
-FRAGILE_CEILING = 60  # today: 47
+FRAGILE_CEILING = 60  # today: 33
 NEGATIVE_OK_CEILING = 0  # strict invariant
 
 EXPECTED_BINDING_BOUNDARIES = {
@@ -50,7 +50,7 @@ EXPECTED_BINDING_BOUNDARIES = {
     "trigger_headroom",
 }
 
-EXPECTED_FAMILIES = {"social", "citation", "web", "road", "mesh"}
+EXPECTED_FAMILIES = {"social", "citation", "web"}
 
 # Per-family minimum medians (pinned to today's per-family medians ± headroom).
 # A family-level collapse here means margin shrank for a whole graph class.
@@ -58,8 +58,6 @@ FAMILY_MEDIAN_FLOOR_PP = {
     "social": 3.5,    # today 4.94
     "citation": 3.0,  # today 4.28
     "web": 4.5,       # today 6.63
-    "road": 7.0,      # today 9.80
-    "mesh": 3.5,      # today 5.20
 }
 
 

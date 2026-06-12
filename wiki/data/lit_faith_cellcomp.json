@@ -4,7 +4,7 @@
       "app": "bc",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.884326,
+      "lru_miss_rate": 0.945117,
       "policies": [
         "GRASP",
         "LRU",
@@ -17,7 +17,7 @@
       "app": "bc",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.731853,
+      "lru_miss_rate": 0.818927,
       "policies": [
         "GRASP",
         "LRU",
@@ -30,7 +30,7 @@
       "app": "bc",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.6071230000000001,
+      "lru_miss_rate": 0.686411,
       "policies": [
         "GRASP",
         "LRU",
@@ -43,7 +43,7 @@
       "app": "bfs",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.970808,
+      "lru_miss_rate": 0.98146,
       "policies": [
         "GRASP",
         "LRU",
@@ -56,7 +56,7 @@
       "app": "bfs",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.926919,
+      "lru_miss_rate": 0.946715,
       "policies": [
         "GRASP",
         "LRU",
@@ -69,7 +69,7 @@
       "app": "bfs",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.902066,
+      "lru_miss_rate": 0.921363,
       "policies": [
         "GRASP",
         "LRU",
@@ -82,7 +82,7 @@
       "app": "cc",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.643092,
+      "lru_miss_rate": 0.66682,
       "policies": [
         "GRASP",
         "LRU",
@@ -95,7 +95,7 @@
       "app": "cc",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.31697,
+      "lru_miss_rate": 0.33691400000000005,
       "policies": [
         "GRASP",
         "LRU",
@@ -108,7 +108,7 @@
       "app": "cc",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.18154199999999998,
+      "lru_miss_rate": 0.197967,
       "policies": [
         "GRASP",
         "LRU",
@@ -121,7 +121,7 @@
       "app": "pr",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.894438,
+      "lru_miss_rate": 0.895106,
       "policies": [
         "GRASP",
         "LRU",
@@ -134,7 +134,7 @@
       "app": "pr",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.58934,
+      "lru_miss_rate": 0.590052,
       "policies": [
         "GRASP",
         "LRU",
@@ -147,7 +147,7 @@
       "app": "pr",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.325581,
+      "lru_miss_rate": 0.32620000000000005,
       "policies": [
         "GRASP",
         "LRU",
@@ -160,7 +160,7 @@
       "app": "sssp",
       "graph": "cit-Patents",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.848641,
+      "lru_miss_rate": 0.87683,
       "policies": [
         "GRASP",
         "LRU",
@@ -173,7 +173,7 @@
       "app": "sssp",
       "graph": "cit-Patents",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.553585,
+      "lru_miss_rate": 0.568128,
       "policies": [
         "GRASP",
         "LRU",
@@ -186,7 +186,7 @@
       "app": "sssp",
       "graph": "cit-Patents",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.260312,
+      "lru_miss_rate": 0.270869,
       "policies": [
         "GRASP",
         "LRU",
@@ -199,7 +199,7 @@
       "app": "bc",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.862362,
+      "lru_miss_rate": 0.836912,
       "policies": [
         "GRASP",
         "LRU",
@@ -212,7 +212,7 @@
       "app": "bc",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.582657,
+      "lru_miss_rate": 0.5735250000000001,
       "policies": [
         "GRASP",
         "LRU",
@@ -225,7 +225,7 @@
       "app": "bc",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.382097,
+      "lru_miss_rate": 0.37604499999999996,
       "policies": [
         "GRASP",
         "LRU",
@@ -238,7 +238,7 @@
       "app": "bfs",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.9972799999999999,
+      "lru_miss_rate": 0.998892,
       "policies": [
         "GRASP",
         "LRU",
@@ -251,7 +251,7 @@
       "app": "bfs",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.994937,
+      "lru_miss_rate": 0.996484,
       "policies": [
         "GRASP",
         "LRU",
@@ -264,7 +264,7 @@
       "app": "bfs",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.994229,
+      "lru_miss_rate": 0.995799,
       "policies": [
         "GRASP",
         "LRU",
@@ -277,7 +277,7 @@
       "app": "cc",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.6889179999999999,
+      "lru_miss_rate": 0.741545,
       "policies": [
         "GRASP",
         "LRU",
@@ -290,7 +290,7 @@
       "app": "cc",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.503285,
+      "lru_miss_rate": 0.5676140000000001,
       "policies": [
         "GRASP",
         "LRU",
@@ -303,7 +303,7 @@
       "app": "cc",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.430593,
+      "lru_miss_rate": 0.506299,
       "policies": [
         "GRASP",
         "LRU",
@@ -316,7 +316,7 @@
       "app": "pr",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.704728,
+      "lru_miss_rate": 0.742564,
       "policies": [
         "GRASP",
         "LRU",
@@ -329,7 +329,7 @@
       "app": "pr",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.308477,
+      "lru_miss_rate": 0.34560900000000006,
       "policies": [
         "GRASP",
         "LRU",
@@ -342,7 +342,7 @@
       "app": "pr",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.16360799999999998,
+      "lru_miss_rate": 0.185573,
       "policies": [
         "GRASP",
         "LRU",
@@ -355,7 +355,7 @@
       "app": "sssp",
       "graph": "com-orkut",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.660328,
+      "lru_miss_rate": 0.686743,
       "policies": [
         "GRASP",
         "LRU",
@@ -368,7 +368,7 @@
       "app": "sssp",
       "graph": "com-orkut",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.16971899999999995,
+      "lru_miss_rate": 0.17303599999999997,
       "policies": [
         "GRASP",
         "LRU",
@@ -381,7 +381,7 @@
       "app": "sssp",
       "graph": "com-orkut",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.02459599999999995,
+      "lru_miss_rate": 0.016185000000000005,
       "policies": [
         "GRASP",
         "LRU",
@@ -394,7 +394,7 @@
       "app": "pr",
       "graph": "delaunay_n19",
       "l3_size": "16kB",
-      "lru_miss_rate": 0.99989,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -407,7 +407,7 @@
       "app": "pr",
       "graph": "delaunay_n19",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.953929,
+      "lru_miss_rate": 0.966764,
       "policies": [
         "GRASP",
         "LRU",
@@ -420,7 +420,7 @@
       "app": "pr",
       "graph": "delaunay_n19",
       "l3_size": "256kB",
-      "lru_miss_rate": 0.992685,
+      "lru_miss_rate": 0.999177,
       "policies": [
         "GRASP",
         "LRU",
@@ -433,7 +433,7 @@
       "app": "pr",
       "graph": "delaunay_n19",
       "l3_size": "4kB",
-      "lru_miss_rate": 0.999851,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -446,7 +446,7 @@
       "app": "pr",
       "graph": "delaunay_n19",
       "l3_size": "64kB",
-      "lru_miss_rate": 0.999662,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -459,7 +459,7 @@
       "app": "bc",
       "graph": "email-Eu-core",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.00012199999999995548,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -472,7 +472,7 @@
       "app": "bc",
       "graph": "email-Eu-core",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.00012199999999995548,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -485,7 +485,7 @@
       "app": "bc",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.00012199999999995548,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -498,7 +498,7 @@
       "app": "bfs",
       "graph": "email-Eu-core",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.04584900000000003,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -511,7 +511,7 @@
       "app": "bfs",
       "graph": "email-Eu-core",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.04585300000000003,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -524,7 +524,7 @@
       "app": "bfs",
       "graph": "email-Eu-core",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.04587300000000005,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -576,7 +576,7 @@
       "app": "bc",
       "graph": "roadNet-CA",
       "l3_size": "16kB",
-      "lru_miss_rate": 0.999805,
+      "lru_miss_rate": 0.999998,
       "policies": [
         "GRASP",
         "LRU",
@@ -589,7 +589,7 @@
       "app": "bc",
       "graph": "roadNet-CA",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.5479620000000001,
+      "lru_miss_rate": 0.648506,
       "policies": [
         "GRASP",
         "LRU",
@@ -602,7 +602,7 @@
       "app": "bc",
       "graph": "roadNet-CA",
       "l3_size": "256kB",
-      "lru_miss_rate": 0.9221010000000001,
+      "lru_miss_rate": 0.989179,
       "policies": [
         "GRASP",
         "LRU",
@@ -615,7 +615,7 @@
       "app": "bc",
       "graph": "roadNet-CA",
       "l3_size": "4kB",
-      "lru_miss_rate": 0.999845,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -628,7 +628,7 @@
       "app": "bc",
       "graph": "roadNet-CA",
       "l3_size": "64kB",
-      "lru_miss_rate": 0.996504,
+      "lru_miss_rate": 0.999835,
       "policies": [
         "GRASP",
         "LRU",
@@ -641,7 +641,7 @@
       "app": "bfs",
       "graph": "roadNet-CA",
       "l3_size": "16kB",
-      "lru_miss_rate": 0.999899,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -654,7 +654,7 @@
       "app": "bfs",
       "graph": "roadNet-CA",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.255352,
+      "lru_miss_rate": 0.24105900000000002,
       "policies": [
         "GRASP",
         "LRU",
@@ -667,7 +667,7 @@
       "app": "bfs",
       "graph": "roadNet-CA",
       "l3_size": "256kB",
-      "lru_miss_rate": 0.891011,
+      "lru_miss_rate": 0.93994,
       "policies": [
         "GRASP",
         "LRU",
@@ -680,7 +680,7 @@
       "app": "bfs",
       "graph": "roadNet-CA",
       "l3_size": "4kB",
-      "lru_miss_rate": 0.999938,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -693,7 +693,7 @@
       "app": "bfs",
       "graph": "roadNet-CA",
       "l3_size": "64kB",
-      "lru_miss_rate": 0.9974,
+      "lru_miss_rate": 0.999563,
       "policies": [
         "GRASP",
         "LRU",
@@ -706,7 +706,7 @@
       "app": "cc",
       "graph": "roadNet-CA",
       "l3_size": "16kB",
-      "lru_miss_rate": 0.99714,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -719,7 +719,7 @@
       "app": "cc",
       "graph": "roadNet-CA",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.742777,
+      "lru_miss_rate": 0.991693,
       "policies": [
         "GRASP",
         "LRU",
@@ -732,7 +732,7 @@
       "app": "cc",
       "graph": "roadNet-CA",
       "l3_size": "256kB",
-      "lru_miss_rate": 0.915969,
+      "lru_miss_rate": 0.999765,
       "policies": [
         "GRASP",
         "LRU",
@@ -745,7 +745,7 @@
       "app": "cc",
       "graph": "roadNet-CA",
       "l3_size": "4kB",
-      "lru_miss_rate": 0.998847,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -758,7 +758,7 @@
       "app": "cc",
       "graph": "roadNet-CA",
       "l3_size": "64kB",
-      "lru_miss_rate": 0.979726,
+      "lru_miss_rate": 0.999997,
       "policies": [
         "GRASP",
         "LRU",
@@ -771,7 +771,7 @@
       "app": "pr",
       "graph": "roadNet-CA",
       "l3_size": "16kB",
-      "lru_miss_rate": 0.999901,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -784,7 +784,7 @@
       "app": "pr",
       "graph": "roadNet-CA",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.941718,
+      "lru_miss_rate": 0.952502,
       "policies": [
         "GRASP",
         "LRU",
@@ -797,7 +797,7 @@
       "app": "pr",
       "graph": "roadNet-CA",
       "l3_size": "256kB",
-      "lru_miss_rate": 0.985646,
+      "lru_miss_rate": 0.995285,
       "policies": [
         "GRASP",
         "LRU",
@@ -810,7 +810,7 @@
       "app": "pr",
       "graph": "roadNet-CA",
       "l3_size": "4kB",
-      "lru_miss_rate": 0.999933,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -823,7 +823,7 @@
       "app": "pr",
       "graph": "roadNet-CA",
       "l3_size": "64kB",
-      "lru_miss_rate": 0.999254,
+      "lru_miss_rate": 0.999999,
       "policies": [
         "GRASP",
         "LRU",
@@ -836,7 +836,7 @@
       "app": "sssp",
       "graph": "roadNet-CA",
       "l3_size": "16kB",
-      "lru_miss_rate": 0.997867,
+      "lru_miss_rate": 0.999739,
       "policies": [
         "GRASP",
         "LRU",
@@ -849,7 +849,7 @@
       "app": "sssp",
       "graph": "roadNet-CA",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.17625900000000005,
+      "lru_miss_rate": 0.16654899999999995,
       "policies": [
         "GRASP",
         "LRU",
@@ -862,7 +862,7 @@
       "app": "sssp",
       "graph": "roadNet-CA",
       "l3_size": "256kB",
-      "lru_miss_rate": 0.440889,
+      "lru_miss_rate": 0.565672,
       "policies": [
         "GRASP",
         "LRU",
@@ -875,7 +875,7 @@
       "app": "sssp",
       "graph": "roadNet-CA",
       "l3_size": "4kB",
-      "lru_miss_rate": 0.99987,
+      "lru_miss_rate": 1.0,
       "policies": [
         "GRASP",
         "LRU",
@@ -888,7 +888,7 @@
       "app": "sssp",
       "graph": "roadNet-CA",
       "l3_size": "64kB",
-      "lru_miss_rate": 0.931765,
+      "lru_miss_rate": 0.973073,
       "policies": [
         "GRASP",
         "LRU",
@@ -901,7 +901,7 @@
       "app": "bc",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.839565,
+      "lru_miss_rate": 0.864855,
       "policies": [
         "GRASP",
         "LRU",
@@ -914,7 +914,7 @@
       "app": "bc",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.60209,
+      "lru_miss_rate": 0.655187,
       "policies": [
         "GRASP",
         "LRU",
@@ -927,7 +927,7 @@
       "app": "bc",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.45024200000000003,
+      "lru_miss_rate": 0.502491,
       "policies": [
         "GRASP",
         "LRU",
@@ -940,7 +940,7 @@
       "app": "bfs",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.817558,
+      "lru_miss_rate": 0.835709,
       "policies": [
         "GRASP",
         "LRU",
@@ -953,7 +953,7 @@
       "app": "bfs",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.588816,
+      "lru_miss_rate": 0.644598,
       "policies": [
         "GRASP",
         "LRU",
@@ -966,7 +966,7 @@
       "app": "bfs",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.510594,
+      "lru_miss_rate": 0.563191,
       "policies": [
         "GRASP",
         "LRU",
@@ -979,7 +979,7 @@
       "app": "cc",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.7831980000000001,
+      "lru_miss_rate": 0.798646,
       "policies": [
         "GRASP",
         "LRU",
@@ -992,7 +992,7 @@
       "app": "cc",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.543694,
+      "lru_miss_rate": 0.575481,
       "policies": [
         "GRASP",
         "LRU",
@@ -1005,7 +1005,7 @@
       "app": "cc",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.43137499999999995,
+      "lru_miss_rate": 0.468595,
       "policies": [
         "GRASP",
         "LRU",
@@ -1018,7 +1018,7 @@
       "app": "pr",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.731927,
+      "lru_miss_rate": 0.765369,
       "policies": [
         "GRASP",
         "LRU",
@@ -1031,7 +1031,7 @@
       "app": "pr",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.425744,
+      "lru_miss_rate": 0.461634,
       "policies": [
         "GRASP",
         "LRU",
@@ -1044,7 +1044,7 @@
       "app": "pr",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.27574299999999996,
+      "lru_miss_rate": 0.29989699999999997,
       "policies": [
         "GRASP",
         "LRU",
@@ -1057,7 +1057,7 @@
       "app": "sssp",
       "graph": "soc-LiveJournal1",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.705817,
+      "lru_miss_rate": 0.743896,
       "policies": [
         "GRASP",
         "LRU",
@@ -1070,7 +1070,7 @@
       "app": "sssp",
       "graph": "soc-LiveJournal1",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.362723,
+      "lru_miss_rate": 0.38358099999999995,
       "policies": [
         "GRASP",
         "LRU",
@@ -1083,7 +1083,7 @@
       "app": "sssp",
       "graph": "soc-LiveJournal1",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.16869999999999996,
+      "lru_miss_rate": 0.16962999999999995,
       "policies": [
         "GRASP",
         "LRU",
@@ -1096,7 +1096,7 @@
       "app": "bc",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.851252,
+      "lru_miss_rate": 0.859729,
       "policies": [
         "GRASP",
         "LRU",
@@ -1109,7 +1109,7 @@
       "app": "bc",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.497522,
+      "lru_miss_rate": 0.530069,
       "policies": [
         "GRASP",
         "LRU",
@@ -1122,7 +1122,7 @@
       "app": "bc",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.24541100000000005,
+      "lru_miss_rate": 0.267741,
       "policies": [
         "GRASP",
         "LRU",
@@ -1135,7 +1135,7 @@
       "app": "bfs",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.871696,
+      "lru_miss_rate": 0.906293,
       "policies": [
         "GRASP",
         "LRU",
@@ -1148,7 +1148,7 @@
       "app": "bfs",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.740122,
+      "lru_miss_rate": 0.787277,
       "policies": [
         "GRASP",
         "LRU",
@@ -1161,7 +1161,7 @@
       "app": "bfs",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.714564,
+      "lru_miss_rate": 0.759638,
       "policies": [
         "GRASP",
         "LRU",
@@ -1174,7 +1174,7 @@
       "app": "cc",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.699434,
+      "lru_miss_rate": 0.7281070000000001,
       "policies": [
         "GRASP",
         "LRU",
@@ -1187,7 +1187,7 @@
       "app": "cc",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.396085,
+      "lru_miss_rate": 0.463819,
       "policies": [
         "GRASP",
         "LRU",
@@ -1200,7 +1200,7 @@
       "app": "cc",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.05770799999999998,
+      "lru_miss_rate": 0.06292600000000004,
       "policies": [
         "GRASP",
         "LRU",
@@ -1213,7 +1213,7 @@
       "app": "pr",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.6795629999999999,
+      "lru_miss_rate": 0.696151,
       "policies": [
         "GRASP",
         "LRU",
@@ -1226,7 +1226,7 @@
       "app": "pr",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.196913,
+      "lru_miss_rate": 0.209387,
       "policies": [
         "GRASP",
         "LRU",
@@ -1239,7 +1239,7 @@
       "app": "pr",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.10039399999999998,
+      "lru_miss_rate": 0.10729200000000005,
       "policies": [
         "GRASP",
         "LRU",
@@ -1252,7 +1252,7 @@
       "app": "sssp",
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.6351370000000001,
+      "lru_miss_rate": 0.671944,
       "policies": [
         "GRASP",
         "LRU",
@@ -1265,7 +1265,7 @@
       "app": "sssp",
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.09763,
+      "lru_miss_rate": 0.099742,
       "policies": [
         "GRASP",
         "LRU",
@@ -1278,7 +1278,7 @@
       "app": "sssp",
       "graph": "soc-pokec",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.002931000000000017,
+      "lru_miss_rate": 0.0032879999999999576,
       "policies": [
         "GRASP",
         "LRU",
@@ -1291,7 +1291,7 @@
       "app": "bc",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.699827,
+      "lru_miss_rate": 0.802694,
       "policies": [
         "GRASP",
         "LRU",
@@ -1304,7 +1304,7 @@
       "app": "bc",
       "graph": "web-Google",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.369312,
+      "lru_miss_rate": 0.516173,
       "policies": [
         "GRASP",
         "LRU",
@@ -1317,7 +1317,7 @@
       "app": "bc",
       "graph": "web-Google",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.14995800000000004,
+      "lru_miss_rate": 0.22101099999999996,
       "policies": [
         "GRASP",
         "LRU",
@@ -1330,7 +1330,7 @@
       "app": "bfs",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.970442,
+      "lru_miss_rate": 0.980402,
       "policies": [
         "GRASP",
         "LRU",
@@ -1343,7 +1343,7 @@
       "app": "bfs",
       "graph": "web-Google",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.937114,
+      "lru_miss_rate": 0.948578,
       "policies": [
         "GRASP",
         "LRU",
@@ -1356,7 +1356,7 @@
       "app": "bfs",
       "graph": "web-Google",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.809071,
+      "lru_miss_rate": 0.8193630000000001,
       "policies": [
         "GRASP",
         "LRU",
@@ -1369,7 +1369,7 @@
       "app": "cc",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.5607610000000001,
+      "lru_miss_rate": 0.585926,
       "policies": [
         "GRASP",
         "LRU",
@@ -1382,7 +1382,7 @@
       "app": "cc",
       "graph": "web-Google",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.045733000000000024,
+      "lru_miss_rate": 0.05191900000000005,
       "policies": [
         "GRASP",
         "LRU",
@@ -1395,7 +1395,7 @@
       "app": "cc",
       "graph": "web-Google",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.04564100000000004,
+      "lru_miss_rate": 0.05191900000000005,
       "policies": [
         "GRASP",
         "LRU",
@@ -1408,7 +1408,7 @@
       "app": "pr",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.600838,
+      "lru_miss_rate": 0.5983609999999999,
       "policies": [
         "GRASP",
         "LRU",
@@ -1421,7 +1421,7 @@
       "app": "pr",
       "graph": "web-Google",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.14143099999999997,
+      "lru_miss_rate": 0.142111,
       "policies": [
         "GRASP",
         "LRU",
@@ -1434,7 +1434,7 @@
       "app": "pr",
       "graph": "web-Google",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.09704800000000002,
+      "lru_miss_rate": 0.09715700000000005,
       "policies": [
         "GRASP",
         "LRU",
@@ -1447,7 +1447,7 @@
       "app": "sssp",
       "graph": "web-Google",
       "l3_size": "1MB",
-      "lru_miss_rate": 0.555762,
+      "lru_miss_rate": 0.663779,
       "policies": [
         "GRASP",
         "LRU",
@@ -1460,7 +1460,7 @@
       "app": "sssp",
       "graph": "web-Google",
       "l3_size": "4MB",
-      "lru_miss_rate": 0.016275999999999957,
+      "lru_miss_rate": 0.023478,
       "policies": [
         "GRASP",
         "LRU",
@@ -1473,7 +1473,7 @@
       "app": "sssp",
       "graph": "web-Google",
       "l3_size": "8MB",
-      "lru_miss_rate": 0.016290000000000027,
+      "lru_miss_rate": 0.023478,
       "policies": [
         "GRASP",
         "LRU",

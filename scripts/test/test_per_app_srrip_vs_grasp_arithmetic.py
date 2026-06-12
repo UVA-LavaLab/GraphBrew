@@ -48,7 +48,7 @@ ARTIFACT = Path("wiki/data/per_app_srrip_vs_grasp.json")
 SOURCE = Path("wiki/data/per_app_capacity_slope.json")
 
 ALLOW_SHALLOW_PP = 1.0
-PINNED = ("bfs",)
+PINNED = ()
 ROUND_TOL = 5e-4
 
 
@@ -182,7 +182,8 @@ def test_pinned_bfs_actually_deviates_in_current_run(data):
     bfs = data["meta"]["per_app"].get("bfs")
     assert bfs is not None, "bfs must be in per_app to validate the pin"
     if bfs["srrip_minus_grasp_pp_oct"] is not None:
-        assert bfs["deviates"] is True, (
-            "bfs is pinned because it deviates; if this flips, the pin "
-            "should be removed and the verdict story updated."
+        assert bfs["deviates"] is False, (
+            "bfs now OBEYS the SRRIP-vs-GRASP ordering at array-relative GRASP "
+            "0.15 (single-thread); it is no longer a pinned deviation (the "
+            "multi-thread frontier-flatness deviation is gone)."
         )

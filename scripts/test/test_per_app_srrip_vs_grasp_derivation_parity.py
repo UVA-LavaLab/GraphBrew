@@ -26,7 +26,7 @@ UPSTREAM_PATH = WIKI_DATA / "per_app_capacity_slope.json"
 ARTIFACT_PATH = WIKI_DATA / "per_app_srrip_vs_grasp.json"
 
 ALLOW_SRRIP_SHALLOWER_BY_PP = 1.0
-PINNED_DEVIATING_APPS = ("bfs",)
+PINNED_DEVIATING_APPS = ()
 
 
 # ----------------------------------------------------------------------
@@ -254,20 +254,19 @@ def test_pinned_apps_are_subset_of_apps_or_subset_of_apps(artifact):
 
 
 def test_bfs_remains_deviating_per_pinned_set(artifact):
-    """bfs is the pinned-deviating sentinel app. If GRASP & SRRIP both
-    have medians, bfs must still appear in deviating_apps to match its
-    pinned status (a frontier-driven near-flat curve)."""
+    """bfs was the pinned-deviating sentinel under the multi-thread corpus.
+    At array-relative GRASP 0.15 (single-thread) it OBEYS the SRRIP-vs-GRASP
+    ordering, so it is no longer in deviating_apps (the pinned set is empty)."""
     bfs = artifact["meta"]["per_app"].get("bfs")
     if not bfs:
         pytest.skip("bfs not in corpus")
     if (bfs["grasp_median_pp_oct"] is None
             or bfs["srrip_median_pp_oct"] is None):
         pytest.skip("bfs missing GRASP or SRRIP median")
-    assert bfs["deviates"] is True, (
-        "bfs is pinned-deviating but its delta no longer exceeds the floor "
-        f"({bfs['srrip_minus_grasp_pp_oct']} vs floor "
-        f"{ALLOW_SRRIP_SHALLOWER_BY_PP}) — either re-tune the pin or "
-        "re-investigate the frontier-driven flatness assumption"
+    assert bfs["deviates"] is False, (
+        f"bfs unexpectedly deviates ({bfs['srrip_minus_grasp_pp_oct']} vs floor "
+        f"{ALLOW_SRRIP_SHALLOWER_BY_PP}); it was expected to be well-behaved at "
+        "array-relative GRASP 0.15"
     )
 
 

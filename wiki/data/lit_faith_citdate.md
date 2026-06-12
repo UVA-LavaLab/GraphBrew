@@ -17,12 +17,12 @@ Per_claim citation-field structural audit (gate 237 — LIT-CitDate).
 - distinct-citation floor: `10`
 
 ## Totals
-- per_claim rows: **330**
-- rows parsed cleanly: **330**
-- distinct citation strings: **15**
-- venue tally: `{'HPCA': 429, 'ISCA': 75}`
-- year tally: `{'2010': 75, '2020': 177, '2021': 252}`
-- author tally: `{'Balaji': 252, 'Faldu': 177, 'Jaleel': 75}`
+- per_claim rows: **279**
+- rows parsed cleanly: **279**
+- distinct citation strings: **14**
+- venue tally: `{'HPCA': 348, 'ISCA': 84}`
+- year tally: `{'2010': 84, '2020': 156, '2021': 192}`
+- author tally: `{'Balaji': 192, 'Faldu': 156, 'Jaleel': 84}`
 
 ## Per policy
 
@@ -30,9 +30,9 @@ Per_claim citation-field structural audit (gate 237 — LIT-CitDate).
 | --- | ---: | ---: | ---: |
 | GRASP | 19 | 19 | 5 |
 | POPT | 8 | 8 | 3 |
-| POPT_GE_GRASP | 114 | 114 | 2 |
-| POPT_NEAR_GRASP_IF_BIG_GAP | 114 | 114 | 1 |
-| SRRIP | 75 | 75 | 4 |
+| POPT_GE_GRASP | 84 | 84 | 1 |
+| POPT_NEAR_GRASP_IF_BIG_GAP | 84 | 84 | 1 |
+| SRRIP | 84 | 84 | 4 |
 
 ## Violations
 

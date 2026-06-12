@@ -2,7 +2,7 @@
 
 Locks the corpus's coverage-breadth of the literature it claims to
 reproduce. Without this gate, a future regen could silently drop a
-family (e.g. road) or a paper (e.g. Jaleel ISCA10) and the headline
+paper or power-law family (e.g. Jaleel ISCA10) and the headline
 "all lit-faith cells agree" would still be GREEN despite collapsing
 the comparator's representativeness.
 
@@ -12,15 +12,15 @@ deliberate corpus shrink is reviewed.
 
 Invariants (organised in 7 groups):
 
-1. **Aggregate floors** — claims_total ≥ 200; non-zero per axis.
-2. **Per-family floor** — every represented graph family has ≥ 10
-   claims (the smallest family today is `mesh` at exactly 10).
+1. **Aggregate floors** — claims_total ≥ 270; non-zero per axis.
+2. **Per-family floor** — every represented graph family has ≥ 40
+   claims (power-law scoped; today's minimum is 50).
 3. **Per-paper floor** — every paper cited has ≥ 50 claims (today's
    minimum: Jaleel ISCA10 at 75).
 4. **Per-app floor** — every GAPBS app (bc, bfs, cc, pr, sssp) has
-   ≥ 50 claims (today's minimum: cc at 55).
-5. **Per-L3 floor** — every L3 size sampled has ≥ 10 claims (today's
-   minimum: 12 each for the 4 small L3 sizes).
+   ≥ 40 claims (today's minimum: 45).
+5. **Per-L3 floor** — every L3 size sampled has ≥ 80 claims (today's
+   minimum: 84 each for the 3 power-law L3 sizes).
 6. **Triangulation** — ≥ 100 cells receive claims from ≥ 2 distinct
    papers (today: 174); zero sign-inconsistent triangulated cells
    (the literature itself must not self-disagree).
@@ -45,11 +45,11 @@ KNOWN_SIGNS = {"-", "+", "~"}
 GAPBS_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
 
 # Floors pinned to today's observed minimums.
-CLAIMS_TOTAL_FLOOR = 300
-FAMILY_FLOOR = 10
+CLAIMS_TOTAL_FLOOR = 270
+FAMILY_FLOOR = 40
 PAPER_FLOOR = 50
-APP_FLOOR = 50
-L3_FLOOR = 10
+APP_FLOOR = 40
+L3_FLOOR = 80
 TRIANGULATION_FLOOR = 100
 
 
@@ -159,8 +159,8 @@ def test_l3_floor(audit):
     assert not low, f"L3 sizes below floor {L3_FLOOR}: {low}"
 
 
-def test_at_least_four_l3_sizes(audit):
-    assert audit["summary"]["n_l3_sizes"] >= 4, audit["by_l3_size"]
+def test_at_least_three_l3_sizes(audit):
+    assert audit["summary"]["n_l3_sizes"] >= 3, audit["by_l3_size"]
 
 
 def test_summary_min_l3_consistent(audit):

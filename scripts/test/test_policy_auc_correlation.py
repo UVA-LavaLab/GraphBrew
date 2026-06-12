@@ -36,16 +36,10 @@ def test_meta_apps_and_policies(payload):
 
 
 def test_clusters_by_winner_exact(payload):
-    """Pin the 3-cluster partition: GRASP→cc; POPT→bfs+pr+sssp; SRRIP→bc.
-
-    Post cache_sim ECG sweep: bc shifted into its own SRRIP cluster after
-    the binary-fix refresh; with only bc in SRRIP, the cluster degenerates
-    to singleton and the bc/cc GRASP-pair is broken. cc keeps GRASP alone.
-    """
+    """Pin the 2-cluster partition: GRASP→bc+cc; POPT→bfs+pr+sssp."""
     assert payload["meta"]["clusters_by_winner"] == {
-        "GRASP": ["cc"],
+        "GRASP": ["bc", "cc"],
         "POPT": ["bfs", "pr", "sssp"],
-        "SRRIP": ["bc"],
     }
 
 
@@ -131,12 +125,14 @@ def test_pair_list_is_sorted_descending(payload):
 
 
 def test_nearest_sibling_for_grasp_winners_is_other_grasp_winner(payload):
-    """bc's nearest sibling should be cc (its only other GRASP-winner)
-    and cc's nearest sibling should be bc. Pins the cluster structure
-    from a per-app point of view."""
+    """bc's nearest sibling remains cc, while cc is now closest to pr.
+
+    Re-pinned 2026-06-12 after the deterministic single-thread corpus
+    shifted nearest-neighbor structure without changing winner clusters.
+    """
     ns = payload["nearest_sibling"]
     assert ns["bc"]["closest_app"] == "cc"
-    assert ns["cc"]["closest_app"] == "bc"
+    assert ns["cc"]["closest_app"] == "pr"
 
 
 def test_cross_gate_consistency_with_oracle_gap_auc(payload):

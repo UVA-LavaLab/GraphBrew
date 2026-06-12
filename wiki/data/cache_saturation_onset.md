@@ -8,37 +8,37 @@ A cell is 'saturated at L3=Y' if every L3 octave at Y or larger shows a shrinkag
 
 | policy | saturated at 1MB | at 4MB | at 8MB | never | n apps |
 |---|---:|---:|---:|---:|---:|
-| **GRASP** | 0 | 2 | 0 | 3 | 5 |
-| **LRU** | 0 | 1 | 0 | 4 | 5 |
-| **POPT** | 0 | 4 | 0 | 1 | 5 |
-| **SRRIP** | 0 | 1 | 0 | 4 | 5 |
+| **GRASP** | 0 | 1 | 0 | 4 | 5 |
+| **LRU** | 0 | 2 | 0 | 3 | 5 |
+| **POPT** | 0 | 1 | 0 | 4 | 5 |
+| **SRRIP** | 0 | 2 | 0 | 3 | 5 |
 
-**Saturation ordering (earliest → latest):** POPT > GRASP > LRU > SRRIP
+**Saturation ordering (earliest → latest):** LRU > SRRIP > GRASP > POPT
 
 ## Per-(app, policy) onset
 
 | app | policy | onset | final-octave slope | final-octave delta_pp |
 |---|---|---|---:|---:|
-| bc | GRASP | 4MB | -0.0000 | +0.0000 |
-| bc | LRU | 4MB | 0.3664 | -0.3664 |
-| bc | POPT | 4MB | 0.0778 | -0.0778 |
-| bc | SRRIP | 4MB | 0.1985 | -0.1985 |
-| bfs | GRASP | never | -0.5787 | +0.5787 |
-| bfs | LRU | never | -0.2798 | +0.2798 |
-| bfs | POPT | 4MB | 0.0335 | -0.0335 |
-| bfs | SRRIP | never | -0.3891 | +0.3891 |
-| cc | GRASP | never | -0.0010 | +0.0010 |
-| cc | LRU | never | 1.0552 | -1.0552 |
-| cc | POPT | never | 2.0570 | -2.0570 |
-| cc | SRRIP | never | 1.8034 | -1.8034 |
-| pr | GRASP | never | 2.2235 | -2.2235 |
-| pr | LRU | never | 3.9140 | -3.9140 |
-| pr | POPT | 4MB | 0.0407 | -0.0407 |
-| pr | SRRIP | never | 3.0988 | -3.0988 |
-| sssp | GRASP | 4MB | 0.2296 | -0.2296 |
-| sssp | LRU | never | 1.8208 | -1.8208 |
-| sssp | POPT | 4MB | 0.2312 | -0.2312 |
-| sssp | SRRIP | never | 1.2176 | -1.2176 |
+| bc | GRASP | never | -0.6236 | +0.6236 |
+| bc | LRU | 4MB | 0.4455 | -0.4455 |
+| bc | POPT | never | -1.1184 | +1.1184 |
+| bc | SRRIP | 4MB | 0.4393 | -0.4393 |
+| bfs | GRASP | never | -2.2730 | +2.2730 |
+| bfs | LRU | 4MB | 0.2541 | -0.2541 |
+| bfs | POPT | never | 0.5118 | -0.5118 |
+| bfs | SRRIP | 4MB | 0.1418 | -0.1418 |
+| cc | GRASP | 4MB | -0.0000 | +0.0000 |
+| cc | LRU | never | 1.3244 | -1.3244 |
+| cc | POPT | never | 0.7490 | -0.7490 |
+| cc | SRRIP | never | 1.2354 | -1.2354 |
+| pr | GRASP | never | 2.2946 | -2.2946 |
+| pr | LRU | never | 4.7344 | -4.7344 |
+| pr | POPT | never | -0.0283 | +0.0283 |
+| pr | SRRIP | never | 3.8335 | -3.8335 |
+| sssp | GRASP | never | 0.5074 | -0.5074 |
+| sssp | LRU | never | 2.1902 | -2.1902 |
+| sssp | POPT | 4MB | 0.1904 | -0.1904 |
+| sssp | SRRIP | never | 1.3036 | -1.3036 |
 
 ## Interpretation
 

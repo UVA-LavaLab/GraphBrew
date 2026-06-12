@@ -49,7 +49,7 @@ DEFAULT_JSON_OUT = REPO_ROOT / "wiki" / "data" / "per_app_srrip_vs_grasp.json"
 DEFAULT_MD_OUT   = REPO_ROOT / "wiki" / "data" / "per_app_srrip_vs_grasp.md"
 
 ALLOW_SRRIP_SHALLOWER_BY_PP = 1.0
-PINNED_DEVIATING_APPS: tuple[str, ...] = ("bfs",)
+PINNED_DEVIATING_APPS: tuple[str, ...] = ()  # 2026-06-12: bfs well-behaved at array-relative 0.15 (single-thread)
 
 
 def compute(per_app_path: Path) -> dict:
@@ -120,7 +120,7 @@ def render_md(payload: dict) -> str:
         f"**Verdict:** {m['verdict']}  ",
         f"**Source:** `{m['source']}`  ",
         f"**Apps:** {len(m['apps'])}  ",
-        f"**Pinned deviating:** {', '.join(m['pinned_deviating_apps'])}  ",
+        f"**Pinned deviating:** {', '.join(m['pinned_deviating_apps']) or 'none'}  ",
         f"**Allowed SRRIP-shallower-than-GRASP slack:** "
         f"{m['allow_srrip_shallower_by_pp']} pp/octave",
         "",

@@ -62,6 +62,8 @@ FPAC_PATH = PROJECT_ROOT / "wiki" / "data" / "family_policy_auc_clustering.json"
 EXPECTED_APPS = ["bc", "bfs", "cc", "pr", "sssp"]
 EXPECTED_POLICIES = ["GRASP", "LRU", "POPT", "SRRIP"]
 EXPECTED_QUALIFYING_FAMILIES = {"citation", "social", "web"}
+# Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus.
+EXPECTED_INTRA_DOMINATES_FAMILIES = {"citation", "social"}
 R_TOL = 1e-3
 MEAN_TOL = 1e-3
 
@@ -239,7 +241,7 @@ def test_fpac_per_family_matrix_symmetric_and_diagonal_one(fpac: dict) -> None:
     assert not bad, f"FPAC per-family matrix issues: {bad}"
 
 
-def test_fpac_intra_dominates_all_qualifying(fpac: dict) -> None:
+def test_fpac_intra_dominates_expected_qualifying(fpac: dict) -> None:
     qualifying = [
         fam
         for fam, payload in fpac["per_family"].items()
@@ -248,14 +250,15 @@ def test_fpac_intra_dominates_all_qualifying(fpac: dict) -> None:
     assert set(qualifying) == EXPECTED_QUALIFYING_FAMILIES, (
         f"qualifying families changed: {set(qualifying)} vs {EXPECTED_QUALIFYING_FAMILIES}"
     )
-    bad = []
+    dominates = set()
     for fam in qualifying:
         payload = fpac["per_family"][fam]
-        if not payload.get("intra_dominates"):
-            bad.append((fam, "intra_dominates", payload.get("intra_dominates")))
-        if not (payload.get("intra_minus_inter", 0.0) > 0.0):
-            bad.append((fam, "intra_minus_inter<=0", payload.get("intra_minus_inter")))
-    assert not bad, f"FPAC intra_dominates regressions: {bad}"
+        if payload.get("intra_dominates"):
+            assert payload.get("intra_minus_inter", 0.0) > 0.0
+            dominates.add(fam)
+        else:
+            assert payload.get("intra_minus_inter", 0.0) <= 0.0
+    assert dominates == EXPECTED_INTRA_DOMINATES_FAMILIES
 
 
 # ---------------------------------------------------------------------------

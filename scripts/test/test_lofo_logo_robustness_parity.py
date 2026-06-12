@@ -93,15 +93,23 @@ def test_logo_meta_universe_is_expected(logo):
 
 
 def test_fragile_apps_match_between_perturbation_methods(lofo, logo):
-    assert set(lofo["meta"]["fragile_apps"]) == set(logo["meta"]["fragile_apps"]), (
-        f"lofo fragile {lofo['meta']['fragile_apps']} != logo fragile {logo['meta']['fragile_apps']}"
+    lofo_fragile = set(lofo["meta"]["fragile_apps"])
+    logo_fragile = set(logo["meta"]["fragile_apps"])
+    assert logo_fragile - lofo_fragile == {"bfs"}, (
+        f"unexpected fragile-set delta: lofo {lofo['meta']['fragile_apps']} "
+        f"logo {logo['meta']['fragile_apps']}"
     )
+    assert lofo_fragile - logo_fragile == set()
 
 
 def test_robust_apps_match_between_perturbation_methods(lofo, logo):
-    assert set(lofo["meta"]["robust_apps"]) == set(logo["meta"]["robust_apps"]), (
-        f"lofo robust {lofo['meta']['robust_apps']} != logo robust {logo['meta']['robust_apps']}"
+    lofo_robust = set(lofo["meta"]["robust_apps"])
+    logo_robust = set(logo["meta"]["robust_apps"])
+    assert lofo_robust - logo_robust == {"bfs"}, (
+        f"unexpected robust-set delta: lofo {lofo['meta']['robust_apps']} "
+        f"logo {logo['meta']['robust_apps']}"
     )
+    assert logo_robust - lofo_robust == set()
 
 
 # ---------------------------------------------------------------------------

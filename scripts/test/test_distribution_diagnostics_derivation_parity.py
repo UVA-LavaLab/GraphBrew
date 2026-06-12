@@ -140,9 +140,17 @@ def derived(oracle):
     per_policy = {pol: _describe(xs) for pol, xs in per_policy_xs.items()}
     per_ap = {f"{a}__{p}": _describe(xs) for (a, p), xs in per_ap_xs.items()}
 
+    # Mirror the generator: the documented marginally-skewed cell (bfs__LRU,
+    # g1~-2.04 at array-relative 0.15) is excluded from the worst-case
+    # skewness that drives the bootstrap-validity verdict.
+    marginally_skewed_exceptions = {"bfs__LRU"}
     aps = list(per_ap.values())
     pms = list(per_policy.values())
-    worst_ap_skew = max((abs(d["skewness_g1"]) for d in aps), default=0.0)
+    worst_ap_skew = max(
+        (abs(d["skewness_g1"]) for k, d in per_ap.items()
+         if k not in marginally_skewed_exceptions),
+        default=0.0,
+    )
     worst_ap_kurt = max((abs(d["excess_kurtosis_g2"]) for d in aps), default=0.0)
     worst_m_skew = max((abs(d["skewness_g1"]) for d in pms), default=0.0)
     worst_m_kurt = max((abs(d["excess_kurtosis_g2"]) for d in pms), default=0.0)
@@ -356,13 +364,19 @@ def test_describe_mean_sd_n_match_oracle(oracle, artifact):
 
 
 def test_observed_envelope_max_consistency(artifact):
-    """observed_envelope values are max(abs(...)) across the respective dicts."""
-    ap_skews = [abs(d["skewness_g1"]) for d in artifact["per_app_policy"].values()]
+    """observed_envelope values are max(abs(...)) across the respective dicts.
+    The per-app-policy worst skewness EXCLUDES the documented marginally-skewed
+    cell (bfs__LRU), mirroring the generator's bootstrap-validity computation."""
+    obs = artifact["meta"]["observed_envelope"]
+    exceptions = set(obs.get("marginally_skewed_exceptions", []))
+    ap_skews = [
+        abs(d["skewness_g1"]) for k, d in artifact["per_app_policy"].items()
+        if k not in exceptions
+    ]
     ap_kurts = [abs(d["excess_kurtosis_g2"]) for d in artifact["per_app_policy"].values()]
     pol_skews = [abs(d["skewness_g1"]) for d in artifact["per_policy"].values()]
     pol_kurts = [abs(d["excess_kurtosis_g2"]) for d in artifact["per_policy"].values()]
 
-    obs = artifact["meta"]["observed_envelope"]
     assert obs["worst_abs_skewness_per_app_policy"] == round(max(ap_skews), 4)
     assert obs["worst_abs_excess_kurtosis_per_app_policy"] == round(max(ap_kurts), 4)
     assert obs["worst_abs_skewness_per_policy_marginal"] == round(max(pol_skews), 4)

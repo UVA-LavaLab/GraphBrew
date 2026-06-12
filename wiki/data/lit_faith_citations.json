@@ -21,7 +21,7 @@
         "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
         "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
       ],
-      "faith_claim_count": 177,
+      "faith_claim_count": 156,
       "key": "faldu_hpca_2020",
       "label": "Faldu et al. HPCA 2020 (GRASP)",
       "venue": "HPCA 2020"
@@ -32,8 +32,7 @@
         "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
         "Balaji & Lucia HPCA 2021 Fig 9",
         "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
         "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
       ],
@@ -44,12 +43,11 @@
         "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
         "Balaji & Lucia HPCA 2021 Fig 9",
         "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
         "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)"
       ],
-      "faith_claim_count": 252,
+      "faith_claim_count": 192,
       "key": "balaji_hpca_2021",
       "label": "Balaji & Lucia HPCA 2021 (P-OPT)",
       "venue": "HPCA 2021"
@@ -69,7 +67,7 @@
         "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
         "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
       ],
-      "faith_claim_count": 75,
+      "faith_claim_count": 84,
       "key": "jaleel_isca_2010",
       "label": "Jaleel et al. ISCA 2010 (RRIP)",
       "venue": "ISCA 2010"
@@ -125,22 +123,11 @@
       "anchors": [
         "balaji_hpca_2021"
       ],
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "has_location_qualifier": true,
       "has_venue_tag": true,
       "has_year": true,
-      "length": 29,
-      "well_formed": true
-    },
-    {
-      "anchors": [
-        "balaji_hpca_2021"
-      ],
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-      "has_location_qualifier": true,
-      "has_venue_tag": true,
-      "has_year": true,
-      "length": 40,
+      "length": 73,
       "well_formed": true
     },
     {
@@ -275,12 +262,12 @@
     "anchors_url_in_docstring": 2,
     "baseline_claim_count": 38,
     "baseline_short_citations": 0,
-    "baseline_unique_citations": 15,
+    "baseline_unique_citations": 14,
     "citations_ill_formed_count": 0,
-    "citations_well_formed": 15,
-    "faith_claim_count": 330,
-    "intersection_size": 15,
-    "lit_faith_unique_citations": 15,
+    "citations_well_formed": 14,
+    "faith_claim_count": 279,
+    "intersection_size": 14,
+    "lit_faith_unique_citations": 14,
     "only_in_baselines_count": 0,
     "only_in_faith_count": 0
   }

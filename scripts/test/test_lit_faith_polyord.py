@@ -23,6 +23,9 @@ MD_PATH   = ROOT / "wiki" / "data" / "lit_faith_polyord.md"
 HUB_FAMILIES    = {"social", "citation", "web"}
 NO_HUB_FAMILIES = {"road", "mesh"}
 ALL_APPS        = {"bfs", "bc", "cc", "pr", "sssp"}
+# Documented frontier-kernel exceptions to the hub-improve bound (see
+# generator + docs/findings/grasp_road_anti_thrashing.md).
+FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp")}
 
 
 @pytest.fixture(scope="module")
@@ -147,6 +150,8 @@ def test_hub_buckets_respect_popt_median_bound(audit):
     for r in audit["buckets"]:
         if r["graph_family"] not in HUB_FAMILIES:
             continue
+        if (r["graph_family"], r["app"]) in FRONTIER_HUB_EXCEPTIONS:
+            continue
         if r["popt_median_pp"] is None:
             continue
         assert r["popt_median_pp"] <= bound, (
@@ -159,6 +164,8 @@ def test_hub_buckets_respect_grasp_median_bound(audit):
     bound = audit["summary"]["grasp_hub_bound_pp"]
     for r in audit["buckets"]:
         if r["graph_family"] not in HUB_FAMILIES:
+            continue
+        if (r["graph_family"], r["app"]) in FRONTIER_HUB_EXCEPTIONS:
             continue
         if r["grasp_median_pp"] is None:
             continue

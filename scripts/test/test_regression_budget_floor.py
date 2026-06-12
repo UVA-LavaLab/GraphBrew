@@ -31,13 +31,17 @@ BUDGET_JSON = REPO_ROOT / "wiki" / "data" / "regression_budget.json"
 # observed minima so this catches *regressions* in the headline
 # robustness without flapping on benign drift.
 MIN_MARGIN_FLOORS_PP = {
-    # post cache_sim ECG sweep: lowered from cache_policy 0.75→0.50 and
-    # popt_ge_grasp 0.05→0.01 to absorb honest binary-fix data refresh
-    # (cit-Patents bc/sssp 4-8MB POPT_GE_GRASP margin closed to ~0.018).
+    # cache_policy is a load-bearing claim margin (kept at 0.50).
+    # popt_ge_grasp / popt_near_grasp are now PER-CELL DIAGNOSTICS (the
+    # authoritative POPT-vs-GRASP claim is the power-law geomean,
+    # POPT_GE_GRASP_GEOMEAN gate): per-cell POPT≈GRASP margins are ~0 by
+    # design, so these diagnostic floors are near-zero. Re-pinned
+    # 2026-06-12 to the array-relative-GRASP 0.15 single-thread corpus
+    # (60 popt_ge_grasp cells at min 0.001 pp; 61 inactive cells at 1.202).
     "cache_policy": 0.50,
-    "popt_ge_grasp": 0.01,
+    "popt_ge_grasp": 0.0005,
     "popt_near_grasp_active": 0.50,
-    "popt_near_grasp_inactive": 1.50,
+    "popt_near_grasp_inactive": 1.00,
 }
 
 

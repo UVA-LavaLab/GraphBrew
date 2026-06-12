@@ -15,7 +15,7 @@ JSON_PATH = REPO_ROOT / "wiki" / "data" / "per_app_srrip_vs_grasp.json"
 PER_APP_JSON = REPO_ROOT / "wiki" / "data" / "per_app_capacity_slope.json"
 
 EXPECTED_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
-PINNED_DEVIATING_APPS = {"bfs"}
+PINNED_DEVIATING_APPS: set[str] = set()
 ALLOW_SRRIP_SHALLOWER_BY_PP = 1.0
 
 
@@ -79,11 +79,15 @@ def test_no_new_deviating_apps(payload):
     )
 
 
-def test_bfs_remains_pinned_deviation(payload):
+def test_all_apps_obey_srrip_vs_grasp_ordering(payload):
+    """At array-relative GRASP 0.15 (single-thread) NO app deviates from the
+    SRRIP-vs-GRASP ordering — bfs (previously pinned as a frontier-streaming
+    deviation under the multi-thread corpus) is now well-behaved, so the
+    pinned set is empty."""
     deviating = set(payload["meta"]["deviating_apps"])
-    assert "bfs" in deviating, (
-        "bfs no longer flagged as SRRIP-vs-GRASP deviation — "
-        "if this is now well-behaved consider removing the pin"
+    assert deviating == set(), (
+        f"unexpected SRRIP-vs-GRASP deviations: {deviating} "
+        "(none expected at array-relative GRASP 0.15)"
     )
 
 

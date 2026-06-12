@@ -43,34 +43,34 @@
       "per_policy": {
         "GRASP": {
           "is_oracle_aware": true,
-          "max_pp": -4.6484,
-          "mean_pp": -13.6569,
-          "median_pp": -13.6803,
-          "min_pp": -20.1794,
+          "max_pp": -3.4408,
+          "mean_pp": -13.2906,
+          "median_pp": -14.4638,
+          "min_pp": -19.6969,
           "n_cells": 5
         },
         "LRU": {
           "is_oracle_aware": false,
-          "max_pp": -2.2775,
-          "mean_pp": -12.8305,
-          "median_pp": -15.5166,
-          "min_pp": -18.9169,
+          "max_pp": -1.9652,
+          "mean_pp": -12.7924,
+          "median_pp": -15.7523,
+          "min_pp": -19.5182,
           "n_cells": 5
         },
         "POPT": {
           "is_oracle_aware": true,
-          "max_pp": -4.411,
-          "mean_pp": -14.0122,
-          "median_pp": -16.0996,
-          "min_pp": -19.7683,
+          "max_pp": -4.2156,
+          "mean_pp": -12.9219,
+          "median_pp": -13.5026,
+          "min_pp": -19.8836,
           "n_cells": 5
         },
         "SRRIP": {
           "is_oracle_aware": false,
-          "max_pp": -2.2392,
-          "mean_pp": -13.1389,
-          "median_pp": -14.7883,
-          "min_pp": -19.6548,
+          "max_pp": -1.9909,
+          "mean_pp": -13.1398,
+          "median_pp": -15.1055,
+          "min_pp": -20.0513,
           "n_cells": 5
         }
       },
@@ -84,33 +84,33 @@
         "GRASP": {
           "is_oracle_aware": true,
           "max_pp": 0.0,
-          "mean_pp": -12.431,
-          "median_pp": -14.6513,
-          "min_pp": -20.8578,
+          "mean_pp": -11.6632,
+          "median_pp": -14.261,
+          "min_pp": -19.6472,
           "n_cells": 18
         },
         "LRU": {
           "is_oracle_aware": false,
-          "max_pp": 0.0007,
-          "mean_pp": -12.231,
-          "median_pp": -14.0203,
-          "min_pp": -21.9024,
+          "max_pp": 0.0,
+          "mean_pp": -12.2148,
+          "median_pp": -13.4499,
+          "min_pp": -23.1916,
           "n_cells": 18
         },
         "POPT": {
           "is_oracle_aware": true,
-          "max_pp": 0.0007,
-          "mean_pp": -12.2086,
-          "median_pp": -13.9957,
-          "min_pp": -20.4123,
+          "max_pp": 0.0,
+          "mean_pp": -11.6931,
+          "median_pp": -12.8713,
+          "min_pp": -20.3648,
           "n_cells": 18
         },
         "SRRIP": {
           "is_oracle_aware": false,
-          "max_pp": 0.0009,
-          "mean_pp": -12.062,
-          "median_pp": -14.128,
-          "min_pp": -20.8709,
+          "max_pp": 0.0,
+          "mean_pp": -12.1476,
+          "median_pp": -13.8907,
+          "min_pp": -22.0207,
           "n_cells": 18
         }
       },
@@ -123,34 +123,34 @@
       "per_policy": {
         "GRASP": {
           "is_oracle_aware": true,
-          "max_pp": -6.4751,
-          "mean_pp": -14.7498,
-          "median_pp": -16.0253,
-          "min_pp": -19.2798,
+          "max_pp": -1.0906,
+          "mean_pp": -13.9518,
+          "median_pp": -17.4242,
+          "min_pp": -20.927,
           "n_cells": 5
         },
         "LRU": {
           "is_oracle_aware": false,
-          "max_pp": -4.8487,
-          "mean_pp": -15.6518,
-          "median_pp": -18.0714,
-          "min_pp": -19.267,
+          "max_pp": -4.8284,
+          "mean_pp": -16.6026,
+          "median_pp": -18.6661,
+          "min_pp": -22.8679,
           "n_cells": 5
         },
         "POPT": {
           "is_oracle_aware": true,
-          "max_pp": -7.5787,
-          "mean_pp": -14.5038,
-          "median_pp": -16.4779,
-          "min_pp": -18.9734,
+          "max_pp": -7.5906,
+          "mean_pp": -14.6486,
+          "median_pp": -15.882,
+          "min_pp": -22.0899,
           "n_cells": 5
         },
         "SRRIP": {
           "is_oracle_aware": false,
-          "max_pp": -5.0675,
-          "mean_pp": -15.0021,
-          "median_pp": -17.0179,
-          "min_pp": -19.0885,
+          "max_pp": -4.9729,
+          "mean_pp": -16.1233,
+          "median_pp": -18.0334,
+          "min_pp": -22.5965,
           "n_cells": 5
         }
       },

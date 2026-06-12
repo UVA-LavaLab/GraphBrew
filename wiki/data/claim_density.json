@@ -12,8 +12,7 @@
         "Balaji & Lucia HPCA 2021 Fig 10",
         "Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)",
         "Balaji & Lucia HPCA 2021 Fig 9",
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
         "Faldu et al. HPCA 2020 Fig 10",
         "Faldu et al. HPCA 2020 Fig 11",
@@ -25,11 +24,11 @@
       "graph": "cit-Patents",
       "n_apps": 5,
       "n_cells": 15,
-      "n_citations": 12,
+      "n_citations": 11,
       "n_claims": 52,
-      "n_ok": 47,
+      "n_ok": 50,
       "n_policies": 5,
-      "ok_pct": 90.38461538461539,
+      "ok_pct": 96.15384615384616,
       "policies": [
         "GRASP",
         "POPT",
@@ -38,9 +37,8 @@
         "SRRIP"
       ],
       "status_counts": {
-        "known_deviation": 4,
-        "ok": 47,
-        "within_tolerance": 1
+        "known_deviation": 2,
+        "ok": 50
       }
     },
     {
@@ -53,8 +51,7 @@
       ],
       "citations": [
         "Balaji & Lucia HPCA 2021 \u00a76 (extrapolated to com-orkut from twitter)",
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
         "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated from twitter Fig 10)",
         "Faldu et al. HPCA 2020 \u00a76.1 (extrapolated to com-orkut from twitter Fig 10)",
@@ -66,7 +63,7 @@
       "graph": "com-orkut",
       "n_apps": 5,
       "n_cells": 15,
-      "n_citations": 10,
+      "n_citations": 9,
       "n_claims": 48,
       "n_ok": 40,
       "n_policies": 5,
@@ -85,85 +82,33 @@
     },
     {
       "apps": [
-        "pr"
-      ],
-      "citations": [
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
-      ],
-      "graph": "delaunay_n19",
-      "n_apps": 1,
-      "n_cells": 5,
-      "n_citations": 2,
-      "n_claims": 10,
-      "n_ok": 10,
-      "n_policies": 2,
-      "ok_pct": 100.0,
-      "policies": [
-        "POPT_GE_GRASP",
-        "POPT_NEAR_GRASP_IF_BIG_GAP"
-      ],
-      "status_counts": {
-        "ok": 10
-      }
-    },
-    {
-      "apps": [
         "bc",
         "bfs",
         "pr"
       ],
       "citations": [
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
-        "Faldu et al. HPCA 2020 Fig 10"
+        "Faldu et al. HPCA 2020 Fig 10",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
       ],
       "graph": "email-Eu-core",
       "n_apps": 3,
       "n_cells": 9,
-      "n_citations": 4,
-      "n_claims": 19,
-      "n_ok": 12,
-      "n_policies": 3,
-      "ok_pct": 63.1578947368421,
+      "n_citations": 5,
+      "n_claims": 28,
+      "n_ok": 0,
+      "n_policies": 4,
+      "ok_pct": 0.0,
       "policies": [
         "GRASP",
         "POPT_GE_GRASP",
-        "POPT_NEAR_GRASP_IF_BIG_GAP"
+        "POPT_NEAR_GRASP_IF_BIG_GAP",
+        "SRRIP"
       ],
       "status_counts": {
-        "insufficient_data": 7,
-        "ok": 12
-      }
-    },
-    {
-      "apps": [
-        "bc",
-        "bfs",
-        "cc",
-        "pr",
-        "sssp"
-      ],
-      "citations": [
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check"
-      ],
-      "graph": "roadNet-CA",
-      "n_apps": 5,
-      "n_cells": 25,
-      "n_citations": 3,
-      "n_claims": 50,
-      "n_ok": 50,
-      "n_policies": 2,
-      "ok_pct": 100.0,
-      "policies": [
-        "POPT_GE_GRASP",
-        "POPT_NEAR_GRASP_IF_BIG_GAP"
-      ],
-      "status_counts": {
-        "ok": 50
+        "insufficient_data": 28
       }
     },
     {
@@ -177,8 +122,7 @@
       "citations": [
         "Balaji & Lucia HPCA 2021 Fig 10",
         "Balaji & Lucia HPCA 2021 Fig 9",
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
         "Faldu et al. HPCA 2020 Fig 10",
         "Faldu et al. HPCA 2020 Fig 11",
@@ -190,11 +134,11 @@
       "graph": "soc-LiveJournal1",
       "n_apps": 5,
       "n_cells": 15,
-      "n_citations": 11,
+      "n_citations": 10,
       "n_claims": 51,
-      "n_ok": 48,
+      "n_ok": 49,
       "n_policies": 5,
-      "ok_pct": 94.11764705882352,
+      "ok_pct": 96.07843137254902,
       "policies": [
         "GRASP",
         "POPT",
@@ -203,8 +147,8 @@
         "SRRIP"
       ],
       "status_counts": {
-        "known_deviation": 3,
-        "ok": 48
+        "known_deviation": 2,
+        "ok": 49
       }
     },
     {
@@ -218,8 +162,7 @@
       "citations": [
         "Balaji & Lucia HPCA 2021 Fig 10",
         "Balaji & Lucia HPCA 2021 Fig 9",
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
         "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
         "Faldu et al. HPCA 2020 Fig 10",
         "Faldu et al. HPCA 2020 Fig 11",
@@ -229,46 +172,6 @@
         "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
       ],
       "graph": "soc-pokec",
-      "n_apps": 5,
-      "n_cells": 15,
-      "n_citations": 11,
-      "n_claims": 50,
-      "n_ok": 44,
-      "n_policies": 5,
-      "ok_pct": 88.0,
-      "policies": [
-        "GRASP",
-        "POPT",
-        "POPT_GE_GRASP",
-        "POPT_NEAR_GRASP_IF_BIG_GAP",
-        "SRRIP"
-      ],
-      "status_counts": {
-        "known_deviation": 6,
-        "ok": 44
-      }
-    },
-    {
-      "apps": [
-        "bc",
-        "bfs",
-        "cc",
-        "pr",
-        "sssp"
-      ],
-      "citations": [
-        "Balaji & Lucia HPCA 2021 Fig 9",
-        "Balaji & Lucia HPCA 2021 \u00a76.3",
-        "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
-        "Faldu et al. HPCA 2020 Fig 10",
-        "Faldu et al. HPCA 2020 Fig 11",
-        "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
-        "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
-        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
-        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
-      ],
-      "graph": "web-Google",
       "n_apps": 5,
       "n_cells": 15,
       "n_citations": 10,
@@ -287,13 +190,52 @@
         "known_deviation": 3,
         "ok": 47
       }
+    },
+    {
+      "apps": [
+        "bc",
+        "bfs",
+        "cc",
+        "pr",
+        "sssp"
+      ],
+      "citations": [
+        "Balaji & Lucia HPCA 2021 Fig 9",
+        "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+        "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+        "Faldu et al. HPCA 2020 Fig 10",
+        "Faldu et al. HPCA 2020 Fig 11",
+        "Jaleel et al. ISCA 2010 \u00a75.2 (scan-resistance argument extended to CC)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1",
+        "Jaleel et al. ISCA 2010 \u00a75.2; Faldu et al. HPCA 2020 \u00a76.1 (extended)"
+      ],
+      "graph": "web-Google",
+      "n_apps": 5,
+      "n_cells": 15,
+      "n_citations": 9,
+      "n_claims": 50,
+      "n_ok": 48,
+      "n_policies": 5,
+      "ok_pct": 96.0,
+      "policies": [
+        "GRASP",
+        "POPT",
+        "POPT_GE_GRASP",
+        "POPT_NEAR_GRASP_IF_BIG_GAP",
+        "SRRIP"
+      ],
+      "status_counts": {
+        "known_deviation": 2,
+        "ok": 48
+      }
     }
   ],
   "schema_version": 1,
   "summary": {
-    "n_graphs": 8,
-    "total_claims": 330,
-    "total_ok": 298,
-    "total_ok_pct": 90.30303030303031
+    "n_graphs": 6,
+    "total_claims": 279,
+    "total_ok": 234,
+    "total_ok_pct": 83.87096774193549
   }
 }

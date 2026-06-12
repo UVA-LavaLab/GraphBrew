@@ -1,50 +1,50 @@
 {
   "checks": {
     "grasp_le_lru_median": {
-      "grasp": 0.2296,
-      "lru": 1.0552,
+      "grasp": 0.6236,
+      "lru": 1.3244,
       "ok": true
     },
     "non_oracle_floor": {
       "floor": 0.5,
-      "lru": 1.0552,
+      "lru": 1.3244,
       "ok": true,
-      "srrip": 1.2176
+      "srrip": 1.2354
     },
     "oracle_aware_ceiling": {
-      "ceiling": 0.5,
-      "grasp": 0.2296,
+      "ceiling": 0.7,
+      "grasp": 0.6236,
       "ok": true,
-      "popt": 0.0778
+      "popt": 0.5118
     },
     "oracle_half_of_non_oracle": {
-      "actual_ratio": 0.135252,
-      "non_oracle_median": 1.1364,
+      "actual_ratio": 0.44355,
+      "non_oracle_median": 1.2799,
       "ok": true,
-      "oracle_median": 0.1537,
+      "oracle_median": 0.5677,
       "required_ratio": 0.5
     },
     "popt_le_grasp_median": {
-      "grasp": 0.2296,
+      "grasp": 0.6236,
       "ok": true,
-      "popt": 0.0778
+      "popt": 0.5118
     },
     "popt_lt_srrip_median": {
       "ok": true,
-      "popt": 0.0778,
-      "srrip": 1.2176
+      "popt": 0.5118,
+      "srrip": 1.2354
     },
     "popt_min_saturates": {
       "ceiling": 0.2,
       "ok": true,
-      "popt_min": 0.0335
+      "popt_min": 0.0283
     }
   },
   "medians_pp": {
-    "GRASP": 0.2296,
-    "LRU": 1.0552,
-    "POPT": 0.0778,
-    "SRRIP": 1.2176
+    "GRASP": 0.6236,
+    "LRU": 1.3244,
+    "POPT": 0.5118,
+    "SRRIP": 1.2354
   },
   "meta": {
     "apps": [
@@ -70,76 +70,76 @@
     ],
     "thresholds": {
       "non_oracle_floor_pp": 0.5,
-      "oracle_aware_ceiling_pp": 0.5,
+      "oracle_aware_ceiling_pp": 0.7,
       "oracle_aware_half_of_non_oracle": 0.5,
       "popt_min_slope_ceiling_pp": 0.2
     }
   },
-  "non_oracle_median_pp": 1.1364,
-  "oracle_median_pp": 0.1537,
+  "non_oracle_median_pp": 1.2799,
+  "oracle_median_pp": 0.5677,
   "per_policy": {
     "GRASP": {
-      "max": 2.2235,
-      "mean": 0.60656,
-      "median": 0.2296,
+      "max": 2.2946,
+      "mean": 1.13972,
+      "median": 0.6236,
       "min": 0.0,
       "n": 5,
       "per_app": {
-        "bc": 0.0,
-        "bfs": 0.5787,
-        "cc": 0.001,
-        "pr": 2.2235,
-        "sssp": 0.2296
+        "bc": 0.6236,
+        "bfs": 2.273,
+        "cc": 0.0,
+        "pr": 2.2946,
+        "sssp": 0.5074
       }
     },
     "LRU": {
-      "max": 3.914,
-      "mean": 1.48724,
-      "median": 1.0552,
-      "min": 0.2798,
+      "max": 4.7344,
+      "mean": 1.78972,
+      "median": 1.3244,
+      "min": 0.2541,
       "n": 5,
       "per_app": {
-        "bc": 0.3664,
-        "bfs": 0.2798,
-        "cc": 1.0552,
-        "pr": 3.914,
-        "sssp": 1.8208
+        "bc": 0.4455,
+        "bfs": 0.2541,
+        "cc": 1.3244,
+        "pr": 4.7344,
+        "sssp": 2.1902
       }
     },
     "POPT": {
-      "max": 2.057,
-      "mean": 0.48804,
-      "median": 0.0778,
-      "min": 0.0335,
+      "max": 1.1184,
+      "mean": 0.51958,
+      "median": 0.5118,
+      "min": 0.0283,
       "n": 5,
       "per_app": {
-        "bc": 0.0778,
-        "bfs": 0.0335,
-        "cc": 2.057,
-        "pr": 0.0407,
-        "sssp": 0.2312
+        "bc": 1.1184,
+        "bfs": 0.5118,
+        "cc": 0.749,
+        "pr": 0.0283,
+        "sssp": 0.1904
       }
     },
     "SRRIP": {
-      "max": 3.0988,
-      "mean": 1.34148,
-      "median": 1.2176,
-      "min": 0.1985,
+      "max": 3.8335,
+      "mean": 1.39072,
+      "median": 1.2354,
+      "min": 0.1418,
       "n": 5,
       "per_app": {
-        "bc": 0.1985,
-        "bfs": 0.3891,
-        "cc": 1.8034,
-        "pr": 3.0988,
-        "sssp": 1.2176
+        "bc": 0.4393,
+        "bfs": 0.1418,
+        "cc": 1.2354,
+        "pr": 3.8335,
+        "sssp": 1.3036
       }
     }
   },
   "ranking_by_median": [
     "POPT",
     "GRASP",
-    "LRU",
-    "SRRIP"
+    "SRRIP",
+    "LRU"
   ],
   "schema": "policy_steepness_ranking/v1",
   "source": "wiki/data/cache_saturation_onset.json",

@@ -18,10 +18,10 @@
     ],
     "cross_gate_consistency": {
       "saturation_rank_gate55": [
-        "POPT",
-        "GRASP",
         "LRU",
-        "SRRIP"
+        "SRRIP",
+        "GRASP",
+        "POPT"
       ],
       "knee_rank_gate58": [
         "GRASP",
@@ -37,216 +37,216 @@
     "GRASP": {
       "n_cells": 5,
       "knee_count": 4,
-      "mean_curvature": 2.8311,
-      "median_curvature": 3.004
+      "mean_curvature": 1.8029,
+      "median_curvature": 1.8245
     },
     "LRU": {
       "n_cells": 5,
       "knee_count": 0,
-      "mean_curvature": -1.7803,
-      "median_curvature": -1.6727
+      "mean_curvature": -1.974,
+      "median_curvature": -1.3092
     },
     "POPT": {
       "n_cells": 5,
       "knee_count": 3,
-      "mean_curvature": 0.6378,
-      "median_curvature": 0.5993
+      "mean_curvature": 0.6005,
+      "median_curvature": 0.8639
     },
     "SRRIP": {
       "n_cells": 5,
       "knee_count": 0,
-      "mean_curvature": -1.5095,
-      "median_curvature": -1.3858
+      "mean_curvature": -1.2703,
+      "median_curvature": -0.9065
     }
   },
   "per_app": {
     "bc": {
       "GRASP": {
-        "gap_at_1MB": 6.0079,
-        "gap_at_4MB": 0.0,
-        "gap_at_8MB": 0.0,
-        "slope_1MB_to_4MB": -3.004,
-        "slope_4MB_to_8MB": 0.0,
-        "curvature_at_4MB": 3.004,
+        "gap_at_1MB": 2.7304,
+        "gap_at_4MB": 0.3287,
+        "gap_at_8MB": 0.9523,
+        "slope_1MB_to_4MB": -1.2008,
+        "slope_4MB_to_8MB": 0.6236,
+        "curvature_at_4MB": 1.8245,
         "knee_present": true
       },
       "LRU": {
-        "gap_at_1MB": 3.3026,
-        "gap_at_4MB": 3.9427,
-        "gap_at_8MB": 3.5763,
-        "slope_1MB_to_4MB": 0.32,
-        "slope_4MB_to_8MB": -0.3664,
-        "curvature_at_4MB": -0.6865,
+        "gap_at_1MB": 2.0921,
+        "gap_at_4MB": 3.8195,
+        "gap_at_8MB": 3.374,
+        "slope_1MB_to_4MB": 0.8637,
+        "slope_4MB_to_8MB": -0.4455,
+        "curvature_at_4MB": -1.3092,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 4.4764,
-        "gap_at_4MB": 1.8168,
-        "gap_at_8MB": 1.739,
-        "slope_1MB_to_4MB": -1.3298,
-        "slope_4MB_to_8MB": -0.0778,
-        "curvature_at_4MB": 1.252,
+        "gap_at_1MB": 2.7323,
+        "gap_at_4MB": 1.6323,
+        "gap_at_8MB": 2.7507,
+        "slope_1MB_to_4MB": -0.55,
+        "slope_4MB_to_8MB": 1.1184,
+        "curvature_at_4MB": 1.6684,
         "knee_present": true
       },
       "SRRIP": {
-        "gap_at_1MB": 1.7656,
-        "gap_at_4MB": 2.0555,
-        "gap_at_8MB": 1.857,
-        "slope_1MB_to_4MB": 0.1449,
-        "slope_4MB_to_8MB": -0.1985,
-        "curvature_at_4MB": -0.3434,
+        "gap_at_1MB": 1.5413,
+        "gap_at_4MB": 1.9258,
+        "gap_at_8MB": 1.4865,
+        "slope_1MB_to_4MB": 0.1923,
+        "slope_4MB_to_8MB": -0.4393,
+        "curvature_at_4MB": -0.6316,
         "knee_present": false
       }
     },
     "bfs": {
       "GRASP": {
-        "gap_at_1MB": 12.3081,
-        "gap_at_4MB": 0.1443,
-        "gap_at_8MB": 0.723,
-        "slope_1MB_to_4MB": -6.0819,
-        "slope_4MB_to_8MB": 0.5787,
-        "curvature_at_4MB": 6.6606,
+        "gap_at_1MB": 8.9621,
+        "gap_at_4MB": 3.3765,
+        "gap_at_8MB": 5.6495,
+        "slope_1MB_to_4MB": -2.7928,
+        "slope_4MB_to_8MB": 2.273,
+        "curvature_at_4MB": 5.0658,
         "knee_present": true
       },
       "LRU": {
-        "gap_at_1MB": 2.1866,
-        "gap_at_4MB": 6.2392,
-        "gap_at_8MB": 6.519,
-        "slope_1MB_to_4MB": 2.0263,
-        "slope_4MB_to_8MB": 0.2798,
-        "curvature_at_4MB": -1.7465,
+        "gap_at_1MB": 2.0684,
+        "gap_at_4MB": 6.5898,
+        "gap_at_8MB": 6.3357,
+        "slope_1MB_to_4MB": 2.2607,
+        "slope_4MB_to_8MB": -0.2541,
+        "curvature_at_4MB": -2.5148,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 5.3117,
-        "gap_at_4MB": 0.3562,
-        "gap_at_8MB": 0.3227,
-        "slope_1MB_to_4MB": -2.4777,
-        "slope_4MB_to_8MB": -0.0335,
-        "curvature_at_4MB": 2.4442,
+        "gap_at_1MB": 5.2856,
+        "gap_at_4MB": 0.5118,
+        "gap_at_8MB": 0.0,
+        "slope_1MB_to_4MB": -2.3869,
+        "slope_4MB_to_8MB": -0.5118,
+        "curvature_at_4MB": 1.8751,
         "knee_present": true
       },
       "SRRIP": {
-        "gap_at_1MB": 2.1464,
-        "gap_at_4MB": 5.6962,
-        "gap_at_8MB": 6.0853,
-        "slope_1MB_to_4MB": 1.7749,
-        "slope_4MB_to_8MB": 0.3891,
-        "curvature_at_4MB": -1.3858,
+        "gap_at_1MB": 2.0889,
+        "gap_at_4MB": 5.949,
+        "gap_at_8MB": 5.8072,
+        "slope_1MB_to_4MB": 1.93,
+        "slope_4MB_to_8MB": -0.1418,
+        "curvature_at_4MB": -2.0718,
         "knee_present": false
       }
     },
     "cc": {
       "GRASP": {
-        "gap_at_1MB": 1.52,
+        "gap_at_1MB": 1.6668,
         "gap_at_4MB": 0.0,
-        "gap_at_8MB": 0.001,
-        "slope_1MB_to_4MB": -0.76,
-        "slope_4MB_to_8MB": 0.001,
-        "curvature_at_4MB": 0.761,
+        "gap_at_8MB": 0.0,
+        "slope_1MB_to_4MB": -0.8334,
+        "slope_4MB_to_8MB": 0.0,
+        "curvature_at_4MB": 0.8334,
         "knee_present": true
       },
       "LRU": {
-        "gap_at_1MB": 7.6288,
-        "gap_at_4MB": 8.7828,
-        "gap_at_8MB": 7.7276,
-        "slope_1MB_to_4MB": 0.577,
-        "slope_4MB_to_8MB": -1.0552,
-        "curvature_at_4MB": -1.6322,
+        "gap_at_1MB": 11.2803,
+        "gap_at_4MB": 10.9256,
+        "gap_at_8MB": 9.6012,
+        "slope_1MB_to_4MB": -0.1774,
+        "slope_4MB_to_8MB": -1.3244,
+        "curvature_at_4MB": -1.147,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 6.341,
-        "gap_at_4MB": 4.225,
-        "gap_at_8MB": 2.168,
-        "slope_1MB_to_4MB": -1.058,
-        "slope_4MB_to_8MB": -2.057,
-        "curvature_at_4MB": -0.999,
+        "gap_at_1MB": 2.7082,
+        "gap_at_4MB": 4.0764,
+        "gap_at_8MB": 3.3274,
+        "slope_1MB_to_4MB": 0.6841,
+        "slope_4MB_to_8MB": -0.749,
+        "curvature_at_4MB": -1.4331,
         "knee_present": false
       },
       "SRRIP": {
-        "gap_at_1MB": 5.0137,
-        "gap_at_4MB": 6.4844,
-        "gap_at_8MB": 4.681,
-        "slope_1MB_to_4MB": 0.7353,
-        "slope_4MB_to_8MB": -1.8034,
-        "curvature_at_4MB": -2.5387,
+        "gap_at_1MB": 8.6973,
+        "gap_at_4MB": 8.0394,
+        "gap_at_8MB": 6.804,
+        "slope_1MB_to_4MB": -0.3289,
+        "slope_4MB_to_8MB": -1.2354,
+        "curvature_at_4MB": -0.9065,
         "knee_present": false
       }
     },
     "pr": {
       "GRASP": {
-        "gap_at_1MB": 3.6149,
-        "gap_at_4MB": 3.465,
-        "gap_at_8MB": 1.2415,
-        "slope_1MB_to_4MB": -0.075,
-        "slope_4MB_to_8MB": -2.2235,
-        "curvature_at_4MB": -2.1485,
+        "gap_at_1MB": 4.6235,
+        "gap_at_4MB": 4.7063,
+        "gap_at_8MB": 2.4117,
+        "slope_1MB_to_4MB": 0.0414,
+        "slope_4MB_to_8MB": -2.2946,
+        "curvature_at_4MB": -2.336,
         "knee_present": false
       },
       "LRU": {
-        "gap_at_1MB": 10.9053,
-        "gap_at_4MB": 9.4045,
-        "gap_at_8MB": 5.4905,
-        "slope_1MB_to_4MB": -0.7504,
-        "slope_4MB_to_8MB": -3.914,
-        "curvature_at_4MB": -3.1636,
+        "gap_at_1MB": 12.6431,
+        "gap_at_4MB": 10.6102,
+        "gap_at_8MB": 5.8758,
+        "slope_1MB_to_4MB": -1.0164,
+        "slope_4MB_to_8MB": -4.7344,
+        "curvature_at_4MB": -3.718,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 0.0434,
-        "gap_at_4MB": 0.1772,
-        "gap_at_8MB": 0.1365,
-        "slope_1MB_to_4MB": 0.0669,
-        "slope_4MB_to_8MB": -0.0407,
-        "curvature_at_4MB": -0.1076,
+        "gap_at_1MB": 0.0,
+        "gap_at_4MB": 0.0,
+        "gap_at_8MB": 0.0283,
+        "slope_1MB_to_4MB": 0.0,
+        "slope_4MB_to_8MB": 0.0283,
+        "curvature_at_4MB": 0.0283,
         "knee_present": false
       },
       "SRRIP": {
-        "gap_at_1MB": 8.2918,
-        "gap_at_4MB": 6.508,
-        "gap_at_8MB": 3.4092,
-        "slope_1MB_to_4MB": -0.8919,
-        "slope_4MB_to_8MB": -3.0988,
-        "curvature_at_4MB": -2.2069,
+        "gap_at_1MB": 10.1615,
+        "gap_at_4MB": 7.4598,
+        "gap_at_8MB": 3.6263,
+        "slope_1MB_to_4MB": -1.3508,
+        "slope_4MB_to_8MB": -3.8335,
+        "curvature_at_4MB": -2.4827,
         "knee_present": false
       }
     },
     "sssp": {
       "GRASP": {
-        "gap_at_1MB": 12.4487,
-        "gap_at_4MB": 0.2324,
-        "gap_at_8MB": 0.0028,
-        "slope_1MB_to_4MB": -6.1082,
-        "slope_4MB_to_8MB": -0.2296,
-        "curvature_at_4MB": 5.8786,
+        "gap_at_1MB": 9.4935,
+        "gap_at_4MB": 1.2254,
+        "gap_at_8MB": 0.718,
+        "slope_1MB_to_4MB": -4.134,
+        "slope_4MB_to_8MB": -0.5074,
+        "curvature_at_4MB": 3.6266,
         "knee_present": true
       },
       "LRU": {
-        "gap_at_1MB": 4.3035,
-        "gap_at_4MB": 4.0072,
-        "gap_at_8MB": 2.1864,
-        "slope_1MB_to_4MB": -0.1481,
-        "slope_4MB_to_8MB": -1.8208,
-        "curvature_at_4MB": -1.6727,
+        "gap_at_1MB": 5.7932,
+        "gap_at_4MB": 3.7744,
+        "gap_at_8MB": 1.5842,
+        "slope_1MB_to_4MB": -1.0094,
+        "slope_4MB_to_8MB": -2.1902,
+        "curvature_at_4MB": -1.1808,
         "knee_present": false
       },
       "POPT": {
-        "gap_at_1MB": 2.3642,
-        "gap_at_4MB": 0.7032,
-        "gap_at_8MB": 0.472,
-        "slope_1MB_to_4MB": -0.8305,
-        "slope_4MB_to_8MB": -0.2312,
-        "curvature_at_4MB": 0.5993,
+        "gap_at_1MB": 2.3393,
+        "gap_at_4MB": 0.2308,
+        "gap_at_8MB": 0.0404,
+        "slope_1MB_to_4MB": -1.0543,
+        "slope_4MB_to_8MB": -0.1904,
+        "curvature_at_4MB": 0.8639,
         "knee_present": true
       },
       "SRRIP": {
-        "gap_at_1MB": 2.7783,
-        "gap_at_4MB": 2.4884,
-        "gap_at_8MB": 1.2708,
-        "slope_1MB_to_4MB": -0.145,
-        "slope_4MB_to_8MB": -1.2176,
-        "curvature_at_4MB": -1.0726,
+        "gap_at_1MB": 4.1698,
+        "gap_at_4MB": 2.0806,
+        "gap_at_8MB": 0.777,
+        "slope_1MB_to_4MB": -1.0446,
+        "slope_4MB_to_8MB": -1.3036,
+        "curvature_at_4MB": -0.259,
         "knee_present": false
       }
     }

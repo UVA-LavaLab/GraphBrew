@@ -17,9 +17,11 @@
       "app": "bc",
       "graph": "email-Eu-core",
       "l3": "4MB",
-      "tied_count": 2,
+      "tied_count": 4,
       "tied_policies": [
         "GRASP",
+        "LRU",
+        "POPT",
         "SRRIP"
       ]
     },
@@ -27,8 +29,46 @@
       "app": "bc",
       "graph": "email-Eu-core",
       "l3": "8MB",
-      "tied_count": 2,
+      "tied_count": 4,
       "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "l3": "1MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "l3": "4MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "bfs",
+      "graph": "email-Eu-core",
+      "l3": "8MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
         "POPT",
         "SRRIP"
       ]
@@ -68,19 +108,88 @@
         "POPT",
         "SRRIP"
       ]
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "l3": "8MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "l3": "8MB",
+      "tied_count": 3,
+      "tied_policies": [
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "l3": "4MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "cc",
+      "graph": "web-Google",
+      "l3": "8MB",
+      "tied_count": 4,
+      "tied_policies": [
+        "GRASP",
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "l3": "4MB",
+      "tied_count": 3,
+      "tied_policies": [
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
+    },
+    {
+      "app": "sssp",
+      "graph": "web-Google",
+      "l3": "8MB",
+      "tied_count": 3,
+      "tied_policies": [
+        "LRU",
+        "POPT",
+        "SRRIP"
+      ]
     }
   ],
   "meta": {
     "n_cells_total": 114,
     "n_no_winner": 0,
-    "n_tied_winners": 6,
-    "n_unique_winner": 108,
+    "n_tied_winners": 15,
+    "n_unique_winner": 99,
     "pct_no_winner": 0.0,
-    "pct_tied_winners": 5.26,
-    "pct_unique_winner": 94.74,
+    "pct_tied_winners": 13.16,
+    "pct_unique_winner": 86.84,
     "tied_breakdown_by_count": {
-      "2": 2,
-      "4": 4
+      "3": 3,
+      "4": 12
     }
   },
   "per_app": {
@@ -105,9 +214,11 @@
           "app": "bc",
           "graph": "email-Eu-core",
           "l3": "4MB",
-          "tied_count": 2,
+          "tied_count": 4,
           "tied_policies": [
             "GRASP",
+            "LRU",
+            "POPT",
             "SRRIP"
           ]
         },
@@ -115,8 +226,10 @@
           "app": "bc",
           "graph": "email-Eu-core",
           "l3": "8MB",
-          "tied_count": 2,
+          "tied_count": 4,
           "tied_policies": [
+            "GRASP",
+            "LRU",
             "POPT",
             "SRRIP"
           ]
@@ -129,17 +242,91 @@
       "n_cells": 23,
       "no_winner": 0,
       "no_winner_cells": [],
-      "tied_cells": [],
-      "tied_winners": 0,
-      "unique_winner": 23
+      "tied_cells": [
+        {
+          "app": "bfs",
+          "graph": "email-Eu-core",
+          "l3": "1MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "bfs",
+          "graph": "email-Eu-core",
+          "l3": "4MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "bfs",
+          "graph": "email-Eu-core",
+          "l3": "8MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        }
+      ],
+      "tied_winners": 3,
+      "unique_winner": 20
     },
     "cc": {
       "n_cells": 20,
       "no_winner": 0,
       "no_winner_cells": [],
-      "tied_cells": [],
-      "tied_winners": 0,
-      "unique_winner": 20
+      "tied_cells": [
+        {
+          "app": "cc",
+          "graph": "soc-pokec",
+          "l3": "8MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "cc",
+          "graph": "web-Google",
+          "l3": "4MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "cc",
+          "graph": "web-Google",
+          "l3": "8MB",
+          "tied_count": 4,
+          "tied_policies": [
+            "GRASP",
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        }
+      ],
+      "tied_winners": 3,
+      "unique_winner": 17
     },
     "pr": {
       "n_cells": 28,
@@ -190,9 +377,43 @@
       "n_cells": 20,
       "no_winner": 0,
       "no_winner_cells": [],
-      "tied_cells": [],
-      "tied_winners": 0,
-      "unique_winner": 20
+      "tied_cells": [
+        {
+          "app": "sssp",
+          "graph": "soc-pokec",
+          "l3": "8MB",
+          "tied_count": 3,
+          "tied_policies": [
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "sssp",
+          "graph": "web-Google",
+          "l3": "4MB",
+          "tied_count": 3,
+          "tied_policies": [
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        },
+        {
+          "app": "sssp",
+          "graph": "web-Google",
+          "l3": "8MB",
+          "tied_count": 3,
+          "tied_policies": [
+            "LRU",
+            "POPT",
+            "SRRIP"
+          ]
+        }
+      ],
+      "tied_winners": 3,
+      "unique_winner": 17
     }
   }
 }

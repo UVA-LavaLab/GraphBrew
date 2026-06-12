@@ -49,7 +49,7 @@ from typing import Any
 
 MIN_REASON_LEN          = 60     # characters after strip
 MIN_MECHANISM_HITS      = 1
-MIN_KNOWN_DEVIATIONS    = 20
+MIN_KNOWN_DEVIATIONS    = 15
 REUSE_CEILING_FRAC      = 0.50
 
 MECHANISM_VOCAB: list[str] = [

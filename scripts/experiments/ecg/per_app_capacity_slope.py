@@ -58,15 +58,12 @@ L3_LOG2_MB = {"1MB": 0.0, "4MB": 2.0, "8MB": 3.0}
 HELP_FLOOR_PP_OCTAVE = -5.0
 ALLOW_LRU_SHALLOWER_BY_PP = 1.0
 
-# bfs is pinned as a known kernel deviation: its access pattern is
-# heavily frontier-driven and mostly streaming, so per-cell slopes
-# are small (LRU median -3.99, GRASP -6.41 pp/octave) and the GRASP-
-# vs-LRU ordering inverts. Gate 65 already flags bfs as the most-
-# saturated kernel (smallest median 4MB->8MB distance). This is a
-# real, documented corpus property rather than a measurement
-# artefact, so we pin the app and surface only NEW kernels that
-# deviate from the global ordering.
-PINNED_DEVIATING_APPS: tuple[str, ...] = ("bfs",)
+# At array-relative GRASP 0.15 (single-thread, reproducible) NO kernel
+# inverts the global capacity-slope ordering: bfs (previously pinned as a
+# frontier-streaming deviation under multi-thread) no longer deviates. The
+# pinned set is therefore empty; the gate still surfaces any NEW deviating
+# kernel via new_deviating_apps.
+PINNED_DEVIATING_APPS: tuple[str, ...] = ()
 
 
 def _ols_slope(pts: list[tuple[float, float]]) -> float | None:

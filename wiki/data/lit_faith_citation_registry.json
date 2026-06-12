@@ -1,8 +1,8 @@
 {
   "coverage_per_key": {
-    "Balaji-HPCA-2021": 252,
-    "Faldu-HPCA-2020": 177,
-    "Jaleel-ISCA-2010": 75
+    "Balaji-HPCA-2021": 192,
+    "Faldu-HPCA-2020": 156,
+    "Jaleel-ISCA-2010": 84
   },
   "registry": [
     {
@@ -41,7 +41,7 @@
     }
   ],
   "registry_size": 3,
-  "row_count": 330,
+  "row_count": 279,
   "rules": {
     "C1": "every per_claim citation matches >=1 registered canonical work",
     "C2": "every registered canonical work is referenced >=1 time",
@@ -136,7 +136,7 @@
   "totals": {
     "bucket_count": 24,
     "registry_size": 3,
-    "row_count": 330,
+    "row_count": 279,
     "violations": 0
   },
   "violations": []

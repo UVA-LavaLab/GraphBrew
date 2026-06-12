@@ -4,12 +4,12 @@ For every literature claim whose comparator-asserted bound is actually exercised
 
 ## Summary
 
-- Total per_claim rows: **330**
-- Audited rows (real assertion fired): **204**
-- Median slack: **4.8606 pp**
-- p10 slack: **0.7798 pp** · p90 slack: **11.1577 pp**
-- Min / max slack: **0.0181** / **61.5226** pp
-- Fragile rows (slack < 1.0 pp): **25** (12.2%)
+- Total per_claim rows: **279**
+- Audited rows (real assertion fired): **173**
+- Median slack: **5.5996 pp**
+- p10 slack: **1.2778 pp** · p90 slack: **11.576 pp**
+- Min / max slack: **0.001** / **22.4332** pp
+- Fragile rows (slack < 1.0 pp): **13** (7.5%)
 - Very comfortable rows (slack ≥ 5.0 pp): **100**
 - Negative-slack rows (audit bug if non-zero): **0**
 
@@ -17,60 +17,60 @@ For every literature claim whose comparator-asserted bound is actually exercised
 
 | audit_status | count |
 |---|---:|
-| `audited` | 204 |
-| `deviation` | 24 |
-| `missing_data` | 7 |
-| `not_triggered` | 95 |
+| `audited` | 173 |
+| `deviation` | 17 |
+| `missing_data` | 28 |
+| `not_triggered` | 61 |
 
 ## Slack histogram (audited rows)
 
 | bin (pp) | count |
 |---|---:|
 | [-∞, 0.0) | 0 |
-| [0.0, 0.5) | 14 |
-| [0.5, 1.0) | 11 |
-| [1.0, 2.0) | 37 |
-| [2.0, 5.0) | 42 |
-| [5.0, 10.0) | 71 |
+| [0.0, 0.5) | 4 |
+| [0.5, 1.0) | 9 |
+| [1.0, 2.0) | 24 |
+| [2.0, 5.0) | 36 |
+| [5.0, 10.0) | 74 |
 | [10.0, 20.0) | 25 |
-| [20.0, +∞) | 4 |
+| [20.0, +∞) | 1 |
 
 ## Per-policy slack distribution
 
 | policy | n | min | p10 | median | p90 | max | fragile |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| GRASP | 18 | 0.5799 | 3.3776 | 6.8035 | 12.9422 | 15.7704 | 1 |
-| POPT | 8 | 3.7818 | 4.4653 | 10.1217 | 15.1156 | 19.4003 | 0 |
-| POPT_GE_GRASP | 91 | 0.0181 | 0.2595 | 1.5003 | 7.7817 | 61.5226 | 23 |
-| POPT_NEAR_GRASP_IF_BIG_GAP | 12 | 0.8129 | 1.5717 | 7.6447 | 10.8437 | 15.6517 | 1 |
-| SRRIP | 75 | 1.3321 | 3.3876 | 6.6314 | 10.7893 | 12.9997 | 0 |
+| GRASP | 18 | 3.0308 | 3.4699 | 7.0512 | 12.9123 | 15.7453 | 0 |
+| POPT | 8 | 4.7145 | 6.5389 | 12.0716 | 18.5985 | 22.4332 | 0 |
+| POPT_GE_GRASP | 60 | 0.001 | 0.7024 | 1.8729 | 7.914 | 18.9778 | 12 |
+| POPT_NEAR_GRASP_IF_BIG_GAP | 12 | 0.8523 | 1.0705 | 6.1516 | 13.4791 | 17.5804 | 1 |
+| SRRIP | 75 | 1.251 | 3.2112 | 6.5257 | 10.4746 | 13.0 | 0 |
 
 ## Per-app slack distribution
 
 | app | n | min | median | fragile |
 |---|---:|---:|---:|---:|
-| bc | 34 | 0.0181 | 5.2771 | 5 |
-| bfs | 43 | 0.2382 | 4.4815 | 7 |
-| cc | 28 | 0.1024 | 5.9736 | 3 |
-| pr | 60 | 0.1813 | 4.742 | 5 |
-| sssp | 39 | 0.0632 | 4.8538 | 5 |
+| bc | 29 | 0.2746 | 5.3479 | 3 |
+| bfs | 33 | 0.001 | 6.593 | 5 |
+| cc | 28 | 0.8523 | 7.0914 | 2 |
+| pr | 50 | 0.8298 | 5.6538 | 1 |
+| sssp | 33 | 0.5518 | 5.0216 | 2 |
 
 ## Top-15 most fragile rows
 
 | graph | app | L3 | policy | sign | tol | slack pp | status |
 |---|---|---|---|---|---:|---:|---|
-| soc-LiveJournal1 | bc | 1MB | POPT_GE_GRASP | - | 1.5 | 0.0181 | ok |
-| soc-LiveJournal1 | bc | 4MB | POPT_GE_GRASP | - | 1.5 | 0.0551 | ok |
-| cit-Patents | sssp | 8MB | POPT_GE_GRASP | - | 1.5 | 0.0632 | ok |
-| cit-Patents | sssp | 4MB | POPT_GE_GRASP | - | 1.5 | 0.0889 | ok |
-| soc-LiveJournal1 | cc | 1MB | POPT_GE_GRASP | - | 1.5 | 0.1024 | ok |
-| cit-Patents | bc | 8MB | POPT_GE_GRASP | - | 1.5 | 0.1582 | ok |
-| soc-pokec | pr | 8MB | POPT_GE_GRASP | - | 1.0 | 0.1813 | ok |
-| web-Google | cc | 1MB | POPT_GE_GRASP | - | 1.5 | 0.2325 | ok |
-| soc-pokec | bfs | 1MB | POPT_GE_GRASP | - | 1.5 | 0.2382 | ok |
-| soc-LiveJournal1 | bfs | 4MB | POPT_GE_GRASP | - | 1.5 | 0.2595 | ok |
-| soc-LiveJournal1 | sssp | 4MB | POPT_GE_GRASP | - | 1.5 | 0.2801 | ok |
-| soc-LiveJournal1 | bfs | 8MB | POPT_GE_GRASP | - | 1.5 | 0.2997 | ok |
-| soc-LiveJournal1 | bfs | 1MB | POPT_GE_GRASP | - | 1.5 | 0.4101 | ok |
-| web-Google | bfs | 1MB | POPT_GE_GRASP | - | 1.5 | 0.4538 | ok |
-| cit-Patents | bc | 1MB | GRASP | - | 3.0 | 0.5799 | within_tolerance |
+| soc-LiveJournal1 | bfs | 4MB | POPT_GE_GRASP | - | 1.5 | 0.001 | ok |
+| soc-pokec | bfs | 1MB | POPT_GE_GRASP | - | 1.5 | 0.1413 | ok |
+| cit-Patents | bc | 4MB | POPT_GE_GRASP | - | 1.5 | 0.2746 | ok |
+| web-Google | bfs | 1MB | POPT_GE_GRASP | - | 1.5 | 0.3779 | ok |
+| cit-Patents | sssp | 4MB | POPT_GE_GRASP | - | 1.5 | 0.5518 | ok |
+| com-orkut | bc | 1MB | POPT_GE_GRASP | - | 1.5 | 0.6601 | ok |
+| com-orkut | bfs | 4MB | POPT_GE_GRASP | - | 1.5 | 0.7071 | ok |
+| cit-Patents | bfs | 4MB | POPT_GE_GRASP | - | 1.5 | 0.7209 | ok |
+| soc-pokec | pr | 8MB | POPT_GE_GRASP | - | 1.0 | 0.8298 | ok |
+| soc-pokec | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | ~ | 2.0 | 0.8523 | ok |
+| soc-LiveJournal1 | bc | 8MB | POPT_GE_GRASP | - | 1.5 | 0.886 | ok |
+| cit-Patents | sssp | 1MB | POPT_GE_GRASP | - | 1.5 | 0.8964 | ok |
+| cit-Patents | cc | 4MB | POPT_GE_GRASP | - | 1.5 | 0.9772 | ok |
+| com-orkut | cc | 1MB | POPT_NEAR_GRASP_IF_BIG_GAP | ~ | 2.0 | 1.057 | ok |
+| soc-LiveJournal1 | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | ~ | 2.0 | 1.1917 | ok |

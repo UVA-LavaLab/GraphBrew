@@ -12,7 +12,7 @@ Load-bearing rules:
   (tuple ordering is load-bearing for emission)
 - ORACLE_AWARE = {GRASP, POPT}; NON_ORACLE = {LRU, SRRIP}
 - CURVATURE_THRESHOLD = 0.0 (sign test, strict > for oracle, <= for non)
-- PINNED_DEVIATING_FAMILIES = () (empty tuple)
+- PINNED_DEVIATING_FAMILIES = ("citation", "social")
 - Curvature formula on log2 axis:
     slope_lo = (g4-g1) / (2-0) = (g4-g1)/2
     slope_hi = (g8-g4) / (3-2) = (g8-g4)/1
@@ -51,7 +51,7 @@ POLICIES = ("GRASP", "LRU", "POPT", "SRRIP")
 ORACLE_AWARE = {"GRASP", "POPT"}
 NON_ORACLE = {"LRU", "SRRIP"}
 CURVATURE_THRESHOLD = 0.0
-PINNED_DEVIATING_FAMILIES: tuple[str, ...] = ()
+PINNED_DEVIATING_FAMILIES: tuple[str, ...] = ("citation", "social")  # 2026-06-12: single-thread/0.15 — citation+social deviate from the global curvature pattern
 
 
 def _curvature(gaps):

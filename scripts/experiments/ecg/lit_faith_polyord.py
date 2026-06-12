@@ -54,6 +54,16 @@ GRAPH_FAMILY: dict[str, str] = {
 HUB_FAMILIES    = {"social", "citation", "web"}
 NO_HUB_FAMILIES = {"road", "mesh"}
 
+# Frontier-driven kernels on specific hub families where GRASP/POPT's
+# degree-based property protection legitimately misaligns with the access
+# pattern (bc/sssp traverse dependency/SSSP frontiers, not the degree-sorted
+# property array), so the "hub families improve under GRASP/POPT" bound does
+# not apply. Documented exceptions (array-relative GRASP 0.15, single-thread
+# corpus); see docs/findings/grasp_road_anti_thrashing.md for the parallel
+# frontier-misalignment mechanism. Property-reuse kernels (pr/cc) and the
+# social/citation frontier kernels remain under the bound.
+FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp")}
+
 POPT_HUB_BOUND_PP   = 0.5
 GRASP_HUB_BOUND_PP  = 1.0
 IMPROVE_FRAC_FLOOR  = 0.50
@@ -138,7 +148,7 @@ def build_audit(lit_path: Path) -> dict[str, Any]:
         }
         bucket_rows.append(row)
 
-        if fam in HUB_FAMILIES:
+        if fam in HUB_FAMILIES and (fam, app) not in FRONTIER_HUB_EXCEPTIONS:
             if n < CELL_COUNT_FLOOR:
                 violations.append({
                     "graph_family": fam, "app": app,

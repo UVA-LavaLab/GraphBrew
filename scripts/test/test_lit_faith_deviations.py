@@ -76,8 +76,10 @@ def test_min_reason_length_floor(payload):
 
 
 def test_known_deviations_count_floor(payload):
-    """At least 20 KD entries to remain meaningful as a corpus."""
-    assert payload["summary"]["known_deviations_total"] >= 20
+    """At least 15 KD entries to remain meaningful as a corpus. (Power-law-scoped
+    POPT geomean model: ~17 per-cell POPT-vs-GRASP exceptions on the power-law
+    corpus; was 38 under the old per-cell-everywhere model at LLC-0.50.)"""
+    assert payload["summary"]["known_deviations_total"] >= 15
 
 
 def test_live_faith_known_deviation_rows_floor(payload):

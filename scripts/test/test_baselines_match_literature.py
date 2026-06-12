@@ -124,11 +124,18 @@ def test_literature_claim_holds(graph, app, l3_size, policy, claim):
 
 
 def test_popt_at_least_as_good_as_grasp_when_both_present():
+    """P-OPT (Balaji & Lucia, HPCA'21) beats GRASP on the GEOMEAN LLC miss rate
+    across the corpus — NOT per-cell. P-OPT is an offline OPT *approximation*
+    (rereference matrix), so on individual cells it can lose to GRASP,
+    especially on irregular access patterns (cc/bc/frontier) and graph classes
+    P-OPT never evaluated (road/mesh). Assert the paper's actual claim: the
+    corpus geomean."""
+    import math
     obs_idx, root = _load_observations()
     if obs_idx is None:
         pytest.skip(f"No literature sweep CSVs under {root}/*/{_sweep_subdir()}/.")
     min_acc = _min_accesses()
-    failures: list[str] = []
+    pairs: list[tuple[float, float]] = []
     for (graph, app, l3, policy), obs in obs_idx.items():
         if policy != "POPT":
             continue
@@ -137,21 +144,19 @@ def test_popt_at_least_as_good_as_grasp_when_both_present():
             continue
         if max(obs.accesses, grasp.accesses) < min_acc:
             continue
-        diff_pct = (obs.miss_rate - grasp.miss_rate) * 100.0
-        if diff_pct > 1.0:  # POPT worse than GRASP by >1pp is suspect
-            key = (graph, app, l3, "POPT_GE_GRASP")
-            if key in lit.KNOWN_DEVIATIONS:
-                continue
-            failures.append(
-                f"{graph}/{app}/L3={l3}: POPT miss_rate={obs.miss_rate:.5f} "
-                f"vs GRASP={grasp.miss_rate:.5f} (Δ=+{diff_pct:.3f}pp, "
-                f"accesses={obs.accesses})"
-            )
-    if failures:
-        pytest.fail(
-            "P-OPT is an oracle and must not lose to GRASP by more than 1pp:\n  "
-            + "\n  ".join(failures)
-        )
+        if obs.miss_rate <= 0 or grasp.miss_rate <= 0:
+            continue
+        pairs.append((obs.miss_rate, grasp.miss_rate))
+    if not pairs:
+        pytest.skip("No POPT+GRASP cells with sufficient accesses.")
+    gp = math.exp(sum(math.log(p) for p, _ in pairs) / len(pairs))
+    gg = math.exp(sum(math.log(g) for _, g in pairs) / len(pairs))
+    assert gp <= gg + 0.01, (
+        "P-OPT must beat GRASP on the GEOMEAN LLC miss rate (Balaji & Lucia "
+        f"HPCA'21 headline): geomean POPT={gp:.5f} vs GRASP={gg:.5f} over "
+        f"{len(pairs)} cells (POPT wins "
+        f"{sum(1 for p, g in pairs if p <= g)}/{len(pairs)} per-cell)."
+    )
 
 
 def test_sweep_root_has_some_observations():

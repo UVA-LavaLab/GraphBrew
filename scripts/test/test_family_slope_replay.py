@@ -124,7 +124,7 @@ def test_consistent_with_gate66_global(payload):
     g66 = json.loads(GATE66_JSON.read_text())
     assert g66["meta"]["verdict"] == "PASS"
     assert g66["meta"]["steepest_policy"] == "LRU"
-    assert g66["meta"]["shallowest_policy"] == "GRASP"
+    assert g66["meta"]["shallowest_policy"] == "POPT"
     # Gate 67 must therefore have at least one family replay.
     assert payload["meta"]["replay_count"] >= 1
 

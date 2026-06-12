@@ -66,9 +66,14 @@ def test_lru_is_steepest():
     assert p["meta"]["steepest_policy"] == "LRU"
 
 
-def test_grasp_is_shallowest():
+def test_popt_is_shallowest():
+    """POPT is the near-oracle policy: least cache-sensitive (shallowest
+    capacity slope) because it is already near-optimal at small L3, so it
+    has the least gap left to recover as capacity grows. (ST, array-relative
+    GRASP 0.15; GRASP — a degree heuristic — is steeper than POPT but still
+    shallower than the blind LRU/SRRIP.)"""
     p = _payload()
-    assert p["meta"]["shallowest_policy"] == "GRASP"
+    assert p["meta"]["shallowest_policy"] == "POPT"
 
 
 def test_grasp_median_strictly_shallower_than_lru():

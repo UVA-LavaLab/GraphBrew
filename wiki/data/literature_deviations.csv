@@ -1,25 +1,18 @@
 citation,graph,graph_family,app,l3_size,policy,expected_sign,tolerance_pct,delta_pct,popt_vs_grasp_pp,mechanism
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,cc,1MB,POPT_GE_GRASP,-,1.5,8.7258,8.726,popt_overhead_dominates
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,cit-Patents,citation,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,8.7258,8.726,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,cc,4MB,POPT_GE_GRASP,-,1.5,3.6479,3.648,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),cit-Patents,citation,cc,8MB,POPT_GE_GRASP,-,1.5,1.5277,1.528,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,bc,1MB,POPT_GE_GRASP,-,1.5,2.4747,2.475,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,bc,4MB,POPT_GE_GRASP,-,1.5,4.6678,4.668,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,bc,8MB,POPT_GE_GRASP,-,1.5,4.727,4.727,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,cc,1MB,POPT_GE_GRASP,-,1.5,11.0164,11.016,popt_overhead_dominates
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,social,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,11.0164,11.016,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,cc,4MB,POPT_GE_GRASP,-,1.5,10.0547,10.055,popt_overhead_dominates
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,social,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,10.0547,10.055,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),com-orkut,social,cc,8MB,POPT_GE_GRASP,-,1.5,6.1871,6.187,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,bc,8MB,POPT_GE_GRASP,-,1.5,1.6476,1.648,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,cc,4MB,POPT_GE_GRASP,-,1.5,1.8098,1.810,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-LiveJournal1,social,cc,8MB,POPT_GE_GRASP,-,1.5,3.0832,3.083,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,bc,1MB,POPT_GE_GRASP,-,1.5,3.0012,3.001,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,bc,4MB,POPT_GE_GRASP,-,1.5,1.6144,1.614,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,cc,1MB,POPT_GE_GRASP,-,1.5,10.5803,10.580,popt_overhead_dominates
-Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,soc-pokec,social,cc,1MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,10.5803,10.580,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,cc,4MB,POPT_GE_GRASP,-,1.5,5.6082,5.608,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),soc-pokec,social,sssp,1MB,POPT_GE_GRASP,-,1.5,3.8096,3.810,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,web,bc,4MB,POPT_GE_GRASP,-,1.5,2.6456,2.646,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3 (extended),web-Google,web,bc,8MB,POPT_GE_GRASP,-,1.5,2.6397,2.640,popt_overhead_dominates
-Balaji & Lucia HPCA 2021 §6.3,web-Google,web,pr,4MB,POPT_GE_GRASP,-,1.0,1.0627,1.063,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,citation,bc,8MB,POPT_GE_GRASP,-,1.5,2.3097,2.310,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),cit-Patents,citation,cc,8MB,POPT_GE_GRASP,-,1.5,1.8494,1.849,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,social,bc,4MB,POPT_GE_GRASP,-,1.5,3.6753,3.675,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,social,bc,8MB,POPT_GE_GRASP,-,1.5,5.7977,5.798,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,social,cc,1MB,POPT_GE_GRASP,-,1.5,5.943,5.943,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,social,cc,4MB,POPT_GE_GRASP,-,1.5,11.7166,11.717,popt_overhead_dominates
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,social,cc,4MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,11.7166,11.717,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,social,cc,8MB,POPT_GE_GRASP,-,1.5,8.9804,8.980,popt_overhead_dominates
+Faldu HPCA20 §6.1 + Balaji HPCA21 Fig 9 cross-check,com-orkut,social,cc,8MB,POPT_NEAR_GRASP_IF_BIG_GAP,~,2.0,8.9804,8.980,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),com-orkut,social,sssp,1MB,POPT_GE_GRASP,-,1.5,1.9731,1.973,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,social,cc,4MB,POPT_GE_GRASP,-,1.5,1.9937,1.994,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-LiveJournal1,social,cc,8MB,POPT_GE_GRASP,-,1.5,5.8083,5.808,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,social,cc,1MB,POPT_GE_GRASP,-,1.5,3.7238,3.724,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,social,cc,4MB,POPT_GE_GRASP,-,1.5,6.1477,6.148,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),soc-pokec,social,sssp,1MB,POPT_GE_GRASP,-,1.5,2.4916,2.492,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,web,bc,4MB,POPT_GE_GRASP,-,1.5,2.4858,2.486,popt_overhead_dominates
+Balaji & Lucia HPCA 2021 §6.3 (per-cell diagnostic; geomean is the claim),web-Google,web,bc,8MB,POPT_GE_GRASP,-,1.5,2.5758,2.576,popt_overhead_dominates

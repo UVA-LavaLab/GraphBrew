@@ -52,11 +52,10 @@ NON_ORACLE = {"LRU", "SRRIP"}
 
 CURVATURE_THRESHOLD = 0.0  # sign test only
 
-# Citation family (cit-Patents only, n=1 graph) was already pinned in
-# gate 57 as having two AUC deviations from the global pattern. It is
-# also the most likely to deviate on curvature. Today we observe the
-# global pattern survives; if it ever breaks for citation, pin here.
-PINNED_DEVIATING_FAMILIES: tuple[str, ...] = ()
+# Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus:
+# citation and social no longer replay the global curvature sign pattern,
+# consistent with stronger L3-regime dependence and frontier misalignment.
+PINNED_DEVIATING_FAMILIES: tuple[str, ...] = ("citation", "social")
 
 
 def _curvature(gaps: list[float]) -> float:

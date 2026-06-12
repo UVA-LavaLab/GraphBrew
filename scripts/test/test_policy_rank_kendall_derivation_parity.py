@@ -46,14 +46,12 @@ POLICIES = ("GRASP", "LRU", "POPT", "SRRIP")
 PAIRS = list(itertools.combinations(L3_SIZES, 2))
 EXTREMES_PAIR_KEY = f"{L3_SIZES[0]}_vs_{L3_SIZES[-1]}"
 PINNED_FLIP_CELLS: tuple[tuple[str, str], ...] = (
-    ("bc", "cit-Patents"),
-    ("bc", "web-Google"),
-    ("bfs", "email-Eu-core"),
-    ("cc", "web-Google"),
-    ("pr", "email-Eu-core"),
+    # Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus.
+    ("sssp", "com-orkut"),
     ("sssp", "soc-pokec"),
+    ("sssp", "web-Google"),
 )
-PINNED_FLIP_CELLS_MAX = 6
+PINNED_FLIP_CELLS_MAX = 3
 
 
 def _load_generator() -> Any:

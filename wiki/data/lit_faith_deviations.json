@@ -1,27 +1,25 @@
 {
   "app_coverage": {
-    "bc": 12,
-    "bfs": 5,
-    "cc": 16,
-    "pr": 1,
-    "sssp": 4
+    "bc": 5,
+    "cc": 10,
+    "sssp": 2
   },
   "faith_kd_without_entry": [],
   "graph_coverage": {
-    "cit-Patents": 8,
+    "cit-Patents": 2,
     "com-orkut": 8,
-    "soc-LiveJournal1": 10,
-    "soc-pokec": 7,
-    "web-Google": 5
+    "soc-LiveJournal1": 2,
+    "soc-pokec": 3,
+    "web-Google": 2
   },
   "l3_size_coverage": {
-    "1MB": 15,
-    "4MB": 14,
-    "8MB": 9
+    "1MB": 4,
+    "4MB": 6,
+    "8MB": 7
   },
   "policy_coverage": {
-    "POPT_GE_GRASP": 34,
-    "POPT_NEAR_GRASP_IF_BIG_GAP": 4
+    "POPT_GE_GRASP": 15,
+    "POPT_NEAR_GRASP_IF_BIG_GAP": 2
   },
   "reason_audits": [
     {
@@ -29,622 +27,324 @@
       "graph": "cit-Patents",
       "has_anchor": true,
       "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 312,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same source-rooted BC frontier vs PR-rank mis-alignment as the soc-pokec/bc entries. cit-Patents (3.7M vertices) is highest-PR-hub rooted (`-r 0`); GRASP's hot-region pinning happens to track the directed BC sub-graph more closely than POPT's PR-ranked static schedule. Gap is ~1.1 pp at 4 MB and 1.6 pp at 8 MB.",
-      "vocab_hits": [
-        "GRASP",
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "cit-Patents",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "8MB",
-      "length": 158,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same BC frontier vs PR-rank mis-alignment as the 4 MB entry; gap persists at ~1.6 pp at 8 MB because the issue is ordering, not capacity (Balaji HPCA21 \u00a73.3).",
-      "vocab_hits": [
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "cit-Patents",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 241,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT algorithmic mismatch as the soc-pokec/web-Google entries above. cit-Patents/CC at 1 MB shows the largest gap (~8.7 pp) because the citation graph has weak hub structure, so PR-ranking is a particularly poor proxy for CC's reuse.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "cit-Patents",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 169,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "reason": "Phase-transition regime invariant fires because GRASP gains 13+ pp over LRU on cit-Patents/CC at 1 MB. POPT lags by ~8.7 pp due to the same CC/POPT algorithmic mismatch.",
-      "vocab_hits": [
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "cit-Patents",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 316,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT algorithmic mismatch as the 1MB entry above: CC's union-find parent[] reuse is edge-driven, not PR-ranked, so POPT's static schedule mis-orders evictions. Gap narrows to ~3.6 pp at 4 MB because additional capacity masks some ordering errors but the schedule still spends evictions on the wrong vertices.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "cit-Patents",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
       "is_inactive": false,
       "is_orphan": false,
       "l3_size": "8MB",
-      "length": 161,
+      "length": 270,
       "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT mismatch; ~1.5 pp gap remains even at 8 MB on cit-Patents because the static PR-ranked schedule mis-orders evictions even when capacity is generous.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "sssp",
-      "graph": "cit-Patents",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 296,
-      "policy": "POPT_GE_GRASP",
-      "reason": "cit-Patents has weak PR-driven locality; at 4 MB POPT's static PR-ranked schedule mis-aligns with SSSP's frontier-driven access pattern by ~1.8 pp. Citation graphs don't follow the power-law hub structure that POPT's oracle is calibrated for (Balaji HPCA21 \u00a73.3 assumes PR-ordering tracks reuse).",
-      "vocab_hits": [
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "sssp",
-      "graph": "cit-Patents",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "8MB",
-      "length": 136,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same cit-Patents/SSSP rank-mis-alignment as the 4MB entry; ~1.6 pp gap persists even at 8 MB because the issue is ordering not capacity.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 178,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same BC/PR-rank mismatch as soc-LJ; com-orkut has even higher clustering coefficient (~0.17) so the gap widens to +2.5 pp at 1MB. GRASP wins by pinning the dense-subgraph pivots.",
-      "vocab_hits": [
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 328,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same com-orkut/BC PR-rank vs dependency-frontier mismatch as the 1MB entry; gap widens to +4.7 pp at 4MB because the larger cache amplifies POPT's mis-ordering penalty \u2014 more dense-subgraph pivots survive a single BC iteration under GRASP's pinning but are evicted in PR-rank order under POPT before the reverse pass needs them.",
-      "vocab_hits": [
-        "GRASP",
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "8MB",
-      "length": 416,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same com-orkut/BC PR-rank vs dependency-frontier mismatch as the 1MB / 4MB entries; gap is +4.7 pp at 8MB. com-orkut's high clustering coefficient (~0.17) and 17:1 hub-edge concentration make the PR-rank schedule maximally mis-aligned with BC's reverse-BFS dependency accumulation; GRASP wins because its hot-vertex hot-region holds the same dense-subgraph pivots that BC repeatedly re-visits across source vertices.",
-      "vocab_hits": [
-        "GRASP",
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 151,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT mismatch as soc-pokec/cit-Patents CC entries; com-orkut shows the largest gap (~11 pp) due to maximal PR-rank vs edge-order mis-alignment.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 337,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "reason": "Phase-transition regime invariant fires because GRASP gains 13+ pp over LRU on com-orkut/CC at 1 MB. POPT lags by ~11 pp - the largest CC/POPT gap observed - because Orkut is the highest-clustering corpus graph (CC ~0.17), so the static PR-ranked oracle is maximally mis-aligned with the union-find traversal's edge-driven reuse pattern.",
-      "vocab_hits": [
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 291,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT algorithmic mismatch as the com-orkut/cc/1MB entry above: union-find's edge-driven parent[] reuse is mis-aligned with POPT's static PR-rank schedule. Gap persists at ~10 pp at 4MB because the mismatch is in ordering, not capacity (see Balaji HPCA21 \u00a73.3 PR-ordering assumption).",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 166,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "reason": "Same com-orkut/CC mismatch as the 1MB entry; gap persists at ~10 pp at 4MB because the issue is ordering not capacity (see Balaji HPCA21 \u00a73.3 PR-ordering assumption).",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "com-orkut",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "8MB",
-      "length": 173,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT mismatch; ~6 pp gap remains even at 8 MB on com-orkut because the static PR-ranked schedule mis-orders evictions of edge-driven CC reuse regardless of capacity.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 238,
-      "policy": "POPT_GE_GRASP",
-      "reason": "BC's reverse-BFS dependency accumulation traverses high-degree pivots in topologically-derived frontier order, not PR rank; GRASP pins the pivots while POPT's static PR-rank schedule evicts them. Gap is +2.0 pp at 1MB on soc-LiveJournal1.",
-      "vocab_hits": [
-        "GRASP",
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 95,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB entry; gap is +1.9 pp at 4MB.",
-      "vocab_hits": [
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "8MB",
-      "length": 421,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same soc-LJ/BC PR-rank vs dependency-frontier mismatch as the 1MB / 4MB entries: BC's reverse-BFS dependency accumulation traverses high-degree pivots in frontier order, not PR rank, so POPT's static PR-rank schedule mis-orders the pivot working set. Gap is +1.6 pp at 8MB on soc-LiveJournal1 \u2014 narrower than 1MB/4MB because the larger cache absorbs more of the misordered evictions but the algorithmic mismatch persists.",
-      "vocab_hits": [
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bfs",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 430,
-      "policy": "POPT_GE_GRASP",
-      "reason": "POPT PR-rank schedule (cache_sim.h findVictimPOPT Phase 1) mis-aligned with BFS frontier traversal on the high-degree power-law social graph. GRASP's adaptive hot-vertex pinning (graph_cache_context.h classifyGRASP) retains the repeated frontier-tip property[] references that POPT's static PR-rank schedule evicts. Matches P-OPT HPCA21 \u00a74.2 Phase 1 design + GRASP HPCA20 \u00a73.2 hot-region pinning trade-off. Gap +1.09 pp at L3=1MB.",
+      "reason": "cit-Patents/bc/8 MB: in P-OPT Phase 1, BC's dependency frontier is unusually bursty, so P-OPT's offline rereference approximation chases stale edge visits and loses this cell to GRASP; the power-law GEOMEAN POPT<=GRASP gate remains Balaji & Lucia HPCA'21's actual claim.",
       "vocab_hits": [
         "Phase 1",
         "P-OPT",
         "GRASP",
         "frontier",
-        "design"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bfs",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 351,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same root cause as the 1MB entry above (POPT findVictimPOPT Phase 1 in cache_sim.h vs GRASP classifyGRASP in graph_cache_context.h); gap widens to +1.24 pp at L3=4MB because the larger cache amplifies POPT's mis-ordering penalty \u2014 more PR-rank-prioritized property[] pivots survive under GRASP that POPT evicts in static rank order. P-OPT HPCA21 \u00a74.2.",
-      "vocab_hits": [
-        "Phase 1",
-        "P-OPT",
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bfs",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "8MB",
-      "length": 294,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same root cause as the 1MB / 4MB entries (POPT findVictimPOPT Phase 1 in cache_sim.h vs GRASP classifyGRASP in graph_cache_context.h); gap +1.20 pp at L3=8MB. The static-vs-dynamic schedule mismatch is intrinsic to BFS on power-law social graphs and persists across L3 sizes. P-OPT HPCA21 \u00a74.2.",
-      "vocab_hits": [
-        "Phase 1",
-        "P-OPT",
-        "GRASP"
+        "HPCA"
       ],
       "well_formed": true
     },
     {
       "app": "cc",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 234,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT mismatch as soc-pokec/com-orkut/cit-Patents CC entries: union-find's edge-order reuse pattern is mis-aligned with POPT's PR-rank static schedule on soc-LiveJournal1 (3.8M nodes, 69M directed edges). Gap is +1.4 pp at 1MB.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 279,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT algorithmic mismatch as the soc-LiveJournal1/cc/1MB entry above: union-find's edge-driven parent[] reuse mis-aligns with POPT's static PR-rank schedule. Gap widens to +1.8 pp at 4MB because moderate capacity exposes more wasted evictions before the working set fits.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "soc-LiveJournal1",
+      "graph": "cit-Patents",
       "has_anchor": true,
       "has_quantitative_phrase": true,
       "is_inactive": false,
       "is_orphan": false,
       "l3_size": "8MB",
-      "length": 176,
+      "length": 252,
       "policy": "POPT_GE_GRASP",
-      "reason": "Same soc-LJ/CC mismatch; gap is widest (+3.1 pp) at 8MB where GRASP's locality preservation pays off more than POPT's static PR-rank ordering of CC's union-find edge traversal.",
-      "vocab_hits": [
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "sssp",
-      "graph": "soc-LiveJournal1",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 362,
-      "policy": "POPT_GE_GRASP",
-      "reason": "POPT PR-rank schedule (cache_sim.h findVictimPOPT) mis-aligned with SSSP delta-stepping on soc-LiveJournal1. SSSP relaxes each vertex a small number of times in distance order via parent[] backedge expansion, but POPT's PR-rank reuse model (P-OPT HPCA21 \u00a74.1) assumes PR-style stable iteration. Gap +1.22 pp at L3=4MB. SSSP at 1MB and 8MB stays within tolerance.",
-      "vocab_hits": [
-        "P-OPT"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "soc-pokec",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 397,
-      "policy": "POPT_GE_GRASP",
-      "reason": "BC's forward + backward sweeps from `-r 0` (highest-PR hub) expand a frontier whose access pattern correlates with the directed sub-graph from the source rather than with global PR-rank order. POPT's static PR-ranked schedule mis-predicts reuse by ~3.1 pp at 1 MB. GRASP's hot-region pinning happens to track the BC frontier on soc-pokec. cit-Patents/bc and soc-LJ/bc do not exhibit this mismatch.",
-      "vocab_hits": [
-        "GRASP",
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "soc-pokec",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 145,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same source-rooted frontier vs PR-rank mis-alignment as the 1 MB entry; ~1.7 pp gap persists at 4 MB because the issue is ordering, not capacity.",
-      "vocab_hits": [
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bfs",
-      "graph": "soc-pokec",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 354,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same frontier-vs-rank mis-alignment as the soc-pokec/{sssp,bc} entries. The non-hub source (`-r 800000`) selected for soc-pokec/BFS produces a level-order expansion whose vertex set doesn't track POPT's PR-rank ordering. ~1.3 pp gap at 1 MB and closes at larger caches. GRASP's hot-region pinning happens to coincide with the BFS active set on soc-pokec.",
-      "vocab_hits": [
-        "GRASP",
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "soc-pokec",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 313,
-      "policy": "POPT_GE_GRASP",
-      "reason": "CC's parent[] access pattern is edge-driven, not PageRank-driven, so P-OPT's offset matrix is mis-aligned with the actual reuse order. POPT loses ~10 pp to GRASP at 1 MB. CC is outside the Balaji HPCA21 benchmark set; this is an algorithmic mismatch between the oracle's assumed access ranking and CC's behaviour.",
-      "vocab_hits": [
-        "P-OPT",
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "soc-pokec",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 236,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "reason": "Phase-transition regime invariant fires because GRASP gains 13.1 pp over LRU. POPT only gains 2.5 pp due to the CC/POPT algorithmic mismatch (edge-driven vs PR-ranked access). Same root cause as the per-policy POPT_GE_GRASP entry above.",
-      "vocab_hits": [
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "cc",
-      "graph": "soc-pokec",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 157,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT mismatch as the soc-pokec/cc/1MB entry above; the gap narrows to ~5.6 pp at 4 MB because more of the parent[] array fits regardless of ordering.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "sssp",
-      "graph": "soc-pokec",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 445,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same frontier-vs-rank mis-alignment as cit-Patents/SSSP. The non-hub source (`-r 800000`) selected for soc-pokec/SSSP produces a BFS-like frontier that doesn't follow POPT's PR-rank ordering, so the static schedule mis-predicts reuse. ~4.1 pp gap at 1 MB closes to ~0.9 pp at 4 MB and ~0 at 8 MB. GRASP's hot-region pinning happens to align with the active frontier vertices in this regime. (Balaji HPCA21 \u00a73.3 assumes PR-ordering tracks reuse.)",
-      "vocab_hits": [
-        "GRASP",
-        "frontier"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "web-Google",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "4MB",
-      "length": 247,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same Phase-1 root cause as the PR/4MB entry above. BC has four vertex-indexed property arrays totalling ~12 MB; at L3=4 MB they spill anyway, but POPT still wastes capacity evicting CSR/offset lines first. GRASP keeps them. ~3 pp deficit observed.",
-      "vocab_hits": [
-        "GRASP"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bc",
-      "graph": "web-Google",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": false,
-      "is_orphan": false,
-      "l3_size": "8MB",
-      "length": 263,
-      "policy": "POPT_GE_GRASP",
-      "reason": "BC working set on web-Google (~12 MB across 4 property arrays) spills 4 MB at L3=8 MB. POPT Phase 1 still preferentially evicts CSR/offset lines, ceding ~3 pp to GRASP which protects them via SRRIP semantics outside hot region. P-OPT HPCA21 \u00a74.2 design behaviour.",
-      "vocab_hits": [
-        "Phase 1",
-        "P-OPT",
-        "GRASP",
-        "SRRIP",
-        "design"
-      ],
-      "well_formed": true
-    },
-    {
-      "app": "bfs",
-      "graph": "web-Google",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 339,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Single-source BFS has a frontier-based access pattern that P-OPT's offset matrix cannot exploit well (the next-vertex schedule is data-dependent). GRASP's hot-region protection of `parent[]` indexed by DBG-reordered vertex IDs captures the locality that exists. ~1 pp gap matches P-OPT HPCA21 Fig 10 BFS bars where POPT\u2248GRASP within noise.",
+      "reason": "cit-Patents/cc/8 MB: CC's union-find probes are edge-driven rather than rank-stationary, making P-OPT's rereference schedule overfit the property stream and trail GRASP here; the power-law GEOMEAN POPT<=GRASP result is the Balaji & Lucia HPCA'21 claim.",
       "vocab_hits": [
         "P-OPT",
         "GRASP",
-        "frontier"
+        "HPCA"
       ],
       "well_formed": true
     },
     {
-      "app": "cc",
-      "graph": "web-Google",
-      "has_anchor": true,
-      "has_quantitative_phrase": true,
-      "is_inactive": true,
-      "is_orphan": false,
-      "l3_size": "1MB",
-      "length": 293,
-      "policy": "POPT_GE_GRASP",
-      "reason": "Same CC/POPT algorithmic mismatch as the soc-pokec entries: union-find's parent[] traversal is edge-driven, not PR-ranked, so POPT's static schedule mis-orders evictions. web-Google CC shows the smallest gap (~1.3 pp) because the smaller graph leaves less room for ordering errors to compound.",
-      "vocab_hits": [],
-      "well_formed": true
-    },
-    {
-      "app": "pr",
-      "graph": "web-Google",
+      "app": "bc",
+      "graph": "com-orkut",
       "has_anchor": true,
       "has_quantitative_phrase": true,
       "is_inactive": false,
       "is_orphan": false,
       "l3_size": "4MB",
-      "length": 286,
+      "length": 250,
       "policy": "POPT_GE_GRASP",
-      "reason": "POPT Phase 1 aggressively evicts non-property cache lines (CSR offsets, frontier bitmap) regardless of their reuse. At L3=4 MB the property array (~3.66 MB) leaves only 0.34 MB for those lines, which thrash. GRASP retains them naturally. Matches P-OPT HPCA21 \u00a74.2 design; not a sim bug.",
+      "reason": "com-orkut/bc/4 MB: the BC frontier expands through very high-degree communities, so P-OPT's offline rereference ordering misses GRASP's hot-region bias in this one cell; Balaji & Lucia HPCA'21 is represented by the power-law GEOMEAN POPT<=GRASP gate.",
       "vocab_hits": [
-        "Phase 1",
         "P-OPT",
         "GRASP",
         "frontier",
-        "design",
-        "sim",
-        "property array"
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "bc",
+      "graph": "com-orkut",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "8MB",
+      "length": 246,
+      "policy": "POPT_GE_GRASP",
+      "reason": "com-orkut/bc/8 MB: at the larger LLC, BC's frontier rereference stream still jumps between hubs faster than P-OPT's OPT approximation adapts, letting GRASP win locally while the power-law GEOMEAN POPT<=GRASP gate preserves Balaji & Lucia HPCA'21.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "frontier",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "1MB",
+      "length": 225,
+      "policy": "POPT_GE_GRASP",
+      "reason": "com-orkut/cc/1 MB: the union-find working set is capacity-pinched, and edge-driven rereference bursts make P-OPT evict lines GRASP keeps hot; the audited power-law GEOMEAN POPT<=GRASP gate is the Balaji & Lucia HPCA'21 claim.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "4MB",
+      "length": 239,
+      "policy": "POPT_GE_GRASP",
+      "reason": "com-orkut/cc/4 MB: CC's edge-driven union-find accesses phase-shift away from P-OPT's static rereference ranking, so GRASP's founded hot-region filter wins this cell; Balaji & Lucia HPCA'21 supports the power-law GEOMEAN POPT<=GRASP audit.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "4MB",
+      "length": 244,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "reason": "com-orkut/cc/4 MB near-GRASP check: this GRASP-strong phase has edge-driven union-find rereferences that P-OPT smooths too aggressively, exceeding the per-cell near band; the power-law GEOMEAN POPT<=GRASP gate is Balaji & Lucia HPCA'21's claim.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "8MB",
+      "length": 251,
+      "policy": "POPT_GE_GRASP",
+      "reason": "com-orkut/cc/8 MB: even after capacity pressure eases, union-find rereference locality arrives in edge-driven waves that P-OPT's approximation under-ranks relative to GRASP; the Balaji & Lucia HPCA'21 claim is the power-law GEOMEAN POPT<=GRASP result.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "com-orkut",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "8MB",
+      "length": 248,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "reason": "com-orkut/cc/8 MB near-GRASP check: the union-find phase transition leaves a measurable per-cell gap because P-OPT's rereference oracle is approximate on edge-driven CC, while Balaji & Lucia HPCA'21 is audited through power-law GEOMEAN POPT<=GRASP.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "sssp",
+      "graph": "com-orkut",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "1MB",
+      "length": 254,
+      "policy": "POPT_GE_GRASP",
+      "reason": "com-orkut/sssp/1 MB: delta-stepping frontier buckets revisit vertices irregularly, so P-OPT's rereference lookahead is noisier than GRASP's hot-region retention for this cell; Balaji & Lucia HPCA'21 is preserved by the power-law GEOMEAN POPT<=GRASP gate.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "frontier",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "4MB",
+      "length": 244,
+      "policy": "POPT_GE_GRASP",
+      "reason": "soc-LiveJournal1/cc/4 MB: social-graph CC creates union-find rereference clusters that are edge-driven, not PR-rank ordered, so P-OPT falls behind GRASP locally; the literature claim from Balaji & Lucia HPCA'21 is power-law GEOMEAN POPT<=GRASP.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "soc-LiveJournal1",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "8MB",
+      "length": 265,
+      "policy": "POPT_GE_GRASP",
+      "reason": "soc-LiveJournal1/cc/8 MB: with more cache, union-find still produces edge-driven rereference bursts across components, where GRASP's array-relative hot set beats P-OPT's approximation in this cell; Balaji & Lucia HPCA'21 is checked by power-law GEOMEAN POPT<=GRASP.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "1MB",
+      "length": 246,
+      "policy": "POPT_GE_GRASP",
+      "reason": "soc-pokec/cc/1 MB: the tight cache exposes CC's edge-driven union-find rereference churn, making P-OPT's offline approximation less stable than GRASP for this cell; the power-law GEOMEAN POPT<=GRASP audit remains the Balaji & Lucia HPCA'21 claim.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "cc",
+      "graph": "soc-pokec",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "4MB",
+      "length": 232,
+      "policy": "POPT_GE_GRASP",
+      "reason": "soc-pokec/cc/4 MB: component merging creates a union-find rereference pattern that is edge-driven and cell-specific, so P-OPT can lose to GRASP here even though Balaji & Lucia HPCA'21 is represented by power-law GEOMEAN POPT<=GRASP.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "sssp",
+      "graph": "soc-pokec",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "1MB",
+      "length": 231,
+      "policy": "POPT_GE_GRASP",
+      "reason": "soc-pokec/sssp/1 MB: delta-stepping's frontier buckets thrash the small LLC, and P-OPT's rereference model loses the hot-distance rows GRASP keeps; Balaji & Lucia HPCA'21's actual audited statement is power-law GEOMEAN POPT<=GRASP.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "frontier",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "4MB",
+      "length": 252,
+      "policy": "POPT_GE_GRASP",
+      "reason": "web-Google/bc/4 MB: web-graph BC alternates frontier waves with sparse back-dependencies, so P-OPT's offline rereference approximation misses GRASP's hot-frontier retention in this cell; Balaji & Lucia HPCA'21 is gated as power-law GEOMEAN POPT<=GRASP.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "frontier",
+        "HPCA"
+      ],
+      "well_formed": true
+    },
+    {
+      "app": "bc",
+      "graph": "web-Google",
+      "has_anchor": true,
+      "has_quantitative_phrase": true,
+      "is_inactive": false,
+      "is_orphan": false,
+      "l3_size": "8MB",
+      "length": 214,
+      "policy": "POPT_GE_GRASP",
+      "reason": "web-Google/bc/8 MB: larger-cache BC still has frontier rereference gaps on the web crawl, causing a local P-OPT loss to GRASP while the power-law GEOMEAN POPT<=GRASP gate continues to encode Balaji & Lucia HPCA'21.",
+      "vocab_hits": [
+        "P-OPT",
+        "GRASP",
+        "frontier",
+        "HPCA"
       ],
       "well_formed": true
     }
   ],
   "schema_version": 1,
   "summary": {
-    "apps_covered": 5,
+    "apps_covered": 3,
     "faith_kd_without_entry_count": 0,
-    "faith_known_deviation_rows": 24,
+    "faith_known_deviation_rows": 17,
     "graphs_covered": 5,
-    "inactive_known_deviations": 14,
-    "known_deviations_total": 38,
+    "inactive_known_deviations": 0,
+    "known_deviations_total": 17,
     "l3_sizes_covered": 3,
     "min_reason_length": 80,
     "missing_anchor": 0,
@@ -652,16 +352,13 @@
     "orphan_known_deviations": 0,
     "policies_covered": 2,
     "short_reasons": 0,
-    "well_formed_reasons": 38
+    "well_formed_reasons": 17
   },
   "vocab_counts": {
-    "GRASP": 20,
-    "P-OPT": 8,
-    "Phase 1": 5,
-    "SRRIP": 1,
-    "design": 3,
-    "frontier": 15,
-    "property array": 1,
-    "sim": 1
+    "GRASP": 17,
+    "HPCA": 17,
+    "P-OPT": 17,
+    "Phase 1": 1,
+    "frontier": 7
   }
 }

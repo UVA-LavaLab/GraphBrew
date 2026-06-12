@@ -38,6 +38,7 @@ EXPECTED_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
 EXPECTED_POLICIES = {"GRASP", "LRU", "POPT", "SRRIP"}
 EXPECTED_FAMILIES = {"citation", "mesh", "road", "social", "web"}
 EXPECTED_QUALIFYING_FAMILIES = {"citation", "social", "web"}
+EXPECTED_INTRA_DOMINATES_FAMILIES = {"citation", "social"}
 EXPECTED_NON_QUALIFYING_FAMILIES = {"mesh", "road"}
 
 EXPECTED_GLOBAL_WINNER = {
@@ -53,10 +54,10 @@ EXPECTED_GLOBAL_CLUSTERS = {
 }
 EXPECTED_DEVIATIONS = frozenset(
     {
-        ("citation", "bc"),
-        ("citation", "bfs"),
         ("citation", "sssp"),
         ("social", "sssp"),
+        ("web", "bc"),
+        ("web", "cc"),
     }
 )
 
@@ -75,7 +76,9 @@ EXPECTED_STABILITY_FLOOR = 0.95
 EXPECTED_STABLE_CLAIMS = frozenset(
     {
         "GRASP < LRU on social",
-        "POPT < GRASP on road",
+        "POPT < GRASP on citation",
+        "POPT < GRASP on mesh",
+        "POPT < GRASP on web",
         "POPT < LRU on social",
     }
 )
@@ -97,7 +100,7 @@ def test_fpac_meta_scope_is_locked():
     assert set(meta["policies"]) == EXPECTED_POLICIES
     assert set(meta["families"]) == EXPECTED_FAMILIES
     assert set(meta["qualifying_families"]) == EXPECTED_QUALIFYING_FAMILIES
-    assert meta["n_families_with_intra_dominates"] == len(EXPECTED_QUALIFYING_FAMILIES)
+    assert meta["n_families_with_intra_dominates"] == len(EXPECTED_INTRA_DOMINATES_FAMILIES)
 
 
 def test_fpac_global_winner_by_app_is_locked():
@@ -132,7 +135,7 @@ def test_fpac_deviation_set_observed_equals_pinned_and_verdict_pass():
 
 def test_fpac_qualified_families_intra_dominates_and_non_qualified_have_no_winner_by_app():
     per_family = _load(FPAC_PATH)["per_family"]
-    for fam in EXPECTED_QUALIFYING_FAMILIES:
+    for fam in EXPECTED_INTRA_DOMINATES_FAMILIES:
         payload = per_family[fam]
         assert payload["qualified"] is True
         assert payload["intra_dominates"] is True
@@ -145,6 +148,10 @@ def test_fpac_qualified_families_intra_dominates_and_non_qualified_have_no_winne
         payload = per_family[fam]
         assert payload["qualified"] is False
         assert "winner_by_app" not in payload, f"non-qualified family {fam} has winner_by_app"
+    web = per_family["web"]
+    assert web["qualified"] is True
+    assert web["intra_dominates"] is False
+    assert "winner_by_app" in web
 
 
 # ---------------------------------------------------------------------------
@@ -233,6 +240,7 @@ def test_xartifact_pwt_argmax_per_app_equals_fpac_global_winner():
     # advantage. Both are honest, the metrics measure different things.
     KNOWN_CROSS_ARTIFACT_DISAGREEMENTS = {
         ("bfs", "GRASP", "POPT"),
+        ("sssp", "GRASP", "POPT"),
     }
     for app in EXPECTED_APPS:
         wins = pwt_wins[app]

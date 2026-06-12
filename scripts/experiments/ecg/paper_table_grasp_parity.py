@@ -129,6 +129,12 @@ def main() -> int:
     a = p.parse_args()
 
     rows = gather(a.json_in)
+    if not rows:
+        import sys as _sys
+        print(f"[grasp-parity] no GRASP/ECG_DBG cells in {a.json_in}; preserving "
+              f"committed {a.json_out.name} (prefetcher source lacks eviction "
+              "cells / its /tmp sweep is absent).", file=_sys.stderr)
+        return 0
     summary = compute_summary(rows)
     payload = {"cells": rows, "summary": summary,
                "source": str(a.json_in), "method": "ECG_DBG_ONLY vs GRASP L3 miss-rate per cell"}

@@ -41,15 +41,13 @@ REPRO_CSV_PATH = REPO_ROOT / "wiki" / "data" / "literature_reproduction_summary.
 EXPECTED_GRAPHS = {
     "cit-Patents",
     "com-orkut",
-    "delaunay_n19",
     "email-Eu-core",
-    "roadNet-CA",
     "soc-LiveJournal1",
     "soc-pokec",
     "web-Google",
 }
-EXPECTED_GRAPH_COUNT = 8
-EXPECTED_TOTAL_CLAIMS = 330
+EXPECTED_GRAPH_COUNT = 6
+EXPECTED_TOTAL_CLAIMS = 279
 
 NUMERIC_PCT_TOL = 1e-6
 

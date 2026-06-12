@@ -18,7 +18,7 @@
     ],
     "z_norm": "per-app z-score across the 4 policy AUC values",
     "auc_winner_by_app": {
-      "bc": "SRRIP",
+      "bc": "GRASP",
       "bfs": "POPT",
       "cc": "GRASP",
       "pr": "POPT",
@@ -26,105 +26,103 @@
     },
     "clusters_by_winner": {
       "GRASP": [
+        "bc",
         "cc"
       ],
       "POPT": [
         "bfs",
         "pr",
         "sssp"
-      ],
-      "SRRIP": [
-        "bc"
       ]
     }
   },
   "matrix": {
     "bc": {
       "bc": 1.0,
-      "bfs": 0.0768,
-      "cc": 0.7183,
-      "pr": 0.4264,
-      "sssp": 0.1032
+      "bfs": -0.1699,
+      "cc": 0.7814,
+      "pr": 0.4549,
+      "sssp": 0.0973
     },
     "bfs": {
-      "bc": 0.0768,
+      "bc": -0.1699,
       "bfs": 1.0,
-      "cc": 0.224,
-      "pr": 0.8858,
-      "sssp": 0.7808
+      "cc": 0.1297,
+      "pr": 0.7119,
+      "sssp": 0.9447
     },
     "cc": {
-      "bc": 0.7183,
-      "bfs": 0.224,
+      "bc": 0.7814,
+      "bfs": 0.1297,
       "cc": 1.0,
-      "pr": 0.6492,
-      "sssp": -0.2152
+      "pr": 0.7886,
+      "sssp": 0.2242
     },
     "pr": {
-      "bc": 0.4264,
-      "bfs": 0.8858,
-      "cc": 0.6492,
+      "bc": 0.4549,
+      "bfs": 0.7119,
+      "cc": 0.7886,
       "pr": 1.0,
-      "sssp": 0.5243
+      "sssp": 0.7484
     },
     "sssp": {
-      "bc": 0.1032,
-      "bfs": 0.7808,
-      "cc": -0.2152,
-      "pr": 0.5243,
+      "bc": 0.0973,
+      "bfs": 0.9447,
+      "cc": 0.2242,
+      "pr": 0.7484,
       "sssp": 1.0
     }
   },
   "pair_list": [
     {
       "app_a": "bfs",
-      "app_b": "pr",
-      "pearson_r": 0.8858
-    },
-    {
-      "app_a": "bfs",
       "app_b": "sssp",
-      "pearson_r": 0.7808
-    },
-    {
-      "app_a": "bc",
-      "app_b": "cc",
-      "pearson_r": 0.7183
+      "pearson_r": 0.9447
     },
     {
       "app_a": "cc",
       "app_b": "pr",
-      "pearson_r": 0.6492
+      "pearson_r": 0.7886
+    },
+    {
+      "app_a": "bc",
+      "app_b": "cc",
+      "pearson_r": 0.7814
     },
     {
       "app_a": "pr",
       "app_b": "sssp",
-      "pearson_r": 0.5243
+      "pearson_r": 0.7484
+    },
+    {
+      "app_a": "bfs",
+      "app_b": "pr",
+      "pearson_r": 0.7119
     },
     {
       "app_a": "bc",
       "app_b": "pr",
-      "pearson_r": 0.4264
-    },
-    {
-      "app_a": "bfs",
-      "app_b": "cc",
-      "pearson_r": 0.224
-    },
-    {
-      "app_a": "bc",
-      "app_b": "sssp",
-      "pearson_r": 0.1032
-    },
-    {
-      "app_a": "bc",
-      "app_b": "bfs",
-      "pearson_r": 0.0768
+      "pearson_r": 0.4549
     },
     {
       "app_a": "cc",
       "app_b": "sssp",
-      "pearson_r": -0.2152
+      "pearson_r": 0.2242
+    },
+    {
+      "app_a": "bfs",
+      "app_b": "cc",
+      "pearson_r": 0.1297
+    },
+    {
+      "app_a": "bc",
+      "app_b": "sssp",
+      "pearson_r": 0.0973
+    },
+    {
+      "app_a": "bc",
+      "app_b": "bfs",
+      "pearson_r": -0.1699
     }
   ],
   "nearest_sibling": {
@@ -132,148 +130,148 @@
       "ranking": [
         {
           "app": "cc",
-          "pearson_r": 0.7183
+          "pearson_r": 0.7814
         },
         {
           "app": "pr",
-          "pearson_r": 0.4264
+          "pearson_r": 0.4549
         },
         {
           "app": "sssp",
-          "pearson_r": 0.1032
+          "pearson_r": 0.0973
         },
         {
           "app": "bfs",
-          "pearson_r": 0.0768
+          "pearson_r": -0.1699
         }
       ],
       "closest_app": "cc",
-      "closest_r": 0.7183,
-      "winner_policy": "SRRIP"
+      "closest_r": 0.7814,
+      "winner_policy": "GRASP"
     },
     "bfs": {
       "ranking": [
         {
-          "app": "pr",
-          "pearson_r": 0.8858
+          "app": "sssp",
+          "pearson_r": 0.9447
         },
         {
-          "app": "sssp",
-          "pearson_r": 0.7808
+          "app": "pr",
+          "pearson_r": 0.7119
         },
         {
           "app": "cc",
-          "pearson_r": 0.224
+          "pearson_r": 0.1297
         },
         {
           "app": "bc",
-          "pearson_r": 0.0768
+          "pearson_r": -0.1699
         }
       ],
-      "closest_app": "pr",
-      "closest_r": 0.8858,
+      "closest_app": "sssp",
+      "closest_r": 0.9447,
       "winner_policy": "POPT"
     },
     "cc": {
       "ranking": [
         {
-          "app": "bc",
-          "pearson_r": 0.7183
-        },
-        {
           "app": "pr",
-          "pearson_r": 0.6492
+          "pearson_r": 0.7886
         },
         {
-          "app": "bfs",
-          "pearson_r": 0.224
+          "app": "bc",
+          "pearson_r": 0.7814
         },
         {
           "app": "sssp",
-          "pearson_r": -0.2152
+          "pearson_r": 0.2242
+        },
+        {
+          "app": "bfs",
+          "pearson_r": 0.1297
         }
       ],
-      "closest_app": "bc",
-      "closest_r": 0.7183,
+      "closest_app": "pr",
+      "closest_r": 0.7886,
       "winner_policy": "GRASP"
     },
     "pr": {
       "ranking": [
         {
-          "app": "bfs",
-          "pearson_r": 0.8858
-        },
-        {
           "app": "cc",
-          "pearson_r": 0.6492
+          "pearson_r": 0.7886
         },
         {
           "app": "sssp",
-          "pearson_r": 0.5243
+          "pearson_r": 0.7484
+        },
+        {
+          "app": "bfs",
+          "pearson_r": 0.7119
         },
         {
           "app": "bc",
-          "pearson_r": 0.4264
+          "pearson_r": 0.4549
         }
       ],
-      "closest_app": "bfs",
-      "closest_r": 0.8858,
+      "closest_app": "cc",
+      "closest_r": 0.7886,
       "winner_policy": "POPT"
     },
     "sssp": {
       "ranking": [
         {
           "app": "bfs",
-          "pearson_r": 0.7808
+          "pearson_r": 0.9447
         },
         {
           "app": "pr",
-          "pearson_r": 0.5243
-        },
-        {
-          "app": "bc",
-          "pearson_r": 0.1032
+          "pearson_r": 0.7484
         },
         {
           "app": "cc",
-          "pearson_r": -0.2152
+          "pearson_r": 0.2242
+        },
+        {
+          "app": "bc",
+          "pearson_r": 0.0973
         }
       ],
       "closest_app": "bfs",
-      "closest_r": 0.7808,
+      "closest_r": 0.9447,
       "winner_policy": "POPT"
     }
   },
   "intra_inter": {
     "bc": {
-      "cluster": "SRRIP",
-      "intra_mean_r": null,
-      "inter_mean_r": 0.3312,
-      "gap_intra_minus_inter": null
+      "cluster": "GRASP",
+      "intra_mean_r": 0.7814,
+      "inter_mean_r": 0.1274,
+      "gap_intra_minus_inter": 0.654
     },
     "bfs": {
       "cluster": "POPT",
-      "intra_mean_r": 0.8333,
-      "inter_mean_r": 0.1504,
-      "gap_intra_minus_inter": 0.6829
+      "intra_mean_r": 0.8283,
+      "inter_mean_r": -0.0201,
+      "gap_intra_minus_inter": 0.8484
     },
     "cc": {
       "cluster": "GRASP",
-      "intra_mean_r": null,
-      "inter_mean_r": 0.3441,
-      "gap_intra_minus_inter": null
+      "intra_mean_r": 0.7814,
+      "inter_mean_r": 0.3808,
+      "gap_intra_minus_inter": 0.4006
     },
     "pr": {
       "cluster": "POPT",
-      "intra_mean_r": 0.705,
-      "inter_mean_r": 0.5378,
-      "gap_intra_minus_inter": 0.1672
+      "intra_mean_r": 0.7301,
+      "inter_mean_r": 0.6218,
+      "gap_intra_minus_inter": 0.1084
     },
     "sssp": {
       "cluster": "POPT",
-      "intra_mean_r": 0.6525,
-      "inter_mean_r": -0.056,
-      "gap_intra_minus_inter": 0.7086
+      "intra_mean_r": 0.8465,
+      "inter_mean_r": 0.1608,
+      "gap_intra_minus_inter": 0.6858
     }
   }
 }

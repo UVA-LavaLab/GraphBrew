@@ -25,10 +25,10 @@
     },
     "medians": {
       "cache-sim": {
-        "GRASP": -14.6513,
-        "LRU": -15.6181,
-        "POPT": -14.7534,
-        "SRRIP": -15.5942
+        "GRASP": -14.7124,
+        "LRU": -15.6105,
+        "POPT": -13.4222,
+        "SRRIP": -15.5996
       },
       "gem5": {
         "GRASP": -5.9607,
@@ -42,7 +42,7 @@
       }
     },
     "steepness_spans": {
-      "cache-sim": 0.9668,
+      "cache-sim": 2.1883,
       "gem5": 2.0884,
       "sniper": 0.5625
     },

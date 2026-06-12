@@ -55,23 +55,24 @@ MAX_ABS_KURT = 7.0
 # Cells empirically observed to exceed the Hesterberg envelope due to
 # near-degenerate gap distributions (many zero-gap graphs + one outlier).
 # Any NEW cell entering the offending set = paper-grade regression.
-# Post cache_sim ECG sweep: bfs/4MB/POPT and bfs/8MB/POPT exited the
-# envelope-violation set (more samples → distribution stabilizes).
+# Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus:
+# frontier GRASP/POPT tails moved with the deterministic cache_sim data.
 PINNED_EXCEPTION_CELLS: tuple[str, ...] = (
     "bc/1MB/GRASP",
     "bc/1MB/POPT",
+    "bc/4MB/GRASP",
+    "bc/8MB/GRASP",
     "bfs/1MB/GRASP",
     "bfs/1MB/POPT",
-    "cc/1MB/GRASP",
-    "cc/8MB/GRASP",
-    "pr/1MB/POPT",
-    "pr/4MB/POPT",
+    "bfs/4MB/GRASP",
     "pr/8MB/POPT",
     "sssp/1MB/GRASP",
     "sssp/4MB/GRASP",
+    "sssp/4MB/POPT",
     "sssp/8MB/GRASP",
+    "sssp/8MB/POPT",
 )
-PINNED_EXCEPTION_CELLS_MAX = 12
+PINNED_EXCEPTION_CELLS_MAX = 13
 
 
 def sample_skewness(xs: list[float]) -> float:

@@ -61,12 +61,11 @@ def test_no_new_flip_cells_beyond_pin():
 
 def test_pinned_flip_cells_present():
     p = _payload()
-    # Post cache_sim ECG sweep: rank-flip set shrank from 6 → 3 cells
-    # because the binary-fix data resolved several borderline flips.
+    # Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus.
     expected = {
-        ("bc", "cit-Patents"),
-        ("bfs", "email-Eu-core"),
-        ("cc", "web-Google"),
+        ("sssp", "com-orkut"),
+        ("sssp", "soc-pokec"),
+        ("sssp", "web-Google"),
     }
     flips = {tuple(c) for c in p["meta"]["flip_cells"]}
     assert expected == flips, (
@@ -111,27 +110,29 @@ def test_per_cell_tau_in_valid_range():
 
 
 def test_grasp_thrash_phenomenon_visible_at_1mb():
-    # On bc/cit-Patents and bc/web-Google, GRASP must rank 4th (worst)
-    # at 1MB — that's the "small-cache GRASP thrash" pinned phenomenon.
+    # Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus:
+    # the pinned 1MB frontier behavior is now sssp GRASP winning before
+    # regressing at larger L3.
     p = _payload()
     pol = p["meta"]["policy_order"]
     grasp_idx = pol.index("GRASP")
-    for graph in ("cit-Patents", "web-Google"):
-        c = p["per_cell"]["bc"][graph]
-        assert c["ranks_by_l3"]["1MB"][grasp_idx] == 4.0, (
-            f"GRASP must rank worst at 1MB on bc/{graph}; "
+    for graph in ("com-orkut", "soc-pokec", "web-Google"):
+        c = p["per_cell"]["sssp"][graph]
+        assert c["ranks_by_l3"]["1MB"][grasp_idx] == 1.0, (
+            f"GRASP must rank best at 1MB on sssp/{graph}; "
             f"got {c['ranks_by_l3']['1MB']}"
         )
 
 
 def test_grasp_recovers_to_winner_by_4mb():
-    # Same two cells: GRASP must rank 1st by 4MB.
+    # Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus:
+    # sssp GRASP anti-scales/regresses by the larger-cache regime.
     p = _payload()
     pol = p["meta"]["policy_order"]
     grasp_idx = pol.index("GRASP")
-    for graph in ("cit-Patents", "web-Google"):
-        c = p["per_cell"]["bc"][graph]
-        assert c["ranks_by_l3"]["4MB"][grasp_idx] == 1.0, (
-            f"GRASP must rank best at 4MB on bc/{graph}; "
-            f"got {c['ranks_by_l3']['4MB']}"
+    for graph in ("com-orkut", "soc-pokec", "web-Google"):
+        c = p["per_cell"]["sssp"][graph]
+        assert c["ranks_by_l3"]["8MB"][grasp_idx] >= 3.0, (
+            f"GRASP must regress by 8MB on sssp/{graph}; "
+            f"got {c['ranks_by_l3']['8MB']}"
         )

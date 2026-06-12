@@ -229,65 +229,13 @@
     },
     {
       "app_set": [
-        "pr"
-      ],
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3",
-      "contradiction_count": 0,
-      "contradictions": [],
-      "expected_sign": "-",
-      "graph_set": [
-        "cit-Patents",
-        "com-orkut",
-        "delaunay_n19",
-        "email-Eu-core",
-        "roadNet-CA",
-        "soc-LiveJournal1",
-        "soc-pokec",
-        "web-Google"
-      ],
-      "kernel_ok": true,
-      "kernel_size": 10,
-      "kernel_terms": [
-        "cannot",
-        "construction",
-        "grasp",
-        "heuristic",
-        "including",
-        "oracle",
-        "p-opt",
-        "policy",
-        "tolerance",
-        "worse"
-      ],
-      "length_max": 122,
-      "length_min": 122,
-      "length_span_ok": true,
-      "length_span_ratio": 1.0,
-      "member_count": 28,
-      "policy_set": [
-        "POPT_GE_GRASP"
-      ],
-      "rationale_count": 1,
-      "rationales": [
-        {
-          "length": 122,
-          "member_count": 28,
-          "rationale": "P-OPT is an oracle policy by construction; it cannot be worse than any heuristic, including GRASP, by more than tolerance.",
-          "sign_aligned": true,
-          "sign_hits": [
-            "oracle"
-          ]
-        }
-      ]
-    },
-    {
-      "app_set": [
         "bc",
         "bfs",
         "cc",
+        "pr",
         "sssp"
       ],
-      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (extended)",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "contradiction_count": 0,
       "contradictions": [],
       "expected_sign": "-",
@@ -295,65 +243,80 @@
         "cit-Patents",
         "com-orkut",
         "email-Eu-core",
-        "roadNet-CA",
         "soc-LiveJournal1",
         "soc-pokec",
         "web-Google"
       ],
       "kernel_ok": true,
-      "kernel_size": 3,
+      "kernel_size": 8,
       "kernel_terms": [
-        "extended",
-        "oracle",
-        "p-opt"
+        "diagnostic",
+        "gate",
+        "geomean",
+        "grasp",
+        "informational",
+        "per-cell",
+        "popt",
+        "win"
       ],
-      "length_max": 234,
-      "length_min": 87,
+      "length_max": 294,
+      "length_min": 218,
       "length_span_ok": true,
-      "length_span_ratio": 2.69,
-      "member_count": 86,
+      "length_span_ratio": 1.349,
+      "member_count": 84,
       "policy_set": [
         "POPT_GE_GRASP"
       ],
-      "rationale_count": 4,
+      "rationale_count": 5,
       "rationales": [
         {
-          "length": 150,
-          "member_count": 23,
-          "rationale": "P-OPT extended to BC: the oracle look-ahead still dominates the heuristic, modulo the larger per-trial variance of BC's dependency-frontier traversal.",
-          "sign_aligned": true,
-          "sign_hits": [
-            "dominates",
-            "oracle"
-          ]
-        },
-        {
-          "length": 91,
-          "member_count": 23,
-          "rationale": "P-OPT extended to BFS: the oracle dominates the heuristic, modulo frontier-driven variance.",
-          "sign_aligned": true,
-          "sign_hits": [
-            "dominates",
-            "oracle"
-          ]
-        },
-        {
-          "length": 234,
-          "member_count": 20,
-          "rationale": "P-OPT extended to CC: while CC's union-find traversal is edge-driven (a known mis-alignment for POPT's static PR-rank schedule, see KNOWN_DEVIATIONS), the oracle still cannot lose by more than tolerance outside those documented cells.",
-          "sign_aligned": true,
-          "sign_hits": [
-            "oracle"
-          ]
-        },
-        {
-          "length": 87,
-          "member_count": 20,
-          "rationale": "P-OPT extended to SSSP: delta-stepping triggers oracle wins, modulo per-trial variance.",
+          "length": 245,
+          "member_count": 18,
+          "rationale": "INFORMATIONAL per-cell diagnostic (authoritative gate is POPT_GE_GRASP_GEOMEAN): P-OPT is an offline OPT *approximation*, not a true oracle, so per-cell it can lose to GRASP; the paper's claim is a geomean win over GRASP, not per-cell dominance.",
           "sign_aligned": true,
           "sign_hits": [
             "oracle",
-            "wins"
+            "win"
+          ]
+        },
+        {
+          "length": 249,
+          "member_count": 18,
+          "rationale": "INFORMATIONAL per-cell diagnostic for BC (gate: POPT_GE_GRASP_GEOMEAN). BC's dependency-frontier traversal is irregular; the sign-bearing geomean win is lower miss rate, while per-cell losses vs GRASP are expected and documented in KNOWN_DEVIATIONS.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "lower",
+            "win"
+          ]
+        },
+        {
+          "length": 218,
+          "member_count": 18,
+          "rationale": "INFORMATIONAL per-cell diagnostic for BFS (gate: POPT_GE_GRASP_GEOMEAN). Frontier-driven; the sign-bearing geomean win is lower miss rate, while per-cell losses vs GRASP are expected and documented in KNOWN_DEVIATIONS.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "lower",
+            "win"
+          ]
+        },
+        {
+          "length": 294,
+          "member_count": 15,
+          "rationale": "INFORMATIONAL per-cell diagnostic for CC (gate: POPT_GE_GRASP_GEOMEAN). CC's union-find traversal is edge-driven and misaligned with P-OPT's static PR-rank schedule; the sign-bearing geomean win is lower miss rate, while per-cell losses vs GRASP are expected and documented in KNOWN_DEVIATIONS.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "lower",
+            "win"
+          ]
+        },
+        {
+          "length": 237,
+          "member_count": 15,
+          "rationale": "INFORMATIONAL per-cell diagnostic for SSSP (gate: POPT_GE_GRASP_GEOMEAN). Delta-stepping is frontier-driven; the sign-bearing geomean win is lower miss rate, while per-cell losses vs GRASP are expected and documented in KNOWN_DEVIATIONS.",
+          "sign_aligned": true,
+          "sign_hits": [
+            "lower",
+            "win"
           ]
         }
       ]
@@ -373,9 +336,7 @@
       "graph_set": [
         "cit-Patents",
         "com-orkut",
-        "delaunay_n19",
         "email-Eu-core",
-        "roadNet-CA",
         "soc-LiveJournal1",
         "soc-pokec",
         "web-Google"
@@ -403,7 +364,7 @@
       "length_min": 159,
       "length_span_ok": true,
       "length_span_ratio": 1.0,
-      "member_count": 114,
+      "member_count": 84,
       "policy_set": [
         "POPT_NEAR_GRASP_IF_BIG_GAP"
       ],
@@ -411,7 +372,7 @@
       "rationales": [
         {
           "length": 159,
-          "member_count": 114,
+          "member_count": 84,
           "rationale": "When GRASP improves on LRU by >10 pp (phase-transition regime), POPT must agree within \u00b15 pp; a large disagreement indicates one of the two policies has a bug.",
           "sign_aligned": true,
           "sign_hits": [
@@ -939,6 +900,7 @@
       "graph_set": [
         "cit-Patents",
         "com-orkut",
+        "email-Eu-core",
         "soc-LiveJournal1",
         "soc-pokec",
         "web-Google"
@@ -968,7 +930,7 @@
       "length_min": 138,
       "length_span_ok": true,
       "length_span_ratio": 1.0,
-      "member_count": 15,
+      "member_count": 18,
       "policy_set": [
         "SRRIP"
       ],
@@ -976,7 +938,7 @@
       "rationales": [
         {
           "length": 138,
-          "member_count": 15,
+          "member_count": 18,
           "rationale": "SRRIP without graph-aware insertion behaves like LRU on power-law: hot vertices retained by reuse, cold vertices age out at the same rate.",
           "sign_aligned": true,
           "sign_hits": [
@@ -997,6 +959,7 @@
       "graph_set": [
         "cit-Patents",
         "com-orkut",
+        "email-Eu-core",
         "soc-LiveJournal1",
         "soc-pokec",
         "web-Google"
@@ -1013,7 +976,7 @@
       "length_min": 133,
       "length_span_ok": true,
       "length_span_ratio": 1.105,
-      "member_count": 30,
+      "member_count": 36,
       "policy_set": [
         "SRRIP"
       ],
@@ -1021,7 +984,7 @@
       "rationales": [
         {
           "length": 133,
-          "member_count": 15,
+          "member_count": 18,
           "rationale": "SRRIP on BC behaves near-LRU because forward+backward passes scan similar vertex sets; the dynamic insertion-priority signal is weak.",
           "sign_aligned": true,
           "sign_hits": [
@@ -1033,7 +996,7 @@
         },
         {
           "length": 147,
-          "member_count": 15,
+          "member_count": 18,
           "rationale": "SRRIP on BFS without graph-aware insertion is near-LRU because frontier traversal has weak reuse signal beyond hot vertices that LRU also captures.",
           "sign_aligned": true,
           "sign_hits": [
@@ -1163,14 +1126,14 @@
     ]
   },
   "summary": {
-    "group_count": 17,
+    "group_count": 16,
     "groups_failing_kernel": 0,
     "groups_failing_span": 0,
-    "multi_member_group_count": 13,
+    "multi_member_group_count": 12,
     "rows_with_sign_miss": 0,
     "sign_alignment_misses": 0,
     "total_contradictions": 0,
-    "total_rows": 330,
+    "total_rows": 279,
     "unique_rationale_total": 38
   }
 }

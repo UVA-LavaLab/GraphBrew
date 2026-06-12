@@ -51,7 +51,7 @@ def test_tolerances_pinned(audit):
     s = audit["summary"]
     assert s["min_reason_len"]       == 60
     assert s["min_mechanism_hits"]   == 1
-    assert s["min_known_deviations"] == 20
+    assert s["min_known_deviations"] == 15
     assert s["reuse_ceiling_frac"]   == pytest.approx(0.50)
 
 

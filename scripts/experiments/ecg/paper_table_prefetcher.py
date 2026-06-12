@@ -506,6 +506,18 @@ def main() -> int:
     args = parser.parse_args()
 
     cells = load_cells(args.sweep_root)
+    if not cells:
+        # The ECG_PFX/DROPLET prefetcher sweep (/tmp) is ephemeral and separate
+        # from the lit-faith cache-replacement corpus; preserve the committed
+        # prefetcher table rather than overwrite it with empty data (which would
+        # crash the formatters and regress the table + every downstream consumer,
+        # e.g. paper_table_grasp_parity). Refresh requires re-running the
+        # prefetcher sweep.
+        import sys as _sys
+        print(f"[paper-table-prefetcher] no prefetcher cells under "
+              f"{args.sweep_root}; preserving committed {args.json_out.name} "
+              "(re-run the prefetcher sweep to refresh).", file=_sys.stderr)
+        return 0
     summary = compute_summary(cells)
 
     emit_csv(cells, args.csv_out)

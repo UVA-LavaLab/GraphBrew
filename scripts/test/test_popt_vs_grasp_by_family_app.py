@@ -1,20 +1,25 @@
 """Pytest gate: POPT vs GRASP per (family × app) bootstrap CIs.
 
-Pins the deepest cut of the paper's core "POPT beats GRASP on
-road graphs" claim: which (family, app) cells actually carry the
-family-level signal.
+Pins the per-(family, app) cut of POPT-vs-GRASP on the reproducible
+single-thread, array-relative-GRASP (0.15) corpus. The split is
+APP-DRIVEN, not family-driven (the older "road is uniformly POPT-
+favored" framing was a multi-thread-corpus artifact and is also out of
+P-OPT's literature scope, which is power-law only — see the
+POPT_GE_GRASP_GEOMEAN gate). Road POPT-vs-GRASP is retained here only as
+a descriptive breakdown.
 
-Load-bearing findings:
+Load-bearing findings (ST, 0.15):
 
-* `road` family is POPT-favored on EVERY kernel (5/5 cells, all
-  mean Δ < 0). The road-wins-with-POPT story is not driven by a
-  single kernel; it holds across pr, bc, bfs, cc, sssp.
-* `road/sssp` is the single biggest POPT effect anywhere
-  (mean Δ ≈ -21.8 pp); the CI excludes 0.
-* `social/cc` and `citation/cc` are CI-strict GRASP wins
-  (P ≈ 0.000), confirming the cc-counter-narrative cell-by-cell.
-* `social/pr` is CI-strict POPT (P ≥ 0.99) — pr stays POPT even
-  when broken out by family.
+* `pr` is POPT-favored on EVERY family (P(POPT<GRASP) ≥ 0.95 on
+  citation/social/web/road/mesh) — the PR bedrock. P-OPT's static
+  PR-rank rereference schedule matches PageRank's all-vertex reuse.
+* `cc` is GRASP-favored and CI-strict on `social/cc` and `road/cc`
+  (P ≈ 0): CC's union-find is edge-driven and misaligns with P-OPT's
+  PR-rank schedule (the cc-counter-narrative).
+* `bc` is GRASP-favored across families (mean Δ > 0 on
+  citation/social/web/road) — frontier-driven, like cc.
+* `web/bfs` (−10.6 pp) and `road/sssp` (−11.7 pp) are the largest POPT
+  effects; road/sssp has very high variance (CI spans 0).
 """
 
 from __future__ import annotations
@@ -29,7 +34,7 @@ DOC_JSON = REPO_ROOT / "wiki" / "data" / "popt_vs_grasp_by_family_app.json"
 
 STRONG_FLOOR = 0.99
 STABILITY_FLOOR = 0.95
-ROAD_APPS = ("pr", "bc", "bfs", "cc", "sssp")
+ALL_FAMILIES = ("citation", "social", "web", "road", "mesh")
 
 
 @pytest.fixture(scope="module")
@@ -59,53 +64,57 @@ def test_min_cells_with_data(doc):
     )
 
 
-def test_road_is_popt_favored_on_every_kernel(doc):
-    """Every road/* cell with paired data must have mean Δ < 0.
-    If a road kernel flips to GRASP, the family-level
-    'POPT < GRASP on road' claim no longer factorises."""
+def test_pr_is_popt_favored_on_every_family(doc):
+    """PR is the bedrock POPT win: every family's pr cell must have
+    mean Δ < 0 AND P(POPT<GRASP) ≥ 0.95. P-OPT's static PR-rank
+    rereference schedule matches PageRank's all-vertex reuse, so this
+    holds across citation/social/web/road/mesh."""
     rogues = []
-    for app in ROAD_APPS:
-        key = f"road/{app}"
+    for fam in ALL_FAMILIES:
+        key = f"{fam}/pr"
         r = doc["per_family_app"].get(key, {})
         if r.get("n_paired", 0) == 0:
-            pytest.fail(f"road/{app} has no paired data")
-        if r["mean_delta"] is None or r["mean_delta"] >= 0:
-            rogues.append((key, r["mean_delta"]))
+            pytest.fail(f"{key} has no paired data")
+        md = r["mean_delta"]
+        p = r["p_popt_lt_grasp"]
+        if md is None or md >= 0 or p is None or p < STABILITY_FLOOR:
+            rogues.append((key, md, p))
     assert not rogues, (
-        f"road kernels with non-negative mean Δ: {rogues}. "
-        "Road-family POPT win is no longer carried by every kernel."
+        f"pr cells not POPT-favored (mean Δ<0 AND P≥{STABILITY_FLOOR}): {rogues}. "
+        "The PR-bedrock POPT claim no longer factorises across families."
     )
 
 
-def test_road_sssp_is_huge_popt_win_and_ci_strict(doc):
-    """road/sssp is the single biggest POPT effect anywhere
-    (mean Δ ≈ -21.8 pp). Pin mean ≤ -10 pp and CI hi < 0."""
-    r = doc["per_family_app"]["road/sssp"]
-    assert r["mean_delta"] is not None and r["mean_delta"] <= -10.0, (
-        f"road/sssp mean Δ = {r['mean_delta']}; expected ≤ -10 pp "
-        "(was -21.8 pp at gate-write time)"
-    )
-    assert r["ci_hi"] is not None and r["ci_hi"] < 0, (
-        f"road/sssp CI hi = {r['ci_hi']}; does not exclude 0"
-    )
-
-
-def test_road_high_signal_cells_are_ci_strict(doc):
-    """For road/{sssp, bc} which have very strong POPT-better
-    mean deltas, the bootstrap P must be ≥ 0.95."""
-    for app in ("sssp", "bc"):
-        key = f"road/{app}"
-        p = doc["per_family_app"][key]["p_popt_lt_grasp"]
-        assert p is not None and p >= STABILITY_FLOOR, (
-            f"{key} P(POPT<GRASP)={p} < {STABILITY_FLOOR}"
+def test_largest_popt_effects_are_huge(doc):
+    """web/bfs and road/sssp are the largest POPT effects; pin both
+    mean ≤ -8 pp. (road/sssp ≈ -11.7 pp but high-variance: its CI
+    spans 0, so we pin the mean magnitude, not CI strictness.)"""
+    for key, floor in (("web/bfs", -8.0), ("road/sssp", -8.0)):
+        r = doc["per_family_app"][key]
+        assert r["mean_delta"] is not None and r["mean_delta"] <= floor, (
+            f"{key} mean Δ = {r['mean_delta']}; expected ≤ {floor} pp"
         )
 
 
-def test_cc_is_grasp_strict_outside_road(doc):
-    """social/cc and citation/cc are GRASP-strict (P ≈ 0.000).
-    Confirms the cc-counter-narrative cell-by-cell, not just at
-    the per-kernel-across-families level."""
-    for key in ("social/cc", "citation/cc"):
+def test_pr_high_signal_cells_are_ci_strict(doc):
+    """citation/pr, social/pr and web/pr are CI-strict POPT wins
+    (P ≥ 0.99 and CI excludes 0 on the POPT-better side)."""
+    for key in ("citation/pr", "social/pr", "web/pr"):
+        r = doc["per_family_app"][key]
+        p = r["p_popt_lt_grasp"]
+        assert p is not None and p >= STRONG_FLOOR, (
+            f"{key} P(POPT<GRASP)={p} < {STRONG_FLOOR}"
+        )
+        assert r["ci_hi"] is not None and r["ci_hi"] < 0, (
+            f"{key} CI hi = {r['ci_hi']}; does not exclude 0"
+        )
+
+
+def test_cc_is_grasp_strict_on_social_and_road(doc):
+    """social/cc and road/cc are GRASP-strict (P ≈ 0.000, CI lo > 0).
+    CC's union-find is edge-driven and misaligns with P-OPT's PR-rank
+    rereference schedule — the cc-counter-narrative, cell-by-cell."""
+    for key in ("social/cc", "road/cc"):
         r = doc["per_family_app"][key]
         p = r["p_popt_lt_grasp"]
         assert p is not None and p <= (1.0 - STRONG_FLOOR), (

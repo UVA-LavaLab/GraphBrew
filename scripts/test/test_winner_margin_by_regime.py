@@ -57,12 +57,17 @@ def test_grasp_median_margin_shrinks_with_capacity():
     )
 
 
-def test_popt_median_margin_shrinks_with_capacity():
+def test_popt_median_margin_grows_with_capacity():
+    """POPT's winning margin GROWS from under-WSS to over-WSS (it keeps
+    benefiting from cache as a near-oracle that exploits added capacity) —
+    the inverse of GRASP, whose margin shrinks as it converges. (ST,
+    array-relative GRASP 0.15; was a multi-thread artifact that POPT
+    margins shrank.)"""
     p = _payload()
     u = p["per_policy_regime"]["POPT/under_wss"]["median_margin_pp"]
     o = p["per_policy_regime"]["POPT/over_wss"]["median_margin_pp"]
-    assert u > o, (
-        f"POPT median margin must shrink under -> over; got {u} vs {o}"
+    assert o > u, (
+        f"POPT median margin must grow under -> over; got {u} vs {o}"
     )
 
 
