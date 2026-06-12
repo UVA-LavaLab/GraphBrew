@@ -2,7 +2,7 @@
 
 Locks `scripts/setup_gem5.py` and `scripts/setup_sniper.py` against silent drift in upstream repo URLs, directory-constant skeleton, and the canonical top-level function inventory each script exposes.
 
-registry entries: 2 repo URLs; 6 gem5 dir-constants + 14 functions; 6 sniper dir-constants + 27 functions.
+registry entries: 2 repo URLs; 6 gem5 dir-constants + 15 functions; 6 sniper dir-constants + 27 functions.
 
 ## Rules
 

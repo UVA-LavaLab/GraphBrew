@@ -6,7 +6,7 @@ Status: **active**
 
 - n_canonical: 7
 - n_families: 3
-- n_literal_sites: 545
+- n_literal_sites: 546
 - n_distinct_literals: 7
 - n_argparse_sites: 4
 

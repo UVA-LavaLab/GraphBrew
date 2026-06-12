@@ -3,6 +3,7 @@ scripts/setup_gem5.py,apply_current_vertex_pseudo_inst_patch,,0
 scripts/setup_gem5.py,apply_overlays,,0
 scripts/setup_gem5.py,apply_patches,,0
 scripts/setup_gem5.py,apply_riscv_ecg_extract_patch,,0
+scripts/setup_gem5.py,apply_unified_diff_patches,,0
 scripts/setup_gem5.py,build_gem5,isas|build_type|jobs,0
 scripts/setup_gem5.py,check_prerequisites,,0
 scripts/setup_gem5.py,clean_gem5,,0

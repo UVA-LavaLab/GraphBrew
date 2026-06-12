@@ -57,6 +57,7 @@ SETUP_GEM5_SIGNATURES: dict[str, dict] = {
     "insert_once": {"args": ["content", "anchor", "insertion", "label"],
                     "defaults": 0},
     "apply_riscv_ecg_extract_patch": {"args": [], "defaults": 0},
+    "apply_unified_diff_patches": {"args": [], "defaults": 0},
     "build_gem5": {"args": ["isas", "build_type", "jobs"], "defaults": 0},
     "verify_build": {"args": ["isas", "build_type"], "defaults": 0},
     "install_riscv_toolchain": {"args": [], "defaults": 0},

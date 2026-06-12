@@ -27,11 +27,11 @@ def test_proof_flag_count():
 
 
 def test_roi_flag_count():
-    assert len(M.ROI_FLAGS) == 48
+    assert len(M.ROI_FLAGS) == 49
 
 
 def test_total_flag_count():
-    assert sum(len(v) for v in M.RECEIVER_CLI_REGISTRY.values()) == 65
+    assert sum(len(v) for v in M.RECEIVER_CLI_REGISTRY.values()) == 66
 
 
 def test_cross_pairs_present():
@@ -71,8 +71,8 @@ def test_counts_match_registry():
     doc = M.audit()
     assert doc["counts"]["receivers"] == 2
     assert doc["counts"]["proof_flags"] == 17
-    assert doc["counts"]["roi_flags"] == 48
-    assert doc["counts"]["total_flags"] == 65
+    assert doc["counts"]["roi_flags"] == 49
+    assert doc["counts"]["total_flags"] == 66
     assert doc["counts"]["cross_pairs"] == 2
 
 
@@ -299,7 +299,7 @@ def test_write_json(tmp_path):
     M.write_json(M.audit(), p)
     d = json.loads(p.read_text())
     assert d["schema"] == "lit-faith-receiver-cli-registry/1"
-    assert d["counts"]["total_flags"] == 65
+    assert d["counts"]["total_flags"] == 66
 
 
 def test_write_md(tmp_path):

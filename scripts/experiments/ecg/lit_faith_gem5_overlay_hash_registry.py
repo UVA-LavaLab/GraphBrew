@@ -53,11 +53,11 @@ OVERLAYS_ROOT = REPO_ROOT / "bench" / "include" / "gem5_sim" / "overlays"
 # the generator with ``--update`` after a deliberate overlay edit.
 OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "arch/riscv/isa/decoder_ecg_extract.isa":
-        "8670fd2c19ca2292c0ad6cf6ea748d35e43faa6bef1e282366478d463f2a9440",
+        "80624764a6017e6c44414a6d6afc46b6f11f8e9276c6a587c669b2abd0fc96e4",
     "arch/riscv/isa/formats/ecg.isa":
         "a5751728427c5c024acb7e0ea3a0b414d6444586dff3bff2b87f2c167f4269e7",
     "mem/cache/prefetch/GraphPrefetchers.py":
-        "6ebc816823c524810523b44adc7da6ab8254470d3d93fa91ec2e82fd1b4b3b24",
+        "1bf575d23bdb464288c749c486d9895d95212efac82ccdb44be6fbbe24b59868",
     "mem/cache/prefetch/SConscript.patch":
         "c5d46f5fcabe70266587c5146bfb7f415efc50cbbaee806a9a3123e3db7a6f70",
     "mem/cache/prefetch/droplet.cc":
@@ -65,21 +65,25 @@ OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "mem/cache/prefetch/droplet.hh":
         "72ff12b8f33ffdea8c96708673aa161f3a372850c3c70d7156e8c86357f0deb9",
     "mem/cache/prefetch/ecg_pfx.cc":
-        "80a1fc2553534959731ac9a661bfae60c16b8e451060ab55c22aec78588aaa46",
+        "956011b28b791d02eca4229af1c214875c6103492f414489e776b98575d86f72",
     "mem/cache/prefetch/ecg_pfx.hh":
         "07a5c4548b29bd42b7d69727a9e1c56ee6fbfd65fc8b343885e1be7f930e2732",
+    "mem/cache/prefetch/queued_cc_latency.patch":
+        "49ac0ec08659fcb454f9ab782156c1c57f7c87577926c714e882798333260488",
+    "mem/cache/prefetch/queued_hh.patch":
+        "0289b71df1815f64c7a27807556664e23f383bf6f69e0669ccfaa903014e608c",
     "mem/cache/replacement_policies/GraphReplacementPolicies.py":
-        "87fbe3aa2cbcd567a7ad92628c6a58d4e35538ef4daa10c75da76890133b8949",
+        "eb5322513478bee3afa66d291a18a7dff80842ebb2c121527c291137ea75ece0",
     "mem/cache/replacement_policies/SConscript.patch":
         "6c860d12c30d3ae18d65ccf2fb9da466291cb8b2727d47e0d4b7da2c97293f69",
     "mem/cache/replacement_policies/ecg_rp.cc":
-        "e73557b2e82e99cb4b27998366a471cc0b0b0bb1dc747ac41b9612d430a65c15",
+        "9a548acdc8f776221881caac843e74fcc67c824cc9ddfcd1b0d84ed089e16a5a",
     "mem/cache/replacement_policies/ecg_rp.hh":
         "6ce3c0ec7fd6167cad633591fc8261f052f86f5e4a603cf15ee4352afb84d4e7",
     "mem/cache/replacement_policies/graph_cache_context_gem5.hh":
-        "4225f8cc68bdcab766794b4874efd127bbd40040cc8f6ddb8d5b1569e5b433f6",
+        "546181b92467d639acdc575dfcf71e4e697a54598d2c1fecb6b98ad7aac5aa8e",
     "mem/cache/replacement_policies/grasp_rp.cc":
-        "2d5bfff29474562b3295fc4dc81bf24ca73b33ef006fa0808ebe727e70894375",
+        "101d17b1c77b6f1c702754a411dd24ce1a26d584fdb95cee8326e47f23704c9e",
     "mem/cache/replacement_policies/grasp_rp.hh":
         "be84299387a61148f1cd234f517a9ec1c6c1e231c465da877b0028de26410466",
     "mem/cache/replacement_policies/popt_rp.cc":

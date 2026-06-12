@@ -30,10 +30,13 @@ See docs/findings/sprint_6f-7_mode6_charged_audit.md for the full audit.
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 import pytest
 
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 CORPUS_CELLS = ['cit-Patents-pr', 'soc-LiveJournal1-pr', 'com-orkut-pr', 'web-Google-pr']
 
@@ -48,6 +51,11 @@ MIN_MODE6_VS_MODE2_RATIO = 0.0   # was 1.05 pre-sprint-6f-7
 MODE6_ROOT = Path('/tmp/mode6_corpus')  # symlinks to mode6_corpus_fixed post-6f-7
 SCALE_ROOT = Path('/tmp/graphbrew-ecg-pfx-cache_sim-scale')
 MODE6_CITPAT_FALLBACK = Path('/tmp/mode6_corpus_fixed/cit-Patents-pr/roi_matrix.csv')
+
+# Reproducible fallback: the committed Paper Table 7 artifact carries the same
+# per-cell baseline/mode2/mode6/droplet demand+reqs the /tmp sweep produced, so
+# the gate stays green from committed state after the /tmp scratch is cleared.
+COMMITTED_TABLE = REPO_ROOT / 'wiki' / 'data' / 'paper_table_mode6_corpus.json'
 
 
 def _read_first_row(path: Path, label: str | None = None) -> dict | None:
@@ -66,8 +74,41 @@ def _demand_rate(row: dict) -> float:
     return int(row['memory_accesses']) / int(row['total_accesses'])
 
 
+def _committed_corpus():
+    """Reproducible fallback corpus from the committed Paper Table 7 JSON.
+
+    Mirrors the dict[cell][config] shape that `_gather_corpus` builds from the
+    /tmp sweep, so the gate stays green from committed state after the ephemeral
+    /tmp scratch dirs are cleared."""
+    if not COMMITTED_TABLE.exists():
+        return {}
+    try:
+        doc = json.loads(COMMITTED_TABLE.read_text())
+    except (ValueError, OSError):
+        return {}
+    out = {}
+    for c in doc.get('cells', []):
+        cell = c.get('cell')
+        if not cell:
+            continue
+        cd = {}
+        if 'baseline_demand' in c:
+            cd['baseline'] = c['baseline_demand']
+        for cfg in ('mode2', 'mode6', 'droplet'):
+            v = c.get(cfg)
+            if isinstance(v, dict) and 'demand' in v and 'reqs' in v:
+                cd[cfg] = {'demand': v['demand'], 'reqs': int(v['reqs'])}
+        if cd:
+            out[cell] = cd
+    return out
+
+
 def _gather_corpus():
-    """Returns dict[cell][config] = (demand, reqs, baseline_demand)."""
+    """Returns dict[cell][config] = (demand, reqs, baseline_demand).
+
+    Prefers live /tmp sweep output; backfills any cell/config the /tmp scratch
+    no longer has from the committed Paper Table 7 artifact, so the gate is
+    reproducible from committed state."""
     out = {}
     for cell in CORPUS_CELLS:
         base = _read_first_row(SCALE_ROOT / cell / 'baselines' / 'roi_matrix.csv', 'ECG_DBG_ONLY')
@@ -90,6 +131,12 @@ def _gather_corpus():
         if m6:
             cell_data['mode6'] = {'demand': _demand_rate(m6), 'reqs': int(m6.get('prefetch_requests','0'))}
         out[cell] = cell_data
+    # Reproducible backfill from the committed Paper Table 7 artifact: live /tmp
+    # data (above) takes precedence; committed values fill any remaining gaps.
+    for cell, cd in _committed_corpus().items():
+        dst = out.setdefault(cell, {})
+        for k, v in cd.items():
+            dst.setdefault(k, v)
     return out
 
 

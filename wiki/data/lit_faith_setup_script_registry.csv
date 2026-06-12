@@ -21,6 +21,7 @@ gem5_function,apply_patches,registered
 gem5_function,apply_current_vertex_pseudo_inst_patch,registered
 gem5_function,insert_once,registered
 gem5_function,apply_riscv_ecg_extract_patch,registered
+gem5_function,apply_unified_diff_patches,registered
 gem5_function,build_gem5,registered
 gem5_function,verify_build,registered
 gem5_function,install_riscv_toolchain,registered

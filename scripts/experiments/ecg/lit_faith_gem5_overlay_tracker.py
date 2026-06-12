@@ -85,6 +85,16 @@ OVERLAY_PATCHES = [
     "mem/cache/prefetch/SConscript.patch",
 ]
 
+# Unified-diff overlay patches applied to vanilla gem5 sources by
+# setup_gem5.apply_unified_diff_patches() (sprint S68 — queue-servicing +
+# prefetch-latency fixes). Mirrors scripts/setup_gem5.py's UNIFIED_DIFF_PATCHES
+# source paths verbatim (the list of (src_rel, target_dir) tuples — we mirror
+# the src_rel keys here).
+UNIFIED_DIFF_PATCHES = [
+    "mem/cache/prefetch/queued_hh.patch",
+    "mem/cache/prefetch/queued_cc_latency.patch",
+]
+
 # Allow-lists.
 # Files under GEM5_OVERLAY_DIR/ that are staging or dev artifacts
 # not yet wired into the installed overlay set.
@@ -196,7 +206,7 @@ def rule_g6(out: AuditResult) -> None:
             continue
         on_disk.append(rel)
     on_disk_set = set(on_disk)
-    canonical_set = set(OVERLAY_FILE_MAP_KEYS) | set(OVERLAY_PATCHES)
+    canonical_set = set(OVERLAY_FILE_MAP_KEYS) | set(OVERLAY_PATCHES) | set(UNIFIED_DIFF_PATCHES)
     extra = on_disk_set - canonical_set
     missing = canonical_set - on_disk_set
     if extra:
@@ -237,6 +247,15 @@ def rule_g7(out: AuditResult) -> None:
         extra = set(live_patches) - set(canon_patches)
         missing = set(canon_patches) - set(live_patches)
         _add(out, "G7", "PATCH_FILES",
+             f"live ↔ canonical drift: missing={sorted(missing)} extra={sorted(extra)}")
+    # Unified-diff patches (sprint S68): live UNIFIED_DIFF_PATCHES is a list of
+    # (src_rel, target_dir) tuples; mirror its source paths must match canonical.
+    live_udp = sorted(t[0] for t in getattr(mod, "UNIFIED_DIFF_PATCHES", []))
+    canon_udp = sorted(UNIFIED_DIFF_PATCHES)
+    if live_udp != canon_udp:
+        extra = set(live_udp) - set(canon_udp)
+        missing = set(canon_udp) - set(live_udp)
+        _add(out, "G7", "UNIFIED_DIFF_PATCHES",
              f"live ↔ canonical drift: missing={sorted(missing)} extra={sorted(extra)}")
     # Also enforce identity invariant: every map entry has source==dest
     # (current convention; deviations should be intentional and audited).

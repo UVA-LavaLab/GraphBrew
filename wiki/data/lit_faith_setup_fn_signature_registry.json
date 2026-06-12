@@ -1,9 +1,9 @@
 {
   "counts": {
-    "gem5_fns": 14,
+    "gem5_fns": 15,
     "scripts": 2,
     "sniper_fns": 27,
-    "total_fns": 41
+    "total_fns": 42
   },
   "registry": {
     "scripts/setup_gem5.py": {
@@ -20,6 +20,10 @@
         "defaults": 0
       },
       "apply_riscv_ecg_extract_patch": {
+        "args": [],
+        "defaults": 0
+      },
+      "apply_unified_diff_patches": {
         "args": [],
         "defaults": 0
       },

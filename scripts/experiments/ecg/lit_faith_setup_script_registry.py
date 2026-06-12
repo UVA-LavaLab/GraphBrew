@@ -76,6 +76,7 @@ SETUP_GEM5_FUNCTIONS = [
     "apply_current_vertex_pseudo_inst_patch",
     "insert_once",
     "apply_riscv_ecg_extract_patch",
+    "apply_unified_diff_patches",
     "build_gem5",
     "verify_build",
     "install_riscv_toolchain",

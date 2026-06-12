@@ -1145,6 +1145,14 @@ CATALOG = [
         "summary":   "Paper Table 7 (gate 289 Mode6Corpus) — sprint 6f-5 spike corpus extension. The per-edge ECG mask (mode 6) is the paper's actual ECG instruction design: each edge in CSR carries a 64-bit mask packed dest[24]|DBG[2]|POPT[7]|prefetch_target[31]. The per-edge prefetch target is offline-computed as the POPT-ranked best dest in src's next-K in-neighbors. Mode 6 runtime decodes dest from mask (replacing direct CSR load — the 'fat edge' semantics) and fires the encoded prefetch. Corpus = 4 cells (cit-Patents/pr, soc-LiveJournal1/pr, com-orkut/pr, web-Google/pr) at L3=1MB. Headline: at matched bandwidth (201M total prefetch requests), mode 6 delivers +14% higher demand-memory reduction per Mreq than mode 2 K=1 runtime lookahead (0.1499 vs 0.1312 pp/Mreq) and +35% vs DROPLET (0.1111). Wins 2/4 cells absolute (cit-Patents/pr +2.79pp, com-orkut/pr +1.99pp), ties 1/4 (soc-LiveJournal1/pr), loses 1/4 (web-Google/pr -1.04pp). Honest framing: mode 6 does NOT beat DROPLET on absolute miss reduction; DROPLET issues 2.6× the bandwidth (695M reqs) and achieves 2.6× the savings (77.3pp vs 30.1pp). The value is Pareto-frontier efficiency, not breaking saturation. Iterations (mode 7 cross-iteration K_JUMP, mode 8 PR-recurrence) failed for the saturation-cap reasons documented in docs/findings/prefetcher_saturation_under_eviction.md.",
     },
     {
+        "id":        "paper_table_mode6_cross_sim",
+        "label":     "Paper Table 8 — ECG mode 6 cross-simulator (Sniper) corroboration",
+        "generator": "scripts/experiments/ecg/paper_table_mode6_cross_sim.py",
+        "gate":      "scripts/test/test_ecg_mode6_cross_sim_parity.py",
+        "artifact":  "wiki/data/paper_table_mode6_cross_sim.json",
+        "summary":   "Paper Table 8 (gate 290 Mode6CrossSim) — sprint 6f-6 cross-simulator corroboration of the cache_sim mode 6 (per-edge mask) result. Reads Sniper mode 6 cells (pfx_sniper_mode6_sweep.sh: <graph>-<app>/<arm>/roi_matrix.csv) and pairs them with the matching cache_sim mode 6 cells for a side-by-side comparison. SCAFFOLD/incremental: the Sniper sweep is long-running (~5400s/cell) so the table updates as cells land. Metric caveat documented in the artifact: l3_miss_rate is NOT a fair cross-arm comparator here — DROPLET/ECG_PFX attach at L2 so the L3 miss-rate is unchanged even when they help, and ECG_EDGE_MASK_CHARGED=1 inflates l3_accesses ~10x via per-edge mask reads (the §4.3 metric trap, sprint 6f-2 finding). Interim headline metric is pf_useful. Cells: email-Eu-core, delaunay_n19, roadNet-CA, web-Google (PR).",
+    },
+    {
         "id":        "paper_table_complexity",
         "label":     "Paper Table 6 — cache-substrate complexity comparison",
         "generator": "scripts/experiments/ecg/complexity_comparison.py",

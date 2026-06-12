@@ -3,7 +3,7 @@
 Locks the argparse CLI surface of the two paper-matrix RECEIVERS:
 
 * ``scripts/experiments/ecg/proof_matrix.py`` (parse_args, 17 flags)
-* ``scripts/experiments/ecg/roi_matrix.py``   (parse_args, 48 flags)
+* ``scripts/experiments/ecg/roi_matrix.py``   (parse_args, 49 flags)
 
 Gate 277 locked the SENDER side — the ``--flag`` string literals built
 into argv lists by ``paper_pipeline.run_profile`` and
@@ -89,6 +89,7 @@ ROI_FLAGS: list[dict] = [
     {"flag": "--allow-sniper-benchmark-workload",    "action": "store_true"},
     {"flag": "--allow-sniper-sg-kernel-workload",    "action": "store_true"},
     {"flag": "--benchmark",                          "action": "store"},
+    {"flag": "--cache-sim-omp-threads",              "action": "store"},
     {"flag": "--droplet-indirect-degree",            "action": "store"},
     {"flag": "--droplet-prefetch-degree",            "action": "store"},
     {"flag": "--droplet-stride-table-size",          "action": "store"},

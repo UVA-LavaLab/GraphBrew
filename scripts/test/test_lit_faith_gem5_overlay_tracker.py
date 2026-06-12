@@ -182,7 +182,7 @@ def test_no_orphan_overlay_files():
         if Path(rel).suffix not in MOD.TRACKED_EXT and not rel.endswith(".patch"):
             continue
         on_disk.add(rel)
-    canonical = set(MOD.OVERLAY_FILE_MAP_KEYS) | set(MOD.OVERLAY_PATCHES)
+    canonical = set(MOD.OVERLAY_FILE_MAP_KEYS) | set(MOD.OVERLAY_PATCHES) | set(MOD.UNIFIED_DIFF_PATCHES)
     extra = on_disk - canonical
     assert not extra, f"orphan overlay files: {sorted(extra)}"
 

@@ -3,8 +3,8 @@
     "cross_pairs": 2,
     "proof_flags": 17,
     "receivers": 2,
-    "roi_flags": 48,
-    "total_flags": 65
+    "roi_flags": 49,
+    "total_flags": 66
   },
   "cross_pairs": [
     {
@@ -112,6 +112,10 @@
       {
         "action": "store",
         "flag": "--benchmark"
+      },
+      {
+        "action": "store",
+        "flag": "--cache-sim-omp-threads"
       },
       {
         "action": "store",
