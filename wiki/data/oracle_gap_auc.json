@@ -11,9 +11,9 @@
     "auc_winner_by_app": {
       "bc": "GRASP",
       "bfs": "POPT",
-      "cc": "GRASP",
+      "cc": "POPT",
       "pr": "POPT",
-      "sssp": "POPT"
+      "sssp": "SRRIP"
     },
     "n_apps": 5,
     "n_policies": 4,
@@ -35,278 +35,278 @@
   "per_app": {
     "bc": {
       "auc_by_policy": {
-        "GRASP": 3.6996,
-        "LRU": 9.5084,
-        "POPT": 6.5561,
-        "SRRIP": 5.1733
+        "GRASP": 3.547,
+        "LRU": 9.3557,
+        "POPT": 13.3901,
+        "SRRIP": 5.0207
       },
-      "auc_pp_savings_winner_vs_lru": 5.8088,
-      "auc_ratio_winner_over_lru": 0.3891,
-      "auc_ratio_winner_over_runner_up": 0.7151,
+      "auc_pp_savings_winner_vs_lru": 5.8087,
+      "auc_ratio_winner_over_lru": 0.3791,
+      "auc_ratio_winner_over_runner_up": 0.7065,
       "ranking": [
         {
-          "auc": 3.6996,
+          "auc": 3.547,
           "policy": "GRASP"
         },
         {
-          "auc": 5.1733,
+          "auc": 5.0207,
           "policy": "SRRIP"
         },
         {
-          "auc": 6.5561,
-          "policy": "POPT"
+          "auc": 9.3557,
+          "policy": "LRU"
         },
         {
-          "auc": 9.5084,
-          "policy": "LRU"
+          "auc": 13.3901,
+          "policy": "POPT"
         }
       ],
       "runner_up": "SRRIP",
-      "runner_up_auc": 5.1733,
+      "runner_up_auc": 5.0207,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 2.7304,
+          "1MB": 2.6201,
           "4MB": 0.3287,
-          "8MB": 0.9523
+          "8MB": 0.8677
         },
         "LRU": {
-          "1MB": 2.0921,
+          "1MB": 1.9817,
           "4MB": 3.8195,
-          "8MB": 3.374
+          "8MB": 3.2895
         },
         "POPT": {
-          "1MB": 2.7323,
-          "4MB": 1.6323,
-          "8MB": 2.7507
+          "1MB": 3.9859,
+          "4MB": 4.298,
+          "8MB": 5.9145
         },
         "SRRIP": {
-          "1MB": 1.5413,
+          "1MB": 1.431,
           "4MB": 1.9258,
-          "8MB": 1.4865
+          "8MB": 1.402
         }
       },
       "winner": "GRASP",
-      "winner_auc": 3.6996
+      "winner_auc": 3.547
     },
     "bfs": {
       "auc_by_policy": {
-        "GRASP": 16.8516,
-        "LRU": 15.121,
-        "POPT": 6.0533,
-        "SRRIP": 13.9159
+        "GRASP": 15.2143,
+        "LRU": 13.4834,
+        "POPT": 7.6211,
+        "SRRIP": 12.2786
       },
-      "auc_pp_savings_winner_vs_lru": 9.0677,
-      "auc_ratio_winner_over_lru": 0.4003,
-      "auc_ratio_winner_over_runner_up": 0.435,
+      "auc_pp_savings_winner_vs_lru": 5.8623,
+      "auc_ratio_winner_over_lru": 0.5652,
+      "auc_ratio_winner_over_runner_up": 0.6207,
       "ranking": [
         {
-          "auc": 6.0533,
+          "auc": 7.6211,
           "policy": "POPT"
         },
         {
-          "auc": 13.9159,
+          "auc": 12.2786,
           "policy": "SRRIP"
         },
         {
-          "auc": 15.121,
+          "auc": 13.4834,
           "policy": "LRU"
         },
         {
-          "auc": 16.8516,
+          "auc": 15.2143,
           "policy": "GRASP"
         }
       ],
       "runner_up": "SRRIP",
-      "runner_up_auc": 13.9159,
+      "runner_up_auc": 12.2786,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 8.9621,
-          "4MB": 3.3765,
-          "8MB": 5.6495
+          "1MB": 8.9409,
+          "4MB": 2.5013,
+          "8MB": 5.0428
         },
         "LRU": {
-          "1MB": 2.0684,
-          "4MB": 6.5898,
-          "8MB": 6.3357
+          "1MB": 2.047,
+          "4MB": 5.7147,
+          "8MB": 5.7288
         },
         "POPT": {
-          "1MB": 5.2856,
-          "4MB": 0.5118,
-          "8MB": 0.0
+          "1MB": 6.01,
+          "4MB": 1.0182,
+          "8MB": 0.1677
         },
         "SRRIP": {
-          "1MB": 2.0889,
-          "4MB": 5.949,
-          "8MB": 5.8072
+          "1MB": 2.0676,
+          "4MB": 5.0738,
+          "8MB": 5.2005
         }
       },
       "winner": "POPT",
-      "winner_auc": 6.0533
+      "winner_auc": 7.6211
     },
     "cc": {
       "auc_by_policy": {
-        "GRASP": 1.6668,
-        "LRU": 32.4693,
-        "POPT": 10.4865,
-        "SRRIP": 24.1584
+        "GRASP": 13.2609,
+        "LRU": 21.8715,
+        "POPT": 6.9364,
+        "SRRIP": 13.5605
       },
-      "auc_pp_savings_winner_vs_lru": 30.8025,
-      "auc_ratio_winner_over_lru": 0.0513,
-      "auc_ratio_winner_over_runner_up": 0.1589,
+      "auc_pp_savings_winner_vs_lru": 14.9351,
+      "auc_ratio_winner_over_lru": 0.3171,
+      "auc_ratio_winner_over_runner_up": 0.5231,
       "ranking": [
         {
-          "auc": 1.6668,
-          "policy": "GRASP"
-        },
-        {
-          "auc": 10.4865,
+          "auc": 6.9364,
           "policy": "POPT"
         },
         {
-          "auc": 24.1584,
-          "policy": "SRRIP"
-        },
-        {
-          "auc": 32.4693,
-          "policy": "LRU"
-        }
-      ],
-      "runner_up": "POPT",
-      "runner_up_auc": 10.4865,
-      "trajectory_by_policy": {
-        "GRASP": {
-          "1MB": 1.6668,
-          "4MB": 0.0,
-          "8MB": 0.0
-        },
-        "LRU": {
-          "1MB": 11.2803,
-          "4MB": 10.9256,
-          "8MB": 9.6012
-        },
-        "POPT": {
-          "1MB": 2.7082,
-          "4MB": 4.0764,
-          "8MB": 3.3274
-        },
-        "SRRIP": {
-          "1MB": 8.6973,
-          "4MB": 8.0394,
-          "8MB": 6.804
-        }
-      },
-      "winner": "GRASP",
-      "winner_auc": 1.6668
-    },
-    "pr": {
-      "auc_by_policy": {
-        "GRASP": 12.8888,
-        "LRU": 31.4963,
-        "POPT": 0.0142,
-        "SRRIP": 23.1644
-      },
-      "auc_pp_savings_winner_vs_lru": 31.4821,
-      "auc_ratio_winner_over_lru": 0.0005,
-      "auc_ratio_winner_over_runner_up": 0.0011,
-      "ranking": [
-        {
-          "auc": 0.0142,
-          "policy": "POPT"
-        },
-        {
-          "auc": 12.8888,
+          "auc": 13.2609,
           "policy": "GRASP"
         },
         {
-          "auc": 23.1644,
+          "auc": 13.5605,
           "policy": "SRRIP"
         },
         {
-          "auc": 31.4963,
+          "auc": 21.8715,
           "policy": "LRU"
         }
       ],
       "runner_up": "GRASP",
-      "runner_up_auc": 12.8888,
+      "runner_up_auc": 13.2609,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 4.6235,
-          "4MB": 4.7063,
-          "8MB": 2.4117
+          "1MB": 1.3668,
+          "4MB": 4.99,
+          "8MB": 8.8182
         },
         "LRU": {
-          "1MB": 12.6431,
-          "4MB": 10.6102,
-          "8MB": 5.8758
+          "1MB": 7.2665,
+          "4MB": 8.0118,
+          "8MB": 5.1746
         },
         "POPT": {
-          "1MB": 0.0,
-          "4MB": 0.0,
-          "8MB": 0.0283
+          "1MB": 0.9595,
+          "4MB": 3.6222,
+          "8MB": 1.0872
         },
         "SRRIP": {
-          "1MB": 10.1615,
-          "4MB": 7.4598,
-          "8MB": 3.6263
+          "1MB": 4.6833,
+          "4MB": 5.1256,
+          "8MB": 2.3776
         }
       },
       "winner": "POPT",
-      "winner_auc": 0.0142
+      "winner_auc": 6.9364
     },
-    "sssp": {
+    "pr": {
       "auc_by_policy": {
-        "GRASP": 11.6906,
-        "LRU": 12.2469,
-        "POPT": 2.7057,
-        "SRRIP": 7.6792
+        "GRASP": 6.949,
+        "LRU": 25.5568,
+        "POPT": 0.9115,
+        "SRRIP": 17.2249
       },
-      "auc_pp_savings_winner_vs_lru": 9.5412,
-      "auc_ratio_winner_over_lru": 0.2209,
-      "auc_ratio_winner_over_runner_up": 0.3523,
+      "auc_pp_savings_winner_vs_lru": 24.6453,
+      "auc_ratio_winner_over_lru": 0.0357,
+      "auc_ratio_winner_over_runner_up": 0.1312,
       "ranking": [
         {
-          "auc": 2.7057,
+          "auc": 0.9115,
           "policy": "POPT"
         },
         {
-          "auc": 7.6792,
-          "policy": "SRRIP"
-        },
-        {
-          "auc": 11.6906,
+          "auc": 6.949,
           "policy": "GRASP"
         },
         {
-          "auc": 12.2469,
+          "auc": 17.2249,
+          "policy": "SRRIP"
+        },
+        {
+          "auc": 25.5568,
           "policy": "LRU"
         }
       ],
-      "runner_up": "SRRIP",
-      "runner_up_auc": 7.6792,
+      "runner_up": "GRASP",
+      "runner_up_auc": 6.949,
       "trajectory_by_policy": {
         "GRASP": {
-          "1MB": 9.4935,
-          "4MB": 1.2254,
-          "8MB": 0.718
+          "1MB": 2.5266,
+          "4MB": 2.4708,
+          "8MB": 1.4323
         },
         "LRU": {
-          "1MB": 5.7932,
-          "4MB": 3.7744,
-          "8MB": 1.5842
+          "1MB": 10.5463,
+          "4MB": 8.3747,
+          "8MB": 4.897
         },
         "POPT": {
-          "1MB": 2.3393,
-          "4MB": 0.2308,
-          "8MB": 0.0404
+          "1MB": 0.6986,
+          "4MB": 0.1102,
+          "8MB": 0.0952
         },
         "SRRIP": {
-          "1MB": 4.1698,
-          "4MB": 2.0806,
-          "8MB": 0.777
+          "1MB": 8.0645,
+          "4MB": 5.2245,
+          "8MB": 2.6473
         }
       },
       "winner": "POPT",
-      "winner_auc": 2.7057
+      "winner_auc": 0.9115
+    },
+    "sssp": {
+      "auc_by_policy": {
+        "GRASP": 11.3494,
+        "LRU": 11.9057,
+        "POPT": 11.798,
+        "SRRIP": 7.3378
+      },
+      "auc_pp_savings_winner_vs_lru": 4.5679,
+      "auc_ratio_winner_over_lru": 0.6163,
+      "auc_ratio_winner_over_runner_up": 0.6465,
+      "ranking": [
+        {
+          "auc": 7.3378,
+          "policy": "SRRIP"
+        },
+        {
+          "auc": 11.3494,
+          "policy": "GRASP"
+        },
+        {
+          "auc": 11.798,
+          "policy": "POPT"
+        },
+        {
+          "auc": 11.9057,
+          "policy": "LRU"
+        }
+      ],
+      "runner_up": "GRASP",
+      "runner_up_auc": 11.3494,
+      "trajectory_by_policy": {
+        "GRASP": {
+          "1MB": 9.3045,
+          "4MB": 1.1628,
+          "8MB": 0.6014
+        },
+        "LRU": {
+          "1MB": 5.6042,
+          "4MB": 3.7118,
+          "8MB": 1.4676
+        },
+        "POPT": {
+          "1MB": 5.4618,
+          "4MB": 3.5492,
+          "8MB": 2.0248
+        },
+        "SRRIP": {
+          "1MB": 3.981,
+          "4MB": 2.0178,
+          "8MB": 0.6602
+        }
+      },
+      "winner": "SRRIP",
+      "winner_auc": 7.3378
     }
   }
 }

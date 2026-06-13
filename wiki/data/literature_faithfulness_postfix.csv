@@ -1,135 +1,135 @@
 graph,app,l3_size,policy,miss_rate,delta_vs_lru_pct,l3_accesses,claim_status,claim_citation
 cit-Patents,bc,1MB,GRASP,0.929529,-1.5588,,ok,Faldu et al. HPCA 2020 Fig 11
 cit-Patents,bc,1MB,LRU,0.945117,+0.0000,,no_claim,
-cit-Patents,bc,1MB,POPT,0.928955,-1.6162,,no_claim,
+cit-Patents,bc,1MB,POPT,0.936885,-0.8232,,no_claim,
 cit-Patents,bc,1MB,SRRIP,0.942569,-0.2548,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 cit-Patents,bc,4MB,GRASP,0.782743,-3.6184,,no_claim,
 cit-Patents,bc,4MB,LRU,0.818927,+0.0000,,no_claim,
-cit-Patents,bc,4MB,POPT,0.794997,-2.3930,,no_claim,
+cit-Patents,bc,4MB,POPT,0.814955,-0.3972,,no_claim,
 cit-Patents,bc,4MB,SRRIP,0.808237,-1.0690,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 cit-Patents,bc,8MB,GRASP,0.641045,-4.5366,,no_claim,
 cit-Patents,bc,8MB,LRU,0.686411,+0.0000,,no_claim,
-cit-Patents,bc,8MB,POPT,0.664142,-2.2269,,no_claim,
+cit-Patents,bc,8MB,POPT,0.694021,+0.7610,,no_claim,
 cit-Patents,bc,8MB,SRRIP,0.666055,-2.0356,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 cit-Patents,bfs,1MB,GRASP,0.973837,-0.7623,,ok,Faldu et al. HPCA 2020 Fig 11
 cit-Patents,bfs,1MB,LRU,0.981460,+0.0000,,no_claim,
-cit-Patents,bfs,1MB,POPT,0.972364,-0.9096,,no_claim,
+cit-Patents,bfs,1MB,POPT,0.975989,-0.5471,,no_claim,
 cit-Patents,bfs,1MB,SRRIP,0.979057,-0.2403,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 cit-Patents,bfs,4MB,GRASP,0.902658,-4.4057,,no_claim,
 cit-Patents,bfs,4MB,LRU,0.946715,+0.0000,,no_claim,
-cit-Patents,bfs,4MB,POPT,0.910449,-3.6266,,no_claim,
+cit-Patents,bfs,4MB,POPT,0.920281,-2.6434,,no_claim,
 cit-Patents,bfs,4MB,SRRIP,0.941754,-0.4961,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 cit-Patents,bfs,8MB,GRASP,0.871203,-5.0160,,no_claim,
 cit-Patents,bfs,8MB,LRU,0.921363,+0.0000,,no_claim,
-cit-Patents,bfs,8MB,POPT,0.840295,-8.1068,,no_claim,
+cit-Patents,bfs,8MB,POPT,0.858533,-6.2830,,no_claim,
 cit-Patents,bfs,8MB,SRRIP,0.918701,-0.2662,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-cit-Patents,cc,1MB,GRASP,0.559035,-10.7785,,no_claim,
+cit-Patents,cc,1MB,GRASP,0.596178,-7.0642,,no_claim,
 cit-Patents,cc,1MB,LRU,0.666820,+0.0000,,no_claim,
-cit-Patents,cc,1MB,POPT,0.547963,-11.8857,,no_claim,
+cit-Patents,cc,1MB,POPT,0.578232,-8.8588,,no_claim,
 cit-Patents,cc,1MB,SRRIP,0.626239,-4.0581,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-cit-Patents,cc,4MB,GRASP,0.265725,-7.1189,,no_claim,
+cit-Patents,cc,4MB,GRASP,0.269624,-6.7290,,no_claim,
 cit-Patents,cc,4MB,LRU,0.336914,+0.0000,,no_claim,
-cit-Patents,cc,4MB,POPT,0.270953,-6.5961,,no_claim,
+cit-Patents,cc,4MB,POPT,0.297400,-3.9514,,no_claim,
 cit-Patents,cc,4MB,SRRIP,0.313595,-2.3319,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-cit-Patents,cc,8MB,GRASP,0.126131,-7.1836,,no_claim,
+cit-Patents,cc,8MB,GRASP,0.159028,-3.8939,,no_claim,
 cit-Patents,cc,8MB,LRU,0.197967,+0.0000,,no_claim,
-cit-Patents,cc,8MB,POPT,0.144625,-5.3342,,no_claim,
+cit-Patents,cc,8MB,POPT,0.170627,-2.7340,,no_claim,
 cit-Patents,cc,8MB,SRRIP,0.175707,-2.2260,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
 cit-Patents,pr,1MB,GRASP,0.818199,-7.6907,,ok,Faldu et al. HPCA 2020 Fig 10
 cit-Patents,pr,1MB,LRU,0.895106,+0.0000,,no_claim,
-cit-Patents,pr,1MB,POPT,0.730118,-16.4988,,ok,Balaji & Lucia HPCA 2021 Fig 9
+cit-Patents,pr,1MB,POPT,0.761075,-13.4031,,ok,Balaji & Lucia HPCA 2021 Fig 9
 cit-Patents,pr,1MB,SRRIP,0.880294,-1.4812,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 cit-Patents,pr,4MB,GRASP,0.453217,-13.6835,,no_claim,
 cit-Patents,pr,4MB,LRU,0.590052,+0.0000,,no_claim,
-cit-Patents,pr,4MB,POPT,0.347413,-24.2639,,no_claim,
+cit-Patents,pr,4MB,POPT,0.390667,-19.9385,,no_claim,
 cit-Patents,pr,4MB,SRRIP,0.546644,-4.3408,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 cit-Patents,pr,8MB,GRASP,0.224824,-10.1376,,ok,Faldu et al. HPCA 2020 Fig 10
 cit-Patents,pr,8MB,LRU,0.326200,+0.0000,,no_claim,
-cit-Patents,pr,8MB,POPT,0.178828,-14.7372,,no_claim,
+cit-Patents,pr,8MB,POPT,0.205843,-12.0357,,no_claim,
 cit-Patents,pr,8MB,SRRIP,0.274511,-5.1689,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 cit-Patents,sssp,1MB,GRASP,0.833649,-4.3181,,ok,Balaji & Lucia HPCA 2021 Fig 10 (GRASP bar)
 cit-Patents,sssp,1MB,LRU,0.876830,+0.0000,,no_claim,
-cit-Patents,sssp,1MB,POPT,0.839685,-3.7145,,ok,Balaji & Lucia HPCA 2021 Fig 10
+cit-Patents,sssp,1MB,POPT,0.859291,-1.7539,,ok,Balaji & Lucia HPCA 2021 Fig 10
 cit-Patents,sssp,1MB,SRRIP,0.870070,-0.6760,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 cit-Patents,sssp,4MB,GRASP,0.497809,-7.0319,,no_claim,
 cit-Patents,sssp,4MB,LRU,0.568128,+0.0000,,no_claim,
-cit-Patents,sssp,4MB,POPT,0.507291,-6.0837,,no_claim,
+cit-Patents,sssp,4MB,POPT,0.554064,-1.4064,,no_claim,
 cit-Patents,sssp,4MB,SRRIP,0.546124,-2.2004,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 cit-Patents,sssp,8MB,GRASP,0.228219,-4.2650,,no_claim,
 cit-Patents,sssp,8MB,LRU,0.270869,+0.0000,,no_claim,
-cit-Patents,sssp,8MB,POPT,0.226856,-4.4013,,no_claim,
+cit-Patents,sssp,8MB,POPT,0.286036,+1.5167,,no_claim,
 cit-Patents,sssp,8MB,SRRIP,0.249261,-2.1608,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 com-orkut,bc,1MB,GRASP,0.796393,-4.0519,,no_claim,
 com-orkut,bc,1MB,LRU,0.836912,+0.0000,,no_claim,
-com-orkut,bc,1MB,POPT,0.804792,-3.2120,,no_claim,
+com-orkut,bc,1MB,POPT,0.823194,-1.3718,,no_claim,
 com-orkut,bc,1MB,SRRIP,0.820532,-1.6380,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,bc,4MB,GRASP,0.525040,-4.8485,,no_claim,
 com-orkut,bc,4MB,LRU,0.573525,+0.0000,,no_claim,
-com-orkut,bc,4MB,POPT,0.561793,-1.1732,,no_claim,
+com-orkut,bc,4MB,POPT,0.590082,+1.6557,,no_claim,
 com-orkut,bc,4MB,SRRIP,0.546997,-2.6528,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,bc,8MB,GRASP,0.340600,-3.5445,,no_claim,
 com-orkut,bc,8MB,LRU,0.376045,+0.0000,,no_claim,
-com-orkut,bc,8MB,POPT,0.398577,+2.2532,,no_claim,
+com-orkut,bc,8MB,POPT,0.430049,+5.4004,,no_claim,
 com-orkut,bc,8MB,SRRIP,0.349875,-2.6170,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,bfs,1MB,GRASP,0.998120,-0.0772,,no_claim,
 com-orkut,bfs,1MB,LRU,0.998892,+0.0000,,no_claim,
-com-orkut,bfs,1MB,POPT,0.998100,-0.0792,,no_claim,
+com-orkut,bfs,1MB,POPT,0.998389,-0.0503,,no_claim,
 com-orkut,bfs,1MB,SRRIP,0.998793,-0.0099,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,bfs,4MB,GRASP,0.981189,-1.5295,,no_claim,
 com-orkut,bfs,4MB,LRU,0.996484,+0.0000,,no_claim,
-com-orkut,bfs,4MB,POPT,0.989118,-0.7366,,no_claim,
+com-orkut,bfs,4MB,POPT,0.991077,-0.5407,,no_claim,
 com-orkut,bfs,4MB,SRRIP,0.996442,-0.0042,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 com-orkut,bfs,8MB,GRASP,0.980723,-1.5076,,no_claim,
 com-orkut,bfs,8MB,LRU,0.995799,+0.0000,,no_claim,
-com-orkut,bfs,8MB,POPT,0.970827,-2.4972,,no_claim,
+com-orkut,bfs,8MB,POPT,0.976296,-1.9503,,no_claim,
 com-orkut,bfs,8MB,SRRIP,0.995759,-0.0040,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-com-orkut,cc,1MB,GRASP,0.639883,-10.1662,,no_claim,
+com-orkut,cc,1MB,GRASP,0.670976,-7.0569,,no_claim,
 com-orkut,cc,1MB,LRU,0.741545,+0.0000,,no_claim,
-com-orkut,cc,1MB,POPT,0.699313,-4.2232,,no_claim,
+com-orkut,cc,1MB,POPT,0.716069,-2.5476,,no_claim,
 com-orkut,cc,1MB,SRRIP,0.708078,-3.3467,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-com-orkut,cc,4MB,GRASP,0.410630,-15.6984,,no_claim,
+com-orkut,cc,4MB,GRASP,0.420493,-14.7121,,no_claim,
 com-orkut,cc,4MB,LRU,0.567614,+0.0000,,no_claim,
-com-orkut,cc,4MB,POPT,0.527796,-3.9818,,no_claim,
+com-orkut,cc,4MB,POPT,0.549366,-1.8248,,no_claim,
 com-orkut,cc,4MB,SRRIP,0.553200,-1.4414,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-com-orkut,cc,8MB,GRASP,0.249408,-25.6891,,no_claim,
+com-orkut,cc,8MB,GRASP,0.411425,-9.4874,,no_claim,
 com-orkut,cc,8MB,LRU,0.506299,+0.0000,,no_claim,
-com-orkut,cc,8MB,POPT,0.339212,-16.7087,,no_claim,
+com-orkut,cc,8MB,POPT,0.395845,-11.0454,,no_claim,
 com-orkut,cc,8MB,SRRIP,0.422010,-8.4289,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
 com-orkut,pr,1MB,GRASP,0.638302,-10.4262,,ok,Faldu et al. HPCA 2020 §6.1 (extrapolated to com-orkut from twitter Fig 10)
 com-orkut,pr,1MB,LRU,0.742564,+0.0000,,no_claim,
-com-orkut,pr,1MB,POPT,0.635334,-10.7230,,ok,Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter)
+com-orkut,pr,1MB,POPT,0.673781,-6.8783,,ok,Balaji & Lucia HPCA 2021 §6 (extrapolated to com-orkut from twitter)
 com-orkut,pr,1MB,SRRIP,0.706531,-3.6033,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 com-orkut,pr,4MB,GRASP,0.299712,-4.5897,,no_claim,
 com-orkut,pr,4MB,LRU,0.345609,+0.0000,,no_claim,
-com-orkut,pr,4MB,POPT,0.224549,-12.1060,,no_claim,
+com-orkut,pr,4MB,POPT,0.261308,-8.4301,,no_claim,
 com-orkut,pr,4MB,SRRIP,0.303554,-4.2055,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 com-orkut,pr,8MB,GRASP,0.159906,-2.5667,,ok,Faldu et al. HPCA 2020 §6.1 (extrapolated from twitter Fig 10)
 com-orkut,pr,8MB,LRU,0.185573,+0.0000,,no_claim,
-com-orkut,pr,8MB,POPT,0.119728,-6.5845,,no_claim,
+com-orkut,pr,8MB,POPT,0.132645,-5.2928,,no_claim,
 com-orkut,pr,8MB,SRRIP,0.159476,-2.6097,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 com-orkut,sssp,1MB,GRASP,0.592884,-9.3859,,no_claim,
 com-orkut,sssp,1MB,LRU,0.686743,+0.0000,,no_claim,
-com-orkut,sssp,1MB,POPT,0.612615,-7.4128,,no_claim,
+com-orkut,sssp,1MB,POPT,0.653656,-3.3087,,no_claim,
 com-orkut,sssp,1MB,SRRIP,0.653862,-3.2881,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 com-orkut,sssp,4MB,GRASP,0.146198,-2.6838,,no_claim,
 com-orkut,sssp,4MB,LRU,0.173036,+0.0000,,no_claim,
-com-orkut,sssp,4MB,POPT,0.143065,-2.9971,,no_claim,
+com-orkut,sssp,4MB,POPT,0.187253,+1.4217,,no_claim,
 com-orkut,sssp,4MB,SRRIP,0.152881,-2.0155,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 com-orkut,sssp,8MB,GRASP,0.016905,+0.0720,,no_claim,
 com-orkut,sssp,8MB,LRU,0.016185,+0.0000,,no_claim,
-com-orkut,sssp,8MB,POPT,0.017233,+0.1048,,no_claim,
+com-orkut,sssp,8MB,POPT,0.029386,+1.3201,,no_claim,
 com-orkut,sssp,8MB,SRRIP,0.015217,-0.0968,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 delaunay_n19,pr,16kB,GRASP,0.999740,-0.0260,,no_claim,
 delaunay_n19,pr,16kB,LRU,1.000000,+0.0000,,no_claim,
-delaunay_n19,pr,16kB,POPT,0.996143,-0.3857,,no_claim,
+delaunay_n19,pr,16kB,POPT,0.997714,-0.2286,,no_claim,
 delaunay_n19,pr,16kB,SRRIP,1.000000,+0.0000,,no_claim,
 delaunay_n19,pr,1MB,GRASP,0.851601,-11.5163,,no_claim,
 delaunay_n19,pr,1MB,LRU,0.966764,+0.0000,,no_claim,
-delaunay_n19,pr,1MB,POPT,0.790367,-17.6397,,no_claim,
+delaunay_n19,pr,1MB,POPT,0.810400,-15.6364,,no_claim,
 delaunay_n19,pr,1MB,SRRIP,0.951847,-1.4917,,no_claim,
 delaunay_n19,pr,256kB,GRASP,0.982951,-1.6226,,no_claim,
 delaunay_n19,pr,256kB,LRU,0.999177,+0.0000,,no_claim,
-delaunay_n19,pr,256kB,POPT,0.927952,-7.1225,,no_claim,
+delaunay_n19,pr,256kB,POPT,0.935871,-6.3306,,no_claim,
 delaunay_n19,pr,256kB,SRRIP,0.999095,-0.0082,,no_claim,
 delaunay_n19,pr,4kB,GRASP,0.999998,-0.0002,,no_claim,
 delaunay_n19,pr,4kB,LRU,1.000000,+0.0000,,no_claim,
@@ -137,7 +137,7 @@ delaunay_n19,pr,4kB,POPT,1.000000,+0.0000,,no_claim,
 delaunay_n19,pr,4kB,SRRIP,1.000000,+0.0000,,no_claim,
 delaunay_n19,pr,64kB,GRASP,0.997298,-0.2702,,no_claim,
 delaunay_n19,pr,64kB,LRU,1.000000,+0.0000,,no_claim,
-delaunay_n19,pr,64kB,POPT,0.974611,-2.5389,,no_claim,
+delaunay_n19,pr,64kB,POPT,0.977793,-2.2207,,no_claim,
 delaunay_n19,pr,64kB,SRRIP,1.000000,+0.0000,,no_claim,
 email-Eu-core,bc,1MB,GRASP,1.000000,+0.0000,,no_claim,
 email-Eu-core,bc,1MB,LRU,1.000000,+0.0000,,no_claim,
@@ -177,35 +177,35 @@ email-Eu-core,pr,8MB,POPT,1.000000,+0.0000,,no_claim,
 email-Eu-core,pr,8MB,SRRIP,1.000000,+0.0000,,insufficient_data,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 roadNet-CA,bc,16kB,GRASP,0.999890,-0.0108,,no_claim,
 roadNet-CA,bc,16kB,LRU,0.999998,+0.0000,,no_claim,
-roadNet-CA,bc,16kB,POPT,0.998439,-0.1559,,no_claim,
+roadNet-CA,bc,16kB,POPT,0.998702,-0.1296,,no_claim,
 roadNet-CA,bc,16kB,SRRIP,0.999998,+0.0000,,no_claim,
 roadNet-CA,bc,1MB,GRASP,0.810849,+16.2343,,no_claim,
 roadNet-CA,bc,1MB,LRU,0.648506,+0.0000,,no_claim,
-roadNet-CA,bc,1MB,POPT,0.812494,+16.3988,,no_claim,
+roadNet-CA,bc,1MB,POPT,0.825242,+17.6736,,no_claim,
 roadNet-CA,bc,1MB,SRRIP,0.654958,+0.6452,,no_claim,
 roadNet-CA,bc,256kB,GRASP,0.915301,-7.3878,,no_claim,
 roadNet-CA,bc,256kB,LRU,0.989179,+0.0000,,no_claim,
-roadNet-CA,bc,256kB,POPT,0.948549,-4.0630,,no_claim,
+roadNet-CA,bc,256kB,POPT,0.958136,-3.1043,,no_claim,
 roadNet-CA,bc,256kB,SRRIP,0.987384,-0.1795,,no_claim,
 roadNet-CA,bc,4kB,GRASP,0.999992,-0.0008,,no_claim,
 roadNet-CA,bc,4kB,LRU,1.000000,+0.0000,,no_claim,
-roadNet-CA,bc,4kB,POPT,0.999888,-0.0112,,no_claim,
+roadNet-CA,bc,4kB,POPT,0.999916,-0.0084,,no_claim,
 roadNet-CA,bc,4kB,SRRIP,1.000000,+0.0000,,no_claim,
 roadNet-CA,bc,64kB,GRASP,0.994350,-0.5485,,no_claim,
 roadNet-CA,bc,64kB,LRU,0.999835,+0.0000,,no_claim,
-roadNet-CA,bc,64kB,POPT,0.994092,-0.5743,,no_claim,
+roadNet-CA,bc,64kB,POPT,0.994936,-0.4899,,no_claim,
 roadNet-CA,bc,64kB,SRRIP,0.999787,-0.0048,,no_claim,
 roadNet-CA,bfs,16kB,GRASP,0.995827,-0.4173,,no_claim,
 roadNet-CA,bfs,16kB,LRU,1.000000,+0.0000,,no_claim,
-roadNet-CA,bfs,16kB,POPT,0.999872,-0.0128,,no_claim,
+roadNet-CA,bfs,16kB,POPT,0.999935,-0.0065,,no_claim,
 roadNet-CA,bfs,16kB,SRRIP,1.000000,+0.0000,,no_claim,
 roadNet-CA,bfs,1MB,GRASP,0.866917,+62.5858,,no_claim,
 roadNet-CA,bfs,1MB,LRU,0.241059,+0.0000,,no_claim,
-roadNet-CA,bfs,1MB,POPT,0.583970,+34.2911,,no_claim,
+roadNet-CA,bfs,1MB,POPT,0.592323,+35.1264,,no_claim,
 roadNet-CA,bfs,1MB,SRRIP,0.284867,+4.3808,,no_claim,
 roadNet-CA,bfs,256kB,GRASP,0.876772,-6.3168,,no_claim,
 roadNet-CA,bfs,256kB,LRU,0.939940,+0.0000,,no_claim,
-roadNet-CA,bfs,256kB,POPT,0.815930,-12.4010,,no_claim,
+roadNet-CA,bfs,256kB,POPT,0.854695,-8.5245,,no_claim,
 roadNet-CA,bfs,256kB,SRRIP,0.931919,-0.8021,,no_claim,
 roadNet-CA,bfs,4kB,GRASP,0.999762,-0.0238,,no_claim,
 roadNet-CA,bfs,4kB,LRU,1.000000,+0.0000,,no_claim,
@@ -213,39 +213,39 @@ roadNet-CA,bfs,4kB,POPT,1.000000,+0.0000,,no_claim,
 roadNet-CA,bfs,4kB,SRRIP,1.000000,+0.0000,,no_claim,
 roadNet-CA,bfs,64kB,GRASP,0.941734,-5.7829,,no_claim,
 roadNet-CA,bfs,64kB,LRU,0.999563,+0.0000,,no_claim,
-roadNet-CA,bfs,64kB,POPT,0.993871,-0.5692,,no_claim,
+roadNet-CA,bfs,64kB,POPT,0.995887,-0.3676,,no_claim,
 roadNet-CA,bfs,64kB,SRRIP,0.999460,-0.0103,,no_claim,
-roadNet-CA,cc,16kB,GRASP,0.996576,-0.3424,,no_claim,
+roadNet-CA,cc,16kB,GRASP,0.999506,-0.0494,,no_claim,
 roadNet-CA,cc,16kB,LRU,1.000000,+0.0000,,no_claim,
-roadNet-CA,cc,16kB,POPT,0.999820,-0.0180,,no_claim,
+roadNet-CA,cc,16kB,POPT,0.999862,-0.0138,,no_claim,
 roadNet-CA,cc,16kB,SRRIP,1.000000,+0.0000,,no_claim,
-roadNet-CA,cc,1MB,GRASP,0.865354,-12.6339,,no_claim,
+roadNet-CA,cc,1MB,GRASP,0.945125,-4.6568,,no_claim,
 roadNet-CA,cc,1MB,LRU,0.991693,+0.0000,,no_claim,
-roadNet-CA,cc,1MB,POPT,0.931169,-6.0524,,no_claim,
+roadNet-CA,cc,1MB,POPT,0.941915,-4.9778,,no_claim,
 roadNet-CA,cc,1MB,SRRIP,0.990865,-0.0828,,no_claim,
-roadNet-CA,cc,256kB,GRASP,0.962523,-3.7242,,no_claim,
+roadNet-CA,cc,256kB,GRASP,0.994503,-0.5262,,no_claim,
 roadNet-CA,cc,256kB,LRU,0.999765,+0.0000,,no_claim,
-roadNet-CA,cc,256kB,POPT,0.983587,-1.6178,,no_claim,
+roadNet-CA,cc,256kB,POPT,0.985964,-1.3801,,no_claim,
 roadNet-CA,cc,256kB,SRRIP,0.999754,-0.0011,,no_claim,
-roadNet-CA,cc,4kB,GRASP,0.999194,-0.0806,,no_claim,
+roadNet-CA,cc,4kB,GRASP,0.999963,-0.0037,,no_claim,
 roadNet-CA,cc,4kB,LRU,1.000000,+0.0000,,no_claim,
-roadNet-CA,cc,4kB,POPT,0.999958,-0.0042,,no_claim,
+roadNet-CA,cc,4kB,POPT,0.999957,-0.0043,,no_claim,
 roadNet-CA,cc,4kB,SRRIP,1.000000,+0.0000,,no_claim,
-roadNet-CA,cc,64kB,GRASP,0.987479,-1.2518,,no_claim,
+roadNet-CA,cc,64kB,GRASP,0.997974,-0.2023,,no_claim,
 roadNet-CA,cc,64kB,LRU,0.999997,+0.0000,,no_claim,
-roadNet-CA,cc,64kB,POPT,0.998477,-0.1520,,no_claim,
+roadNet-CA,cc,64kB,POPT,0.998826,-0.1171,,no_claim,
 roadNet-CA,cc,64kB,SRRIP,0.999997,+0.0000,,no_claim,
 roadNet-CA,pr,16kB,GRASP,0.999512,-0.0488,,no_claim,
 roadNet-CA,pr,16kB,LRU,1.000000,+0.0000,,no_claim,
-roadNet-CA,pr,16kB,POPT,0.999947,-0.0053,,no_claim,
+roadNet-CA,pr,16kB,POPT,0.999987,-0.0013,,no_claim,
 roadNet-CA,pr,16kB,SRRIP,1.000000,+0.0000,,no_claim,
 roadNet-CA,pr,1MB,GRASP,0.978026,+2.5524,,no_claim,
 roadNet-CA,pr,1MB,LRU,0.952502,+0.0000,,no_claim,
-roadNet-CA,pr,1MB,POPT,0.907752,-4.4750,,no_claim,
+roadNet-CA,pr,1MB,POPT,0.913578,-3.8924,,no_claim,
 roadNet-CA,pr,1MB,SRRIP,0.953039,+0.0537,,no_claim,
 roadNet-CA,pr,256kB,GRASP,0.988995,-0.6290,,no_claim,
 roadNet-CA,pr,256kB,LRU,0.995285,+0.0000,,no_claim,
-roadNet-CA,pr,256kB,POPT,0.943295,-5.1990,,no_claim,
+roadNet-CA,pr,256kB,POPT,0.946870,-4.8415,,no_claim,
 roadNet-CA,pr,256kB,SRRIP,0.995039,-0.0246,,no_claim,
 roadNet-CA,pr,4kB,GRASP,0.999644,-0.0356,,no_claim,
 roadNet-CA,pr,4kB,LRU,1.000000,+0.0000,,no_claim,
@@ -253,143 +253,143 @@ roadNet-CA,pr,4kB,POPT,1.000000,+0.0000,,no_claim,
 roadNet-CA,pr,4kB,SRRIP,1.000000,+0.0000,,no_claim,
 roadNet-CA,pr,64kB,GRASP,0.999210,-0.0789,,no_claim,
 roadNet-CA,pr,64kB,LRU,0.999999,+0.0000,,no_claim,
-roadNet-CA,pr,64kB,POPT,0.988321,-1.1678,,no_claim,
+roadNet-CA,pr,64kB,POPT,0.991727,-0.8272,,no_claim,
 roadNet-CA,pr,64kB,SRRIP,0.999999,+0.0000,,no_claim,
 roadNet-CA,sssp,16kB,GRASP,0.986344,-1.3395,,no_claim,
 roadNet-CA,sssp,16kB,LRU,0.999739,+0.0000,,no_claim,
-roadNet-CA,sssp,16kB,POPT,0.996549,-0.3190,,no_claim,
+roadNet-CA,sssp,16kB,POPT,0.997557,-0.2182,,no_claim,
 roadNet-CA,sssp,16kB,SRRIP,0.999600,-0.0139,,no_claim,
 roadNet-CA,sssp,1MB,GRASP,0.724823,+55.8274,,no_claim,
 roadNet-CA,sssp,1MB,LRU,0.166549,+0.0000,,no_claim,
-roadNet-CA,sssp,1MB,POPT,0.254540,+8.7991,,no_claim,
+roadNet-CA,sssp,1MB,POPT,0.271238,+10.4689,,no_claim,
 roadNet-CA,sssp,1MB,SRRIP,0.177961,+1.1412,,no_claim,
 roadNet-CA,sssp,256kB,GRASP,0.800503,+23.4831,,no_claim,
 roadNet-CA,sssp,256kB,LRU,0.565672,+0.0000,,no_claim,
-roadNet-CA,sssp,256kB,POPT,0.612118,+4.6446,,no_claim,
+roadNet-CA,sssp,256kB,POPT,0.658647,+9.2975,,no_claim,
 roadNet-CA,sssp,256kB,SRRIP,0.550468,-1.5204,,no_claim,
 roadNet-CA,sssp,4kB,GRASP,0.999397,-0.0603,,no_claim,
 roadNet-CA,sssp,4kB,LRU,1.000000,+0.0000,,no_claim,
-roadNet-CA,sssp,4kB,POPT,0.999942,-0.0058,,no_claim,
+roadNet-CA,sssp,4kB,POPT,0.999968,-0.0032,,no_claim,
 roadNet-CA,sssp,4kB,SRRIP,1.000000,+0.0000,,no_claim,
 roadNet-CA,sssp,64kB,GRASP,0.869996,-10.3077,,no_claim,
 roadNet-CA,sssp,64kB,LRU,0.973073,+0.0000,,no_claim,
-roadNet-CA,sssp,64kB,POPT,0.932386,-4.0687,,no_claim,
+roadNet-CA,sssp,64kB,POPT,0.949577,-2.3496,,no_claim,
 roadNet-CA,sssp,64kB,SRRIP,0.967002,-0.6071,,no_claim,
 soc-LiveJournal1,bc,1MB,GRASP,0.831167,-3.3688,,ok,Faldu et al. HPCA 2020 Fig 11
 soc-LiveJournal1,bc,1MB,LRU,0.864855,+0.0000,,no_claim,
-soc-LiveJournal1,bc,1MB,POPT,0.825139,-3.9716,,no_claim,
+soc-LiveJournal1,bc,1MB,POPT,0.842514,-2.2341,,no_claim,
 soc-LiveJournal1,bc,1MB,SRRIP,0.850112,-1.4743,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,bc,4MB,GRASP,0.600089,-5.5098,,no_claim,
 soc-LiveJournal1,bc,4MB,LRU,0.655187,+0.0000,,no_claim,
-soc-LiveJournal1,bc,4MB,POPT,0.602828,-5.2359,,no_claim,
+soc-LiveJournal1,bc,4MB,POPT,0.629821,-2.5366,,no_claim,
 soc-LiveJournal1,bc,4MB,SRRIP,0.629684,-2.5503,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,bc,8MB,GRASP,0.440550,-6.1941,,no_claim,
 soc-LiveJournal1,bc,8MB,LRU,0.502491,+0.0000,,no_claim,
-soc-LiveJournal1,bc,8MB,POPT,0.446690,-5.5801,,no_claim,
+soc-LiveJournal1,bc,8MB,POPT,0.479932,-2.2559,,no_claim,
 soc-LiveJournal1,bc,8MB,SRRIP,0.471911,-3.0580,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,bfs,1MB,GRASP,0.783742,-5.1967,,ok,Faldu et al. HPCA 2020 Fig 11
 soc-LiveJournal1,bfs,1MB,LRU,0.835709,+0.0000,,no_claim,
-soc-LiveJournal1,bfs,1MB,POPT,0.786012,-4.9697,,no_claim,
+soc-LiveJournal1,bfs,1MB,POPT,0.805644,-3.0065,,no_claim,
 soc-LiveJournal1,bfs,1MB,SRRIP,0.810706,-2.5003,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,bfs,4MB,GRASP,0.572008,-7.2590,,no_claim,
 soc-LiveJournal1,bfs,4MB,LRU,0.644598,+0.0000,,no_claim,
-soc-LiveJournal1,bfs,4MB,POPT,0.586998,-5.7600,,no_claim,
+soc-LiveJournal1,bfs,4MB,POPT,0.605591,-3.9007,,no_claim,
 soc-LiveJournal1,bfs,4MB,SRRIP,0.618504,-2.6094,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-LiveJournal1,bfs,8MB,GRASP,0.509865,-5.3326,,no_claim,
 soc-LiveJournal1,bfs,8MB,LRU,0.563191,+0.0000,,no_claim,
-soc-LiveJournal1,bfs,8MB,POPT,0.504653,-5.8538,,no_claim,
+soc-LiveJournal1,bfs,8MB,POPT,0.519924,-4.3267,,no_claim,
 soc-LiveJournal1,bfs,8MB,SRRIP,0.545957,-1.7234,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-soc-LiveJournal1,cc,1MB,GRASP,0.727663,-7.0983,,no_claim,
+soc-LiveJournal1,cc,1MB,GRASP,0.754597,-4.4049,,no_claim,
 soc-LiveJournal1,cc,1MB,LRU,0.798646,+0.0000,,no_claim,
-soc-LiveJournal1,cc,1MB,POPT,0.681907,-11.6739,,no_claim,
+soc-LiveJournal1,cc,1MB,POPT,0.703314,-9.5332,,no_claim,
 soc-LiveJournal1,cc,1MB,SRRIP,0.774459,-2.4187,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-soc-LiveJournal1,cc,4MB,GRASP,0.470690,-10.4791,,no_claim,
+soc-LiveJournal1,cc,4MB,GRASP,0.486233,-8.9248,,no_claim,
 soc-LiveJournal1,cc,4MB,LRU,0.575481,+0.0000,,no_claim,
-soc-LiveJournal1,cc,4MB,POPT,0.490627,-8.4854,,no_claim,
+soc-LiveJournal1,cc,4MB,POPT,0.510698,-6.4783,,no_claim,
 soc-LiveJournal1,cc,4MB,SRRIP,0.553523,-2.1958,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-soc-LiveJournal1,cc,8MB,GRASP,0.317264,-15.1331,,no_claim,
+soc-LiveJournal1,cc,8MB,GRASP,0.359253,-10.9342,,no_claim,
 soc-LiveJournal1,cc,8MB,LRU,0.468595,+0.0000,,no_claim,
-soc-LiveJournal1,cc,8MB,POPT,0.375347,-9.3248,,no_claim,
+soc-LiveJournal1,cc,8MB,POPT,0.402011,-6.6584,,no_claim,
 soc-LiveJournal1,cc,8MB,SRRIP,0.435289,-3.3306,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
 soc-LiveJournal1,pr,1MB,GRASP,0.682525,-8.2844,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-LiveJournal1,pr,1MB,LRU,0.765369,+0.0000,,no_claim,
-soc-LiveJournal1,pr,1MB,POPT,0.631166,-13.4203,,ok,Balaji & Lucia HPCA 2021 Fig 9
+soc-LiveJournal1,pr,1MB,POPT,0.664212,-10.1157,,ok,Balaji & Lucia HPCA 2021 Fig 9
 soc-LiveJournal1,pr,1MB,SRRIP,0.733963,-3.1406,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 soc-LiveJournal1,pr,4MB,GRASP,0.368881,-9.2753,,no_claim,
 soc-LiveJournal1,pr,4MB,LRU,0.461634,+0.0000,,no_claim,
-soc-LiveJournal1,pr,4MB,POPT,0.300410,-16.1224,,no_claim,
+soc-LiveJournal1,pr,4MB,POPT,0.332620,-12.9014,,no_claim,
 soc-LiveJournal1,pr,4MB,SRRIP,0.420129,-4.1505,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 soc-LiveJournal1,pr,8MB,GRASP,0.225332,-7.4565,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-LiveJournal1,pr,8MB,LRU,0.299897,+0.0000,,no_claim,
-soc-LiveJournal1,pr,8MB,POPT,0.189314,-11.0583,,no_claim,
+soc-LiveJournal1,pr,8MB,POPT,0.204819,-9.5078,,no_claim,
 soc-LiveJournal1,pr,8MB,SRRIP,0.259415,-4.0482,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 soc-LiveJournal1,sssp,1MB,GRASP,0.682024,-6.1872,,no_claim,
 soc-LiveJournal1,sssp,1MB,LRU,0.743896,+0.0000,,no_claim,
-soc-LiveJournal1,sssp,1MB,POPT,0.670688,-7.3208,,ok,Balaji & Lucia HPCA 2021 Fig 10
+soc-LiveJournal1,sssp,1MB,POPT,0.701015,-4.2881,,ok,Balaji & Lucia HPCA 2021 Fig 10
 soc-LiveJournal1,sssp,1MB,SRRIP,0.717670,-2.6226,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 soc-LiveJournal1,sssp,4MB,GRASP,0.318344,-6.5237,,no_claim,
 soc-LiveJournal1,sssp,4MB,LRU,0.383581,+0.0000,,no_claim,
-soc-LiveJournal1,sssp,4MB,POPT,0.319220,-6.4361,,no_claim,
+soc-LiveJournal1,sssp,4MB,POPT,0.358093,-2.5488,,no_claim,
 soc-LiveJournal1,sssp,4MB,SRRIP,0.353797,-2.9784,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 soc-LiveJournal1,sssp,8MB,GRASP,0.139874,-2.9756,,no_claim,
 soc-LiveJournal1,sssp,8MB,LRU,0.169630,+0.0000,,no_claim,
-soc-LiveJournal1,sssp,8MB,POPT,0.135403,-3.4227,,no_claim,
+soc-LiveJournal1,sssp,8MB,POPT,0.169120,-0.0510,,no_claim,
 soc-LiveJournal1,sssp,8MB,SRRIP,0.151842,-1.7788,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 soc-pokec,bc,1MB,GRASP,0.810808,-4.8921,,ok,Faldu et al. HPCA 2020 Fig 11
 soc-pokec,bc,1MB,LRU,0.859729,+0.0000,,no_claim,
-soc-pokec,bc,1MB,POPT,0.809683,-5.0046,,no_claim,
+soc-pokec,bc,1MB,POPT,0.832450,-2.7279,,no_claim,
 soc-pokec,bc,1MB,SRRIP,0.844165,-1.5564,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-pokec,bc,4MB,GRASP,0.457949,-7.2120,,no_claim,
 soc-pokec,bc,4MB,LRU,0.530069,+0.0000,,no_claim,
-soc-pokec,bc,4MB,POPT,0.459569,-7.0500,,no_claim,
+soc-pokec,bc,4MB,POPT,0.504725,-2.5344,,no_claim,
 soc-pokec,bc,4MB,SRRIP,0.496445,-3.3624,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-pokec,bc,8MB,GRASP,0.222744,-4.4997,,no_claim,
 soc-pokec,bc,8MB,LRU,0.267741,+0.0000,,no_claim,
-soc-pokec,bc,8MB,POPT,0.217668,-5.0073,,no_claim,
+soc-pokec,bc,8MB,POPT,0.264832,-0.2909,,no_claim,
 soc-pokec,bc,8MB,SRRIP,0.241220,-2.6521,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-pokec,bfs,1MB,GRASP,0.859369,-4.6924,,no_claim,
 soc-pokec,bfs,1MB,LRU,0.906293,+0.0000,,no_claim,
-soc-pokec,bfs,1MB,POPT,0.872956,-3.3337,,no_claim,
+soc-pokec,bfs,1MB,POPT,0.887007,-1.9286,,no_claim,
 soc-pokec,bfs,1MB,SRRIP,0.892223,-1.4070,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-pokec,bfs,4MB,GRASP,0.755891,-3.1386,,no_claim,
 soc-pokec,bfs,4MB,LRU,0.787277,+0.0000,,no_claim,
-soc-pokec,bfs,4MB,POPT,0.708089,-7.9188,,no_claim,
+soc-pokec,bfs,4MB,POPT,0.725987,-6.1290,,no_claim,
 soc-pokec,bfs,4MB,SRRIP,0.781166,-0.6111,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 soc-pokec,bfs,8MB,GRASP,0.743854,-1.5784,,no_claim,
 soc-pokec,bfs,8MB,LRU,0.759638,+0.0000,,no_claim,
-soc-pokec,bfs,8MB,POPT,0.625682,-13.3956,,no_claim,
+soc-pokec,bfs,8MB,POPT,0.625986,-13.3652,,no_claim,
 soc-pokec,bfs,8MB,SRRIP,0.753612,-0.6026,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-soc-pokec,cc,1MB,GRASP,0.604195,-12.3912,,no_claim,
+soc-pokec,cc,1MB,GRASP,0.650924,-7.7183,,no_claim,
 soc-pokec,cc,1MB,LRU,0.728107,+0.0000,,no_claim,
-soc-pokec,cc,1MB,POPT,0.641433,-8.6674,,no_claim,
+soc-pokec,cc,1MB,POPT,0.663401,-6.4706,,no_claim,
 soc-pokec,cc,1MB,SRRIP,0.701253,-2.6854,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-soc-pokec,cc,4MB,GRASP,0.250500,-21.3319,,no_claim,
+soc-pokec,cc,4MB,GRASP,0.410044,-5.3775,,no_claim,
 soc-pokec,cc,4MB,LRU,0.463819,+0.0000,,no_claim,
-soc-pokec,cc,4MB,POPT,0.311977,-15.1842,,no_claim,
+soc-pokec,cc,4MB,POPT,0.366890,-9.6929,,no_claim,
 soc-pokec,cc,4MB,SRRIP,0.379204,-8.4615,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-soc-pokec,cc,8MB,GRASP,0.062926,+0.0000,,no_claim,
+soc-pokec,cc,8MB,GRASP,0.373079,+31.0153,,no_claim,
 soc-pokec,cc,8MB,LRU,0.062926,+0.0000,,no_claim,
 soc-pokec,cc,8MB,POPT,0.062926,+0.0000,,no_claim,
 soc-pokec,cc,8MB,SRRIP,0.062926,+0.0000,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
 soc-pokec,pr,1MB,GRASP,0.555685,-14.0466,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-pokec,pr,1MB,LRU,0.696151,+0.0000,,no_claim,
-soc-pokec,pr,1MB,POPT,0.526600,-16.9551,,ok,Balaji & Lucia HPCA 2021 Fig 9
+soc-pokec,pr,1MB,POPT,0.576095,-12.0056,,ok,Balaji & Lucia HPCA 2021 Fig 9
 soc-pokec,pr,1MB,SRRIP,0.651728,-4.4423,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 soc-pokec,pr,4MB,GRASP,0.143667,-6.5720,,no_claim,
 soc-pokec,pr,4MB,LRU,0.209387,+0.0000,,no_claim,
-soc-pokec,pr,4MB,POPT,0.124883,-8.4504,,no_claim,
+soc-pokec,pr,4MB,POPT,0.142532,-6.6855,,no_claim,
 soc-pokec,pr,4MB,SRRIP,0.170262,-3.9125,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 soc-pokec,pr,8MB,GRASP,0.091342,-1.5950,,ok,Faldu et al. HPCA 2020 Fig 10
 soc-pokec,pr,8MB,LRU,0.107292,+0.0000,,no_claim,
-soc-pokec,pr,8MB,POPT,0.093044,-1.4248,,no_claim,
+soc-pokec,pr,8MB,POPT,0.097051,-1.0241,,no_claim,
 soc-pokec,pr,8MB,SRRIP,0.094371,-1.2921,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 soc-pokec,sssp,1MB,GRASP,0.558075,-11.3869,,no_claim,
 soc-pokec,sssp,1MB,LRU,0.671944,+0.0000,,no_claim,
-soc-pokec,sssp,1MB,POPT,0.582991,-8.8953,,ok,Balaji & Lucia HPCA 2021 Fig 10
+soc-pokec,sssp,1MB,POPT,0.629424,-4.2520,,ok,Balaji & Lucia HPCA 2021 Fig 10
 soc-pokec,sssp,1MB,SRRIP,0.636608,-3.5336,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 soc-pokec,sssp,4MB,GRASP,0.076550,-2.3192,,no_claim,
 soc-pokec,sssp,4MB,LRU,0.099742,+0.0000,,no_claim,
-soc-pokec,sssp,4MB,POPT,0.077731,-2.2011,,no_claim,
+soc-pokec,sssp,4MB,POPT,0.116955,+1.7213,,no_claim,
 soc-pokec,sssp,4MB,SRRIP,0.086994,-1.2748,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 soc-pokec,sssp,8MB,GRASP,0.007613,+0.4325,,no_claim,
 soc-pokec,sssp,8MB,LRU,0.003288,+0.0000,,no_claim,
@@ -397,55 +397,55 @@ soc-pokec,sssp,8MB,POPT,0.003288,+0.0000,,no_claim,
 soc-pokec,sssp,8MB,SRRIP,0.003288,+0.0000,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 web-Google,bc,1MB,GRASP,0.823764,+2.1070,,ok,Faldu et al. HPCA 2020 Fig 11
 web-Google,bc,1MB,LRU,0.802694,+0.0000,,no_claim,
-web-Google,bc,1MB,POPT,0.821560,+1.8866,,no_claim,
+web-Google,bc,1MB,POPT,0.837811,+3.5117,,no_claim,
 web-Google,bc,1MB,SRRIP,0.806937,+0.4243,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 web-Google,bc,4MB,GRASP,0.518605,+0.2432,,no_claim,
 web-Google,bc,4MB,LRU,0.516173,+0.0000,,no_claim,
-web-Google,bc,4MB,POPT,0.543463,+2.7290,,no_claim,
+web-Google,bc,4MB,POPT,0.583008,+6.6835,,no_claim,
 web-Google,bc,4MB,SRRIP,0.498883,-1.7290,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 web-Google,bc,8MB,GRASP,0.263469,+4.2458,,no_claim,
 web-Google,bc,8MB,LRU,0.221011,+0.0000,,no_claim,
-web-Google,bc,8MB,POPT,0.289227,+6.8216,,no_claim,
+web-Google,bc,8MB,POPT,0.342378,+12.1367,,no_claim,
 web-Google,bc,8MB,SRRIP,0.211406,-0.9605,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 web-Google,bfs,1MB,GRASP,0.944392,-3.6010,,ok,Faldu et al. HPCA 2020 Fig 11
 web-Google,bfs,1MB,LRU,0.980402,+0.0000,,no_claim,
-web-Google,bfs,1MB,POPT,0.955613,-2.4789,,no_claim,
+web-Google,bfs,1MB,POPT,0.961868,-1.8534,,no_claim,
 web-Google,bfs,1MB,SRRIP,0.979611,-0.0791,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 web-Google,bfs,4MB,GRASP,0.919123,-2.9455,,no_claim,
 web-Google,bfs,4MB,LRU,0.948578,+0.0000,,no_claim,
-web-Google,bfs,4MB,POPT,0.764331,-18.4247,,no_claim,
+web-Google,bfs,4MB,POPT,0.798940,-14.9638,,no_claim,
 web-Google,bfs,4MB,SRRIP,0.947337,-0.1241,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
 web-Google,bfs,8MB,GRASP,0.912540,+9.3177,,no_claim,
 web-Google,bfs,8MB,LRU,0.819363,+0.0000,,no_claim,
-web-Google,bfs,8MB,POPT,0.737762,-8.1601,,no_claim,
+web-Google,bfs,8MB,POPT,0.744945,-7.4418,,no_claim,
 web-Google,bfs,8MB,SRRIP,0.813627,-0.5736,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1 (extended)
-web-Google,cc,1MB,GRASP,0.539798,-4.6128,,no_claim,
+web-Google,cc,1MB,GRASP,0.540963,-4.4963,,no_claim,
 web-Google,cc,1MB,LRU,0.585926,+0.0000,,no_claim,
-web-Google,cc,1MB,POPT,0.496614,-8.9312,,no_claim,
+web-Google,cc,1MB,POPT,0.531391,-5.4535,,no_claim,
 web-Google,cc,1MB,SRRIP,0.556854,-2.9072,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-web-Google,cc,4MB,GRASP,0.051919,+0.0000,,no_claim,
+web-Google,cc,4MB,GRASP,0.258265,+20.6346,,no_claim,
 web-Google,cc,4MB,LRU,0.051919,+0.0000,,no_claim,
 web-Google,cc,4MB,POPT,0.051919,+0.0000,,no_claim,
 web-Google,cc,4MB,SRRIP,0.051919,+0.0000,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
-web-Google,cc,8MB,GRASP,0.051919,+0.0000,,no_claim,
+web-Google,cc,8MB,GRASP,0.167094,+11.5175,,no_claim,
 web-Google,cc,8MB,LRU,0.051919,+0.0000,,no_claim,
 web-Google,cc,8MB,POPT,0.051919,+0.0000,,no_claim,
 web-Google,cc,8MB,SRRIP,0.051919,+0.0000,,ok,Jaleel et al. ISCA 2010 §5.2 (scan-resistance argument extended to CC)
 web-Google,pr,1MB,GRASP,0.450908,-14.7453,,ok,Faldu et al. HPCA 2020 Fig 10
 web-Google,pr,1MB,LRU,0.598361,+0.0000,,no_claim,
-web-Google,pr,1MB,POPT,0.384029,-21.4332,,ok,Balaji & Lucia HPCA 2021 Fig 9
+web-Google,pr,1MB,POPT,0.429859,-16.8502,,ok,Balaji & Lucia HPCA 2021 Fig 9
 web-Google,pr,1MB,SRRIP,0.540871,-5.7490,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 web-Google,pr,4MB,GRASP,0.129092,-1.3019,,no_claim,
 web-Google,pr,4MB,LRU,0.142111,+0.0000,,no_claim,
-web-Google,pr,4MB,POPT,0.114921,-2.7190,,no_claim,
+web-Google,pr,4MB,POPT,0.125794,-1.6317,,no_claim,
 web-Google,pr,4MB,SRRIP,0.119179,-2.2932,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 web-Google,pr,8MB,GRASP,0.106849,+0.9692,,ok,Faldu et al. HPCA 2020 Fig 10
 web-Google,pr,8MB,LRU,0.097157,+0.0000,,no_claim,
-web-Google,pr,8MB,POPT,0.084351,-1.2806,,no_claim,
+web-Google,pr,8MB,POPT,0.087661,-0.9496,,no_claim,
 web-Google,pr,8MB,SRRIP,0.093367,-0.3790,,ok,Jaleel et al. ISCA 2010 §5.2; Faldu et al. HPCA 2020 §6.1
 web-Google,sssp,1MB,GRASP,0.640313,-2.3466,,no_claim,
 web-Google,sssp,1MB,LRU,0.663779,+0.0000,,no_claim,
-web-Google,sssp,1MB,POPT,0.641996,-2.1783,,no_claim,
+web-Google,sssp,1MB,POPT,0.686587,+2.2808,,no_claim,
 web-Google,sssp,1MB,SRRIP,0.656180,-0.7599,,ok,Jaleel et al. ISCA 2010 §5.2; Balaji & Lucia HPCA 2021 §6.3 (extended)
 web-Google,sssp,4MB,GRASP,0.081619,+5.8141,,no_claim,
 web-Google,sssp,4MB,LRU,0.023478,+0.0000,,no_claim,

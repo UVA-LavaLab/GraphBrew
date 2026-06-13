@@ -3,13 +3,25 @@
 
 Reads `wiki/data/cache_saturation_onset.json` and aggregates the
 **final-octave** (4MB->8MB) slope magnitudes per policy across all
-apps. Asserts the headline policy ordering that mirrors the
-saturation-rank story from gate 64 but in absolute steepness terms:
+apps. Asserts the charge-invariant steepness ordering:
 
-  - POPT and GRASP (oracle-aware) hold flat at small magnitudes.
-  - LRU and SRRIP (non-oracle) stay steep at large magnitudes.
-  - Strict ordering of medians: POPT <= GRASP <= LRU, and POPT < SRRIP.
-  - Oracle-aware median steepness must be < half of non-oracle median.
+  - GRASP (degree heuristic) is the FLATTEST policy: its hot-set
+    pinning is cache-size-insensitive, so its miss-rate barely moves
+    over the final octave (median magnitude <= every other policy).
+  - LRU (blind recency) is the STEEPEST policy: it is the most
+    cache-sensitive, so it keeps benefiting from added capacity
+    (median magnitude >= every other policy).
+  - GRASP <= LRU, and the spread between flattest and steepest is
+    material (LRU median >= 1.5x GRASP median).
+  - Charged P-OPT fully saturates on at least one app (its strongest):
+    POPT's per-app minimum slope is near zero.
+
+NOTE (2026-06-13): the earlier "oracle-aware {GRASP, POPT} both flat /
+< half of non-oracle" model was a multi-thread + UNCHARGED-P-OPT
+artifact. Under the faithful 1-way RRM capacity charge (Balaji & Lucia
+HPCA'21) P-OPT is a practical policy that pays the reserved-way tax and
+recovers the gap as cache grows -> it is mid-pack in steepness, no
+longer characteristically flat. GRASP is now the only flat policy.
 
 Output:
   - wiki/data/policy_steepness_ranking.json
@@ -26,18 +38,16 @@ import statistics
 from pathlib import Path
 from typing import Any, Dict, List
 
-ORACLE_AWARE = ("POPT", "GRASP")
-NON_ORACLE = ("LRU", "SRRIP")
+# The flattest (cache-insensitive degree heuristic) and the steepest
+# (most cache-sensitive blind-recency) policy. These anchor the
+# charge-invariant ordering; the other two policies sit between them.
+FLATTEST_POLICY = "GRASP"
+STEEPEST_POLICY = "LRU"
 
-# Thresholds (pp/octave). Re-pinned 2026-06-12 to the reproducible
-# single-thread, array-relative-GRASP 0.15 corpus (final-octave medians
-# POPT=0.51, GRASP=0.62, LRU=1.32, SRRIP=1.24). The oracle-aware-flatter
-# universality holds via the RELATIVE half-of-non-oracle check; single-
-# thread determinism roughly doubled the absolute oracle-aware slopes
-# (were POPT=0.10, GRASP=0.23), so the absolute ceiling is raised to 0.7.
-ORACLE_AWARE_CEILING_PP = 0.7      # median |final-octave slope|
-NON_ORACLE_FLOOR_PP = 0.5          # median |final-octave slope|
-ORACLE_AWARE_HALF_OF_NON_ORACLE = 0.5  # oracle median must be < this fraction
+# Thresholds (pp/octave). Pinned 2026-06-13 to the reproducible
+# single-thread, array-relative-GRASP 0.15, CHARGED-P-OPT 1-way corpus
+# (final-octave medians GRASP=1.04, SRRIP=1.36, POPT=1.52, LRU=2.24).
+LRU_OVER_GRASP_SPREAD = 1.5        # LRU median >= this x GRASP median
 POPT_MIN_SLOPE_CEILING_PP = 0.2    # at least one app must fully saturate with POPT
 
 
@@ -65,47 +75,46 @@ def _build_report(onset_path: Path) -> Dict[str, Any]:
         }
 
     medians = {pol: per_policy[pol]["median"] for pol in policies}
-    oracle_med = statistics.median([medians[p] for p in ORACLE_AWARE])
-    non_oracle_med = statistics.median([medians[p] for p in NON_ORACLE])
+    others_vs_flattest = [p for p in policies if p != FLATTEST_POLICY]
+    others_vs_steepest = [p for p in policies if p != STEEPEST_POLICY]
 
     ranking = sorted(policies, key=lambda p: per_policy[p]["median"])
 
     checks: Dict[str, Dict[str, Any]] = {}
 
-    checks["popt_le_grasp_median"] = {
-        "popt": medians["POPT"],
-        "grasp": medians["GRASP"],
-        "ok": medians["POPT"] <= medians["GRASP"] + 1e-9,
+    checks["grasp_is_flattest"] = {
+        "grasp": medians[FLATTEST_POLICY],
+        "others": {p: medians[p] for p in others_vs_flattest},
+        "ok": all(
+            medians[FLATTEST_POLICY] <= medians[p] + 1e-9 for p in others_vs_flattest
+        ),
+    }
+    checks["lru_is_steepest"] = {
+        "lru": medians[STEEPEST_POLICY],
+        "others": {p: medians[p] for p in others_vs_steepest},
+        "ok": all(
+            medians[STEEPEST_POLICY] >= medians[p] - 1e-9 for p in others_vs_steepest
+        ),
     }
     checks["grasp_le_lru_median"] = {
-        "grasp": medians["GRASP"],
-        "lru": medians["LRU"],
-        "ok": medians["GRASP"] <= medians["LRU"] + 1e-9,
+        "grasp": medians[FLATTEST_POLICY],
+        "lru": medians[STEEPEST_POLICY],
+        "ok": medians[FLATTEST_POLICY] <= medians[STEEPEST_POLICY] + 1e-9,
     }
-    checks["popt_lt_srrip_median"] = {
-        "popt": medians["POPT"],
-        "srrip": medians["SRRIP"],
-        "ok": medians["POPT"] < medians["SRRIP"] - 1e-9,
-    }
-    checks["oracle_aware_ceiling"] = {
-        "ceiling": ORACLE_AWARE_CEILING_PP,
-        "popt": medians["POPT"],
-        "grasp": medians["GRASP"],
-        "ok": all(medians[p] <= ORACLE_AWARE_CEILING_PP + 1e-9 for p in ORACLE_AWARE),
-    }
-    checks["non_oracle_floor"] = {
-        "floor": NON_ORACLE_FLOOR_PP,
-        "lru": medians["LRU"],
-        "srrip": medians["SRRIP"],
-        "ok": all(medians[p] >= NON_ORACLE_FLOOR_PP - 1e-9 for p in NON_ORACLE),
-    }
-    half_check = oracle_med < non_oracle_med * ORACLE_AWARE_HALF_OF_NON_ORACLE + 1e-9
-    checks["oracle_half_of_non_oracle"] = {
-        "oracle_median": round(oracle_med, 6),
-        "non_oracle_median": round(non_oracle_med, 6),
-        "required_ratio": ORACLE_AWARE_HALF_OF_NON_ORACLE,
-        "actual_ratio": round(oracle_med / non_oracle_med, 6) if non_oracle_med else None,
-        "ok": half_check,
+    spread_ok = (
+        medians[STEEPEST_POLICY]
+        >= LRU_OVER_GRASP_SPREAD * medians[FLATTEST_POLICY] - 1e-9
+    )
+    checks["steepness_spread"] = {
+        "lru": medians[STEEPEST_POLICY],
+        "grasp": medians[FLATTEST_POLICY],
+        "required_ratio": LRU_OVER_GRASP_SPREAD,
+        "actual_ratio": round(
+            medians[STEEPEST_POLICY] / medians[FLATTEST_POLICY], 6
+        )
+        if medians[FLATTEST_POLICY]
+        else None,
+        "ok": spread_ok,
     }
     checks["popt_min_saturates"] = {
         "popt_min": per_policy["POPT"]["min"],
@@ -121,19 +130,15 @@ def _build_report(onset_path: Path) -> Dict[str, Any]:
         "meta": {
             "apps": apps,
             "policies": policies,
-            "oracle_aware": list(ORACLE_AWARE),
-            "non_oracle": list(NON_ORACLE),
+            "flattest_policy": FLATTEST_POLICY,
+            "steepest_policy": STEEPEST_POLICY,
             "thresholds": {
-                "oracle_aware_ceiling_pp": ORACLE_AWARE_CEILING_PP,
-                "non_oracle_floor_pp": NON_ORACLE_FLOOR_PP,
-                "oracle_aware_half_of_non_oracle": ORACLE_AWARE_HALF_OF_NON_ORACLE,
+                "lru_over_grasp_spread": LRU_OVER_GRASP_SPREAD,
                 "popt_min_slope_ceiling_pp": POPT_MIN_SLOPE_CEILING_PP,
             },
         },
         "per_policy": per_policy,
         "medians_pp": medians,
-        "oracle_median_pp": round(oracle_med, 6),
-        "non_oracle_median_pp": round(non_oracle_med, 6),
         "ranking_by_median": ranking,
         "checks": checks,
         "verdict_ok": verdict_ok,

@@ -219,12 +219,21 @@ def parse_policy_spec(text: str) -> PolicySpec:
     raw = text.strip()
     upper = raw.upper().replace("-", "_")
     charge_popt = False
+    explicit_charge = False
     if upper.endswith("_CHARGED"):
         upper = upper[: -len("_CHARGED")]
         charge_popt = True
+        explicit_charge = True
     elif upper.endswith(":CHARGED"):
         upper = upper[: -len(":CHARGED")]
         charge_popt = True
+        explicit_charge = True
+    elif upper.endswith("_UNCHARGED"):
+        upper = upper[: -len("_UNCHARGED")]
+        explicit_charge = True
+    elif upper.endswith(":UNCHARGED"):
+        upper = upper[: -len(":UNCHARGED")]
+        explicit_charge = True
 
     if upper.startswith("ECG:"):
         mode = upper.split(":", 1)[1]
@@ -236,12 +245,16 @@ def parse_policy_spec(text: str) -> PolicySpec:
         label = f"ECG_{mode}" + ("_CHARGED" if charge_popt else "")
         return PolicySpec(label=label, policy="ECG", ecg_mode=mode,
                           charge_popt_overhead=charge_popt)
-    if upper in ("P_OPT", "P-OPT"):
-        return PolicySpec(label="POPT_CHARGED" if charge_popt else "POPT",
-                          policy="POPT", charge_popt_overhead=charge_popt)
-    if upper == "POPT":
-        return PolicySpec(label="POPT_CHARGED" if charge_popt else "POPT",
-                          policy="POPT", charge_popt_overhead=charge_popt)
+    if upper in ("P_OPT", "P-OPT", "POPT"):
+        # Plain POPT is the PRACTICAL P-OPT (Balaji & Lucia, HPCA'21): it
+        # reserves one LLC way for the rereference-matrix streaming buffer, so
+        # the capacity overhead is charged BY DEFAULT. The label stays "POPT"
+        # (it is the paper's policy). Use "POPT:UNCHARGED" only for the
+        # non-faithful, full-capacity diagnostic variant.
+        if not explicit_charge:
+            charge_popt = True
+        return PolicySpec(label="POPT", policy="POPT",
+                          charge_popt_overhead=charge_popt)
     return PolicySpec(label=upper, policy=upper, charge_popt_overhead=charge_popt)
 
 
@@ -397,8 +410,14 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
     matrix_bytes = active_columns * column_bytes
     sets = max(requested_bytes // (assoc * line_size), 1)
     bytes_per_way = sets * line_size
-    reserved_ways = (matrix_bytes + bytes_per_way - 1) // bytes_per_way
-    reserved_ways = max(1, min(reserved_ways, assoc - min_data_ways))
+    # P-OPT (Balaji & Lucia, HPCA'21) reserves exactly ONE LLC way for the
+    # rereference-matrix streaming buffer: the RRM lives in memory and is
+    # streamed in, so only a single-way on-chip buffer is held (NOT the whole
+    # column, which would be many ways on large graphs). The capacity tax is
+    # therefore a fixed one way (matching the paper); matrix_bytes/stream_bytes
+    # below are retained as informational reporting for the metadata-cost table
+    # (and the streamed-from-memory bandwidth, which a capacity sim does not model).
+    reserved_ways = 1 if (assoc - min_data_ways) >= 1 else 0
     reserved_bytes = reserved_ways * bytes_per_way
     effective_ways = max(assoc - reserved_ways, min_data_ways)
     effective_bytes = sets * effective_ways * line_size

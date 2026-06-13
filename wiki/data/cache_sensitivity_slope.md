@@ -6,41 +6,42 @@ Slope units: **gap_pp per L3 octave (log2 MB)**. Positive slope means the oracle
 
 ## Headline
 
-- ⚠️ 10 (app, policy) cells violate monotonicity. See 'Monotonic violations' below.
+- ⚠️ 11 (app, policy) cells violate monotonicity. See 'Monotonic violations' below.
 
 ## Per-policy slope summary (mean across apps)
 
 | policy | mean slope | stdev slope | min slope | max slope | n_apps |
 |---|---:|---:|---:|---:|---:|
-| **GRASP** | 1.183 | 0.8924 | 0.5556 | 2.9252 | 5 |
-| **LRU** | 0.4737 | 1.3003 | -1.4224 | 2.2558 | 5 |
-| **POPT** | 0.4612 | 0.7308 | -0.2064 | 1.7619 | 5 |
-| **SRRIP** | 0.5439 | 1.1385 | -1.2394 | 2.1784 | 5 |
+| **GRASP** | 0.5331 | 1.7508 | -2.4838 | 2.901 | 5 |
+| **LRU** | 0.4592 | 1.1468 | -1.2273 | 1.8831 | 5 |
+| **POPT** | 0.5218 | 0.9165 | -0.6429 | 1.9474 | 5 |
+| **SRRIP** | 0.5293 | 0.9764 | -1.0443 | 1.8057 | 5 |
 
 ## Per-(app, policy) avg slope (gap_pp shrinkage per L3 octave)
 
 | app | GRASP | LRU | POPT | SRRIP |
 |---|---|---|---|---|
-| **bc** | 0.593 | -0.427 | -0.006 | 0.018 |
-| **bfs** | 1.104 | -1.422 | 1.762 | -1.239 |
-| **cc** | 0.556 | 0.560 | -0.206 | 0.631 |
-| **pr** | 0.737 | 2.256 | -0.009 | 2.178 |
-| **sssp** | 2.925 | 1.403 | 0.766 | 1.131 |
+| **bc** | 0.584 | -0.436 | -0.643 | 0.010 |
+| **bfs** | 1.299 | -1.227 | 1.947 | -1.044 |
+| **cc** | -2.484 | 0.697 | -0.043 | 0.769 |
+| **pr** | 0.365 | 1.883 | 0.201 | 1.806 |
+| **sssp** | 2.901 | 1.379 | 1.146 | 1.107 |
 
 ## Monotonic violations
 
 | app | policy | 1MB→4MB Δgap | 4MB→8MB Δgap |
 |---|---|---:|---:|
-| bc | GRASP | -2.4017 | 0.6236 |
-| bc | LRU | 1.7274 | -0.4455 |
-| bc | POPT | -1.1 | 1.1184 |
-| bc | SRRIP | 0.3845 | -0.4393 |
-| bfs | GRASP | -5.5856 | 2.273 |
-| bfs | LRU | 4.5214 | -0.2541 |
-| bfs | SRRIP | 3.8601 | -0.1418 |
-| cc | POPT | 1.3682 | -0.749 |
-| pr | GRASP | 0.0828 | -2.2946 |
-| pr | POPT | 0.0 | 0.0283 |
+| bc | GRASP | -2.2914 | 0.539 |
+| bc | LRU | 1.8378 | -0.53 |
+| bc | POPT | 0.3121 | 1.6165 |
+| bc | SRRIP | 0.4948 | -0.5238 |
+| bfs | GRASP | -6.4396 | 2.5415 |
+| bfs | LRU | 3.6677 | 0.0141 |
+| bfs | SRRIP | 3.0062 | 0.1267 |
+| cc | GRASP | 3.6232 | 3.8282 |
+| cc | LRU | 0.7453 | -2.8372 |
+| cc | POPT | 2.6627 | -2.535 |
+| cc | SRRIP | 0.4423 | -2.748 |
 
 ## Interpretation
 

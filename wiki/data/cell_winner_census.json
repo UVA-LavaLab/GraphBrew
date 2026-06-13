@@ -113,9 +113,8 @@
       "app": "cc",
       "graph": "soc-pokec",
       "l3": "8MB",
-      "tied_count": 4,
+      "tied_count": 3,
       "tied_policies": [
-        "GRASP",
         "LRU",
         "POPT",
         "SRRIP"
@@ -136,9 +135,8 @@
       "app": "cc",
       "graph": "web-Google",
       "l3": "4MB",
-      "tied_count": 4,
+      "tied_count": 3,
       "tied_policies": [
-        "GRASP",
         "LRU",
         "POPT",
         "SRRIP"
@@ -148,9 +146,8 @@
       "app": "cc",
       "graph": "web-Google",
       "l3": "8MB",
-      "tied_count": 4,
+      "tied_count": 3,
       "tied_policies": [
-        "GRASP",
         "LRU",
         "POPT",
         "SRRIP"
@@ -188,8 +185,8 @@
     "pct_tied_winners": 13.16,
     "pct_unique_winner": 86.84,
     "tied_breakdown_by_count": {
-      "3": 3,
-      "4": 12
+      "3": 6,
+      "4": 9
     }
   },
   "per_app": {
@@ -292,9 +289,8 @@
           "app": "cc",
           "graph": "soc-pokec",
           "l3": "8MB",
-          "tied_count": 4,
+          "tied_count": 3,
           "tied_policies": [
-            "GRASP",
             "LRU",
             "POPT",
             "SRRIP"
@@ -304,9 +300,8 @@
           "app": "cc",
           "graph": "web-Google",
           "l3": "4MB",
-          "tied_count": 4,
+          "tied_count": 3,
           "tied_policies": [
-            "GRASP",
             "LRU",
             "POPT",
             "SRRIP"
@@ -316,9 +311,8 @@
           "app": "cc",
           "graph": "web-Google",
           "l3": "8MB",
-          "tied_count": 4,
+          "tied_count": 3,
           "tied_policies": [
-            "GRASP",
             "LRU",
             "POPT",
             "SRRIP"

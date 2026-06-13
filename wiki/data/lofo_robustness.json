@@ -15,8 +15,8 @@
       "web"
     ],
     "fragile_apps": [
-      "bc",
-      "sssp"
+      "bfs",
+      "cc"
     ],
     "n_apps": 5,
     "n_families": 5,
@@ -24,9 +24,9 @@
     "n_robust_apps": 3,
     "n_rows_in_scope": 360,
     "robust_apps": [
-      "bfs",
-      "cc",
-      "pr"
+      "bc",
+      "pr",
+      "sssp"
     ],
     "robustness_fraction": 0.6,
     "scope_l3_sizes": [
@@ -40,65 +40,63 @@
     "bc": {
       "drops": {
         "citation": {
-          "margin": 3,
-          "runner_up_wins": 6,
+          "margin": 7,
+          "runner_up_wins": 5,
           "same_winner_as_full": true,
           "top_policy": "GRASP",
-          "top_wins": 9,
+          "top_wins": 12,
           "unique_top": true
         },
         "mesh": {
-          "margin": 4,
-          "runner_up_wins": 7,
+          "margin": 10,
+          "runner_up_wins": 5,
           "same_winner_as_full": true,
           "top_policy": "GRASP",
-          "top_wins": 11,
+          "top_wins": 15,
           "unique_top": true
         },
         "road": {
-          "margin": 4,
-          "runner_up_wins": 7,
+          "margin": 10,
+          "runner_up_wins": 5,
           "same_winner_as_full": true,
           "top_policy": "GRASP",
-          "top_wins": 11,
+          "top_wins": 15,
           "unique_top": true
         },
         "social": {
-          "margin": 0,
+          "margin": 1,
           "runner_up_wins": 2,
-          "same_winner_as_full": false,
-          "top_policy": "GRASP",
-          "top_wins": 2,
-          "unique_top": false
-        },
-        "web": {
-          "margin": 4,
-          "runner_up_wins": 7,
           "same_winner_as_full": true,
           "top_policy": "GRASP",
-          "top_wins": 11,
+          "top_wins": 3,
+          "unique_top": true
+        },
+        "web": {
+          "margin": 11,
+          "runner_up_wins": 4,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 15,
           "unique_top": true
         }
       },
-      "fragile_family_drops": [
-        "social"
-      ],
+      "fragile_family_drops": [],
       "full_corpus": {
-        "margin": 4,
-        "runner_up_wins": 7,
+        "margin": 10,
+        "runner_up_wins": 5,
         "top_policy": "GRASP",
-        "top_wins": 11,
+        "top_wins": 15,
         "unique_top": true,
         "win_counts": {
-          "GRASP": 11,
+          "GRASP": 15,
           "LRU": 5,
-          "POPT": 7,
+          "POPT": 3,
           "SRRIP": 5
         }
       },
-      "is_lofo_robust": false,
+      "is_lofo_robust": true,
       "n_drops": 5,
-      "n_robust_drops": 4
+      "n_robust_drops": 5
     },
     "bfs": {
       "drops": {
@@ -106,7 +104,7 @@
           "margin": 2,
           "runner_up_wins": 8,
           "same_winner_as_full": true,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_wins": 10,
           "unique_top": true
         },
@@ -114,7 +112,7 @@
           "margin": 3,
           "runner_up_wins": 9,
           "same_winner_as_full": true,
-          "top_policy": "POPT",
+          "top_policy": "GRASP",
           "top_wins": 12,
           "unique_top": true
         },
@@ -122,192 +120,9 @@
           "margin": 3,
           "runner_up_wins": 9,
           "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 12,
-          "unique_top": true
-        },
-        "social": {
-          "margin": 2,
-          "runner_up_wins": 2,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 4,
-          "unique_top": true
-        },
-        "web": {
-          "margin": 2,
-          "runner_up_wins": 8,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 10,
-          "unique_top": true
-        }
-      },
-      "fragile_family_drops": [],
-      "full_corpus": {
-        "margin": 3,
-        "runner_up_wins": 9,
-        "top_policy": "POPT",
-        "top_wins": 12,
-        "unique_top": true,
-        "win_counts": {
-          "GRASP": 9,
-          "LRU": 4,
-          "POPT": 12,
-          "SRRIP": 3
-        }
-      },
-      "is_lofo_robust": true,
-      "n_drops": 5,
-      "n_robust_drops": 5
-    },
-    "cc": {
-      "drops": {
-        "citation": {
-          "margin": 6,
-          "runner_up_wins": 5,
-          "same_winner_as_full": true,
-          "top_policy": "GRASP",
-          "top_wins": 11,
-          "unique_top": true
-        },
-        "mesh": {
-          "margin": 7,
-          "runner_up_wins": 6,
-          "same_winner_as_full": true,
-          "top_policy": "GRASP",
-          "top_wins": 13,
-          "unique_top": true
-        },
-        "road": {
-          "margin": 6,
-          "runner_up_wins": 6,
-          "same_winner_as_full": true,
           "top_policy": "GRASP",
           "top_wins": 12,
           "unique_top": true
-        },
-        "social": {
-          "margin": 1,
-          "runner_up_wins": 4,
-          "same_winner_as_full": true,
-          "top_policy": "GRASP",
-          "top_wins": 5,
-          "unique_top": true
-        },
-        "web": {
-          "margin": 8,
-          "runner_up_wins": 3,
-          "same_winner_as_full": true,
-          "top_policy": "GRASP",
-          "top_wins": 11,
-          "unique_top": true
-        }
-      },
-      "fragile_family_drops": [],
-      "full_corpus": {
-        "margin": 7,
-        "runner_up_wins": 6,
-        "top_policy": "GRASP",
-        "top_wins": 13,
-        "unique_top": true,
-        "win_counts": {
-          "GRASP": 13,
-          "LRU": 3,
-          "POPT": 6,
-          "SRRIP": 3
-        }
-      },
-      "is_lofo_robust": true,
-      "n_drops": 5,
-      "n_robust_drops": 5
-    },
-    "pr": {
-      "drops": {
-        "citation": {
-          "margin": 12,
-          "runner_up_wins": 4,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 16,
-          "unique_top": true
-        },
-        "mesh": {
-          "margin": 14,
-          "runner_up_wins": 4,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 18,
-          "unique_top": true
-        },
-        "road": {
-          "margin": 14,
-          "runner_up_wins": 4,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 18,
-          "unique_top": true
-        },
-        "social": {
-          "margin": 8,
-          "runner_up_wins": 0,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 8,
-          "unique_top": true
-        },
-        "web": {
-          "margin": 12,
-          "runner_up_wins": 4,
-          "same_winner_as_full": true,
-          "top_policy": "POPT",
-          "top_wins": 16,
-          "unique_top": true
-        }
-      },
-      "fragile_family_drops": [],
-      "full_corpus": {
-        "margin": 15,
-        "runner_up_wins": 4,
-        "top_policy": "POPT",
-        "top_wins": 19,
-        "unique_top": true,
-        "win_counts": {
-          "GRASP": 4,
-          "LRU": 3,
-          "POPT": 19,
-          "SRRIP": 3
-        }
-      },
-      "is_lofo_robust": true,
-      "n_drops": 5,
-      "n_robust_drops": 5
-    },
-    "sssp": {
-      "drops": {
-        "citation": {
-          "margin": 1,
-          "runner_up_wins": 5,
-          "same_winner_as_full": false,
-          "top_policy": "POPT",
-          "top_wins": 6,
-          "unique_top": true
-        },
-        "mesh": {
-          "margin": 0,
-          "runner_up_wins": 7,
-          "same_winner_as_full": false,
-          "top_policy": "GRASP",
-          "top_wins": 7,
-          "unique_top": false
-        },
-        "road": {
-          "margin": 0,
-          "runner_up_wins": 7,
-          "same_winner_as_full": false,
-          "top_policy": "GRASP",
-          "top_wins": 7,
-          "unique_top": false
         },
         "social": {
           "margin": 0,
@@ -318,36 +133,218 @@
           "unique_top": false
         },
         "web": {
-          "margin": 1,
-          "runner_up_wins": 5,
+          "margin": 4,
+          "runner_up_wins": 7,
           "same_winner_as_full": true,
           "top_policy": "GRASP",
-          "top_wins": 6,
+          "top_wins": 11,
           "unique_top": true
         }
       },
       "fragile_family_drops": [
-        "citation",
-        "mesh",
-        "road",
         "social"
       ],
       "full_corpus": {
-        "margin": 0,
-        "runner_up_wins": 7,
+        "margin": 3,
+        "runner_up_wins": 9,
         "top_policy": "GRASP",
-        "top_wins": 7,
-        "unique_top": false,
+        "top_wins": 12,
+        "unique_top": true,
         "win_counts": {
-          "GRASP": 7,
+          "GRASP": 12,
           "LRU": 4,
-          "POPT": 7,
-          "SRRIP": 4
+          "POPT": 9,
+          "SRRIP": 3
         }
       },
       "is_lofo_robust": false,
       "n_drops": 5,
-      "n_robust_drops": 1
+      "n_robust_drops": 4
+    },
+    "cc": {
+      "drops": {
+        "citation": {
+          "margin": 3,
+          "runner_up_wins": 5,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 8,
+          "unique_top": true
+        },
+        "mesh": {
+          "margin": 2,
+          "runner_up_wins": 7,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 9,
+          "unique_top": true
+        },
+        "road": {
+          "margin": 1,
+          "runner_up_wins": 7,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 8,
+          "unique_top": true
+        },
+        "social": {
+          "margin": 3,
+          "runner_up_wins": 2,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 5,
+          "unique_top": true
+        },
+        "web": {
+          "margin": 1,
+          "runner_up_wins": 6,
+          "same_winner_as_full": false,
+          "top_policy": "GRASP",
+          "top_wins": 7,
+          "unique_top": true
+        }
+      },
+      "fragile_family_drops": [
+        "web"
+      ],
+      "full_corpus": {
+        "margin": 2,
+        "runner_up_wins": 7,
+        "top_policy": "POPT",
+        "top_wins": 9,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 7,
+          "LRU": 3,
+          "POPT": 9,
+          "SRRIP": 3
+        }
+      },
+      "is_lofo_robust": false,
+      "n_drops": 5,
+      "n_robust_drops": 4
+    },
+    "pr": {
+      "drops": {
+        "citation": {
+          "margin": 7,
+          "runner_up_wins": 6,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 13,
+          "unique_top": true
+        },
+        "mesh": {
+          "margin": 9,
+          "runner_up_wins": 6,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 15,
+          "unique_top": true
+        },
+        "road": {
+          "margin": 9,
+          "runner_up_wins": 6,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 15,
+          "unique_top": true
+        },
+        "social": {
+          "margin": 6,
+          "runner_up_wins": 1,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 7,
+          "unique_top": true
+        },
+        "web": {
+          "margin": 8,
+          "runner_up_wins": 6,
+          "same_winner_as_full": true,
+          "top_policy": "POPT",
+          "top_wins": 14,
+          "unique_top": true
+        }
+      },
+      "fragile_family_drops": [],
+      "full_corpus": {
+        "margin": 10,
+        "runner_up_wins": 6,
+        "top_policy": "POPT",
+        "top_wins": 16,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 6,
+          "LRU": 3,
+          "POPT": 16,
+          "SRRIP": 4
+        }
+      },
+      "is_lofo_robust": true,
+      "n_drops": 5,
+      "n_robust_drops": 5
+    },
+    "sssp": {
+      "drops": {
+        "citation": {
+          "margin": 4,
+          "runner_up_wins": 4,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 8,
+          "unique_top": true
+        },
+        "mesh": {
+          "margin": 7,
+          "runner_up_wins": 4,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 11,
+          "unique_top": true
+        },
+        "road": {
+          "margin": 7,
+          "runner_up_wins": 4,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 11,
+          "unique_top": true
+        },
+        "social": {
+          "margin": 1,
+          "runner_up_wins": 3,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 4,
+          "unique_top": true
+        },
+        "web": {
+          "margin": 8,
+          "runner_up_wins": 2,
+          "same_winner_as_full": true,
+          "top_policy": "GRASP",
+          "top_wins": 10,
+          "unique_top": true
+        }
+      },
+      "fragile_family_drops": [],
+      "full_corpus": {
+        "margin": 7,
+        "runner_up_wins": 4,
+        "top_policy": "GRASP",
+        "top_wins": 11,
+        "unique_top": true,
+        "win_counts": {
+          "GRASP": 11,
+          "LRU": 4,
+          "POPT": 3,
+          "SRRIP": 4
+        }
+      },
+      "is_lofo_robust": true,
+      "n_drops": 5,
+      "n_robust_drops": 5
     }
   }
 }

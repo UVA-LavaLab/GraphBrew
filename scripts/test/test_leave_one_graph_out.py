@@ -62,50 +62,36 @@ def test_pr_popt_is_logo_robust(payload):
     )
 
 
-def test_cc_grasp_is_logo_robust(payload):
-    """cc/GRASP is the other marquee claim — must be LOGO-robust."""
+def test_cc_popt_is_logo_fragile(payload):
+    """Charged corpus: cc is graph-dependent; full-corpus POPT flips on web-Google."""
     ap = payload["per_app"]["cc"]
-    assert ap["full_corpus"]["top_policy"] == "GRASP"
-    assert ap["is_logo_robust"], (
-        f"cc/GRASP lost LOGO robustness; fragile drops: {ap['fragile_drops']}."
-    )
+    assert ap["full_corpus"]["top_policy"] == "POPT"
+    assert not ap["is_logo_robust"]
+    assert ap["fragile_drops"] == ["web-Google"]
 
 
-def test_bc_grasp_is_logo_fragile(payload):
-    """bc/GRASP is now LOGO-fragile under com-orkut drop."""
+def test_bc_grasp_is_logo_robust(payload):
+    """Charged corpus: bc/GRASP is the clean robust counter-kernel."""
     ap = payload["per_app"]["bc"]
     assert ap["full_corpus"]["top_policy"] == "GRASP"
-    assert not ap["is_logo_robust"]
-    assert ap["fragile_drops"] == ["com-orkut"]
+    assert ap["is_logo_robust"]
+    assert ap["fragile_drops"] == []
 
 
-def test_sssp_is_logo_fragile_honest(payload):
-    """sssp is the honest negative pin: fragile under a LOGO drop.
-    Triangulated with gate 36 (no Wilson CI-strict majority), gate 37
-    (no large Cohen's h), gate 38 (no large Cliff's delta), and gate 39
-    (no stable cross-L3 winner)."""
+def test_sssp_is_logo_robust_grasp(payload):
+    """Charged corpus: sssp is LOGO-robust by cell-vote with GRASP."""
     ap = payload["per_app"]["sssp"]
-    assert not ap["is_logo_robust"], (
-        "sssp NEWLY LOGO-robust — cross-check gates 36/37/38/39 because "
-        "this would contradict 4 independent prior signals."
-    )
-    # Re-pinned 2026-06-12: single-thread corpus is more L3-regime-dependent
-    # (winners flip across L3 more), a real reproducible property.
-    assert len(ap["fragile_drops"]) >= 1, (
-        f"sssp fragile_drops dropped below 2 ({ap['fragile_drops']}); "
-        "this kernel was previously fragile under 1 drop. Investigate."
-    )
+    assert ap["full_corpus"]["top_policy"] == "GRASP"
+    assert ap["is_logo_robust"]
+    assert ap["fragile_drops"] == []
 
 
-def test_bfs_is_logo_fragile(payload):
-    """bfs is fragile under exactly the drop of the large social graph,
-    consistent with gate 39's regime-change finding (GRASP at small L3,
-    POPT at production L3 — fragility around the regime boundary)."""
+def test_bfs_is_logo_robust(payload):
+    """Charged corpus: bfs is LOGO-robust by cell-vote with GRASP."""
     ap = payload["per_app"]["bfs"]
-    assert not ap["is_logo_robust"], (
-        "bfs NEWLY LOGO-robust — but gate 39 pins it as a regime-change "
-        "kernel. Re-investigate cross-gate consistency."
-    )
+    assert ap["full_corpus"]["top_policy"] == "GRASP"
+    assert ap["is_logo_robust"]
+    assert ap["fragile_drops"] == []
 
 
 def test_n_robust_apps_meets_floor(payload):
@@ -118,9 +104,9 @@ def test_n_robust_apps_meets_floor(payload):
 
 
 def test_robust_set_includes_pr_cc(payload):
-    """The robust set must include the surviving 'GRASP/POPT marquee' workloads."""
+    """The robust set must include charged-corpus robust workloads."""
     robust = set(payload["meta"]["robust_apps"])
-    expected = {"pr", "cc"}
+    expected = {"bc", "bfs", "pr", "sssp"}
     missing = expected - robust
     assert not missing, (
         f"Marquee LOGO-robust apps lost: {missing}. Surviving: {robust}."

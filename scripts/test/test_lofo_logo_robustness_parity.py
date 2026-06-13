@@ -15,8 +15,9 @@ two artifacts and we deliberately do NOT compare them cell-for-cell.
 What MUST match between them is the app-level fragility classification:
 if dropping any family flips the winner, the app is fragile by lofo;
 if dropping any graph flips the winner, the app is fragile by logo.
-Empirically the two methods agree (bfs and sssp are fragile by both,
-bc / cc / pr are robust by both). This gate locks that agreement and
+Empirically the two methods now differ only on bfs, which is LOFO-fragile
+but LOGO-robust; cc is fragile by both, and bc / pr / sssp are robust by
+both. This gate locks that agreement and
 also recomputes every internal arithmetic field of each artifact.
 
 Cohen 1988 / Wilson are about effect-size views of the same wins;
@@ -95,21 +96,21 @@ def test_logo_meta_universe_is_expected(logo):
 def test_fragile_apps_match_between_perturbation_methods(lofo, logo):
     lofo_fragile = set(lofo["meta"]["fragile_apps"])
     logo_fragile = set(logo["meta"]["fragile_apps"])
-    assert logo_fragile - lofo_fragile == {"bfs"}, (
+    assert logo_fragile - lofo_fragile == set(), (
         f"unexpected fragile-set delta: lofo {lofo['meta']['fragile_apps']} "
         f"logo {logo['meta']['fragile_apps']}"
     )
-    assert lofo_fragile - logo_fragile == set()
+    assert lofo_fragile - logo_fragile == {"bfs"}
 
 
 def test_robust_apps_match_between_perturbation_methods(lofo, logo):
     lofo_robust = set(lofo["meta"]["robust_apps"])
     logo_robust = set(logo["meta"]["robust_apps"])
-    assert lofo_robust - logo_robust == {"bfs"}, (
+    assert lofo_robust - logo_robust == set(), (
         f"unexpected robust-set delta: lofo {lofo['meta']['robust_apps']} "
         f"logo {logo['meta']['robust_apps']}"
     )
-    assert logo_robust - lofo_robust == set()
+    assert logo_robust - lofo_robust == {"bfs"}
 
 
 # ---------------------------------------------------------------------------

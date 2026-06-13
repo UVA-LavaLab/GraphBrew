@@ -4,9 +4,10 @@ Turns the point-estimate per-kernel narrative from
 ``oracle_gap_by_app`` into CI-backed sign claims:
 
   - pr  : POPT < {LRU, SRRIP, GRASP} all P ≥ 0.999 (bedrock)
-  - cc  : GRASP < POPT          P ≥ 0.99  (counter-narrative)
-  - bfs : POPT < GRASP          P ≥ 0.99  (CI excludes 0)
-  - sssp: POPT < GRASP          P ≥ 0.95  (GRASP catastrophic)
+  - bc  : GRASP < POPT          P ≥ 0.99  (clean counter-kernel)
+  - cc  : POPT < GRASP          directional only (graph-dependent)
+  - bfs : POPT < GRASP          directional only (graph-dependent)
+  - sssp: POPT vs GRASP         no CI-strict sign claim
   - bc  : NO sign claim is stable (paper's "no one-size-fits-all")
 
 These claims are the load-bearing per-kernel sentences. If any
@@ -74,45 +75,29 @@ def test_pr_popt_vs_grasp_ci_excludes_zero(doc):
     )
 
 
-def test_cc_grasp_beats_popt(doc):
-    """cc → GRASP < POPT counter-narrative, P ≥ 0.99.
-    The paper explicitly carves out cc as a case where GRASP's
-    structural-locality assumption pays off and POPT's overhead is
-    wasteful. If this flips, the per-kernel story collapses."""
-    p = doc["per_app_pairs"]["cc"]["GRASP_vs_POPT"]["p_a_lt_b"]
-    assert p is not None and p >= STRONG_FLOOR, (
-        f"cc GRASP_vs_POPT P={p} < {STRONG_FLOOR}; "
-        "cc counter-narrative is no longer CI-strict"
-    )
+def test_cc_popt_vs_grasp_is_directional_not_ci_strict(doc):
+    """Charged corpus retires uniform cc/GRASP; cc is graph-dependent."""
+    r = doc["per_app_pairs"]["cc"]["POPT_vs_GRASP"]
+    assert r["p_a_lt_b"] is not None and 0.80 <= r["p_a_lt_b"] < STRONG_FLOOR
+    assert r["ci_lo"] is not None and r["ci_lo"] < 0
+    assert r["ci_hi"] is not None and r["ci_hi"] > 0
 
 
-def test_bfs_popt_beats_grasp(doc):
-    """bfs → POPT < GRASP CI-strict, P ≥ 0.95.
-
-    Post cache_sim ECG sweep: P dropped from 0.999 to ~0.975 as more
-    cells favor GRASP at scale. The directional claim still holds
-    (CI hi < 0) but with the weaker 0.95 floor.
-    """
+def test_bfs_popt_vs_grasp_is_directional_not_ci_strict(doc):
+    """Charged corpus: bfs POPT-vs-GRASP is graph-dependent and CI-overlaps zero."""
     r = doc["per_app_pairs"]["bfs"]["POPT_vs_GRASP"]
     p = r["p_a_lt_b"]
     assert p is not None and p >= STABILITY_FLOOR, (
         f"bfs POPT_vs_GRASP P={p} < {STABILITY_FLOOR}"
     )
-    assert r["ci_hi"] is not None and r["ci_hi"] < 0, (
-        f"bfs POPT_vs_GRASP CI hi = {r['ci_hi']}; does not exclude 0"
-    )
+    assert r["ci_lo"] is not None and r["ci_lo"] < 0
+    assert r["ci_hi"] is not None and r["ci_hi"] > 0
 
 
-def test_sssp_grasp_catastrophic(doc):
-    """sssp → POPT < GRASP. GRASP is weak on sssp (a high-variance,
-    frontier-driven bucket), so POPT leads but at a relaxed 0.90 floor
-    (single-thread, array-relative GRASP 0.15: P=0.9155 — directional but
-    below the standard 0.95 because of sssp's wide spread)."""
+def test_sssp_popt_vs_grasp_has_no_ci_strict_sign(doc):
+    """Charged corpus: sssp is graph-dependent; bootstrap sign is near even."""
     p = doc["per_app_pairs"]["sssp"]["POPT_vs_GRASP"]["p_a_lt_b"]
-    assert p is not None and p >= 0.90, (
-        f"sssp POPT_vs_GRASP P={p} < 0.90; "
-        "POPT no longer even directionally leads GRASP on sssp"
-    )
+    assert p is not None and 0.45 <= p <= 0.60
 
 
 def test_bc_grasp_beats_popt(doc):

@@ -34,15 +34,15 @@ def test_meta_pins_scope(payload):
 
 
 def test_auc_winner_by_app_exact(payload):
-    """Pin AUC winners: bc=GRASP, bfs=POPT, cc=GRASP, pr=POPT, sssp=POPT.
+    """Pin charged-corpus AUC winners.
 
-    Note: sssp/POPT (AUC) differs from sssp/GRASP (cell-vote) — see test below."""
+    Note: cc/POPT and sssp/SRRIP AUC differ from cell-vote winners."""
     assert payload["meta"]["auc_winner_by_app"] == {
         "bc": "GRASP",
         "bfs": "POPT",
-        "cc": "GRASP",
+        "cc": "POPT",
         "pr": "POPT",
-        "sssp": "POPT",
+        "sssp": "SRRIP",
     }
 
 
@@ -80,12 +80,12 @@ def test_pr_popt_dominance(payload):
     )
 
 
-def test_cc_grasp_dominance(payload):
-    """cc/GRASP must have AUC < 2.0 and < 10% of LRU AUC."""
+def test_cc_popt_dominance(payload):
+    """Charged corpus: cc AUC winner is POPT, not a uniform GRASP counter-claim."""
     p = payload["per_app"]["cc"]
-    assert p["winner"] == "GRASP"
-    assert p["winner_auc"] < 2.0
-    assert p["auc_ratio_winner_over_lru"] < 0.10
+    assert p["winner"] == "POPT"
+    assert p["winner_auc"] < 7.0
+    assert p["auc_ratio_winner_over_lru"] < 0.35
 
 
 def test_lru_is_never_winner(payload):
@@ -113,13 +113,9 @@ def test_trajectory_has_3_l3_points_per_policy(payload):
 
 
 def test_cross_gate_consistency_sssp_auc_vs_cell_vote_disagrees(payload):
-    """sssp's AUC winner is POPT but the cell-vote winner (gate 47/48) is
-    GRASP. This is an *expected, honestly disclosed* disagreement —
-    POPT tracks oracle more closely on average but GRASP wins more cells.
-    The paper text must mention BOTH framings. If this disagreement
-    disappears in a future run, the test will fire and we'll re-evaluate."""
+    """Charged corpus: sssp AUC winner is SRRIP while cell-vote winner is GRASP."""
     p = payload["per_app"]["sssp"]
-    assert p["winner"] == "POPT", (
+    assert p["winner"] == "SRRIP", (
         "sssp AUC winner flipped — re-check paper text for the AUC story"
     )
 

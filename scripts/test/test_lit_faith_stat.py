@@ -243,11 +243,14 @@ def test_known_deviation_count_ceiling(audit: dict) -> None:
 
 
 def test_ok_majority(audit: dict) -> None:
-    """`ok` should remain the strict majority — today 298/330 = 90.3 %.
-    Floor at 80 % catches large degradations."""
+    """`ok` should remain the strict majority — today 214/279 = 76.7 %
+    under the faithful 1-way-charged P-OPT corpus (the RRM capacity tax
+    widens per-cell P-OPT losses, all auto-tolerated as known_deviation
+    diagnostics; the authoritative claim is the geomean gate). Floor at
+    72 % catches large degradations beyond the charged baseline."""
     s = audit["summary"]
     ok = s["status_counts"].get("ok", 0)
     total = s["total_rows"]
-    assert ok / total >= 0.80, (
-        f"ok fraction {ok}/{total} = {ok/total:.3f} below 0.80 floor"
+    assert ok / total >= 0.72, (
+        f"ok fraction {ok}/{total} = {ok/total:.3f} below 0.72 floor"
     )

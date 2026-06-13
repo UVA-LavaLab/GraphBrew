@@ -27,9 +27,9 @@
         "deviates": false
       },
       "cc": {
-        "grasp_median_pp_oct": -14.4638,
+        "grasp_median_pp_oct": -12.7012,
         "srrip_median_pp_oct": -15.1055,
-        "srrip_minus_grasp_pp_oct": -0.6417,
+        "srrip_minus_grasp_pp_oct": -2.4043,
         "deviates": false
       },
       "pr": {

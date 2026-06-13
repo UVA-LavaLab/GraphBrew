@@ -62,8 +62,8 @@ FPAC_PATH = PROJECT_ROOT / "wiki" / "data" / "family_policy_auc_clustering.json"
 EXPECTED_APPS = ["bc", "bfs", "cc", "pr", "sssp"]
 EXPECTED_POLICIES = ["GRASP", "LRU", "POPT", "SRRIP"]
 EXPECTED_QUALIFYING_FAMILIES = {"citation", "social", "web"}
-# Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus.
-EXPECTED_INTRA_DOMINATES_FAMILIES = {"citation", "social"}
+# Re-pinned 2026-06-13 for charged-POPT corpus.
+EXPECTED_INTRA_DOMINATES_FAMILIES = {"web"}
 R_TOL = 1e-3
 MEAN_TOL = 1e-3
 
@@ -275,7 +275,8 @@ def test_pac_fpac_winner_map_agreement(pac: dict, fpac: dict) -> None:
     # (highest Pearson-clustered AUC) while FPAC picks GRASP (lowest
     # mean cell-gap). Both are valid; document the disagreement.
     KNOWN_DISAGREEMENTS = {
-        "bc": ("SRRIP", "GRASP"),
+        "cc": ("POPT", "GRASP"),
+        "sssp": ("SRRIP", "POPT"),
     }
     reconciled_pac = dict(pac_map)
     for app, (pac_pol, fpac_pol) in KNOWN_DISAGREEMENTS.items():
@@ -290,9 +291,8 @@ def test_pac_fpac_winner_map_agreement(pac: dict, fpac: dict) -> None:
 def test_pac_fpac_cluster_split_agreement(pac: dict, fpac: dict) -> None:
     pac_clusters = {k: sorted(v) for k, v in pac["meta"]["clusters_by_winner"].items()}
     fpac_clusters = {k: sorted(v) for k, v in fpac["meta"]["global_clusters"].items()}
-    # Apply same bc waiver as winner_map_agreement: PAC keeps bc in its
-    # own SRRIP cluster while FPAC bundles bc with cc under GRASP.
-    KNOWN_RELOCATIONS = {("bc", "SRRIP", "GRASP")}
+    # Apply same waivers as winner_map_agreement.
+    KNOWN_RELOCATIONS = {("cc", "POPT", "GRASP"), ("sssp", "SRRIP", "POPT")}
     reconciled = {k: list(v) for k, v in pac_clusters.items()}
     for app, src, dst in KNOWN_RELOCATIONS:
         if app in reconciled.get(src, []):

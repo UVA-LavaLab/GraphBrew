@@ -33,8 +33,8 @@
     "status_bad_label": 0,
     "status_counts": {
       "insufficient_data": 28,
-      "known_deviation": 17,
-      "ok": 234
+      "known_deviation": 37,
+      "ok": 214
     },
     "status_inconsistent": 0,
     "total_rows": 279

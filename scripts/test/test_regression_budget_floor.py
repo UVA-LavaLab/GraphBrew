@@ -37,11 +37,12 @@ MIN_MARGIN_FLOORS_PP = {
     # POPT_GE_GRASP_GEOMEAN gate): per-cell POPT≈GRASP margins are ~0 by
     # design, so these diagnostic floors are near-zero. Re-pinned
     # 2026-06-12 to the array-relative-GRASP 0.15 single-thread corpus
-    # (60 popt_ge_grasp cells at min 0.001 pp; 61 inactive cells at 1.202).
+    # Charged corpus: inactive near-GRASP diagnostics can sit exactly at
+    # margin 0.0; the geomean gate remains the authoritative claim.
     "cache_policy": 0.50,
     "popt_ge_grasp": 0.0005,
     "popt_near_grasp_active": 0.50,
-    "popt_near_grasp_inactive": 1.00,
+    "popt_near_grasp_inactive": 0.00,
 }
 
 

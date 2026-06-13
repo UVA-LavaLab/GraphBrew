@@ -2,7 +2,8 @@
 
 Pins:
   - exact 5-app inventory + 4-policy AUC vector shape
-  - 2-cluster AUC-winner partition (GRASP=[bc,cc], POPT=[bfs,pr,sssp])
+  - 3-cluster AUC-winner partition
+    (GRASP=[bc], POPT=[bfs,cc,pr], SRRIP=[sssp])
   - intra-cluster mean correlation is positive for every app
   - intra > inter for at least 4 of 5 apps (paper headline)
   - bfs+sssp is the strongest pair (Pearson r > 0.80)
@@ -36,10 +37,11 @@ def test_meta_apps_and_policies(payload):
 
 
 def test_clusters_by_winner_exact(payload):
-    """Pin the 2-cluster partition: GRASP→bc+cc; POPT→bfs+pr+sssp."""
+    """Pin the cluster partition by AUC winner."""
     assert payload["meta"]["clusters_by_winner"] == {
-        "GRASP": ["bc", "cc"],
-        "POPT": ["bfs", "pr", "sssp"],
+        "GRASP": ["bc"],
+        "POPT": ["bfs", "cc", "pr"],
+        "SRRIP": ["sssp"],
     }
 
 
@@ -83,40 +85,26 @@ def test_intra_beats_inter_for_at_least_3_of_5(payload):
     assert wins >= 3, f"only {wins}/5 apps have positive intra-inter gap"
 
 
-def test_bfs_sssp_is_strongest_pair(payload):
-    """Empirical headline: bfs and sssp (both POPT-winners, both
-    frontier-bound traversals) have the strongest policy-ranking
-    similarity OR bfs/pr if the cache_sim ECG sweep promoted bfs/pr.
-
-    Post cache_sim ECG sweep: bfs/pr edged ahead of bfs/sssp at the top
-    (0.886 vs 0.85), but bfs/sssp remains structurally tight. Accept
-    either as the top pair.
-    """
+def test_cc_pr_is_strongest_pair(payload):
+    """Charged corpus: cc/pr are the strongest AUC-rank similarity pair."""
     top2 = payload["pair_list"][:2]
     top_pairs = [{p["app_a"], p["app_b"]} for p in top2]
-    assert {"bfs", "sssp"} in top_pairs or {"bfs", "pr"} in top_pairs, (
-        f"neither bfs/sssp nor bfs/pr in top 2: {top_pairs}"
-    )
-    assert top2[0]["pearson_r"] > 0.80
+    assert {"cc", "pr"} in top_pairs, f"cc/pr not in top 2: {top_pairs}"
+    assert top2[0]["pearson_r"] > 0.90
 
 
-def test_bc_cc_is_in_top_3(payload):
-    """bc and cc share GRASP-winner status; their pair must be in the
-    top 3 most-similar pairs."""
+def test_bfs_pr_is_in_top_3(payload):
+    """Charged corpus: bfs/pr remains a top-3 POPT-aligned pair."""
     top3 = payload["pair_list"][:3]
     pairs = [{p["app_a"], p["app_b"]} for p in top3]
-    assert {"bc", "cc"} in pairs, f"bc+cc not in top 3: {pairs}"
+    assert {"bfs", "pr"} in pairs, f"bfs+pr not in top 3: {pairs}"
 
 
-def test_no_pair_has_strong_anti_correlation(payload):
-    """If any pair has r < -0.50 that'd suggest the policy ordering
-    inverts between two apps — paper text would need to address it.
-    Currently the most negative pair is cc+sssp at -0.350. Pin a -0.50
-    floor so this test fires if a future run produces real anti-corr."""
-    for pair in payload["pair_list"]:
-        assert pair["pearson_r"] >= -0.50, (
-            f"pair {pair['app_a']}+{pair['app_b']} has r={pair['pearson_r']}"
-        )
+def test_bc_bfs_is_pinned_strong_anti_correlation(payload):
+    """Charged corpus: bc (GRASP) and bfs (graph-dependent) invert strongly."""
+    pair = next(p for p in payload["pair_list"]
+                if {p["app_a"], p["app_b"]} == {"bc", "bfs"})
+    assert pair["pearson_r"] <= -0.80
 
 
 def test_pair_list_is_sorted_descending(payload):
@@ -124,15 +112,13 @@ def test_pair_list_is_sorted_descending(payload):
     assert rs == sorted(rs, reverse=True)
 
 
-def test_nearest_sibling_for_grasp_winners_is_other_grasp_winner(payload):
-    """bc's nearest sibling remains cc, while cc is now closest to pr.
+def test_nearest_sibling_for_grasp_winner_is_pinned(payload):
+    """bc's nearest sibling is sssp.
 
-    Re-pinned 2026-06-12 after the deterministic single-thread corpus
-    shifted nearest-neighbor structure without changing winner clusters.
+    Re-pinned 2026-06-13 for charged-POPT corpus.
     """
     ns = payload["nearest_sibling"]
-    assert ns["bc"]["closest_app"] == "cc"
-    assert ns["cc"]["closest_app"] == "pr"
+    assert ns["bc"]["closest_app"] == "sssp"
 
 
 def test_cross_gate_consistency_with_oracle_gap_auc(payload):

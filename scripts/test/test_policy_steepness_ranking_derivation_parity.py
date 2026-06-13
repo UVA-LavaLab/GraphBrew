@@ -13,12 +13,13 @@ the dashboard re-publishes:
                   ▼
     wiki/data/policy_steepness_ranking.json   ← gate target
 
-The gated claim: oracle-aware policies (POPT, GRASP) saturate to
-near-zero final-octave slope, while non-oracle policies (LRU, SRRIP)
-remain steep — concretely, ``POPT ≤ GRASP ≤ LRU``, ``POPT < SRRIP``,
-all oracle medians ≤ 0.7 pp/oct ceiling, both non-oracle medians ≥
-0.5 pp/oct floor, oracle median < 50% of non-oracle median, and at
-least one POPT app saturates fully (min slope ≤ 0.2 pp/oct).
+The gated claim (charge-invariant): GRASP (degree heuristic) is the
+FLATTEST policy (cache-insensitive hot-set pinning) and LRU (blind
+recency) is the STEEPEST (most cache-sensitive), with a material spread
+(LRU median ≥ 1.5× GRASP median) and at least one POPT app saturating
+fully (min slope ≤ 0.2 pp/oct). Charged P-OPT is mid-pack — no longer
+flat — so the gate no longer asserts POPT-is-flat (a multi-thread +
+uncharged-P-OPT artifact).
 """
 from __future__ import annotations
 
@@ -35,17 +36,14 @@ ARTIFACT_PATH = WIKI_DATA / "policy_steepness_ranking.json"
 ONSET_PATH = WIKI_DATA / "cache_saturation_onset.json"
 
 # Pinned mirror of generator constants.
-ORACLE_AWARE = ("POPT", "GRASP")
-NON_ORACLE = ("LRU", "SRRIP")
-ORACLE_AWARE_CEILING_PP = 0.7
-NON_ORACLE_FLOOR_PP = 0.5
-ORACLE_AWARE_HALF_OF_NON_ORACLE = 0.5
+FLATTEST_POLICY = "GRASP"
+STEEPEST_POLICY = "LRU"
+LRU_OVER_GRASP_SPREAD = 1.5
 POPT_MIN_SLOPE_CEILING_PP = 0.2
 EXPECTED_SCHEMA = "policy_steepness_ranking/v1"
 EXPECTED_CHECK_KEYS = {
-    "popt_le_grasp_median", "grasp_le_lru_median", "popt_lt_srrip_median",
-    "oracle_aware_ceiling", "non_oracle_floor",
-    "oracle_half_of_non_oracle", "popt_min_saturates",
+    "grasp_is_flattest", "lru_is_steepest", "grasp_le_lru_median",
+    "steepness_spread", "popt_min_saturates",
 }
 
 
@@ -85,7 +83,6 @@ def upstream_slopes(onset) -> dict[str, dict[str, float]]:
 def test_top_level_keys(artifact):
     expected = {
         "schema", "source", "meta", "per_policy", "medians_pp",
-        "oracle_median_pp", "non_oracle_median_pp",
         "ranking_by_median", "checks", "verdict_ok",
     }
     missing = expected - set(artifact.keys())
@@ -102,28 +99,26 @@ def test_source_path_pinned(artifact):
 
 def test_meta_has_canonical_fields(artifact):
     meta = artifact["meta"]
-    expected = {"apps", "policies", "oracle_aware", "non_oracle", "thresholds"}
+    expected = {"apps", "policies", "flattest_policy", "steepest_policy", "thresholds"}
     missing = expected - set(meta.keys())
     assert not missing, f"missing meta fields: {missing}"
 
 
-def test_policy_families_pinned(artifact):
+def test_anchor_policies_pinned(artifact):
     meta = artifact["meta"]
-    assert tuple(meta["oracle_aware"]) == ORACLE_AWARE, (
-        "Oracle-aware family drifted — gate 81 reorders around "
-        "ORACLE_AWARE=(POPT, GRASP)."
+    assert meta["flattest_policy"] == FLATTEST_POLICY, (
+        "Flattest-policy anchor drifted — gate 81 expects GRASP "
+        "(degree heuristic) to be the cache-insensitive policy."
     )
-    assert tuple(meta["non_oracle"]) == NON_ORACLE, (
-        "Non-oracle family drifted — gate 81 reorders around "
-        "NON_ORACLE=(LRU, SRRIP)."
+    assert meta["steepest_policy"] == STEEPEST_POLICY, (
+        "Steepest-policy anchor drifted — gate 81 expects LRU "
+        "(blind recency) to be the most cache-sensitive policy."
     )
 
 
 def test_thresholds_pinned(artifact):
     th = artifact["meta"]["thresholds"]
-    assert th["oracle_aware_ceiling_pp"] == ORACLE_AWARE_CEILING_PP
-    assert th["non_oracle_floor_pp"] == NON_ORACLE_FLOOR_PP
-    assert th["oracle_aware_half_of_non_oracle"] == ORACLE_AWARE_HALF_OF_NON_ORACLE
+    assert th["lru_over_grasp_spread"] == LRU_OVER_GRASP_SPREAD
     assert th["popt_min_slope_ceiling_pp"] == POPT_MIN_SLOPE_CEILING_PP
 
 
@@ -201,35 +196,22 @@ def test_medians_pp_mirrors_per_policy_medians(artifact):
         )
 
 
-def test_oracle_family_median_matches_recomputation(artifact):
-    meds = [artifact["per_policy"][p]["median"] for p in ORACLE_AWARE]
-    expected = round(statistics.median(meds), 6)
-    assert artifact["oracle_median_pp"] == expected, (
-        f"oracle_median_pp drift — recomputed {expected!r}, "
-        f"got {artifact['oracle_median_pp']!r}"
-    )
-
-
-def test_non_oracle_family_median_matches_recomputation(artifact):
-    meds = [artifact["per_policy"][p]["median"] for p in NON_ORACLE]
-    expected = round(statistics.median(meds), 6)
-    assert artifact["non_oracle_median_pp"] == expected
-
-
 def test_ranking_is_sorted_by_median_ascending(artifact):
     policies = artifact["meta"]["policies"]
     expected = sorted(policies, key=lambda p: artifact["per_policy"][p]["median"])
     assert artifact["ranking_by_median"] == expected
 
 
-def test_headline_ranking_oracle_first(artifact):
-    """The dashboard story is 'POPT and GRASP take the top two slots,
-    LRU and SRRIP the bottom'. Lock that today.
+def test_headline_ranking_grasp_first_lru_last(artifact):
+    """The dashboard story is 'GRASP is flattest (top slot), LRU is
+    steepest (bottom slot)'. Lock that today.
     """
-    top_two = set(artifact["ranking_by_median"][:2])
-    assert top_two == set(ORACLE_AWARE), (
-        f"oracle-aware family lost top-2 in steepness ranking: "
-        f"top two = {top_two}"
+    ranking = artifact["ranking_by_median"]
+    assert ranking[0] == FLATTEST_POLICY, (
+        f"GRASP lost the flattest slot in steepness ranking: top = {ranking[0]}"
+    )
+    assert ranking[-1] == STEEPEST_POLICY, (
+        f"LRU lost the steepest slot in steepness ranking: bottom = {ranking[-1]}"
     )
 
 
@@ -241,42 +223,32 @@ def test_checks_carries_canonical_keys(artifact):
     assert set(artifact["checks"].keys()) == EXPECTED_CHECK_KEYS
 
 
-def test_popt_le_grasp_median_matches_recomputation(artifact):
+def test_grasp_is_flattest_matches_recomputation(artifact):
     meds = artifact["medians_pp"]
-    expected = meds["POPT"] <= meds["GRASP"] + 1e-9
-    assert artifact["checks"]["popt_le_grasp_median"]["ok"] == expected
+    others = [p for p in artifact["meta"]["policies"] if p != FLATTEST_POLICY]
+    expected = all(meds[FLATTEST_POLICY] <= meds[p] + 1e-9 for p in others)
+    assert artifact["checks"]["grasp_is_flattest"]["ok"] == expected
+
+
+def test_lru_is_steepest_matches_recomputation(artifact):
+    meds = artifact["medians_pp"]
+    others = [p for p in artifact["meta"]["policies"] if p != STEEPEST_POLICY]
+    expected = all(meds[STEEPEST_POLICY] >= meds[p] - 1e-9 for p in others)
+    assert artifact["checks"]["lru_is_steepest"]["ok"] == expected
 
 
 def test_grasp_le_lru_median_matches_recomputation(artifact):
     meds = artifact["medians_pp"]
-    expected = meds["GRASP"] <= meds["LRU"] + 1e-9
+    expected = meds[FLATTEST_POLICY] <= meds[STEEPEST_POLICY] + 1e-9
     assert artifact["checks"]["grasp_le_lru_median"]["ok"] == expected
 
 
-def test_popt_lt_srrip_median_matches_recomputation(artifact):
+def test_steepness_spread_matches_recomputation(artifact):
     meds = artifact["medians_pp"]
-    expected = meds["POPT"] < meds["SRRIP"] - 1e-9
-    assert artifact["checks"]["popt_lt_srrip_median"]["ok"] == expected
-
-
-def test_oracle_ceiling_matches_recomputation(artifact):
-    meds = artifact["medians_pp"]
-    expected = all(meds[p] <= ORACLE_AWARE_CEILING_PP + 1e-9 for p in ORACLE_AWARE)
-    assert artifact["checks"]["oracle_aware_ceiling"]["ok"] == expected
-
-
-def test_non_oracle_floor_matches_recomputation(artifact):
-    meds = artifact["medians_pp"]
-    expected = all(meds[p] >= NON_ORACLE_FLOOR_PP - 1e-9 for p in NON_ORACLE)
-    assert artifact["checks"]["non_oracle_floor"]["ok"] == expected
-
-
-def test_half_check_matches_recomputation(artifact):
     expected = (
-        artifact["oracle_median_pp"]
-        < artifact["non_oracle_median_pp"] * ORACLE_AWARE_HALF_OF_NON_ORACLE + 1e-9
+        meds[STEEPEST_POLICY] >= LRU_OVER_GRASP_SPREAD * meds[FLATTEST_POLICY] - 1e-9
     )
-    assert artifact["checks"]["oracle_half_of_non_oracle"]["ok"] == expected
+    assert artifact["checks"]["steepness_spread"]["ok"] == expected
 
 
 def test_popt_min_saturates_matches_recomputation(artifact):
@@ -286,20 +258,16 @@ def test_popt_min_saturates_matches_recomputation(artifact):
 
 
 def test_check_payloads_match_artifact_state(artifact):
-    """Side-band fields embedded in each check payload (e.g. popt=…,
-    grasp=…, ceiling=…) must match the artifact's own medians/thresholds.
+    """Side-band fields embedded in each check payload must match the
+    artifact's own medians/thresholds.
     """
     ch = artifact["checks"]
     meds = artifact["medians_pp"]
-    assert ch["popt_le_grasp_median"]["popt"] == meds["POPT"]
-    assert ch["popt_le_grasp_median"]["grasp"] == meds["GRASP"]
-    assert ch["grasp_le_lru_median"]["grasp"] == meds["GRASP"]
-    assert ch["grasp_le_lru_median"]["lru"] == meds["LRU"]
-    assert ch["popt_lt_srrip_median"]["popt"] == meds["POPT"]
-    assert ch["popt_lt_srrip_median"]["srrip"] == meds["SRRIP"]
-    assert ch["oracle_aware_ceiling"]["ceiling"] == ORACLE_AWARE_CEILING_PP
-    assert ch["non_oracle_floor"]["floor"] == NON_ORACLE_FLOOR_PP
-    assert ch["oracle_half_of_non_oracle"]["required_ratio"] == ORACLE_AWARE_HALF_OF_NON_ORACLE
+    assert ch["grasp_is_flattest"]["grasp"] == meds[FLATTEST_POLICY]
+    assert ch["lru_is_steepest"]["lru"] == meds[STEEPEST_POLICY]
+    assert ch["grasp_le_lru_median"]["grasp"] == meds[FLATTEST_POLICY]
+    assert ch["grasp_le_lru_median"]["lru"] == meds[STEEPEST_POLICY]
+    assert ch["steepness_spread"]["required_ratio"] == LRU_OVER_GRASP_SPREAD
     assert ch["popt_min_saturates"]["ceiling"] == POPT_MIN_SLOPE_CEILING_PP
 
 
@@ -314,8 +282,8 @@ def test_verdict_ok_is_and_of_all_checks(artifact):
 
 def test_current_verdict_is_pass(artifact):
     assert artifact["verdict_ok"] is True, (
-        "policy_steepness_ranking regressed to FAIL — the oracle-aware "
-        "vs non-oracle steepness story is the headline universality "
+        "policy_steepness_ranking regressed to FAIL — the GRASP-flattest "
+        "vs LRU-steepest steepness story is the headline cache-sensitivity "
         "claim, and a regression here means an upstream slope reducer "
         "or saturation onset moved unexpectedly."
     )

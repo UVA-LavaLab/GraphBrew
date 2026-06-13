@@ -432,7 +432,7 @@
   "n_eval_graphs": 6,
   "n_families": 8,
   "n_family_dicts": 8,
-  "n_literal_sites": 608,
+  "n_literal_sites": 615,
   "rules": {
     "R1": "every harvested graph literal is in CANONICAL_GRAPHS",
     "R2": "every canonical has non-empty family + paper_label",

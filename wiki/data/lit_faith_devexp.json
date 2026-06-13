@@ -5,6 +5,17 @@
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "cross_ref": false,
       "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on cit-Patents/bc@4MB (\u0394=+...",
+      "reason_len": 397
+    },
+    {
+      "app": "bc",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "cit-Patents",
       "l3_size": "8MB",
       "mechanism_hits": 2,
       "policy": "POPT_GE_GRASP",
@@ -12,15 +23,70 @@
       "reason_len": 270
     },
     {
+      "app": "bfs",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on cit-Patents/bfs@4MB (\u0394=...",
+      "reason_len": 398
+    },
+    {
       "app": "cc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "cross_ref": false,
       "graph": "cit-Patents",
-      "l3_size": "8MB",
-      "mechanism_hits": 3,
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
       "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "cit-Patents/cc/8 MB: CC's union-find probes are edge-driven rather than rank-sta...",
-      "reason_len": 252
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on cit-Patents/cc@4MB (\u0394=+...",
+      "reason_len": 397
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "cit-Patents",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on cit-Patents/sssp@1MB (\u0394...",
+      "reason_len": 399
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "cit-Patents",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on cit-Patents/sssp@4MB (\u0394...",
+      "reason_len": 399
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "cit-Patents",
+      "l3_size": "8MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on cit-Patents/sssp@8MB (\u0394...",
+      "reason_len": 399
+    },
+    {
+      "app": "bc",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "com-orkut",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on com-orkut/bc@1MB (\u0394=+2....",
+      "reason_len": 395
     },
     {
       "app": "bc",
@@ -78,26 +144,15 @@
       "reason_len": 244
     },
     {
-      "app": "cc",
+      "app": "pr",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "cross_ref": false,
       "graph": "com-orkut",
-      "l3_size": "8MB",
-      "mechanism_hits": 4,
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
       "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "com-orkut/cc/8 MB: even after capacity pressure eases, union-find rereference lo...",
-      "reason_len": 251
-    },
-    {
-      "app": "cc",
-      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
-      "cross_ref": false,
-      "graph": "com-orkut",
-      "l3_size": "8MB",
-      "mechanism_hits": 5,
-      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
-      "reason_excerpt": "com-orkut/cc/8 MB near-GRASP check: the union-find phase transition leaves a mea...",
-      "reason_len": 248
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on com-orkut/pr@1MB (\u0394=+3....",
+      "reason_len": 395
     },
     {
       "app": "sssp",
@@ -109,6 +164,61 @@
       "policy": "POPT_GE_GRASP",
       "reason_excerpt": "com-orkut/sssp/1 MB: delta-stepping frontier buckets revisit vertices irregularl...",
       "reason_len": 254
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "com-orkut",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on com-orkut/sssp@4MB (\u0394=+...",
+      "reason_len": 397
+    },
+    {
+      "app": "bc",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-LiveJournal1/bc@4MB...",
+      "reason_len": 402
+    },
+    {
+      "app": "bc",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-LiveJournal1/bc@8MB...",
+      "reason_len": 402
+    },
+    {
+      "app": "bfs",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-LiveJournal1/bfs@1M...",
+      "reason_len": 403
+    },
+    {
+      "app": "bfs",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-LiveJournal1/bfs@4M...",
+      "reason_len": 403
     },
     {
       "app": "cc",
@@ -133,26 +243,92 @@
       "reason_len": 265
     },
     {
-      "app": "cc",
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-LiveJournal1",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-LiveJournal1/sssp@1...",
+      "reason_len": 404
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-LiveJournal1",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-LiveJournal1/sssp@4...",
+      "reason_len": 404
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-LiveJournal1",
+      "l3_size": "8MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-LiveJournal1/sssp@8...",
+      "reason_len": 404
+    },
+    {
+      "app": "bc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "cross_ref": false,
       "graph": "soc-pokec",
       "l3_size": "1MB",
-      "mechanism_hits": 3,
+      "mechanism_hits": 2,
       "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "soc-pokec/cc/1 MB: the tight cache exposes CC's edge-driven union-find rereferen...",
-      "reason_len": 246
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-pokec/bc@1MB (\u0394=+2....",
+      "reason_len": 395
     },
     {
-      "app": "cc",
+      "app": "bc",
       "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
       "cross_ref": false,
       "graph": "soc-pokec",
       "l3_size": "4MB",
-      "mechanism_hits": 3,
+      "mechanism_hits": 2,
       "policy": "POPT_GE_GRASP",
-      "reason_excerpt": "soc-pokec/cc/4 MB: component merging creates a union-find rereference pattern th...",
-      "reason_len": 232
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-pokec/bc@4MB (\u0394=+4....",
+      "reason_len": 395
+    },
+    {
+      "app": "bc",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-pokec",
+      "l3_size": "8MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-pokec/bc@8MB (\u0394=+4....",
+      "reason_len": 395
+    },
+    {
+      "app": "bfs",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-pokec/bfs@1MB (\u0394=+2...",
+      "reason_len": 396
+    },
+    {
+      "app": "pr",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-pokec/pr@1MB (\u0394=+2....",
+      "reason_len": 395
     },
     {
       "app": "sssp",
@@ -164,6 +340,28 @@
       "policy": "POPT_GE_GRASP",
       "reason_excerpt": "soc-pokec/sssp/1 MB: delta-stepping's frontier buckets thrash the small LLC, and...",
       "reason_len": 231
+    },
+    {
+      "app": "sssp",
+      "citation": "Faldu HPCA20 \u00a76.1 + Balaji HPCA21 Fig 9 cross-check",
+      "cross_ref": false,
+      "graph": "soc-pokec",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_NEAR_GRASP_IF_BIG_GAP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-pokec/sssp@1MB (\u0394=+...",
+      "reason_len": 397
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "soc-pokec",
+      "l3_size": "4MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on soc-pokec/sssp@4MB (\u0394=+...",
+      "reason_len": 397
     },
     {
       "app": "bc",
@@ -186,20 +384,42 @@
       "policy": "POPT_GE_GRASP",
       "reason_excerpt": "web-Google/bc/8 MB: larger-cache BC still has frontier rereference gaps on the w...",
       "reason_len": 214
+    },
+    {
+      "app": "bfs",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on web-Google/bfs@1MB (\u0394=+...",
+      "reason_len": 397
+    },
+    {
+      "app": "sssp",
+      "citation": "Balaji & Lucia HPCA 2021 \u00a76.3 (per-cell diagnostic; geomean is the claim)",
+      "cross_ref": false,
+      "graph": "web-Google",
+      "l3_size": "1MB",
+      "mechanism_hits": 2,
+      "policy": "POPT_GE_GRASP",
+      "reason_excerpt": "INFORMATIONAL per-cell diagnostic: P-OPT trails GRASP on web-Google/sssp@1MB (\u0394=...",
+      "reason_len": 398
     }
   ],
   "schema_version": 1,
   "summary": {
-    "known_deviation_rows": 17,
+    "known_deviation_rows": 37,
     "max_reuse_count": 1,
-    "median_mechanism_hits": 3,
-    "median_reason_len": 246,
+    "median_mechanism_hits": 2,
+    "median_reason_len": 396,
     "min_known_deviations": 15,
     "min_mechanism_hits": 1,
     "min_reason_len": 60,
     "reuse_ceiling_frac": 0.5,
     "rows_with_cross_ref": 0,
-    "unique_reason_texts": 17,
+    "unique_reason_texts": 37,
     "violations": 0
   },
   "violations": []

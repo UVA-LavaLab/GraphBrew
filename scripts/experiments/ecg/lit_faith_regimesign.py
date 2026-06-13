@@ -55,7 +55,7 @@ ADVICE_POLICIES = {"GRASP", "POPT"}
 # frontiers, not the degree-sorted property array). Documented exceptions to
 # the hub no-regression / median-ceiling rules (array-relative GRASP 0.15,
 # single-thread corpus); see docs/findings/grasp_road_anti_thrashing.md.
-FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp")}
+FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp"), ("web", "cc")}
 
 SIGN_DEADBAND_PP        = 1.0      # delta within ±1 pp counts as 'neutral'
 HUB_MEDIAN_CEIL_PP      = 0.5      # hub bucket median delta must <= this

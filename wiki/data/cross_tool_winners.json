@@ -3,7 +3,7 @@
     {
       "app": "bfs",
       "cache_sim_l3": "8MB",
-      "cache_sim_margin_pp": "3.091",
+      "cache_sim_margin_pp": "1.267",
       "cache_sim_winner": "POPT",
       "classification": "split",
       "gem5_l3": "",
@@ -18,7 +18,7 @@
     {
       "app": "pr",
       "cache_sim_l3": "8MB",
-      "cache_sim_margin_pp": "4.600",
+      "cache_sim_margin_pp": "1.898",
       "cache_sim_winner": "POPT",
       "classification": "split",
       "gem5_l3": "",
@@ -33,8 +33,8 @@
     {
       "app": "sssp",
       "cache_sim_l3": "8MB",
-      "cache_sim_margin_pp": "0.136",
-      "cache_sim_winner": "POPT",
+      "cache_sim_margin_pp": "2.104",
+      "cache_sim_winner": "GRASP",
       "classification": "split",
       "gem5_l3": "",
       "gem5_margin_pp": "",
@@ -115,7 +115,7 @@
       },
       {
         "app": "sssp",
-        "cache_sim_winner": "POPT",
+        "cache_sim_winner": "GRASP",
         "gem5_winner": "",
         "graph": "cit-Patents",
         "sniper_winner": "SRRIP"

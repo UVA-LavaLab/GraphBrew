@@ -10,36 +10,37 @@
   "meta": {
     "n_graph_app_pairs": 34,
     "n_insufficient_l3": 6,
-    "n_regime_change": 17,
+    "n_regime_change": 15,
     "n_stable_partial": 3,
-    "n_stable_unique": 8,
+    "n_stable_unique": 10,
     "scope_l3_sizes": [
       "1MB",
       "4MB",
       "8MB"
     ],
     "source": "wiki/data/oracle_gap.json",
-    "stability_fraction_excl_insufficient": 0.2857142857142857
+    "stability_fraction_excl_insufficient": 0.35714285714285715
   },
   "per_graph_app": [
     {
       "app": "bc",
-      "classification": "regime_change",
+      "classification": "stable_unique",
       "graph": "cit-Patents",
-      "intersection": [],
+      "intersection": [
+        "GRASP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "GRASP",
-        "POPT"
+        "GRASP"
       ],
-      "unique_in_intersection": false,
+      "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "GRASP"
@@ -66,7 +67,7 @@
       "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "GRASP"
@@ -133,19 +134,20 @@
     },
     {
       "app": "sssp",
-      "classification": "regime_change",
+      "classification": "stable_unique",
       "graph": "cit-Patents",
-      "intersection": [],
+      "intersection": [
+        "GRASP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "GRASP",
-        "POPT"
+        "GRASP"
       ],
-      "unique_in_intersection": false,
+      "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
           "GRASP"
@@ -154,7 +156,7 @@
           "GRASP"
         ],
         "8MB": [
-          "POPT"
+          "GRASP"
         ]
       }
     },
@@ -203,7 +205,7 @@
       "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "GRASP"
@@ -215,20 +217,19 @@
     },
     {
       "app": "cc",
-      "classification": "stable_unique",
+      "classification": "regime_change",
       "graph": "com-orkut",
-      "intersection": [
-        "GRASP"
-      ],
+      "intersection": [],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "GRASP"
+        "GRASP",
+        "POPT"
       ],
-      "unique_in_intersection": true,
+      "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
           "GRASP"
@@ -237,29 +238,28 @@
           "GRASP"
         ],
         "8MB": [
-          "GRASP"
+          "POPT"
         ]
       }
     },
     {
       "app": "pr",
-      "classification": "stable_unique",
+      "classification": "regime_change",
       "graph": "com-orkut",
-      "intersection": [
-        "POPT"
-      ],
+      "intersection": [],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
+        "GRASP",
         "POPT"
       ],
-      "unique_in_intersection": true,
+      "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "POPT"
@@ -281,7 +281,6 @@
       ],
       "union": [
         "GRASP",
-        "POPT",
         "SRRIP"
       ],
       "unique_in_intersection": false,
@@ -290,7 +289,7 @@
           "GRASP"
         ],
         "4MB": [
-          "POPT"
+          "GRASP"
         ],
         "8MB": [
           "SRRIP"
@@ -489,12 +488,12 @@
         "1MB"
       ],
       "union": [
-        "GRASP"
+        "POPT"
       ],
       "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
-          "GRASP"
+          "POPT"
         ]
       }
     },
@@ -536,22 +535,23 @@
     },
     {
       "app": "bc",
-      "classification": "regime_change",
+      "classification": "stable_unique",
       "graph": "soc-LiveJournal1",
-      "intersection": [],
+      "intersection": [
+        "GRASP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "GRASP",
-        "POPT"
+        "GRASP"
       ],
-      "unique_in_intersection": false,
+      "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "GRASP"
@@ -563,19 +563,20 @@
     },
     {
       "app": "bfs",
-      "classification": "regime_change",
+      "classification": "stable_unique",
       "graph": "soc-LiveJournal1",
-      "intersection": [],
+      "intersection": [
+        "GRASP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "GRASP",
-        "POPT"
+        "GRASP"
       ],
-      "unique_in_intersection": false,
+      "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
           "GRASP"
@@ -584,7 +585,7 @@
           "GRASP"
         ],
         "8MB": [
-          "POPT"
+          "GRASP"
         ]
       }
     },
@@ -645,55 +646,57 @@
     },
     {
       "app": "sssp",
-      "classification": "regime_change",
+      "classification": "stable_unique",
       "graph": "soc-LiveJournal1",
-      "intersection": [],
+      "intersection": [
+        "GRASP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "GRASP",
-        "POPT"
+        "GRASP"
       ],
-      "unique_in_intersection": false,
+      "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "GRASP"
         ],
         "8MB": [
-          "POPT"
+          "GRASP"
         ]
       }
     },
     {
       "app": "bc",
-      "classification": "regime_change",
+      "classification": "stable_unique",
       "graph": "soc-pokec",
-      "intersection": [],
+      "intersection": [
+        "GRASP"
+      ],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "GRASP",
-        "POPT"
+        "GRASP"
       ],
-      "unique_in_intersection": false,
+      "unique_in_intersection": true,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "GRASP"
         ],
         "8MB": [
-          "POPT"
+          "GRASP"
         ]
       }
     },
@@ -726,11 +729,9 @@
     },
     {
       "app": "cc",
-      "classification": "stable_unique_with_ties",
+      "classification": "regime_change",
       "graph": "soc-pokec",
-      "intersection": [
-        "GRASP"
-      ],
+      "intersection": [],
       "l3_sizes_present": [
         "1MB",
         "4MB",
@@ -742,16 +743,15 @@
         "POPT",
         "SRRIP"
       ],
-      "unique_in_intersection": true,
+      "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
           "GRASP"
         ],
         "4MB": [
-          "GRASP"
+          "POPT"
         ],
         "8MB": [
-          "GRASP",
           "LRU",
           "POPT",
           "SRRIP"
@@ -775,7 +775,7 @@
       "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
-          "POPT"
+          "GRASP"
         ],
         "4MB": [
           "POPT"
@@ -883,7 +883,6 @@
         "8MB"
       ],
       "union": [
-        "GRASP",
         "LRU",
         "POPT",
         "SRRIP"
@@ -894,13 +893,11 @@
           "POPT"
         ],
         "4MB": [
-          "GRASP",
           "LRU",
           "POPT",
           "SRRIP"
         ],
         "8MB": [
-          "GRASP",
           "LRU",
           "POPT",
           "SRRIP"
@@ -909,26 +906,25 @@
     },
     {
       "app": "pr",
-      "classification": "stable_unique",
+      "classification": "regime_change",
       "graph": "web-Google",
-      "intersection": [
-        "POPT"
-      ],
+      "intersection": [],
       "l3_sizes_present": [
         "1MB",
         "4MB",
         "8MB"
       ],
       "union": [
-        "POPT"
+        "POPT",
+        "SRRIP"
       ],
-      "unique_in_intersection": true,
+      "unique_in_intersection": false,
       "winners_by_l3": {
         "1MB": [
           "POPT"
         ],
         "4MB": [
-          "POPT"
+          "SRRIP"
         ],
         "8MB": [
           "POPT"
@@ -973,14 +969,14 @@
     "cit-Patents": {
       "n_apps": 5,
       "partial": 0,
-      "regime_change": 4,
-      "stable_unique": 1
+      "regime_change": 2,
+      "stable_unique": 3
     },
     "com-orkut": {
       "n_apps": 5,
       "partial": 0,
-      "regime_change": 2,
-      "stable_unique": 3
+      "regime_change": 4,
+      "stable_unique": 1
     },
     "delaunay_n19": {
       "n_apps": 1,
@@ -1003,8 +999,8 @@
     "soc-LiveJournal1": {
       "n_apps": 5,
       "partial": 0,
-      "regime_change": 4,
-      "stable_unique": 1
+      "regime_change": 1,
+      "stable_unique": 4
     },
     "soc-pokec": {
       "n_apps": 5,
@@ -1015,27 +1011,25 @@
     "web-Google": {
       "n_apps": 5,
       "partial": 0,
-      "regime_change": 3,
-      "stable_unique": 2
+      "regime_change": 4,
+      "stable_unique": 1
     }
   },
   "regime_change_cells": [
-    "cit-Patents/bc",
     "cit-Patents/bfs",
     "cit-Patents/cc",
-    "cit-Patents/sssp",
     "com-orkut/bfs",
+    "com-orkut/cc",
+    "com-orkut/pr",
     "com-orkut/sssp",
-    "soc-LiveJournal1/bc",
-    "soc-LiveJournal1/bfs",
     "soc-LiveJournal1/cc",
-    "soc-LiveJournal1/sssp",
-    "soc-pokec/bc",
     "soc-pokec/bfs",
+    "soc-pokec/cc",
     "soc-pokec/pr",
     "soc-pokec/sssp",
     "web-Google/bc",
     "web-Google/bfs",
+    "web-Google/pr",
     "web-Google/sssp"
   ],
   "stable_partial_cells": [
@@ -1044,13 +1038,15 @@
     "email-Eu-core/pr -> GRASP,LRU,POPT,SRRIP"
   ],
   "stable_unique_cells": [
+    "cit-Patents/bc -> GRASP",
     "cit-Patents/pr -> POPT",
+    "cit-Patents/sssp -> GRASP",
     "com-orkut/bc -> GRASP",
-    "com-orkut/cc -> GRASP",
-    "com-orkut/pr -> POPT",
+    "soc-LiveJournal1/bc -> GRASP",
+    "soc-LiveJournal1/bfs -> GRASP",
     "soc-LiveJournal1/pr -> POPT",
-    "soc-pokec/cc -> GRASP",
-    "web-Google/cc -> POPT",
-    "web-Google/pr -> POPT"
+    "soc-LiveJournal1/sssp -> GRASP",
+    "soc-pokec/bc -> GRASP",
+    "web-Google/cc -> POPT"
   ]
 }

@@ -83,8 +83,18 @@ def test_known_deviations_count_floor(payload):
 
 
 def test_live_faith_known_deviation_rows_floor(payload):
-    """Live faith corpus has at least 15 known_deviation rows."""
-    assert payload["summary"]["faith_known_deviation_rows"] >= 15
+    """Live faith corpus has at least 15 tolerated known_deviation rows.
+    Under the faithful 1-way-charged P-OPT corpus these split into
+    explicitly-whitelisted deviations and auto-tolerated per-cell P-OPT
+    diagnostics (known_deviation_auto); the floor is on their sum so the
+    corpus keeps meaningful deviation coverage regardless of the split."""
+    s = payload["summary"]
+    total_kd = s["faith_known_deviation_rows"] + s.get("auto_known_deviation_rows", 0)
+    assert total_kd >= 15, (
+        f"only {total_kd} tolerated known_deviation rows "
+        f"(explicit={s['faith_known_deviation_rows']}, "
+        f"auto={s.get('auto_known_deviation_rows', 0)})"
+    )
 
 
 # ---------- core invariants ----------

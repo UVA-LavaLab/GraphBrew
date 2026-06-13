@@ -11,8 +11,8 @@ win-rate claim — they are the corpus's 'unwinnable' cases.
 
 Tied cells by tie-count:
 
-- 3-way tie: **3** cells
-- 4-way tie: **12** cells
+- 3-way tie: **6** cells
+- 4-way tie: **9** cells
 
 ## Per-app census
 
@@ -39,9 +39,9 @@ These cells have ≥2 policies tied at top of the cell.
 | `email-Eu-core` | `pr` | `1MB` | `GRASP`, `LRU`, `POPT`, `SRRIP` |
 | `email-Eu-core` | `pr` | `4MB` | `GRASP`, `LRU`, `POPT`, `SRRIP` |
 | `email-Eu-core` | `pr` | `8MB` | `GRASP`, `LRU`, `POPT`, `SRRIP` |
-| `soc-pokec` | `cc` | `8MB` | `GRASP`, `LRU`, `POPT`, `SRRIP` |
+| `soc-pokec` | `cc` | `8MB` | `LRU`, `POPT`, `SRRIP` |
 | `soc-pokec` | `sssp` | `8MB` | `LRU`, `POPT`, `SRRIP` |
-| `web-Google` | `cc` | `4MB` | `GRASP`, `LRU`, `POPT`, `SRRIP` |
-| `web-Google` | `cc` | `8MB` | `GRASP`, `LRU`, `POPT`, `SRRIP` |
+| `web-Google` | `cc` | `4MB` | `LRU`, `POPT`, `SRRIP` |
+| `web-Google` | `cc` | `8MB` | `LRU`, `POPT`, `SRRIP` |
 | `web-Google` | `sssp` | `4MB` | `LRU`, `POPT`, `SRRIP` |
 | `web-Google` | `sssp` | `8MB` | `LRU`, `POPT`, `SRRIP` |

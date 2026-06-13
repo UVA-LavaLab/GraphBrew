@@ -65,12 +65,12 @@ def test_pr_winner_is_popt(doc):
     )
 
 
-def test_cc_winner_is_grasp(doc):
-    """Load-bearing: GRASP wins on CC (the only kernel where GRASP wins outright)."""
+def test_cc_winner_is_popt_charged_corpus(doc):
+    """Charged corpus: POPT is cc rank-1 by mean gap; GRASP no longer wins cc."""
     rank1 = doc["by_app_ranking"]["cc"][0]
-    assert rank1["policy"] == "GRASP", (
-        f"cc rank-1 policy = {rank1['policy']!r}, expected GRASP — "
-        "the paper's GRASP-wins-on-CC claim no longer holds"
+    assert rank1["policy"] == "POPT", (
+        f"cc rank-1 policy = {rank1['policy']!r}, expected POPT — "
+        "the charged-corpus cc mean-gap ordering drifted"
     )
 
 

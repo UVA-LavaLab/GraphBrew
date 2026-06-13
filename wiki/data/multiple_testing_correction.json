@@ -5,7 +5,7 @@
       "holm_bonferroni_survives": false,
       "label": "LRU vs SRRIP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.135201,
+      "p_two_sided": 0.141038,
       "scope": "app=bc",
       "source": "mannwhitney_gap"
     },
@@ -14,7 +14,7 @@
       "holm_bonferroni_survives": false,
       "label": "GRASP vs LRU",
       "naive_significant_at_alpha": true,
-      "p_two_sided": 0.005451,
+      "p_two_sided": 0.001289,
       "scope": "app=bc",
       "source": "mannwhitney_gap"
     },
@@ -23,7 +23,7 @@
       "holm_bonferroni_survives": false,
       "label": "LRU vs POPT",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.106368,
+      "p_two_sided": 0.660384,
       "scope": "app=bc",
       "source": "mannwhitney_gap"
     },
@@ -32,7 +32,7 @@
       "holm_bonferroni_survives": false,
       "label": "GRASP vs SRRIP",
       "naive_significant_at_alpha": true,
-      "p_two_sided": 0.008657,
+      "p_two_sided": 0.002521,
       "scope": "app=bc",
       "source": "mannwhitney_gap"
     },
@@ -40,143 +40,143 @@
       "benjamini_hochberg_survives": false,
       "holm_bonferroni_survives": false,
       "label": "POPT vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.385513,
-      "scope": "app=bc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "GRASP vs POPT",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.21451,
-      "scope": "app=bc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "LRU vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.733463,
-      "scope": "app=bfs",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "GRASP vs LRU",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.049271,
-      "scope": "app=bfs",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": false,
-      "label": "LRU vs POPT",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.00124,
-      "scope": "app=bfs",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "GRASP vs SRRIP",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.037886,
-      "scope": "app=bfs",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": true,
-      "label": "POPT vs SRRIP",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.00054,
-      "scope": "app=bfs",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "GRASP vs POPT",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.545742,
-      "scope": "app=bfs",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "LRU vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.386708,
-      "scope": "app=cc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": true,
-      "label": "GRASP vs LRU",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 2.6e-05,
-      "scope": "app=cc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": false,
-      "label": "LRU vs POPT",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.007712,
-      "scope": "app=cc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": true,
-      "label": "GRASP vs SRRIP",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 2.6e-05,
-      "scope": "app=cc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "POPT vs SRRIP",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.024758,
-      "scope": "app=cc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": false,
-      "label": "GRASP vs POPT",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.002677,
-      "scope": "app=cc",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "LRU vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.398713,
-      "scope": "app=pr",
-      "source": "mannwhitney_gap"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "GRASP vs LRU",
       "naive_significant_at_alpha": true,
       "p_two_sided": 0.045587,
+      "scope": "app=bc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": true,
+      "label": "GRASP vs POPT",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.00061,
+      "scope": "app=bc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "LRU vs SRRIP",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.716985,
+      "scope": "app=bfs",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": false,
+      "label": "GRASP vs LRU",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.014303,
+      "scope": "app=bfs",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": false,
+      "label": "LRU vs POPT",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.007854,
+      "scope": "app=bfs",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": false,
+      "label": "GRASP vs SRRIP",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.007357,
+      "scope": "app=bfs",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": false,
+      "label": "POPT vs SRRIP",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.003479,
+      "scope": "app=bfs",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "GRASP vs POPT",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.488919,
+      "scope": "app=bfs",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "LRU vs SRRIP",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.133283,
+      "scope": "app=cc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "GRASP vs LRU",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.041124,
+      "scope": "app=cc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": false,
+      "label": "LRU vs POPT",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.002139,
+      "scope": "app=cc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "GRASP vs SRRIP",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.096196,
+      "scope": "app=cc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": false,
+      "label": "POPT vs SRRIP",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.008355,
+      "scope": "app=cc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "GRASP vs POPT",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.490334,
+      "scope": "app=cc",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "LRU vs SRRIP",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.321488,
+      "scope": "app=pr",
+      "source": "mannwhitney_gap"
+    },
+    {
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": false,
+      "label": "GRASP vs LRU",
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.006855,
       "scope": "app=pr",
       "source": "mannwhitney_gap"
     },
@@ -185,7 +185,7 @@
       "holm_bonferroni_survives": true,
       "label": "LRU vs POPT",
       "naive_significant_at_alpha": true,
-      "p_two_sided": 0.0,
+      "p_two_sided": 1e-06,
       "scope": "app=pr",
       "source": "mannwhitney_gap"
     },
@@ -193,8 +193,8 @@
       "benjamini_hochberg_survives": false,
       "holm_bonferroni_survives": false,
       "label": "GRASP vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.153968,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.038178,
       "scope": "app=pr",
       "source": "mannwhitney_gap"
     },
@@ -203,7 +203,7 @@
       "holm_bonferroni_survives": true,
       "label": "POPT vs SRRIP",
       "naive_significant_at_alpha": true,
-      "p_two_sided": 0.0,
+      "p_two_sided": 4e-06,
       "scope": "app=pr",
       "source": "mannwhitney_gap"
     },
@@ -212,7 +212,7 @@
       "holm_bonferroni_survives": true,
       "label": "GRASP vs POPT",
       "naive_significant_at_alpha": true,
-      "p_two_sided": 3e-06,
+      "p_two_sided": 0.000401,
       "scope": "app=pr",
       "source": "mannwhitney_gap"
     },
@@ -221,16 +221,16 @@
       "holm_bonferroni_survives": false,
       "label": "LRU vs SRRIP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.323482,
+      "p_two_sided": 0.273285,
       "scope": "app=sssp",
       "source": "mannwhitney_gap"
     },
     {
-      "benjamini_hochberg_survives": false,
+      "benjamini_hochberg_survives": true,
       "holm_bonferroni_survives": false,
       "label": "GRASP vs LRU",
       "naive_significant_at_alpha": true,
-      "p_two_sided": 0.030464,
+      "p_two_sided": 0.009409,
       "scope": "app=sssp",
       "source": "mannwhitney_gap"
     },
@@ -238,8 +238,8 @@
       "benjamini_hochberg_survives": false,
       "holm_bonferroni_survives": false,
       "label": "LRU vs POPT",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.034866,
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.665159,
       "scope": "app=sssp",
       "source": "mannwhitney_gap"
     },
@@ -247,8 +247,8 @@
       "benjamini_hochberg_survives": false,
       "holm_bonferroni_survives": false,
       "label": "GRASP vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.069931,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.024758,
       "scope": "app=sssp",
       "source": "mannwhitney_gap"
     },
@@ -257,16 +257,16 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs SRRIP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.14042,
+      "p_two_sided": 0.096196,
       "scope": "app=sssp",
       "source": "mannwhitney_gap"
     },
     {
-      "benjamini_hochberg_survives": false,
+      "benjamini_hochberg_survives": true,
       "holm_bonferroni_survives": false,
       "label": "GRASP vs POPT",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.588506,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.003194,
       "scope": "app=sssp",
       "source": "mannwhitney_gap"
     },
@@ -302,7 +302,7 @@
       "holm_bonferroni_survives": false,
       "label": "LRU vs POPT",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.432,
+      "p_two_sided": 0.18900000000000006,
       "scope": "app=bc",
       "source": "bootstrap_paired_gap"
     },
@@ -316,11 +316,11 @@
       "source": "bootstrap_paired_gap"
     },
     {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": true,
       "label": "POPT vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.68,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.0,
       "scope": "app=bc",
       "source": "bootstrap_paired_gap"
     },
@@ -334,11 +334,11 @@
       "source": "bootstrap_paired_gap"
     },
     {
-      "benjamini_hochberg_survives": true,
+      "benjamini_hochberg_survives": false,
       "holm_bonferroni_survives": false,
       "label": "GRASP vs POPT",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.012,
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.093,
       "scope": "app=bfs",
       "source": "bootstrap_paired_gap"
     },
@@ -356,7 +356,7 @@
       "holm_bonferroni_survives": false,
       "label": "LRU vs POPT",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.169,
+      "p_two_sided": 0.318,
       "scope": "app=bfs",
       "source": "bootstrap_paired_gap"
     },
@@ -374,34 +374,34 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs SRRIP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.18799999999999994,
+      "p_two_sided": 0.367,
       "scope": "app=bfs",
       "source": "bootstrap_paired_gap"
     },
     {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": true,
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
       "label": "GRASP vs LRU",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.0,
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.4930000000000001,
       "scope": "app=cc",
       "source": "bootstrap_paired_gap"
     },
     {
-      "benjamini_hochberg_survives": true,
+      "benjamini_hochberg_survives": false,
       "holm_bonferroni_survives": false,
       "label": "GRASP vs POPT",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.004999999999999893,
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.252,
       "scope": "app=cc",
       "source": "bootstrap_paired_gap"
     },
     {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": true,
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
       "label": "GRASP vs SRRIP",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.0,
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.877,
       "scope": "app=cc",
       "source": "bootstrap_paired_gap"
     },
@@ -500,7 +500,7 @@
       "holm_bonferroni_survives": false,
       "label": "GRASP vs POPT",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.143,
+      "p_two_sided": 0.949,
       "scope": "app=sssp",
       "source": "bootstrap_paired_gap"
     },
@@ -517,8 +517,8 @@
       "benjamini_hochberg_survives": false,
       "holm_bonferroni_survives": false,
       "label": "LRU vs POPT",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.021,
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.69,
       "scope": "app=sssp",
       "source": "bootstrap_paired_gap"
     },
@@ -532,20 +532,20 @@
       "source": "bootstrap_paired_gap"
     },
     {
-      "benjamini_hochberg_survives": false,
+      "benjamini_hochberg_survives": true,
       "holm_bonferroni_survives": false,
       "label": "POPT vs SRRIP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.14900000000000002,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.008,
       "scope": "app=sssp",
       "source": "bootstrap_paired_gap"
     },
     {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": true,
       "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.076,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.0,
       "scope": "citation/bc",
       "source": "popt_vs_grasp_family_app"
     },
@@ -554,7 +554,7 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs GRASP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.5109999999999999,
+      "p_two_sided": 0.738,
       "scope": "citation/bfs",
       "source": "popt_vs_grasp_family_app"
     },
@@ -563,7 +563,7 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs GRASP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.772,
+      "p_two_sided": 0.557,
       "scope": "citation/cc",
       "source": "popt_vs_grasp_family_app"
     },
@@ -577,11 +577,11 @@
       "source": "popt_vs_grasp_family_app"
     },
     {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": true,
       "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.068,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.0,
       "scope": "citation/sssp",
       "source": "popt_vs_grasp_family_app"
     },
@@ -599,7 +599,7 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs GRASP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.354,
+      "p_two_sided": 0.12,
       "scope": "road/bc",
       "source": "popt_vs_grasp_family_app"
     },
@@ -608,16 +608,16 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs GRASP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.2829999999999999,
+      "p_two_sided": 0.4930000000000001,
       "scope": "road/bfs",
       "source": "popt_vs_grasp_family_app"
     },
     {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": true,
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
       "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.0,
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.15900000000000003,
       "scope": "road/cc",
       "source": "popt_vs_grasp_family_app"
     },
@@ -635,35 +635,8 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs GRASP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.139,
+      "p_two_sided": 0.21900000000000008,
       "scope": "road/sssp",
-      "source": "popt_vs_grasp_family_app"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.062,
-      "scope": "social/bc",
-      "source": "popt_vs_grasp_family_app"
-    },
-    {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
-      "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.254,
-      "scope": "social/bfs",
-      "source": "popt_vs_grasp_family_app"
-    },
-    {
-      "benjamini_hochberg_survives": true,
-      "holm_bonferroni_survives": false,
-      "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": true,
-      "p_two_sided": 0.005,
-      "scope": "social/cc",
       "source": "popt_vs_grasp_family_app"
     },
     {
@@ -672,24 +645,51 @@
       "label": "POPT vs GRASP",
       "naive_significant_at_alpha": true,
       "p_two_sided": 0.0,
+      "scope": "social/bc",
+      "source": "popt_vs_grasp_family_app"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "POPT vs GRASP",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.7889999999999999,
+      "scope": "social/bfs",
+      "source": "popt_vs_grasp_family_app"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "POPT vs GRASP",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.706,
+      "scope": "social/cc",
+      "source": "popt_vs_grasp_family_app"
+    },
+    {
+      "benjamini_hochberg_survives": false,
+      "holm_bonferroni_survives": false,
+      "label": "POPT vs GRASP",
+      "naive_significant_at_alpha": false,
+      "p_two_sided": 0.2629999999999999,
       "scope": "social/pr",
       "source": "popt_vs_grasp_family_app"
     },
     {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": true,
       "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.518,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.0,
       "scope": "social/sssp",
       "source": "popt_vs_grasp_family_app"
     },
     {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": true,
       "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.081,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.0,
       "scope": "web/bc",
       "source": "popt_vs_grasp_family_app"
     },
@@ -703,11 +703,11 @@
       "source": "popt_vs_grasp_family_app"
     },
     {
-      "benjamini_hochberg_survives": false,
-      "holm_bonferroni_survives": false,
+      "benjamini_hochberg_survives": true,
+      "holm_bonferroni_survives": true,
       "label": "POPT vs GRASP",
-      "naive_significant_at_alpha": false,
-      "p_two_sided": 0.605,
+      "naive_significant_at_alpha": true,
+      "p_two_sided": 0.0,
       "scope": "web/cc",
       "source": "popt_vs_grasp_family_app"
     },
@@ -725,575 +725,575 @@
       "holm_bonferroni_survives": false,
       "label": "POPT vs GRASP",
       "naive_significant_at_alpha": false,
-      "p_two_sided": 0.09299999999999997,
+      "p_two_sided": 0.544,
       "scope": "web/sssp",
       "source": "popt_vs_grasp_family_app"
     }
   ],
   "benjamini_hochberg_ladder": [
     {
-      "orig_index": 20,
+      "orig_index": 31,
       "p": 0.0,
       "rank": 1,
       "survives": true,
       "threshold": 0.0006172839506172839
     },
     {
-      "orig_index": 22,
+      "orig_index": 34,
       "p": 0.0,
       "rank": 2,
       "survives": true,
       "threshold": 0.0012345679012345679
     },
     {
-      "orig_index": 31,
+      "orig_index": 35,
       "p": 0.0,
       "rank": 3,
       "survives": true,
       "threshold": 0.001851851851851852
     },
     {
-      "orig_index": 34,
+      "orig_index": 45,
       "p": 0.0,
       "rank": 4,
       "survives": true,
       "threshold": 0.0024691358024691358
     },
     {
-      "orig_index": 42,
+      "orig_index": 46,
       "p": 0.0,
       "rank": 5,
       "survives": true,
       "threshold": 0.0030864197530864196
     },
     {
-      "orig_index": 44,
+      "orig_index": 47,
       "p": 0.0,
       "rank": 6,
       "survives": true,
       "threshold": 0.003703703703703704
     },
     {
-      "orig_index": 45,
+      "orig_index": 48,
       "p": 0.0,
       "rank": 7,
       "survives": true,
       "threshold": 0.004320987654320987
     },
     {
-      "orig_index": 46,
+      "orig_index": 49,
       "p": 0.0,
       "rank": 8,
       "survives": true,
       "threshold": 0.0049382716049382715
     },
     {
-      "orig_index": 47,
+      "orig_index": 50,
       "p": 0.0,
       "rank": 9,
       "survives": true,
       "threshold": 0.005555555555555556
     },
     {
-      "orig_index": 48,
+      "orig_index": 51,
       "p": 0.0,
       "rank": 10,
       "survives": true,
       "threshold": 0.006172839506172839
     },
     {
-      "orig_index": 49,
+      "orig_index": 52,
       "p": 0.0,
       "rank": 11,
       "survives": true,
       "threshold": 0.006790123456790123
     },
     {
-      "orig_index": 50,
+      "orig_index": 53,
       "p": 0.0,
       "rank": 12,
       "survives": true,
       "threshold": 0.007407407407407408
     },
     {
-      "orig_index": 51,
+      "orig_index": 58,
       "p": 0.0,
       "rank": 13,
       "survives": true,
       "threshold": 0.008024691358024692
     },
     {
-      "orig_index": 52,
+      "orig_index": 60,
       "p": 0.0,
       "rank": 14,
       "survives": true,
       "threshold": 0.008641975308641974
     },
     {
-      "orig_index": 53,
+      "orig_index": 63,
       "p": 0.0,
       "rank": 15,
       "survives": true,
       "threshold": 0.009259259259259259
     },
     {
-      "orig_index": 58,
+      "orig_index": 64,
       "p": 0.0,
       "rank": 16,
       "survives": true,
       "threshold": 0.009876543209876543
     },
     {
-      "orig_index": 63,
+      "orig_index": 71,
       "p": 0.0,
       "rank": 17,
       "survives": true,
       "threshold": 0.010493827160493827
     },
     {
-      "orig_index": 68,
+      "orig_index": 75,
       "p": 0.0,
       "rank": 18,
       "survives": true,
       "threshold": 0.011111111111111112
     },
     {
-      "orig_index": 74,
+      "orig_index": 76,
       "p": 0.0,
       "rank": 19,
       "survives": true,
       "threshold": 0.011728395061728396
     },
     {
-      "orig_index": 79,
+      "orig_index": 78,
       "p": 0.0,
       "rank": 20,
       "survives": true,
       "threshold": 0.012345679012345678
     },
     {
-      "orig_index": 23,
-      "p": 3e-06,
+      "orig_index": 79,
+      "p": 0.0,
       "rank": 21,
       "survives": true,
       "threshold": 0.012962962962962963
     },
     {
-      "orig_index": 13,
-      "p": 2.6e-05,
+      "orig_index": 20,
+      "p": 1e-06,
       "rank": 22,
       "survives": true,
       "threshold": 0.013580246913580247
     },
     {
-      "orig_index": 15,
-      "p": 2.6e-05,
+      "orig_index": 22,
+      "p": 4e-06,
       "rank": 23,
       "survives": true,
       "threshold": 0.014197530864197531
     },
     {
-      "orig_index": 10,
-      "p": 0.00054,
+      "orig_index": 23,
+      "p": 0.000401,
       "rank": 24,
       "survives": true,
       "threshold": 0.014814814814814815
     },
     {
-      "orig_index": 65,
-      "p": 0.0009999999999998899,
+      "orig_index": 5,
+      "p": 0.00061,
       "rank": 25,
       "survives": true,
       "threshold": 0.015432098765432098
     },
     {
-      "orig_index": 8,
-      "p": 0.00124,
+      "orig_index": 65,
+      "p": 0.0009999999999998899,
       "rank": 26,
       "survives": true,
       "threshold": 0.016049382716049384
     },
     {
-      "orig_index": 17,
-      "p": 0.002677,
+      "orig_index": 1,
+      "p": 0.001289,
       "rank": 27,
       "survives": true,
       "threshold": 0.016666666666666666
     },
     {
-      "orig_index": 43,
-      "p": 0.004999999999999893,
+      "orig_index": 14,
+      "p": 0.002139,
       "rank": 28,
       "survives": true,
       "threshold": 0.01728395061728395
     },
     {
-      "orig_index": 73,
-      "p": 0.005,
+      "orig_index": 3,
+      "p": 0.002521,
       "rank": 29,
       "survives": true,
       "threshold": 0.017901234567901235
     },
     {
-      "orig_index": 1,
-      "p": 0.005451,
+      "orig_index": 29,
+      "p": 0.003194,
       "rank": 30,
       "survives": true,
       "threshold": 0.018518518518518517
     },
     {
-      "orig_index": 14,
-      "p": 0.007712,
+      "orig_index": 10,
+      "p": 0.003479,
       "rank": 31,
       "survives": true,
       "threshold": 0.019135802469135803
     },
     {
-      "orig_index": 3,
-      "p": 0.008657,
+      "orig_index": 19,
+      "p": 0.006855,
       "rank": 32,
       "survives": true,
       "threshold": 0.019753086419753086
     },
     {
-      "orig_index": 37,
-      "p": 0.012,
+      "orig_index": 9,
+      "p": 0.007357,
       "rank": 33,
       "survives": true,
       "threshold": 0.020370370370370372
     },
     {
-      "orig_index": 57,
-      "p": 0.021,
+      "orig_index": 8,
+      "p": 0.007854,
       "rank": 34,
-      "survives": false,
+      "survives": true,
       "threshold": 0.020987654320987655
     },
     {
-      "orig_index": 16,
-      "p": 0.024758,
+      "orig_index": 59,
+      "p": 0.008,
       "rank": 35,
-      "survives": false,
+      "survives": true,
       "threshold": 0.021604938271604937
     },
     {
-      "orig_index": 69,
-      "p": 0.02499999999999991,
+      "orig_index": 16,
+      "p": 0.008355,
       "rank": 36,
-      "survives": false,
+      "survives": true,
       "threshold": 0.022222222222222223
     },
     {
       "orig_index": 25,
-      "p": 0.030464,
+      "p": 0.009409,
       "rank": 37,
-      "survives": false,
+      "survives": true,
       "threshold": 0.022839506172839506
     },
     {
-      "orig_index": 26,
-      "p": 0.034866,
+      "orig_index": 7,
+      "p": 0.014303,
       "rank": 38,
-      "survives": false,
+      "survives": true,
       "threshold": 0.02345679012345679
     },
     {
-      "orig_index": 9,
-      "p": 0.037886,
+      "orig_index": 27,
+      "p": 0.024758,
       "rank": 39,
       "survives": false,
       "threshold": 0.024074074074074074
     },
     {
-      "orig_index": 19,
-      "p": 0.045587,
+      "orig_index": 69,
+      "p": 0.02499999999999991,
       "rank": 40,
       "survives": false,
       "threshold": 0.024691358024691357
     },
     {
-      "orig_index": 7,
-      "p": 0.049271,
+      "orig_index": 21,
+      "p": 0.038178,
       "rank": 41,
       "survives": false,
       "threshold": 0.025308641975308646
     },
     {
-      "orig_index": 71,
-      "p": 0.062,
+      "orig_index": 13,
+      "p": 0.041124,
       "rank": 42,
       "survives": false,
       "threshold": 0.025925925925925925
     },
     {
-      "orig_index": 77,
-      "p": 0.06699999999999995,
+      "orig_index": 4,
+      "p": 0.045587,
       "rank": 43,
       "survives": false,
       "threshold": 0.02654320987654321
     },
     {
-      "orig_index": 64,
-      "p": 0.068,
+      "orig_index": 77,
+      "p": 0.06699999999999995,
       "rank": 44,
       "survives": false,
       "threshold": 0.027160493827160494
     },
     {
-      "orig_index": 27,
-      "p": 0.069931,
+      "orig_index": 37,
+      "p": 0.093,
       "rank": 45,
       "survives": false,
       "threshold": 0.02777777777777778
     },
     {
-      "orig_index": 60,
-      "p": 0.076,
+      "orig_index": 15,
+      "p": 0.096196,
       "rank": 46,
       "survives": false,
       "threshold": 0.028395061728395062
     },
     {
-      "orig_index": 76,
-      "p": 0.081,
+      "orig_index": 28,
+      "p": 0.096196,
       "rank": 47,
       "survives": false,
       "threshold": 0.029012345679012348
     },
     {
-      "orig_index": 80,
-      "p": 0.09299999999999997,
+      "orig_index": 30,
+      "p": 0.119,
       "rank": 48,
       "survives": false,
       "threshold": 0.02962962962962963
     },
     {
-      "orig_index": 2,
-      "p": 0.106368,
+      "orig_index": 66,
+      "p": 0.12,
       "rank": 49,
       "survives": false,
       "threshold": 0.030246913580246917
     },
     {
-      "orig_index": 30,
-      "p": 0.119,
+      "orig_index": 12,
+      "p": 0.133283,
       "rank": 50,
       "survives": false,
       "threshold": 0.030864197530864196
     },
     {
       "orig_index": 0,
-      "p": 0.135201,
+      "p": 0.141038,
       "rank": 51,
       "survives": false,
       "threshold": 0.031481481481481485
     },
     {
-      "orig_index": 70,
-      "p": 0.139,
+      "orig_index": 68,
+      "p": 0.15900000000000003,
       "rank": 52,
       "survives": false,
       "threshold": 0.03209876543209877
     },
     {
-      "orig_index": 28,
-      "p": 0.14042,
+      "orig_index": 33,
+      "p": 0.18900000000000006,
       "rank": 53,
       "survives": false,
       "threshold": 0.03271604938271605
     },
     {
-      "orig_index": 55,
-      "p": 0.143,
+      "orig_index": 40,
+      "p": 0.212,
       "rank": 54,
       "survives": false,
       "threshold": 0.03333333333333333
     },
     {
-      "orig_index": 59,
-      "p": 0.14900000000000002,
+      "orig_index": 70,
+      "p": 0.21900000000000008,
       "rank": 55,
       "survives": false,
       "threshold": 0.03395061728395062
     },
     {
-      "orig_index": 21,
-      "p": 0.153968,
+      "orig_index": 43,
+      "p": 0.252,
       "rank": 56,
       "survives": false,
       "threshold": 0.0345679012345679
     },
     {
-      "orig_index": 39,
-      "p": 0.169,
+      "orig_index": 74,
+      "p": 0.2629999999999999,
       "rank": 57,
       "survives": false,
       "threshold": 0.03518518518518519
     },
     {
-      "orig_index": 41,
-      "p": 0.18799999999999994,
+      "orig_index": 24,
+      "p": 0.273285,
       "rank": 58,
       "survives": false,
       "threshold": 0.03580246913580247
     },
     {
-      "orig_index": 40,
-      "p": 0.212,
+      "orig_index": 39,
+      "p": 0.318,
       "rank": 59,
       "survives": false,
       "threshold": 0.03641975308641975
     },
     {
-      "orig_index": 5,
-      "p": 0.21451,
+      "orig_index": 18,
+      "p": 0.321488,
       "rank": 60,
       "survives": false,
       "threshold": 0.037037037037037035
     },
     {
-      "orig_index": 72,
-      "p": 0.254,
+      "orig_index": 41,
+      "p": 0.367,
       "rank": 61,
       "survives": false,
       "threshold": 0.037654320987654324
     },
     {
-      "orig_index": 67,
-      "p": 0.2829999999999999,
+      "orig_index": 11,
+      "p": 0.488919,
       "rank": 62,
       "survives": false,
       "threshold": 0.03827160493827161
     },
     {
-      "orig_index": 24,
-      "p": 0.323482,
+      "orig_index": 17,
+      "p": 0.490334,
       "rank": 63,
       "survives": false,
       "threshold": 0.03888888888888889
     },
     {
-      "orig_index": 66,
-      "p": 0.354,
+      "orig_index": 42,
+      "p": 0.4930000000000001,
       "rank": 64,
       "survives": false,
       "threshold": 0.03950617283950617
     },
     {
-      "orig_index": 4,
-      "p": 0.385513,
+      "orig_index": 67,
+      "p": 0.4930000000000001,
       "rank": 65,
       "survives": false,
       "threshold": 0.04012345679012346
     },
     {
-      "orig_index": 12,
-      "p": 0.386708,
+      "orig_index": 32,
+      "p": 0.52,
       "rank": 66,
       "survives": false,
       "threshold": 0.040740740740740744
     },
     {
-      "orig_index": 18,
-      "p": 0.398713,
+      "orig_index": 80,
+      "p": 0.544,
       "rank": 67,
       "survives": false,
       "threshold": 0.04135802469135803
     },
     {
-      "orig_index": 33,
-      "p": 0.432,
+      "orig_index": 56,
+      "p": 0.555,
       "rank": 68,
       "survives": false,
       "threshold": 0.04197530864197531
     },
     {
-      "orig_index": 61,
-      "p": 0.5109999999999999,
+      "orig_index": 62,
+      "p": 0.557,
       "rank": 69,
       "survives": false,
       "threshold": 0.0425925925925926
     },
     {
-      "orig_index": 75,
-      "p": 0.518,
+      "orig_index": 2,
+      "p": 0.660384,
       "rank": 70,
       "survives": false,
       "threshold": 0.043209876543209874
     },
     {
-      "orig_index": 32,
-      "p": 0.52,
+      "orig_index": 26,
+      "p": 0.665159,
       "rank": 71,
       "survives": false,
       "threshold": 0.043827160493827164
     },
     {
-      "orig_index": 11,
-      "p": 0.545742,
+      "orig_index": 57,
+      "p": 0.69,
       "rank": 72,
       "survives": false,
       "threshold": 0.044444444444444446
     },
     {
-      "orig_index": 56,
-      "p": 0.555,
+      "orig_index": 73,
+      "p": 0.706,
       "rank": 73,
       "survives": false,
       "threshold": 0.04506172839506173
     },
     {
-      "orig_index": 29,
-      "p": 0.588506,
+      "orig_index": 6,
+      "p": 0.716985,
       "rank": 74,
       "survives": false,
       "threshold": 0.04567901234567901
     },
     {
-      "orig_index": 78,
-      "p": 0.605,
+      "orig_index": 61,
+      "p": 0.738,
       "rank": 75,
       "survives": false,
       "threshold": 0.0462962962962963
     },
     {
-      "orig_index": 35,
-      "p": 0.68,
+      "orig_index": 38,
+      "p": 0.74,
       "rank": 76,
       "survives": false,
       "threshold": 0.04691358024691358
     },
     {
-      "orig_index": 6,
-      "p": 0.733463,
+      "orig_index": 72,
+      "p": 0.7889999999999999,
       "rank": 77,
       "survives": false,
       "threshold": 0.047530864197530866
     },
     {
-      "orig_index": 38,
-      "p": 0.74,
+      "orig_index": 36,
+      "p": 0.857,
       "rank": 78,
       "survives": false,
       "threshold": 0.04814814814814815
     },
     {
-      "orig_index": 62,
-      "p": 0.772,
+      "orig_index": 44,
+      "p": 0.877,
       "rank": 79,
       "survives": false,
       "threshold": 0.04876543209876544
     },
     {
-      "orig_index": 36,
-      "p": 0.857,
+      "orig_index": 54,
+      "p": 0.941,
       "rank": 80,
       "survives": false,
       "threshold": 0.04938271604938271
     },
     {
-      "orig_index": 54,
-      "p": 0.941,
+      "orig_index": 55,
+      "p": 0.949,
       "rank": 81,
       "survives": false,
       "threshold": 0.05
@@ -1301,588 +1301,588 @@
   ],
   "by_source": {
     "bootstrap_paired_gap": {
-      "bh_survivors": 16,
-      "hb_survivors": 14,
+      "bh_survivors": 14,
+      "hb_survivors": 13,
       "n_tests": 30,
-      "naive_significant": 17
+      "naive_significant": 14
     },
     "mannwhitney_gap": {
-      "bh_survivors": 11,
-      "hb_survivors": 6,
+      "bh_survivors": 15,
+      "hb_survivors": 4,
       "n_tests": 30,
-      "naive_significant": 17
+      "naive_significant": 19
     },
     "popt_vs_grasp_family_app": {
-      "bh_survivors": 6,
-      "hb_survivors": 4,
+      "bh_survivors": 9,
+      "hb_survivors": 8,
       "n_tests": 21,
-      "naive_significant": 7
+      "naive_significant": 10
     }
   },
   "holm_bonferroni_ladder": [
     {
-      "orig_index": 20,
+      "orig_index": 31,
       "p": 0.0,
       "rank": 1,
       "survives": true,
       "threshold": 0.0006172839506172839
     },
     {
-      "orig_index": 22,
+      "orig_index": 34,
       "p": 0.0,
       "rank": 2,
       "survives": true,
       "threshold": 0.000625
     },
     {
-      "orig_index": 31,
+      "orig_index": 35,
       "p": 0.0,
       "rank": 3,
       "survives": true,
       "threshold": 0.0006329113924050633
     },
     {
-      "orig_index": 34,
+      "orig_index": 45,
       "p": 0.0,
       "rank": 4,
       "survives": true,
       "threshold": 0.000641025641025641
     },
     {
-      "orig_index": 42,
+      "orig_index": 46,
       "p": 0.0,
       "rank": 5,
       "survives": true,
       "threshold": 0.0006493506493506494
     },
     {
-      "orig_index": 44,
+      "orig_index": 47,
       "p": 0.0,
       "rank": 6,
       "survives": true,
       "threshold": 0.0006578947368421052
     },
     {
-      "orig_index": 45,
+      "orig_index": 48,
       "p": 0.0,
       "rank": 7,
       "survives": true,
       "threshold": 0.0006666666666666668
     },
     {
-      "orig_index": 46,
+      "orig_index": 49,
       "p": 0.0,
       "rank": 8,
       "survives": true,
       "threshold": 0.0006756756756756757
     },
     {
-      "orig_index": 47,
+      "orig_index": 50,
       "p": 0.0,
       "rank": 9,
       "survives": true,
       "threshold": 0.0006849315068493151
     },
     {
-      "orig_index": 48,
+      "orig_index": 51,
       "p": 0.0,
       "rank": 10,
       "survives": true,
       "threshold": 0.0006944444444444445
     },
     {
-      "orig_index": 49,
+      "orig_index": 52,
       "p": 0.0,
       "rank": 11,
       "survives": true,
       "threshold": 0.0007042253521126761
     },
     {
-      "orig_index": 50,
+      "orig_index": 53,
       "p": 0.0,
       "rank": 12,
       "survives": true,
       "threshold": 0.0007142857142857143
     },
     {
-      "orig_index": 51,
+      "orig_index": 58,
       "p": 0.0,
       "rank": 13,
       "survives": true,
       "threshold": 0.0007246376811594203
     },
     {
-      "orig_index": 52,
+      "orig_index": 60,
       "p": 0.0,
       "rank": 14,
       "survives": true,
       "threshold": 0.0007352941176470588
     },
     {
-      "orig_index": 53,
+      "orig_index": 63,
       "p": 0.0,
       "rank": 15,
       "survives": true,
       "threshold": 0.0007462686567164179
     },
     {
-      "orig_index": 58,
+      "orig_index": 64,
       "p": 0.0,
       "rank": 16,
       "survives": true,
       "threshold": 0.0007575757575757576
     },
     {
-      "orig_index": 63,
+      "orig_index": 71,
       "p": 0.0,
       "rank": 17,
       "survives": true,
       "threshold": 0.0007692307692307692
     },
     {
-      "orig_index": 68,
+      "orig_index": 75,
       "p": 0.0,
       "rank": 18,
       "survives": true,
       "threshold": 0.00078125
     },
     {
-      "orig_index": 74,
+      "orig_index": 76,
       "p": 0.0,
       "rank": 19,
       "survives": true,
       "threshold": 0.0007936507936507937
     },
     {
-      "orig_index": 79,
+      "orig_index": 78,
       "p": 0.0,
       "rank": 20,
       "survives": true,
       "threshold": 0.0008064516129032258
     },
     {
-      "orig_index": 23,
-      "p": 3e-06,
+      "orig_index": 79,
+      "p": 0.0,
       "rank": 21,
       "survives": true,
       "threshold": 0.000819672131147541
     },
     {
-      "orig_index": 13,
-      "p": 2.6e-05,
+      "orig_index": 20,
+      "p": 1e-06,
       "rank": 22,
       "survives": true,
       "threshold": 0.0008333333333333334
     },
     {
-      "orig_index": 15,
-      "p": 2.6e-05,
+      "orig_index": 22,
+      "p": 4e-06,
       "rank": 23,
       "survives": true,
       "threshold": 0.0008474576271186442
     },
     {
-      "orig_index": 10,
-      "p": 0.00054,
+      "orig_index": 23,
+      "p": 0.000401,
       "rank": 24,
       "survives": true,
       "threshold": 0.0008620689655172415
     },
     {
-      "orig_index": 65,
-      "p": 0.0009999999999998899,
+      "orig_index": 5,
+      "p": 0.00061,
       "rank": 25,
-      "survives": false,
+      "survives": true,
       "threshold": 0.0008771929824561404
     },
     {
-      "orig_index": 8,
-      "p": 0.00124,
+      "orig_index": 65,
+      "p": 0.0009999999999998899,
       "rank": 26,
       "survives": false,
       "threshold": 0.0008928571428571429
     },
     {
-      "orig_index": 17,
-      "p": 0.002677,
+      "orig_index": 1,
+      "p": 0.001289,
       "rank": 27,
       "survives": false,
       "threshold": 0.0009090909090909091
     },
     {
-      "orig_index": 43,
-      "p": 0.004999999999999893,
+      "orig_index": 14,
+      "p": 0.002139,
       "rank": 28,
       "survives": false,
       "threshold": 0.000925925925925926
     },
     {
-      "orig_index": 73,
-      "p": 0.005,
+      "orig_index": 3,
+      "p": 0.002521,
       "rank": 29,
       "survives": false,
       "threshold": 0.0009433962264150943
     },
     {
-      "orig_index": 1,
-      "p": 0.005451,
+      "orig_index": 29,
+      "p": 0.003194,
       "rank": 30,
       "survives": false,
       "threshold": 0.0009615384615384616
     },
     {
-      "orig_index": 14,
-      "p": 0.007712,
+      "orig_index": 10,
+      "p": 0.003479,
       "rank": 31,
       "survives": false,
       "threshold": 0.000980392156862745
     },
     {
-      "orig_index": 3,
-      "p": 0.008657,
+      "orig_index": 19,
+      "p": 0.006855,
       "rank": 32,
       "survives": false,
       "threshold": 0.001
     },
     {
-      "orig_index": 37,
-      "p": 0.012,
+      "orig_index": 9,
+      "p": 0.007357,
       "rank": 33,
       "survives": false,
       "threshold": 0.0010204081632653062
     },
     {
-      "orig_index": 57,
-      "p": 0.021,
+      "orig_index": 8,
+      "p": 0.007854,
       "rank": 34,
       "survives": false,
       "threshold": 0.0010416666666666667
     },
     {
-      "orig_index": 16,
-      "p": 0.024758,
+      "orig_index": 59,
+      "p": 0.008,
       "rank": 35,
       "survives": false,
       "threshold": 0.0010638297872340426
     },
     {
-      "orig_index": 69,
-      "p": 0.02499999999999991,
+      "orig_index": 16,
+      "p": 0.008355,
       "rank": 36,
       "survives": false,
       "threshold": 0.0010869565217391304
     },
     {
       "orig_index": 25,
-      "p": 0.030464,
+      "p": 0.009409,
       "rank": 37,
       "survives": false,
       "threshold": 0.0011111111111111111
     },
     {
-      "orig_index": 26,
-      "p": 0.034866,
+      "orig_index": 7,
+      "p": 0.014303,
       "rank": 38,
       "survives": false,
       "threshold": 0.0011363636363636365
     },
     {
-      "orig_index": 9,
-      "p": 0.037886,
+      "orig_index": 27,
+      "p": 0.024758,
       "rank": 39,
       "survives": false,
       "threshold": 0.0011627906976744186
     },
     {
-      "orig_index": 19,
-      "p": 0.045587,
+      "orig_index": 69,
+      "p": 0.02499999999999991,
       "rank": 40,
       "survives": false,
       "threshold": 0.0011904761904761906
     },
     {
-      "orig_index": 7,
-      "p": 0.049271,
+      "orig_index": 21,
+      "p": 0.038178,
       "rank": 41,
       "survives": false,
       "threshold": 0.0012195121951219512
     },
     {
-      "orig_index": 71,
-      "p": 0.062,
+      "orig_index": 13,
+      "p": 0.041124,
       "rank": 42,
       "survives": false,
       "threshold": 0.00125
     },
     {
-      "orig_index": 77,
-      "p": 0.06699999999999995,
+      "orig_index": 4,
+      "p": 0.045587,
       "rank": 43,
       "survives": false,
       "threshold": 0.001282051282051282
     },
     {
-      "orig_index": 64,
-      "p": 0.068,
+      "orig_index": 77,
+      "p": 0.06699999999999995,
       "rank": 44,
       "survives": false,
       "threshold": 0.0013157894736842105
     },
     {
-      "orig_index": 27,
-      "p": 0.069931,
+      "orig_index": 37,
+      "p": 0.093,
       "rank": 45,
       "survives": false,
       "threshold": 0.0013513513513513514
     },
     {
-      "orig_index": 60,
-      "p": 0.076,
+      "orig_index": 15,
+      "p": 0.096196,
       "rank": 46,
       "survives": false,
       "threshold": 0.001388888888888889
     },
     {
-      "orig_index": 76,
-      "p": 0.081,
+      "orig_index": 28,
+      "p": 0.096196,
       "rank": 47,
       "survives": false,
       "threshold": 0.0014285714285714286
     },
     {
-      "orig_index": 80,
-      "p": 0.09299999999999997,
+      "orig_index": 30,
+      "p": 0.119,
       "rank": 48,
       "survives": false,
       "threshold": 0.0014705882352941176
     },
     {
-      "orig_index": 2,
-      "p": 0.106368,
+      "orig_index": 66,
+      "p": 0.12,
       "rank": 49,
       "survives": false,
       "threshold": 0.0015151515151515152
     },
     {
-      "orig_index": 30,
-      "p": 0.119,
+      "orig_index": 12,
+      "p": 0.133283,
       "rank": 50,
       "survives": false,
       "threshold": 0.0015625
     },
     {
       "orig_index": 0,
-      "p": 0.135201,
+      "p": 0.141038,
       "rank": 51,
       "survives": false,
       "threshold": 0.0016129032258064516
     },
     {
-      "orig_index": 70,
-      "p": 0.139,
+      "orig_index": 68,
+      "p": 0.15900000000000003,
       "rank": 52,
       "survives": false,
       "threshold": 0.0016666666666666668
     },
     {
-      "orig_index": 28,
-      "p": 0.14042,
+      "orig_index": 33,
+      "p": 0.18900000000000006,
       "rank": 53,
       "survives": false,
       "threshold": 0.001724137931034483
     },
     {
-      "orig_index": 55,
-      "p": 0.143,
+      "orig_index": 40,
+      "p": 0.212,
       "rank": 54,
       "survives": false,
       "threshold": 0.0017857142857142859
     },
     {
-      "orig_index": 59,
-      "p": 0.14900000000000002,
+      "orig_index": 70,
+      "p": 0.21900000000000008,
       "rank": 55,
       "survives": false,
       "threshold": 0.001851851851851852
     },
     {
-      "orig_index": 21,
-      "p": 0.153968,
+      "orig_index": 43,
+      "p": 0.252,
       "rank": 56,
       "survives": false,
       "threshold": 0.0019230769230769232
     },
     {
-      "orig_index": 39,
-      "p": 0.169,
+      "orig_index": 74,
+      "p": 0.2629999999999999,
       "rank": 57,
       "survives": false,
       "threshold": 0.002
     },
     {
-      "orig_index": 41,
-      "p": 0.18799999999999994,
+      "orig_index": 24,
+      "p": 0.273285,
       "rank": 58,
       "survives": false,
       "threshold": 0.0020833333333333333
     },
     {
-      "orig_index": 40,
-      "p": 0.212,
+      "orig_index": 39,
+      "p": 0.318,
       "rank": 59,
       "survives": false,
       "threshold": 0.002173913043478261
     },
     {
-      "orig_index": 5,
-      "p": 0.21451,
+      "orig_index": 18,
+      "p": 0.321488,
       "rank": 60,
       "survives": false,
       "threshold": 0.002272727272727273
     },
     {
-      "orig_index": 72,
-      "p": 0.254,
+      "orig_index": 41,
+      "p": 0.367,
       "rank": 61,
       "survives": false,
       "threshold": 0.002380952380952381
     },
     {
-      "orig_index": 67,
-      "p": 0.2829999999999999,
+      "orig_index": 11,
+      "p": 0.488919,
       "rank": 62,
       "survives": false,
       "threshold": 0.0025
     },
     {
-      "orig_index": 24,
-      "p": 0.323482,
+      "orig_index": 17,
+      "p": 0.490334,
       "rank": 63,
       "survives": false,
       "threshold": 0.002631578947368421
     },
     {
-      "orig_index": 66,
-      "p": 0.354,
+      "orig_index": 42,
+      "p": 0.4930000000000001,
       "rank": 64,
       "survives": false,
       "threshold": 0.002777777777777778
     },
     {
-      "orig_index": 4,
-      "p": 0.385513,
+      "orig_index": 67,
+      "p": 0.4930000000000001,
       "rank": 65,
       "survives": false,
       "threshold": 0.0029411764705882353
     },
     {
-      "orig_index": 12,
-      "p": 0.386708,
+      "orig_index": 32,
+      "p": 0.52,
       "rank": 66,
       "survives": false,
       "threshold": 0.003125
     },
     {
-      "orig_index": 18,
-      "p": 0.398713,
+      "orig_index": 80,
+      "p": 0.544,
       "rank": 67,
       "survives": false,
       "threshold": 0.0033333333333333335
     },
     {
-      "orig_index": 33,
-      "p": 0.432,
+      "orig_index": 56,
+      "p": 0.555,
       "rank": 68,
       "survives": false,
       "threshold": 0.0035714285714285718
     },
     {
-      "orig_index": 61,
-      "p": 0.5109999999999999,
+      "orig_index": 62,
+      "p": 0.557,
       "rank": 69,
       "survives": false,
       "threshold": 0.0038461538461538464
     },
     {
-      "orig_index": 75,
-      "p": 0.518,
+      "orig_index": 2,
+      "p": 0.660384,
       "rank": 70,
       "survives": false,
       "threshold": 0.004166666666666667
     },
     {
-      "orig_index": 32,
-      "p": 0.52,
+      "orig_index": 26,
+      "p": 0.665159,
       "rank": 71,
       "survives": false,
       "threshold": 0.004545454545454546
     },
     {
-      "orig_index": 11,
-      "p": 0.545742,
+      "orig_index": 57,
+      "p": 0.69,
       "rank": 72,
       "survives": false,
       "threshold": 0.005
     },
     {
-      "orig_index": 56,
-      "p": 0.555,
+      "orig_index": 73,
+      "p": 0.706,
       "rank": 73,
       "survives": false,
       "threshold": 0.005555555555555556
     },
     {
-      "orig_index": 29,
-      "p": 0.588506,
+      "orig_index": 6,
+      "p": 0.716985,
       "rank": 74,
       "survives": false,
       "threshold": 0.00625
     },
     {
-      "orig_index": 78,
-      "p": 0.605,
+      "orig_index": 61,
+      "p": 0.738,
       "rank": 75,
       "survives": false,
       "threshold": 0.0071428571428571435
     },
     {
-      "orig_index": 35,
-      "p": 0.68,
+      "orig_index": 38,
+      "p": 0.74,
       "rank": 76,
       "survives": false,
       "threshold": 0.008333333333333333
     },
     {
-      "orig_index": 6,
-      "p": 0.733463,
+      "orig_index": 72,
+      "p": 0.7889999999999999,
       "rank": 77,
       "survives": false,
       "threshold": 0.01
     },
     {
-      "orig_index": 38,
-      "p": 0.74,
+      "orig_index": 36,
+      "p": 0.857,
       "rank": 78,
       "survives": false,
       "threshold": 0.0125
     },
     {
-      "orig_index": 62,
-      "p": 0.772,
+      "orig_index": 44,
+      "p": 0.877,
       "rank": 79,
       "survives": false,
       "threshold": 0.016666666666666666
     },
     {
-      "orig_index": 36,
-      "p": 0.857,
+      "orig_index": 54,
+      "p": 0.941,
       "rank": 80,
       "survives": false,
       "threshold": 0.025
     },
     {
-      "orig_index": 54,
-      "p": 0.941,
+      "orig_index": 55,
+      "p": 0.949,
       "rank": 81,
       "survives": false,
       "threshold": 0.05
@@ -1890,10 +1890,10 @@
   ],
   "meta": {
     "alpha": 0.05,
-    "benjamini_hochberg_survivor_count": 33,
+    "benjamini_hochberg_survivor_count": 38,
     "expected_false_positives_at_alpha": 4.05,
-    "holm_bonferroni_survivor_count": 24,
+    "holm_bonferroni_survivor_count": 25,
     "n_tests": 81,
-    "naive_significant_count": 41
+    "naive_significant_count": 43
   }
 }

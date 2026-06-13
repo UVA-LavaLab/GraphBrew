@@ -42,8 +42,8 @@
   },
   "by_status": {
     "insufficient_data": 28,
-    "known_deviation": 17,
-    "ok": 234
+    "known_deviation": 37,
+    "ok": 214
   },
   "family_x_app": {
     "citation|bc": 10,

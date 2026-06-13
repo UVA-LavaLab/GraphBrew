@@ -6,7 +6,7 @@ Status: **active**
 
 - n_canonical: 26
 - n_families: 8
-- n_literal_sites: 608
+- n_literal_sites: 615
 - n_distinct_literals: 26
 - n_family_dicts: 8
 - n_eval_graphs: 6

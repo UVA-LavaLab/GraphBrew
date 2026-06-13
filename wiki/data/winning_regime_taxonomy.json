@@ -8,20 +8,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "1MB",
-      "margin_pp": "0.057",
-      "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
-    },
-    {
-      "app": "bc",
-      "avg_degree": "11.473600",
-      "clustering_coeff": "0.066880",
-      "family": "citation",
-      "graph": "cit-Patents",
-      "hub_concentration": "0.337800",
-      "l3_size": "4MB",
-      "margin_pp": "1.225",
+      "margin_pp": "0.736",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -33,10 +20,23 @@
       "family": "citation",
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
-      "l3_size": "8MB",
-      "margin_pp": "2.310",
+      "l3_size": "4MB",
+      "margin_pp": "2.549",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
+    },
+    {
+      "app": "bc",
+      "avg_degree": "11.473600",
+      "clustering_coeff": "0.066880",
+      "family": "citation",
+      "graph": "cit-Patents",
+      "hub_concentration": "0.337800",
+      "l3_size": "8MB",
+      "margin_pp": "2.501",
+      "regime": "large",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -47,10 +47,10 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "1MB",
-      "margin_pp": "0.147",
+      "margin_pp": "0.215",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "POPT",
+      "winner": "GRASP"
     },
     {
       "app": "bfs",
@@ -60,7 +60,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "4MB",
-      "margin_pp": "0.779",
+      "margin_pp": "1.762",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -73,7 +73,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "8MB",
-      "margin_pp": "3.091",
+      "margin_pp": "1.267",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -86,7 +86,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "1MB",
-      "margin_pp": "1.107",
+      "margin_pp": "1.795",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -99,7 +99,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "4MB",
-      "margin_pp": "0.523",
+      "margin_pp": "2.778",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -112,7 +112,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "8MB",
-      "margin_pp": "1.849",
+      "margin_pp": "1.160",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -125,7 +125,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "1MB",
-      "margin_pp": "8.808",
+      "margin_pp": "5.712",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -138,7 +138,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "4MB",
-      "margin_pp": "10.580",
+      "margin_pp": "6.255",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -151,7 +151,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "8MB",
-      "margin_pp": "4.600",
+      "margin_pp": "1.898",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -164,7 +164,7 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "1MB",
-      "margin_pp": "0.604",
+      "margin_pp": "2.564",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -177,9 +177,9 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "4MB",
-      "margin_pp": "0.948",
+      "margin_pp": "4.832",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -190,10 +190,10 @@
       "graph": "cit-Patents",
       "hub_concentration": "0.337800",
       "l3_size": "8MB",
-      "margin_pp": "0.136",
+      "margin_pp": "2.104",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
     },
     {
       "app": "pr",
@@ -203,7 +203,7 @@
       "graph": "delaunay_n19",
       "hub_concentration": "0.138000",
       "l3_size": "16kB",
-      "margin_pp": "0.360",
+      "margin_pp": "0.203",
       "regime": "tiny",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -216,7 +216,7 @@
       "graph": "delaunay_n19",
       "hub_concentration": "0.138000",
       "l3_size": "1MB",
-      "margin_pp": "6.123",
+      "margin_pp": "4.120",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -229,7 +229,7 @@
       "graph": "delaunay_n19",
       "hub_concentration": "0.138000",
       "l3_size": "256kB",
-      "margin_pp": "5.500",
+      "margin_pp": "4.708",
       "regime": "small",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -255,7 +255,7 @@
       "graph": "delaunay_n19",
       "hub_concentration": "0.138000",
       "l3_size": "64kB",
-      "margin_pp": "2.269",
+      "margin_pp": "1.950",
       "regime": "small",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -268,7 +268,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "16kB",
-      "margin_pp": "0.145",
+      "margin_pp": "0.119",
       "regime": "tiny",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -294,7 +294,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "256kB",
-      "margin_pp": "3.325",
+      "margin_pp": "4.283",
       "regime": "small",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -307,7 +307,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "4kB",
-      "margin_pp": "0.010",
+      "margin_pp": "0.008",
       "regime": "tiny",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -320,10 +320,10 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "64kB",
-      "margin_pp": "0.026",
+      "margin_pp": "0.059",
       "regime": "small",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "POPT",
+      "winner": "GRASP"
     },
     {
       "app": "bfs",
@@ -333,7 +333,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "16kB",
-      "margin_pp": "0.404",
+      "margin_pp": "0.411",
       "regime": "tiny",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -359,7 +359,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "256kB",
-      "margin_pp": "6.084",
+      "margin_pp": "2.208",
       "regime": "small",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -385,7 +385,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "64kB",
-      "margin_pp": "5.214",
+      "margin_pp": "5.415",
       "regime": "small",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -398,7 +398,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "16kB",
-      "margin_pp": "0.324",
+      "margin_pp": "0.036",
       "regime": "tiny",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -411,10 +411,10 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "1MB",
-      "margin_pp": "6.582",
+      "margin_pp": "0.321",
       "regime": "large",
-      "runner_up": "POPT",
-      "winner": "GRASP"
+      "runner_up": "GRASP",
+      "winner": "POPT"
     },
     {
       "app": "cc",
@@ -424,10 +424,10 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "256kB",
-      "margin_pp": "2.106",
+      "margin_pp": "0.854",
       "regime": "small",
-      "runner_up": "POPT",
-      "winner": "GRASP"
+      "runner_up": "GRASP",
+      "winner": "POPT"
     },
     {
       "app": "cc",
@@ -437,10 +437,10 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "4kB",
-      "margin_pp": "0.076",
+      "margin_pp": "0.001",
       "regime": "tiny",
-      "runner_up": "POPT",
-      "winner": "GRASP"
+      "runner_up": "GRASP",
+      "winner": "POPT"
     },
     {
       "app": "cc",
@@ -450,7 +450,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "64kB",
-      "margin_pp": "1.100",
+      "margin_pp": "0.085",
       "regime": "small",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -463,7 +463,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "16kB",
-      "margin_pp": "0.044",
+      "margin_pp": "0.048",
       "regime": "tiny",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -476,7 +476,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "1MB",
-      "margin_pp": "4.475",
+      "margin_pp": "3.892",
       "regime": "large",
       "runner_up": "LRU",
       "winner": "POPT"
@@ -489,7 +489,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "256kB",
-      "margin_pp": "4.570",
+      "margin_pp": "4.212",
       "regime": "small",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -515,7 +515,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "64kB",
-      "margin_pp": "1.089",
+      "margin_pp": "0.748",
       "regime": "small",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -528,7 +528,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "16kB",
-      "margin_pp": "1.021",
+      "margin_pp": "1.121",
       "regime": "tiny",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -567,7 +567,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "4kB",
-      "margin_pp": "0.055",
+      "margin_pp": "0.057",
       "regime": "tiny",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -580,7 +580,7 @@
       "graph": "roadNet-CA",
       "hub_concentration": "0.140530",
       "l3_size": "64kB",
-      "margin_pp": "6.239",
+      "margin_pp": "7.958",
       "regime": "small",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -593,9 +593,9 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "1MB",
-      "margin_pp": "0.840",
+      "margin_pp": "2.414",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -632,10 +632,10 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "1MB",
-      "margin_pp": "0.002",
+      "margin_pp": "0.027",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "POPT",
+      "winner": "GRASP"
     },
     {
       "app": "bfs",
@@ -645,7 +645,7 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "4MB",
-      "margin_pp": "0.793",
+      "margin_pp": "0.989",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -658,7 +658,7 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "8MB",
-      "margin_pp": "0.990",
+      "margin_pp": "0.443",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -671,9 +671,9 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "1MB",
-      "margin_pp": "5.943",
+      "margin_pp": "3.710",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -684,7 +684,7 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "4MB",
-      "margin_pp": "11.717",
+      "margin_pp": "12.887",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -697,10 +697,10 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "8MB",
-      "margin_pp": "8.980",
+      "margin_pp": "1.558",
       "regime": "large",
-      "runner_up": "POPT",
-      "winner": "GRASP"
+      "runner_up": "GRASP",
+      "winner": "POPT"
     },
     {
       "app": "pr",
@@ -710,10 +710,10 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "1MB",
-      "margin_pp": "0.297",
+      "margin_pp": "3.548",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "POPT",
+      "winner": "GRASP"
     },
     {
       "app": "pr",
@@ -723,7 +723,7 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "4MB",
-      "margin_pp": "7.516",
+      "margin_pp": "3.840",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -736,7 +736,7 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "8MB",
-      "margin_pp": "3.975",
+      "margin_pp": "2.683",
       "regime": "large",
       "runner_up": "SRRIP",
       "winner": "POPT"
@@ -749,7 +749,7 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "1MB",
-      "margin_pp": "1.973",
+      "margin_pp": "6.077",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -762,10 +762,10 @@
       "graph": "com-orkut",
       "hub_concentration": "0.439780",
       "l3_size": "4MB",
-      "margin_pp": "0.313",
+      "margin_pp": "0.668",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
     },
     {
       "app": "sssp",
@@ -905,20 +905,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "1MB",
-      "margin_pp": "0.603",
-      "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
-    },
-    {
-      "app": "bc",
-      "avg_degree": "38.116600",
-      "clustering_coeff": "0.022680",
-      "family": "social",
-      "graph": "soc-LiveJournal1",
-      "hub_concentration": "0.623470",
-      "l3_size": "4MB",
-      "margin_pp": "0.274",
+      "margin_pp": "1.135",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -930,10 +917,23 @@
       "family": "social",
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
-      "l3_size": "8MB",
-      "margin_pp": "0.614",
+      "l3_size": "4MB",
+      "margin_pp": "2.960",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
+    },
+    {
+      "app": "bc",
+      "avg_degree": "38.116600",
+      "clustering_coeff": "0.022680",
+      "family": "social",
+      "graph": "soc-LiveJournal1",
+      "hub_concentration": "0.623470",
+      "l3_size": "8MB",
+      "margin_pp": "3.136",
+      "regime": "large",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -944,7 +944,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "1MB",
-      "margin_pp": "0.227",
+      "margin_pp": "2.190",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -957,7 +957,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "4MB",
-      "margin_pp": "1.499",
+      "margin_pp": "3.358",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -970,10 +970,10 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "8MB",
-      "margin_pp": "0.521",
+      "margin_pp": "1.006",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "POPT",
+      "winner": "GRASP"
     },
     {
       "app": "cc",
@@ -983,7 +983,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "1MB",
-      "margin_pp": "4.576",
+      "margin_pp": "5.128",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -996,7 +996,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "4MB",
-      "margin_pp": "1.994",
+      "margin_pp": "2.446",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1009,7 +1009,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "8MB",
-      "margin_pp": "5.808",
+      "margin_pp": "4.276",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1022,7 +1022,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "1MB",
-      "margin_pp": "5.136",
+      "margin_pp": "1.831",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1035,7 +1035,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "4MB",
-      "margin_pp": "6.847",
+      "margin_pp": "3.626",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1048,7 +1048,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "8MB",
-      "margin_pp": "3.602",
+      "margin_pp": "2.051",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1061,20 +1061,7 @@
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
       "l3_size": "1MB",
-      "margin_pp": "1.134",
-      "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
-    },
-    {
-      "app": "sssp",
-      "avg_degree": "38.116600",
-      "clustering_coeff": "0.022680",
-      "family": "social",
-      "graph": "soc-LiveJournal1",
-      "hub_concentration": "0.623470",
-      "l3_size": "4MB",
-      "margin_pp": "0.088",
+      "margin_pp": "1.899",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1086,11 +1073,24 @@
       "family": "social",
       "graph": "soc-LiveJournal1",
       "hub_concentration": "0.623470",
-      "l3_size": "8MB",
-      "margin_pp": "0.447",
+      "l3_size": "4MB",
+      "margin_pp": "3.545",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
+    },
+    {
+      "app": "sssp",
+      "avg_degree": "38.116600",
+      "clustering_coeff": "0.022680",
+      "family": "social",
+      "graph": "soc-LiveJournal1",
+      "hub_concentration": "0.623470",
+      "l3_size": "8MB",
+      "margin_pp": "1.197",
+      "regime": "large",
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
     },
     {
       "app": "bc",
@@ -1100,20 +1100,7 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "1MB",
-      "margin_pp": "0.112",
-      "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
-    },
-    {
-      "app": "bc",
-      "avg_degree": "41.432800",
-      "clustering_coeff": "0.020150",
-      "family": "social",
-      "graph": "soc-pokec",
-      "hub_concentration": "0.398240",
-      "l3_size": "4MB",
-      "margin_pp": "0.162",
+      "margin_pp": "2.164",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1125,11 +1112,24 @@
       "family": "social",
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
-      "l3_size": "8MB",
-      "margin_pp": "0.508",
+      "l3_size": "4MB",
+      "margin_pp": "3.850",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
+    },
+    {
+      "app": "bc",
+      "avg_degree": "41.432800",
+      "clustering_coeff": "0.020150",
+      "family": "social",
+      "graph": "soc-pokec",
+      "hub_concentration": "0.398240",
+      "l3_size": "8MB",
+      "margin_pp": "1.848",
+      "regime": "large",
+      "runner_up": "SRRIP",
+      "winner": "GRASP"
     },
     {
       "app": "bfs",
@@ -1139,7 +1139,7 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "1MB",
-      "margin_pp": "1.359",
+      "margin_pp": "2.764",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1152,7 +1152,7 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "4MB",
-      "margin_pp": "4.780",
+      "margin_pp": "2.990",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1165,7 +1165,7 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "8MB",
-      "margin_pp": "11.817",
+      "margin_pp": "11.787",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1178,7 +1178,7 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "1MB",
-      "margin_pp": "3.724",
+      "margin_pp": "1.248",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1191,10 +1191,10 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "4MB",
-      "margin_pp": "6.148",
+      "margin_pp": "1.231",
       "regime": "large",
-      "runner_up": "POPT",
-      "winner": "GRASP"
+      "runner_up": "SRRIP",
+      "winner": "POPT"
     },
     {
       "app": "cc",
@@ -1206,8 +1206,8 @@
       "l3_size": "8MB",
       "margin_pp": "0.000",
       "regime": "large",
-      "runner_up": "LRU",
-      "winner": "GRASP"
+      "runner_up": "POPT",
+      "winner": "LRU"
     },
     {
       "app": "pr",
@@ -1217,10 +1217,10 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "1MB",
-      "margin_pp": "2.909",
+      "margin_pp": "2.041",
       "regime": "large",
-      "runner_up": "GRASP",
-      "winner": "POPT"
+      "runner_up": "POPT",
+      "winner": "GRASP"
     },
     {
       "app": "pr",
@@ -1230,7 +1230,7 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "4MB",
-      "margin_pp": "1.878",
+      "margin_pp": "0.113",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1243,9 +1243,9 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "8MB",
-      "margin_pp": "0.170",
+      "margin_pp": "0.303",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -1256,7 +1256,7 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "1MB",
-      "margin_pp": "2.492",
+      "margin_pp": "7.135",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1269,9 +1269,9 @@
       "graph": "soc-pokec",
       "hub_concentration": "0.398240",
       "l3_size": "4MB",
-      "margin_pp": "0.118",
+      "margin_pp": "1.044",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -1334,7 +1334,7 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "1MB",
-      "margin_pp": "1.122",
+      "margin_pp": "1.748",
       "regime": "large",
       "runner_up": "POPT",
       "winner": "GRASP"
@@ -1347,7 +1347,7 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "4MB",
-      "margin_pp": "15.479",
+      "margin_pp": "12.018",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1360,7 +1360,7 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "8MB",
-      "margin_pp": "7.586",
+      "margin_pp": "6.868",
       "regime": "large",
       "runner_up": "SRRIP",
       "winner": "POPT"
@@ -1373,7 +1373,7 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "1MB",
-      "margin_pp": "4.318",
+      "margin_pp": "0.957",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1388,8 +1388,8 @@
       "l3_size": "4MB",
       "margin_pp": "0.000",
       "regime": "large",
-      "runner_up": "LRU",
-      "winner": "GRASP"
+      "runner_up": "POPT",
+      "winner": "LRU"
     },
     {
       "app": "cc",
@@ -1401,8 +1401,8 @@
       "l3_size": "8MB",
       "margin_pp": "0.000",
       "regime": "large",
-      "runner_up": "LRU",
-      "winner": "GRASP"
+      "runner_up": "POPT",
+      "winner": "LRU"
     },
     {
       "app": "pr",
@@ -1412,7 +1412,7 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "1MB",
-      "margin_pp": "6.688",
+      "margin_pp": "2.105",
       "regime": "large",
       "runner_up": "GRASP",
       "winner": "POPT"
@@ -1425,10 +1425,10 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "4MB",
-      "margin_pp": "0.426",
+      "margin_pp": "0.661",
       "regime": "large",
-      "runner_up": "SRRIP",
-      "winner": "POPT"
+      "runner_up": "POPT",
+      "winner": "SRRIP"
     },
     {
       "app": "pr",
@@ -1438,7 +1438,7 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "8MB",
-      "margin_pp": "0.902",
+      "margin_pp": "0.571",
       "regime": "large",
       "runner_up": "SRRIP",
       "winner": "POPT"
@@ -1451,9 +1451,9 @@
       "graph": "web-Google",
       "hub_concentration": "0.483270",
       "l3_size": "1MB",
-      "margin_pp": "0.168",
+      "margin_pp": "1.587",
       "regime": "large",
-      "runner_up": "POPT",
+      "runner_up": "SRRIP",
       "winner": "GRASP"
     },
     {
@@ -1486,13 +1486,13 @@
   "summary": {
     "by_family_regime": [
       {
-        "GRASP_share": 0.466667,
-        "GRASP_wins": 7,
+        "GRASP_share": 0.666667,
+        "GRASP_wins": 10,
         "LRU_share": 0.0,
         "LRU_wins": 0,
         "OTHER_wins": 0,
-        "POPT_share": 0.533333,
-        "POPT_wins": 8,
+        "POPT_share": 0.333333,
+        "POPT_wins": 5,
         "SRRIP_share": 0.0,
         "SRRIP_wins": 0,
         "family": "citation",
@@ -1542,13 +1542,13 @@
         "total": 1
       },
       {
-        "GRASP_share": 0.8,
-        "GRASP_wins": 8,
+        "GRASP_share": 0.7,
+        "GRASP_wins": 7,
         "LRU_share": 0.0,
         "LRU_wins": 0,
         "OTHER_wins": 0,
-        "POPT_share": 0.2,
-        "POPT_wins": 2,
+        "POPT_share": 0.3,
+        "POPT_wins": 3,
         "SRRIP_share": 0.0,
         "SRRIP_wins": 0,
         "family": "road",
@@ -1570,13 +1570,13 @@
         "total": 10
       },
       {
-        "GRASP_share": 0.2,
-        "GRASP_wins": 1,
+        "GRASP_share": 0.0,
+        "GRASP_wins": 0,
         "LRU_share": 0.6,
         "LRU_wins": 3,
         "OTHER_wins": 0,
-        "POPT_share": 0.2,
-        "POPT_wins": 1,
+        "POPT_share": 0.4,
+        "POPT_wins": 2,
         "SRRIP_share": 0.0,
         "SRRIP_wins": 0,
         "family": "road",
@@ -1584,13 +1584,13 @@
         "total": 5
       },
       {
-        "GRASP_share": 0.592593,
-        "GRASP_wins": 32,
-        "LRU_share": 0.018519,
-        "LRU_wins": 1,
+        "GRASP_share": 0.722222,
+        "GRASP_wins": 39,
+        "LRU_share": 0.037037,
+        "LRU_wins": 2,
         "OTHER_wins": 0,
-        "POPT_share": 0.37037,
-        "POPT_wins": 20,
+        "POPT_share": 0.222222,
+        "POPT_wins": 12,
         "SRRIP_share": 0.018519,
         "SRRIP_wins": 1,
         "family": "social",
@@ -1598,15 +1598,15 @@
         "total": 54
       },
       {
-        "GRASP_share": 0.266667,
-        "GRASP_wins": 4,
-        "LRU_share": 0.2,
-        "LRU_wins": 3,
+        "GRASP_share": 0.133333,
+        "GRASP_wins": 2,
+        "LRU_share": 0.333333,
+        "LRU_wins": 5,
         "OTHER_wins": 0,
-        "POPT_share": 0.4,
-        "POPT_wins": 6,
-        "SRRIP_share": 0.133333,
-        "SRRIP_wins": 2,
+        "POPT_share": 0.333333,
+        "POPT_wins": 5,
+        "SRRIP_share": 0.2,
+        "SRRIP_wins": 3,
         "family": "web",
         "regime": "large",
         "total": 15
@@ -1615,10 +1615,10 @@
     "n_cells": 114,
     "n_family_regime_bins": 9,
     "overall_winner_counts": {
-      "GRASP": 58,
-      "LRU": 7,
-      "POPT": 45,
-      "SRRIP": 4
+      "GRASP": 64,
+      "LRU": 10,
+      "POPT": 35,
+      "SRRIP": 5
     },
     "rule_threshold": 0.8,
     "rules": [
@@ -1639,15 +1639,6 @@
         "sample_size": 1,
         "winner": "POPT",
         "wins": 1
-      },
-      {
-        "family": "road",
-        "fraction": 0.8,
-        "regime": "tiny",
-        "rule_text": "on road-family graphs at L3 regime \"tiny\", GRASP wins 8/10 cells (80.0%)",
-        "sample_size": 10,
-        "winner": "GRASP",
-        "wins": 8
       }
     ]
   }

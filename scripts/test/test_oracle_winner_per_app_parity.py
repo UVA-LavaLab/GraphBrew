@@ -10,16 +10,19 @@ Two independent artifacts compute per-app policy quality:
 These measure different things — average closeness vs. point-wins —
 so they need not agree perfectly. But on a healthy corpus they should
 mostly agree, and any disagreement should be a *structural* one we
-have already characterized (bc: SRRIP has the lowest mean gap but
-GRASP takes the most wins — bc cells are bimodal).
+have already characterized. Under the faithful 1-way-charged P-OPT
+corpus, pr (POPT) and bc (GRASP) agree; the frontier kernels (bfs, cc,
+sssp) disagree because GRASP wins the most individual cells while a
+different policy (POPT on bfs/cc, SRRIP on sssp) holds the smallest
+mean oracle-gap.
 
 We lock:
 
   - For every app the oracle rank-1 policy is among the *top-two*
-    policies by win count in the winner table (no surprise winners).
-  - At least four of five apps have full agreement (rank-1 == top-1).
-  - The single allowed disagreement is the canonical bc:SRRIP-vs-GRASP
-    one, encoded as a tolerated cell.
+    policies by win count, except the documented sssp:SRRIP bimodal
+    case (smallest mean gap, rare outright winner).
+  - At least two of five apps have full agreement (rank-1 == top-1).
+  - The three allowed frontier-kernel disagreements are encoded.
   - Every app has a paper-grade win count > 0 for its rank-1 policy
     (the oracle-best policy is not zero-win).
 """
@@ -37,15 +40,24 @@ PWT_PATH = Path("wiki/data/policy_winner_table.json")
 EXPECTED_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
 ALLOWED_DISAGREEMENTS = {
     # (app, oracle_rank1, winner_top1)
-    # array-relative GRASP 0.15 (single-thread): bc now AGREES (oracle
-    # rank1 GRASP == winner GRASP); the frontier kernels bfs and sssp
-    # disagree — POPT has the lowest mean oracle-gap (rank1) but GRASP wins
-    # the most individual cells (POPT's wins are concentrated in a few
-    # large-gap cells while GRASP wins broadly).
+    # array-relative GRASP 0.15 + faithful 1-way-charged P-OPT (single-
+    # thread): pr (POPT) and bc (GRASP) AGREE. The frontier kernels
+    # disagree — POPT keeps the smallest mean oracle-gap (rank1) on bfs
+    # and cc but GRASP wins the most individual cells (POPT's wins are
+    # concentrated in a few large-gap cells while GRASP wins broadly).
+    # On sssp the 1-way RRM charge pushes P-OPT below SRRIP, so SRRIP
+    # has the smallest mean gap while GRASP still wins the most cells.
     ("bfs", "POPT", "GRASP"),
-    ("sssp", "POPT", "GRASP"),
+    ("cc", "POPT", "GRASP"),
+    ("sssp", "SRRIP", "GRASP"),
 }
-FULL_AGREEMENT_FLOOR = 3   # at least 3 of 5 apps must fully agree (was 4 pre-sweep)
+# On sssp the smallest-mean-gap policy (SRRIP) is a rare outright winner
+# (GRASP and LRU win more cells), so it falls outside the winner top-two.
+# This is the bimodal-frontier signature: GRASP wins many sssp cells by
+# small margins but loses a few by large margins (largest mean gap), while
+# SRRIP is consistently mid (smallest mean gap) yet seldom the winner.
+RANK1_NOT_TOP2_EXCEPTIONS = {("sssp", "SRRIP")}
+FULL_AGREEMENT_FLOOR = 2   # pr + bc agree; 3 frontier kernels disagree under the charge
 RANK1_WINS_FLOOR = 1       # oracle rank-1 must have >= 1 outright win
 
 
@@ -104,6 +116,8 @@ def test_oracle_rank1_in_winner_top_two_for_every_app():
     wins = _winners_by_app()
     bad = []
     for app, oracle_pol in r1.items():
+        if (app, oracle_pol) in RANK1_NOT_TOP2_EXCEPTIONS:
+            continue
         top2 = _top2(wins[app])
         if oracle_pol not in top2:
             bad.append((app, oracle_pol, top2))
@@ -153,9 +167,12 @@ def test_pr_winner_is_popt():
     assert _top1(wins["pr"]) == "POPT", wins["pr"]
 
 
-def test_cc_oracle_rank1_is_grasp():
+def test_cc_oracle_rank1_is_popt():
+    """Under the 1-way charge, P-OPT still has the smallest mean
+    oracle-gap on cc (rank1), even though GRASP wins the most cc cells
+    outright (see test_cc_winner_is_grasp)."""
     r1 = _rank1_by_app()
-    assert r1["cc"] == "GRASP", r1["cc"]
+    assert r1["cc"] == "POPT", r1["cc"]
 
 
 def test_cc_winner_is_grasp():
@@ -163,22 +180,26 @@ def test_cc_winner_is_grasp():
     assert _top1(wins["cc"]) == "GRASP", wins["cc"]
 
 
-def test_sssp_oracle_rank1_is_popt():
+def test_sssp_oracle_rank1_is_srrip():
+    """The faithful 1-way RRM charge pushes P-OPT below SRRIP on sssp's
+    saturated small cells, so SRRIP has the smallest mean oracle-gap on
+    sssp (was POPT in the uncharged corpus)."""
     r1 = _rank1_by_app()
-    assert r1["sssp"] == "POPT", r1["sssp"]
+    assert r1["sssp"] == "SRRIP", r1["sssp"]
 
 
 def test_sssp_disagreement_documented():
-    """Sanity: the documented sssp disagreement still holds (oracle rank1
-    POPT but GRASP wins the most cells), otherwise the ALLOWED_DISAGREEMENTS
-    set may be hiding a healthy state. bc now AGREES (oracle == winner ==
-    GRASP) at array-relative GRASP 0.15."""
+    """Sanity: the documented sssp disagreement still holds (SRRIP has the
+    smallest mean oracle-gap but GRASP wins the most cells), otherwise the
+    ALLOWED_DISAGREEMENTS set may be hiding a healthy state. pr and bc are
+    the two agreements (POPT and GRASP respectively)."""
     r1 = _rank1_by_app()
     wins = _winners_by_app()
-    assert r1["sssp"] == "POPT", r1["sssp"]
+    assert r1["sssp"] == "SRRIP", r1["sssp"]
     assert _top1(wins["sssp"]) == "GRASP", wins["sssp"]
-    # bc is now an agreement, not a disagreement:
-    assert r1["bc"] == _top1(wins["bc"]), (r1["bc"], wins["bc"])
+    # pr and bc are agreements (oracle rank1 == winner top1):
+    assert r1["pr"] == _top1(wins["pr"]) == "POPT", (r1["pr"], wins["pr"])
+    assert r1["bc"] == _top1(wins["bc"]) == "GRASP", (r1["bc"], wins["bc"])
 
 
 def test_no_app_has_lru_as_oracle_rank1():

@@ -56,7 +56,7 @@ def test_oracle_aware_anti_scaling_is_minority(payload):
     """Even at the per-graph level, the bulk of regressions are LRU+SRRIP.
 
     GRASP+POPT combined should account for strictly less than half of
-    all anti-scaling cells. (Currently 7 of 33 = 21 percent.)
+    all anti-scaling cells. (Currently 22 of 48 = 46 percent.)
     """
     per_pol = payload["per_policy_anti_scaling_count"]
     total = sum(per_pol.values())
@@ -77,12 +77,14 @@ def test_grasp_anti_scaling_cells_are_pinned(payload):
     }
     expected = {
         ("cit-Patents", "bfs"),
-        ("cit-Patents", "pr"),
+        ("com-orkut", "cc"),
         ("com-orkut", "pr"),
         ("soc-LiveJournal1", "pr"),
         ("soc-pokec", "bfs"),
+        ("soc-pokec", "cc"),
         ("web-Google", "bc"),
         ("web-Google", "bfs"),
+        ("web-Google", "cc"),
         ("web-Google", "sssp"),
     }
     assert grasp_cells == expected, (
@@ -97,7 +99,7 @@ def test_popt_anti_scaling_concentrates_in_frontier_and_edge_kernels(payload):
     (PageRank all-vertex reuse) stays clean.
 
     Array-relative GRASP 0.15 (single-thread): POPT anti-scaling is
-    bc(3)+cc(4)+sssp(0) = 7 of 8 cells on frontier/edge kernels.
+    bc(3)+cc(4)+sssp(0) = 7 of 12 cells on frontier/edge kernels.
     """
     popt_cells = [
         c
@@ -135,21 +137,17 @@ def test_lru_and_srrip_are_majority_of_anti_scaling(payload):
     )
 
 
-def test_worst_cell_is_web_google_bfs(payload):
+def test_worst_cell_is_soc_pokec_cc(payload):
     """Largest single-octave gap-growth cell pin.
 
-    web-Google/bfs anti-scales by ~15 pp in one octave across ALL four
-    policies (a frontier kernel on a high-reciprocity hub graph) — the
-    most dramatic anti-scaling in the corpus and a narrative anchor. At
-    array-relative GRASP 0.15 the oracle-aware GRASP also anti-scales here
-    (degree-protection misaligns with the BFS wavefront) and edges out
-    LRU/SRRIP for the single worst cell.
+    Re-pinned 2026-06-13 for charged-POPT corpus: soc-pokec/cc/GRASP is
+    the largest single-octave gap-growth cell.
     """
     if not payload["anti_scaling_cells"]:
         pytest.skip("no anti-scaling cells in current run")
     top = payload["anti_scaling_cells"][0]
-    assert top["graph"] == "web-Google"
-    assert top["app"] == "bfs"
+    assert top["graph"] == "soc-pokec"
+    assert top["app"] == "cc"
     assert top["max_pp_growth"] >= 10.0
 
 

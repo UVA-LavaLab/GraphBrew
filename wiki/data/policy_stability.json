@@ -23,101 +23,101 @@
   },
   "per_policy": {
     "GRASP": {
-      "auc_mean_across_apps": 9.3595,
-      "auc_stdev_across_apps": 5.7486,
-      "auc_cv": 0.6142,
-      "best_app": "cc",
-      "best_app_auc": 1.6668,
+      "auc_mean_across_apps": 10.0641,
+      "auc_stdev_across_apps": 4.2561,
+      "auc_cv": 0.4229,
+      "best_app": "bc",
+      "best_app_auc": 3.547,
       "worst_app": "bfs",
-      "worst_app_auc": 16.8516,
-      "worst_over_best_ratio": 10.1102,
+      "worst_app_auc": 15.2143,
+      "worst_over_best_ratio": 4.2893,
       "ranks_by_app": {
         "bc": 1,
         "bfs": 4,
-        "cc": 1,
+        "cc": 2,
         "pr": 2,
-        "sssp": 3
+        "sssp": 2
       },
       "rank_mean": 2.2,
-      "rank_stdev": 1.1662,
+      "rank_stdev": 0.9798,
       "best_rank": 1,
       "worst_rank": 4,
-      "n_wins": 2,
+      "n_wins": 1,
       "n_lasts": 1,
       "always_top_2": false,
       "always_bot_2": false
     },
     "LRU": {
-      "auc_mean_across_apps": 20.1684,
-      "auc_stdev_across_apps": 9.8132,
-      "auc_cv": 0.4866,
+      "auc_mean_across_apps": 16.4346,
+      "auc_stdev_across_apps": 6.1985,
+      "auc_cv": 0.3772,
       "best_app": "bc",
-      "best_app_auc": 9.5084,
-      "worst_app": "cc",
-      "worst_app_auc": 32.4693,
-      "worst_over_best_ratio": 3.4148,
+      "best_app_auc": 9.3557,
+      "worst_app": "pr",
+      "worst_app_auc": 25.5568,
+      "worst_over_best_ratio": 2.7317,
       "ranks_by_app": {
-        "bc": 4,
+        "bc": 3,
         "bfs": 3,
         "cc": 4,
         "pr": 4,
         "sssp": 4
       },
-      "rank_mean": 3.8,
-      "rank_stdev": 0.4,
+      "rank_mean": 3.6,
+      "rank_stdev": 0.4899,
       "best_rank": 3,
       "worst_rank": 4,
       "n_wins": 0,
-      "n_lasts": 4,
+      "n_lasts": 3,
       "always_top_2": false,
       "always_bot_2": true
     },
     "POPT": {
-      "auc_mean_across_apps": 5.1632,
-      "auc_stdev_across_apps": 3.5671,
-      "auc_cv": 0.6909,
+      "auc_mean_across_apps": 8.1314,
+      "auc_stdev_across_apps": 4.3569,
+      "auc_cv": 0.5358,
       "best_app": "pr",
-      "best_app_auc": 0.0142,
-      "worst_app": "cc",
-      "worst_app_auc": 10.4865,
-      "worst_over_best_ratio": 738.4859,
+      "best_app_auc": 0.9115,
+      "worst_app": "bc",
+      "worst_app_auc": 13.3901,
+      "worst_over_best_ratio": 14.6902,
       "ranks_by_app": {
-        "bc": 3,
+        "bc": 4,
         "bfs": 1,
-        "cc": 2,
+        "cc": 1,
         "pr": 1,
-        "sssp": 1
+        "sssp": 3
       },
-      "rank_mean": 1.6,
-      "rank_stdev": 0.8,
+      "rank_mean": 2.0,
+      "rank_stdev": 1.2649,
       "best_rank": 1,
-      "worst_rank": 3,
+      "worst_rank": 4,
       "n_wins": 3,
-      "n_lasts": 0,
+      "n_lasts": 1,
       "always_top_2": false,
       "always_bot_2": false
     },
     "SRRIP": {
-      "auc_mean_across_apps": 14.8182,
-      "auc_stdev_across_apps": 7.7679,
-      "auc_cv": 0.5242,
+      "auc_mean_across_apps": 11.0845,
+      "auc_stdev_across_apps": 4.3833,
+      "auc_cv": 0.3954,
       "best_app": "bc",
-      "best_app_auc": 5.1733,
-      "worst_app": "cc",
-      "worst_app_auc": 24.1584,
-      "worst_over_best_ratio": 4.6698,
+      "best_app_auc": 5.0207,
+      "worst_app": "pr",
+      "worst_app_auc": 17.2249,
+      "worst_over_best_ratio": 3.4308,
       "ranks_by_app": {
         "bc": 2,
         "bfs": 2,
         "cc": 3,
         "pr": 3,
-        "sssp": 2
+        "sssp": 1
       },
-      "rank_mean": 2.4,
-      "rank_stdev": 0.4899,
-      "best_rank": 2,
+      "rank_mean": 2.2,
+      "rank_stdev": 0.7483,
+      "best_rank": 1,
       "worst_rank": 3,
-      "n_wins": 0,
+      "n_wins": 1,
       "n_lasts": 0,
       "always_top_2": false,
       "always_bot_2": false
@@ -126,37 +126,37 @@
   "ranking_by_cv_ascending": [
     {
       "policy": "LRU",
-      "auc_cv": 0.4866
+      "auc_cv": 0.3772
     },
     {
       "policy": "SRRIP",
-      "auc_cv": 0.5242
+      "auc_cv": 0.3954
     },
     {
       "policy": "GRASP",
-      "auc_cv": 0.6142
+      "auc_cv": 0.4229
     },
     {
       "policy": "POPT",
-      "auc_cv": 0.6909
+      "auc_cv": 0.5358
     }
   ],
   "ranking_by_mean_auc_ascending": [
     {
       "policy": "POPT",
-      "auc_mean": 5.1632
+      "auc_mean": 8.1314
     },
     {
       "policy": "GRASP",
-      "auc_mean": 9.3595
+      "auc_mean": 10.0641
     },
     {
       "policy": "SRRIP",
-      "auc_mean": 14.8182
+      "auc_mean": 11.0845
     },
     {
       "policy": "LRU",
-      "auc_mean": 20.1684
+      "auc_mean": 16.4346
     }
   ]
 }

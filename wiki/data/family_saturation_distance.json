@@ -8,20 +8,20 @@
     "per_family": {
       "citation": {
         "n_cells": 5,
-        "min_pp": 6.2363,
+        "min_pp": 4.4125,
         "median_pp": 14.1698,
-        "p90_pp": 27.0953,
-        "max_pp": 27.0953,
+        "p90_pp": 26.959,
+        "max_pp": 26.959,
         "graphs": [
           "cit-Patents"
         ]
       },
       "social": {
         "n_cells": 15,
-        "min_pp": 1.0362,
-        "median_pp": 12.7848,
-        "p90_pp": 18.7574,
-        "max_pp": 24.0281,
+        "min_pp": 0.4893,
+        "median_pp": 12.7801,
+        "p90_pp": 23.5205,
+        "max_pp": 30.3964,
         "graphs": [
           "com-orkut",
           "soc-LiveJournal1",
@@ -31,7 +31,7 @@
       "web": {
         "n_cells": 5,
         "min_pp": 0.0,
-        "median_pp": 2.6569,
+        "median_pp": 3.1518,
         "p90_pp": 28.7477,
         "max_pp": 28.7477,
         "graphs": [

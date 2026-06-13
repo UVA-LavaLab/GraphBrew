@@ -44,7 +44,7 @@
     "bc": {
       "log10_median": 7.92,
       "max": 398308559,
-      "mean": 115511481,
+      "mean": 115511480,
       "median": 82712357,
       "min": 315,
       "n": 58,
@@ -54,7 +54,7 @@
     "bfs": {
       "log10_median": 6.75,
       "max": 11473727,
-      "mean": 4439358,
+      "mean": 4439355,
       "median": 5669844,
       "min": 977,
       "n": 57,
@@ -74,7 +74,7 @@
     "pr": {
       "log10_median": 7.86,
       "max": 321149556,
-      "mean": 98383987,
+      "mean": 98383972,
       "median": 71803002,
       "min": 2134,
       "n": 70,
@@ -146,12 +146,12 @@
     "web-Google": {
       "log10_median": 6.39,
       "max": 14069282,
-      "mean": 6463340,
+      "mean": 6463315,
       "median": 2439568,
       "min": 1103195,
       "n": 50,
       "p10": 1103195,
-      "p90": 14069282
+      "p90": 14069175
     }
   },
   "per_graph_app": {
@@ -388,21 +388,21 @@
     "web-Google::bc": {
       "log10_median": 7.04,
       "max": 10969533,
-      "mean": 10969396,
-      "median": 10969533,
+      "mean": 10969391,
+      "median": 10969412,
       "min": 10969077,
       "n": 10,
-      "p10": 10969077,
+      "p10": 10969292,
       "p90": 10969533
     },
     "web-Google::bfs": {
       "log10_median": 6.11,
       "max": 1275721,
-      "mean": 1275721,
+      "mean": 1275705,
       "median": 1275721,
-      "min": 1275721,
+      "min": 1275639,
       "n": 10,
-      "p10": 1275721,
+      "p10": 1275639,
       "p90": 1275721
     },
     "web-Google::cc": {
@@ -418,11 +418,11 @@
     "web-Google::pr": {
       "log10_median": 7.15,
       "max": 14069282,
-      "mean": 14069246,
-      "median": 14069282,
-      "min": 14069175,
+      "mean": 14069159,
+      "median": 14069175,
+      "min": 14068814,
       "n": 12,
-      "p10": 14069175,
+      "p10": 14068814,
       "p90": 14069282
     },
     "web-Google::sssp": {
@@ -440,7 +440,7 @@
     "1MB": {
       "log10_median": 7.15,
       "max": 398308559,
-      "mean": 60092361,
+      "mean": 60092352,
       "median": 14069282,
       "min": 315,
       "n": 105,
@@ -460,7 +460,7 @@
     "8MB": {
       "log10_median": 7.06,
       "max": 398308559,
-      "mean": 58760648,
+      "mean": 58760645,
       "median": 11473727,
       "min": 315,
       "n": 90,
@@ -482,9 +482,9 @@
     "POPT": {
       "log10_median": 7.74,
       "max": 321149556,
-      "mean": 83951465,
+      "mean": 83951451,
       "median": 55312202,
-      "min": 14069282,
+      "min": 14069175,
       "n": 8,
       "p10": 24702664,
       "p90": 98229063
@@ -492,7 +492,7 @@
     "POPT_GE_GRASP": {
       "log10_median": 7.05,
       "max": 398308559,
-      "mean": 56125552,
+      "mean": 56125545,
       "median": 11221630,
       "min": 315,
       "n": 84,
@@ -502,7 +502,7 @@
     "POPT_NEAR_GRASP_IF_BIG_GAP": {
       "log10_median": 7.05,
       "max": 398308559,
-      "mean": 56125552,
+      "mean": 56125545,
       "median": 11221630,
       "min": 315,
       "n": 84,
@@ -2832,7 +2832,7 @@
       "smoke": false
     },
     {
-      "accesses": 10969533,
+      "accesses": 10969292,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
@@ -2842,7 +2842,7 @@
       "smoke": false
     },
     {
-      "accesses": 10969533,
+      "accesses": 10969292,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
@@ -2892,7 +2892,7 @@
       "smoke": false
     },
     {
-      "accesses": 10969077,
+      "accesses": 10969292,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
@@ -2902,7 +2902,7 @@
       "smoke": false
     },
     {
-      "accesses": 10969077,
+      "accesses": 10969292,
       "app": "bc",
       "bucket": "large",
       "graph": "web-Google",
@@ -2932,7 +2932,7 @@
       "smoke": false
     },
     {
-      "accesses": 1275721,
+      "accesses": 1275639,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -2942,7 +2942,7 @@
       "smoke": false
     },
     {
-      "accesses": 1275721,
+      "accesses": 1275639,
       "app": "bfs",
       "bucket": "medium",
       "graph": "web-Google",
@@ -3122,7 +3122,7 @@
       "smoke": false
     },
     {
-      "accesses": 14069282,
+      "accesses": 14069175,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3132,7 +3132,7 @@
       "smoke": false
     },
     {
-      "accesses": 14069282,
+      "accesses": 14069175,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3142,7 +3142,7 @@
       "smoke": false
     },
     {
-      "accesses": 14069282,
+      "accesses": 14069175,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3202,7 +3202,7 @@
       "smoke": false
     },
     {
-      "accesses": 14069175,
+      "accesses": 14068814,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",
@@ -3212,7 +3212,7 @@
       "smoke": false
     },
     {
-      "accesses": 14069175,
+      "accesses": 14068814,
       "app": "pr",
       "bucket": "large",
       "graph": "web-Google",

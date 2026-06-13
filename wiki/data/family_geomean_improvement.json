@@ -2,85 +2,15 @@
   "headline_improvements_ge_10pct": [
     {
       "app": "pr",
-      "ci_hi_improve_pct": 45.178,
-      "ci_hi_ratio": 0.815678,
-      "ci_lo_improve_pct": 18.432,
-      "ci_lo_ratio": 0.548216,
+      "ci_hi_improve_pct": 36.897,
+      "ci_hi_ratio": 0.850262,
+      "ci_lo_improve_pct": 14.974,
+      "ci_lo_ratio": 0.631033,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 35.907,
-      "geomean_ratio": 0.640927,
-      "n_cells": 3,
-      "policy": "POPT"
-    },
-    {
-      "app": "cc",
-      "ci_hi_improve_pct": 36.401,
-      "ci_hi_ratio": 0.8563,
-      "ci_lo_improve_pct": 14.37,
-      "ci_lo_ratio": 0.635986,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 25.637,
-      "geomean_ratio": 0.743629,
-      "n_cells": 9,
-      "policy": "GRASP"
-    },
-    {
-      "app": "cc",
-      "ci_hi_improve_pct": 36.287,
-      "ci_hi_ratio": 0.83836,
-      "ci_lo_improve_pct": 16.164,
-      "ci_lo_ratio": 0.637131,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "citation",
-      "geomean_improve_pct": 25.035,
-      "geomean_ratio": 0.749648,
-      "n_cells": 3,
-      "policy": "GRASP"
-    },
-    {
-      "app": "pr",
-      "ci_hi_improve_pct": 35.82,
-      "ci_hi_ratio": 0.868193,
-      "ci_lo_improve_pct": 13.181,
-      "ci_lo_ratio": 0.641802,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "web",
-      "geomean_improve_pct": 23.335,
-      "geomean_ratio": 0.766648,
-      "n_cells": 3,
-      "policy": "POPT"
-    },
-    {
-      "app": "pr",
-      "ci_hi_improve_pct": 30.217,
-      "ci_hi_ratio": 0.862288,
-      "ci_lo_improve_pct": 13.771,
-      "ci_lo_ratio": 0.697826,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 22.42,
-      "geomean_ratio": 0.775804,
-      "n_cells": 12,
-      "policy": "POPT"
-    },
-    {
-      "app": "cc",
-      "ci_hi_improve_pct": 26.945,
-      "ci_hi_ratio": 0.821755,
-      "ci_lo_improve_pct": 17.824,
-      "ci_lo_ratio": 0.730551,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "citation",
-      "geomean_improve_pct": 21.551,
-      "geomean_ratio": 0.784494,
+      "geomean_improve_pct": 29.177,
+      "geomean_ratio": 0.708229,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -99,18 +29,46 @@
       "policy": "GRASP"
     },
     {
-      "app": "cc",
-      "ci_hi_improve_pct": 23.576,
-      "ci_hi_ratio": 0.910249,
-      "ci_lo_improve_pct": 8.975,
-      "ci_lo_ratio": 0.764242,
+      "app": "pr",
+      "ci_hi_improve_pct": 23.608,
+      "ci_hi_ratio": 0.898984,
+      "ci_lo_improve_pct": 10.102,
+      "ci_lo_ratio": 0.763922,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 16.237,
-      "geomean_ratio": 0.83763,
-      "n_cells": 9,
+      "geomean_improve_pct": 17.012,
+      "geomean_ratio": 0.829882,
+      "n_cells": 12,
       "policy": "POPT"
+    },
+    {
+      "app": "pr",
+      "ci_hi_improve_pct": 28.161,
+      "ci_hi_ratio": 0.902261,
+      "ci_lo_improve_pct": 9.774,
+      "ci_lo_ratio": 0.718394,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "web",
+      "geomean_improve_pct": 16.905,
+      "geomean_ratio": 0.830952,
+      "n_cells": 3,
+      "policy": "POPT"
+    },
+    {
+      "app": "cc",
+      "ci_hi_improve_pct": 19.972,
+      "ci_hi_ratio": 0.894061,
+      "ci_lo_improve_pct": 10.594,
+      "ci_lo_ratio": 0.800275,
+      "ci_strict_improvement_vs_lru": true,
+      "ci_strict_regression_vs_lru": false,
+      "family": "citation",
+      "geomean_improve_pct": 16.856,
+      "geomean_ratio": 0.831437,
+      "n_cells": 3,
+      "policy": "GRASP"
     },
     {
       "app": "pr",
@@ -127,17 +85,17 @@
       "policy": "GRASP"
     },
     {
-      "app": "sssp",
-      "ci_hi_improve_pct": 16.933,
-      "ci_hi_ratio": 0.93863,
-      "ci_lo_improve_pct": 6.137,
-      "ci_lo_ratio": 0.830666,
+      "app": "cc",
+      "ci_hi_improve_pct": 13.81,
+      "ci_hi_ratio": 0.882718,
+      "ci_lo_improve_pct": 11.728,
+      "ci_lo_ratio": 0.861896,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
-      "family": "social",
-      "geomean_improve_pct": 11.953,
-      "geomean_ratio": 0.880474,
-      "n_cells": 9,
+      "family": "citation",
+      "geomean_improve_pct": 12.946,
+      "geomean_ratio": 0.870543,
+      "n_cells": 3,
       "policy": "POPT"
     },
     {
@@ -155,31 +113,17 @@
       "policy": "GRASP"
     },
     {
-      "app": "bfs",
-      "ci_hi_improve_pct": 19.423,
-      "ci_hi_ratio": 0.974715,
-      "ci_lo_improve_pct": 2.528,
-      "ci_lo_ratio": 0.805765,
+      "app": "cc",
+      "ci_hi_improve_pct": 15.574,
+      "ci_hi_ratio": 0.93889,
+      "ci_lo_improve_pct": 6.111,
+      "ci_lo_ratio": 0.844261,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
-      "family": "web",
-      "geomean_improve_pct": 10.907,
-      "geomean_ratio": 0.890927,
-      "n_cells": 3,
-      "policy": "POPT"
-    },
-    {
-      "app": "sssp",
-      "ci_hi_improve_pct": 16.249,
-      "ci_hi_ratio": 0.957637,
-      "ci_lo_improve_pct": 4.236,
-      "ci_lo_ratio": 0.837512,
-      "ci_strict_improvement_vs_lru": true,
-      "ci_strict_regression_vs_lru": false,
-      "family": "citation",
-      "geomean_improve_pct": 10.532,
-      "geomean_ratio": 0.89468,
-      "n_cells": 3,
+      "family": "social",
+      "geomean_improve_pct": 10.923,
+      "geomean_ratio": 0.890768,
+      "n_cells": 9,
       "policy": "POPT"
     },
     {
@@ -200,15 +144,15 @@
   "headline_regressions_ci_strict": [
     {
       "app": "bc",
-      "ci_hi_improve_pct": -2.35,
-      "ci_hi_ratio": 1.308654,
-      "ci_lo_improve_pct": -30.865,
-      "ci_lo_ratio": 1.023503,
+      "ci_hi_improve_pct": -4.375,
+      "ci_hi_ratio": 1.549145,
+      "ci_lo_improve_pct": -54.914,
+      "ci_lo_ratio": 1.043749,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": true,
       "family": "web",
-      "geomean_improve_pct": -12.141,
-      "geomean_ratio": 1.121406,
+      "geomean_improve_pct": -22.233,
+      "geomean_ratio": 1.222332,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -231,7 +175,7 @@
     "alpha": 0.05,
     "bootstrap_iters": 2000,
     "bootstrap_seed": 1729,
-    "n_ci_strict_improvements": 33,
+    "n_ci_strict_improvements": 28,
     "n_ci_strict_regressions": 2,
     "n_records": 63,
     "scope_l3_sizes": [
@@ -286,33 +230,33 @@
           "graph": "cit-Patents",
           "l3_size": "1MB",
           "mr_lru": 0.945117,
-          "mr_policy": 0.928955,
-          "ratio": 0.9828994717056195
+          "mr_policy": 0.936885,
+          "ratio": 0.9912899672738931
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
           "mr_lru": 0.818927,
-          "mr_policy": 0.794997,
-          "ratio": 0.970778836208844
+          "mr_policy": 0.814955,
+          "ratio": 0.9951497508324918
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
           "mr_lru": 0.686411,
-          "mr_policy": 0.664142,
-          "ratio": 0.9675573380962718
+          "mr_policy": 0.694021,
+          "ratio": 1.0110866521661221
         }
       ],
-      "ci_hi_improve_pct": 3.244,
-      "ci_hi_ratio": 0.982899,
-      "ci_lo_improve_pct": 1.71,
-      "ci_lo_ratio": 0.967557,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 0.871,
+      "ci_hi_ratio": 1.011087,
+      "ci_lo_improve_pct": -1.109,
+      "ci_lo_ratio": 0.99129,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 2.628,
-      "geomean_ratio": 0.973723,
+      "geomean_improve_pct": 0.086,
+      "geomean_ratio": 0.999139,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -397,33 +341,33 @@
           "graph": "cit-Patents",
           "l3_size": "1MB",
           "mr_lru": 0.98146,
-          "mr_policy": 0.972364,
-          "ratio": 0.9907321745155178
+          "mr_policy": 0.975989,
+          "ratio": 0.9944256515802987
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
           "mr_lru": 0.946715,
-          "mr_policy": 0.910449,
-          "ratio": 0.9616928008957288
+          "mr_policy": 0.920281,
+          "ratio": 0.9720781861489467
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
           "mr_lru": 0.921363,
-          "mr_policy": 0.840295,
-          "ratio": 0.9120129634031321
+          "mr_policy": 0.858533,
+          "ratio": 0.9318075503357526
         }
       ],
-      "ci_hi_improve_pct": 8.799,
-      "ci_hi_ratio": 0.990732,
-      "ci_lo_improve_pct": 0.927,
-      "ci_lo_ratio": 0.912013,
+      "ci_hi_improve_pct": 6.819,
+      "ci_hi_ratio": 0.994426,
+      "ci_lo_improve_pct": 0.557,
+      "ci_lo_ratio": 0.931808,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 4.574,
-      "geomean_ratio": 0.954255,
+      "geomean_improve_pct": 3.425,
+      "geomean_ratio": 0.965754,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -471,33 +415,33 @@
           "graph": "cit-Patents",
           "l3_size": "1MB",
           "mr_lru": 0.66682,
-          "mr_policy": 0.559035,
-          "ratio": 0.8383596772742269
+          "mr_policy": 0.596178,
+          "ratio": 0.8940613658858463
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
           "mr_lru": 0.336914,
-          "mr_policy": 0.265725,
-          "ratio": 0.7887027550057285
+          "mr_policy": 0.269624,
+          "ratio": 0.8002754412105165
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
           "mr_lru": 0.197967,
-          "mr_policy": 0.126131,
-          "ratio": 0.637131441098769
+          "mr_policy": 0.159028,
+          "ratio": 0.8033056014386236
         }
       ],
-      "ci_hi_improve_pct": 36.287,
-      "ci_hi_ratio": 0.83836,
-      "ci_lo_improve_pct": 16.164,
-      "ci_lo_ratio": 0.637131,
+      "ci_hi_improve_pct": 19.972,
+      "ci_hi_ratio": 0.894061,
+      "ci_lo_improve_pct": 10.594,
+      "ci_lo_ratio": 0.800275,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 25.035,
-      "geomean_ratio": 0.749648,
+      "geomean_improve_pct": 16.856,
+      "geomean_ratio": 0.831437,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -508,33 +452,33 @@
           "graph": "cit-Patents",
           "l3_size": "1MB",
           "mr_lru": 0.66682,
-          "mr_policy": 0.547963,
-          "ratio": 0.8217554962358657
+          "mr_policy": 0.578232,
+          "ratio": 0.8671485558321586
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
           "mr_lru": 0.336914,
-          "mr_policy": 0.270953,
-          "ratio": 0.8042200680292301
+          "mr_policy": 0.2974,
+          "ratio": 0.8827178449099771
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
           "mr_lru": 0.197967,
-          "mr_policy": 0.144625,
-          "ratio": 0.7305510514378659
+          "mr_policy": 0.170627,
+          "ratio": 0.861896174614961
         }
       ],
-      "ci_hi_improve_pct": 26.945,
-      "ci_hi_ratio": 0.821755,
-      "ci_lo_improve_pct": 17.824,
-      "ci_lo_ratio": 0.730551,
+      "ci_hi_improve_pct": 13.81,
+      "ci_hi_ratio": 0.882718,
+      "ci_lo_improve_pct": 11.728,
+      "ci_lo_ratio": 0.861896,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 21.551,
-      "geomean_ratio": 0.784494,
+      "geomean_improve_pct": 12.946,
+      "geomean_ratio": 0.870543,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -619,33 +563,33 @@
           "graph": "cit-Patents",
           "l3_size": "1MB",
           "mr_lru": 0.895106,
-          "mr_policy": 0.730118,
-          "ratio": 0.8156776962728437
+          "mr_policy": 0.761075,
+          "ratio": 0.8502624270198166
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
           "mr_lru": 0.590052,
-          "mr_policy": 0.347413,
-          "ratio": 0.588783700419624
+          "mr_policy": 0.390667,
+          "ratio": 0.6620891040111718
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
           "mr_lru": 0.3262,
-          "mr_policy": 0.178828,
-          "ratio": 0.5482158185162477
+          "mr_policy": 0.205843,
+          "ratio": 0.6310331085223789
         }
       ],
-      "ci_hi_improve_pct": 45.178,
-      "ci_hi_ratio": 0.815678,
-      "ci_lo_improve_pct": 18.432,
-      "ci_lo_ratio": 0.548216,
+      "ci_hi_improve_pct": 36.897,
+      "ci_hi_ratio": 0.850262,
+      "ci_lo_improve_pct": 14.974,
+      "ci_lo_ratio": 0.631033,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 35.907,
-      "geomean_ratio": 0.640927,
+      "geomean_improve_pct": 29.177,
+      "geomean_ratio": 0.708229,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -730,33 +674,33 @@
           "graph": "cit-Patents",
           "l3_size": "1MB",
           "mr_lru": 0.87683,
-          "mr_policy": 0.839685,
-          "ratio": 0.957637170261054
+          "mr_policy": 0.859291,
+          "ratio": 0.9799972628673745
         },
         {
           "graph": "cit-Patents",
           "l3_size": "4MB",
           "mr_lru": 0.568128,
-          "mr_policy": 0.507291,
-          "ratio": 0.8929167370733357
+          "mr_policy": 0.554064,
+          "ratio": 0.9752450152078406
         },
         {
           "graph": "cit-Patents",
           "l3_size": "8MB",
           "mr_lru": 0.270869,
-          "mr_policy": 0.226856,
-          "ratio": 0.8375118599765938
+          "mr_policy": 0.286036,
+          "ratio": 1.055993856809011
         }
       ],
-      "ci_hi_improve_pct": 16.249,
-      "ci_hi_ratio": 0.957637,
-      "ci_lo_improve_pct": 4.236,
-      "ci_lo_ratio": 0.837512,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 2.475,
+      "ci_hi_ratio": 1.055994,
+      "ci_lo_improve_pct": -5.599,
+      "ci_lo_ratio": 0.975245,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "citation",
-      "geomean_improve_pct": 10.532,
-      "geomean_ratio": 0.89468,
+      "geomean_improve_pct": -0.307,
+      "geomean_ratio": 1.003075,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -820,8 +764,8 @@
           "graph": "delaunay_n19",
           "l3_size": "1MB",
           "mr_lru": 0.966764,
-          "mr_policy": 0.790367,
-          "ratio": 0.8175387167912749
+          "mr_policy": 0.8104,
+          "ratio": 0.8382604234332268
         }
       ],
       "family": "mesh",
@@ -868,8 +812,8 @@
           "graph": "roadNet-CA",
           "l3_size": "1MB",
           "mr_lru": 0.648506,
-          "mr_policy": 0.812494,
-          "ratio": 1.2528704437584233
+          "mr_policy": 0.825242,
+          "ratio": 1.2725279334346946
         }
       ],
       "family": "road",
@@ -916,8 +860,8 @@
           "graph": "roadNet-CA",
           "l3_size": "1MB",
           "mr_lru": 0.241059,
-          "mr_policy": 0.58397,
-          "ratio": 2.422518968385333
+          "mr_policy": 0.592323,
+          "ratio": 2.4571702363321846
         }
       ],
       "family": "road",
@@ -948,8 +892,8 @@
           "graph": "roadNet-CA",
           "l3_size": "1MB",
           "mr_lru": 0.991693,
-          "mr_policy": 0.865354,
-          "ratio": 0.8726027107179338
+          "mr_policy": 0.945125,
+          "ratio": 0.9530419192229853
         }
       ],
       "family": "road",
@@ -964,8 +908,8 @@
           "graph": "roadNet-CA",
           "l3_size": "1MB",
           "mr_lru": 0.991693,
-          "mr_policy": 0.931169,
-          "ratio": 0.9389690156126946
+          "mr_policy": 0.941915,
+          "ratio": 0.9498050303874283
         }
       ],
       "family": "road",
@@ -1012,8 +956,8 @@
           "graph": "roadNet-CA",
           "l3_size": "1MB",
           "mr_lru": 0.952502,
-          "mr_policy": 0.907752,
-          "ratio": 0.9530184713522911
+          "mr_policy": 0.913578,
+          "ratio": 0.95913499394227
         }
       ],
       "family": "road",
@@ -1060,8 +1004,8 @@
           "graph": "roadNet-CA",
           "l3_size": "1MB",
           "mr_lru": 0.166549,
-          "mr_policy": 0.25454,
-          "ratio": 1.5283189932092056
+          "mr_policy": 0.271238,
+          "ratio": 1.6285777759097921
         }
       ],
       "family": "road",
@@ -1192,22 +1136,22 @@
           "graph": "com-orkut",
           "l3_size": "1MB",
           "mr_lru": 0.836912,
-          "mr_policy": 0.804792,
-          "ratio": 0.9616208155696178
+          "mr_policy": 0.823194,
+          "ratio": 0.9836087904104613
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
           "mr_lru": 0.573525,
-          "mr_policy": 0.561793,
-          "ratio": 0.9795440477747265
+          "mr_policy": 0.590082,
+          "ratio": 1.0288688374525958
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
           "mr_lru": 0.376045,
-          "mr_policy": 0.398577,
-          "ratio": 1.0599183608344747
+          "mr_policy": 0.430049,
+          "ratio": 1.1436104721509395
         },
         {
           "graph": "email-Eu-core",
@@ -1234,54 +1178,54 @@
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
           "mr_lru": 0.864855,
-          "mr_policy": 0.825139,
-          "ratio": 0.9540778512004902
+          "mr_policy": 0.842514,
+          "ratio": 0.9741679241028842
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
           "mr_lru": 0.655187,
-          "mr_policy": 0.602828,
-          "ratio": 0.9200854107300664
+          "mr_policy": 0.629821,
+          "ratio": 0.9612843356171596
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
           "mr_lru": 0.502491,
-          "mr_policy": 0.44669,
-          "ratio": 0.8889512448979184
+          "mr_policy": 0.479932,
+          "ratio": 0.9551056635840244
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
           "mr_lru": 0.859729,
-          "mr_policy": 0.809683,
-          "ratio": 0.941788633394942
+          "mr_policy": 0.83245,
+          "ratio": 0.9682702339923395
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
           "mr_lru": 0.530069,
-          "mr_policy": 0.459569,
-          "ratio": 0.8669984473719459
+          "mr_policy": 0.504725,
+          "ratio": 0.9521873567403488
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
           "mr_lru": 0.267741,
-          "mr_policy": 0.217668,
-          "ratio": 0.8129797080013894
+          "mr_policy": 0.264832,
+          "ratio": 0.9891350222789935
         }
       ],
-      "ci_hi_improve_pct": 9.405,
-      "ci_hi_ratio": 0.981318,
-      "ci_lo_improve_pct": 1.868,
-      "ci_lo_ratio": 0.905954,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 2.693,
+      "ci_hi_ratio": 1.024292,
+      "ci_lo_improve_pct": -2.429,
+      "ci_lo_ratio": 0.973075,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 5.346,
-      "geomean_ratio": 0.946535,
+      "geomean_improve_pct": 0.479,
+      "geomean_ratio": 0.995209,
       "n_cells": 12,
       "policy": "POPT"
     },
@@ -1492,22 +1436,22 @@
           "graph": "com-orkut",
           "l3_size": "1MB",
           "mr_lru": 0.998892,
-          "mr_policy": 0.9981,
-          "ratio": 0.9992071214906115
+          "mr_policy": 0.998389,
+          "ratio": 0.9994964420578
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
           "mr_lru": 0.996484,
-          "mr_policy": 0.989118,
-          "ratio": 0.9926080097623243
+          "mr_policy": 0.991077,
+          "ratio": 0.9945739219094335
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
           "mr_lru": 0.995799,
-          "mr_policy": 0.970827,
-          "ratio": 0.9749226500528722
+          "mr_policy": 0.976296,
+          "ratio": 0.9804147222481646
         },
         {
           "graph": "email-Eu-core",
@@ -1534,54 +1478,54 @@
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
           "mr_lru": 0.835709,
-          "mr_policy": 0.786012,
-          "ratio": 0.9405331281582465
+          "mr_policy": 0.805644,
+          "ratio": 0.9640245587878077
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
           "mr_lru": 0.644598,
-          "mr_policy": 0.586998,
-          "ratio": 0.91064198151406
+          "mr_policy": 0.605591,
+          "ratio": 0.9394863155020649
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
           "mr_lru": 0.563191,
-          "mr_policy": 0.504653,
-          "ratio": 0.8960601288017742
+          "mr_policy": 0.519924,
+          "ratio": 0.9231752638092584
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
           "mr_lru": 0.906293,
-          "mr_policy": 0.872956,
-          "ratio": 0.9632160901606874
+          "mr_policy": 0.887007,
+          "ratio": 0.9787199062554824
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
           "mr_lru": 0.787277,
-          "mr_policy": 0.708089,
-          "ratio": 0.8994153264988053
+          "mr_policy": 0.725987,
+          "ratio": 0.9221493832539247
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
           "mr_lru": 0.759638,
-          "mr_policy": 0.625682,
-          "ratio": 0.8236581108370038
+          "mr_policy": 0.625986,
+          "ratio": 0.8240583014541137
         }
       ],
-      "ci_hi_improve_pct": 8.543,
-      "ci_hi_ratio": 0.978764,
-      "ci_lo_improve_pct": 2.124,
-      "ci_lo_ratio": 0.914566,
+      "ci_hi_improve_pct": 7.326,
+      "ci_hi_ratio": 0.985238,
+      "ci_lo_improve_pct": 1.476,
+      "ci_lo_ratio": 0.92674,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 5.16,
-      "geomean_ratio": 0.948399,
+      "geomean_improve_pct": 4.087,
+      "geomean_ratio": 0.959126,
       "n_cells": 12,
       "policy": "POPT"
     },
@@ -1692,75 +1636,75 @@
           "graph": "com-orkut",
           "l3_size": "1MB",
           "mr_lru": 0.741545,
-          "mr_policy": 0.639883,
-          "ratio": 0.862905150732592
+          "mr_policy": 0.670976,
+          "ratio": 0.9048351752085174
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
           "mr_lru": 0.567614,
-          "mr_policy": 0.41063,
-          "ratio": 0.7234317687724405
+          "mr_policy": 0.420493,
+          "ratio": 0.740808013896768
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
           "mr_lru": 0.506299,
-          "mr_policy": 0.249408,
-          "ratio": 0.49261009798557764
+          "mr_policy": 0.411425,
+          "ratio": 0.8126127051406381
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
           "mr_lru": 0.798646,
-          "mr_policy": 0.727663,
-          "ratio": 0.9111208219912201
+          "mr_policy": 0.754597,
+          "ratio": 0.9448454008409233
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
           "mr_lru": 0.575481,
-          "mr_policy": 0.47069,
-          "ratio": 0.8179071072720038
+          "mr_policy": 0.486233,
+          "ratio": 0.8449158182459543
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
           "mr_lru": 0.468595,
-          "mr_policy": 0.317264,
-          "ratio": 0.6770537457719352
+          "mr_policy": 0.359253,
+          "ratio": 0.7666599088765351
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
           "mr_lru": 0.728107,
-          "mr_policy": 0.604195,
-          "ratio": 0.8298162220662624
+          "mr_policy": 0.650924,
+          "ratio": 0.8939949760131409
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
           "mr_lru": 0.463819,
-          "mr_policy": 0.2505,
-          "ratio": 0.5400813679474106
+          "mr_policy": 0.410044,
+          "ratio": 0.8840603770005111
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
           "mr_lru": 0.062926,
-          "mr_policy": 0.062926,
-          "ratio": 1.0
+          "mr_policy": 0.373079,
+          "ratio": 5.9288529383720565
         }
       ],
-      "ci_hi_improve_pct": 36.401,
-      "ci_hi_ratio": 0.8563,
-      "ci_lo_improve_pct": 14.37,
-      "ci_lo_ratio": 0.635986,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 18.677,
+      "ci_hi_ratio": 1.655415,
+      "ci_lo_improve_pct": -65.542,
+      "ci_lo_ratio": 0.813226,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 25.637,
-      "geomean_ratio": 0.743629,
+      "geomean_improve_pct": -5.081,
+      "geomean_ratio": 1.050812,
       "n_cells": 9,
       "policy": "GRASP"
     },
@@ -1771,57 +1715,57 @@
           "graph": "com-orkut",
           "l3_size": "1MB",
           "mr_lru": 0.741545,
-          "mr_policy": 0.699313,
-          "ratio": 0.9430486349446088
+          "mr_policy": 0.716069,
+          "ratio": 0.9656447012656008
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
           "mr_lru": 0.567614,
-          "mr_policy": 0.527796,
-          "ratio": 0.9298502151109734
+          "mr_policy": 0.549366,
+          "ratio": 0.9678513919670764
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
           "mr_lru": 0.506299,
-          "mr_policy": 0.339212,
-          "ratio": 0.6699835472714739
+          "mr_policy": 0.395845,
+          "ratio": 0.7818403749563004
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
           "mr_lru": 0.798646,
-          "mr_policy": 0.681907,
-          "ratio": 0.8538288553376591
+          "mr_policy": 0.703314,
+          "ratio": 0.8806329713039319
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
           "mr_lru": 0.575481,
-          "mr_policy": 0.490627,
-          "ratio": 0.8525511702384613
+          "mr_policy": 0.510698,
+          "ratio": 0.8874280819001843
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
           "mr_lru": 0.468595,
-          "mr_policy": 0.375347,
-          "ratio": 0.8010051323637682
+          "mr_policy": 0.402011,
+          "ratio": 0.8579071479635934
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
           "mr_lru": 0.728107,
-          "mr_policy": 0.641433,
-          "ratio": 0.880959803984854
+          "mr_policy": 0.663401,
+          "ratio": 0.9111311936295078
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
           "mr_lru": 0.463819,
-          "mr_policy": 0.311977,
-          "ratio": 0.6726266064995182
+          "mr_policy": 0.36689,
+          "ratio": 0.7910197727993032
         },
         {
           "graph": "soc-pokec",
@@ -1831,15 +1775,15 @@
           "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 23.576,
-      "ci_hi_ratio": 0.910249,
-      "ci_lo_improve_pct": 8.975,
-      "ci_lo_ratio": 0.764242,
+      "ci_hi_improve_pct": 15.574,
+      "ci_hi_ratio": 0.93889,
+      "ci_lo_improve_pct": 6.111,
+      "ci_lo_ratio": 0.844261,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 16.237,
-      "geomean_ratio": 0.83763,
+      "geomean_improve_pct": 10.923,
+      "geomean_ratio": 0.890768,
       "n_cells": 9,
       "policy": "POPT"
     },
@@ -2029,22 +1973,22 @@
           "graph": "com-orkut",
           "l3_size": "1MB",
           "mr_lru": 0.742564,
-          "mr_policy": 0.635334,
-          "ratio": 0.8555949386180853
+          "mr_policy": 0.673781,
+          "ratio": 0.9073709471506832
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
           "mr_lru": 0.345609,
-          "mr_policy": 0.224549,
-          "ratio": 0.649719770029137
+          "mr_policy": 0.261308,
+          "ratio": 0.7560798474576761
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
           "mr_lru": 0.185573,
-          "mr_policy": 0.119728,
-          "ratio": 0.6451800639101594
+          "mr_policy": 0.132645,
+          "ratio": 0.7147860949599351
         },
         {
           "graph": "email-Eu-core",
@@ -2071,54 +2015,54 @@
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
           "mr_lru": 0.765369,
-          "mr_policy": 0.631166,
-          "ratio": 0.8246558196111942
+          "mr_policy": 0.664212,
+          "ratio": 0.8678323788917504
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
           "mr_lru": 0.461634,
-          "mr_policy": 0.30041,
-          "ratio": 0.6507536273324755
+          "mr_policy": 0.33262,
+          "ratio": 0.7205275174705503
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
           "mr_lru": 0.299897,
-          "mr_policy": 0.189314,
-          "ratio": 0.6312634004341491
+          "mr_policy": 0.204819,
+          "ratio": 0.6829644844730024
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
           "mr_lru": 0.696151,
-          "mr_policy": 0.5266,
-          "ratio": 0.7564450815986761
+          "mr_policy": 0.576095,
+          "ratio": 0.827543162331161
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
           "mr_lru": 0.209387,
-          "mr_policy": 0.124883,
-          "ratio": 0.5964219364143906
+          "mr_policy": 0.142532,
+          "ratio": 0.680710836871439
         },
         {
           "graph": "soc-pokec",
           "l3_size": "8MB",
           "mr_lru": 0.107292,
-          "mr_policy": 0.093044,
-          "ratio": 0.8672035193677069
+          "mr_policy": 0.097051,
+          "ratio": 0.904550199455691
         }
       ],
-      "ci_hi_improve_pct": 30.217,
-      "ci_hi_ratio": 0.862288,
-      "ci_lo_improve_pct": 13.771,
-      "ci_lo_ratio": 0.697826,
+      "ci_hi_improve_pct": 23.608,
+      "ci_hi_ratio": 0.898984,
+      "ci_lo_improve_pct": 10.102,
+      "ci_lo_ratio": 0.763922,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 22.42,
-      "geomean_ratio": 0.775804,
+      "geomean_improve_pct": 17.012,
+      "geomean_ratio": 0.829882,
       "n_cells": 12,
       "policy": "POPT"
     },
@@ -2308,57 +2252,57 @@
           "graph": "com-orkut",
           "l3_size": "1MB",
           "mr_lru": 0.686743,
-          "mr_policy": 0.612615,
-          "ratio": 0.8920586012525793
+          "mr_policy": 0.653656,
+          "ratio": 0.9518204044307697
         },
         {
           "graph": "com-orkut",
           "l3_size": "4MB",
           "mr_lru": 0.173036,
-          "mr_policy": 0.143065,
-          "ratio": 0.8267932684528075
+          "mr_policy": 0.187253,
+          "ratio": 1.0821620934372038
         },
         {
           "graph": "com-orkut",
           "l3_size": "8MB",
           "mr_lru": 0.016185,
-          "mr_policy": 0.017233,
-          "ratio": 1.0647513129440838
+          "mr_policy": 0.029386,
+          "ratio": 1.8156317578004322
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "1MB",
           "mr_lru": 0.743896,
-          "mr_policy": 0.670688,
-          "ratio": 0.9015883940765913
+          "mr_policy": 0.701015,
+          "ratio": 0.9423561895748869
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "4MB",
           "mr_lru": 0.383581,
-          "mr_policy": 0.31922,
-          "ratio": 0.8322101459665625
+          "mr_policy": 0.358093,
+          "ratio": 0.9335524960829655
         },
         {
           "graph": "soc-LiveJournal1",
           "l3_size": "8MB",
           "mr_lru": 0.16963,
-          "mr_policy": 0.135403,
-          "ratio": 0.7982255497258739
+          "mr_policy": 0.16912,
+          "ratio": 0.9969934563461651
         },
         {
           "graph": "soc-pokec",
           "l3_size": "1MB",
           "mr_lru": 0.671944,
-          "mr_policy": 0.582991,
-          "ratio": 0.8676184324884217
+          "mr_policy": 0.629424,
+          "ratio": 0.9367209172192921
         },
         {
           "graph": "soc-pokec",
           "l3_size": "4MB",
           "mr_lru": 0.099742,
-          "mr_policy": 0.077731,
-          "ratio": 0.7793206472699564
+          "mr_policy": 0.116955,
+          "ratio": 1.1725752441298551
         },
         {
           "graph": "soc-pokec",
@@ -2368,15 +2312,15 @@
           "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 16.933,
-      "ci_hi_ratio": 0.93863,
-      "ci_lo_improve_pct": 6.137,
-      "ci_lo_ratio": 0.830666,
-      "ci_strict_improvement_vs_lru": true,
+      "ci_hi_improve_pct": 3.601,
+      "ci_hi_ratio": 1.236206,
+      "ci_lo_improve_pct": -23.621,
+      "ci_lo_ratio": 0.963991,
+      "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "social",
-      "geomean_improve_pct": 11.953,
-      "geomean_ratio": 0.880474,
+      "geomean_improve_pct": -6.76,
+      "geomean_ratio": 1.067599,
       "n_cells": 9,
       "policy": "POPT"
     },
@@ -2503,33 +2447,33 @@
           "graph": "web-Google",
           "l3_size": "1MB",
           "mr_lru": 0.802694,
-          "mr_policy": 0.82156,
-          "ratio": 1.023503352460589
+          "mr_policy": 0.837811,
+          "ratio": 1.043748925493401
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
           "mr_lru": 0.516173,
-          "mr_policy": 0.543463,
-          "ratio": 1.0528698711478517
+          "mr_policy": 0.583008,
+          "ratio": 1.1294817822706729
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
           "mr_lru": 0.221011,
-          "mr_policy": 0.289227,
-          "ratio": 1.3086543203731942
+          "mr_policy": 0.342378,
+          "ratio": 1.5491446127115844
         }
       ],
-      "ci_hi_improve_pct": -2.35,
-      "ci_hi_ratio": 1.308654,
-      "ci_lo_improve_pct": -30.865,
-      "ci_lo_ratio": 1.023503,
+      "ci_hi_improve_pct": -4.375,
+      "ci_hi_ratio": 1.549145,
+      "ci_lo_improve_pct": -54.914,
+      "ci_lo_ratio": 1.043749,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": true,
       "family": "web",
-      "geomean_improve_pct": -12.141,
-      "geomean_ratio": 1.121406,
+      "geomean_improve_pct": -22.233,
+      "geomean_ratio": 1.222332,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2614,33 +2558,33 @@
           "graph": "web-Google",
           "l3_size": "1MB",
           "mr_lru": 0.980402,
-          "mr_policy": 0.955613,
-          "ratio": 0.9747154738566425
+          "mr_policy": 0.961868,
+          "ratio": 0.9810955098010815
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
           "mr_lru": 0.948578,
-          "mr_policy": 0.764331,
-          "ratio": 0.8057650504228434
+          "mr_policy": 0.79894,
+          "ratio": 0.8422501892306167
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
           "mr_lru": 0.819363,
-          "mr_policy": 0.737762,
-          "ratio": 0.9004092203333566
+          "mr_policy": 0.744945,
+          "ratio": 0.9091757865561418
         }
       ],
-      "ci_hi_improve_pct": 19.423,
-      "ci_hi_ratio": 0.974715,
-      "ci_lo_improve_pct": 2.528,
-      "ci_lo_ratio": 0.805765,
+      "ci_hi_improve_pct": 15.775,
+      "ci_hi_ratio": 0.981096,
+      "ci_lo_improve_pct": 1.89,
+      "ci_lo_ratio": 0.84225,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 10.907,
-      "geomean_ratio": 0.890927,
+      "geomean_improve_pct": 9.092,
+      "geomean_ratio": 0.909076,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2688,33 +2632,33 @@
           "graph": "web-Google",
           "l3_size": "1MB",
           "mr_lru": 0.585926,
-          "mr_policy": 0.539798,
-          "ratio": 0.9212733348579856
+          "mr_policy": 0.540963,
+          "ratio": 0.9232616405484652
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
           "mr_lru": 0.051919,
-          "mr_policy": 0.051919,
-          "ratio": 1.0
+          "mr_policy": 0.258265,
+          "ratio": 4.974383173789943
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
           "mr_lru": 0.051919,
-          "mr_policy": 0.051919,
-          "ratio": 1.0
+          "mr_policy": 0.167094,
+          "ratio": 3.218359367476261
         }
       ],
-      "ci_hi_improve_pct": 7.873,
-      "ci_hi_ratio": 1.0,
-      "ci_lo_improve_pct": 0.0,
-      "ci_lo_ratio": 0.921273,
+      "ci_hi_improve_pct": 7.674,
+      "ci_hi_ratio": 4.974383,
+      "ci_lo_improve_pct": -397.438,
+      "ci_lo_ratio": 0.923262,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 2.696,
-      "geomean_ratio": 0.973037,
+      "geomean_improve_pct": -145.414,
+      "geomean_ratio": 2.454141,
       "n_cells": 3,
       "policy": "GRASP"
     },
@@ -2725,8 +2669,8 @@
           "graph": "web-Google",
           "l3_size": "1MB",
           "mr_lru": 0.585926,
-          "mr_policy": 0.496614,
-          "ratio": 0.8475711949973206
+          "mr_policy": 0.531391,
+          "ratio": 0.9069251065834252
         },
         {
           "graph": "web-Google",
@@ -2743,15 +2687,15 @@
           "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 15.243,
+      "ci_hi_improve_pct": 9.307,
       "ci_hi_ratio": 1.0,
       "ci_lo_improve_pct": 0.0,
-      "ci_lo_ratio": 0.847571,
+      "ci_lo_ratio": 0.906925,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 5.363,
-      "geomean_ratio": 0.946365,
+      "geomean_improve_pct": 3.204,
+      "geomean_ratio": 0.967959,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2836,33 +2780,33 @@
           "graph": "web-Google",
           "l3_size": "1MB",
           "mr_lru": 0.598361,
-          "mr_policy": 0.384029,
-          "ratio": 0.6418015211552892
+          "mr_policy": 0.429859,
+          "ratio": 0.7183940798280636
         },
         {
           "graph": "web-Google",
           "l3_size": "4MB",
           "mr_lru": 0.142111,
-          "mr_policy": 0.114921,
-          "ratio": 0.8086706869981916
+          "mr_policy": 0.125794,
+          "ratio": 0.8851813019400327
         },
         {
           "graph": "web-Google",
           "l3_size": "8MB",
           "mr_lru": 0.097157,
-          "mr_policy": 0.084351,
-          "ratio": 0.8681927190012042
+          "mr_policy": 0.087661,
+          "ratio": 0.9022612884300669
         }
       ],
-      "ci_hi_improve_pct": 35.82,
-      "ci_hi_ratio": 0.868193,
-      "ci_lo_improve_pct": 13.181,
-      "ci_lo_ratio": 0.641802,
+      "ci_hi_improve_pct": 28.161,
+      "ci_hi_ratio": 0.902261,
+      "ci_lo_improve_pct": 9.774,
+      "ci_lo_ratio": 0.718394,
       "ci_strict_improvement_vs_lru": true,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 23.335,
-      "geomean_ratio": 0.766648,
+      "geomean_improve_pct": 16.905,
+      "geomean_ratio": 0.830952,
       "n_cells": 3,
       "policy": "POPT"
     },
@@ -2947,8 +2891,8 @@
           "graph": "web-Google",
           "l3_size": "1MB",
           "mr_lru": 0.663779,
-          "mr_policy": 0.641996,
-          "ratio": 0.9671833547008869
+          "mr_policy": 0.686587,
+          "ratio": 1.034360833952264
         },
         {
           "graph": "web-Google",
@@ -2965,15 +2909,15 @@
           "ratio": 1.0
         }
       ],
-      "ci_hi_improve_pct": 3.282,
-      "ci_hi_ratio": 1.0,
-      "ci_lo_improve_pct": 0.0,
-      "ci_lo_ratio": 0.967183,
+      "ci_hi_improve_pct": 0.0,
+      "ci_hi_ratio": 1.034361,
+      "ci_lo_improve_pct": -3.436,
+      "ci_lo_ratio": 1.0,
       "ci_strict_improvement_vs_lru": false,
       "ci_strict_regression_vs_lru": false,
       "family": "web",
-      "geomean_improve_pct": 1.106,
-      "geomean_ratio": 0.988939,
+      "geomean_improve_pct": -1.132,
+      "geomean_ratio": 1.011325,
       "n_cells": 3,
       "policy": "POPT"
     },

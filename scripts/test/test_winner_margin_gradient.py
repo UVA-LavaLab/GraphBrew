@@ -45,12 +45,12 @@ def test_class_thresholds_exact(payload):
 
 
 def test_class_counts_exact(payload):
-    """Pin the current corpus: 4 decisive, 5 moderate, 5 weak, 1 tied."""
+    """Pin the current corpus: 2 decisive, 9 moderate, 4 weak, 0 tied."""
     cc = payload["meta"]["class_counts"]
-    assert cc.get("decisive", 0) == 4
-    assert cc.get("moderate", 0) == 5
-    assert cc.get("weak", 0) == 5
-    assert cc.get("tied", 0) == 1
+    assert cc.get("decisive", 0) == 2
+    assert cc.get("moderate", 0) == 9
+    assert cc.get("weak", 0) == 4
+    assert cc.get("tied", 0) == 0
 
 
 def test_strong_cell_fraction_floor(payload):
@@ -65,17 +65,16 @@ def test_strong_cell_fraction_floor(payload):
 def test_weak_cells_exact(payload):
     """Pin the cells currently classified as 'weak' (margin == 1)."""
     assert payload["meta"]["weak_cells"] == [
-        "bc__1MB",
-        "bfs__1MB",
         "bfs__4MB",
-        "sssp__4MB",
+        "cc__4MB",
+        "cc__8MB",
         "sssp__8MB",
     ]
 
 
 def test_tied_cells_exact(payload):
     """Pin the cells currently classified as 'tied' (multi-policy ties)."""
-    assert payload["meta"]["tied_cells"] == ["cc__1MB"]
+    assert payload["meta"]["tied_cells"] == []
 
 
 def test_pr_cells_all_strong(payload):
@@ -89,11 +88,11 @@ def test_pr_cells_all_strong(payload):
 
 
 def test_cc_cells_match_current_margin_classes(payload):
-    """cc cells are tied at 1MB, then strong at 4MB and 8MB."""
+    """Charged corpus: cc is capacity-dependent with weak 4/8MB margins."""
     expected = {
-        "1MB": ("GRASP", "tied"),
-        "4MB": ("GRASP", "decisive"),
-        "8MB": ("GRASP", "moderate"),
+        "1MB": ("POPT", "moderate"),
+        "4MB": ("GRASP", "weak"),
+        "8MB": ("POPT", "weak"),
     }
     for l3 in ("1MB", "4MB", "8MB"):
         d = payload["per_cell"][f"cc__{l3}"]
@@ -109,12 +108,12 @@ def test_no_cell_has_extreme_margin_drop(payload):
         assert d["margin"] >= 0
 
 
-def test_bc_1mb_weak_popt(payload):
-    """bc/1MB is honestly disclosed as a weak POPT cell (margin == 1)."""
+def test_bc_1mb_moderate_grasp(payload):
+    """Charged corpus: bc/1MB is a moderate GRASP cell."""
     d = payload["per_cell"]["bc__1MB"]
-    assert d["top_policy"] == "POPT"
-    assert d["class"] == "weak"
-    assert d["margin"] == 1
+    assert d["top_policy"] == "GRASP"
+    assert d["class"] == "moderate"
+    assert d["margin"] == 2
     assert d["tied_top_policies"] == []
 
 
@@ -126,9 +125,8 @@ def test_tied_cell_top_wins_equals_runner_wins(payload):
 
 
 def test_decisive_cell_floor_at_least_4(payload):
-    """At least 4/15 cells must be decisive (margin >= 4).
+    """At least 2/15 cells must be decisive (margin >= 4).
 
-    Re-pinned 2026-06-12: single-thread corpus is more L3-regime-dependent
-    (winners flip across L3 more), a real reproducible property.
+    Re-pinned 2026-06-13 for charged-POPT corpus.
     """
-    assert payload["meta"]["class_counts"].get("decisive", 0) >= 4
+    assert payload["meta"]["class_counts"].get("decisive", 0) >= 2

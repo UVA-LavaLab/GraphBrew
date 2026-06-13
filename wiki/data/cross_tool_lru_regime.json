@@ -21,9 +21,9 @@
     "subwss_tolerance_pp": 0.2,
     "tool_results": {
       "cache-sim": {
-        "grasp_pp_oct": -14.7124,
+        "grasp_pp_oct": -13.0117,
         "lru_pp_oct": -15.6105,
-        "lru_minus_grasp_pp_oct": -0.8981,
+        "lru_minus_grasp_pp_oct": -2.5988,
         "l3_min_kb": 1024.0,
         "l3_max_kb": 8192.0,
         "regime": "post-WSS"

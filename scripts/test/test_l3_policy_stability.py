@@ -50,19 +50,16 @@ def test_paper_l3_sizes_present_for_every_app(payload):
         assert not missing, f"{app} missing L3 sizes {missing}: have {l3_present}"
 
 
-def test_cc_grasp_gray_zone_across_l3(payload):
-    """cc/GRASP is a gray-zone: tied at 1MB, GRASP wins 4MB and 8MB."""
+def test_cc_is_regime_change_across_l3(payload):
+    """Charged corpus: cc is graph/capacity-dependent (POPT, GRASP, POPT)."""
     stab = payload["per_app"]["cc"]["stability"]
     assert not stab["is_stable_single_winner"], f"cc unexpectedly stable: {stab}"
-    assert not stab["has_regime_change"], f"cc unexpectedly regime-changed: {stab}"
-    assert stab["unique_top_policies_at_paper_l3"] == ["GRASP"], stab
+    assert stab["has_regime_change"], f"cc no longer regime-changed: {stab}"
+    assert stab["unique_top_policies_at_paper_l3"] == ["GRASP", "POPT"], stab
     l3 = payload["per_app"]["cc"]["l3"]
-    assert l3["1MB"]["top_policy"] == "GRASP"
-    assert not l3["1MB"]["unique_winner"], f"cc/1MB no longer tied: {l3['1MB']}"
-    for size in ("4MB", "8MB"):
-        row = l3[size]
-        assert row["top_policy"] == "GRASP", f"cc/{size}: {row}"
-        assert row["unique_winner"], f"cc/{size} tied: {row}"
+    assert l3["1MB"]["top_policy"] == "POPT"
+    assert l3["4MB"]["top_policy"] == "GRASP"
+    assert l3["8MB"]["top_policy"] == "POPT"
 
 
 def test_pr_popt_stable_single_winner_across_l3(payload):
@@ -102,14 +99,12 @@ def test_sssp_lacks_stable_single_winner(payload):
     )
 
 
-def test_bc_has_regime_change(payload):
-    """bc now regime-changes: POPT at 1MB, GRASP at 4MB/8MB."""
+def test_bc_grasp_stable_single_winner(payload):
+    """Charged corpus: bc is the clean GRASP counter-kernel across paper L3s."""
     stab = payload["per_app"]["bc"]["stability"]
-    assert not stab["is_stable_single_winner"], (
-        f"bc NEWLY stable single winner: {stab}. Update claims."
-    )
-    assert stab["has_regime_change"], f"bc no longer regime-changes: {stab}"
-    assert stab["unique_top_policies_at_paper_l3"] == ["GRASP", "POPT"], stab
+    assert stab["is_stable_single_winner"], stab
+    assert not stab["has_regime_change"], stab
+    assert stab["unique_top_policies_at_paper_l3"] == ["GRASP"], stab
 
 
 def test_every_unique_winner_cell_has_positive_margin(payload):
@@ -135,16 +130,12 @@ def test_top_share_consistent_with_top_wins_and_n_cells(payload):
             )
 
 
-def test_cc_grasp_at_1mb_has_tied_half_share(payload):
-    """cc/1MB is a GRASP/POPT tie at 50% top share.
-
-    Re-pinned 2026-06-12: single-thread corpus is more L3-regime-dependent
-    (winners flip across L3 more), a real reproducible property.
-    """
+def test_cc_popt_at_1mb_has_majority_share(payload):
+    """Charged corpus: cc/1MB is a unique POPT cell-vote winner."""
     row = payload["per_app"]["cc"]["l3"]["1MB"]
-    assert row["top_policy"] == "GRASP"
-    assert row["top_share"] >= 0.50, f"cc/1MB/GRASP share dropped: {row}"
-    assert not row["unique_winner"], row
+    assert row["top_policy"] == "POPT"
+    assert row["top_share"] >= 0.60, f"cc/1MB/POPT share dropped: {row}"
+    assert row["unique_winner"], row
 
 
 def test_pr_popt_at_1mb_has_strong_majority(payload):

@@ -122,19 +122,16 @@ def test_pr_popt_vs_lru_survives_holm_bonferroni(payload):
     )
 
 
-def test_cc_grasp_dominance_survives_holm_bonferroni(payload):
-    """cc/GRASP vs the BLIND baselines (LRU, SRRIP) MUST survive HB — GRASP
-    is the cc winner. At array-relative GRASP 0.15 (single-thread) the
-    GRASP-vs-POPT margin on cc is close (both are strong on cc; POPT is the
-    oracle), so GRASP-vs-POPT need NOT survive HB — only GRASP's dominance
-    over the oracle-unaware policies is the marquee cc claim."""
+def test_cc_popt_dominance_survives_holm_bonferroni(payload):
+    """Charged corpus: cc HB survivors are POPT over blind baselines; GRASP
+    no longer has a surviving cc dominance claim."""
     survivors = [
         r["label"] for r in payload["all_tests"]
         if r["holm_bonferroni_survives"]
         and r["scope"] == "app=cc"
-        and "GRASP" in r["label"]
+        and "POPT" in r["label"]
     ]
-    # Ensure GRASP appears in at least one HB-survivor cc comparison
+    # Ensure POPT appears in at least one HB-survivor cc comparison
     # against each of the blind baselines LRU and SRRIP.
     against = set()
     for label in survivors:
@@ -143,7 +140,7 @@ def test_cc_grasp_dominance_survives_holm_bonferroni(payload):
                 against.add(opp)
     missing = {"LRU", "SRRIP"} - against
     assert not missing, (
-        f"cc/GRASP dominance lost HB survival against blind baselines {missing}; "
+        f"cc/POPT dominance lost HB survival against blind baselines {missing}; "
         f"surviving labels: {survivors}"
     )
 

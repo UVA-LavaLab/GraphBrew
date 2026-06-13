@@ -100,7 +100,6 @@ KNOWN_ROAD_GRASP_WIN_CELLS = frozenset({
     ("roadNet-CA", "bfs", "64kB"),
     ("roadNet-CA", "cc", "1MB"),
     ("roadNet-CA", "cc", "256kB"),
-    ("roadNet-CA", "cc", "64kB"),
     ("roadNet-CA", "pr", "256kB"),
     ("roadNet-CA", "sssp", "16kB"),
     ("roadNet-CA", "sssp", "64kB"),

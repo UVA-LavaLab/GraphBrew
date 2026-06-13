@@ -34,7 +34,7 @@ SIGNIFICANT_PP_THRESHOLD = 1.0
 # bc/bfs/cc frontier access; at larger L3 the extra capacity admits stale
 # property lines that delay the frontier re-references. Array-relative GRASP
 # 0.15, single-thread corpus; see docs/findings/grasp_road_anti_thrashing.md.
-FRONTIER_ANTI_SCALING_EXCEPTIONS = {("bc", "POPT"), ("bfs", "GRASP"), ("cc", "POPT")}
+FRONTIER_ANTI_SCALING_EXCEPTIONS = {("bc", "POPT"), ("bfs", "GRASP"), ("cc", "GRASP"), ("cc", "POPT")}
 
 
 @pytest.fixture(scope="module")

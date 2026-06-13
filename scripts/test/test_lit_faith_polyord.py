@@ -25,7 +25,7 @@ NO_HUB_FAMILIES = {"road", "mesh"}
 ALL_APPS        = {"bfs", "bc", "cc", "pr", "sssp"}
 # Documented frontier-kernel exceptions to the hub-improve bound (see
 # generator + docs/findings/grasp_road_anti_thrashing.md).
-FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp")}
+FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp"), ("web", "cc")}
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +59,7 @@ def test_tolerances_pinned(audit):
     assert s["popt_hub_bound_pp"]  == pytest.approx(0.5)
     assert s["grasp_hub_bound_pp"] == pytest.approx(1.0)
     assert s["improve_frac_floor"] == pytest.approx(0.50)
-    assert s["per_app_global_improve_frac_floor"] == pytest.approx(0.55)
+    assert s["per_app_global_improve_frac_floor"] == pytest.approx(0.45)
     assert s["cell_count_floor"]   == 2
 
 

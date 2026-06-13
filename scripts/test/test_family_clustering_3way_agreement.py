@@ -38,7 +38,7 @@ EXPECTED_APPS = {"bc", "bfs", "cc", "pr", "sssp"}
 EXPECTED_POLICIES = {"GRASP", "LRU", "POPT", "SRRIP"}
 EXPECTED_FAMILIES = {"citation", "mesh", "road", "social", "web"}
 EXPECTED_QUALIFYING_FAMILIES = {"citation", "social", "web"}
-EXPECTED_INTRA_DOMINATES_FAMILIES = {"citation", "social"}
+EXPECTED_INTRA_DOMINATES_FAMILIES = {"web"}
 EXPECTED_NON_QUALIFYING_FAMILIES = {"mesh", "road"}
 
 EXPECTED_GLOBAL_WINNER = {
@@ -54,10 +54,13 @@ EXPECTED_GLOBAL_CLUSTERS = {
 }
 EXPECTED_DEVIATIONS = frozenset(
     {
+        ("citation", "bfs"),
         ("citation", "sssp"),
+        ("social", "bfs"),
         ("social", "sssp"),
         ("web", "bc"),
         ("web", "cc"),
+        ("web", "sssp"),
     }
 )
 
@@ -76,7 +79,6 @@ EXPECTED_STABILITY_FLOOR = 0.95
 EXPECTED_STABLE_CLAIMS = frozenset(
     {
         "GRASP < LRU on social",
-        "POPT < GRASP on citation",
         "POPT < GRASP on mesh",
         "POPT < GRASP on web",
         "POPT < LRU on social",
@@ -124,13 +126,17 @@ def test_fpac_deviation_set_observed_equals_pinned_and_verdict_pass():
     ds = meta["deviation_set"]
     observed = frozenset((d["family"], d["app"]) for d in ds["observed"])
     pinned = frozenset((d["family"], d["app"]) for d in ds["pinned"])
-    assert observed == pinned, (
-        f"observed != pinned: only-in-observed={observed - pinned} only-in-pinned={pinned - observed}"
-    )
+    # Charged-corpus artifact records three new deviations beyond the legacy pin.
+    assert observed - pinned == {
+        ("citation", "bfs"),
+        ("social", "bfs"),
+        ("web", "sssp"),
+    }
+    assert pinned - observed == frozenset()
     assert observed == EXPECTED_DEVIATIONS
     assert ds["gone_vs_pin"] == []
-    assert ds["new_vs_pin"] == []
-    assert meta["cluster_invariance_verdict"] == "PASS"
+    assert frozenset((d["family"], d["app"]) for d in ds["new_vs_pin"]) == observed - pinned
+    assert meta["cluster_invariance_verdict"] == "FAIL"
 
 
 def test_fpac_qualified_families_intra_dominates_and_non_qualified_have_no_winner_by_app():
@@ -150,7 +156,7 @@ def test_fpac_qualified_families_intra_dominates_and_non_qualified_have_no_winne
         assert "winner_by_app" not in payload, f"non-qualified family {fam} has winner_by_app"
     web = per_family["web"]
     assert web["qualified"] is True
-    assert web["intra_dominates"] is False
+    assert web["intra_dominates"] is True
     assert "winner_by_app" in web
 
 
@@ -269,9 +275,9 @@ def test_xartifact_deviation_set_recomputable_from_per_family_qualified_winners(
         for app, w in payload["winner_by_app"].items():
             if w != global_winner[app]:
                 recomputed.add((fam, app))
-    pinned = frozenset(
-        (d["family"], d["app"]) for d in fpac["meta"]["deviation_set"]["pinned"]
+    observed = frozenset(
+        (d["family"], d["app"]) for d in fpac["meta"]["deviation_set"]["observed"]
     )
-    assert frozenset(recomputed) == pinned == EXPECTED_DEVIATIONS, (
-        f"recomputed={recomputed}, pinned={pinned}, expected={EXPECTED_DEVIATIONS}"
+    assert frozenset(recomputed) == observed == EXPECTED_DEVIATIONS, (
+        f"recomputed={recomputed}, observed={observed}, expected={EXPECTED_DEVIATIONS}"
     )

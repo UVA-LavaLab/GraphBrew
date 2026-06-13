@@ -75,16 +75,14 @@ def test_cliffs_delta_symmetric_within_sign(payload):
 
 
 def test_pr_popt_dominates_lru_srrip_large_pval_zero(payload):
-    """pr/POPT vs LRU and SRRIP: d ≤ -0.80, MW p essentially 0.
+    """pr/POPT vs LRU and SRRIP: d ≤ -0.71, MW p essentially 0.
 
-    Post cache_sim ECG sweep: |d| dropped slightly from 0.85 to ~0.83
-    because more cells were added that narrow the gap. Still a large
-    effect.
+    Re-pinned 2026-06-13 for charged-POPT corpus.
     """
     for loser in ("LRU", "SRRIP"):
         c = _cmp(payload, "pr", "POPT", loser)
         assert c["magnitude"] == "large"
-        assert c["cliffs_delta_a_minus_b"] <= -0.80, (
+        assert c["cliffs_delta_a_minus_b"] <= -0.71, (
             f"pr/POPT vs {loser}: d collapsed: {c}"
         )
         assert c["mannwhitney_p"] < PVAL_STRONG, c
@@ -100,13 +98,13 @@ def test_pr_popt_beats_grasp_at_large_effect(payload):
     assert c["stochastically_smaller"] == "POPT"
 
 
-def test_cc_grasp_dominates_all_three_at_large_effect(payload):
-    """cc/GRASP beats LRU, SRRIP, POPT at |d| ≥ 0.474 and MW p < 0.01."""
-    for loser in ("LRU", "SRRIP", "POPT"):
-        c = _cmp(payload, "cc", "GRASP", loser)
-        assert c["magnitude"] == "large", f"cc/GRASP vs {loser}: {c}"
+def test_cc_popt_dominates_lru_srrip_at_large_effect(payload):
+    """Charged corpus: cc is not uniformly GRASP-favored; POPT beats blind baselines."""
+    for loser in ("LRU", "SRRIP"):
+        c = _cmp(payload, "cc", "POPT", loser)
+        assert c["magnitude"] == "large", f"cc/POPT vs {loser}: {c}"
         assert c["mannwhitney_p"] < PVAL_WEAK, c
-        assert c["stochastically_smaller"] == "GRASP"
+        assert c["stochastically_smaller"] == "POPT"
 
 
 def test_bc_grasp_beats_lru_large(payload):
@@ -116,40 +114,27 @@ def test_bc_grasp_beats_lru_large(payload):
     assert c["mannwhitney_p"] < PVAL_WEAK, c
 
 
-def test_bfs_popt_beats_lru_srrip_large(payload):
-    """bfs/POPT vs LRU/SRRIP: large effect, MW p < 0.01."""
+def test_bfs_popt_beats_lru_srrip_medium_or_better(payload):
+    """Charged corpus: bfs/POPT still beats LRU/SRRIP, but effect is medium."""
     for loser in ("LRU", "SRRIP"):
         c = _cmp(payload, "bfs", "POPT", loser)
-        assert c["magnitude"] == "large", f"bfs/POPT vs {loser}: {c}"
+        assert c["magnitude"] in {"medium", "large"}, f"bfs/POPT vs {loser}: {c}"
         assert c["mannwhitney_p"] < PVAL_WEAK, c
 
 
-def test_sssp_has_no_large_effect_on_raw_gaps(payload):
-    """sssp shows no |d| ≥ 0.474 dominance pair — pins the kernel where
-    even raw-gap distributions don't separate policies cleanly. Mirrors
-    the same finding from Cohen's h on win-rates (gate 37)."""
-    sssp_large = [
-        c
-        for c in payload["per_app"]["sssp"]["comparisons"]
-        if c["magnitude"] == "large"
-    ]
-    if sssp_large:
-        pytest.fail(
-            f"sssp NEWLY has large-effect raw-gap dominance ({sssp_large}). "
-            f"Update claim docs and re-run gates 37+38 together."
-        )
+def test_sssp_grasp_large_effect_vs_lru_popt(payload):
+    """Charged corpus: sssp now has large raw-gap separation favoring GRASP."""
+    for loser in ("LRU", "POPT"):
+        c = _cmp(payload, "sssp", "GRASP", loser)
+        assert c["magnitude"] == "large", c
+        assert c["stochastically_smaller"] == "GRASP"
 
 
-def test_cc_grasp_beats_popt_on_gaps(payload):
-    """The cc-counter-narrative at array-relative GRASP 0.15 (single-thread):
-    POPT (the oracle) now beats the blind LRU/SRRIP on cc, but GRASP beats
-    POPT — CC's union-find is edge-driven and misaligns with P-OPT's static
-    PR-rank rereference schedule. Enforce the GRASP-better-than-POPT direction
-    on cc (POPT-vs-baseline is no longer the load-bearing cc check)."""
+def test_cc_grasp_vs_popt_is_diagnostic_not_claim(payload):
+    """Charged corpus: cc POPT-vs-GRASP is weak and graph-dependent."""
     c = _cmp(payload, "cc", "GRASP", "POPT")
-    assert c["stochastically_smaller"] == "GRASP", (
-        f"cc GRASP-vs-POPT no longer favors GRASP: {c}"
-    )
+    assert c["magnitude"] == "negligible", c
+    assert c["mannwhitney_p"] > 0.05, c
 
 
 def test_large_negative_deltas_list_sorted_ascending(payload):

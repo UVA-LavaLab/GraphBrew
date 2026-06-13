@@ -1,8 +1,6 @@
 {
   "meta": {
-    "deviating_families": [
-      "social"
-    ],
+    "deviating_families": [],
     "help_floor_pp_octave": -5.0,
     "l3_axis": [
       "1MB",
@@ -32,7 +30,7 @@
       "social",
       "web"
     ],
-    "replay_count": 2,
+    "replay_count": 3,
     "verdict": "PASS",
     "verdict_invariant": "PASS iff at least one family replays the pattern (LRU and SRRIP both strictly steeper than GRASP, every policy median < -5.0 pp/octave) AND no NEW deviating family appears beyond the pinned set."
   },
@@ -44,8 +42,8 @@
         "GRASP": {
           "is_oracle_aware": true,
           "max_pp": -3.4408,
-          "mean_pp": -13.2906,
-          "median_pp": -14.4638,
+          "mean_pp": -13.3623,
+          "median_pp": -14.8225,
           "min_pp": -19.6969,
           "n_cells": 5
         },
@@ -59,10 +57,10 @@
         },
         "POPT": {
           "is_oracle_aware": true,
-          "max_pp": -4.2156,
-          "mean_pp": -12.9219,
-          "median_pp": -13.5026,
-          "min_pp": -19.8836,
+          "max_pp": -3.7538,
+          "mean_pp": -12.4568,
+          "median_pp": -13.6518,
+          "min_pp": -18.5589,
           "n_cells": 5
         },
         "SRRIP": {
@@ -79,13 +77,13 @@
     },
     "social": {
       "all_policies_helped": true,
-      "lru_steeper_than_grasp": false,
+      "lru_steeper_than_grasp": true,
       "per_policy": {
         "GRASP": {
           "is_oracle_aware": true,
           "max_pp": 0.0,
-          "mean_pp": -11.6632,
-          "median_pp": -14.261,
+          "mean_pp": -10.9815,
+          "median_pp": -13.0117,
           "min_pp": -19.6472,
           "n_cells": 18
         },
@@ -100,9 +98,9 @@
         "POPT": {
           "is_oracle_aware": true,
           "max_pp": 0.0,
-          "mean_pp": -11.6931,
-          "median_pp": -12.8713,
-          "min_pp": -20.3648,
+          "mean_pp": -11.8259,
+          "median_pp": -12.3883,
+          "min_pp": -21.5501,
           "n_cells": 18
         },
         "SRRIP": {
@@ -114,8 +112,8 @@
           "n_cells": 18
         }
       },
-      "replays_pattern": false,
-      "srrip_steeper_than_grasp": false
+      "replays_pattern": true,
+      "srrip_steeper_than_grasp": true
     },
     "web": {
       "all_policies_helped": true,
@@ -124,8 +122,8 @@
         "GRASP": {
           "is_oracle_aware": true,
           "max_pp": -1.0906,
-          "mean_pp": -13.9518,
-          "median_pp": -17.4242,
+          "mean_pp": -13.0072,
+          "median_pp": -12.7012,
           "min_pp": -20.927,
           "n_cells": 5
         },
@@ -139,10 +137,10 @@
         },
         "POPT": {
           "is_oracle_aware": true,
-          "max_pp": -7.5906,
-          "mean_pp": -14.6486,
-          "median_pp": -15.882,
-          "min_pp": -22.0899,
+          "max_pp": -7.3616,
+          "mean_pp": -15.2185,
+          "median_pp": -15.9753,
+          "min_pp": -23.6825,
           "n_cells": 5
         },
         "SRRIP": {

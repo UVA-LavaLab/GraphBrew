@@ -5,27 +5,28 @@ Per-family re-derivation of the AUC winner and Pearson correlation clusters from
 - source: `wiki/data/oracle_gap.json`
 - qualifying families (full L3 coverage): ['citation', 'social', 'web']
 - global clusters: GRASP-friendly=['bc', 'cc'], POPT-friendly=['bfs', 'pr', 'sssp']
-- min winners matching across qualifying families: **3** / 5
-- qualifying families where intra > inter correlation: **2** / 3
-- verdict: **PASS**
-- pinned deviations: 4 / observed: 4 / max allowed: 4
+- min winners matching across qualifying families: **2** / 5
+- qualifying families where intra > inter correlation: **1** / 3
+- verdict: **FAIL**
+- pinned deviations: 4 / observed: 7 / max allowed: 4
+- NEW deviations vs pin: [{'family': 'citation', 'app': 'bfs'}, {'family': 'social', 'app': 'bfs'}, {'family': 'web', 'app': 'sssp'}]
 
 ## Per-family winner replay
 
 | family | n_graphs | qualified | winners matching | intra-r | inter-r | gap |
 | --- | ---: | :---: | ---: | ---: | ---: | ---: |
-| citation | 1 | ✅ | 4/5 | 0.9362 | 0.9176 | 0.0186 |
+| citation | 1 | ✅ | 3/5 | 0.6769 | 0.7585 | -0.0816 |
 | mesh | 1 | ❌ | — | — | — | — |
 | road | 1 | ❌ | — | — | — | — |
-| social | 4 | ✅ | 4/5 | 0.9618 | 0.8916 | 0.0702 |
-| web | 1 | ✅ | 3/5 | -0.0851 | 0.0569 | -0.142 |
+| social | 4 | ✅ | 3/5 | 0.7157 | 0.8033 | -0.0876 |
+| web | 1 | ✅ | 2/5 | -0.056 | -0.0748 | 0.0188 |
 
 ### citation — winner-by-app vs global
 
 | app | family winner | global winner | match |
 | --- | --- | --- | :---: |
 | bc | GRASP | GRASP | ✅ |
-| bfs | POPT | POPT | ✅ |
+| bfs | GRASP | POPT | ❌ |
 | cc | GRASP | GRASP | ✅ |
 | pr | POPT | POPT | ✅ |
 | sssp | GRASP | POPT | ❌ |
@@ -35,7 +36,7 @@ Per-family re-derivation of the AUC winner and Pearson correlation clusters from
 | app | family winner | global winner | match |
 | --- | --- | --- | :---: |
 | bc | GRASP | GRASP | ✅ |
-| bfs | POPT | POPT | ✅ |
+| bfs | GRASP | POPT | ❌ |
 | cc | GRASP | GRASP | ✅ |
 | pr | POPT | POPT | ✅ |
 | sssp | GRASP | POPT | ❌ |
@@ -48,4 +49,4 @@ Per-family re-derivation of the AUC winner and Pearson correlation clusters from
 | bfs | POPT | POPT | ✅ |
 | cc | POPT | GRASP | ❌ |
 | pr | POPT | POPT | ✅ |
-| sssp | POPT | POPT | ✅ |
+| sssp | SRRIP | POPT | ❌ |

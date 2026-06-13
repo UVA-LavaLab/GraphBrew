@@ -19,11 +19,11 @@
     "cache_sim": {
       "present": true,
       "source": "capacity_sensitivity.json",
-      "grasp_median": -14.7124,
+      "grasp_median": -13.0117,
       "srrip_median": -15.5996,
       "lru_median": -15.6105,
-      "srrip_minus_grasp_pp_oct": -0.8872,
-      "lru_minus_grasp_pp_oct": -0.8981,
+      "srrip_minus_grasp_pp_oct": -2.5879,
+      "lru_minus_grasp_pp_oct": -2.5988,
       "srrip_steeper": true,
       "srrip_strictly_steeper": true
     },

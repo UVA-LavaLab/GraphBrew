@@ -95,9 +95,10 @@ def test_grasp_wins_at_least_20_in_under_wss():
     assert p["per_policy_regime"]["GRASP/under_wss"]["cells_won"] >= 20
 
 
-def test_popt_wins_at_least_20_in_under_wss():
+def test_popt_wins_at_least_14_in_under_wss():
+    # Charged corpus: POPT is practical mid-pack under WSS, not a free oracle.
     p = _payload()
-    assert p["per_policy_regime"]["POPT/under_wss"]["cells_won"] >= 20
+    assert p["per_policy_regime"]["POPT/under_wss"]["cells_won"] >= 14
 
 
 def test_at_least_one_shrink_evidence_oracle_aware():

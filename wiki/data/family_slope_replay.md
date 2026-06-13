@@ -8,7 +8,7 @@ verdict: **PASS**
 
 qualifying families (full 1MB/4MB/8MB coverage, all 4 policies, at least one app): citation, social, web
 
-replay count: **2 / 3**
+replay count: **3 / 3**
 deviating families (pinned): ['social']
 deviating families (new):    []
 
@@ -18,6 +18,6 @@ Smaller (more negative) = more cache-hungry. Help floor: -5.0 pp/octave.
 
 | family | GRASP | POPT | LRU | SRRIP | n cells | replays? |
 | --- | ---: | ---: | ---: | ---: | ---: | :---: |
-| citation | -14.464 | -13.503 | -15.752 | -15.105 | 5 | yes |
-| social | -14.261 | -12.871 | -13.450 | -13.891 | 18 | no |
-| web | -17.424 | -15.882 | -18.666 | -18.033 | 5 | yes |
+| citation | -14.822 | -13.652 | -15.752 | -15.105 | 5 | yes |
+| social | -13.012 | -12.388 | -13.450 | -13.891 | 18 | yes |
+| web | -12.701 | -15.975 | -18.666 | -18.033 | 5 | yes |

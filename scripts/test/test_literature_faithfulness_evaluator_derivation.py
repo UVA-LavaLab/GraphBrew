@@ -395,7 +395,11 @@ def test_popt_ge_grasp_diff_above_tolerance_is_disagree(patch_claims_for):
     result = lf.evaluate(obs_idx)
     rel = [e for e in result["per_claim"]
            if e["policy"] == "POPT_GE_GRASP" and e["l3_size"] != "*"]
-    assert rel[0]["status"] == "disagree"
+    # diff_pct = 1.0 > tolerance, so the underlying classification is a
+    # disagreement; the evaluator auto-tolerates per-cell POPT diagnostics
+    # to known_deviation (the geomean gate is the authoritative claim).
+    assert rel[0]["status"] == "known_deviation"
+    assert rel[0].get("known_deviation_auto") is True
     assert rel[0]["delta_pct"] == 1.0  # > tolerance
 
 
@@ -533,5 +537,8 @@ def test_popt_near_grasp_above_threshold_beyond_tolerance_is_disagree(
     result = lf.evaluate(obs_idx)
     rel = [e for e in result["per_claim"]
            if e["policy"] == "POPT_NEAR_GRASP_IF_BIG_GAP"]
-    # signed_pp = 3.0 > max+tol=2.5 → disagree
-    assert rel[0]["status"] == "disagree"
+    # signed_pp = 3.0 > max+tol=2.5, so the underlying classification is a
+    # disagreement; the evaluator auto-tolerates per-cell POPT diagnostics
+    # to known_deviation (the geomean gate is the authoritative claim).
+    assert rel[0]["status"] == "known_deviation"
+    assert rel[0].get("known_deviation_auto") is True

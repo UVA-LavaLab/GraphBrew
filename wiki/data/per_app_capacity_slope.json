@@ -39,9 +39,9 @@
         },
         "POPT": {
           "max_pp": 0.0,
-          "mean_pp": -11.8128,
-          "median_pp": -12.8713,
-          "min_pp": -19.4155,
+          "mean_pp": -11.1867,
+          "median_pp": -12.3882,
+          "min_pp": -18.5586,
           "n_cells": 6
         },
         "SRRIP": {
@@ -69,9 +69,9 @@
         },
         "POPT": {
           "max_pp": 0.0,
-          "mean_pp": -5.0588,
-          "median_pp": -5.9031,
-          "min_pp": -9.4604,
+          "mean_pp": -4.9999,
+          "median_pp": -5.5577,
+          "min_pp": -9.5924,
           "n_cells": 6
         },
         "SRRIP": {
@@ -84,10 +84,10 @@
       },
       "cc": {
         "GRASP": {
-          "max_pp": -12.7939,
-          "mean_pp": -15.2469,
-          "median_pp": -14.4638,
-          "min_pp": -17.9912,
+          "max_pp": -9.2049,
+          "mean_pp": -11.92,
+          "median_pp": -12.7012,
+          "min_pp": -14.8225,
           "n_cells": 5
         },
         "LRU": {
@@ -98,10 +98,10 @@
           "n_cells": 5
         },
         "POPT": {
-          "max_pp": -10.1251,
-          "mean_pp": -13.9811,
-          "median_pp": -13.5026,
-          "min_pp": -18.882,
+          "max_pp": -9.9845,
+          "mean_pp": -14.0749,
+          "median_pp": -13.6518,
+          "min_pp": -19.2744,
           "n_cells": 5
         },
         "SRRIP": {
@@ -129,9 +129,9 @@
         },
         "POPT": {
           "max_pp": 0.0,
-          "mean_pp": -12.8131,
-          "median_pp": -15.1218,
-          "min_pp": -18.4848,
+          "mean_pp": -13.5239,
+          "median_pp": -16.139,
+          "min_pp": -18.5095,
           "n_cells": 6
         },
         "SRRIP": {
@@ -158,10 +158,10 @@
           "n_cells": 5
         },
         "POPT": {
-          "max_pp": -17.8043,
-          "mean_pp": -20.0629,
-          "median_pp": -20.1719,
-          "min_pp": -22.0899,
+          "max_pp": -17.6464,
+          "mean_pp": -20.5211,
+          "median_pp": -21.1677,
+          "min_pp": -23.6825,
           "n_cells": 5
         },
         "SRRIP": {
@@ -176,11 +176,11 @@
     "per_app_median_of_medians_pp": {
       "bc": -13.6679,
       "bfs": -3.3845,
-      "cc": -14.7846,
-      "pr": -16.4247,
-      "sssp": -20.9986
+      "cc": -14.3787,
+      "pr": -16.6467,
+      "sssp": -21.4965
     },
-    "per_app_median_range_pp": 17.6141,
+    "per_app_median_range_pp": 18.112,
     "pinned_deviating_apps": [],
     "policies": [
       "GRASP",
@@ -211,7 +211,7 @@
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -8.5229
+      "slope_pp": -7.8099
     },
     {
       "app": "bc",
@@ -239,7 +239,7 @@
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -13.3418
+      "slope_pp": -12.8978
     },
     {
       "app": "bc",
@@ -295,7 +295,7 @@
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -12.4008
+      "slope_pp": -11.8787
     },
     {
       "app": "bc",
@@ -323,7 +323,7 @@
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -19.4155
+      "slope_pp": -18.5586
     },
     {
       "app": "bc",
@@ -351,7 +351,7 @@
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -17.1959
+      "slope_pp": -15.9753
     },
     {
       "app": "bc",
@@ -379,7 +379,7 @@
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -4.2156
+      "slope_pp": -3.7538
     },
     {
       "app": "bfs",
@@ -407,7 +407,7 @@
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -0.8434
+      "slope_pp": -0.6835
     },
     {
       "app": "bfs",
@@ -463,7 +463,7 @@
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -9.4604
+      "slope_pp": -9.5924
     },
     {
       "app": "bfs",
@@ -491,7 +491,7 @@
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -8.2426
+      "slope_pp": -8.6079
     },
     {
       "app": "bfs",
@@ -519,7 +519,7 @@
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -7.5906
+      "slope_pp": -7.3616
     },
     {
       "app": "bfs",
@@ -533,7 +533,7 @@
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -14.4638
+      "slope_pp": -14.8225
     },
     {
       "app": "cc",
@@ -547,7 +547,7 @@
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -13.5026
+      "slope_pp": -13.6518
     },
     {
       "app": "cc",
@@ -561,7 +561,7 @@
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -12.7939
+      "slope_pp": -9.2049
     },
     {
       "app": "cc",
@@ -575,7 +575,7 @@
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -11.5137
+      "slope_pp": -10.34
     },
     {
       "app": "cc",
@@ -589,7 +589,7 @@
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -13.5612
+      "slope_pp": -13.2124
     },
     {
       "app": "cc",
@@ -603,7 +603,7 @@
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -10.1251
+      "slope_pp": -9.9845
     },
     {
       "app": "cc",
@@ -617,7 +617,7 @@
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -17.9912
+      "slope_pp": -9.659
     },
     {
       "app": "cc",
@@ -631,7 +631,7 @@
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -18.882
+      "slope_pp": -19.2744
     },
     {
       "app": "cc",
@@ -645,7 +645,7 @@
       "graph": "web-Google",
       "n_points": 3,
       "policy": "GRASP",
-      "slope_pp": -17.4242
+      "slope_pp": -12.7012
     },
     {
       "app": "cc",
@@ -659,7 +659,7 @@
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -15.882
+      "slope_pp": -17.124
     },
     {
       "app": "cc",
@@ -687,7 +687,7 @@
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -18.4848
+      "slope_pp": -18.5095
     },
     {
       "app": "pr",
@@ -715,7 +715,7 @@
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -17.6658
+      "slope_pp": -18.4073
     },
     {
       "app": "pr",
@@ -771,7 +771,7 @@
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -14.9869
+      "slope_pp": -15.494
     },
     {
       "app": "pr",
@@ -799,7 +799,7 @@
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -15.2567
+      "slope_pp": -16.7839
     },
     {
       "app": "pr",
@@ -827,7 +827,7 @@
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -10.4844
+      "slope_pp": -11.949
     },
     {
       "app": "pr",
@@ -855,7 +855,7 @@
       "graph": "cit-Patents",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -19.8836
+      "slope_pp": -18.5589
     },
     {
       "app": "sssp",
@@ -883,7 +883,7 @@
       "graph": "com-orkut",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -20.3648
+      "slope_pp": -21.1677
     },
     {
       "app": "sssp",
@@ -911,7 +911,7 @@
       "graph": "soc-LiveJournal1",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -17.8043
+      "slope_pp": -17.6464
     },
     {
       "app": "sssp",
@@ -939,7 +939,7 @@
       "graph": "soc-pokec",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -20.1719
+      "slope_pp": -21.5501
     },
     {
       "app": "sssp",
@@ -967,7 +967,7 @@
       "graph": "web-Google",
       "n_points": 3,
       "policy": "POPT",
-      "slope_pp": -22.0899
+      "slope_pp": -23.6825
     },
     {
       "app": "sssp",

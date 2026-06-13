@@ -372,15 +372,16 @@ def test_total_winner_cells_matches_oracle_winner_count(published, oracle_rows):
 # ---------------------------------------------------------------------------
 
 
-def test_cc_grasp_gray_zone_if_present(published):
-    # Documented claim: cc is tied at 1MB, with GRASP the only unique paper-L3 winner.
+def test_cc_charged_regime_change_if_present(published):
+    # Charged corpus: cc alternates POPT→GRASP→POPT across paper L3 sizes.
     cc = published["per_app"].get("cc")
     if cc is None:
         pytest.skip("cc not in corpus")
     s = cc["stability"]
     assert not s["is_stable_single_winner"], s
-    assert not s["has_regime_change"], s
-    assert s["unique_top_policies_at_paper_l3"] == ["GRASP"], s
+    assert s["has_regime_change"], s
+    assert s["paper_l3_tops"] == ["POPT", "GRASP", "POPT"], s
+    assert s["unique_top_policies_at_paper_l3"] == ["GRASP", "POPT"], s
 
 
 def test_pr_popt_wins_all_paper_l3_if_present(published):

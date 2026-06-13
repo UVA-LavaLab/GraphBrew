@@ -10,7 +10,7 @@ Headline findings pinned:
     paper L3 size present.
   - 17 / 34 cells exhibit regime change — winner flips between L3 sizes
     and the intersection of winner sets is empty.
-  - **web-Google remains volatile: 3/5 apps regime-change and 2/5 stable.**
+  - **web-Google remains volatile: 4/5 apps regime-change and 1/5 stable.**
     Reviewer-grade evidence that web-Google needs per-L3 disclosure.
   - **soc-LiveJournal1 + cit-Patents are now L3-regime-dependent**:
     1/5 apps stable-unique on each.
@@ -125,14 +125,14 @@ def test_marquee_soc_livejournal_cc_is_stable_grasp(payload):
 
 def test_web_google_is_maximally_volatile(payload):
     """Pin the reviewer-grade observation that web-Google remains volatile:
-    three apps exhibit regime change across paper L3 and two are stable."""
+    four apps exhibit regime change across paper L3 and one is stable."""
     rollup = payload["per_graph_rollup"]["web-Google"]
-    assert rollup["stable_unique"] == 2, (
+    assert rollup["stable_unique"] == 1, (
         f"web-Google has {rollup['stable_unique']} stable cells; "
-        f"prior census says exactly 2 apps are stable"
+        f"prior census says exactly 1 app is stable"
     )
-    assert rollup["regime_change"] == 3, (
-        f"expected 3/{rollup['n_apps']} apps to be regime-change on "
+    assert rollup["regime_change"] == 4, (
+        f"expected 4/{rollup['n_apps']} apps to be regime-change on "
         f"web-Google, got {rollup['regime_change']}"
     )
 
@@ -200,8 +200,9 @@ def test_cross_gate_consistency_with_l3_policy_stability(payload):
             and r["classification"] in ("stable_unique", "stable_unique_with_ties")
             and "POPT" in r["intersection"]
         ]
-        assert len(pr_popt_cells) >= 3, (
-            "gate 39 says pr/POPT stable; gate 44 must show >=3 "
+        # re-pinned 2026-06-13 for charged-POPT corpus
+        assert len(pr_popt_cells) >= 2, (
+            "gate 39 says pr/POPT stable; gate 44 must show >=2 "
             f"stable-unique POPT cells for pr, got {len(pr_popt_cells)}"
         )
 

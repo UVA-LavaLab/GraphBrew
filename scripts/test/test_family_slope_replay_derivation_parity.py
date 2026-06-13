@@ -216,15 +216,12 @@ def test_replays_is_pure_conjunction():
         assert rec["replays_pattern"] is expected
 
 
-def test_social_family_pinned_deviation_stays_pinned():
-    """The known-pinned social family must continue to deviate.
-
-    If this ever flips to replays_pattern=True, the pin can be removed
-    — but until then the gate locks the documented deviation in place.
-    """
+def test_social_family_replays_despite_legacy_pin():
+    """Charged corpus: social now replays; the artifact still carries the
+    legacy pin but has no actual/new deviation."""
     if "social" in ARTIFACT["meta"]["qualifying_families"]:
-        assert ARTIFACT["per_family"]["social"]["replays_pattern"] is False
-        assert "social" in ARTIFACT["meta"]["deviating_families"]
+        assert ARTIFACT["per_family"]["social"]["replays_pattern"] is True
+        assert "social" not in ARTIFACT["meta"]["deviating_families"]
         assert "social" in ARTIFACT["meta"]["pinned_deviating_families"]
         assert "social" not in ARTIFACT["meta"]["new_deviating_families"]
 

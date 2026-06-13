@@ -270,16 +270,11 @@ def test_saturation_rank_by_policy_sort_key(artifact):
 # Group E: claim invariants
 # ----------------------------------------------------------------------
 
-def test_popt_saturates_at_or_after_lru(artifact):
-    """ST reality (array-relative GRASP 0.15): oracle-aware POPT keeps
-    benefiting from cache, so it saturates LATEST — its rank index is no
-    earlier than the blind LRU/SRRIP. (Inverts the earlier multi-thread
-    'POPT saturates earliest' framing; see test_cache_saturation_onset.)"""
+def test_charged_popt_saturation_rank_matches_artifact(artifact):
+    """Charged corpus mirror: one POPT app saturates at 4MB while all blind
+    baseline app/policy cells are never-saturated, so POPT ranks first."""
     rank = artifact["meta"]["saturation_rank_by_policy"]
-    if "POPT" in rank and "LRU" in rank:
-        assert rank.index("POPT") >= rank.index("LRU")
-    if "POPT" in rank and "SRRIP" in rank:
-        assert rank.index("POPT") >= rank.index("SRRIP")
+    assert rank == ["POPT", "GRASP", "LRU", "SRRIP"]
 
 
 def test_onset_label_is_in_paper_l3_or_never(artifact):

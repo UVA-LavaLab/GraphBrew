@@ -8,6 +8,14 @@
     "cells_total": 28,
     "flip_cells": [
       [
+        "cc",
+        "soc-pokec"
+      ],
+      [
+        "cc",
+        "web-Google"
+      ],
+      [
         "sssp",
         "com-orkut"
       ],
@@ -27,10 +35,19 @@
     ],
     "median_tau_by_pair": {
       "1MB_vs_4MB": 0.6667,
-      "1MB_vs_8MB": 0.6667,
+      "1MB_vs_8MB": 0.5,
       "4MB_vs_8MB": 0.6667
     },
-    "new_flip_cells": [],
+    "new_flip_cells": [
+      [
+        "cc",
+        "soc-pokec"
+      ],
+      [
+        "cc",
+        "web-Google"
+      ]
+    ],
     "pinned_flip_cells": [
       [
         "sssp",
@@ -51,45 +68,12 @@
       "POPT",
       "SRRIP"
     ],
-    "verdict": "PASS",
+    "verdict": "FAIL",
     "verdict_invariant": "PASS iff median 1MB_vs_8MB tau > 0 AND no NEW flip cells beyond the 3 pinned cells"
   },
   "per_cell": {
     "bc": {
       "cit-Patents": {
-        "kendall_tau": {
-          "1MB_vs_4MB": 0.6667,
-          "1MB_vs_8MB": 0.6667,
-          "4MB_vs_8MB": 1.0
-        },
-        "policies_order": [
-          "GRASP",
-          "LRU",
-          "POPT",
-          "SRRIP"
-        ],
-        "ranks_by_l3": {
-          "1MB": [
-            2.0,
-            4.0,
-            1.0,
-            3.0
-          ],
-          "4MB": [
-            1.0,
-            4.0,
-            2.0,
-            3.0
-          ],
-          "8MB": [
-            1.0,
-            4.0,
-            2.0,
-            3.0
-          ]
-        }
-      },
-      "com-orkut": {
         "kendall_tau": {
           "1MB_vs_4MB": 0.6667,
           "1MB_vs_8MB": 0.3333,
@@ -112,6 +96,39 @@
             1.0,
             4.0,
             3.0,
+            2.0
+          ],
+          "8MB": [
+            1.0,
+            3.0,
+            4.0,
+            2.0
+          ]
+        }
+      },
+      "com-orkut": {
+        "kendall_tau": {
+          "1MB_vs_4MB": 0.6667,
+          "1MB_vs_8MB": 0.6667,
+          "4MB_vs_8MB": 1.0
+        },
+        "policies_order": [
+          "GRASP",
+          "LRU",
+          "POPT",
+          "SRRIP"
+        ],
+        "ranks_by_l3": {
+          "1MB": [
+            1.0,
+            4.0,
+            3.0,
+            2.0
+          ],
+          "4MB": [
+            1.0,
+            3.0,
+            4.0,
             2.0
           ],
           "8MB": [
@@ -169,62 +186,29 @@
         ],
         "ranks_by_l3": {
           "1MB": [
-            2.0,
-            4.0,
             1.0,
+            4.0,
+            2.0,
             3.0
           ],
           "4MB": [
             1.0,
             4.0,
-            2.0,
-            3.0
+            3.0,
+            2.0
           ],
           "8MB": [
             1.0,
             4.0,
-            2.0,
-            3.0
+            3.0,
+            2.0
           ]
         }
       },
       "soc-pokec": {
         "kendall_tau": {
           "1MB_vs_4MB": 0.6667,
-          "1MB_vs_8MB": 1.0,
-          "4MB_vs_8MB": 0.6667
-        },
-        "policies_order": [
-          "GRASP",
-          "LRU",
-          "POPT",
-          "SRRIP"
-        ],
-        "ranks_by_l3": {
-          "1MB": [
-            2.0,
-            4.0,
-            1.0,
-            3.0
-          ],
-          "4MB": [
-            1.0,
-            4.0,
-            2.0,
-            3.0
-          ],
-          "8MB": [
-            2.0,
-            4.0,
-            1.0,
-            3.0
-          ]
-        }
-      },
-      "web-Google": {
-        "kendall_tau": {
-          "1MB_vs_4MB": 0.3333,
-          "1MB_vs_8MB": 0.3333,
+          "1MB_vs_8MB": 0.6667,
           "4MB_vs_8MB": 1.0
         },
         "policies_order": [
@@ -235,9 +219,42 @@
         ],
         "ranks_by_l3": {
           "1MB": [
-            4.0,
             1.0,
+            4.0,
+            2.0,
+            3.0
+          ],
+          "4MB": [
+            1.0,
+            4.0,
             3.0,
+            2.0
+          ],
+          "8MB": [
+            1.0,
+            4.0,
+            3.0,
+            2.0
+          ]
+        }
+      },
+      "web-Google": {
+        "kendall_tau": {
+          "1MB_vs_4MB": 0.6667,
+          "1MB_vs_8MB": 0.6667,
+          "4MB_vs_8MB": 1.0
+        },
+        "policies_order": [
+          "GRASP",
+          "LRU",
+          "POPT",
+          "SRRIP"
+        ],
+        "ranks_by_l3": {
+          "1MB": [
+            3.0,
+            1.0,
+            4.0,
             2.0
           ],
           "4MB": [
@@ -258,8 +275,8 @@
     "bfs": {
       "cit-Patents": {
         "kendall_tau": {
-          "1MB_vs_4MB": 0.6667,
-          "1MB_vs_8MB": 1.0,
+          "1MB_vs_4MB": 1.0,
+          "1MB_vs_8MB": 0.6667,
           "4MB_vs_8MB": 0.6667
         },
         "policies_order": [
@@ -270,9 +287,9 @@
         ],
         "ranks_by_l3": {
           "1MB": [
-            2.0,
-            4.0,
             1.0,
+            4.0,
+            2.0,
             3.0
           ],
           "4MB": [
@@ -291,8 +308,8 @@
       },
       "com-orkut": {
         "kendall_tau": {
-          "1MB_vs_4MB": 0.6667,
-          "1MB_vs_8MB": 1.0,
+          "1MB_vs_4MB": 1.0,
+          "1MB_vs_8MB": 0.6667,
           "4MB_vs_8MB": 0.6667
         },
         "policies_order": [
@@ -303,9 +320,9 @@
         ],
         "ranks_by_l3": {
           "1MB": [
-            2.0,
-            4.0,
             1.0,
+            4.0,
+            2.0,
             3.0
           ],
           "4MB": [
@@ -358,8 +375,8 @@
       "soc-LiveJournal1": {
         "kendall_tau": {
           "1MB_vs_4MB": 1.0,
-          "1MB_vs_8MB": 0.6667,
-          "4MB_vs_8MB": 0.6667
+          "1MB_vs_8MB": 1.0,
+          "4MB_vs_8MB": 1.0
         },
         "policies_order": [
           "GRASP",
@@ -381,9 +398,9 @@
             3.0
           ],
           "8MB": [
-            2.0,
-            4.0,
             1.0,
+            4.0,
+            2.0,
             3.0
           ]
         }
@@ -491,9 +508,9 @@
       },
       "com-orkut": {
         "kendall_tau": {
-          "1MB_vs_4MB": 1.0,
-          "1MB_vs_8MB": 1.0,
-          "4MB_vs_8MB": 1.0
+          "1MB_vs_4MB": 0.6667,
+          "1MB_vs_8MB": 0.3333,
+          "4MB_vs_8MB": 0.6667
         },
         "policies_order": [
           "GRASP",
@@ -505,8 +522,8 @@
           "1MB": [
             1.0,
             4.0,
-            2.0,
-            3.0
+            3.0,
+            2.0
           ],
           "4MB": [
             1.0,
@@ -515,9 +532,9 @@
             3.0
           ],
           "8MB": [
-            1.0,
-            4.0,
             2.0,
+            4.0,
+            1.0,
             3.0
           ]
         }
@@ -557,9 +574,9 @@
       },
       "soc-pokec": {
         "kendall_tau": {
-          "1MB_vs_4MB": 1.0,
-          "1MB_vs_8MB": 0.0,
-          "4MB_vs_8MB": 0.0
+          "1MB_vs_4MB": 0.3333,
+          "1MB_vs_8MB": -0.7071,
+          "4MB_vs_8MB": 0.2357
         },
         "policies_order": [
           "GRASP",
@@ -575,24 +592,24 @@
             3.0
           ],
           "4MB": [
-            1.0,
+            3.0,
             4.0,
-            2.0,
-            3.0
+            1.0,
+            2.0
           ],
           "8MB": [
-            2.5,
-            2.5,
-            2.5,
-            2.5
+            4.0,
+            2.0,
+            2.0,
+            2.0
           ]
         }
       },
       "web-Google": {
         "kendall_tau": {
-          "1MB_vs_4MB": 0.0,
-          "1MB_vs_8MB": 0.0,
-          "4MB_vs_8MB": 0.0
+          "1MB_vs_4MB": -0.2357,
+          "1MB_vs_8MB": -0.2357,
+          "4MB_vs_8MB": 1.0
         },
         "policies_order": [
           "GRASP",
@@ -608,16 +625,16 @@
             3.0
           ],
           "4MB": [
-            2.5,
-            2.5,
-            2.5,
-            2.5
+            4.0,
+            2.0,
+            2.0,
+            2.0
           ],
           "8MB": [
-            2.5,
-            2.5,
-            2.5,
-            2.5
+            4.0,
+            2.0,
+            2.0,
+            2.0
           ]
         }
       }
@@ -658,8 +675,8 @@
       },
       "com-orkut": {
         "kendall_tau": {
-          "1MB_vs_4MB": 1.0,
-          "1MB_vs_8MB": 0.6667,
+          "1MB_vs_4MB": 0.6667,
+          "1MB_vs_8MB": 0.3333,
           "4MB_vs_8MB": 0.6667
         },
         "policies_order": [
@@ -670,9 +687,9 @@
         ],
         "ranks_by_l3": {
           "1MB": [
-            2.0,
-            4.0,
             1.0,
+            4.0,
+            2.0,
             3.0
           ],
           "4MB": [
@@ -757,9 +774,9 @@
       },
       "soc-pokec": {
         "kendall_tau": {
-          "1MB_vs_4MB": 1.0,
+          "1MB_vs_4MB": 0.6667,
           "1MB_vs_8MB": 0.6667,
-          "4MB_vs_8MB": 0.6667
+          "4MB_vs_8MB": 0.3333
         },
         "policies_order": [
           "GRASP",
@@ -769,9 +786,9 @@
         ],
         "ranks_by_l3": {
           "1MB": [
-            2.0,
-            4.0,
             1.0,
+            4.0,
+            2.0,
             3.0
           ],
           "4MB": [
@@ -783,16 +800,16 @@
           "8MB": [
             1.0,
             4.0,
-            2.0,
-            3.0
+            3.0,
+            2.0
           ]
         }
       },
       "web-Google": {
         "kendall_tau": {
-          "1MB_vs_4MB": 0.6667,
+          "1MB_vs_4MB": 0.3333,
           "1MB_vs_8MB": 0.3333,
-          "4MB_vs_8MB": 0.6667
+          "4MB_vs_8MB": 0.3333
         },
         "policies_order": [
           "GRASP",
@@ -810,8 +827,8 @@
           "4MB": [
             3.0,
             4.0,
-            1.0,
-            2.0
+            2.0,
+            1.0
           ],
           "8MB": [
             4.0,
@@ -825,8 +842,8 @@
     "sssp": {
       "cit-Patents": {
         "kendall_tau": {
-          "1MB_vs_4MB": 1.0,
-          "1MB_vs_8MB": 0.6667,
+          "1MB_vs_4MB": 0.6667,
+          "1MB_vs_8MB": 0.3333,
           "4MB_vs_8MB": 0.6667
         },
         "policies_order": [
@@ -845,22 +862,22 @@
           "4MB": [
             1.0,
             4.0,
-            2.0,
-            3.0
+            3.0,
+            2.0
           ],
           "8MB": [
-            2.0,
-            4.0,
             1.0,
-            3.0
+            3.0,
+            4.0,
+            2.0
           ]
         }
       },
       "com-orkut": {
         "kendall_tau": {
-          "1MB_vs_4MB": 0.6667,
+          "1MB_vs_4MB": 0.3333,
           "1MB_vs_8MB": -0.3333,
-          "4MB_vs_8MB": -0.6667
+          "4MB_vs_8MB": 0.3333
         },
         "policies_order": [
           "GRASP",
@@ -876,10 +893,10 @@
             3.0
           ],
           "4MB": [
-            2.0,
-            4.0,
             1.0,
-            3.0
+            3.0,
+            4.0,
+            2.0
           ],
           "8MB": [
             3.0,
@@ -892,8 +909,8 @@
       "soc-LiveJournal1": {
         "kendall_tau": {
           "1MB_vs_4MB": 0.6667,
-          "1MB_vs_8MB": 1.0,
-          "4MB_vs_8MB": 0.6667
+          "1MB_vs_8MB": 0.6667,
+          "4MB_vs_8MB": 1.0
         },
         "policies_order": [
           "GRASP",
@@ -903,28 +920,28 @@
         ],
         "ranks_by_l3": {
           "1MB": [
-            2.0,
-            4.0,
             1.0,
+            4.0,
+            2.0,
             3.0
           ],
           "4MB": [
             1.0,
             4.0,
-            2.0,
-            3.0
+            3.0,
+            2.0
           ],
           "8MB": [
-            2.0,
-            4.0,
             1.0,
-            3.0
+            4.0,
+            3.0,
+            2.0
           ]
         }
       },
       "soc-pokec": {
         "kendall_tau": {
-          "1MB_vs_4MB": 1.0,
+          "1MB_vs_4MB": 0.3333,
           "1MB_vs_8MB": -0.7071,
           "4MB_vs_8MB": -0.7071
         },
@@ -943,9 +960,9 @@
           ],
           "4MB": [
             1.0,
+            3.0,
             4.0,
-            2.0,
-            3.0
+            2.0
           ],
           "8MB": [
             4.0,
@@ -970,9 +987,9 @@
         "ranks_by_l3": {
           "1MB": [
             1.0,
+            3.0,
             4.0,
-            2.0,
-            3.0
+            2.0
           ],
           "4MB": [
             4.0,
@@ -993,21 +1010,21 @@
   "per_pair_summary": {
     "1MB_vs_4MB": {
       "max_tau": 1.0,
-      "mean_tau": 0.6176,
+      "mean_tau": 0.5259,
       "median_tau": 0.6667,
       "min_tau": -0.7071,
       "n_cells": 28
     },
     "1MB_vs_8MB": {
       "max_tau": 1.0,
-      "mean_tau": 0.4376,
-      "median_tau": 0.6667,
+      "mean_tau": 0.3325,
+      "median_tau": 0.5,
       "min_tau": -0.7071,
       "n_cells": 28
     },
     "4MB_vs_8MB": {
       "max_tau": 1.0,
-      "mean_tau": 0.5581,
+      "mean_tau": 0.6379,
       "median_tau": 0.6667,
       "min_tau": -0.7071,
       "n_cells": 28

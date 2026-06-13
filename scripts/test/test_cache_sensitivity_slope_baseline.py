@@ -11,11 +11,11 @@ This gate locks the violation budget so a silent generator change that
 hides anti-scaling cells (or, inversely, accidentally inflates them) is
 caught immediately:
 
-- cache_sensitivity_slope: 10 monotonic violations across 20 (app, policy)
-  cells, on a known 10-pair set.
-- per_graph_cache_slope: 44 cells with significant anti-scaling across
+- cache_sensitivity_slope: 11 monotonic violations across 20 (app, policy)
+  cells, on a known 11-pair set.
+- per_graph_cache_slope: 48 cells with significant anti-scaling across
   112 full trajectories, partitioned exactly as
-  ``{LRU: 16, POPT: 8, SRRIP: 12, GRASP: 8}`` (sum 44); 16 of those 44 are
+  ``{LRU: 15, POPT: 12, SRRIP: 11, GRASP: 10}`` (sum 48); 22 of those 48 are
   oracle-aware (rank-1 oracle policy still anti-scales).
 
   Baseline re-pinned 2026-06-12 to the reproducible single-thread,
@@ -44,7 +44,7 @@ EXPECTED_GRAPHS = [
     "web-Google",
 ]
 
-# The 10 (app, policy) pairs where the gap shrinkage is NOT monotonic.
+# The 11 (app, policy) pairs where the gap shrinkage is NOT monotonic.
 EXPECTED_VIOLATION_PAIRS = frozenset(
     {
         ("bc", "GRASP"),
@@ -54,17 +54,18 @@ EXPECTED_VIOLATION_PAIRS = frozenset(
         ("bfs", "GRASP"),
         ("bfs", "LRU"),
         ("bfs", "SRRIP"),
+        ("cc", "GRASP"),
+        ("cc", "LRU"),
         ("cc", "POPT"),
-        ("pr", "GRASP"),
-        ("pr", "POPT"),
+        ("cc", "SRRIP"),
     }
 )
 
-EXPECTED_VIOLATION_COUNT = 10
+EXPECTED_VIOLATION_COUNT = 11
 EXPECTED_FULL_TRAJECTORIES = 112
-EXPECTED_ANTI_SCALING_CELLS = 44
-EXPECTED_ORACLE_AWARE_ANTI_SCALING = 16
-EXPECTED_POLICY_ANTI_SCALING_COUNT = {"LRU": 16, "POPT": 8, "SRRIP": 12, "GRASP": 8}
+EXPECTED_ANTI_SCALING_CELLS = 48
+EXPECTED_ORACLE_AWARE_ANTI_SCALING = 22
+EXPECTED_POLICY_ANTI_SCALING_COUNT = {"LRU": 15, "POPT": 12, "SRRIP": 11, "GRASP": 10}
 
 
 def _load(path: Path) -> dict:

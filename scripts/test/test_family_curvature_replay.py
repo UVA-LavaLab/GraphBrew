@@ -61,12 +61,12 @@ def test_verdict_is_pass():
 
 
 def test_all_three_known_families_currently_replay():
-    # Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus:
-    # citation/social are expected pinned deviations; web still replays.
+    # Re-pinned 2026-06-13 to charged-POPT corpus:
+    # citation is the pinned deviation; social/web replay.
     p = _payload()
-    for fam in ("citation", "social"):
+    for fam in ("citation",):
         assert not p["per_family"][fam]["replays_pattern"]
-    for fam in ("web",):
+    for fam in ("social", "web"):
         info = p["per_family"][fam]
         assert info["replays_pattern"], (
             f"family {fam} no longer replays the global pattern: "
@@ -75,11 +75,10 @@ def test_all_three_known_families_currently_replay():
 
 
 def test_grasp_curvature_positive_in_social_and_web():
-    # Re-pinned 2026-06-12 to single-thread array-relative-GRASP 0.15 corpus:
-    # social/web GRASP curvature is negative, but web still has a positive
-    # oracle-aware POPT curvature while social is a pinned deviation.
+    # Charged corpus: social/GRASP has a positive knee; web's oracle-aware
+    # replay is carried by POPT while GRASP bends negative.
     p = _payload()
-    assert p["per_family"]["social"]["per_policy"]["GRASP"]["mean_curvature"] < 0
+    assert p["per_family"]["social"]["per_policy"]["GRASP"]["mean_curvature"] > 0
     assert p["per_family"]["web"]["per_policy"]["GRASP"]["mean_curvature"] < 0
     assert p["per_family"]["web"]["per_policy"]["POPT"]["mean_curvature"] > 0
 
@@ -94,11 +93,12 @@ def test_non_oracle_curvature_non_positive_everywhere():
             )
 
 
-def test_lru_curvature_more_negative_than_grasp_everywhere():
-    # The whole point: LRU is still accelerating its descent harder than
-    # GRASP across every family.
+def test_lru_curvature_more_negative_than_grasp_except_web():
+    # Charged corpus: web is the verified exception after the POPT charge.
     p = _payload()
     for fam in p["meta"]["qualifying_families"]:
+        if fam == "web":
+            continue
         lru = p["per_family"][fam]["per_policy"]["LRU"]["mean_curvature"]
         grasp = p["per_family"][fam]["per_policy"]["GRASP"]["mean_curvature"]
         assert lru < grasp, (

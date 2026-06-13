@@ -78,49 +78,33 @@ def test_pr_popt_is_ci_strict_majority(payload):
     )
 
 
-def test_cc_grasp_is_ci_strict_majority_and_above_chance(payload):
-    """GRASP on cc: 17/20 wins. CI must exclude both 0.5 and 0.25."""
-    stats = _cell(payload, "per_app", "cc", "GRASP")
-    assert stats["wins"] >= 15, f"cc/GRASP wins regressed: {stats}"
-    assert stats["ci_lo"] > MAJORITY, (
-        f"cc/GRASP CI lo {stats['ci_lo']} ≤ {MAJORITY}"
-    )
+def test_cc_popt_is_mean_winner_but_not_ci_strict(payload):
+    """Charged corpus retires uniform cc/GRASP: POPT narrowly leads by count."""
+    stats = _cell(payload, "per_app", "cc", "POPT")
+    assert stats["wins"] == 11, f"cc/POPT wins changed: {stats}"
+    assert stats["ci_lo"] < MAJORITY < stats["ci_hi"], stats
     assert stats["ci_lo"] > CHANCE_4POL, (
-        f"cc/GRASP CI lo {stats['ci_lo']} ≤ {CHANCE_4POL}"
+        f"cc/POPT CI lo {stats['ci_lo']} ≤ {CHANCE_4POL}"
     )
 
 
-def test_cc_popt_is_competitive_but_below_grasp(payload):
-    """POPT on cc: at array-relative GRASP 0.15 (single-thread) POPT wins a
-    minority of cc cells (~0.30, beating the blind baselines on some) but
-    GRASP is the cc winner. POPT is no longer below-chance on cc — the
-    cc-counter-narrative is GRASP > POPT, not POPT-uncompetitive."""
+def test_cc_grasp_is_competitive_but_below_popt(payload):
+    """Charged corpus: cc GRASP remains competitive but below POPT by count."""
     stats = _cell(payload, "per_app", "cc", "POPT")
     grasp = _cell(payload, "per_app", "cc", "GRASP")
-    assert stats["p_hat"] < grasp["p_hat"], (
-        f"cc/POPT win-rate {stats['p_hat']} not below cc/GRASP "
-        f"{grasp['p_hat']}: {stats}"
+    assert grasp["p_hat"] < stats["p_hat"], (
+        f"cc/GRASP win-rate {grasp['p_hat']} not below cc/POPT "
+        f"{stats['p_hat']}: {grasp}"
     )
 
 
-def test_bc_grasp_is_above_chance_but_not_strict_majority(payload):
-    """GRASP on bc: 15/23. Above-chance (CI lo > 0.25) but CI hi spans 0.5.
-
-    This pins the *honest* status of the "GRASP wins bc by count" claim:
-    real above-random-noise effect, but does not survive a strict-
-    majority Wilson test. If future runs strengthen the claim to strict
-    majority the test will need updating — that is a deliberate
-    forcing-function.
-    """
+def test_bc_grasp_is_ci_strict_majority(payload):
+    """Charged corpus: bc is the clean GRASP counter-kernel."""
     stats = _cell(payload, "per_app", "bc", "GRASP")
     assert stats["ci_lo"] > CHANCE_4POL, (
         f"bc/GRASP no longer above chance: {stats}"
     )
-    if stats["ci_lo"] > MAJORITY:
-        pytest.fail(
-            f"bc/GRASP NEWLY strict-majority (CI lo {stats['ci_lo']}). "
-            f"Update gate + claim docs."
-        )
+    assert stats["ci_lo"] > MAJORITY, stats
 
 
 def test_lru_is_never_ci_strict_majority(payload):
@@ -170,9 +154,9 @@ def test_road_family_popt_is_descriptive_leaning(payload):
 
 
 def test_wilson_formula_matches_known_reference(payload):
-    """Independent re-derivation: 17/20 must give CI ≈ [0.640, 0.948]."""
+    """Independent re-derivation: 9/20 must give CI ≈ [0.258, 0.658]."""
     z = 1.959963984540054
-    wins, total = 17, 20
+    wins, total = 9, 20
     p = wins / total
     z2 = z * z
     denom = 1.0 + z2 / total
@@ -181,7 +165,7 @@ def test_wilson_formula_matches_known_reference(payload):
     lo = center - margin
     hi = center + margin
     stats = _cell(payload, "per_app", "cc", "GRASP")
-    assert stats["wins"] == 17 and stats["total"] == 20, (
+    assert stats["wins"] == 9 and stats["total"] == 20, (
         f"input changed: {stats}"
     )
     assert abs(stats["ci_lo"] - lo) < 1e-3, (

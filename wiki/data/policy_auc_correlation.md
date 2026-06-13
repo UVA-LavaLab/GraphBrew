@@ -8,43 +8,44 @@ Each app's AUC vector across 4 policies is z-normalized within the app, then pai
 
 | winner policy | apps |
 |---|---|
-| **GRASP** | bc, cc |
-| **POPT** | bfs, pr, sssp |
+| **GRASP** | bc |
+| **POPT** | bfs, cc, pr |
+| **SRRIP** | sssp |
 
 ## Correlation matrix (Pearson r on z-normalized AUC vectors)
 
 | app | bc | bfs | cc | pr | sssp |
 |---|---|---|---|---|---|
-| **bc** | +1.000 | -0.170 | +0.781 | +0.455 | +0.097 |
-| **bfs** | -0.170 | +1.000 | +0.130 | +0.712 | +0.945 |
-| **cc** | +0.781 | +0.130 | +1.000 | +0.789 | +0.224 |
-| **pr** | +0.455 | +0.712 | +0.789 | +1.000 | +0.748 |
-| **sssp** | +0.097 | +0.945 | +0.224 | +0.748 | +1.000 |
+| **bc** | +1.000 | -0.844 | -0.279 | -0.233 | +0.500 |
+| **bfs** | -0.844 | +1.000 | +0.672 | +0.502 | -0.085 |
+| **cc** | -0.279 | +0.672 | +1.000 | +0.930 | +0.067 |
+| **pr** | -0.233 | +0.502 | +0.930 | +1.000 | -0.229 |
+| **sssp** | +0.500 | -0.085 | +0.067 | -0.229 | +1.000 |
 
 ## In-cluster vs out-cluster mean correlation
 
 | app | cluster | intra mean r | inter mean r | intra-inter gap |
 |---|---|---:|---:|---:|
-| bc | GRASP | 0.7814 | 0.1274 | 0.654 |
-| bfs | POPT | 0.8283 | -0.0201 | 0.8484 |
-| cc | GRASP | 0.7814 | 0.3808 | 0.4006 |
-| pr | POPT | 0.7301 | 0.6218 | 0.1084 |
-| sssp | POPT | 0.8465 | 0.1608 | 0.6858 |
+| bc | GRASP | None | -0.214 | None |
+| bfs | POPT | 0.5874 | -0.4642 | 1.0516 |
+| cc | POPT | 0.8014 | -0.1061 | 0.9075 |
+| pr | POPT | 0.7164 | -0.2311 | 0.9474 |
+| sssp | SRRIP | None | 0.0633 | None |
 
 ## Top pairs by similarity
 
 | rank | app A | app B | Pearson r |
 |---:|---|---|---:|
-| 1 | bfs | sssp | +0.945 |
-| 2 | cc | pr | +0.789 |
-| 3 | bc | cc | +0.781 |
-| 4 | pr | sssp | +0.748 |
-| 5 | bfs | pr | +0.712 |
-| 6 | bc | pr | +0.455 |
-| 7 | cc | sssp | +0.224 |
-| 8 | bfs | cc | +0.130 |
-| 9 | bc | sssp | +0.097 |
-| 10 | bc | bfs | -0.170 |
+| 1 | cc | pr | +0.930 |
+| 2 | bfs | cc | +0.672 |
+| 3 | bfs | pr | +0.502 |
+| 4 | bc | sssp | +0.500 |
+| 5 | cc | sssp | +0.067 |
+| 6 | bfs | sssp | -0.085 |
+| 7 | pr | sssp | -0.229 |
+| 8 | bc | pr | -0.233 |
+| 9 | bc | cc | -0.279 |
+| 10 | bc | bfs | -0.844 |
 
 ## Interpretation
 

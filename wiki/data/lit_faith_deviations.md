@@ -5,9 +5,9 @@ Every (graph, app, l3, policy) cell in `KNOWN_DEVIATIONS` must carry a complete,
 ## Summary
 
 - KNOWN_DEVIATIONS entries: **17**
-- Live lit-faith known_deviation rows: **17**
+- Live lit-faith known_deviation rows: **12**
 - Orphan whitelist entries (no live cell): **0**
-- Inactive whitelist entries (live cell present, status ≠ `known_deviation`): **0**
+- Inactive whitelist entries (live cell present, status ≠ `known_deviation`): **5**
 - Live KD rows without whitelist entry: **0**
 - Well-formed reasons (≥ 80 chars + quantitative phrase + anchor + not orphan): **17** / 17
 - Reasons missing quantitative phrase: **0**
@@ -59,19 +59,19 @@ Every (graph, app, l3, policy) cell in `KNOWN_DEVIATIONS` must carry a complete,
 | graph | app | L3 | policy | len | quant | anchor | orphan | inactive | well-formed |
 |---|---|---|---|---:|---|---|---|---|---|
 | cit-Patents | bc | 8MB | POPT_GE_GRASP | 270 | ✓ | ✓ | — | — | ✓ |
-| cit-Patents | cc | 8MB | POPT_GE_GRASP | 252 | ✓ | ✓ | — | — | ✓ |
+| cit-Patents | cc | 8MB | POPT_GE_GRASP | 252 | ✓ | ✓ | — | ⚠ | ✓ |
 | com-orkut | bc | 4MB | POPT_GE_GRASP | 250 | ✓ | ✓ | — | — | ✓ |
 | com-orkut | bc | 8MB | POPT_GE_GRASP | 246 | ✓ | ✓ | — | — | ✓ |
 | com-orkut | cc | 1MB | POPT_GE_GRASP | 225 | ✓ | ✓ | — | — | ✓ |
 | com-orkut | cc | 4MB | POPT_GE_GRASP | 239 | ✓ | ✓ | — | — | ✓ |
 | com-orkut | cc | 4MB | POPT_NEAR_GRASP_IF_BIG_GAP | 244 | ✓ | ✓ | — | — | ✓ |
-| com-orkut | cc | 8MB | POPT_GE_GRASP | 251 | ✓ | ✓ | — | — | ✓ |
-| com-orkut | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | 248 | ✓ | ✓ | — | — | ✓ |
+| com-orkut | cc | 8MB | POPT_GE_GRASP | 251 | ✓ | ✓ | — | ⚠ | ✓ |
+| com-orkut | cc | 8MB | POPT_NEAR_GRASP_IF_BIG_GAP | 248 | ✓ | ✓ | — | ⚠ | ✓ |
 | com-orkut | sssp | 1MB | POPT_GE_GRASP | 254 | ✓ | ✓ | — | — | ✓ |
 | soc-LiveJournal1 | cc | 4MB | POPT_GE_GRASP | 244 | ✓ | ✓ | — | — | ✓ |
 | soc-LiveJournal1 | cc | 8MB | POPT_GE_GRASP | 265 | ✓ | ✓ | — | — | ✓ |
-| soc-pokec | cc | 1MB | POPT_GE_GRASP | 246 | ✓ | ✓ | — | — | ✓ |
-| soc-pokec | cc | 4MB | POPT_GE_GRASP | 232 | ✓ | ✓ | — | — | ✓ |
+| soc-pokec | cc | 1MB | POPT_GE_GRASP | 246 | ✓ | ✓ | — | ⚠ | ✓ |
+| soc-pokec | cc | 4MB | POPT_GE_GRASP | 232 | ✓ | ✓ | — | ⚠ | ✓ |
 | soc-pokec | sssp | 1MB | POPT_GE_GRASP | 231 | ✓ | ✓ | — | — | ✓ |
 | web-Google | bc | 4MB | POPT_GE_GRASP | 252 | ✓ | ✓ | — | — | ✓ |
 | web-Google | bc | 8MB | POPT_GE_GRASP | 214 | ✓ | ✓ | — | — | ✓ |

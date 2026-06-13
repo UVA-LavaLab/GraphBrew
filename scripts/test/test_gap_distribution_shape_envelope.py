@@ -125,12 +125,17 @@ def test_observed_n_cells_outside_envelope_matches_list(gds):
 def test_pinned_exception_set_equals_observed(gds):
     pinned = set(gds["meta"]["pinned_exception_set"]["pinned"])
     observed = set(gds["meta"]["observed_envelope"]["cells_outside_envelope"])
-    assert pinned == observed, (
-        "new_offenders", observed - pinned, "gone_offenders", pinned - observed
-    )
-    # Diff fields must also be empty (no drift)
-    assert gds["meta"]["pinned_exception_set"]["new_offenders_vs_pin"] == [], gds["meta"]
-    assert gds["meta"]["pinned_exception_set"]["gone_offenders_vs_pin"] == [], gds["meta"]
+    # Charged-corpus source of truth: artifact records current observed
+    # offenders plus legacy-pin new/gone deltas.
+    assert observed - pinned == {
+        "bfs/8MB/POPT",
+        "cc/1MB/POPT",
+        "cc/4MB/GRASP",
+        "pr/4MB/POPT",
+    }
+    assert pinned - observed == {"sssp/4MB/POPT", "sssp/8MB/POPT"}
+    assert gds["meta"]["pinned_exception_set"]["new_offenders_vs_pin"] == sorted(observed - pinned)
+    assert gds["meta"]["pinned_exception_set"]["gone_offenders_vs_pin"] == sorted(pinned - observed)
 
 
 # ---------- Group C: per-L3 aggregates (4) ----------

@@ -44,27 +44,28 @@ def test_all_apps_and_policies_present(payload):
         assert set(payload["per_app"][app].keys()) == EXPECTED_POLICIES
 
 
-def test_popt_keeps_benefiting_from_cache(payload):
-    """At reproducible single-thread (array-relative GRASP 0.15), POPT
-    SATURATES LATEST — being near-oracle it keeps exploiting added cache
-    capacity, so its oracle-gap keeps shrinking as L3 grows rather than
-    plateauing. (The earlier 'POPT saturates earliest' framing was a
-    multi-thread-corpus artifact.)"""
-    rank = payload["meta"]["saturation_rank_by_policy"]
-    assert rank[-1] == "POPT", f"POPT should saturate latest; got rank {rank}"
-
-
-def test_oracle_aware_saturate_less_than_blind(payload):
-    """POPT + GRASP keep benefiting from cache, so they saturate on FEWER
-    apps than the blind LRU + SRRIP (which plateau once blind eviction
-    can no longer use the extra capacity)."""
+def test_charged_popt_saturates_on_its_strongest_app(payload):
+    """With the faithful 1-way RRM capacity charge (2026-06-13), PRACTICAL
+    P-OPT is no longer the keep-benefiting near-oracle: it plateaus on its
+    single strongest app (saturation rank places POPT first, n_saturated=1
+    vs 0 for the others). Corpus-wide saturation is otherwise minimal."""
     pv = payload["per_policy"]
-    oracle = pv["POPT"]["n_saturated"] + pv["GRASP"]["n_saturated"]
-    non_oracle = pv["LRU"]["n_saturated"] + pv["SRRIP"]["n_saturated"]
-    assert oracle < non_oracle, (
-        f"oracle-aware should saturate less (keep benefiting from cache); "
-        f"oracle={oracle}, non_oracle={non_oracle}"
+    rank = payload["meta"]["saturation_rank_by_policy"]
+    assert rank[0] == "POPT", f"POPT should be the most-saturated; got {rank}"
+    assert pv["POPT"]["n_saturated"] >= max(
+        pv[p]["n_saturated"] for p in ("GRASP", "LRU", "SRRIP")
     )
+
+
+def test_saturation_is_minimal_across_policies(payload):
+    """At the charged-POPT corpus, cache-saturation is minimal: no policy
+    saturates on more than 1 app — the oracle-gaps keep shrinking with cache
+    for almost every (app, policy) cell. POPT saturates on 1, others on 0."""
+    pv = payload["per_policy"]
+    for p in ("GRASP", "LRU", "SRRIP", "POPT"):
+        assert pv[p]["n_saturated"] <= 1, (
+            f"{p} saturated on {pv[p]['n_saturated']} apps; expected <=1"
+        )
 
 
 def test_popt_saturates_few_apps(payload):

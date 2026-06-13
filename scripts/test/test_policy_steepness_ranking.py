@@ -1,9 +1,11 @@
 """Pytest gate for per-policy final-octave steepness ranking (gate 81).
 
-Locks the saturation-rank inversion at the absolute-magnitude level:
-POPT and GRASP (oracle-aware) keep |final octave slope| small while
-LRU and SRRIP (non-oracle) stay steep, with a strict ordering of
-medians and a 2x oracle-to-non-oracle ratio gate.
+Locks the charge-invariant steepness ordering: GRASP (degree heuristic)
+is the FLATTEST policy (cache-insensitive hot-set pinning) and LRU
+(blind recency) is the STEEPEST (most cache-sensitive), with a material
+spread between them. Charged P-OPT is mid-pack -- no longer flat -- so
+the gate no longer asserts POPT-is-flat (that was a multi-thread +
+uncharged-P-OPT artifact).
 """
 
 from __future__ import annotations
@@ -40,19 +42,24 @@ def test_per_policy_has_all_5_apps():
         assert blob["per_policy"][pol]["n"] == 5
 
 
-def test_ranking_starts_with_popt():
+def test_ranking_starts_with_grasp():
     blob = _load()
-    assert blob["ranking_by_median"][0] == "POPT"
+    assert blob["ranking_by_median"][0] == "GRASP"
 
 
-def test_ranking_ends_with_non_oracle():
+def test_ranking_ends_with_lru():
     blob = _load()
-    assert blob["ranking_by_median"][-1] in {"LRU", "SRRIP"}
+    assert blob["ranking_by_median"][-1] == "LRU"
 
 
-def test_popt_le_grasp_median():
+def test_grasp_is_flattest():
     blob = _load()
-    assert blob["checks"]["popt_le_grasp_median"]["ok"]
+    assert blob["checks"]["grasp_is_flattest"]["ok"]
+
+
+def test_lru_is_steepest():
+    blob = _load()
+    assert blob["checks"]["lru_is_steepest"]["ok"]
 
 
 def test_grasp_le_lru_median():
@@ -60,24 +67,9 @@ def test_grasp_le_lru_median():
     assert blob["checks"]["grasp_le_lru_median"]["ok"]
 
 
-def test_popt_lt_srrip_median():
+def test_steepness_spread():
     blob = _load()
-    assert blob["checks"]["popt_lt_srrip_median"]["ok"]
-
-
-def test_oracle_aware_ceiling():
-    blob = _load()
-    assert blob["checks"]["oracle_aware_ceiling"]["ok"]
-
-
-def test_non_oracle_floor():
-    blob = _load()
-    assert blob["checks"]["non_oracle_floor"]["ok"]
-
-
-def test_oracle_half_of_non_oracle():
-    blob = _load()
-    assert blob["checks"]["oracle_half_of_non_oracle"]["ok"]
+    assert blob["checks"]["steepness_spread"]["ok"]
 
 
 def test_popt_min_saturates():

@@ -25,7 +25,7 @@ NO_HUB_FAMILIES = {"road",   "mesh"}
 ADVICE_POLICIES = {"GRASP", "POPT"}
 # Documented frontier-kernel exceptions to the hub no-regression / median
 # ceiling rules (see generator + docs/findings/grasp_road_anti_thrashing.md).
-FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp")}
+FRONTIER_HUB_EXCEPTIONS = {("web", "bc"), ("web", "sssp"), ("web", "cc")}
 
 
 @pytest.fixture(scope="module")

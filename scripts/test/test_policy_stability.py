@@ -6,8 +6,8 @@ Pins:
   - best avg-AUC policy (POPT)
   - highest-variance policy (POPT)
   - SRRIP is the 'always in top-3' safe runner-up (never wins, never #4)
-  - GRASP wins twice (bc, cc) but finishes #4 once (bfs)
-  - POPT wins 3 of 5 apps
+  - GRASP wins bc but finishes #4 once (bfs)
+  - POPT wins 3 of 5 apps (bfs, cc, pr)
   - LRU never wins, never finishes better than rank 3
   - rank means and rank stdevs are within expected bands
 """
@@ -47,21 +47,21 @@ def test_headline_policies(payload):
 
 
 def test_popt_wins_three_apps(payload):
-    """POPT is the AUC winner on bfs, pr, sssp (3 wins)."""
+    """POPT is the AUC winner on bfs, cc, pr (3 wins)."""
     p = payload["per_policy"]["POPT"]
     assert p["n_wins"] == 3
     winners = [app for app, rank in p["ranks_by_app"].items() if rank == 1]
-    assert sorted(winners) == ["bfs", "pr", "sssp"]
+    assert sorted(winners) == ["bfs", "cc", "pr"]
 
 
 def test_grasp_wins_two_apps_loses_one(payload):
-    """GRASP is bimodal: wins bc+cc, finishes #4 on bfs."""
+    """GRASP is bimodal: wins bc, finishes #4 on bfs."""
     g = payload["per_policy"]["GRASP"]
-    assert g["n_wins"] == 2
+    assert g["n_wins"] == 1
     assert g["n_lasts"] == 1
     winners = [app for app, rank in g["ranks_by_app"].items() if rank == 1]
     losers = [app for app, rank in g["ranks_by_app"].items() if rank == 4]
-    assert sorted(winners) == ["bc", "cc"]
+    assert sorted(winners) == ["bc"]
     assert sorted(losers) == ["bfs"]
 
 
@@ -78,15 +78,14 @@ def test_lru_never_better_than_rank_3(payload):
 
 
 def test_srrip_is_safe_runner_up(payload):
-    """SRRIP never finishes last (rank in [2,3] for all apps)."""
+    """Charged corpus: SRRIP wins sssp by AUC and never finishes last."""
     s = payload["per_policy"]["SRRIP"]
-    assert s["n_wins"] == 0
+    assert s["n_wins"] == 1
     assert s["n_lasts"] == 0
-    assert s["best_rank"] == 2
+    assert s["best_rank"] == 1
     assert s["worst_rank"] == 3
-    # All ranks must be in 2 or 3 (never 1 or 4)
     for app, rank in s["ranks_by_app"].items():
-        assert rank in (2, 3), f"SRRIP rank on {app} = {rank}; expected 2 or 3"
+        assert rank in (1, 2, 3), f"SRRIP rank on {app} = {rank}; expected 1..3"
 
 
 def test_popt_has_highest_cv(payload):

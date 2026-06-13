@@ -14,9 +14,9 @@
       "gate": "scripts/test/test_claim_density.py",
       "id": "reproduction.ok_ratio",
       "source": "wiki/data/claim_density.json",
-      "text": "Literature reproduction matches 234 / 279 claims (83.9 %) across the corpus.",
+      "text": "Literature reproduction matches 214 / 279 claims (76.7 %) across the corpus.",
       "units": "percent",
-      "value": 83.9
+      "value": 76.7
     },
     {
       "category": "reproduction",
@@ -41,36 +41,36 @@
       "gate": "scripts/test/test_policy_winner_table.py",
       "id": "winner.grasp_share",
       "source": "wiki/data/policy_winner_table.json",
-      "text": "GRASP wins 58 / 114 cells (50.9 %) in the lit-faith corpus.",
+      "text": "GRASP wins 64 / 114 cells (56.1 %) in the lit-faith corpus.",
       "units": "percent",
-      "value": 50.9
+      "value": 56.1
     },
     {
       "category": "winner_table",
       "gate": "scripts/test/test_policy_winner_table.py",
       "id": "winner.popt_share",
       "source": "wiki/data/policy_winner_table.json",
-      "text": "POPT wins 45 / 114 cells (39.5 %) in the lit-faith corpus.",
+      "text": "POPT wins 35 / 114 cells (30.7 %) in the lit-faith corpus.",
       "units": "percent",
-      "value": 39.5
+      "value": 30.7
     },
     {
       "category": "winner_table",
       "gate": "scripts/test/test_policy_winner_table.py",
       "id": "winner.srrip_share",
       "source": "wiki/data/policy_winner_table.json",
-      "text": "SRRIP wins 4 / 114 cells (3.5 %) in the lit-faith corpus.",
+      "text": "SRRIP wins 5 / 114 cells (4.4 %) in the lit-faith corpus.",
       "units": "percent",
-      "value": 3.5
+      "value": 4.4
     },
     {
       "category": "winner_table",
       "gate": "scripts/test/test_policy_winner_table.py",
       "id": "winner.lru_share",
       "source": "wiki/data/policy_winner_table.json",
-      "text": "LRU wins 7 / 114 cells (6.1 %) in the lit-faith corpus.",
+      "text": "LRU wins 10 / 114 cells (8.8 %) in the lit-faith corpus.",
       "units": "percent",
-      "value": 6.1
+      "value": 8.8
     },
     {
       "category": "thrash",
@@ -86,25 +86,25 @@
       "gate": "scripts/test/test_popt_vs_grasp_delta.py",
       "id": "popt_vs_grasp.road_family_mean",
       "source": "wiki/data/popt_vs_grasp_delta.json",
-      "text": "On road-family graphs POPT improves on GRASP by a mean of -3.456 pp (min -47.028, max +6.582) across 25 cells - POPT's offline lookahead is decisive where GRASP's hub-protection has nothing to grip.",
+      "text": "On road-family graphs POPT improves on GRASP by a mean of -3.238 pp (min -45.358, max +7.958) across 25 cells - POPT's offline lookahead is decisive where GRASP's hub-protection has nothing to grip.",
       "units": "pp",
-      "value": -3.456
+      "value": -3.238
     },
     {
       "category": "popt_vs_grasp",
       "gate": "scripts/test/test_popt_vs_grasp_delta.py",
       "id": "popt_vs_grasp.social_family_mean",
       "source": "wiki/data/popt_vs_grasp_delta.json",
-      "text": "On social-family graphs POPT's mean lift over GRASP is only +0.111 pp across 54 cells; the permutation overhead is not always recovered, contradicting the literature's blanket POPT_GE_GRASP claim.",
+      "text": "On social-family graphs POPT's mean lift over GRASP is only +0.715 pp across 54 cells; the permutation overhead is not always recovered, contradicting the literature's blanket POPT_GE_GRASP claim.",
       "units": "pp",
-      "value": 0.111
+      "value": 0.715
     },
     {
       "category": "deviations",
       "gate": "scripts/test/test_literature_deviations.py",
       "id": "deviations.popt_overhead_share",
       "source": "wiki/data/literature_deviations.json",
-      "text": "17 / 17 documented literature deviations (100.0 %) classify as `popt_overhead_dominates` - measured POPT miss rate exceeds GRASP by more than the claim tolerance.",
+      "text": "37 / 37 documented literature deviations (100.0 %) classify as `popt_overhead_dominates` - measured POPT miss rate exceeds GRASP by more than the claim tolerance.",
       "units": "percent",
       "value": 100.0
     },

@@ -8,7 +8,7 @@ verdict: **PASS**
 
 qualifying families (full 1MB/4MB/8MB coverage, all 4 policies, at least one app): citation, social, web
 
-replay count: **1 / 3**
+replay count: **2 / 3**
 deviating families (pinned): ['citation', 'social']
 deviating families (new):    []
 
@@ -18,6 +18,6 @@ Positive = trajectory bending toward plateau (knee). Negative = still accelerati
 
 | family | GRASP | POPT | LRU | SRRIP | replays? |
 | --- | ---: | ---: | ---: | ---: | :---: |
-| citation | -0.398 | -0.100 | -1.744 | -1.685 | no |
-| social | -0.078 | -0.365 | -1.192 | -0.727 | no |
-| web | -0.417 | 0.358 | -0.767 | -0.798 | yes |
+| citation | -0.329 | -0.811 | -2.283 | -2.224 | no |
+| social | 1.161 | -0.850 | -1.024 | -0.558 | yes |
+| web | -2.900 | 0.591 | -0.667 | -0.698 | yes |

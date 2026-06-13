@@ -9,9 +9,9 @@
 
 | tool | policy | median pp/oct |
 |---|---|---:|
-| cache-sim | GRASP | -14.7124 |
+| cache-sim | GRASP | -13.0117 |
 | cache-sim | LRU | -15.6105 |
-| cache-sim | POPT | -13.4222 |
+| cache-sim | POPT | -13.2748 |
 | cache-sim | SRRIP | -15.5996 |
 | gem5 | GRASP | -5.9607 |
 | gem5 | LRU | -5.1229 |
@@ -24,7 +24,7 @@
 
 | tool | span pp/oct |
 |---|---:|
-| cache-sim | 2.1883 |
+| cache-sim | 2.5988 |
 | gem5 | 2.0884 |
 | sniper | 0.5625 |
 

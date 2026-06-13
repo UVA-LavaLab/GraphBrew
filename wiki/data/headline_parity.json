@@ -9,14 +9,14 @@
         "cache_sim": {
           "GRASP": 0.929529,
           "LRU": 0.945117,
-          "POPT": 0.928955,
+          "POPT": 0.936885,
           "SRRIP": 0.942569
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -30,14 +30,14 @@
         "cache_sim": {
           "GRASP": 0.973837,
           "LRU": 0.98146,
-          "POPT": 0.972364,
+          "POPT": 0.975989,
           "SRRIP": 0.979057
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -51,7 +51,7 @@
         "cache_sim": {
           "GRASP": 0.818199,
           "LRU": 0.895106,
-          "POPT": 0.730118,
+          "POPT": 0.761075,
           "SRRIP": 0.880294
         },
         "gem5": {},
@@ -72,7 +72,7 @@
         "cache_sim": {
           "GRASP": 0.833649,
           "LRU": 0.87683,
-          "POPT": 0.839685,
+          "POPT": 0.859291,
           "SRRIP": 0.87007
         },
         "gem5": {},
@@ -93,14 +93,14 @@
         "cache_sim": {
           "GRASP": 0.638302,
           "LRU": 0.742564,
-          "POPT": 0.635334,
+          "POPT": 0.673781,
           "SRRIP": 0.706531
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -114,14 +114,14 @@
         "cache_sim": {
           "GRASP": 0.831167,
           "LRU": 0.864855,
-          "POPT": 0.825139,
+          "POPT": 0.842514,
           "SRRIP": 0.850112
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -135,7 +135,7 @@
         "cache_sim": {
           "GRASP": 0.783742,
           "LRU": 0.835709,
-          "POPT": 0.786012,
+          "POPT": 0.805644,
           "SRRIP": 0.810706
         },
         "gem5": {},
@@ -156,7 +156,7 @@
         "cache_sim": {
           "GRASP": 0.682525,
           "LRU": 0.765369,
-          "POPT": 0.631166,
+          "POPT": 0.664212,
           "SRRIP": 0.733963
         },
         "gem5": {},
@@ -177,14 +177,14 @@
         "cache_sim": {
           "GRASP": 0.682024,
           "LRU": 0.743896,
-          "POPT": 0.670688,
+          "POPT": 0.701015,
           "SRRIP": 0.71767
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -198,14 +198,14 @@
         "cache_sim": {
           "GRASP": 0.810808,
           "LRU": 0.859729,
-          "POPT": 0.809683,
+          "POPT": 0.83245,
           "SRRIP": 0.844165
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -219,14 +219,14 @@
         "cache_sim": {
           "GRASP": 0.555685,
           "LRU": 0.696151,
-          "POPT": 0.5266,
+          "POPT": 0.576095,
           "SRRIP": 0.651728
         },
         "gem5": {},
         "sniper": {}
       },
       "per_sim_winner": {
-        "cache_sim": "POPT",
+        "cache_sim": "GRASP",
         "gem5": "\u2014",
         "sniper": "\u2014"
       },
@@ -240,7 +240,7 @@
         "cache_sim": {
           "GRASP": 0.558075,
           "LRU": 0.671944,
-          "POPT": 0.582991,
+          "POPT": 0.629424,
           "SRRIP": 0.636608
         },
         "gem5": {},
@@ -261,7 +261,7 @@
         "cache_sim": {
           "GRASP": 0.823764,
           "LRU": 0.802694,
-          "POPT": 0.82156,
+          "POPT": 0.837811,
           "SRRIP": 0.806937
         },
         "gem5": {},
@@ -282,7 +282,7 @@
         "cache_sim": {
           "GRASP": 0.944392,
           "LRU": 0.980402,
-          "POPT": 0.955613,
+          "POPT": 0.961868,
           "SRRIP": 0.979611
         },
         "gem5": {},
@@ -303,7 +303,7 @@
         "cache_sim": {
           "GRASP": 0.450908,
           "LRU": 0.598361,
-          "POPT": 0.384029,
+          "POPT": 0.429859,
           "SRRIP": 0.540871
         },
         "gem5": {},

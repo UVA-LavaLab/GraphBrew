@@ -1,7 +1,7 @@
 {
   "meta": {
     "app_count": 5,
-    "app_diversity_range_pp": 12.7523,
+    "app_diversity_range_pp": 12.2929,
     "app_diversity_threshold": 3.0,
     "cell_count": 28,
     "invariant_app_diversity": true,
@@ -18,43 +18,43 @@
   "per_app": {
     "bc": {
       "max_pp": 28.7477,
-      "mean_pp": 16.8906,
+      "mean_pp": 16.806,
       "median_pp": 17.1989,
       "min_pp": 0.0,
       "n_graphs": 6,
-      "p90_pp": 24.0281
+      "p90_pp": 23.5205
     },
     "bfs": {
-      "max_pp": 8.2407,
-      "mean_pp": 4.1509,
-      "median_pp": 4.4466,
+      "max_pp": 10.0001,
+      "mean_pp": 4.4193,
+      "median_pp": 4.906,
       "min_pp": 0.0,
       "n_graphs": 6,
-      "p90_pp": 6.7355
+      "p90_pp": 6.2143
     },
     "cc": {
-      "max_pp": 18.7574,
-      "mean_pp": 12.8363,
-      "median_pp": 15.3426,
+      "max_pp": 30.3964,
+      "mean_pp": 11.3238,
+      "median_pp": 11.0596,
       "min_pp": 0.0,
       "n_graphs": 5,
-      "p90_pp": 18.7574
+      "p90_pp": 30.3964
     },
     "pr": {
-      "max_pp": 16.8585,
-      "mean_pp": 7.4769,
-      "median_pp": 6.9181,
+      "max_pp": 18.4824,
+      "mean_pp": 8.7333,
+      "median_pp": 8.9495,
       "min_pp": 0.0,
       "n_graphs": 6,
-      "p90_pp": 11.1096
+      "p90_pp": 12.8663
     },
     "sssp": {
-      "max_pp": 27.0953,
-      "mean_pp": 13.1001,
-      "median_pp": 12.7848,
+      "max_pp": 26.959,
+      "mean_pp": 13.0461,
+      "median_pp": 13.0981,
       "min_pp": 0.0,
       "n_graphs": 5,
-      "p90_pp": 27.0953
+      "p90_pp": 26.959
     }
   },
   "per_cell": [
@@ -97,8 +97,8 @@
     {
       "app": "bc",
       "best4_miss_pp": 45.7949,
-      "best8_miss_pp": 21.7668,
-      "distance_pp": 24.0281,
+      "best8_miss_pp": 22.2744,
+      "distance_pp": 23.5205,
       "graph": "soc-pokec",
       "is_pico_sentinel": false,
       "wss_bytes": 6391888.61
@@ -115,8 +115,8 @@
     {
       "app": "bfs",
       "best4_miss_pp": 90.2658,
-      "best8_miss_pp": 84.0295,
-      "distance_pp": 6.2363,
+      "best8_miss_pp": 85.8533,
+      "distance_pp": 4.4125,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
@@ -124,8 +124,8 @@
     {
       "app": "bfs",
       "best4_miss_pp": 98.1189,
-      "best8_miss_pp": 97.0827,
-      "distance_pp": 1.0362,
+      "best8_miss_pp": 97.6296,
+      "distance_pp": 0.4893,
       "graph": "com-orkut",
       "is_pico_sentinel": false,
       "wss_bytes": 30832580.36
@@ -142,62 +142,62 @@
     {
       "app": "bfs",
       "best4_miss_pp": 57.2008,
-      "best8_miss_pp": 50.4653,
-      "distance_pp": 6.7355,
+      "best8_miss_pp": 50.9865,
+      "distance_pp": 6.2143,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59
     },
     {
       "app": "bfs",
-      "best4_miss_pp": 70.8089,
-      "best8_miss_pp": 62.5682,
-      "distance_pp": 8.2407,
+      "best4_miss_pp": 72.5987,
+      "best8_miss_pp": 62.5986,
+      "distance_pp": 10.0001,
       "graph": "soc-pokec",
       "is_pico_sentinel": false,
       "wss_bytes": 6391888.61
     },
     {
       "app": "bfs",
-      "best4_miss_pp": 76.4331,
-      "best8_miss_pp": 73.7762,
-      "distance_pp": 2.6569,
+      "best4_miss_pp": 79.894,
+      "best8_miss_pp": 74.4945,
+      "distance_pp": 5.3995,
       "graph": "web-Google",
       "is_pico_sentinel": false,
       "wss_bytes": 1538722.37
     },
     {
       "app": "cc",
-      "best4_miss_pp": 26.5725,
-      "best8_miss_pp": 12.6131,
-      "distance_pp": 13.9594,
+      "best4_miss_pp": 26.9624,
+      "best8_miss_pp": 15.9028,
+      "distance_pp": 11.0596,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
     },
     {
       "app": "cc",
-      "best4_miss_pp": 41.063,
-      "best8_miss_pp": 24.9408,
-      "distance_pp": 16.1222,
+      "best4_miss_pp": 42.0493,
+      "best8_miss_pp": 39.5845,
+      "distance_pp": 2.4648,
       "graph": "com-orkut",
       "is_pico_sentinel": false,
       "wss_bytes": 30832580.36
     },
     {
       "app": "cc",
-      "best4_miss_pp": 47.069,
-      "best8_miss_pp": 31.7264,
-      "distance_pp": 15.3426,
+      "best4_miss_pp": 48.6233,
+      "best8_miss_pp": 35.9253,
+      "distance_pp": 12.698,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59
     },
     {
       "app": "cc",
-      "best4_miss_pp": 25.05,
+      "best4_miss_pp": 36.689,
       "best8_miss_pp": 6.2926,
-      "distance_pp": 18.7574,
+      "distance_pp": 30.3964,
       "graph": "soc-pokec",
       "is_pico_sentinel": false,
       "wss_bytes": 6391888.61
@@ -213,18 +213,18 @@
     },
     {
       "app": "pr",
-      "best4_miss_pp": 34.7413,
-      "best8_miss_pp": 17.8828,
-      "distance_pp": 16.8585,
+      "best4_miss_pp": 39.0667,
+      "best8_miss_pp": 20.5843,
+      "distance_pp": 18.4824,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
     },
     {
       "app": "pr",
-      "best4_miss_pp": 22.4549,
-      "best8_miss_pp": 11.9728,
-      "distance_pp": 10.4821,
+      "best4_miss_pp": 26.1308,
+      "best8_miss_pp": 13.2645,
+      "distance_pp": 12.8663,
       "graph": "com-orkut",
       "is_pico_sentinel": false,
       "wss_bytes": 30832580.36
@@ -240,27 +240,27 @@
     },
     {
       "app": "pr",
-      "best4_miss_pp": 30.041,
-      "best8_miss_pp": 18.9314,
-      "distance_pp": 11.1096,
+      "best4_miss_pp": 33.262,
+      "best8_miss_pp": 20.4819,
+      "distance_pp": 12.7801,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59
     },
     {
       "app": "pr",
-      "best4_miss_pp": 12.4883,
+      "best4_miss_pp": 14.2532,
       "best8_miss_pp": 9.1342,
-      "distance_pp": 3.3541,
+      "distance_pp": 5.119,
       "graph": "soc-pokec",
       "is_pico_sentinel": false,
       "wss_bytes": 6391888.61
     },
     {
       "app": "pr",
-      "best4_miss_pp": 11.4921,
-      "best8_miss_pp": 8.4351,
-      "distance_pp": 3.057,
+      "best4_miss_pp": 11.9179,
+      "best8_miss_pp": 8.7661,
+      "distance_pp": 3.1518,
       "graph": "web-Google",
       "is_pico_sentinel": false,
       "wss_bytes": 1538722.37
@@ -268,17 +268,17 @@
     {
       "app": "sssp",
       "best4_miss_pp": 49.7809,
-      "best8_miss_pp": 22.6856,
-      "distance_pp": 27.0953,
+      "best8_miss_pp": 22.8219,
+      "distance_pp": 26.959,
       "graph": "cit-Patents",
       "is_pico_sentinel": false,
       "wss_bytes": 6017117.06
     },
     {
       "app": "sssp",
-      "best4_miss_pp": 14.3065,
+      "best4_miss_pp": 14.6198,
       "best8_miss_pp": 1.5217,
-      "distance_pp": 12.7848,
+      "distance_pp": 13.0981,
       "graph": "com-orkut",
       "is_pico_sentinel": false,
       "wss_bytes": 30832580.36
@@ -286,8 +286,8 @@
     {
       "app": "sssp",
       "best4_miss_pp": 31.8344,
-      "best8_miss_pp": 13.5403,
-      "distance_pp": 18.2941,
+      "best8_miss_pp": 13.9874,
+      "distance_pp": 17.847,
       "graph": "soc-LiveJournal1",
       "is_pico_sentinel": false,
       "wss_bytes": 13136591.59

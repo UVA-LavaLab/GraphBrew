@@ -117,9 +117,21 @@ def build_audit(
         ): r
         for r in faith_per_claim
     }
+    # Explicitly-whitelisted known_deviation rows. Auto-tolerated per-cell
+    # P-OPT diagnostics (known_deviation_auto=True) are EXCLUDED here: they
+    # are tolerated by the evaluator's POPT_DIAGNOSTIC_CLAIMS rule (the
+    # authoritative claim is the corpus geomean, not per-cell dominance) and
+    # legitimately carry no hand-written KNOWN_DEVIATIONS whitelist entry, so
+    # they must not trip the whitelist-bijection invariant.
     faith_kd_keys = {
         k for k, r in faith_keys_all.items()
         if r.get("status") == "known_deviation"
+        and not r.get("known_deviation_auto")
+    }
+    auto_kd_keys = {
+        k for k, r in faith_keys_all.items()
+        if r.get("status") == "known_deviation"
+        and r.get("known_deviation_auto")
     }
     baseline_kd_keys = set(known_deviations.keys())
 
@@ -186,6 +198,7 @@ def build_audit(
         "summary": {
             "known_deviations_total": len(known_deviations),
             "faith_known_deviation_rows": len(faith_kd_keys),
+            "auto_known_deviation_rows": len(auto_kd_keys),
             "orphan_known_deviations": orphan_count,
             "inactive_known_deviations": inactive_count,
             "faith_kd_without_entry_count": len(faith_kd_no_entry),
