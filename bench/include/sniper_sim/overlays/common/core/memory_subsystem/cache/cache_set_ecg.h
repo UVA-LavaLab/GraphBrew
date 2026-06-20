@@ -28,6 +28,7 @@ class CacheSetECG : public CacheSet
       UInt32 findPOPTVictim(CacheCntlr *cntlr);
       UInt32 findDBGPrimaryVictim(CacheCntlr *cntlr);
       UInt32 findECGEmbeddedVictim(CacheCntlr *cntlr);
+      UInt32 findECGGraspPoptVictim(CacheCntlr *cntlr);
       UInt8 graspInsertionRRPV(IntPtr addr) const;
       UInt8 dbgTier(IntPtr addr) const;
       UInt8 poptHint(IntPtr addr) const;

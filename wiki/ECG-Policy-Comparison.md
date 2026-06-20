@@ -81,6 +81,24 @@ The production ECG policy is therefore **GRASP-insert + RRIP-evict + epoch-tiebr
 (`rrip_first`)** — robust in both models — with `shortcircuit` documented as a
 cache_sim-favorable, gem5-pathological variant.
 
+## Three-simulator status
+
+The same policy + `ECG_VARIANT` factorial lives in all three simulators, sharing
+the spec but using each model's native machinery:
+
+| Simulator | ECG_GRASP_POPT + ECG_VARIANT | Epoch source | Status |
+|-----------|------------------------------|--------------|--------|
+| **cache_sim** | yes | per-edge memory-resident mask (0 LLC ways) | validated (matrix + `verify_ecg.py`) |
+| **gem5** | yes | per-edge mask via ISA `ecg.extract` | validated (rebuilt, smoke) |
+| **Sniper** | yes | native `findNextRef` (P-OPT next-ref) | code-complete, compiles/links; real-graph run gated |
+
+Sniper's variant uses its native `findNextRef` for the property next-reference
+distance (so it isolates the same eviction *levers* rather than the per-edge
+mask). Real-graph Sniper runs are gated behind `--allow-sniper-sg-kernel-workload`
+because the Sniper/SDE frontend has a documented ~50 GiB memory runaway
+(infrastructure, independent of the ECG policy); run it under
+`--sniper-memory-limit-gb`.
+
 ## Reproduce
 
 ```bash

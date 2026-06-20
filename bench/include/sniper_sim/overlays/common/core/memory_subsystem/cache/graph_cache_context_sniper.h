@@ -39,6 +39,7 @@ enum class ECGMode : uint8_t {
     DBG_ONLY,
     ECG_EMBEDDED,
     ECG_COMBINED,
+    ECG_GRASP_POPT,
 };
 
 ECGMode stringToECGMode(const std::string& text);

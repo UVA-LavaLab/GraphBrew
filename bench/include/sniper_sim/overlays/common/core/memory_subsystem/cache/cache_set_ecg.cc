@@ -337,6 +337,115 @@ CacheSetECG::findECGEmbeddedVictim(CacheCntlr *cntlr)
 }
 
 UInt32
+CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
+{
+   // ECG_GRASP_POPT factorial ablation (ECG_VARIANT) — Sniper analog of
+   // cache_sim findVictimECG / gem5 ecg_rp.cc getVictim. The property
+   // next-reference distance is sourced from Sniper's native findNextRef (the
+   // P-OPT next-ref machinery, current-epoch aware via current_src_vertex);
+   // recency is the RRIP age (rrpv, higher = older). Invariants in ALL variants:
+   // the epoch/next-ref signal is PROPERTY-ONLY; record (non-property) lines are
+   // evicted by recency. NB: Sniper's distance is matrix-derived, so this
+   // isolates the eviction LEVERS rather than the per-edge memory-resident mask
+   // (which cache_sim and gem5 carry). See wiki/ECG-Policy-Comparison.md.
+   //   grasp_only(0): pure RRIP, no next-ref
+   //   epoch_first(1): records by recency, then farthest-next-ref property
+   //   rrip_first(2,default): max-rrpv set; records-first, then farthest property
+   //   epoch_only(3): same eviction as epoch_first
+   //   shortcircuit(4,legacy): non-property first, then farthest property
+   static const int variant = [](){
+      const char* v = std::getenv("ECG_VARIANT");
+      if (!v) return 2;
+      std::string s(v);
+      if (s == "grasp_only")   return 0;
+      if (s == "epoch_first")  return 1;
+      if (s == "rrip_first")   return 2;
+      if (s == "epoch_only")   return 3;
+      if (s == "shortcircuit" || s == "legacy") return 4;
+      return 2;
+   }();
+
+   auto& context = graphbrew::sniper::globalContext();
+   // grasp_only, or no usable next-ref signal -> pure RRIP.
+   if (variant == 0 || !context.loaded || !context.rereference.enabled)
+      return findSRRIPVictim(cntlr);
+
+   for (UInt32 way = 0; way < m_associativity; way++)
+      m_property_lines[way] = context.isPropertyData(static_cast<uint64_t>(m_line_addrs[way]));
+   auto isProp = [&](UInt32 w) { return m_property_lines[w]; };
+   auto dist   = [&](UInt32 w) {
+      return std::min(context.findNextRef(static_cast<uint64_t>(m_line_addrs[w]), m_core_id),
+                      uint32_t(127));
+   };
+
+   // shortcircuit (legacy): any non-property first, then farthest-next-ref
+   // property (DBG tier tiebreak). No rrpv gating.
+   if (variant == 4) {
+      for (UInt32 way = 0; way < m_associativity; way++)
+         if (!isProp(way)) {
+            applyPendingInsertion(way);
+            LOG_ASSERT_ERROR(isValidReplacement(way), "ECG GRASP_POPT shortcircuit invalid");
+            return way;
+         }
+      UInt32 best = 0, bd = 0; UInt8 bdbg = 0;
+      for (UInt32 way = 0; way < m_associativity; way++) {
+         UInt32 d = dist(way);
+         if (d > bd || (d == bd && m_dbg_tiers[way] > bdbg)) { best = way; bd = d; bdbg = m_dbg_tiers[way]; }
+      }
+      applyPendingInsertion(best);
+      LOG_ASSERT_ERROR(isValidReplacement(best), "ECG GRASP_POPT shortcircuit+epoch invalid");
+      return best;
+   }
+
+   // epoch_first / epoch_only: epoch vetoes recency. Records first, evicted by
+   // recency (max rrpv); else farthest-next-ref property. No rrpv gating.
+   if (variant == 1 || variant == 3) {
+      UInt32 recBest = m_associativity; UInt8 recAge = 0;
+      for (UInt32 way = 0; way < m_associativity; way++)
+         if (!isProp(way) && (recBest == m_associativity || m_rrip_bits[way] > recAge)) {
+            recBest = way; recAge = m_rrip_bits[way];
+         }
+      if (recBest != m_associativity) {
+         applyPendingInsertion(recBest);
+         LOG_ASSERT_ERROR(isValidReplacement(recBest), "ECG GRASP_POPT epoch_first record invalid");
+         return recBest;
+      }
+      UInt32 best = m_associativity, bd = 0;
+      for (UInt32 way = 0; way < m_associativity; way++)
+         if (isProp(way)) { UInt32 d = dist(way); if (best == m_associativity || d > bd) { best = way; bd = d; } }
+      if (best != m_associativity) {
+         applyPendingInsertion(best);
+         LOG_ASSERT_ERROR(isValidReplacement(best), "ECG GRASP_POPT epoch_first prop invalid");
+         return best;
+      }
+      return findSRRIPVictim(cntlr);
+   }
+
+   // rrip_first (default): recency vetoes. Age until the max-rrpv set is
+   // non-empty; among it evict a record first, else the farthest-next-ref property.
+   while (true) {
+      UInt32 recIdx = m_associativity, propIdx = m_associativity, pb = 0;
+      for (UInt32 way = 0; way < m_associativity; way++) {
+         if (m_rrip_bits[way] < m_rrip_max) continue;
+         if (!isProp(way)) { if (recIdx == m_associativity) recIdx = way; }
+         else { UInt32 d = dist(way); if (propIdx == m_associativity || d > pb) { propIdx = way; pb = d; } }
+      }
+      if (recIdx != m_associativity) {
+         applyPendingInsertion(recIdx);
+         LOG_ASSERT_ERROR(isValidReplacement(recIdx), "ECG GRASP_POPT rrip_first record invalid");
+         return recIdx;
+      }
+      if (propIdx != m_associativity) {
+         applyPendingInsertion(propIdx);
+         LOG_ASSERT_ERROR(isValidReplacement(propIdx), "ECG GRASP_POPT rrip_first prop invalid");
+         return propIdx;
+      }
+      for (UInt32 way = 0; way < m_associativity; way++)
+         if (m_rrip_bits[way] < m_rrip_max) m_rrip_bits[way]++;
+   }
+}
+
+UInt32
 CacheSetECG::getReplacementIndex(CacheCntlr *cntlr)
 {
    for (UInt32 way = 0; way < m_associativity; way++) {
@@ -350,6 +459,7 @@ CacheSetECG::getReplacementIndex(CacheCntlr *cntlr)
    }
    tryLoadContext();
    if (m_mode == graphbrew::sniper::ECGMode::POPT_PRIMARY) return findPOPTVictim(cntlr);
+   if (m_mode == graphbrew::sniper::ECGMode::ECG_GRASP_POPT) return findECGGraspPoptVictim(cntlr);
    if (m_mode == graphbrew::sniper::ECGMode::ECG_EMBEDDED) return findECGEmbeddedVictim(cntlr);
    if (m_mode == graphbrew::sniper::ECGMode::DBG_ONLY ||
        m_mode == graphbrew::sniper::ECGMode::ECG_COMBINED) {

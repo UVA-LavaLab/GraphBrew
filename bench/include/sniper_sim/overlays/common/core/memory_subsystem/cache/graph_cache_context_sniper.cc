@@ -236,14 +236,15 @@ ECGMode stringToECGMode(const std::string& text)
     if (text == "DBG_ONLY" || text == "dbg_only" || text == "dbg") return ECGMode::DBG_ONLY;
     if (text == "ECG_EMBEDDED" || text == "ecg_embedded" || text == "embedded") return ECGMode::ECG_EMBEDDED;
     if (text == "ECG_COMBINED" || text == "ecg_combined" || text == "combined") return ECGMode::ECG_COMBINED;
+    if (text == "ECG_GRASP_POPT" || text == "ecg_grasp_popt" || text == "grasp_popt") return ECGMode::ECG_GRASP_POPT;
     if (text.empty() || text == "DBG_PRIMARY" || text == "dbg_primary") return ECGMode::DBG_PRIMARY;
     // Fail fast instead of silently aliasing an unknown/typo'd mode to
     // DBG_PRIMARY (which would mislabel result rows). POPT_TIE and
     // ECG_EPOCH_EMBEDDED are cache_sim-only experimental modes.
     std::fprintf(stderr,
         "[graphctx] FATAL: unsupported ECG mode '%s' for Sniper. Supported: "
-        "DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED, ECG_COMBINED "
-        "(POPT_TIE / ECG_EPOCH_EMBEDDED are cache_sim-only).\n", text.c_str());
+        "DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED, ECG_COMBINED, "
+        "ECG_GRASP_POPT (POPT_TIE / ECG_EPOCH_EMBEDDED are cache_sim-only).\n", text.c_str());
     std::abort();
 }
 
@@ -255,6 +256,7 @@ std::string ecgModeToString(ECGMode mode)
       case ECGMode::DBG_ONLY:     return "DBG_ONLY";
       case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
       case ECGMode::ECG_COMBINED: return "ECG_COMBINED";
+      case ECGMode::ECG_GRASP_POPT: return "ECG_GRASP_POPT";
       default:                    return "UNKNOWN";
     }
 }
