@@ -9,21 +9,23 @@
                         //   [0:24]   dest_id (demand load vertex)
                         //   [24:26]  DBG tier (0..3)
                         //   [26:33]  POPT quant (0..127)
-                        //   [33:64]  prefetch target (0 = no prefetch)
+                        //   [33:49]  next-ref epoch
+                        //   [49:64]  prefetch target (0 = no prefetch)
                         uint64_t fat_mask = Rs1;
                         uint32_t dest_id     = static_cast<uint32_t>((fat_mask >>  0) & 0xFFFFFFULL);
                         uint8_t  dbg_tier    = static_cast<uint8_t> ((fat_mask >> 24) & 0x3ULL);
                         uint8_t  popt_quant  = static_cast<uint8_t> ((fat_mask >> 26) & 0x7FULL);
-                        uint32_t pfx_target  = static_cast<uint32_t>((fat_mask >> 33) & 0x7FFFFFFFULL);
+                        uint16_t epoch       = static_cast<uint16_t>((fat_mask >> 33) & 0xFFFFULL);
+                        uint32_t pfx_target  = static_cast<uint32_t>((fat_mask >> 49) & 0x7FFFULL);
                         // Populate per-vertex metadata table so ECG_RP can
                         // consume ISA-delivered DBG/POPT for paper-faithful
                         // CHARGED=0 replacement.
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
-                            dest_id, dbg_tier, popt_quant);
+                            dest_id, dbg_tier, popt_quant, epoch);
                         // Legacy storage (single-slot mailbox; kept for
                         // back-compat with non-ECG_RP consumers).
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint(
-                            dest_id, dbg_tier, popt_quant, 0);
+                            dest_id, dbg_tier, popt_quant, 0, epoch);
                         // Queue the prefetch hint (or fall back to demand
                         // vertex if no prefetch encoded).
                         // S69PRE-M4-NO-FALLBACK: only emit a prefetch hint when

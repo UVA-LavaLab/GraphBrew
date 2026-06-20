@@ -30,7 +30,10 @@ GraphEcgRP::GraphEcgRP(const Params &p)
 void
 GraphEcgRP::tryLoadContext() const
 {
-    if (ctx.loaded && ctx.rereference.enabled) return;
+    if (ctx.loaded &&
+        (ecgMode == graph::ECGMode::ECG_GRASP_POPT || ctx.rereference.enabled)) {
+        return;
+    }
     loadAttempted = true;
 
     constexpr uint64_t retryInterval = 512;
@@ -40,6 +43,8 @@ GraphEcgRP::tryLoadContext() const
         ctx.loadFromSideband(sidebandPath);
         ctx.loaded = (ctx.num_regions > 0);
     }
+
+    if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) return;
 
     if (!ctx.rereference.enabled &&
         ctx.rereference.loadFromFile(poptMatrixPath)) {
@@ -57,6 +62,7 @@ GraphEcgRP::invalidate(
     data->rrpv = rrpvMax;
     data->ecg_dbg_tier = 0;
     data->ecg_popt_hint = 0;
+    data->ecg_epoch = 0;
     data->is_property_data = false;
     data->line_addr = 0;
 }
@@ -76,6 +82,23 @@ GraphEcgRP::touch(
 
     if (ctx.loaded && ctx.isPropertyData(data->line_addr)) {
         data->is_property_data = true;
+        uint32_t vertex = UINT32_MAX;
+        if (ctx.num_regions > 0) {
+            const auto& region = ctx.regions[0];
+            vertex = graph::addressToVertex(
+            addr, region.base_address, region.upper_bound,
+                region.elem_size);
+        }
+        if (vertex != UINT32_MAX) {
+            uint8_t isa_dbg = 0, isa_popt = 0;
+            uint16_t isa_epoch = data->ecg_epoch;
+            if (graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt,
+                                                 isa_epoch)) {
+                data->ecg_dbg_tier = isa_dbg;
+                data->ecg_popt_hint = isa_popt;
+                data->ecg_epoch = isa_epoch;
+            }
+        }
         uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize);
         if (tier == 1) {
             data->rrpv = 0;
@@ -121,7 +144,9 @@ GraphEcgRP::reset(
             ? static_cast<uint8_t>(bucket) : (numBuckets - 1);
 
         data->ecg_popt_hint = 0;
-        if (data->is_property_data && ctx.rereference.enabled) {
+        data->ecg_epoch = 0;
+            if (data->is_property_data && ctx.rereference.enabled &&
+            ecgMode != graph::ECGMode::ECG_GRASP_POPT) {
             uint32_t dist = ctx.findNextRef(data->line_addr);
             data->ecg_popt_hint = static_cast<uint8_t>(
                 std::min(dist, uint32_t(127)) >> 3);
@@ -136,16 +161,21 @@ GraphEcgRP::reset(
         if (data->is_property_data && ctx.loaded && ctx.num_regions > 0) {
             const auto& region = ctx.regions[0];
             uint32_t vertex = graph::addressToVertex(
-                data->line_addr,
+                addr,
                 region.base_address, region.upper_bound,
                 region.elem_size);
             if (vertex != UINT32_MAX) {
                 uint8_t isa_dbg = 0, isa_popt = 0;
-                if (graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt)) {
+                uint16_t isa_epoch = 0;
+                bool got = (ecgMode == graph::ECGMode::ECG_GRASP_POPT)
+                    ? graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt, isa_epoch)
+                    : graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt, isa_epoch);
+                if (got) {
                     // Use ISA-delivered metadata directly.
                     data->ecg_dbg_tier = isa_dbg;
                     // POPT quant is 7 bits; ECG_RP stores as 8-bit; range OK.
                     data->ecg_popt_hint = isa_popt;
+                    data->ecg_epoch = isa_epoch;
                 }
             }
         }
@@ -180,7 +210,8 @@ GraphEcgRP::reset(
         data->rrpv = (rrpvMax > 0) ? rrpvMax - 1 : 0;
         data->ecg_dbg_tier = numBuckets - 1;
         data->ecg_popt_hint = 0;
-        data->is_property_data = false;
+        data->ecg_epoch = 0;
+            data->is_property_data = false;
         data->line_addr = 0;
     }
 }
@@ -193,6 +224,7 @@ GraphEcgRP::reset(
     data->rrpv = (rrpvMax > 0) ? rrpvMax - 1 : 0;
     data->ecg_dbg_tier = numBuckets - 1;
     data->ecg_popt_hint = 0;
+    data->ecg_epoch = 0;
 }
 
 ReplaceableEntry*
@@ -214,6 +246,47 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
                 if (data->rrpv < rrpvMax) data->rrpv++;
             }
         }
+    }
+
+    if (ecgMode == graph::ECGMode::ECG_GRASP_POPT && ctx.loaded) {
+        int propCount = 0;
+        for (const auto& c : candidates) {
+            auto data = getData(c);
+            data->is_property_data = ctx.isPropertyData(data->line_addr);
+            if (data->is_property_data) propCount++;
+        }
+
+        if (propCount != static_cast<int>(candidates.size())) {
+            for (const auto& c : candidates) {
+                auto data = getData(c);
+                if (!data->is_property_data) return c;
+            }
+        }
+
+        const uint32_t n = std::max<uint32_t>(1u, ctx.topology.num_vertices);
+        const uint32_t ne = std::max<uint32_t>(2u, ctx.topology.edge_epoch_count);
+        uint32_t cur_epoch = static_cast<uint32_t>(
+            (static_cast<uint64_t>(ctx.currentVertexForPopt()) * ne) / n);
+        if (cur_epoch >= ne) cur_epoch = ne - 1;
+
+        uint32_t maxDist = 0;
+        uint8_t maxDbg = 0;
+        ReplaceableEntry* victim = candidates[0];
+        bool haveVictim = false;
+        for (const auto& c : candidates) {
+            auto data = getData(c);
+            uint32_t epoch = data->ecg_epoch;
+            if (epoch >= ne) epoch = ne - 1;
+            uint32_t dist = (epoch + ne - cur_epoch) % ne;
+            if (!haveVictim || dist > maxDist ||
+                (dist == maxDist && data->ecg_dbg_tier > maxDbg)) {
+                victim = c;
+                maxDist = dist;
+                maxDbg = data->ecg_dbg_tier;
+                haveVictim = true;
+            }
+        }
+        return victim;
     }
 
     if (ecgMode == graph::ECGMode::POPT_PRIMARY && ctx.loaded &&

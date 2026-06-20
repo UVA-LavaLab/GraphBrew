@@ -73,14 +73,16 @@ def needs_vertex_hints(args):
 
 def benchmark_environment(args):
     """Environment variables visible inside the simulated benchmark."""
+    ecg_grasp_popt = args.policy == "ECG" and args.ecg_mode == "ECG_GRASP_POPT"
+    ecg_pfx_metadata = args.prefetcher == "ECG_PFX" or ecg_grasp_popt
     env = [
         f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",
-        f"GEM5_ENABLE_ECG_PFX_HINTS={1 if args.prefetcher == 'ECG_PFX' else 0}",
-        f"GEM5_ECG_PFX_LOOKAHEAD={args.ecg_pfx_lookahead if args.prefetcher == 'ECG_PFX' else 0}",
+        f"GEM5_ENABLE_ECG_PFX_HINTS={1 if ecg_pfx_metadata else 0}",
+        f"GEM5_ECG_PFX_LOOKAHEAD={args.ecg_pfx_lookahead if ecg_pfx_metadata else 0}",
         f"GEM5_ECG_PFX_HINT_FILTER={args.ecg_pfx_hint_filter if args.prefetcher == 'ECG_PFX' else 0}",
         f"GEM5_ECG_PFX_FILTER_ELEM_SIZE=4",
         f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
-        f"GEM5_ENABLE_ECG_EXTRACT={1 if args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction' else 0}",
+        f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_grasp_popt or (args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
     ]
     # Propagate ECG mode + per-edge-mask lookahead from the outer harness
     # env so kernel-side `ecg_pfx_mode` reads the value roi_matrix.py set.
@@ -89,6 +91,9 @@ def benchmark_environment(args):
         "ECG_PREFETCH_MODE",
         "GEM5_ECG_EDGE_MASK_LOOKAHEAD",
         "ECG_EDGE_MASK_LOOKAHEAD",
+        "ECG_EDGE_MASK_EPOCH",
+        "ECG_EDGE_MASK_LINEMIN",
+        "ECG_EDGE_MASK_EPOCHS",
     ):
         outer = os.environ.get(pass_name)
         if outer is not None and outer != "":
@@ -113,7 +118,7 @@ def parse_args():
         choices=["LRU", "FIFO", "SRRIP", "RANDOM", "GRASP", "POPT", "ECG"],
         help="Cache replacement policy for L3 (default: LRU)")
     parser.add_argument("--ecg-mode", default="DBG_PRIMARY",
-        choices=["DBG_PRIMARY", "POPT_PRIMARY", "DBG_ONLY",
+        choices=["DBG_PRIMARY", "POPT_PRIMARY", "ECG_GRASP_POPT", "DBG_ONLY",
                  "ECG_EMBEDDED", "ECG_COMBINED"],
         help="ECG eviction mode (only used with --policy ECG)")
     parser.add_argument("--l1-policy", default="LRU",

@@ -185,15 +185,10 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
                   : "memory");
     return static_cast<uint32_t>(real_vertex);
 #elif defined(__x86_64__)
-    // X86 fallback: deliver just the prefetch target (high 31 bits of mask).
-    // ECG_RP metadata channel is RISCV-only on X86 today.
-    uint32_t pfx_target = static_cast<uint32_t>((fat_mask >> 33) & 0x7FFFFFFFULL);
-    if (pfx_target == 0) {
-        pfx_target = static_cast<uint32_t>(fat_mask & 0xFFFFFFULL);  // dest
-    }
+    // X86 fallback: work_begin can carry the full 64-bit mask as threadid.
     gem5_x86_work_begin_instruction(GEM5_WORK_ECG_PFX_TARGET,
-                                    static_cast<uint64_t>(pfx_target));
-    return pfx_target;
+                                    fat_mask);
+    return static_cast<uint32_t>(fat_mask & 0xFFFFFFULL);
 #else
     return static_cast<uint32_t>(fat_mask & 0xFFFFFFULL);  // dest
 #endif
@@ -312,6 +307,22 @@ inline uint32_t gem5_ecg_pfx_target_instruction(uint32_t target_vertex) {
     return gem5_ecg_extract_target_instruction(target_vertex);
 }
 
+inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
+    uint64_t real_vertex = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x00, %0, %1, x0"
+                  : "=r"(real_vertex)
+                  : "r"(fat_mask)
+                  : "memory");
+    return static_cast<uint32_t>(real_vertex);
+}
+
+#define GEM5_ECG_EXTRACT_MASK(mask_u64) \
+    do { \
+        if (gem5_ecg_pfx_hints_enabled() && gem5_ecg_extract_enabled()) { \
+            (void)gem5_ecg_extract_mask_instruction(static_cast<uint64_t>(mask_u64)); \
+        } \
+    } while (0)
+
 #define GEM5_ECG_PFX_TARGET(vertex_id) \
     do { \
         if (gem5_ecg_pfx_hints_enabled() && gem5_ecg_extract_enabled()) { \
@@ -322,6 +333,9 @@ inline uint32_t gem5_ecg_pfx_target_instruction(uint32_t target_vertex) {
         } \
     } while (0)
 #else
+inline bool gem5_ecg_pfx_hints_enabled() { return false; }
+inline bool gem5_ecg_extract_enabled() { return false; }
+#define GEM5_ECG_EXTRACT_MASK(mask_u64) do {} while(0)
 #define GEM5_ECG_PFX_TARGET(vertex_id) do {} while(0)
 #endif
 #endif
@@ -444,7 +458,8 @@ inline void gem5_export_context(
     const GraphType& g,
     const char* path = GEM5_SIDEBAND_PATH,
     const Gem5EdgeRegion* edge_regions = nullptr,
-    int num_edge_regions = 0)
+    int num_edge_regions = 0,
+    uint32_t edge_epoch_count = 0)
 {
     FILE* f = fopen(path, "w");
     if (!f) {
@@ -455,6 +470,7 @@ inline void gem5_export_context(
     fprintf(f, "{\n");
     fprintf(f, "  \"num_vertices\": %ld,\n", (long)g.num_nodes());
     fprintf(f, "  \"num_edges\": %ld,\n", (long)g.num_edges_directed());
+    fprintf(f, "  \"edge_epoch_count\": %u,\n", edge_epoch_count);
     fprintf(f, "  \"directed\": %s,\n", g.directed() ? "true" : "false");
 
     // Property regions

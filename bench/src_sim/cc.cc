@@ -108,7 +108,21 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
+            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            if (std::getenv("ECG_EXACT_REREF")) {
+                const char* eb = std::getenv("ECG_EXACT_BITS");
+                if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);
+                graph_ctx.registerOutAdjacencyExact(g);  // ECG_EXACT mode (sweep flavor)
+            }
         }
+    }
+
+    // ECG_GRASP_POPT: build the per-edge absolute-epoch mask. For UNDIRECTED CC,
+    // out==in adjacency, so buildInEdgeMasks_PR (epoch = next out-neighbor of dest
+    // > src) aligns with CC's out_neigh(u) sweep. Carried on the comp[v] read.
+    if (graph_ctx.mask_config.prefetch_mode == 6 && std::getenv("ECG_EDGE_MASK_EPOCH")) {
+        int la = 8; const char* lv = std::getenv("ECG_EDGE_MASK_LOOKAHEAD"); if (lv) la = atoi(lv);
+        graph_ctx.buildInEdgeMasks_PR(g, la);
     }
 
     #pragma omp parallel for
@@ -147,8 +161,15 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
         SIM_SET_VERTEX(cache, u);
         SIM_CACHE_READ(cache, comp_ptr, u);
         if (comp[u] == c) continue;  // skip largest component
+        const bool has_eps = u < graph_ctx.in_edge_epoch_by_src.size();
+        size_t epos = 0;
         for (NodeID v : g.out_neigh(u)) {
+            if (has_eps) {
+                const auto& eps = graph_ctx.in_edge_epoch_by_src[u];
+                if (epos < eps.size()) graph_ctx.hints_for_thread().edge_epoch = eps[epos];
+            }
             Link_Sim(u, v, comp, comp_ptr, cache, graph_ctx, vertex_masks);
+            ++epos;
         }
     }
     Compress_Sim(g, comp, comp_ptr, cache, graph_ctx, vertex_masks);

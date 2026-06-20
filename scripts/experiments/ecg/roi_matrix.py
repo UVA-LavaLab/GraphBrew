@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -33,6 +34,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -61,7 +63,18 @@ GEM5_RUNTIME_SIDEBAND_FILES = (
 
 
 def gem5_sideband_paths(gem5_out: Path) -> dict[str, Path]:
-    sideband_dir = gem5_out / "graphbrew_sidebands"
+    # FIXED-LENGTH sideband directory, independent of the policy-named gem5_out.
+    # The sideband file paths are read by the benchmark as env strings and written
+    # into the ctx JSON (data_path), so they live in the benchmark's heap. If the
+    # path length varies by policy (because gem5_out embeds the policy name), the
+    # heap allocation shifts and changes the cache-line/set alignment of the graph
+    # and property arrays -- which, at the tiny ROI cache sizes, swings L1 misses
+    # and IPC by up to ~30% and confounds the per-policy comparison. A constant-
+    # length hashed directory keeps per-cell isolation while making every policy's
+    # sideband paths identical length (only the hex characters differ, never the
+    # length), so the benchmark heap layout is policy-independent.
+    digest = hashlib.sha1(str(gem5_out).encode("utf-8")).hexdigest()[:16]
+    sideband_dir = Path(tempfile.gettempdir()) / f"gbsb_{digest}"
     return {
         "context": sideband_dir / "gem5_graphbrew_ctx.json",
         "popt_matrix": sideband_dir / "gem5_popt_matrix.bin",
@@ -99,7 +112,7 @@ def sniper_runner_path(args: argparse.Namespace) -> Path:
 DEFAULT_POLICIES = [
     "LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT",
     "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY",
-    "ECG:POPT_PRIMARY",
+    "ECG:POPT_PRIMARY", "ECG:ECG_GRASP_POPT",
 ]
 SNIPER_DEFAULT_POLICIES = ["LRU", "SRRIP"]
 SNIPER_POLICY_MAP = {
@@ -122,6 +135,7 @@ ALL_POLICIES = [
     "ECG:DBG_PRIMARY",
     "ECG:POPT_TIE",
     "ECG:POPT_PRIMARY",
+    "ECG:ECG_GRASP_POPT",
     "ECG:ECG_EMBEDDED",
     "ECG:ECG_EPOCH_EMBEDDED",
     "ECG:ECG_COMBINED",
@@ -327,6 +341,44 @@ def miss_rate(misses: Any, accesses: Any) -> float | None:
     if miss_count is None or not access_count:
         return None
     return miss_count / access_count
+
+
+def annotate_l3_pressure(row: dict[str, Any]) -> dict[str, Any]:
+    """Flag cells where the L3 is not meaningfully exercised.
+
+    When the property working set fits entirely in L2, the L3 sees only the
+    cold-miss stream: every L3 access misses (miss_rate == 1.0, misses ==
+    accesses) and ALL replacement policies produce identical L3 numbers. Such
+    a cell carries no L3-policy signal, yet a naive reading of "L3 miss-rate =
+    1.0000" looks like catastrophic thrash. Mark these so they are not mistaken
+    for a real policy comparison. Suite-agnostic: works on any row that carries
+    l3_misses / l3_accesses.
+    """
+    if str(row.get("status", "")) not in ("ok", "", "0"):
+        return row
+    misses = numeric(row.get("l3_misses"))
+    accesses = numeric(row.get("l3_accesses"))
+    rate = row.get("l3_miss_rate")
+    cold_only = (
+        misses is not None
+        and accesses is not None
+        and accesses > 0
+        and misses >= accesses
+    ) or (rate is not None and float(rate) >= 0.9995 and accesses not in (None, 0))
+    # cache_sim rows expose hits/misses but may leave l3_accesses None.
+    if accesses in (None, 0):
+        hits = numeric(row.get("l3_hits"))
+        m = numeric(row.get("l3_misses"))
+        if hits is not None and m is not None and (hits + m) > 0:
+            cold_only = hits == 0
+    row["l3_exercised"] = not bool(cold_only)
+    if cold_only:
+        row["l3_pressure_note"] = (
+            "L3 inert (cold-only: every access misses); property working set "
+            "fits in L2 so the L3 replacement policy is not exercised at this "
+            "cache geometry -- not a meaningful policy comparison."
+        )
+    return row
 
 
 def graph_vertices_from_sg(path: Path) -> int | None:
@@ -536,7 +588,15 @@ def clear_sideband_files(paths: dict[str, Path]) -> None:
 
 
 def sniper_sideband_paths(sniper_out: Path) -> dict[str, Path]:
-    sideband_dir = sniper_out / "graphbrew_sidebands"
+    # FIXED-LENGTH sideband directory, independent of the policy-named sniper_out
+    # (mirrors gem5_sideband_paths). The sideband file paths are read by the
+    # benchmark as env strings; if their length varies by policy (because
+    # sniper_out embeds the policy name) the benchmark heap shifts and changes
+    # array cache-line alignment, swinging per-policy L1/L3 numbers at the tiny
+    # ROI cache sizes. A constant-length hashed dir keeps per-cell isolation
+    # while making every policy's paths identical length.
+    digest = hashlib.sha1(str(sniper_out).encode("utf-8")).hexdigest()[:16]
+    sideband_dir = Path(tempfile.gettempdir()) / f"snsb_{digest}"
     return {
         "context": sideband_dir / "sniper_graphbrew_ctx.json",
         "popt_matrix": sideband_dir / "sniper_popt_matrix.bin",
@@ -611,6 +671,17 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
     env.update(ecg_pfx_env(args))
     if spec.ecg_mode:
         env["ECG_MODE"] = spec.ecg_mode
+        if spec.ecg_mode == "ECG_GRASP_POPT":
+            env.update({
+                "ECG_EXACT_REREF": "1",
+                "ECG_PREFETCH_MODE": "6",
+                "ECG_EDGE_MASK_EPOCH": "1",
+                "ECG_EDGE_MASK_LINEMIN": "1",
+                "ECG_EDGE_MASK_EPOCHS": "65535",
+                "ECG_EDGE_MASK_LEAN": "1",
+                "ECG_EDGE_MASK_PACK": "1",
+                "ECG_EDGE_MASK_CHARGED": "1",
+            })
     return env
 
 
@@ -738,6 +809,14 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     env["GEM5_POPT_MATRIX"] = str(sidebands["popt_matrix"])
     env["GEM5_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["GEM5_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
+    if spec.ecg_mode == "ECG_GRASP_POPT":
+        env.update({
+            "GEM5_ECG_PFX_MODE": "6",
+            "ECG_PREFETCH_MODE": "6",
+            "ECG_EDGE_MASK_EPOCH": "1",
+            "ECG_EDGE_MASK_LINEMIN": "1",
+            "ECG_EDGE_MASK_EPOCHS": "65535",
+        })
     if args.prefetcher == "ECG_PFX":
         env.update(ecg_pfx_env(args))
         env["GEM5_ENABLE_ECG_PFX_HINTS"] = "1"
@@ -1348,6 +1427,18 @@ def main(argv: list[str]) -> int:
                     rows.extend(run_sniper(args, out_dir, spec, l3_size))
                 args.sniper_cores = original_cores
                 args._sniper_thread_sweep = False
+
+    inert_cells = set()
+    for row in rows:
+        annotate_l3_pressure(row)
+        if row.get("l3_exercised") is False:
+            inert_cells.add((row.get("benchmark"), str(row.get("l3_size"))))
+    for benchmark, l3_size in sorted(c for c in inert_cells if all(c)):
+        print(
+            f"[warn] L3 inert for {benchmark} @ L3={l3_size}: property working set "
+            f"fits in L2, so the L3 policy is not exercised (every access cold-misses). "
+            f"Use a larger graph (property bytes > LLC) or smaller caches for an L3 comparison."
+        )
 
     if not args.dry_run:
         write_outputs(out_dir, rows)

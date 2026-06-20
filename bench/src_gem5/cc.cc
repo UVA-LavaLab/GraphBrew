@@ -38,7 +38,8 @@ void Compress(const Graph &g, pvector<NodeID>& comp) {
 }
 
 pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
-    pvector<NodeID> comp(g.num_nodes());
+    constexpr size_t kPropAlign = 4096;  // page-align hot property array (see pr.cc)
+    pvector<NodeID> comp(g.num_nodes(), NodeID(0), kPropAlign);
     for (NodeID n = 0; n < g.num_nodes(); n++) comp[n] = n;
 
     gem5_report_region("comp", comp.data(), g.num_nodes(), sizeof(NodeID));

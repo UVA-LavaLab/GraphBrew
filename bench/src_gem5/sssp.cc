@@ -62,7 +62,8 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
 }
 
 pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
-    pvector<WeightT> dist(g.num_nodes(), kDistInf);
+    constexpr size_t kPropAlign = 4096;  // page-align hot property array (see pr.cc)
+    pvector<WeightT> dist(g.num_nodes(), kDistInf, kPropAlign);
     dist[source] = 0;
 
     gem5_report_region("dist", dist.data(), g.num_nodes(), sizeof(WeightT));

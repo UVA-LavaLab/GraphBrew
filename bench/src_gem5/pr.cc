@@ -24,6 +24,7 @@
 
 // ECG mode 6 (per-edge mask) builder — shared with cache_sim and Sniper.
 #include "ecg_mode6_builder.h"
+#include "ecg_epoch_builder.h"
 
 using namespace std;
 
@@ -34,8 +35,23 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                      double epsilon = 0) {
     const ScoreT init_score = 1.0f / g.num_nodes();
     const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
-    pvector<ScoreT> scores(g.num_nodes(), init_score);
-    pvector<ScoreT> outgoing_contrib(g.num_nodes());
+    // Page-align the property arrays so their cache set/line mapping is pinned
+    // and does not drift with unrelated heap allocations (e.g. sideband path
+    // strings). Without this, a few bytes of heap shift change conflict misses
+    // in the tiny ROI caches and confound the per-policy comparison.
+    constexpr size_t kPropAlign = 4096;
+    pvector<ScoreT> scores(g.num_nodes(), init_score, kPropAlign);
+    pvector<ScoreT> outgoing_contrib(g.num_nodes(), ScoreT(0), kPropAlign);
+
+    uint8_t edge_id_bits = 1;
+    while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
+    uint32_t edge_epoch_count = 2;
+    if (edge_id_bits < 32) {
+        uint32_t spare = 32u - edge_id_bits;
+        uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
+        if (ne_cap < 2) ne_cap = 2;
+        edge_epoch_count = std::min<uint32_t>(65535u, ne_cap);
+    }
 
     gem5_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
     gem5_report_region("contrib", outgoing_contrib.data(), g.num_nodes(), sizeof(ScoreT));
@@ -54,7 +70,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     Gem5EdgeRegion edge_regions[2];
     int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2, true);
     gem5_export_context(regions, 2, g, GEM5_SIDEBAND_PATH,
-                        edge_regions, num_edge_regions);
+                        edge_regions, num_edge_regions, edge_epoch_count);
 
     // Build P-OPT rereference matrix (matching standalone src_sim/pr.cc)
     // Predicts future cache line accesses from graph structure.
@@ -145,7 +161,22 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     int edge_mask_lookahead = gem5_env_int_clamped("GEM5_ECG_EDGE_MASK_LOOKAHEAD",
         gem5_env_int_clamped("ECG_EDGE_MASK_LOOKAHEAD", 8, 1, 64), 1, 64);
     vector<vector<uint64_t>> in_edge_masks_by_src;
-    if (ecg_prefetch_enabled && ecg_pfx_mode == 6) {
+    vector<vector<uint16_t>> in_edge_epochs_by_src;
+    // === Single-stream packed record (LEAN+PACK; matches cache_sim) ===
+    // The scattered vector<vector<uint64_t>> mask above is a SEPARATE 8-byte
+    // non-property stream that pollutes the LLC and displaces the property
+    // (contrib) the epoch eviction is meant to protect — the root cause of gem5
+    // ECG_GRASP_POPT scoring WORSE than LRU. cache_sim avoids this by packing the
+    // epoch into the spare high bits of the 4-byte edge word and reading ONE
+    // contiguous stream. Mirror that with a flat, CSR-ordered uint32 array
+    // (dest | epoch<<id_bits): reading record r delivers BOTH the neighbor and
+    // its next-ref epoch with the footprint of a single 4-byte CSR edge.
+    vector<uint32_t> in_edge_packed_flat;
+    vector<uint64_t> packed_off;
+    uint32_t pack_id_bits = 1, pack_id_mask = 1;
+    bool packed_ok = false;
+    bool ecg_extract_enabled = gem5_ecg_extract_enabled();
+    if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6) {
         vector<uint8_t> avg_reref_by_line;
         ecg_mode6::computeAvgRerefByLine(popt_matrix.data(), popt_num_cache_lines,
                                          kNumEpochs, avg_reref_by_line);
@@ -154,8 +185,66 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         ecg_mode6::buildInEdgeMasks(g, tiers, avg_reref_by_line,
                                     edge_mask_lookahead, kNumVtxPerLine,
                                     in_edge_masks_by_src, "gem5-PR");
-        printf("[gem5 ECG mode 6] lookahead=%d (per-edge mask path active)\n",
-               edge_mask_lookahead);
+        ecg_epoch::buildInEdgeEpochs(g, kNumVtxPerLine, edge_epoch_count, true,
+                                     in_edge_epochs_by_src);
+        for (size_t src = 0; src < in_edge_masks_by_src.size(); ++src) {
+            auto& masks = in_edge_masks_by_src[src];
+            const auto& epochs = in_edge_epochs_by_src[src];
+            for (size_t i = 0; i < masks.size(); ++i) {
+                uint64_t mask = masks[i];
+                uint16_t epoch = (i < epochs.size()) ? epochs[i]
+                    : static_cast<uint16_t>(edge_epoch_count - 1);
+                masks[i] = ecg_mode6::packMaskEpoch(
+                    ecg_mode6::extractDest(mask),
+                    ecg_mode6::extractDbg(mask),
+                    ecg_mode6::extractPopt(mask),
+                    epoch,
+                    0);
+            }
+        }
+        printf("[gem5 ECG mode 6] lookahead=%d ne=%u (per-edge epoch mask path active)\n",
+               edge_mask_lookahead, edge_epoch_count);
+
+        // Build the flat, contiguous, CSR-ordered 4-byte packed record stream
+        // when dest+epoch fit in 32 bits. This REPLACES the scattered 8-byte
+        // mask reads in the demand path, eliminating the LLC-polluting second
+        // stream (the gem5-vs-cache_sim divergence root cause).
+        {
+            uint32_t nn = static_cast<uint32_t>(g.num_nodes());
+            while ((1u << pack_id_bits) < nn && pack_id_bits < 31) pack_id_bits++;
+            pack_id_mask = (pack_id_bits >= 32) ? 0xFFFFFFFFu
+                                                : ((1u << pack_id_bits) - 1);
+            uint32_t epoch_bits = 1;
+            while ((1u << epoch_bits) < edge_epoch_count && epoch_bits < 16) epoch_bits++;
+            if (pack_id_bits + epoch_bits <= 32) {
+                packed_off.assign(static_cast<size_t>(nn) + 1, 0);
+                for (uint32_t u = 0; u < nn; u++)
+                    packed_off[u + 1] = packed_off[u] +
+                        static_cast<uint64_t>(g.in_degree(u));
+                in_edge_packed_flat.assign(packed_off[nn], 0);
+                for (uint32_t u = 0; u < nn; u++) {
+                    const auto& eps = in_edge_epochs_by_src[u];
+                    size_t i = 0;
+                    for (auto v_raw : g.in_neigh(u)) {
+                        uint32_t v = static_cast<uint32_t>(v_raw);
+                        uint16_t ep = (i < eps.size()) ? eps[i]
+                            : static_cast<uint16_t>(edge_epoch_count - 1);
+                        in_edge_packed_flat[packed_off[u] + i] =
+                            (v & pack_id_mask) |
+                            (static_cast<uint32_t>(ep) << pack_id_bits);
+                        i++;
+                    }
+                }
+                packed_ok = true;
+                printf("[gem5 ECG mode 6] single-stream packed record ON: "
+                       "id_bits=%u epoch_bits=%u (4-byte contiguous, no separate "
+                       "mask array)\n", pack_id_bits, epoch_bits);
+            } else {
+                printf("[gem5 ECG mode 6] packed record OFF: id_bits=%u + "
+                       "epoch_bits=%u > 32; using scattered mask fallback\n",
+                       pack_id_bits, epoch_bits);
+            }
+        }
     }
 
     for (NodeID n = 0; n < g.num_nodes(); n++)
@@ -181,14 +270,33 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
             // the dest, DBG/POPT bits, and a POPT-ranked prefetch target.
             // We decode dest from the mask and issue the prefetch hint;
             // demand load on outgoing_contrib[v] happens as normal.
-            if (ecg_prefetch_enabled && ecg_pfx_mode == 6
+            if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6
                 && u < static_cast<NodeID>(in_edge_masks_by_src.size())) {
                 const auto& src_masks = in_edge_masks_by_src[u];
                 size_t edge_pos = 0;
                 for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
-                    uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
-                    NodeID v = static_cast<NodeID>(ecg_mode6::extractDest(mask));
-                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
+                    uint64_t mask;
+                    NodeID v;
+                    if (packed_ok) {
+                        // ONE contiguous 4-byte record read — the single edge
+                        // stream that also carries the epoch (no separate
+                        // scattered mask array polluting the LLC).
+                        uint32_t rec = in_edge_packed_flat[packed_off[u] + edge_pos];
+                        v = static_cast<NodeID>(rec & pack_id_mask);
+                        uint16_t ep = static_cast<uint16_t>(rec >> pack_id_bits);
+                        // Rebuild the 64-bit layout ecg.extract decodes
+                        // (dest[0:24], epoch[33:49]); ecg.extract is a register
+                        // op (no memory access).
+                        mask = (static_cast<uint64_t>(v) & 0xFFFFFFULL)
+                             | (static_cast<uint64_t>(ep) << 33);
+                    } else {
+                        mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
+                        v = static_cast<NodeID>(ecg_mode6::extractDest(mask));
+                    }
+                    if (ecg_extract_enabled) {
+                        GEM5_ECG_EXTRACT_MASK(mask);
+                    }
+                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTargetEpoch(mask);
                     if (prefetch_target != 0) {
                         bool in_window = false;
                         for (int w = 0; w < PREFETCH_WINDOW; w++) {
@@ -201,9 +309,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                             // S69PRE-M1-MASK: emit FULL mode-6 mask via ecg.extract
                             // when ISA-delivered metadata channel is enabled.
                             // Else fall back to the legacy prefetch-target-only path.
-                            if (gem5_ecg_extract_enabled()) {
-                                GEM5_ECG_EXTRACT_MASK(mask);
-                            } else {
+                            if (!ecg_extract_enabled) {
                                 GEM5_ECG_PFX_TARGET(prefetch_target);
                             }
                             pfx_window[pfx_window_pos % PREFETCH_WINDOW] = prefetch_target;

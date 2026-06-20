@@ -80,6 +80,18 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
+            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            if (std::getenv("ECG_EXACT_REREF")) {
+                const char* eb = std::getenv("ECG_EXACT_BITS");
+                if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);
+                if (std::getenv("ECG_EXACT_BFS")) {
+                    // bc forward phase is pure top-down BFS -> in-adjacency visit-order.
+                    graph_ctx.buildBFSVisitOrder(g, (uint32_t)source);
+                    graph_ctx.registerInAdjacencyExactBFS(g);
+                } else {
+                    graph_ctx.registerOutAdjacencyExact(g);  // ECG_EXACT mode (sweep flavor)
+                }
+            }
         }
     }
 

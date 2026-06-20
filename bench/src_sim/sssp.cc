@@ -143,6 +143,12 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
+            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            if (std::getenv("ECG_EXACT_REREF")) {
+                const char* eb = std::getenv("ECG_EXACT_BITS");
+                if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);
+                graph_ctx.registerOutAdjacencyExact(g);  // ECG_EXACT mode (sweep flavor)
+            }
         }
     }
 

@@ -1,3 +1,4 @@
+#include <atomic>
 // Copyright (c) 2024, UVA LavaLab
 // PageRank with Cache Simulation
 // Tracks all memory accesses to graph data structures
@@ -26,6 +27,30 @@ using namespace cache_sim;
 
 typedef float ScoreT;
 const float kDamp = 0.85;
+
+// ECG record auto-switch + configurable mask bit-widths (user spec 2026-06-19,
+// reviewer "how many bits?" question). ABLATION FINDING: ECG_GRASP_POPT eviction
+// uses ONLY the epoch (+ a ~0-contribution 2-bit tier tiebreak); POPT's 7 bits and
+// the prefetch field are structurally UNUSED. So the honest record counts only
+// dest(=CSR edge) + epoch + optional tier. Every field is a runtime knob so the
+// paper can sweep the bit budget:
+//   ECG_RECORD_TIER_BITS     (default 2)  degree tier (eviction tiebreak)
+//   ECG_RECORD_POPT_BITS     (default 0)  P-OPT rank — unused by ECG_GRASP_POPT
+//   ECG_RECORD_PREFETCH_BITS (default 0)  stored prefetch target — unused (read-ahead)
+// Record WIDTH auto-picks from id_bits + epoch_bits + the active field bits:
+//   4B if needed<=32, 8B if <=64, 16B beyond. ECG_EDGE_RECORD_BYTES forces 4|8|16.
+static inline int ecgRecordBytes(uint64_t num_vertices, int epoch_bits) {
+    int forced = GraphSimEnvIntClamped("ECG_EDGE_RECORD_BYTES", 0, 0, 16);
+    if (forced == 4 || forced == 8 || forced == 16) return forced;
+    int id_bits = 1; while (id_bits < 32 && (uint64_t(1) << id_bits) < num_vertices) id_bits++;
+    int tier_bits     = GraphSimEnvIntClamped("ECG_RECORD_TIER_BITS", 2, 0, 8);
+    int popt_bits     = GraphSimEnvIntClamped("ECG_RECORD_POPT_BITS", 0, 0, 8);
+    int prefetch_bits = GraphSimEnvIntClamped("ECG_RECORD_PREFETCH_BITS", 0, 0, 32);
+    int needed = id_bits + epoch_bits + tier_bits + popt_bits + prefetch_bits;
+    if (needed <= 32) return 4;
+    if (needed <= 64) return 8;
+    return 16;
+}
 
 // PageRank with cache simulation - template version works with both cache types
 template<typename CacheType>
@@ -78,6 +103,12 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
+            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            if (std::getenv("ECG_EXACT_REREF")) {
+                const char* eb = std::getenv("ECG_EXACT_BITS");
+                if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);
+                graph_ctx.registerOutAdjacencyExact(g);  // ECG_EXACT mode
+            }
         }
     }
 
@@ -142,40 +173,157 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
             // (to isolate whether the mechanism CAN help, separate from traffic cost)
             if (graph_ctx.mask_config.prefetch_mode == 6 || graph_ctx.mask_config.prefetch_mode == 7) {
                 const auto& src_masks = graph_ctx.in_edge_masks_by_src[u];
+                const auto& src_eps = graph_ctx.in_edge_epoch_by_src[u];
+                const bool edge_mask_lean = GraphSimEnvIntClamped("ECG_EDGE_MASK_LEAN", 0, 0, 1) > 0;
+                const bool edge_mask_pack = GraphSimEnvIntClamped("ECG_EDGE_MASK_PACK", 0, 0, 1) > 0;
+                // Combined stack: DROPLET-style lookahead prefetch layered ON TOP of
+                // the ECG_GRASP_POPT epoch eviction. The epoch stamp reduces TOTAL
+                // memory traffic (fewer unique fetches — something DROPLET cannot do,
+                // it only relocates traffic); the lookahead prefetch then hides the
+                // latency of the remaining demand misses. ECG_EDGE_MASK_PREFETCH=K
+                // prefetches the next-K in-neighbors' contrib[] (like DROPLET mode 3).
+                const int lean_pfx_k = GraphSimEnvIntClamped("ECG_EDGE_MASK_PREFETCH", 0, 0, 64);
+                // 100M-scale option B: when the epoch CANNOT ride the edge word's spare
+                // bits (id_bits too large), it must be an explicit per-edge field read
+                // from a side array (2-byte uint16 = up to 65535 epochs). This charges
+                // that extra streamed traffic so the bandwidth comparison is honest at
+                // scale. (At N<=~2M the epoch packs for free; leave this off there.)
+                const bool epoch_charged = GraphSimEnvIntClamped("ECG_EDGE_MASK_EPOCH_CHARGED", 0, 0, 1) > 0;
+                // 8-byte-record auto-switch: pick the per-edge record width from N so
+                // the full mask suite fits, and charge the wider record stream. record
+                // <=4 keeps the 4-byte CSR edge read (epoch in spare bits); >=8 reads
+                // the 8-byte packed record (src_masks, naturally 8B/edge) which delivers
+                // dest+DBG+POPT+epoch+prefetch in ONE stream (no separate side array).
+                int rec_ne = graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2;
+                int epoch_bits = 1; while ((1 << epoch_bits) < rec_ne && epoch_bits < 16) epoch_bits++;
+                const int record_bytes = ecgRecordBytes((uint64_t)g.num_nodes(), epoch_bits);
+                static bool rec_announced = false;
+                if (!rec_announced) {
+                    rec_announced = true;
+                    std::cerr << "[ECG RECORD] N=" << (long long)g.num_nodes() << " epoch_bits=" << epoch_bits
+                              << " prefetch=" << (lean_pfx_k > 0)
+                              << " -> record_bytes=" << record_bytes << std::endl;
+                }
+                uint32_t id_bits = 1; while (id_bits < 31 && (1u << id_bits) < (uint32_t)g.num_nodes()) id_bits++;
+                const uint32_t id_mask = (id_bits >= 32) ? 0xFFFFFFFFu : ((1u << id_bits) - 1);
                 size_t edge_pos = 0;
                 for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
                     uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
-                    // Charge mask-array load if requested
-                    if (edge_mask_charged && !src_masks.empty()) {
-                        SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
+                    NodeID v;
+                    if (edge_mask_lean) {
+                        // LEAN/PACKED delivery (ECG_GRASP_POPT realizability): the
+                        // epoch packs into the spare high bits of the existing 4-byte
+                        // edge word (web-Google IDs are ~20-bit -> 12 spare bits =
+                        // 4096 epochs), so reading the edge (exactly like POPT) ALSO
+                        // delivers the epoch — ZERO extra traffic. ecg.extract pulls
+                        // the epoch from the loaded edge word. No prefetch.
+                        // Auto-switch record read: width = record_bytes. <=4 reads the
+                        // 4-byte CSR edge (epoch in spare bits, 16 edges/line). >=8 reads
+                        // the 8-byte packed record (src_masks, 8 records/line = 2x edge
+                        // traffic) which carries the full mask suite incl. the epoch in
+                        // ONE stream. 16B charges a second 8-byte half (4 records/line).
+                        if (record_bytes <= 4 || src_masks.empty()) {
+                            SIM_CACHE_READ_EDGE(cache, it);
+                        } else {
+                            SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
+                            if (record_bytes >= 16 && edge_pos + 1 < src_masks.size())
+                                SIM_CACHE_READ(cache, src_masks.data(), edge_pos + 1);
+                        }
+                        v = *it;
+                        // Back-compat: legacy explicit 2-byte epoch charge (superseded by
+                        // the record auto-switch; only fires for the 4-byte path on request).
+                        if (epoch_charged && record_bytes <= 4 && edge_pos < src_eps.size())
+                            SIM_CACHE_READ(cache, src_eps.data(), edge_pos);
+                        // Combined stack: prefetch the next-K in-neighbors' contrib[]
+                        // (DROPLET-style) on top of the ECG_GRASP_POPT epoch eviction.
+                        // Stamp each prefetched line with ITS OWN next-ref epoch (from
+                        // src_eps) so it participates correctly in the circular-distance
+                        // eviction instead of inheriting the current demand's epoch —
+                        // otherwise the prefetch displaces eviction-protected lines and
+                        // reverts the bandwidth gain.
+                        if (lean_pfx_k > 0) {
+                            uint16_t saved_ep = graph_ctx.hints_for_thread().edge_epoch;
+                            // "Filtered DROPLET" (epoch-gated prefetch): use the candidate's
+                            // next-ref epoch to skip prefetches that aren't worth issuing.
+                            //   ECG_PREFETCH_EPOCH_FILTER: 0=off (prefetch all next-K, plain
+                            //     DROPLET), 1=skip NEAR (dist<thresh: line reused soon -> already
+                            //     kept by the eviction -> redundant), 2=skip FAR (dist>thresh:
+                            //     line not reused soon -> low retention value).
+                            //   ECG_PREFETCH_EPOCH_THRESH_PCT: threshold as % of ne (circular dist).
+                            const int pfx_filter = GraphSimEnvIntClamped("ECG_PREFETCH_EPOCH_FILTER", 0, 0, 2);
+                            const int pfx_thresh_pct = GraphSimEnvIntClamped("ECG_PREFETCH_EPOCH_THRESH_PCT", 50, 0, 100);
+                            const uint32_t cur_ep_k = (g.num_nodes() > 0)
+                                ? (uint32_t)(((uint64_t)u * (uint64_t)rec_ne) / (uint64_t)g.num_nodes()) : 0;
+                            const uint32_t thresh = (uint32_t)(((uint64_t)pfx_thresh_pct * (uint64_t)rec_ne) / 100);
+                            auto jt = it;
+                            size_t cpos = edge_pos;
+                            for (int step = 0; step < lean_pfx_k; step++) {
+                                ++jt; ++cpos;
+                                if (jt == in_neigh.end()) break;
+                                NodeID cand = *jt;
+                                if (cand < 0) continue;
+                                uint16_t cand_ep = (cpos < src_eps.size()) ? src_eps[cpos] : saved_ep;
+                                if (edge_mask_pack) {
+                                    // Faithful delivery: a lookahead prefetcher reads the
+                                    // SAME packed edge word (id | epoch<<id_bits) it walks
+                                    // ahead in the CSR stream and extracts the epoch
+                                    // IDENTICALLY to the demand path — no higher-resolution
+                                    // side channel. Round-trip through the spare-bit budget
+                                    // so the prefetch stamp can never exceed what the packed
+                                    // edge word delivers in hardware.
+                                    uint32_t packed = ((uint32_t)cand & id_mask)
+                                                    | ((uint32_t)cand_ep << id_bits);
+                                    cand = static_cast<NodeID>(packed & id_mask);
+                                    cand_ep = static_cast<uint16_t>(packed >> id_bits);
+                                }
+                                if (pfx_filter != 0 && rec_ne > 1) {
+                                    uint32_t dist = ((uint32_t)cand_ep + rec_ne - cur_ep_k) % rec_ne;
+                                    if (pfx_filter == 1 && dist < thresh) continue;   // skip NEAR
+                                    if (pfx_filter == 2 && dist > thresh) continue;   // skip FAR
+                                }
+                                graph_ctx.hints_for_thread().edge_epoch = cand_ep;
+                                SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr,
+                                    static_cast<uint32_t>(cand), graph_ctx);
+                            }
+                            graph_ctx.hints_for_thread().edge_epoch = saved_ep;
+                        }
+                    } else {
+                        // Fat-mask path: decode dest from the mask (REPLACES the CSR
+                        // edge read), optional prefetch.
+                        if (edge_mask_charged && !src_masks.empty())
+                            SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
+                        v = static_cast<NodeID>(GraphCacheContext::edgeMaskDest(mask));
+                        uint32_t prefetch_target = GraphCacheContext::edgeMaskPrefetch(mask);
+                        if (prefetch_target != 0)
+                            SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, prefetch_target, graph_ctx);
+                        int amplify = GraphSimEnvIntClamped("ECG_EDGE_MASK_AMPLIFY", 0, 0, 8);
+                        for (int step = 1; step <= amplify && edge_pos + step < src_masks.size(); step++) {
+                            uint32_t fwd_dest = GraphCacheContext::edgeMaskDest(src_masks[edge_pos + step]);
+                            SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, fwd_dest, graph_ctx);
+                        }
                     }
-                    // Decode dest from mask (REPLACES the CSR edge read).
-                    // Paper design intent (sprint 6f-7 audit, matching the
-                    // Sniper fix in commit 9812edf9): the per-edge mask
-                    // carries the destination ID, so the CSR edge load is
-                    // no longer required when mode 6/7 is active. Honest
-                    // per-edge cost is mask(8B) + demand(4B), NOT
-                    // mask(8B) + CSR(4B) + demand(4B). The earlier
-                    // SIM_CACHE_READ_EDGE here inflated memory_accesses
-                    // by ~33% per edge and was the cache_sim mirror of
-                    // the Sniper CSR-double-read bug.
-                    NodeID v = static_cast<NodeID>(GraphCacheContext::edgeMaskDest(mask));
-                    // Issue prefetch for the encoded target
-                    uint32_t prefetch_target = GraphCacheContext::edgeMaskPrefetch(mask);
-                    if (prefetch_target != 0) {
-                        SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, prefetch_target, graph_ctx);
-                    }
-                    // HYBRID MODE: when ECG_EDGE_MASK_AMPLIFY > 0, ALSO fire
-                    // the next-N dests in src's edge list (low cost — masks
-                    // already loaded). Trades bandwidth for absolute miss
-                    // reduction. AMPLIFY=0 is pure per-edge precision.
-                    int amplify = GraphSimEnvIntClamped("ECG_EDGE_MASK_AMPLIFY", 0, 0, 8);
-                    for (int step = 1; step <= amplify && edge_pos + step < src_masks.size(); step++) {
-                        uint32_t fwd_dest = GraphCacheContext::edgeMaskDest(src_masks[edge_pos + step]);
-                        SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr, fwd_dest, graph_ctx);
-                    }
-                    // Demand load with DBG+POPT hints supplied via lower 32 bits of mask
+                    // Carry the full-resolution absolute epoch from the dedicated
+                    // per-edge array (32-bit demand_hint truncates bit 32).
                     uint32_t demand_hint = static_cast<uint32_t>(mask & 0xFFFFFFFFu);
+                    uint16_t carried_epoch = (edge_pos < src_eps.size()) ? src_eps[edge_pos]
+                        : static_cast<uint16_t>(GraphCacheContext::edgeMaskPOPT(mask));
+                    if (edge_mask_pack && edge_mask_lean) {
+                        // REAL PACKING PROOF: pack the epoch into the spare high bits
+                        // of the (already-loaded) 4-byte edge word, then unpack — the
+                        // epoch rides the SAME edge read (zero extra traffic). Round-trip
+                        // must recover both the neighbor and the epoch exactly.
+                        uint32_t packed = ((uint32_t)v & id_mask) | ((uint32_t)carried_epoch << id_bits);
+                        NodeID v_un = static_cast<NodeID>(packed & id_mask);
+                        uint16_t ep_un = static_cast<uint16_t>(packed >> id_bits);
+                        static std::atomic<uint64_t> pk_total{0}, pk_bad{0};
+                        ++pk_total;
+                        if (v_un != v || ep_un != carried_epoch) ++pk_bad;
+                        if ((pk_total.load() % 5000000ULL) == 0)
+                            std::cerr << "[PACK] checked=" << pk_total.load()
+                                      << " roundtrip_mismatch=" << pk_bad.load() << std::endl;
+                        v = v_un; carried_epoch = ep_un;
+                    }
+                    graph_ctx.hints_for_thread().edge_epoch = carried_epoch;
                     SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, demand_hint);
                     incoming_total += outgoing_contrib[v];
                 }
@@ -243,8 +391,20 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                             if (jt == in_neigh.end()) break;
                             NodeID candidate = *jt;
                             if (candidate < 0) continue;
+                            // EXACT-ranked prefetch (ECG_PFX_EXACT): rank candidates
+                            // by the EXACT next-reference distance of their property
+                            // line at the current traversal vertex u — finer than the
+                            // coarse 7-bit POPT bucket (decodePOPT), the prefetch analog
+                            // of the ECG:EXACT eviction win. Smaller distance = sooner
+                            // reused = higher prefetch priority.
+                            static const bool pfx_exact = std::getenv("ECG_PFX_EXACT") != nullptr;
                             uint16_t key;
-                            if (graph_ctx.mask_config.prefetch_mode == 1) {
+                            if (pfx_exact && !graph_ctx.exact_off.empty()) {
+                                uint32_t d = graph_ctx.exactNextRef(
+                                    reinterpret_cast<uint64_t>(contrib_ptr + candidate),
+                                    static_cast<uint32_t>(u));
+                                key = d > 65535 ? 65535 : static_cast<uint16_t>(d);
+                            } else if (graph_ctx.mask_config.prefetch_mode == 1) {
                                 // Larger out_degree = "more popular" — invert
                                 // for sorting (smaller key = higher priority).
                                 uint64_t od = g.out_degree(candidate);

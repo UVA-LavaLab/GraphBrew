@@ -395,6 +395,7 @@ C++ access: `cache_sim::GlobalCache().getFeatures()` or `CACHE_FEATURES()` macro
 
 ## Related Pages
 
+- [[ECG-Policy-Comparison]] - ECG vs GRASP/P-OPT factorial comparison + correctness verification
 - [[AdaptiveOrder-ML]] - Using cache features for algorithm selection
 - [[Benchmark-Suite]] - Correlating cache stats with performance
 - [[Benchmark-Suite]] - Running performance experiments

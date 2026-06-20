@@ -5,6 +5,8 @@
 #define PVECTOR_H_
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdlib>
 
 /*
    GAP Benchmark Suite
@@ -15,6 +17,16 @@
    - std::vector (when resizing) will always initialize, and does so serially
    - When pvector is resized, new elements are uninitialized
    - Resizing is not thread-safe
+
+   Optional over-alignment:
+   - Passing a non-zero `alignment` (a power of two, e.g. 4096) to the
+     constructor allocates the backing storage on that boundary via
+     posix_memalign instead of new[]. This pins the array's cache set/line
+     mapping so it does not drift with unrelated heap allocations -- important
+     for gem5/Sniper ROI cache studies where a few bytes of heap shift can
+     otherwise swing conflict misses. Aligned pvectors must hold a trivially
+     constructible/destructible T_ and must not be reserve()'d or leak()'d
+     (asserted), which holds for the fixed-size property arrays that use it.
  */
 
 template <typename T_> class pvector
@@ -36,6 +48,34 @@ public:
         fill(init_val);
     }
 
+    // Over-aligned construction (alignment must be a power of two >=
+    // alignof(T_)). Storage is posix_memalign'd and released with free().
+    pvector(size_t num_elements, T_ init_val, size_t alignment)
+    {
+        if (alignment == 0)
+        {
+            start_ = new T_[num_elements];
+        }
+        else
+        {
+            void *raw = nullptr;
+            size_t bytes = num_elements * sizeof(T_);
+            if (posix_memalign(&raw, alignment, bytes) != 0 || raw == nullptr)
+            {
+                // Fall back to default allocation rather than crash.
+                start_ = new T_[num_elements];
+            }
+            else
+            {
+                alignment_ = alignment;
+                start_ = static_cast<T_ *>(raw);
+            }
+        }
+        end_size_ = start_ + num_elements;
+        end_capacity_ = end_size_;
+        fill(init_val);
+    }
+
     pvector(iterator copy_begin, iterator copy_end)
         : pvector(copy_end - copy_begin)
     {
@@ -51,11 +91,12 @@ public:
     // prefer move because too much data to copy
     pvector(pvector &&other)
         : start_(other.start_), end_size_(other.end_size_),
-          end_capacity_(other.end_capacity_)
+          end_capacity_(other.end_capacity_), alignment_(other.alignment_)
     {
         other.start_ = nullptr;
         other.end_size_ = nullptr;
         other.end_capacity_ = nullptr;
+        other.alignment_ = 0;
     }
 
     // want move assignment
@@ -67,9 +108,11 @@ public:
             start_ = other.start_;
             end_size_ = other.end_size_;
             end_capacity_ = other.end_capacity_;
+            alignment_ = other.alignment_;
             other.start_ = nullptr;
             other.end_size_ = nullptr;
             other.end_capacity_ = nullptr;
+            other.alignment_ = 0;
         }
         return *this;
     }
@@ -78,7 +121,10 @@ public:
     {
         if (start_ != nullptr)
         {
-            delete[] start_;
+            if (alignment_ != 0)
+                std::free(start_);
+            else
+                delete[] start_;
         }
     }
 
@@ -92,12 +138,27 @@ public:
     {
         if (num_elements > capacity())
         {
-            T_ *new_range = new T_[num_elements];
+            T_ *new_range;
+            if (alignment_ != 0)
+            {
+                void *raw = nullptr;
+                if (posix_memalign(&raw, alignment_,
+                                   num_elements * sizeof(T_)) != 0)
+                    raw = nullptr;
+                new_range = static_cast<T_ *>(raw);
+            }
+            else
+            {
+                new_range = new T_[num_elements];
+            }
             #pragma omp parallel for
             for (size_t i = 0; i < size(); i++)
                 new_range[i] = start_[i];
             end_size_ = new_range + size();
-            delete[] start_;
+            if (alignment_ != 0)
+                std::free(start_);
+            else
+                delete[] start_;
             start_ = new_range;
             end_capacity_ = start_ + num_elements;
         }
@@ -192,12 +253,14 @@ public:
         std::swap(start_, other.start_);
         std::swap(end_size_, other.end_size_);
         std::swap(end_capacity_, other.end_capacity_);
+        std::swap(alignment_, other.alignment_);
     }
 
 private:
     T_ *start_;
     T_ *end_size_;
     T_ *end_capacity_;
+    size_t alignment_ = 0;
     static const size_t growth_factor = 2;
 };
 

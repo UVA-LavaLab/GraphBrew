@@ -68,6 +68,7 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
         #pragma omp for reduction(+ : scout_count)
         for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
             NodeID u = *q_iter;
+            SIM_SET_VERTEX(cache, u);  // current frontier vertex = the traversal clock
             auto out_neigh = g.out_neigh(u);
             for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
                 SIM_CACHE_READ_EDGE(cache, it);
@@ -205,6 +206,58 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
+            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            if (std::getenv("ECG_EXACT_REREF")) {
+                const char* eb = std::getenv("ECG_EXACT_BITS");
+                if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);
+                if (std::getenv("ECG_EXACT_BFS")) {
+                    // source-specific: BFS skeleton from the kernel's own source —
+                    // UNLESS ECG_BFS_MASK_SRC overrides it (source-TRANSFER test: build
+                    // the mask from a DIFFERENT source than the kernel runs).
+                    uint32_t mask_src = (uint32_t)source;
+                    if (const char* ms = std::getenv("ECG_BFS_MASK_SRC"))
+                        mask_src = (uint32_t)atoi(ms);
+                    if (std::getenv("ECG_BFS_HUBSRC")) {
+                        // canonical deterministic source-independent choice: the highest
+                        // out-degree hub (most central -> most representative BFS layering).
+                        uint32_t best = 0; uint64_t bd = 0;
+                        for (uint32_t v = 0; v < (uint32_t)g.num_nodes(); ++v)
+                            if (g.out_degree(v) > bd) { bd = g.out_degree(v); best = v; }
+                        mask_src = best;
+                    }
+                    if (std::getenv("ECG_BFS_KSOURCE")) {
+                        // K-source EXPECTED-REUSE consensus clock (source-independent).
+                        uint32_t K = 8, seed = 12345;
+                        if (const char* s = std::getenv("ECG_BFS_K")) K = (uint32_t)atoi(s);
+                        if (const char* s = std::getenv("ECG_BFS_KSEED")) seed = (uint32_t)atoi(s);
+                        graph_ctx.buildBFSVisitOrderKSource(g, K, seed);
+                    } else if (std::getenv("ECG_BFS_BOUNDED")) {
+                        // SOURCE-INDEPENDENT depth-bounded degree-seeded clustering clock.
+                        uint32_t d = 8;
+                        if (const char* s = std::getenv("ECG_BFS_BOUND_DEPTH")) d = (uint32_t)atoi(s);
+                        if (std::getenv("ECG_BFS_COMMUNITY"))
+                            graph_ctx.buildBoundedBFSOrderCommunity(g, d);
+                        else
+                            graph_ctx.buildBoundedBFSOrder(g, d);
+                    } else if (std::getenv("ECG_BFS_DEPTHORDER")) {
+                        graph_ctx.buildBFSVisitOrderByDepth(g, mask_src);
+                    } else {
+                        graph_ctx.buildBFSVisitOrder(g, mask_src);
+                    }
+                    graph_ctx.registerInAdjacencyExactBFS(g);
+                } else if (std::getenv("ECG_EXACT_IN")) {
+                    // SOURCE-INDEPENDENT (the RCM variation): in-adjacency mask with
+                    // ID-order clock. Built ONCE, no per-source BFS. On an RCM-reordered
+                    // graph ID-order ~ BFS-frontier-order for any source, so this
+                    // approximates the per-source BFS mask without knowing the source.
+                    graph_ctx.visit_pos.resize(g.num_nodes());
+                    for (uint32_t v = 0; v < (uint32_t)g.num_nodes(); ++v)
+                        graph_ctx.visit_pos[v] = v;
+                    graph_ctx.registerInAdjacencyExactBFS(g);
+                } else {
+                    graph_ctx.registerOutAdjacencyExact(g);  // ECG_EXACT mode (sweep flavor)
+                }
+            }
         }
     }
 
@@ -229,9 +282,13 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     front.reset();
     int64_t edges_to_check = g.num_edges_directed();
     int64_t scout_count = g.out_degree(source);
-    
+    // ECG_BFS_FORCE_TD: stay top-down (skip the bottom-up phase) so the BFS-order
+    // EXACT generator (which models the top-down access pattern) can be validated
+    // against the actual access order. Direction-optimizing BU needs its own model.
+    static const bool force_td = std::getenv("ECG_BFS_FORCE_TD") != nullptr;
+
     while (!queue.empty()) {
-        if (scout_count > edges_to_check / alpha) {
+        if (!force_td && scout_count > edges_to_check / alpha) {
             int64_t awake_count, old_awake_count;
             QueueToBitmap(queue, front);
             awake_count = queue.size();

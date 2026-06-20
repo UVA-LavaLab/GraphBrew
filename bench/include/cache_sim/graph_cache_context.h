@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <random>
 #include <unordered_set>
 #include <iostream>
 #include <iomanip>
@@ -168,7 +169,11 @@ enum class ECGMode {
     DBG_ONLY,      // GRASP-equivalent insertion/hit hints, no eviction tiebreak
     ECG_EMBEDDED,  // Stored P-OPT hint (from mask) primary, DBG tier secondary — zero LLC overhead
     ECG_EPOCH_EMBEDDED, // Current-epoch P-OPT hint primary, DBG tier secondary — compact epoch table model
-    ECG_COMBINED   // Combined DBG+P-OPT → insertion RRPV (both signals at insert, not evict)
+    ECG_COMBINED,  // Combined DBG+P-OPT → insertion RRPV (both signals at insert, not evict)
+    ECG_EXACT,     // Exact position-indexed next-reference eviction (per-edge idea; traversal pos = epoch) — RECOMPUTED live at eviction
+    ECG_EXACT_STORED, // NEGATIVE RESULT: same exact next-ref STAMPED at access (precomputed per-edge mask) + all-ways-max. Does NOT capture the win (web-Google 512kB: 0.86 vs live 0.61) — stamps go stale (predicted reuse passes without refreshing), inverting Belady. Proves the win needs eviction-time recompute, like P-OPT.
+    ECG_EXACT_MASK,   // Precomputed exact 5-bit per-edge mask (buildInEdgeMasks_PR ECG_EDGE_MASK_EXACT) carried on the demand -> sets insertion/hit RRPV (near=keep, far=evict) + RRIP eviction with the 5-bit as tiebreak. The realizable "embed sweep, use in cache" design.
+    ECG_GRASP_POPT    // GRASP insertion + P-OPT-style eviction using a stored 5-bit ABSOLUTE next-ref epoch (carried per-edge, ECG_EDGE_MASK_EPOCH). Eviction = max circular distance (stored_epoch - current_epoch) so stale/passed lines evict correctly. Realizable: no matrix, no query, no reserved way.
 };
 
 inline std::string ECGModeToString(ECGMode mode) {
@@ -180,6 +185,10 @@ inline std::string ECGModeToString(ECGMode mode) {
         case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
         case ECGMode::ECG_EPOCH_EMBEDDED: return "ECG_EPOCH_EMBEDDED";
         case ECGMode::ECG_COMBINED: return "ECG_COMBINED";
+        case ECGMode::ECG_EXACT: return "ECG_EXACT";
+        case ECGMode::ECG_EXACT_STORED: return "ECG_EXACT_STORED";
+        case ECGMode::ECG_EXACT_MASK: return "ECG_EXACT_MASK";
+        case ECGMode::ECG_GRASP_POPT: return "ECG_GRASP_POPT";
         default:                    return "UNKNOWN";
     }
 }
@@ -191,6 +200,10 @@ inline ECGMode StringToECGMode(const std::string& s) {
     if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
     if (s == "ECG_EPOCH_EMBEDDED" || s == "ecg_epoch_embedded" || s == "epoch_embedded") return ECGMode::ECG_EPOCH_EMBEDDED;
     if (s == "ECG_COMBINED" || s == "ecg_combined" || s == "combined") return ECGMode::ECG_COMBINED;
+    if (s == "ECG_EXACT" || s == "ecg_exact" || s == "exact") return ECGMode::ECG_EXACT;
+    if (s == "ECG_EXACT_STORED" || s == "ecg_exact_stored" || s == "exact_stored") return ECGMode::ECG_EXACT_STORED;
+    if (s == "ECG_EXACT_MASK" || s == "ecg_exact_mask" || s == "exact_mask") return ECGMode::ECG_EXACT_MASK;
+    if (s == "ECG_GRASP_POPT" || s == "ecg_grasp_popt" || s == "grasp_popt") return ECGMode::ECG_GRASP_POPT;
     return ECGMode::DBG_PRIMARY;  // Default
 }
 
@@ -740,7 +753,8 @@ struct AccessHints {
     uint32_t current_dst = UINT32_MAX;  // Inner-loop neighbor (irregInd in P-OPT)
     uint32_t mask = 0;                  // ECG MASK hint (supports 8/16/32-bit widths)
     uint8_t  mask_bits = 2;             // Number of mask bits (2=ECG default, 4/8 for finer control)
-    uint8_t  _pad[3] = {};
+    uint8_t  _pad1 = 0;
+    uint16_t edge_epoch = 0;            // ECG_GRASP_POPT: absolute next-ref epoch, carried untruncated (mask>>26 loses bit 32)
 
     // ECG mask encoding constants (2-bit, from ECG -M flag graphConfig.h)
     static constexpr uint8_t MASK_HOT      = 0x03;  // 11
@@ -926,6 +940,365 @@ struct GraphCacheContext {
     // --- Rereference Matrix (P-OPT) ---
     RereferenceConfig rereference;
 
+    // --- Exact position-indexed next-reference (ECG per-edge idea) ---
+    // The per-edge mask is traversed in order, so the CURRENT vertex (src) is
+    // the epoch — for free. Instead of P-OPT's quantized [epoch×line] matrix or
+    // an epoch-AVERAGED mask scalar, store the graph's out-adjacency and compute
+    // the EXACT next-reference at eviction: for a property line (16 vertices),
+    // next_ref(line | src) = min over v in line of (next w in out_neigh(v) with
+    // w > src) - src. Memory-resident (sorted out-CSR copy), 0 LLC ways,
+    // quantization-free. Used by ECGMode::ECG_EXACT.
+    std::vector<int64_t> exact_off;    // CSR offsets (num_vertices+1)
+    std::vector<int32_t> exact_nbr;    // sorted out-neighbors
+    uint32_t exact_nv = 0;
+    uint32_t exact_vtx_per_line = 16;
+    uint32_t exact_bits = 0;           // 0 = full precision; else log2-quantize distance to B bits
+    uint32_t edge_epoch_count = 32;    // ECG_GRASP_POPT: # absolute epochs the per-edge mask quantizes to (<=128 for 7-bit field)
+
+    // --- BFS-order EXACT (the traversal-order mask generator for the BFS access class) ---
+    // A dedicated, no-full-kernel-run generator (analogous to makeOffsetMatrix, but in
+    // BFS-visit order instead of ID order): run a plain BFS skeleton from the kernel's
+    // source -> visit_pos[v]; property line(v) is referenced when v's in-neighbour is
+    // processed, so next-reference uses the in-neighbours' visit positions. This is what
+    // lets the structural generator be correct for frontier kernels (bfs/bc) where the
+    // ID-order sweep generator fails.
+    std::vector<uint32_t> visit_pos;     // BFS visit order; UINT32_MAX = unvisited
+    std::vector<int64_t>  bfs_in_off;    // in-CSR offsets (num_vertices+1)
+    std::vector<uint32_t> bfs_in_vpos;   // per-vertex sorted in-neighbour visit positions
+    bool exact_bfs = false;              // dispatch exactNextRef -> BFS-order variant
+
+    // Community-aware seeding variant of the bounded order: instead of pure degree,
+    // seed BFS balls from CLUSTER representatives discovered by lightweight label
+    // propagation (each vertex adopts its max-degree neighbour's representative — one
+    // round, O(V+E), no external partitioner). Seeds = cluster reps ordered by cluster
+    // size (largest community first), then depth-bounded BFS balls fill positions. Aims
+    // to generalise the bounded win beyond web/social by using COMMUNITY locality rather
+    // than raw degree. Source-independent, all-nodes, no replay.
+    template<typename GraphT>
+    void buildBoundedBFSOrderCommunity(const GraphT& g, uint32_t max_depth) {
+        uint32_t n = g.num_nodes();
+        visit_pos.assign(n, UINT32_MAX);
+        // One round of "adopt max-degree neighbour" -> local star clusters.
+        std::vector<uint32_t> rep(n);
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 1024)
+        #endif
+        for (int64_t v = 0; v < (int64_t)n; ++v) {
+            uint32_t best = (uint32_t)v; uint64_t bestdeg = g.out_degree(v);
+            for (auto w : g.out_neigh(v)) {
+                uint64_t dw = g.out_degree((uint32_t)w);
+                if (dw > bestdeg || (dw == bestdeg && (uint32_t)w < best)) {
+                    bestdeg = dw; best = (uint32_t)w;
+                }
+            }
+            rep[v] = best;   // local representative (a hub or self)
+        }
+        // Cluster size by representative.
+        std::vector<uint32_t> csize(n, 0);
+        for (uint32_t v = 0; v < n; ++v) csize[rep[v]]++;
+        // Seeds = representatives ordered by cluster size desc (largest community first).
+        std::vector<uint32_t> seeds(n);
+        for (uint32_t v = 0; v < n; ++v) seeds[v] = v;
+        std::sort(seeds.begin(), seeds.end(), [&](uint32_t a, uint32_t b) {
+            if (csize[a] != csize[b]) return csize[a] > csize[b];
+            return g.out_degree(a) > g.out_degree(b);
+        });
+        std::vector<uint32_t> q, qd;
+        q.reserve(1024); qd.reserve(1024);
+        uint32_t order = 0;
+        for (uint32_t si = 0; si < n; ++si) {
+            uint32_t seed = seeds[si];
+            if (visit_pos[seed] != UINT32_MAX) continue;
+            q.clear(); qd.clear();
+            visit_pos[seed] = order++;
+            q.push_back(seed); qd.push_back(0);
+            for (size_t head = 0; head < q.size(); ++head) {
+                uint32_t u = q[head], du = qd[head];
+                if (du >= max_depth) continue;
+                for (auto w : g.out_neigh(u)) {
+                    if (visit_pos[(uint32_t)w] == UINT32_MAX) {
+                        visit_pos[(uint32_t)w] = order++;
+                        q.push_back((uint32_t)w); qd.push_back(du + 1);
+                    }
+                }
+            }
+        }
+    }
+
+    // DEPTH-BOUNDED, degree-seeded multi-source clustering order (the user's idea for a
+    // SOURCE-INDEPENDENT, all-nodes, no-replay frontier clock): seed from the highest-
+    // degree unvisited node, BFS outward until depth `max_depth` (a bounded ball /
+    // frontier around the hub), assign visited nodes consecutive positions, then jump to
+    // the next unvisited highest-degree node. Repeat until ALL nodes placed. Seeds go
+    // high-degree -> low-degree (hubs anchor their neighbourhoods first). Graph-local
+    // vertices get nearby positions WITHOUT replaying any single source's full traversal.
+    template<typename GraphT>
+    void buildBoundedBFSOrder(const GraphT& g, uint32_t max_depth) {
+        uint32_t n = g.num_nodes();
+        visit_pos.assign(n, UINT32_MAX);
+        std::vector<uint32_t> seeds(n);
+        for (uint32_t v = 0; v < n; ++v) seeds[v] = v;
+        std::sort(seeds.begin(), seeds.end(), [&g](uint32_t a, uint32_t b) {
+            return g.out_degree(a) > g.out_degree(b);   // high-degree -> low-degree
+        });
+        std::vector<uint32_t> q;             // (vertex) queue
+        std::vector<uint32_t> qd;            // parallel depth queue
+        q.reserve(1024); qd.reserve(1024);
+        uint32_t order = 0;
+        for (uint32_t si = 0; si < n; ++si) {
+            uint32_t seed = seeds[si];
+            if (visit_pos[seed] != UINT32_MAX) continue;
+            q.clear(); qd.clear();
+            visit_pos[seed] = order++;
+            q.push_back(seed); qd.push_back(0);
+            for (size_t head = 0; head < q.size(); ++head) {
+                uint32_t u = q[head], du = qd[head];
+                if (du >= max_depth) continue;           // bounded frontier depth
+                for (auto w : g.out_neigh(u)) {
+                    if (visit_pos[(uint32_t)w] == UINT32_MAX) {
+                        visit_pos[(uint32_t)w] = order++;
+                        q.push_back((uint32_t)w); qd.push_back(du + 1);
+                    }
+                }
+            }
+        }
+    }
+
+    // K-SOURCE EXPECTED-REUSE clock (the principled source-independent frontier mask):
+    // estimate each vertex's EXPECTED BFS visit position under a random source by
+    // averaging its normalised visit rank over K random training-source BFS traversals
+    // (Monte-Carlo expectation), then assign visit_pos = argsort(expected rank). This is
+    // a consensus visit order that transfers to UNSEEN sources. Source-independent (no
+    // single source), all-nodes (forest per source), deployable (precomputed once).
+    // rng_seed fixes the K training sources (held-out test source excluded by the caller).
+    template<typename GraphT>
+    void buildBFSVisitOrderKSource(const GraphT& g, uint32_t K, uint32_t rng_seed) {
+        uint32_t n = g.num_nodes();
+        std::vector<double> acc(n, 0.0);          // sum of normalised ranks
+        std::vector<uint32_t> vp(n), q(n);
+        std::mt19937 rng(rng_seed);
+        std::uniform_int_distribution<uint32_t> pick(0, n ? n - 1 : 0);
+        for (uint32_t k = 0; k < K; ++k) {
+            uint32_t src = pick(rng);
+            std::fill(vp.begin(), vp.end(), UINT32_MAX);
+            uint32_t order = 0; size_t qh = 0, qt = 0;
+            auto bfs_from = [&](uint32_t s) {
+                vp[s] = order++; q[qt++] = s;
+                while (qh < qt) {
+                    uint32_t u = q[qh++];
+                    for (auto w : g.out_neigh(u))
+                        if (vp[(uint32_t)w] == UINT32_MAX) { vp[(uint32_t)w] = order++; q[qt++] = (uint32_t)w; }
+                }
+            };
+            qh = qt = 0;
+            bfs_from(src);
+            for (uint32_t v = 0; v < n; ++v) if (vp[v] == UINT32_MAX) bfs_from(v);  // forest
+            double inv = (n > 1) ? 1.0 / (double)(n - 1) : 0.0;
+            for (uint32_t v = 0; v < n; ++v) acc[v] += (double)vp[v] * inv;          // normalised rank
+        }
+        std::vector<uint32_t> idx(n);
+        for (uint32_t v = 0; v < n; ++v) idx[v] = v;
+        std::sort(idx.begin(), idx.end(), [&](uint32_t a, uint32_t b) {
+            return acc[a] < acc[b] || (acc[a] == acc[b] && a < b);
+        });
+        visit_pos.assign(n, 0);
+        for (uint32_t r = 0; r < n; ++r) visit_pos[idx[r]] = r;
+    }
+
+    // Plain BFS skeleton, extended to a FOREST so EVERY node gets a visit position
+    // (not just the source's reachable set): BFS from `source` first (correct order for
+    // its component), then continue from each remaining unvisited node. O(V+E).
+    template<typename GraphT>
+    void buildBFSVisitOrder(const GraphT& g, uint32_t source) {
+        uint32_t n = g.num_nodes();
+        visit_pos.assign(n, UINT32_MAX);
+        std::vector<uint32_t> q;
+        q.reserve(n);
+        uint32_t order = 0;
+        auto bfs_from = [&](uint32_t s) {
+            visit_pos[s] = order++;
+            size_t qstart = q.size();
+            q.push_back(s);
+            for (size_t head = qstart; head < q.size(); ++head) {
+                uint32_t u = q[head];
+                for (auto w : g.out_neigh(u)) {
+                    if (visit_pos[(uint32_t)w] == UINT32_MAX) {
+                        visit_pos[(uint32_t)w] = order++;
+                        q.push_back((uint32_t)w);
+                    }
+                }
+            }
+        };
+        if (source < n) bfs_from(source);          // kernel's component first
+        for (uint32_t v = 0; v < n; ++v)            // forest: mark ALL remaining nodes
+            if (visit_pos[v] == UINT32_MAX) bfs_from(v);
+    }
+
+    // Depth-order variant (parallel-friendly): rank nodes by BFS DEPTH (level), ties by
+    // id. Depth is well-defined independent of thread order, so a level-synchronous
+    // PARALLEL BFS computes it deterministically -> the construction parallelizes. Tests
+    // whether the level (not exact FIFO within-level order) is the signal the mask needs.
+    template<typename GraphT>
+    void buildBFSVisitOrderByDepth(const GraphT& g, uint32_t source) {
+        uint32_t n = g.num_nodes();
+        visit_pos.assign(n, UINT32_MAX);
+        std::vector<uint32_t> depth(n, UINT32_MAX);
+        std::vector<uint32_t> q;
+        q.reserve(n);
+        auto bfs_from = [&](uint32_t s, uint32_t base) {
+            depth[s] = base;
+            size_t qs = q.size();
+            q.push_back(s);
+            for (size_t h = qs; h < q.size(); ++h) {
+                uint32_t u = q[h];
+                for (auto w : g.out_neigh(u))
+                    if (depth[(uint32_t)w] == UINT32_MAX) {
+                        depth[(uint32_t)w] = depth[u] + 1;
+                        q.push_back((uint32_t)w);
+                    }
+            }
+        };
+        if (source < n) bfs_from(source, 0);
+        uint32_t maxd = 0;
+        for (uint32_t v = 0; v < n; ++v)
+            if (depth[v] != UINT32_MAX && depth[v] > maxd) maxd = depth[v];
+        for (uint32_t v = 0; v < n; ++v)             // forest: cover all nodes
+            if (depth[v] == UINT32_MAX) bfs_from(v, maxd + 1);
+        if (std::getenv("ECG_BFS_DEPTHSTATS")) {
+            uint32_t md = 0;
+            for (uint32_t v = 0; v < n; ++v)
+                if (depth[v] != UINT32_MAX && depth[v] < (maxd + 1) && depth[v] > md) md = depth[v];
+            std::vector<uint64_t> hist(md + 2, 0);
+            for (uint32_t v = 0; v < n; ++v)
+                if (depth[v] <= md) hist[depth[v]]++;
+            uint64_t maxlvl = 0; uint32_t argmax = 0;
+            for (uint32_t d = 0; d <= md; ++d) if (hist[d] > maxlvl) { maxlvl = hist[d]; argmax = d; }
+            std::fprintf(stderr, "[BFS_DEPTH] n=%u source-component max_depth(levels)=%u "
+                         "fattest_level=%llu (at depth %u) avg_level=%.0f\n",
+                         n, md, (unsigned long long)maxlvl, argmax,
+                         (double)n / (double)(md + 1));
+        }
+        std::vector<uint32_t> idx(n);
+        for (uint32_t v = 0; v < n; ++v) idx[v] = v;
+        std::sort(idx.begin(), idx.end(), [&](uint32_t a, uint32_t b) {
+            return depth[a] < depth[b] || (depth[a] == depth[b] && a < b);
+        });
+        for (uint32_t r = 0; r < n; ++r) visit_pos[idx[r]] = r;
+    }
+
+    // Build per-vertex sorted in-neighbour visit positions (for exactNextRefBFS).
+    template<typename GraphT>
+    void registerInAdjacencyExactBFS(const GraphT& g) {
+        uint32_t n = g.num_nodes();
+        exact_nv = n;
+        bfs_in_off.assign((size_t)n + 1, 0);
+        for (uint32_t v = 0; v < n; ++v)
+            bfs_in_off[v + 1] = bfs_in_off[v] + g.in_degree(v);
+        bfs_in_vpos.assign((size_t)bfs_in_off[n], UINT32_MAX);
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 256)
+        #endif
+        for (int64_t v = 0; v < (int64_t)n; ++v) {
+            int64_t p = bfs_in_off[v];
+            for (auto u : g.in_neigh(v)) bfs_in_vpos[p++] = visit_pos[(uint32_t)u];
+            std::sort(bfs_in_vpos.begin() + bfs_in_off[v], bfs_in_vpos.begin() + bfs_in_off[v + 1]);
+        }
+        exact_bfs = true;
+    }
+
+    // Exact next-reference in BFS-visit order: line(v) is next referenced when v's next
+    // in-neighbour (by visit position > current) is processed. Mirrors exactNextRef but
+    // the clock is the BFS visit index, not the vertex ID.
+    uint32_t exactNextRefBFS(uint64_t line_addr, uint32_t current_vertex) const {
+        if (bfs_in_off.empty() || current_vertex >= exact_nv) return UINT32_MAX;
+        uint32_t cur = visit_pos[current_vertex];
+        if (cur == UINT32_MAX) return UINT32_MAX;  // current vertex not visited -> no info
+        const PropertyRegion* r = findRegion(line_addr);
+        if (r == nullptr) return UINT32_MAX;
+        uint32_t cline = static_cast<uint32_t>((line_addr - r->base_address) / rereference.line_size);
+        uint32_t v0 = cline * exact_vtx_per_line;
+        uint32_t v1 = v0 + exact_vtx_per_line;
+        if (v1 > exact_nv) v1 = exact_nv;
+        uint32_t best = UINT32_MAX;
+        for (uint32_t v = v0; v < v1; ++v) {
+            int64_t lo = bfs_in_off[v], hi = bfs_in_off[v + 1];
+            while (lo < hi) {  // first in-neighbour visit position strictly > cur
+                int64_t mid = (lo + hi) >> 1;
+                if (bfs_in_vpos[mid] > cur) hi = mid; else lo = mid + 1;
+            }
+            if (lo < bfs_in_off[v + 1]) {
+                uint32_t vp = bfs_in_vpos[lo];
+                if (vp != UINT32_MAX) {
+                    uint32_t d = vp - cur;
+                    if (d < best) best = d;
+                }
+            }
+        }
+        if (best == UINT32_MAX) return UINT32_MAX;
+        if (exact_bits > 0) {
+            uint32_t q = 0, x = best;
+            while (x > 0) { q++; x >>= 1; }
+            uint32_t qmax = (1u << exact_bits) - 1;
+            return (q > qmax) ? qmax : q;
+        }
+        return best;
+    }
+
+    template<typename GraphT>
+    void registerOutAdjacencyExact(const GraphT& g) {
+        uint32_t n = g.num_nodes();
+        exact_nv = n;
+        exact_off.assign((size_t)n + 1, 0);
+        for (uint32_t v = 0; v < n; ++v)
+            exact_off[v + 1] = exact_off[v] + g.out_degree(v);
+        exact_nbr.assign((size_t)exact_off[n], 0);
+        #ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 256)
+        #endif
+        for (int64_t v = 0; v < (int64_t)n; ++v) {
+            int64_t p = exact_off[v];
+            for (auto w : g.out_neigh(v)) exact_nbr[p++] = static_cast<int32_t>(w);
+            std::sort(exact_nbr.begin() + exact_off[v], exact_nbr.begin() + exact_off[v + 1]);
+        }
+    }
+
+    // Exact next-reference distance (in vertices) for a property line, given the
+    // current traversal vertex (src). Returns a large sentinel if never re-read.
+    uint32_t exactNextRef(uint64_t line_addr, uint32_t src) const {
+        if (exact_off.empty() || rereference.line_size == 0) return UINT32_MAX;
+        const PropertyRegion* r = findRegion(line_addr);
+        if (r == nullptr) return UINT32_MAX;
+        uint32_t cline = static_cast<uint32_t>((line_addr - r->base_address) / rereference.line_size);
+        uint32_t v0 = cline * exact_vtx_per_line;
+        uint32_t v1 = v0 + exact_vtx_per_line;
+        if (v1 > exact_nv) v1 = exact_nv;
+        uint32_t best = UINT32_MAX;
+        for (uint32_t v = v0; v < v1; ++v) {
+            int64_t lo = exact_off[v], hi = exact_off[v + 1];
+            // first neighbor strictly greater than src (neighbors sorted asc)
+            while (lo < hi) {
+                int64_t mid = (lo + hi) >> 1;
+                if ((uint32_t)exact_nbr[mid] > src) hi = mid; else lo = mid + 1;
+            }
+            if (lo < exact_off[v + 1]) {
+                uint32_t d = (uint32_t)exact_nbr[lo] - src;
+                if (d < best) best = d;
+            }
+        }
+        if (best == UINT32_MAX) return UINT32_MAX;
+        if (exact_bits > 0) {
+            // log2-quantize the exact distance into B bits (mask-storable):
+            // q = min(floor(log2(d+1)), 2^B - 1). Position stays exact; only the
+            // distance MAGNITUDE is coarsened, to test how few bits the win needs.
+            uint32_t q = 0, x = best;
+            while (x > 0) { q++; x >>= 1; }   // q = floor(log2(best))+1 ~ bit-length
+            uint32_t qmax = (1u << exact_bits) - 1;
+            return (q > qmax) ? qmax : q;
+        }
+        return best;
+    }
+
+
     // --- Prefetch Matrix (ECG-style graph-aware prefetching) ---
     // Maps each vertex to its predicted next-access vertex.
     // When a vertex v is accessed, prefetch data for prefetch_map[v].
@@ -956,6 +1329,12 @@ struct GraphCacheContext {
     //   [26:33] = POPT reuse quantization (7 bits)
     //   [33:64] = prefetch target vertex ID (31 bits)
     std::vector<std::vector<uint64_t>> in_edge_masks_by_src;
+
+    // ECG_GRASP_POPT: parallel per-edge ABSOLUTE next-ref epoch (full resolution,
+    // not capped by the 7-bit mask POPT field). Filled by buildInEdgeMasks_PR when
+    // ECG_EDGE_MASK_EPOCH is set; the kernel carries it on the demand via
+    // AccessHints::edge_epoch so the cache can use >128 epochs.
+    std::vector<std::vector<uint16_t>> in_edge_epoch_by_src;
 
     ~GraphCacheContext() {
         if (mask_config.enabled) printECGStats();
@@ -1775,7 +2154,48 @@ struct GraphCacheContext {
         uint32_t n = g.num_nodes();
         in_edge_masks_by_src.clear();
         in_edge_masks_by_src.resize(n);
+        in_edge_epoch_by_src.clear();
+        in_edge_epoch_by_src.resize(n);
         if (n == 0) return;
+
+        // ECG_EDGE_MASK_EXACT: fill the per-edge POPT field [26:33] with the
+        // EXACT next-reference of dest (log2-quantized to 5 bits) instead of the
+        // epoch-AVERAGE rereference. This is the precomputed-mask realization of
+        // the ECG:EXACT sweep — the value an offline pass embeds per edge, then
+        // the cache reads at access (no live recompute, no graph query at evict).
+        const bool edge_mask_exact = std::getenv("ECG_EDGE_MASK_EXACT") != nullptr
+            && !exact_off.empty();
+
+        // ECG_EDGE_MASK_EPOCH: fill the per-edge POPT field [26:33] with the
+        // ABSOLUTE next-reference EPOCH of dest (5 bits = 32 epochs), wrapping to
+        // the next iteration when dest has no out-neighbor > src. At eviction the
+        // cache computes circular distance (stored_epoch - current_epoch) so
+        // stale/passed lines rank far and evict correctly. (ECG_GRASP_POPT.)
+        const bool edge_mask_epoch = std::getenv("ECG_EDGE_MASK_EPOCH") != nullptr
+            && !exact_off.empty();
+        // ECG_EDGE_MASK_LINEMIN: store the per-LINE-min next-ref epoch (soonest over
+        // the 16 vertices sharing dest's cache line) instead of just dest's — matches
+        // P-OPT's per-line granularity. 16x build cost, fully parallel.
+        const bool edge_mask_linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
+        {   // # epochs the absolute-epoch mask quantizes to (7-bit field => <=128)
+            const char* ev = std::getenv("ECG_EDGE_MASK_EPOCHS");
+            uint32_t ec = ev ? (uint32_t)std::atoi(ev) : 32u;
+            if (ec < 2) ec = 2; if (ec > 65535) ec = 65535;
+            edge_epoch_count = ec;
+        }
+        // ECG_EDGE_MASK_PACK: enforce the REAL spare-bit cap — the epoch must fit
+        // in the spare high bits of the 32-bit edge word: spare = 32 - ceil(log2 N),
+        // ne_cap = 2^spare. This is the honest packed-delivery resolution limit.
+        if (std::getenv("ECG_EDGE_MASK_PACK")) {
+            uint32_t id_bits = 1; while (id_bits < 31 && (1u << id_bits) < n) id_bits++;
+            uint32_t spare = (id_bits >= 32) ? 0u : (32u - id_bits);
+            uint32_t ne_cap = (spare >= 16) ? 65535u : (spare == 0 ? 1u : (1u << spare));
+            if (edge_epoch_count > ne_cap) edge_epoch_count = ne_cap;
+            std::cout << "ECG_EDGE_MASK_PACK: N=" << n << " id_bits=" << id_bits
+                      << " spare_bits=" << spare << " ne_cap=" << ne_cap
+                      << " -> ne=" << edge_epoch_count << std::endl;
+        }
+        const uint32_t kNumEpochs5 = edge_epoch_count;
 
         // Build degree array + tiers (reuse computeVertexTiers if not already)
         auto tiers = computeVertexTiers(g);
@@ -1826,6 +2246,8 @@ struct GraphCacheContext {
 
             auto& masks = in_edge_masks_by_src[src];
             masks.resize(neighbors.size(), 0);
+            auto& eps = in_edge_epoch_by_src[src];
+            if (edge_mask_epoch) eps.resize(neighbors.size(), 0);
 
             for (size_t i = 0; i < neighbors.size(); i++) {
                 uint32_t dest = neighbors[i];
@@ -1839,12 +2261,58 @@ struct GraphCacheContext {
                     if (dest_cline < avg_reref_by_line.size())
                         popt = avg_reref_by_line[dest_cline] & 0x7F;
                 }
+                // EXACT override: next-ref of dest from the consuming position src
+                // = (first out-neighbor of dest strictly > src) - src, log2-quantized
+                // to 5 bits. This is exactNextRef() for a single vertex, precomputed.
+                if (edge_mask_exact && dest < exact_nv) {
+                    int64_t lo = exact_off[dest], hi = exact_off[dest + 1];
+                    while (lo < hi) {  // first out-neighbor > src (neighbors sorted asc)
+                        int64_t mid = (lo + hi) >> 1;
+                        if ((uint32_t)exact_nbr[mid] > src) hi = mid; else lo = mid + 1;
+                    }
+                    uint32_t dist = (lo < exact_off[dest + 1])
+                        ? ((uint32_t)exact_nbr[lo] - src) : UINT32_MAX;
+                    uint8_t q;
+                    if (dist == UINT32_MAX) q = 31;   // no future ref -> farthest (evict)
+                    else { uint32_t b = 0, x = dist; while (x > 0) { b++; x >>= 1; } q = (b > 31) ? 31 : (uint8_t)b; }
+                    popt = q & 0x7F;  // 5-bit log-distance in the 7-bit POPT field
+                }
+                // EPOCH override: ABSOLUTE next-ref epoch of dest in [0,31]. Find the
+                // next out-neighbor of dest strictly > src; if none, wrap to dest's
+                // first out-neighbor (next iteration). epoch = neighbor * 32 / n.
+                if (edge_mask_epoch && dest < exact_nv) {
+                    // Scan dest only, or the whole 16-vertex line (linemin). Keep the
+                    // SOONEST next reference (min circular distance from src) and store
+                    // its absolute epoch.
+                    uint32_t v0 = edge_mask_linemin ? (dest / numVtxPerLine) * numVtxPerLine : dest;
+                    uint32_t v1 = edge_mask_linemin ? std::min<uint32_t>(v0 + numVtxPerLine, exact_nv) : (dest + 1);
+                    uint32_t best_dist = UINT32_MAX, best_ep = kNumEpochs5 - 1;
+                    for (uint32_t w = v0; w < v1; ++w) {
+                        int64_t a = exact_off[w], b = exact_off[w + 1];
+                        if (a >= b) continue;  // isolated vertex
+                        int64_t lo = a, hi = b;
+                        while (lo < hi) {
+                            int64_t mid = (lo + hi) >> 1;
+                            if ((uint32_t)exact_nbr[mid] > src) hi = mid; else lo = mid + 1;
+                        }
+                        uint32_t next_nbr, dist;
+                        if (lo < b) { next_nbr = (uint32_t)exact_nbr[lo]; dist = next_nbr - src; }
+                        else        { next_nbr = (uint32_t)exact_nbr[a]; dist = next_nbr + n - src; }  // wrap
+                        if (dist < best_dist) {
+                            best_dist = dist;
+                            best_ep = (uint32_t)(((uint64_t)next_nbr * kNumEpochs5) / std::max<uint32_t>(1u, n));
+                        }
+                    }
+                    popt = (best_ep >= kNumEpochs5 ? (kNumEpochs5 - 1) : best_ep) & 0x7F;
+                    if (i < eps.size()) eps[i] = static_cast<uint16_t>(
+                        best_ep >= kNumEpochs5 ? (kNumEpochs5 - 1) : best_ep);  // FULL epoch (untruncated)
+                }
 
                 // Per-edge prefetch target: scan ahead K in src's in_neighbors
                 // (positions i+1 .. i+K), pick the one with shortest POPT
                 // reuse distance (lower = sooner-reused = higher value).
                 uint32_t prefetch_target = 0;
-                if (k_lookahead > 0 && !avg_reref_by_line.empty()) {
+                if (!edge_mask_exact && !edge_mask_epoch && k_lookahead > 0 && !avg_reref_by_line.empty()) {
                     uint8_t best_dist = 128;
                     int probe = std::min<int>(k_lookahead, static_cast<int>(neighbors.size()) - static_cast<int>(i) - 1);
                     for (int step = 1; step <= probe; step++) {

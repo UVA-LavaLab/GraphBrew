@@ -29,12 +29,13 @@ class GraphEcgRP : public Base
         uint8_t rrpv;
         uint8_t ecg_dbg_tier;
         uint8_t ecg_popt_hint;
+        uint16_t ecg_epoch;
         bool is_property_data;
         uint64_t line_addr;
 
         EcgReplData(uint8_t max_rrpv)
             : rrpv(max_rrpv), ecg_dbg_tier(0), ecg_popt_hint(0),
-              is_property_data(false), line_addr(0) {}
+              ecg_epoch(0), is_property_data(false), line_addr(0) {}
     };
 
     GraphEcgRP(const Params &p);

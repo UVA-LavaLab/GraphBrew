@@ -22,7 +22,8 @@
 using namespace std;
 
 pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
-    pvector<NodeID> parent(g.num_nodes(), -1);
+    constexpr size_t kPropAlign = 4096;  // page-align hot property array (see pr.cc)
+    pvector<NodeID> parent(g.num_nodes(), -1, kPropAlign);
     parent[source] = source;
 
     gem5_report_region("parent", parent.data(), g.num_nodes(), sizeof(NodeID));

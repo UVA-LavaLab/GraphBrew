@@ -22,6 +22,7 @@ the reorder cost.
 **Deep dives**
 - [GraphBrewOrder](GraphBrewOrder) — the composable pipeline
 - [Cache-Simulation](Cache-Simulation) — `bench/bin_sim/*` usage
+- [ECG-Policy-Comparison](ECG-Policy-Comparison) — ECG vs GRASP/P-OPT factorial comparison, headline result, and correctness verification
 - [ECG-Final-Runs](ECG-Final-Runs) — current ECG/gem5 final-run profiles, charged P-OPT, and supported baselines
 - [ECG-Sniper-Runs](ECG-Sniper-Runs) — Sniper backend setup, bounded SIFT full-wrapper validation, DROPLET, and current multithread blocker
 - [ECG-Slurm-Runs](ECG-Slurm-Runs) — split ECG/gem5 final runs across UVA Slurm, stage final graphs, and aggregate later

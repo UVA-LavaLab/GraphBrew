@@ -23,10 +23,253 @@
 #include <memory>
 #include <atomic>
 #include <omp.h>
+#include <chrono>
+#include <parallel/algorithm>
 
 #include "graph_cache_context.h"
 
 namespace cache_sim {
+
+// ============================================================================
+// T-OPT: trace-based TRUE Belady oracle (T_OPT=1). Records the actual L3 input
+// stream (post-L1/L2 filtering, identical regardless of L3 policy since L1/L2
+// are LRU) and computes the offline MIN miss rate over the ENTIRE stream — the
+// absolute optimal floor, algorithm-agnostic. Validates ECG:EXACT flavors and
+// proves "no bugs". Single-thread only (OMP_NUM_THREADS=1). Reports to stderr.
+//
+// Also reports T_OPT_PROP: Belady over the property-data substream only — the
+// achievable ceiling for any property-data exact-reuse policy (P-OPT, ECG:EXACT,
+// the deployable trace-mask). This is the trace-EXACT full-precision ceiling:
+// the best attainable by exactly knowing each property line's next reference in
+// the TRUE access order (any algorithm, incl. frontier). EXACT-sweep (adjacency)
+// approaches it where sweep-order==truth (pr); the gap on frontier kernels = the
+// value of trace-derived ordering over ID-order adjacency.
+// ============================================================================
+namespace topt {
+    inline std::vector<uint64_t> trace;        // ALL L3 input addresses, in order
+    inline std::vector<uint64_t> trace_prop;   // property-data L3 addresses, in order
+    inline std::vector<uint8_t>  trace_is_prop; // per-entry property flag (aligned with trace)
+    inline uint32_t offset_bits = 6;
+    inline uint32_t index_bits = 0;
+    inline uint32_t ways = 16;
+    inline bool geom_captured = false;
+
+    // Parallel next-occurrence construction — the deployable traversal-mask bottleneck.
+    // next_use[i] = next index j>i with the same cache line, else INF. A line maps to
+    // exactly ONE set, so per-set next-occurrence == global next-occurrence: we bucket
+    // indices by the DENSE set index (parallel counting-sort, O(T), no log factor) then
+    // compute next-occurrence within each set in PARALLEL (each set's small line-set fits
+    // in cache). Same embarrassingly-parallel structure P-OPT/sweep construction use, so
+    // the traversal mask builds in parallel too. TOPT_SEQ=1 forces the sequential
+    // reference path (A/B timing + correctness check). The forward Belady sim that
+    // CONSUMES next_use stays sequential (inherent) — that's the oracle MEASUREMENT, not
+    // part of the deployable mask.
+    inline void compute_next_use(const std::vector<uint64_t>& t, std::vector<uint32_t>& next_use) {
+        const size_t T = t.size();
+        next_use.assign(T, UINT32_MAX);
+        if (T == 0) return;
+        const uint32_t ob = offset_bits;
+        const uint64_t num_sets = (index_bits > 0) ? (1ULL << index_bits) : 1ULL;
+        const uint64_t set_mask = num_sets - 1;
+        static const bool seq = std::getenv("TOPT_SEQ") != nullptr;
+        int nthreads = 1;
+        if (!seq) {
+            // Recording is DONE (atexit) — raise threads for pure post-processing.
+            // OMP_NUM_THREADS=1 is a recording-determinism constraint, not a
+            // construction one; the next_use result is thread-count-independent.
+            const char* tt = std::getenv("TOPT_THREADS");
+            nthreads = tt ? std::atoi(tt) : omp_get_num_procs();
+            if (nthreads < 1) nthreads = 1;
+            omp_set_num_threads(nthreads);
+        }
+        auto t0 = std::chrono::steady_clock::now();
+        if (seq || num_sets <= 1) {
+            std::unordered_map<uint64_t, uint32_t> np;
+            np.reserve(T / 4 + 16);
+            for (size_t i = T; i-- > 0; ) {
+                uint64_t line = t[i] >> ob;
+                auto it = np.find(line);
+                next_use[i] = (it == np.end()) ? UINT32_MAX : it->second;
+                np[line] = static_cast<uint32_t>(i);
+            }
+        } else {
+            const uint64_t* tp = t.data();
+            const int P = nthreads;
+            std::vector<size_t> cstart(P + 1);
+            for (int p = 0; p <= P; ++p) cstart[p] = (T * (size_t)p) / P;
+            // Step 1: per-thread per-set histogram (fully parallel, no contention).
+            std::vector<uint64_t> cnt((size_t)P * num_sets, 0);
+            #pragma omp parallel num_threads(P)
+            {
+                int p = omp_get_thread_num();
+                uint64_t* c = &cnt[(size_t)p * num_sets];
+                for (size_t i = cstart[p]; i < cstart[p + 1]; ++i) c[(tp[i] >> ob) & set_mask]++;
+            }
+            // Step 2: exclusive prefix over (set, thread) -> global start per (thread,set).
+            std::vector<uint64_t> off(num_sets + 1, 0);
+            std::vector<uint64_t> tstart((size_t)P * num_sets);
+            {
+                uint64_t running = 0;
+                for (uint64_t s = 0; s < num_sets; ++s) {
+                    off[s] = running;
+                    for (int p = 0; p < P; ++p) {
+                        tstart[(size_t)p * num_sets + s] = running;
+                        running += cnt[(size_t)p * num_sets + s];
+                    }
+                }
+                off[num_sets] = running;
+            }
+            // Step 3: scatter (fully parallel; each thread owns disjoint slots, order preserved).
+            std::vector<uint32_t> by_set(T);
+            #pragma omp parallel num_threads(P)
+            {
+                int p = omp_get_thread_num();
+                std::vector<uint64_t> cur(num_sets);
+                for (uint64_t s = 0; s < num_sets; ++s) cur[s] = tstart[(size_t)p * num_sets + s];
+                for (size_t i = cstart[p]; i < cstart[p + 1]; ++i) {
+                    uint64_t s = (tp[i] >> ob) & set_mask;
+                    by_set[cur[s]++] = (uint32_t)i;
+                }
+            }
+            // Step 4: per-set next-occurrence (parallel over sets; small per-set line map).
+            #pragma omp parallel for schedule(dynamic, 8)
+            for (uint64_t s = 0; s < num_sets; ++s) {
+                std::unordered_map<uint64_t, uint32_t> last;
+                for (uint64_t k = off[s + 1]; k-- > off[s]; ) {
+                    uint32_t i = by_set[k];
+                    uint64_t line = tp[i] >> ob;
+                    auto it = last.find(line);
+                    next_use[i] = (it == last.end()) ? UINT32_MAX : it->second;
+                    last[line] = i;
+                }
+            }
+        }
+        auto t1 = std::chrono::steady_clock::now();
+        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        std::cerr << "[T_OPT] next_use build: " << ms << " ms for " << T << " accesses ("
+                  << (seq ? "sequential" : "parallel")
+                  << ", threads=" << nthreads << ")\n";
+    }
+
+    // Offline MIN (Belady) over an address stream with the L3 set geometry.
+    inline void min_miss(const std::vector<uint64_t>& t, uint64_t& hits, uint64_t& misses) {
+        hits = 0; misses = 0;
+        const size_t T = t.size();
+        if (T == 0) return;
+        const uint64_t num_sets = (index_bits > 0) ? (1ULL << index_bits) : 1ULL;
+        const uint64_t set_mask = num_sets - 1;
+        std::vector<uint32_t> next_use;
+        compute_next_use(t, next_use);
+        std::vector<std::unordered_map<uint64_t, uint32_t>> resident(num_sets);
+        for (size_t i = 0; i < T; ++i) {
+            uint64_t line = t[i] >> offset_bits;
+            uint64_t s = line & set_mask;
+            auto& R = resident[s];
+            auto it = R.find(line);
+            if (it != R.end()) {
+                ++hits;
+                it->second = next_use[i];
+            } else {
+                ++misses;
+                if (R.size() >= ways) {
+                    auto victim = R.begin();
+                    for (auto jt = R.begin(); jt != R.end(); ++jt)
+                        if (jt->second > victim->second) victim = jt;
+                    R.erase(victim);
+                }
+                R.emplace(line, next_use[i]);
+            }
+        }
+    }
+
+    // EXACT-trace POLICY simulated in the SHARED cache (the deployable trace-mask's
+    // ceiling): evict non-property lines first (like the real ECG:EXACT policy),
+    // then among property lines evict the one whose NEXT reference in TRUE traversal
+    // order (recorded next-occurrence) is farthest. Same policy structure as the real
+    // EXACT-sweep, differing ONLY in how property next-reference is derived (recorded
+    // traversal order vs ID-order adjacency). The EXACT-sweep-vs-EXACT-trace gap thus
+    // isolates the value of trace-derived ordering — large on frontier kernels.
+    inline void exact_trace_policy_miss(uint64_t& hits, uint64_t& misses) {
+        hits = 0; misses = 0;
+        const size_t T = trace.size();
+        if (T == 0 || trace_is_prop.size() != T) return;
+        const uint64_t num_sets = (index_bits > 0) ? (1ULL << index_bits) : 1ULL;
+        const uint64_t set_mask = num_sets - 1;
+        std::vector<uint32_t> next_use;
+        compute_next_use(trace, next_use);
+        struct Rl { uint32_t nu; uint8_t prop; };
+        std::vector<std::unordered_map<uint64_t, Rl>> res(num_sets);
+        for (size_t i = 0; i < T; ++i) {
+            uint64_t line = trace[i] >> offset_bits;
+            uint64_t s = line & set_mask;
+            uint8_t prop = trace_is_prop[i];
+            auto& M = res[s];
+            auto it = M.find(line);
+            if (it != M.end()) {
+                ++hits; it->second.nu = next_use[i]; it->second.prop = prop;
+            } else {
+                ++misses;
+                if (M.size() >= ways) {
+                    auto victim = M.end(); bool nonprop = false; uint32_t best = 0;
+                    for (auto jt = M.begin(); jt != M.end(); ++jt)
+                        if (!jt->second.prop && (!nonprop || jt->second.nu > best)) {
+                            nonprop = true; best = jt->second.nu; victim = jt;
+                        }
+                    if (!nonprop) {
+                        best = 0;
+                        for (auto jt = M.begin(); jt != M.end(); ++jt)
+                            if (victim == M.end() || jt->second.nu > best) {
+                                best = jt->second.nu; victim = jt;
+                            }
+                    }
+                    M.erase(victim);
+                }
+                M.emplace(line, Rl{next_use[i], prop});
+            }
+        }
+    }
+
+    inline void compute_and_report() {
+        if (trace.empty()) { std::cerr << "[T_OPT] no L3 accesses recorded\n"; return; }
+        const uint64_t num_sets = (index_bits > 0) ? (1ULL << index_bits) : 1ULL;
+        uint64_t h = 0, m = 0;
+        min_miss(trace, h, m);
+        std::cerr << "[T_OPT] L3 true-Belady (entire stream): accesses=" << trace.size()
+                  << " hits=" << h << " misses=" << m
+                  << " sets=" << num_sets << " ways=" << ways
+                  << " miss_rate=" << (static_cast<double>(m) / static_cast<double>(h + m)) << "\n";
+        if (!trace_prop.empty()) {
+            uint64_t hp = 0, mp = 0;
+            min_miss(trace_prop, hp, mp);
+            std::cerr << "[T_OPT_PROP] L3 property-only Belady (isolated, optimistic diag): accesses="
+                      << trace_prop.size() << " hits=" << hp << " misses=" << mp
+                      << " miss_rate=" << (static_cast<double>(mp) / static_cast<double>(hp + mp)) << "\n";
+        }
+        {
+            uint64_t he = 0, me = 0;
+            exact_trace_policy_miss(he, me);
+            if (he + me > 0)
+                std::cerr << "[EXACT_TRACE] L3 trace-order EXACT policy (shared cache, deployable ceiling): "
+                          << "hits=" << he << " misses=" << me
+                          << " miss_rate=" << (static_cast<double>(me) / static_cast<double>(he + me)) << "\n";
+        }
+    }
+
+    inline bool enabled = []{
+        bool e = std::getenv("T_OPT") != nullptr;
+        if (e) std::atexit([]{ compute_and_report(); });
+        return e;
+    }();
+
+    inline void capture_geom(uint32_t ob, uint32_t ib, uint32_t w) {
+        if (!geom_captured) { offset_bits = ob; index_bits = ib; ways = w; geom_captured = true; }
+    }
+    inline void record(uint64_t address, bool is_property) {
+        trace.push_back(address);
+        trace_is_prop.push_back(is_property ? 1 : 0);
+        if (is_property) trace_prop.push_back(address);
+    }
+}
 
 // ============================================================================
 // Eviction Policy Enumeration
@@ -167,6 +410,8 @@ struct CacheLine {
     uint64_t line_addr = 0;      // Cache-line-aligned address
     uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (structural, for eviction tiebreak)
     uint8_t ecg_popt_hint = 0;   // ECG_EMBEDDED: stored P-OPT quantized rereference hint
+    uint16_t ecg_epoch = 0;      // ECG_GRASP_POPT: stored ABSOLUTE next-ref epoch (full resolution)
+    uint32_t ecg_exact_pred = UINT32_MAX; // ECG_EXACT_STORED: exact next-ref STAMPED at access (precomputed-mask model)
     bool pin = false;            // PIN policy: line is pinned in cache (high-reuse region)
 };
 
@@ -564,7 +809,14 @@ public:
     // Access cache (returns true on hit, false on miss)
     bool access(uint64_t address, bool is_write) {
         std::lock_guard<std::mutex> lock(mutex_);
-        
+
+        // T-OPT: record the L3 input stream (post-L1/L2). Only the LLC level.
+        if (topt::enabled && (name_ == "L3" || name_ == "L3-Shared")) {
+            topt::capture_geom(offset_bits_, index_bits_, (uint32_t)associativity_);
+            bool is_prop = graph_ctx_ && graph_ctx_->isPropertyData(address);
+            topt::record(address, is_prop);
+        }
+
         if (is_write) {
             stats_.writes++;
         } else {
@@ -590,6 +842,54 @@ public:
         
         // Miss
         stats_.misses++;
+        // Set-dueling: leader-set misses steer PSEL (epoch-leader miss -> toward LRU;
+        // LRU-leader miss -> toward epoch). Followers later read PSEL.
+        if (set_dueling_) {
+            size_t r = set_idx % 64;
+            if (r == 0) { if (psel_ < 1023) psel_++; }       // epoch leader missed
+            else if (r == 1) { if (psel_ > 0) psel_--; }     // LRU leader missed
+        }
+        return false;
+    }
+
+    // ECG_EXACT_STORED: refresh a resident line's stamped prediction on a demand
+    // access EVEN IF this level didn't serve it. Models the per-edge mask hint
+    // being broadcast to the LLC on every edge load (the ecg.extract instruction
+    // emits a hint per edge), keeping the stamp fresh despite L1/L2 filtering.
+    // No-op unless ECG_EXACT_STORED and the line is resident here.
+    void refreshExactStamp(uint64_t address) {
+        if (policy_ != EvictionPolicy::ECG || !graph_ctx_) return;
+        ECGMode mode = graph_ctx_->mask_config.enabled
+            ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
+        if (mode != ECGMode::ECG_EXACT_STORED && mode != ECGMode::ECG_GRASP_POPT) return;
+        std::lock_guard<std::mutex> lock(mutex_);
+        uint64_t tag = getTag(address);
+        size_t set_idx = getSetIndex(address);
+        auto& set = cache_[set_idx];
+        for (size_t i = 0; i < associativity_; i++) {
+            if (set[i].valid && set[i].tag == tag) {
+                if (mode == ECGMode::ECG_EXACT_STORED)
+                    set[i].ecg_exact_pred = computeExactPredForStamp(set[i].line_addr);
+                else  // ECG_GRASP_POPT: refresh the stored absolute next-ref epoch
+                    set[i].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
+                return;
+            }
+        }
+    }
+
+    // Non-counting presence check: returns true if the line is resident WITHOUT
+    // touching demand hit/miss stats or replacement state. Used by prefetch() to
+    // probe each level — a prefetch probe must NOT register as a demand access
+    // (otherwise an avoided demand miss is cancelled by the probe miss, making
+    // prefetch a no-op for the miss rate).
+    bool contains(uint64_t address) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        uint64_t tag = getTag(address);
+        size_t set_idx = getSetIndex(address);
+        auto& set = cache_[set_idx];
+        for (size_t i = 0; i < associativity_; i++) {
+            if (set[i].valid && set[i].tag == tag) return true;
+        }
         return false;
     }
 
@@ -602,6 +902,7 @@ public:
         auto& set = cache_[set_idx];
         
         // Find victim
+        evicting_set_idx_ = set_idx;   // for set-dueling arm selection
         size_t victim_idx = findVictim(set);
 
         // PIN bypass: all ways pinned, do not insert (miss already counted).
@@ -673,7 +974,18 @@ public:
             ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
                 ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
 
-            if (mode == ECGMode::POPT_PRIMARY) {
+            if (mode == ECGMode::ECG_EXACT_MASK) {
+                // Precomputed exact 5-bit next-ref carried on the demand (per-edge
+                // mask POPT field, bits [26:33]). Map near->keep (low RRPV),
+                // far->evict (high RRPV). Set fresh at every access; eviction is
+                // plain RRIP — no eviction-time recompute, no graph query.
+                uint8_t popt5 = static_cast<uint8_t>(
+                    (graph_ctx_->hints_for_thread().mask >> 26) & 0x1F);
+                uint8_t rmax = graph_ctx_->mask_config.rrpv_max;
+                set[victim_idx].rrpv = static_cast<uint8_t>((uint32_t(popt5) * rmax) / 31u);
+                set[victim_idx].ecg_popt_hint = popt5;
+            } else if (mode == ECGMode::POPT_PRIMARY || mode == ECGMode::ECG_EXACT
+                || mode == ECGMode::ECG_EXACT_STORED) {
                 // Match P-OPT insertion: uniform RRPV=6 for all lines
                 set[victim_idx].rrpv = 6;
             } else if (mode == ECGMode::ECG_COMBINED) {
@@ -726,7 +1038,14 @@ public:
             if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
                 uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
                 set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
-                set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
+                if (mode == ECGMode::ECG_EXACT_MASK) {
+                    // already set ecg_popt_hint from the fixed per-edge layout above
+                } else if (mode == ECGMode::ECG_GRASP_POPT) {
+                    // per-edge mask carries the ABSOLUTE next-ref epoch (untruncated)
+                    set[victim_idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
+                } else {
+                    set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
+                }
             } else if (graph_ctx_) {
                 uint32_t bucket = graph_ctx_->classifyBucket(address);
                 set[victim_idx].ecg_dbg_tier = (bucket < 11) ? static_cast<uint8_t>(bucket) : 0;
@@ -739,6 +1058,16 @@ public:
                 } else {
                     set[victim_idx].ecg_popt_hint = 0;
                 }
+            }
+
+            // ECG_EXACT_STORED: stamp the exact next-reference NOW (at access /
+            // fill), modeling a precomputed per-edge mask. The value is computed
+            // at the CONSUMING position (current_src), exactly what an offline
+            // per-edge table would hold for this edge — so eviction reads a
+            // STORED hint, never recomputing. This isolates the only difference
+            // from live ECG_EXACT: staleness (stamp at last access vs at evict).
+            if (mode == ECGMode::ECG_EXACT_STORED) {
+                set[victim_idx].ecg_exact_pred = computeExactPredForStamp(set[victim_idx].line_addr);
             }
         }
     }
@@ -857,10 +1186,28 @@ private:
             ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
                 ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
 
-            if (mode == ECGMode::POPT_PRIMARY || mode == ECGMode::ECG_COMBINED) {
+            if (mode == ECGMode::ECG_EXACT_MASK) {
+                // Re-apply the FRESH per-edge 5-bit at this re-reference (each edge
+                // carries its own hint), so RRPV tracks the current next-ref —
+                // this freshness is what the eviction-time recompute gave for free.
+                uint8_t popt5 = static_cast<uint8_t>(
+                    (graph_ctx_->hints_for_thread().mask >> 26) & 0x1F);
+                uint8_t rmax = graph_ctx_->mask_config.rrpv_max;
+                set[idx].rrpv = static_cast<uint8_t>((uint32_t(popt5) * rmax) / 31u);
+                set[idx].ecg_popt_hint = popt5;
+            } else if (mode == ECGMode::POPT_PRIMARY || mode == ECGMode::ECG_COMBINED
+                || mode == ECGMode::ECG_EXACT || mode == ECGMode::ECG_EXACT_STORED) {
                 // Hawkeye/P-OPT-style: reset to 0 on hit
                 // Every hit is evidence of cache-friendliness
                 set[idx].rrpv = 0;
+                // ECG_EXACT_STORED: re-stamp the exact next-ref at THIS access.
+                // The line is being re-referenced now (current_src advanced), so
+                // its stored prediction must refresh — exactly what a per-edge
+                // mask does (each edge consumed carries its own hint). Without
+                // this, the prediction would be frozen at first-fill position.
+                if (mode == ECGMode::ECG_EXACT_STORED) {
+                    set[idx].ecg_exact_pred = computeExactPredForStamp(set[idx].line_addr);
+                }
             } else {
                 // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED variants
                 if (graph_ctx_) {
@@ -869,8 +1216,47 @@ private:
                     if (tier == 1) set[idx].rrpv = 0;           // Hot: aggressive reset
                     else if (set[idx].rrpv > 0) set[idx].rrpv--; // Others: gradual
                 }
+                // ECG_GRASP_POPT: refresh the stored ABSOLUTE next-ref epoch at this
+                // re-reference (the per-edge mask carries a fresh epoch each access),
+                // so eviction's circular distance is measured from the latest epoch.
+                if (mode == ECGMode::ECG_GRASP_POPT && graph_ctx_) {
+                    set[idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
+                }
             }
         }
+    }
+
+    // ── Eviction verification trace (ECG_EVICT_TRACE=N prints the first N
+    // eviction decisions with every candidate's fields + the chosen victim and
+    // reason, so each policy's behavior can be hand-verified). ──
+    void traceEvict(const char* pol, std::vector<CacheLine>& set,
+                    size_t victim, const char* reason, uint32_t curEpoch) {
+        static long budget = -2;
+        if (budget == -2) {
+            const char* e = std::getenv("ECG_EVICT_TRACE");
+            budget = e ? std::atol(e) : 0;
+        }
+        if (budget <= 0) return;
+        // Only trace the LLC (L3) — L1/L2 are LRU and would consume the budget.
+        if (name_ != "L3" && name_ != "L3-Shared") return;
+        --budget;
+        std::cerr << "[EVICT L3 pol=" << pol << " curEpoch=" << curEpoch
+                  << " set_ways=" << associativity_ << "]\n";
+        for (size_t i = 0; i < associativity_; i++) {
+            bool prop = graph_ctx_ && graph_ctx_->isPropertyData(set[i].line_addr);
+            uint32_t ne = (graph_ctx_ && graph_ctx_->edge_epoch_count)
+                ? graph_ctx_->edge_epoch_count : 32u;
+            uint32_t dist = (uint32_t(set[i].ecg_epoch) + ne - curEpoch) % ne;
+            std::cerr << "   way" << i
+                      << " valid=" << set[i].valid
+                      << " rrpv=" << (int)set[i].rrpv
+                      << " epoch=" << set[i].ecg_epoch
+                      << " dist=" << dist
+                      << " prop=" << (int)prop
+                      << " last=" << set[i].last_access
+                      << (i == victim ? "   <== VICTIM" : "") << "\n";
+        }
+        std::cerr << "   -> victim=way" << victim << " reason=" << reason << "\n";
     }
 
     size_t findVictim(std::vector<CacheLine>& set) {
@@ -928,6 +1314,7 @@ private:
                 victim = i;
             }
         }
+        traceEvict("LRU", set, victim, "min last_access", 0);
         return victim;
     }
 
@@ -1019,7 +1406,10 @@ private:
         constexpr uint8_t M_RRIP = 7;  // 3-bit RRPV, max = 2^3-1
         while (true) {
             for (size_t i = 0; i < associativity_; i++) {
-                if (set[i].rrpv >= M_RRIP) return i;
+                if (set[i].rrpv >= M_RRIP) {
+                    traceEvict("GRASP", set, i, "first rrpv==max (RRIP, no epoch)", 0);
+                    return i;
+                }
             }
             for (size_t i = 0; i < associativity_; i++) {
                 if (set[i].rrpv < M_RRIP) set[i].rrpv++;
@@ -1111,6 +1501,41 @@ private:
     //  - P-OPT consulted dynamically via findNextRef() at eviction time
     //    (not cached — avoids stale snapshot problem)
     // ================================================================
+    // ECG_EXACT_STORED helper: stamp the ABSOLUTE next-reference POSITION for a
+    // property line at the CURRENT traversal position (current_src). pull-PR sets
+    // current_src=u before reading each in-neighbor's property, so this is the
+    // value an offline per-edge mask would carry for the edge consumed now.
+    //
+    // We store the ABSOLUTE position (cur + distance), not the relative distance:
+    // a cached line receives no reference between its last access and eviction
+    // (any such reference is a cache hit that re-stamps), so the next-ref position
+    // measured at last-access equals the one at eviction. Absolute positions are
+    // comparable across ways (same 0..N timeline); relative distances stamped at
+    // different last-access positions are NOT. Eviction reads the stored value —
+    // no live recompute. (exact_bits log-quantization is incompatible with
+    // absolute stamping and must stay 0 for this mode.)
+    uint32_t computeExactPredForStamp(uint64_t line_addr) {
+        if (!graph_ctx_) return UINT32_MAX;
+        if (graph_ctx_->exact_off.empty() && graph_ctx_->bfs_in_off.empty())
+            return UINT32_MAX;
+        if (!graph_ctx_->isPropertyData(line_addr)) return UINT32_MAX;
+        uint32_t cur = graph_ctx_->hints_for_thread().current_src;
+        if (graph_ctx_->exact_bfs) {
+            // BFS clock: exactNextRefBFS returns the distance in VISIT-ORDER units
+            // measured from visit_pos[cur], so the absolute position is
+            // visit_pos[cur] + d (NOT cur + d, which mixes vertex-id and visit-order).
+            if (cur >= graph_ctx_->visit_pos.size()) return UINT32_MAX;
+            uint32_t base = graph_ctx_->visit_pos[cur];
+            if (base == UINT32_MAX) return UINT32_MAX;
+            uint32_t db = graph_ctx_->exactNextRefBFS(line_addr, cur);
+            if (db == UINT32_MAX) return UINT32_MAX;
+            return base + db;
+        }
+        uint32_t d = graph_ctx_->exactNextRef(line_addr, cur);
+        if (d == UINT32_MAX) return UINT32_MAX;   // no future ref -> evict first
+        return cur + d;                            // absolute next-reference position
+    }
+
     size_t findVictimECG(std::vector<CacheLine>& set) {
         uint8_t rrpv_max = (graph_ctx_ && graph_ctx_->mask_config.enabled)
             ? graph_ctx_->mask_config.rrpv_max : 7;
@@ -1133,10 +1558,209 @@ private:
             }
         }
 
+        // ── ECG_EXACT: exact position-indexed next-reference (per-edge idea) ──
+        // Mirrors POPT_PRIMARY (non-property first, max-distance over ALL ways,
+        // DBG tiebreak) but the distance is the EXACT next-reference computed
+        // from the graph's out-adjacency at the CURRENT traversal vertex
+        // (graph_ctx_->exactNextRef) — no [epoch×line] matrix, no quantization,
+        // no averaging. Tests whether exact position-indexed reuse (the limit of
+        // the per-edge mask) beats P-OPT's coarse 256-epoch matrix.
+        if (mode == ECGMode::ECG_EXACT && graph_ctx_ &&
+            (!graph_ctx_->exact_off.empty() || !graph_ctx_->bfs_in_off.empty())) {
+            const bool use_bfs = graph_ctx_->exact_bfs;
+            for (size_t i = 0; i < associativity_; i++) {
+                if (!graph_ctx_->isPropertyData(set[i].line_addr)) return i;
+            }
+            uint32_t cur = graph_ctx_->hints_for_thread().current_src;
+            uint64_t maxDist = 0;
+            uint64_t wayDist[64] = {};
+            for (size_t i = 0; i < associativity_; i++) {
+                uint64_t d = use_bfs
+                    ? graph_ctx_->exactNextRefBFS(set[i].line_addr, cur)
+                    : graph_ctx_->exactNextRef(set[i].line_addr, cur);
+                wayDist[i] = d;
+                if (d > maxDist) maxDist = d;
+            }
+            constexpr uint8_t M_RRPV = 7;
+            while (true) {
+                size_t best = SIZE_MAX;
+                uint8_t best_dbg = 0;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayDist[i] == maxDist && set[i].rrpv >= M_RRPV) {
+                        if (best == SIZE_MAX || set[i].ecg_dbg_tier > best_dbg) {
+                            best = i;
+                            best_dbg = set[i].ecg_dbg_tier;
+                        }
+                    }
+                }
+                if (best != SIZE_MAX) return best;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayDist[i] == maxDist && set[i].rrpv < M_RRPV) set[i].rrpv++;
+                }
+            }
+        }
+
+        // ── ECG_EXACT_STORED: realizable per-edge-mask version of ECG_EXACT ──
+        // Identical eviction structure (non-property first, max-distance over
+        // ALL ways, DBG tiebreak, SRRIP aging) but the distance is the value
+        // STAMPED at the line's last access (set[i].ecg_exact_pred) — what a
+        // precomputed per-edge mask carries — instead of being recomputed live
+        // at eviction. The only semantic difference from ECG_EXACT is staleness
+        // (stamp taken at last access position, not the eviction position).
+        if (mode == ECGMode::ECG_EXACT_STORED && graph_ctx_) {
+            for (size_t i = 0; i < associativity_; i++) {
+                if (!graph_ctx_->isPropertyData(set[i].line_addr)) return i;
+            }
+            uint64_t maxDist = 0;
+            uint64_t wayDist[64] = {};
+            for (size_t i = 0; i < associativity_; i++) {
+                wayDist[i] = set[i].ecg_exact_pred;
+                if (wayDist[i] > maxDist) maxDist = wayDist[i];
+            }
+            constexpr uint8_t M_RRPV = 7;
+            while (true) {
+                size_t best = SIZE_MAX;
+                uint8_t best_dbg = 0;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayDist[i] == maxDist && set[i].rrpv >= M_RRPV) {
+                        if (best == SIZE_MAX || set[i].ecg_dbg_tier > best_dbg) {
+                            best = i;
+                            best_dbg = set[i].ecg_dbg_tier;
+                        }
+                    }
+                }
+                if (best != SIZE_MAX) return best;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (wayDist[i] == maxDist && set[i].rrpv < M_RRPV) set[i].rrpv++;
+                }
+            }
+        }
+
         // ── ECG_COMBINED: Pure SRRIP aging (both signals already at insertion) ──
         // Hawkeye-inspired: the combined insertion RRPV already encodes
         // both degree and rereference signals. Standard SRRIP aging is
         // sufficient — no tiebreakers needed. First line at max RRPV wins.
+        if (mode == ECGMode::ECG_EXACT_MASK && graph_ctx_) {
+            // Precomputed exact 5-bit drove insertion/hit RRPV (near=keep,
+            // far=evict). Eviction = non-property first, then RRIP aging, with the
+            // stored 5-bit as tiebreak among max-RRPV ways (higher = farther = evict).
+            for (size_t i = 0; i < associativity_; i++) {
+                if (!graph_ctx_->isPropertyData(set[i].line_addr)) return i;
+            }
+            while (true) {
+                size_t best = SIZE_MAX;
+                uint8_t best_hint = 0;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (set[i].rrpv >= rrpv_max &&
+                        (best == SIZE_MAX || set[i].ecg_popt_hint > best_hint)) {
+                        best = i;
+                        best_hint = set[i].ecg_popt_hint;
+                    }
+                }
+                if (best != SIZE_MAX) return best;
+                for (size_t i = 0; i < associativity_; i++) {
+                    if (set[i].rrpv < rrpv_max) set[i].rrpv++;
+                }
+            }
+        }
+
+        // ── ECG_GRASP_POPT: GRASP insertion + P-OPT-style eviction over the stored
+        // ABSOLUTE next-ref epoch. Evict the line with the MAX circular distance
+        // (stored_epoch - current_epoch mod 32): near-future (small) -> keep,
+        // far-future AND stale/passed (large) -> evict. Non-property first; the
+        // stored epoch is the sole key (no matrix, no query). ──
+        if (mode == ECGMode::ECG_GRASP_POPT && graph_ctx_) {
+            // ── ECG_VARIANT factorial ablation. Shared invariants in ALL variants:
+            //   epoch is PROPERTY-ONLY; records evicted by recency; unstamped
+            //   property (epoch==0) falls back to recency (never treated as farthest).
+            //     grasp_only(0): pure RRIP, no epoch         (== GRASP sanity)
+            //     epoch_first(1): farthest-epoch property (epoch VETOES recency);
+            //                     no stamped property -> recency
+            //     rrip_first(2,default): max-rrpv set (recency VETOES); records-first
+            //                     by recency, then farthest-epoch property
+            //     epoch_only(3): records-first by recency, then farthest-epoch property
+            //                     (insertion uniform -> isolates the epoch vs P-OPT)
+            //     shortcircuit(4,legacy): non-property first, then epoch among property
+            static const int variant = [](){
+                const char* v = std::getenv("ECG_VARIANT");
+                if (!v) return 2;
+                std::string s(v);
+                if (s=="grasp_only")   return 0;
+                if (s=="epoch_first")  return 1;
+                if (s=="rrip_first")   return 2;
+                if (s=="epoch_only")   return 3;
+                if (s=="shortcircuit"||s=="legacy") return 4;
+                return 2;
+            }();
+            const uint32_t n = graph_ctx_->exact_nv;
+            const uint32_t ne = graph_ctx_->edge_epoch_count ? graph_ctx_->edge_epoch_count : 32u;
+            uint32_t cur = graph_ctx_->hints_for_thread().current_src;
+            uint32_t cur_epoch = (n > 0 && cur != UINT32_MAX)
+                ? static_cast<uint32_t>(((uint64_t)cur * ne) / n) : 0;
+            if (cur_epoch >= ne) cur_epoch = ne - 1;
+            constexpr uint8_t RRPV_MAX = 7;
+            auto isProp  = [&](size_t i){ return graph_ctx_->isPropertyData(set[i].line_addr); };
+            auto dist    = [&](size_t i){ return (uint32_t(set[i].ecg_epoch) + ne - cur_epoch) % ne; };
+            auto stamped = [&](size_t i){ return isProp(i) && set[i].ecg_epoch != 0; };
+            auto lruVictim = [&](){ size_t v=0; uint64_t o=set[0].last_access;
+                for (size_t i=1;i<associativity_;i++) if (set[i].last_access<o){o=set[i].last_access;v=i;} return v; };
+
+            // grasp_only: pure RRIP
+            if (variant == 0) {
+                while (true) {
+                    for (size_t i=0;i<associativity_;i++) if (set[i].rrpv>=RRPV_MAX){
+                        traceEvict("ECG:grasp_only", set, i, "RRIP max-rrpv", 0); return i; }
+                    for (size_t i=0;i<associativity_;i++) if (set[i].rrpv<RRPV_MAX) set[i].rrpv++;
+                }
+            }
+            // shortcircuit (legacy)
+            if (variant == 4) {
+                for (size_t i=0;i<associativity_;i++) if (!isProp(i)){
+                    traceEvict("ECG:shortcircuit", set, i, "first non-property", 0); return i; }
+                size_t best=0; uint32_t bd=0; uint8_t bdbg=0;
+                for (size_t i=0;i<associativity_;i++){ uint32_t d=dist(i);
+                    if (d>bd || (d==bd && set[i].ecg_dbg_tier>bdbg)){best=i;bd=d;bdbg=set[i].ecg_dbg_tier;} }
+                traceEvict("ECG:shortcircuit+epoch", set, best, "all-prop farthest epoch", cur_epoch); return best;
+            }
+            // epoch_first: epoch vetoes recency AMONG PROPERTY (records still go first)
+            if (variant == 1) {
+                size_t rec=associativity_; uint64_t ro=0;
+                for (size_t i=0;i<associativity_;i++) if (!isProp(i)){
+                    if (rec==associativity_||set[i].last_access<ro){rec=i;ro=set[i].last_access;} }
+                if (rec!=associativity_){ traceEvict("ECG:epoch_first", set, rec, "record by recency", cur_epoch); return rec; }
+                size_t best=associativity_; uint32_t bd=0;
+                for (size_t i=0;i<associativity_;i++) if (stamped(i)){ uint32_t d=dist(i);
+                    if (best==associativity_||d>bd){best=i;bd=d;} }
+                if (best!=associativity_){ traceEvict("ECG:epoch_first", set, best, "farthest-epoch property (epoch vetoes rrpv)", cur_epoch); return best; }
+                size_t v=lruVictim(); traceEvict("ECG:epoch_first", set, v, "no stamped prop -> LRU", cur_epoch); return v;
+            }
+            // epoch_only: records-first by recency, then farthest-epoch property
+            if (variant == 3) {
+                size_t rec=associativity_; uint64_t ro=0;
+                for (size_t i=0;i<associativity_;i++) if (!isProp(i)){
+                    if (rec==associativity_||set[i].last_access<ro){rec=i;ro=set[i].last_access;} }
+                if (rec!=associativity_){ traceEvict("ECG:epoch_only", set, rec, "record by recency", cur_epoch); return rec; }
+                size_t best=associativity_; uint32_t bd=0;
+                for (size_t i=0;i<associativity_;i++) if (stamped(i)){ uint32_t d=dist(i);
+                    if (best==associativity_||d>bd){best=i;bd=d;} }
+                if (best!=associativity_){ traceEvict("ECG:epoch_only", set, best, "farthest-epoch property", cur_epoch); return best; }
+                size_t v=lruVictim(); traceEvict("ECG:epoch_only", set, v, "unstamped -> LRU", cur_epoch); return v;
+            }
+            // rrip_first (default): recency vetoes; max-rrpv set; records-first, then epoch property
+            while (true) {
+                size_t recIdx=associativity_; uint64_t ro=0;
+                size_t propIdx=associativity_; uint32_t pb=0;
+                for (size_t i=0;i<associativity_;i++) {
+                    if (set[i].rrpv<RRPV_MAX) continue;
+                    if (!isProp(i)){ if (recIdx==associativity_||set[i].last_access<ro){recIdx=i;ro=set[i].last_access;} }
+                    else { uint32_t d=stamped(i)?dist(i):0; if (propIdx==associativity_||d>pb){propIdx=i;pb=d;} }
+                }
+                if (recIdx!=associativity_){ traceEvict("ECG:rrip_first", set, recIdx, "max-rrpv record by recency", cur_epoch); return recIdx; }
+                if (propIdx!=associativity_){ traceEvict("ECG:rrip_first", set, propIdx, "max-rrpv farthest-epoch property", cur_epoch); return propIdx; }
+                for (size_t i=0;i<associativity_;i++) if (set[i].rrpv<RRPV_MAX) set[i].rrpv++;
+            }
+        }
+
         if (mode == ECGMode::ECG_COMBINED) {
             while (true) {
                 for (size_t i = 0; i < associativity_; i++) {
@@ -1354,6 +1978,13 @@ private:
     POPTState popt_state_;    // P-OPT rereference matrix state (legacy, used if no GraphCacheContext)
     GRASPState grasp_state_;  // GRASP degree-aware state (legacy, used if no GraphCacheContext)
     const GraphCacheContext* graph_ctx_ = nullptr;  // Unified graph-aware context (preferred)
+
+    // ECG_GRASP_POPT set-dueling (ECG_SET_DUELING=1): DRRIP-style adaptive choice
+    // between epoch eviction (good on power-law) and LRU (best stamp on mesh).
+    // ~1/64 sets are epoch-leaders, ~1/64 LRU-leaders; PSEL picks for followers.
+    bool set_dueling_ = std::getenv("ECG_SET_DUELING") != nullptr;
+    int psel_ = 512;                 // 0..1023; <512 => followers use epoch, else LRU
+    size_t evicting_set_idx_ = 0;    // set index of the in-progress eviction
 };
 
 // ============================================================================
@@ -1425,6 +2056,11 @@ public:
         
         total_accesses_++;
         
+        // ECG_EXACT_STORED: broadcast the per-edge hint to the LLC every demand
+        // access so its stamp stays fresh even when L1/L2 serve the reference
+        // (gated env, no-op for other policies).
+        if (refresh_exact_stamp_) l3_->refreshExactStamp(address);
+
         // Try L1
         if (l1_->access(address, is_write)) {
             if (was_prefetched) markPrefetchUseful(line_addr);
@@ -1467,17 +2103,21 @@ public:
         const uint64_t line_addr = lineAddress(address);
         prefetch_requests_++;
         
-        // Check if already in cache (any level)
-        if (l1_->access(address, false)) {
+        // Check if already in cache (any level) using a NON-counting probe.
+        // Using access() here would register the probe as a demand hit/miss and
+        // mutate LRU state — an avoided demand miss would be cancelled by the
+        // probe miss, making prefetch a no-op for the miss rate (and inflating
+        // hit counts for already-cached probes). contains() avoids both.
+        if (l1_->contains(address)) {
             prefetch_cache_hits_++;
             return;
         }
-        if (l2_->access(address, false)) {
+        if (l2_->contains(address)) {
             prefetch_cache_hits_++;
             l1_->insert(address, false);
             return;
         }
-        if (l3_->access(address, false)) {
+        if (l3_->contains(address)) {
             prefetch_cache_hits_++;
             l2_->insert(address, false);
             l1_->insert(address, false);
@@ -1765,6 +2405,9 @@ private:
     std::unique_ptr<CacheLevel> l3_;
     size_t line_size_;
     bool enabled_;
+    // ECG_EXACT_STORED: when set (env ECG_STORED_REFRESH=1), broadcast the
+    // per-edge hint to the LLC on every demand access to keep its stamp fresh.
+    bool refresh_exact_stamp_ = std::getenv("ECG_STORED_REFRESH") != nullptr;
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};
     std::atomic<uint64_t> prefetch_requests_{0};

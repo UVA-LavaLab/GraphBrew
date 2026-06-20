@@ -159,6 +159,10 @@ def make_l3_cache(policy="LRU", size=DEFAULTS["l3_size"],
                   assoc=DEFAULTS["l3_assoc"], **policy_kwargs):
     """Create L3 shared cache matching ECG defaults (8MB, 16-way)."""
     policy_kwargs.setdefault("llc_size_bytes", size_to_bytes(size))
+    # Diagnostic: gem5 L3 defaults to mostly_incl (inclusive -> back-invalidates
+    # L1/L2 on L3 eviction). cache_sim has no back-invalidation, so this is a
+    # candidate source of gem5-vs-cache_sim divergence for ECG. Allow override.
+    l3_clusivity = os.environ.get("GEM5_L3_CLUSIVITY", "mostly_incl")
     return Cache(
         size=size,
         assoc=assoc,
@@ -167,6 +171,7 @@ def make_l3_cache(policy="LRU", size=DEFAULTS["l3_size"],
         response_latency=20,
         mshrs=32,
         tgts_per_mshr=16,
+        clusivity=l3_clusivity,
         replacement_policy=make_replacement_policy(policy, **policy_kwargs),
     )
 

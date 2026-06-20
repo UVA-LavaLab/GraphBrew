@@ -22,10 +22,11 @@ using namespace std;
 typedef float ScoreT;
 
 pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
-    pvector<ScoreT> scores(g.num_nodes(), 0);
-    pvector<int32_t> depth(g.num_nodes());
-    pvector<int64_t> path_counts(g.num_nodes());
-    pvector<ScoreT> deltas(g.num_nodes());
+    constexpr size_t kPropAlign = 4096;  // page-align hot property arrays (see pr.cc)
+    pvector<ScoreT> scores(g.num_nodes(), ScoreT(0), kPropAlign);
+    pvector<int32_t> depth(g.num_nodes(), int32_t(0), kPropAlign);
+    pvector<int64_t> path_counts(g.num_nodes(), int64_t(0), kPropAlign);
+    pvector<ScoreT> deltas(g.num_nodes(), ScoreT(0), kPropAlign);
 
     gem5_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
     gem5_report_region("depth", depth.data(), g.num_nodes(), sizeof(int32_t));

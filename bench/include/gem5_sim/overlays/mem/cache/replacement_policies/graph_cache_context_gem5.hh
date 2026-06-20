@@ -167,16 +167,41 @@ inline std::atomic<bool>& decodedEcgHintValidStorage() {
     return valid;
 }
 
+inline std::atomic<uint16_t>& decodedEcgEpochStorage() {
+    static std::atomic<uint16_t> epoch{0};
+    return epoch;
+}
+
 inline void setDecodedEcgExtractHint(uint32_t real_vertex,
                                      uint8_t dbg_hint,
                                      uint8_t popt_hint,
-                                     uint16_t pfx_hint) {
+                                     uint16_t pfx_hint,
+                                     uint16_t epoch_hint = 0) {
     uint32_t metadata = static_cast<uint32_t>(dbg_hint)
         | (static_cast<uint32_t>(popt_hint) << 8)
         | (static_cast<uint32_t>(pfx_hint) << 16);
+    decodedEcgEpochStorage().store(epoch_hint, std::memory_order_release);
     decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
     decodedEcgMetadataStorage().store(metadata, std::memory_order_release);
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
+}
+
+// Single-slot mailbox lookup for ECG_GRASP_POPT (collision-free, scales to any
+// N; reads the LAST ecg.extract's epoch, which on the in-order TimingSimpleCPU
+// is exactly the current demand vertex's epoch). See gem5/src copy for detail.
+inline bool lookupDecodedEcgHint(uint32_t vertex,
+                                 uint8_t& dbg_out,
+                                 uint8_t& popt_out,
+                                 uint16_t& epoch_out) {
+    if (!decodedEcgHintValidStorage().load(std::memory_order_acquire))
+        return false;
+    if (decodedEcgRealVertexStorage().load(std::memory_order_acquire) != vertex)
+        return false;
+    uint32_t md = decodedEcgMetadataStorage().load(std::memory_order_acquire);
+    dbg_out = static_cast<uint8_t>(md & 0xFF);
+    popt_out = static_cast<uint8_t>((md >> 8) & 0xFF);
+    epoch_out = decodedEcgEpochStorage().load(std::memory_order_acquire);
+    return true;
 }
 
 // === S69PRE-M1-MASK: Per-vertex ECG metadata table ===
@@ -196,6 +221,7 @@ struct EcgMetadataEntry {
     std::atomic<uint32_t> vertex{UINT32_MAX};  // sentinel = invalid
     std::atomic<uint8_t>  dbg_tier{0};
     std::atomic<uint8_t>  popt_quant{0};
+    std::atomic<uint16_t> epoch{0};
 };
 
 inline std::array<EcgMetadataEntry, kEcgMetadataTableSize>& ecgMetadataTable() {
@@ -205,10 +231,12 @@ inline std::array<EcgMetadataEntry, kEcgMetadataTableSize>& ecgMetadataTable() {
 
 inline void storeEcgMetadataByVertex(uint32_t vertex,
                                      uint8_t dbg_tier,
-                                     uint8_t popt_quant) {
+                                     uint8_t popt_quant,
+                                     uint16_t epoch) {
     auto& entry = ecgMetadataTable()[vertex % kEcgMetadataTableSize];
     entry.dbg_tier.store(dbg_tier, std::memory_order_relaxed);
     entry.popt_quant.store(popt_quant, std::memory_order_relaxed);
+    entry.epoch.store(epoch, std::memory_order_relaxed);
     // Store vertex LAST so a concurrent reader sees a coherent
     // (vertex, dbg, popt) triple — happens-before via the release on
     // vertex.
@@ -217,13 +245,15 @@ inline void storeEcgMetadataByVertex(uint32_t vertex,
 
 inline bool lookupEcgMetadataByVertex(uint32_t vertex,
                                       uint8_t& dbg_tier_out,
-                                      uint8_t& popt_quant_out) {
+                                      uint8_t& popt_quant_out,
+                                      uint16_t& epoch_out) {
     auto& entry = ecgMetadataTable()[vertex % kEcgMetadataTableSize];
     if (entry.vertex.load(std::memory_order_acquire) != vertex) {
         return false;  // miss (sentinel, evicted, or different vertex hashed to same slot)
     }
     dbg_tier_out  = entry.dbg_tier.load(std::memory_order_relaxed);
     popt_quant_out = entry.popt_quant.load(std::memory_order_relaxed);
+    epoch_out = entry.epoch.load(std::memory_order_relaxed);
     return true;
 }
 
@@ -249,7 +279,8 @@ enum class ECGMode : uint8_t {
     POPT_PRIMARY,   // P-OPT exact 3-phase (bypasses SRRIP aging) -> DBG
     DBG_ONLY,       // GRASP-faithful DBG insertion/hit, plain SRRIP victim
     ECG_EMBEDDED,   // SRRIP -> stored P-OPT hint -> DBG (zero LLC overhead)
-    ECG_COMBINED    // Pure SRRIP aging; insertion RRPV combines DBG+P-OPT
+    ECG_COMBINED,   // Pure SRRIP aging; insertion RRPV combines DBG+P-OPT
+    ECG_GRASP_POPT  // GRASP insertion + ISA-delivered absolute epoch eviction
 };
 
 inline ECGMode stringToECGMode(const std::string& s) {
@@ -257,13 +288,14 @@ inline ECGMode stringToECGMode(const std::string& s) {
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
     if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
     if (s == "ECG_COMBINED" || s == "ecg_combined" || s == "combined") return ECGMode::ECG_COMBINED;
+    if (s == "ECG_GRASP_POPT" || s == "ecg_grasp_popt" || s == "grasp_popt") return ECGMode::ECG_GRASP_POPT;
     if (s.empty() || s == "DBG_PRIMARY" || s == "dbg_primary") return ECGMode::DBG_PRIMARY;
     // Fail fast instead of silently aliasing an unknown/typo'd mode to
     // DBG_PRIMARY (which would mislabel result rows). POPT_TIE and
     // ECG_EPOCH_EMBEDDED are cache_sim-only experimental modes.
     std::fprintf(stderr,
         "[graphctx] FATAL: unsupported ECG mode '%s' for gem5. Supported: "
-        "DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED, ECG_COMBINED "
+        "DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED, ECG_COMBINED, ECG_GRASP_POPT "
         "(POPT_TIE / ECG_EPOCH_EMBEDDED are cache_sim-only).\n", s.c_str());
     std::abort();
 }
@@ -426,6 +458,7 @@ struct MaskConfig {
 struct GraphTopology {
     uint32_t num_vertices = 0;
     uint64_t num_edges = 0;
+    uint32_t edge_epoch_count = 2;
     uint32_t num_buckets = 11;
     double avg_degree = 0.0;
     uint32_t bucket_vertex_counts[MAX_REGION_BUCKETS] = {};
@@ -539,6 +572,8 @@ struct GraphCacheContext {
 
         topology.num_vertices = parseJsonUint(content, "\"num_vertices\"");
         topology.num_edges = parseJsonUint(content, "\"num_edges\"");
+        topology.edge_epoch_count = parseJsonUint(content, "\"edge_epoch_count\"");
+        if (topology.edge_epoch_count < 2) topology.edge_epoch_count = 2;
         topology.avg_degree = (topology.num_vertices > 0)
             ? static_cast<double>(topology.num_edges) / topology.num_vertices : 0.0;
         topology.enabled = true;

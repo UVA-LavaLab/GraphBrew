@@ -25,6 +25,9 @@
 //     [24:26] DBG tier (2 bits)
 //     [26:33] POPT quant (7 bits, 0-127)
 //     [33:64] prefetch target (31 bits, 0 = no prefetch)
+//   Epoch-carrying masks use:
+//     [33:49] next-ref epoch (16 bits)
+//     [49:64] prefetch target (15 bits, 0 = no prefetch)
 //
 // For gem5/Sniper kernels that only need the prefetch target, use the
 // convenience helper `extractPrefetchTarget(mask)`.
@@ -46,21 +49,36 @@ constexpr int kDestBits     = 24;
 constexpr int kDbgBits      = 2;
 constexpr int kPoptBits     = 7;
 constexpr int kPrefetchBits = 31;
+constexpr int kEpochBits    = 16;
+constexpr int kPrefetchEpochBits = 15;
 constexpr int kDestShift     = 0;
 constexpr int kDbgShift      = kDestBits;
 constexpr int kPoptShift     = kDestBits + kDbgBits;
 constexpr int kPrefetchShift = kDestBits + kDbgBits + kPoptBits;
+constexpr int kEpochShift    = kPrefetchShift;
+constexpr int kPrefetchEpochShift = kEpochShift + kEpochBits;
 
 inline uint32_t extractDest(uint64_t mask)         { return static_cast<uint32_t>((mask >> kDestShift)     & 0xFFFFFFu); }
 inline uint8_t  extractDbg(uint64_t mask)          { return static_cast<uint8_t> ((mask >> kDbgShift)      & 0x3u); }
 inline uint8_t  extractPopt(uint64_t mask)         { return static_cast<uint8_t> ((mask >> kPoptShift)     & 0x7Fu); }
+inline uint16_t extractEpoch(uint64_t mask)        { return static_cast<uint16_t>((mask >> kEpochShift)    & 0xFFFFu); }
 inline uint32_t extractPrefetchTarget(uint64_t m)  { return static_cast<uint32_t>((m    >> kPrefetchShift) & 0x7FFFFFFFu); }
+inline uint32_t extractPrefetchTargetEpoch(uint64_t m) { return static_cast<uint32_t>((m >> kPrefetchEpochShift) & 0x7FFFu); }
 
 inline uint64_t packMask(uint32_t dest, uint8_t dbg, uint8_t popt, uint32_t pfx) {
     return (static_cast<uint64_t>(dest & 0xFFFFFFu)) |
            (static_cast<uint64_t>(dbg  & 0x3u)   << kDbgShift) |
            (static_cast<uint64_t>(popt & 0x7Fu)  << kPoptShift) |
            (static_cast<uint64_t>(pfx  & 0x7FFFFFFFu) << kPrefetchShift);
+}
+
+inline uint64_t packMaskEpoch(uint32_t dest, uint8_t dbg, uint8_t popt,
+                              uint16_t epoch, uint32_t pfx) {
+    return (static_cast<uint64_t>(dest & 0xFFFFFFu)) |
+           (static_cast<uint64_t>(dbg  & 0x3u)   << kDbgShift) |
+           (static_cast<uint64_t>(popt & 0x7Fu)  << kPoptShift) |
+           (static_cast<uint64_t>(epoch & 0xFFFFu) << kEpochShift) |
+           (static_cast<uint64_t>(pfx  & 0x7FFFu) << kPrefetchEpochShift);
 }
 
 // === Helper: derive avg_reref_by_line from POPT matrix ===
