@@ -499,9 +499,24 @@ contract, not identical kernels.
   correct (passes the strict contract), but a future wrong tree could slip past the lenient
   check. Porting the strict verifier is deferred (needs `in_neigh` availability in those
   kernels) and flagged here.
-- **Packed-ISA delivery parity is broader than target-selection parity:** gem5 repacks the
-  prefetch target into bits [49:64] (15-bit, guarded) while cache_sim's fat mask uses [33:64]
-  (31-bit). Field-width/truncation parity must be validated separately (see the 15-bit guard).
+- **gem5 ECG_PFX PREFETCH is INVALID on large graphs (15-bit field) — but EPOCH EVICTION is
+  faithful (VERIFIED, Phase 0 audit `rd-eqh-plan`):** two distinct gem5 delivery paths:
+  - **Epoch eviction (the headline ECG_GRASP_POPT mechanism):** delivered via a packed-flat
+    4-byte record `(dest | epoch<<id_bits)` — web-Google: 20-bit dest + 12-bit epoch = 32 bits,
+    "packed record ON", **NO truncation**. So gem5 epoch eviction is faithful on large graphs.
+  - **ECG_PFX prefetch target:** repacked into the 15-bit `packMaskEpoch` field [49:64]
+    (cache_sim/Sniper use the 31-bit field [33:64]). On headline graphs the prefetch target IS
+    a vertex id > 32767, so it is SILENTLY TRUNCATED to a wrong vertex. Measured truncation
+    (`GEM5_ECG_PFX_MODE=6`): web-Google **7.73M/7.77M = 99.5%**, soc-pokec **97.0%**,
+    com-orkut **98.9%**. So **gem5 ECG_PFX prefetch is valid only for <=32767-vertex graphs**;
+    cache_sim/Sniper are authoritative for large-graph prefetch. The gem5 build already warns +
+    supports `ECG_PFX_STRICT_TARGET=1` to abort. **Validity matrix:**
+
+    | feature | cache_sim | gem5 | Sniper |
+    |---------|-----------|------|--------|
+    | epoch eviction (headline) | yes | yes (packed-flat) | yes |
+    | ECG_PFX prefetch, graphs <=32767 verts | yes | yes | yes |
+    | ECG_PFX prefetch, graphs >32767 verts | yes (31-bit) | **NO (~99% truncated)** | yes (31-bit) |
 - **cache_sim-only research features** (BU frontier masks, SSSP/BC OUT masks, `POPT_DUAL_REREF`)
   have NO gem5/Sniper analog and are inert on the symmetric corpus / default-off. They are
   equivalent across sims ONLY because they are disabled or demonstrably inert for the evaluated
