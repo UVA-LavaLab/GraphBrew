@@ -280,18 +280,38 @@ python3 scripts/experiments/ecg/verify_pfx.py
    (conserves bandwidth); `ECG_PFX` fires, cuts demand-to-mem, and issues strictly
    **fewer** prefetches than DROPLET at ≥50% useful-rate (selective targets).
 
-**Cross-simulator status (honest):** the ECG prefetch *decision* (target
-selection) is verified for all three backends via the shared function. *Live
-firing* is verified end-to-end in cache_sim, which has no page-cross filter and
-issues over the full property region, so both DROPLET and ECG_PFX property
-prefetches fire there. In **gem5**, the generic `Queued::notify` page-cross
-filter drops *any* cross-page `property[v]` prefetch unless the prefetcher has an
-MMU plumbed (none does) — this filters **both** ECG_PFX *and* DROPLET's
-indirect-property engine; only DROPLET's same-page *stride* engine still issues,
-so the gem5 prefetch comparison is not yet apples-to-apples (one MMU-plumbing fix
-un-blocks both; `docs/findings/gem5_implementation_audit_v1.md`, deferred). In
-**Sniper**, ECG_PFX fires under the guarded `sg_kernel` path. cache_sim is
-therefore the authoritative prefetch performance model.
+**Cross-simulator status (honest, empirically checked 2026-06-20):** the ECG
+prefetch *decision* (target selection) is verified for all three backends via the
+shared function. *Live firing*: cache_sim issues both DROPLET and ECG_PFX property
+prefetches over the full property region (no page filter). **gem5** had a generic
+`Queued::notify` page-cross filter that drops cross-page `property[v]` prefetches
+unless an MMU is plumbed — but the `registerMMU` fix is **already wired**
+(`S68-MMU-PATCH`, `configs/graphbrew/graph_se.py`) and **verified working**:
+DROPLET on the RISCV binary issues `pfSpanPage=1691` cross-page property prefetches
+(`pfIssued==pfIdentified`, zero dropped). gem5 ECG_PFX, however, still issues
+nothing (`pfIdentified=0`) for a *different* reason — the kernel→prefetcher
+**hint-delivery** path is not delivering (the prefetcher loads its sideband but
+receives no targets), independent of the now-fixed filter. **Sniper** ECG_PFX fires
+under the guarded `sg_kernel` path. So cache_sim remains the authoritative prefetch
+performance model; gem5 validates the eviction path and the DROPLET property-prefetch
+path; ECG_PFX hint delivery in gem5 is open
+(`docs/findings/gem5_implementation_audit_v1.md`).
+
+### Paging / TLB cost of indirect property prefetch
+
+Prefetching `property[v]` for random neighbour ids scatters across pages, stressing
+the **TLB**. This is a real, known cost and the literature moves it **off the core
+dTLB**: **DROPLET** adds a **dedicated memory-controller TLB ("MTLB")** in its
+property prefetcher (PAG→VAB→MTLB→PAB pipeline; +1.56% TLB-storage, 0.0348% chip-area
+overhead — verified from the paper's slides); **P-OPT** puts the irregular array in a
+**1 GB huge page** so the address is physical (no per-element translation). ECG_PFX
+prefetches the same object and would use the same infrastructure, so translation is a
+**shared, orthogonal** cost — and being selective (1 vs DROPLET's K=16 prefetches per
+trigger) it issues **K× fewer** translations, so it has *less* TLB pressure. Our
+cache_sim has no TLB and our gem5 SE-mode run shows `dtb.accesses=0`, so **neither sim
+charges per-prefetch translation cost** for either prefetcher — consistent with the
+MTLB/huge-page design intent, and conservative for ECG_PFX. Full analysis:
+`docs/findings/property_prefetch_tlb_paging.md`.
 
 ## Related
 

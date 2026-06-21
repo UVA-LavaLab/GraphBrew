@@ -35,7 +35,37 @@ demand access, **unless the prefetcher has been given an `mmu` reference**.
 ECG_PFX targets `property[random_vertex]`, which essentially always lives
 on a different page from the demand edge access.
 
-**Correction (this affects DROPLET too — the filter is prefetcher-agnostic).**
+**UPDATE 2026-06-20 (empirical, supersedes the correction below).** The
+`S68-MMU-PATCH` (a `registerMMU(system.cpu.mmu)` call in
+`configs/graphbrew/graph_se.py:215-253`, committed `d751a5d6`) plumbs the MMU into
+both the DROPLET and ECG_PFX prefetchers, so `can_cross_page = (mmu != nullptr)`
+is now **true** and cross-page property prefetches are **no longer dropped**.
+Verified on today's RISCV `gem5.opt` (email-Eu-core, `-o5`, DROPLET at L2):
+`pfIdentified = pfIssued = 3534` (zero dropped), `pfSpanPage = 1691` page-crossing
+prefetches **issued**, `pfUsefulSpanPage = 1533`. So **gem5's indirect/property
+prefetch path works** — the v1 audit's `pf_identified=0 / pf_span_page=63 (all
+dropped)` was the *pre-S68, stale-binary* state. The earlier "the filter cripples
+both property engines" correction (kept below for history) is therefore **wrong on
+current code** — the filter is fixed.
+
+Two caveats remain, both verified this session:
+1. **ECG_PFX still issues nothing** (`pfIdentified=0`) — but for a *different*
+   reason than the page filter. The ECG_PFX prefetcher loads its sideband
+   (`ECG_PFX: loaded sideband property=[...]`) yet receives **0 hints** in every
+   delivery mode tried (ISA `ecg.extract`, explicit `GEM5_ECG_PFX_TARGET`, mode 6).
+   This is the unresolved kernel→prefetcher **hint-delivery** gap (the m5-op never
+   reaches `calculatePrefetch`), independent of the now-fixed filter. DROPLET works
+   because it computes its targets *inside* `calculatePrefetch` (no hint channel).
+2. **TLB cost is not modelled.** In our RISCV SE-mode + TimingSimpleCPU setup the
+   data TLB reports `system.cpu.mmu.dtb.accesses = 0` for a real run (1.7M cycles,
+   3534 prefetches), i.e. translation is functionally free — no page-walk / TLB-miss
+   latency. So the scattered-page TLB pressure of indirect property prefetch is
+   **not captured** in gem5 timing (nor in cache_sim, which has no TLB). See
+   `docs/findings/property_prefetch_tlb_paging.md`.
+
+---
+
+*Historical (pre-S68) correction — superseded by the UPDATE above:*
 DROPLET has *two* engines and BOTH push into the same `addresses` list that
 `Queued::notify()` filters (neither prefetcher overrides `notify`; both only
 override `calculatePrefetch`):
@@ -44,19 +74,8 @@ override `calculatePrefetch`):
   **survive** the filter.
 - Engine 2 (indirect *property*): `issueIndirectPrefetches` pushes
   `propertyAddrForVertex(vertexId)` (`droplet.cc:305`) — a scatter
-  `property[neighbor]` target that crosses pages exactly like ECG_PFX, so it
-  is **dropped by the same filter**.
-
-So in gem5 the page-cross filter cripples the property-prefetch path of *both*
-prefetchers; only DROPLET's same-page stride engine still issues. This means
-the gem5 DROPLET vs ECG_PFX comparison is apples-to-oranges (DROPLET appears to
-"work" only because its stride engine is unaffected, while its signature
-indirect-property innovation is silently filtered out, same as ECG_PFX). A
-fair gem5 prefetch comparison requires the MMU fix below (it un-blocks both
-property engines at once); until then, **cache_sim is the authoritative
-prefetch model** — it has no page-cross filter and issues over the full
-property address space, so DROPLET's and ECG_PFX's property prefetches both
-fire there (verified by `verify_pfx.py`).
+  `property[neighbor]` target that crosses pages exactly like ECG_PFX, so
+  pre-S68 it was **dropped by the same filter**.
 
 The gap doc said `pf_issued=0 despite hints being consumed`. With the
 fresh X86 binary (post ring-buffer fix), this audit's smoke shows
