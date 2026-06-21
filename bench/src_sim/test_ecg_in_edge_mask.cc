@@ -1,9 +1,9 @@
-// Directed-graph oracle test for buildInEdgeMasksBFS (the IN-edge mirror of
+// Directed-graph oracle test for buildInEdgeMasks (the IN-edge mirror of
 // buildOutEdgeMasks, used by BFS bottom-up). Symmetric graphs cannot validate
 // direction (in==out), so this uses a tiny DIRECTED graph with hand-computed
 // expected epochs.
 //
-// buildInEdgeMasksBFS fills, for each in-edge src<-dest (dest in g.in_neigh(src)),
+// buildInEdgeMasks fills, for each in-edge src<-dest (dest in g.in_neigh(src)),
 // the absolute next-ref EPOCH of dest's frontier bit, computed from dest's
 // OUT-neighbours (the transpose of IN traversal): the soonest out-neighbour of
 // dest strictly > src (wrapping to the next iteration), mapped to
@@ -27,7 +27,7 @@ static void check(const char* name, uint32_t got, uint32_t expect) {
 }
 
 int main() {
-    printf("[test_ecg_in_edge_mask] buildInEdgeMasksBFS directed oracle\n");
+    printf("[test_ecg_in_edge_mask] buildInEdgeMasks directed oracle\n");
 
     // Directed graph (NOT symmetrized). Edges chosen so out_neigh != in_neigh and
     // a single dest is reached from several srcs (exercises the src-aware epoch):
@@ -51,7 +51,7 @@ int main() {
 
     GraphCacheContext ctx;
     ctx.edge_epoch_count = n;   // ne = n -> epoch(next_nbr) == next_nbr
-    ctx.buildInEdgeMasksBFS(g);
+    ctx.buildInEdgeMasks(g);
 
     // Oracle: for in-edge src<-dest, soonest out-neigh(dest) > src (else wrap to the
     // smallest out-neigh of dest); epoch = that neighbour (since ne==n).

@@ -236,11 +236,11 @@ the frontier probe as a cache access — `SIM_CACHE_READ_MASKED` on `front.data(
 real address of v's bitmap word; `Bitmap::data()` is a new read-only accessor) — carrying
 the **IN-edge** per-edge epoch. The direction is the mirror of TD: v's frontier bit is next
 read when v's next `out_neigh(v) > u` is processed, so the transpose-correct epoch is derived
-from `g.out_neigh`. `buildInEdgeMasksBFS(g)` is the self-contained IN-edge mirror of
-`buildOutEdgeMasks` (LOCAL sorted out-adjacency; fills only `in_edge_*`; fills the epoch
-**unconditionally**, unlike `buildInEdgeMasks_PR` which only fills it under
-`ECG_EDGE_MASK_EPOCH`). So with the flag set: **TD uses OUT-edge masks, BU uses IN-edge
-masks** — both phases masked per their own edge list.
+from `g.out_neigh`. `buildInEdgeMasks(g)` is the **generic** self-contained IN-edge
+(inverse-graph) mirror of `buildOutEdgeMasks` (LOCAL sorted out-adjacency; fills only
+`in_edge_*`; fills the epoch **unconditionally**, unlike `buildInEdgeMasks_PR` which only
+fills it under `ECG_EDGE_MASK_EPOCH`). So with the flag set: **TD uses OUT-edge masks, BU
+uses IN-edge masks** — both phases masked per their own edge list.
 
 **Gating + no regression (verified).** The masked bitmap read is strictly inside
 `if (use_in_edge_masks)`, which is false unless `ECG_BFS_EDGE_MASKS` built the IN masks, so
@@ -269,3 +269,35 @@ epoch is src-iteration-aware, not a per-vertex constant. 5/5 pass.
    the inert dual-direction masks on the symmetric corpus), not a headline-mover.
 3. **Scope.** Inert on the symmetric eval corpus (in==out); the dual mask matters only on
    directed graphs. Default BFS (flag off) and all headline numbers are unchanged.
+
+---
+
+## 8. The per-edge masking is GENERIC (inverse/main graph), not BFS-specific
+
+The dual-direction per-edge masking is a **generic "mask per edge list"** capability, not a
+BFS feature. There are two edge lists and one mask set each:
+
+| Edge list | Graph | Builder | Storage | Transpose epoch source |
+|-----------|-------|---------|---------|------------------------|
+| OUT (CSR) | **main** graph (`g.out_neigh`) | `buildOutEdgeMasks(g)` | `out_edge_*_by_src` | `g.in_neigh(dest)` |
+| IN (CSC)  | **inverse** graph (`g.in_neigh`) | `buildInEdgeMasks(g)` *(plain)* or `buildInEdgeMasks_PR(g,k)` *(+prefetch/EXACT/EPOCH/PACK)* | `in_edge_*_by_src` | `g.out_neigh(dest)` |
+
+The builders contain **zero kernel-specific logic** — only direction math (the next-ref of a
+datum read via direction D is the graph transpose, so OUT-edge epochs come from `in_neigh`
+and IN-edge epochs come from `out_neigh`). A kernel simply consumes the mask set for
+whichever graph it traverses:
+
+| Kernel / phase | Traverses | Reads | Mask set used |
+|----------------|-----------|-------|---------------|
+| PR (pull)      | `in_neigh`  | `property[dest]`   | IN-edge (`buildInEdgeMasks_PR`) |
+| CC (Afforest)  | `in_neigh`  | `comp[dest]`       | IN-edge (`buildInEdgeMasks_PR`) |
+| BFS top-down (push)   | `out_neigh` | `parent[v]`        | OUT-edge (`buildOutEdgeMasks`) |
+| BFS bottom-up (pull)  | `in_neigh`  | frontier bit of v  | IN-edge (`buildInEdgeMasks`) |
+| SSSP / BC (push)      | `out_neigh` | property[v]        | *(per-vertex today; OUT-edge available, not yet wired)* |
+
+So PR and CC already use the **inverse-graph** masks; BFS uses **both** (it is direction-
+optimizing). The only genuinely BFS-specific piece in §7 is *modeling the frontier-bitmap
+access* (the bitmap is unique to BFS) — the **masks themselves are generic**. The earlier
+`buildInEdgeMasksBFS` name was misleading and has been renamed to `buildInEdgeMasks`.
+SSSP/BC can be switched from per-vertex to per-edge OUT masks by mirroring the BFS-TD
+consumption block (inert on the symmetric corpus; a 1:1 port).

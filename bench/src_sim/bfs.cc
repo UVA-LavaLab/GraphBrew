@@ -324,7 +324,7 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     // Inert on symmetric graphs (in==out); the correct dual mask for directed graphs.
     if (std::getenv("ECG_BFS_EDGE_MASKS")) {
         graph_ctx.buildOutEdgeMasks(g);     // TD push: parent[v] over out_neigh(u)
-        graph_ctx.buildInEdgeMasksBFS(g);   // BU pull: frontier bit of v over in_neigh(u)
+        graph_ctx.buildInEdgeMasks(g);      // BU pull: frontier bit of v over in_neigh(u)
         cout << "BFS: dual-direction per-edge masks enabled (TD=OUT-edge, BU=IN-edge)" << endl;
     }
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);

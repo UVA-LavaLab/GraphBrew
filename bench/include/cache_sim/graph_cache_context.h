@@ -2451,20 +2451,23 @@ struct GraphCacheContext {
                   << (build_us / 1e6) << std::defaultfloat << std::endl;
     }
 
-    // Build IN-edge per-edge masks for BFS bottom-up (BU pull): the direction
-    // mirror of buildOutEdgeMasks. BU traverses g.in_neigh(u) and probes the
-    // frontier-bitmap bit of each in-neighbour dest; dest's frontier bit is next
-    // read when dest's next OUT-neighbour > src is processed, so the
-    // transpose-correct epoch is derived from g.out_neigh (soonest out-neighbour
-    // of dest strictly > src, wrapping to the next iteration). Self-contained:
-    // builds a LOCAL sorted out-adjacency and fills only the in_edge_* members
-    // (never touches the shared exact_*/out_edge_* paths), so PR and the
-    // OUT-edge/TD path stay byte-identical. Fills the epoch UNCONDITIONALLY
-    // (buildInEdgeMasks_PR only fills it under ECG_EDGE_MASK_EPOCH). On the
-    // symmetric eval corpus in==out so this equals the out-edge mask (inert); it
-    // is the correct dual-direction mask for BU on directed graphs.
+    // Build IN-edge (inverse-graph / CSC) per-edge masks: the GENERIC direction
+    // mirror of buildOutEdgeMasks (main-graph / CSR). Not kernel-specific — any
+    // kernel that traverses g.in_neigh(src) and reads a per-vertex datum keyed on
+    // the in-neighbour dest uses these (PR pull reads property[dest]; BFS bottom-up
+    // probes the frontier bit of dest). dest's datum is next read when dest's next
+    // OUT-neighbour > src is processed, so the transpose-correct epoch is derived
+    // from g.out_neigh (soonest out-neighbour of dest strictly > src, wrapping to
+    // the next iteration). Self-contained: builds a LOCAL sorted out-adjacency and
+    // fills only the in_edge_* members (never touches the shared exact_*/out_edge_*
+    // paths), so PR and the OUT-edge path stay byte-identical. Fills the epoch
+    // UNCONDITIONALLY — this is the plain transpose-epoch variant; buildInEdgeMasks_PR
+    // is the same direction with the extra PR options (prefetch target + EXACT/EPOCH/
+    // PACK env modes, epoch only under ECG_EDGE_MASK_EPOCH). On the symmetric eval
+    // corpus in==out so this equals the out-edge mask (inert); it is the correct
+    // inverse-graph mask on directed graphs.
     template<typename GraphT>
-    void buildInEdgeMasksBFS(const GraphT& g) {
+    void buildInEdgeMasks(const GraphT& g) {
         using Clock = std::chrono::steady_clock;
         auto build_start = Clock::now();
         uint32_t n = g.num_nodes();
@@ -2538,7 +2541,7 @@ struct GraphCacheContext {
         }
         auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
             Clock::now() - build_start).count();
-        std::cout << "ECG IN-edge mask build (BFS BU): vertices=" << n << " edges=" << edge_count
+        std::cout << "ECG IN-edge mask build (inverse graph): vertices=" << n << " edges=" << edge_count
                   << " ne=" << ne << " time_s=" << std::fixed << std::setprecision(4)
                   << (build_us / 1e6) << std::defaultfloat << std::endl;
     }
