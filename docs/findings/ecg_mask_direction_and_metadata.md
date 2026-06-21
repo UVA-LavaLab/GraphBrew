@@ -444,7 +444,13 @@ The dual-reref swap is correct (does the right thing, never corrupts the algorit
   (`setActiveRerefMatrix` only repoints `rereference.matrix`; `findNextRef` only reads it for
   eviction priority — it never touches `parent[]`). BFS's verification result is IDENTICAL
   with the swap on vs off, so the swap cannot change the BFS tree.
-- **BFS verifier FAIL is PRE-EXISTING (not the reref):** the cache-sim BFS kernel FAILs the
-  GAPBS BFS verifier even with plain `CACHE_POLICY=LRU` (no reref matrix at all) — so the FAIL
-  is a BFS-harness quirk independent of P-OPT/reref/dual (identical for LRU / POPT-off /
-  POPT-dual). The reref machinery itself is verified correct by SSSP/BC PASS.
+- **BFS now verifies PASS (a real pre-existing bug, FIXED):** the cache-sim `DOBFS_Sim` was
+  missing the canonical GAPBS parent finalization — unreached vertices kept InitParent's
+  `-out_degree(n)` encoding (< -1) instead of `-1`, so the verifier's `depth[u]==parent[u]`
+  reachability check FAILed on any graph with unreached vertices (independent of P-OPT/reref/
+  dual — plain LRU FAILed too). Added the finalization loop (matches `bench/src/bfs.cc`); it is
+  post-processing with NO cache accesses, so cache stats are byte-identical (BFS POPT flag-off
+  L3 misses 30012 unchanged). BFS now verifies PASS for LRU/POPT/GRASP/ECG_GRASP_POPT across
+  directed (soc-pokec.el) + symmetric (web-Google.sg, cit-Patents) graphs — and crucially
+  **POPT_DUAL_REREF=1 verifies PASS** on directed soc-pokec, positively confirming the dual
+  swap is algorithm-correct (not merely "identically failing").

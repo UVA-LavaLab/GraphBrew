@@ -391,6 +391,16 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     if (popt_dual_reref)
         std::cout << "BFS: POPT_DUAL_REREF real-time per-direction loads this run = "
                   << graph_ctx.reref_swap_count << std::endl;
+    // Finalize the parent array to the GAPBS BFS contract: unreached vertices still
+    // carry InitParent's -out_degree(n) encoding (< -1); canonically they must be -1
+    // (parent[x] < 0 => unvisited). Without this the BFSVerifier's depth[u]==parent[u]
+    // reachability check FAILs on any graph with unreached vertices. This is plain
+    // post-processing (no cache accesses), so it leaves the cache stats byte-identical
+    // and only corrects the returned tree. Matches canonical DOBFS (bench/src/bfs.cc).
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        if (parent[n] < -1)
+            parent[n] = -1;
     return parent;
 }
 
