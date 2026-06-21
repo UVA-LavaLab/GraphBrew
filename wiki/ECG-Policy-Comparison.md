@@ -291,7 +291,11 @@ fires too** (`pfIdentified=pfIssued=63` on email-Eu-core) after fixing two gem5 
 kernel bugs (the `packMaskEpoch` re-pack discarded the prefetch target; the 4-byte
 fast-path record could not carry it — commit history). **Sniper** ECG_PFX fires
 under the guarded `sg_kernel` path. So all three simulators deliver the shared
-`ecg_mode6::selectPrefetchTarget` hint.
+`ecg_mode6::selectPrefetchTarget` hint. **3-sim parity, empirically demonstrated**
+(email-Eu-core, `-o5`, ECG_PFX): gem5 `pfIdentified=pfIssued=63` and Sniper
+`ecg_pfx_issued = ecg_pfx_target_hints_seen = 63` — *identical hint counts*, because
+both consume the same shared decision function; cache_sim issues ECG_PFX prefetches
+on the same cell too.
 **Caveat (honest):** the gem5 ECG_PFX ISA mask carries the target in a **15-bit
 field** (≤32767), so the gem5 ISA testbed validates the *mechanism* only on
 ≤32K-vertex graphs (it warns + can abort on larger graphs); **cache_sim is the
