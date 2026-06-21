@@ -1134,6 +1134,12 @@ public:
         graph_ctx_ = ctx;
     }
 
+    // Test hook (NOT used in the simulation path): run the policy's victim
+    // selection on a caller-supplied set with controlled CacheLine state, so a
+    // unit test can assert the EXACT victim per policy / ECG_VARIANT against an
+    // independently hand-computed answer. See bench/src_sim/test_ecg_victim.cc.
+    size_t selectVictimForTest(std::vector<CacheLine>& set) { return findVictim(set); }
+
 private:
     static size_t log2i(size_t n) {
         size_t r = 0;

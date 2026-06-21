@@ -117,17 +117,27 @@ python3 scripts/experiments/ecg/ecg_variant_matrix.py --suite gem5 \
 
 ## Verify (correctness, not aggregates)
 
-`verify_ecg.py` runs each policy with `ECG_EVICT_TRACE` enabled, parses every
-eviction (each way's rrpv/epoch/dist/property/recency + the chosen victim), and
-**asserts the victim matches that policy's defining rule**. Exit 0 iff every
-eviction of every policy obeys its spec — no trust in aggregate miss-rates needed.
-The same `[EVICT L3 ...]` trace format is emitted by all three simulators, so one
-checker verifies every backend.
+`verify_ecg.py` checks correctness in **two complementary layers**:
+
+1. **Synthetic exact-victim tests** (`bench/src_sim/test_ecg_victim.cc`) — construct
+   controlled 8-way sets (property/record lines with chosen epochs/recency) and assert
+   the **exact** victim each variant must pick, computed independently in the test. This
+   is the layer that actually exercises the **epoch-property ranking** (ECG's core logic)
+   and pins the exact victim, including the cases the live workload never produces. It is
+   mutation-tested: flipping the implementation's farthest→nearest epoch pick makes it fail.
+2. **Live-trace integration** — run each policy with `ECG_EVICT_TRACE`, parse every real
+   eviction (per-way rrpv/epoch/dist/property/recency + victim), and assert it obeys the
+   policy rule. The same `[EVICT L3 ...]` format is emitted by all three simulators.
+
+**Scope (honest):** the live PageRank workload on these geometries only ever evicts
+*records*, so the epoch-property branch is covered by the **synthetic** layer (cache_sim
+reference implementation); gem5/Sniper are checked on the live record path + by mirroring
+the same logic. Exit 0 iff every synthetic case and every traced eviction obeys spec.
 
 ```bash
 make sim-pr
-python3 scripts/experiments/ecg/verify_ecg.py            # cache_sim: 7 policies
-python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 ECG variants
+python3 scripts/experiments/ecg/verify_ecg.py            # synthetic + cache_sim live trace
+python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 ECG variants (live)
 python3 scripts/experiments/ecg/verify_ecg.py --sniper   # + Sniper ECG variants (guarded, prlimit)
 # expected: each policy "N/N evictions obey spec [OK]" → "ALL POLICIES VERIFIED ✓"
 ```

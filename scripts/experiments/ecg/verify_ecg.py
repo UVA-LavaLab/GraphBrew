@@ -108,7 +108,7 @@ RULES = {
     "ECG:shortcircuit": lambda ways, v: (
         ways[v]["prop"] == 0 if any(w["prop"] == 0 for w in ways)
         else ways[v]["dist"] == max(w["dist"] for w in ways)),
-    "ECG:shortcircuit+epoch(all-prop)": lambda ways, v: ways[v]["dist"] == max(w["dist"] for w in ways),
+    "ECG:shortcircuit+epoch": lambda ways, v: ways[v]["dist"] == max(w["dist"] for w in ways),
     # epoch variants: if a record present -> victim is a record; else farthest-epoch stamped prop
     "ECG:epoch_first": lambda ways, v: _epoch_rule(ways, v),
     "ECG:epoch_only": lambda ways, v: _epoch_rule(ways, v),
@@ -142,9 +142,12 @@ def verify_trace(name, text, prefix=""):
     """Parse a trace, assert each victim obeys its policy rule, print, return ok."""
     checked = passed = 0
     ok = True
+    unknown = set()
     for pol, ways, victim in parse_blocks(text):
         rule = RULES.get(pol)
-        if rule is None or victim is None:
+        if rule is None:
+            unknown.add(pol); continue
+        if victim is None:
             continue
         checked += 1
         if rule(ways, victim):
@@ -153,14 +156,42 @@ def verify_trace(name, text, prefix=""):
             ok = False
             print(f"  [VIOLATION] {prefix}{name}/{pol}: victim=way{victim} "
                   f"ways={[ (w['way'],w['rrpv'],w['dist'],w['prop'],w['last']) for w in ways]}")
-    status = "OK " if checked == passed and checked > 0 else ("NO-TRACE" if checked == 0 else "FAIL")
+    if unknown:  # an emitted policy with no checker is a coverage hole -> fail loudly
+        ok = False
+        print(f"  [UNKNOWN POL] {prefix}{name}: {sorted(unknown)} has no RULES entry")
+    status = "OK " if ok and checked > 0 else ("NO-TRACE" if checked == 0 else "FAIL")
     print(f"  {prefix}{name:14s}: {passed}/{checked} evictions obey spec   [{status}]")
     return ok and checked > 0
 
 
+SYNTH_BIN = ROOT / "bench" / "bin_sim" / "test_ecg_victim"
+
+
+def run_synthetic():
+    """Build + run the synthetic deterministic victim test: controlled 8-way sets
+    with hand-computed exact victims. This is the part that actually exercises the
+    epoch-property ranking (the live PageRank trace only ever evicts records) and
+    pins the EXACT victim (not just necessary conditions), independent of the
+    simulator's self-reported state."""
+    subprocess.run(["make", "bench/bin_sim/test_ecg_victim"], cwd=str(ROOT),
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    if not SYNTH_BIN.exists():
+        print("  [synthetic] FAIL: could not build test_ecg_victim"); return False
+    ok = True
+    for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+        p = subprocess.run([str(SYNTH_BIN)], env={**os.environ, "ECG_VARIANT": variant},
+                           capture_output=True, text=True, timeout=60)
+        for line in p.stdout.splitlines():
+            if "expect=" in line or line.startswith("[test_ecg_victim]"):
+                print("  " + line.rstrip())
+        if p.returncode != 0:
+            ok = False
+    return ok
+
+
 def main(argv=None):
     import argparse
-    ap = argparse.ArgumentParser(description="Trace-assert each L3 policy obeys its spec.")
+    ap = argparse.ArgumentParser(description="Assert each L3 policy obeys its spec.")
     ap.add_argument("--gem5", action="store_true",
                     help="Also verify the gem5 ECG_GRASP_POPT variants (slower; needs gem5.opt).")
     ap.add_argument("--sniper", action="store_true",
@@ -177,7 +208,9 @@ def main(argv=None):
               ("epoch_first", {**ECG_ENV, "ECG_VARIANT": "epoch_first"}),
               ("shortcircuit", {**ECG_ENV, "ECG_VARIANT": "shortcircuit"})]
     ok_all = True
-    print("-- cache_sim (L3 policies, email-Eu-core) --")
+    print("== synthetic deterministic victim tests (EXACT victim; exercises the epoch branch) ==")
+    ok_all &= run_synthetic()
+    print("\n-- cache_sim (L3 policies, email-Eu-core; live-trace integration) --")
     for name, env in suites:
         ok_all &= verify_trace(name, run(env))
 
