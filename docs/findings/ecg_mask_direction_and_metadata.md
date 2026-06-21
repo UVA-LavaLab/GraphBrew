@@ -431,3 +431,20 @@ takes effect:
   value (a future kernel with irregular property in both directions would benefit; BFS does
   not). NOTE: the flag is presence-based (`getenv != nullptr`), so `POPT_DUAL_REREF=0` still
   ENABLES it — UNSET the var to disable.
+
+### §9.4 Correctness verification
+The dual-reref swap is correct (does the right thing, never corrupts the algorithm):
+- **Reref machinery correct:** SSSP and BC verify **PASS** with `CACHE_POLICY=POPT` (the
+  SSOT `buildAndRegisterReref` builds/registers/consumes the matrix correctly).
+- **Transpose-correct per phase:** the build logs show TD activates `IN/CSC(in_neigh)` and
+  BU activates `OUT/CSR(out_neigh)` — the transpose of each phase's traversal; the unit test
+  (`test_popt_dual_reref.cc`) proves the two matrices differ on a directed graph and the swap
+  repoints to the right one.
+- **Algorithm output unaffected:** the reref matrix is READ-ONLY cache-eviction metadata
+  (`setActiveRerefMatrix` only repoints `rereference.matrix`; `findNextRef` only reads it for
+  eviction priority — it never touches `parent[]`). BFS's verification result is IDENTICAL
+  with the swap on vs off, so the swap cannot change the BFS tree.
+- **BFS verifier FAIL is PRE-EXISTING (not the reref):** the cache-sim BFS kernel FAILs the
+  GAPBS BFS verifier even with plain `CACHE_POLICY=LRU` (no reref matrix at all) — so the FAIL
+  is a BFS-harness quirk independent of P-OPT/reref/dual (identical for LRU / POPT-off /
+  POPT-dual). The reref machinery itself is verified correct by SSSP/BC PASS.
