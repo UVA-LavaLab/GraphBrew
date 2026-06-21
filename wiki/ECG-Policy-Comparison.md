@@ -282,20 +282,23 @@ python3 scripts/experiments/ecg/verify_pfx.py
 
 **Cross-simulator status (honest, empirically checked 2026-06-20):** the ECG
 prefetch *decision* (target selection) is verified for all three backends via the
-shared function. *Live firing*: cache_sim issues both DROPLET and ECG_PFX property
-prefetches over the full property region (no page filter). **gem5** had a generic
-`Queued::notify` page-cross filter that drops cross-page `property[v]` prefetches
-unless an MMU is plumbed — but the `registerMMU` fix is **already wired**
-(`S68-MMU-PATCH`, `configs/graphbrew/graph_se.py`) and **verified working**:
-DROPLET on the RISCV binary issues `pfSpanPage=1691` cross-page property prefetches
-(`pfIssued==pfIdentified`, zero dropped). gem5 ECG_PFX, however, still issues
-nothing (`pfIdentified=0`) for a *different* reason — the kernel→prefetcher
-**hint-delivery** path is not delivering (the prefetcher loads its sideband but
-receives no targets), independent of the now-fixed filter. **Sniper** ECG_PFX fires
-under the guarded `sg_kernel` path. So cache_sim remains the authoritative prefetch
-performance model; gem5 validates the eviction path and the DROPLET property-prefetch
-path; ECG_PFX hint delivery in gem5 is open
-(`docs/findings/gem5_implementation_audit_v1.md`).
+shared function, and all three now **deliver** the hint end-to-end. cache_sim
+issues both DROPLET and ECG_PFX property prefetches over the full property region.
+**gem5**: the `Queued::notify` page-cross filter is fixed by the wired
+`registerMMU` (`S68-MMU-PATCH`, `configs/graphbrew/graph_se.py`) — DROPLET issues
+`pfSpanPage=1691` cross-page property prefetches (zero dropped); and **ECG_PFX now
+fires too** (`pfIdentified=pfIssued=63` on email-Eu-core) after fixing two gem5 PR
+kernel bugs (the `packMaskEpoch` re-pack discarded the prefetch target; the 4-byte
+fast-path record could not carry it — commit history). **Sniper** ECG_PFX fires
+under the guarded `sg_kernel` path. So all three simulators deliver the shared
+`ecg_mode6::selectPrefetchTarget` hint.
+**Caveat (honest):** the gem5 ECG_PFX ISA mask carries the target in a **15-bit
+field** (≤32767), so the gem5 ISA testbed validates the *mechanism* only on
+≤32K-vertex graphs (it warns + can abort on larger graphs); **cache_sim is the
+authoritative model for large-graph prefetch performance** (no field limit, and it
+is the only one that models the page/MTLB translation proxy).
+(`docs/findings/gem5_implementation_audit_v1.md`,
+`docs/findings/property_prefetch_tlb_paging.md`).
 
 ### Paging / TLB cost of indirect property prefetch
 

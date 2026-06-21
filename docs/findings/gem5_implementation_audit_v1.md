@@ -17,7 +17,7 @@ it is accurate and complete" following completed HPCA cache_sim evaluation.
 | GRASP replacement policy (`grasp_rp.cc`) | ✅ Complete | 3-tier insertion + hit promotion, sideband JSON-loaded property regions |
 | P-OPT replacement policy (`popt_rp.cc`) | ✅ Complete | 3-phase eviction matches Balaji HPCA'21 + cache_sim |
 | DROPLET prefetcher (`droplet.cc`) | ⚠️ Stride engine works; **indirect-property engine is filtered** | 860/860 issued on email-Eu-core, but those are dominated by the same-page *stride* engine; the indirect `property[neighbor]` prefetches cross pages and are dropped by the same `Queued::notify` filter as ECG_PFX (see Correction below) |
-| ECG_PFX prefetcher (`ecg_pfx.cc`) | 🔴 **BROKEN in gem5 — wrong root cause documented** | New root cause found this audit: `pf_identified=0` due to page-cross filter in `Queued::notify`, NOT the single-slot mailbox |
+| ECG_PFX prefetcher (`ecg_pfx.cc`) | ✅ **FIXED 2026-06-20 — fires end-to-end** (≤32K-vertex graphs) | Root cause was NOT the prefetcher: two gem5 PR-kernel mask bugs (packMaskEpoch re-pack discarded the target; 4-byte fast-path record couldn't carry it). Fixed → `pfIdentified=pfIssued=63`. NB ISA target field is 15 bits (≤32767). |
 | `ecg_extract` RISC-V opcode (`decoder_ecg_extract.isa`) | ✅ Decoded correctly | Custom-0 opcode `0x0b`, FUNCT3=0, FUNCT7=0, payload unpacks fat-id correctly into real_vertex + DBG/POPT/PFX hints |
 | Ring-buffer hint queue (`graph_cache_context_gem5.hh`) | ✅ Code is correct | 256-entry MPSC; sprint 6f-6 fix landed cleanly |
 | Sideband JSON loading | ✅ Working | Property + edge regions parsed correctly |
@@ -49,13 +49,19 @@ both property engines" correction (kept below for history) is therefore **wrong 
 current code** — the filter is fixed.
 
 Two caveats remain, both verified this session:
-1. **ECG_PFX still issues nothing** (`pfIdentified=0`) — but for a *different*
-   reason than the page filter. The ECG_PFX prefetcher loads its sideband
-   (`ECG_PFX: loaded sideband property=[...]`) yet receives **0 hints** in every
-   delivery mode tried (ISA `ecg.extract`, explicit `GEM5_ECG_PFX_TARGET`, mode 6).
-   This is the unresolved kernel→prefetcher **hint-delivery** gap (the m5-op never
-   reaches `calculatePrefetch`), independent of the now-fixed filter. DROPLET works
-   because it computes its targets *inside* `calculatePrefetch` (no hint channel).
+1. **ECG_PFX hint delivery — FIXED 2026-06-20** (was `pfIdentified=0`). The cause
+   was *not* the page filter and *not* the prefetcher: two bugs in the gem5 PR
+   kernel mask path dropped the prefetch target. (a) The kernel re-packs each mask
+   with `packMaskEpoch` to add the next-ref epoch but passed **0** as the prefetch
+   target, discarding the value `buildInEdgeMasks` had packed at bit 33. (b) The
+   4-byte fast-path record (dest+epoch) cannot hold the 15-bit target, so the
+   rebuilt mask had none. Fixes: transfer the target with `extractPrefetchTarget`
+   (bit 33→49) and use the full mask when `ecg_prefetch_enabled`. Now
+   `pfIdentified=pfIssued=63` on email-Eu-core (`ECG_PFX: first target vertex=2`).
+   **Caveat:** the `packMaskEpoch`/ISA target field is **15 bits (≤32767)**, so the
+   gem5 ECG_PFX ISA path is valid only for ≤32K-vertex graphs (the kernel warns and
+   can abort via `ECG_PFX_STRICT_TARGET=1` on larger graphs); cache_sim is the
+   authoritative large-graph prefetch model.
 2. **TLB cost is not modelled.** In our RISCV SE-mode + TimingSimpleCPU setup the
    data TLB reports `system.cpu.mmu.dtb.accesses = 0` for a real run (1.7M cycles,
    3534 prefetches), i.e. translation is functionally free — no page-walk / TLB-miss
