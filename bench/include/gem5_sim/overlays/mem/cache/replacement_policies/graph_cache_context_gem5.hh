@@ -186,9 +186,14 @@ inline void setDecodedEcgExtractHint(uint32_t real_vertex,
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
 }
 
-// Single-slot mailbox lookup for ECG_GRASP_POPT (collision-free, scales to any
-// N; reads the LAST ecg.extract's epoch, which on the in-order TimingSimpleCPU
-// is exactly the current demand vertex's epoch). See gem5/src copy for detail.
+// Single-slot mailbox lookup for ECG_GRASP_POPT. Unlike the per-vertex table
+// (which is fixed-size and collides badly past its capacity, corrupting the
+// EXACT epoch ECG_GRASP_POPT depends on), this reads the LAST ecg.extract's
+// epoch. On the in-order TimingSimpleCPU the extract for vertex v immediately
+// precedes the demand load of property[v], so the mailbox holds exactly v's
+// epoch when the demand reaches the LLC — collision-free and scales to any N
+// (no per-vertex storage). The vertex check ensures we only stamp the line
+// whose vertex was just extracted (non-extracted property writes are skipped).
 inline bool lookupDecodedEcgHint(uint32_t vertex,
                                  uint8_t& dbg_out,
                                  uint8_t& popt_out,
@@ -277,25 +282,26 @@ inline uint32_t addressToVertex(uint64_t addr,
 enum class ECGMode : uint8_t {
     DBG_PRIMARY,    // SRRIP -> DBG tier -> dynamic P-OPT
     POPT_PRIMARY,   // P-OPT exact 3-phase (bypasses SRRIP aging) -> DBG
+    ECG_GRASP_POPT, // GRASP insertion + stored absolute next-ref epoch eviction
     DBG_ONLY,       // GRASP-faithful DBG insertion/hit, plain SRRIP victim
     ECG_EMBEDDED,   // SRRIP -> stored P-OPT hint -> DBG (zero LLC overhead)
-    ECG_COMBINED,   // Pure SRRIP aging; insertion RRPV combines DBG+P-OPT
-    ECG_GRASP_POPT  // GRASP insertion + ISA-delivered absolute epoch eviction
+    ECG_COMBINED    // Pure SRRIP aging; insertion RRPV combines DBG+P-OPT
 };
 
 inline ECGMode stringToECGMode(const std::string& s) {
     if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
+    if (s == "ECG_GRASP_POPT" || s == "GRASP_POPT" || s == "ecg_grasp_popt" ||
+        s == "grasp_popt") return ECGMode::ECG_GRASP_POPT;
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
     if (s == "ECG_EMBEDDED" || s == "ecg_embedded" || s == "embedded") return ECGMode::ECG_EMBEDDED;
     if (s == "ECG_COMBINED" || s == "ecg_combined" || s == "combined") return ECGMode::ECG_COMBINED;
-    if (s == "ECG_GRASP_POPT" || s == "ecg_grasp_popt" || s == "grasp_popt") return ECGMode::ECG_GRASP_POPT;
     if (s.empty() || s == "DBG_PRIMARY" || s == "dbg_primary") return ECGMode::DBG_PRIMARY;
     // Fail fast instead of silently aliasing an unknown/typo'd mode to
     // DBG_PRIMARY (which would mislabel result rows). POPT_TIE and
     // ECG_EPOCH_EMBEDDED are cache_sim-only experimental modes.
     std::fprintf(stderr,
         "[graphctx] FATAL: unsupported ECG mode '%s' for gem5. Supported: "
-        "DBG_PRIMARY, POPT_PRIMARY, DBG_ONLY, ECG_EMBEDDED, ECG_COMBINED, ECG_GRASP_POPT "
+        "DBG_PRIMARY, POPT_PRIMARY, ECG_GRASP_POPT, DBG_ONLY, ECG_EMBEDDED, ECG_COMBINED "
         "(POPT_TIE / ECG_EPOCH_EMBEDDED are cache_sim-only).\n", s.c_str());
     std::abort();
 }
@@ -304,6 +310,7 @@ inline std::string ecgModeToString(ECGMode mode) {
     switch (mode) {
         case ECGMode::DBG_PRIMARY:  return "DBG_PRIMARY";
         case ECGMode::POPT_PRIMARY: return "POPT_PRIMARY";
+        case ECGMode::ECG_GRASP_POPT: return "ECG_GRASP_POPT";
         case ECGMode::DBG_ONLY:     return "DBG_ONLY";
         case ECGMode::ECG_EMBEDDED: return "ECG_EMBEDDED";
         case ECGMode::ECG_COMBINED: return "ECG_COMBINED";
@@ -379,6 +386,26 @@ struct RereferenceMatrix {
             }
             return 127;
         }
+    }
+
+    uint32_t findNextRefEpoch(uint32_t cline_id, uint32_t current_vertex) const {
+        if (!enabled || cline_id >= num_cache_lines || num_epochs == 0) return 0;
+        uint32_t epoch_id = (epoch_size > 0) ? (current_vertex / epoch_size) : 0;
+        if (epoch_id >= num_epochs) epoch_id = num_epochs - 1;
+
+        uint32_t current_sub_epoch = (sub_epoch_size > 0 && epoch_size > 0)
+            ? ((current_vertex % epoch_size) / sub_epoch_size) : 0;
+        constexpr uint8_t OR_MASK = 0x80;
+        constexpr uint8_t AND_MASK = 0x7F;
+
+        for (uint32_t step = 0; step < num_epochs; ++step) {
+            uint32_t epoch = (epoch_id + step) % num_epochs;
+            uint8_t entry = data[epoch * num_cache_lines + cline_id];
+            if ((entry & OR_MASK) != 0) continue;
+            if (step == 0 && current_sub_epoch > (entry & AND_MASK)) continue;
+            return epoch;
+        }
+        return (epoch_id + num_epochs - 1) % num_epochs;
     }
 
     uint32_t findNextRefByAddr(uint64_t addr, uint32_t current_vertex) const {
@@ -610,11 +637,11 @@ struct GraphCacheContext {
                     regions[num_regions].bucket_bounds[1] = regions[num_regions].base_address + 2 * third;
                     regions[num_regions].bucket_bounds[2] = regions[num_regions].upper_bound;
 
-                    // GRASP hot region = frontier_frac as % of the VERTEX SPACE
-                    // (array-relative, GRASP-faithful). Actual classification reads
-                    // the GraphGraspRP hot_fraction Param (default 0.15) in
-                    // classifyGRASP(); this is just the logged registration value.
-                    constexpr uint32_t kSidebandHotPct = 15;
+                    // GRASP hot region = frontier_frac (upstream ligra.h:66 default=50).
+                    // Actual classification reads the GraphGraspRP hot_fraction
+                    // Param (default 0.50) in classifyGRASP(); this is just the
+                    // logged registration value.
+                    constexpr uint32_t kSidebandHotPct = 50;
                     logGraphCtxRegistration("gem5", nullptr,
                                             regions[num_regions].base_address,
                                             regions[num_regions].upper_bound,

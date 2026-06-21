@@ -53,7 +53,7 @@ OVERLAYS_ROOT = REPO_ROOT / "bench" / "include" / "gem5_sim" / "overlays"
 # the generator with ``--update`` after a deliberate overlay edit.
 OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "arch/riscv/isa/decoder_ecg_extract.isa":
-        "80624764a6017e6c44414a6d6afc46b6f11f8e9276c6a587c669b2abd0fc96e4",
+        "e4711f56c3ba2d87e428bb920f2b5c150a64aa99574dc35f015bdf2b53be44b9",
     "arch/riscv/isa/formats/ecg.isa":
         "a5751728427c5c024acb7e0ea3a0b414d6444586dff3bff2b87f2c167f4269e7",
     "mem/cache/prefetch/GraphPrefetchers.py":
@@ -77,11 +77,11 @@ OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "mem/cache/replacement_policies/SConscript.patch":
         "6c860d12c30d3ae18d65ccf2fb9da466291cb8b2727d47e0d4b7da2c97293f69",
     "mem/cache/replacement_policies/ecg_rp.cc":
-        "9a548acdc8f776221881caac843e74fcc67c824cc9ddfcd1b0d84ed089e16a5a",
+        "cd04362acaa38487f1c2c186b331558086b2f528a210b6c11fbbbb6087cc0217",
     "mem/cache/replacement_policies/ecg_rp.hh":
-        "6ce3c0ec7fd6167cad633591fc8261f052f86f5e4a603cf15ee4352afb84d4e7",
+        "c529a51502fc3ff34614eed9feb0c486662e0f4f4417be975967e0b5d173d8b3",
     "mem/cache/replacement_policies/graph_cache_context_gem5.hh":
-        "546181b92467d639acdc575dfcf71e4e697a54598d2c1fecb6b98ad7aac5aa8e",
+        "dc5c34a5a9c547e356918fa3fa2087fede991c221e68f7e67bf5c553fe9ea9a0",
     "mem/cache/replacement_policies/grasp_rp.cc":
         "101d17b1c77b6f1c702754a411dd24ce1a26d584fdb95cee8326e47f23704c9e",
     "mem/cache/replacement_policies/grasp_rp.hh":

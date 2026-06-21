@@ -39,7 +39,7 @@ OVERLAYS_ROOT = REPO_ROOT / "bench" / "include" / "sniper_sim" / "overlays"
 
 SNIPER_OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "common/core/memory_subsystem/cache/cache_set_ecg.cc":
-        "0da411bcd4576a3d1e2d8cfdf0d4adb96660d56dfeac6a1254e0fc7880901551",
+        "7c95143c834a98942f603a9ce3edb85a165dff8d6567c8488d5746647db96bbc",
     "common/core/memory_subsystem/cache/cache_set_ecg.h":
         "3d3a1b5fde745ea9b5fe10aeb0286b29d43bb98a4d592e7b7abf72ce26e51a54",
     "common/core/memory_subsystem/cache/cache_set_grasp.cc":

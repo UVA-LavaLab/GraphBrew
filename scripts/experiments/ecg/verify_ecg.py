@@ -37,6 +37,28 @@ def run(policy_env):
     return p.stderr
 
 
+GEM5_OPT = ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
+ROI_MATRIX = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
+
+
+def run_gem5(variant):
+    """Run gem5 ECG_GRASP_POPT on the tiny graph with the trace on; return the
+    gem5 log text (run_command pipes the policy's stderr trace into the log)."""
+    out = Path("/tmp") / f"verify_gem5_{variant}"
+    env = {**os.environ, "GEM5_OPT": str(GEM5_OPT), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+           "GEM5_FORCE_ECG_EXTRACT": "1", "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
+           "ECG_VARIANT": variant, "ECG_EVICT_TRACE": "40"}
+    cmd = [sys.executable, str(ROI_MATRIX), "--suite", "gem5", "--no-build",
+           "--benchmark", "pr", "--policies", "ECG:ECG_GRASP_POPT",
+           "--options", f"-f {GRAPH} -o 5 -n 1 -i 1",
+           "--l3-sizes", "16kB", "--l3-ways", "8", "--l1d-size", "2kB", "--l2-size", "4kB",
+           "--out-dir", str(out)]
+    subprocess.run(cmd, env=env, cwd=str(ROOT),
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900, check=False)
+    logs = sorted((out / "logs").glob("*.log")) if (out / "logs").exists() else []
+    return logs[0].read_text(errors="ignore") if logs else ""
+
+
 def parse_blocks(text):
     """Yield (pol, ways[list of dict], victim_way)."""
     pol = None; ways = []
@@ -94,7 +116,33 @@ def _rrip_rule(ways, v):
     return True
 
 
-def main():
+def verify_trace(name, text, prefix=""):
+    """Parse a trace, assert each victim obeys its policy rule, print, return ok."""
+    checked = passed = 0
+    ok = True
+    for pol, ways, victim in parse_blocks(text):
+        rule = RULES.get(pol)
+        if rule is None or victim is None:
+            continue
+        checked += 1
+        if rule(ways, victim):
+            passed += 1
+        else:
+            ok = False
+            print(f"  [VIOLATION] {prefix}{name}/{pol}: victim=way{victim} "
+                  f"ways={[ (w['way'],w['rrpv'],w['dist'],w['prop'],w['last']) for w in ways]}")
+    status = "OK " if checked == passed and checked > 0 else ("NO-TRACE" if checked == 0 else "FAIL")
+    print(f"  {prefix}{name:14s}: {passed}/{checked} evictions obey spec   [{status}]")
+    return ok and checked > 0
+
+
+def main(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(description="Trace-assert each L3 policy obeys its spec.")
+    ap.add_argument("--gem5", action="store_true",
+                    help="Also verify the gem5 ECG_GRASP_POPT variants (slower; needs gem5.opt).")
+    args = ap.parse_args(argv)
+
     if not PR.exists():
         print(f"FAIL: build cache_sim first (make sim-pr): {PR}"); return 2
     suites = [("LRU", dict(CACHE_POLICY="LRU", CACHE_L3_POLICY="LRU")),
@@ -105,24 +153,17 @@ def main():
               ("epoch_first", {**ECG_ENV, "ECG_VARIANT": "epoch_first"}),
               ("shortcircuit", {**ECG_ENV, "ECG_VARIANT": "shortcircuit"})]
     ok_all = True
+    print("-- cache_sim (L3 policies, email-Eu-core) --")
     for name, env in suites:
-        text = run(env)
-        checked = passed = 0
-        for pol, ways, victim in parse_blocks(text):
-            rule = RULES.get(pol)
-            if rule is None or victim is None:
-                continue
-            checked += 1
-            if rule(ways, victim):
-                passed += 1
-            else:
-                ok_all = False
-                print(f"  [VIOLATION] {name}/{pol}: victim=way{victim} "
-                      f"ways={[ (w['way'],w['rrpv'],w['dist'],w['prop'],w['last']) for w in ways]}")
-        status = "OK " if checked == passed and checked > 0 else ("NO-TRACE" if checked == 0 else "FAIL")
-        print(f"  {name:14s}: {passed}/{checked} evictions obey spec   [{status}]")
-        if checked == 0:
-            ok_all = False
+        ok_all &= verify_trace(name, run(env))
+
+    if args.gem5:
+        if not GEM5_OPT.exists():
+            print(f"FAIL: build gem5 first: {GEM5_OPT}"); return 2
+        print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
+        for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+            ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ")
+
     print("\nRESULT:", "ALL POLICIES VERIFIED ✓" if ok_all else "VERIFICATION FAILED ✗")
     return 0 if ok_all else 1
 

@@ -5,6 +5,7 @@
 #include "simulator.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <cstdlib>
 
 namespace {
@@ -377,12 +378,32 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       return std::min(context.findNextRef(static_cast<uint64_t>(m_line_addrs[w]), m_core_id),
                       uint32_t(127));
    };
+   // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
+   // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
+   // obeys the variant spec (one checker across all three simulators). Sniper
+   // has no per-line epoch, so epoch==dist (the native next-ref) and recency is
+   // the rrpv; the variant rules use prop/rrpv/dist, not the raw recency value.
+   static long ecgEvTrace = [](){ const char* e = std::getenv("ECG_EVICT_TRACE"); return e ? std::atol(e) : 0L; }();
+   const char* epol = (variant == 1) ? "ECG:epoch_first" : "ECG:epoch_only";
+   auto emitTrace = [&](UInt32 victimWay, const char* pol, const char* reason) {
+      if (ecgEvTrace <= 0) return;
+      --ecgEvTrace;
+      std::fprintf(stderr, "[EVICT L3 pol=%s curEpoch=0 set_ways=%u]\n", pol, m_associativity);
+      for (UInt32 w = 0; w < m_associativity; w++) {
+         UInt32 d = isProp(w) ? dist(w) : 0;
+         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%u dist=%u prop=%d last=%d%s\n",
+                      w, (int)m_rrip_bits[w], d, d, (int)isProp(w), (int)m_rrip_bits[w],
+                      w == victimWay ? "   <== VICTIM" : "");
+      }
+      std::fprintf(stderr, "   -> victim=way%u reason=%s\n", victimWay, reason);
+   };
 
    // shortcircuit (legacy): any non-property first, then farthest-next-ref
    // property (DBG tier tiebreak). No rrpv gating.
    if (variant == 4) {
       for (UInt32 way = 0; way < m_associativity; way++)
          if (!isProp(way)) {
+            emitTrace(way, "ECG:shortcircuit", "first non-property");
             applyPendingInsertion(way);
             LOG_ASSERT_ERROR(isValidReplacement(way), "ECG GRASP_POPT shortcircuit invalid");
             return way;
@@ -392,6 +413,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
          UInt32 d = dist(way);
          if (d > bd || (d == bd && m_dbg_tiers[way] > bdbg)) { best = way; bd = d; bdbg = m_dbg_tiers[way]; }
       }
+      emitTrace(best, "ECG:shortcircuit+epoch", "all-prop farthest epoch");
       applyPendingInsertion(best);
       LOG_ASSERT_ERROR(isValidReplacement(best), "ECG GRASP_POPT shortcircuit+epoch invalid");
       return best;
@@ -406,6 +428,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
             recBest = way; recAge = m_rrip_bits[way];
          }
       if (recBest != m_associativity) {
+         emitTrace(recBest, epol, "record by recency");
          applyPendingInsertion(recBest);
          LOG_ASSERT_ERROR(isValidReplacement(recBest), "ECG GRASP_POPT epoch_first record invalid");
          return recBest;
@@ -414,6 +437,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       for (UInt32 way = 0; way < m_associativity; way++)
          if (isProp(way)) { UInt32 d = dist(way); if (best == m_associativity || d > bd) { best = way; bd = d; } }
       if (best != m_associativity) {
+         emitTrace(best, epol, "farthest-epoch property");
          applyPendingInsertion(best);
          LOG_ASSERT_ERROR(isValidReplacement(best), "ECG GRASP_POPT epoch_first prop invalid");
          return best;
@@ -431,11 +455,13 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
          else { UInt32 d = dist(way); if (propIdx == m_associativity || d > pb) { propIdx = way; pb = d; } }
       }
       if (recIdx != m_associativity) {
+         emitTrace(recIdx, "ECG:rrip_first", "max-rrpv record by recency");
          applyPendingInsertion(recIdx);
          LOG_ASSERT_ERROR(isValidReplacement(recIdx), "ECG GRASP_POPT rrip_first record invalid");
          return recIdx;
       }
       if (propIdx != m_associativity) {
+         emitTrace(propIdx, "ECG:rrip_first", "max-rrpv farthest-epoch property");
          applyPendingInsertion(propIdx);
          LOG_ASSERT_ERROR(isValidReplacement(propIdx), "ECG GRASP_POPT rrip_first prop invalid");
          return propIdx;

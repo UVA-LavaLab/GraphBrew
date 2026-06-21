@@ -10,7 +10,9 @@
 #include "mem/cache/replacement_policies/ecg_rp.hh"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
+#include <iostream>
 #include <vector>
 
 namespace gem5 {
@@ -26,6 +28,7 @@ GraphEcgRP::GraphEcgRP(const Params &p)
       poptMatrixPath(p.popt_matrix_path)
 {
 }
+
 
 void
 GraphEcgRP::tryLoadContext() const
@@ -74,6 +77,50 @@ GraphEcgRP::touch(
 {
     auto data = std::static_pointer_cast<EcgReplData>(replacement_data);
 
+    if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
+        tryLoadContext();
+        uint64_t addr = data->line_addr;
+        if (pkt && pkt->req) {
+            addr = pkt->req->hasVaddr() ? pkt->req->getVaddr()
+                         : pkt->req->getPaddr();
+            data->line_addr = addr & ~uint64_t(63);
+        }
+        data->lastTouchTick = curTick();
+        if (ctx.loaded && ctx.isPropertyData(addr)) {
+            data->is_property_data = true;
+            uint32_t vertex = UINT32_MAX;
+            for (uint32_t ri = 0; ri < ctx.num_regions; ++ri) {
+                const auto& reg = ctx.regions[ri];
+                if (addr >= reg.base_address && addr < reg.upper_bound) {
+                    vertex = graph::addressToVertex(addr, reg.base_address,
+                                 reg.upper_bound, reg.elem_size);
+                    break;
+                }
+            }
+            if (vertex != UINT32_MAX) {
+                uint8_t isa_dbg = 0, isa_popt = 0;
+                uint16_t isa_epoch = data->ecg_epoch;
+                if (graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt,
+                                                isa_epoch)) {
+                    data->ecg_dbg_tier = isa_dbg;
+                    data->ecg_popt_hint = isa_popt;
+                    data->ecg_epoch = isa_epoch;
+                }
+            }
+            uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+            if (tier == 1) {
+                data->rrpv = 0;
+            } else if (data->rrpv > 0) {
+                data->rrpv--;
+            }
+            ctx.updateVertexFromAddr(addr);
+        } else if (data->rrpv > 0) {
+            data->is_property_data = false;
+            data->rrpv--;
+        }
+        return;
+    }
+
     if (ecgMode == graph::ECGMode::POPT_PRIMARY ||
         ecgMode == graph::ECGMode::ECG_COMBINED) {
         data->rrpv = 0;
@@ -82,23 +129,6 @@ GraphEcgRP::touch(
 
     if (ctx.loaded && ctx.isPropertyData(data->line_addr)) {
         data->is_property_data = true;
-        uint32_t vertex = UINT32_MAX;
-        if (ctx.num_regions > 0) {
-            const auto& region = ctx.regions[0];
-            vertex = graph::addressToVertex(
-            addr, region.base_address, region.upper_bound,
-                region.elem_size);
-        }
-        if (vertex != UINT32_MAX) {
-            uint8_t isa_dbg = 0, isa_popt = 0;
-            uint16_t isa_epoch = data->ecg_epoch;
-            if (graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt,
-                                                 isa_epoch)) {
-                data->ecg_dbg_tier = isa_dbg;
-                data->ecg_popt_hint = isa_popt;
-                data->ecg_epoch = isa_epoch;
-            }
-        }
         uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize);
         if (tier == 1) {
             data->rrpv = 0;
@@ -133,6 +163,7 @@ GraphEcgRP::reset(
                              : pkt->req->getPaddr();
         data->line_addr = addr & ~uint64_t(63);
         data->is_property_data = ctx.loaded && ctx.isPropertyData(addr);
+        data->lastTouchTick = curTick();
 
         constexpr uint8_t pRrip = 1;
         constexpr uint8_t iRrip = 6;
@@ -159,11 +190,15 @@ GraphEcgRP::reset(
         // the sideband-JSON-derived values. Falls back to sideband if the
         // table has no entry for this vertex.
         if (data->is_property_data && ctx.loaded && ctx.num_regions > 0) {
-            const auto& region = ctx.regions[0];
-            uint32_t vertex = graph::addressToVertex(
-                addr,
-                region.base_address, region.upper_bound,
-                region.elem_size);
+            uint32_t vertex = UINT32_MAX;
+            for (uint32_t ri = 0; ri < ctx.num_regions; ++ri) {
+                const auto& reg = ctx.regions[ri];
+                if (addr >= reg.base_address && addr < reg.upper_bound) {
+                    vertex = graph::addressToVertex(addr, reg.base_address,
+                                 reg.upper_bound, reg.elem_size);
+                    break;
+                }
+            }
             if (vertex != UINT32_MAX) {
                 uint8_t isa_dbg = 0, isa_popt = 0;
                 uint16_t isa_epoch = 0;
@@ -173,8 +208,7 @@ GraphEcgRP::reset(
                 if (got) {
                     // Use ISA-delivered metadata directly.
                     data->ecg_dbg_tier = isa_dbg;
-                    // POPT quant is 7 bits; ECG_RP stores as 8-bit; range OK.
-                    data->ecg_popt_hint = isa_popt;
+                    data->ecg_popt_hint = isa_popt;  // 7-bit POPT quant
                     data->ecg_epoch = isa_epoch;
                 }
             }
@@ -182,6 +216,26 @@ GraphEcgRP::reset(
 
         if (ecgMode == graph::ECGMode::POPT_PRIMARY) {
             data->rrpv = (rrpvMax > 0) ? rrpvMax - 1 : 0;
+        } else if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
+            // Non-property insertion RRPV: max (evicted before reused property, but
+            // recency-aware via touch) for all variants except legacy shortcircuit,
+            // whose eviction ignores rrpv. (ECG_VARIANT read in getVictim.)
+            static const bool legacy_sc = [](){
+                const char* v = std::getenv("ECG_VARIANT");
+                return v && std::string(v) == "shortcircuit";
+            }();
+            if (data->is_property_data && ctx.loaded) {
+                uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+                if (tier == 1) data->rrpv = pRrip;
+                else if (tier == 2) data->rrpv = iRrip;
+                else data->rrpv = mRrip;
+
+                ctx.updateVertexFromAddr(addr);
+            } else if (ctx.loaded) {
+                data->rrpv = legacy_sc ? 2 : mRrip;
+            } else {
+                data->rrpv = 2;
+            }
         } else if (ecgMode == graph::ECGMode::ECG_COMBINED) {
             uint8_t dbgRrpv = mRrip;
             if (data->is_property_data && ctx.loaded) {
@@ -249,44 +303,98 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
     }
 
     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT && ctx.loaded) {
-        int propCount = 0;
-        for (const auto& c : candidates) {
-            auto data = getData(c);
-            data->is_property_data = ctx.isPropertyData(data->line_addr);
-            if (data->is_property_data) propCount++;
-        }
-
-        if (propCount != static_cast<int>(candidates.size())) {
-            for (const auto& c : candidates) {
-                auto data = getData(c);
-                if (!data->is_property_data) return c;
-            }
-        }
-
+        // ECG_VARIANT factorial ablation (mirrors cache_sim findVictimECG).
+        // Invariants in ALL variants: epoch is PROPERTY-ONLY; records evicted by
+        // recency; unstamped property (epoch==0) -> recency (never "farthest").
+        //   grasp_only(0): pure RRIP, no epoch
+        //   epoch_first(1): records by recency, then farthest-epoch property (epoch vetoes rrpv)
+        //   rrip_first(2,default): max-rrpv set (recency vetoes); records-first by recency,
+        //                          then farthest-epoch property
+        //   epoch_only(3): same eviction as epoch_first (insertion uniform, set in reset())
+        //   shortcircuit(4,legacy): non-property first, then epoch among property
+        static const int variant = [](){
+            const char* v = std::getenv("ECG_VARIANT");
+            if (!v) return 2;
+            std::string s(v);
+            if (s=="grasp_only")  return 0;
+            if (s=="epoch_first") return 1;
+            if (s=="rrip_first")  return 2;
+            if (s=="epoch_only")  return 3;
+            if (s=="shortcircuit"||s=="legacy") return 4;
+            return 2;
+        }();
         const uint32_t n = std::max<uint32_t>(1u, ctx.topology.num_vertices);
         const uint32_t ne = std::max<uint32_t>(2u, ctx.topology.edge_epoch_count);
-        uint32_t cur_epoch = static_cast<uint32_t>(
+        uint32_t curEpoch = static_cast<uint32_t>(
             (static_cast<uint64_t>(ctx.currentVertexForPopt()) * ne) / n);
-        if (cur_epoch >= ne) cur_epoch = ne - 1;
+        if (curEpoch >= ne) curEpoch = ne - 1;
+        auto isProp  = [&](ReplaceableEntry* c){ return ctx.isPropertyData(getData(c)->line_addr); };
+        auto dist    = [&](ReplaceableEntry* c){ uint32_t e=getData(c)->ecg_epoch; if(e>=ne)e=ne-1; return (e+ne-curEpoch)%ne; };
+        auto stamped = [&](ReplaceableEntry* c){ return isProp(c) && getData(c)->ecg_epoch!=0; };
+        auto lruVictim = [&]()->ReplaceableEntry* { ReplaceableEntry* v=candidates[0]; uint64_t o=getData(candidates[0])->lastTouchTick;
+            for (const auto& c: candidates){ uint64_t t=getData(c)->lastTouchTick; if(t<o){o=t;v=c;} } return v; };
+        // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
+        // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
+        // obeys the variant spec (one checker across all three simulators).
+        static long ecgEvTrace = [](){ const char* e=std::getenv("ECG_EVICT_TRACE"); return e?std::atol(e):0L; }();
+        const char* epol = (variant==1) ? "ECG:epoch_first" : "ECG:epoch_only";
+        auto traced = [&](ReplaceableEntry* victimEntry, const char* pol, const char* reason)->ReplaceableEntry* {
+            if (ecgEvTrace > 0) {
+                --ecgEvTrace;
+                int vidx = -1;
+                for (size_t i=0;i<candidates.size();++i) if (candidates[i]==victimEntry){ vidx=(int)i; break; }
+                std::cerr << "[EVICT L3 pol=" << pol << " curEpoch=" << curEpoch
+                          << " set_ways=" << candidates.size() << "]\n";
+                for (size_t i=0;i<candidates.size();++i){
+                    auto dd = getData(candidates[i]);
+                    std::cerr << "   way" << i << " valid=1 rrpv=" << (int)dd->rrpv
+                              << " epoch=" << dd->ecg_epoch << " dist=" << dist(candidates[i])
+                              << " prop=" << (int)isProp(candidates[i]) << " last=" << dd->lastTouchTick
+                              << ((int)i==vidx ? "   <== VICTIM" : "") << "\n";
+                }
+                std::cerr << "   -> victim=way" << vidx << " reason=" << reason << "\n";
+            }
+            return victimEntry;
+        };
 
-        uint32_t maxDist = 0;
-        uint8_t maxDbg = 0;
-        ReplaceableEntry* victim = candidates[0];
-        bool haveVictim = false;
-        for (const auto& c : candidates) {
-            auto data = getData(c);
-            uint32_t epoch = data->ecg_epoch;
-            if (epoch >= ne) epoch = ne - 1;
-            uint32_t dist = (epoch + ne - cur_epoch) % ne;
-            if (!haveVictim || dist > maxDist ||
-                (dist == maxDist && data->ecg_dbg_tier > maxDbg)) {
-                victim = c;
-                maxDist = dist;
-                maxDbg = data->ecg_dbg_tier;
-                haveVictim = true;
+        // grasp_only: pure RRIP
+        if (variant == 0) {
+            while (true) {
+                for (const auto& c : candidates) if (getData(c)->rrpv >= rrpvMax) return traced(c, "ECG:grasp_only", "RRIP max-rrpv");
+                for (const auto& c : candidates) { auto d=getData(c); if (d->rrpv<rrpvMax) d->rrpv++; }
             }
         }
-        return victim;
+        // shortcircuit (legacy)
+        if (variant == 4) {
+            for (const auto& c : candidates) if (!isProp(c)) return traced(c, "ECG:shortcircuit", "first non-property");
+            ReplaceableEntry* best=candidates[0]; uint32_t bd=0; uint8_t bdbg=0;
+            for (const auto& c : candidates){ uint32_t d=dist(c); uint8_t t=getData(c)->ecg_dbg_tier;
+                if (c==candidates[0]||d>bd||(d==bd&&t>bdbg)){best=c;bd=d;bdbg=t;} }
+            return traced(best, "ECG:shortcircuit+epoch", "all-prop farthest epoch");
+        }
+        // epoch_first / epoch_only: records by recency, then farthest-epoch property
+        if (variant == 1 || variant == 3) {
+            ReplaceableEntry* rec=nullptr; uint64_t ro=0;
+            for (const auto& c : candidates) if (!isProp(c)){ uint64_t t=getData(c)->lastTouchTick; if(!rec||t<ro){rec=c;ro=t;} }
+            if (rec) return traced(rec, epol, "record by recency");
+            ReplaceableEntry* best=nullptr; uint32_t bd=0;
+            for (const auto& c : candidates) if (stamped(c)){ uint32_t d=dist(c); if(!best||d>bd){best=c;bd=d;} }
+            if (best) return traced(best, epol, "farthest-epoch property");
+            return traced(lruVictim(), epol, "no stamped prop -> LRU");
+        }
+        // rrip_first (default): max-rrpv set; records-first by recency, then farthest-epoch property
+        while (true) {
+            ReplaceableEntry* recIdx=nullptr; uint64_t ro=0;
+            ReplaceableEntry* propIdx=nullptr; uint32_t pb=0;
+            for (const auto& c : candidates) {
+                if (getData(c)->rrpv < rrpvMax) continue;
+                if (!isProp(c)){ uint64_t t=getData(c)->lastTouchTick; if(!recIdx||t<ro){recIdx=c;ro=t;} }
+                else { uint32_t d=stamped(c)?dist(c):0; if(!propIdx||d>pb){propIdx=c;pb=d;} }
+            }
+            if (recIdx) return traced(recIdx, "ECG:rrip_first", "max-rrpv record by recency");
+            if (propIdx) return traced(propIdx, "ECG:rrip_first", "max-rrpv farthest-epoch property");
+            for (const auto& c : candidates) { auto d=getData(c); if (d->rrpv<rrpvMax) d->rrpv++; }
+        }
     }
 
     if (ecgMode == graph::ECGMode::POPT_PRIMARY && ctx.loaded &&
