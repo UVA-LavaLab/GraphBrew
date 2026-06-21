@@ -199,7 +199,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     ecg_mode6::extractDbg(mask),
                     ecg_mode6::extractPopt(mask),
                     epoch,
-                    0);
+                    ecg_mode6::extractPrefetchTarget(mask));
             }
         }
         printf("[gem5 ECG mode 6] lookahead=%d ne=%u (per-edge epoch mask path active)\n",
@@ -277,10 +277,12 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
                     uint64_t mask;
                     NodeID v;
-                    if (packed_ok) {
-                        // ONE contiguous 4-byte record read — the single edge
-                        // stream that also carries the epoch (no separate
-                        // scattered mask array polluting the LLC).
+                    if (packed_ok && !ecg_prefetch_enabled) {
+                        // EVICTION-ONLY: one contiguous 4-byte record read — the
+                        // single edge stream that also carries the epoch (no
+                        // separate scattered mask array polluting the LLC). The
+                        // 4-byte record holds dest+epoch only, which is all the
+                        // ECG_RP eviction path needs.
                         uint32_t rec = in_edge_packed_flat[packed_off[u] + edge_pos];
                         v = static_cast<NodeID>(rec & pack_id_mask);
                         uint16_t ep = static_cast<uint16_t>(rec >> pack_id_bits);
@@ -290,6 +292,11 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                         mask = (static_cast<uint64_t>(v) & 0xFFFFFFULL)
                              | (static_cast<uint64_t>(ep) << 33);
                     } else {
+                        // PREFETCH path (or unpacked): use the FULL 64-bit mask,
+                        // which carries the prefetch target in bits [49:64]. The
+                        // 4-byte packed record drops that field, so the prefetch
+                        // hint would be lost (pfx_target=0 => no hint emitted); the
+                        // prefetch target needs the wider record / full mask.
                         mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
                         v = static_cast<NodeID>(ecg_mode6::extractDest(mask));
                     }
