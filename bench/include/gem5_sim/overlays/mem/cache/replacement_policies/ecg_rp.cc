@@ -9,6 +9,8 @@
 
 #include "mem/cache/replacement_policies/ecg_rp.hh"
 
+#include "mem/cache/replacement_policies/ecg_victim_policy.hh"
+
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -331,8 +333,6 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         auto isProp  = [&](ReplaceableEntry* c){ return ctx.isPropertyData(getData(c)->line_addr); };
         auto dist    = [&](ReplaceableEntry* c){ uint32_t e=getData(c)->ecg_epoch; if(e>=ne)e=ne-1; return (e+ne-curEpoch)%ne; };
         auto stamped = [&](ReplaceableEntry* c){ return isProp(c) && getData(c)->ecg_epoch!=0; };
-        auto lruVictim = [&]()->ReplaceableEntry* { ReplaceableEntry* v=candidates[0]; uint64_t o=getData(candidates[0])->lastTouchTick;
-            for (const auto& c: candidates){ uint64_t t=getData(c)->lastTouchTick; if(t<o){o=t;v=c;} } return v; };
         // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
         // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
         // obeys the variant spec (one checker across all three simulators).
@@ -357,44 +357,38 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
             return victimEntry;
         };
 
-        // grasp_only: pure RRIP
-        if (variant == 0) {
-            while (true) {
-                for (const auto& c : candidates) if (getData(c)->rrpv >= rrpvMax) return traced(c, "ECG:grasp_only", "RRIP max-rrpv");
-                for (const auto& c : candidates) { auto d=getData(c); if (d->rrpv<rrpvMax) d->rrpv++; }
-            }
+        // Build the per-way state and delegate the DECISION to the shared
+        // ecg_policy::selectVictim (identical across cache_sim / gem5 / Sniper).
+        const size_t nc = candidates.size();
+        ecg_policy::WayState ws[64];
+        for (size_t i = 0; i < nc; i++) {
+            auto dd = getData(candidates[i]);
+            ws[i].prop    = isProp(candidates[i]);
+            ws[i].rrpv    = dd->rrpv;
+            ws[i].recency = dd->lastTouchTick;
+            ws[i].dbg     = dd->ecg_dbg_tier;
+            ws[i].dist    = dist(candidates[i]);
+            ws[i].stamped = stamped(candidates[i]);
         }
-        // shortcircuit (legacy)
-        if (variant == 4) {
-            for (const auto& c : candidates) if (!isProp(c)) return traced(c, "ECG:shortcircuit", "first non-property");
-            ReplaceableEntry* best=candidates[0]; uint32_t bd=0; uint8_t bdbg=0;
-            for (const auto& c : candidates){ uint32_t d=dist(c); uint8_t t=getData(c)->ecg_dbg_tier;
-                if (c==candidates[0]||d>bd||(d==bd&&t>bdbg)){best=c;bd=d;bdbg=t;} }
-            return traced(best, "ECG:shortcircuit+epoch", "all-prop farthest epoch");
+        size_t vidx = ecg_policy::selectVictim(ws, nc, variant, rrpvMax);
+        for (size_t i = 0; i < nc; i++) getData(candidates[i])->rrpv = ws[i].rrpv;  // persist SRRIP aging
+        ReplaceableEntry* victim = candidates[vidx];
+
+        // Reconstruct the trace pol/reason (verify_ecg.py keys on the pol name).
+        const char* pol; const char* reason;
+        if (variant == 0)      { pol = "ECG:grasp_only";  reason = "RRIP max-rrpv"; }
+        else if (variant == 4) {
+            if (!isProp(victim)) { pol = "ECG:shortcircuit";       reason = "first non-property"; }
+            else                 { pol = "ECG:shortcircuit+epoch"; reason = "all-prop farthest epoch"; }
+        } else if (variant == 2) {
+            pol = "ECG:rrip_first";
+            reason = !isProp(victim) ? "max-rrpv record by recency" : "max-rrpv farthest-epoch property";
+        } else {
+            pol = epol;
+            reason = !isProp(victim) ? "record by recency"
+                   : stamped(victim) ? "farthest-epoch property" : "recency fallback";
         }
-        // epoch_first / epoch_only: records by recency, then farthest-epoch property
-        if (variant == 1 || variant == 3) {
-            ReplaceableEntry* rec=nullptr; uint64_t ro=0;
-            for (const auto& c : candidates) if (!isProp(c)){ uint64_t t=getData(c)->lastTouchTick; if(!rec||t<ro){rec=c;ro=t;} }
-            if (rec) return traced(rec, epol, "record by recency");
-            ReplaceableEntry* best=nullptr; uint32_t bd=0;
-            for (const auto& c : candidates) if (stamped(c)){ uint32_t d=dist(c); if(!best||d>bd){best=c;bd=d;} }
-            if (best) return traced(best, epol, "farthest-epoch property");
-            return traced(lruVictim(), epol, "no stamped prop -> LRU");
-        }
-        // rrip_first (default): max-rrpv set; records-first by recency, then farthest-epoch property
-        while (true) {
-            ReplaceableEntry* recIdx=nullptr; uint64_t ro=0;
-            ReplaceableEntry* propIdx=nullptr; uint32_t pb=0;
-            for (const auto& c : candidates) {
-                if (getData(c)->rrpv < rrpvMax) continue;
-                if (!isProp(c)){ uint64_t t=getData(c)->lastTouchTick; if(!recIdx||t<ro){recIdx=c;ro=t;} }
-                else { uint32_t d=stamped(c)?dist(c):0; if(!propIdx||d>pb){propIdx=c;pb=d;} }
-            }
-            if (recIdx) return traced(recIdx, "ECG:rrip_first", "max-rrpv record by recency");
-            if (propIdx) return traced(propIdx, "ECG:rrip_first", "max-rrpv farthest-epoch property");
-            for (const auto& c : candidates) { auto d=getData(c); if (d->rrpv<rrpvMax) d->rrpv++; }
-        }
+        return traced(victim, pol, reason);
     }
 
     if (ecgMode == graph::ECGMode::POPT_PRIMARY && ctx.loaded &&

@@ -237,8 +237,8 @@ def test_artifact_csv_exists():
     csv_p = WIKI_DATA / "lit_faith_gem5_overlay_tracker.csv"
     assert csv_p.is_file()
     lines = csv_p.read_text(encoding="utf-8").strip().splitlines()
-    # header + 14 sources + 3 policies + 2 prefetchers + 2 patches = 22
-    assert len(lines) == 22, f"unexpected csv row count: {len(lines)}"
+    # header + 15 sources + 3 policies + 2 prefetchers + 2 patches = 23
+    assert len(lines) == 23, f"unexpected csv row count: {len(lines)}"
 
 
 def test_catalog_has_gate_267_entry():

@@ -1,6 +1,7 @@
 category,key,value
 copied_file,common/core/memory_subsystem/cache/cache_set_ecg.cc,tracked
 copied_file,common/core/memory_subsystem/cache/cache_set_ecg.h,tracked
+copied_file,common/core/memory_subsystem/cache/ecg_victim_policy.h,tracked
 copied_file,common/core/memory_subsystem/cache/cache_set_grasp.cc,tracked
 copied_file,common/core/memory_subsystem/cache/cache_set_grasp.h,tracked
 copied_file,common/core/memory_subsystem/cache/cache_set_popt.cc,tracked

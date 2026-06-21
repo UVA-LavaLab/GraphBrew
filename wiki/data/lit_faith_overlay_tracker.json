@@ -17,6 +17,7 @@
     "copied_files": [
       "common/core/memory_subsystem/cache/cache_set_ecg.cc",
       "common/core/memory_subsystem/cache/cache_set_ecg.h",
+      "common/core/memory_subsystem/cache/ecg_victim_policy.h",
       "common/core/memory_subsystem/cache/cache_set_grasp.cc",
       "common/core/memory_subsystem/cache/cache_set_grasp.h",
       "common/core/memory_subsystem/cache/cache_set_popt.cc",
@@ -45,7 +46,7 @@
       "ecg_pfx"
     ]
   },
-  "registry_n": 12,
+  "registry_n": 13,
   "rules": {
     "O1": "every copied_files entry has valid grammar (lower_snake_case path + .cc/.h)",
     "O2": "every copied_files entry exists on disk under overlays/",

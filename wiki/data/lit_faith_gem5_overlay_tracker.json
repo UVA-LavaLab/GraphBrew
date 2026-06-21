@@ -15,6 +15,7 @@
       "mem/cache/replacement_policies/popt_rp.cc",
       "mem/cache/replacement_policies/ecg_rp.hh",
       "mem/cache/replacement_policies/ecg_rp.cc",
+      "mem/cache/replacement_policies/ecg_victim_policy.hh",
       "mem/cache/replacement_policies/graph_cache_context_gem5.hh",
       "mem/cache/replacement_policies/GraphReplacementPolicies.py",
       "mem/cache/prefetch/droplet.hh",
@@ -38,7 +39,7 @@
       "ecg_pfx"
     ]
   },
-  "registry_n": 14,
+  "registry_n": 15,
   "rules": {
     "G1": "every OVERLAY_FILE_MAP source has valid grammar (path + .cc/.hh/.py/.isa)",
     "G2": "every OVERLAY_FILE_MAP source exists on disk under overlays/",

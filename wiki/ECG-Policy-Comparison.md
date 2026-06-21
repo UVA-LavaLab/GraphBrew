@@ -83,8 +83,15 @@ cache_sim-favorable, gem5-pathological variant.
 
 ## Three-simulator status
 
-The same policy + `ECG_VARIANT` factorial lives in all three simulators, sharing
-the spec but using each model's native machinery:
+The same policy + `ECG_VARIANT` factorial lives in all three simulators. The
+eviction **decision** is a single shared function, `ecg_policy::selectVictim`
+(`bench/include/ecg_victim_policy.h`), that cache_sim, gem5 and Sniper all call —
+so nothing is "ported" or "mirrored": the decision logic is literally identical
+across backends (a SSOT test asserts the co-located copies are byte-identical),
+and one unit test of that function verifies the eviction choice for all three.
+Each simulator keeps only a thin adapter that builds the per-way state from its
+native cache lines (epoch via memory-resident mask for cache_sim/gem5, via
+`findNextRef` for Sniper); the adapter is covered by that backend's live trace.
 
 | Simulator | ECG_GRASP_POPT + ECG_VARIANT | Epoch source | Status |
 |-----------|------------------------------|--------------|--------|

@@ -1,13 +1,16 @@
 // Synthetic deterministic victim-selection test for the ECG_GRASP_POPT variants.
 //
-// Unlike verify_ecg.py (which checks the LIVE eviction trace against necessary
-// conditions on whatever set states a real run happens to produce), this builds
-// CONTROLLED 8-way sets and asserts the EXACT victim the policy must pick, with
-// the expected victim computed independently here. It therefore (a) guarantees
-// the epoch-property ranking branch is exercised — the real PageRank workload
-// only ever evicts records, so that branch never fires there — and (b) breaks
-// the trace's self-report loop, since the inputs (property/epoch/recency) are
-// fixed by the test, not read back from the simulator.
+// This drives cache_sim's findVictimECG, which delegates the decision to the
+// shared ecg_policy::selectVictim (bench/include/ecg_victim_policy.h) — the SAME
+// function gem5 and Sniper call. So this test directly verifies the eviction
+// decision for ALL THREE simulators (the SSOT test asserts the copies are
+// byte-identical). It is mutation-proven: flipping the shared function's
+// farthest->nearest epoch pick makes the epoch cases below FAIL.
+//
+// Unlike verify_ecg.py (which checks the LIVE trace against whatever set states a
+// real run happens to produce), this builds CONTROLLED 8-way sets and asserts the
+// EXACT victim, computed independently here — guaranteeing the epoch-property
+// ranking branch is exercised and pinning the exact choice.
 //
 // One ECG_VARIANT per process: findVictimECG reads ECG_VARIANT once via a
 // function-local static, so the harness runs this binary once per variant.

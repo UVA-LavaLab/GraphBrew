@@ -2,7 +2,7 @@
 
 Locks `scripts/setup_gem5.py`'s overlay installation contract (`OVERLAY_FILE_MAP` + `PATCH_FILES` + `apply_overlays()` + `apply_patches()`) against silent drift in source files / policies / prefetchers / patches.
 
-registry entries: 14 overlay sources; 3 policies (grasp, popt, ecg); 2 prefetchers (droplet, ecg_pfx); 2 patches.
+registry entries: 15 overlay sources; 3 policies (grasp, popt, ecg); 2 prefetchers (droplet, ecg_pfx); 2 patches.
 
 ## Rules
 

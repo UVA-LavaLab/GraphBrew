@@ -27,6 +27,7 @@
 #include <parallel/algorithm>
 
 #include "graph_cache_context.h"
+#include "../ecg_victim_policy.h"
 
 namespace cache_sim {
 
@@ -1708,63 +1709,37 @@ private:
             auto isProp  = [&](size_t i){ return graph_ctx_->isPropertyData(set[i].line_addr); };
             auto dist    = [&](size_t i){ return (uint32_t(set[i].ecg_epoch) + ne - cur_epoch) % ne; };
             auto stamped = [&](size_t i){ return isProp(i) && set[i].ecg_epoch != 0; };
-            auto lruVictim = [&](){ size_t v=0; uint64_t o=set[0].last_access;
-                for (size_t i=1;i<associativity_;i++) if (set[i].last_access<o){o=set[i].last_access;v=i;} return v; };
 
-            // grasp_only: pure RRIP
-            if (variant == 0) {
-                while (true) {
-                    for (size_t i=0;i<associativity_;i++) if (set[i].rrpv>=RRPV_MAX){
-                        traceEvict("ECG:grasp_only", set, i, "RRIP max-rrpv", 0); return i; }
-                    for (size_t i=0;i<associativity_;i++) if (set[i].rrpv<RRPV_MAX) set[i].rrpv++;
-                }
+            // Build the per-way state and delegate the DECISION to the shared
+            // ecg_policy::selectVictim (identical across cache_sim / gem5 / Sniper).
+            ecg_policy::WayState ws[64];
+            for (size_t i = 0; i < associativity_; i++) {
+                ws[i].prop    = isProp(i);
+                ws[i].rrpv    = set[i].rrpv;
+                ws[i].recency = set[i].last_access;
+                ws[i].dbg     = set[i].ecg_dbg_tier;
+                ws[i].dist    = dist(i);
+                ws[i].stamped = stamped(i);
             }
-            // shortcircuit (legacy)
-            if (variant == 4) {
-                for (size_t i=0;i<associativity_;i++) if (!isProp(i)){
-                    traceEvict("ECG:shortcircuit", set, i, "first non-property", 0); return i; }
-                size_t best=0; uint32_t bd=0; uint8_t bdbg=0;
-                for (size_t i=0;i<associativity_;i++){ uint32_t d=dist(i);
-                    if (d>bd || (d==bd && set[i].ecg_dbg_tier>bdbg)){best=i;bd=d;bdbg=set[i].ecg_dbg_tier;} }
-                traceEvict("ECG:shortcircuit+epoch", set, best, "all-prop farthest epoch", cur_epoch); return best;
+            size_t victim = ecg_policy::selectVictim(ws, associativity_, variant, RRPV_MAX);
+            for (size_t i = 0; i < associativity_; i++) set[i].rrpv = ws[i].rrpv;  // persist SRRIP aging
+
+            // Reconstruct the trace pol/reason (verify_ecg.py keys on the pol name).
+            const char* pol; const char* reason;
+            if (variant == 0)      { pol = "ECG:grasp_only";  reason = "RRIP max-rrpv"; }
+            else if (variant == 4) {
+                if (!isProp(victim)) { pol = "ECG:shortcircuit";       reason = "first non-property"; }
+                else                 { pol = "ECG:shortcircuit+epoch"; reason = "all-prop farthest epoch"; }
+            } else if (variant == 2) {
+                pol = "ECG:rrip_first";
+                reason = !isProp(victim) ? "max-rrpv record by recency" : "max-rrpv farthest-epoch property";
+            } else {
+                pol = (variant == 1) ? "ECG:epoch_first" : "ECG:epoch_only";
+                reason = !isProp(victim) ? "record by recency"
+                       : stamped(victim) ? "farthest-epoch property" : "recency fallback";
             }
-            // epoch_first: epoch vetoes recency AMONG PROPERTY (records still go first)
-            if (variant == 1) {
-                size_t rec=associativity_; uint64_t ro=0;
-                for (size_t i=0;i<associativity_;i++) if (!isProp(i)){
-                    if (rec==associativity_||set[i].last_access<ro){rec=i;ro=set[i].last_access;} }
-                if (rec!=associativity_){ traceEvict("ECG:epoch_first", set, rec, "record by recency", cur_epoch); return rec; }
-                size_t best=associativity_; uint32_t bd=0;
-                for (size_t i=0;i<associativity_;i++) if (stamped(i)){ uint32_t d=dist(i);
-                    if (best==associativity_||d>bd){best=i;bd=d;} }
-                if (best!=associativity_){ traceEvict("ECG:epoch_first", set, best, "farthest-epoch property (epoch vetoes rrpv)", cur_epoch); return best; }
-                size_t v=lruVictim(); traceEvict("ECG:epoch_first", set, v, "no stamped prop -> LRU", cur_epoch); return v;
-            }
-            // epoch_only: records-first by recency, then farthest-epoch property
-            if (variant == 3) {
-                size_t rec=associativity_; uint64_t ro=0;
-                for (size_t i=0;i<associativity_;i++) if (!isProp(i)){
-                    if (rec==associativity_||set[i].last_access<ro){rec=i;ro=set[i].last_access;} }
-                if (rec!=associativity_){ traceEvict("ECG:epoch_only", set, rec, "record by recency", cur_epoch); return rec; }
-                size_t best=associativity_; uint32_t bd=0;
-                for (size_t i=0;i<associativity_;i++) if (stamped(i)){ uint32_t d=dist(i);
-                    if (best==associativity_||d>bd){best=i;bd=d;} }
-                if (best!=associativity_){ traceEvict("ECG:epoch_only", set, best, "farthest-epoch property", cur_epoch); return best; }
-                size_t v=lruVictim(); traceEvict("ECG:epoch_only", set, v, "unstamped -> LRU", cur_epoch); return v;
-            }
-            // rrip_first (default): recency vetoes; max-rrpv set; records-first, then epoch property
-            while (true) {
-                size_t recIdx=associativity_; uint64_t ro=0;
-                size_t propIdx=associativity_; uint32_t pb=0;
-                for (size_t i=0;i<associativity_;i++) {
-                    if (set[i].rrpv<RRPV_MAX) continue;
-                    if (!isProp(i)){ if (recIdx==associativity_||set[i].last_access<ro){recIdx=i;ro=set[i].last_access;} }
-                    else { uint32_t d=stamped(i)?dist(i):0; if (propIdx==associativity_||d>pb){propIdx=i;pb=d;} }
-                }
-                if (recIdx!=associativity_){ traceEvict("ECG:rrip_first", set, recIdx, "max-rrpv record by recency", cur_epoch); return recIdx; }
-                if (propIdx!=associativity_){ traceEvict("ECG:rrip_first", set, propIdx, "max-rrpv farthest-epoch property", cur_epoch); return propIdx; }
-                for (size_t i=0;i<associativity_;i++) if (set[i].rrpv<RRPV_MAX) set[i].rrpv++;
-            }
+            traceEvict(pol, set, victim, reason, cur_epoch);
+            return victim;
         }
 
         if (mode == ECGMode::ECG_COMBINED) {

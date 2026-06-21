@@ -179,7 +179,7 @@ scrub-all:
 # =========================================================
 SRC_SIM_DIR = $(BENCH_DIR)/src_sim
 BIN_SIM_DIR = $(BENCH_DIR)/bin_sim
-DEP_CACHE = $(wildcard $(INCLUDE_CACHE)/*.h)
+DEP_CACHE = $(wildcard $(INCLUDE_CACHE)/*.h) $(INC_DIR)/ecg_victim_policy.h
 
 # Simulation kernels (algorithms with cache instrumentation)
 KERNELS_SIM = pr pr_spmv bfs bc cc cc_sv sssp tc ecg_preprocess

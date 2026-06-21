@@ -2,7 +2,7 @@
 
 Locks `scripts/setup_sniper.py`'s overlay installation contract (`.sniper_overlays.json` + `write_overlay_status` + `copy_overlay_sources` + `patch_*_overlay` functions) against silent drift in copied_files / policies / prefetchers / patches.
 
-registry entries: 12 copied files; 3 policies (grasp, popt, ecg); 2 prefetchers (droplet, ecg_pfx); 5 patches (cache_base_replacement_policy_grasp, cache_set_factory_grasp_popt_ecg, cache_insert_prepare_insertion, prefetcher_factory_droplet, magic_user_graphbrew_hints).
+registry entries: 13 copied files; 3 policies (grasp, popt, ecg); 2 prefetchers (droplet, ecg_pfx); 5 patches (cache_base_replacement_policy_grasp, cache_set_factory_grasp_popt_ecg, cache_insert_prepare_insertion, prefetcher_factory_droplet, magic_user_graphbrew_hints).
 
 ## Rules
 

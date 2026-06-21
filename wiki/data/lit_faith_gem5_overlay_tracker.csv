@@ -5,6 +5,7 @@ overlay_source,mem/cache/replacement_policies/popt_rp.hh,tracked
 overlay_source,mem/cache/replacement_policies/popt_rp.cc,tracked
 overlay_source,mem/cache/replacement_policies/ecg_rp.hh,tracked
 overlay_source,mem/cache/replacement_policies/ecg_rp.cc,tracked
+overlay_source,mem/cache/replacement_policies/ecg_victim_policy.hh,tracked
 overlay_source,mem/cache/replacement_policies/graph_cache_context_gem5.hh,tracked
 overlay_source,mem/cache/replacement_policies/GraphReplacementPolicies.py,tracked
 overlay_source,mem/cache/prefetch/droplet.hh,tracked

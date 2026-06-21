@@ -205,5 +205,5 @@ def test_artifact_csv_exists():
     csv_p = WIKI_DATA / "lit_faith_overlay_tracker.csv"
     assert csv_p.is_file()
     lines = csv_p.read_text(encoding="utf-8").strip().splitlines()
-    # header + 12 copied + 3 policies + 2 prefetchers + 5 patches = 23
-    assert len(lines) == 23, f"unexpected csv row count: {len(lines)}"
+    # header + 13 copied + 3 policies + 2 prefetchers + 5 patches = 24
+    assert len(lines) == 24, f"unexpected csv row count: {len(lines)}"

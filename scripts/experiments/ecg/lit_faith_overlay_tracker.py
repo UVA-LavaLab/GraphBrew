@@ -69,6 +69,7 @@ OVERLAY_PATCHES = [
 OVERLAY_COPIED_FILES = [
     "common/core/memory_subsystem/cache/cache_set_ecg.cc",
     "common/core/memory_subsystem/cache/cache_set_ecg.h",
+    "common/core/memory_subsystem/cache/ecg_victim_policy.h",
     "common/core/memory_subsystem/cache/cache_set_grasp.cc",
     "common/core/memory_subsystem/cache/cache_set_grasp.h",
     "common/core/memory_subsystem/cache/cache_set_popt.cc",
