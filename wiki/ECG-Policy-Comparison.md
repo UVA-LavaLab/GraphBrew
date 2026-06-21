@@ -244,10 +244,16 @@ python3 scripts/experiments/ecg/verify_pfx.py
 
 **Cross-simulator status (honest):** the ECG prefetch *decision* (target
 selection) is verified for all three backends via the shared function. *Live
-firing* is verified end-to-end in cache_sim; DROPLET fires in all three (it is
-the baseline overlay); the gem5 ECG_PFX SimObject has a documented MMU
-page-cross hint-delivery gap (`docs/findings/gem5_implementation_audit_v1.md`,
-deferred), and Sniper ECG_PFX fires under the guarded `sg_kernel` path.
+firing* is verified end-to-end in cache_sim, which has no page-cross filter and
+issues over the full property region, so both DROPLET and ECG_PFX property
+prefetches fire there. In **gem5**, the generic `Queued::notify` page-cross
+filter drops *any* cross-page `property[v]` prefetch unless the prefetcher has an
+MMU plumbed (none does) — this filters **both** ECG_PFX *and* DROPLET's
+indirect-property engine; only DROPLET's same-page *stride* engine still issues,
+so the gem5 prefetch comparison is not yet apples-to-apples (one MMU-plumbing fix
+un-blocks both; `docs/findings/gem5_implementation_audit_v1.md`, deferred). In
+**Sniper**, ECG_PFX fires under the guarded `sg_kernel` path. cache_sim is
+therefore the authoritative prefetch performance model.
 
 ## Related
 

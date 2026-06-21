@@ -16,7 +16,7 @@ it is accurate and complete" following completed HPCA cache_sim evaluation.
 | ECG replacement policy (`ecg_rp.cc`) | ✅ Complete | DBG_PRIMARY / POPT_PRIMARY / DBG_ONLY / ECG_EMBEDDED / ECG_COMBINED all implemented and mirror `cache_sim.h::findVictimECG` |
 | GRASP replacement policy (`grasp_rp.cc`) | ✅ Complete | 3-tier insertion + hit promotion, sideband JSON-loaded property regions |
 | P-OPT replacement policy (`popt_rp.cc`) | ✅ Complete | 3-phase eviction matches Balaji HPCA'21 + cache_sim |
-| DROPLET prefetcher (`droplet.cc`) | ✅ Working end-to-end | 860/860 issued, 762 useful on email-Eu-core smoke; stride+indirect engines fire |
+| DROPLET prefetcher (`droplet.cc`) | ⚠️ Stride engine works; **indirect-property engine is filtered** | 860/860 issued on email-Eu-core, but those are dominated by the same-page *stride* engine; the indirect `property[neighbor]` prefetches cross pages and are dropped by the same `Queued::notify` filter as ECG_PFX (see Correction below) |
 | ECG_PFX prefetcher (`ecg_pfx.cc`) | 🔴 **BROKEN in gem5 — wrong root cause documented** | New root cause found this audit: `pf_identified=0` due to page-cross filter in `Queued::notify`, NOT the single-slot mailbox |
 | `ecg_extract` RISC-V opcode (`decoder_ecg_extract.isa`) | ✅ Decoded correctly | Custom-0 opcode `0x0b`, FUNCT3=0, FUNCT7=0, payload unpacks fat-id correctly into real_vertex + DBG/POPT/PFX hints |
 | Ring-buffer hint queue (`graph_cache_context_gem5.hh`) | ✅ Code is correct | 256-entry MPSC; sprint 6f-6 fix landed cleanly |
@@ -33,8 +33,30 @@ gem5's `Queued::notify()` (line 220-221 of `mem/cache/prefetch/queued.cc`)
 drops every prefetch whose target line crosses a page boundary from the
 demand access, **unless the prefetcher has been given an `mmu` reference**.
 ECG_PFX targets `property[random_vertex]`, which essentially always lives
-on a different page from the demand edge access. DROPLET works because
-it prefetches next-cache-line edge addresses, which stay on the same page.
+on a different page from the demand edge access.
+
+**Correction (this affects DROPLET too — the filter is prefetcher-agnostic).**
+DROPLET has *two* engines and BOTH push into the same `addresses` list that
+`Queued::notify()` filters (neither prefetcher overrides `notify`; both only
+override `calculatePrefetch`):
+- Engine 1 (stride/edge): prefetches next-cache-line *edge* addresses
+  (`baseLineAddr + i*edgeElemSize`) — these stay on the same page, so they
+  **survive** the filter.
+- Engine 2 (indirect *property*): `issueIndirectPrefetches` pushes
+  `propertyAddrForVertex(vertexId)` (`droplet.cc:305`) — a scatter
+  `property[neighbor]` target that crosses pages exactly like ECG_PFX, so it
+  is **dropped by the same filter**.
+
+So in gem5 the page-cross filter cripples the property-prefetch path of *both*
+prefetchers; only DROPLET's same-page stride engine still issues. This means
+the gem5 DROPLET vs ECG_PFX comparison is apples-to-oranges (DROPLET appears to
+"work" only because its stride engine is unaffected, while its signature
+indirect-property innovation is silently filtered out, same as ECG_PFX). A
+fair gem5 prefetch comparison requires the MMU fix below (it un-blocks both
+property engines at once); until then, **cache_sim is the authoritative
+prefetch model** — it has no page-cross filter and issues over the full
+property address space, so DROPLET's and ECG_PFX's property prefetches both
+fire there (verified by `verify_pfx.py`).
 
 The gap doc said `pf_issued=0 despite hints being consumed`. With the
 fresh X86 binary (post ring-buffer fix), this audit's smoke shows
