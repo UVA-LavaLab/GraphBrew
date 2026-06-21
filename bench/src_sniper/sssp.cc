@@ -198,6 +198,10 @@ int main(int argc, char *argv[]) {
     WeightedBuilder b(cli);
     WGraph g = b.MakeGraph();
     SourcePicker<WGraph> sp(g, cli.start_vertex());
+    // Separate verifier picker seeded identically to sp (matches cache_sim/canonical) so
+    // the kernel and verifier draw the SAME source — without it the single picker hands
+    // the verifier a different source and verification FAILs unless -r is set.
+    SourcePicker<WGraph> vsp(g, cli.start_vertex());
 
     auto SSSPBound = [&sp, &cli](const WGraph &g) {
         return DeltaStep_Sniper(g, sp.PickNext(), cli.delta());
@@ -205,8 +209,8 @@ int main(int argc, char *argv[]) {
     auto PrintBound = [](const WGraph &g, const pvector<WeightT> &d) {
         PrintSSSPStats(g, d);
     };
-    auto VerifyBound = [&sp](const WGraph &g, const pvector<WeightT> &d) {
-        return SSSPVerifier(g, sp.PickNext(), d);
+    auto VerifyBound = [&vsp](const WGraph &g, const pvector<WeightT> &d) {
+        return SSSPVerifier(g, vsp.PickNext(), d);
     };
     BenchmarkKernel(cli, g, SSSPBound, PrintBound, VerifyBound);
     return 0;

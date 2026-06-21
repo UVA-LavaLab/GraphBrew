@@ -119,6 +119,11 @@ int main(int argc, char *argv[]) {
     Builder b(cli);
     Graph g = b.MakeGraph();
     SourcePicker<Graph> sp(g, cli.start_vertex());
+    // Separate verifier picker seeded identically to sp so BFSBound (kernel) and
+    // VerifyBound (verifier) draw the SAME source sequence — matches cache_sim/canonical
+    // (bench/src/bfs.cc). Without this the single picker hands the verifier a DIFFERENT
+    // source than the kernel ran on, so verification FAILs unless -r fixes the source.
+    SourcePicker<Graph> vsp(g, cli.start_vertex());
 
     auto BFSBound = [&sp](const Graph &g) {
         return BFS_Sniper(g, sp.PickNext());
@@ -126,8 +131,8 @@ int main(int argc, char *argv[]) {
     auto PrintBound = [](const Graph &g, const pvector<NodeID> &p) {
         PrintBFSStats(g, p);
     };
-    auto VerifyBound = [&sp](const Graph &g, const pvector<NodeID> &p) {
-        return BFSVerifier(g, sp.PickNext(), p);
+    auto VerifyBound = [&vsp](const Graph &g, const pvector<NodeID> &p) {
+        return BFSVerifier(g, vsp.PickNext(), p);
     };
     BenchmarkKernel(cli, g, BFSBound, PrintBound, VerifyBound);
     return 0;

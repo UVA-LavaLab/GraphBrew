@@ -454,3 +454,55 @@ The dual-reref swap is correct (does the right thing, never corrupts the algorit
   directed (soc-pokec.el) + symmetric (web-Google.sg, cit-Patents) graphs — and crucially
   **POPT_DUAL_REREF=1 verifies PASS** on directed soc-pokec, positively confirming the dual
   swap is algorithm-correct (not merely "identically failing").
+
+---
+
+## 10. Cross-simulator equivalency (cache_sim / gem5 / Sniper) — 2026-06-21
+
+Rubber-duck `rd-equiv`. The three simulators have SEPARATE kernel trees
+(`bench/src_sim/`, `bench/src_gem5/`, `bench/src_sniper/`) and deliver ECG metadata by
+different mechanisms (cache_sim = host-side mask arrays; gem5/Sniper = hardware ISA path,
+`ecg.extract` / packed edge word). Equivalency is about the SHARED decision + correctness
+contract, not identical kernels.
+
+### VERIFIED
+- **Shared ECG decision parity:** `ecg_mode6::selectPrefetchTarget` (used by all 3 sims) +
+  the packMask field layout are unchanged this session; `verify_pfx.py` synthetic
+  shared-decision test = **10/10** ("covers cache_sim + gem5 + Sniper"), live prefetch checks
+  pass.
+- **This session is cache_sim-only:** no change to `ecg_mode6_builder.h`, `bench/src_gem5/*`,
+  `bench/src_sniper/*`, or `bench/include/gem5_sim/*` (git log over the session range is empty
+  for those paths). The cache_sim SSOT refactor was byte-identical, so cache_sim still consumes
+  the same mask bits (`edgeMaskPOPT` = [26:33], separate epoch) it did before.
+- **BFS/SSSP verification now PASSES across ALL 3 sims** (it FAILed in all 3 before, for TWO
+  different reasons):
+  - cache_sim FAILed from a missing parent finalization (direction-optimizing GAPBS keeps the
+    `-out_degree` unvisited encoding) — FIXED (§9.4).
+  - gem5/Sniper FAILed from a verify-harness **source mismatch**: `BFSBound`/`SSSPBound` and
+    `VerifyBound` shared ONE `SourcePicker`, so the kernel and verifier drew DIFFERENT sources.
+    cache_sim/canonical use TWO pickers seeded identically (`sp` + `vsp`). FIXED by adding the
+    second `vsp` picker to gem5/Sniper `bfs.cc` + `sssp.cc` (verified host builds PASS without
+    `-r`). The kernel is unchanged, so measured cache/cycle results are unaffected — only the
+    correctness check is corrected.
+
+### OPEN / LIMITED (known, documented)
+- **Full gem5/Sniper RUNTIME parity is NOT proven by the synthetic test** — `verify_pfx.py`
+  validates the pure target-selection decision; real parity also needs actual gem5/Sniper
+  sim runs + artifact checks of ISA decode, field packing, and emitted hints.
+- **BFS algorithm differs structurally:** cache_sim is direction-optimizing (TD push + BU pull,
+  bitmap frontier, in-neigh traversal in BU); gem5/Sniper are SIMPLE TD-only queue BFS. So BFS
+  *cache behavior* is NOT cross-sim equivalent (different access stream / mask & prefetch
+  opportunity). This is pre-existing and does not affect the PR headline. To compare BFS across
+  sims, either port DOBFS to gem5/Sniper or force cache_sim TD-only (`ECG_BFS_FORCE_TD`).
+- **gem5/Sniper BFS verifier is LENIENT** (checks only reachability sign `parent[n] < 0`),
+  vs cache_sim/canonical strict (parent is a valid depth-1 predecessor). The simple BFS is
+  correct (passes the strict contract), but a future wrong tree could slip past the lenient
+  check. Porting the strict verifier is deferred (needs `in_neigh` availability in those
+  kernels) and flagged here.
+- **Packed-ISA delivery parity is broader than target-selection parity:** gem5 repacks the
+  prefetch target into bits [49:64] (15-bit, guarded) while cache_sim's fat mask uses [33:64]
+  (31-bit). Field-width/truncation parity must be validated separately (see the 15-bit guard).
+- **cache_sim-only research features** (BU frontier masks, SSSP/BC OUT masks, `POPT_DUAL_REREF`)
+  have NO gem5/Sniper analog and are inert on the symmetric corpus / default-off. They are
+  equivalent across sims ONLY because they are disabled or demonstrably inert for the evaluated
+  configs; if ever used for cross-sim numbers they would need an ISA-path analog.
