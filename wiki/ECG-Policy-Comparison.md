@@ -172,13 +172,27 @@ ECG also ships a hint-driven prefetcher. The eviction policy above is the
 *bandwidth* story; the prefetcher is the *latency* story, and the two are
 deliberately separated:
 
-- **DROPLET** (Basak et al., HPCA'19) — the literature baseline: prefetch the
-  next-K edges in the stream (no target selection).
-- **ECG_PFX** — prefetch the POPT-best target among the next-K in-neighbours,
-  chosen by `ecg_mode6::selectPrefetchTarget` (`bench/include/ecg_mode6_builder.h`).
-  Like the eviction decision, this target function is a **single shared header
-  compiled into the cache_sim, gem5 and Sniper kernels**, so the ECG prefetch
-  *decision* is identical across all three backends.
+- **DROPLET** (Basak et al., HPCA'19) — the literature baseline. Real DROPLET
+  has *two* engines: a stride engine that prefetches the edge stream, and an
+  **indirect/property engine** that prefetches `property[neighbour]` for every
+  neighbour in the next-K window (no target selection). cache_sim models the
+  **indirect/property engine only**, fed by the kernel's ground-truth in-neighbour
+  stream — i.e. a *best-case (oracle) all-K property prefetcher*, no stride
+  mis-prediction. (The stride engine is not modelled in cache_sim; it is present
+  in gem5/Sniper but is a separate, orthogonal edge-stream optimisation.)
+- **ECG_PFX** — prefetch the *single* POPT-best target among the next-K
+  in-neighbours, chosen by `ecg_mode6::selectPrefetchTarget`
+  (`bench/include/ecg_mode6_builder.h`). Like the eviction decision, this target
+  function is a **single shared header compiled into the cache_sim, gem5 and
+  Sniper kernels**, so the ECG prefetch *decision* is identical across all three
+  backends. It is the *selective* counterpart to DROPLET's all-K flood: 1 property
+  prefetch per trigger vs ~K.
+
+Because cache_sim models both as **indirect/property prefetchers into the same
+cache level**, the comparison isolates exactly one lever — the property-target
+*selection* (all-K vs best-1) — and the claim is scoped to **property-prefetch
+traffic** (it does not include DROPLET's separate edge-stride stream; see the
+fairness note after the table).
 
 **The honest finding:** a prefetcher can only *relocate* traffic
 (demand → prefetch); it can **never reduce total DRAM traffic** — only the
@@ -207,15 +221,39 @@ lookahead 8; `demand2mem` = demand misses reaching memory = latency proxy;
 | roadNet-CA/512kB | DROPLET | 0.73M | 0.87M | 0.14M | 100 |
 | roadNet-CA/512kB | ECG_PFX | 0.75M | 0.87M | 0.12M | 100 |
 
-Reading it: **DROPLET** trades the most bandwidth for the biggest latency cut —
-it issues 3–3.5× more prefetches and on com-orkut **over-fetches** (bandwidth
-104.4M vs 97.7M baseline). **ECG_PFX** is bandwidth-efficient: it reaches the
-same 100% useful-rate while issuing 2.7–3.5× fewer prefetches (it picks
-POPT-best targets instead of every next-K edge), keeping total traffic at the
-baseline. The full bandwidth win comes from stacking ECG_PFX on the
-ECG_GRASP_POPT *eviction* (the table above is fixed-LRU to isolate the
-prefetcher lever — see `docs/findings/prefetcher_saturation_under_eviction.md`
-for the combined stack). Artifact: `wiki/data/ecg_prefetch_matrix.md`.
+Reading it: **DROPLET-style all-K** trades the most property-prefetch traffic for
+the biggest latency cut — it issues 3–3.5× more property prefetches and on
+com-orkut **over-fetches** (bandwidth 104.4M vs 97.7M baseline). **ECG_PFX** is
+bandwidth-efficient: it reaches the same 100% useful-rate while issuing 2.7–3.5×
+fewer prefetches (it picks the single POPT-best target instead of every next-K
+neighbour), keeping total traffic at the baseline. The full bandwidth win comes
+from stacking ECG_PFX on the ECG_GRASP_POPT *eviction* (the table above is
+fixed-LRU to isolate the prefetcher lever — see
+`docs/findings/prefetcher_saturation_under_eviction.md` for the combined stack).
+Artifact: `wiki/data/ecg_prefetch_matrix.md`.
+
+**Honest scoping of the claim.** The defensible statement is: *ECG_PFX's selective
+best-1 indirect-property prefetching matches a DROPLET-style oracle all-K
+indirect-property prefetcher's L3-miss reduction (tied useful-rate) while issuing
+~⅓ the property-prefetch requests* — **not** the broader "ECG_PFX beats DROPLET".
+Two caveats keep this honest: (i) cache_sim omits DROPLET's edge-stride engine, so
+the request counts here are *property-prefetch only* — including the stride stream
+would *raise* DROPLET's total traffic (the request-reduction is conservative for
+total traffic, but the request-per-useful ratio is not necessarily conservative,
+since an accurate stride engine adds near-1.0-efficiency prefetches). (ii) Both
+prefetchers fill the **same cache level** here; we attach each prefetcher to a
+single level and could not verify whether the original DROPLET differentiates
+edge→L1/L2 vs property→LLC placement, so the comparison holds placement *equal*
+across the two. cache_sim's prefetcher fills the **whole hierarchy** (L1+L2+L3 on
+a fill), so it is level-agnostic and holds placement *identical* for both
+prefetchers by construction — it cannot itself study differentiated placement.
+The stride→L2 / property→LLC idea would need gem5/Sniper (which attach the
+prefetcher to one configurable level), but those currently cannot deliver the
+cross-page property prefetch at all (page-cross filter), so a faithful
+split-placement study is future work. We therefore hold placement equal and make
+no placement claim. The gem5 DROPLET-vs-ECG_PFX numbers are **not** used for this
+claim (its page-cross filter drops both property engines — see "Cross-simulator
+status" below); cache_sim is the authoritative property prefetch model.
 
 ### Reproduce + verify the prefetch path
 

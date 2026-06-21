@@ -5,9 +5,18 @@ Fixed eviction (LRU by default), vary ONLY the prefetcher so the comparison
 isolates the prefetch lever (mirrors ecg_variant_matrix.py for eviction):
 
   none    - no prefetch (baseline)
-  DROPLET - sequential next-K prefetch (Basak HPCA'19 baseline; cache_sim mode 3)
-  ECG_PFX - lookahead POPT-best target (the shared ecg_mode6::selectPrefetchTarget;
-            cache_sim mode 6) -- the SAME target function all 3 simulators call.
+  DROPLET - DROPLET-style *oracle indirect/property* prefetch: prefetch the
+            property line of EVERY one of the next-K in-neighbours (no target
+            selection), fed by the kernel's ground-truth stream (cache_sim mode 3).
+            NB: cache_sim models DROPLET's indirect/property engine ONLY -- its
+            edge-stride engine is a separate, orthogonal optimisation not modelled
+            here, so this comparison is scoped to PROPERTY-prefetch traffic.
+  ECG_PFX - selective: prefetch the SINGLE POPT-best property target among the
+            next-K (the shared ecg_mode6::selectPrefetchTarget; cache_sim mode 6) --
+            the SAME target function all 3 simulators call.
+
+Both are indirect/property prefetchers into the SAME cache level, so the matrix
+isolates exactly one lever: property-target selection (all-K vs best-1).
 
 Reported metrics (the two axes that matter for a prefetcher + its efficiency):
   l3_mr       L3 miss rate (NB: misleading under prefetch -- pulls hits up).
@@ -34,9 +43,9 @@ GRAPHS = ROOT / "results" / "graphs"
 PREFETCHERS = ["none", "DROPLET", "ECG_PFX"]
 
 
-def run_cell(suite, graph, l3, order, eviction, prefetcher, lookahead, opts):
+def run_cell(suite, graph, l3, order, eviction, prefetcher, lookahead, opts, level):
     gpath = GRAPHS / graph / f"{graph}.sg"
-    outdir = Path("/tmp") / f"pfm_{suite}_{graph}_{l3}_o{order}_{eviction}_{prefetcher}"
+    outdir = Path("/tmp") / f"pfm_{suite}_{graph}_{l3}_o{order}_{eviction}_{prefetcher}_{level}"
     cmd = [sys.executable, str(ROOT / "scripts/experiments/ecg/roi_matrix.py"),
            "--suite", suite, "--no-build", "--benchmark", "pr",
            "--policies", eviction,
@@ -44,6 +53,7 @@ def run_cell(suite, graph, l3, order, eviction, prefetcher, lookahead, opts):
            "--l3-sizes", l3, "--l3-ways", "16",
            "--l1d-size", "32kB", "--l2-size", "256kB",
            "--prefetcher", prefetcher, "--ecg-pfx-lookahead", str(lookahead),
+           "--prefetcher-level", level,
            "--out-dir", str(outdir)]
     try:
         subprocess.run(cmd, env=dict(os.environ), cwd=str(ROOT),
@@ -79,6 +89,9 @@ def main(argv):
     ap.add_argument("--eviction", default="LRU",
                     help="fixed eviction policy (vary only the prefetcher)")
     ap.add_argument("--lookahead", type=int, default=8)
+    ap.add_argument("--prefetcher-level", default="l2", choices=["l1d", "l2"],
+                    help="cache level the prefetcher fills (gem5/sniper suites ONLY; "
+                         "cache_sim fills the whole hierarchy and ignores this)")
     ap.add_argument("--options", default="-n 1 -i 1")
     ap.add_argument("--out", default="")
     args = ap.parse_args(argv)
@@ -86,14 +99,14 @@ def main(argv):
     cells = [c.split(":") for c in args.cells.split()]
     hdr = ["graph/L3", "prefetcher", "l3_mr", "demand2mem", "bandwidth", "fills", "useful%"]
     print(f"\n=== ECG prefetch matrix [{args.suite}]  eviction={args.eviction} "
-          f"-o{args.order} lookahead={args.lookahead} ===")
+          f"-o{args.order} lookahead={args.lookahead} level={args.prefetcher_level} ===")
     print("demand2mem=latency proxy, bandwidth=total DRAM traffic (both lower=better)")
     print("".join(h.ljust(18) if i < 2 else h.rjust(12) for i, h in enumerate(hdr)))
     md = ["| " + " | ".join(hdr) + " |", "|" + "---|" * len(hdr)]
     for graph, l3 in cells:
         for pf in PREFETCHERS:
             m = run_cell(args.suite, graph, l3, args.order, args.eviction, pf,
-                         args.lookahead, args.options)
+                         args.lookahead, args.options, args.prefetcher_level)
             tag = f"{graph}/{l3}"
             if m is None:
                 cells_txt = ["  --  "] * 5
