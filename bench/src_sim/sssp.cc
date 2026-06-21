@@ -37,7 +37,16 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                            const vector<uint32_t> &vertex_masks,
                            int pfx_lookahead, int pfx_top_k = 1) {
     auto out_neigh = g.out_neigh(u);
-    for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+    // ECG_EDGE_MASKS: consume the OUT-edge per-edge masks (transpose-correct — the
+    // epoch is the next in-neighbour of dest > u, i.e. the next reader of dist[dest])
+    // instead of the single per-vertex mask. Mirror of BFS top-down. Inert on
+    // symmetric graphs (in==out); the correct dual mask for directed graphs.
+    const bool use_out_edge_masks =
+        !graph_ctx.out_edge_masks_by_src.empty() &&
+        u < (NodeID)graph_ctx.out_edge_masks_by_src.size() &&
+        graph_ctx.out_edge_masks_by_src[u].size() == (size_t)g.out_degree(u);
+    size_t edge_pos = 0;
+    for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
         WNode wn = *it;
         if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
             if (graph_ctx.mask_config.prefetch_mode == 3) {
@@ -94,7 +103,14 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
         }
         WeightT old_dist = dist[wn.v];
         WeightT new_dist = dist[u] + wn.w;
-        SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, vertex_masks[wn.v]);
+        // Per-edge OUT mask (POPT field + epoch) or per-vertex fallback. The same
+        // edge's mask is reused at the retry read below (same dest, same epoch).
+        const uint32_t edge_mask_val = use_out_edge_masks
+            ? GraphCacheContext::edgeMaskPOPT(graph_ctx.out_edge_masks_by_src[u][edge_pos])
+            : vertex_masks[wn.v];
+        if (use_out_edge_masks)
+            graph_ctx.hints_for_thread().edge_epoch = graph_ctx.out_edge_epoch_by_src[u][edge_pos];
+        SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, edge_mask_val);
         while (new_dist < old_dist) {
             SIM_CACHE_WRITE(cache, dist.data(), wn.v);
             if (compare_and_swap(dist[wn.v], old_dist, new_dist)) {
@@ -105,9 +121,17 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                 break;
             }
             old_dist = dist[wn.v];
-            SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, vertex_masks[wn.v]);
+            if (use_out_edge_masks)
+                graph_ctx.hints_for_thread().edge_epoch = graph_ctx.out_edge_epoch_by_src[u][edge_pos];
+            SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, edge_mask_val);
         }
     }
+    // Clear the sticky per-edge epoch so the caller's SEQUENTIAL dist[u] reads (before
+    // the next RelaxEdges) aren't stamped with this edge's stale epoch (cache_sim.h
+    // stamps ecg_epoch from edge_epoch on every ECG_GRASP_POPT fill). No-op when
+    // edge masks are off, so default SSSP is byte-identical.
+    if (use_out_edge_masks)
+        graph_ctx.hints_for_thread().edge_epoch = 0;
 }
 
 template<typename CacheType>
@@ -159,6 +183,14 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     graph_ctx.initMaskConfig();
     auto vertex_masks = graph_ctx.computeVertexMasks(g);
     graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
+    // ECG_EDGE_MASKS (generic, matrix knob) / ECG_SSSP_EDGE_MASKS (alias): build the
+    // OUT-edge per-edge masks so RelaxEdges carries the src-aware, transpose-correct
+    // epoch (next in-neighbour of dest > u) per relaxed edge instead of the per-vertex
+    // value. Mirror of BFS-TD. Inert on the symmetric corpus; correct for directed.
+    if (std::getenv("ECG_EDGE_MASKS") || std::getenv("ECG_SSSP_EDGE_MASKS")) {
+        graph_ctx.buildOutEdgeMasks(g);
+        cout << "SSSP: OUT-edge per-edge masks enabled (push/out)" << endl;
+    }
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
     int pfx_top_k = GraphSimEnvIntClamped("ECG_PREFETCH_TOP_K", 1, 1, 64);
     if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {

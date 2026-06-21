@@ -32,6 +32,13 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
     for (NodeID u = 0; u < g.num_nodes(); u++) {
+        // Clear any per-edge epoch left by the previous u's in-edge masks before the
+        // SEQUENTIAL parent[u] source read below: the sticky hints.edge_epoch would
+        // otherwise stamp parent[u]'s line with a stale neighbour epoch (cache_sim.h
+        // stamps ecg_epoch from edge_epoch on every ECG_GRASP_POPT fill). No-op when
+        // edge masks are off (edge_epoch stays 0), so default BFS is byte-identical.
+        if (!graph_ctx.in_edge_masks_by_src.empty())
+            graph_ctx.hints_for_thread().edge_epoch = 0;
         // P-OPT: update current destination vertex
         SIM_SET_VERTEX(cache, u);
         // Track: read parent[u]
@@ -65,6 +72,12 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
                 }
                 // Track: check if v is in frontier
                 if (front.get_bit(v)) {
+                    // Clear the in-edge frontier epoch before writing parent[u]: this
+                    // write targets the OUTER vertex u (not the masked dest v), so it
+                    // must not inherit v's frontier epoch (cache_sim.h stamps ecg_epoch
+                    // from edge_epoch on fill). No-op when edge masks are off.
+                    if (use_in_edge_masks)
+                        graph_ctx.hints_for_thread().edge_epoch = 0;
                     // Track: write parent[u]
                     SIM_CACHE_WRITE(cache, parent.data(), u);
                     parent[u] = v;
@@ -316,13 +329,14 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     graph_ctx.initMaskConfig();
     auto vertex_masks = graph_ctx.computeVertexMasks(g);
     graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
-    // ECG_BFS_EDGE_MASKS: build the dual-direction per-edge masks so BOTH BFS
-    // phases carry a src-aware, transpose-correct epoch per edge instead of the
-    // single per-vertex value. TD (push) traverses out_neigh(u) reading parent[v]
-    // -> OUT-edge masks (epoch from in_neigh(v)); BU (pull) traverses in_neigh(u)
-    // probing the frontier bit of v -> IN-edge masks (epoch from out_neigh(v)).
+    // ECG_EDGE_MASKS (generic, single matrix knob) or ECG_BFS_EDGE_MASKS (alias):
+    // build the dual-direction per-edge masks so BOTH BFS phases carry a src-aware,
+    // transpose-correct epoch per edge instead of the single per-vertex value. TD
+    // (push) traverses out_neigh(u) reading parent[v] -> OUT-edge masks (epoch from
+    // in_neigh(v)); BU (pull) traverses in_neigh(u) probing the frontier bit of v ->
+    // IN-edge masks (epoch from out_neigh(v)). Single OR-gate (no double build).
     // Inert on symmetric graphs (in==out); the correct dual mask for directed graphs.
-    if (std::getenv("ECG_BFS_EDGE_MASKS")) {
+    if (std::getenv("ECG_EDGE_MASKS") || std::getenv("ECG_BFS_EDGE_MASKS")) {
         graph_ctx.buildOutEdgeMasks(g);     // TD push: parent[v] over out_neigh(u)
         graph_ctx.buildInEdgeMasks(g);      // BU pull: frontier bit of v over in_neigh(u)
         cout << "BFS: dual-direction per-edge masks enabled (TD=OUT-edge, BU=IN-edge)" << endl;

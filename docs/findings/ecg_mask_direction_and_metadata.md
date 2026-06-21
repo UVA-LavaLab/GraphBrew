@@ -293,11 +293,44 @@ whichever graph it traverses:
 | CC (Afforest)  | `in_neigh`  | `comp[dest]`       | IN-edge (`buildInEdgeMasks_PR`) |
 | BFS top-down (push)   | `out_neigh` | `parent[v]`        | OUT-edge (`buildOutEdgeMasks`) |
 | BFS bottom-up (pull)  | `in_neigh`  | frontier bit of v  | IN-edge (`buildInEdgeMasks`) |
-| SSSP / BC (push)      | `out_neigh` | property[v]        | *(per-vertex today; OUT-edge available, not yet wired)* |
+| SSSP relax (push)     | `out_neigh` | `dist[v]`          | OUT-edge (`buildOutEdgeMasks`) |
+| BC forward (push)     | `out_neigh` | `depths[v]`,`path_counts[v]` | OUT-edge (`buildOutEdgeMasks`) |
+| BC backward           | `succ` DAG  | `path_counts`,`deltas` | per-vertex (compacted DAG, no static edge list) |
 
-So PR and CC already use the **inverse-graph** masks; BFS uses **both** (it is direction-
-optimizing). The only genuinely BFS-specific piece in §7 is *modeling the frontier-bitmap
-access* (the bitmap is unique to BFS) — the **masks themselves are generic**. The earlier
-`buildInEdgeMasksBFS` name was misleading and has been renamed to `buildInEdgeMasks`.
-SSSP/BC can be switched from per-vertex to per-edge OUT masks by mirroring the BFS-TD
-consumption block (inert on the symmetric corpus; a 1:1 port).
+So PR and CC use the **inverse-graph** masks; BFS/SSSP/BC use the **main-graph** (OUT) masks
+for their push reads (BFS also IN for BU). The only genuinely BFS-specific piece in §7 is
+*modeling the frontier-bitmap access* (the bitmap is unique to BFS) — the **masks themselves
+are generic**. The earlier `buildInEdgeMasksBFS` name was misleading and has been renamed to
+`buildInEdgeMasks`.
+
+### §8.1 SSSP/BC wiring (2026-06-21, for the final matrix run)
+
+`ECG_EDGE_MASKS` (generic, single matrix knob; per-kernel aliases `ECG_BFS_/SSSP_/BC_EDGE_MASKS`)
+now switches **SSSP** (`RelaxEdges_Sim`, both `dist[wn.v]` reads) and **BC forward**
+(`depths[v]`+`path_counts[v]`) from per-vertex to per-edge OUT masks — a 1:1 mirror of BFS-TD.
+BC's backward phase keeps per-vertex accesses (the `succ`/`succ_start` successor DAG is a
+runtime-built, source-dependent compaction, not a static edge list, so there is no stable
+per-edge position to mask).
+
+**Sticky-epoch hygiene (important).** `cache_sim.h` stamps a filled line's `ecg_epoch` from
+`hints.edge_epoch` on **every** `ECG_GRASP_POPT` fill. Because `edge_epoch` is a sticky
+per-thread hint, a SEQUENTIAL source read (`dist[u]`/`depths[u]`/`parent[u]`) issued between
+edge-masked reads would otherwise inherit the *previous* vertex's last edge epoch. So each
+kernel resets `hints.edge_epoch = 0` (guarded by `!out/in_edge_masks_by_src.empty()`, i.e.
+no-op when masks are off) before its source reads: BFS-BU + BC-forward + BC-backward at the
+top of the outer loop body, SSSP at the end of `RelaxEdges_Sim` (its source read is in the
+caller). BFS-BU additionally resets before `SIM_CACHE_WRITE(parent[u])` because that write
+targets the OUTER vertex u (not the masked dest v), so it must not carry v's frontier epoch
+(rubber-duck rd-sbm-impl). Verified flag-off byte-identical (SSSP/BC/BFS L3 misses unchanged)
+and flag-on verification PASS.
+
+**Known limitation (prefetch + edge masks).** The runtime prefetch block (`ECG_PREFETCH_LOOKAHEAD>0`)
+runs *before* the current edge's epoch is set, so a prefetched line inherits the previous
+edge's (or zero) epoch — a second-order imprecision present identically across all per-edge
+kernels (pre-existing, not specific to this wiring). Demand reads are unaffected.
+
+**Caveats.** (1) On the symmetric eval corpus in==out, so these masks are **inert** (no result
+change) — value is matrix completeness + forward-looking directed support, not a new headline.
+(2) BC builds the OUT masks **per source** (`BCBFS_Sim` runs per source and already rebuilds
+`makeOffsetMatrix` per source — same O(E)); acceptable for small BC source counts, hoist/cache
+if it becomes a preprocessing bottleneck on large graphs.
