@@ -99,12 +99,8 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
         if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
             constexpr int numEpochs = 256;
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
-                             ecgRerefTraverseCSR(/*natural_csr=*/true, g, "PR(pull/in)"));
-            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
-                                      numEpochs, g.num_nodes(), 64);
-            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            buildAndRegisterReref(g, graph_ctx, /*natural_csr=*/true, "PR(pull/in)",
+                                  numVtxPerLine, numEpochs, popt_matrix);
             if (std::getenv("ECG_EXACT_REREF")) {
                 const char* eb = std::getenv("ECG_EXACT_BITS");
                 if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);

@@ -107,12 +107,8 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
             // CC sweeps out_neigh(u); it assumes an UNDIRECTED graph (out==in), so
             // the helper forces CSR there. natural=false records the honest transpose
             // intent for the (out-of-scope) directed case.
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
-                             ecgRerefTraverseCSR(/*natural_csr=*/false, g, "CC(undirected)"));
-            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
-                                      numEpochs, g.num_nodes(), 64);
-            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            buildAndRegisterReref(g, graph_ctx, /*natural_csr=*/false, "CC(undirected)",
+                                  numVtxPerLine, numEpochs, popt_matrix);
             if (std::getenv("ECG_EXACT_REREF")) {
                 const char* eb = std::getenv("ECG_EXACT_BITS");
                 if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);

@@ -560,6 +560,42 @@ void makeOffsetMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
               << tm.Seconds() << std::endl;
 }
 
+// === P-OPT rereference build+register SSOT ==================================
+// Single source of truth for the per-kernel "build the reref matrix for the
+// transpose-correct edge list, then register it" block (previously copy-pasted
+// across PR/BFS/SSSP/BC/CC). `natural_csr` is the kernel's transpose-correct
+// default (see ecgRerefTraverseCSR); the helper picks OUT/CSR or IN/CSC and the
+// matrix is then "ready" for whichever edge list the kernel traverses.
+
+// Build a reref matrix for the transpose-correct direction into `storage` and
+// return its pointer. Does NOT register it — the caller registers or swaps it in
+// (used to pre-build a second-direction matrix for real-time per-phase loading).
+template <typename NodeID_, typename DestID_, bool invert>
+inline const uint8_t* buildRerefMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                       bool natural_csr, const char *kernel,
+                                       int numVtxPerLine, int numEpochs,
+                                       pvector<uint8_t> &storage)
+{
+    makeOffsetMatrix(g, storage, numVtxPerLine, numEpochs,
+                     ecgRerefTraverseCSR(natural_csr, g, kernel));
+    return storage.data();
+}
+
+// Build + register the reref matrix (the common per-kernel setup block). `CtxT` is
+// duck-typed (GraphCacheContext) so this header keeps no cache_sim dependency.
+template <typename NodeID_, typename DestID_, bool invert, typename CtxT>
+inline const uint8_t* buildAndRegisterReref(const CSRGraph<NodeID_, DestID_, invert> &g,
+                                            CtxT &ctx, bool natural_csr, const char *kernel,
+                                            int numVtxPerLine, int numEpochs,
+                                            pvector<uint8_t> &storage)
+{
+    const uint8_t *m = buildRerefMatrix(g, natural_csr, kernel, numVtxPerLine, numEpochs, storage);
+    int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
+    ctx.initRereference(m, numCacheLines, numEpochs, g.num_nodes(), 64);
+    ctx.exact_vtx_per_line = numVtxPerLine;
+    return m;
+}
+
 // ============================================================================
 // DEGREE SORTING (For cache optimization experiments)
 // ============================================================================

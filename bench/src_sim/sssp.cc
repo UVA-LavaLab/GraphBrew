@@ -156,12 +156,8 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
             constexpr int numEpochs = 256;
             // SSSP traverses out_neigh(u) reading dist[v]; next-ref of dist[v] is
             // in_neigh(v) => transpose = CSC/in_neigh (traverseCSR=false).
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
-                             ecgRerefTraverseCSR(/*natural_csr=*/false, g, "SSSP(push/out)"));
-            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
-                                      numEpochs, g.num_nodes(), 64);
-            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            buildAndRegisterReref(g, graph_ctx, /*natural_csr=*/false, "SSSP(push/out)",
+                                  numVtxPerLine, numEpochs, popt_matrix);
             if (std::getenv("ECG_EXACT_REREF")) {
                 const char* eb = std::getenv("ECG_EXACT_BITS");
                 if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);

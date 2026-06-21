@@ -95,12 +95,8 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             // (NB the per-vertex mask above is built before this matrix, so its POPT
             // field is degree-fallback — harmless: BC eviction uses the matrix/epoch,
             // the per-vertex POPT field is vestigial. See the metadata findings doc.)
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
-                             ecgRerefTraverseCSR(/*natural_csr=*/false, g, "BC(push/out)"));
-            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
-                                      numEpochs, g.num_nodes(), 64);
-            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            buildAndRegisterReref(g, graph_ctx, /*natural_csr=*/false, "BC(push/out)",
+                                  numVtxPerLine, numEpochs, popt_matrix);
             if (std::getenv("ECG_EXACT_REREF")) {
                 const char* eb = std::getenv("ECG_EXACT_BITS");
                 if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);

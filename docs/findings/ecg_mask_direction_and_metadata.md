@@ -364,3 +364,52 @@ record-width) is intentionally **not** routed through the helper (it models extr
 generic helper would hide). Builder unification (`buildOutEdgeMasks`+`buildInEdgeMasks` are
 near-identical mirrors) was **deferred** as headline-adjacent/transpose-sensitive (rubber-duck
 rd-ssot) — a future clean-up once the consumption SSOT has settled.
+
+---
+
+## 9. P-OPT rereference matrix: SSOT build + real-time per-direction load (2026-06-21)
+
+"Do we have the same [dual-direction] for P-OPT?" — investigated + rubber-ducked
+(rd-popt-dual). Two parts:
+
+### §9.1 SSOT build+register helper (the genuinely valuable cleanup)
+The reref build+register block was copy-pasted across **5 kernels** (PR/BFS/SSSP/BC/CC):
+`makeOffsetMatrix(...) + numCacheLines + initRereference(...) + exact_vtx_per_line`. It is
+now SSOT in `popt.h`:
+```cpp
+buildRerefMatrix(g, natural_csr, kernel, vtxPerLine, numEpochs, storage);        // build only
+buildAndRegisterReref(g, ctx, natural_csr, kernel, vtxPerLine, numEpochs, storage); // + register
+```
+`buildAndRegisterReref` is duck-typed on the context, so `popt.h` keeps no cache_sim
+dependency. Verified byte-identical (POPT): PR 26131464, BFS 30012, SSSP 4096, BC 2176466,
+CC 4096 (pre==post). The kernel-specific `ECG_EXACT_REREF` block stays per-kernel.
+
+### §9.2 Real-time per-direction load (POPT_DUAL_REREF) — and why it's forward-looking
+`GraphCacheContext::setActiveRerefMatrix(const uint8_t*)` repoints the **single** reserved
+reref way at a pre-built matrix of the same dims (the matrix is non-owned → a pointer swap).
+Under `POPT_DUAL_REREF` (default off), BFS pre-builds **both** the TD matrix (in-transpose /
+CSC) and the BU matrix (out-transpose / CSR) and swaps the active one per phase — keeping the
+1-way cost model (vs reserving a 2nd way).
+
+**HONEST FINDING (rubber-duck rd-popt-dual): this is NOT analogous to the ECG dual edge
+masks, and it does NOT improve `parent[]` for BFS.** The asymmetry:
+
+| | manages in BU | BU access pattern |
+|---|---|---|
+| ECG edge masks | the frontier probe `front.get_bit(v)` | **irregular** (v ∈ in_neigh) → dual mask meaningful |
+| P-OPT reref | the registered property `parent[]` | **sequential** (`parent[u]`, u in ID order) → edge-list matrix moot |
+
+In BU the only edge-list-driven access is the frontier **bitmap** (handled by the IN-edge
+masks); `parent[]` is read in plain sequential ID order. So neither CSC nor CSR models BU-
+`parent[]` reuse (a sequential/identity model would). Activating CSR during BU therefore does
+not make `parent`'s P-OPT management more correct — on directed graphs it would feed P-OPT an
+edge-list oracle unrelated to the sequential parent stream. `parent[]` is *already* correctly
+P-OPT-managed: TD uses the transpose-correct CSC for its irregular `parent[v]`; BU-parent is
+sequential (direction-independent).
+
+So `POPT_DUAL_REREF` is **forward-looking**: the mechanism is ready for a future direction-
+optimizing kernel whose property access is **irregular in both directions** (BFS is not such a
+kernel). It is **inert on the symmetric corpus** (in==out → CSR==CSC → swap is a no-op;
+verified BFS POPT_DUAL_REREF on==off, L3 misses 30012==30012). The mechanism itself is proven
+on a **directed** graph by `bench/src_sim/test_popt_dual_reref.cc` (CSC≠CSR; swap repoints) —
+5/5. Default-off keeps every headline path byte-identical.

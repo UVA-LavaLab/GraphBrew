@@ -225,7 +225,14 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     cache.initGraphContext(&graph_ctx);
 
     // Build P-OPT rereference matrix before masks so POPT-ranked PFX can use it.
-    static pvector<uint8_t> popt_matrix;
+    static pvector<uint8_t> popt_matrix;       // TD-phase matrix (registered)
+    static pvector<uint8_t> popt_matrix_bu;    // BU-phase matrix (POPT_DUAL_REREF only)
+    // POPT_DUAL_REREF: real-time per-phase matrix load. reref_td/reref_bu point at the
+    // two pre-built matrices; the phase loop swaps the active one into the single
+    // reserved reref way (no 2nd way). Default off (reref_bu stays null -> no swap).
+    const bool popt_dual_reref = std::getenv("POPT_DUAL_REREF") != nullptr;
+    const uint8_t* reref_td = nullptr;
+    const uint8_t* reref_bu = nullptr;
     {
         const char* policy_env = getenv("CACHE_POLICY");
         std::string policy_str = policy_env ? policy_env : "";
@@ -243,12 +250,25 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             // (On the symmetric eval corpus in==out so this is inert; it is the
             // correct default for directed graphs. See ecg_mask_direction_and_metadata.md.)
             bool bfs_natural_csr = std::getenv("ECG_BFS_FORCE_OUT") != nullptr;
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
-                             ecgRerefTraverseCSR(bfs_natural_csr, g, "BFS(TD/out->in-transpose)"));
-            int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-            graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
-                                      numEpochs, g.num_nodes(), 64);
-            graph_ctx.exact_vtx_per_line = numVtxPerLine;
+            reref_td = buildAndRegisterReref(g, graph_ctx, bfs_natural_csr,
+                          "BFS(TD/out->in-transpose)", numVtxPerLine, numEpochs, popt_matrix);
+            // POPT_DUAL_REREF: pre-build the BU-phase matrix (the transpose of BU's
+            // in_neigh traversal = the OPPOSITE direction of TD) so the phase loop can
+            // real-time-load the transpose-correct matrix into the single reserved way
+            // per phase. FORWARD-LOOKING + HONEST CAVEAT: on the symmetric corpus
+            // CSR==CSC so the swap is inert (byte-identical), and for BFS specifically
+            // BU-parent is SEQUENTIAL (parent[u], u in ID order), so this does NOT make
+            // parent's P-OPT management more correct (the dual matters for the ECG edge
+            // masks, which target BU's IRREGULAR frontier probe, not for the P-OPT reref
+            // which manages the sequential parent). The mechanism is here for a future
+            // direction-optimizing kernel with irregular property access in BOTH
+            // directions. See docs/findings/ecg_mask_direction_and_metadata.md S9.
+            if (popt_dual_reref) {
+                reref_bu = buildRerefMatrix(g, /*natural_csr=*/!bfs_natural_csr,
+                              "BFS(BU/in->out-transpose)", numVtxPerLine, numEpochs, popt_matrix_bu);
+                std::cout << "BFS: POPT_DUAL_REREF enabled (TD + BU matrices pre-built; "
+                             "real-time per-phase load into the single reserved way)" << std::endl;
+            }
             if (std::getenv("ECG_EXACT_REREF")) {
                 const char* eb = std::getenv("ECG_EXACT_BITS");
                 if (eb) graph_ctx.exact_bits = (uint32_t)atoi(eb);
@@ -347,6 +367,9 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             QueueToBitmap(queue, front);
             awake_count = queue.size();
             queue.slide_window();
+            // POPT_DUAL_REREF: load the BU-phase (out-transpose) matrix into the single
+            // reserved reref way for the bottom-up phase (no-op when the flag is off).
+            if (reref_bu) graph_ctx.setActiveRerefMatrix(reref_bu);
             do {
                 old_awake_count = awake_count;
                 awake_count = BUStep_Sim(g, parent, front, curr, cache, graph_ctx, vertex_masks);
@@ -357,6 +380,9 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             scout_count = 1;
         } else {
             edges_to_check -= scout_count;
+            // POPT_DUAL_REREF: restore the TD-phase (in-transpose) matrix for the
+            // top-down phase (no-op when the flag is off).
+            if (reref_bu) graph_ctx.setActiveRerefMatrix(reref_td);
             scout_count = TDStep_Sim(g, parent, queue, cache, graph_ctx, vertex_masks,
                                      pfx_lookahead, pfx_top_k);
             queue.slide_window();

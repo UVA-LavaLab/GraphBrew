@@ -1526,6 +1526,16 @@ struct GraphCacheContext {
         rereference._pad = 0;
     }
 
+    // Real-time per-direction reref load: repoint the single reserved reref way at a
+    // pre-built matrix of the SAME dims (same graph -> same num_cache_lines/epochs/
+    // sizes). Lets a direction-optimizing kernel swap the transpose-correct matrix per
+    // phase WITHOUT reserving a second LLC way (POPT_DUAL_REREF). The matrix is
+    // non-owned, so this is a pointer swap; do it between phases (no active parallel
+    // region). See docs/findings/ecg_mask_direction_and_metadata.md S9.
+    inline void setActiveRerefMatrix(const uint8_t* matrix) {
+        rereference.matrix = matrix;
+    }
+
     // Enable per-vertex statistics tracking.
     void enableVertexStats() {
         if (topology.num_vertices > 0) {
