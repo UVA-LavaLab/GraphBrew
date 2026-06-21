@@ -413,3 +413,21 @@ kernel). It is **inert on the symmetric corpus** (in==out → CSR==CSC → swap 
 verified BFS POPT_DUAL_REREF on==off, L3 misses 30012==30012). The mechanism itself is proven
 on a **directed** graph by `bench/src_sim/test_popt_dual_reref.cc` (CSC≠CSR; swap repoints) —
 5/5. Default-off keeps every headline path byte-identical.
+
+### §9.3 Functional verification (is the swap live?)
+`setActiveRerefMatrix` increments `reref_swap_count` (BFS prints it under POPT_DUAL_REREF),
+so the real-time load is observable. Evidence the mechanism is FUNCTIONAL — it fires AND
+takes effect:
+- **Swap fires:** BFS on web-Google.sg / soc-pokec enters BU and reports `loads this run = 2`
+  (swap to the BU matrix and back to TD).
+- **Takes effect on directed graphs:** BFS POPT on the DIRECTED soc-pokec.el (1.6M nodes;
+  TD=CSC, BU=CSR genuinely differ) gives L3 misses **OFF=1,647,565 vs ON=1,648,167** — the
+  swap changes the result.
+- **Inert on the symmetric corpus:** web-Google.sg OFF==ON (1,309,233) even though the swap
+  fires (count=2) — because in==out → CSR==CSC (identical content).
+- **Not beneficial for BFS:** the directed effect is slightly WORSE (+602 misses, +0.04%),
+  exactly as predicted — CSR-during-BU is a *less* faithful oracle for the SEQUENTIAL
+  `parent[]` than the TD-correct CSC. Confirms §9.2: functional mechanism, forward-looking
+  value (a future kernel with irregular property in both directions would benefit; BFS does
+  not). NOTE: the flag is presence-based (`getenv != nullptr`), so `POPT_DUAL_REREF=0` still
+  ENABLES it — UNSET the var to disable.

@@ -1532,7 +1532,9 @@ struct GraphCacheContext {
     // phase WITHOUT reserving a second LLC way (POPT_DUAL_REREF). The matrix is
     // non-owned, so this is a pointer swap; do it between phases (no active parallel
     // region). See docs/findings/ecg_mask_direction_and_metadata.md S9.
+    uint64_t reref_swap_count = 0;  // # real-time per-direction loads (observability)
     inline void setActiveRerefMatrix(const uint8_t* matrix) {
+        if (rereference.matrix != matrix) reref_swap_count++;
         rereference.matrix = matrix;
     }
 

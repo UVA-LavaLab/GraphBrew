@@ -388,6 +388,9 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
             queue.slide_window();
         }
     }
+    if (popt_dual_reref)
+        std::cout << "BFS: POPT_DUAL_REREF real-time per-direction loads this run = "
+                  << graph_ctx.reref_swap_count << std::endl;
     return parent;
 }
 
