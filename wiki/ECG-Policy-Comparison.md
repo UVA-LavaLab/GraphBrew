@@ -324,6 +324,25 @@ charges per-prefetch translation cost** for either prefetcher — consistent wit
 MTLB/huge-page design intent, and conservative for ECG_PFX. Full analysis:
 `docs/findings/property_prefetch_tlb_paging.md`.
 
+## Which metadata is load-bearing + graph-direction correctness
+
+A full audit (`docs/findings/ecg_mask_direction_and_metadata.md`) establishes two
+honesty boundaries:
+
+- **Load-bearing fields:** the ECG_GRASP_POPT eviction reads **only the epoch** (the
+  packed 7-bit POPT-quant field is *vestigial* for the headline policy — it survives
+  only for legacy cache_sim modes + gem5 ISA decode). The prefetch-target field is read
+  only by ECG_PFX. POPT *data* is build-time only (it feeds the epoch values + the
+  prefetch-target choice). So "we have POPT and epoch" → the **epoch** is what the cache
+  actually uses for eviction; POPT is the encoder input + a baseline policy.
+- **Direction:** the next-reference matrix must be the graph **transpose** of the
+  kernel's property-access edge list — this is literally P-OPT's thesis (*Transpose*-based
+  replacement; it stores both CSR and CSC). **PageRank — the headline kernel — is
+  direction-correct** (in-pull + `out_neigh` matrix = the transpose). CC is undirected-only;
+  SSSP/BC/BFS-top-down traverse out-edges and are *direction-uncertified on directed
+  graphs* (they would need `makeOffsetMatrix(..., traverseCSR=false)`), so they are not
+  promoted as transpose-faithful ECG results. No headline-results direction bug.
+
 ## Related
 
 - [[Cache-Simulation]] — simulator architecture, all `ECG_MODE` values, env vars
