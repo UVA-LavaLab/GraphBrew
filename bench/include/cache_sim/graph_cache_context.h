@@ -52,6 +52,17 @@
 
 namespace cache_sim {
 
+// The two per-edge mask sets correspond to the two edge lists of the graph:
+//   OUT = the MAIN graph (g.out_neigh, masks built by buildOutEdgeMasks, epoch from
+//         in_neigh) — consumed by push kernels (BFS top-down, SSSP, BC forward).
+//   IN  = the INVERSE graph (g.in_neigh, masks built by buildInEdgeMasks, epoch from
+//         out_neigh) — consumed by pull kernels (BFS bottom-up; PR/CC via the
+//         specialized buildInEdgeMasks_PR path).
+// Each set is built and "ready" independently, so a kernel that needs a given edge
+// list just asks GraphCacheContext for that direction's mask (single source of truth
+// for the per-edge demand path — see ecg_mask_direction_and_metadata.md S8).
+enum class EdgeMaskDir { OUT, IN };
+
 // Tier A sideband-registration sanity: emit a single stderr line per region
 // at registration time so external tests (and humans) can verify the loader
 // saw the expected (base, upper, hot_pct, grasp_region) tuple. Suppress with
@@ -2669,6 +2680,48 @@ struct GraphCacheContext {
     }
     static inline uint32_t edgeMaskPrefetch(uint64_t mask) {
         return static_cast<uint32_t>((mask >> 33) & 0x7FFFFFFFu);
+    }
+
+    // === Per-edge demand mask SSOT (the two-edge-list consumption path) ===========
+    // These three helpers are the single source of truth for how a kernel consumes a
+    // per-edge mask, so the guard + POPT extraction + next-ref-epoch stamp + sticky-
+    // epoch hygiene live in ONE place instead of being copy-pasted per kernel. A kernel
+    // picks the EdgeMaskDir for the edge list it traverses; the mask is "ready" if its
+    // builder ran (buildOutEdgeMasks / buildInEdgeMasks).
+
+    // True when the `dir` edge-mask row for `src` is built and sized to `degree` (so the
+    // per-edge mask is usable). Used where the masked ACCESS itself is conditional on the
+    // mask existing (e.g. BFS bottom-up only models the frontier probe when masked).
+    inline bool edgeMaskReady(EdgeMaskDir dir, uint32_t src, size_t degree) const {
+        const auto& masks = (dir == EdgeMaskDir::OUT) ? out_edge_masks_by_src
+                                                      : in_edge_masks_by_src;
+        return !masks.empty() && src < masks.size() && masks[src].size() == degree;
+    }
+
+    // Resolve the per-edge POPT mask for edge `edge_pos` of `src` in direction `dir` and
+    // set the per-thread next-ref epoch hint. Returns `vertex_fallback` (and leaves the
+    // epoch untouched) when the row isn't built/sized — so the mask-off path is
+    // byte-identical to the per-vertex mask. Pass this result to SIM_CACHE_READ_MASKED.
+    inline uint32_t resolveEdgeMaskAndEpoch(EdgeMaskDir dir, uint32_t src, size_t degree,
+                                            size_t edge_pos, uint32_t vertex_fallback) {
+        const auto& masks = (dir == EdgeMaskDir::OUT) ? out_edge_masks_by_src
+                                                      : in_edge_masks_by_src;
+        if (masks.empty() || src >= masks.size() || masks[src].size() != degree)
+            return vertex_fallback;
+        const auto& eps = (dir == EdgeMaskDir::OUT) ? out_edge_epoch_by_src
+                                                    : in_edge_epoch_by_src;
+        hints_for_thread().edge_epoch =
+            (src < eps.size() && edge_pos < eps[src].size()) ? eps[src][edge_pos] : 0;
+        return edgeMaskPOPT(masks[src][edge_pos]);
+    }
+
+    // Clear the sticky per-edge epoch before a non-edge (SEQUENTIAL source) read so its
+    // fill isn't stamped with the previous edge's stale neighbour epoch (cache_sim.h
+    // stamps ecg_epoch from edge_epoch on every ECG_GRASP_POPT fill). No-op when no
+    // edge-mask set is built, so default paths stay byte-identical.
+    inline void clearEdgeEpoch() {
+        if (!out_edge_masks_by_src.empty() || !in_edge_masks_by_src.empty())
+            hints_for_thread().edge_epoch = 0;
     }
 
     void printECGStats(std::ostream& os = std::cout) const {

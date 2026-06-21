@@ -32,13 +32,9 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
     for (NodeID u = 0; u < g.num_nodes(); u++) {
-        // Clear any per-edge epoch left by the previous u's in-edge masks before the
-        // SEQUENTIAL parent[u] source read below: the sticky hints.edge_epoch would
-        // otherwise stamp parent[u]'s line with a stale neighbour epoch (cache_sim.h
-        // stamps ecg_epoch from edge_epoch on every ECG_GRASP_POPT fill). No-op when
-        // edge masks are off (edge_epoch stays 0), so default BFS is byte-identical.
-        if (!graph_ctx.in_edge_masks_by_src.empty())
-            graph_ctx.hints_for_thread().edge_epoch = 0;
+        // Clear any sticky per-edge epoch before the SEQUENTIAL parent[u] source read
+        // so its fill isn't stamped with the previous u's stale neighbour epoch.
+        graph_ctx.clearEdgeEpoch();
         // P-OPT: update current destination vertex
         SIM_SET_VERTEX(cache, u);
         // Track: read parent[u]
@@ -46,38 +42,30 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
         if (parent[u] < 0) {
             auto in_neigh = g.in_neigh(u);
             // ECG_BFS_EDGE_MASKS: model BU's frontier-bitmap membership probe as a
-            // cache access (a real load of front's word holding v's bit) and carry
-            // the IN-edge per-edge mask, so BU is masked symmetric to TD (the
-            // dual-direction capability). The transpose-correct epoch
-            // (in_edge_epoch_by_src[u][edge_pos] = next out_neigh(v) > u) is when
-            // v's frontier bit is next read. Gated -> the default BFS access stream
-            // is unchanged. HONEST CAVEAT: a 64B bitmap line holds 512 vertices'
-            // bits and the bitmap is compact/uniformly-hot by design (BU exists to
-            // avoid TD's property traffic), so this is a do-no-harm completeness
-            // mask whose measurable effect is ~nil on the symmetric corpus.
+            // cache access (a real load of front's word holding v's bit) and carry the
+            // IN-edge per-edge mask, so BU is masked symmetric to TD. The masked access
+            // is GATED on the mask existing (BU has no frontier cache read otherwise),
+            // so the default BFS access stream is unchanged. HONEST CAVEAT: a 64B bitmap
+            // line holds 512 vertices' bits and the bitmap is compact/uniformly-hot by
+            // design, so this is a do-no-harm completeness mask (~nil effect on the
+            // symmetric corpus).
             const bool use_in_edge_masks =
-                !graph_ctx.in_edge_masks_by_src.empty() &&
-                u < (NodeID)graph_ctx.in_edge_masks_by_src.size() &&
-                graph_ctx.in_edge_masks_by_src[u].size() == (size_t)g.in_degree(u);
+                graph_ctx.edgeMaskReady(EdgeMaskDir::IN, (uint32_t)u, (size_t)g.in_degree(u));
             size_t edge_pos = 0;
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
                 SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
                 if (use_in_edge_masks) {
-                    uint64_t emask = graph_ctx.in_edge_masks_by_src[u][edge_pos];
-                    graph_ctx.hints_for_thread().edge_epoch =
-                        graph_ctx.in_edge_epoch_by_src[u][edge_pos];
-                    SIM_CACHE_READ_MASKED(cache, front.data(), (size_t)v / 64, graph_ctx,
-                                          GraphCacheContext::edgeMaskPOPT(emask));
+                    uint32_t m = graph_ctx.resolveEdgeMaskAndEpoch(
+                        EdgeMaskDir::IN, (uint32_t)u, (size_t)g.in_degree(u), edge_pos, 0);
+                    SIM_CACHE_READ_MASKED(cache, front.data(), (size_t)v / 64, graph_ctx, m);
                 }
                 // Track: check if v is in frontier
                 if (front.get_bit(v)) {
-                    // Clear the in-edge frontier epoch before writing parent[u]: this
-                    // write targets the OUTER vertex u (not the masked dest v), so it
-                    // must not inherit v's frontier epoch (cache_sim.h stamps ecg_epoch
-                    // from edge_epoch on fill). No-op when edge masks are off.
-                    if (use_in_edge_masks)
-                        graph_ctx.hints_for_thread().edge_epoch = 0;
+                    // The parent[u] write targets the OUTER vertex u (not the masked
+                    // dest v), so clear the frontier epoch first (don't stamp parent[u]
+                    // with v's epoch).
+                    graph_ctx.clearEdgeEpoch();
                     // Track: write parent[u]
                     SIM_CACHE_WRITE(cache, parent.data(), u);
                     parent[u] = v;
@@ -109,10 +97,7 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             // correct dual-direction masks built for the out edge list) instead of the
             // per-vertex masks. The per-edge epoch is src-iteration-aware (next
             // in-neighbour of dest > u), which the single per-vertex mask cannot encode.
-            const bool use_out_edge_masks =
-                !graph_ctx.out_edge_masks_by_src.empty() &&
-                u < (NodeID)graph_ctx.out_edge_masks_by_src.size() &&
-                graph_ctx.out_edge_masks_by_src[u].size() == (size_t)g.out_degree(u);
+            const size_t u_outdeg = (size_t)g.out_degree(u);
             size_t edge_pos = 0;
             for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
                 SIM_CACHE_READ_EDGE(cache, it);
@@ -169,18 +154,11 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
                         }
                     }
                 }
-                // Track: read parent[v]. With OUT-edge masks, carry this edge's
-                // src-aware epoch + POPT (transpose-correct for the push read);
-                // otherwise fall back to the per-vertex mask.
-                if (use_out_edge_masks) {
-                    uint64_t emask = graph_ctx.out_edge_masks_by_src[u][edge_pos];
-                    graph_ctx.hints_for_thread().edge_epoch =
-                        graph_ctx.out_edge_epoch_by_src[u][edge_pos];
-                    SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx,
-                                          GraphCacheContext::edgeMaskPOPT(emask));
-                } else {
-                    SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx, vertex_masks[v]);
-                }
+                // Track: read parent[v] with this edge's OUT mask (transpose-correct,
+                // src-aware epoch + POPT) or the per-vertex fallback — SSOT helper.
+                uint32_t pmask = graph_ctx.resolveEdgeMaskAndEpoch(
+                    EdgeMaskDir::OUT, (uint32_t)u, u_outdeg, edge_pos, vertex_masks[v]);
+                SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx, pmask);
                 NodeID curr_val = parent[v];
                 if (curr_val < 0) {
                     // Track: write parent[v]

@@ -131,13 +131,9 @@ void BCBFS_Sim(const Graph &g, NodeID source,
         #pragma omp parallel for schedule(dynamic, 64)
         for (auto q_iter = queue.begin(); q_iter < queue.end(); q_iter++) {
             NodeID u = *q_iter;
-            // Clear any per-edge epoch left by the previous u's out-edges before the
-            // SEQUENTIAL depths[u] source read: the sticky hints.edge_epoch would
-            // otherwise stamp depths[u]'s line with a stale neighbour epoch
-            // (cache_sim.h stamps ecg_epoch from edge_epoch on every ECG_GRASP_POPT
-            // fill). No-op when edge masks are off, so default BC is byte-identical.
-            if (!graph_ctx.out_edge_masks_by_src.empty())
-                graph_ctx.hints_for_thread().edge_epoch = 0;
+            // Clear the sticky per-edge epoch before the SEQUENTIAL depths[u] source
+            // read so its fill isn't stamped with the previous u's stale edge epoch.
+            graph_ctx.clearEdgeEpoch();
             // P-OPT: update current destination vertex
             SIM_SET_VERTEX(cache, u);
             // Track depth read
@@ -145,21 +141,15 @@ void BCBFS_Sim(const Graph &g, NodeID source,
 
             // ECG_EDGE_MASKS: consume the OUT-edge per-edge masks (transpose-correct —
             // epoch = next in-neighbour of dest > u = next reader of depths[dest]/
-            // path_counts[dest]) instead of the per-vertex mask. Mirror of BFS-TD.
-            // Inert on symmetric graphs (in==out); the correct dual mask for directed.
-            const bool use_out_edge_masks =
-                !graph_ctx.out_edge_masks_by_src.empty() &&
-                u < (NodeID)graph_ctx.out_edge_masks_by_src.size() &&
-                graph_ctx.out_edge_masks_by_src[u].size() == (size_t)g.out_degree(u);
+            // path_counts[dest]) via the shared SSOT helper. Mirror of BFS-TD. Inert on
+            // symmetric graphs (in==out); the correct dual mask for directed graphs.
+            const size_t u_outdeg = (size_t)g.out_degree(u);
             size_t edge_pos = 0;
             for (NodeID v : g.out_neigh(u)) {
-                // ECG: read depths and path_counts with this edge's mask (same dest,
-                // same epoch for both reads).
-                const uint32_t edge_mask_val = use_out_edge_masks
-                    ? GraphCacheContext::edgeMaskPOPT(graph_ctx.out_edge_masks_by_src[u][edge_pos])
-                    : vertex_masks[v];
-                if (use_out_edge_masks)
-                    graph_ctx.hints_for_thread().edge_epoch = graph_ctx.out_edge_epoch_by_src[u][edge_pos];
+                // Resolve this edge's mask once (sets the epoch) and reuse for both the
+                // depths[v] and path_counts[v] reads (same dest -> same epoch).
+                const uint32_t edge_mask_val = graph_ctx.resolveEdgeMaskAndEpoch(
+                    EdgeMaskDir::OUT, (uint32_t)u, u_outdeg, edge_pos, vertex_masks[v]);
                 SIM_CACHE_READ_MASKED(cache, depths.data(), v, graph_ctx, edge_mask_val);
                 SIM_CACHE_READ_MASKED(cache, path_counts.data(), v, graph_ctx, edge_mask_val);
                 
@@ -195,12 +185,10 @@ void BCBFS_Sim(const Graph &g, NodeID source,
         for (auto it = depth_index[d]; it < depth_index[d + 1]; it++) {
             NodeID u = *it;
             // The backward phase traverses the runtime-built compacted successor DAG
-            // (succ/succ_start), NOT a static graph edge list, so it keeps the plain
-            // per-vertex accesses (no per-edge mask). Clear any sticky per-edge epoch
-            // left by the forward phase so these plain reads aren't stamped with a
-            // stale edge epoch. No-op when edge masks are off.
-            if (!graph_ctx.out_edge_masks_by_src.empty())
-                graph_ctx.hints_for_thread().edge_epoch = 0;
+            // (succ/succ_start), NOT a static graph edge list, so it keeps plain
+            // per-vertex accesses (no per-edge mask). Clear the sticky per-edge epoch
+            // left by the forward phase so these plain reads aren't stamped stale.
+            graph_ctx.clearEdgeEpoch();
             // Track path_counts and deltas reads
             SIM_CACHE_READ(cache, path_counts.data(), u);
             SIM_CACHE_READ(cache, deltas.data(), u);

@@ -334,3 +334,33 @@ change) — value is matrix completeness + forward-looking directed support, not
 (2) BC builds the OUT masks **per source** (`BCBFS_Sim` runs per source and already rebuilds
 `makeOffsetMatrix` per source — same O(E)); acceptable for small BC source counts, hoist/cache
 if it becomes a preprocessing bottleneck on large graphs.
+
+### §8.2 SSOT consumption helpers (2026-06-21)
+
+The per-edge consumption logic (build-readiness guard + `edgeMaskPOPT` extraction +
+next-ref epoch stamp + sticky-epoch reset) was copy-pasted across BFS-TD/BU, SSSP, BC.
+It is now a **single source of truth** in `GraphCacheContext` (the owner of both mask
+sets), so a kernel just names the edge list it traverses:
+
+```cpp
+enum class EdgeMaskDir { OUT, IN };                       // main / inverse graph
+bool     edgeMaskReady(dir, src, degree) const;           // is this dir's row built+sized?
+uint32_t resolveEdgeMaskAndEpoch(dir, src, degree, edge_pos, vertex_fallback);  // mask + sets epoch
+void     clearEdgeEpoch();                                 // sticky-epoch hygiene
+```
+
+Each push kernel collapses to one call per edge:
+`m = graph_ctx.resolveEdgeMaskAndEpoch(EdgeMaskDir::OUT, u, out_degree, edge_pos, vertex_masks[v]); SIM_CACHE_READ_MASKED(...)`.
+This directly realizes the design intent — *"both edge lists are separate; when an
+algorithm needs the in-degree edge list the mask is ready"* — a future pull kernel uses
+`EdgeMaskDir::IN` and the IN-edge mask is served with no new plumbing. `edgeMaskReady` is
+used where the masked **access itself** is conditional (BFS-BU's frontier probe, which has
+no cache read when masks are off — so the gate must stay to keep the default stream).
+
+**Pure refactor — verified byte-identical** to the pre-refactor commit in *both* flag
+states (flag-off AND flag-on): BFS 29710/30579, SSSP 4096/4096, BC 1990743/1891741 (pre==post);
+PR anchor 26131464 unchanged; oracles 5/5. PR's specialized mode-6/7 path (LEAN/PACK/charging/
+record-width) is intentionally **not** routed through the helper (it models extra traffic the
+generic helper would hide). Builder unification (`buildOutEdgeMasks`+`buildInEdgeMasks` are
+near-identical mirrors) was **deferred** as headline-adjacent/transpose-sensitive (rubber-duck
+rd-ssot) — a future clean-up once the consumption SSOT has settled.

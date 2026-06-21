@@ -39,12 +39,9 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
     auto out_neigh = g.out_neigh(u);
     // ECG_EDGE_MASKS: consume the OUT-edge per-edge masks (transpose-correct — the
     // epoch is the next in-neighbour of dest > u, i.e. the next reader of dist[dest])
-    // instead of the single per-vertex mask. Mirror of BFS top-down. Inert on
-    // symmetric graphs (in==out); the correct dual mask for directed graphs.
-    const bool use_out_edge_masks =
-        !graph_ctx.out_edge_masks_by_src.empty() &&
-        u < (NodeID)graph_ctx.out_edge_masks_by_src.size() &&
-        graph_ctx.out_edge_masks_by_src[u].size() == (size_t)g.out_degree(u);
+    // instead of the single per-vertex mask via the shared SSOT helper. Mirror of BFS
+    // top-down. Inert on symmetric graphs; the correct dual mask for directed graphs.
+    const size_t u_outdeg = (size_t)g.out_degree(u);
     size_t edge_pos = 0;
     for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
         WNode wn = *it;
@@ -103,13 +100,10 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
         }
         WeightT old_dist = dist[wn.v];
         WeightT new_dist = dist[u] + wn.w;
-        // Per-edge OUT mask (POPT field + epoch) or per-vertex fallback. The same
-        // edge's mask is reused at the retry read below (same dest, same epoch).
-        const uint32_t edge_mask_val = use_out_edge_masks
-            ? GraphCacheContext::edgeMaskPOPT(graph_ctx.out_edge_masks_by_src[u][edge_pos])
-            : vertex_masks[wn.v];
-        if (use_out_edge_masks)
-            graph_ctx.hints_for_thread().edge_epoch = graph_ctx.out_edge_epoch_by_src[u][edge_pos];
+        // Per-edge OUT mask (+ epoch hint) or per-vertex fallback. Re-resolved at the
+        // retry read below (same dest -> same mask + epoch). SSOT helper.
+        uint32_t edge_mask_val = graph_ctx.resolveEdgeMaskAndEpoch(
+            EdgeMaskDir::OUT, (uint32_t)u, u_outdeg, edge_pos, vertex_masks[wn.v]);
         SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, edge_mask_val);
         while (new_dist < old_dist) {
             SIM_CACHE_WRITE(cache, dist.data(), wn.v);
@@ -121,17 +115,14 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                 break;
             }
             old_dist = dist[wn.v];
-            if (use_out_edge_masks)
-                graph_ctx.hints_for_thread().edge_epoch = graph_ctx.out_edge_epoch_by_src[u][edge_pos];
+            edge_mask_val = graph_ctx.resolveEdgeMaskAndEpoch(
+                EdgeMaskDir::OUT, (uint32_t)u, u_outdeg, edge_pos, vertex_masks[wn.v]);
             SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, edge_mask_val);
         }
     }
     // Clear the sticky per-edge epoch so the caller's SEQUENTIAL dist[u] reads (before
-    // the next RelaxEdges) aren't stamped with this edge's stale epoch (cache_sim.h
-    // stamps ecg_epoch from edge_epoch on every ECG_GRASP_POPT fill). No-op when
-    // edge masks are off, so default SSSP is byte-identical.
-    if (use_out_edge_masks)
-        graph_ctx.hints_for_thread().edge_epoch = 0;
+    // the next RelaxEdges) aren't stamped with this edge's stale epoch.
+    graph_ctx.clearEdgeEpoch();
 }
 
 template<typename CacheType>
