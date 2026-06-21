@@ -46,6 +46,11 @@ public:
     return (start_[word_offset(pos)] >> bit_offset(pos)) & 1l;
   }
 
+  // Cache-simulation hook: base pointer of the bitmap words, so a simulator can
+  // model a frontier-membership probe get_bit(pos) as a real cache load of the
+  // word holding pos's bit (&data()[pos / 64]). Read-only; unused by BFS logic.
+  const uint64_t *data() const { return start_; }
+
   //    int getNumSetBits(){
   //      for (int i = 0; i< num_words_; i++) {
   //

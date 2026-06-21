@@ -201,8 +201,8 @@ epoch from its own IN-adjacency arrays (`exact_in_off`/`exact_in_nbr`, built fro
 PR stays byte-identical (verified POPT web-Google/512kB/o0 = 0.6591). `ECG_BFS_EDGE_MASKS=1`
 builds it and makes TDStep carry the per-edge, **src-iteration-aware** epoch (the soonest
 in-neighbour of dest > u) instead of the single per-vertex value — the one thing the
-per-vertex mask cannot encode. BU is left unchanged (it has no masked read — only a
-frontier bitmap), per the rubber-duck.
+per-vertex mask cannot encode. BU masking is added in **§7** (2026-06-21 follow-up:
+"BU and TD both should have their own masks").
 
 **Validation.** `bench/src_sim/test_ecg_out_edge_mask.cc` validates the builder on a tiny
 **directed** graph against a hand-computed oracle (edges 0→2=1, 1→2=3, 3→2=0, 2→4=2,
@@ -212,3 +212,60 @@ On the symmetric eval corpus the per-edge path is ~inert (web-Google BFS hit-rat
 per-vertex vs 0.8579 per-edge — the small delta is the src-aware epoch), as expected; the
 value is forward-looking correctness for directed graphs + the dual-mask capability the
 user asked for. PR and all current headline numbers are unchanged.
+
+---
+
+## 7. IMPLEMENTED for BFS bottom-up: frontier-bitmap masking (2026-06-21)
+
+Per the user ("we should have for bfs BU TD both should have their own masks why we left
+it alone"), the bottom-up (BU) phase now carries its own mask, symmetric to TD. Rubber-duck
+`rd-bu-mask-design`.
+
+**What BU actually accesses (the crux).** Unlike TD (push), BU (pull) traverses
+`in_neigh(u)` and its accesses are: `parent[u]` (SEQUENTIAL over u — regular, perfect
+locality, no mask), the in-edge stream (streaming), and `front.get_bit(v)` — a **frontier
+bitmap** membership probe. The bitmap probe is BU's *only* data-dependent/irregular access,
+and it was **not cache-modeled** at all (a plain method call). That is why BU had "no masked
+read": its irregular access is a compact bitmap, not a property array. There is no
+`parent[v]`-style property read in BU to mask (modeling `parent[v]` would defeat the whole
+point of direction-optimizing BFS, which uses the compact bitmap *to avoid* TD's property
+traffic — rejected).
+
+**What was implemented.** Under `ECG_BFS_EDGE_MASKS` (the same gate as TD), BU now models
+the frontier probe as a cache access — `SIM_CACHE_READ_MASKED` on `front.data()[v/64]` (the
+real address of v's bitmap word; `Bitmap::data()` is a new read-only accessor) — carrying
+the **IN-edge** per-edge epoch. The direction is the mirror of TD: v's frontier bit is next
+read when v's next `out_neigh(v) > u` is processed, so the transpose-correct epoch is derived
+from `g.out_neigh`. `buildInEdgeMasksBFS(g)` is the self-contained IN-edge mirror of
+`buildOutEdgeMasks` (LOCAL sorted out-adjacency; fills only `in_edge_*`; fills the epoch
+**unconditionally**, unlike `buildInEdgeMasks_PR` which only fills it under
+`ECG_EDGE_MASK_EPOCH`). So with the flag set: **TD uses OUT-edge masks, BU uses IN-edge
+masks** — both phases masked per their own edge list.
+
+**Gating + no regression (verified).** The masked bitmap read is strictly inside
+`if (use_in_edge_masks)`, which is false unless `ECG_BFS_EDGE_MASKS` built the IN masks, so
+the default BFS access stream is unchanged. A/B clean-vs-changed binaries:
+PR L3 misses 26,131,464 == 26,131,464 (byte-identical); default BFS L3 misses 30,016 ==
+30,016 (byte-identical). With the flag on, both `OUT-edge` and `IN-edge` mask builds fire and
+both phases are masked. (BFS verification FAILs identically with and without the change — a
+pre-existing cache-sim BFS harness condition, not a regression.)
+
+**Validation.** `bench/src_sim/test_ecg_in_edge_mask.cc` is the directed-graph oracle
+(mirror of the out-edge oracle): in-edge epochs derived from `out_neigh(dest)`. A single
+`dest=2` reached from `src=1,3,4` yields **three different** epochs (3, 4, 1) — proving the
+epoch is src-iteration-aware, not a per-vertex constant. 5/5 pass.
+
+**HONEST CAVEATS (rubber-duck `rd-bu-mask-design`).**
+1. **Granularity.** A 64 B cache line holds 8 words = **512 vertices'** frontier bits, so the
+   line's true reuse is the min next-ref over ~512 vertices; the per-edge v-epoch is the same
+   *kind* of approximation TD makes (16 vertices/property-line) but **coarser**. The IN-edge
+   *signal* (when is v's bit next read) is correct; only the line granularity is loose.
+2. **Value.** The frontier bitmap is small (n/8 bytes — web-Google ~114 KB) and LLC-resident
+   **by design** (BU exists to avoid property traffic), and its lines are uniformly hot (each
+   512-vertex line almost always has a near-future reader), so BU masking is **do-no-harm with
+   ~nil measurable benefit** on the eval corpus. Additionally the bitmap is not a registered
+   property region, so the ECG_GRASP_POPT epoch tiebreak (property-only) does not act on it;
+   the mask mainly affects insertion RRPV. This is a **symmetry/completeness** feature (like
+   the inert dual-direction masks on the symmetric corpus), not a headline-mover.
+3. **Scope.** Inert on the symmetric eval corpus (in==out); the dual mask matters only on
+   directed graphs. Default BFS (flag off) and all headline numbers are unchanged.

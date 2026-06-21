@@ -38,9 +38,31 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
         SIM_CACHE_READ(cache, parent.data(), u);
         if (parent[u] < 0) {
             auto in_neigh = g.in_neigh(u);
-            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
+            // ECG_BFS_EDGE_MASKS: model BU's frontier-bitmap membership probe as a
+            // cache access (a real load of front's word holding v's bit) and carry
+            // the IN-edge per-edge mask, so BU is masked symmetric to TD (the
+            // dual-direction capability). The transpose-correct epoch
+            // (in_edge_epoch_by_src[u][edge_pos] = next out_neigh(v) > u) is when
+            // v's frontier bit is next read. Gated -> the default BFS access stream
+            // is unchanged. HONEST CAVEAT: a 64B bitmap line holds 512 vertices'
+            // bits and the bitmap is compact/uniformly-hot by design (BU exists to
+            // avoid TD's property traffic), so this is a do-no-harm completeness
+            // mask whose measurable effect is ~nil on the symmetric corpus.
+            const bool use_in_edge_masks =
+                !graph_ctx.in_edge_masks_by_src.empty() &&
+                u < (NodeID)graph_ctx.in_edge_masks_by_src.size() &&
+                graph_ctx.in_edge_masks_by_src[u].size() == (size_t)g.in_degree(u);
+            size_t edge_pos = 0;
+            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
                 SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
+                if (use_in_edge_masks) {
+                    uint64_t emask = graph_ctx.in_edge_masks_by_src[u][edge_pos];
+                    graph_ctx.hints_for_thread().edge_epoch =
+                        graph_ctx.in_edge_epoch_by_src[u][edge_pos];
+                    SIM_CACHE_READ_MASKED(cache, front.data(), (size_t)v / 64, graph_ctx,
+                                          GraphCacheContext::edgeMaskPOPT(emask));
+                }
                 // Track: check if v is in frontier
                 if (front.get_bit(v)) {
                     // Track: write parent[u]
@@ -294,12 +316,16 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     graph_ctx.initMaskConfig();
     auto vertex_masks = graph_ctx.computeVertexMasks(g);
     graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
-    // ECG_BFS_EDGE_MASKS: also build the OUT-edge per-edge masks (the dual-direction
-    // capability) so TDStep can carry a src-aware, transpose-correct epoch per edge
-    // instead of the single per-vertex value. Inert on symmetric graphs (in==out).
+    // ECG_BFS_EDGE_MASKS: build the dual-direction per-edge masks so BOTH BFS
+    // phases carry a src-aware, transpose-correct epoch per edge instead of the
+    // single per-vertex value. TD (push) traverses out_neigh(u) reading parent[v]
+    // -> OUT-edge masks (epoch from in_neigh(v)); BU (pull) traverses in_neigh(u)
+    // probing the frontier bit of v -> IN-edge masks (epoch from out_neigh(v)).
+    // Inert on symmetric graphs (in==out); the correct dual mask for directed graphs.
     if (std::getenv("ECG_BFS_EDGE_MASKS")) {
-        graph_ctx.buildOutEdgeMasks(g);
-        cout << "BFS: OUT-edge per-edge masks enabled (dual-direction)" << endl;
+        graph_ctx.buildOutEdgeMasks(g);     // TD push: parent[v] over out_neigh(u)
+        graph_ctx.buildInEdgeMasksBFS(g);   // BU pull: frontier bit of v over in_neigh(u)
+        cout << "BFS: dual-direction per-edge masks enabled (TD=OUT-edge, BU=IN-edge)" << endl;
     }
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
     int pfx_top_k = GraphSimEnvIntClamped("ECG_PREFETCH_TOP_K", 1, 1, 64);

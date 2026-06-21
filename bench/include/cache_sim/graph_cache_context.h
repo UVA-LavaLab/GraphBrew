@@ -2451,6 +2451,98 @@ struct GraphCacheContext {
                   << (build_us / 1e6) << std::defaultfloat << std::endl;
     }
 
+    // Build IN-edge per-edge masks for BFS bottom-up (BU pull): the direction
+    // mirror of buildOutEdgeMasks. BU traverses g.in_neigh(u) and probes the
+    // frontier-bitmap bit of each in-neighbour dest; dest's frontier bit is next
+    // read when dest's next OUT-neighbour > src is processed, so the
+    // transpose-correct epoch is derived from g.out_neigh (soonest out-neighbour
+    // of dest strictly > src, wrapping to the next iteration). Self-contained:
+    // builds a LOCAL sorted out-adjacency and fills only the in_edge_* members
+    // (never touches the shared exact_*/out_edge_* paths), so PR and the
+    // OUT-edge/TD path stay byte-identical. Fills the epoch UNCONDITIONALLY
+    // (buildInEdgeMasks_PR only fills it under ECG_EDGE_MASK_EPOCH). On the
+    // symmetric eval corpus in==out so this equals the out-edge mask (inert); it
+    // is the correct dual-direction mask for BU on directed graphs.
+    template<typename GraphT>
+    void buildInEdgeMasksBFS(const GraphT& g) {
+        using Clock = std::chrono::steady_clock;
+        auto build_start = Clock::now();
+        uint32_t n = g.num_nodes();
+        in_edge_masks_by_src.assign(n, {});
+        in_edge_epoch_by_src.assign(n, {});
+        if (n == 0) return;
+        const uint32_t ne = edge_epoch_count ? edge_epoch_count : 32u;
+        constexpr int numVtxPerLine = 16;
+        const bool linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
+
+        // LOCAL sorted OUT-adjacency (the transpose of IN traversal) for next-ref.
+        std::vector<int64_t> off((size_t)n + 1, 0);
+        for (uint32_t v = 0; v < n; ++v)
+            off[v + 1] = off[v] + g.out_degree(v);
+        std::vector<int32_t> nbr((size_t)off[n], 0);
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 256)
+#endif
+        for (int64_t v = 0; v < (int64_t)n; ++v) {
+            int64_t p = off[v];
+            for (auto w : g.out_neigh((uint32_t)v)) nbr[p++] = static_cast<int32_t>(w);
+            std::sort(nbr.begin() + off[v], nbr.begin() + off[v + 1]);
+        }
+
+        auto tiers = computeVertexTiers(g);
+        uint64_t edge_count = 0;
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 128) reduction(+:edge_count)
+#endif
+        for (uint32_t src = 0; src < n; src++) {
+            std::vector<uint32_t> neighbors;
+            neighbors.reserve(64);
+            for (auto v : g.in_neigh(src)) neighbors.push_back(static_cast<uint32_t>(v));
+            auto& masks = in_edge_masks_by_src[src];
+            auto& eps = in_edge_epoch_by_src[src];
+            masks.resize(neighbors.size(), 0);
+            eps.resize(neighbors.size(), 0);
+            for (size_t i = 0; i < neighbors.size(); i++) {
+                uint32_t dest = neighbors[i];
+                edge_count++;
+                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                // Soonest next out-neighbour of dest (or its 16-vertex line) strictly
+                // > src, wrapping to the next iteration. Mirror of buildOutEdgeMasks
+                // over the (local) out-adjacency instead of exact_in_*.
+                uint32_t v0 = linemin ? (dest / numVtxPerLine) * numVtxPerLine : dest;
+                uint32_t v1 = linemin ? std::min<uint32_t>(v0 + numVtxPerLine, n) : (dest + 1);
+                uint32_t best_dist = UINT32_MAX, best_ep = ne - 1;
+                for (uint32_t w = v0; w < v1 && w < n; ++w) {
+                    int64_t a = off[w], b = off[w + 1];
+                    if (a >= b) continue;
+                    int64_t lo = a, hi = b;
+                    while (lo < hi) {
+                        int64_t mid = (lo + hi) >> 1;
+                        if ((uint32_t)nbr[mid] > src) hi = mid; else lo = mid + 1;
+                    }
+                    uint32_t next_nbr, dist;
+                    if (lo < b) { next_nbr = (uint32_t)nbr[lo]; dist = next_nbr - src; }
+                    else        { next_nbr = (uint32_t)nbr[a]; dist = next_nbr + n - src; }
+                    if (dist < best_dist) {
+                        best_dist = dist;
+                        best_ep = (uint32_t)(((uint64_t)next_nbr * ne) / std::max<uint32_t>(1u, n));
+                    }
+                }
+                uint8_t popt = (best_ep >= ne ? (ne - 1) : best_ep) & 0x7F;
+                eps[i] = static_cast<uint16_t>(best_ep >= ne ? (ne - 1) : best_ep);
+                uint64_t mask = static_cast<uint64_t>(dest & 0xFFFFFFu);
+                mask |= static_cast<uint64_t>(dbg & 0x3u) << 24;
+                mask |= static_cast<uint64_t>(popt & 0x7Fu) << 26;
+                masks[i] = mask;
+            }
+        }
+        auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
+            Clock::now() - build_start).count();
+        std::cout << "ECG IN-edge mask build (BFS BU): vertices=" << n << " edges=" << edge_count
+                  << " ne=" << ne << " time_s=" << std::fixed << std::setprecision(4)
+                  << (build_us / 1e6) << std::defaultfloat << std::endl;
+    }
+
     // Build the per-edge mask array with CROSS-ITERATION prefetch targets
     // (sprint 6f-5 spike iteration 2 / mode 7).
     //
