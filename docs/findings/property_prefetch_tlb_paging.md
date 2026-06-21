@@ -19,15 +19,18 @@ evaluation account for it?
   - Core-side virtual-address prefetchers that *don't* do this (**IMP**, software
     prefetch) suffer the full TLB thrash (Bhattacharjee, ASPLOS'17).
 - **ECG_PFX needs the same translation infrastructure as DROPLET** (it also prefetches
-  `property[v]`), so the translation cost is a **shared, orthogonal** cost — not a
-  differentiator. But ECG_PFX issues **~K× fewer** property prefetches than DROPLET
-  (best-1 vs all-K, DROPLET `indirect_degree`=16), so under *any* translation scheme it
-  generates **proportionally fewer translations** ⇒ less MTLB / page-walk pressure.
-- **Our simulators charge no per-prefetch translation cost** for either prefetcher
-  (cache_sim has no TLB; our gem5 SE-mode run shows `dtb.accesses = 0`). This matches
-  the *design intent* of DROPLET (MTLB makes it cheap/off-critical-path) and P-OPT
-  (huge pages eliminate it), and it is **conservative for ECG_PFX** (which would incur
-  strictly fewer translations than DROPLET if the cost were modelled).
+  `property[v]`), so translation is a **shared** cost — neither target is harder to
+  translate. **Measured at page granularity** (the faithful TLB metric — a 4 KB page
+  holds ~1024 properties): both prefetchers touch the **same** distinct pages (895 on
+  web-Google), so with a working-set-sized MTLB or huge pages their translation cost is
+  **equal** (naive "ECG_PFX touches fewer pages" is **false**). Only under an *undersized*
+  MTLB (entries ≪ working-set pages ⇒ thrash) does ECG_PFX's selectivity give ~K× fewer
+  misses, tracking its request reduction.
+- **Our simulators charge no translation *latency*** (cache_sim has no TLB timing — we
+  added a distinct-page + finite-MTLB-miss *proxy* but it costs no cycles; our gem5
+  SE-mode run shows `dtb.accesses = 0`). Per the measurement this omission is
+  **neutral-to-favourable for ECG_PFX, never adverse**: equal under a working-set MTLB /
+  huge pages, favourable under an undersized one.
 
 ## 1. How DROPLET addresses it (VERIFIED — paper's own slides)
 
@@ -78,28 +81,47 @@ problem and moves the translation off the core's critical path — via a dedicat
 (DROPLET) or huge pages + physical registers (P-OPT). The TLB cost is small/off-path
 **by construction**, not ignored.
 
-## 3. What it means for ECG_PFX (this work)
+## 3. What it means for ECG_PFX (this work) — MEASURED at page granularity
 
 - ECG_PFX prefetches the *same* object — `property[v]` for a selected next-vertex `v`
   whose id is delivered by the ECG fat-ID / mask. So it has the **same** indirect
   translation requirement as DROPLET and would deploy the **same** infrastructure (a
-  DROPLET-style MTLB, or P-OPT-style huge pages). Translation is therefore a **shared,
-  orthogonal** cost — it does not favour either prefetcher.
-- **Selectivity reduces translation pressure too.** ECG_PFX issues **1** property
-  prefetch per trigger (POPT-best target); DROPLET issues `indirect_degree` (default
-  **16**) per trigger. Fewer prefetches ⇒ fewer property virtual addresses ⇒ fewer MTLB
-  lookups / page-walks. The same selectivity that gives ECG_PFX ~⅓ the property-prefetch
-  *bandwidth* also gives it proportionally less *translation* pressure — under any of the
-  schemes above.
+  DROPLET-style MTLB, or P-OPT-style huge pages). Translation is therefore a **shared**
+  cost — neither prefetcher's target object is harder to translate than the other's.
+- **But raw prefetch count is *not* a faithful TLB-pressure metric** (a 4 KB page holds
+  ~1024 4-byte properties), so we instrumented cache_sim to count the **distinct pages**
+  the prefetch targets touch and the **misses of a finite LRU MTLB**
+  (`CACHE_PFX_MTLB_ENTRIES`). Measured (web-Google, L3 512 kB, lookahead 8; property
+  array = **895** 4 KB pages = 2 MB-pages; artifact `wiki/data/ecg_pfx_tlb_pressure.md`):
+
+  | prefetcher | fills | distinct 4 KB pages | distinct 2 MB pages | MTLB-128 misses | MTLB-8192 misses |
+  |---|---:|---:|---:|---:|---:|
+  | DROPLET (all-K) | 6.27 M | **895** | 2 | 6.37 M | **895** |
+  | ECG_PFX (best-1) | 2.28 M | **895** | 2 | 2.17 M | **895** |
+
+- **Reading it (this corrects the naive "fewer prefetches ⇒ fewer translations"):**
+  - With an **infinite TLB, huge pages, or any MTLB ≥ the working set** (the 8192-entry
+    column, which covers the 895-page footprint), the two prefetchers are **identical**:
+    both incur exactly the 895 *compulsory* page translations, because both ultimately
+    sweep the whole property array. So under DROPLET's own MTLB (sized to the working
+    set) or P-OPT's 1 GB huge page, **translation cost is EQUAL — neither prefetcher has
+    an advantage**, and the naive "ECG_PFX touches fewer pages" is **false**.
+  - Only when the **MTLB is too small to hold the working set** (the 128-entry column,
+    128 ≪ 895 ⇒ thrash) does ECG_PFX's selectivity help: misses then track the *request*
+    count, so ECG_PFX has ~2.9× fewer MTLB misses — the same factor as its bandwidth
+    advantage.
+- **Honest conclusion:** ECG_PFX's translation cost is **never worse** than DROPLET's and
+  is **strictly better only in the small/thrashing-MTLB regime**; under the working-set-
+  sized MTLB or huge pages that DROPLET and P-OPT actually deploy, the two are equal.
 
 ## 4. What our simulators model (HONEST)
 
-- **cache_sim:** a pure cache model with **no TLB / no address translation**. Both
-  prefetchers are evaluated with **zero** per-prefetch translation cost. This is
-  consistent with the literature's *design intent* (DROPLET's MTLB and P-OPT's huge
-  pages make translation cheap/off-critical-path), and it is **conservative for
-  ECG_PFX**, which would incur strictly fewer translations than DROPLET if the cost were
-  charged.
+- **cache_sim:** a pure cache model with **no TLB latency** in the timing path. We added
+  a **translation-pressure proxy** (distinct-4 KB/2 MB-page counters + a finite LRU MTLB
+  miss model, `CACHE_PFX_MTLB_ENTRIES`, default 128) so the page-level comparison above
+  can be made, but it charges **no cycles** for translation — both prefetchers are timed
+  with zero translation latency. Per §3 this is **at worst neutral for ECG_PFX** (equal
+  under a working-set MTLB; favourable under a small one), never adverse.
 - **gem5:** the prefetchers use `use_virtual_addresses=True` and translate via
   `mmu->translateTiming` (`queued.cc:86`). But in our **RISCV SE-mode + TimingSimpleCPU**
   configuration the data TLB is **not modelled** — a real ROI run
@@ -107,17 +129,19 @@ problem and moves the translation off the core's critical path — via a dedicat
   `system.cpu.mmu.dtb.accesses = 0` despite 1.7 M cycles and 3534 prefetches issued, so
   translation is effectively free (no TLB-miss / page-walk latency). gem5 therefore also
   charges **no** TLB cost — equally for both prefetchers.
-- **Neither sim models DROPLET's MTLB or its 1.56% storage overhead.** Modelling the
-  translation cost faithfully (a finite MTLB with miss latency, or a core dTLB charged
-  per prefetch) is **future work**; doing so would *widen* ECG_PFX's advantage, since it
-  issues K× fewer property prefetches.
+- **Neither sim charges translation *latency*** (DROPLET's MTLB miss penalty / page
+  walks). Adding a finite-MTLB *timing* model is future work; per the measured page data
+  it would leave the comparison unchanged under a working-set-sized MTLB and only widen
+  ECG_PFX's edge under an undersized one.
 
 ## 5. Bottom line for the paper
 
-State it plainly: *the indirect property prefetch translation cost is real; DROPLET
-pays for it with a dedicated memory-controller MTLB (+1.56% TLB storage), P-OPT with a
-1 GB huge page; ECG_PFX uses the same infrastructure and, being selective (1 vs K
-prefetches per trigger), incurs proportionally less translation pressure. Our cache_sim
-and gem5 models charge no per-prefetch translation cost for either prefetcher, so the
-reported comparison is on cache traffic only and is conservative for ECG_PFX on the
-translation axis.*
+State it plainly and precisely: *indirect property-prefetch translation is a real cost;
+DROPLET pays for it with a dedicated memory-controller MTLB (+1.56 % TLB storage), P-OPT
+with a 1 GB huge page. ECG_PFX prefetches the same object and would use the same
+infrastructure. At page granularity both prefetchers touch the **same** property pages
+(895 on web-Google), so with a working-set-sized MTLB or huge pages their translation
+cost is **equal**; under an undersized MTLB ECG_PFX incurs ~K× fewer misses (tracking its
+request reduction). Our models charge no translation latency, so the reported comparison
+is on cache traffic; the omission is neutral-to-favourable for ECG_PFX on the translation
+axis, never adverse.*

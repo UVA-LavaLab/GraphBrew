@@ -2083,6 +2083,7 @@ public:
 
         const uint64_t line_addr = lineAddress(address);
         prefetch_requests_++;
+        recordPrefetchTranslation(address);
         
         // Check if already in cache (any level) using a NON-counting probe.
         // Using access() here would register the probe as a demand hit/miss and
@@ -2159,6 +2160,11 @@ public:
         prefetch_fills_ = 0;
         prefetch_useful_ = 0;
         prefetch_evicted_before_use_ = 0;
+        pfx_pages_4k_.clear();
+        pfx_pages_2m_.clear();
+        pfx_mtlb_lru_.clear();
+        pfx_mtlb_pos_.clear();
+        pfx_mtlb_misses_ = 0;
         std::lock_guard<std::mutex> lock(prefetch_mutex_);
         prefetched_lines_.clear();
     }
@@ -2259,6 +2265,10 @@ public:
         ss << "  \"prefetch_fills\": " << prefetch_fills_ << ",\n";
         ss << "  \"prefetch_useful\": " << prefetch_useful_ << ",\n";
         ss << "  \"prefetch_evicted_before_use\": " << prefetch_evicted_before_use_ << ",\n";
+        ss << "  \"prefetch_distinct_pages_4k\": " << pfx_pages_4k_.size() << ",\n";
+        ss << "  \"prefetch_distinct_pages_2m\": " << pfx_pages_2m_.size() << ",\n";
+        ss << "  \"prefetch_mtlb_entries\": " << pfx_mtlb_size_ << ",\n";
+        ss << "  \"prefetch_mtlb_misses\": " << pfx_mtlb_misses_ << ",\n";
         ss << "  \"prefetch_pending\": " << getPrefetchPending() << ",\n";
         ss << "  \"total_memory_traffic\": " << getTotalMemoryTraffic() << ",\n";
         ss << "  \"L1\": " << levelToJSON(*l1_) << ",\n";
@@ -2398,6 +2408,46 @@ private:
     std::atomic<uint64_t> prefetch_evicted_before_use_{0};
     mutable std::mutex prefetch_mutex_;
     std::unordered_set<uint64_t> prefetched_lines_;
+    // ── Property-prefetch translation-pressure proxy (rd-tlb-analysis) ──
+    // Raw prefetch count is NOT a faithful TLB-pressure metric (a 4KB page holds
+    // ~1024 4B properties), so track the DISTINCT pages the prefetch targets touch
+    // and the misses of a finite LRU MTLB. This tests the DROPLET(all-K) vs ECG_PFX
+    // (best-1) comparison at PAGE granularity. Single-thread (cache_sim pins
+    // OMP_NUM_THREADS=1), so no atomics/locks are needed for these.
+    std::unordered_set<uint64_t> pfx_pages_4k_;
+    std::unordered_set<uint64_t> pfx_pages_2m_;
+    std::list<uint64_t> pfx_mtlb_lru_;                                      // front = MRU
+    std::unordered_map<uint64_t, std::list<uint64_t>::iterator> pfx_mtlb_pos_;
+    uint64_t pfx_mtlb_misses_{0};
+    static size_t pfxMtlbEntriesFromEnv() {
+        if (const char* e = std::getenv("CACHE_PFX_MTLB_ENTRIES")) {
+            long v = std::atol(e); if (v > 0) return static_cast<size_t>(v);
+        }
+        return 128;
+    }
+    size_t pfx_mtlb_size_{pfxMtlbEntriesFromEnv()};                        // entries (env)
+
+    // One translation per generated (deduped) prefetch target: record the 4KB/2MB
+    // page touched and model a finite LRU MTLB (DROPLET-style MC-side TLB).
+    void recordPrefetchTranslation(uint64_t address) {
+        const uint64_t pg4k = address >> 12, pg2m = address >> 21;
+        pfx_pages_4k_.insert(pg4k);
+        pfx_pages_2m_.insert(pg2m);
+        auto it = pfx_mtlb_pos_.find(pg4k);
+        if (it != pfx_mtlb_pos_.end()) {                                   // hit -> MRU
+            pfx_mtlb_lru_.erase(it->second);
+            pfx_mtlb_lru_.push_front(pg4k);
+            it->second = pfx_mtlb_lru_.begin();
+            return;
+        }
+        pfx_mtlb_misses_++;                                                // miss -> insert
+        pfx_mtlb_lru_.push_front(pg4k);
+        pfx_mtlb_pos_[pg4k] = pfx_mtlb_lru_.begin();
+        if (pfx_mtlb_lru_.size() > pfx_mtlb_size_) {
+            pfx_mtlb_pos_.erase(pfx_mtlb_lru_.back());
+            pfx_mtlb_lru_.pop_back();
+        }
+    }
 };
 
 // ============================================================================

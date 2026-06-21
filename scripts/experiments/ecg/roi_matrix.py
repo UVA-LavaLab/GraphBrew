@@ -724,6 +724,10 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         "prefetch_evicted_before_use",
         "prefetch_pending",
         "total_memory_traffic",
+        "prefetch_distinct_pages_4k",
+        "prefetch_distinct_pages_2m",
+        "prefetch_mtlb_entries",
+        "prefetch_mtlb_misses",
     ):
         row[key] = data.get(key)
     fills = row.get("prefetch_fills") or 0
