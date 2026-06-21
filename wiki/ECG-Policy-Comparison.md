@@ -166,6 +166,89 @@ three emit the same `[EVICT L3 ...]` trace, so one checker verifies every backen
 Larger real-graph Sniper runs may still hit the documented SDE memory behavior;
 the tiny email-Eu-core verification run completes cleanly under the cap.
 
+## Prefetch path (DROPLET vs ECG prefetch)
+
+ECG also ships a hint-driven prefetcher. The eviction policy above is the
+*bandwidth* story; the prefetcher is the *latency* story, and the two are
+deliberately separated:
+
+- **DROPLET** (Basak et al., HPCA'19) — the literature baseline: prefetch the
+  next-K edges in the stream (no target selection).
+- **ECG_PFX** — prefetch the POPT-best target among the next-K in-neighbours,
+  chosen by `ecg_mode6::selectPrefetchTarget` (`bench/include/ecg_mode6_builder.h`).
+  Like the eviction decision, this target function is a **single shared header
+  compiled into the cache_sim, gem5 and Sniper kernels**, so the ECG prefetch
+  *decision* is identical across all three backends.
+
+**The honest finding:** a prefetcher can only *relocate* traffic
+(demand → prefetch); it can **never reduce total DRAM traffic** — only the
+eviction policy can. So the prefetcher comparison is about *latency per unit of
+bandwidth*, not bandwidth itself.
+
+Prefetcher comparison at fixed LRU eviction (cache_sim, PageRank, `-o 0`,
+lookahead 8; `demand2mem` = demand misses reaching memory = latency proxy;
+`bandwidth` = total DRAM traffic; both lower = better):
+
+| graph/L3 | prefetcher | demand2mem | bandwidth | fills | useful% |
+|---|---|---|---|---|---|
+| web-Google/512kB | none | 7.69M | 7.69M | 0 | – |
+| web-Google/512kB | DROPLET | **1.45M** | 7.72M | 6.27M | 100 |
+| web-Google/512kB | ECG_PFX | 5.41M | 7.69M | **2.28M** | 100 |
+| cit-Patents/1MB | none | 33.73M | 33.73M | 0 | – |
+| cit-Patents/1MB | DROPLET | **6.51M** | 33.73M | 27.22M | 100 |
+| cit-Patents/1MB | ECG_PFX | 24.27M | 33.73M | **9.46M** | 100 |
+| soc-pokec/1MB | none | 27.13M | 27.13M | 0 | – |
+| soc-pokec/1MB | DROPLET | **3.50M** | 27.95M | 24.44M | 100 |
+| soc-pokec/1MB | ECG_PFX | 20.10M | 27.26M | **7.16M** | 100 |
+| com-orkut/2MB | none | 97.69M | 97.69M | 0 | – |
+| com-orkut/2MB | DROPLET | **15.38M** | 104.39M | 89.01M | 100 |
+| com-orkut/2MB | ECG_PFX | 73.14M | 98.65M | **25.51M** | 100 |
+| roadNet-CA/512kB | none | 0.87M | 0.87M | 0 | – |
+| roadNet-CA/512kB | DROPLET | 0.73M | 0.87M | 0.14M | 100 |
+| roadNet-CA/512kB | ECG_PFX | 0.75M | 0.87M | 0.12M | 100 |
+
+Reading it: **DROPLET** trades the most bandwidth for the biggest latency cut —
+it issues 3–3.5× more prefetches and on com-orkut **over-fetches** (bandwidth
+104.4M vs 97.7M baseline). **ECG_PFX** is bandwidth-efficient: it reaches the
+same 100% useful-rate while issuing 2.7–3.5× fewer prefetches (it picks
+POPT-best targets instead of every next-K edge), keeping total traffic at the
+baseline. The full bandwidth win comes from stacking ECG_PFX on the
+ECG_GRASP_POPT *eviction* (the table above is fixed-LRU to isolate the
+prefetcher lever — see `docs/findings/prefetcher_saturation_under_eviction.md`
+for the combined stack). Artifact: `wiki/data/ecg_prefetch_matrix.md`.
+
+### Reproduce + verify the prefetch path
+
+```bash
+# performance matrix (rows = graph x prefetcher at fixed eviction)
+python3 scripts/experiments/ecg/ecg_prefetch_matrix.py --suite cache-sim \
+    --cells "web-Google:512kB cit-Patents:1MB soc-pokec:1MB com-orkut:2MB roadNet-CA:512kB" \
+    --order 0 --eviction LRU --lookahead 8 --out /tmp/pfx_matrix.md
+
+# correctness verification (synthetic shared decision + live per-prefetcher spec)
+python3 scripts/experiments/ecg/verify_pfx.py
+```
+
+`verify_pfx.py` mirrors `verify_ecg.py` in two layers:
+
+1. **Synthetic exact-target** (`bench/src_sim/test_ecg_prefetch.cc`) — asserts the
+   exact target of `ecg_mode6::selectPrefetchTarget` (min re-reference among the
+   next-K, window clipping, ties, invalid/out-of-range entries, disabled). Because
+   that function is the single shared decision, this verifies the ECG prefetch
+   target for **all three simulators**; mutation-proven (flipping min→max fails).
+2. **Live behaviour** (cache_sim) — runs PageRank with each prefetcher and asserts
+   its defining, falsifiable property: `none` issues nothing and traffic == demand;
+   `DROPLET` fires, cuts demand-to-mem, and does **not** reduce total traffic
+   (conserves bandwidth); `ECG_PFX` fires, cuts demand-to-mem, and issues strictly
+   **fewer** prefetches than DROPLET at ≥50% useful-rate (selective targets).
+
+**Cross-simulator status (honest):** the ECG prefetch *decision* (target
+selection) is verified for all three backends via the shared function. *Live
+firing* is verified end-to-end in cache_sim; DROPLET fires in all three (it is
+the baseline overlay); the gem5 ECG_PFX SimObject has a documented MMU
+page-cross hint-delivery gap (`docs/findings/gem5_implementation_audit_v1.md`,
+deferred), and Sniper ECG_PFX fires under the guarded `sg_kernel` path.
+
 ## Related
 
 - [[Cache-Simulation]] — simulator architecture, all `ECG_MODE` values, env vars
