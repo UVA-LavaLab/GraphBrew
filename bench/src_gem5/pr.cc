@@ -187,6 +187,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                     in_edge_masks_by_src, "gem5-PR");
         ecg_epoch::buildInEdgeEpochs(g, kNumVtxPerLine, edge_epoch_count, true,
                                      in_edge_epochs_by_src);
+        uint64_t pfx_total = 0, pfx_truncated = 0;
         for (size_t src = 0; src < in_edge_masks_by_src.size(); ++src) {
             auto& masks = in_edge_masks_by_src[src];
             const auto& epochs = in_edge_epochs_by_src[src];
@@ -194,12 +195,38 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 uint64_t mask = masks[i];
                 uint16_t epoch = (i < epochs.size()) ? epochs[i]
                     : static_cast<uint16_t>(edge_epoch_count - 1);
+                // Transfer the POPT-best prefetch target (packed at bit 33 by
+                // buildInEdgeMasks) into the packMaskEpoch target field at bit 49,
+                // where the ecg.extract ISA op and the prefetcher read it.
+                uint32_t pfx_target = ecg_mode6::extractPrefetchTarget(mask);
+                if (pfx_target != 0) {
+                    pfx_total++;
+                    // The packMaskEpoch target field is only 15 bits (<=32767).
+                    // buildInEdgeMasks emits full vertex ids, so on a graph with
+                    // >32767 vertices the target is silently truncated -> a WRONG
+                    // prefetch. Detect it so the gem5 ECG_PFX ISA testbed is not
+                    // mistaken for valid on large graphs (use cache_sim there, or
+                    // a wider record). See docs/findings/property_prefetch_tlb_paging.md.
+                    if (pfx_target > 0x7FFFu) pfx_truncated++;
+                }
                 masks[i] = ecg_mode6::packMaskEpoch(
                     ecg_mode6::extractDest(mask),
                     ecg_mode6::extractDbg(mask),
                     ecg_mode6::extractPopt(mask),
                     epoch,
-                    ecg_mode6::extractPrefetchTarget(mask));
+                    pfx_target);
+            }
+        }
+        if (pfx_truncated > 0) {
+            std::cerr << "[gem5 ECG_PFX WARNING] " << pfx_truncated << "/" << pfx_total
+                      << " prefetch targets exceed the 15-bit ISA mask field (>32767) and "
+                         "are TRUNCATED to wrong vertices. The gem5 ECG_PFX ISA testbed is "
+                         "valid only for graphs <=32767 vertices; use cache_sim for "
+                         "large-graph prefetch evaluation (no field limit). Set "
+                         "ECG_PFX_STRICT_TARGET=1 to abort instead.\n";
+            if (std::getenv("ECG_PFX_STRICT_TARGET")) {
+                std::cerr << "[gem5 ECG_PFX] ECG_PFX_STRICT_TARGET set -> aborting.\n";
+                std::abort();
             }
         }
         printf("[gem5 ECG mode 6] lookahead=%d ne=%u (per-edge epoch mask path active)\n",
