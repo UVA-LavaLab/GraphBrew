@@ -48,6 +48,8 @@
 #include <omp.h>
 #endif
 
+#include "../ecg_mode6_builder.h"
+
 namespace cache_sim {
 
 // Tier A sideband-registration sanity: emit a single stderr line per region
@@ -2308,24 +2310,14 @@ struct GraphCacheContext {
                         best_ep >= kNumEpochs5 ? (kNumEpochs5 - 1) : best_ep);  // FULL epoch (untruncated)
                 }
 
-                // Per-edge prefetch target: scan ahead K in src's in_neighbors
-                // (positions i+1 .. i+K), pick the one with shortest POPT
-                // reuse distance (lower = sooner-reused = higher value).
+                // Per-edge prefetch target (shared decision: ecg_mode6::
+                // selectPrefetchTarget, identical to gem5/Sniper's mask build).
+                // Only in the lookahead mode (not exact/epoch which fill POPT).
                 uint32_t prefetch_target = 0;
-                if (!edge_mask_exact && !edge_mask_epoch && k_lookahead > 0 && !avg_reref_by_line.empty()) {
-                    uint8_t best_dist = 128;
-                    int probe = std::min<int>(k_lookahead, static_cast<int>(neighbors.size()) - static_cast<int>(i) - 1);
-                    for (int step = 1; step <= probe; step++) {
-                        uint32_t cand = neighbors[i + step];
-                        uint32_t cand_cline = cand / numVtxPerLine;
-                        if (cand_cline < avg_reref_by_line.size()) {
-                            uint8_t dist = avg_reref_by_line[cand_cline];
-                            if (dist < best_dist) {
-                                best_dist = dist;
-                                prefetch_target = cand;
-                            }
-                        }
-                    }
+                if (!edge_mask_exact && !edge_mask_epoch) {
+                    prefetch_target = ecg_mode6::selectPrefetchTarget(
+                        neighbors.data(), neighbors.size(), i,
+                        avg_reref_by_line, k_lookahead, numVtxPerLine);
                 }
                 if (prefetch_target != 0) encoded_count++;
 

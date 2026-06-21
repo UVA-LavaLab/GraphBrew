@@ -81,6 +81,45 @@ inline uint64_t packMaskEpoch(uint32_t dest, uint8_t dbg, uint8_t popt,
            (static_cast<uint64_t>(pfx  & 0x7FFFu) << kPrefetchEpochShift);
 }
 
+// === ECG prefetch-target DECISION (single source of truth) ===
+//
+// Given a vertex's in-neighbour list and the position of the current edge `i`,
+// pick the prefetch target: among the next `k_lookahead` neighbours (positions
+// i+1 .. i+K), the one whose property line has the SMALLEST average re-reference
+// distance (POPT-best = soonest reused). Returns 0 if prefetch is disabled
+// (k_lookahead<=0), there is no re-reference data, or no candidate qualifies.
+//
+// This is the ECG prefetch decision used by every simulator: the kernel
+// (bench/src_{sim,gem5,sniper}) builds the per-edge mask offline with this
+// function via buildInEdgeMasks, and the prefetcher simply consumes the encoded
+// target. A single unit test of this pure function therefore verifies the ECG
+// prefetch target for cache_sim, gem5 and Sniper alike. See
+// bench/src_sim/test_ecg_prefetch.cc and scripts/experiments/ecg/verify_pfx.py.
+inline uint32_t selectPrefetchTarget(
+    const uint32_t* neighbors, size_t n_neighbors, size_t i,
+    const std::vector<uint8_t>& avg_reref_by_line,
+    int k_lookahead, int num_vtx_per_line)
+{
+    if (k_lookahead <= 0 || avg_reref_by_line.empty()) return 0;
+    if (num_vtx_per_line < 1) num_vtx_per_line = 16;
+    uint32_t prefetch_target = 0;
+    uint8_t best = 128;
+    int probe = std::min<int>(k_lookahead,
+        static_cast<int>(n_neighbors) - static_cast<int>(i) - 1);
+    for (int step = 1; step <= probe; step++) {
+        uint32_t cand = neighbors[i + step];
+        uint32_t cl = cand / static_cast<uint32_t>(num_vtx_per_line);
+        if (cl < avg_reref_by_line.size()) {
+            uint8_t d = avg_reref_by_line[cl];
+            if (d < best) {
+                best = d;
+                prefetch_target = cand;
+            }
+        }
+    }
+    return prefetch_target;
+}
+
 // === Helper: derive avg_reref_by_line from POPT matrix ===
 //
 // POPT matrix layout (from popt.h::makeOffsetMatrix):
@@ -214,23 +253,9 @@ void buildInEdgeMasks(
                     popt = avg_reref_by_line[dcl] & 0x7F;
             }
 
-            uint32_t prefetch_target = 0;
-            if (k_lookahead > 0 && have_reref) {
-                uint8_t best = 128;
-                int probe = std::min<int>(k_lookahead,
-                    static_cast<int>(neighbors.size()) - static_cast<int>(i) - 1);
-                for (int step = 1; step <= probe; step++) {
-                    uint32_t cand = neighbors[i + step];
-                    uint32_t cl = cand / static_cast<uint32_t>(num_vtx_per_line);
-                    if (cl < avg_reref_by_line.size()) {
-                        uint8_t d = avg_reref_by_line[cl];
-                        if (d < best) {
-                            best = d;
-                            prefetch_target = cand;
-                        }
-                    }
-                }
-            }
+            uint32_t prefetch_target = selectPrefetchTarget(
+                neighbors.data(), neighbors.size(), i,
+                avg_reref_by_line, k_lookahead, num_vtx_per_line);
             if (prefetch_target != 0) encoded_count++;
 
             masks[i] = packMask(dest, dbg, popt, prefetch_target);

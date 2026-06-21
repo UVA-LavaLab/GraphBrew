@@ -49,3 +49,18 @@ def test_calls_present_in_each_simulator():
     for rel, token in callers.items():
         text = (ROOT / rel).read_text(errors="ignore")
         assert token in text, f"{rel} does not call the shared {token}"
+
+
+def test_prefetch_target_is_shared():
+    """ECG prefetch-target selection is a single shared header
+    (bench/include/ecg_mode6_builder.h, compiled into every kernel). The cache_sim
+    mask builder must call it rather than duplicate the lookahead logic, so the
+    one prefetch-target unit test covers all three simulators."""
+    builder = ROOT / "bench/include/ecg_mode6_builder.h"
+    assert builder.is_file(), f"shared mask builder missing: {builder}"
+    assert "selectPrefetchTarget" in builder.read_text(errors="ignore")
+    cc_ctx = ROOT / "bench/include/cache_sim/graph_cache_context.h"
+    assert "ecg_mode6::selectPrefetchTarget" in cc_ctx.read_text(errors="ignore"), (
+        "cache_sim graph_cache_context.h must call the shared "
+        "ecg_mode6::selectPrefetchTarget, not duplicate the lookahead logic"
+    )
