@@ -27,14 +27,14 @@ ECG_ENV = dict(CACHE_POLICY="ECG", CACHE_L3_POLICY="ECG", ECG_MODE="ECG_GRASP_PO
 
 WAY_RE = re.compile(r"way(\d+) valid=(\d+) rrpv=(\d+) epoch=(\d+) dist=(\d+) prop=(\d+) last=(\d+)")
 HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
-VIC_RE = re.compile(r"-> victim=way(\d+)")
+VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
 
 
 def run(policy_env):
     env = {**os.environ, **BASE_ENV, **policy_env}
     p = subprocess.run([str(PR), "-f", str(GRAPH), "-o", "0", "-n", "1", "-i", "1"],
                        env=env, capture_output=True, text=True, timeout=300)
-    return p.stderr
+    return p.stderr, (p.returncode == 0)
 
 
 GEM5_OPT = ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
@@ -56,7 +56,8 @@ def run_gem5(variant):
     subprocess.run(cmd, env=env, cwd=str(ROOT),
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900, check=False)
     logs = sorted((out / "logs").glob("*.log")) if (out / "logs").exists() else []
-    return logs[0].read_text(errors="ignore") if logs else ""
+    text = logs[0].read_text(errors="ignore") if logs else ""
+    return text, bool(text)
 
 
 def run_sniper(variant):
@@ -78,25 +79,27 @@ def run_sniper(variant):
     subprocess.run(cmd, env=env, cwd=str(ROOT),
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900, check=False)
     logs = sorted((out / "logs").glob("*.log")) if (out / "logs").exists() else []
-    return logs[0].read_text(errors="ignore") if logs else ""
+    text = logs[0].read_text(errors="ignore") if logs else ""
+    return text, bool(text)
 
 
 def parse_blocks(text):
-    """Yield (pol, ways[list of dict], victim_way)."""
-    pol = None; ways = []
+    """Yield (pol, ways[list of dict], victim_way, reason)."""
+    pol = None; ways = []; reason = None
     for line in text.splitlines():
         h = HDR_RE.search(line)
         if h:
-            if pol and ways: yield pol, ways, victim
-            pol = h.group(1); ways = []; victim = None; continue
+            if pol and ways: yield pol, ways, victim, reason
+            pol = h.group(1); ways = []; victim = None; reason = None; continue
         m = WAY_RE.search(line)
         if m:
             w, valid, rrpv, epoch, dist, prop, last = map(int, m.groups())
             ways.append(dict(way=w, valid=valid, rrpv=rrpv, epoch=epoch,
                              dist=dist, prop=prop, last=last))
         v = VIC_RE.search(line)
-        if v: victim = int(v.group(1))
-    if pol and ways: yield pol, ways, victim
+        if v:
+            victim = int(v.group(1)); reason = (v.group(2) or "").strip()
+    if pol and ways: yield pol, ways, victim, reason
 
 
 # rule(ways, victim) -> True if victim obeys the policy spec
@@ -138,12 +141,20 @@ def _rrip_rule(ways, v):
     return True
 
 
-def verify_trace(name, text, prefix=""):
-    """Parse a trace, assert each victim obeys its policy rule, print, return ok."""
+def verify_trace(name, result, prefix="", reasons=None):
+    """Assert each victim in a (text, ran_ok) result obeys its policy rule.
+    Hard-fails on runner failure (no/empty trace) and on any emitted policy with
+    no rule. Tallies eviction `reason=` strings into `reasons` for coverage."""
+    text, ran_ok = result
+    if not ran_ok:
+        print(f"  {prefix}{name:14s}: runner FAILED (crash / no log)   [FAIL]")
+        return False
     checked = passed = 0
     ok = True
     unknown = set()
-    for pol, ways, victim in parse_blocks(text):
+    for pol, ways, victim, reason in parse_blocks(text):
+        if reasons is not None and reason:
+            reasons.add(reason)
         rule = RULES.get(pol)
         if rule is None:
             unknown.add(pol); continue
@@ -208,25 +219,34 @@ def main(argv=None):
               ("epoch_first", {**ECG_ENV, "ECG_VARIANT": "epoch_first"}),
               ("shortcircuit", {**ECG_ENV, "ECG_VARIANT": "shortcircuit"})]
     ok_all = True
+    live_reasons = set()
     print("== synthetic deterministic victim tests (EXACT victim; exercises the epoch branch) ==")
     ok_all &= run_synthetic()
     print("\n-- cache_sim (L3 policies, email-Eu-core; live-trace integration) --")
     for name, env in suites:
-        ok_all &= verify_trace(name, run(env))
+        ok_all &= verify_trace(name, run(env), reasons=live_reasons)
 
     if args.gem5:
         if not GEM5_OPT.exists():
             print(f"FAIL: build gem5 first: {GEM5_OPT}"); return 2
         print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
         for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
-            ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ")
+            ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ", reasons=live_reasons)
 
     if args.sniper:
         # grasp_only delegates to the shared SRRIP path (no ECG trace); verify the
         # four ECG-specific variants. Runs are memory-capped (Sniper/SDE runaway).
         print("\n-- sniper (ECG_GRASP_POPT variants, email-Eu-core/-o5, guarded) --")
         for variant in ["epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
-            ok_all &= verify_trace(variant, run_sniper(variant), prefix="sniper ")
+            ok_all &= verify_trace(variant, run_sniper(variant), prefix="sniper ", reasons=live_reasons)
+
+    # Coverage note: the live PageRank workload only ever evicts records, so the
+    # epoch-property branch does not fire live — it is covered by the synthetic
+    # tests above. Report which branches the live trace actually exercised.
+    epoch_reasons = {r for r in live_reasons if "epoch property" in r or "farthest" in r}
+    print("\n-- live-trace branch coverage --")
+    print(f"  live eviction reasons seen: {sorted(live_reasons) or '(none)'}")
+    print(f"  epoch-property branch fired live: {'yes' if epoch_reasons else 'NO (covered by synthetic tests)'}")
 
     print("\nRESULT:", "ALL POLICIES VERIFIED ✓" if ok_all else "VERIFICATION FAILED ✗")
     return 0 if ok_all else 1
