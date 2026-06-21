@@ -202,7 +202,13 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
         if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(NodeID);
             constexpr int numEpochs = 256;
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+            // BFS is direction-optimizing (TD push reads parent[v] -> wants in_neigh
+            // transpose; BU pull is ~sequential). For the mixed DOBFS default keep CSR
+            // (conservative); ECG_BFS_FORCE_TD opts into the TD transpose (in_neigh).
+            // ECG_EXACT_BFS instead uses its own visit-order skeleton clock (below).
+            bool bfs_natural_csr = std::getenv("ECG_BFS_FORCE_TD") == nullptr;
+            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
+                             ecgRerefTraverseCSR(bfs_natural_csr, g, "BFS(DOBFS)"));
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);

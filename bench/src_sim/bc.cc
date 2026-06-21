@@ -76,7 +76,13 @@ void BCBFS_Sim(const Graph &g, NodeID source,
         if (policy_str == "POPT" || policy_str == "ECG") {
             constexpr int numVtxPerLine = 64 / sizeof(int32_t);
             constexpr int numEpochs = 256;
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+            // BC forward phase is top-down BFS over out_neigh(u) reading depths[v]/
+            // path_counts[v]; next-ref is in_neigh(v) => transpose = CSC/in_neigh.
+            // (NB the per-vertex mask above is built before this matrix, so its POPT
+            // field is degree-fallback — harmless: BC eviction uses the matrix/epoch,
+            // the per-vertex POPT field is vestigial. See the metadata findings doc.)
+            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
+                             ecgRerefTraverseCSR(/*natural_csr=*/false, g, "BC(push/out)"));
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);

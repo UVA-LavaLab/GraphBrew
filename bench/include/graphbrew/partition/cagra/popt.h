@@ -390,6 +390,47 @@ quantizeGraph(const CSRGraph<NodeID_, DestID_, invert> &g, NodeID_ numTiles)
  * @param numEpochs Number of epochs (must be 256)
  * @param traverseCSR If true, traverse CSR (out-edges); else CSC (in-edges)
  */
+
+// === Rereference-matrix traversal direction (P-OPT transpose principle) ===
+//
+// P-OPT builds the Rereference Matrix from the graph TRANSPOSE of the kernel's
+// property-access traversal: pull/in-traversal (PageRank) -> CSR/out_neigh;
+// push/out-traversal (SSSP, BC) -> CSC/in_neigh. `natural_csr` is the kernel's
+// transpose-correct default. ECG_REREF_TRANSPOSE=AUTO|OUT|IN overrides it (for
+// direction-transfer experiments); undirected graphs always use CSR (in==out).
+// Validates the inverse (CSC) is materialized before selecting in_neigh so we never
+// build a silently-empty matrix. See docs/findings/ecg_mask_direction_and_metadata.md.
+template <typename NodeID_, typename DestID_, bool invert>
+inline bool ecgRerefTraverseCSR(bool natural_csr,
+                                const CSRGraph<NodeID_, DestID_, invert> &g,
+                                const char *kernel)
+{
+    bool csr = natural_csr;
+    const char *mode = "AUTO";
+    if (const char *e = std::getenv("ECG_REREF_TRANSPOSE")) {
+        if (e[0] == 'O' || e[0] == 'o') { csr = true;  mode = "OUT(forced)"; }
+        else if (e[0] == 'I' || e[0] == 'i') { csr = false; mode = "IN(forced)"; }
+    }
+    if (!g.directed()) { csr = true; mode = "undirected->OUT"; }
+    if (!csr) {
+        // Guard the silently-empty-matrix landmine: if the kernel wants in_neigh
+        // (CSC) but the graph was loaded without its inverse, abort loudly.
+        NodeID_ s = std::min<NodeID_>(g.num_nodes(), (NodeID_)4096);
+        uint64_t in_seen = 0, out_seen = 0;
+        for (NodeID_ v = 0; v < s; ++v) { in_seen += g.in_degree(v); out_seen += g.out_degree(v); }
+        if (out_seen > 0 && in_seen == 0) {
+            std::cerr << "[P-OPT reref] FATAL " << kernel << ": IN/CSC transpose requested but "
+                         "in_neigh is empty (graph loaded without inverse). Re-load the transpose "
+                         "or set ECG_REREF_TRANSPOSE=OUT." << std::endl;
+            std::abort();
+        }
+    }
+    std::cerr << "[P-OPT reref] " << kernel << ": "
+              << (csr ? "OUT/CSR(out_neigh)" : "IN/CSC(in_neigh)") << " [" << mode << "]"
+              << std::endl;
+    return csr;
+}
+
 template <typename NodeID_, typename DestID_, bool invert>
 void makeOffsetMatrix(const CSRGraph<NodeID_, DestID_, invert> &g,
                       pvector<uint8_t> &offsetMatrix,

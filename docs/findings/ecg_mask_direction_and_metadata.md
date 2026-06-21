@@ -112,3 +112,34 @@ kernel only when that kernel is certified.
   *direction-uncertified on directed graphs* and must use `traverseCSR=false` before
   being promoted as transpose-faithful ECG results.
 - This is an **audit + documentation** outcome — no working path was perturbed.
+
+---
+
+## 4. IMPLEMENTED: per-kernel transpose direction (main+inverse), 2026-06-21
+
+The audit boundary above is now **handled in code** (user request: "enable main and
+inverse masking so we capture both ways; P-OPT does this too"). Added
+`ecgRerefTraverseCSR(natural_csr, g, kernel)` in `popt.h`: it picks the kernel's
+transpose-correct rereference direction, honours `ECG_REREF_TRANSPOSE=AUTO|OUT|IN`
+(direction-transfer override), forces CSR on undirected graphs (in==out), logs the
+choice, and **aborts loudly** if IN/CSC is requested but the inverse is unmaterialised
+(no silent empty matrix). Wired per kernel:
+- **PR** → `natural=true` (out_neigh) — identical to the old default ⇒ **byte-identical**
+  (verified PR POPT web-Google/512kB/o0 = 0.6591, unchanged).
+- **SSSP, BC** → `natural=false` (in_neigh, the transpose of their out-edge push).
+- **CC** → `natural=false`, but undirected forces CSR (CC is undirected-only).
+- **BFS** → conservative: default CSR for mixed DOBFS; `ECG_BFS_FORCE_TD` opts into the
+  TD transpose; `ECG_EXACT_BFS` still uses its own visit-order skeleton clock.
+
+**Key empirical finding — our eval corpus is (almost all) symmetric.** Probing
+`g.directed()`: web-Google, cit-Patents, soc-pokec, com-orkut, kron_s16, soc-LiveJournal1
+all load **undirected** (in==out); roadNet-CA loads "directed" but is **structurally
+symmetric**. So the direction distinction is **moot** on the benchmark graphs, the
+original `out_neigh` default was already correct for them, and the new per-kernel
+direction is **inert** on them (no result perturbation — PR and all current numbers
+unchanged). On a *genuinely asymmetric* directed graph the helper correctly selects
+IN/CSC for push kernels (verified via the `[P-OPT reref] … IN/CSC [AUTO]` log on a
+constructed asymmetric graph; the matrices differ by construction — out_neigh vs
+in_neigh — though SSSP's POPT-eviction miss-rate was insensitive to the flip on the
+tested graphs). The value is **forward-looking correctness + P-OPT parity + the
+direction-transfer knob**, with zero risk to the symmetric-corpus headline results.

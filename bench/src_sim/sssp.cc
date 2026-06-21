@@ -139,7 +139,10 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
         if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(WeightT);
             constexpr int numEpochs = 256;
-            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+            // SSSP traverses out_neigh(u) reading dist[v]; next-ref of dist[v] is
+            // in_neigh(v) => transpose = CSC/in_neigh (traverseCSR=false).
+            makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
+                             ecgRerefTraverseCSR(/*natural_csr=*/false, g, "SSSP(push/out)"));
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
