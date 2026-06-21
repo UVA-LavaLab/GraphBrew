@@ -1338,6 +1338,25 @@ struct GraphCacheContext {
     // AccessHints::edge_epoch so the cache can use >128 epochs.
     std::vector<std::vector<uint16_t>> in_edge_epoch_by_src;
 
+    // === OUT-edge per-edge masks (dual-direction capability) ===
+    // The mirror of in_edge_masks_by_src for kernels that traverse the OUT edge
+    // list (BFS top-down push, SSSP/BC push). Each entry out_edge_masks_by_src[src]
+    // is in g.out_neigh(src) order. The epoch is the transpose of OUT traversal:
+    // a property[dest] read while pushing src->dest is next read at the next
+    // IN-neighbour of dest > src, so the epoch is computed from g.in_neigh (held in
+    // exact_in_off/exact_in_nbr below), NOT g.out_neigh. Self-contained: built by
+    // buildOutEdgeMasks(), never touches the PR in-edge path or the shared
+    // exact_off/exact_nbr. On symmetric graphs (in==out) these equal the in-edge
+    // masks. See docs/findings/ecg_mask_direction_and_metadata.md.
+    std::vector<std::vector<uint64_t>> out_edge_masks_by_src;
+    std::vector<std::vector<uint16_t>> out_edge_epoch_by_src;
+    // IN-adjacency (sorted) used as the next-ref source for OUT-edge epochs —
+    // separate from exact_off/exact_nbr (which hold the OUT-adjacency for in-edge
+    // masks) so the two directions never clobber each other.
+    std::vector<int64_t> exact_in_off;
+    std::vector<int32_t> exact_in_nbr;
+    uint32_t exact_in_nv = 0;
+
     ~GraphCacheContext() {
         if (mask_config.enabled) printECGStats();
     }
@@ -2337,6 +2356,98 @@ struct GraphCacheContext {
                   << " encoded=" << encoded_count
                   << " (" << (encoded_count * 100.0 / std::max<uint64_t>(edge_count, 1)) << "%)"
                   << " time_s=" << std::fixed << std::setprecision(4)
+                  << (build_us / 1e6) << std::defaultfloat << std::endl;
+    }
+
+    // Build OUT-edge per-edge masks: the direction mirror of buildInEdgeMasks_PR for
+    // kernels that traverse g.out_neigh (BFS top-down push). Self-contained — uses its
+    // own out_edge_masks_by_src storage and its own IN-adjacency next-ref arrays
+    // (exact_in_off/exact_in_nbr), and never reads or writes the PR in-edge path's
+    // members, so PR stays byte-identical. Fills the absolute next-ref EPOCH (the
+    // ECG_GRASP_POPT signal): property[dest], read while pushing src->dest, is next
+    // read at the next IN-neighbour of dest strictly > src (wrapping to the next
+    // iteration), so the epoch is derived from g.in_neigh. On symmetric graphs this
+    // equals the in-edge mask. ne = edge_epoch_count (set by buildInEdgeMasks_PR or
+    // the default 32). num_vtx_per_line matches the 16-vertex line model.
+    template<typename GraphT>
+    void buildOutEdgeMasks(const GraphT& g) {
+        using Clock = std::chrono::steady_clock;
+        auto build_start = Clock::now();
+        uint32_t n = g.num_nodes();
+        out_edge_masks_by_src.assign(n, {});
+        out_edge_epoch_by_src.assign(n, {});
+        if (n == 0) return;
+        const uint32_t ne = edge_epoch_count ? edge_epoch_count : 32u;
+        constexpr int numVtxPerLine = 16;
+        const bool linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
+
+        // Build the sorted IN-adjacency (the transpose of OUT traversal) once.
+        exact_in_nv = n;
+        exact_in_off.assign((size_t)n + 1, 0);
+        for (uint32_t v = 0; v < n; ++v)
+            exact_in_off[v + 1] = exact_in_off[v] + g.in_degree(v);
+        exact_in_nbr.assign((size_t)exact_in_off[n], 0);
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 256)
+#endif
+        for (int64_t v = 0; v < (int64_t)n; ++v) {
+            int64_t p = exact_in_off[v];
+            for (auto w : g.in_neigh((uint32_t)v)) exact_in_nbr[p++] = static_cast<int32_t>(w);
+            std::sort(exact_in_nbr.begin() + exact_in_off[v], exact_in_nbr.begin() + exact_in_off[v + 1]);
+        }
+
+        auto tiers = computeVertexTiers(g);
+        uint64_t edge_count = 0;
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 128) reduction(+:edge_count)
+#endif
+        for (uint32_t src = 0; src < n; src++) {
+            std::vector<uint32_t> neighbors;
+            neighbors.reserve(64);
+            for (auto v : g.out_neigh(src)) neighbors.push_back(static_cast<uint32_t>(v));
+            auto& masks = out_edge_masks_by_src[src];
+            auto& eps = out_edge_epoch_by_src[src];
+            masks.resize(neighbors.size(), 0);
+            eps.resize(neighbors.size(), 0);
+            for (size_t i = 0; i < neighbors.size(); i++) {
+                uint32_t dest = neighbors[i];
+                edge_count++;
+                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                // Absolute next-ref epoch of dest via the IN-adjacency: soonest next
+                // in-neighbour of dest (or its line) strictly > src, wrapping to the
+                // next iteration. Identical math to buildInEdgeMasks_PR's epoch path
+                // but over exact_in_* instead of exact_*.
+                uint32_t v0 = linemin ? (dest / numVtxPerLine) * numVtxPerLine : dest;
+                uint32_t v1 = linemin ? std::min<uint32_t>(v0 + numVtxPerLine, exact_in_nv) : (dest + 1);
+                uint32_t best_dist = UINT32_MAX, best_ep = ne - 1;
+                for (uint32_t w = v0; w < v1 && w < exact_in_nv; ++w) {
+                    int64_t a = exact_in_off[w], b = exact_in_off[w + 1];
+                    if (a >= b) continue;
+                    int64_t lo = a, hi = b;
+                    while (lo < hi) {
+                        int64_t mid = (lo + hi) >> 1;
+                        if ((uint32_t)exact_in_nbr[mid] > src) hi = mid; else lo = mid + 1;
+                    }
+                    uint32_t next_nbr, dist;
+                    if (lo < b) { next_nbr = (uint32_t)exact_in_nbr[lo]; dist = next_nbr - src; }
+                    else        { next_nbr = (uint32_t)exact_in_nbr[a]; dist = next_nbr + n - src; }
+                    if (dist < best_dist) {
+                        best_dist = dist;
+                        best_ep = (uint32_t)(((uint64_t)next_nbr * ne) / std::max<uint32_t>(1u, n));
+                    }
+                }
+                uint8_t popt = (best_ep >= ne ? (ne - 1) : best_ep) & 0x7F;
+                eps[i] = static_cast<uint16_t>(best_ep >= ne ? (ne - 1) : best_ep);
+                uint64_t mask = static_cast<uint64_t>(dest & 0xFFFFFFu);
+                mask |= static_cast<uint64_t>(dbg & 0x3u) << 24;
+                mask |= static_cast<uint64_t>(popt & 0x7Fu) << 26;
+                masks[i] = mask;
+            }
+        }
+        auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
+            Clock::now() - build_start).count();
+        std::cout << "ECG OUT-edge mask build: vertices=" << n << " edges=" << edge_count
+                  << " ne=" << ne << " time_s=" << std::fixed << std::setprecision(4)
                   << (build_us / 1e6) << std::defaultfloat << std::endl;
     }
 

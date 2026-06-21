@@ -178,3 +178,37 @@ The reref-matrix direction (the load-bearing knob) is already per-kernel transpo
 per-edge push kernel exist, build the OUT masks as a **non-owning transposed-view adapter**
 over the existing IN builder (view where `out_neigh`↔`in_neigh`) and validate with a tiny
 hand-constructed directed-graph oracle (symmetric-graph equality is only a weak smoke test).
+
+---
+
+## 6. IMPLEMENTED for BFS: dual-direction masking (2026-06-21)
+
+Per the user request ("fully implement for BFS"), the dual-direction masking is now
+in code, in two parts (rubber-duck `rd-bfs-mask-design`):
+
+**(a) The load-bearing correctness fix (per-vertex path).** BFS's only masked read is
+TD's `parent[v]` over `out_neigh(u)`; the next reader of `parent[v]` is `in_neigh(v)`,
+so the transpose-correct rereference direction is **IN/CSC**. BFS now defaults to
+`natural_csr=false` (was conservative CSR), making the existing per-vertex
+`vertex_masks[v]` transpose-correct for TD. `ECG_BFS_FORCE_OUT` reverts for transfer
+experiments. (Inert on the symmetric corpus; correct on directed graphs.)
+
+**(b) The per-edge "mask both edge lists" capability.** `buildOutEdgeMasks(g)`
+(`graph_cache_context.h`) is the self-contained OUT-edge mirror of `buildInEdgeMasks_PR`:
+it stores into `out_edge_masks_by_src` / `out_edge_epoch_by_src`, derives each edge's
+epoch from its own IN-adjacency arrays (`exact_in_off`/`exact_in_nbr`, built from
+`g.in_neigh`), and **never touches the PR in-edge path or the shared `exact_off`** — so
+PR stays byte-identical (verified POPT web-Google/512kB/o0 = 0.6591). `ECG_BFS_EDGE_MASKS=1`
+builds it and makes TDStep carry the per-edge, **src-iteration-aware** epoch (the soonest
+in-neighbour of dest > u) instead of the single per-vertex value — the one thing the
+per-vertex mask cannot encode. BU is left unchanged (it has no masked read — only a
+frontier bitmap), per the rubber-duck.
+
+**Validation.** `bench/src_sim/test_ecg_out_edge_mask.cc` validates the builder on a tiny
+**directed** graph against a hand-computed oracle (edges 0→2=1, 1→2=3, 3→2=0, 2→4=2,
+4→1=4); **mutation-proven** (flipping `in_neigh`→`out_neigh` fails all 5). Symmetric-graph
+equality would have been only a weak smoke test, so the oracle is directed by construction.
+On the symmetric eval corpus the per-edge path is ~inert (web-Google BFS hit-rate 0.8564
+per-vertex vs 0.8579 per-edge — the small delta is the src-aware epoch), as expected; the
+value is forward-looking correctness for directed graphs + the dual-mask capability the
+user asked for. PR and all current headline numbers are unchanged.

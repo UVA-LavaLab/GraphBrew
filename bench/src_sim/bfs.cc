@@ -70,7 +70,16 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             NodeID u = *q_iter;
             SIM_SET_VERTEX(cache, u);  // current frontier vertex = the traversal clock
             auto out_neigh = g.out_neigh(u);
-            for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+            // ECG_BFS_EDGE_MASKS: consume the OUT-edge per-edge masks (the transpose-
+            // correct dual-direction masks built for the out edge list) instead of the
+            // per-vertex masks. The per-edge epoch is src-iteration-aware (next
+            // in-neighbour of dest > u), which the single per-vertex mask cannot encode.
+            const bool use_out_edge_masks =
+                !graph_ctx.out_edge_masks_by_src.empty() &&
+                u < (NodeID)graph_ctx.out_edge_masks_by_src.size() &&
+                graph_ctx.out_edge_masks_by_src[u].size() == (size_t)g.out_degree(u);
+            size_t edge_pos = 0;
+            for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
                 SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
                 if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
@@ -125,8 +134,18 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
                         }
                     }
                 }
-                // Track: read parent[v]
-                SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx, vertex_masks[v]);
+                // Track: read parent[v]. With OUT-edge masks, carry this edge's
+                // src-aware epoch + POPT (transpose-correct for the push read);
+                // otherwise fall back to the per-vertex mask.
+                if (use_out_edge_masks) {
+                    uint64_t emask = graph_ctx.out_edge_masks_by_src[u][edge_pos];
+                    graph_ctx.hints_for_thread().edge_epoch =
+                        graph_ctx.out_edge_epoch_by_src[u][edge_pos];
+                    SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx,
+                                          GraphCacheContext::edgeMaskPOPT(emask));
+                } else {
+                    SIM_CACHE_READ_MASKED(cache, parent.data(), v, graph_ctx, vertex_masks[v]);
+                }
                 NodeID curr_val = parent[v];
                 if (curr_val < 0) {
                     // Track: write parent[v]
@@ -202,13 +221,17 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
         if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(NodeID);
             constexpr int numEpochs = 256;
-            // BFS is direction-optimizing (TD push reads parent[v] -> wants in_neigh
-            // transpose; BU pull is ~sequential). For the mixed DOBFS default keep CSR
-            // (conservative); ECG_BFS_FORCE_TD opts into the TD transpose (in_neigh).
+            // BFS is direction-optimizing, but its ONLY masked property read is the
+            // TD (push) parent[v] over out_neigh(u); BU (pull) uses a frontier bitmap
+            // (no masked read). The next reader of parent[v] is in_neigh(v), so the
+            // transpose-correct rereference direction is IN/CSC (traverseCSR=false).
+            // ECG_BFS_FORCE_OUT reverts to CSR for direction-transfer experiments;
             // ECG_EXACT_BFS instead uses its own visit-order skeleton clock (below).
-            bool bfs_natural_csr = std::getenv("ECG_BFS_FORCE_TD") == nullptr;
+            // (On the symmetric eval corpus in==out so this is inert; it is the
+            // correct default for directed graphs. See ecg_mask_direction_and_metadata.md.)
+            bool bfs_natural_csr = std::getenv("ECG_BFS_FORCE_OUT") != nullptr;
             makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs,
-                             ecgRerefTraverseCSR(bfs_natural_csr, g, "BFS(DOBFS)"));
+                             ecgRerefTraverseCSR(bfs_natural_csr, g, "BFS(TD/out->in-transpose)"));
             int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
             graph_ctx.initRereference(popt_matrix.data(), numCacheLines,
                                       numEpochs, g.num_nodes(), 64);
@@ -271,6 +294,13 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     graph_ctx.initMaskConfig();
     auto vertex_masks = graph_ctx.computeVertexMasks(g);
     graph_ctx.initMaskArray32(vertex_masks.data(), vertex_masks.size());
+    // ECG_BFS_EDGE_MASKS: also build the OUT-edge per-edge masks (the dual-direction
+    // capability) so TDStep can carry a src-aware, transpose-correct epoch per edge
+    // instead of the single per-vertex value. Inert on symmetric graphs (in==out).
+    if (std::getenv("ECG_BFS_EDGE_MASKS")) {
+        graph_ctx.buildOutEdgeMasks(g);
+        cout << "BFS: OUT-edge per-edge masks enabled (dual-direction)" << endl;
+    }
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
     int pfx_top_k = GraphSimEnvIntClamped("ECG_PREFETCH_TOP_K", 1, 1, 64);
     if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
