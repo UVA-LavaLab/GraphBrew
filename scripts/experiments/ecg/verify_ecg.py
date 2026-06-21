@@ -59,6 +59,28 @@ def run_gem5(variant):
     return logs[0].read_text(errors="ignore") if logs else ""
 
 
+def run_sniper(variant):
+    """Run Sniper ECG_GRASP_POPT on the tiny graph with the trace on; return the
+    Sniper log text. The sg_kernel workload is gated (Sniper/SDE has a documented
+    ~50 GiB runaway), so it runs under prlimit via --sniper-memory-limit-gb."""
+    import shutil
+    out = Path("/tmp") / f"verify_sniper_{variant}"
+    shutil.rmtree(out, ignore_errors=True)
+    env = {**os.environ, "SNIPER_ECG_MODE": "ECG_GRASP_POPT",
+           "ECG_VARIANT": variant, "ECG_EVICT_TRACE": "40"}
+    cmd = [sys.executable, str(ROI_MATRIX), "--suite", "sniper",
+           "--sniper-workload", "sg_kernel", "--allow-sniper-sg-kernel-workload",
+           "--sniper-memory-limit-gb", "20", "--sniper-enable-graph-policies",
+           "--no-build", "--benchmark", "pr", "--policies", "ECG:ECG_GRASP_POPT",
+           "--options", f"-f {GRAPH} -o 5 -n 1 -i 1",
+           "--l3-sizes", "16kB", "--l3-ways", "8", "--l1d-size", "2kB", "--l2-size", "4kB",
+           "--timeout-sniper", "540", "--out-dir", str(out)]
+    subprocess.run(cmd, env=env, cwd=str(ROOT),
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900, check=False)
+    logs = sorted((out / "logs").glob("*.log")) if (out / "logs").exists() else []
+    return logs[0].read_text(errors="ignore") if logs else ""
+
+
 def parse_blocks(text):
     """Yield (pol, ways[list of dict], victim_way)."""
     pol = None; ways = []
@@ -141,6 +163,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Trace-assert each L3 policy obeys its spec.")
     ap.add_argument("--gem5", action="store_true",
                     help="Also verify the gem5 ECG_GRASP_POPT variants (slower; needs gem5.opt).")
+    ap.add_argument("--sniper", action="store_true",
+                    help="Also verify Sniper ECG variants (guarded sg_kernel run under prlimit).")
     args = ap.parse_args(argv)
 
     if not PR.exists():
@@ -163,6 +187,13 @@ def main(argv=None):
         print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
         for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ")
+
+    if args.sniper:
+        # grasp_only delegates to the shared SRRIP path (no ECG trace); verify the
+        # four ECG-specific variants. Runs are memory-capped (Sniper/SDE runaway).
+        print("\n-- sniper (ECG_GRASP_POPT variants, email-Eu-core/-o5, guarded) --")
+        for variant in ["epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+            ok_all &= verify_trace(variant, run_sniper(variant), prefix="sniper ")
 
     print("\nRESULT:", "ALL POLICIES VERIFIED ✓" if ok_all else "VERIFICATION FAILED ✗")
     return 0 if ok_all else 1

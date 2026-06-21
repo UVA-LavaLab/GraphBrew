@@ -90,7 +90,7 @@ the spec but using each model's native machinery:
 |-----------|------------------------------|--------------|--------|
 | **cache_sim** | yes | per-edge memory-resident mask (0 LLC ways) | **verified** (`verify_ecg.py`, 7×40/40) + matrix |
 | **gem5** | yes | per-edge mask via ISA `ecg.extract` | **verified** (`verify_ecg.py --gem5`, 5×40/40) |
-| **Sniper** | yes | native `findNextRef` (P-OPT next-ref) | compiles/links; same trace wired, run gated |
+| **Sniper** | yes | native `findNextRef` (P-OPT next-ref) | **verified** (`verify_ecg.py --sniper`, 4×40/40, guarded) |
 
 Sniper's variant uses its native `findNextRef` for the property next-reference
 distance (so it isolates the same eviction *levers* rather than the per-edge
@@ -126,14 +126,18 @@ checker verifies every backend.
 
 ```bash
 make sim-pr
-python3 scripts/experiments/ecg/verify_ecg.py          # cache_sim: 7 policies
-python3 scripts/experiments/ecg/verify_ecg.py --gem5    # + gem5 ECG variants
+python3 scripts/experiments/ecg/verify_ecg.py            # cache_sim: 7 policies
+python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 ECG variants
+python3 scripts/experiments/ecg/verify_ecg.py --sniper   # + Sniper ECG variants (guarded, prlimit)
 # expected: each policy "N/N evictions obey spec [OK]" → "ALL POLICIES VERIFIED ✓"
 ```
 
-Verified to date: **cache_sim** (7 policies × 40/40 evictions) and **gem5**
-(5 ECG_GRASP_POPT variants × 40/40). Sniper emits the same trace; run its
-verification under the guarded `--allow-sniper-sg-kernel-workload` path (see above).
+Verified to date: **cache_sim** (7 policies × 40/40 evictions), **gem5** (5
+ECG_GRASP_POPT variants × 40/40), and **Sniper** (4 ECG-specific variants × 40/40;
+the guarded `sg_kernel` run is memory-capped via `--sniper-memory-limit-gb`). All
+three emit the same `[EVICT L3 ...]` trace, so one checker verifies every backend.
+Larger real-graph Sniper runs may still hit the documented SDE memory behavior;
+the tiny email-Eu-core verification run completes cleanly under the cap.
 
 ## Related
 
