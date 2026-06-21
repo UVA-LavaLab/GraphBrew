@@ -516,3 +516,37 @@ bash scripts/experiments/ecg/sprint_s68/run_sprint.sh M1       # specific milest
 ```
 
 Each milestone is idempotent (marker-guarded patches, mtime-checked rebuilds). Rubber-duck verdicts written to `results/sprint_s68/<m_id>/rubber_duck_verdict.md`. Sprint advances on GREEN/YELLOW, halts on RED.
+
+## Prefetch-delivery hardening decisions [2026-06-21, rubber-duck rd-hardening-plan]
+
+After fixing gem5 ECG_PFX delivery, a hardening sprint evaluated the remaining
+follow-ups. The rubber-duck verdict was **do less, document more, do not perturb the
+just-fixed working path** for marginal robustness. Decisions:
+
+- **Sniper needs NO correctness treatment.** `sg_kernel.cc` reads the full 8-byte
+  mask (no 4-byte packed record → no target drop), uses `extractPrefetchTarget`
+  (bit 33, **31-bit** field → no truncation), has an O(1) bitmap dedup, bounds-checks
+  `target < num_nodes`, and `ecg_pfx_prefetcher.cc` has no page-cross filter. The two
+  gem5 bugs do not exist in Sniper. **Methodology caveat (not a bug):** Sniper's
+  mode-6 path streams an 8-byte fat-mask per edge, so its ECG_PFX *memory-traffic*
+  numbers are substrate-dependent and must not be mixed with cache_sim's
+  (no-field-limit) traffic claims without normalisation; use Sniper for
+  mechanism/correctness, cache_sim for the traffic comparison.
+- **gem5 large-graph ECG_PFX = document the cap (option D), not a layout change.**
+  The ISA `ecg.extract` mask carries the target in a **15-bit** field (`packMaskEpoch`,
+  ≤32767). A 64-bit mask cannot hold two full-width vertex ids (dest + target) plus
+  epoch/dbg/popt, so a true hardware-faithful fix needs a **second custom ISA op** (or
+  a 16-byte record) — deferred to a future isolated sprint *only if* reviewers require
+  large-graph gem5 hardware-faithful delivery. Rejected: rebalancing the shared 64-bit
+  layout (high-risk, cross-cutting through Sniper/cache_sim/decoder/test, and still
+  fails kron-s24 at 24 bits); the `m5_work_begin` full-width path (a magic
+  pseudo-instruction, weakens the ISA-delivery claim). **cache_sim is authoritative for
+  large-graph prefetch** (no field limit + models the page/MTLB proxy); the gem5 ISA
+  path validates the mechanism at ≤32K vertices, guarded by the truncation warning /
+  `ECG_PFX_STRICT_TARGET=1`. The field widths are pinned by
+  `bench/src_sim/test_ecg_pfx_field_width.cc` (guard flags exactly the >32767 targets).
+- **Dropped (rubber-duck): gem5 inner-loop asserts, gate refinement, ISA-path dedup.**
+  Not current bugs (roi_matrix sets `GEM5_ENABLE_ECG_PFX_HINTS` only for ECG_PFX;
+  eviction l3_miss_rate unchanged; the prefetcher + ring buffer already dedup/bound).
+  Heavy inner-loop checks risk aborting valid runs or perturbing timing for no
+  demonstrated gain. Documented as limitations instead.

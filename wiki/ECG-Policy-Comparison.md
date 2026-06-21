@@ -298,9 +298,13 @@ both consume the same shared decision function; cache_sim issues ECG_PFX prefetc
 on the same cell too.
 **Caveat (honest):** the gem5 ECG_PFX ISA mask carries the target in a **15-bit
 field** (≤32767), so the gem5 ISA testbed validates the *mechanism* only on
-≤32K-vertex graphs (it warns + can abort on larger graphs); **cache_sim is the
-authoritative model for large-graph prefetch performance** (no field limit, and it
-is the only one that models the page/MTLB translation proxy).
+≤32K-vertex graphs (it warns + can abort on larger graphs; field widths pinned by
+`bench/src_sim/test_ecg_pfx_field_width.cc`); **cache_sim is the authoritative model
+for large-graph prefetch performance** (no field limit, and the only one that models
+the page/MTLB translation proxy). Sniper is correctness-clean (31-bit target field,
+dedup, bounds-checked) but streams an 8-byte fat-mask per edge, so its ECG_PFX
+*memory-traffic* numbers are substrate-dependent — use Sniper for mechanism/parity,
+cache_sim for the traffic comparison.
 (`docs/findings/gem5_implementation_audit_v1.md`,
 `docs/findings/property_prefetch_tlb_paging.md`).
 
