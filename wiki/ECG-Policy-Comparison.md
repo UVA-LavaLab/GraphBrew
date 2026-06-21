@@ -117,28 +117,38 @@ python3 scripts/experiments/ecg/ecg_variant_matrix.py --suite gem5 \
 
 ## Verify (correctness, not aggregates)
 
-`verify_ecg.py` checks correctness in **two complementary layers**:
+`verify_ecg.py` checks correctness in **three complementary layers**:
 
 1. **Synthetic exact-victim tests** (`bench/src_sim/test_ecg_victim.cc`) — construct
    controlled 8-way sets (property/record lines with chosen epochs/recency) and assert
-   the **exact** victim each variant must pick, computed independently in the test. This
-   is the layer that actually exercises the **epoch-property ranking** (ECG's core logic)
-   and pins the exact victim, including the cases the live workload never produces. It is
-   mutation-tested: flipping the implementation's farthest→nearest epoch pick makes it fail.
-2. **Live-trace integration** — run each policy with `ECG_EVICT_TRACE`, parse every real
-   eviction (per-way rrpv/epoch/dist/property/recency + victim), and assert it obeys the
-   policy rule. The same `[EVICT L3 ...]` format is emitted by all three simulators.
+   the **exact** victim each variant must pick, computed independently in the test. Pins
+   the exact victim including cases the live workload never produces. Mutation-tested:
+   flipping the implementation's farthest→nearest epoch pick makes it fail.
+2. **Live-trace integration** (default geometry) — run each policy with `ECG_EVICT_TRACE`,
+   parse every real eviction (per-way rrpv/epoch/dist/property/recency + victim), and
+   assert it obeys the **tightened exact-victim rule**. The same `[EVICT L3 ...]` format is
+   emitted by all three simulators.
+3. **Epoch-coverage runs** — a forcing geometry (big L2 absorbs the edge stream → property
+   reaches the L3; `ECG_STORED_REFRESH` keeps the L3 epoch live) makes the **epoch-property
+   branch fire on the real simulator end-to-end**. Asserts the exact rule AND that the epoch
+   value genuinely *selected* the victim ≥1× (a strict coverage gate, so the check cannot
+   pass vacuously). Mutation-tested live as well.
 
-**Scope (honest):** the live PageRank workload on these geometries only ever evicts
-*records*, so the epoch-property branch is covered by the **synthetic** layer (cache_sim
-reference implementation); gem5/Sniper are checked on the live record path + by mirroring
-the same logic. Exit 0 iff every synthetic case and every traced eviction obeys spec.
+**Scope (honest):** the *default* workload only evicts records, so the epoch branch is
+exercised by layers 1 and 3. Layer 3 confirms `rrip_first`/`epoch_first`/`epoch_only` pick
+the farthest-epoch property live; `shortcircuit` ranks property by *raw* distance (evicts
+unstamped property first), so its stamped-epoch ranking is rarely operative live and is
+covered by the synthetic test. cache_sim runs all three layers (strict epoch-value gate).
+gem5 runs layers 2–3, but its layer-3 epoch-value gate is **informational**: gem5 has no
+`ECG_STORED_REFRESH`, so property reaches its L3 unstamped and the epoch value cannot
+discriminate live — gem5's epoch ranking is verified by the exact-rule check plus the
+line-by-line mirror of the strictly-verified cache_sim block. Sniper runs layer 2.
 
 ```bash
 make sim-pr
-python3 scripts/experiments/ecg/verify_ecg.py            # synthetic + cache_sim live trace
-python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 ECG variants (live)
-python3 scripts/experiments/ecg/verify_ecg.py --sniper   # + Sniper ECG variants (guarded, prlimit)
+python3 scripts/experiments/ecg/verify_ecg.py            # synthetic + cache_sim live + epoch-coverage
+python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 live + gem5 epoch-coverage
+python3 scripts/experiments/ecg/verify_ecg.py --sniper   # + Sniper live (guarded, prlimit)
 # expected: each policy "N/N evictions obey spec [OK]" → "ALL POLICIES VERIFIED ✓"
 ```
 

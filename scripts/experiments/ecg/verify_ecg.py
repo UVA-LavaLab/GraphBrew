@@ -24,14 +24,22 @@ ECG_ENV = dict(CACHE_POLICY="ECG", CACHE_L3_POLICY="ECG", ECG_MODE="ECG_GRASP_PO
                ECG_EXACT_REREF="1", ECG_PREFETCH_MODE="6", ECG_EDGE_MASK_EPOCH="1",
                ECG_EDGE_MASK_LINEMIN="1", ECG_EDGE_MASK_EPOCHS="65535",
                ECG_EDGE_MASK_LEAN="1", ECG_EDGE_MASK_PACK="1", ECG_EDGE_MASK_CHARGED="1")
+# Epoch-coverage geometry: a big L2 absorbs the edge stream so the L3 sees
+# property-dominated sets (the default workload only ever evicts records, so the
+# epoch-property branch never fires); ECG_STORED_REFRESH broadcasts the next-ref
+# epoch to the L3 so resident property lines carry a live stamp and the epoch
+# VALUE actually discriminates between competing property lines. This is how the
+# core ECG eviction logic is exercised end-to-end on the real simulator code.
+COV_ENV = dict(CACHE_L2_SIZE="1MB", CACHE_L3_SIZE="4kB", ECG_STORED_REFRESH="1",
+               ECG_EVICT_TRACE="4000")
 
 WAY_RE = re.compile(r"way(\d+) valid=(\d+) rrpv=(\d+) epoch=(\d+) dist=(\d+) prop=(\d+) last=(\d+)")
 HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
 VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
 
 
-def run(policy_env):
-    env = {**os.environ, **BASE_ENV, **policy_env}
+def run(policy_env, extra=None):
+    env = {**os.environ, **BASE_ENV, **policy_env, **(extra or {})}
     p = subprocess.run([str(PR), "-f", str(GRAPH), "-o", "0", "-n", "1", "-i", "1"],
                        env=env, capture_output=True, text=True, timeout=300)
     return p.stderr, (p.returncode == 0)
@@ -41,17 +49,22 @@ GEM5_OPT = ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" 
 ROI_MATRIX = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
 
 
-def run_gem5(variant):
+def run_gem5(variant, cov=False):
     """Run gem5 ECG_GRASP_POPT on the tiny graph with the trace on; return the
-    gem5 log text (run_command pipes the policy's stderr trace into the log)."""
-    out = Path("/tmp") / f"verify_gem5_{variant}"
+    gem5 log text (run_command pipes the policy's stderr trace into the log).
+    cov=True uses the epoch-coverage geometry (big L2 + small L3 + STORED_REFRESH)
+    so the property-eviction / epoch branch is exercised."""
+    out = Path("/tmp") / f"verify_gem5_{variant}{'_cov' if cov else ''}"
     env = {**os.environ, "GEM5_OPT": str(GEM5_OPT), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
            "GEM5_FORCE_ECG_EXTRACT": "1", "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
-           "ECG_VARIANT": variant, "ECG_EVICT_TRACE": "40"}
+           "ECG_VARIANT": variant, "ECG_EVICT_TRACE": "4000" if cov else "40"}
+    l3, l2 = ("4kB", "1MB") if cov else ("16kB", "4kB")
+    if cov:
+        env["ECG_STORED_REFRESH"] = "1"
     cmd = [sys.executable, str(ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", "pr", "--policies", "ECG:ECG_GRASP_POPT",
            "--options", f"-f {GRAPH} -o 5 -n 1 -i 1",
-           "--l3-sizes", "16kB", "--l3-ways", "8", "--l1d-size", "2kB", "--l2-size", "4kB",
+           "--l3-sizes", l3, "--l3-ways", "8", "--l1d-size", "2kB", "--l2-size", l2,
            "--out-dir", str(out)]
     subprocess.run(cmd, env=env, cwd=str(ROOT),
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900, check=False)
@@ -102,32 +115,38 @@ def parse_blocks(text):
     if pol and ways: yield pol, ways, victim, reason
 
 
-# rule(ways, victim) -> True if victim obeys the policy spec
+# --- Exact-victim rules. The trace `dist` field shows the RAW circular distance
+# (epoch+ne-curEpoch)%ne; for an UNSTAMPED line (epoch==0) that is a large value,
+# but rrip_first/epoch_* treat unstamped property as effective distance 0
+# (stamped?dist:0). shortcircuit instead uses the raw dist for all property.
+def _eff_d(w):
+    return w["dist"] if (w["prop"] == 1 and w["epoch"] != 0) else 0
+
+
+# rule(ways, victim) -> True if victim is EXACTLY what the policy must evict
 RULES = {
     "LRU": lambda ways, v: ways[v]["last"] == min(w["last"] for w in ways),
     "GRASP": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
     "ECG:grasp_only": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
-    # shortcircuit: if any non-property present, victim must be non-property
-    "ECG:shortcircuit": lambda ways, v: (
-        ways[v]["prop"] == 0 if any(w["prop"] == 0 for w in ways)
-        else ways[v]["dist"] == max(w["dist"] for w in ways)),
+    # shortcircuit: FIRST record by set index; else farthest RAW-dist property
+    "ECG:shortcircuit": lambda ways, v: _shortcircuit_rule(ways, v),
     "ECG:shortcircuit+epoch": lambda ways, v: ways[v]["dist"] == max(w["dist"] for w in ways),
-    # epoch variants: if a record present -> victim is a record; else farthest-epoch stamped prop
+    # epoch_*: oldest record by recency; else farthest dist among STAMPED; else LRU
     "ECG:epoch_first": lambda ways, v: _epoch_rule(ways, v),
     "ECG:epoch_only": lambda ways, v: _epoch_rule(ways, v),
-    # rrip_first: victim at max-rrpv; record preferred, else farthest-epoch prop among max-rrpv
+    # rrip_first: among max-rrpv, oldest record by recency; else max effective-epoch property
     "ECG:rrip_first": lambda ways, v: _rrip_rule(ways, v),
 }
 
 
 def _epoch_rule(ways, v):
     recs = [w for w in ways if w["prop"] == 0]
-    if recs:
-        return ways[v]["prop"] == 0  # a record must be chosen
+    if recs:  # oldest record by recency
+        return ways[v]["prop"] == 0 and ways[v]["last"] == min(w["last"] for w in recs)
     stamped = [w for w in ways if w["prop"] == 1 and w["epoch"] != 0]
-    if stamped:
-        return ways[v]["dist"] == max(w["dist"] for w in stamped)
-    return True  # all unstamped -> recency fallback (accept)
+    if stamped:  # farthest next-ref among stamped property
+        return ways[v]["epoch"] != 0 and ways[v]["dist"] == max(w["dist"] for w in stamped)
+    return ways[v]["last"] == min(w["last"] for w in ways)  # all unstamped -> LRU fallback
 
 
 def _rrip_rule(ways, v):
@@ -136,9 +155,17 @@ def _rrip_rule(ways, v):
         return False  # must be at max-rrpv
     cand = [w for w in ways if w["rrpv"] == mx]
     recs = [w for w in cand if w["prop"] == 0]
-    if recs:
-        return ways[v]["prop"] == 0  # record preferred among max-rrpv
-    return True
+    if recs:  # oldest record by recency among max-rrpv
+        return ways[v]["prop"] == 0 and ways[v]["last"] == min(w["last"] for w in recs)
+    # else farthest EFFECTIVE-epoch property among max-rrpv (unstamped -> 0)
+    return ways[v]["prop"] == 1 and _eff_d(ways[v]) == max(_eff_d(w) for w in cand)
+
+
+def _shortcircuit_rule(ways, v):
+    recs = [w for w in ways if w["prop"] == 0]
+    if recs:  # FIRST record by set order (distinguishes from epoch's recency)
+        return ways[v]["prop"] == 0 and ways[v]["way"] == min(w["way"] for w in recs)
+    return ways[v]["dist"] == max(w["dist"] for w in ways)  # all property -> max raw dist
 
 
 def verify_trace(name, result, prefix="", reasons=None):
@@ -200,6 +227,50 @@ def run_synthetic():
     return ok
 
 
+def _epoch_decided(pol, ways, v):
+    """True iff the epoch VALUE selected this victim: the victim is a stamped
+    property line chosen as the farthest among >=2 stamped property lines with
+    distinct epochs, within the candidate pool that variant ranks. (shortcircuit
+    ranks property by RAW dist, so unstamped property—huge raw dist—is evicted
+    first and the stamped-epoch comparison is rarely operative; that variant's
+    epoch ranking is covered by the synthetic test instead.)"""
+    if v is None or ways[v]["prop"] != 1 or ways[v]["epoch"] == 0:
+        return False
+    if pol == "ECG:rrip_first":
+        mx = max(w["rrpv"] for w in ways)
+        pool = [w for w in ways if w["rrpv"] == mx and w["prop"] == 1 and w["epoch"] != 0]
+    else:  # epoch_first / epoch_only rank all stamped property
+        pool = [w for w in ways if w["prop"] == 1 and w["epoch"] != 0]
+    return (len(pool) >= 2 and len({w["dist"] for w in pool}) >= 2
+            and ways[v]["dist"] == max(w["dist"] for w in pool))
+
+
+def _count_epoch_decided(text):
+    return sum(1 for pol, ways, v, r in parse_blocks(text) if _epoch_decided(pol, ways, v))
+
+
+def verify_epoch_coverage(name, result, prefix="", strict=True):
+    """Like verify_trace, but ALSO consider whether the epoch VALUE genuinely
+    selected the victim (a stamped property line chosen as farthest among >=2
+    distinct-epoch competitors). With strict=True, fail if that never happened
+    (so the check cannot pass vacuously). With strict=False, report the count but
+    do not fail on it — used where the model cannot keep a live L3 epoch stamp
+    (gem5 has no ECG_STORED_REFRESH, so property reaches the L3 unstamped; its
+    epoch ranking is covered by the cache_sim mirror + the synthetic test)."""
+    text, ran_ok = result
+    ok = verify_trace(name, result, prefix=prefix)
+    if not ran_ok:
+        return False
+    comp = _count_epoch_decided(text)
+    tag = f"{prefix}{name}"
+    if comp == 0:
+        verdict = "FAIL" if strict else "info: covered by cache_sim mirror"
+        print(f"  [COVERAGE] {tag}: epoch value never selected the victim  [{verdict}]")
+        return False if strict else ok
+    print(f"  [COVERAGE] {tag}: {comp} evictions where the epoch value selected the victim  [OK]")
+    return ok
+
+
 def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(description="Assert each L3 policy obeys its spec.")
@@ -226,12 +297,28 @@ def main(argv=None):
     for name, env in suites:
         ok_all &= verify_trace(name, run(env), reasons=live_reasons)
 
+    # Epoch-coverage: force the epoch-property branch live (big L2 + small L3 +
+    # ECG_STORED_REFRESH) and assert the tightened exact rules hold AND the epoch
+    # value genuinely broke property ties. This exercises ECG's core eviction on
+    # the REAL simulator end-to-end (not just the synthetic unit test).
+    print("\n-- cache_sim epoch-coverage (forced property eviction; tightened exact rules) --")
+    for variant in ["rrip_first", "epoch_first", "epoch_only"]:
+        ok_all &= verify_epoch_coverage(variant, run({**ECG_ENV, "ECG_VARIANT": variant}, COV_ENV))
+    # shortcircuit ranks property by RAW dist (evicts unstamped first), so its
+    # stamped-epoch ranking is rarely operative live; verify its exact rule here
+    # and rely on the synthetic test for its stamped-epoch + DBG-tiebreak path.
+    ok_all &= verify_trace("shortcircuit", run({**ECG_ENV, "ECG_VARIANT": "shortcircuit"}, COV_ENV),
+                           prefix="(sc) ")
+
     if args.gem5:
         if not GEM5_OPT.exists():
             print(f"FAIL: build gem5 first: {GEM5_OPT}"); return 2
         print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
         for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ", reasons=live_reasons)
+        print("\n-- gem5 epoch-coverage (exact rules on forced geometry; epoch-value gate informational) --")
+        for variant in ["rrip_first", "epoch_first"]:
+            ok_all &= verify_epoch_coverage(variant, run_gem5(variant, cov=True), prefix="gem5 ", strict=False)
 
     if args.sniper:
         # grasp_only delegates to the shared SRRIP path (no ECG trace); verify the
@@ -240,13 +327,12 @@ def main(argv=None):
         for variant in ["epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_sniper(variant), prefix="sniper ", reasons=live_reasons)
 
-    # Coverage note: the live PageRank workload only ever evicts records, so the
-    # epoch-property branch does not fire live — it is covered by the synthetic
-    # tests above. Report which branches the live trace actually exercised.
+    # Live default-geometry coverage note: that workload only ever evicts records,
+    # so the epoch branch is exercised by the synthetic + epoch-coverage runs above.
     epoch_reasons = {r for r in live_reasons if "epoch property" in r or "farthest" in r}
-    print("\n-- live-trace branch coverage --")
+    print("\n-- live-trace branch coverage (default geometry) --")
     print(f"  live eviction reasons seen: {sorted(live_reasons) or '(none)'}")
-    print(f"  epoch-property branch fired live: {'yes' if epoch_reasons else 'NO (covered by synthetic tests)'}")
+    print(f"  epoch-property branch fired in default geom: {'yes' if epoch_reasons else 'NO (covered by synthetic + epoch-coverage runs)'}")
 
     print("\nRESULT:", "ALL POLICIES VERIFIED ✓" if ok_all else "VERIFICATION FAILED ✗")
     return 0 if ok_all else 1
