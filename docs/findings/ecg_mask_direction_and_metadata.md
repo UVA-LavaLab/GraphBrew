@@ -143,3 +143,38 @@ constructed asymmetric graph; the matrices differ by construction — out_neigh 
 in_neigh — though SSSP's POPT-eviction miss-rate was insensitive to the flip on the
 tested graphs). The value is **forward-looking correctness + P-OPT parity + the
 direction-transfer knob**, with zero risk to the symmetric-corpus headline results.
+
+---
+
+## 5. Per-edge-list dual-direction masking — invariant + why deferred (2026-06-21)
+
+The masking is **per-edge-list**, and the graph materialises **both** adjacencies
+(`out_neigh`/CSR and `in_neigh`/CSC, `invert=true`). The correct invariant is:
+
+> A per-edge mask is tied to a specific edge list and uses the **transpose** adjacency
+> for its next-reference: a kernel that traverses `in_neigh` (PR pull) needs IN-edge
+> masks whose epoch is computed from `out_neigh`; a kernel that traverses `out_neigh`
+> (SSSP/BC/BFS-TD push) needs OUT-edge masks whose epoch is computed from `in_neigh`.
+
+`buildInEdgeMasks_PR` implements the IN case (iterates `in_neigh`, epoch from
+`exact_nbr` built on `out_neigh`, line 1262) and is correct for PR pull. An OUT-edge
+per-edge builder is the mirror (iterate `out_neigh`, epoch from `in_neigh`).
+
+**Correction to a tempting claim.** "Run the same algorithm on the inverse graph and it
+should be the same" is **only true for symmetric graphs**. PageRank on `G` vs `Gᵀ` is a
+*different computation* (ranks of the reverse graph) unless `G` is symmetric. The valid
+goal is therefore **mask correctness for whichever direction a kernel traverses**, not
+"same result on the inverse graph."
+
+**Status: capability documented, full build DEFERRED** (rubber-duck `rd-dual-mask-plan`),
+because on the current setup it has **no consumer and no observable effect**:
+1. The eval corpus is symmetric (`in_neigh == out_neigh` on every benchmark graph), so
+   IN-masks and OUT-masks are identical — the OUT builder would change nothing.
+2. SSSP/BC/BFS use **per-vertex** masks (`computeVertexMasks`), not the per-edge path, so
+   nothing would consume OUT per-edge masks until a push kernel is converted to the
+   per-edge demand path.
+The reref-matrix direction (the load-bearing knob) is already per-kernel transpose-correct
+(`ecgRerefTraverseCSR`). **When** a genuinely asymmetric directed benchmark and a
+per-edge push kernel exist, build the OUT masks as a **non-owning transposed-view adapter**
+over the existing IN builder (view where `out_neigh`↔`in_neigh`) and validate with a tiny
+hand-constructed directed-graph oracle (symmetric-graph equality is only a weak smoke test).
