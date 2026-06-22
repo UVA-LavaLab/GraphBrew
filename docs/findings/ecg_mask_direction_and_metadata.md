@@ -552,3 +552,45 @@ from the Phase 0 audit + the parity tests:
   (`pfIdentified=pfIssued=63` on email-Eu-core; gem5_implementation_audit_v1.md), and gem5
   epoch eviction is faithful at scale (packed-flat). Full large-graph gem5 ECG_PFX runtime
   parity is N/A by construction (the 15-bit field) — cache_sim/Sniper are authoritative there.
+
+### §10.2 PROPOSAL: fix the gem5 ECG_PFX 32K limit by reclaiming vestigial mask bits
+
+The gem5 ECG_PFX 15-bit prefetch-target limit (§10, ~97-99.5% truncation on headline graphs)
+is fixable by reclaiming the **vestigial POPT field** — the epoch is the only load-bearing
+eviction field (ECG_GRASP_POPT uses `ecg_epoch`, cache_sim.h:1256; `ecg_popt_hint` is read
+only by the legacy `ECG_EMBEDDED` mode, :1662). Rubber-duck `rd-widen`.
+
+**Proposed (gem5-only) wide layout** — a SEPARATE `packMaskEpochWide`, NOT a mutation of
+`packMaskEpoch` (which `ECG_EMBEDDED`/`ECG_COMBINED` still need on gem5):
+```
+packMaskEpochWide (64-bit):  dest[0:24] | epoch[24:40] (16) | pfx[40:64] (24)
+```
+Reclaims popt(7) + dbg(2) (+ shift) -> prefetch target **15 -> 24 bits = 16,777,216 ids**,
+covering every current headline graph (web-Google 916K, soc-pokec 1.6M, com-orkut 3M,
+kron-s24 = 2^24 -> max id 16,777,215 fits) with **NO wider record / zero extra bandwidth**.
+`packMask` (cache_sim/Sniper, 31-bit) and the shared constants (`kPrefetchShift`,
+`extractPrefetchTarget`) stay UNCHANGED.
+
+**Coordinated change required (any mismatch silently recreates the truncation bug):**
+1. `bench/include/ecg_mode6_builder.h` — add `packMaskEpochWide` + `extractPrefetchTargetWide`.
+2. `bench/src_gem5/pr.cc` — repack/extract via the wide layout + the truncation guard.
+3. `bench/include/gem5_sim/overlays/arch/riscv/.../decoder_ecg_extract.isa` — the `ecg.extract`
+   ISA op decodes the new bit position/width in lockstep.
+4. `bench/src_sim/test_ecg_packed_field_parity.cc` — extend to pin the wide layout.
+5. overlay-hash registry (`lit_faith_*_overlay_hash_registry.py --update`) if enforced.
+Guards: abort if `dest >= 1<<24` or `pfx >= 1<<24`; note the `pfx==0`="no prefetch" sentinel
+(vertex 0 cannot be a prefetch target — pre-existing).
+
+**Alternatives (deferred):**
+- **Relative offset** (encode "which of src's next-K in-neighbours", ~6 bits, graph-size-
+  independent): elegant + fits the current field, BUT the gem5 prefetcher (`ecg_pfx.cc`) has no
+  neighbour-list context to resolve an offset — needs the kernel to resolve offset->absolute or
+  a prefetch-interface redesign. Promising future design, larger than it looks.
+- **16-byte record** (>16M verts): NOT worth it now — `ecg.extract` takes ONE 64-bit register;
+  128-bit is an ABI expansion (two registers/instructions), and doubles the mask stream on the
+  bandwidth-sensitive large-graph path.
+
+**DECISION CRITERION:** implement the wide layout ONLY IF the paper requires gem5 cycle-accurate
+ECG_PFX results on large (>32K) headline graphs, or full-corpus 3-sim PFX parity. Otherwise the
+§10.1 validity-matrix routing (cache_sim/Sniper authoritative for large-graph PFX; gem5 faithful
+for epoch eviction at scale + ECG_PFX <=32K) is defensible and already in place.
