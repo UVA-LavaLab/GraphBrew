@@ -96,6 +96,38 @@ int main() {
               (extractPrefetchTargetWide(packMaskEpochWide(0, 0, 916428u)) == 916428u) ? 1u : 0u, 1u);
     }
 
+    // (6) EPOCH-ONLY honest layout (doc S13): NO prefetch-target field — Path A
+    //     reads ahead in the CSR (= DROPLET), so nothing is stored for prefetch.
+    //     The reclaimed bits widen the epoch (34 bits) so it never starves as ids
+    //     grow, and the dest covers 268M verts (twitter/friendster/kron-s27).
+    {
+        printf("  -- packMaskEpochOnly (no prefetch field, 34-bit epoch) --\n");
+        uint32_t dest = 0x0ABCDEF;          // 28-bit dest
+        uint64_t epoch = 0x3FFFFFFFFULL;    // 34-bit all-ones
+        uint64_t e = packMaskEpochOnly(dest, 2, epoch);
+        check("epoch-only dest round-trip", extractDestEpochOnly(e), dest);
+        check("epoch-only dbg round-trip", extractDbgEpochOnly(e), 2);
+        check("epoch-only epoch round-trip (34-bit)", extractEpochOnly(e), epoch);
+        // Scale: dest covers the comparison-paper graphs.
+        check("epoch-only dest twitter 41.7M ok",
+              extractDestEpochOnly(packMaskEpochOnly(41700000u, 0, 0)), 41700000u);
+        check("epoch-only dest friendster 65.6M ok",
+              extractDestEpochOnly(packMaskEpochOnly(65600000u, 0, 0)), 65600000u);
+        check("epoch-only dest kron-s27 134M ok",
+              extractDestEpochOnly(packMaskEpochOnly(134217727u, 0, 0)), 134217727u);
+        check("epoch-only dest boundary 2^28-1 ok",
+              extractDestEpochOnly(packMaskEpochOnly(268435455u, 0, 0)), 268435455u);
+        // Precision: the epoch carries values a 16-bit field would truncate.
+        check("epoch-only epoch 100000 (>16-bit) survives (16-bit would truncate)",
+              extractEpochOnly(packMaskEpochOnly(7, 0, 100000u)), 100000u);
+        check("epoch-only epoch 2^20 survives",
+              extractEpochOnly(packMaskEpochOnly(7, 0, 1048576u)), 1048576u);
+        // No prefetch field: a large value in the old prefetch position is now
+        // part of the EPOCH, not a separate target — dest stays clean.
+        check("epoch-only: high bits are epoch (dest unpolluted)",
+              extractDestEpochOnly(packMaskEpochOnly(7, 0, 916428u)), 7u);
+    }
+
     printf("  RESULT: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

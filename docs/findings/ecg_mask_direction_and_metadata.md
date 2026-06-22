@@ -637,6 +637,12 @@ So Path A is exactly "the edge list with epoch as a filter" and it **has no 32K/
 limit** — the §10.2 widening fixed the *secondary* Path B field; the headline Path A never
 had that limit. (This realises the "relative offset / edge-list" alternative flagged in §10.2.)
 
+> **§14 update:** Path A stores **nothing** for prefetch — the next-K targets are the CSR
+> edge stream (= DROPLET's read-ahead) and the prefetched line's epoch comes from the same
+> edge entry. The Path B stored prefetch-target field is therefore **dead weight** and is
+> dropped from the honest record (`packMaskEpochOnly`, no prefetch field); the epoch saturates
+> at ~10 bits. See §14 for the HW-scalability + bit-budget analysis.
+
 ### What each simulator ran (before this work)
 - **cache_sim**: BOTH. Headline = Path A.
 - **gem5**: **Path B only** (both its prefetch loops select ONE target → `GEM5_ECG_PFX_TARGET`).
@@ -785,3 +791,64 @@ cell also has **no eviction pressure** (email-Eu-core property = 4 KB ≪ 256 KB
 useful, on kron_s16_k4 >32K verts, §11), and **cache_sim** is authoritative for total
 traffic/miss-rate. This matches the §10 cross-sim contract (cache_sim = traffic;
 gem5/Sniper = cycle-accurate mechanism with documented per-tool limitations).
+
+## 14. HW-scalability + honest bit budget: epoch-only record, storage-free prefetch (2026-06-22)
+
+Driven by the reviewer-critical question *"at deployment scale (twitter 41M, friendster
+65M, kron-s27 134M — the P-OPT/GRASP/DROPLET corpus) can ECG even fit its bits in HW?"*
+
+### 14.1 Eviction: scale-independent, same HW class as P-OPT
+The eviction metadata is **per-LLC-line**, not per-edge: `m_ecg_epoch` is ~10 bits/way in
+the tag array (like RRIP's 2 b or P-OPT's per-line bits). A 2 MB LLC = 32 K lines × 10 b ≈
+**40 KB, independent of graph size**. The decision is a W-way epoch-distance compare
+(`(epoch+ne−cur_ep) mod ne`, max over 16 ways) — identical complexity to P-OPT's
+rereference compare. The bounded per-core delivery map (`recordEcgEpoch`,
+`kEcgEpochMapSize`) is fixed-size, **not O(V)**. So eviction is realizable at any scale, and
+ECG keeps all 16 LLC ways whereas P-OPT reserves 1 — ECG's runtime LLC cost is *lower*.
+
+### 14.2 The bit-fit worry is the packed *delivery*, not the mechanism
+"Can't fit the bits at 134 M" applies **only** to the 4-byte zero-traffic packing, where the
+~10-bit epoch shares the 32-bit edge word with the dest id. The epoch width is
+**scale-invariant** (see §14.4); the id is what grows. So decouple them — the `ecgRecordBytes`
+auto-switch already does: 4 B (≤~1 M with 10 b epoch, zero traffic) → 8 B (id ∥ epoch as
+separate fields, any scale to ~4 B verts) → 16 B beyond. At >4 B verts 64-bit ids are needed
+anyway, so the epoch rides free in the high half. The 4-byte zero-traffic case is a
+small-graph **bonus**, not the foundation.
+
+### 14.3 Prefetch stores NOTHING — Path B field removed from the honest layout
+The stored prefetch-**target** field (Path B, a full vertex id — `kPrefetchBits=31` in the
+old mask) is the *only* metadata that grows with N AND can't be derived. It is **dead
+weight**: the headline Path A reads the next-K targets straight from the CSR edge stream
+(= DROPLET's read-ahead engine, Basak HPCA'19), so nothing is stored; the prefetched line's
+epoch comes from the **same edge entry** the prefetcher already read. Evidence: the cache_sim
+record already defaults `ECG_RECORD_PREFETCH_BITS=0` / `ECG_RECORD_POPT_BITS=0`, and runs
+report `pfx_encoded=0 pfx_no_candidate=ALL` yet still beat DROPLET. New honest SSOT layout
+`ecg_mode6::packMaskEpochOnly` (`ecg_mode6_builder.h`): `dest[0:28] | dbg[28:30] |
+epoch[30:64]` — **no prefetch field**, dest covers 268 M verts (twitter/friendster/kron-s27),
+pinned by `test_ecg_packed_field_parity` (now **58/58**, +10 epoch-only checks). The gem5
+`ecg.extract` ISA decoder stays in lockstep (a `funct7=0x1` epoch-only variant; runtime
+rip-out of the gem5/Sniper Path B mask field tracked separately — cache_sim is already honest).
+
+### 14.4 Epoch precision SATURATES at ~10 bits — do NOT widen (measured)
+Sweeping `ECG_EDGE_MASK_EPOCHS` on the `-o5` shortcircuit headline (eviction-only):
+
+| graph (L3) | ne=64 (6b) | ne=256 (8b) | **ne=1024 (10b)** | ne=4096 (12b) | ne≥16384 | POPT |
+|---|---|---|---|---|---|---|
+| web-Google (512 kB) | 0.6923 | 0.6328 | **0.6050** | 0.6190 | 0.6190 | 0.6284 |
+| cit-Patents (1 MB) | — | 0.7327 | **0.6773** | 0.6773 | 0.6773 | 0.7449 |
+
+~10 bits (ne=1024) is the sweet spot and **beats P-OPT** on both. More bits give **no
+eviction gain**: cit-Patents is flat (all 0.6773); web-Google's 0.605→0.619 step is purely the
+**charged record width** flipping 4 B→8 B (`id 20 + epoch 10 + tier 2 = 32` packs in 4 B at
+ne=1024, but `+epoch 12 = 34` needs 8 B at ne=4096 → more mask-stream traffic counted in
+l3_mr), **not** worse eviction. So the answer to *"give more bits for a more precise epoch?"*
+is **no** — pin the epoch at ~10 bits (saturates quality, keeps the record at 4 B where the id
+allows); spend the reclaimed Path-B bits on staying compact, not on a wider epoch.
+
+### 14.5 Honest minimal record + HW-cost vs the baselines
+Canonical ECG per-edge metadata = **`dest + 2-bit degree tier + ~10-bit epoch`** — no popt
+rank, no prefetch target. Offline precompute is O(E) parallel (= P-OPT's offline matrix build).
+The genuinely software-visible cost is the **ISA load-hint** that carries the epoch to the LLC
+(`ecg.extract`) — ECG's explicit design point ("software-visible ISA hints"), vs P-OPT/DROPLET
+being transparent. Net: ECG's offline metadata ≈/< P-OPT's O(V·epochs) matrix, ECG reserves
+**zero** LLC ways (vs P-OPT's 1), prefetch stores **nothing** (vs Path B's vestigial id field).

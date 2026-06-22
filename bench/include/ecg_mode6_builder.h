@@ -115,6 +115,33 @@ inline uint32_t extractPrefetchTargetWide(uint64_t m) {
     return static_cast<uint32_t>((m >> kPrefetchWideShift) & 0xFFFFFFu);
 }
 
+// === EPOCH-ONLY honest layout (headline ECG_GRASP_POPT + Path A, doc S13) =====
+// The stored prefetch-TARGET field is Path B — DEAD WEIGHT for the headline:
+// Path A reads the next-K targets straight from the CSR edge stream (= DROPLET's
+// read-ahead), so NOTHING is stored for prefetch (doc S13). Removing it (and the
+// unused popt rank) reclaims 38 bits, all given to the next-ref EPOCH so the
+// epoch never gets starved as ids grow (the at-scale bit-fit worry): a full
+// 34-bit epoch coexists with a 28-bit dest (<=268M verts, covers twitter 41M /
+// friendster 65M / kron-s27 134M).
+//   packMaskEpochOnly:  dest[0:28] | dbg[28:30] (tier) | epoch[30:64] (34b)
+// NO prefetch target. The gem5 `ecg.extract` funct7=0x1 decodes this in lockstep.
+constexpr int kEoDestBits   = 28;
+constexpr int kEoDbgBits    = 2;
+constexpr int kEoDbgShift   = kEoDestBits;               // 28
+constexpr int kEoEpochShift = kEoDestBits + kEoDbgBits;  // 30
+constexpr int kEoEpochBits  = 64 - kEoEpochShift;        // 34
+constexpr uint32_t kEoDestMask  = (1u << kEoDestBits) - 1;           // 0x0FFFFFFF
+constexpr uint64_t kEoEpochMask = (1ULL << kEoEpochBits) - 1;        // 34-bit
+
+inline uint64_t packMaskEpochOnly(uint32_t dest, uint8_t dbg, uint64_t epoch) {
+    return (static_cast<uint64_t>(dest & kEoDestMask)) |
+           (static_cast<uint64_t>(dbg & 0x3u) << kEoDbgShift) |
+           ((epoch & kEoEpochMask) << kEoEpochShift);
+}
+inline uint32_t extractDestEpochOnly(uint64_t m)  { return static_cast<uint32_t>(m & kEoDestMask); }
+inline uint8_t  extractDbgEpochOnly(uint64_t m)   { return static_cast<uint8_t>((m >> kEoDbgShift) & 0x3u); }
+inline uint64_t extractEpochOnly(uint64_t m)      { return (m >> kEoEpochShift) & kEoEpochMask; }
+
 // === ECG prefetch-target DECISION (single source of truth) ===
 //
 // Given a vertex's in-neighbour list and the position of the current edge `i`,
