@@ -230,6 +230,43 @@ void clearPrefetchTargetHint(uint32_t core_id)
     prefetchTargetValidStorage()[core_id].store(false, std::memory_order_release);
 }
 
+// === SNIPER_ECG_EXTRACT per-core epoch map (direct-mapped by vertex) ===
+// Slots store (vertex+1) so the zero-initialized (BSS, lazily paged) array means
+// "empty" without an eager init loop. Collisions drop a stale entry; the per-line
+// stamp taken at prepareInsertion is the fallback. Updated on every demand edge,
+// so eviction reads the latest delivered epoch (non-invasive refresh).
+static constexpr std::size_t kEcgEpochMapSize = 8192;
+
+struct PerCoreEpochMap {
+    std::array<std::atomic<uint32_t>, kEcgEpochMapSize> vertex_plus1{};
+    std::array<std::atomic<uint16_t>, kEcgEpochMapSize> epoch{};
+};
+
+static std::array<PerCoreEpochMap, MAX_TRACKED_CORES>& ecgEpochMaps()
+{
+    static std::array<PerCoreEpochMap, MAX_TRACKED_CORES> maps;
+    return maps;
+}
+
+void recordEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t epoch)
+{
+    if (core_id >= MAX_TRACKED_CORES) return;
+    auto& m = ecgEpochMaps()[core_id];
+    std::size_t i = vertex % kEcgEpochMapSize;
+    m.epoch[i].store(epoch, std::memory_order_relaxed);
+    m.vertex_plus1[i].store(vertex + 1u, std::memory_order_release);
+}
+
+bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t& epoch)
+{
+    if (core_id >= MAX_TRACKED_CORES) return false;
+    auto& m = ecgEpochMaps()[core_id];
+    std::size_t i = vertex % kEcgEpochMapSize;
+    if (m.vertex_plus1[i].load(std::memory_order_acquire) != vertex + 1u) return false;
+    epoch = m.epoch[i].load(std::memory_order_relaxed);
+    return true;
+}
+
 ECGMode stringToECGMode(const std::string& text)
 {
     if (text == "POPT_PRIMARY" || text == "popt_primary" || text == "popt") return ECGMode::POPT_PRIMARY;

@@ -33,6 +33,7 @@ constexpr uint64_t GRAPHBREW_SNIPER_USER_SET_VERTEX = 0x47525654ULL;  // "GRVT"
 constexpr uint64_t GRAPHBREW_SNIPER_USER_CONTEXT_READY = 0x47524358ULL;  // "GRCX"
 constexpr uint64_t GRAPHBREW_SNIPER_USER_POPT_READY = 0x47504f50ULL;  // "GPOP"
 constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET = 0x47504658ULL;  // "GPFX"
+constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_EXTRACT = 0x47464C44ULL;  // ECG epoch-extract delivery
 
 inline const char* env_or_default(const char* name, const char* fallback) {
     const char* value = std::getenv(name);
@@ -96,6 +97,11 @@ inline bool ecg_pfx_hints_enabled() {
     return value && value[0] && std::string(value) != "0";
 }
 
+inline bool ecg_extract_enabled() {
+    const char* value = std::getenv("SNIPER_ENABLE_ECG_EXTRACT");
+    return value && value[0] && std::string(value) != "0";
+}
+
 inline bool should_emit_ecg_pfx_hint(uint64_t vertex_id) {
     int capacity = env_int_clamped("SNIPER_ECG_PFX_HINT_FILTER", 16, 0, 64);
     if (capacity == 0) {
@@ -151,6 +157,15 @@ inline void set_prefetch_target(uint64_t vertex_id) {
         return;
     }
     notify_user(GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET, vertex_id);
+}
+
+inline void ecg_extract(uint64_t vertex, uint16_t epoch) {
+    if (!ecg_extract_enabled()) {
+        return;
+    }
+    uint64_t packed = (vertex & 0xFFFFFFFFFFFFULL) |
+                      (static_cast<uint64_t>(epoch) << 48);
+    notify_user(GRAPHBREW_SNIPER_USER_ECG_EXTRACT, packed);
 }
 
 inline void write_minimal_context(uint64_t vertices, uint64_t edges) {
@@ -383,3 +398,4 @@ inline bool sniper_export_popt_matrix(
 #define SNIPER_ROI_END() ::graphbrew_sniper::roi_end()
 #define SNIPER_SET_VERTEX(vertex_id) ::graphbrew_sniper::set_vertex(static_cast<uint64_t>(vertex_id))
 #define SNIPER_ECG_PFX_TARGET(vertex_id) ::graphbrew_sniper::set_prefetch_target(static_cast<uint64_t>(vertex_id))
+#define SNIPER_ECG_EXTRACT(vertex_id, epoch) ::graphbrew_sniper::ecg_extract(static_cast<uint64_t>(vertex_id), static_cast<uint16_t>(epoch))
