@@ -716,12 +716,19 @@ shared `ecg_policy::selectVictim` DECISION is unchanged. Epoch map keyed per-ver
 scans the line's `blocksize/elem` vertices (kNumVtxPerLine=16; linemin ⇒ all agree).
 
 **Validation (Sniper, full `pr` binary — NOT pr_kernel_smoke — email-Eu-core, ECG_GRASP_POPT,
-L3=2kB):** property lines recognised + stamped (1283 in the eviction trace); the delivered epoch
-is **correct and varying** — `u=0→0, 150→39, 300→76, 450→115, 600→153, 750→191, 900→229`, i.e.
-exactly `u·ne/N` (ne=256, N=1005), the same next-ref model gem5/cache_sim use. Compiles end-to-end
+L3=2kB):** delivered epoch **correct and varying** — `u=0→0, 150→39, 300→76, 450→115, 600→153,
+750→191, 900→229`, i.e. exactly `u·ne/N` (ne=256, N=1005), the same next-ref model gem5/cache_sim
+use. Property-fill stamp rate **100%** (19998/20000) after the code-review fix (see below) — BOTH
+the `scores` and `contrib` property arrays carry the delivered epoch. Compiles end-to-end
 (snipersim + kernel). Gotchas found: `--sniper-workload pr_kernel_smoke` builds a DIFFERENT binary
 without the emit (use `benchmark` + `--allow-sniper-benchmark-workload`); the `[EVICT L3]` trace's
 `epoch=` column is the property MARKER, the epoch value is in `dist=`.
+
+**Code-review fix (fcbf6870):** `vertexForAddress` originally checked only `regions[0]` (=`scores`),
+but PR's eviction-protected array is `regions[1]` (=`contrib`) — so contrib lines never got a
+delivered-epoch stamp and the feature was silently inert for its target array. Fixed to search ALL
+property regions (mirroring `isPropertyData`/`findNextRef`); `edge_epoch_count` clamped to
+`[2,65535]` to match the kernel.
 
 **Updated cross-sim eviction faithfulness:** all 3 sims now deliver the per-edge epoch through the
 hierarchy (cache_sim packed record, gem5 packed-flat/ecg.extract, Sniper SNIPER_ECG_EXTRACT).
