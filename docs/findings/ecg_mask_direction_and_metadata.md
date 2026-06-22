@@ -516,9 +516,13 @@ contract, not identical kernels.
     | epoch eviction (headline replacement) | yes | yes (packed-flat) | yes |
     | DROPLET baseline prefetch | yes | yes | yes |
     | Path B prefetch (single selective target) | yes (31-bit) | yes (24-bit, ≤16M) | yes (8-byte) |
-    | Path A prefetch (epoch-filtered next-K lookahead, **headline**) | yes | yes (§11) | **deferred** — needs `SNIPER_ECG_FAT_LOAD` |
+    | Path A prefetch (epoch-filtered next-K lookahead, **headline**) | yes | yes (§11) | **ready** — `SNIPER_ECG_EXTRACT` done (§12) |
 
-  **Sniper faithfulness tier (why Path A is deferred):** Sniper's ECG_GRASP_POPT *eviction*
+  **Sniper faithfulness (§12 UPDATE):** the per-edge epoch delivery (`SNIPER_ECG_EXTRACT`,
+  opt-in) is now IMPLEMENTED + VALIDATED, so Sniper's ECG_GRASP_POPT eviction is delivery-faithful
+  like gem5/cache_sim (its host-side `findNextRef` matrix remains the default/oracle path). Sniper
+  Path A is therefore unblocked — the foundation it was sequenced behind exists. Original
+  deferral rationale: Sniper's ECG_GRASP_POPT *eviction* historically
   sources the next-ref distance from the P-OPT matrix host-side (`findNextRef`, current-epoch
   aware; `cache_set_ecg.cc` — "the cache has no per-line stored epoch"), NOT from a per-edge
   epoch delivered through the memory hierarchy like gem5's `ecg.extract` / packed record. The
@@ -694,3 +698,31 @@ Three runs, all status=ok, clean exit:
 
 → gem5 now runs **both** ECG prefetch mechanisms; Path A (the headline edge-list+epoch-filter
 lookahead) is graph-size-independent and HW-faithful with a bounded (non-O(V)) in-flight buffer.
+
+## 12. IMPLEMENTED + VALIDATED: Sniper delivery-faithful epoch (SNIPER_ECG_EXTRACT, 2026-06-21)
+
+Sniper's ECG_GRASP_POPT eviction can now use a per-edge epoch **delivered through the memory
+hierarchy** (HW-faithful, like gem5/cache_sim) instead of the host-side `findNextRef` matrix
+oracle — closing the faithfulness gap §10 documented. Opt-in via `SNIPER_ENABLE_ECG_EXTRACT`
+(default = the existing `findNextRef` path, untouched). Naming mirrors gem5
+(`GEM5_ENABLE_ECG_EXTRACT`) for SSOT.
+
+**Mechanism:** kernel `SNIPER_ECG_EXTRACT(dest, epoch)` per demand edge → `notify_user` →
+`magic_server.cc` dispatch → bounded per-core epoch map (`recordEcgEpoch`); the cache stamps the
+property line's `m_ecg_epoch[]` at fill + re-stamps at eviction from the current map (non-invasive
+refresh, no `cache.cc` core patch). The eviction ranks property lines by
+`dist=(epoch+ne−cur_ep)%ne` (cur_ep from `currentVertexForPopt`), `stamped=isProp&&valid`; the
+shared `ecg_policy::selectVictim` DECISION is unchanged. Epoch map keyed per-vertex; the lookup
+scans the line's `blocksize/elem` vertices (kNumVtxPerLine=16; linemin ⇒ all agree).
+
+**Validation (Sniper, full `pr` binary — NOT pr_kernel_smoke — email-Eu-core, ECG_GRASP_POPT,
+L3=2kB):** property lines recognised + stamped (1283 in the eviction trace); the delivered epoch
+is **correct and varying** — `u=0→0, 150→39, 300→76, 450→115, 600→153, 750→191, 900→229`, i.e.
+exactly `u·ne/N` (ne=256, N=1005), the same next-ref model gem5/cache_sim use. Compiles end-to-end
+(snipersim + kernel). Gotchas found: `--sniper-workload pr_kernel_smoke` builds a DIFFERENT binary
+without the emit (use `benchmark` + `--allow-sniper-benchmark-workload`); the `[EVICT L3]` trace's
+`epoch=` column is the property MARKER, the epoch value is in `dist=`.
+
+**Updated cross-sim eviction faithfulness:** all 3 sims now deliver the per-edge epoch through the
+hierarchy (cache_sim packed record, gem5 packed-flat/ecg.extract, Sniper SNIPER_ECG_EXTRACT).
+Sniper's `findNextRef` matrix remains the default/oracle path.
