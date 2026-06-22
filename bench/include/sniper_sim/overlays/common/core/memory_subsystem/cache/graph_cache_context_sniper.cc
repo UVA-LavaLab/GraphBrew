@@ -424,7 +424,9 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
     // ECG_EDGE_MASK_EPOCHS packing.
     if (const char* ne_env = std::getenv("ECG_EDGE_MASK_EPOCHS")) {
         uint32_t ne = static_cast<uint32_t>(std::strtoul(ne_env, nullptr, 10));
-        if (ne >= 2) edge_epoch_count = ne;
+        if (ne < 2) ne = 2;
+        if (ne > 65535) ne = 65535;  // match the kernel clamp + the 16-bit epoch field
+        edge_epoch_count = ne;
     }
 
     num_regions = 0;
@@ -539,9 +541,25 @@ void GraphCacheContext::updateVertexFromAddr(uint64_t addr, uint32_t core_id) co
 
 uint32_t GraphCacheContext::vertexForAddress(uint64_t addr) const
 {
-    if (num_regions == 0 || !regions[0].contains(addr) || regions[0].elem_size == 0)
-        return UINT32_MAX;
-    return static_cast<uint32_t>((addr - regions[0].base_address) / regions[0].elem_size);
+    // Search ALL property regions (e.g. scores AND contrib) — the eviction-
+    // protected array is region[1] (contrib) for PR, so a region[0]-only check
+    // would silently never stamp it. Mirrors isPropertyData/findNextRef.
+    for (uint32_t i = 0; i < num_regions; ++i) {
+        if (regions[i].elem_size != 0 && regions[i].contains(addr))
+            return static_cast<uint32_t>((addr - regions[i].base_address) / regions[i].elem_size);
+    }
+    return UINT32_MAX;
+}
+
+// elem_size of the property region owning addr (0 if none); used to size the
+// per-line vertex scan in lookupLineEcgEpoch.
+uint32_t GraphCacheContext::propertyElemSizeForAddress(uint64_t addr) const
+{
+    for (uint32_t i = 0; i < num_regions; ++i) {
+        if (regions[i].elem_size != 0 && regions[i].contains(addr))
+            return regions[i].elem_size;
+    }
+    return 0;
 }
 
 bool GraphCacheContext::isPropertyData(uint64_t addr) const

@@ -39,7 +39,7 @@ OVERLAYS_ROOT = REPO_ROOT / "bench" / "include" / "sniper_sim" / "overlays"
 
 SNIPER_OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "common/core/memory_subsystem/cache/cache_set_ecg.cc":
-        "6dce88f627cf8715ea6d51d31a6d7da36652c456245ef2ad31b2b84dd3c941ec",
+        "3fbe355af7646ec34fe495198f49d125a7bd09b552d6392f4bb23bd914c762af",
     "common/core/memory_subsystem/cache/cache_set_ecg.h":
         "234f564403be19f927463316a091b77af975a305a3d45cbd7813bf7afd00ea8f",
     "common/core/memory_subsystem/cache/cache_set_grasp.cc":
@@ -53,9 +53,9 @@ SNIPER_OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "common/core/memory_subsystem/cache/ecg_victim_policy.h":
         "cad8b7b8d57f48680208bb10b536421fcc8ec624c94aa83389429f56dbe8ad6b",
     "common/core/memory_subsystem/cache/graph_cache_context_sniper.cc":
-        "f37c2e813e5f1a9cfd874693b00d8228fc8d6527a42bbbb643a70659907a8939",
+        "51acd61e9de3e094b3ef3d6c2482f333255d0995165e43f4a74cd7583f3fe805",
     "common/core/memory_subsystem/cache/graph_cache_context_sniper.h":
-        "7e963a308e48dc63174bcf7f34704e022470fdfe40215bfa8e80112773e785f8",
+        "936f824123fde9f9cfff8362e81c34895c02e83c287fd412e8556d96121e1744",
     "common/core/memory_subsystem/parametric_dram_directory_msi/droplet_prefetcher.cc":
         "a16892d1b66024ac028d324f41097f4e352c2d404f407cfb8c2afd4f464d698b",
     "common/core/memory_subsystem/parametric_dram_directory_msi/droplet_prefetcher.h":

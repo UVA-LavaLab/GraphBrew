@@ -147,8 +147,8 @@ CacheSetECG::lookupLineEcgEpoch(IntPtr line_addr, UInt16& epoch) const
    const auto& context = graphbrew::sniper::globalContext();
    uint32_t v0 = context.vertexForAddress(static_cast<uint64_t>(line_addr));
    if (v0 == UINT32_MAX) return false;
-   uint32_t elem = (context.num_regions > 0 && context.regions[0].elem_size > 0)
-       ? context.regions[0].elem_size : 4u;
+   uint32_t elem = context.propertyElemSizeForAddress(static_cast<uint64_t>(line_addr));
+   if (elem == 0) elem = 4u;
    uint32_t vtx_per_line = static_cast<uint32_t>(m_blocksize) / elem;
    if (vtx_per_line == 0) vtx_per_line = 1;
    for (uint32_t i = 0; i < vtx_per_line; i++) {

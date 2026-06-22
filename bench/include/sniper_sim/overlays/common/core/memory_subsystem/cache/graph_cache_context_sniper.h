@@ -158,6 +158,8 @@ struct GraphCacheContext {
     void updateVertexFromAddr(uint64_t addr, uint32_t core_id) const;
     // Vertex owning a property-region address (UINT32_MAX if not property data).
     uint32_t vertexForAddress(uint64_t addr) const;
+    // elem_size of the property region owning addr (0 if none).
+    uint32_t propertyElemSizeForAddress(uint64_t addr) const;
     bool isPropertyData(uint64_t addr) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;
