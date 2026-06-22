@@ -521,3 +521,34 @@ contract, not identical kernels.
   have NO gem5/Sniper analog and are inert on the symmetric corpus / default-off. They are
   equivalent across sims ONLY because they are disabled or demonstrably inert for the evaluated
   configs; if ever used for cross-sim numbers they would need an ISA-path analog.
+
+### §10.1 Cross-sim validity contract (equivalency-hardening sprint, 2026-06-21)
+
+Actionable rules for any cross-simulator (cache_sim / gem5 / Sniper) comparison, derived
+from the Phase 0 audit + the parity tests:
+
+1. **PR epoch eviction (the headline ECG_GRASP_POPT mechanism): all 3 sims valid.** gem5
+   delivers the epoch via the packed-flat 4-byte record (dest + epoch), faithful at scale.
+2. **ECG_PFX prefetch:** cache_sim + Sniper (31-bit target) valid on ALL graphs; **gem5 valid
+   ONLY for graphs with vertex ids <= 32767** (<= ~32768 vertices). For larger graphs gem5
+   silently truncates ~97-99.5% of targets. **Enforce with `ECG_PFX_STRICT_TARGET=1`**, which
+   aborts loudly on any truncation (verified: web-Google -> SIGABRT) — set it in any cross-sim
+   automation so gem5 ECG_PFX can never be silently used on a too-large graph.
+3. **BFS is NOT cross-sim comparable for cache behavior** (cache_sim is direction-optimizing
+   TD+BU; gem5/Sniper are simple TD-only). Use cache_sim `ECG_BFS_FORCE_TD` for a smoke-level
+   comparison only; do NOT report BFS as a cross-sim result. PR is the cross-sim headline.
+4. **cache_sim-only research features** (`ECG_EDGE_MASKS` BU/SSSP/BC masks, `POPT_DUAL_REREF`)
+   must be OFF (default) for cross-sim runs — they have no gem5/Sniper analog.
+5. **Verification:** after this session all 3 sims verify PASS (cache_sim parent finalization
+   §9.4; gem5/Sniper verify source-mismatch fix). gem5/Sniper keep a lenient reachability-sign
+   verifier (the simple BFS is correct; strict-verifier port deferred).
+
+**Parity evidence (VERIFIED):**
+- Decision parity: `verify_pfx.py` synthetic `selectPrefetchTarget` = 10/10 (all 3 sims).
+- Field-delivery parity: `bench/src_sim/test_ecg_packed_field_parity.cc` = 42/42 — the 31-bit
+  (packMask) and 15-bit (packMaskEpoch) targets AGREE for ids <= 32767 and DIVERGE (gem5
+  truncates) above, pinning the layout against silent repack regressions.
+- Runtime mechanism parity: gem5 ECG_PFX fires end-to-end on <=32K graphs
+  (`pfIdentified=pfIssued=63` on email-Eu-core; gem5_implementation_audit_v1.md), and gem5
+  epoch eviction is faithful at scale (packed-flat). Full large-graph gem5 ECG_PFX runtime
+  parity is N/A by construction (the 15-bit field) — cache_sim/Sniper are authoritative there.
