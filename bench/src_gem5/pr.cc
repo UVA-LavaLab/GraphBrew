@@ -148,14 +148,8 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     bool ecg_prefetch_enabled = ecg_prefetch_env && string(ecg_prefetch_env) != "0";
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
 
-    // === Path A: epoch-filtered DROPLET lookahead (ECG_EDGE_MASK_PREFETCH=K) ===
-    // The cross-sim headline combined-stack prefetcher (mirrors cache_sim
-    // bench/src_sim/pr.cc:241-285). When K>0 the mode-6 demand loop prefetches
-    // the next-K in-neighbors' contrib[], each carrying its OWN next-ref epoch
-    // (delivered via GEM5_ECG_PFX_TARGET_EPOCH so the prefetched line evicts
-    // correctly), with an optional epoch filter to cut bandwidth. Unlike Path B
-    // (single 24-bit packed target) the target here is the streamed edge id, so
-    // there is NO vertex-id size limit.
+    // Path A (epoch-filtered next-K lookahead): prefetch the next-K in-neighbors,
+    // each carrying its epoch via GEM5_ECG_PFX_TARGET_EPOCH. Mirrors cache_sim.
     int lean_pfx_k = gem5_env_int_clamped("ECG_EDGE_MASK_PREFETCH", 0, 0, 64);
     int pfx_epoch_filter = gem5_env_int_clamped("ECG_PREFETCH_EPOCH_FILTER", 0, 0, 2);
     int pfx_epoch_thresh_pct =
@@ -344,17 +338,11 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                         GEM5_ECG_EXTRACT_MASK(mask);
                     }
                     if (lean_pfx_k > 0 && ecg_prefetch_enabled) {
-                        // === Path A: epoch-filtered DROPLET lookahead ===
-                        // Prefetch the next-K in-neighbors' contrib[], each
-                        // carrying its OWN next-ref epoch (delivered so the
-                        // prefetched line evicts correctly). cand is the streamed
-                        // edge id (full width) — no 32K target limit. Mirrors
-                        // cache_sim bench/src_sim/pr.cc:241-285.
+                        // Path A: prefetch the next-K in-neighbors' contrib[], each
+                        // carrying its own epoch. cand is the streamed edge id (full
+                        // width). Mirrors cache_sim bench/src_sim/pr.cc Path A.
                         uint32_t ne = edge_epoch_count;
-                        uint32_t cur_ep_k = (g.num_nodes() > 0)
-                            ? static_cast<uint32_t>(
-                                  (static_cast<uint64_t>(u) * ne) / g.num_nodes())
-                            : 0;
+                        uint32_t cur_ep_k = ecg_epoch::currentEpoch(u, g.num_nodes(), ne);
                         uint32_t thresh = static_cast<uint32_t>(
                             (static_cast<uint64_t>(pfx_epoch_thresh_pct) * ne) / 100);
                         auto jt = it;
@@ -372,19 +360,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                        ? static_cast<uint16_t>(
                                              ecg_mode6::extractEpochWide(src_masks[cpos]))
                                        : 0);
-                            if (pfx_epoch_filter != 0 && ne > 1) {
-                                uint32_t dist = (static_cast<uint32_t>(cand_ep)
-                                                 + ne - cur_ep_k) % ne;
-                                if (pfx_epoch_filter == 1 && dist < thresh)
-                                    continue;  // skip NEAR (already kept by eviction)
-                                if (pfx_epoch_filter == 2 && dist > thresh)
-                                    continue;  // skip FAR (low retention value)
-                            }
+                            if (!ecg_epoch::prefetchKeep(cand_ep, cur_ep_k, ne,
+                                                         pfx_epoch_filter, thresh))
+                                continue;
                             GEM5_ECG_PFX_TARGET_EPOCH(static_cast<uint32_t>(cand),
                                                       cand_ep);
                         }
                     } else {
-                        // === Path B: single 24-bit POPT-best target ===
+                        // Path B: single packed prefetch target.
                         uint32_t prefetch_target =
                             ecg_mode6::extractPrefetchTargetWide(mask);
                         if (prefetch_target != 0) {

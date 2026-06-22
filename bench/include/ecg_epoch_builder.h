@@ -13,6 +13,27 @@
 
 namespace ecg_epoch {
 
+// Demand epoch for vertex u under a deterministic ID-order pull sweep (PR):
+// position in [0,ne) proportional to u/num_nodes. SSOT for all 3 sims.
+inline uint32_t currentEpoch(int64_t u, int64_t num_nodes, uint32_t ne) {
+    return num_nodes > 0
+        ? static_cast<uint32_t>((static_cast<uint64_t>(u) * ne) / static_cast<uint64_t>(num_nodes))
+        : 0u;
+}
+
+// Path A "filtered DROPLET" epoch gate — SSOT for the lookahead-prefetch decision
+// across cache_sim / gem5 / Sniper. Returns true to prefetch the candidate.
+// filter: 0=off, 1=skip NEAR (dist<thresh), 2=skip FAR (dist>thresh); dist is the
+// circular epoch distance from the demand epoch cur_ep.
+inline bool prefetchKeep(uint16_t cand_ep, uint32_t cur_ep, uint32_t ne,
+                         int filter, uint32_t thresh) {
+    if (filter == 0 || ne <= 1) return true;
+    uint32_t dist = (static_cast<uint32_t>(cand_ep) + ne - cur_ep) % ne;
+    if (filter == 1 && dist < thresh) return false;
+    if (filter == 2 && dist > thresh) return false;
+    return true;
+}
+
 template <typename GraphT>
 void buildInEdgeEpochs(const GraphT& g,
                        uint32_t numVtxPerLine,

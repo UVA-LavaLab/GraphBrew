@@ -18,9 +18,10 @@
 // Cache simulation headers
 #include "cache_sim/cache_sim.h"
 #include "cache_sim/graph_sim.h"
-
 // P-OPT rereference matrix builder
 #include "graphbrew/partition/cagra/popt.h"
+// Shared ECG epoch helpers (Path A filter SSOT, cache_sim/gem5/Sniper)
+#include "ecg_epoch_builder.h"
 
 using namespace std;
 using namespace cache_sim;
@@ -240,17 +241,10 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         // reverts the bandwidth gain.
                         if (lean_pfx_k > 0) {
                             uint16_t saved_ep = graph_ctx.hints_for_thread().edge_epoch;
-                            // "Filtered DROPLET" (epoch-gated prefetch): use the candidate's
-                            // next-ref epoch to skip prefetches that aren't worth issuing.
-                            //   ECG_PREFETCH_EPOCH_FILTER: 0=off (prefetch all next-K, plain
-                            //     DROPLET), 1=skip NEAR (dist<thresh: line reused soon -> already
-                            //     kept by the eviction -> redundant), 2=skip FAR (dist>thresh:
-                            //     line not reused soon -> low retention value).
-                            //   ECG_PREFETCH_EPOCH_THRESH_PCT: threshold as % of ne (circular dist).
+                            // Epoch filter (ecg_epoch::prefetchKeep): skip low-value prefetches.
                             const int pfx_filter = GraphSimEnvIntClamped("ECG_PREFETCH_EPOCH_FILTER", 0, 0, 2);
                             const int pfx_thresh_pct = GraphSimEnvIntClamped("ECG_PREFETCH_EPOCH_THRESH_PCT", 50, 0, 100);
-                            const uint32_t cur_ep_k = (g.num_nodes() > 0)
-                                ? (uint32_t)(((uint64_t)u * (uint64_t)rec_ne) / (uint64_t)g.num_nodes()) : 0;
+                            const uint32_t cur_ep_k = ecg_epoch::currentEpoch(u, g.num_nodes(), (uint32_t)rec_ne);
                             const uint32_t thresh = (uint32_t)(((uint64_t)pfx_thresh_pct * (uint64_t)rec_ne) / 100);
                             auto jt = it;
                             size_t cpos = edge_pos;
@@ -273,11 +267,9 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                                     cand = static_cast<NodeID>(packed & id_mask);
                                     cand_ep = static_cast<uint16_t>(packed >> id_bits);
                                 }
-                                if (pfx_filter != 0 && rec_ne > 1) {
-                                    uint32_t dist = ((uint32_t)cand_ep + rec_ne - cur_ep_k) % rec_ne;
-                                    if (pfx_filter == 1 && dist < thresh) continue;   // skip NEAR
-                                    if (pfx_filter == 2 && dist > thresh) continue;   // skip FAR
-                                }
+                                if (!ecg_epoch::prefetchKeep(cand_ep, cur_ep_k,
+                                        (uint32_t)rec_ne, pfx_filter, thresh))
+                                    continue;
                                 graph_ctx.hints_for_thread().edge_epoch = cand_ep;
                                 SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr,
                                     static_cast<uint32_t>(cand), graph_ctx);
