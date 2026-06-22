@@ -61,7 +61,7 @@ SNIPER_OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "common/core/memory_subsystem/parametric_dram_directory_msi/droplet_prefetcher.h":
         "4e6556065c6043282a808fcf1d3471629fe6eceda274189d3ac20998d7589ac8",
     "common/core/memory_subsystem/parametric_dram_directory_msi/ecg_pfx_prefetcher.cc":
-        "f474306a613bcf4d3e2b1a8115fef0ec611aaabfd59eff1a6606c2e8cd7b073c",
+        "2b4633d5184eef5b37e81934483ba42be4cd9fd2224e5eb621958cc51602d6db",
     "common/core/memory_subsystem/parametric_dram_directory_msi/ecg_pfx_prefetcher.h":
         "31446f6e66ccfa2bccea5550f074f423d3fa9b1e803e6740c71292e09159ca89",
 }

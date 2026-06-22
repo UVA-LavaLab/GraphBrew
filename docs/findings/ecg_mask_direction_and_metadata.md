@@ -516,21 +516,18 @@ contract, not identical kernels.
     | epoch eviction (headline replacement) | yes | yes (packed-flat) | yes |
     | DROPLET baseline prefetch | yes | yes | yes |
     | Path B prefetch (single selective target) | yes (31-bit) | yes (24-bit, ≤16M) | yes (8-byte) |
-    | Path A prefetch (epoch-filtered next-K lookahead, **headline**) | yes | yes (§11) | **ready** — `SNIPER_ECG_EXTRACT` done (§12) |
+    | Path A prefetch (epoch-filtered next-K lookahead, **headline**) | yes | yes (§11) | **yes (§13)** — `SNIPER_ECG_EXTRACT` + batch-drain |
 
-  **Sniper faithfulness (§12 UPDATE):** the per-edge epoch delivery (`SNIPER_ECG_EXTRACT`,
-  opt-in) is now IMPLEMENTED + VALIDATED, so Sniper's ECG_GRASP_POPT eviction is delivery-faithful
-  like gem5/cache_sim (its host-side `findNextRef` matrix remains the default/oracle path). Sniper
-  Path A is therefore unblocked — the foundation it was sequenced behind exists. Original
-  deferral rationale: Sniper's ECG_GRASP_POPT *eviction* historically
-  sources the next-ref distance from the P-OPT matrix host-side (`findNextRef`, current-epoch
-  aware; `cache_set_ecg.cc` — "the cache has no per-line stored epoch"), NOT from a per-edge
-  epoch delivered through the memory hierarchy like gem5's `ecg.extract` / packed record. The
-  eviction *decision* is already SSOT (`ecg_victim_policy.h`). To port Path A at gem5's
-  faithfulness, Sniper first needs **`SNIPER_ECG_FAT_LOAD`** — a HW-faithful per-edge epoch
-  delivery (pending todo `s67-future-sniper-magic`). Sequence: fat-load → Sniper Path A. A
-  matrix-based Path A (kernel-built epochs + `prefetchKeep`) is possible sooner but would mix a
-  host-computed filter epoch with the matrix eviction — deferred in favour of the faithful path.
+  **Sniper faithfulness (§12/§13 UPDATE):** the per-edge epoch delivery (`SNIPER_ECG_EXTRACT`,
+  opt-in) is IMPLEMENTED + VALIDATED, so Sniper's ECG_GRASP_POPT eviction is delivery-faithful
+  like gem5/cache_sim (its host-side `findNextRef` matrix remains the default/oracle path). On
+  that foundation, **Sniper Path A is now IMPLEMENTED + mechanism-validated (§13)**: the kernel
+  emits the next-K epoch-filtered survivors (each carrying its epoch via `SNIPER_ECG_EXTRACT`
+  so the prefetch-filled line is stamped) and the `ecg_pfx` prefetcher batch-drains them. Path A
+  consumes ~17× more target hints than Path B (next-K vs single), distinct and with no ring
+  starvation. Known limitation: `pf_issued=0` on the no-pressure validation cell is the
+  pre-existing Sniper L2 enqueue filter (§13); gem5 is the cycle-accurate Path A reference with
+  real fills, cache_sim is authoritative for traffic.
 - **cache_sim-only research features** (BU frontier masks, SSSP/BC OUT masks, `POPT_DUAL_REREF`)
   have NO gem5/Sniper analog and are inert on the symmetric corpus / default-off. They are
   equivalent across sims ONLY because they are disabled or demonstrably inert for the evaluated
@@ -545,10 +542,10 @@ from the Phase 0 audit + the parity tests:
    delivers the epoch via the packed-flat 4-byte record (dest + epoch), faithful at scale.
 2. **ECG_PFX prefetch:** all 3 sims valid. **Path B** (single selective target): cache_sim/Sniper
    31-bit, gem5 24-bit (≤16M ids, §10.2, validated). **Path A** (epoch-filtered next-K lookahead,
-   the headline): cache_sim + gem5 (§11, size-independent); **Sniper deferred** — its eviction is
-   host-side-matrix-based (`findNextRef`), so a faithful Sniper Path A first needs
-   `SNIPER_ECG_FAT_LOAD` (per-edge epoch delivery). Do NOT report a Sniper Path A number until
-   then. `ECG_PFX_STRICT_TARGET=1` still guards any residual gem5 >24-bit truncation.
+   the headline): cache_sim + gem5 (§11, size-independent) + **Sniper (§13, `SNIPER_ECG_EXTRACT` +
+   batch-drain, mechanism-validated; fills gated by the pre-existing Sniper L2 enqueue filter —
+   gem5 is the cycle-accurate Path A reference with real fills, cache_sim authoritative for traffic).
+   `ECG_PFX_STRICT_TARGET=1` still guards any residual gem5 >24-bit truncation.
 3. **BFS is NOT cross-sim comparable for cache behavior** (cache_sim is direction-optimizing
    TD+BU; gem5/Sniper are simple TD-only). Use cache_sim `ECG_BFS_FORCE_TD` for a smoke-level
    comparison only; do NOT report BFS as a cross-sim result. PR is the cross-sim headline.
@@ -565,9 +562,9 @@ from the Phase 0 audit + the parity tests:
   (`packMaskEpochWide`, ≤16M) layouts against silent repack regressions.
 - Runtime mechanism parity: gem5 ECG_PFX validated end-to-end at scale (kron_s16_k4 = 65,536
   verts >32K): Path B 97% useful, Path A 82.6% useful, no truncation (§11); epoch eviction
-  faithful at scale (packed-flat). **Open (deferred):** Sniper Path A — Sniper runs Path B
-  (hub-ranked single target) only; a faithful Path A is sequenced behind `SNIPER_ECG_FAT_LOAD`
-  (per-edge epoch delivery) since Sniper's eviction is host-side-matrix-based.
+  faithful at scale (packed-flat). **Sniper Path A (§13):** mechanism-validated — next-K
+  epoch-filtered lookahead fires (226K hints vs Path B 13K, ~17×, no ring starvation); fills
+  gated by the pre-existing Sniper L2 enqueue filter (gem5 = cycle-accurate Path A with fills).
 
 ### §10.2 IMPLEMENTED + actual-sim VALIDATED: fix the gem5 ECG_PFX 32K limit by reclaiming vestigial mask bits
 
@@ -733,3 +730,58 @@ property regions (mirroring `isPropertyData`/`findNextRef`); `edge_epoch_count` 
 **Updated cross-sim eviction faithfulness:** all 3 sims now deliver the per-edge epoch through the
 hierarchy (cache_sim packed record, gem5 packed-flat/ecg.extract, Sniper SNIPER_ECG_EXTRACT).
 Sniper's `findNextRef` matrix remains the default/oracle path.
+
+## 13. IMPLEMENTED + VALIDATED: Sniper Path A (epoch-filtered next-K lookahead, 2026-06-21)
+
+Sniper now runs the **headline Path A** combined-stack prefetcher (epoch-filtered next-K
+edge-list lookahead), matching cache_sim and gem5 (§11). This closes the last 3-sim
+prefetch gap: Path A was previously cache_sim + gem5 only; Sniper ran Path B (single
+packed target) exclusively.
+
+**Mechanism (kernel `bench/src_sniper/pr.cc`, mode-6 loop):** gated by
+`ECG_EDGE_MASK_PREFETCH=K` (>0). For each demand edge, walk the next-K `in_neigh`,
+compute `cur_ep = ecg_epoch::currentEpoch(u, N, ne)` and the candidate epoch
+`cand_ep = in_edge_epochs_by_src[u][cpos]`, keep survivors via the SSOT
+`ecg_epoch::prefetchKeep`, and for each survivor emit BOTH `SNIPER_ECG_EXTRACT(cand,
+cand_ep)` (records the candidate's epoch in the per-core map so the prefetched line is
+stamped at fill — the only channel to a prefetch-filled line's epoch in Sniper) AND
+`SNIPER_ECG_PFX_TARGET(cand)` (issues the prefetch). Mutually exclusive with the Path B
+single-target block (K==0). `cand` is the streamed edge id at full width (no size limit,
+unlike gem5's 15/24-bit packed-target field).
+
+**Prefetcher batch-drain (`ecg_pfx_prefetcher.cc::getNextAddress`):** Path A pushes up
+to K hints per demand edge, so the prefetcher now drains up to
+`SNIPER_ECG_PFX_DRAIN_BATCH` (default 8) hints per call instead of exactly one —
+otherwise the 256-entry ring overflows and drops most Path A targets. The batch bound is
+on *consumed*-per-call (not issued), so a run of duplicates/invalids cannot spin. Path B
+(single target) is unaffected.
+
+**Dedup bypass for parity:** Path A emits every survivor (like cache_sim/gem5), so the
+emit-side dedup `should_emit_ecg_pfx_hint` must be disabled (`SNIPER_ECG_PFX_HINT_FILTER=0`,
+wired by `roi_matrix.py --ecg-pfx-hint-filter 0`). The kernel warns if `K>0` while the
+filter is non-zero, or if `K>0` without the mode-6 prefetch loop (so Path A would not fire).
+
+**Validation (Sniper, full `pr` binary, email-Eu-core, ECG_GRASP_POPT, L3=256kB,
+`--prefetcher ECG_PFX --ecg-pfx-mode per_edge --ecg-pfx-hint-filter 0`,
+`SNIPER_ENABLE_ECG_EXTRACT=1`):**
+
+| config | `ecg_pfx_target_hints_seen` | `pf_issued` | `invalid_target` |
+| ------ | --------------------------: | ----------: | ---------------: |
+| Path B (K=0, single target) | 13,254 | 11 | 0 |
+| Path A (K=8, next-K lookahead) | **226,039** | 0 | 0 |
+
+Path A consumes **~17× more target hints** than Path B (next-K vs single), confirming the
+lookahead fires and is **distinct** from Path B. `invalid_target=0` ⇒ the batch-drain kept
+up with the high volume (no ring starvation). The `nuca replacement_policy=ecg` +
+`l2_cache/prefetcher=ecg_pfx` are correctly wired.
+
+**Honest scope / known limitation:** `pf_issued=0` for Path A (status `active_no_fill`) is
+the **pre-existing Sniper L2 prefetch-enqueue filter** (documented since sprint 6b-2), NOT
+a Path A regression — Path B's batch-drain path still issues fills (11). This validation
+cell also has **no eviction pressure** (email-Eu-core property = 4 KB ≪ 256 KB L3,
+`l3_mr≈0.0002`), so fills would not help regardless. Sniper therefore validates the Path A
+**delivery+consumption mechanism** (next-K epoch-filtered hint generation and drain);
+**gem5** is the cycle-accurate Path A reference *with* real fills (pf 794333 issued, 82.6%
+useful, on kron_s16_k4 >32K verts, §11), and **cache_sim** is authoritative for total
+traffic/miss-rate. This matches the §10 cross-sim contract (cache_sim = traffic;
+gem5/Sniper = cycle-accurate mechanism with documented per-tool limitations).

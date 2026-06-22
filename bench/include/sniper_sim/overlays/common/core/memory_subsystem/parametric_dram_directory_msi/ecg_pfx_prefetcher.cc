@@ -76,33 +76,48 @@ EcgPfxPrefetcher::getNextAddress(IntPtr current_address, core_id_t core_id,
       return addresses;
    }
 
-   UInt32 target = 0;
-   if (!graphbrew::sniper::consumePrefetchTargetHint(static_cast<UInt32>(m_core_id), target)) {
-      return addresses;
-   }
-   m_stat_target_hints_seen++;
+   // Batch-drain: Path A pushes up to K hints per demand edge, so drain several
+   // per call (DROPLET-style multi-address-per-call) instead of one — otherwise
+   // the 256-entry ring overflows and drops most Path A targets. Bounded by
+   // SNIPER_ECG_PFX_DRAIN_BATCH (consumed-per-call, NOT issued, so a run of
+   // duplicates/invalids can't spin). Path B (single target) is unaffected.
+   static const int drainBatch = []() {
+      const char* v = std::getenv("SNIPER_ECG_PFX_DRAIN_BATCH");
+      int b = (v && v[0]) ? std::atoi(v) : 8;
+      if (b < 1) b = 1;
+      if (b > 64) b = 64;
+      return b;
+   }();
 
-   IntPtr address = propertyAddress(target);
-   if (!isPropertyAddress(address)) {
-      m_stat_invalid_target++;
-      return addresses;
-   }
+   for (int drained = 0; drained < drainBatch; ++drained) {
+      UInt32 target = 0;
+      if (!graphbrew::sniper::consumePrefetchTargetHint(static_cast<UInt32>(m_core_id), target)) {
+         break;  // ring empty
+      }
+      m_stat_target_hints_seen++;
 
-   IntPtr line = lineAddress(address);
-   if (!shouldPrefetch(line)) {
-      return addresses;
-   }
+      IntPtr address = propertyAddress(target);
+      if (!isPropertyAddress(address)) {
+         m_stat_invalid_target++;
+         continue;
+      }
 
-   if (!m_reported_first_hint) {
-      std::cerr << "SNIPER_ECG_PFX: first target vertex=" << target
-                << " addr=0x" << std::hex << address
-                << " property=[0x" << m_property_base << ",0x" << m_property_end
-                << ")" << std::dec << std::endl;
-      m_reported_first_hint = true;
-   }
+      IntPtr line = lineAddress(address);
+      if (!shouldPrefetch(line)) {
+         continue;
+      }
 
-   addresses.push_back(line);
-   m_stat_issued++;
+      if (!m_reported_first_hint) {
+         std::cerr << "SNIPER_ECG_PFX: first target vertex=" << target
+                   << " addr=0x" << std::hex << address
+                   << " property=[0x" << m_property_base << ",0x" << m_property_end
+                   << ")" << std::dec << std::endl;
+         m_reported_first_hint = true;
+      }
+
+      addresses.push_back(line);
+      m_stat_issued++;
+   }
    return addresses;
 }
 

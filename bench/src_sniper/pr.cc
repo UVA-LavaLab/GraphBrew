@@ -141,8 +141,24 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
     bool ecg_extract_enabled = graphbrew_sniper::ecg_extract_enabled();
     uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", 256, 2, 65535));
+    // Path A (epoch-filtered next-K lookahead, the headline combined-stack
+    // prefetcher; mirrors cache_sim/gem5). K>0 prefetches the next-K in-neighbors'
+    // contrib[], each filtered + stamped by its own next-ref epoch.
+    int lean_pfx_k = graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_PREFETCH", 0, 0, 64);
+    int pfx_epoch_filter = graphbrew_sniper::env_int_clamped("ECG_PREFETCH_EPOCH_FILTER", 0, 0, 2);
+    int pfx_epoch_thresh_pct = graphbrew_sniper::env_int_clamped("ECG_PREFETCH_EPOCH_THRESH_PCT", 50, 0, 100);
+    if (lean_pfx_k > 0 && graphbrew_sniper::env_int_clamped("SNIPER_ECG_PFX_HINT_FILTER", 16, 0, 64) != 0) {
+        fprintf(stderr, "[sniper Path A] WARNING: ECG_EDGE_MASK_PREFETCH=%d but "
+                "SNIPER_ECG_PFX_HINT_FILTER!=0 — the emit-side dedup will drop "
+                "next-K survivors; set SNIPER_ECG_PFX_HINT_FILTER=0 for parity.\n", lean_pfx_k);
+    }
+    if (lean_pfx_k > 0 && !(ecg_prefetch_enabled && ecg_pfx_mode == 6)) {
+        fprintf(stderr, "[sniper Path A] WARNING: ECG_EDGE_MASK_PREFETCH=%d but "
+                "Path A runs only under the mode-6 prefetch loop (need ECG_PREFETCH=1 "
+                "+ ECG_PREFETCH_MODE=6); Path A will NOT fire in this config.\n", lean_pfx_k);
+    }
     vector<vector<uint16_t>> in_edge_epochs_by_src;
-    if (ecg_extract_enabled) {
+    if (ecg_extract_enabled || lean_pfx_k > 0) {
         ecg_epoch::buildInEdgeEpochs(g, kNumVtxPerLine, ecg_epoch_count, true,
                                      in_edge_epochs_by_src);
     }
@@ -179,7 +195,39 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
                         SNIPER_ECG_EXTRACT(v, ep);
                     }
                     uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
-                    if (prefetch_target != 0) {
+                    if (lean_pfx_k > 0) {
+                        // Path A: prefetch next-K in-neighbors' contrib[], filtered
+                        // by epoch. Each survivor's epoch is recorded (via the demand
+                        // extract channel — the per-vertex map is the only path to a
+                        // prefetch-filled line's epoch) so the prefetched line evicts
+                        // correctly, then issued. cand is the streamed edge id (full
+                        // width, no size limit).
+                        const auto& eps = (u < static_cast<NodeID>(in_edge_epochs_by_src.size()))
+                            ? in_edge_epochs_by_src[u] : in_edge_epochs_by_src[0];
+                        uint32_t ne = ecg_epoch_count;
+                        uint32_t cur_ep = ecg_epoch::currentEpoch(u, g.num_nodes(), ne);
+                        uint32_t thresh = static_cast<uint32_t>(
+                            (static_cast<uint64_t>(pfx_epoch_thresh_pct) * ne) / 100);
+                        auto jt = it;
+                        size_t cpos = edge_pos;
+                        for (int step = 0; step < lean_pfx_k; step++) {
+                            ++jt; ++cpos;
+                            if (jt == in_neigh.end()) break;
+                            NodeID cand = *jt;
+                            if (cand < 0) continue;
+                            uint16_t cand_ep = (cpos < eps.size()) ? eps[cpos] : 0;
+                            if (!ecg_epoch::prefetchKeep(cand_ep, cur_ep, ne,
+                                                         pfx_epoch_filter, thresh))
+                                continue;
+#if GRAPHBREW_SNIPER_HAS_SIM_API
+                            SNIPER_ECG_EXTRACT(cand, cand_ep);
+                            SNIPER_ECG_PFX_TARGET(cand);
+#else
+                            volatile ScoreT pf = outgoing_contrib[cand];
+                            (void)pf;
+#endif
+                        }
+                    } else if (prefetch_target != 0) {
                         bool in_window = false;
                         for (int w = 0; w < PREFETCH_WINDOW; w++) {
                             if (pfx_window[w] == static_cast<NodeID>(prefetch_target)) {
