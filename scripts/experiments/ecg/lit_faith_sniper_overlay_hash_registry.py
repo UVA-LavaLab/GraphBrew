@@ -51,7 +51,7 @@ SNIPER_OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "common/core/memory_subsystem/cache/cache_set_popt.h":
         "9358c1d96a7cb3d74ab8b3aaf7184562df3033a5ee5954cef79872a3676caa6b",
     "common/core/memory_subsystem/cache/ecg_victim_policy.h":
-        "cad8b7b8d57f48680208bb10b536421fcc8ec624c94aa83389429f56dbe8ad6b",
+        "a231b2e241c842d39de28c81b4f0783e42d876227247fc56980b858d6ced5ab9",
     "common/core/memory_subsystem/cache/graph_cache_context_sniper.cc":
         "51acd61e9de3e094b3ef3d6c2482f333255d0995165e43f4a74cd7583f3fe805",
     "common/core/memory_subsystem/cache/graph_cache_context_sniper.h":

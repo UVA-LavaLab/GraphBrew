@@ -33,7 +33,7 @@ ECG_ENV = dict(CACHE_POLICY="ECG", CACHE_L3_POLICY="ECG", ECG_MODE="ECG_GRASP_PO
 COV_ENV = dict(CACHE_L2_SIZE="1MB", CACHE_L3_SIZE="4kB", ECG_STORED_REFRESH="1",
                ECG_EVICT_TRACE="4000")
 
-WAY_RE = re.compile(r"way(\d+) valid=(\d+) rrpv=(\d+) epoch=(\d+) dist=(\d+) prop=(\d+) last=(\d+)")
+WAY_RE = re.compile(r"way(\d+) valid=(\d+) rrpv=(\d+) epoch=(\d+) dist=(\d+) prop=(\d+) stamped=(\d+) last=(\d+)")
 HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
 VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
 
@@ -106,9 +106,9 @@ def parse_blocks(text):
             pol = h.group(1); ways = []; victim = None; reason = None; continue
         m = WAY_RE.search(line)
         if m:
-            w, valid, rrpv, epoch, dist, prop, last = map(int, m.groups())
+            w, valid, rrpv, epoch, dist, prop, stamped, last = map(int, m.groups())
             ways.append(dict(way=w, valid=valid, rrpv=rrpv, epoch=epoch,
-                             dist=dist, prop=prop, last=last))
+                             dist=dist, prop=prop, stamped=stamped, last=last))
         v = VIC_RE.search(line)
         if v:
             victim = int(v.group(1)); reason = (v.group(2) or "").strip()
@@ -116,11 +116,12 @@ def parse_blocks(text):
 
 
 # --- Exact-victim rules. The trace `dist` field shows the RAW circular distance
-# (epoch+ne-curEpoch)%ne; for an UNSTAMPED line (epoch==0) that is a large value,
-# but rrip_first/epoch_* treat unstamped property as effective distance 0
-# (stamped?dist:0). shortcircuit instead uses the raw dist for all property.
+# (epoch+ne-curEpoch)%ne. Stamped-ness is now an EXPLICIT trace bit (a per-edge
+# epoch was DELIVERED), NOT "epoch != 0" — a real epoch-0 line (low-ID next-ref)
+# IS stamped. rrip_first/epoch_*/shortcircuit all treat an UNSTAMPED property line
+# as effective distance 0 (stamped?dist:0).
 def _eff_d(w):
-    return w["dist"] if (w["prop"] == 1 and w["epoch"] != 0) else 0
+    return w["dist"] if (w["prop"] == 1 and w["stamped"]) else 0
 
 
 # rule(ways, victim) -> True if victim is EXACTLY what the policy must evict
@@ -128,9 +129,9 @@ RULES = {
     "LRU": lambda ways, v: ways[v]["last"] == min(w["last"] for w in ways),
     "GRASP": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
     "ECG:grasp_only": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
-    # shortcircuit: FIRST record by set index; else farthest RAW-dist property
+    # shortcircuit: FIRST record by set index; else farthest EFFECTIVE-dist property
     "ECG:shortcircuit": lambda ways, v: _shortcircuit_rule(ways, v),
-    "ECG:shortcircuit+epoch": lambda ways, v: ways[v]["dist"] == max(w["dist"] for w in ways),
+    "ECG:shortcircuit+epoch": lambda ways, v: _eff_d(ways[v]) == max(_eff_d(w) for w in ways),
     # epoch_*: oldest record by recency; else farthest dist among STAMPED; else LRU
     "ECG:epoch_first": lambda ways, v: _epoch_rule(ways, v),
     "ECG:epoch_only": lambda ways, v: _epoch_rule(ways, v),
@@ -143,9 +144,9 @@ def _epoch_rule(ways, v):
     recs = [w for w in ways if w["prop"] == 0]
     if recs:  # oldest record by recency
         return ways[v]["prop"] == 0 and ways[v]["last"] == min(w["last"] for w in recs)
-    stamped = [w for w in ways if w["prop"] == 1 and w["epoch"] != 0]
-    if stamped:  # farthest next-ref among stamped property
-        return ways[v]["epoch"] != 0 and ways[v]["dist"] == max(w["dist"] for w in stamped)
+    stamped_lines = [w for w in ways if w["prop"] == 1 and w["stamped"]]
+    if stamped_lines:  # farthest next-ref among stamped property
+        return ways[v]["stamped"] and ways[v]["dist"] == max(w["dist"] for w in stamped_lines)
     return ways[v]["last"] == min(w["last"] for w in ways)  # all unstamped -> LRU fallback
 
 
@@ -165,7 +166,7 @@ def _shortcircuit_rule(ways, v):
     recs = [w for w in ways if w["prop"] == 0]
     if recs:  # FIRST record by set order (distinguishes from epoch's recency)
         return ways[v]["prop"] == 0 and ways[v]["way"] == min(w["way"] for w in recs)
-    return ways[v]["dist"] == max(w["dist"] for w in ways)  # all property -> max raw dist
+    return _eff_d(ways[v]) == max(_eff_d(w) for w in ways)  # all property -> max effective dist
 
 
 def verify_trace(name, result, prefix="", reasons=None):
@@ -234,13 +235,13 @@ def _epoch_decided(pol, ways, v):
     ranks property by RAW dist, so unstamped property—huge raw dist—is evicted
     first and the stamped-epoch comparison is rarely operative; that variant's
     epoch ranking is covered by the synthetic test instead.)"""
-    if v is None or ways[v]["prop"] != 1 or ways[v]["epoch"] == 0:
+    if v is None or ways[v]["prop"] != 1 or not ways[v]["stamped"]:
         return False
     if pol == "ECG:rrip_first":
         mx = max(w["rrpv"] for w in ways)
-        pool = [w for w in ways if w["rrpv"] == mx and w["prop"] == 1 and w["epoch"] != 0]
+        pool = [w for w in ways if w["rrpv"] == mx and w["prop"] == 1 and w["stamped"]]
     else:  # epoch_first / epoch_only rank all stamped property
-        pool = [w for w in ways if w["prop"] == 1 and w["epoch"] != 0]
+        pool = [w for w in ways if w["prop"] == 1 and w["stamped"]]
     return (len(pool) >= 2 and len({w["dist"] for w in pool}) >= 2
             and ways[v]["dist"] == max(w["dist"] for w in pool))
 

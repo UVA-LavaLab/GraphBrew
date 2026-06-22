@@ -57,6 +57,9 @@ static void check(CacheLevel& L3, const char* name, std::vector<Way> w, int expe
         set[i].line_addr = w[i].addr;
         set[i].rrpv = (uint8_t)w[i].rrpv;
         set[i].ecg_epoch = (uint16_t)w[i].epoch;
+        // The fixture uses epoch==0 to denote an UNSTAMPED line (its original
+        // convention), so mirror that into the new explicit valid bit.
+        set[i].ecg_epoch_valid = (w[i].epoch != 0);
         set[i].last_access = w[i].last;
         set[i].ecg_dbg_tier = (uint8_t)w[i].dbg;
     }

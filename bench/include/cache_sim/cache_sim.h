@@ -412,6 +412,10 @@ struct CacheLine {
     uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (structural, for eviction tiebreak)
     uint8_t ecg_popt_hint = 0;   // ECG_EMBEDDED: stored P-OPT quantized rereference hint
     uint16_t ecg_epoch = 0;      // ECG_GRASP_POPT: stored ABSOLUTE next-ref epoch (full resolution)
+    bool ecg_epoch_valid = false; // ECG_GRASP_POPT: a per-edge epoch was DELIVERED to this line.
+                                  // Distinguishes a real epoch-0 (low-ID next-referencer) from an
+                                  // undelivered line — epoch==0 alone is ambiguous. Mirrors Sniper's
+                                  // m_ecg_epoch_valid so all 3 sims represent "stamped" identically.
     uint32_t ecg_exact_pred = UINT32_MAX; // ECG_EXACT_STORED: exact next-ref STAMPED at access (precomputed-mask model)
     bool pin = false;            // PIN policy: line is pinned in cache (high-reuse region)
 };
@@ -1039,11 +1043,13 @@ public:
             if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
                 uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
                 set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
+                set[victim_idx].ecg_epoch_valid = false;  // reset; set true only on a real delivery
                 if (mode == ECGMode::ECG_EXACT_MASK) {
                     // already set ecg_popt_hint from the fixed per-edge layout above
                 } else if (mode == ECGMode::ECG_GRASP_POPT) {
                     // per-edge mask carries the ABSOLUTE next-ref epoch (untruncated)
                     set[victim_idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
+                    set[victim_idx].ecg_epoch_valid = true;  // a per-edge epoch was delivered
                 } else {
                     set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
                 }
@@ -1260,6 +1266,7 @@ private:
                       << " epoch=" << set[i].ecg_epoch
                       << " dist=" << dist
                       << " prop=" << (int)prop
+                      << " stamped=" << (int)(prop && set[i].ecg_epoch_valid)
                       << " last=" << set[i].last_access
                       << (i == victim ? "   <== VICTIM" : "") << "\n";
         }
@@ -1708,7 +1715,7 @@ private:
             constexpr uint8_t RRPV_MAX = 7;
             auto isProp  = [&](size_t i){ return graph_ctx_->isPropertyData(set[i].line_addr); };
             auto dist    = [&](size_t i){ return (uint32_t(set[i].ecg_epoch) + ne - cur_epoch) % ne; };
-            auto stamped = [&](size_t i){ return isProp(i) && set[i].ecg_epoch != 0; };
+            auto stamped = [&](size_t i){ return isProp(i) && set[i].ecg_epoch_valid; };
 
             // Build the per-way state and delegate the DECISION to the shared
             // ecg_policy::selectVictim (identical across cache_sim / gem5 / Sniper).

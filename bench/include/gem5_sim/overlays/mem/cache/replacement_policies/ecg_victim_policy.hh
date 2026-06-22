@@ -59,12 +59,13 @@ inline size_t selectVictim(WayState* ways, size_t n, int variant, uint8_t rrpvMa
     }
 
     // shortcircuit (legacy): evict any non-property line first (set order); if the
-    // set is all property, evict the farthest RAW-dist line (DBG tier tiebreak).
+    // set is all property, evict the farthest effective-dist line (unstamped property
+    // -> dist 0 = kept, so only genuinely stamped property competes; DBG tiebreak).
     if (variant == SHORTCIRCUIT) {
         for (size_t i = 0; i < n; i++) if (!ways[i].prop) return i;
         size_t best = 0; uint32_t bd = 0; uint8_t bdbg = 0;
         for (size_t i = 0; i < n; i++) {
-            uint32_t d = ways[i].dist;
+            uint32_t d = effDist(ways[i]);
             if (d > bd || (d == bd && ways[i].dbg > bdbg)) { best = i; bd = d; bdbg = ways[i].dbg; }
         }
         return best;

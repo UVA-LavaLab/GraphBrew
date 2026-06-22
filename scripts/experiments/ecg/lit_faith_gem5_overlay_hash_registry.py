@@ -81,7 +81,7 @@ OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "mem/cache/replacement_policies/ecg_rp.hh":
         "c529a51502fc3ff34614eed9feb0c486662e0f4f4417be975967e0b5d173d8b3",
     "mem/cache/replacement_policies/ecg_victim_policy.hh":
-        "cad8b7b8d57f48680208bb10b536421fcc8ec624c94aa83389429f56dbe8ad6b",
+        "a231b2e241c842d39de28c81b4f0783e42d876227247fc56980b858d6ced5ab9",
     "mem/cache/replacement_policies/graph_cache_context_gem5.hh":
         "7e20b7b301885665a5983b200277ebeef1d344accc6311c76f0b83547dd533c9",
     "mem/cache/replacement_policies/grasp_rp.cc":
