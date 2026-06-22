@@ -38,24 +38,39 @@ GraphEcgPfxPrefetcher::calculatePrefetch(
         return;
     }
 
-    uint32_t target = 0;
-    if (!replacement_policy::graph::consumePrefetchTargetHint(target)) {
-        return;
-    }
+    // Batch-drain: Path A (epoch-filtered lookahead) pushes up to K hints per
+    // demand edge, so drain several per call (DROPLET-style multi-address-per-
+    // call) instead of one — otherwise the 256-entry ring overflows and drops
+    // most Path A targets. Bounded by GEM5_ECG_PFX_DRAIN_BATCH. Path B (single
+    // target) is unaffected: it only ever has one hint pending.
+    static const int drainBatch = []() -> int {
+        const char* v = std::getenv("GEM5_ECG_PFX_DRAIN_BATCH");
+        int b = (v && v[0]) ? std::atoi(v) : 8;
+        if (b < 1) b = 1;
+        if (b > 64) b = 64;
+        return b;
+    }();
 
-    uint64_t address = propertyAddrForVertex(target);
-    if (!isPropertyAddress(address) || !shouldPrefetch(address)) {
-        return;
-    }
+    for (int drained = 0; drained < drainBatch; ++drained) {
+        uint32_t target = 0;
+        if (!replacement_policy::graph::consumePrefetchTargetHint(target)) {
+            break;  // ring empty
+        }
 
-    if (!reportedFirstHint) {
-        std::cerr << "ECG_PFX: first target vertex=" << target
-                  << " addr=0x" << std::hex << address
-                  << " property=[0x" << propertyBase << ",0x" << propertyEnd
-                  << ")" << std::dec << std::endl;
-        reportedFirstHint = true;
+        uint64_t address = propertyAddrForVertex(target);
+        if (!isPropertyAddress(address) || !shouldPrefetch(address)) {
+            continue;  // keep draining the rest of the batch
+        }
+
+        if (!reportedFirstHint) {
+            std::cerr << "ECG_PFX: first target vertex=" << target
+                      << " addr=0x" << std::hex << address
+                      << " property=[0x" << propertyBase << ",0x" << propertyEnd
+                      << ")" << std::dec << std::endl;
+            reportedFirstHint = true;
+        }
+        addresses.push_back(AddrPriority(address, 0));
     }
-    addresses.push_back(AddrPriority(address, 0));
 }
 
 void

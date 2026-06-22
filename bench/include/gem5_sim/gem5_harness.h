@@ -45,6 +45,7 @@
 #define GEM5_WORK_COMPUTE 1
 #define GEM5_WORK_SET_VERTEX 0x47525654ULL  // GraphBrew current vertex hint
 #define GEM5_WORK_ECG_PFX_TARGET 0x47504658ULL  // GraphBrew ECG PFX target hint
+#define GEM5_WORK_ECG_PFX_TARGET_EPOCH 0x47504659ULL  // Path A: target|epoch<<32
 
 #ifndef NO_M5OPS
 inline bool gem5_vertex_hints_enabled() {
@@ -234,6 +235,19 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
         } \
     } while (0)
 #endif
+
+// Path A (epoch-filtered DROPLET lookahead) hint: deliver (target, epoch) via a
+// dedicated work-id so the prefetched line recovers its candidate epoch at fill.
+// No gem5_should_emit_ecg_pfx_hint dedup — Path A emits every epoch-filter
+// survivor, matching cache_sim. m5op channel (works on both ISAs; needs m5ops).
+#define GEM5_ECG_PFX_TARGET_EPOCH(target_id, epoch_id) \
+    do { \
+        if (gem5_ecg_pfx_hints_enabled()) { \
+            uint64_t _pfxa_t = static_cast<uint64_t>(static_cast<uint32_t>(target_id)); \
+            uint64_t _pfxa_e = static_cast<uint64_t>(static_cast<uint16_t>(epoch_id)); \
+            m5_work_begin(GEM5_WORK_ECG_PFX_TARGET_EPOCH, _pfxa_t | (_pfxa_e << 32)); \
+        } \
+    } while (0)
 #else
 #define GEM5_SET_VERTEX(vertex_id) do {} while(0)
 #if defined(__riscv)
@@ -332,11 +346,14 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
             } \
         } \
     } while (0)
+// Path A requires the m5op hint channel; without m5ops it is a no-op.
+#define GEM5_ECG_PFX_TARGET_EPOCH(target_id, epoch_id) do {} while(0)
 #else
 inline bool gem5_ecg_pfx_hints_enabled() { return false; }
 inline bool gem5_ecg_extract_enabled() { return false; }
 #define GEM5_ECG_EXTRACT_MASK(mask_u64) do {} while(0)
 #define GEM5_ECG_PFX_TARGET(vertex_id) do {} while(0)
+#define GEM5_ECG_PFX_TARGET_EPOCH(target_id, epoch_id) do {} while(0)
 #endif
 #endif
 

@@ -148,6 +148,19 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     bool ecg_prefetch_enabled = ecg_prefetch_env && string(ecg_prefetch_env) != "0";
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
 
+    // === Path A: epoch-filtered DROPLET lookahead (ECG_EDGE_MASK_PREFETCH=K) ===
+    // The cross-sim headline combined-stack prefetcher (mirrors cache_sim
+    // bench/src_sim/pr.cc:241-285). When K>0 the mode-6 demand loop prefetches
+    // the next-K in-neighbors' contrib[], each carrying its OWN next-ref epoch
+    // (delivered via GEM5_ECG_PFX_TARGET_EPOCH so the prefetched line evicts
+    // correctly), with an optional epoch filter to cut bandwidth. Unlike Path B
+    // (single 24-bit packed target) the target here is the streamed edge id, so
+    // there is NO vertex-id size limit.
+    int lean_pfx_k = gem5_env_int_clamped("ECG_EDGE_MASK_PREFETCH", 0, 0, 64);
+    int pfx_epoch_filter = gem5_env_int_clamped("ECG_PREFETCH_EPOCH_FILTER", 0, 0, 2);
+    int pfx_epoch_thresh_pct =
+        gem5_env_int_clamped("ECG_PREFETCH_EPOCH_THRESH_PCT", 50, 0, 100);
+
     // === Mode 6: Per-Edge ECG Mask (paper's ECG design, sprint 6f-5) ===
     // Build the per-edge mask array once before iteration begins. When
     // GEM5_ECG_PFX_MODE=6 the inner loop reads pre-encoded prefetch targets
@@ -300,8 +313,12 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
                     uint64_t mask;
                     NodeID v;
-                    if (packed_ok && !ecg_prefetch_enabled) {
-                        // EVICTION-ONLY: one contiguous 4-byte record read — the
+                    if (packed_ok && (!ecg_prefetch_enabled || lean_pfx_k > 0)) {
+                        // EVICTION-ONLY demand mask (dest+epoch, NO fat-mask pfx
+                        // target). Path A also takes this branch: it prefetches
+                        // via the epoch-filtered lookahead below, so the demand
+                        // must NOT also emit a fat-mask Path-B target. One
+                        // contiguous 4-byte record read — the
                         // single edge stream that also carries the epoch (no
                         // separate scattered mask array polluting the LLC). The
                         // 4-byte record holds dest+epoch only, which is all the
@@ -326,24 +343,71 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     if (ecg_extract_enabled) {
                         GEM5_ECG_EXTRACT_MASK(mask);
                     }
-                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTargetWide(mask);
-                    if (prefetch_target != 0) {
-                        bool in_window = false;
-                        for (int w = 0; w < PREFETCH_WINDOW; w++) {
-                            if (pfx_window[w] == static_cast<NodeID>(prefetch_target)) {
-                                in_window = true;
-                                break;
+                    if (lean_pfx_k > 0 && ecg_prefetch_enabled) {
+                        // === Path A: epoch-filtered DROPLET lookahead ===
+                        // Prefetch the next-K in-neighbors' contrib[], each
+                        // carrying its OWN next-ref epoch (delivered so the
+                        // prefetched line evicts correctly). cand is the streamed
+                        // edge id (full width) — no 32K target limit. Mirrors
+                        // cache_sim bench/src_sim/pr.cc:241-285.
+                        uint32_t ne = edge_epoch_count;
+                        uint32_t cur_ep_k = (g.num_nodes() > 0)
+                            ? static_cast<uint32_t>(
+                                  (static_cast<uint64_t>(u) * ne) / g.num_nodes())
+                            : 0;
+                        uint32_t thresh = static_cast<uint32_t>(
+                            (static_cast<uint64_t>(pfx_epoch_thresh_pct) * ne) / 100);
+                        auto jt = it;
+                        size_t cpos = edge_pos;
+                        for (int step = 0; step < lean_pfx_k; step++) {
+                            ++jt; ++cpos;
+                            if (jt == in_neigh.end()) break;
+                            NodeID cand = *jt;
+                            if (cand < 0) continue;
+                            uint16_t cand_ep = packed_ok
+                                ? static_cast<uint16_t>(
+                                      in_edge_packed_flat[packed_off[u] + cpos]
+                                          >> pack_id_bits)
+                                : (cpos < src_masks.size()
+                                       ? static_cast<uint16_t>(
+                                             ecg_mode6::extractEpochWide(src_masks[cpos]))
+                                       : 0);
+                            if (pfx_epoch_filter != 0 && ne > 1) {
+                                uint32_t dist = (static_cast<uint32_t>(cand_ep)
+                                                 + ne - cur_ep_k) % ne;
+                                if (pfx_epoch_filter == 1 && dist < thresh)
+                                    continue;  // skip NEAR (already kept by eviction)
+                                if (pfx_epoch_filter == 2 && dist > thresh)
+                                    continue;  // skip FAR (low retention value)
                             }
+                            GEM5_ECG_PFX_TARGET_EPOCH(static_cast<uint32_t>(cand),
+                                                      cand_ep);
                         }
-                        if (!in_window) {
-                            // S69PRE-M1-MASK: emit FULL mode-6 mask via ecg.extract
-                            // when ISA-delivered metadata channel is enabled.
-                            // Else fall back to the legacy prefetch-target-only path.
-                            if (!ecg_extract_enabled) {
-                                GEM5_ECG_PFX_TARGET(prefetch_target);
+                    } else {
+                        // === Path B: single 24-bit POPT-best target ===
+                        uint32_t prefetch_target =
+                            ecg_mode6::extractPrefetchTargetWide(mask);
+                        if (prefetch_target != 0) {
+                            bool in_window = false;
+                            for (int w = 0; w < PREFETCH_WINDOW; w++) {
+                                if (pfx_window[w] ==
+                                    static_cast<NodeID>(prefetch_target)) {
+                                    in_window = true;
+                                    break;
+                                }
                             }
-                            pfx_window[pfx_window_pos % PREFETCH_WINDOW] = prefetch_target;
-                            pfx_window_pos++;
+                            if (!in_window) {
+                                // S69PRE-M1-MASK: emit FULL mode-6 mask via
+                                // ecg.extract when the ISA-delivered metadata
+                                // channel is enabled. Else fall back to the
+                                // legacy prefetch-target-only path.
+                                if (!ecg_extract_enabled) {
+                                    GEM5_ECG_PFX_TARGET(prefetch_target);
+                                }
+                                pfx_window[pfx_window_pos % PREFETCH_WINDOW] =
+                                    prefetch_target;
+                                pfx_window_pos++;
+                            }
                         }
                     }
                     incoming_total += outgoing_contrib[v];

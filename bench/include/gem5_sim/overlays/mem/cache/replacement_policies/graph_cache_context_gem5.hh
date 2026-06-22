@@ -72,6 +72,11 @@ static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
 static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
+// Path A (epoch-filtered DROPLET lookahead): a dedicated hint work-id that
+// carries (target | epoch<<32) so the prefetched line can recover its
+// candidate epoch at fill — distinct from the fat-mask work-id above (no
+// >>24 ambiguity, no single-slot corruption, no 24-bit target truncation).
+static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_EPOCH_WORK_ID = 0x47504659ULL;
 
 inline std::atomic<uint32_t>& currentVertexHintStorage() {
     static std::atomic<uint32_t> vertex{0};
@@ -149,6 +154,55 @@ inline bool consumePrefetchTargetHint(uint32_t& vertex) {
     }
     vertex = q.entries[h].load(std::memory_order_relaxed);
     q.head.store((h + 1) % kHintQueueSize, std::memory_order_release);
+    return true;
+}
+
+// === Path A in-flight prefetch-epoch buffer (HW-faithful, bounded) ===
+//
+// cache_sim Path A stamps each prefetched property line with its candidate's
+// next-ref epoch so the ECG_GRASP_POPT eviction keeps it correctly. In gem5 the
+// demand epoch rides the in-order ecg.extract single-slot mailbox, but a prefetch
+// FILL is asynchronous, so the single-slot is stale by then. This is the HW
+// reality of "the prefetch engine read the epoch from the edge word and carries
+// it with the request": a small bounded buffer (direct-mapped by vertex, sized
+// like an MSHR / prefetch-metadata array — NOT an O(V) table) holds (vertex ->
+// epoch) from hint delivery until the fill consumes it. Collisions just drop a
+// pending epoch (the line stays unstamped, re-stamped on its eventual demand);
+// a drop counter makes that observable.
+inline constexpr std::size_t kPendingPfxEpochSize = 256;
+
+struct PendingPfxEpochState {
+    std::atomic<uint32_t> vertex[kPendingPfxEpochSize];  // UINT32_MAX = empty
+    std::atomic<uint16_t> epoch[kPendingPfxEpochSize];
+    std::atomic<uint64_t> drops{0};
+    PendingPfxEpochState() {
+        for (std::size_t i = 0; i < kPendingPfxEpochSize; ++i)
+            vertex[i].store(UINT32_MAX, std::memory_order_relaxed);
+    }
+};
+
+inline PendingPfxEpochState& pendingPfxEpoch() {
+    static PendingPfxEpochState s;
+    return s;
+}
+
+inline void recordPendingPrefetchEpoch(uint32_t vtx, uint16_t ep) {
+    auto& s = pendingPfxEpoch();
+    std::size_t i = vtx % kPendingPfxEpochSize;
+    uint32_t prev = s.vertex[i].load(std::memory_order_relaxed);
+    if (prev != UINT32_MAX && prev != vtx)
+        s.drops.fetch_add(1, std::memory_order_relaxed);
+    s.epoch[i].store(ep, std::memory_order_relaxed);
+    s.vertex[i].store(vtx, std::memory_order_release);
+}
+
+// One-shot lookup: returns the pending epoch for vtx and clears the slot.
+inline bool consumePendingPrefetchEpoch(uint32_t vtx, uint16_t& ep) {
+    auto& s = pendingPfxEpoch();
+    std::size_t i = vtx % kPendingPfxEpochSize;
+    if (s.vertex[i].load(std::memory_order_acquire) != vtx) return false;
+    ep = s.epoch[i].load(std::memory_order_relaxed);
+    s.vertex[i].store(UINT32_MAX, std::memory_order_release);
     return true;
 }
 

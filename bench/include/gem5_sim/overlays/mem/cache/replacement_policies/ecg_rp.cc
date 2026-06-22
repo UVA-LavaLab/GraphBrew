@@ -212,6 +212,14 @@ GraphEcgRP::reset(
                     data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;  // 7-bit POPT quant
                     data->ecg_epoch = isa_epoch;
+                } else if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
+                    // Path A: this is a prefetch FILL (the in-order demand
+                    // single-slot holds a different vertex). Recover the
+                    // candidate epoch the prefetch carried, from the bounded
+                    // in-flight buffer; keep the degree-derived DBG tier.
+                    uint16_t pf_epoch = 0;
+                    if (graph::consumePendingPrefetchEpoch(vertex, pf_epoch))
+                        data->ecg_epoch = pf_epoch;
                 }
             }
         }

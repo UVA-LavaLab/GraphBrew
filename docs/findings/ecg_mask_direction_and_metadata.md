@@ -594,3 +594,68 @@ Guards: abort if `dest >= 1<<24` or `pfx >= 1<<24`; note the `pfx==0`="no prefet
 ECG_PFX results on large (>32K) headline graphs, or full-corpus 3-sim PFX parity. Otherwise the
 §10.1 validity-matrix routing (cache_sim/Sniper authoritative for large-graph PFX; gem5 faithful
 for epoch eviction at scale + ECG_PFX <=32K) is defensible and already in place.
+
+## 11. The TWO ECG prefetch mechanisms + gem5 Path A port (2026-06-21)
+
+User question: *"are we using the 24-bit pfx field to prefetch, or the edge list with
+epoch as a filter?"* The answer is **both are real, distinct headline mechanisms**, and
+before this work gem5 only had one of them.
+
+### The two mechanisms (cache_sim `bench/src_sim/pr.cc`)
+
+| | **Path A — epoch-filtered DROPLET lookahead** | **Path B — single packed target** |
+|---|---|---|
+| Where | `pr.cc:241-285` (`ECG_EDGE_MASK_LEAN` + `ECG_EDGE_MASK_PREFETCH=K`) | `pr.cc:287-295` (fat-mask) |
+| Targets | the **next-K in-neighbours from the edge stream** (DROPLET-style), each kept/dropped by an **epoch filter** | **one** POPT-best `selectPrefetchTarget`, packed into the mask |
+| Target width | the **streamed edge id** (full graph width) — only the **12-bit epoch** is packed | the packed prefetch field (15-bit → 24-bit after §10.2) |
+| Size limit | **NONE** (target is the streamed edge; size-independent) | yes — bounded by the packed field width |
+| Headline | the combined-stack bandwidth win ("epoch-stamped lookahead beats DROPLET") | the selective ECG_PFX (fewer fills than DROPLET) |
+
+So Path A is exactly "the edge list with epoch as a filter" and it **has no 32K/16M
+limit** — the §10.2 widening fixed the *secondary* Path B field; the headline Path A never
+had that limit. (This realises the "relative offset / edge-list" alternative flagged in §10.2.)
+
+### What each simulator ran (before this work)
+- **cache_sim**: BOTH. Headline = Path A.
+- **gem5**: **Path B only** (both its prefetch loops select ONE target → `GEM5_ECG_PFX_TARGET`).
+- **Sniper**: full 8-byte mask target (Path B style).
+
+→ gem5 did **not** run the headline Path A. Fixed below for full 3-sim equivalency.
+
+### gem5 Path A implementation (HW-faithful, rule-1 clean)
+Gated by `ECG_EDGE_MASK_PREFETCH=K` in the mode-6 kernel (`bench/src_gem5/pr.cc`), mirroring
+cache_sim `pr.cc:241-285`: walk the next-K in-neighbours, read each candidate's epoch from
+the packed-flat record, apply `ECG_PREFETCH_EPOCH_FILTER`/`_THRESH_PCT`, emit each survivor.
+
+The hard part is HW-faithfully giving a **prefetched** line its candidate's epoch so it evicts
+correctly (cache_sim stamps the per-line `ecg_epoch` synchronously; gem5's prefetch FILL is
+async, and the in-order `ecg.extract` single-slot mailbox is stale by then). The fix is **NOT**
+an O(V) per-vertex table (that is the P-OPT-class cost ECG avoids — rejected on rule 1):
+
+1. **Per-line epoch tag** (`EcgReplData::ecg_epoch`, already present) — HW-realizable, ~12 bits/line.
+2. **Dedicated `(target,epoch)` hint** — new `GRAPHBREW_ECG_PFX_TARGET_EPOCH_WORK_ID`
+   (`graph_cache_context_gem5.hh`), `threadid = target | epoch<<32` via
+   `GEM5_ECG_PFX_TARGET_EPOCH` (m5op). Distinct from the fat-mask work-id (no `>>24`
+   ambiguity, **no single-slot/demand-epoch corruption, no 24-bit truncation**).
+3. **Bounded in-flight prefetch-epoch buffer** (`recordPendingPrefetchEpoch` /
+   `consumePendingPrefetchEpoch`, 256-entry direct-mapped, drop-counter) — models the
+   prefetch engine "carrying the epoch it read from the edge word"; sized like an MSHR /
+   prefetch-metadata array, **NOT O(V)**.
+4. **`ecg_rp.cc reset()`**: for ECG_GRASP_POPT, when the single-slot misses (i.e. a prefetch
+   fill), recover the carried epoch from the in-flight buffer and stamp the line.
+5. **`ecg_pfx.cc`**: batch-drain up to `GEM5_ECG_PFX_DRAIN_BATCH` (default 8) hints/call
+   (DROPLET-style multi-address-per-call) so K-per-edge pushes are issued, not dropped.
+
+`setup_gem5.py` reproduces the new `pseudo_inst.cc` work-id handler. Path B (single 24-bit
+target) is untouched and mutually exclusive (taken only when `ECG_EDGE_MASK_PREFETCH=0`).
+
+### Validation (gem5 RISCV, kron_s16_k4 = 65,536 verts, L3=128kB, ECG_GRASP_POPT + Path A K=8)
+- **status=ok**, clean exit, no truncation/panic.
+- **pf_issued = pf_identified = 229,673**; **pf_useful = 222,840 (97%)**.
+- The 97% useful rate on a **>32K-vertex** graph is the no-truncation proof: a truncated
+  (15/24-bit-clamped) target would hit the wrong property line and collapse useful-rate.
+- `ECG_PFX: first target vertex=19876` (a streamed full-width id), `pfUsefulSpanPage=96421`
+  (cross-page prefetches land — the registerMMU plumbing holds).
+
+→ gem5 now runs **both** ECG prefetch mechanisms; Path A (the headline edge-list+epoch-filter
+lookahead) is graph-size-independent and HW-faithful with a bounded (non-O(V)) in-flight buffer.

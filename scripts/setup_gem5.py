@@ -370,6 +370,20 @@ def apply_current_vertex_pseudo_inst_patch():
             "        return;\n"
             "    }\n\n"
         )
+    if "GRAPHBREW_ECG_PFX_TARGET_EPOCH_WORK_ID" not in content:
+        # Path A (epoch-filtered DROPLET lookahead): threadid = target | epoch<<32.
+        # Record the candidate epoch in the bounded in-flight buffer (so the
+        # prefetched line is stamped at fill) and push the bare target. No
+        # single-slot touch (no demand-epoch corruption), no 24-bit truncation.
+        hint_blocks.append(
+            "    if (workid == replacement_policy::graph::GRAPHBREW_ECG_PFX_TARGET_EPOCH_WORK_ID) {\n"
+            "        uint32_t pfxa_target = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
+            "        uint16_t pfxa_epoch = static_cast<uint16_t>((threadid >> 32) & 0xFFFFULL);\n"
+            "        replacement_policy::graph::recordPendingPrefetchEpoch(pfxa_target, pfxa_epoch);\n"
+            "        replacement_policy::graph::setPrefetchTargetHint(pfxa_target);\n"
+            "        return;\n"
+            "    }\n\n"
+        )
     if hint_blocks:
         insertion = "".join(hint_blocks)
         if workbegin_anchor in content:

@@ -53,7 +53,7 @@ OVERLAYS_ROOT = REPO_ROOT / "bench" / "include" / "gem5_sim" / "overlays"
 # the generator with ``--update`` after a deliberate overlay edit.
 OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "arch/riscv/isa/decoder_ecg_extract.isa":
-        "e4711f56c3ba2d87e428bb920f2b5c150a64aa99574dc35f015bdf2b53be44b9",
+        "814b94e5f60629ade9b8396ec6661caeb98dbca2c72fc2c7f53262ff64bb4c39",
     "arch/riscv/isa/formats/ecg.isa":
         "a5751728427c5c024acb7e0ea3a0b414d6444586dff3bff2b87f2c167f4269e7",
     "mem/cache/prefetch/GraphPrefetchers.py":
@@ -65,7 +65,7 @@ OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "mem/cache/prefetch/droplet.hh":
         "72ff12b8f33ffdea8c96708673aa161f3a372850c3c70d7156e8c86357f0deb9",
     "mem/cache/prefetch/ecg_pfx.cc":
-        "956011b28b791d02eca4229af1c214875c6103492f414489e776b98575d86f72",
+        "abc3d84fbb2cfe7c7ac7b859ee227993212139c73d38a1a655d4984417346f87",
     "mem/cache/prefetch/ecg_pfx.hh":
         "07a5c4548b29bd42b7d69727a9e1c56ee6fbfd65fc8b343885e1be7f930e2732",
     "mem/cache/prefetch/queued_cc_latency.patch":
@@ -77,13 +77,13 @@ OVERLAY_HASH_REGISTRY: dict[str, str] = {
     "mem/cache/replacement_policies/SConscript.patch":
         "6c860d12c30d3ae18d65ccf2fb9da466291cb8b2727d47e0d4b7da2c97293f69",
     "mem/cache/replacement_policies/ecg_rp.cc":
-        "072c4bb6e0af14d6188dd0e92b6482bce991e5657bb949d220b1ad13f6a074b2",
-    "mem/cache/replacement_policies/ecg_victim_policy.hh":
-        "cad8b7b8d57f48680208bb10b536421fcc8ec624c94aa83389429f56dbe8ad6b",
+        "f495c4ac9dd55e9b5813f61d360a45b8395292ae3bff77a36196e67aa37fbd1c",
     "mem/cache/replacement_policies/ecg_rp.hh":
         "c529a51502fc3ff34614eed9feb0c486662e0f4f4417be975967e0b5d173d8b3",
+    "mem/cache/replacement_policies/ecg_victim_policy.hh":
+        "cad8b7b8d57f48680208bb10b536421fcc8ec624c94aa83389429f56dbe8ad6b",
     "mem/cache/replacement_policies/graph_cache_context_gem5.hh":
-        "dc5c34a5a9c547e356918fa3fa2087fede991c221e68f7e67bf5c553fe9ea9a0",
+        "7e20b7b301885665a5983b200277ebeef1d344accc6311c76f0b83547dd533c9",
     "mem/cache/replacement_policies/grasp_rp.cc":
         "101d17b1c77b6f1c702754a411dd24ce1a26d584fdb95cee8326e47f23704c9e",
     "mem/cache/replacement_policies/grasp_rp.hh":
