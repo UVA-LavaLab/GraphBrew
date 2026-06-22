@@ -516,7 +516,17 @@ contract, not identical kernels.
     | epoch eviction (headline replacement) | yes | yes (packed-flat) | yes |
     | DROPLET baseline prefetch | yes | yes | yes |
     | Path B prefetch (single selective target) | yes (31-bit) | yes (24-bit, ≤16M) | yes (8-byte) |
-    | Path A prefetch (epoch-filtered next-K lookahead, **headline**) | yes | yes (§11) | **NO — Path B only** |
+    | Path A prefetch (epoch-filtered next-K lookahead, **headline**) | yes | yes (§11) | **deferred** — needs `SNIPER_ECG_FAT_LOAD` |
+
+  **Sniper faithfulness tier (why Path A is deferred):** Sniper's ECG_GRASP_POPT *eviction*
+  sources the next-ref distance from the P-OPT matrix host-side (`findNextRef`, current-epoch
+  aware; `cache_set_ecg.cc` — "the cache has no per-line stored epoch"), NOT from a per-edge
+  epoch delivered through the memory hierarchy like gem5's `ecg.extract` / packed record. The
+  eviction *decision* is already SSOT (`ecg_victim_policy.h`). To port Path A at gem5's
+  faithfulness, Sniper first needs **`SNIPER_ECG_FAT_LOAD`** — a HW-faithful per-edge epoch
+  delivery (pending todo `s67-future-sniper-magic`). Sequence: fat-load → Sniper Path A. A
+  matrix-based Path A (kernel-built epochs + `prefetchKeep`) is possible sooner but would mix a
+  host-computed filter epoch with the matrix eviction — deferred in favour of the faithful path.
 - **cache_sim-only research features** (BU frontier masks, SSSP/BC OUT masks, `POPT_DUAL_REREF`)
   have NO gem5/Sniper analog and are inert on the symmetric corpus / default-off. They are
   equivalent across sims ONLY because they are disabled or demonstrably inert for the evaluated
@@ -531,9 +541,10 @@ from the Phase 0 audit + the parity tests:
    delivers the epoch via the packed-flat 4-byte record (dest + epoch), faithful at scale.
 2. **ECG_PFX prefetch:** all 3 sims valid. **Path B** (single selective target): cache_sim/Sniper
    31-bit, gem5 24-bit (≤16M ids, §10.2, validated). **Path A** (epoch-filtered next-K lookahead,
-   the headline): cache_sim + gem5 (§11, size-independent); **Sniper has Path B only** — do NOT
-   report a Sniper Path A number until it is ported. `ECG_PFX_STRICT_TARGET=1` still guards any
-   residual gem5 >24-bit (>16M-vertex) truncation.
+   the headline): cache_sim + gem5 (§11, size-independent); **Sniper deferred** — its eviction is
+   host-side-matrix-based (`findNextRef`), so a faithful Sniper Path A first needs
+   `SNIPER_ECG_FAT_LOAD` (per-edge epoch delivery). Do NOT report a Sniper Path A number until
+   then. `ECG_PFX_STRICT_TARGET=1` still guards any residual gem5 >24-bit truncation.
 3. **BFS is NOT cross-sim comparable for cache behavior** (cache_sim is direction-optimizing
    TD+BU; gem5/Sniper are simple TD-only). Use cache_sim `ECG_BFS_FORCE_TD` for a smoke-level
    comparison only; do NOT report BFS as a cross-sim result. PR is the cross-sim headline.
@@ -550,8 +561,9 @@ from the Phase 0 audit + the parity tests:
   (`packMaskEpochWide`, ≤16M) layouts against silent repack regressions.
 - Runtime mechanism parity: gem5 ECG_PFX validated end-to-end at scale (kron_s16_k4 = 65,536
   verts >32K): Path B 97% useful, Path A 82.6% useful, no truncation (§11); epoch eviction
-  faithful at scale (packed-flat). **Open:** Sniper Path A (epoch-filtered lookahead) not yet
-  ported — Sniper currently runs Path B (hub-ranked single target) only.
+  faithful at scale (packed-flat). **Open (deferred):** Sniper Path A — Sniper runs Path B
+  (hub-ranked single target) only; a faithful Path A is sequenced behind `SNIPER_ECG_FAT_LOAD`
+  (per-edge epoch delivery) since Sniper's eviction is host-side-matrix-based.
 
 ### §10.2 IMPLEMENTED + actual-sim VALIDATED: fix the gem5 ECG_PFX 32K limit by reclaiming vestigial mask bits
 
