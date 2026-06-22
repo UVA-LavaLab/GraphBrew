@@ -75,6 +75,27 @@ int main() {
     check("boundary 32768 -> 0 in 15-bit (truncated)",
           extractPrefetchTargetEpoch(packMaskEpoch(0, 0, 0, 0, 32768)), 0);
 
+    // (5) WIDE layout (gem5 large-graph fix, doc S10.2): packMaskEpochWide reclaims the
+    //     vestigial dbg+popt fields to carry a 24-bit prefetch target -> covers ids
+    //     <= 16,777,215 (all headline graphs), fixing what the 15-bit field truncated.
+    {
+        printf("  -- packMaskEpochWide (24-bit target) --\n");
+        uint32_t dest = 0xABCDEF; uint16_t epoch = 0x1234; uint32_t pfx = 916428; // web-Google id
+        uint64_t w = packMaskEpochWide(dest, epoch, pfx);
+        check("wide dest round-trip", extractDest(w), dest);
+        check("wide epoch round-trip", extractEpochWide(w), epoch);
+        check("wide pfx web-Google 916428 SURVIVES (15-bit truncated it)",
+              extractPrefetchTargetWide(w), pfx);
+        check("wide pfx boundary 16777215 (2^24-1) ok",
+              extractPrefetchTargetWide(packMaskEpochWide(0, 0, 16777215u)), 16777215u);
+        check("wide pfx 16777216 (2^24) truncates to 0",
+              extractPrefetchTargetWide(packMaskEpochWide(0, 0, 16777216u)), 0u);
+        // Cross-check: the same target that the 15-bit packMaskEpoch mangled (916428 ->
+        // 31692) is preserved by the wide layout.
+        check("wide preserves what 15-bit mangled (916428 != 31692)",
+              (extractPrefetchTargetWide(packMaskEpochWide(0, 0, 916428u)) == 916428u) ? 1u : 0u, 1u);
+    }
+
     printf("  RESULT: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

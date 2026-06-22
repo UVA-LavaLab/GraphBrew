@@ -197,32 +197,28 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     : static_cast<uint16_t>(edge_epoch_count - 1);
                 // Transfer the POPT-best prefetch target (packed at bit 33 by
                 // buildInEdgeMasks) into the packMaskEpoch target field at bit 49,
-                // where the ecg.extract ISA op and the prefetcher read it.
+                // where the ecg.extract.wide ISA op and the prefetcher read it.
                 uint32_t pfx_target = ecg_mode6::extractPrefetchTarget(mask);
                 if (pfx_target != 0) {
                     pfx_total++;
-                    // The packMaskEpoch target field is only 15 bits (<=32767).
-                    // buildInEdgeMasks emits full vertex ids, so on a graph with
-                    // >32767 vertices the target is silently truncated -> a WRONG
-                    // prefetch. Detect it so the gem5 ECG_PFX ISA testbed is not
-                    // mistaken for valid on large graphs (use cache_sim there, or
-                    // a wider record). See docs/findings/property_prefetch_tlb_paging.md.
-                    if (pfx_target > 0x7FFFu) pfx_truncated++;
+                    // packMaskEpochWide carries a 24-bit prefetch target (<=16,777,215)
+                    // by reclaiming the vestigial dbg(2)+popt(7) fields (doc S10.2). Only
+                    // graphs with > 2^24 vertices still truncate (then use cache_sim or
+                    // the 16-byte record). The ecg.extract.wide ISA op decodes [40:64].
+                    if (pfx_target > 0xFFFFFFu) pfx_truncated++;
                 }
-                masks[i] = ecg_mode6::packMaskEpoch(
+                masks[i] = ecg_mode6::packMaskEpochWide(
                     ecg_mode6::extractDest(mask),
-                    ecg_mode6::extractDbg(mask),
-                    ecg_mode6::extractPopt(mask),
                     epoch,
                     pfx_target);
             }
         }
         if (pfx_truncated > 0) {
             std::cerr << "[gem5 ECG_PFX WARNING] " << pfx_truncated << "/" << pfx_total
-                      << " prefetch targets exceed the 15-bit ISA mask field (>32767) and "
+                      << " prefetch targets exceed the 24-bit ISA mask field (>16,777,215) and "
                          "are TRUNCATED to wrong vertices. The gem5 ECG_PFX ISA testbed is "
-                         "valid only for graphs <=32767 vertices; use cache_sim for "
-                         "large-graph prefetch evaluation (no field limit). Set "
+                         "valid only for graphs <=16,777,215 vertices; use cache_sim for "
+                         "larger-graph prefetch evaluation (no field limit). Set "
                          "ECG_PFX_STRICT_TARGET=1 to abort instead.\n";
             if (std::getenv("ECG_PFX_STRICT_TARGET")) {
                 std::cerr << "[gem5 ECG_PFX] ECG_PFX_STRICT_TARGET set -> aborting.\n";
@@ -313,14 +309,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                         uint32_t rec = in_edge_packed_flat[packed_off[u] + edge_pos];
                         v = static_cast<NodeID>(rec & pack_id_mask);
                         uint16_t ep = static_cast<uint16_t>(rec >> pack_id_bits);
-                        // Rebuild the 64-bit layout ecg.extract decodes
-                        // (dest[0:24], epoch[33:49]); ecg.extract is a register
+                        // Rebuild the 64-bit WIDE layout ecg.extract decodes
+                        // (dest[0:24], epoch[24:40]); ecg.extract is a register
                         // op (no memory access).
                         mask = (static_cast<uint64_t>(v) & 0xFFFFFFULL)
-                             | (static_cast<uint64_t>(ep) << 33);
+                             | (static_cast<uint64_t>(ep) << 24);
                     } else {
-                        // PREFETCH path (or unpacked): use the FULL 64-bit mask,
-                        // which carries the prefetch target in bits [49:64]. The
+                        // PREFETCH path (or unpacked): use the FULL 64-bit WIDE mask,
+                        // which carries the 24-bit prefetch target in bits [40:64]. The
                         // 4-byte packed record drops that field, so the prefetch
                         // hint would be lost (pfx_target=0 => no hint emitted); the
                         // prefetch target needs the wider record / full mask.
@@ -330,7 +326,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     if (ecg_extract_enabled) {
                         GEM5_ECG_EXTRACT_MASK(mask);
                     }
-                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTargetEpoch(mask);
+                    uint32_t prefetch_target = ecg_mode6::extractPrefetchTargetWide(mask);
                     if (prefetch_target != 0) {
                         bool in_window = false;
                         for (int w = 0; w < PREFETCH_WINDOW; w++) {

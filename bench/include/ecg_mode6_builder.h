@@ -89,6 +89,32 @@ inline uint64_t packMaskEpoch(uint32_t dest, uint8_t dbg, uint8_t popt,
            (static_cast<uint64_t>(pfx  & 0x7FFFu) << kPrefetchEpochShift);
 }
 
+// === WIDE epoch+prefetch layout (gem5 large-graph ECG_PFX, doc S10.2) =========
+// packMaskEpoch squeezes the prefetch target into 15 bits (<=32767) because it also
+// carries the vestigial dbg(2)+popt(7) fields. For the ECG_GRASP_POPT + ECG_PFX path
+// those are NOT load-bearing (eviction uses the epoch; popt/dbg are for the legacy
+// ECG_EMBEDDED mode), so reclaim them to widen the prefetch target to 24 bits:
+//   packMaskEpochWide:  dest[0:24] | epoch[24:40] (16) | pfx[40:64] (24)
+// -> targets up to 16,777,215 ids, covering all headline graphs with NO wider record.
+// This is a SEPARATE layout: packMask (cache_sim/Sniper, 31-bit) and packMaskEpoch
+// (legacy gem5 ECG_EMBEDDED) are UNCHANGED. The gem5 `ecg.extract.wide` ISA op decodes
+// this layout in lockstep (decoder_ecg_extract.isa).
+constexpr int kEpochWideShift     = kDestBits;                 // 24
+constexpr int kPrefetchWideBits   = 24;
+constexpr int kPrefetchWideShift  = kDestBits + kEpochBits;    // 24 + 16 = 40
+
+inline uint64_t packMaskEpochWide(uint32_t dest, uint16_t epoch, uint32_t pfx) {
+    return (static_cast<uint64_t>(dest  & 0xFFFFFFu)) |
+           (static_cast<uint64_t>(epoch & 0xFFFFu)   << kEpochWideShift) |
+           (static_cast<uint64_t>(pfx   & 0xFFFFFFu) << kPrefetchWideShift);
+}
+inline uint16_t extractEpochWide(uint64_t m) {
+    return static_cast<uint16_t>((m >> kEpochWideShift) & 0xFFFFu);
+}
+inline uint32_t extractPrefetchTargetWide(uint64_t m) {
+    return static_cast<uint32_t>((m >> kPrefetchWideShift) & 0xFFFFFFu);
+}
+
 // === ECG prefetch-target DECISION (single source of truth) ===
 //
 // Given a vertex's in-neighbour list and the position of the current edge `i`,
