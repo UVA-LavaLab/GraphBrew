@@ -45,6 +45,8 @@ class CacheSetECG : public CacheSet
       UInt8* m_popt_hints;
       IntPtr* m_line_addrs;
       bool* m_property_lines;
+      UInt16* m_ecg_epoch;        // SNIPER_ECG_EXTRACT delivered next-ref epoch
+      bool* m_ecg_epoch_valid;    // epoch delivered for this line (0 is valid)
       UInt8 m_replacement_pointer;
       CacheSetInfoLRU* m_set_info;
       bool m_srrip_tlb_enabled;

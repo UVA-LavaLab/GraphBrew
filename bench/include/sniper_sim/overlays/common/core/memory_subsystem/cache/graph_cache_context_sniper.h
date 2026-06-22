@@ -146,12 +146,18 @@ struct GraphCacheContext {
     mutable uint32_t current_outer_vertex = 0;
     bool loaded = false;
 
+    // Epoch count (ne) for SNIPER_ECG_EXTRACT circular next-ref distance; must
+    // match the kernel's ECG_EDGE_MASK_EPOCHS packing. Set at context load.
+    uint32_t edge_epoch_count = 256;
+
     bool loadFromSideband(const std::string& path);
     bool loadRereferenceMatrix(const std::string& path);
     void setCacheLineSize(uint64_t line_size);
 
     uint32_t currentVertexForPopt(uint32_t core_id) const;
     void updateVertexFromAddr(uint64_t addr, uint32_t core_id) const;
+    // Vertex owning a property-region address (UINT32_MAX if not property data).
+    uint32_t vertexForAddress(uint64_t addr) const;
     bool isPropertyData(uint64_t addr) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;

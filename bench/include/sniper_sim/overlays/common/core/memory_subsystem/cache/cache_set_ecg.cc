@@ -52,12 +52,16 @@ CacheSetECG::CacheSetECG(
    m_popt_hints = new UInt8[m_associativity];
    m_line_addrs = new IntPtr[m_associativity];
    m_property_lines = new bool[m_associativity];
+   m_ecg_epoch = new UInt16[m_associativity];
+   m_ecg_epoch_valid = new bool[m_associativity];
    for (UInt32 way = 0; way < m_associativity; way++) {
       m_rrip_bits[way] = m_rrip_insert;
       m_dbg_tiers[way] = 0;
       m_popt_hints[way] = 0;
       m_line_addrs[way] = 0;
       m_property_lines[way] = false;
+      m_ecg_epoch[way] = 0;
+      m_ecg_epoch_valid[way] = false;
    }
    if (Sim()->getCfg()->hasKey(cfgname + "/cache_size", core_id)) {
       m_llc_size_bytes = UInt64(Sim()->getCfg()->getIntArray(cfgname + "/cache_size", core_id)) * k_KILO;
@@ -71,6 +75,8 @@ CacheSetECG::~CacheSetECG()
    delete [] m_popt_hints;
    delete [] m_line_addrs;
    delete [] m_property_lines;
+   delete [] m_ecg_epoch;
+   delete [] m_ecg_epoch_valid;
 }
 
 void
@@ -145,6 +151,21 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       m_dbg_tiers[way] = dbgTier(m_pending_insert_addr);
       m_popt_hints[way] = poptHint(m_pending_insert_addr);
 
+      // SNIPER_ECG_EXTRACT fill-stamp: the demand for this vertex delivered its
+      // next-ref epoch (recordEcgEpoch); stamp the line so the eviction can rank
+      // it by the delivered (HW-faithful) epoch instead of the findNextRef matrix.
+      m_ecg_epoch_valid[way] = false;
+      if (m_property_lines[way]) {
+         uint32_t v = graphbrew::sniper::globalContext().vertexForAddress(
+               static_cast<uint64_t>(m_pending_insert_addr));
+         uint16_t ep = 0;
+         if (v != UINT32_MAX &&
+             graphbrew::sniper::lookupEcgEpoch(static_cast<uint32_t>(m_core_id), v, ep)) {
+            m_ecg_epoch[way] = ep;
+            m_ecg_epoch_valid[way] = true;
+         }
+      }
+
       if (m_mode == graphbrew::sniper::ECGMode::POPT_PRIMARY) {
          m_rrip_bits[way] = m_rrip_insert;
       } else if (m_mode == graphbrew::sniper::ECGMode::ECG_COMBINED) {
@@ -165,6 +186,7 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
    m_popt_hints[way] = 0;
    m_line_addrs[way] = 0;
    m_property_lines[way] = false;
+   m_ecg_epoch_valid[way] = false;
 }
 
 UInt32
@@ -368,17 +390,48 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    }();
 
    auto& context = graphbrew::sniper::globalContext();
-   // grasp_only, or no usable next-ref signal -> pure RRIP.
-   if (variant == 0 || !context.loaded || !context.rereference.enabled)
+   // SNIPER_ECG_EXTRACT: rank property lines by the DELIVERED per-edge epoch
+   // (HW-faithful, matching gem5/cache_sim) instead of the host-side findNextRef
+   // matrix. cur_ep formula mirrors ecg_epoch::currentEpoch (snipersim build has
+   // no bench/include path; the kernel side uses the shared helper).
+   static const bool fatLoad = [](){ const char* e = std::getenv("SNIPER_ENABLE_ECG_EXTRACT");
+      return e && e[0] && std::string(e) != "0"; }();
+
+   // grasp_only, or no usable next-ref signal -> pure RRIP. In fat-load mode the
+   // signal is the delivered epoch (needs only the property region, not the matrix).
+   if (variant == 0 || !context.loaded || (!fatLoad && !context.rereference.enabled))
       return findSRRIPVictim(cntlr);
 
-   for (UInt32 way = 0; way < m_associativity; way++)
+   const uint32_t ne = context.edge_epoch_count ? context.edge_epoch_count : 256u;
+   const uint32_t N = context.topology.num_vertices;
+   const uint32_t srcv = context.currentVertexForPopt(m_core_id);
+   const uint32_t cur_ep = (N > 0)
+      ? static_cast<uint32_t>((static_cast<uint64_t>(srcv) * ne) / N) : 0u;
+
+   for (UInt32 way = 0; way < m_associativity; way++) {
       m_property_lines[way] = context.isPropertyData(static_cast<uint64_t>(m_line_addrs[way]));
+      // Non-invasive refresh: re-stamp from the current epoch map (updated on
+      // every demand edge) so resident lines pick up newer delivered epochs.
+      if (fatLoad && m_property_lines[way]) {
+         uint32_t v = context.vertexForAddress(static_cast<uint64_t>(m_line_addrs[way]));
+         uint16_t ep = 0;
+         if (v != UINT32_MAX &&
+             graphbrew::sniper::lookupEcgEpoch(static_cast<uint32_t>(m_core_id), v, ep)) {
+            m_ecg_epoch[way] = ep;
+            m_ecg_epoch_valid[way] = true;
+         }
+      }
+   }
    auto isProp = [&](UInt32 w) { return m_property_lines[w]; };
-   auto dist   = [&](UInt32 w) {
+   auto dist   = [&](UInt32 w) -> uint32_t {
+      if (fatLoad) {
+         uint32_t e = m_ecg_epoch[w]; if (e >= ne) e = ne - 1;
+         return (e + ne - cur_ep) % ne;
+      }
       return std::min(context.findNextRef(static_cast<uint64_t>(m_line_addrs[w]), m_core_id),
                       uint32_t(127));
    };
+   auto stamped = [&](UInt32 w) { return isProp(w) && (!fatLoad || m_ecg_epoch_valid[w]); };
    // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
    // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
    // obeys the variant spec (one checker across all three simulators). Sniper
@@ -412,7 +465,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       ws[w].recency = (m_rrip_max >= m_rrip_bits[w]) ? (m_rrip_max - m_rrip_bits[w]) : 0;
       ws[w].dbg     = m_dbg_tiers[w];
       ws[w].dist    = dist(w);
-      ws[w].stamped = isProp(w);
+      ws[w].stamped = stamped(w);
    }
    size_t vidx = ecg_policy::selectVictim(ws, m_associativity, variant, m_rrip_max);
    for (UInt32 w = 0; w < m_associativity; w++) m_rrip_bits[w] = ws[w].rrpv;  // persist SRRIP aging

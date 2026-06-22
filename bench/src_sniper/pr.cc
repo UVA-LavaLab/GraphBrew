@@ -22,6 +22,8 @@
 
 // ECG mode 6 (per-edge mask) builder — shared with cache_sim and gem5.
 #include "ecg_mode6_builder.h"
+// Shared per-edge next-ref epoch builder (SNIPER_ECG_EXTRACT delivery).
+#include "ecg_epoch_builder.h"
 
 using namespace std;
 
@@ -133,6 +135,18 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
                edge_mask_lookahead);
     }
 
+    // SNIPER_ECG_EXTRACT: build per-edge next-ref epochs (same as cache_sim/gem5)
+    // and deliver each demand edge's epoch so ECG_GRASP_POPT eviction can rank by
+    // a delivered (HW-faithful) epoch instead of the host-side findNextRef matrix.
+    bool ecg_extract_enabled = graphbrew_sniper::ecg_extract_enabled();
+    uint32_t ecg_epoch_count = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", 256, 2, 65535));
+    vector<vector<uint16_t>> in_edge_epochs_by_src;
+    if (ecg_extract_enabled) {
+        ecg_epoch::buildInEdgeEpochs(g, kNumVtxPerLine, ecg_epoch_count, true,
+                                     in_edge_epochs_by_src);
+    }
+
     for (NodeID n = 0; n < g.num_nodes(); n++) {
         outgoing_contrib[n] = init_score / g.out_degree(n);
     }
@@ -158,6 +172,12 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
                 for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
                     uint64_t mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
                     NodeID v = static_cast<NodeID>(ecg_mode6::extractDest(mask));
+                    if (ecg_extract_enabled &&
+                        u < static_cast<NodeID>(in_edge_epochs_by_src.size())) {
+                        const auto& eps = in_edge_epochs_by_src[u];
+                        uint16_t ep = (edge_pos < eps.size()) ? eps[edge_pos] : 0;
+                        SNIPER_ECG_EXTRACT(v, ep);
+                    }
                     uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
                     if (prefetch_target != 0) {
                         bool in_window = false;
@@ -187,8 +207,15 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
                 continue;
             }
 
-            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it) {
+            size_t main_edge_pos = 0;
+            for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++main_edge_pos) {
                 NodeID v = *it;
+                if (ecg_extract_enabled &&
+                    u < static_cast<NodeID>(in_edge_epochs_by_src.size())) {
+                    const auto& eps = in_edge_epochs_by_src[u];
+                    uint16_t ep = (main_edge_pos < eps.size()) ? eps[main_edge_pos] : 0;
+                    SNIPER_ECG_EXTRACT(v, ep);
+                }
                 if (ecg_prefetch_enabled && pfx_lookahead > 0) {
                     NodeID pfx_target = -1;
                     int best_rank = hot_table_size + 1;

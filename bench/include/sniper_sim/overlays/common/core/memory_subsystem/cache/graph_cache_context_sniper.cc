@@ -420,6 +420,13 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
         : 0.0;
     topology.enabled = topology.num_vertices > 0;
 
+    // ne for SNIPER_ECG_EXTRACT circular distance — same source as the kernel's
+    // ECG_EDGE_MASK_EPOCHS packing.
+    if (const char* ne_env = std::getenv("ECG_EDGE_MASK_EPOCHS")) {
+        uint32_t ne = static_cast<uint32_t>(std::strtoul(ne_env, nullptr, 10));
+        if (ne >= 2) edge_epoch_count = ne;
+    }
+
     num_regions = 0;
     size_t pos = content.find("\"property_regions\"");
     if (pos != std::string::npos) {
@@ -528,6 +535,13 @@ void GraphCacheContext::updateVertexFromAddr(uint64_t addr, uint32_t core_id) co
     uint32_t vertex = static_cast<uint32_t>((addr - regions[0].base_address) / regions[0].elem_size);
     current_dst_vertex = vertex;
     if (!hasCurrentVertexHint(core_id)) current_outer_vertex = vertex;
+}
+
+uint32_t GraphCacheContext::vertexForAddress(uint64_t addr) const
+{
+    if (num_regions == 0 || !regions[0].contains(addr) || regions[0].elem_size == 0)
+        return UINT32_MAX;
+    return static_cast<uint32_t>((addr - regions[0].base_address) / regions[0].elem_size);
 }
 
 bool GraphCacheContext::isPropertyData(uint64_t addr) const
