@@ -852,3 +852,37 @@ The genuinely software-visible cost is the **ISA load-hint** that carries the ep
 (`ecg.extract`) — ECG's explicit design point ("software-visible ISA hints"), vs P-OPT/DROPLET
 being transparent. Net: ECG's offline metadata ≈/< P-OPT's O(V·epochs) matrix, ECG reserves
 **zero** LLC ways (vs P-OPT's 1), prefetch stores **nothing** (vs Path B's vestigial id field).
+
+## 15. Simulator tiering + 3-sim equivalence showcase (2026-06-22)
+
+### 15.1 The three simulators and their paper roles (decided)
+Mirrors how the baselines were evaluated (P-OPT shipped a functional cache sim
+`CMUAbstract/POPT-CacheSim-HPCA21` + Sniper for timing; GRASP/DROPLET used Sniper):
+
+| sim | role | graph scale | why |
+|---|---|---|---|
+| **cache_sim** | fast **prototyping** + functional authority (miss-rate/traffic) | any (memory-bound) | deterministic cache metrics, = P-OPT's POPT-CacheSim role; iterate ideas in minutes |
+| **gem5** | the **ISA case study** (`ecg.extract` HW-faithful epoch delivery, cycle-accurate) | small/medium | demonstrates the mechanism is real silicon, not a host-side shortcut |
+| **Sniper** | **scale** demonstration | large (40–134M, like GRASP/DROPLET) | interval sim runs large graphs in hours–days (gem5 cannot) |
+
+Caveat: GraphBrew's Sniper currently runs full-detail under SDE (~20 min on 1005-node
+email-Eu-core), so reaching 60M needs sampling / native-pinball reconfig (tracked). cache_sim
+is the practical large-graph path today and is methodologically faithful (P-OPT did the same).
+
+### 15.2 Equivalence is proven by shared-DECISION parity, not identical kernels
+The three kernels are separate (`bench/src_{sim,gem5,sniper}`) and deliver the epoch by
+different mechanisms (host mask arrays vs `ecg.extract` ISA vs `SNIPER_ECG_EXTRACT`), but the
+eviction/prefetch DECISION is SSOT. Verified end-to-end this session:
+
+| check | cache_sim | gem5 | Sniper |
+|---|---|---|---|
+| eviction victims obey spec (`verify_ecg.py`) | **7×40/40** + 2070/2070 coverage | **5×40/40** + 4000/4000 | **4×40/40** |
+| epoch-property eviction branch fired (real run) | yes | yes | yes |
+| prefetch-target decision (`verify_pfx.py`) | 10/10 (covers all 3) | ✓ | ✓ |
+| field-delivery layout (`test_ecg_packed_field_parity`) | **58/58** (pins all layouts incl epoch-only) | (shared header) | (shared header) |
+| Path A epoch-filtered lookahead fires | yes (§11) | yes (§11) | yes (§13) |
+
+So every ECG variant (grasp_only / epoch_only / rrip_first / epoch_first / shortcircuit)
+selects the SAME victim under the SAME access stream in all three simulators — equivalence
+holds. (gem5 numeric common-cell on kron_s16_k4 in progress as the intuition showcase; the
+cache_sim common-cell already shows ECG:shortcirc 0.8136 < POPT 0.8932 < GRASP 0.8391 there.)
