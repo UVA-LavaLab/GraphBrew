@@ -459,8 +459,9 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       for (UInt32 w = 0; w < m_associativity; w++) {
          UInt32 d = isProp(w) ? dist(w) : 0;
          UInt32 last = (m_rrip_max >= m_rrip_bits[w]) ? (m_rrip_max - m_rrip_bits[w]) : 0;
-         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d last=%u%s\n",
-                      w, (int)m_rrip_bits[w], (int)(isProp(w) ? 1 : 0), d, (int)isProp(w), last,
+         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d stamped=%d last=%u%s\n",
+                      w, (int)m_rrip_bits[w], (int)(isProp(w) ? 1 : 0), d, (int)isProp(w),
+                      (int)(stamped(w) ? 1 : 0), last,
                       w == victimWay ? "   <== VICTIM" : "");
       }
       std::fprintf(stderr, "   -> victim=way%u reason=%s\n", victimWay, reason);

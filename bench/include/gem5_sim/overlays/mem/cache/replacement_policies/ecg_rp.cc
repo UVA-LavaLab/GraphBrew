@@ -68,6 +68,7 @@ GraphEcgRP::invalidate(
     data->ecg_dbg_tier = 0;
     data->ecg_popt_hint = 0;
     data->ecg_epoch = 0;
+    data->ecg_epoch_valid = false;
     data->is_property_data = false;
     data->line_addr = 0;
 }
@@ -107,6 +108,7 @@ GraphEcgRP::touch(
                     data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;
                     data->ecg_epoch = isa_epoch;
+                    data->ecg_epoch_valid = true;
                 }
             }
             uint32_t tier = ctx.classifyGRASP(addr, llcSize);
@@ -178,6 +180,7 @@ GraphEcgRP::reset(
 
         data->ecg_popt_hint = 0;
         data->ecg_epoch = 0;
+        data->ecg_epoch_valid = false;
             if (data->is_property_data && ctx.rereference.enabled &&
             ecgMode != graph::ECGMode::ECG_GRASP_POPT) {
             uint32_t dist = ctx.findNextRef(data->line_addr);
@@ -212,14 +215,17 @@ GraphEcgRP::reset(
                     data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;  // 7-bit POPT quant
                     data->ecg_epoch = isa_epoch;
+                    data->ecg_epoch_valid = true;
                 } else if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
                     // Path A: this is a prefetch FILL (the in-order demand
                     // single-slot holds a different vertex). Recover the
                     // candidate epoch the prefetch carried, from the bounded
                     // in-flight buffer; keep the degree-derived DBG tier.
                     uint16_t pf_epoch = 0;
-                    if (graph::consumePendingPrefetchEpoch(vertex, pf_epoch))
+                    if (graph::consumePendingPrefetchEpoch(vertex, pf_epoch)) {
                         data->ecg_epoch = pf_epoch;
+                        data->ecg_epoch_valid = true;
+                    }
                 }
             }
         }
@@ -275,6 +281,7 @@ GraphEcgRP::reset(
         data->ecg_dbg_tier = numBuckets - 1;
         data->ecg_popt_hint = 0;
         data->ecg_epoch = 0;
+        data->ecg_epoch_valid = false;
             data->is_property_data = false;
         data->line_addr = 0;
     }
@@ -289,6 +296,7 @@ GraphEcgRP::reset(
     data->ecg_dbg_tier = numBuckets - 1;
     data->ecg_popt_hint = 0;
     data->ecg_epoch = 0;
+    data->ecg_epoch_valid = false;
 }
 
 ReplaceableEntry*
@@ -340,7 +348,7 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         if (curEpoch >= ne) curEpoch = ne - 1;
         auto isProp  = [&](ReplaceableEntry* c){ return ctx.isPropertyData(getData(c)->line_addr); };
         auto dist    = [&](ReplaceableEntry* c){ uint32_t e=getData(c)->ecg_epoch; if(e>=ne)e=ne-1; return (e+ne-curEpoch)%ne; };
-        auto stamped = [&](ReplaceableEntry* c){ return isProp(c) && getData(c)->ecg_epoch!=0; };
+        auto stamped = [&](ReplaceableEntry* c){ return isProp(c) && getData(c)->ecg_epoch_valid; };
         // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
         // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
         // obeys the variant spec (one checker across all three simulators).
@@ -357,7 +365,9 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
                     auto dd = getData(candidates[i]);
                     std::cerr << "   way" << i << " valid=1 rrpv=" << (int)dd->rrpv
                               << " epoch=" << dd->ecg_epoch << " dist=" << dist(candidates[i])
-                              << " prop=" << (int)isProp(candidates[i]) << " last=" << dd->lastTouchTick
+                              << " prop=" << (int)isProp(candidates[i])
+                              << " stamped=" << (int)(stamped(candidates[i]) ? 1 : 0)
+                              << " last=" << dd->lastTouchTick
                               << ((int)i==vidx ? "   <== VICTIM" : "") << "\n";
                 }
                 std::cerr << "   -> victim=way" << vidx << " reason=" << reason << "\n";

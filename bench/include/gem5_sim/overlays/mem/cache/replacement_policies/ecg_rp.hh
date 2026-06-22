@@ -30,13 +30,15 @@ class GraphEcgRP : public Base
         uint8_t ecg_dbg_tier;
         uint8_t ecg_popt_hint;
         uint16_t ecg_epoch;
+        bool ecg_epoch_valid;  // a per-edge epoch was DELIVERED (vs epoch==0 ambiguity);
+                               // mirrors cache_sim/Sniper so `stamped` is identical
         bool is_property_data;
         uint64_t line_addr;
         uint64_t lastTouchTick;  // recency, for ECG_PROP_EVICT_LRU ablation
 
         EcgReplData(uint8_t max_rrpv)
             : rrpv(max_rrpv), ecg_dbg_tier(0), ecg_popt_hint(0),
-              ecg_epoch(0), is_property_data(false), line_addr(0),
+              ecg_epoch(0), ecg_epoch_valid(false), is_property_data(false), line_addr(0),
               lastTouchTick(0) {}
     };
 
