@@ -499,24 +499,24 @@ contract, not identical kernels.
   correct (passes the strict contract), but a future wrong tree could slip past the lenient
   check. Porting the strict verifier is deferred (needs `in_neigh` availability in those
   kernels) and flagged here.
-- **gem5 ECG_PFX PREFETCH is INVALID on large graphs (15-bit field) — but EPOCH EVICTION is
-  faithful (VERIFIED, Phase 0 audit `rd-eqh-plan`):** two distinct gem5 delivery paths:
+- **gem5 ECG_PFX PREFETCH: the 15-bit truncation is FIXED (§10.2 Path B + §11 Path A); epoch
+  eviction was always faithful (VERIFIED, Phase 0 audit `rd-eqh-plan`):** two gem5 delivery paths:
   - **Epoch eviction (the headline ECG_GRASP_POPT mechanism):** delivered via a packed-flat
     4-byte record `(dest | epoch<<id_bits)` — web-Google: 20-bit dest + 12-bit epoch = 32 bits,
-    "packed record ON", **NO truncation**. So gem5 epoch eviction is faithful on large graphs.
-  - **ECG_PFX prefetch target:** repacked into the 15-bit `packMaskEpoch` field [49:64]
-    (cache_sim/Sniper use the 31-bit field [33:64]). On headline graphs the prefetch target IS
-    a vertex id > 32767, so it is SILENTLY TRUNCATED to a wrong vertex. Measured truncation
-    (`GEM5_ECG_PFX_MODE=6`): web-Google **7.73M/7.77M = 99.5%**, soc-pokec **97.0%**,
-    com-orkut **98.9%**. So **gem5 ECG_PFX prefetch is valid only for <=32767-vertex graphs**;
-    cache_sim/Sniper are authoritative for large-graph prefetch. The gem5 build already warns +
-    supports `ECG_PFX_STRICT_TARGET=1` to abort. **Validity matrix:**
+    "packed record ON", **NO truncation**, faithful at scale.
+  - **Prefetch target (history → fixed):** was a 15-bit `packMaskEpoch` field [49:64] → silent
+    truncation on >32767-vertex graphs (web-Google **99.5%**, soc-pokec **97.0%**, com-orkut
+    **98.9%**). Path B widened to 24 bits (≤16M ids, §10.2, actual-sim validated); Path A packs
+    only the 12-bit epoch and prefetches the streamed edge id, so it is **size-independent**
+    (§11, actual-sim validated). `ECG_PFX_STRICT_TARGET=1` still aborts on any >24-bit residual.
+    **Current validity matrix (eviction + the two prefetch mechanisms):**
 
     | feature | cache_sim | gem5 | Sniper |
     |---------|-----------|------|--------|
-    | epoch eviction (headline) | yes | yes (packed-flat) | yes |
-    | ECG_PFX prefetch, graphs <=32767 verts | yes | yes | yes |
-    | ECG_PFX prefetch, graphs >32767 verts | yes (31-bit) | **NO (~99% truncated)** | yes (31-bit) |
+    | epoch eviction (headline replacement) | yes | yes (packed-flat) | yes |
+    | DROPLET baseline prefetch | yes | yes | yes |
+    | Path B prefetch (single selective target) | yes (31-bit) | yes (24-bit, ≤16M) | yes (8-byte) |
+    | Path A prefetch (epoch-filtered next-K lookahead, **headline**) | yes | yes (§11) | **NO — Path B only** |
 - **cache_sim-only research features** (BU frontier masks, SSSP/BC OUT masks, `POPT_DUAL_REREF`)
   have NO gem5/Sniper analog and are inert on the symmetric corpus / default-off. They are
   equivalent across sims ONLY because they are disabled or demonstrably inert for the evaluated
@@ -529,11 +529,11 @@ from the Phase 0 audit + the parity tests:
 
 1. **PR epoch eviction (the headline ECG_GRASP_POPT mechanism): all 3 sims valid.** gem5
    delivers the epoch via the packed-flat 4-byte record (dest + epoch), faithful at scale.
-2. **ECG_PFX prefetch:** cache_sim + Sniper (31-bit target) valid on ALL graphs; **gem5 valid
-   ONLY for graphs with vertex ids <= 32767** (<= ~32768 vertices). For larger graphs gem5
-   silently truncates ~97-99.5% of targets. **Enforce with `ECG_PFX_STRICT_TARGET=1`**, which
-   aborts loudly on any truncation (verified: web-Google -> SIGABRT) — set it in any cross-sim
-   automation so gem5 ECG_PFX can never be silently used on a too-large graph.
+2. **ECG_PFX prefetch:** all 3 sims valid. **Path B** (single selective target): cache_sim/Sniper
+   31-bit, gem5 24-bit (≤16M ids, §10.2, validated). **Path A** (epoch-filtered next-K lookahead,
+   the headline): cache_sim + gem5 (§11, size-independent); **Sniper has Path B only** — do NOT
+   report a Sniper Path A number until it is ported. `ECG_PFX_STRICT_TARGET=1` still guards any
+   residual gem5 >24-bit (>16M-vertex) truncation.
 3. **BFS is NOT cross-sim comparable for cache behavior** (cache_sim is direction-optimizing
    TD+BU; gem5/Sniper are simple TD-only). Use cache_sim `ECG_BFS_FORCE_TD` for a smoke-level
    comparison only; do NOT report BFS as a cross-sim result. PR is the cross-sim headline.
@@ -545,13 +545,13 @@ from the Phase 0 audit + the parity tests:
 
 **Parity evidence (VERIFIED):**
 - Decision parity: `verify_pfx.py` synthetic `selectPrefetchTarget` = 10/10 (all 3 sims).
-- Field-delivery parity: `bench/src_sim/test_ecg_packed_field_parity.cc` = 42/42 — the 31-bit
-  (packMask) and 15-bit (packMaskEpoch) targets AGREE for ids <= 32767 and DIVERGE (gem5
-  truncates) above, pinning the layout against silent repack regressions.
-- Runtime mechanism parity: gem5 ECG_PFX fires end-to-end on <=32K graphs
-  (`pfIdentified=pfIssued=63` on email-Eu-core; gem5_implementation_audit_v1.md), and gem5
-  epoch eviction is faithful at scale (packed-flat). Full large-graph gem5 ECG_PFX runtime
-  parity is N/A by construction (the 15-bit field) — cache_sim/Sniper are authoritative there.
+- Field-delivery parity: `bench/src_sim/test_ecg_packed_field_parity.cc` = **48/48** — pins the
+  31-bit (`packMask`), the legacy 15-bit (`packMaskEpoch`, truncates >32767), and the 24-bit wide
+  (`packMaskEpochWide`, ≤16M) layouts against silent repack regressions.
+- Runtime mechanism parity: gem5 ECG_PFX validated end-to-end at scale (kron_s16_k4 = 65,536
+  verts >32K): Path B 97% useful, Path A 82.6% useful, no truncation (§11); epoch eviction
+  faithful at scale (packed-flat). **Open:** Sniper Path A (epoch-filtered lookahead) not yet
+  ported — Sniper currently runs Path B (hub-ranked single target) only.
 
 ### §10.2 IMPLEMENTED + actual-sim VALIDATED: fix the gem5 ECG_PFX 32K limit by reclaiming vestigial mask bits
 
