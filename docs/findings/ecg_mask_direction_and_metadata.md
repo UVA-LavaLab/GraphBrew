@@ -553,7 +553,15 @@ from the Phase 0 audit + the parity tests:
   epoch eviction is faithful at scale (packed-flat). Full large-graph gem5 ECG_PFX runtime
   parity is N/A by construction (the 15-bit field) — cache_sim/Sniper are authoritative there.
 
-### §10.2 PROPOSAL: fix the gem5 ECG_PFX 32K limit by reclaiming vestigial mask bits
+### §10.2 IMPLEMENTED + actual-sim VALIDATED: fix the gem5 ECG_PFX 32K limit by reclaiming vestigial mask bits
+
+**Status (2026-06-21):** IMPLEMENTED (commit `3fc8eb6b`) and actual-sim VALIDATED — the Path B
+wide pfx-target [40:64] (24-bit) was exercised on a >32K-vertex graph (kron_s16_k4 = 65,536)
+with `ecg.extract` instruction delivery: 229,673 prefetches, **222,840 useful (97%)**, no
+truncation (a 15-bit-clamped target would collapse useful-rate — see §11). Field-parity test
+48/48; overlay-hash registry (incl. `decoder_ecg_extract.isa`) refreshed.
+
+Original proposal/analysis below.
 
 The gem5 ECG_PFX 15-bit prefetch-target limit (§10, ~97-99.5% truncation on headline graphs)
 is fixable by reclaiming the **vestigial POPT field** — the epoch is the only load-bearing
@@ -590,10 +598,11 @@ Guards: abort if `dest >= 1<<24` or `pfx >= 1<<24`; note the `pfx==0`="no prefet
   128-bit is an ABI expansion (two registers/instructions), and doubles the mask stream on the
   bandwidth-sensitive large-graph path.
 
-**DECISION CRITERION:** implement the wide layout ONLY IF the paper requires gem5 cycle-accurate
-ECG_PFX results on large (>32K) headline graphs, or full-corpus 3-sim PFX parity. Otherwise the
-§10.1 validity-matrix routing (cache_sim/Sniper authoritative for large-graph PFX; gem5 faithful
-for epoch eviction at scale + ECG_PFX <=32K) is defensible and already in place.
+**DECISION (taken 2026-06-21):** implemented — the user chose full 3-sim PFX parity ("both are
+headline variants"), so gem5 cycle-accurate ECG_PFX on >32K headline graphs is now first-class
+(Path B wide target here + Path A in §11). The §10.1 validity-matrix routing
+(cache_sim/Sniper authoritative for large-graph PFX; gem5 faithful for epoch eviction at scale)
+remains the documented fallback.
 
 ## 11. The TWO ECG prefetch mechanisms + gem5 Path A port (2026-06-21)
 
@@ -649,13 +658,27 @@ an O(V) per-vertex table (that is the P-OPT-class cost ECG avoids — rejected o
 `setup_gem5.py` reproduces the new `pseudo_inst.cc` work-id handler. Path B (single 24-bit
 target) is untouched and mutually exclusive (taken only when `ECG_EDGE_MASK_PREFETCH=0`).
 
-### Validation (gem5 RISCV, kron_s16_k4 = 65,536 verts, L3=128kB, ECG_GRASP_POPT + Path A K=8)
-- **status=ok**, clean exit, no truncation/panic.
-- **pf_issued = pf_identified = 229,673**; **pf_useful = 222,840 (97%)**.
-- The 97% useful rate on a **>32K-vertex** graph is the no-truncation proof: a truncated
-  (15/24-bit-clamped) target would hit the wrong property line and collapse useful-rate.
-- `ECG_PFX: first target vertex=19876` (a streamed full-width id), `pfUsefulSpanPage=96421`
-  (cross-page prefetches land — the registerMMU plumbing holds).
+### Validation (gem5 RISCV, kron_s16_k4 = 65,536 verts, L3=128kB, ECG_GRASP_POPT)
+**Env-forwarding fix (required):** gem5 SE mode does NOT inherit the host env — a kernel
+`getenv()` reads the simulated process env, which `graph_se.py` builds from an explicit
+allowlist. `ECG_EDGE_MASK_PREFETCH` (+ `ECG_PREFETCH_EPOCH_FILTER`/`_THRESH_PCT`) had to be
+added there, or the kernel silently falls back to Path B (`lean_pfx_k=0`).
+
+Three runs, all status=ok, clean exit:
+
+| run | L3 miss-rate | IPC | pf_issued | pf_useful |
+|---|---|---|---|---|
+| eviction-only (no pfx) | 0.4013 | 0.2185 | — | — |
+| **Path B** (single wide target, §10.2) | 0.3969 | 0.2323 | 229,673 | 222,840 (97%) |
+| **Path A** (epoch-filtered K=8) | **0.3406** | **0.2892** | **794,333** | **656,183 (82.6%)** |
+
+- Path A is byte-distinct from Path B (first target 5338 vs 19876; simTicks 595B vs 219B;
+  ~3.5× more prefetches), achieves the **lowest L3 miss-rate and highest IPC** — the headline.
+- **No-truncation proof:** 82.6% useful on 794K Path A prefetches (and 97% on Path B's wide
+  target) over a **>32K-vertex** graph — a 15/24-bit-clamped target would hit wrong lines and
+  collapse useful-rate. Path B's run also validates §10.2's wide pfx-target in actual sim.
+- No-regression: eviction-only is clean and unchanged (the reset() pending fallback only fires
+  on prefetch fills).
 
 → gem5 now runs **both** ECG prefetch mechanisms; Path A (the headline edge-list+epoch-filter
 lookahead) is graph-size-independent and HW-faithful with a bounded (non-O(V)) in-flight buffer.

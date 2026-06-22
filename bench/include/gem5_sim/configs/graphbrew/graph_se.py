@@ -94,6 +94,13 @@ def benchmark_environment(args):
         "ECG_EDGE_MASK_EPOCH",
         "ECG_EDGE_MASK_LINEMIN",
         "ECG_EDGE_MASK_EPOCHS",
+        # Path A (epoch-filtered DROPLET lookahead): the kernel gates the
+        # next-K lookahead on these; gem5 SE mode does NOT inherit the host
+        # env, so they must be forwarded explicitly or the kernel falls back
+        # to Path B (lean_pfx_k=0).
+        "ECG_EDGE_MASK_PREFETCH",
+        "ECG_PREFETCH_EPOCH_FILTER",
+        "ECG_PREFETCH_EPOCH_THRESH_PCT",
     ):
         outer = os.environ.get(pass_name)
         if outer is not None and outer != "":
