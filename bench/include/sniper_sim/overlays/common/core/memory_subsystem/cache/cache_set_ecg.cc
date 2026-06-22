@@ -141,6 +141,23 @@ CacheSetECG::poptHint(IntPtr addr) const
    return static_cast<UInt8>(std::min(dist, uint32_t(127)) >> 3);
 }
 
+bool
+CacheSetECG::lookupLineEcgEpoch(IntPtr line_addr, UInt16& epoch) const
+{
+   const auto& context = graphbrew::sniper::globalContext();
+   uint32_t v0 = context.vertexForAddress(static_cast<uint64_t>(line_addr));
+   if (v0 == UINT32_MAX) return false;
+   uint32_t elem = (context.num_regions > 0 && context.regions[0].elem_size > 0)
+       ? context.regions[0].elem_size : 4u;
+   uint32_t vtx_per_line = static_cast<uint32_t>(m_blocksize) / elem;
+   if (vtx_per_line == 0) vtx_per_line = 1;
+   for (uint32_t i = 0; i < vtx_per_line; i++) {
+      if (graphbrew::sniper::lookupEcgEpoch(static_cast<uint32_t>(m_core_id), v0 + i, epoch))
+         return true;
+   }
+   return false;
+}
+
 void
 CacheSetECG::applyPendingInsertion(UInt32 way)
 {
@@ -156,11 +173,8 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       // it by the delivered (HW-faithful) epoch instead of the findNextRef matrix.
       m_ecg_epoch_valid[way] = false;
       if (m_property_lines[way]) {
-         uint32_t v = graphbrew::sniper::globalContext().vertexForAddress(
-               static_cast<uint64_t>(m_pending_insert_addr));
-         uint16_t ep = 0;
-         if (v != UINT32_MAX &&
-             graphbrew::sniper::lookupEcgEpoch(static_cast<uint32_t>(m_core_id), v, ep)) {
+         UInt16 ep = 0;
+         if (lookupLineEcgEpoch(m_pending_insert_addr, ep)) {
             m_ecg_epoch[way] = ep;
             m_ecg_epoch_valid[way] = true;
          }
@@ -413,10 +427,8 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       // Non-invasive refresh: re-stamp from the current epoch map (updated on
       // every demand edge) so resident lines pick up newer delivered epochs.
       if (fatLoad && m_property_lines[way]) {
-         uint32_t v = context.vertexForAddress(static_cast<uint64_t>(m_line_addrs[way]));
-         uint16_t ep = 0;
-         if (v != UINT32_MAX &&
-             graphbrew::sniper::lookupEcgEpoch(static_cast<uint32_t>(m_core_id), v, ep)) {
+         UInt16 ep = 0;
+         if (lookupLineEcgEpoch(m_line_addrs[way], ep)) {
             m_ecg_epoch[way] = ep;
             m_ecg_epoch_valid[way] = true;
          }

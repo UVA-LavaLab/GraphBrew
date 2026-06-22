@@ -32,6 +32,10 @@ class CacheSetECG : public CacheSet
       UInt8 graspInsertionRRPV(IntPtr addr) const;
       UInt8 dbgTier(IntPtr addr) const;
       UInt8 poptHint(IntPtr addr) const;
+      // SNIPER_ECG_EXTRACT: a property cache line holds blocksize/elem_size
+      // vertices; the kernel records the epoch under the DEMANDED vertex, so scan
+      // the line's vertices for a delivered epoch (linemin => all agree).
+      bool lookupLineEcgEpoch(IntPtr line_addr, UInt16& epoch) const;
 
       const String m_cfgname;
       const core_id_t m_core_id;
