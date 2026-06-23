@@ -207,6 +207,7 @@ inline std::string ECGModeToString(ECGMode mode) {
 }
 
 inline ECGMode StringToECGMode(const std::string& s) {
+    if (s.empty()) return ECGMode::DBG_PRIMARY;  // unset/empty env -> default (parity with gem5/Sniper)
     if (s == "DBG_PRIMARY" || s == "dbg_primary") return ECGMode::DBG_PRIMARY;
     if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
     if (s == "POPT_TIE" || s == "popt_tie" || s == "popt_tiebreak") return ECGMode::POPT_TIE;

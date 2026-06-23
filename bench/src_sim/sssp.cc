@@ -120,9 +120,6 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
             SIM_CACHE_READ_MASKED(cache, dist.data(), wn.v, graph_ctx, edge_mask_val);
         }
     }
-    // Clear the sticky per-edge epoch so the caller's SEQUENTIAL dist[u] reads (before
-    // the next RelaxEdges) aren't stamped with this edge's stale epoch.
-    graph_ctx.clearEdgeEpoch();
 }
 
 template<typename CacheType>
@@ -205,6 +202,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
             for (size_t i = 0; i < curr_frontier_tail; i++) {
                 NodeID u = frontier[i];
                 SIM_SET_VERTEX(cache, u);
+                graph_ctx.clearEdgeEpoch();  // dist[u] is a SEQUENTIAL source read, not a per-edge delivery
                 SIM_CACHE_READ(cache, dist.data(), u);
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
@@ -218,6 +216,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                 local_bins[curr_bin_index].resize(0);
                 for (NodeID u : curr_bin_copy) {
                     SIM_SET_VERTEX(cache, u);
+                    graph_ctx.clearEdgeEpoch();  // dist[u] is a SEQUENTIAL source read, not a per-edge delivery
                     SIM_CACHE_READ(cache, dist.data(), u);
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
                                    graph_ctx, vertex_masks, pfx_lookahead, pfx_top_k);

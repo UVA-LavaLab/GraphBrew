@@ -1052,8 +1052,12 @@ public:
                 } else if (mode == ECGMode::ECG_GRASP_POPT) {
                     // per-edge mask carries the ABSOLUTE next-ref epoch (untruncated).
                     // Stamp validity from the delivery flag: a cleared/sequential read
-                    // (clearEdgeEpoch -> valid=false) fills an UNSTAMPED line, matching
-                    // gem5/Sniper which only stamp on real per-edge delivery.
+                    // (clearEdgeEpoch -> valid=false) fills an UNSTAMPED line. This brings
+                    // the CLEARED-read case into line with gem5/Sniper (which stamp only on
+                    // real per-edge delivery). NOTE: never-delivered fills (PR init, before
+                    // any vertex hint) keep the legacy stamped default (edge_epoch_valid=true)
+                    // — a cache_sim functional-authority convention, NOT bit-identical to
+                    // gem5/Sniper which reset such fills to unstamped.
                     set[victim_idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
                     set[victim_idx].ecg_epoch_valid =
                         graph_ctx_->hints_for_thread().edge_epoch_valid;
