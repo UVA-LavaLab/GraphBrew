@@ -69,6 +69,34 @@ static void check(CacheLevel& L3, const char* name, std::vector<Way> w, int expe
     if (ok) g_pass++; else g_fail++;
 }
 
+// Explicit-valid fixture: DECOUPLES the stamp bit from epoch==0, so we can pin a
+// STAMPED epoch-0 line (valid=1,epoch=0) and an UNSTAMPED non-zero-epoch line
+// (valid=0,epoch=20) — the exact ambiguity the edge_epoch_valid bit resolved and
+// that check() above (valid==epoch!=0) cannot express. cur_src sets curEpoch =
+// cur_src*ne/nv so the circular next-ref distance (epoch+ne-curEpoch)%ne can wrap.
+struct WayV { uint64_t addr; int rrpv; int epoch; uint64_t last; int dbg; int valid; };
+static void checkV(CacheLevel& L3, const char* name, std::vector<WayV> w, int expected,
+                   uint32_t cur_src = 0) {
+    uint32_t saved = g_ctx.hints_for_thread().current_src;
+    g_ctx.hints_for_thread().current_src = cur_src;
+    std::vector<CacheLine> set(8);
+    for (int i = 0; i < 8; i++) {
+        set[i].valid = true;
+        set[i].tag = 1000 + i;
+        set[i].line_addr = w[i].addr;
+        set[i].rrpv = (uint8_t)w[i].rrpv;
+        set[i].ecg_epoch = (uint16_t)w[i].epoch;
+        set[i].ecg_epoch_valid = (w[i].valid != 0);
+        set[i].last_access = w[i].last;
+        set[i].ecg_dbg_tier = (uint8_t)w[i].dbg;
+    }
+    size_t v = L3.selectVictimForTest(set);
+    g_ctx.hints_for_thread().current_src = saved;
+    bool ok = ((int)v == expected);
+    printf("    %-46s expect=way%d got=way%zu  [%s]\n", name, expected, v, ok ? "OK" : "FAIL");
+    if (ok) g_pass++; else g_fail++;
+}
+
 int main() {
     build_ctx();
     CacheLevel L3("L3", 16 * 1024, 64, 8, EvictionPolicy::ECG);
@@ -90,6 +118,11 @@ int main() {
         check(L3, "sub-max records ignored -> farthest prop (way4=9)",
               {{raddr(0),3,0,5,0},{raddr(1),5,0,5,0},{paddr(2),7,4,0,0},{paddr(3),7,1,0,0},
                {paddr(4),7,9,0,0},{paddr(5),7,2,0,0},{paddr(6),7,6,0,0},{paddr(7),7,3,0,0}}, 4);
+        // valid-bit disambiguation under max-rrpv: way0 unstamped (effDist 0) despite
+        // epoch 20; the farthest STAMPED property (way1=10) wins.
+        checkV(L3, "max-rrpv: unstamped high-epoch skipped (way1)",
+              {{paddr(0),7,20,0,0,0},{paddr(1),7,10,0,0,1},{paddr(2),7,1,0,0,1},{paddr(3),7,8,0,0,1},
+               {paddr(4),7,7,0,0,1},{paddr(5),7,5,0,0,1},{paddr(6),7,2,0,0,1},{paddr(7),7,4,0,0,1}}, 1);
     } else if (var == "epoch_first" || var == "epoch_only") {
         // records first by recency (no rrpv gating), else farthest-epoch property.
         check(L3, "all-prop stamped -> farthest epoch (way3=20)",
@@ -101,6 +134,24 @@ int main() {
         check(L3, "unstamped(epoch=0) excluded -> farthest stamped (way3=20)",
               {{paddr(0),0,0,0,0},{paddr(1),0,9,0,0},{paddr(2),0,0,0,0},{paddr(3),0,20,0,0},
                {paddr(4),0,0,0,0},{paddr(5),0,0,0,0},{paddr(6),0,0,0,0},{paddr(7),0,0,0,0}}, 3);
+        // valid-bit disambiguation: way0 is UNSTAMPED despite a HIGH epoch (20), so it
+        // is skipped; the farthest STAMPED line (way1=10) wins. Proves stamping reads
+        // the explicit valid bit, NOT epoch!=0 (reverting makes way0 the victim).
+        checkV(L3, "unstamped high-epoch skipped; stamped wins (way1)",
+              {{paddr(0),0,20,0,0,0},{paddr(1),0,10,0,0,1},{paddr(2),0,1,0,0,1},{paddr(3),0,8,0,0,1},
+               {paddr(4),0,7,0,0,1},{paddr(5),0,5,0,0,1},{paddr(6),0,2,0,0,1},{paddr(7),0,4,0,0,1}}, 1);
+        // circular-distance wraparound: curEpoch=10 (cur_src=320, ne=32). epoch=9 is
+        // JUST BEHIND curEpoch so its next-ref distance wraps to 31 (farthest), beating
+        // numerically-higher epoch=20 (dist 10). Proves eviction uses circular distance,
+        // not the raw epoch (raw-epoch logic would evict way3=20).
+        checkV(L3, "wraparound: epoch just-behind curEpoch is farthest (way2)",
+              {{paddr(0),0,10,0,0,1},{paddr(1),0,11,0,0,1},{paddr(2),0,9,0,0,1},{paddr(3),0,20,0,0,1},
+               {paddr(4),0,15,0,0,1},{paddr(5),0,12,0,0,1},{paddr(6),0,8,0,0,1},{paddr(7),0,13,0,0,1}}, 2, 320);
+        // all-unstamped property + no records -> LRU fallback (oldest recency wins).
+        // Exercises the third branch (no record, no stamped property); way1 is oldest.
+        checkV(L3, "all-unstamped, no record -> LRU fallback (way1 oldest)",
+              {{paddr(0),0,5,50,0,0},{paddr(1),0,9,10,0,0},{paddr(2),0,1,20,0,0},{paddr(3),0,8,30,0,0},
+               {paddr(4),0,7,40,0,0},{paddr(5),0,3,60,0,0},{paddr(6),0,2,70,0,0},{paddr(7),0,4,80,0,0}}, 1);
     } else if (var == "shortcircuit") {
         // any non-property first (SET ORDER, not recency), else farthest-epoch + DBG.
         check(L3, "mixed -> FIRST record in set order (way1, not older way2)",
@@ -112,6 +163,11 @@ int main() {
         check(L3, "all-prop epoch tie -> DBG tiebreak (way2 dbg=5)",
               {{paddr(0),0,10,0,0},{paddr(1),0,10,0,0},{paddr(2),0,10,0,5},{paddr(3),0,10,0,0},
                {paddr(4),0,10,0,2},{paddr(5),0,10,0,0},{paddr(6),0,10,0,0},{paddr(7),0,10,0,0}}, 2);
+        // valid-bit disambiguation: way0 unstamped (effDist 0) despite epoch 20; the
+        // farthest STAMPED property (way1=10) wins (shortcircuit ranks by effDist too).
+        checkV(L3, "unstamped high-epoch skipped; stamped wins (way1)",
+              {{paddr(0),0,20,0,0,0},{paddr(1),0,10,0,0,1},{paddr(2),0,1,0,0,1},{paddr(3),0,8,0,0,1},
+               {paddr(4),0,7,0,0,1},{paddr(5),0,5,0,0,1},{paddr(6),0,2,0,0,1},{paddr(7),0,4,0,0,1}}, 1);
     } else if (var == "grasp_only") {
         // pure RRIP: first line at max RRPV (epoch/property irrelevant), aging if none.
         check(L3, "first max-rrpv ignores epoch (way1)",
