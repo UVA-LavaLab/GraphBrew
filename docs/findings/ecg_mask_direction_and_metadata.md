@@ -981,3 +981,39 @@ both wrapping `roi_matrix.py`), NEVER by hand-rolled `env`. Hand-rolling reprodu
 `ECG_PREFETCH_MODE=6`, `ECG_EDGE_MASK_{EPOCH,LINEMIN,LEAN,PACK,CHARGED}=1`. `CHARGED=1` is the
 sharpest: it enables epoch DELIVERY; without it eviction degenerates toward GRASP
 (web-Google/o5 0.76 vs 0.62).
+
+## 18. HONEST prefetch/combined framing — eviction is the bandwidth headline (2026-06-22)
+
+Rubber-duck (rd-plan2) on the fresh combined-stack matrix. The clean both-order data (headline
+graphs, `combined_stack_matrix.py`) **refutes** any "ECG+PathA combined stack beats everything"
+claim. Report this honestly.
+
+### 18.1 The data (bandwidth = total DRAM traffic; demand2mem = latency proxy; both lower=better)
+| cell (-o5) | LRU bw / dem | LRU+DROPLET bw / dem | **ECG-evict bw / dem** | ECG+PathA bw / dem |
+|---|---|---|---|---|
+| web-Google 512kB | 17.76 / 17.76 | 18.03 / 3.00 | **14.39 / 14.39** | 16.78 / 4.63 |
+| cit-Patents 1MB | 91.93 / 91.93 | 92.55 / 17.24 | **74.65 / 74.65** | 83.36 / 21.49 |
+| soc-pokec 1MB | 74.81 / 74.81 | 78.48 / 10.15 | **58.74 / 58.74** | 72.45 / 19.05 |
+
+### 18.2 What the data actually says (three separate, honest claims)
+1. **EVICTION is the bandwidth + miss-rate headline.** ECG eviction-only has the LOWEST bandwidth
+   in EVERY cell (web-Google −19% vs LRU, soc-pokec −21%) AND the lowest miss-rate (§16). This is
+   the strong, clean, single-metric win.
+2. **Prefetch (Path A) is a LATENCY trade, not a bandwidth win.** Adding Path A to ECG *increases*
+   bandwidth (web-Google 14.39→16.78, soc-pokec 58.74→72.45) while slashing demand2mem
+   (14.39→4.63). A prefetcher RELOCATES demand→prefetch; it does not cut total traffic. (DROPLET is
+   the same: LRU 17.76 → LRU+DROPLET 18.03, bandwidth flat/up.)
+3. **No single arm dominates (Pareto).** Per cell the non-dominated frontier is:
+   **ECG-evict (bandwidth-optimal) — ECG+PathA (balanced) — LRU+DROPLET (latency-optimal)**; plain
+   LRU is dominated by ECG-evict on both axes. ECG+PathA beats LRU+DROPLET on bandwidth but
+   LRU+DROPLET beats ECG+PathA on demand-latency (web-Google 3.00 vs 4.63).
+
+### 18.3 Defensible paper framing (do NOT overclaim)
+- **Headline:** "ECG eviction reduces LLC traffic and miss-rate vs LRU/GRASP/POPT."
+- **Prefetch:** "ECG's epoch-stamped Path A prefetch trades a little bandwidth for a large
+  demand-miss (latency) reduction, and at equal latency uses less bandwidth than LRU+DROPLET."
+- **M3 = interaction / Pareto matrix**, NOT a "combined-stack win." Annotate each row with the
+  bandwidth winner, the demand2mem winner, and whether ECG+PathA is non-dominated.
+- Eviction is cache_sim/gem5/Sniper-equivalent on traffic; the prefetch LATENCY claim needs a gem5
+  cycle-accurate spot-check (cache_sim models traffic, not MSHR/timeliness), and Sniper is parity
+  corroboration only (its L2 enqueue filter suppresses fills). See todos cu-gem5-pfx-spotcheck.
