@@ -251,6 +251,29 @@ def verify_trace(name, result, prefix="", reasons=None):
 
 
 SYNTH_BIN = ROOT / "bench" / "bin_sim" / "test_ecg_victim"
+PARITY_SRC = ROOT / "bench" / "src_sim" / "test_ecg_packed_field_parity.cc"
+
+
+def run_field_parity():
+    """Compile + run the ISA field-layout parity test. Pins the shared
+    ecg_mode6_builder.h pack/extract layout (cache_sim, gem5 kernel+decoder, Sniper all
+    use it) AND the ISA DRIFT GUARD: the gem5 decoder_ecg_extract.isa hand-codes the wide
+    shifts (dest>>0/epoch>>24/pfx>>40) instead of calling the builder — this asserts those
+    hand-coded shifts still equal the builder SSOT, so a wide-layout change that forgets the
+    .isa fails HERE (fast) instead of silently mis-decoding in gem5."""
+    binp = Path("/tmp") / "verify_field_parity"
+    cc = subprocess.run(["g++", "-O2", "-std=c++17", f"-I{ROOT}/bench/include",
+                         f"-I{ROOT}/bench/include/cache_sim", str(PARITY_SRC), "-o", str(binp)],
+                        capture_output=True, text=True)
+    if cc.returncode != 0:
+        print(f"  [field-parity] FAIL: compile error\n{cc.stderr[:400]}"); return False
+    p = subprocess.run([str(binp)], capture_output=True, text=True, timeout=60)
+    for line in p.stdout.splitlines():
+        if "ISA drift" in line or "RESULT:" in line:
+            print("  " + line.strip())
+    ok = (p.returncode == 0)
+    print(f"  field-parity (ISA layout SSOT + drift guard): [{'OK ' if ok else 'FAIL'}]")
+    return ok
 
 
 def verify_unknown_mode_hardfails():
@@ -405,6 +428,8 @@ def main(argv=None):
     live_reasons = set()
     print("== synthetic deterministic victim tests (EXACT victim; exercises the epoch branch) ==")
     ok_all &= run_synthetic()
+    print("\n-- ISA field-layout parity + drift guard (shared ecg_mode6_builder.h) --")
+    ok_all &= run_field_parity()
     print("\n-- negative test: unknown ECG_MODE must hard-fail (not silent DBG_PRIMARY) --")
     ok_all &= verify_unknown_mode_hardfails()
     print("\n-- cache_sim (L3 policies, email-Eu-core; live-trace integration) --")
@@ -455,6 +480,16 @@ def main(argv=None):
     if args.gem5:
         if not GEM5_OPT.exists():
             print(f"FAIL: build gem5 first: {GEM5_OPT}"); return 2
+        # COMPILE-ONCE proof (Track 2 / cu-isa-robust 2b): record the ONE gem5.opt this run
+        # uses for ALL variant x cache combinations below. ECG_VARIANT is read at runtime via
+        # getenv (ecg_rp.cc) and the cache geometry is a gem5 CLI arg, so the 5 tie-breaks x
+        # 2 L3 sizes (16kB variants + 4kB coverage) below ALL run on this single binary — i.e.
+        # tie-breaks and caches are swept at RUNTIME, no recompile. Only the 64-bit record
+        # LAYOUT is compile-time, and the field-parity drift guard above pins it.
+        import hashlib
+        gem5_md5 = hashlib.md5(GEM5_OPT.read_bytes()).hexdigest()[:12]
+        print(f"\n-- gem5 compile-once: ONE binary gem5.opt md5={gem5_md5} drives all "
+              f"tie-break x cache runs below (runtime sweep, no recompile) --")
         print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
         for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ", reasons=live_reasons)

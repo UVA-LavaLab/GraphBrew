@@ -29,9 +29,10 @@ COLUMNS = [
 ]
 
 
-def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env):
+def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
+             timeout_cell=3600, run_id="run"):
     gpath = GRAPHS / graph / f"{graph}.sg"
-    outdir = Path("/tmp") / f"evm_{suite}_{graph}_{l3}_o{order}_{label.replace(':','_')}"
+    outdir = Path("/tmp") / f"evm_{run_id}_{suite}_{graph}_{l3}_o{order}_{label.replace(':','_')}"
     cmd = [sys.executable, str(ROOT / "scripts/experiments/ecg/roi_matrix.py"),
            "--suite", suite, "--no-build", "--benchmark", "pr",
            "--policies", policy,
@@ -47,7 +48,7 @@ def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env):
     try:
         subprocess.run(cmd, env=env, cwd=str(ROOT),
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=3600, check=False)
+                       timeout=timeout_cell, check=False)
         rows = json.load(open(outdir / "roi_matrix.json"))
         rows = rows if isinstance(rows, list) else [rows]
         x = rows[0]
@@ -65,6 +66,10 @@ def main(argv):
                     help="space-separated reorder codes; 0=ORIGINAL, 5=DBG (GRASP's intended)")
     ap.add_argument("--options", default="-n 1 -i 1")
     ap.add_argument("--out", default="")
+    ap.add_argument("--timeout-cell", type=int, default=3600,
+                    help="per-policy-run subprocess timeout in seconds (raise for big graphs)")
+    ap.add_argument("--run-id", default="run",
+                    help="tag for the /tmp out-dirs so concurrent runs don't collide")
     args = ap.parse_args(argv)
 
     gem5_env = {"GEM5_OPT": str(ROOT/"bench/include/gem5_sim/gem5/build/RISCV/gem5.opt"),
@@ -84,13 +89,18 @@ def main(argv):
             vals = []
             for (label, policy, variant) in COLUMNS:
                 r = run_cell(args.suite, graph, l3, order, label, policy, variant,
-                             args.options, gem5_env)
+                             args.options, gem5_env,
+                             timeout_cell=args.timeout_cell, run_id=args.run_id)
                 vals.append(r)
             tag = f"{graph}/{l3}/o{order}"
             print(tag.ljust(24) + "".join(
-                (f"{v:.4f}" if isinstance(v, float) else "  --  ").rjust(15) for v in vals))
+                (f"{v:.4f}" if isinstance(v, float) else "  --  ").rjust(15) for v in vals),
+                flush=True)
             md.append("| " + tag + " | " +
                       " | ".join(f"{v:.4f}" if isinstance(v, float) else "--" for v in vals) + " |")
+            # Incremental write: a long matrix's partial rows survive an interrupt/timeout.
+            if args.out:
+                Path(args.out).write_text("\n".join(md) + "\n")
     if args.out:
         Path(args.out).write_text("\n".join(md) + "\n")
         print(f"\n[written] {args.out}")

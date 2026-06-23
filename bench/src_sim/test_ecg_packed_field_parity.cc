@@ -94,6 +94,20 @@ int main() {
         // 31692) is preserved by the wide layout.
         check("wide preserves what 15-bit mangled (916428 != 31692)",
               (extractPrefetchTargetWide(packMaskEpochWide(0, 0, 916428u)) == 916428u) ? 1u : 0u, 1u);
+
+        // ISA DRIFT GUARD (cu-isa-robust 2a-lite): decoder_ecg_extract.isa HAND-CODES the
+        // wide-layout shifts (dest>>0, epoch>>24, pfx>>40) rather than calling these builder
+        // extractors. Pin that the hand-coded ISA shifts == the builder SSOT, so a change to
+        // the wide layout (kEpochWideShift/kPrefetchWideShift) that forgets to update the .isa
+        // is caught HERE (fast unit test) instead of silently mis-decoding inside gem5.
+        {
+            uint64_t isa_dest  = (w >>  0) & 0xFFFFFFULL;  // MUST mirror decoder_ecg_extract.isa
+            uint64_t isa_epoch = (w >> 24) & 0xFFFFULL;    // MUST mirror decoder_ecg_extract.isa
+            uint64_t isa_pfx   = (w >> 40) & 0xFFFFFFULL;  // MUST mirror decoder_ecg_extract.isa
+            check("ISA drift: hand-coded dest>>0  == builder extractDest", isa_dest, extractDest(w));
+            check("ISA drift: hand-coded epoch>>24 == builder extractEpochWide", isa_epoch, extractEpochWide(w));
+            check("ISA drift: hand-coded pfx>>40  == builder extractPrefetchTargetWide", isa_pfx, extractPrefetchTargetWide(w));
+        }
     }
 
     // (6) EPOCH-ONLY honest layout (doc S13): NO prefetch-target field — Path A
