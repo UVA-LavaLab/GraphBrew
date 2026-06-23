@@ -175,18 +175,29 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 //   ECG_EMBEDDED:           Stored P-OPT hint as primary, DBG as secondary
 //   ECG_EPOCH_EMBEDDED:     Current-epoch compact P-OPT hint, DBG as secondary
 //   ECG_COMBINED:           Both DBG + P-OPT hint → unified insertion RRPV (Hawkeye-inspired)
+// ── ECG mode taxonomy (LABELS ONLY — the enum integer order is load-bearing; DO NOT
+//    reorder or delete; unknown modes hard-fail in StringToECGMode) ──────────────────
+//   [HEADLINE]     the paper's primary ECG policy ............ ECG_GRASP_POPT
+//   [BASELINE]     headline-matrix + 3-sim parity baselines .. DBG_PRIMARY, POPT_PRIMARY,
+//                  DBG_ONLY
+//   [RESEARCH-ARC] non-headline; RETAINED (NOT deletable) — load-bearing in the
+//                  proof_matrix adaptive-oracle, gate-269 deep-lock (ECG_EMBEDDED is in
+//                  the LOCKED canonical config set), gate-261 arm catalog, and the
+//                  gem5/Sniper overlays. Deleting them breaks the headline path too
+//                  (the "exact" infra + the per-edge mask array are shared with
+//                  ECG_GRASP_POPT). See the 2026-06-22 dep-audit (session plan).
 enum class ECGMode {
-    DBG_PRIMARY,   // DBG tier is primary tiebreaker, P-OPT is secondary
-    POPT_PRIMARY,  // Dynamic P-OPT is primary tiebreaker, DBG is secondary
-    POPT_TIE,      // SRRIP narrows candidates, dynamic P-OPT picks among ties
-    DBG_ONLY,      // GRASP-equivalent insertion/hit hints, no eviction tiebreak
-    ECG_EMBEDDED,  // Stored P-OPT hint (from mask) primary, DBG tier secondary — zero LLC overhead
-    ECG_EPOCH_EMBEDDED, // Current-epoch P-OPT hint primary, DBG tier secondary — compact epoch table model
-    ECG_COMBINED,  // Combined DBG+P-OPT → insertion RRPV (both signals at insert, not evict)
-    ECG_EXACT,     // Exact position-indexed next-reference eviction (per-edge idea; traversal pos = epoch) — RECOMPUTED live at eviction
-    ECG_EXACT_STORED, // NEGATIVE RESULT: same exact next-ref STAMPED at access (precomputed per-edge mask) + all-ways-max. Does NOT capture the win (web-Google 512kB: 0.86 vs live 0.61) — stamps go stale (predicted reuse passes without refreshing), inverting Belady. Proves the win needs eviction-time recompute, like P-OPT.
-    ECG_EXACT_MASK,   // Precomputed exact 5-bit per-edge mask (buildInEdgeMasks_PR ECG_EDGE_MASK_EXACT) carried on the demand -> sets insertion/hit RRPV (near=keep, far=evict) + RRIP eviction with the 5-bit as tiebreak. The realizable "embed sweep, use in cache" design.
-    ECG_GRASP_POPT    // GRASP insertion + P-OPT-style eviction using a stored 5-bit ABSOLUTE next-ref epoch (carried per-edge, ECG_EDGE_MASK_EPOCH). Eviction = max circular distance (stored_epoch - current_epoch) so stale/passed lines evict correctly. Realizable: no matrix, no query, no reserved way.
+    DBG_PRIMARY,   // [BASELINE] DBG tier is primary tiebreaker, P-OPT is secondary
+    POPT_PRIMARY,  // [BASELINE] Dynamic P-OPT is primary tiebreaker, DBG is secondary
+    POPT_TIE,      // [RESEARCH-ARC] SRRIP narrows candidates, dynamic P-OPT picks among ties
+    DBG_ONLY,      // [BASELINE] GRASP-equivalent insertion/hit hints, no eviction tiebreak
+    ECG_EMBEDDED,  // [RESEARCH-ARC] Stored P-OPT hint (from mask) primary, DBG tier secondary — zero LLC overhead (also in gate-269 locked config set)
+    ECG_EPOCH_EMBEDDED, // [RESEARCH-ARC] Current-epoch P-OPT hint primary, DBG tier secondary — compact epoch table model
+    ECG_COMBINED,  // [RESEARCH-ARC] Combined DBG+P-OPT → insertion RRPV (both signals at insert, not evict)
+    ECG_EXACT,     // [RESEARCH-ARC] Exact position-indexed next-reference eviction (per-edge idea; traversal pos = epoch) — RECOMPUTED live at eviction
+    ECG_EXACT_STORED, // [RESEARCH-ARC] NEGATIVE RESULT: same exact next-ref STAMPED at access (precomputed per-edge mask) + all-ways-max. Does NOT capture the win (web-Google 512kB: 0.86 vs live 0.61) — stamps go stale (predicted reuse passes without refreshing), inverting Belady. Proves the win needs eviction-time recompute, like P-OPT.
+    ECG_EXACT_MASK,   // [RESEARCH-ARC] Precomputed exact 5-bit per-edge mask (buildInEdgeMasks_PR ECG_EDGE_MASK_EXACT) carried on the demand -> sets insertion/hit RRPV (near=keep, far=evict) + RRIP eviction with the 5-bit as tiebreak. The realizable "embed sweep, use in cache" design.
+    ECG_GRASP_POPT    // [HEADLINE] GRASP insertion + P-OPT-style eviction using a stored 5-bit ABSOLUTE next-ref epoch (carried per-edge, ECG_EDGE_MASK_EPOCH). Eviction = max circular distance (stored_epoch - current_epoch) so stale/passed lines evict correctly. Realizable: no matrix, no query, no reserved way.
 };
 
 inline std::string ECGModeToString(ECGMode mode) {
