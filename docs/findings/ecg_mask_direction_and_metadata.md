@@ -886,3 +886,98 @@ So every ECG variant (grasp_only / epoch_only / rrip_first / epoch_first / short
 selects the SAME victim under the SAME access stream in all three simulators — equivalence
 holds. (gem5 numeric common-cell on kron_s16_k4 in progress as the intuition showcase; the
 cache_sim common-cell already shows ECG:shortcirc 0.8136 < POPT 0.8932 < GRASP 0.8391 there.)
+
+## 16. ECG eviction CONTRACT: tiebreaker + non-property + stamped (SSOT, 3-sim verified, 2026-06-22)
+
+The eviction DECISION is the single shared header `bench/include/ecg_victim_policy.h`
+(`ecg_policy::selectVictim`), **byte-identical** across cache_sim / gem5 / Sniper (md5
+verified; synced on every change). Each sim's thin adapter populates
+`WayState{prop, rrpv, recency, dbg, dist, stamped}` from its native lines; the decision is
+NOT re-implemented per sim. `verify_ecg.py` (+`--gem5`/`--sniper`) asserts every victim obeys
+this contract in all three.
+
+### 16.1 What the fields mean
+- **prop** — `true` for a PROPERTY line (vertex/score/contrib — the hot graph data we protect),
+  `false` for a RECORD line (edge-stream/metadata — streamed ~once, low reuse).
+- **dist** — raw circular next-reference distance `(stored_epoch + ne − cur_epoch) % ne`
+  (larger = referenced farther in the future = better eviction candidate).
+- **stamped** — a per-edge epoch was DELIVERED to this line. As of the valid-bit fix (§ commit
+  a01e8e2e/e3f7933e) this is an **explicit per-line valid bit**, NOT `epoch != 0`: a real
+  epoch-bucket-0 line (low-ID next-referencer) that WAS delivered is correctly `stamped`.
+- **effDist** — `stamped ? dist : 0`. An UNSTAMPED property line contributes distance 0
+  (treated as "kept", never "farthest"), so only genuinely stamped property competes on epoch.
+
+### 16.2 Non-property handling (CONTRACT — identical in all variants)
+**Property lines are protected; record (non-property) lines are evicted first.** This is the
+GRASP-derived invariant. Precisely, per variant:
+- **grasp_only** — pure RRIP; `prop` ignored (== GRASP sanity baseline).
+- **shortcircuit** (the headline) — evict the **first non-property line by set order**; only if
+  the whole set is property do we rank by epoch.
+- **epoch_first / epoch_only** — evict the **oldest non-property line by recency**; else stamped
+  property by farthest dist; else LRU fallback.
+- **rrip_first** (default) — within the max-RRPV set: oldest non-property by recency; else
+  property by farthest effDist; age + retry if no candidate.
+
+### 16.3 Tiebreaker hierarchy (shortcircuit — the canonical headline)
+When the set is **all property** (no record to evict first), pick the victim by, in order:
+1. **effDist** — largest effective next-ref distance (farthest-future). Unstamped property = 0.
+2. **DBG degree tier** — on an effDist tie, evict the higher `dbg` tier. (Empirically vestigial:
+   the epoch subsumes degree; kept as a cheap, deterministic tiebreak — see §14.4.)
+3. **set order** — on a full tie, the first such way index (deterministic).
+
+### 16.4 Cross-sim equivalence scope (IMPORTANT)
+Equivalence holds on the **ISA-delivered epoch path** (cache_sim host arrays = gem5 `ecg.extract`
+= Sniper `SNIPER_ECG_EXTRACT`): all three feed the same `stamped`/`dist` into the same
+`selectVictim`. gem5 and Sniper ALSO have a `findNextRef` host-matrix FALLBACK that quantizes
+distance differently (`min(dist,127)>>3`); that path is a diagnostic, NOT part of the
+equivalence contract. Report cross-sim numbers only in delivered-epoch mode
+(`SNIPER_ENABLE_ECG_EXTRACT=1` / gem5 `ecg.extract`).
+
+### 16.5 Verification (all PASS, 2026-06-22)
+- Synthetic exact-victim unit test `test_ecg_victim.cc` (sets the valid bit) — PASS.
+- Live-trace spec `verify_ecg.py`: cache_sim 7×40/40 + 2070/2070 coverage; gem5 5×40/40 +
+  4000/4000; Sniper 4×40/40. The trace now carries an explicit `stamped=` column; the verifier
+  models `stamped` (not `epoch != 0`).
+- Field-delivery parity `test_ecg_packed_field_parity` — 58/58.
+
+## 17. CANONICAL config (pin ONE — stop hand-rolling env, 2026-06-22)
+
+There are ~50 ECG_* env knobs from the prototyping phase; several are LOAD-BEARING and
+silently change l3_mr by 0.1+ if omitted. **Headline numbers MUST be produced via the committed
+scripts** (`ecg_variant_matrix.py` for eviction, `combined_stack_matrix.py` for prefetch/combined,
+both wrapping `roi_matrix.py`), NEVER by hand-rolled `env`. Hand-rolling reproduced 0.60 / 0.74 /
+0.76 for the "same" web-Google/o5 cell by omitting `CACHE_ULTRAFAST=0`, `CACHE_L1_POLICY=LRU`,
+`CACHE_L2_POLICY=LRU`, or `CHARGED=1`. The committed scripts set the full correct env.
+
+### 17.1 The one canonical config
+| axis | value |
+|---|---|
+| eviction policy | `CACHE_POLICY=ECG`, `ECG_MODE=ECG_GRASP_POPT` |
+| variant | `ECG_VARIANT=shortcircuit` (the headline; epoch_only/epoch_first tie it post-§16) |
+| epoch | `ECG_EDGE_MASK_EPOCHS` (10 bits ne=1024 saturates; operationally ≤ 65535 to fit 16-bit storage) |
+| record | epoch-only: `dest + 2-bit DBG tier + epoch` — NO popt field, NO prefetch-target field |
+| prefetch | Path A only (`ECG_EDGE_MASK_PREFETCH=K`, storage-free CSR read-ahead); Path B dropped |
+| cache | L1 32 kB/8w (LRU), L2 256 kB/8w (LRU), L3 16-way/64 B (size swept), `CACHE_ULTRAFAST=0` |
+| reorder | report BOTH `-o5` (DBG; GRASP/ECG-tier need it) and `-o0` (un-reordered robustness) |
+| threads | `OMP_NUM_THREADS=1` (cache_sim determinism) |
+
+### 17.2 The 64-bit ISA record (SSOT delivery format)
+```
+[ dest : 28 ][ dbg : 2 ][ epoch : 34 ]    (one 64-bit ecg.extract word)
+```
+- **dest 28 bits** → 268 M vertices (covers twitter 41 M / friendster 65 M / kron-s27 134 M).
+- **dbg 2 bits** → 4 degree tiers (empirically vestigial — the epoch subsumes it; kept as a free
+  tiebreak, §14.4). Do NOT spend more bits here.
+- **epoch 34 bits** → generous safety headroom (saturates ~10; free in the 64-bit word).
+- **No prefetch-target field** — Path A reads the next-K targets from the CSR edge stream
+  (= DROPLET read-ahead), storing nothing (§14.3). Path B's stored target was the only field
+  that grew with N and is dropped.
+- **All 3 sims MODEL this format**: gem5 delivers it via the real `ecg.extract` op; cache_sim
+  (host arrays) and Sniper (`SNIPER_ECG_EXTRACT`) model the identical layout so equivalence is on
+  the proposed ISA format, not each sim's native shortcut.
+
+### 17.3 Load-bearing knobs the canonical scripts set (do not omit)
+`CACHE_ULTRAFAST=0`, `CACHE_L1_POLICY=LRU`, `CACHE_L2_POLICY=LRU`, `ECG_EXACT_REREF=1`,
+`ECG_PREFETCH_MODE=6`, `ECG_EDGE_MASK_{EPOCH,LINEMIN,LEAN,PACK,CHARGED}=1`. `CHARGED=1` is the
+sharpest: it enables epoch DELIVERY; without it eviction degenerates toward GRASP
+(web-Google/o5 0.76 vs 0.62).
