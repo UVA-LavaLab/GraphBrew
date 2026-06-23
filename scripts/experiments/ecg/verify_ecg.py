@@ -7,7 +7,26 @@ victim), and ASSERTS the victim matches the policy's defining rule. Exit code 0
 iff every eviction of every policy obeys its spec. Researcher-runnable artifact
 verification — no trust in aggregate numbers required.
 
-  python3 scripts/experiments/ecg/verify_ecg.py
+Cross-sim equivalence argument (what guarantees cache_sim == gem5 == Sniper):
+  1. SHARED DECISION: all three call the same ecg_policy::selectVictim
+     (ecg_victim_policy.h). The synthetic test (test_ecg_victim.cc) pins its
+     EXACT victim for controlled sets — strict + mutation-proven, incl. the
+     valid-bit / wraparound / fallback corner cases.
+  2. SHARED ISA LAYOUT: all three (and the gem5 RISC-V decoder) include the same
+     ecg_mode6_builder.h pack/extract; test_ecg_packed_field_parity.cc pins it.
+  3. PER-SIM ADAPTER: each backend's native-state -> WayState mapping is covered
+     by its LIVE trace obeying spec (verify_trace, run with --gem5 / --sniper)
+     PLUS the record-never-stamped invariant (records must never carry a stamp).
+  4. STAMPING PATH: BC + per-edge masks exercises the clearEdgeEpoch delivery-vs-
+     cleared path live (the over-stamping bug locus that per-sim spec checks alone
+     cannot catch); OMP=4 re-checks it under the per-thread hint path.
+  Residual: the epoch VALUE rarely discriminates live on gem5/Sniper (no
+  ECG_STORED_REFRESH there), so their epoch-coverage is INFORMATIONAL; the strict
+  epoch-discrimination guarantee comes from (1) + the cache_sim mirror.
+
+  python3 scripts/experiments/ecg/verify_ecg.py            # cache_sim (+ synthetic)
+  python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 adapter traces
+  python3 scripts/experiments/ecg/verify_ecg.py --sniper   # + Sniper adapter traces
 """
 import os, re, subprocess, sys
 from pathlib import Path
