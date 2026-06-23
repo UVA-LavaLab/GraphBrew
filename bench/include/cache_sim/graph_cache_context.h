@@ -768,6 +768,15 @@ struct AccessHints {
     uint8_t  mask_bits = 2;             // Number of mask bits (2=ECG default, 4/8 for finer control)
     uint8_t  _pad1 = 0;
     uint16_t edge_epoch = 0;            // ECG_GRASP_POPT: absolute next-ref epoch, carried untruncated (mask>>26 loses bit 32)
+    bool     edge_epoch_valid = true;   // is the line's stored epoch a real per-edge DELIVERY?
+                                        // Defaults TRUE so kernels that always deliver (PR pull) and
+                                        // all pre-delivery/init fills stay stamped (legacy behavior,
+                                        // keeps the PR headline byte-identical). clearEdgeEpoch() sets
+                                        // it FALSE for a SEQUENTIAL/cleared read (BC/SSSP/BFS source
+                                        // reads) — the ONLY thing that un-stamps a fill, matching
+                                        // gem5/Sniper which stamp only on real per-edge delivery.
+                                        // Resolves the epoch==0 ambiguity (real epoch-0 delivery is
+                                        // still valid; a cleared read is not).
 
     // ECG mask encoding constants (2-bit, from ECG -M flag graphConfig.h)
     static constexpr uint8_t MASK_HOT      = 0x03;  // 11
@@ -2724,6 +2733,7 @@ struct GraphCacheContext {
                                                     : in_edge_epoch_by_src;
         hints_for_thread().edge_epoch =
             (src < eps.size() && edge_pos < eps[src].size()) ? eps[src][edge_pos] : 0;
+        hints_for_thread().edge_epoch_valid = true;  // a real per-edge epoch was delivered
         return edgeMaskPOPT(masks[src][edge_pos]);
     }
 
@@ -2732,8 +2742,10 @@ struct GraphCacheContext {
     // stamps ecg_epoch from edge_epoch on every ECG_GRASP_POPT fill). No-op when no
     // edge-mask set is built, so default paths stay byte-identical.
     inline void clearEdgeEpoch() {
-        if (!out_edge_masks_by_src.empty() || !in_edge_masks_by_src.empty())
+        if (!out_edge_masks_by_src.empty() || !in_edge_masks_by_src.empty()) {
             hints_for_thread().edge_epoch = 0;
+            hints_for_thread().edge_epoch_valid = false;  // sequential read: NOT a delivery
+        }
     }
 
     void printECGStats(std::ostream& os = std::cout) const {

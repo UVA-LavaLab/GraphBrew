@@ -875,8 +875,11 @@ public:
             if (set[i].valid && set[i].tag == tag) {
                 if (mode == ECGMode::ECG_EXACT_STORED)
                     set[i].ecg_exact_pred = computeExactPredForStamp(set[i].line_addr);
-                else  // ECG_GRASP_POPT: refresh the stored absolute next-ref epoch
+                else if (graph_ctx_->hints_for_thread().edge_epoch_valid) {
+                    // ECG_GRASP_POPT: refresh the stored epoch only on a real delivery
                     set[i].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
+                    set[i].ecg_epoch_valid = true;
+                }
                 return;
             }
         }
@@ -1047,9 +1050,13 @@ public:
                 if (mode == ECGMode::ECG_EXACT_MASK) {
                     // already set ecg_popt_hint from the fixed per-edge layout above
                 } else if (mode == ECGMode::ECG_GRASP_POPT) {
-                    // per-edge mask carries the ABSOLUTE next-ref epoch (untruncated)
+                    // per-edge mask carries the ABSOLUTE next-ref epoch (untruncated).
+                    // Stamp validity from the delivery flag: a cleared/sequential read
+                    // (clearEdgeEpoch -> valid=false) fills an UNSTAMPED line, matching
+                    // gem5/Sniper which only stamp on real per-edge delivery.
                     set[victim_idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
-                    set[victim_idx].ecg_epoch_valid = true;  // a per-edge epoch was delivered
+                    set[victim_idx].ecg_epoch_valid =
+                        graph_ctx_->hints_for_thread().edge_epoch_valid;
                 } else {
                     set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
                 }
@@ -1230,10 +1237,14 @@ private:
                     else if (set[idx].rrpv > 0) set[idx].rrpv--; // Others: gradual
                 }
                 // ECG_GRASP_POPT: refresh the stored ABSOLUTE next-ref epoch at this
-                // re-reference (the per-edge mask carries a fresh epoch each access),
-                // so eviction's circular distance is measured from the latest epoch.
-                if (mode == ECGMode::ECG_GRASP_POPT && graph_ctx_) {
+                // re-reference, but ONLY when this access actually DELIVERED a per-edge
+                // epoch. A sequential/cleared read (clearEdgeEpoch -> valid=false) is NOT
+                // a delivery and must leave the line's existing stamp untouched (matching
+                // gem5/Sniper, which only stamp on real delivery).
+                if (mode == ECGMode::ECG_GRASP_POPT && graph_ctx_ &&
+                    graph_ctx_->hints_for_thread().edge_epoch_valid) {
                     set[idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
+                    set[idx].ecg_epoch_valid = true;
                 }
             }
         }
