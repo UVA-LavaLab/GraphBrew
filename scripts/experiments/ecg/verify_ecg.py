@@ -45,6 +45,20 @@ def run(policy_env, extra=None):
     return p.stderr, (p.returncode == 0)
 
 
+BC = ROOT / "bench" / "bin_sim" / "bc"
+
+
+def run_bc(policy_env, extra=None):
+    """Run BC instead of PR. BC's bottom-up + back-propagation traversal NATURALLY
+    evicts PROPERTY lines (farthest-epoch branch), which the PR workload never does
+    (PR only ever evicts records) — so this is the live cross-kernel coverage of the
+    epoch-eviction path, on a different adapter access pattern than PR."""
+    env = {**os.environ, **BASE_ENV, **policy_env, **(extra or {})}
+    p = subprocess.run([str(BC), "-f", str(GRAPH), "-o", "0", "-n", "1"],
+                       env=env, capture_output=True, text=True, timeout=300)
+    return p.stderr, (p.returncode == 0)
+
+
 GEM5_OPT = ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 ROI_MATRIX = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
 
@@ -180,9 +194,20 @@ def verify_trace(name, result, prefix="", reasons=None):
     checked = passed = 0
     ok = True
     unknown = set()
+    stamp_violations = 0
     for pol, ways, victim, reason in parse_blocks(text):
         if reasons is not None and reason:
             reasons.add(reason)
+        # Stamping-correctness invariant (C): a record (non-property) line must NEVER
+        # carry a stamp — stamped=1 implies prop=1. The shared policy's effDist and the
+        # rules below all assume this; a backend adapter that stamped a record (or a
+        # kernel that failed to clear before a sequential read) would corrupt eviction.
+        for w in ways:
+            if w["prop"] == 0 and w["stamped"] == 1:
+                stamp_violations += 1
+                if stamp_violations <= 3:
+                    print(f"  [STAMP-INVARIANT] {prefix}{name}/{pol}: way{w['way']} is a "
+                          f"record (prop=0) but stamped=1 (records must never be stamped)")
         rule = RULES.get(pol)
         if rule is None:
             unknown.add(pol); continue
@@ -195,6 +220,9 @@ def verify_trace(name, result, prefix="", reasons=None):
             ok = False
             print(f"  [VIOLATION] {prefix}{name}/{pol}: victim=way{victim} "
                   f"ways={[ (w['way'],w['rrpv'],w['dist'],w['prop'],w['last']) for w in ways]}")
+    if stamp_violations:  # records must never be stamped -> fail loudly
+        ok = False
+        print(f"  [STAMP-INVARIANT] {prefix}{name}: {stamp_violations} record(s) stamped (must be 0)")
     if unknown:  # an emitted policy with no checker is a coverage hole -> fail loudly
         ok = False
         print(f"  [UNKNOWN POL] {prefix}{name}: {sorted(unknown)} has no RULES entry")
@@ -286,6 +314,31 @@ def verify_epoch_coverage(name, result, prefix="", strict=True):
     return ok
 
 
+def verify_clearedge_path():
+    """Cross-kernel clearEdgeEpoch coverage — the exact locus of the over-stamping bug
+    that the per-sim spec checks (each sim vs its OWN trace) structurally cannot catch.
+    Run BC with per-edge masks ON so clearEdgeEpoch is non-no-op, then assert BOTH:
+      (a) the live trace obeys spec (the cleared/unstamped lines follow effDist=0), and
+      (b) BOTH stamped AND unstamped property lines appear — i.e. the per-edge DELIVERY
+          path (valid=true) and the SEQUENTIAL/cleared path (valid=false) both fire live.
+    If clearEdgeEpoch regressed to a no-op, or the fill stamped unconditionally (the bug),
+    there would be ZERO unstamped property lines and this FAILS."""
+    if not BC.exists():
+        print("  [skip] BC binary not built — skipping clearEdgeEpoch coverage"); return True
+    env = {**ECG_ENV, "ECG_VARIANT": "epoch_only", "ECG_EDGE_MASKS": "1"}
+    text, ran = run_bc(env, COV_ENV)
+    ok = verify_trace("bc+masks/epoch_only", (text, ran), prefix="(ce) ")
+    stamped_prop = unstamped_prop = 0
+    for _pol, ways, _victim, _reason in parse_blocks(text):
+        for w in ways:
+            if w["prop"] == 1 and w["stamped"] == 1: stamped_prop += 1
+            elif w["prop"] == 1 and w["stamped"] == 0: unstamped_prop += 1
+    fired = stamped_prop > 0 and unstamped_prop > 0
+    print(f"  clearEdgeEpoch live: delivered(stamped)={stamped_prop} cleared(unstamped)="
+          f"{unstamped_prop}  (both>0 = delivery AND clear fire): {'[OK ]' if fired else '[FAIL]'}")
+    return ok and fired
+
+
 def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(description="Assert each L3 policy obeys its spec.")
@@ -326,6 +379,31 @@ def main(argv=None):
     # and rely on the synthetic test for its stamped-epoch + DBG-tiebreak path.
     ok_all &= verify_trace("shortcircuit", run({**ECG_ENV, "ECG_VARIANT": "shortcircuit"}, COV_ENV),
                            prefix="(sc) ")
+
+    # Cross-kernel coverage (B+C): BC's bottom-up traversal NATURALLY evicts PROPERTY
+    # lines (the PR workload only ever evicts records), so this is the only LIVE check
+    # of the epoch-eviction branch on a real kernel via a DIFFERENT adapter access
+    # pattern. verify_trace also enforces the record-never-stamped invariant (C).
+    if BC.exists():
+        print("\n-- cache_sim BC cross-kernel (BC evicts property -> live epoch branch + stamp invariant) --")
+        for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+            ok_all &= verify_trace(f"bc/{variant}", run_bc({**ECG_ENV, "ECG_VARIANT": variant}, COV_ENV),
+                                   prefix="(bc) ", reasons=live_reasons)
+        # BC epoch-coverage is INFORMATIONAL (strict=False): BC's property lines carry
+        # uniform/fallback epochs under this geometry (it is not the full per-edge-mask
+        # delivery kernel that PR is), so the epoch VALUE rarely discriminates between
+        # >=2 candidates. The strict epoch-discrimination is covered by PR's epoch-
+        # coverage + the synthetic test; BC's value here is the LIVE property-eviction
+        # spec-compliance (above) on a different adapter access pattern.
+        for variant in ["rrip_first", "epoch_first", "epoch_only"]:
+            ok_all &= verify_epoch_coverage(f"bc/{variant}",
+                                            run_bc({**ECG_ENV, "ECG_VARIANT": variant}, COV_ENV),
+                                            prefix="(bc) ", strict=False)
+        # clearEdgeEpoch live coverage (the over-stamping bug locus PR never reaches).
+        print("\n-- cache_sim clearEdgeEpoch path (BC + per-edge masks: delivery vs cleared) --")
+        ok_all &= verify_clearedge_path()
+    else:
+        print("  [skip] BC binary not built (make sim-bc) — skipping cross-kernel coverage")
 
     if args.gem5:
         if not GEM5_OPT.exists():
