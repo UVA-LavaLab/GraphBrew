@@ -314,6 +314,31 @@ def verify_epoch_coverage(name, result, prefix="", strict=True):
     return ok
 
 
+def verify_omp_robustness():
+    """OMP>1 robustness (D): cache_sim's L3 is mutex-serialized and the per-edge hints
+    are PER-THREAD (hints_for_thread), so the eviction decision must stay correct under
+    concurrency. Run the clearEdgeEpoch workload (BC + per-edge masks) with 4 OMP threads
+    and assert every eviction still obeys spec AND both the delivered (stamped) and cleared
+    (unstamped) paths still fire. A per-thread hint hazard — e.g. a worker's first
+    sequential read over-stamping because its thread-local valid bit was never cleared —
+    would break spec or collapse the cleared count. (Counts vary run-to-run; only the
+    invariants are asserted, so this is a stable gate.)"""
+    if not BC.exists():
+        print("  [skip] BC binary not built — skipping OMP robustness"); return True
+    env = {**ECG_ENV, "ECG_VARIANT": "epoch_only", "ECG_EDGE_MASKS": "1"}
+    text, ran = run_bc(env, {**COV_ENV, "OMP_NUM_THREADS": "4"})
+    ok = verify_trace("bc+masks OMP=4", (text, ran), prefix="(omp) ")
+    sp = up = 0
+    for _p, ways, _v, _r in parse_blocks(text):
+        for w in ways:
+            if w["prop"] == 1 and w["stamped"] == 1: sp += 1
+            elif w["prop"] == 1 and w["stamped"] == 0: up += 1
+    fired = sp > 0 and up > 0
+    print(f"  OMP=4 per-thread hints: delivered={sp} cleared={up} "
+          f"(both>0 under concurrency): {'[OK ]' if fired else '[FAIL]'}")
+    return ok and fired
+
+
 def verify_clearedge_path():
     """Cross-kernel clearEdgeEpoch coverage — the exact locus of the over-stamping bug
     that the per-sim spec checks (each sim vs its OWN trace) structurally cannot catch.
@@ -402,6 +427,9 @@ def main(argv=None):
         # clearEdgeEpoch live coverage (the over-stamping bug locus PR never reaches).
         print("\n-- cache_sim clearEdgeEpoch path (BC + per-edge masks: delivery vs cleared) --")
         ok_all &= verify_clearedge_path()
+        # OMP>1 robustness (D): per-thread hints must stay correct under concurrency.
+        print("\n-- cache_sim OMP>1 robustness (BC + masks, 4 threads) --")
+        ok_all &= verify_omp_robustness()
     else:
         print("  [skip] BC binary not built (make sim-bc) — skipping cross-kernel coverage")
 
