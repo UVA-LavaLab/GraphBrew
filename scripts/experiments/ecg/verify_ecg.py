@@ -206,6 +206,20 @@ def verify_trace(name, result, prefix="", reasons=None):
 SYNTH_BIN = ROOT / "bench" / "bin_sim" / "test_ecg_victim"
 
 
+def verify_unknown_mode_hardfails():
+    """Negative test: an unrecognized ECG_MODE must HARD-FAIL (exit!=0 + [FATAL]),
+    not silently fall back to DBG_PRIMARY. Silent fallback would run a different
+    policy than requested while labelling itself as the requested mode. This is the
+    safety gate that must hold before any ECG mode can be deleted/renamed."""
+    env = {**os.environ, **BASE_ENV, "CACHE_POLICY": "ECG", "ECG_MODE": "BOGUS_MODE_XYZ"}
+    p = subprocess.run([str(PR), "-f", str(GRAPH), "-o", "0", "-n", "1", "-i", "1"],
+                       env=env, capture_output=True, text=True, timeout=120)
+    hard_failed = (p.returncode != 0) and ("[FATAL]" in p.stderr) and ("BOGUS_MODE_XYZ" in p.stderr)
+    print(f"  unknown ECG_MODE hard-fails (exit={p.returncode}, [FATAL] emitted): "
+          f"{'[OK ]' if hard_failed else '[FAIL]'}")
+    return hard_failed
+
+
 def run_synthetic():
     """Build + run the synthetic deterministic victim test: controlled 8-way sets
     with hand-computed exact victims. This is the part that actually exercises the
@@ -294,6 +308,8 @@ def main(argv=None):
     live_reasons = set()
     print("== synthetic deterministic victim tests (EXACT victim; exercises the epoch branch) ==")
     ok_all &= run_synthetic()
+    print("\n-- negative test: unknown ECG_MODE must hard-fail (not silent DBG_PRIMARY) --")
+    ok_all &= verify_unknown_mode_hardfails()
     print("\n-- cache_sim (L3 policies, email-Eu-core; live-trace integration) --")
     for name, env in suites:
         ok_all &= verify_trace(name, run(env), reasons=live_reasons)

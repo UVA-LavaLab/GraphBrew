@@ -207,6 +207,7 @@ inline std::string ECGModeToString(ECGMode mode) {
 }
 
 inline ECGMode StringToECGMode(const std::string& s) {
+    if (s == "DBG_PRIMARY" || s == "dbg_primary") return ECGMode::DBG_PRIMARY;
     if (s == "POPT_PRIMARY" || s == "popt_primary" || s == "popt") return ECGMode::POPT_PRIMARY;
     if (s == "POPT_TIE" || s == "popt_tie" || s == "popt_tiebreak") return ECGMode::POPT_TIE;
     if (s == "DBG_ONLY" || s == "dbg_only" || s == "dbg") return ECGMode::DBG_ONLY;
@@ -217,7 +218,14 @@ inline ECGMode StringToECGMode(const std::string& s) {
     if (s == "ECG_EXACT_STORED" || s == "ecg_exact_stored" || s == "exact_stored") return ECGMode::ECG_EXACT_STORED;
     if (s == "ECG_EXACT_MASK" || s == "ecg_exact_mask" || s == "exact_mask") return ECGMode::ECG_EXACT_MASK;
     if (s == "ECG_GRASP_POPT" || s == "ecg_grasp_popt" || s == "grasp_popt") return ECGMode::ECG_GRASP_POPT;
-    return ECGMode::DBG_PRIMARY;  // Default
+    // HARD FAIL on an unrecognized mode. Silently defaulting to DBG_PRIMARY would
+    // run a DIFFERENT policy than requested (a typo, or a removed mode) while the
+    // run still LABELS itself as the requested mode -> fraudulent-looking results.
+    std::cerr << "[FATAL] ECG_MODE='" << s << "' is not a recognized ECG mode. "
+                 "Valid: DBG_PRIMARY, POPT_PRIMARY, POPT_TIE, DBG_ONLY, ECG_EMBEDDED, "
+                 "ECG_EPOCH_EMBEDDED, ECG_COMBINED, ECG_EXACT, ECG_EXACT_STORED, "
+                 "ECG_EXACT_MASK, ECG_GRASP_POPT." << std::endl;
+    std::exit(2);
 }
 
 // ============================================================================
