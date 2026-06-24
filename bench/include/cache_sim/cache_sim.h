@@ -1779,10 +1779,16 @@ private:
             }
         }
 
-        // ── POPT_PRIMARY: Use P-OPT's exact 3-phase algorithm ──
-        // Bypass SRRIP aging entirely — P-OPT operates on ALL ways, not
-        // just RRPV-aged candidates. This ensures ECG(POPT_PRIMARY)
-        // matches pure P-OPT's eviction behavior exactly.
+        // ── POPT_PRIMARY: P-OPT's 3-phase algorithm + ECG degree (DBG) tiebreak ──
+        // Bypass SRRIP aging — P-OPT operates on ALL ways, not just RRPV-aged
+        // candidates. NOTE: this is NOT identical to pure POPT. Among lines tied at
+        // the max rereference distance, ECG additionally prefers the highest DBG
+        // (degree) tier (the Level-3 enhancement in the loop below), whereas pure
+        // findVictimPOPT returns the FIRST tied way. Because reref distance is
+        // capped at 127, ties at the max are common, so this degree tiebreak is a
+        // genuine ECG contribution (P-OPT + degree), applied identically in gem5
+        // (ecg_rp.cc) for cross-sim consistency — it is the ECG:POPT_PRIMARY arm,
+        // NOT a pure-P-OPT-parity arm (the plain POPT policy is that parity arm).
         if (mode == ECGMode::POPT_PRIMARY && graph_ctx_ && graph_ctx_->rereference.matrix) {
             // Phase 2: Find max rereference distance across ALL ways
             uint8_t maxRerefDist = 0;
