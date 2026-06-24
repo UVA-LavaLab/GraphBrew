@@ -431,11 +431,14 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
     requested_bytes = parse_size_bytes(l3_size)
     metadata: dict[str, Any] = {
         "popt_overhead_charged": int(spec.charge_popt_overhead),
+        "popt_reserve_model": getattr(args, "popt_reserve_model", "fixed_one"),
         "popt_requested_l3_size": l3_size,
         "popt_effective_l3_size": l3_size,
         "popt_effective_l3_ways": args.l3_ways,
         "popt_reserved_ways": 0,
         "popt_reserved_bytes": 0,
+        "popt_matrix_bytes": 0,
+        "popt_matrix_fits": 1,
         "popt_matrix_active_columns": 0,
         "popt_matrix_column_bytes": 0,
         "popt_matrix_stream_bytes": 0,
@@ -462,14 +465,32 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
     matrix_bytes = active_columns * column_bytes
     sets = max(requested_bytes // (assoc * line_size), 1)
     bytes_per_way = sets * line_size
-    # P-OPT (Balaji & Lucia, HPCA'21) reserves exactly ONE LLC way for the
-    # rereference-matrix streaming buffer: the RRM lives in memory and is
-    # streamed in, so only a single-way on-chip buffer is held (NOT the whole
-    # column, which would be many ways on large graphs). The capacity tax is
-    # therefore a fixed one way (matching the paper); matrix_bytes/stream_bytes
-    # below are retained as informational reporting for the metadata-cost table
-    # (and the streamed-from-memory bandwidth, which a capacity sim does not model).
-    reserved_ways = 1 if (assoc - min_data_ways) >= 1 else 0
+    reserve_model = getattr(args, "popt_reserve_model", "fixed_one")
+    matrix_fits = True
+    if reserve_model == "size_correct":
+        # PAPER-FAITHFUL charge (Balaji & Lucia, HPCA'21, Sec V.D): P-OPT keeps
+        # `active_columns` Rereference-Matrix columns RESIDENT in reserved LLC
+        # ways -- "enough ways need to be reserved as to be able to store
+        # 2 * numLines * 1B"; "P-OPT never evicts Rereference Matrix data". The
+        # reserved-way count therefore scales with the graph (|V|/elemsPerLine),
+        # NOT a fixed one. matrix_bytes = active_columns * numLines (1B/entry).
+        needed_ways = (matrix_bytes + bytes_per_way - 1) // bytes_per_way
+        max_reservable = max(assoc - min_data_ways, 0)
+        if needed_ways > max_reservable:
+            # The two resident columns cannot fit while leaving min_data_ways of
+            # data: the paper's design point is INFEASIBLE at this (graph, LLC).
+            # We still emit a clamped number (data = min_data_ways) as a labeled
+            # P-OPT-favorable sensitivity, but flag the cell as infeasible.
+            matrix_fits = False
+            reserved_ways = max_reservable
+        else:
+            reserved_ways = needed_ways
+    else:
+        # LEGACY / P-OPT-FAVORABLE sensitivity ("fixed_one", the historical
+        # default): charge a single reserved streaming-buffer way regardless of
+        # |V|. This UNDER-charges large graphs (the resident columns span many
+        # ways) and is retained only for comparison; it is NOT paper-faithful.
+        reserved_ways = 1 if (assoc - min_data_ways) >= 1 else 0
     reserved_bytes = reserved_ways * bytes_per_way
     effective_ways = max(assoc - reserved_ways, min_data_ways)
     effective_bytes = sets * effective_ways * line_size
@@ -477,16 +498,26 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
     stream_cache_lines = (stream_bytes + line_size - 1) // line_size
 
     metadata.update({
+        "popt_reserve_model": reserve_model,
         "popt_effective_l3_size": format_size_bytes(effective_bytes),
         "popt_effective_l3_ways": str(effective_ways),
         "popt_reserved_ways": reserved_ways,
         "popt_reserved_bytes": reserved_bytes,
+        "popt_matrix_bytes": matrix_bytes,
+        "popt_bytes_per_way": bytes_per_way,
+        "popt_matrix_fits": int(matrix_fits),
         "popt_matrix_active_columns": active_columns,
         "popt_matrix_column_bytes": column_bytes,
         "popt_matrix_stream_bytes": stream_bytes,
         "popt_matrix_stream_cache_lines": stream_cache_lines,
         "popt_estimated_vertices": vertices,
     })
+    if not matrix_fits:
+        metadata["popt_infeasible"] = 1
+        metadata["popt_charge_warning"] = (
+            f"matrix_exceeds_llc: needs {(matrix_bytes + bytes_per_way - 1) // bytes_per_way} "
+            f"of {assoc} ways for {matrix_bytes}B resident columns; clamped to "
+            f"{reserved_ways} reserved / {effective_ways} data way(s)")
     return metadata
 
 
@@ -1349,6 +1380,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="P-OPT epoch count used to estimate matrix streaming traffic for *_CHARGED policies.")
     parser.add_argument("--popt-min-data-ways", default="1",
                         help="Minimum LLC data ways kept after reserving P-OPT matrix ways.")
+    parser.add_argument("--popt-reserve-model", choices=["fixed_one", "size_correct"],
+                        default="fixed_one",
+                        help="P-OPT reserved-LLC-way charge model for *_CHARGED policies. "
+                             "'fixed_one' (legacy default, P-OPT-favorable): one streaming-buffer "
+                             "way regardless of |V|. 'size_correct' (paper-faithful, Balaji & Lucia "
+                             "HPCA'21 Sec V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
+                             "ways for the resident rereference-matrix columns (scales with |V|; "
+                             "marks cells popt_matrix_fits=0 when the columns cannot fit).")
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--timeout-cache", type=int, default=600)
     parser.add_argument("--timeout-gem5", type=int, default=900)

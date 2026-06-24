@@ -16,8 +16,8 @@ sys.modules["roi_matrix"] = roi_matrix
 spec.loader.exec_module(roi_matrix)
 
 
-def test_popt_charged_reserves_matrix_columns_as_llc_ways():
-    args = Namespace(
+def _charge_args(reserve_model: str = "fixed_one") -> Namespace:
+    return Namespace(
         options="-g 12 -k 16 -o 5 -n 1 -i 2",
         line_size="64",
         l3_ways="16",
@@ -25,21 +25,65 @@ def test_popt_charged_reserves_matrix_columns_as_llc_ways():
         popt_active_columns="2",
         popt_min_data_ways="1",
         popt_num_epochs="256",
+        popt_reserve_model=reserve_model,
     )
 
-    spec = roi_matrix.parse_policy_spec("POPT_CHARGED")
-    charge = roi_matrix.popt_charge_metadata(args, spec, "4kB")
 
+def test_popt_charged_label_and_default_fixed_one_reserves_single_way():
+    spec = roi_matrix.parse_policy_spec("POPT_CHARGED")
+    # Plain/charged POPT keeps the label "POPT" (it is the paper's policy); the
+    # charge is carried by charge_popt_overhead, not a label suffix.
     assert spec.policy == "POPT"
-    assert spec.label == "POPT_CHARGED"
+    assert spec.label == "POPT"
     assert spec.charge_popt_overhead
+
+    charge = roi_matrix.popt_charge_metadata(_charge_args("fixed_one"), spec, "4kB")
+    assert charge["popt_reserve_model"] == "fixed_one"
     assert charge["popt_estimated_vertices"] == 4096
     assert charge["popt_matrix_column_bytes"] == 256
+    assert charge["popt_matrix_bytes"] == 512
+    # fixed_one (legacy / P-OPT-favorable): one reserved streaming-buffer way.
+    assert charge["popt_reserved_ways"] == 1
+    assert charge["popt_reserved_bytes"] == 256
+    assert charge["popt_effective_l3_ways"] == "15"
+    assert charge["popt_effective_l3_size"] == "3840B"
+    assert charge["popt_matrix_fits"] == 1
+
+
+def test_popt_charged_size_correct_reserves_resident_matrix_columns():
+    spec = roi_matrix.parse_policy_spec("POPT_CHARGED")
+    charge = roi_matrix.popt_charge_metadata(_charge_args("size_correct"), spec, "4kB")
+    # size_correct (paper-faithful, Balaji & Lucia HPCA'21 Sec V.D): reserve
+    # ceil(matrix_bytes / bytes_per_way) ways for the resident rereference-matrix
+    # columns. matrix=512B at 256B/way -> 2 reserved ways, 14 data ways = 3584B.
+    assert charge["popt_reserve_model"] == "size_correct"
     assert charge["popt_reserved_ways"] == 2
     assert charge["popt_reserved_bytes"] == 512
     assert charge["popt_effective_l3_ways"] == "14"
     assert charge["popt_effective_l3_size"] == "3584B"
+    assert charge["popt_matrix_fits"] == 1
     assert charge["popt_matrix_stream_cache_lines"] == 1024
+
+
+def test_popt_charged_size_correct_marks_infeasible_when_matrix_exceeds_llc():
+    # A graph whose two resident matrix columns exceed the whole LLC: the paper's
+    # design point cannot fit while leaving data ways -> mark the cell infeasible
+    # (still emit a clamped min-data-way number as a labeled sensitivity).
+    args = _charge_args("size_correct")
+    args.options = "-g 18 -k 16 -o 5 -n 1 -i 2"  # 2^18 = 262144 vertices
+    spec = roi_matrix.parse_policy_spec("POPT_CHARGED")
+    charge = roi_matrix.popt_charge_metadata(args, spec, "4kB")
+    assert charge["popt_matrix_fits"] == 0
+    assert charge["popt_infeasible"] == 1
+    assert charge["popt_effective_l3_ways"] == "1"
+    assert "matrix_exceeds_llc" in charge["popt_charge_warning"]
+
+
+def test_popt_uncharged_default_is_charged_but_explicit_uncharged_is_not():
+    # Plain "POPT" is charged-by-default (the paper's practical policy); the
+    # ":UNCHARGED" diagnostic disables the capacity tax (full-cache oracle).
+    assert roi_matrix.parse_policy_spec("POPT").charge_popt_overhead
+    assert not roi_matrix.parse_policy_spec("POPT:UNCHARGED").charge_popt_overhead
 
 
 def test_charged_ecg_policy_maps_to_underlying_ecg_mode():
