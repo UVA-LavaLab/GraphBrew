@@ -1299,22 +1299,16 @@ private:
     }
 
     size_t findVictim(std::vector<CacheLine>& set) {
-        // First, look for an invalid line.  Upstream GRASP is the exception:
-        // its trace simulator has no valid bit and lets RRIP select the victim
-        // even during cold fill.  ECG DBG_ONLY follows this path to preserve
-        // GRASP-equivalence checks.
-        bool prefer_invalid = true;
-        if (policy_ == EvictionPolicy::GRASP) {
-            prefer_invalid = false;
-        } else if (policy_ == EvictionPolicy::ECG) {
-            ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
-                ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
-            if (mode == ECGMode::DBG_ONLY) prefer_invalid = false;
-        }
-        if (prefer_invalid) {
-            for (size_t i = 0; i < associativity_; i++) {
-                if (!set[i].valid) return i;
-            }
+        // Real-cache invariant (SSOT): EVERY policy fills an invalid (empty) way
+        // before evicting a valid line. RRIP/SRRIP insert into an invalid way
+        // first (Jaleel ISCA'10), and gem5/Sniper fill invalid ways natively, so
+        // cache_sim must too — for cross-policy AND cross-sim fairness. (Earlier,
+        // GRASP and ECG:DBG_ONLY skipped this to mirror Faldu's trace simulator,
+        // which models no fills; that made them pathological at low pressure —
+        // evicting valid lines while empty ways sat idle — and unfairly weakened
+        // the GRASP baseline relative to SRRIP/ECG. Fixed: always invalid-first.)
+        for (size_t i = 0; i < associativity_; i++) {
+            if (!set[i].valid) return i;
         }
         
         // All lines valid, use eviction policy

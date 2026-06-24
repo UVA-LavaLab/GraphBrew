@@ -50,7 +50,10 @@ def test_grasp_trace_header_fraction_and_cold_fill_are_upstream_faithful():
     assert "if (!regions[i].grasp_region) continue;" in sniper_context
     assert "policy_ == EvictionPolicy::GRASP" in cache_sim
     assert "mode == ECGMode::DBG_ONLY" in cache_sim
-    assert "no valid bit" in cache_sim
+    # Real-cache SSOT (fixed): ALL policies fill an invalid way before evicting a
+    # valid line — GRASP/ECG:DBG_ONLY no longer mimic the trace simulator's
+    # no-valid-bit cold fill, which unfairly weakened GRASP at low pressure.
+    assert "always invalid-first" in cache_sim
     assert "patch_grasp_portability" in compare_script
     assert "popt_pin_toolchain" in compare_script
 
