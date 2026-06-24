@@ -298,13 +298,27 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         : static_cast<uint16_t>(GraphCacheContext::edgeMaskPOPT(mask));
                     if (edge_mask_pack && edge_mask_lean) {
                         // REAL PACKING PROOF: pack the epoch into the spare high bits
-                        // of the (already-loaded) 4-byte edge word, then unpack — the
-                        // epoch rides the SAME edge read (zero extra traffic). Round-trip
-                        // must recover both the neighbor and the epoch exactly.
-                        uint32_t packed = ((uint32_t)v & id_mask) | ((uint32_t)carried_epoch << id_bits);
-                        NodeID v_un = static_cast<NodeID>(packed & id_mask);
-                        uint16_t ep_un = static_cast<uint16_t>(packed >> id_bits);
+                        // of the (already-loaded) per-edge record, then unpack — the
+                        // epoch rides the SAME read (zero extra traffic). The pack
+                        // CONTAINER must match the record width: a 4-byte fat-CSR edge
+                        // word (record_bytes<=4) packs into 32 bits (ne_cap guarantees
+                        // id_bits+epoch<=32, lossless); an 8-byte ISA record
+                        // (record_bytes>=8) packs into 64 bits so the FULL epoch is
+                        // preserved at scale (id_bits+<=16-bit epoch <= 64) instead of
+                        // overflowing uint32 and folding the high epoch bits back into
+                        // the eviction. Round-trip must recover neighbor and epoch.
                         static std::atomic<uint64_t> pk_total{0}, pk_bad{0};
+                        NodeID v_un; uint16_t ep_un;
+                        if (record_bytes >= 8) {
+                            uint64_t id_mask64 = (id_bits >= 64) ? ~0ULL : ((1ULL << id_bits) - 1ULL);
+                            uint64_t packed = ((uint64_t)v & id_mask64) | ((uint64_t)carried_epoch << id_bits);
+                            v_un = static_cast<NodeID>(packed & id_mask64);
+                            ep_un = static_cast<uint16_t>(packed >> id_bits);
+                        } else {
+                            uint32_t packed = ((uint32_t)v & id_mask) | ((uint32_t)carried_epoch << id_bits);
+                            v_un = static_cast<NodeID>(packed & id_mask);
+                            ep_un = static_cast<uint16_t>(packed >> id_bits);
+                        }
                         ++pk_total;
                         if (v_un != v || ep_un != carried_epoch) ++pk_bad;
                         if ((pk_total.load() % 5000000ULL) == 0)
