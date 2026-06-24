@@ -708,9 +708,10 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
                 "ECG_PREFETCH_MODE": "6",
                 "ECG_EDGE_MASK_EPOCH": "1",
                 "ECG_EDGE_MASK_LINEMIN": "1",
-                "ECG_EDGE_MASK_EPOCHS": "65535",
+                "ECG_EDGE_MASK_EPOCHS": str(args.ecg_epochs),
                 "ECG_EDGE_MASK_LEAN": "1",
                 "ECG_EDGE_MASK_PACK": "1",
+                "ECG_EDGE_MASK_PACK_BITS": str(args.ecg_epoch_pack_bits),
                 "ECG_EDGE_MASK_CHARGED": "1",
             })
     return env
@@ -850,7 +851,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "ECG_PREFETCH_MODE": "6",
             "ECG_EDGE_MASK_EPOCH": "1",
             "ECG_EDGE_MASK_LINEMIN": "1",
-            "ECG_EDGE_MASK_EPOCHS": "65535",
+            "ECG_EDGE_MASK_EPOCHS": str(args.ecg_epochs),
+            "ECG_EDGE_MASK_PACK_BITS": str(args.ecg_epoch_pack_bits),
         })
     if args.prefetcher == "ECG_PFX":
         env.update(ecg_pfx_env(args))
@@ -1388,6 +1390,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "HPCA'21 Sec V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
                              "ways for the resident rereference-matrix columns (scales with |V|; "
                              "marks cells popt_matrix_fits=0 when the columns cannot fit).")
+    parser.add_argument("--ecg-epochs", type=int, default=65535,
+                        help="ECG_GRASP_POPT number of absolute epochs the per-edge mask "
+                             "quantizes to (eviction-epoch resolution). Default 65535 (committed). "
+                             "EFFECTIVE count = min(this, pack-bits cap). Eviction quality saturates "
+                             "near ne~1024-4096; values above the sweet spot over-resolve and can "
+                             "worsen the miss rate, so pair a sweet-spot ne with --ecg-epoch-pack-bits "
+                             "64 to MAINTAIN it at scale (instead of collapsing to 2^(32-id_bits)).")
+    parser.add_argument("--ecg-epoch-pack-bits", type=int, choices=[32, 64], default=32,
+                        help="ECG per-edge epoch packed-record container width. 32 (default) = "
+                             "4B fat-CSR edge word: epoch caps at 2^(32-id_bits), collapsing at "
+                             "scale (committed reproductions unchanged). 64 = ISA-faithful 64-bit "
+                             "packed record: full epoch resolution at any scale; the wider (8B) "
+                             "record stream is honestly charged by ecgRecordBytes under CHARGED=1.")
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--timeout-cache", type=int, default=600)
     parser.add_argument("--timeout-gem5", type=int, default=900)

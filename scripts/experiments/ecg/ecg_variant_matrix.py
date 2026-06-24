@@ -30,7 +30,8 @@ COLUMNS = [
 
 
 def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
-             timeout_cell=3600, run_id="run", popt_reserve_model="fixed_one"):
+             timeout_cell=3600, run_id="run", popt_reserve_model="fixed_one",
+             ecg_epoch_pack_bits=32, ecg_epochs=65535):
     gpath = GRAPHS / graph / f"{graph}.sg"
     outdir = Path("/tmp") / f"evm_{run_id}_{suite}_{graph}_{l3}_o{order}_{label.replace(':','_')}"
     cmd = [sys.executable, str(ROOT / "scripts/experiments/ecg/roi_matrix.py"),
@@ -40,6 +41,8 @@ def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
            "--l3-sizes", l3, "--l3-ways", "16",
            "--l1d-size", "32kB", "--l2-size", "256kB",
            "--popt-reserve-model", popt_reserve_model,
+           "--ecg-epoch-pack-bits", str(ecg_epoch_pack_bits),
+           "--ecg-epochs", str(ecg_epochs),
            "--out-dir", str(outdir)]
     env = dict(os.environ)
     if variant:
@@ -78,6 +81,14 @@ def main(argv):
                          "matrices reproduce unchanged); 'size_correct' charges the paper-"
                          "faithful resident-column reservation (scales with |V|) for the "
                          "iso-area POPT comparison.")
+    ap.add_argument("--ecg-epoch-pack-bits", type=int, default=32, choices=[32, 64],
+                    help="ECG epoch packed-record width forwarded to roi_matrix. 32 (default) = "
+                         "committed reproductions; 64 = ISA-faithful full epoch resolution at "
+                         "scale (honest 8B record charged under CHARGED=1).")
+    ap.add_argument("--ecg-epochs", type=int, default=65535,
+                    help="ECG epoch count (eviction-epoch resolution) forwarded to roi_matrix. "
+                         "Default 65535. Eviction quality is non-monotonic in ne; pair a "
+                         "sweet-spot ne with --ecg-epoch-pack-bits 64 to MAINTAIN it at scale.")
     args = ap.parse_args(argv)
 
     gem5_env = {"GEM5_OPT": str(ROOT/"bench/include/gem5_sim/gem5/build/RISCV/gem5.opt"),
@@ -99,7 +110,9 @@ def main(argv):
                 r = run_cell(args.suite, graph, l3, order, label, policy, variant,
                              args.options, gem5_env,
                              timeout_cell=args.timeout_cell, run_id=args.run_id,
-                             popt_reserve_model=args.popt_reserve_model)
+                             popt_reserve_model=args.popt_reserve_model,
+                             ecg_epoch_pack_bits=args.ecg_epoch_pack_bits,
+                             ecg_epochs=args.ecg_epochs)
                 vals.append(r)
             tag = f"{graph}/{l3}/o{order}"
             print(tag.ljust(24) + "".join(

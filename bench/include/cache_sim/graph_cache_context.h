@@ -2257,14 +2257,26 @@ struct GraphCacheContext {
             edge_epoch_count = ec;
         }
         // ECG_EDGE_MASK_PACK: enforce the REAL spare-bit cap — the epoch must fit
-        // in the spare high bits of the 32-bit edge word: spare = 32 - ceil(log2 N),
-        // ne_cap = 2^spare. This is the honest packed-delivery resolution limit.
+        // in the spare high bits of the per-edge record container:
+        //   spare = pack_bits - ceil(log2 N), ne_cap = 2^spare.
+        // Default container = 32 bits (a 4B fat-CSR edge word). ECG_EDGE_MASK_PACK_BITS=64
+        // models the ISA-faithful 64-bit packed record (the per-src masks are stored
+        // 64-bit and the ecg.extract ISA delivers a 64-bit record), which keeps full
+        // epoch resolution at scale instead of collapsing to 2^(32-id_bits). The wider
+        // (8B) record stream is then honestly charged by pr.cc's ecgRecordBytes auto-
+        // switch under CHARGED=1 (and is free under CHARGED=0 / ISA delivery). For large
+        // graphs (e.g. kron-s24, id_bits=24) the 8B record is already required, so the
+        // 32-bit cap throws away epoch resolution for NO bandwidth saving.
         if (std::getenv("ECG_EDGE_MASK_PACK")) {
-            uint32_t id_bits = 1; while (id_bits < 31 && (1u << id_bits) < n) id_bits++;
-            uint32_t spare = (id_bits >= 32) ? 0u : (32u - id_bits);
+            uint32_t pack_bits = 32;
+            if (const char* pb = std::getenv("ECG_EDGE_MASK_PACK_BITS")) {
+                pack_bits = ((uint32_t)std::atoi(pb) >= 64) ? 64u : 32u;
+            }
+            uint32_t id_bits = 1; while (id_bits < (pack_bits - 1) && ((uint64_t)1 << id_bits) < n) id_bits++;
+            uint32_t spare = (id_bits >= pack_bits) ? 0u : (pack_bits - id_bits);
             uint32_t ne_cap = (spare >= 16) ? 65535u : (spare == 0 ? 1u : (1u << spare));
             if (edge_epoch_count > ne_cap) edge_epoch_count = ne_cap;
-            std::cout << "ECG_EDGE_MASK_PACK: N=" << n << " id_bits=" << id_bits
+            std::cout << "ECG_EDGE_MASK_PACK: pack_bits=" << pack_bits << " N=" << n << " id_bits=" << id_bits
                       << " spare_bits=" << spare << " ne_cap=" << ne_cap
                       << " -> ne=" << edge_epoch_count << std::endl;
         }
