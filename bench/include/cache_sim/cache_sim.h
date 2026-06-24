@@ -351,7 +351,9 @@ struct CacheStats {
     std::atomic<uint64_t> writes{0};
     std::atomic<uint64_t> evictions{0};
     std::atomic<uint64_t> writebacks{0};
-    
+    std::atomic<uint64_t> prop_hits{0};    // hits on PROPERTY data (cached, irregular)
+    std::atomic<uint64_t> prop_misses{0};  // misses on PROPERTY data (the metric that matters)
+
     CacheStats() = default;
     
     // Copy constructor (needed for aggregation)
@@ -361,7 +363,9 @@ struct CacheStats {
         , reads(other.reads.load())
         , writes(other.writes.load())
         , evictions(other.evictions.load())
-        , writebacks(other.writebacks.load()) {}
+        , writebacks(other.writebacks.load())
+        , prop_hits(other.prop_hits.load())
+        , prop_misses(other.prop_misses.load()) {}
     
     // Copy assignment
     CacheStats& operator=(const CacheStats& other) {
@@ -371,6 +375,8 @@ struct CacheStats {
         writes = other.writes.load();
         evictions = other.evictions.load();
         writebacks = other.writebacks.load();
+        prop_hits = other.prop_hits.load();
+        prop_misses = other.prop_misses.load();
         return *this;
     }
 
@@ -381,6 +387,8 @@ struct CacheStats {
         writes = 0;
         evictions = 0;
         writebacks = 0;
+        prop_hits = 0;
+        prop_misses = 0;
     }
 
     double hitRate() const {
@@ -837,6 +845,7 @@ public:
             if (set[i].valid && set[i].tag == tag) {
                 // Hit!
                 stats_.hits++;
+                if (graph_ctx_ && graph_ctx_->findRegion(address)) stats_.prop_hits++;
                 updateOnHit(set, i);
                 if (is_write) {
                     set[i].dirty = true;
@@ -847,6 +856,7 @@ public:
         
         // Miss
         stats_.misses++;
+        if (graph_ctx_ && graph_ctx_->findRegion(address)) stats_.prop_misses++;
         // Set-dueling: leader-set misses steer PSEL (epoch-leader miss -> toward LRU;
         // LRU-leader miss -> toward epoch). Followers later read PSEL.
         if (set_dueling_) {
@@ -2367,6 +2377,8 @@ private:
         ss << "    \"policy\": \"" << PolicyToString(level.getPolicy()) << "\",\n";
         ss << "    \"hits\": " << stats.hits.load() << ",\n";
         ss << "    \"misses\": " << stats.misses.load() << ",\n";
+        ss << "    \"prop_hits\": " << stats.prop_hits.load() << ",\n";
+        ss << "    \"prop_misses\": " << stats.prop_misses.load() << ",\n";
         ss << "    \"hit_rate\": " << std::fixed << std::setprecision(6) << stats.hitRate() << ",\n";
         ss << "    \"evictions\": " << stats.evictions.load() << ",\n";
         ss << "    \"writebacks\": " << stats.writebacks.load() << "\n";
@@ -2599,6 +2611,7 @@ public:
         ss << "  \"L2\": { \"hits\": " << l2.hits.load() << ", \"misses\": " << l2.misses.load() 
            << ", \"hit_rate\": " << std::fixed << std::setprecision(6) << l2.hitRate() << " },\n";
         ss << "  \"L3\": { \"hits\": " << l3.hits.load() << ", \"misses\": " << l3.misses.load() 
+           << ", \"prop_hits\": " << l3.prop_hits.load() << ", \"prop_misses\": " << l3.prop_misses.load()
            << ", \"hit_rate\": " << std::fixed << std::setprecision(6) << l3.hitRate() << " }\n";
         ss << "}";
         return ss.str();
