@@ -256,16 +256,23 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                                 uint16_t cand_ep = (cpos < src_eps.size()) ? src_eps[cpos] : saved_ep;
                                 if (edge_mask_pack) {
                                     // Faithful delivery: a lookahead prefetcher reads the
-                                    // SAME packed edge word (id | epoch<<id_bits) it walks
-                                    // ahead in the CSR stream and extracts the epoch
-                                    // IDENTICALLY to the demand path — no higher-resolution
-                                    // side channel. Round-trip through the spare-bit budget
-                                    // so the prefetch stamp can never exceed what the packed
-                                    // edge word delivers in hardware.
-                                    uint32_t packed = ((uint32_t)cand & id_mask)
-                                                    | ((uint32_t)cand_ep << id_bits);
-                                    cand = static_cast<NodeID>(packed & id_mask);
-                                    cand_ep = static_cast<uint16_t>(packed >> id_bits);
+                                    // SAME packed record it walks ahead in the stream and
+                                    // extracts the epoch IDENTICALLY to the demand path —
+                                    // no higher-resolution side channel. Use the SAME
+                                    // container width as the demand path (record_bytes>=8 ->
+                                    // 64-bit, so the full epoch is preserved at scale; <=4 ->
+                                    // 32-bit). Previously this packed into 32 bits always,
+                                    // folding the epoch for 8B records (id_bits+epoch>32).
+                                    if (record_bytes >= 8) {
+                                        uint64_t id_mask64 = (id_bits >= 64) ? ~0ULL : ((1ULL << id_bits) - 1ULL);
+                                        uint64_t packed = ((uint64_t)cand & id_mask64) | ((uint64_t)cand_ep << id_bits);
+                                        cand = static_cast<NodeID>(packed & id_mask64);
+                                        cand_ep = static_cast<uint16_t>(packed >> id_bits);
+                                    } else {
+                                        uint32_t packed = ((uint32_t)cand & id_mask) | ((uint32_t)cand_ep << id_bits);
+                                        cand = static_cast<NodeID>(packed & id_mask);
+                                        cand_ep = static_cast<uint16_t>(packed >> id_bits);
+                                    }
                                 }
                                 if (!ecg_epoch::prefetchKeep(cand_ep, cur_ep_k,
                                         (uint32_t)rec_ne, pfx_filter, thresh))

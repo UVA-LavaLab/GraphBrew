@@ -693,6 +693,11 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
         "CACHE_L3_WAYS": effective_l3_ways,
         "CACHE_LINE_SIZE": args.line_size,
         "CACHE_OUTPUT_JSON": str(json_path),
+        # Uniform structure-stream (next-line) prefetcher degree, applied to ALL
+        # policies (0 = off). Faithful to the HW stride prefetchers in the baseline
+        # papers; hides the read-once structure stream so total LLC mr reflects the
+        # irregular property accesses.
+        "CACHE_STREAM_PREFETCH_DEGREE": str(args.cache_stream_prefetch_degree),
         # cache_sim MUST run single-threaded for deterministic/reproducible
         # results: the OpenMP-parallel kernel records cache accesses in
         # nondeterministic interleaved order, so >1 thread yields
@@ -712,7 +717,7 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
                 "ECG_EDGE_MASK_LEAN": "1",
                 "ECG_EDGE_MASK_PACK": "1",
                 "ECG_EDGE_MASK_PACK_BITS": str(args.ecg_epoch_pack_bits),
-                "ECG_EDGE_MASK_CHARGED": "1",
+                "ECG_EDGE_MASK_CHARGED": str(args.ecg_charged),
             })
     return env
 
@@ -778,6 +783,18 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         row[f"{prefix}_hits"] = stats.get("hits")
         row[f"{prefix}_misses"] = stats.get("misses")
         row[f"{prefix}_policy"] = stats.get("policy")
+        # PROPERTY (irregular, latency-critical) vs STRUCTURE (read-once streamed)
+        # miss split — the honest replacement-policy metric (structure is bandwidth,
+        # hidden by the stream prefetcher; property is what the policy governs).
+        ph, pm = stats.get("prop_hits"), stats.get("prop_misses")
+        row[f"{prefix}_prop_hits"], row[f"{prefix}_prop_misses"] = ph, pm
+        if ph is not None and pm is not None and (ph + pm) > 0:
+            row[f"{prefix}_prop_miss_rate"] = pm / (ph + pm)
+            tm = stats.get("misses")
+            row[f"{prefix}_struct_misses"] = None if tm is None else tm - pm
+        else:
+            row[f"{prefix}_prop_miss_rate"] = None
+            row[f"{prefix}_struct_misses"] = None
     if spec.charge_popt_overhead:
         stream_lines = int(row.get("popt_matrix_stream_cache_lines") or 0)
         traffic = row.get("total_memory_traffic")
@@ -1298,6 +1315,12 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "ecg_prefetch_lookahead": effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD"),
         "ecg_pfx_hint_filter": args.ecg_pfx_hint_filter,
         "ecg_pfx_delivery": args.ecg_pfx_delivery,
+        # Headline-config provenance (recorded in EVERY row for reproducibility/honesty):
+        "cache_stream_prefetch_degree": args.cache_stream_prefetch_degree,
+        "ecg_epoch_pack_bits": args.ecg_epoch_pack_bits,
+        "ecg_epochs": args.ecg_epochs,
+        "ecg_charged": args.ecg_charged,
+        "popt_reserve_model": args.popt_reserve_model,
         "policy_label": spec.label,
         "policy": spec.policy,
         "ecg_mode": spec.ecg_mode or "",
@@ -1374,6 +1397,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "thread-count-dependent miss counts.")
     parser.add_argument("--l3-ways", default="16")
     parser.add_argument("--line-size", default="64")
+    parser.add_argument("--cache-stream-prefetch-degree", type=int, default=0,
+                        help="Uniform structure-stream (next-line) prefetcher degree for the "
+                             "cache_sim, applied to ALL policies (0=off, default). Faithful to "
+                             "the HW stride prefetchers in GRASP/P-OPT/DROPLET; hides the read-once "
+                             "structure stream so total LLC mr reflects the irregular property "
+                             "accesses. NOTE: an optimistic next-line model (hides ~93-99%); sweep "
+                             "{0,1,2,4} and report prefetch_fills/total_memory_traffic for honesty.")
     parser.add_argument("--popt-property-bytes", default="4",
                         help="Vertex property bytes used to estimate P-OPT matrix column size for *_CHARGED policies.")
     parser.add_argument("--popt-active-columns", default="2",
@@ -1390,6 +1420,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "HPCA'21 Sec V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
                              "ways for the resident rereference-matrix columns (scales with |V|; "
                              "marks cells popt_matrix_fits=0 when the columns cannot fit).")
+    parser.add_argument("--ecg-charged", type=int, choices=[0, 1], default=1,
+                        help="ECG per-edge record DELIVERY charge. 1 (default) = software "
+                             "delivery: the 8B packed record is read from memory per edge "
+                             "(real bandwidth, competes for cache). 0 = ISA delivery "
+                             "(ecg.extract): the record rides the demand with no extra traffic "
+                             "(idealized upper bound; isolates the eviction quality from the "
+                             "delivery cost).")
     parser.add_argument("--ecg-epochs", type=int, default=65535,
                         help="ECG_GRASP_POPT number of absolute epochs the per-edge mask "
                              "quantizes to (eviction-epoch resolution). Default 65535 (committed). "

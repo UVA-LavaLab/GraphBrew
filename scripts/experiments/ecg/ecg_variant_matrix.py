@@ -31,7 +31,7 @@ COLUMNS = [
 
 def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
              timeout_cell=3600, run_id="run", popt_reserve_model="fixed_one",
-             ecg_epoch_pack_bits=32, ecg_epochs=65535):
+             ecg_epoch_pack_bits=32, ecg_epochs=65535, stream_prefetch_degree=0):
     gpath = GRAPHS / graph / f"{graph}.sg"
     outdir = Path("/tmp") / f"evm_{run_id}_{suite}_{graph}_{l3}_o{order}_{label.replace(':','_')}"
     cmd = [sys.executable, str(ROOT / "scripts/experiments/ecg/roi_matrix.py"),
@@ -43,6 +43,7 @@ def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
            "--popt-reserve-model", popt_reserve_model,
            "--ecg-epoch-pack-bits", str(ecg_epoch_pack_bits),
            "--ecg-epochs", str(ecg_epochs),
+           "--cache-stream-prefetch-degree", str(stream_prefetch_degree),
            "--out-dir", str(outdir)]
     env = dict(os.environ)
     if variant:
@@ -85,6 +86,8 @@ def main(argv):
                     help="ECG epoch packed-record width forwarded to roi_matrix. 32 (default) = "
                          "committed reproductions; 64 = ISA-faithful full epoch resolution at "
                          "scale (honest 8B record charged under CHARGED=1).")
+    ap.add_argument("--cache-stream-prefetch-degree", type=int, default=0,
+                    help="Uniform structure-stream prefetcher degree (0=off) forwarded to roi_matrix; applied to all policies. Hides the read-once structure stream so total mr reflects property accesses.")
     ap.add_argument("--ecg-epochs", type=int, default=65535,
                     help="ECG epoch count (eviction-epoch resolution) forwarded to roi_matrix. "
                          "Default 65535. Eviction quality is non-monotonic in ne; pair a "
@@ -112,7 +115,8 @@ def main(argv):
                              timeout_cell=args.timeout_cell, run_id=args.run_id,
                              popt_reserve_model=args.popt_reserve_model,
                              ecg_epoch_pack_bits=args.ecg_epoch_pack_bits,
-                             ecg_epochs=args.ecg_epochs)
+                             ecg_epochs=args.ecg_epochs,
+                             stream_prefetch_degree=args.cache_stream_prefetch_degree)
                 vals.append(r)
             tag = f"{graph}/{l3}/o{order}"
             print(tag.ljust(24) + "".join(
