@@ -1,8 +1,0 @@
-graph,app,tool,cache_sim_l3,anchor_l3,cache_sim_spread_pp,anchor_spread_pp,cache_sim_grasp_minus_lru_pp,anchor_grasp_minus_lru_pp,regime,agree,delta_pp
-cit-Patents,bfs,sniper,8MB,2MB,5.0160,0.2957,-5.0160,-0.2812,single_saturated,False,4.7348
-cit-Patents,pr,sniper,8MB,2MB,10.1376,0.1229,-10.1376,-0.1229,single_saturated,False,10.0147
-cit-Patents,sssp,sniper,8MB,2MB,4.2650,0.1587,-4.2650,-0.0465,single_saturated,False,4.2185
-email-Eu-core,bc,gem5,8MB,2MB,0.0000,0.0251,0.0000,-0.0058,doubly_saturated,True,0.0058
-email-Eu-core,bfs,sniper,8MB,2MB,0.0000,0.7093,0.0000,0.4722,doubly_saturated,True,0.4722
-email-Eu-core,pr,gem5,8MB,2MB,0.0000,0.0415,0.0000,0.0295,doubly_saturated,True,0.0295
-email-Eu-core,pr,sniper,8MB,2MB,0.0000,0.4456,0.0000,0.1476,doubly_saturated,True,0.1476
