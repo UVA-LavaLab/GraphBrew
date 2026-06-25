@@ -2074,6 +2074,25 @@ public:
         // (gated env, no-op for other policies).
         if (refresh_exact_stamp_) l3_->refreshExactStamp(address);
 
+        // Uniform structure-stream (next-line) prefetcher — faithful to the HW
+        // stride prefetchers in GRASP/P-OPT/DROPLET (cache_sim previously had none,
+        // a known audit divergence). On a demand access to a NON-property line (the
+        // sequential, read-once CSR-edge / per-edge-record / offset stream), prefetch
+        // the next `degree` lines so the streamed structure is HIDDEN as real HW
+        // would — instead of being counted as raw LLC misses that unfairly penalise
+        // wider (8B) per-edge records. Applied IDENTICALLY to every policy; never
+        // prefetches property (the irregular accesses a stride prefetcher can't
+        // predict). Gated by CACHE_STREAM_PREFETCH_DEGREE (default 0 = off).
+        static const int stream_pf_degree = [](){
+            const char* v = std::getenv("CACHE_STREAM_PREFETCH_DEGREE");
+            int d = v ? std::atoi(v) : 0;
+            return d < 0 ? 0 : (d > 32 ? 32 : d);
+        }();
+        if (stream_pf_degree > 0 && graph_ctx_ && !graph_ctx_->findRegion(address)) {
+            for (int k = 1; k <= stream_pf_degree; k++)
+                prefetch(address + (uint64_t)k * line_size_);
+        }
+
         // Try L1
         if (l1_->access(address, is_write)) {
             if (was_prefetched) markPrefetchUseful(line_addr);
@@ -2215,6 +2234,7 @@ public:
     // Unified GraphCacheContext (preferred over legacy init methods)
     // ================================================================
     void initGraphContext(const GraphCacheContext* ctx) {
+        graph_ctx_ = ctx;
         l1_->initGraphContext(ctx);
         l2_->initGraphContext(ctx);
         l3_->initGraphContext(ctx);
@@ -2433,6 +2453,7 @@ private:
     // ECG_EXACT_STORED: when set (env ECG_STORED_REFRESH=1), broadcast the
     // per-edge hint to the LLC on every demand access to keep its stamp fresh.
     bool refresh_exact_stamp_ = std::getenv("ECG_STORED_REFRESH") != nullptr;
+    const GraphCacheContext* graph_ctx_ = nullptr;  // for the structure-stream prefetcher
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};
     std::atomic<uint64_t> prefetch_requests_{0};
