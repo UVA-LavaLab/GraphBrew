@@ -693,11 +693,18 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
         "CACHE_L3_WAYS": effective_l3_ways,
         "CACHE_LINE_SIZE": args.line_size,
         "CACHE_OUTPUT_JSON": str(json_path),
-        # Uniform structure-stream (next-line) prefetcher degree, applied to ALL
-        # policies (0 = off). Faithful to the HW stride prefetchers in the baseline
-        # papers; hides the read-once structure stream so total LLC mr reflects the
-        # irregular property accesses.
-        "CACHE_STREAM_PREFETCH_DEGREE": str(args.cache_stream_prefetch_degree),
+        # Structure-stream prefetcher degree, applied to ALL policies (0 = off).
+        # This is the cross-sim LEVELING control: --prefetcher STRIDE is the switch
+        # that turns on each simulator's native generic stream/stride prefetcher
+        # (gem5 StridePrefetcher, Sniper "simple"); for cache_sim the equivalent is
+        # this next-line model, so when STRIDE is selected we honor the SAME
+        # --structure-prefetch-degree here. NOTE: the three prefetchers are NOT
+        # algorithm-identical (cache_sim = idealized next-line on non-property
+        # regions; gem5 = learned stride; Sniper = n-flow next-line) -- treat the
+        # leveled comparison as a sensitivity/control, not exact prefetch equivalence.
+        "CACHE_STREAM_PREFETCH_DEGREE": str(
+            args.structure_prefetch_degree if args.prefetcher == "STRIDE"
+            else args.cache_stream_prefetch_degree),
         # cache_sim MUST run single-threaded for deterministic/reproducible
         # results: the OpenMP-parallel kernel records cache accesses in
         # nondeterministic interleaved order, so >1 thread yields
@@ -833,6 +840,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         "--policy", spec.policy,
         "--prefetcher", args.prefetcher,
         "--prefetcher-level", args.prefetcher_level,
+        "--structure-prefetch-degree", str(args.structure_prefetch_degree),
         "--l1d-size", args.l1d_size,
         "--l2-size", args.l2_size,
         "--l3-size", effective_l3_size,
@@ -1103,6 +1111,18 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     elif args.prefetcher == "ECG_PFX":
         prefetch_config = "l1_dcache" if args.prefetcher_level == "l1d" else "l2_cache"
         sniper_config_values[f"perf_model/{prefetch_config}/prefetcher"] = "ecg_pfx"
+    elif args.prefetcher == "STRIDE":
+        # Uniform structure-stream prefetcher (leveling, ALL policies):
+        # Sniper's built-in "simple" next-line/stream prefetcher. Mirrors
+        # cache_sim CACHE_STREAM_PREFETCH_DEGREE and the gem5 StridePrefetcher,
+        # so the sequential structure stream is hidden identically on all three.
+        prefetch_config = "l1_dcache" if args.prefetcher_level == "l1d" else "l2_cache"
+        pfx = f"perf_model/{prefetch_config}/prefetcher"
+        sniper_config_values[pfx] = "simple"
+        sniper_config_values[f"{pfx}/simple/flows"] = 16
+        sniper_config_values[f"{pfx}/simple/flows_per_core"] = "false"
+        sniper_config_values[f"{pfx}/simple/num_prefetches"] = args.structure_prefetch_degree
+        sniper_config_values[f"{pfx}/simple/stop_at_page_boundary"] = "false"
     for key, value in sniper_config_values.items():
         cmd.extend(["-g", f"{key}={value}"])
     cmd.extend(["--", str(binary), *binary_options])
@@ -1365,8 +1385,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--options", default="-g 10 -k 16 -o 5 -n 1 -i 5")
     parser.add_argument("--policies", nargs="+", default=None)
     parser.add_argument("--all-policies", action="store_true", help="Use the full ECG validation policy set.")
-    parser.add_argument("--prefetcher", choices=["none", "DROPLET", "ECG_PFX"], default="none",
-                        help="Prefetcher to attach. ECG_PFX is supported by cache_sim and experimental gem5/Sniper hint paths.")
+    parser.add_argument("--prefetcher", choices=["none", "DROPLET", "ECG_PFX", "STRIDE"], default="none",
+                        help="Prefetcher to attach. ECG_PFX is supported by cache_sim and experimental gem5/Sniper hint paths. STRIDE = uniform structure-stream prefetcher (all policies) to level the structure-prefetch axis across sims.")
+    parser.add_argument("--structure-prefetch-degree", type=int, default=4,
+                        help="Degree for the STRIDE structure-stream prefetcher on gem5/Sniper; mirrors cache_sim --cache-stream-prefetch-degree.")
     parser.add_argument("--prefetcher-level", choices=["l1d", "l2"], default="l2",
                         help="gem5/Sniper cache level for --prefetcher; ignored by cache_sim ECG_PFX.")
     parser.add_argument("--droplet-prefetch-degree", type=int, default=1,
@@ -1402,7 +1424,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "cache_sim, applied to ALL policies (0=off, default). Faithful to "
                              "the HW stride prefetchers in GRASP/P-OPT/DROPLET; hides the read-once "
                              "structure stream so total LLC mr reflects the irregular property "
-                             "accesses. NOTE: an optimistic next-line model (hides ~93-99%); sweep "
+                             "accesses. NOTE: an optimistic next-line model (hides ~93-99%%); sweep "
                              "{0,1,2,4} and report prefetch_fills/total_memory_traffic for honesty.")
     parser.add_argument("--popt-property-bytes", default="4",
                         help="Vertex property bytes used to estimate P-OPT matrix column size for *_CHARGED policies.")

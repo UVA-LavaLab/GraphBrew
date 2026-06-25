@@ -37,7 +37,7 @@ def test_prefetch_sconscript_registers_ecg_pfx():
 def test_graph_se_accepts_ecg_pfx_prefetcher():
     text = read("bench/include/gem5_sim/configs/graphbrew/graph_se.py")
 
-    assert 'choices=["none", "DROPLET", "ECG_PFX"]' in text
+    assert 'choices=["none", "DROPLET", "ECG_PFX", "STRIDE"]' in text
     assert "GEM5_ENABLE_ECG_PFX_HINTS" in text
     assert "GEM5_ECG_PFX_LOOKAHEAD" in text
     assert "GEM5_ECG_PFX_HINT_FILTER" in text
@@ -81,13 +81,17 @@ def test_gem5_tiny_smoke_uses_instruction_delivery():
 def test_riscv_ecg_extract_overlay_uses_custom0_opcode():
     text = read("bench/include/gem5_sim/overlays/arch/riscv/isa/decoder_ecg_extract.isa")
 
+    # custom-0 opcode space (full opcode 0x0b -> OPCODE5 0x02), FUNCT3 decode.
     assert "0x02: decode FUNCT3" in text
     assert "ecg_extract" in text
-    assert "setPrefetchTargetHint" in text
-    assert "dbg_hint" in text
-    assert "popt_hint" in text
-    assert "pfx_hint" in text
+    # WIDE (S10.2) mode-6 delivery: next-ref epoch + a widened 24-bit prefetch
+    # target (dbg/popt reclaimed; see packMaskEpochWide). Hints are delivered via
+    # the per-vertex metadata table and the legacy single-slot mailbox.
+    assert "epoch" in text
+    assert "pfx_target" in text
+    assert "storeEcgMetadataByVertex" in text
     assert "setDecodedEcgExtractHint" in text
+    assert "setPrefetchTargetHint" in text
 
 
 def test_gem5_graph_context_stores_decoded_ecg_extract_hint():

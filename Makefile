@@ -505,11 +505,11 @@ SNIPER_ANCHOR_GRAPHS ?= email-Eu-core cit-Patents
 SNIPER_ANCHOR_APPS ?= pr sssp
 WIKI_DATA       := $(WIKI_DIR)/data
 
-.PHONY: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-per-app-capacity-slope lit-slope-saturation-xcheck lit-gem5-slope-replay lit-sniper-slope-replay lit-cross-tool-slope-ordering lit-per-app-srrip-vs-grasp lit-cross-tool-lru-regime lit-saturation-slope-extremum lit-cross-tool-slope-universality lit-monotonicity-universality lit-anchor-cell-census lit-family-saturation-distance lit-anchor-monotonicity-replay lit-policy-steepness-ranking lit-anchor-cross-tool-agreement lit-deviations lit-diversity lit-margin lit-signmass lit-citations lit-knowndev lit-tolerance lit-accesses lit-citexapp lit-monotonicity lit-stat lit-polyord lit-devexp lit-ratgrid lit-cellcomp lit-appfreq lit-regimesign lit-citdate lit-ecg-parity lit-ecg-gem5-parity lit-ecg-sniper-parity lit-ecg-pfx-vs-droplet lit-paper-table-prefetcher lit-paper-table-prefetcher-kronecker lit-paper-table-metadata-cost lit-paper-table-complexity lit-paper-table-mode6-corpus lit-paper-table-grasp-parity lit-paper-label-map lit-color-distinguishability lit-paper-snapshot lit-regime-classifier lit-citation-registry lit-paper-tables lit-sideband-schema lit-graph-family lit-paper-provenance lit-l3-registry lit-slurm-schema lit-handoff-xref lit-wiki-registry lit-policy-registry lit-profile-registry lit-backend-registry lit-graph-registry lit-build-registry lit-cli-registry lit-arm-catalog lit-cross-tool-schema lit-config-matrix lit-filename-grammar lit-sideband-grammar lit-overlay-tracker lit-gem5-overlay-tracker lit-setup-script-registry lit-config-deep-lock lit-gem5-overlay-hash-registry lit-sniper-overlay-hash-registry lit-setup-fn-signature-registry lit-runner-cli-registry lit-orchestrator-cli-registry lit-paper-stage-registry lit-manifest-schema lit-subprocess-argv-registry lit-receiver-cli-registry lit-job-dataclass-schema lit-receiver-dataclass-schema lit-analysis-dataclass-schema headline-coverage headline-coverage-bump headline-parity lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-reproduce-smoke lit-claims gem5-anchor sniper-anchor gem5-anchor-headline-1mb sniper-anchor-headline-1mb confidence confidence-fast
+.PHONY: lit-faith headline-coverage headline-coverage-bump headline-parity lit-reproduce-smoke gem5-anchor sniper-anchor gem5-anchor-headline-1mb sniper-anchor-headline-1mb
 
 lit-faith:
 	@echo "$(BLUE)Regenerating literature faithfulness report...$(NC)"
-	@python3 scripts/experiments/ecg/literature_faithfulness.py \
+	@python3 scripts/experiments/ecg/lib/literature_faithfulness.py \
 		--sweep-root $(LIT_SWEEP_ROOT) \
 		--sweep-subdir $(LIT_SWEEP_SUBDIR) \
 		--json-out $(WIKI_DATA)/literature_faithfulness_postfix.json \
@@ -520,65 +520,18 @@ lit-faith:
 # POPT_CHARGED, ...) that the canonical lit-faith comparator filters
 # out for cross-tool parity-gate stability. Read by gate 282
 # (headline_coverage) and gate 283 (headline_parity).
-lit-faith-ecg:
-	@echo "$(BLUE)Regenerating literature faithfulness ECG companion...$(NC)"
-	@python3 -m scripts.experiments.ecg.literature_faithfulness_ecg \
-		--sweep-root $(LIT_SWEEP_ROOT) \
-		--sweep-subdir $(LIT_SWEEP_SUBDIR) \
-		--json-out $(WIKI_DATA)/literature_faithfulness_ecg.json \
-		--md-out   $(WIKI_DATA)/literature_faithfulness_ecg.md \
-		--csv-out  $(WIKI_DATA)/literature_faithfulness_ecg.csv
 
-lit-repro:
-	@echo "$(BLUE)Regenerating literature reproduction summary...$(NC)"
-	@python3 -m scripts.experiments.ecg.literature_reproduction_summary \
-		--lit-faith-json $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--markdown $(WIKI_DATA)/literature_reproduction_summary.md \
-		--csv      $(WIKI_DATA)/literature_reproduction_summary.csv
 
-lit-budget:
-	@echo "$(BLUE)Regenerating regression budget...$(NC)"
-	@python3 scripts/experiments/ecg/regression_budget.py \
-		--lit-faith-json $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out $(WIKI_DATA)/regression_budget.json \
-		--md-out   $(WIKI_DATA)/regression_budget.md \
-		--csv-out  $(WIKI_DATA)/regression_budget.csv
 
-lit-table:
-	@echo "$(BLUE)Regenerating paper baseline table...$(NC)"
-	@python3 -m scripts.experiments.ecg.paper_baseline_table \
-		--sweep-root $(LIT_SWEEP_ROOT) \
-		--sweep-subdir $(LIT_SWEEP_SUBDIR) \
-		--markdown $(WIKI_DATA)/paper_baseline_table.md \
-		--csv      $(WIKI_DATA)/paper_baseline_table.csv \
-		--json     $(WIKI_DATA)/paper_baseline_table.json
 
 # Project the lit-faith CSV onto a winner-per-cell view and emit
 # paper-grade per-policy / per-family / per-regime win counts. Depends
 # only on the lit-faith CSV being current.
-lit-winner: lit-faith
-	@echo "$(BLUE)Regenerating policy winner table...$(NC)"
-	@python3 -m scripts.experiments.ecg.policy_winner_table \
-		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
-		--corpus-json   $(WIKI_DATA)/corpus_diversity.json \
-		--csv-out  $(WIKI_DATA)/policy_winner_table.csv \
-		--json-out $(WIKI_DATA)/policy_winner_table.json \
-		--md-out   $(WIKI_DATA)/policy_winner_table.md
 
 # Build the small-L3 (4 kB) "thrash" sub-report from the standalone
 # final_cache_sim sweep. This regime intentionally overflows the hot
 # working set so LRU/SRRIP can beat GRASP/POPT and the four ECG
 # variants get exercised. Falls back gracefully if no sweep is on disk.
-lit-thrash:
-	@echo "$(BLUE)Regenerating small-L3 thrash report...$(NC)"
-	@if ls results/ecg_experiments/paper_pipeline/*/final_cache_sim/combined_roi_matrix.csv >/dev/null 2>&1; then \
-		python3 -m scripts.experiments.ecg.small_l3_thrash_report \
-			--csv-out  $(WIKI_DATA)/small_l3_thrash.csv \
-			--json-out $(WIKI_DATA)/small_l3_thrash.json \
-			--md-out   $(WIKI_DATA)/small_l3_thrash.md; \
-	else \
-		echo "$(BLUE)  no final_cache_sim sweep on disk; reusing on-disk snapshot.$(NC)"; \
-	fi
 
 # Regenerate the gem5 literature anchor (small graph, fast).
 # Scoped to email-Eu-core by default; expand GEM5_ANCHOR_GRAPHS once
@@ -587,7 +540,7 @@ lit-thrash:
 gem5-anchor:
 	@echo "$(BLUE)Regenerating gem5 literature anchor...$(NC)"
 	@if [ -d "$(GEM5_ANCHOR_ROOT)" ]; then \
-		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+		python3 scripts/experiments/ecg/analysis/anchor_summary.py \
 			--sweep-root $(GEM5_ANCHOR_ROOT) \
 			--sweep-subdir $(GEM5_ANCHOR_SUBDIR) \
 			--graphs $(GEM5_ANCHOR_GRAPHS) \
@@ -606,7 +559,7 @@ gem5-anchor:
 sniper-anchor:
 	@echo "$(BLUE)Regenerating Sniper literature anchor...$(NC)"
 	@if [ -d "$(SNIPER_ANCHOR_ROOT)" ]; then \
-		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+		python3 scripts/experiments/ecg/analysis/anchor_summary.py \
 			--sweep-root $(SNIPER_ANCHOR_ROOT) \
 			--sweep-subdir $(SNIPER_ANCHOR_SUBDIR) \
 			--graphs $(SNIPER_ANCHOR_GRAPHS) \
@@ -629,7 +582,7 @@ sniper-anchor:
 gem5-anchor-headline-1mb:
 	@echo "$(BLUE)Regenerating gem5 headline-1MB anchor...$(NC)"
 	@if [ -d "$(GEM5_ANCHOR_ROOT_HEADLINE_1MB)" ]; then \
-		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+		python3 scripts/experiments/ecg/analysis/anchor_summary.py \
 			--sweep-root $(GEM5_ANCHOR_ROOT_HEADLINE_1MB) \
 			--sweep-subdir $(GEM5_ANCHOR_SUBDIR) \
 			--graphs email-Eu-core cit-Patents \
@@ -644,7 +597,7 @@ gem5-anchor-headline-1mb:
 sniper-anchor-headline-1mb:
 	@echo "$(BLUE)Regenerating Sniper headline-1MB anchor...$(NC)"
 	@if [ -d "$(SNIPER_ANCHOR_ROOT_HEADLINE_1MB)" ]; then \
-		python3 scripts/experiments/ecg/gem5_anchor_summary.py \
+		python3 scripts/experiments/ecg/analysis/anchor_summary.py \
 			--sweep-root $(SNIPER_ANCHOR_ROOT_HEADLINE_1MB) \
 			--sweep-subdir $(SNIPER_ANCHOR_SUBDIR) \
 			--graphs email-Eu-core cit-Patents \
@@ -660,77 +613,31 @@ sniper-anchor-headline-1mb:
 # anchor cell and verify cross-tool agreement at saturation. Depends
 # on the three input artifacts already being on disk; degrades to a
 # refresh of the report from existing inputs if anchors are stale.
-lit-cross-tool:
-	@echo "$(BLUE)Regenerating cross-tool saturation report...$(NC)"
-	@python3 -m scripts.experiments.ecg.cross_tool_saturation_report \
-		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
-		--gem5-anchor   $(WIKI_DATA)/gem5_anchor.json \
-		--sniper-anchor $(WIKI_DATA)/sniper_anchor.json \
-		--csv-out  $(WIKI_DATA)/cross_tool_saturation.csv \
-		--json-out $(WIKI_DATA)/cross_tool_saturation.json \
-		--md-out   $(WIKI_DATA)/cross_tool_saturation.md
 
 # Per-graph literature claim density mini-report. Reads the
 # reproduction summary and tallies claims/cells/status mix per graph.
 # Depends only on lit-repro being current.
-lit-density: lit-repro
-	@echo "$(BLUE)Regenerating per-graph claim density report...$(NC)"
-	@python3 -m scripts.experiments.ecg.claim_density_report \
-		--repro-csv $(WIKI_DATA)/literature_reproduction_summary.csv \
-		--csv-out  $(WIKI_DATA)/claim_density.csv \
-		--json-out $(WIKI_DATA)/claim_density.json \
-		--md-out   $(WIKI_DATA)/claim_density.md
 
 # POPT-vs-GRASP head-to-head delta report. For each (graph, app, L3)
 # cell with both GRASP and POPT data this projects miss_rate(POPT) -
 # miss_rate(GRASP) in percentage points, broken down by graph family
 # and L3 regime. Answers "when does POPT actually improve on GRASP?"
-lit-popt-vs-grasp: lit-faith
-	@echo "$(BLUE)Regenerating POPT vs GRASP delta report...$(NC)"
-	@python3 -m scripts.experiments.ecg.popt_vs_grasp_report \
-		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
-		--corpus-json   $(WIKI_DATA)/corpus_diversity.json \
-		--csv-out       $(WIKI_DATA)/popt_vs_grasp_delta.csv \
-		--json-out      $(WIKI_DATA)/popt_vs_grasp_delta.json \
-		--md-out        $(WIKI_DATA)/popt_vs_grasp_delta.md
 
 # Inventory + mechanism classification of every known_deviation row in
 # the reproduction summary. Each deviation gets a categorical label so
 # the paper's KNOWN_DEVIATIONS table is point-by-point explainable.
-lit-deviations: lit-repro lit-faith
-	@echo "$(BLUE)Regenerating literature deviations inventory...$(NC)"
-	@python3 -m scripts.experiments.ecg.literature_deviations_report \
-		--repro-csv     $(WIKI_DATA)/literature_reproduction_summary.csv \
-		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
-		--csv-out       $(WIKI_DATA)/literature_deviations.csv \
-		--json-out      $(WIKI_DATA)/literature_deviations.json \
-		--md-out        $(WIKI_DATA)/literature_deviations.md
 
 # Literature-faithfulness diversity audit: family × app × L3 × paper
 # coverage matrix + cross-paper triangulation cells (where multiple
 # papers issue a claim on the same cell). The LIT-Cov confidence gate
 # locks per-axis floors so future regens cannot silently drop a graph
 # family or a cited paper.
-lit-diversity: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness diversity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_diversity \
-		--lit-faith-json $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out       $(WIKI_DATA)/lit_faith_diversity.json \
-		--md-out         $(WIKI_DATA)/lit_faith_diversity.md \
-		--csv-out        $(WIKI_DATA)/lit_faith_diversity.csv
 
 # Literature-faithfulness margin audit: per-claim distance-to-disagree
 # distribution. LIT-Mar gate locks the median and per-family medians
 # above a comfortable floor and caps the count of "fragile" cells
 # (< 1 pp from flipping into disagree) so corpus drift can't silently
 # erode confidence in the lit-faith verdicts.
-lit-margin: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness margin audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_margin \
-		--lit-faith-json $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out       $(WIKI_DATA)/lit_faith_margin.json \
-		--md-out         $(WIKI_DATA)/lit_faith_margin.md \
-		--csv-out        $(WIKI_DATA)/lit_faith_margin.csv
 
 # Literature-faithfulness sign-mass concentration: for each
 # (expected_sign × policy) bucket, report how often observed delta_pct
@@ -739,13 +646,6 @@ lit-margin: lit-faith
 # regression that erases the sign signal (e.g. a policy that newly
 # loses to LRU on most cells but stays inside the magnitude envelope)
 # trips the gate.
-lit-signmass: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness sign-mass audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_signmass \
-		--lit-faith-json $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out       $(WIKI_DATA)/lit_faith_signmass.json \
-		--md-out         $(WIKI_DATA)/lit_faith_signmass.md \
-		--csv-out        $(WIKI_DATA)/lit_faith_signmass.csv
 
 # Literature-faithfulness citation locator integrity audit: bijection
 # between citations in literature_baselines.py and lit-faith corpus,
@@ -753,14 +653,6 @@ lit-signmass: lit-faith
 # locator + known anchor). LIT-Cite trips on a dropped paper, a
 # placeholder citation, or a stripped DOI in the source-of-truth module
 # docstring.
-lit-citations: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness citation integrity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_citations \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--baselines-module scripts/experiments/ecg/literature_baselines.py \
-		--json-out         $(WIKI_DATA)/lit_faith_citations.json \
-		--md-out           $(WIKI_DATA)/lit_faith_citations.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_citations.csv
 
 # Lit-faith known-deviation completeness audit (LIT-Dev, gate 225): for
 # each entry in literature_baselines.KNOWN_DEVIATIONS, verify the reason
@@ -768,14 +660,6 @@ lit-citations: lit-faith
 # root-cause vocabulary). Also enforces bijection with the live faith
 # corpus -- no orphan whitelist entries, no live `known_deviation` rows
 # that lack a documented explanation.
-lit-knowndev: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness known-deviation completeness audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_deviations \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--baselines-module scripts/experiments/ecg/literature_baselines.py \
-		--json-out         $(WIKI_DATA)/lit_faith_deviations.json \
-		--md-out           $(WIKI_DATA)/lit_faith_deviations.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_deviations.csv
 
 # Lit-faith tolerance-calibration audit (LIT-Tol, gate 226): for every
 # literature claim whose comparator-asserted bound actually fires, compute
@@ -783,65 +667,30 @@ lit-knowndev: lit-faith
 # boundary). Surfaces fragile cells (1pp from flipping) and over-permissive
 # bounds (slack much wider than typical regen noise). Gates corpus-wide
 # median + per-policy minimum + strict-policy zero-fragile invariants.
-lit-tolerance: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness tolerance calibration audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_tolerance \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_tolerance.json \
-		--md-out           $(WIKI_DATA)/lit_faith_tolerance.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_tolerance.csv
 
 # Lit-faith accesses-floor audit (LIT-Acc, gate 227): warmup-noise
 # guard for the lit-faith corpus. Reads `accesses` per row and floors
 # both production graphs and the email-Eu-core dev-smoke; tracks
 # per-axis distribution and warmup buckets so silently-truncated
 # traces cannot creep back in.
-lit-accesses: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness accesses-floor audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_accesses \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_accesses.json \
-		--md-out           $(WIKI_DATA)/lit_faith_accesses.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_accesses.csv
 
 # Lit-faith cross-app rationale coherence audit (LIT-CXApp, gate 228):
 # for every (citation, expected_sign) group, audit the per-cell
 # rationales for contradictions, sign-vocabulary alignment, common
 # anchor kernel, and length-span ratio. Zero contradictions + zero
 # sign misses are the invariant.
-lit-citexapp: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness cross-app rationale coherence audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_citexapp \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_citexapp.json \
-		--md-out           $(WIKI_DATA)/lit_faith_citexapp.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_citexapp.csv
 
 # Lit-faith cache-size monotonicity audit (LIT-Mono, gate 229): for
 # every (graph, app, policy) triple with >=2 L3 sizes, enforce the
 # physical invariant that miss rate is non-increasing in L3 size
 # (tolerance 0.5 pp). Surfaces slope-per-doubling and saturated
 # triples so corpus pressure can be reasoned about.
-lit-monotonicity: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness cache-size monotonicity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_monotonicity \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_monotonicity.json \
-		--md-out           $(WIKI_DATA)/lit_faith_monotonicity.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_monotonicity.csv
 
 # Lit-faith statistical-sanity audit (LIT-Stat, gate 230): re-derives
 # delta_pct from the two miss-rate columns each per_claim row compares
 # (LRU-vs-policy, POPT_GE_GRASP, POPT_NEAR_GRASP_IF_BIG_GAP) and locks
 # rounding drift, sign flips, NaN/inf, miss-rate bounds, status-label
 # vocabulary, and status-vs-delta consistency.
-lit-stat: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness statistical-sanity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_stat \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_stat.json \
-		--md-out           $(WIKI_DATA)/lit_faith_stat.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_stat.csv
 
 # LIT-PolyOrd (gate 231): per (graph_family x app) policy-ordering audit.
 # Locks the literature-faithful invariant POPT/GRASP <= LRU within
@@ -849,26 +698,12 @@ lit-stat: lit-faith
 # documented hub-less regressions (road/mesh). Also enforces per-app
 # global improve-frac floor so a corpus shrink toward weakly-improving
 # cells cannot pass silently.
-lit-polyord: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness policy-ordering audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_polyord \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_polyord.json \
-		--md-out           $(WIKI_DATA)/lit_faith_polyord.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_polyord.csv
 
 # LIT-DevExp (gate 232): deviation-explanation depth audit. Every
 # known_deviation row's reason text must name an algorithmic mechanism
 # (not just paraphrase the magnitude), exceed a length floor, carry a
 # citation, resolve cross-references, and the same reason text may not
 # cover more than half the rows.
-lit-devexp: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness deviation-explanation audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_devexp \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_devexp.json \
-		--md-out           $(WIKI_DATA)/lit_faith_devexp.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_devexp.csv
 
 # LIT-RatGrid (gate 233): per (policy, graph, app) rationale uniqueness.
 # Theorem-class policies (POPT_GE_GRASP, POPT_NEAR_GRASP_IF_BIG_GAP,
@@ -876,39 +711,18 @@ lit-devexp: lit-faith
 # policies (GRASP, POPT, LRU) may carry <= 2 rationales per (policy,
 # graph, app) to accommodate L3-regime variants. Point-policy
 # rationales must contain a citation token (HPCA/MICRO/Fig/§).
-lit-ratgrid: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness rationale-grid audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_ratgrid \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_ratgrid.json \
-		--md-out           $(WIKI_DATA)/lit_faith_ratgrid.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_ratgrid.csv
 
 # Per-cell cell-completeness audit on per_observation: canonical roster
 # {LRU, GRASP, POPT} present per (graph, app, l3), LRU baseline carried,
 # delta_vs_lru_pct arithmetic matches the underlying miss rates within
 # 0.001 pp, L3 sweep covers >= 3 sizes per non-LRU policy, and every
 # present policy shares the same L3 axis within (graph, app).
-lit-cellcomp: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness cell-completeness audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_cellcomp \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_cellcomp.json \
-		--md-out           $(WIKI_DATA)/lit_faith_cellcomp.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_cellcomp.csv
 
 # Per-app axis-coverage audit on per_observation: every app must touch
 # >= 6 distinct graphs, >= 3 L3 sizes, >= 3 policies (canonical roster
 # {LRU, GRASP, POPT} present per app), every (app, graph) must cover
 # >= 3 L3 sizes, every app must contribute >= 60 rows, and the anchor
 # app (pr) must cover the full corpus.
-lit-appfreq: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness app-frequency audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_appfreq \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_appfreq.json \
-		--md-out           $(WIKI_DATA)/lit_faith_appfreq.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_appfreq.csv
 
 # Citation/date parseability + per-policy origin match on per_claim:
 # every citation must parse to (author, venue, year), name a top-tier
@@ -916,13 +730,6 @@ lit-appfreq: lit-faith
 # policy (GRASP→Faldu HPCA 2020, POPT→Balaji HPCA 2021,
 # SRRIP→Jaleel ISCA 2010), or be an explicit cross-attribution where the
 # policy name appears in the citation string.
-lit-citdate: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness citation/date audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_citdate \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_citdate.json \
-		--md-out           $(WIKI_DATA)/lit_faith_citdate.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_citdate.csv
 
 # ECG substrate-parity audit (gate 238 — ECG-Parity): cache_sim component-
 # proof matrix's load-bearing invariants. ECG_DBG_only must match
@@ -932,25 +739,11 @@ lit-citdate: lit-faith
 # on the PR anchor. Encoding hygiene: ecg_pfx_encoded <= ecg_pfx_candidates
 # and every PFX counter non-negative. This is the proposal-side
 # confidence floor before any cluster-scale ECG sweep can be launched.
-lit-ecg-parity:
-	@echo "$(BLUE)Regenerating ECG substrate-parity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_ecg_parity \
-		--postfix-json $(WIKI_DATA)/ecg_substrate_parity_postfix.json \
-		--json-out     $(WIKI_DATA)/lit_faith_ecg_parity.json \
-		--md-out       $(WIKI_DATA)/lit_faith_ecg_parity.md \
-		--csv-out      $(WIKI_DATA)/lit_faith_ecg_parity.csv
 
 # Gate 239 — ECG substrate-parity on gem5 (POPT-arm). Sibling to
 # lit-ecg-parity. Locks ECG_POPT_PRIMARY ≡ POPT in cycle-accurate gem5
 # timing on a matched-proof bracket sweep. DBG arm and PFX activation
 # are explicitly out-of-scope today (see generator docstring).
-lit-ecg-gem5-parity:
-	@echo "$(BLUE)Regenerating ECG gem5 substrate-parity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_ecg_gem5_parity \
-		--postfix-json $(WIKI_DATA)/ecg_gem5_parity_postfix.json \
-		--json-out     $(WIKI_DATA)/lit_faith_ecg_gem5_parity.json \
-		--md-out       $(WIKI_DATA)/lit_faith_ecg_gem5_parity.md \
-		--csv-out      $(WIKI_DATA)/lit_faith_ecg_gem5_parity.csv
 
 # Sniper sibling of lit-ecg-parity / lit-ecg-gem5-parity. Today this
 # target is in DEFERRED/SCAFFOLD mode (no matched-proof Sniper ECG
@@ -959,13 +752,6 @@ lit-ecg-gem5-parity:
 # and source pattern. When a matched-proof Sniper ECG sweep lands,
 # curate ecg_sniper_parity_postfix.json with per_observation rows and
 # flip status to "active" — the same audit logic activates.
-lit-ecg-sniper-parity:
-	@echo "$(BLUE)Regenerating ECG Sniper substrate-parity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_ecg_sniper_parity \
-		--postfix-json $(WIKI_DATA)/ecg_sniper_parity_postfix.json \
-		--json-out     $(WIKI_DATA)/lit_faith_ecg_sniper_parity.json \
-		--md-out       $(WIKI_DATA)/lit_faith_ecg_sniper_parity.md \
-		--csv-out      $(WIKI_DATA)/lit_faith_ecg_sniper_parity.csv
 
 # ECG PFX vs DROPLET head-to-head. Sibling family to the substrate-
 # parity trinity but a different concern: not "does ECG mode match
@@ -975,83 +761,19 @@ lit-ecg-sniper-parity:
 # activity is present in any /tmp roi_matrix.csv (only config
 # columns populated). Activates when a matched-proof
 # ECG_PFX-vs-DROPLET sweep with non-zero pf_issued/pf_useful lands.
-lit-ecg-pfx-vs-droplet:
-	@echo "$(BLUE)Regenerating ECG PFX vs DROPLET head-to-head...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_ecg_pfx_vs_droplet \
-		--postfix-json $(WIKI_DATA)/ecg_pfx_vs_droplet_postfix.json \
-		--json-out     $(WIKI_DATA)/lit_faith_ecg_pfx_vs_droplet.json \
-		--md-out       $(WIKI_DATA)/lit_faith_ecg_pfx_vs_droplet.md \
-		--csv-out      $(WIKI_DATA)/lit_faith_ecg_pfx_vs_droplet.csv
 
 PFX_CACHE_SIM_SCALE_ROOT ?= /tmp/graphbrew-ecg-pfx-cache_sim-scale
 PFX_CACHE_SIM_KRONECKER_ROOT ?= /tmp/graphbrew-ecg-pfx-cache_sim-kronecker
 
-lit-paper-table-prefetcher:
-	@echo "$(BLUE)Regenerating paper Table 4 (ECG combined vs literature baselines)...$(NC)"
-	@python3 -m scripts.experiments.ecg.paper_table_prefetcher \
-		--sweep-root $(PFX_CACHE_SIM_SCALE_ROOT) \
-		--json-out   $(WIKI_DATA)/paper_table_prefetcher.json \
-		--md-out     $(WIKI_DATA)/paper_table_prefetcher.md \
-		--csv-out    $(WIKI_DATA)/paper_table_prefetcher.csv \
-		--tex-out    docs/paper_tables/paper_table_prefetcher.tex
 
-lit-paper-table-prefetcher-kronecker:
-	@echo "$(BLUE)Regenerating paper Table 4-K (ECG combined vs DROPLET on synthetic Kronecker)...$(NC)"
-	@python3 -m scripts.experiments.ecg.paper_table_prefetcher \
-		--sweep-root $(PFX_CACHE_SIM_KRONECKER_ROOT) \
-		--json-out   $(WIKI_DATA)/paper_table_prefetcher_kronecker.json \
-		--md-out     $(WIKI_DATA)/paper_table_prefetcher_kronecker.md \
-		--csv-out    $(WIKI_DATA)/paper_table_prefetcher_kronecker.csv \
-		--tex-out    docs/paper_tables/paper_table_prefetcher_kronecker.tex
 
-lit-paper-table-metadata-cost:
-	@echo "$(BLUE)Regenerating paper Table 5 (ECG vs DROPLET vs POPT metadata cost)...$(NC)"
-	@python3 -m scripts.experiments.ecg.metadata_cost \
-		--json-out   $(WIKI_DATA)/paper_table_metadata_cost.json \
-		--md-out     $(WIKI_DATA)/paper_table_metadata_cost.md \
-		--csv-out    $(WIKI_DATA)/paper_table_metadata_cost.csv \
-		--tex-out    docs/paper_tables/paper_table_metadata_cost.tex
 
-lit-paper-table-complexity:
-	@echo "$(BLUE)Regenerating paper Table 6 (cache-substrate complexity comparison)...$(NC)"
-	@python3 -m scripts.experiments.ecg.complexity_comparison \
-		--json-out   $(WIKI_DATA)/paper_table_complexity.json \
-		--md-out     $(WIKI_DATA)/paper_table_complexity.md \
-		--csv-out    $(WIKI_DATA)/paper_table_complexity.csv \
-		--tex-out    docs/paper_tables/paper_table_complexity.tex
 
 MODE6_CORPUS_ROOT ?= /tmp/mode6_corpus
 MODE6_CITPAT_FALLBACK ?= /tmp/mode6_smoke/charged1/roi_matrix.csv
 
-lit-paper-table-mode6-corpus:
-	@echo "$(BLUE)Regenerating paper Table 7 (ECG mode 6 per-edge mask corpus efficiency)...$(NC)"
-	@python3 -m scripts.experiments.ecg.paper_table_mode6_corpus \
-		--mode6-root $(MODE6_CORPUS_ROOT) \
-		--scale-root $(PFX_CACHE_SIM_SCALE_ROOT) \
-		--mode6-citpat-fallback $(MODE6_CITPAT_FALLBACK) \
-		--json-out   $(WIKI_DATA)/paper_table_mode6_corpus.json \
-		--md-out     $(WIKI_DATA)/paper_table_mode6_corpus.md \
-		--csv-out    $(WIKI_DATA)/paper_table_mode6_corpus.csv \
-		--tex-out    docs/paper_tables/paper_table_mode6_corpus.tex
 
-lit-paper-table-grasp-parity:
-	@echo "$(BLUE)Regenerating paper Table 2 (ECG_DBG vs GRASP corpus parity)...$(NC)"
-	@python3 -m scripts.experiments.ecg.paper_table_grasp_parity \
-		--json-in    $(WIKI_DATA)/paper_table_prefetcher.json \
-		--json-out   $(WIKI_DATA)/paper_table_grasp_parity.json \
-		--md-out     $(WIKI_DATA)/paper_table_grasp_parity.md \
-		--csv-out    $(WIKI_DATA)/paper_table_grasp_parity.csv \
-		--tex-out    docs/paper_tables/paper_table_grasp_parity.tex
 
-lit-paper-table-mode6-cross-sim:
-	@echo "$(BLUE)Regenerating paper Table 8 (Sniper cross-sim mode 6 corroboration)...$(NC)"
-	@python3 -m scripts.experiments.ecg.paper_table_mode6_cross_sim \
-		--sniper-root   /tmp/graphbrew-pfx-sniper-mode6 \
-		--cache-sim-csv $(WIKI_DATA)/paper_table_mode6_corpus.csv \
-		--json-out      $(WIKI_DATA)/paper_table_mode6_cross_sim.json \
-		--md-out        $(WIKI_DATA)/paper_table_mode6_cross_sim.md \
-		--csv-out       $(WIKI_DATA)/paper_table_mode6_cross_sim.csv \
-		--tex-out       docs/paper_tables/paper_table_mode6_cross_sim.tex
 
 
 # Paper label-map integrity. Source-of-truth is the code itself
@@ -1063,12 +785,6 @@ lit-paper-table-mode6-cross-sim:
 # match the code byte-for-byte, and every paper label must be used
 # in at least one tracked source artifact. No deferred mode — the
 # code is always authoritative.
-lit-paper-label-map:
-	@echo "$(BLUE)Regenerating paper label-map integrity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_paper_label_map \
-		--json-out $(WIKI_DATA)/lit_faith_paper_label_map.json \
-		--md-out   $(WIKI_DATA)/lit_faith_paper_label_map.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_paper_label_map.csv
 
 # Gate 243 — POLICY_COLORS perceptual distinguishability. Companion to
 # gate 242: where 242 audits the policy vocabulary, 243 audits the
@@ -1078,12 +794,6 @@ lit-paper-label-map:
 # C5 ΔE from white ≥ 18, C6 POLICY_HATCHES subset of POLICY_LABELS).
 # Always-active — source-of-truth is paper_pipeline.py's POLICY_COLORS
 # dict loaded via importlib (same pattern as gate 242).
-lit-color-distinguishability:
-	@echo "$(BLUE)Regenerating POLICY_COLORS distinguishability audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_color_distinguishability \
-		--json-out $(WIKI_DATA)/lit_faith_color_distinguishability.json \
-		--md-out   $(WIKI_DATA)/lit_faith_color_distinguishability.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_color_distinguishability.csv
 
 # Paper-figure data snapshot integrity (gate 244): exactly one
 # paper_pipeline_YYYYMMDD/ dir, within MAX_SNAPSHOT_AGE_DAYS, with
@@ -1093,12 +803,6 @@ lit-color-distinguishability:
 # and value-hygiene (miss_rate in [0,1]; total_accesses >= 1 for
 # high-activity benchmarks). Always-active code-source gate; the
 # palette is loaded from paper_pipeline.py via importlib.
-lit-paper-snapshot:
-	@echo "$(BLUE)Regenerating paper-figure snapshot integrity audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_paper_snapshot \
-		--json-out $(WIKI_DATA)/lit_faith_paper_snapshot.json \
-		--md-out   $(WIKI_DATA)/lit_faith_paper_snapshot.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_paper_snapshot.csv
 
 # L3 regime-classifier consistency (gate 245): hand-curated registry
 # of every regime-classifying function in scripts/experiments/ecg/.
@@ -1108,67 +812,31 @@ lit-paper-snapshot:
 # allowed but must be declared with an explanatory note. Catches the
 # subtle bug where an author tweaks one regime-boundary copy and the
 # paper's per-regime bar groupings silently diverge between figures.
-lit-regime-classifier:
-	@echo "$(BLUE)Regenerating regime-classifier consistency audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_regime_classifier \
-		--json-out $(WIKI_DATA)/lit_faith_regime_classifier.json \
-		--md-out   $(WIKI_DATA)/lit_faith_regime_classifier.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_regime_classifier.csv
 
 # Gate 246 — lit-faith citation registry purity. Every per_claim
 # citation must match a registered canonical work; every registered
 # work must be referenced ≥1 time; within each (policy, app, sign)
 # bucket, all rows must share ≥1 canonical citation key. Catches
 # silent citation drift and dead-letter registry entries.
-lit-citation-registry: lit-faith
-	@echo "$(BLUE)Regenerating literature citation registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_citation_registry \
-		--json-out $(WIKI_DATA)/lit_faith_citation_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_citation_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_citation_registry.csv
 
 # Gate 247 — paper LaTeX-table emit invariant. Each shipped .tex
 # table in wiki/data/paper_pipeline_YYYYMMDD/ is registered with its
 # expected caption, column-spec, and header tuple. Catches silent
 # drift between the paper's prose and the auto-generated tables.
-lit-paper-tables:
-	@echo "$(BLUE)Regenerating paper LaTeX-table emit-invariant audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_paper_tables \
-		--json-out $(WIKI_DATA)/lit_faith_paper_tables.json \
-		--md-out   $(WIKI_DATA)/lit_faith_paper_tables.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_paper_tables.csv
 
 # Gate 248 — gem5/Sniper/cache_sim sideband-schema registry. Locks
 # the [graphctx] register region wire-format across all three
 # simulator overlays so silent field renames/reorders/drops are
 # impossible.
-lit-sideband-schema:
-	@echo "$(BLUE)Regenerating sideband-schema registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_sideband_schema \
-		--json-out $(WIKI_DATA)/lit_faith_sideband_schema.json \
-		--md-out   $(WIKI_DATA)/lit_faith_sideband_schema.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_sideband_schema.csv
 
 # Gate 249 — graph-family map full-coverage audit. Catches new
 # GRAPH_FAMILY dict copies in scripts/experiments/ecg or scripts/test
 # that the existing gate-107 dup test doesn't yet guard.
-lit-graph-family:
-	@echo "$(BLUE)Regenerating graph-family map full-coverage audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_graph_family \
-		--json-out $(WIKI_DATA)/lit_faith_graph_family.json \
-		--md-out   $(WIKI_DATA)/lit_faith_graph_family.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_graph_family.csv
 
 # Gate 253 — HANDOFF gate-reference registry. Locks the contract
 # between confidence_dashboard.PYTEST_SUITES and the HANDOFF
 # narrative: no orphan (gate N) labels; headline/refresh-at lines
 # track len(PYTEST_SUITES) exactly; refresh-due cadence == 5.
-lit-handoff-xref:
-	@echo "$(BLUE)Regenerating HANDOFF gate-reference audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_handoff_xref \
-		--json-out $(WIKI_DATA)/lit_faith_handoff_xref.json \
-		--md-out   $(WIKI_DATA)/lit_faith_handoff_xref.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_handoff_xref.csv
 
 # Gate 254 — wiki/data bidirectional registry. Symmetric to gate 253
 # (HANDOFF↔PYTEST_SUITES): locks raw artifact filesystem ↔ catalog
@@ -1177,12 +845,6 @@ lit-handoff-xref:
 # 8 rules W1-W8 (catalog coverage, no ghost entries, non-empty
 # generator/gate/artifact, paths exist on disk, sibling .md exists,
 # unique ids, unique artifact paths, auxiliary parent_id validity).
-lit-wiki-registry:
-	@echo "$(BLUE)Regenerating wiki/data bidirectional registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_wiki_registry \
-		--json-out $(WIKI_DATA)/lit_faith_wiki_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_wiki_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_wiki_registry.csv
 
 # Gate 255 — cache-policy vocabulary registry. AST-harvests every
 # POLICIES / ALL_POLICIES / BASELINE_POLICIES / GRAPH_AWARE_POLICIES
@@ -1193,12 +855,6 @@ lit-wiki-registry:
 # per-token paper_label, unique labels, 4-tuple permutation locking
 # to CANONICAL_FOUR_TUPLE, 3-tuple subset, forbidden-alias detection,
 # ECG-arm parent + purpose validity).
-lit-policy-registry:
-	@echo "$(BLUE)Regenerating cache-policy vocabulary registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_policy_registry \
-		--json-out $(WIKI_DATA)/lit_faith_policy_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_policy_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_policy_registry.csv
 
 # Gate 256 — ECG final-paper-run profile registry. Locks the
 # cross-reference between final_paper_manifest.json profiles +
@@ -1207,12 +863,6 @@ lit-policy-registry:
 # resolve, descriptions non-empty, no dead profiles modulo
 # Placeholder hint, citations resolve, profile name snake_case,
 # stage name well-formed, stage profiles non-empty + unique).
-lit-profile-registry:
-	@echo "$(BLUE)Regenerating ECG profile registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_profile_registry \
-		--json-out $(WIKI_DATA)/lit_faith_profile_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_profile_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_profile_registry.csv
 
 # Gate 257 — backend/tool vocabulary registry. Locks the
 # canonical simulator-backend token universe (cache_sim,
@@ -1224,12 +874,6 @@ lit-profile-registry:
 # duplicate labels except declared punctuation variants, variants
 # include self, argparse subsetting, name regex, every canonical
 # referenced.
-lit-backend-registry:
-	@echo "$(BLUE)Regenerating backend/tool vocabulary audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_backend_registry \
-		--json-out $(WIKI_DATA)/lit_faith_backend_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_backend_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_backend_registry.csv
 
 # Gate 258 — graph-name canonical map. Locks the canonical GAP-style
 # benchmark graph allow-list (26 entries across 8 families: social,
@@ -1241,12 +885,6 @@ lit-backend-registry:
 # paper_label complete, source provenance set, family-dict keys
 # canonical with matching families, non-family-dict use site,
 # name regex, EVAL_GRAPHS subset, family regex.
-lit-graph-registry:
-	@echo "$(BLUE)Regenerating graph-name canonical map audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_graph_registry \
-		--json-out $(WIKI_DATA)/lit_faith_graph_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_graph_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_graph_registry.csv
 
 # Gate 259 — SCons/Make build target registry. Locks the canonical
 # 4-backend × kernel × variant compile matrix against the
@@ -1256,12 +894,6 @@ lit-graph-registry:
 # dir match, kernel-family classification, opt-level lock per
 # backend (-O3 native+sim / -O1 gem5 / -O2 sniper), no orphan
 # sources, documented ROI mechanism per backend.
-lit-build-registry:
-	@echo "$(BLUE)Regenerating build-target registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_build_registry \
-		--json-out $(WIKI_DATA)/lit_faith_build_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_build_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_build_registry.csv
 
 # Gate 260 — GAPBS CLI vocabulary registry. Locks WHICH command-
 # line flags each GAPBS-derived kernel binary accepts (per the
@@ -1275,12 +907,6 @@ lit-build-registry:
 # set = union of inheritance chain, no within-chain getopt
 # conflicts, every flag matches ^[A-Za-z]$, every flag has a
 # documented purpose, flag-arity consistent across all classes.
-lit-cli-registry:
-	@echo "$(BLUE)Regenerating GAPBS CLI registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_cli_registry \
-		--json-out $(WIKI_DATA)/lit_faith_cli_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_cli_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_cli_registry.csv
 
 # Gate 261 — ECG arm catalog registry. Locks the cross-file
 # consistency of every ECG arm + paper-shipping policy across
@@ -1298,12 +924,6 @@ lit-cli-registry:
 # every selector candidate is a real label, no duplicate
 # ablation labels, every ECG arm has ≥1 ablation (charged arms
 # satisfied via their uncharged parent).
-lit-arm-catalog:
-	@echo "$(BLUE)Regenerating ECG arm catalog audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_arm_catalog \
-		--json-out $(WIKI_DATA)/lit_faith_arm_catalog.json \
-		--md-out   $(WIKI_DATA)/lit_faith_arm_catalog.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_arm_catalog.csv
 
 # Gate 262 — ECG cross-tool aggregator schema registry. Locks the
 # on-disk JSON shape (top-level keys, evidence-bearing paths, tool
@@ -1313,12 +933,6 @@ lit-arm-catalog:
 # declared top-keys present, evidence path non-empty, per-row
 # required keys present, tools subset of canonical vocab,
 # verdict-path value matches declared type.
-lit-cross-tool-schema:
-	@echo "$(BLUE)Regenerating ECG cross-tool aggregator schema audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_cross_tool_schema \
-		--json-out $(WIKI_DATA)/lit_faith_cross_tool_schema.json \
-		--md-out   $(WIKI_DATA)/lit_faith_cross_tool_schema.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_cross_tool_schema.csv
 
 # Gate 263 — ECG configuration matrix registry. Locks the central
 # scripts/experiments/ecg/config.py module against silent vocabulary
@@ -1329,12 +943,6 @@ lit-cross-tool-schema:
 # anchor in DEFAULT_CACHE must match a canonical L3 tier, and the
 # cache sweep must be a strictly-increasing power-of-2 sequence
 # that brackets the anchor.
-lit-config-matrix:
-	@echo "$(BLUE)Regenerating ECG configuration matrix audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_config_matrix \
-		--json-out $(WIKI_DATA)/lit_faith_config_matrix.json \
-		--md-out   $(WIKI_DATA)/lit_faith_config_matrix.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_config_matrix.csv
 
 # Gate 264 — wiki/data artifact filename grammar registry. Locks
 # the file-system shape of wiki/data/ — every file's name, every
@@ -1346,12 +954,6 @@ lit-config-matrix:
 # companions); every catalog artifact exists on disk; every
 # wiki/data stem is in the catalog or in a documented allow-list;
 # every subdirectory name matches DOCUMENTED_SUBDIR_RE.
-lit-filename-grammar:
-	@echo "$(BLUE)Regenerating wiki/data filename grammar audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_filename_grammar \
-		--json-out $(WIKI_DATA)/lit_faith_filename_grammar.json \
-		--md-out   $(WIKI_DATA)/lit_faith_filename_grammar.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_filename_grammar.csv
 
 # Gate 265 — gem5/Sniper sideband filename + env-var grammar registry.
 # Locks the FILENAME + ENV-VAR vocabulary that gem5 and Sniper overlays
@@ -1362,42 +964,18 @@ lit-filename-grammar:
 # are referred to at every emit-site (C++ overlay default-paths via
 # gem5_env_or_default / envOrDefault) and every parse-site (Python
 # sideband-path dicts in roi_matrix.py).
-lit-sideband-grammar:
-	@echo "$(BLUE)Regenerating gem5/Sniper sideband grammar audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_sideband_grammar \
-		--json-out $(WIKI_DATA)/lit_faith_sideband_grammar.json \
-		--md-out   $(WIKI_DATA)/lit_faith_sideband_grammar.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_sideband_grammar.csv
 
 # Gate 266 — Sniper overlay-installation tracker registry.
 # Locks scripts/setup_sniper.py's overlay installation contract
 # (.sniper_overlays.json + write_overlay_status + copy_overlay_sources
 # + patch_*_overlay functions) against silent drift in copied_files,
 # policies, prefetchers, and patches lists.
-lit-overlay-tracker:
-	@echo "$(BLUE)Regenerating Sniper overlay-installation tracker audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_overlay_tracker \
-		--json-out $(WIKI_DATA)/lit_faith_overlay_tracker.json \
-		--md-out   $(WIKI_DATA)/lit_faith_overlay_tracker.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_overlay_tracker.csv
 
-lit-gem5-overlay-tracker:
-	@echo "$(BLUE)Regenerating gem5 overlay-installation tracker audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_gem5_overlay_tracker \
-		--json-out $(WIKI_DATA)/lit_faith_gem5_overlay_tracker.json \
-		--md-out   $(WIKI_DATA)/lit_faith_gem5_overlay_tracker.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_gem5_overlay_tracker.csv
 
 # Gate 268 — Setup-script invariant registry. Locks scripts/setup_gem5.py
 # and scripts/setup_sniper.py against silent drift in upstream repo URLs,
 # directory-constant skeleton, and the canonical top-level function inventory
 # each script exposes (14 gem5 + 27 sniper functions, 2 pinned repo URLs).
-lit-setup-script-registry:
-	@echo "$(BLUE)Regenerating setup-script invariant audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_setup_script_registry \
-		--json-out $(WIKI_DATA)/lit_faith_setup_script_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_setup_script_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_setup_script_registry.csv
 
 # Gate 269 — ECG config deep-lock registry. Locks scripts/experiments/ecg/config.py
 # against silent drift in the 7 DEFAULT_CACHE anchors, the 12-point CACHE_SIZES_SWEEP
@@ -1405,12 +983,6 @@ lit-setup-script-registry:
 # BASELINE/GRAPH_AWARE/ALL policy partition, the 4-mode ECG_MODES vocabulary,
 # the 6-graph EVAL_GRAPHS schema, the 4-flag REORDER_VARIANTS vocabulary, and
 # the canonical ACCURACY_PAIRS relation labels.
-lit-config-deep-lock:
-	@echo "$(BLUE)Regenerating ECG config deep-lock audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_config_deep_lock \
-		--json-out $(WIKI_DATA)/lit_faith_config_deep_lock.json \
-		--md-out   $(WIKI_DATA)/lit_faith_config_deep_lock.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_config_deep_lock.csv
 
 # Gate 270 — gem5 overlay-file hash registry. Locks the BYTE CONTENT of every
 # shipped overlay source under bench/include/gem5_sim/overlays/ (17 files:
@@ -1420,12 +992,6 @@ lit-config-deep-lock:
 # against silent edits. Complements gate 267 (overlay-installation tracker) — gate 267
 # ensures the install map is well-formed; gate 270 ensures the files themselves
 # haven't been silently rewritten between paper runs.
-lit-gem5-overlay-hash-registry:
-	@echo "$(BLUE)Regenerating gem5 overlay-file hash registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_gem5_overlay_hash_registry \
-		--json-out $(WIKI_DATA)/lit_faith_gem5_overlay_hash_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_gem5_overlay_hash_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_gem5_overlay_hash_registry.csv
 
 # Gate 271 — Sniper overlay-file SHA-256 hash registry. Symmetric counterpart
 # to gate 270: locks the BYTE CONTENT of every shipped overlay source under
@@ -1435,12 +1001,6 @@ lit-gem5-overlay-hash-registry:
 # (Sniper overlay-installation tracker) and gate 268 (setup-script invariants),
 # this closes the Sniper-side overlay surface against both contract drift and
 # silent file content mutation between paper runs.
-lit-sniper-overlay-hash-registry:
-	@echo "$(BLUE)Regenerating Sniper overlay-file hash registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_sniper_overlay_hash_registry \
-		--json-out $(WIKI_DATA)/lit_faith_sniper_overlay_hash_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_sniper_overlay_hash_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_sniper_overlay_hash_registry.csv
 
 # Gate 272 — setup-script function signature registry. Where gate 268 locks
 # the NAMES of top-level functions in scripts/setup_gem5.py and
@@ -1451,12 +1011,6 @@ lit-sniper-overlay-hash-registry:
 # swaps two args of replace_once() (old <-> new) and patches silently no-op;
 # someone removes the dry_run default from patch_grasp_overlay() and CI
 # starts crashing with TypeError.
-lit-setup-fn-signature-registry:
-	@echo "$(BLUE)Regenerating setup-script fn signature registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_setup_fn_signature_registry \
-		--json-out $(WIKI_DATA)/lit_faith_setup_fn_signature_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_setup_fn_signature_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_setup_fn_signature_registry.csv
 
 # Gate 273 — Runner CLI registry. Locks the argparse CLI surface of
 # scripts/experiments/ecg/runner.py (6 flags) and scripts/experiments/
@@ -1467,12 +1021,6 @@ lit-setup-fn-signature-registry:
 # single value (every example "--exp A1 A2 A3" silently swallows only
 # the last); someone removes --preview from ecg runner; someone swaps
 # store_true ↔ store on --all (every "--all" gets a missing-value error).
-lit-runner-cli-registry:
-	@echo "$(BLUE)Regenerating runner CLI registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_runner_cli_registry \
-		--json-out $(WIKI_DATA)/lit_faith_runner_cli_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_runner_cli_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_runner_cli_registry.csv
 
 # Gate 274 — Orchestrator CLI registry. Locks the argparse surface of
 # the two paper-orchestrators that sit *above* the per-experiment
@@ -1482,54 +1030,12 @@ lit-runner-cli-registry:
 # template and reproduction recipe shells out to. Extends gate 273 by
 # recognising argparse.BooleanOptionalAction (used by --resume +
 # --stop-on-error) and locking the required-shape of each flag.
-lit-orchestrator-cli-registry:
-	@echo "$(BLUE)Regenerating orchestrator CLI registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_orchestrator_cli_registry \
-		--json-out $(WIKI_DATA)/lit_faith_orchestrator_cli_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_orchestrator_cli_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_orchestrator_cli_registry.csv
 
-lit-paper-stage-registry:
-	@echo "$(BLUE)Regenerating paper-pipeline stage registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_paper_stage_registry \
-		--json-out $(WIKI_DATA)/lit_faith_paper_stage_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_paper_stage_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_paper_stage_registry.csv
 
-lit-manifest-schema:
-	@echo "$(BLUE)Regenerating final-paper-run manifest schema audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_manifest_schema \
-		--json-out $(WIKI_DATA)/lit_faith_manifest_schema.json \
-		--md-out   $(WIKI_DATA)/lit_faith_manifest_schema.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_manifest_schema.csv
 
-lit-subprocess-argv-registry:
-	@echo "$(BLUE)Regenerating subprocess argv registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_subprocess_argv_registry \
-		--json-out $(WIKI_DATA)/lit_faith_subprocess_argv_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_subprocess_argv_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_subprocess_argv_registry.csv
 
-lit-receiver-cli-registry:
-	@echo "$(BLUE)Regenerating receiver CLI registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_receiver_cli_registry \
-		--json-out $(WIKI_DATA)/lit_faith_receiver_cli_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_receiver_cli_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_receiver_cli_registry.csv
 
-lit-job-dataclass-schema:
-	@echo "$(BLUE)Regenerating Job dataclass schema audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_job_dataclass_schema \
-		--json-out $(WIKI_DATA)/lit_faith_job_dataclass_schema.json \
-		--md-out   $(WIKI_DATA)/lit_faith_job_dataclass_schema.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_job_dataclass_schema.csv
 
-lit-receiver-dataclass-schema:
-	@echo "$(BLUE)Regenerating receiver dataclass schema audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_receiver_dataclass_schema \
-		--json-out $(WIKI_DATA)/lit_faith_receiver_dataclass_schema.json \
-		--md-out   $(WIKI_DATA)/lit_faith_receiver_dataclass_schema.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_receiver_dataclass_schema.csv
 
 # Gate 281 — Analysis dataclass schema registry. Locks the per-row
 # analysis dataclasses across the 4 ECG analysis modules
@@ -1538,12 +1044,6 @@ lit-receiver-dataclass-schema:
 # gem5_anchor_summary.{CellSummary, AnchorInvariant}) against their
 # live ast-extracted shape — extends gate 280's receiver-side
 # registry beyond orchestration carriers into the analysis layer.
-lit-analysis-dataclass-schema:
-	@echo "$(BLUE)Regenerating analysis dataclass schema audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_analysis_dataclass_schema \
-		--json-out $(WIKI_DATA)/lit_faith_analysis_dataclass_schema.json \
-		--md-out   $(WIKI_DATA)/lit_faith_analysis_dataclass_schema.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_analysis_dataclass_schema.csv
 
 # Gate 282 — Headline coverage proof (RATCHET, first PROOF gate).
 # Surfaces the (simulator x graph x app x L3 x policy) coverage gap
@@ -1554,7 +1054,7 @@ lit-analysis-dataclass-schema:
 # after every confidence-tier sim run lands new cells.
 headline-coverage:
 	@echo "$(BLUE)Regenerating headline coverage proof (gate 282)...$(NC)"
-	@python3 -m scripts.experiments.ecg.headline_coverage \
+	@python3 -m scripts.experiments.ecg.analysis.coverage \
 		--scope headline_1MB \
 		--json-out $(WIKI_DATA)/headline_coverage.json \
 		--md-out   $(WIKI_DATA)/headline_coverage.md \
@@ -1564,7 +1064,7 @@ headline-coverage:
 # sim sweep lands new cells. The previous floor is overwritten.
 headline-coverage-bump:
 	@echo "$(BLUE)Bumping headline coverage baseline floor...$(NC)"
-	@python3 -m scripts.experiments.ecg.headline_coverage \
+	@python3 -m scripts.experiments.ecg.analysis.coverage \
 		--scope headline_1MB --bump-baseline \
 		--json-out $(WIKI_DATA)/headline_coverage.json \
 		--md-out   $(WIKI_DATA)/headline_coverage.md \
@@ -1577,7 +1077,7 @@ headline-coverage-bump:
 # becomes load-bearing as anchor coverage expands.
 headline-parity:
 	@echo "$(BLUE)Regenerating headline parity proof (gate 283)...$(NC)"
-	@python3 -m scripts.experiments.ecg.headline_parity \
+	@python3 -m scripts.experiments.ecg.analysis.parity \
 		--scope-l3 1MB \
 		--json-out $(WIKI_DATA)/headline_parity.json \
 		--md-out   $(WIKI_DATA)/headline_parity.md \
@@ -1596,34 +1096,16 @@ headline-parity:
 # directive vocabulary, required-coverage floor, mem/time regex,
 # log-template templates, job-name prefix, and the mem ⨯ mem-per-cpu
 # co-occurrence rule.
-lit-slurm-schema:
-	@echo "$(BLUE)Regenerating Slurm SBATCH schema audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_slurm_schema \
-		--json-out $(WIKI_DATA)/lit_faith_slurm_schema.json \
-		--md-out   $(WIKI_DATA)/lit_faith_slurm_schema.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_slurm_schema.csv
 
 # Gate 251 — L3 cache-size registry. Locks the L3 size universe
 # across every PAPER_L3 / L3_SIZES / L3_MB / L3_BYTES module-level
 # constant: anchor triplet ("1MB","4MB","8MB") + canonical byte
 # arithmetic + MB scaling + cross-file agreement.
-lit-l3-registry:
-	@echo "$(BLUE)Regenerating L3 cache-size registry audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_l3_registry \
-		--json-out $(WIKI_DATA)/lit_faith_l3_registry.json \
-		--md-out   $(WIKI_DATA)/lit_faith_l3_registry.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_l3_registry.csv
 
 # Gate 250 — paper-table CSV provenance. Locks every shipped paper
 # .tex table to its sibling .csv (subset semantics): every paper row
 # must trace to a CSV row, multiset of key-column values (after LaTeX
 # normalize) must be a sub-multiset of the CSV column.
-lit-paper-provenance:
-	@echo "$(BLUE)Regenerating paper-table CSV provenance audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_paper_provenance \
-		--json-out $(WIKI_DATA)/lit_faith_paper_provenance.json \
-		--md-out   $(WIKI_DATA)/lit_faith_paper_provenance.md \
-		--csv-out  $(WIKI_DATA)/lit_faith_paper_provenance.csv
 
 # Regime-aware sign-tally + extreme magnitude ceiling on per_observation:
 # hub families {social, citation, web} must not show majority regression
@@ -1631,13 +1113,6 @@ lit-paper-provenance:
 # and hub bucket median <= +0.5 pp; no-hub families {road, mesh} may
 # exhibit L-curve sign-flipping but bucket median must remain within
 # ±8 pp; no individual cell may exceed |delta_vs_lru| > 80 pp.
-lit-regimesign: lit-faith
-	@echo "$(BLUE)Regenerating literature-faithfulness regime-sign audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.lit_faith_regimesign \
-		--lit-faith-json   $(WIKI_DATA)/literature_faithfulness_postfix.json \
-		--json-out         $(WIKI_DATA)/lit_faith_regimesign.json \
-		--md-out           $(WIKI_DATA)/lit_faith_regimesign.md \
-		--csv-out          $(WIKI_DATA)/lit_faith_regimesign.csv
 
 # Cross-tool *winner* agreement: at each tool's largest-L3 operating
 # point per (graph, app), do the simulators pick the same winning
@@ -1645,49 +1120,18 @@ lit-regimesign: lit-faith
 # is common and the saturation report (lit-cross-tool) is the proper
 # headline test — this one surfaces the negative cases so reviewers
 # can see what should NOT be claimed without per-cell L3 context.
-lit-cross-tool-winners:
-	@echo "$(BLUE)Regenerating cross-tool winner agreement report...$(NC)"
-	@python3 -m scripts.experiments.ecg.cross_tool_winners_report \
-		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
-		--gem5-json     $(WIKI_DATA)/gem5_anchor.json \
-		--sniper-json   $(WIKI_DATA)/sniper_anchor.json \
-		--csv-out  $(WIKI_DATA)/cross_tool_winners.csv \
-		--json-out $(WIKI_DATA)/cross_tool_winners.json \
-		--md-out   $(WIKI_DATA)/cross_tool_winners.md
 
 # Winning-regime taxonomy: paper headline figure projecting the
 # winner table onto (graph_family × L3 regime) bins and extracting
 # minimal-rule implications. Depends on the winner table being fresh.
-lit-regime-taxonomy: lit-winner
-	@echo "$(BLUE)Regenerating winning-regime taxonomy...$(NC)"
-	@python3 -m scripts.experiments.ecg.winning_regime_taxonomy \
-		--winners-json $(WIKI_DATA)/policy_winner_table.json \
-		--corpus-json  $(WIKI_DATA)/corpus_diversity.json \
-		--csv-out      $(WIKI_DATA)/winning_regime_taxonomy.csv \
-		--json-out     $(WIKI_DATA)/winning_regime_taxonomy.json \
-		--md-out       $(WIKI_DATA)/winning_regime_taxonomy.md
 
 # Per-policy gap to the empirical oracle (= min miss rate any of the
 # four production policies achieved on each cell). Quantifies the
 # performance headroom remaining for a new policy on our corpus.
-lit-oracle-gap: lit-faith
-	@echo "$(BLUE)Regenerating per-policy oracle-gap report...$(NC)"
-	@python3 -m scripts.experiments.ecg.oracle_gap_report \
-		--lit-faith-csv $(WIKI_DATA)/literature_faithfulness_postfix.csv \
-		--csv-out  $(WIKI_DATA)/oracle_gap.csv \
-		--json-out $(WIKI_DATA)/oracle_gap.json \
-		--md-out   $(WIKI_DATA)/oracle_gap.md
 
 # Per-kernel oracle-gap breakdown. Reuses oracle_gap.json and projects
 # per (policy, app) so the paper has a per-kernel winner table
 # (POPT on PR; GRASP on CC; etc.).
-lit-oracle-gap-by-app: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-app oracle-gap breakdown...$(NC)"
-	@python3 -m scripts.experiments.ecg.oracle_gap_by_app \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--csv-out     $(WIKI_DATA)/oracle_gap_by_app.csv \
-		--json-out    $(WIKI_DATA)/oracle_gap_by_app.json \
-		--md-out      $(WIKI_DATA)/oracle_gap_by_app.md
 
 # Per-(family x app) POPT-vs-GRASP bootstrap CIs. Defends the core
 # claim "POPT beats GRASP on road graphs" against the reviewer
@@ -1695,36 +1139,18 @@ lit-oracle-gap-by-app: lit-oracle-gap
 # finding: road is POPT-favored on ALL 5 kernels (sssp -21.8 pp);
 # cc-counter-narrative confirmed cell-by-cell on social/cc and
 # citation/cc (both P=0.000); social/pr is also CI-strict POPT.
-lit-popt-vs-grasp-by-family-app: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-(family x app) POPT-vs-GRASP bootstrap CIs...$(NC)"
-	@python3 -m scripts.experiments.ecg.popt_vs_grasp_by_family_app \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/popt_vs_grasp_by_family_app.json \
-		--md-out      $(WIKI_DATA)/popt_vs_grasp_by_family_app.md
 
 # Wilson 95% CIs on per-(scope, policy) win-counts. Turns "wins
 # X of N cells" point estimates into CI-backed sign claims:
 # pr/POPT strict majority (CI [0.529, 0.848]); cc/GRASP strict
 # majority AND above 25%-baseline (CI [0.640, 0.948]); cc/POPT
 # strict below-chance; sssp POPT vs GRASP not CI-distinguishable.
-lit-wilson-wins: lit-oracle-gap
-	@echo "$(BLUE)Regenerating Wilson CIs on policy win-counts...$(NC)"
-	@python3 -m scripts.experiments.ecg.wilson_win_rates \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/wilson_win_rates.json \
-		--md-out      $(WIKI_DATA)/wilson_win_rates.md
 
 # Cohen's h effect sizes on policy win-rate gaps. Complements Wilson
 # CIs by quantifying how *big* each separable gap is. cc/GRASP vs
 # POPT h=2.346 (largest in corpus); pr/POPT vs LRU/SRRIP h=2.014;
 # sssp has no large-effect dominance pair (correctly pinned as a
 # kernel where the policy ordering signal is weaker than elsewhere).
-lit-cohens-h: lit-oracle-gap
-	@echo "$(BLUE)Regenerating Cohen's h effect sizes on win-rates...$(NC)"
-	@python3 -m scripts.experiments.ecg.cohens_h_win_rates \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/cohens_h_win_rates.json \
-		--md-out      $(WIKI_DATA)/cohens_h_win_rates.md
 
 # Cliff's delta + Mann-Whitney U on the RAW oracle-gap distributions.
 # Wilson/Cohen defend win-COUNT claims; this gate defends the
@@ -1732,60 +1158,28 @@ lit-cohens-h: lit-oracle-gap
 # pr/POPT vs LRU d=-0.911 p=0; cc/GRASP dominates all 3 at |d|≥0.474
 # with MW p<1e-4; bfs/POPT vs LRU/SRRIP d≤-0.66 p<1e-4. sssp again
 # has no large-effect dominance pair (correctly pinned).
-lit-gap-effect-size: lit-oracle-gap
-	@echo "$(BLUE)Regenerating Cliff's delta + Mann-Whitney on gap distributions...$(NC)"
-	@python3 -m scripts.experiments.ecg.oracle_gap_effect_size \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/oracle_gap_effect_size.json \
-		--md-out      $(WIKI_DATA)/oracle_gap_effect_size.md
 
 # Per-L3-size policy stability: does the winner persist as L3 grows?
 # cc/GRASP stable single winner at 1MB+4MB+8MB; pr/POPT stable single
 # winner at 1MB+4MB+8MB; bfs is the canonical regime-change kernel
 # (GRASP@1MB → POPT@≥4MB); sssp has no stable winner; bc is gray-zone
 # (single top policy 4MB+8MB but tied at 1MB).
-lit-l3-stability: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-L3-size policy stability...$(NC)"
-	@python3 -m scripts.experiments.ecg.l3_policy_stability \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/l3_policy_stability.json \
-		--md-out      $(WIKI_DATA)/l3_policy_stability.md
 
 # Multiple-testing correction: pull every p-value emitted across gates
 # 34, 38, and the per-(family,app) test into one family, then apply
 # Holm-Bonferroni (FWER) and Benjamini-Hochberg (FDR) at α=0.05. Pins
 # which claims survive multiple-testing correction — the only ones
 # that can honestly be called 'significant' in the paper.
-lit-mt-correction: lit-popt-vs-grasp-by-family-app lit-gap-effect-size lit-oracle-by-app-bootstrap
-	@echo "$(BLUE)Regenerating multiple-testing correction...$(NC)"
-	@python3 -m scripts.experiments.ecg.multiple_testing_correction \
-		--effect-size-json $(WIKI_DATA)/oracle_gap_effect_size.json \
-		--bootstrap-json   $(WIKI_DATA)/oracle_gap_by_app_bootstrap.json \
-		--family-app-json  $(WIKI_DATA)/popt_vs_grasp_by_family_app.json \
-		--json-out         $(WIKI_DATA)/multiple_testing_correction.json \
-		--md-out           $(WIKI_DATA)/multiple_testing_correction.md
 
 # Leave-one-graph-out (LOGO) robustness: drop each graph in turn and
 # re-rank winners. Robust = same headline across all drops; fragile =
 # at least one drop changes the winner. pr/POPT, cc/GRASP, bc/GRASP
 # are LOGO-robust; bfs and sssp are LOGO-fragile (consistent with
 # gates 36-39 honest negative pins).
-lit-logo-robust: lit-oracle-gap
-	@echo "$(BLUE)Regenerating leave-one-graph-out robustness...$(NC)"
-	@python3 -m scripts.experiments.ecg.leave_one_graph_out \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/leave_one_graph_out.json \
-		--md-out      $(WIKI_DATA)/leave_one_graph_out.md
 
 # Cell-winner census: how decisive is the corpus? 97% unique winners,
 # 3% tied (all in bc/email-Eu-core), 0% no-winner. Pins the corpus
 # decisiveness so any silent regression in winner clarity is caught.
-lit-cell-census: lit-oracle-gap
-	@echo "$(BLUE)Regenerating cell-winner census...$(NC)"
-	@python3 -m scripts.experiments.ecg.cell_winner_census \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/cell_winner_census.json \
-		--md-out      $(WIKI_DATA)/cell_winner_census.md
 
 # Family geomean improvement vs LRU. Per (family, app, policy != LRU)
 # the bootstrap CI on the geomean (miss_rate / miss_rate_LRU) over
@@ -1793,81 +1187,39 @@ lit-cell-census: lit-oracle-gap
 # significance gates only show direction for. 34/63 records CI-strict
 # improvements, 0 CI-strict regressions. Marquee: citation/pr/POPT
 # -32% miss-rate (CI [-43, -13]).
-lit-family-geomean: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-(family,app,policy) geomean improvement...$(NC)"
-	@python3 -m scripts.experiments.ecg.family_geomean_improvement \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/family_geomean_improvement.json \
-		--md-out      $(WIKI_DATA)/family_geomean_improvement.md
 
 # Per-(graph, app) winner stability across paper L3 sizes. Drills into
 # the cells gate 39 averages over: 13/34 cells have a single winner
 # stable across every L3 size present, 14/34 exhibit regime change.
 # web-Google is maximally volatile (all 5 apps flip); soc-LiveJournal1
 # + cit-Patents are the most reliable (4/5 stable each).
-lit-per-graph-app-stability: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-(graph,app) L3 stability...$(NC)"
-	@python3 -m scripts.experiments.ecg.per_graph_app_stability \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/per_graph_app_stability.json \
-		--md-out      $(WIKI_DATA)/per_graph_app_stability.md
 
 # Corpus tier/family balance audit. Pins composition: 8 graphs across
 # 5 families with social dominance (4/8 = 50% by graph count, 60% by
 # paper-L3 cells). Defends against 'unbalanced corpus' reviewer pushback
 # by publishing the exact numbers and Pielou evenness (0.86).
-lit-corpus-balance: lit-oracle-gap
-	@echo "$(BLUE)Regenerating corpus balance audit...$(NC)"
-	@python3 -m scripts.experiments.ecg.corpus_balance \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/corpus_balance.json \
-		--md-out      $(WIKI_DATA)/corpus_balance.md
 
 # Per-policy miss-rate distribution diagnostics. Defends bootstrap CI
 # validity (gates 35 + 43) against reviewer pushback on tail behavior.
 # Computes skewness + excess kurtosis per (app, policy) at paper L3 and
 # pins them inside Hesterberg's published bootstrap-CI envelope
 # (|skew| < 2, |excess kurt| < 7).
-lit-distribution-diagnostics: lit-oracle-gap
-	@echo "$(BLUE)Regenerating distribution diagnostics...$(NC)"
-	@python3 -m scripts.experiments.ecg.distribution_diagnostics \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/distribution_diagnostics.json \
-		--md-out      $(WIKI_DATA)/distribution_diagnostics.md
 
 # Leave-one-family-out (LOFO) robustness. Strictly stronger sibling of
 # gate 41 (LOGO): drops an entire family at a time and re-ranks per app.
 # Pins which apps are LOFO-robust (bc/cc/pr) and which are honestly
 # family-sensitive (bfs sensitive to social, sssp sensitive to citation).
-lit-lofo-robustness: lit-oracle-gap
-	@echo "$(BLUE)Regenerating LOFO robustness...$(NC)"
-	@python3 -m scripts.experiments.ecg.lofo_robustness \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/lofo_robustness.json \
-		--md-out      $(WIKI_DATA)/lofo_robustness.md
 
 # Per-(app, L3) winner-margin gradient. Classifies every (app, L3) cell
 # as decisive / moderate / weak / tied based on top-wins minus runner-up
 # wins. Defends against 'your winner is one cell from flipping' reviewer
 # pushback by surfacing the exact margin per cell.
-lit-winner-margin-gradient: lit-oracle-gap
-	@echo "$(BLUE)Regenerating winner margin gradient...$(NC)"
-	@python3 -m scripts.experiments.ecg.winner_margin_gradient \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/winner_margin_gradient.json \
-		--md-out      $(WIKI_DATA)/winner_margin_gradient.md
 
 # Per-(app, policy) oracle-gap area-under-curve across L3 sweep.
 # Collapses each policy trajectory across 1MB->4MB->8MB into one
 # trapezoidal AUC score (gap_pp x log2(MB)). Smaller AUC = closer to
 # offline oracle on average; gives a single-number per-policy ranking
 # that complements the cell-vote view (gate 47/48).
-lit-oracle-gap-auc: lit-oracle-gap
-	@echo "$(BLUE)Regenerating oracle-gap AUC...$(NC)"
-	@python3 -m scripts.experiments.ecg.oracle_gap_auc \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/oracle_gap_auc.json \
-		--md-out      $(WIKI_DATA)/oracle_gap_auc.md
 
 # Cross-app policy-AUC correlation matrix. Reads gate 49's AUC vectors,
 # z-normalizes within each app, and runs pairwise Pearson correlation
@@ -1875,12 +1227,6 @@ lit-oracle-gap-auc: lit-oracle-gap
 # AUC-winner groups (POPT for bfs/pr/sssp, GRASP for bc/cc) with
 # strong intra-cluster correlation, defending the paper's two-class
 # headline framing.
-lit-policy-auc-correlation: lit-oracle-gap-auc
-	@echo "$(BLUE)Regenerating policy AUC correlation matrix...$(NC)"
-	@python3 -m scripts.experiments.ecg.policy_auc_correlation \
-		--auc-json $(WIKI_DATA)/oracle_gap_auc.json \
-		--json-out $(WIKI_DATA)/policy_auc_correlation.json \
-		--md-out   $(WIKI_DATA)/policy_auc_correlation.md
 
 # Per-policy stability index across apps. Reads gate 49's AUC vectors
 # and computes coefficient of variation across the 5 paper apps per
@@ -1888,12 +1234,6 @@ lit-policy-auc-correlation: lit-oracle-gap-auc
 # CV, even if mediocre) versus the 'high-variance specialist' (lowest
 # mean AUC but biggest swings). Also tracks rank per app and the
 # 'always-in-top-2' safe-default flag.
-lit-policy-stability: lit-oracle-gap-auc
-	@echo "$(BLUE)Regenerating policy stability index...$(NC)"
-	@python3 -m scripts.experiments.ecg.policy_stability \
-		--auc-json $(WIKI_DATA)/oracle_gap_auc.json \
-		--json-out $(WIKI_DATA)/policy_stability.json \
-		--md-out   $(WIKI_DATA)/policy_stability.md
 
 # Per-(app, policy) cache-sensitivity slope across L3 octaves. Reads
 # gate 49's trajectories and computes per-octave slope (gap_pp
@@ -1901,12 +1241,6 @@ lit-policy-stability: lit-oracle-gap-auc
 # paper-grade finding that 'significant anti-scaling' (gap GROWS by
 # >=1.0 pp at any octave) is exclusively confined to LRU/SRRIP — the
 # oracle-aware policies GRASP and POPT never regress as L3 grows.
-lit-cache-sensitivity-slope: lit-oracle-gap-auc
-	@echo "$(BLUE)Regenerating cache-sensitivity slope...$(NC)"
-	@python3 -m scripts.experiments.ecg.cache_sensitivity_slope \
-		--auc-json $(WIKI_DATA)/oracle_gap_auc.json \
-		--json-out $(WIKI_DATA)/cache_sensitivity_slope.json \
-		--md-out   $(WIKI_DATA)/cache_sensitivity_slope.md
 
 # Per-graph oracle-gap cache-sensitivity slope (gate 53). Refines
 # gate 52 by re-running the anti-scaling analysis at the per-graph
@@ -1914,50 +1248,24 @@ lit-cache-sensitivity-slope: lit-oracle-gap-auc
 # (graph, app) cells where GRASP/POPT do regress — exceptions to
 # the corpus-averaged "oracle-aware never regress" story that the
 # paper should disclose transparently.
-lit-per-graph-cache-slope: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-graph cache-sensitivity slope...$(NC)"
-	@python3 -m scripts.experiments.ecg.per_graph_cache_slope \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/per_graph_cache_slope.json \
-		--md-out      $(WIKI_DATA)/per_graph_cache_slope.md
 
 # Cross-generator gap_pp parity (gate 54). Reconciles three load-bearing
 # aggregators (oracle_gap, oracle_gap_auc, cache_sensitivity_slope) to
 # verify they all report identical gap_pp values (within 1e-3 pp) for
 # every shared (app, policy, L3) triple. Catches silent staleness or
 # aggregation drift that would invisibly invalidate paper narrative.
-lit-cross-generator-gap-parity: lit-oracle-gap lit-oracle-gap-auc lit-cache-sensitivity-slope
-	@echo "$(BLUE)Regenerating cross-generator gap_pp parity...$(NC)"
-	@python3 -m scripts.experiments.ecg.cross_generator_gap_parity \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--auc-json    $(WIKI_DATA)/oracle_gap_auc.json \
-		--slope-json  $(WIKI_DATA)/cache_sensitivity_slope.json \
-		--json-out    $(WIKI_DATA)/cross_generator_gap_parity.json \
-		--md-out      $(WIKI_DATA)/cross_generator_gap_parity.md
 
 # Cache-saturation onset detection (gate 55). For each (app, policy)
 # trajectory, identifies the L3 size beyond which additional cache
 # buys negligible gap improvement. Paper-grade mechanism: POPT
 # saturates earliest (already near-oracle from small caches); LRU
 # rarely saturates within paper L3 (always benefits from doubling).
-lit-cache-saturation-onset: lit-oracle-gap-auc
-	@echo "$(BLUE)Regenerating cache-saturation onset detection...$(NC)"
-	@python3 -m scripts.experiments.ecg.cache_saturation_onset \
-		--auc-json $(WIKI_DATA)/oracle_gap_auc.json \
-		--json-out $(WIKI_DATA)/cache_saturation_onset.json \
-		--md-out   $(WIKI_DATA)/cache_saturation_onset.md
 
 # Per-(app, L3, policy) gap-distribution shape envelope. Extends gate
 # 46 from pooled marginals to every cell of the paper grid. Pins the
 # 14-cell pinned-exception set where the textbook envelope is exceeded
 # due to discrete near-zero+single-outlier patterns rather than
 # heavy-tailed continuous data. A new cell leaving the pin = regression.
-lit-gap-distribution-shape: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-cell gap-distribution shape envelope...$(NC)"
-	@python3 -m scripts.experiments.ecg.gap_distribution_shape \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/gap_distribution_shape.json \
-		--md-out      $(WIKI_DATA)/gap_distribution_shape.md
 
 # Per-family policy-AUC clustering replay. Re-derives the AUC winner
 # per app using only graphs in each family and checks whether the
@@ -1965,34 +1273,16 @@ lit-gap-distribution-shape: lit-oracle-gap
 # composition artefact. Today 3 qualifying families (citation, social,
 # web) replay the global clustering with at most 2 pinned deviations
 # (citation/bfs, citation/sssp — cit-Patents lower out-degree skew).
-lit-family-policy-auc-clustering: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-family policy-AUC clustering replay...$(NC)"
-	@python3 -m scripts.experiments.ecg.family_policy_auc_clustering \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/family_policy_auc_clustering.json \
-		--md-out      $(WIKI_DATA)/family_policy_auc_clustering.md
 
 # Per-(app, policy) discrete second derivative of the oracle-gap
 # trajectory at the 4MB midpoint. Pins that oracle-aware policies
 # (GRASP, POPT) have strictly more knees than non-oracle (LRU, SRRIP).
 # Complements gate 55 saturation onset with the curvature signal.
-lit-oracle-gap-curvature: lit-oracle-gap-auc lit-cache-saturation-onset
-	@echo "$(BLUE)Regenerating oracle-gap trajectory curvature...$(NC)"
-	@python3 -m scripts.experiments.ecg.oracle_gap_curvature \
-		--auc-json $(WIKI_DATA)/oracle_gap_auc.json \
-		--json-out $(WIKI_DATA)/oracle_gap_curvature.json \
-		--md-out   $(WIKI_DATA)/oracle_gap_curvature.md
 
 # Per-(app, graph) Kendall-tau rank correlation across the L3 octave.
 # Asks "does the policy ranking at 1MB predict the ranking at 8MB?".
 # Pins six cells where rank flips: three GRASP thrash@1MB→winner@4MB,
 # two large-cache fit-in-WSS counter-productivity, one pico-corpus.
-lit-policy-rank-kendall: lit-oracle-gap
-	@echo "$(BLUE)Regenerating policy-rank Kendall-tau across L3 octave...$(NC)"
-	@python3 -m scripts.experiments.ecg.policy_rank_kendall \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/policy_rank_kendall.json \
-		--md-out      $(WIKI_DATA)/policy_rank_kendall.md
 
 # Per-policy plateau location in WSS-relative L3 capacity. Walks the
 # regime ladder (under_wss → near_wss → over_wss) and pins the first
@@ -2000,105 +1290,48 @@ lit-policy-rank-kendall: lit-oracle-gap
 # Verdict PASS iff oracle-aware policies plateau STRICTLY earlier than
 # non-oracle. Today: GRASP/POPT plateau at under_wss; LRU/SRRIP only at
 # over_wss — a full two ladder steps of separation.
-lit-wss-knee-location: lit-wss-relative-l3
-	@echo "$(BLUE)Regenerating WSS-relative knee location...$(NC)"
-	@python3 -m scripts.experiments.ecg.wss_knee_location \
-		--wss-json $(WIKI_DATA)/wss_relative_l3.json \
-		--json-out $(WIKI_DATA)/wss_knee_location.json \
-		--md-out   $(WIKI_DATA)/wss_knee_location.md
 
 # Per-family replay of the gate 58 curvature signal. Each qualifying
 # family must independently exhibit the global pattern that
 # oracle-aware policies bend toward a plateau while non-oracle policies
 # keep accelerating.
-lit-family-curvature-replay: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-family curvature replay...$(NC)"
-	@python3 -m scripts.experiments.ecg.family_curvature_replay \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/family_curvature_replay.json \
-		--md-out      $(WIKI_DATA)/family_curvature_replay.md
 
 # Per-(policy, WSS regime) distribution of winner margin (in pp of
 # miss-rate) over second-best. Records the paper's central claim that
 # oracle-aware policies' winning margins SHRINK as capacity loosens —
 # proof that the payoff is biggest under pressure.
-lit-winner-margin-by-regime: lit-oracle-gap lit-wss-relative-l3
-	@echo "$(BLUE)Regenerating winner-margin distribution by WSS regime...$(NC)"
-	@python3 -m scripts.experiments.ecg.winner_margin_by_regime \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--wss-json    $(WIKI_DATA)/wss_relative_l3.json \
-		--json-out    $(WIKI_DATA)/winner_margin_by_regime.json \
-		--md-out      $(WIKI_DATA)/winner_margin_by_regime.md
 
 # Per-family replay of gate 62: does each graph family that has the
 # diversity to test it independently reproduce the global margin-shrink
 # pattern (oracle-aware policies win bigger under pressure)? Mirror of
 # gates 57<->50 and 61<->58 (family-level analog of a corpus signal).
-lit-family-margin-replay: lit-oracle-gap lit-wss-relative-l3
-	@echo "$(BLUE)Regenerating per-family winner-margin replay...$(NC)"
-	@python3 -m scripts.experiments.ecg.family_margin_replay \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--wss-json    $(WIKI_DATA)/wss_relative_l3.json \
-		--json-out    $(WIKI_DATA)/family_margin_replay.json \
-		--md-out      $(WIKI_DATA)/family_margin_replay.md
 
 # Head-to-head asymmetry between every (A, B) policy pair: when A
 # wins H2H against B, by how much? Pins how lopsided the loser-side
 # magnitudes can grow; today the worst pair is 3.20x and the ceiling
 # is a generous 20x sanity bound.
-lit-cross-policy-asymmetry: lit-oracle-gap
-	@echo "$(BLUE)Regenerating cross-policy mean-margin asymmetry...$(NC)"
-	@python3 -m scripts.experiments.ecg.cross_policy_asymmetry \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/cross_policy_asymmetry.json \
-		--md-out      $(WIKI_DATA)/cross_policy_asymmetry.md
 
 # Per-app distance from saturation at 4MB->8MB: how much best-policy
 # miss-rate remains recoverable by doubling the cache from 4 to 8 MB
 # for each application. Records app-level memory-pressure diversity
 # (bc 17.5pp median vs bfs 4.6pp median today).
-lit-saturation-distance: lit-oracle-gap lit-wss-relative-l3
-	@echo "$(BLUE)Regenerating per-app saturation distance...$(NC)"
-	@python3 -m scripts.experiments.ecg.saturation_distance \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--wss-json    $(WIKI_DATA)/wss_relative_l3.json \
-		--json-out    $(WIKI_DATA)/saturation_distance.json \
-		--md-out      $(WIKI_DATA)/saturation_distance.md
 
 # Per-policy capacity sensitivity: OLS slope of miss-rate (pp) vs
 # log2(L3 MB) across {1MB, 4MB, 8MB} for every (app, graph, policy)
 # cell. Pins LRU as the most-capacity-hungry policy and GRASP as the
 # least (oracle-aware extracts more at small caches).
-lit-capacity-sensitivity: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-policy capacity-sensitivity slope...$(NC)"
-	@python3 -m scripts.experiments.ecg.capacity_sensitivity \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/capacity_sensitivity.json \
-		--md-out      $(WIKI_DATA)/capacity_sensitivity.md
 
 # Per-family replay of the gate 66 slope ordering. For each graph
 # family with full 1MB/4MB/8MB coverage, recompute per-policy median
 # slope and confirm LRU/SRRIP both strictly steeper than GRASP. The
 # social family is pinned as a known deviation because email-Eu-core
 # saturates at every L3, washing out its slope contribution.
-lit-family-slope-replay: lit-oracle-gap lit-capacity-sensitivity
-	@echo "$(BLUE)Regenerating per-family capacity-sensitivity slope replay...$(NC)"
-	@python3 -m scripts.experiments.ecg.family_slope_replay \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/family_slope_replay.json \
-		--md-out      $(WIKI_DATA)/family_slope_replay.md
 
 # Per-app capacity-sensitivity slope. Breaks gate 66 out per kernel
 # and ranks apps by cache-hungriness via the median-of-medians slope.
 # sssp most cache-hungry; bfs least (saturates early). bfs pinned
 # because its frontier-driven access pattern inverts the GRASP-vs-LRU
 # slope ordering.
-lit-per-app-capacity-slope: lit-oracle-gap lit-capacity-sensitivity
-	@echo "$(BLUE)Regenerating per-app capacity-sensitivity slope...$(NC)"
-	@python3 -m scripts.experiments.ecg.per_app_capacity_slope \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/per_app_capacity_slope.json \
-		--md-out      $(WIKI_DATA)/per_app_capacity_slope.md
 
 # Saturation distance vs capacity-sensitivity slope cross-check.
 # Both metrics derive from the same per-(app, graph, policy) miss
@@ -2106,12 +1339,6 @@ lit-per-app-capacity-slope: lit-oracle-gap lit-capacity-sensitivity
 # (Pearson r ~0.51, Spearman ~0.45) and on the same per-octave scale
 # (median ratio ~0.96). It is a regression test for the gate 65 and
 # gate 66 generators.
-lit-slope-saturation-xcheck: lit-oracle-gap
-	@echo "$(BLUE)Regenerating slope-vs-saturation cross-check...$(NC)"
-	@python3 -m scripts.experiments.ecg.slope_saturation_xcheck \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/slope_saturation_xcheck.json \
-		--md-out      $(WIKI_DATA)/slope_saturation_xcheck.md
 
 # Gem5 anchor slope sanity gate. Computes OLS slope across the four
 # gem5 anchor L3 sizes (4kB/32kB/256kB/2MB), verifies cache
@@ -2120,62 +1347,28 @@ lit-slope-saturation-xcheck: lit-oracle-gap
 # help-floor. The LRU-vs-GRASP delta is reported as INFORMATIONAL —
 # sub-WSS scales (4kB < email-Eu-core WSS ~4.5kB) can invert the
 # slope ordering relative to the cache-sim 1-8MB sweep.
-lit-gem5-slope-replay: gem5-anchor
-	@echo "$(BLUE)Regenerating gem5 anchor slope sanity gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.gem5_slope_replay \
-		--anchor-json $(WIKI_DATA)/gem5_anchor.json \
-		--json-out    $(WIKI_DATA)/gem5_slope_replay.json \
-		--md-out      $(WIKI_DATA)/gem5_slope_replay.md
 
 # Sniper anchor slope sanity gate. Mirror of gate 70 for Sniper.
 # Six (app, graph) cells (bfs/pr/sssp at cit-Patents and
 # email-Eu-core); same verdict checks: cache monotonicity, all
 # per-policy medians negative, SRRIP at-least-as-steep-as GRASP,
 # GRASP below help-floor.
-lit-sniper-slope-replay: sniper-anchor
-	@echo "$(BLUE)Regenerating sniper anchor slope sanity gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.sniper_slope_replay \
-		--anchor-json $(WIKI_DATA)/sniper_anchor.json \
-		--json-out    $(WIKI_DATA)/sniper_slope_replay.json \
-		--md-out      $(WIKI_DATA)/sniper_slope_replay.md
 
 # Cross-tool SRRIP-vs-GRASP slope ordering invariant. Reads gate 66
 # (cache-sim), gate 70 (gem5 anchor), gate 71 (sniper anchor)
 # per-policy medians and verifies SRRIP <= GRASP in EVERY tool, with
 # at least 2 of 3 showing a strict gap >= 0.05 pp/oct.
-lit-cross-tool-slope-ordering: lit-capacity-sensitivity lit-gem5-slope-replay lit-sniper-slope-replay
-	@echo "$(BLUE)Regenerating cross-tool slope ordering gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.cross_tool_slope_ordering \
-		--cache-sim-json $(WIKI_DATA)/capacity_sensitivity.json \
-		--gem5-json      $(WIKI_DATA)/gem5_slope_replay.json \
-		--sniper-json    $(WIKI_DATA)/sniper_slope_replay.json \
-		--json-out       $(WIKI_DATA)/cross_tool_slope_ordering.json \
-		--md-out         $(WIKI_DATA)/cross_tool_slope_ordering.md
 
 # Per-app SRRIP-vs-GRASP slope ordering. Reads gate 68's per_app
 # artifact and verifies that for every app NOT in PINNED_DEVIATING_APPS,
 # SRRIP is at least as steep as GRASP (slack 1.0 pp/oct). bfs remains
 # pinned (frontier-driven streaming pathology — gate 65 most-saturated).
-lit-per-app-srrip-vs-grasp: lit-per-app-capacity-slope
-	@echo "$(BLUE)Regenerating per-app SRRIP-vs-GRASP gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.per_app_srrip_vs_grasp \
-		--per-app-json $(WIKI_DATA)/per_app_capacity_slope.json \
-		--json-out     $(WIKI_DATA)/per_app_srrip_vs_grasp.json \
-		--md-out       $(WIKI_DATA)/per_app_srrip_vs_grasp.md
 
 # Cross-tool LRU-vs-GRASP regime inversion. Formalizes the regime-
 # dependent finding from gates 70/71/72 INFORMATIONAL fields:
 # cache-sim post-WSS shows LRU strictly steeper than GRASP, while
 # both anchor tools sub-WSS show the opposite ordering. PASS confirms
 # the regime physics is consistent and reproducible across tools.
-lit-cross-tool-lru-regime: lit-capacity-sensitivity lit-gem5-slope-replay lit-sniper-slope-replay
-	@echo "$(BLUE)Regenerating cross-tool LRU regime gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.cross_tool_lru_regime \
-		--cache-sim-json $(WIKI_DATA)/capacity_sensitivity.json \
-		--gem5-json      $(WIKI_DATA)/gem5_slope_replay.json \
-		--sniper-json    $(WIKI_DATA)/sniper_slope_replay.json \
-		--json-out       $(WIKI_DATA)/cross_tool_lru_regime.json \
-		--md-out         $(WIKI_DATA)/cross_tool_lru_regime.md
 
 # Per-app saturation-vs-slope extremum corroboration. Reads gate 65
 # (saturation_distance per_app) and gate 68 (per-app slope) and
@@ -2183,13 +1376,6 @@ lit-cross-tool-lru-regime: lit-capacity-sensitivity lit-gem5-slope-replay lit-sn
 # cache-sensitive by distance AND by slope). Most-cache-hungry
 # disagreement (sssp by slope, bc by distance) is reported as
 # INFORMATIONAL — the regime-vs-aggregate distinction in action.
-lit-saturation-slope-extremum: lit-saturation-distance lit-per-app-capacity-slope
-	@echo "$(BLUE)Regenerating saturation-vs-slope extremum gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.saturation_slope_extremum \
-		--distance-json $(WIKI_DATA)/saturation_distance.json \
-		--slope-json    $(WIKI_DATA)/per_app_capacity_slope.json \
-		--json-out      $(WIKI_DATA)/saturation_slope_extremum.json \
-		--md-out        $(WIKI_DATA)/saturation_slope_extremum.md
 
 # Cross-tool slope-sign universality roll-up: every (tool, policy)
 # median capacity-sensitivity slope must be negative, in the [-25,
@@ -2197,123 +1383,56 @@ lit-saturation-slope-extremum: lit-saturation-distance lit-per-app-capacity-slop
 # 5 pp/oct. Bundles gates 66 + 70 + 71 into a single roll-up that
 # also catches partial regressions where one policy collapses while
 # siblings stay healthy.
-lit-cross-tool-slope-universality: lit-capacity-sensitivity lit-gem5-slope-replay lit-sniper-slope-replay
-	@echo "$(BLUE)Regenerating cross-tool slope-sign universality gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.cross_tool_slope_universality \
-		--cache-sim-json $(WIKI_DATA)/capacity_sensitivity.json \
-		--gem5-json      $(WIKI_DATA)/gem5_slope_replay.json \
-		--sniper-json    $(WIKI_DATA)/sniper_slope_replay.json \
-		--json-out       $(WIKI_DATA)/cross_tool_slope_universality.json \
-		--md-out         $(WIKI_DATA)/cross_tool_slope_universality.md
 
 # Cell-level L3-sweep monotonicity universality (cache-sim): every
 # (graph, app, policy) cell's miss_rate must be non-increasing as L3
 # grows, within a documented measurement-noise tolerance (0.5 pp).
 # Foundational soundness gate that downstream slope/distance/
 # sensitivity gates depend on.
-lit-monotonicity-universality: lit-oracle-gap
-	@echo "$(BLUE)Regenerating L3 sweep monotonicity gate...$(NC)"
-	@python3 -m scripts.experiments.ecg.monotonicity_universality \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/monotonicity_universality.json \
-		--md-out      $(WIKI_DATA)/monotonicity_universality.md
 
 # Anchor cell-pair census: pins gem5 (2 cells) and Sniper (6 cells)
 # coverage, L3 axis, and policy set against silent shrinkage that
 # would break downstream cross-tool gates (70/71/72/74/76).
-lit-anchor-cell-census: lit-gem5-slope-replay lit-sniper-slope-replay
-	@echo "$(BLUE)Regenerating anchor cell-pair census...$(NC)"
-	@python3 -m scripts.experiments.ecg.anchor_cell_census \
-		--gem5-json   $(WIKI_DATA)/gem5_slope_replay.json \
-		--sniper-json $(WIKI_DATA)/sniper_slope_replay.json \
-		--json-out    $(WIKI_DATA)/anchor_cell_census.json \
-		--md-out      $(WIKI_DATA)/anchor_cell_census.md
 
 # Per-family saturation-distance replay: mirrors gate 67 for the
 # distance metric. Verifies each family's 4MB->8MB miss-rate drop
 # median is non-negative; citation/social meet a 5 pp floor; web is
 # pinned as the low-headroom outlier; ordering citation >= social >=
 # web holds within a 1 pp slack.
-lit-family-saturation-distance: lit-saturation-distance
-	@echo "$(BLUE)Regenerating per-family saturation-distance replay...$(NC)"
-	@python3 -m scripts.experiments.ecg.family_saturation_distance \
-		--distance-json $(WIKI_DATA)/saturation_distance.json \
-		--json-out      $(WIKI_DATA)/family_saturation_distance.json \
-		--md-out        $(WIKI_DATA)/family_saturation_distance.md
 
 # Anchor cell-level L3-sweep monotonicity replay (gate 80). Walks every
 # (graph, app, policy) anchor cell in the gem5 and Sniper slope replays
 # and asserts tier-aware monotonicity: gem5 is strictly monotone, sniper
 # is permitted bounded bumps under per-tool ceilings, and no tool may
 # exhibit a catastrophic (>=3 pp) regression at any L3 step.
-lit-anchor-monotonicity-replay: lit-gem5-slope-replay lit-sniper-slope-replay
-	@echo "$(BLUE)Regenerating anchor monotonicity replay...$(NC)"
-	@python3 -m scripts.experiments.ecg.anchor_monotonicity_replay \
-		--gem5-json   $(WIKI_DATA)/gem5_slope_replay.json \
-		--sniper-json $(WIKI_DATA)/sniper_slope_replay.json \
-		--json-out    $(WIKI_DATA)/anchor_monotonicity_replay.json \
-		--md-out      $(WIKI_DATA)/anchor_monotonicity_replay.md
 
 # Per-policy final-octave steepness ranking (gate 81). Aggregates the
 # 4MB->8MB |slope| per policy across apps from cache_saturation_onset.json
 # and locks the saturation-rank inversion: POPT/GRASP medians stay below
 # 0.5 pp/oct, LRU/SRRIP medians stay above 0.5 pp/oct, and oracle-aware
 # median must be < half non-oracle median (currently 0.16 vs 1.07 = 0.15x).
-lit-policy-steepness-ranking: lit-cache-saturation-onset
-	@echo "$(BLUE)Regenerating per-policy steepness ranking...$(NC)"
-	@python3 -m scripts.experiments.ecg.policy_steepness_ranking \
-		--onset-json $(WIKI_DATA)/cache_saturation_onset.json \
-		--json-out   $(WIKI_DATA)/policy_steepness_ranking.json \
-		--md-out     $(WIKI_DATA)/policy_steepness_ranking.md
 
 # Cross-tool shared-anchor slope-sign agreement (gate 82). For every
 # (graph, app, policy) cell present in BOTH gem5 and sniper anchors,
 # asserts 100% sign-match, 100% both-negative, 100% sniper-steeper, and
 # |sniper-gem5| <= 8 pp/oct. Locks physical replication on the shared
 # (email-Eu-core, pr) x {GRASP, LRU, SRRIP} cells.
-lit-anchor-cross-tool-agreement: lit-gem5-slope-replay lit-sniper-slope-replay
-	@echo "$(BLUE)Regenerating cross-tool shared-anchor agreement...$(NC)"
-	@python3 -m scripts.experiments.ecg.anchor_cross_tool_agreement \
-		--gem5-json   $(WIKI_DATA)/gem5_slope_replay.json \
-		--sniper-json $(WIKI_DATA)/sniper_slope_replay.json \
-		--json-out    $(WIKI_DATA)/anchor_cross_tool_agreement.json \
-		--md-out      $(WIKI_DATA)/anchor_cross_tool_agreement.md
 
 # Per-kernel oracle-gap bootstrap CIs. Turns the per-app point
 # estimates from lit-oracle-gap-by-app into CI-backed sign claims:
 # pr→POPT < all (P=1.0), cc→GRASP < POPT (P=0.9995), bfs→POPT <
 # GRASP (P=0.999), sssp→POPT < GRASP (P=0.971). Defends per-kernel
 # narrative against 'is that difference real?' reviewer pushback.
-lit-oracle-by-app-bootstrap: lit-oracle-gap
-	@echo "$(BLUE)Regenerating per-kernel oracle-gap bootstrap CIs...$(NC)"
-	@python3 -m scripts.experiments.ecg.oracle_gap_by_app_bootstrap \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/oracle_gap_by_app_bootstrap.json \
-		--md-out      $(WIKI_DATA)/oracle_gap_by_app_bootstrap.md
 
 # WSS-relative L3 axis. Bins each (graph, app, L3) cell by L3 / WSS
 # ratio (WSS proxy from corpus_diversity working_set_ratio × 1 MB).
 # Defends against "absolute L3 bytes obscure cross-graph comparisons"
 # reviewer pushback by re-aggregating winners across under/near/over
 # WSS regimes.
-lit-wss-relative-l3: lit-oracle-gap
-	@echo "$(BLUE)Regenerating WSS-relative L3 axis...$(NC)"
-	@python3 -m scripts.experiments.ecg.wss_relative_l3 \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--corpus-json $(WIKI_DATA)/corpus_diversity.json \
-		--json-out    $(WIKI_DATA)/wss_relative_l3.json \
-		--md-out      $(WIKI_DATA)/wss_relative_l3.md
 
 # Bootstrap confidence intervals on the load-bearing claims (POPT-vs-
 # GRASP per family, sign-stability of mean orderings). Depends on the
 # oracle_gap + popt_vs_grasp inputs being current.
-lit-bootstrap-ci: lit-oracle-gap lit-popt-vs-grasp
-	@echo "$(BLUE)Regenerating bootstrap CIs on load-bearing claims...$(NC)"
-	@python3 -m scripts.experiments.ecg.bootstrap_ci \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--delta-json  $(WIKI_DATA)/popt_vs_grasp_delta.json \
-		--json-out    $(WIKI_DATA)/bootstrap_ci.json \
-		--md-out      $(WIKI_DATA)/bootstrap_ci.md
 
 # Family-classification sensitivity sweep. For each (graph,
 # alternative family) reassignment, rerun the bootstrap sign-
@@ -2321,21 +1440,10 @@ lit-bootstrap-ci: lit-oracle-gap lit-popt-vs-grasp
 # relabeling vs which depend on a specific taxonomy choice.
 # Defends the paper against the obvious reviewer challenge
 # "what if you relabeled graph X as family Y?".
-lit-family-sensitivity: lit-oracle-gap
-	@echo "$(BLUE)Regenerating family-classification sensitivity...$(NC)"
-	@python3 -m scripts.experiments.ecg.family_sensitivity \
-		--oracle-json $(WIKI_DATA)/oracle_gap.json \
-		--json-out    $(WIKI_DATA)/family_sensitivity.json \
-		--md-out      $(WIKI_DATA)/family_sensitivity.md
 
 # Paper-artifact catalog: single canonical index of every aggregator
 # + its generator + governing gate + JSON artifact + headline finding.
 # No data dependencies — just metadata + on-disk file existence audit.
-lit-catalog:
-	@echo "$(BLUE)Regenerating paper-artifact catalog...$(NC)"
-	@python3 -m scripts.experiments.ecg.artifact_catalog \
-		--json-out $(WIKI_DATA)/artifact_catalog.json \
-		--md-out   $(WIKI_DATA)/artifact_catalog.md
 
 # Reproducibility smoke: SHA-256-snapshot all tracked wiki/data
 # aggregator artifacts, re-run the deterministic generator chain,
@@ -2353,23 +1461,8 @@ lit-reproduce-smoke:
 # the paper-grade aggregator JSONs and emits a consolidated registry
 # linking each claim to value + source + governing gate. Must run
 # AFTER all other aggregators so the values are current.
-lit-claims: lit-faith lit-repro lit-winner lit-thrash lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-per-app-capacity-slope lit-slope-saturation-xcheck lit-gem5-slope-replay lit-sniper-slope-replay lit-cross-tool-slope-ordering lit-per-app-srrip-vs-grasp lit-cross-tool-lru-regime lit-saturation-slope-extremum lit-cross-tool-slope-universality lit-monotonicity-universality lit-anchor-cell-census lit-family-saturation-distance lit-anchor-monotonicity-replay lit-policy-steepness-ranking lit-anchor-cross-tool-agreement lit-deviations lit-diversity lit-margin lit-signmass lit-citations lit-knowndev lit-tolerance lit-accesses lit-citexapp lit-monotonicity lit-stat lit-polyord lit-devexp lit-ratgrid lit-cellcomp lit-appfreq lit-regimesign lit-citdate lit-ecg-parity lit-ecg-gem5-parity lit-ecg-sniper-parity lit-ecg-pfx-vs-droplet lit-paper-table-prefetcher lit-paper-table-prefetcher-kronecker lit-paper-table-metadata-cost lit-paper-table-complexity lit-paper-table-mode6-corpus lit-paper-table-grasp-parity lit-paper-label-map lit-color-distinguishability lit-paper-snapshot lit-regime-classifier lit-citation-registry lit-paper-tables lit-sideband-schema lit-graph-family lit-paper-provenance lit-l3-registry lit-slurm-schema lit-handoff-xref lit-wiki-registry lit-policy-registry lit-profile-registry lit-backend-registry lit-graph-registry lit-build-registry lit-cli-registry lit-arm-catalog lit-cross-tool-schema lit-config-matrix lit-filename-grammar lit-sideband-grammar lit-overlay-tracker lit-gem5-overlay-tracker lit-setup-script-registry lit-config-deep-lock lit-gem5-overlay-hash-registry lit-sniper-overlay-hash-registry lit-setup-fn-signature-registry lit-runner-cli-registry lit-orchestrator-cli-registry lit-paper-stage-registry lit-manifest-schema lit-subprocess-argv-registry lit-receiver-cli-registry lit-job-dataclass-schema lit-receiver-dataclass-schema lit-analysis-dataclass-schema headline-coverage headline-coverage-bump headline-parity lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog
-	@echo "$(BLUE)Regenerating paper claims registry...$(NC)"
-	@python3 -m scripts.experiments.ecg.paper_claims_registry \
-		--json-out $(WIKI_DATA)/paper_claims.json \
-		--md-out   $(WIKI_DATA)/paper_claims.md
 
-confidence: lit-faith lit-repro lit-budget lit-table lit-winner lit-thrash gem5-anchor sniper-anchor lit-cross-tool lit-cross-tool-winners lit-density lit-popt-vs-grasp lit-popt-vs-grasp-by-family-app lit-wilson-wins lit-cohens-h lit-gap-effect-size lit-l3-stability lit-mt-correction lit-logo-robust lit-cell-census lit-family-geomean lit-per-graph-app-stability lit-corpus-balance lit-distribution-diagnostics lit-lofo-robustness lit-winner-margin-gradient lit-oracle-gap-auc lit-policy-auc-correlation lit-policy-stability lit-cache-sensitivity-slope lit-per-graph-cache-slope lit-cross-generator-gap-parity lit-cache-saturation-onset lit-gap-distribution-shape lit-family-policy-auc-clustering lit-oracle-gap-curvature lit-policy-rank-kendall lit-wss-knee-location lit-family-curvature-replay lit-winner-margin-by-regime lit-family-margin-replay lit-cross-policy-asymmetry lit-saturation-distance lit-capacity-sensitivity lit-family-slope-replay lit-per-app-capacity-slope lit-slope-saturation-xcheck lit-gem5-slope-replay lit-sniper-slope-replay lit-cross-tool-slope-ordering lit-per-app-srrip-vs-grasp lit-cross-tool-lru-regime lit-saturation-slope-extremum lit-cross-tool-slope-universality lit-monotonicity-universality lit-anchor-cell-census lit-family-saturation-distance lit-anchor-monotonicity-replay lit-policy-steepness-ranking lit-anchor-cross-tool-agreement lit-deviations lit-diversity lit-margin lit-signmass lit-citations lit-knowndev lit-tolerance lit-accesses lit-citexapp lit-monotonicity lit-stat lit-polyord lit-devexp lit-ratgrid lit-cellcomp lit-appfreq lit-regimesign lit-citdate lit-ecg-parity lit-ecg-gem5-parity lit-ecg-sniper-parity lit-ecg-pfx-vs-droplet lit-paper-table-prefetcher lit-paper-table-prefetcher-kronecker lit-paper-table-metadata-cost lit-paper-table-complexity lit-paper-table-mode6-corpus lit-paper-table-grasp-parity lit-paper-label-map lit-color-distinguishability lit-paper-snapshot lit-regime-classifier lit-citation-registry lit-paper-tables lit-sideband-schema lit-graph-family lit-paper-provenance lit-l3-registry lit-slurm-schema lit-handoff-xref lit-wiki-registry lit-policy-registry lit-profile-registry lit-backend-registry lit-graph-registry lit-build-registry lit-cli-registry lit-arm-catalog lit-cross-tool-schema lit-config-matrix lit-filename-grammar lit-sideband-grammar lit-overlay-tracker lit-gem5-overlay-tracker lit-setup-script-registry lit-config-deep-lock lit-gem5-overlay-hash-registry lit-sniper-overlay-hash-registry lit-setup-fn-signature-registry lit-runner-cli-registry lit-orchestrator-cli-registry lit-paper-stage-registry lit-manifest-schema lit-subprocess-argv-registry lit-receiver-cli-registry lit-job-dataclass-schema lit-receiver-dataclass-schema lit-analysis-dataclass-schema headline-coverage headline-coverage-bump headline-parity lit-regime-taxonomy lit-oracle-gap lit-oracle-gap-by-app lit-oracle-by-app-bootstrap lit-wss-relative-l3 lit-bootstrap-ci lit-family-sensitivity lit-catalog lit-claims lit-reproduce-smoke
-	@echo "$(BLUE)Rebuilding confidence dashboard...$(NC)"
-	@python3 -m scripts.experiments.ecg.confidence_dashboard \
-		--markdown $(WIKI_DATA)/confidence_dashboard.md \
-		--json-out $(WIKI_DATA)/confidence_dashboard.json
-	@echo "$(GREEN)See $(WIKI_DATA)/confidence_dashboard.md$(NC)"
 
 # Quick variant: skip the lit-faith / lit-repro regen (assumes
 # the artifacts on disk are already current) and just rerun the
 # pytest tier gates + headline verdict. Useful in tight edit loops.
-confidence-fast:
-	@python3 -m scripts.experiments.ecg.confidence_dashboard \
-		--markdown $(WIKI_DATA)/confidence_dashboard.md \
-		--json-out $(WIKI_DATA)/confidence_dashboard.json

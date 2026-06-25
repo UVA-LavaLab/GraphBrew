@@ -1,52 +1,74 @@
-# `ecg/` — ECG / GrAPL paper
+# GraphBrew ECG cache experiments
 
-Graph-aware cache replacement policies. Self-contained: config + runner.
+Single-source-of-truth (SSOT), config-driven experiment package for the ECG /
+PULSE cache-replacement work. This folder was reduced from 177 ad-hoc scripts to
+the small, structured module set below. **Every experiment is defined in
+`experiments.json` and run through `experiments.py`** — do not add new top-level
+scripts.
 
-| File | Purpose |
-|---|---|
-| [`config.py`](config.py) | 9 cache policies, 11 reorder×policy pairs, 6 graphs |
-| [`runner.py`](runner.py) | 6 experiments (policy comparison, reorder interaction, cache sweep, fat-ID) |
-| [`ecg_pfx_scale_proof.py`](ecg_pfx_scale_proof.py) | One-root BFS ECG_PFX scale-proof runner for local or Slurm RISC-V/Sniper shards |
+## Layout
 
-## Run
+```
+experiments.py      ENTRY POINT — the orchestrator (list | show | run | verify | analyze)
+experiments.json    SSOT CONFIG — defaults + graph_sets + named experiments
+roi_matrix.py       THE ENGINE — the one driver that runs a cell on cache_sim | gem5 | Sniper
 
-```bash
-python3 scripts/experiments/ecg/runner.py --all --graph-dir results/graphs
-python3 scripts/experiments/ecg/runner.py --exp 6                # analytical only
-python3 scripts/experiments/ecg/runner.py --exp 1 --preview --dry-run
+flows/              experiment generators (produce raw data; each wraps roi_matrix)
+  scale_sweep.py        cache_sim pressure x graph x policy sweep
+  eviction_matrix.py    ECG variant eviction matrix
+  proof_matrix.py       component-ablation proof matrix
+  paper_run.py          manifest-driven paper run
+  paper_pipeline.py     one-command paper pipeline
+
+verify/             correctness gates (3-sim equivalence)
+  ecg.py                eviction-policy equivalence (cache_sim/gem5/Sniper)
+  pfx.py                prefetch-path equivalence
+
+analysis/           turn results into tables/figures
+  scale.py              aggregate the scale sweep (regime map)
+  parity.py             cross-sim miss-rate join
+  coverage.py           headline coverage report
+  anchor_summary.py     summarize a gem5/Sniper anchor sweep-root
+
+lib/                shared library modules (imported, never run directly)
+  literature_baselines.py / literature_faithfulness.py / literature_preflight.py
+
+sweeps/             bash sweep drivers (cross-sim 1MB anchors, PFX sweeps, ...)
+slurm/              cluster sbatch templates
 ```
 
-Outputs land in `results/ecg_experiments/`.
-
-## ECG_PFX Scale Proof
-
-Use this helper after the small matched BFS proof is working and before running
-larger graph/file-backed matrices:
+## Running experiments
 
 ```bash
-python3 scripts/experiments/ecg/ecg_pfx_scale_proof.py \
-	--scale 10 \
-	--roots 0 \
-	--backend both \
-	--out-root /tmp/graphbrew-ecg-pfx-scale-g10-r0
+# what is defined
+python3 experiments.py list
+
+# the resolved cells of one experiment (no run)
+python3 experiments.py show headline-scale
+
+# run it (resumable: re-running skips finished cells)
+python3 experiments.py run headline-scale
+python3 experiments.py run headline-scale --dry-run          # print commands only
+python3 experiments.py run headline-scale --only cit-Patents # filter cells
+
+# correctness + analysis
+python3 experiments.py verify          # verify/ecg.py  (eviction equivalence)
+python3 experiments.py verify --pfx    # verify/pfx.py  (prefetch equivalence)
+python3 experiments.py analyze         # analysis/scale.py (regime map)
 ```
 
-For larger scales, generate one Slurm row per root/backend and submit with
-`scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch`:
+## Adding an experiment (the only allowed way to grow this folder)
 
-```bash
-mkdir -p results/ecg_experiments/slurm
-RUN_TAG=ecg_pfx_scale_$(date +%Y%m%d_%H%M%S)
-SHARDS=results/ecg_experiments/slurm/${RUN_TAG}_scale.tsv
+Add a named entry under `"experiments"` in `experiments.json`. An experiment is a
+cartesian product expanded into resumable `roi_matrix` cells:
 
-python3 scripts/experiments/ecg/make_ecg_pfx_scale_shards.py \
-	--scale 11:12 \
-	--root 0:31 \
-	--backend sniper \
-	--run-tag "$RUN_TAG" \
-	--out "$SHARDS"
-
-export SHARDS
-N=$(( $(wc -l < "$SHARDS") - 1 ))
-sbatch --array=0-${N} scripts/experiments/ecg/slurm_ecg_pfx_scale_proof.sbatch
 ```
+graphs x l3_sizes x policies x benchmarks
+```
+
+Every field falls back to `"defaults"`; `"graphs": "@eval"` resolves a named
+graph set. The headline config (8B epoch, structure prefetcher, iso-area charged
+P-OPT) lives in `"defaults"`, so a new experiment only overrides what differs.
+
+If a genuinely new *kind* of experiment is needed, add a thin module under
+`flows/` and a dispatch line in `experiments.py` — never a loose top-level script.

@@ -196,3 +196,20 @@ def make_ecg_pfx_prefetcher(**kwargs):
         prefetch_on_access=True,
         on_inst=False,
     )
+
+
+def make_stride_prefetcher(**kwargs):
+    """Create a generic stride/stream prefetcher for the sequential
+    structure (edge-list) stream. Attached UNIFORMLY to every policy to
+    LEVEL the structure-prefetch axis across the three simulators: it is
+    gem5's faithful analogue of cache_sim's CACHE_STREAM_PREFETCH_DEGREE
+    and Sniper's stride prefetcher. The structure stream is sequential, so
+    a real HW stride prefetcher captures it while the irregular property
+    stream is left to the replacement policy. This is NOT a graph-aware
+    prefetcher (unlike DROPLET / ECG_PFX); it carries no graph semantics."""
+    return StridePrefetcher(
+        degree=kwargs.get("degree", 4),
+        use_virtual_addresses=True,
+        prefetch_on_access=True,
+        on_inst=False,
+    )

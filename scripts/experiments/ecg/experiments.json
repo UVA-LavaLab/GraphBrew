@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "description": "SSOT config for ALL GraphBrew ECG cache experiments. Add an experiment HERE (a named entry under \"experiments\"); never add a new top-level script. Run with: experiments.py run <name>.",
+  "defaults": {
+    "suite": "cache-sim",
+    "benchmark": "pr",
+    "options": "-o 5 -n 1 -i 1",
+    "l1d_size": "32kB",
+    "l2_size": "256kB",
+    "l3_ways": "16",
+    "line_size": "64",
+    "ecg_epoch_pack_bits": 64,
+    "ecg_epochs": 65535,
+    "ecg_charged": 1,
+    "cache_stream_prefetch_degree": 4,
+    "popt_reserve_model": "size_correct",
+    "popt_active_columns": 2,
+    "timeout_cache": 10800,
+    "no_build": true
+  },
+  "graph_sets": {
+    "eval": ["web-Google", "roadNet-CA", "com-orkut", "cit-Patents", "soc-LiveJournal1", "kron-s24"],
+    "real": ["web-Google", "com-orkut", "cit-Patents", "soc-LiveJournal1"],
+    "anchor": ["email-Eu-core"]
+  },
+  "experiments": {
+    "headline-scale": {
+      "description": "The headline: 8B full epoch + uniform structure prefetcher + iso-area charged P-OPT, swept across pressure. cache_sim.",
+      "graphs": "@eval",
+      "l3_sizes": ["2MB", "4MB", "8MB", "16MB", "32MB"],
+      "policies": ["LRU", "GRASP", "POPT", "POPT:UNCHARGED", "ECG:ECG_GRASP_POPT"],
+      "ecg_variant": "epoch_only"
+    },
+    "prefetch-off-control": {
+      "description": "Degree-0 control (no structure prefetcher): separates a real replacement win from structure-stream hiding.",
+      "graphs": "@eval",
+      "l3_sizes": ["4MB", "8MB", "16MB"],
+      "policies": ["LRU", "GRASP", "POPT", "POPT:UNCHARGED", "ECG:ECG_GRASP_POPT"],
+      "cache_stream_prefetch_degree": 0,
+      "ecg_variant": "epoch_only"
+    },
+    "anchor-cache": {
+      "description": "Cross-sim equivalence anchor on cache_sim (literature 1MB canonical L3, prefetch OFF).",
+      "graphs": "@anchor",
+      "benchmark": ["pr", "bfs", "sssp", "bc"],
+      "l3_sizes": ["1MB"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "cache_stream_prefetch_degree": 0
+    },
+    "anchor-gem5": {
+      "description": "Cross-sim equivalence anchor on gem5 (cycle-accurate, 1MB, prefetch OFF).",
+      "suite": "gem5",
+      "graphs": "@anchor",
+      "benchmark": ["pr", "bfs", "sssp", "bc"],
+      "l3_sizes": ["1MB"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "cache_stream_prefetch_degree": 0,
+      "timeout_gem5": 14400
+    },
+    "anchor-sniper": {
+      "description": "Cross-sim equivalence anchor on Sniper (interval, 1MB, prefetch OFF).",
+      "suite": "sniper",
+      "graphs": "@anchor",
+      "benchmark": ["pr", "bfs", "sssp"],
+      "l3_sizes": ["1MB"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "cache_stream_prefetch_degree": 0,
+      "timeout_sniper": 540
+    }
+  }
+}

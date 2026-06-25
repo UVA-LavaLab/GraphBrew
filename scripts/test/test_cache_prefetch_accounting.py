@@ -65,6 +65,7 @@ int main() {
     compile_cmd = [
         compiler,
         "-std=c++17",
+        "-fopenmp",
         f"-I{PROJECT_ROOT}",
         f"-I{PROJECT_ROOT / 'bench/include/external/gapbs'}",
         f"-I{PROJECT_ROOT / 'bench/include'}",

@@ -32,14 +32,14 @@ make lit-handoff-xref 2>&1 | tail -1
 make lit-reproduce-smoke 2>&1 | tail -1 || true
 
 log "=== Phase 3: Gate 282 coverage check ==="
-python3 -m scripts.experiments.ecg.headline_coverage --quiet \
+python3 -m scripts.experiments.ecg.analysis.coverage --quiet \
     --json-out wiki/data/headline_coverage.json \
     --md-out   wiki/data/headline_coverage.md \
     --csv-out  wiki/data/headline_coverage.csv
-python3 -m scripts.experiments.ecg.headline_coverage
+python3 -m scripts.experiments.ecg.analysis.coverage
 
 log "=== Phase 4: Gate 283 parity check ==="
-python3 -m scripts.experiments.ecg.headline_parity --quiet \
+python3 -m scripts.experiments.ecg.analysis.parity --quiet \
     --json-out wiki/data/headline_parity.json \
     --md-out   wiki/data/headline_parity.md \
     --csv-out  wiki/data/headline_parity.csv

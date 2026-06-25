@@ -36,7 +36,8 @@ addToPath(script_dir)
 
 from graph_cache_config import (
     make_l1d_cache, make_l1i_cache, make_l2_cache, make_l3_cache,
-    make_replacement_policy, make_droplet_prefetcher, make_ecg_pfx_prefetcher, DEFAULTS,
+    make_replacement_policy, make_droplet_prefetcher, make_ecg_pfx_prefetcher,
+    make_stride_prefetcher, DEFAULTS,
 )
 from graph_metadata_loader import load_graph_metadata, metadata_summary
 
@@ -135,8 +136,13 @@ def parse_args():
 
     # Prefetcher
     parser.add_argument("--prefetcher", default="none",
-        choices=["none", "DROPLET", "ECG_PFX"],
-        help="Graph prefetcher to attach (default: none)")
+        choices=["none", "DROPLET", "ECG_PFX", "STRIDE"],
+        help="Prefetcher to attach (default: none). STRIDE = uniform "
+             "structure-stream prefetcher applied to ALL policies for "
+             "leveling (cache_sim CACHE_STREAM_PREFETCH_DEGREE analogue).")
+    parser.add_argument("--structure-prefetch-degree", type=int, default=4,
+        help="Degree (prefetches per trigger) for the STRIDE structure "
+             "prefetcher; mirrors cache_sim CACHE_STREAM_PREFETCH_DEGREE.")
     parser.add_argument("--prefetcher-level", default="l2",
         choices=["l1d", "l2"],
         help="Cache level for graph prefetcher attachment (default: l2)")
@@ -258,6 +264,23 @@ def create_system(args):
                 _pf.registerMMU(system.cpu.mmu)
             elif hasattr(system.cpu, 'dtb'):
                 _pf.registerMMU(system.cpu.dtb)
+
+    elif args.prefetcher == "STRIDE":
+        # Uniform structure-stream prefetcher (leveling, all policies).
+        stride_kwargs = {"degree": args.structure_prefetch_degree}
+        if args.prefetcher_level == "l1d":
+            system.cpu.dcache.prefetcher = make_stride_prefetcher(**stride_kwargs)
+            _pf = system.cpu.dcache.prefetcher
+        else:
+            system.l2cache.prefetcher = make_stride_prefetcher(**stride_kwargs)
+            _pf = system.l2cache.prefetcher
+        # S68-MMU-PATCH: gem5 Queued::notify drops cross-page prefetches
+        # unless prefetcher.mmu is set. See
+        # docs/findings/gem5_implementation_audit_v1.md.
+        if hasattr(system.cpu, 'mmu'):
+            _pf.registerMMU(system.cpu.mmu)
+        elif hasattr(system.cpu, 'dtb'):
+            _pf.registerMMU(system.cpu.dtb)
 
     # ── Memory bus connections ──
     system.membus = SystemXBar()

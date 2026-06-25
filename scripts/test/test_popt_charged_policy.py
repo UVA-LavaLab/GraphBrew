@@ -215,9 +215,25 @@ def test_run_command_timeout_returns_error_code(tmp_path):
 
 
 def test_gem5_sideband_paths_are_per_output_directory(tmp_path):
-    paths = roi_matrix.gem5_sideband_paths(tmp_path / "gem5" / "row")
+    row_a = tmp_path / "gem5" / "row_a"
+    row_b = tmp_path / "gem5" / "row_b_with_a_much_longer_policy_named_directory"
+    a = roi_matrix.gem5_sideband_paths(row_a)
+    b = roi_matrix.gem5_sideband_paths(row_b)
 
-    assert paths["context"] == tmp_path / "gem5" / "row" / "graphbrew_sidebands" / "gem5_graphbrew_ctx.json"
-    assert paths["popt_matrix"].parent == paths["context"].parent
-    assert paths["out_edges"].name == "gem5_graphbrew_out_edges.bin"
-    assert paths["in_edges"].name == "gem5_graphbrew_in_edges.bin"
+    # Fixed sideband filenames, all four under one per-cell directory.
+    assert a["context"].name == "gem5_graphbrew_ctx.json"
+    assert a["out_edges"].name == "gem5_graphbrew_out_edges.bin"
+    assert a["in_edges"].name == "gem5_graphbrew_in_edges.bin"
+    parent = a["context"].parent
+    assert a["popt_matrix"].parent == parent
+    assert a["out_edges"].parent == parent
+    assert a["in_edges"].parent == parent
+
+    # Deterministic: the same out-dir yields the same paths.
+    assert roi_matrix.gem5_sideband_paths(row_a) == a
+    # Isolated: different out-dirs yield different sideband directories.
+    assert b["context"].parent != a["context"].parent
+    # Constant-length: the per-cell directory name length is independent of the
+    # (policy-named) out-dir length, so the benchmark heap layout stays
+    # policy-independent (only the hash hex differs, never the length).
+    assert len(a["context"].parent.name) == len(b["context"].parent.name)
