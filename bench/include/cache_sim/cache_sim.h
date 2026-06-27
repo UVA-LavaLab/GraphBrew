@@ -1277,6 +1277,23 @@ private:
         if (budget <= 0) return;
         // Only trace the LLC (L3) — L1/L2 are LRU and would consume the budget.
         if (name_ != "L3" && name_ != "L3-Shared") return;
+        // ECG-CONFIG one-shot debug banner (ECG_DEBUG=1): fires once on the first L3
+        // eviction for ANY kernel (PR/BFS/BC), proving the resolved policy/mode/variant.
+        // Universal — unlike the per-edge-mask init path, every evicting kernel hits this.
+        static bool ecg_cfg_announced = false;
+        if (!ecg_cfg_announced) {
+            ecg_cfg_announced = true;
+            const char* dbg = std::getenv("ECG_DEBUG");
+            if (dbg && *dbg && std::string(dbg) != "0") {
+                const char* m = std::getenv("ECG_MODE");
+                const char* var = std::getenv("ECG_VARIANT");
+                const char* ch = std::getenv("ECG_EDGE_MASK_CHARGED");
+                std::cerr << "[ECG-CONFIG sim=cache_sim policy=" << pol
+                          << " mode=" << (m ? m : "-")
+                          << " variant=" << (var ? var : "rrip_first")
+                          << " charged=" << (ch ? ch : "?") << "]\n";
+            }
+        }
         --budget;
         std::cerr << "[EVICT L3 pol=" << pol << " curEpoch=" << curEpoch
                   << " set_ways=" << associativity_ << "]\n";

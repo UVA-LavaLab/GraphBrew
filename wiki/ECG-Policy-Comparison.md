@@ -96,7 +96,7 @@ native cache lines (epoch via memory-resident mask for cache_sim/gem5, via
 | Simulator | ECG_GRASP_POPT + ECG_VARIANT | Epoch source | Status |
 |-----------|------------------------------|--------------|--------|
 | **cache_sim** | yes | per-edge memory-resident mask (0 LLC ways) | **verified** (`verify_ecg.py`, 7×40/40) + matrix |
-| **gem5** | yes | per-edge mask via ISA `ecg.extract` | **verified** (`verify_ecg.py --gem5`, 5×40/40) |
+| **gem5** | yes | per-edge mask via ISA `ecg.load` (custom-0, FUNCT3=0x2; see below) | **verified** (`verify_ecg.py --gem5`, 5×40/40) |
 | **Sniper** | yes | native `findNextRef` (P-OPT next-ref) | **verified** (`verify_ecg.py --sniper`, 4×40/40, guarded) |
 
 Sniper's variant uses its native `findNextRef` for the property next-reference
@@ -105,6 +105,65 @@ mask). Real-graph Sniper runs are gated behind `--allow-sniper-sg-kernel-workloa
 because the Sniper/SDE frontend has a documented ~50 GiB memory runaway
 (infrastructure, independent of the ECG policy); run it under
 `--sniper-memory-limit-gb`.
+
+## ECG ISA: one instruction, mode-controlled caching
+
+gem5 delivers the per-edge metadata with a **single** custom-0 RISC-V instruction
+(opcode `0x0b`, FUNCT3=`0x2`, R-type):
+
+```
+ecg.load  rd, rs1, rs2     rs1 = property base, rs2 = mode-6 record, rd = prop[rs2.dest]
+                           EA = rs1 + dest*elem_size; deliver metadata to the LLC
+                           before the fill (line stamped on insertion); rd = Mem[EA]
+```
+
+A FUNCT7 field carries both the caching **mode** (`ECG_MODE`<31:27>) and a dest-width
+**class** (`ECG_WIDTH`<26:25>, read in `ea_code` → `W = 8/16/24/32` bits); each layout
+already exists in the SSOT `bench/include/ecg_mode6_builder.h` (no bespoke ISA layout):
+
+| ECG_MODE | mode | `rs2` layout (SSOT) | effect |
+|---|---|---|---|
+| `0x00` | **EVICT** (headline) | `dest[0:W]｜epoch[W:W+16]` | next-ref epoch eviction |
+| `0x01` | EVICT+PFX | `dest[0:W]｜epoch[W:W+16]｜pfx[W+16:64]` | + Path-B prefetch target |
+| `0x02` | EMBEDDED | NARROW `dest[0:24]｜dbg[24:26]｜popt[26:33]｜epoch[33:49]｜pfx[49:64]` | full legacy metadata |
+
+`FUNCT7 = (ECG_MODE<<2)｜ECG_WIDTH`. The **configurable dest width** lets ONE instruction
+scale its dest from 256 (W8) to 4.29 B (W32) vertices — W24 is the headline default and covers
+all eval graphs; W32 covers twitter/friendster/kron-s27. The 32-bit instruction word never
+carries metadata — it rides the 64-bit register `rs2`. The earlier prototyping forms
+(`ecg.extract` reg-hint FUNCT3=`0x0`, side-record load FUNCT3=`0x1`) are subsumed; the paper
+presents this one instruction. The decoder is the tracked overlay `decoder_ecg_extract.isa`
+(+ the `ECG_MODE`/`ECG_WIDTH` bitfields in `formats/ecg.isa`), kept byte-identical to the gem5
+build tree. EVICT is validated end-to-end on RISC-V (`[ECG_PLOAD] ACTIVE`, correct PageRank
+result, no illegal-instruction); the field-parity drift guard in `verify_ecg.py` pins the
+decoder shifts against the builder for every width class (95/0).
+
+**OoO delivery (sideband):** the epoch reaches the LLC race-free under an out-of-order CPU via a
+gem5 `Request::Extension` (`EcgEpochExtension`) tagged on the demand load — no shared mailbox, no
+per-vertex table. The in-order TimingSimpleCPU case study validates the policy via the single-slot
+mailbox, which is mathematically equivalent (serialized loads ⇒ no race). Details:
+`docs/findings/ecg_mask_direction_and_metadata.md` §19.
+
+### Pipeline flow
+
+`ecg.load` is an ordinary R-type load in the front end; the ECG work is confined to the AGU/LSU:
+
+| stage | action |
+|---|---|
+| IF/ID | decode custom-0 / FUNCT3=0x2; `ECG_MODE`/`ECG_WIDTH` select mode + dest width `W` |
+| RF | read `rs1` (property base), `rs2` (the 64-bit mode-6 record) |
+| AGU | split `rs2` → `dest` (low `W`) + `epoch` (`[W:W+16]`) [+ `pfx`]; `EA = rs1 + dest·elem_size`; tag the demand request with the epoch sideband |
+| MEM | the demand request reaches the LLC; the replacement policy latches the epoch on the line's fill (stamp-on-insert) |
+| WB | `rd = Mem[EA] = prop[dest]` — the value the kernel needed anyway |
+
+The epoch is therefore **free**: it rides the demand load the kernel already issues, is split out
+in the AGU, and travels as a few sideband bits on the in-flight request — no extra instruction, no
+extra memory stream, no reserved way. The 32-bit instruction word is fixed; only `rs2` (a 64-bit
+GPR) grows with the graph, via `ECG_WIDTH`. In-order, the per-vertex/single-slot table is the exact
+model of that sideband; `EcgEpochExtension` is the OoO/multicore form (read side wired in `ecg_rp.cc`,
+AGU attach is the remaining O3 step). Every `(mode, width)` is checked through the REAL decoder by
+`test_ecg_load_modes.cc` (`verify_ecg.py --gem5`): `rd == prop[dest]`, plus a teeth proof that
+forcing the width wrong mis-decodes (so `ECG_WIDTH` is load-bearing).
 
 ## Reproduce
 
@@ -343,8 +402,57 @@ honesty boundaries:
   graphs* (they would need `makeOffsetMatrix(..., traverseCSR=false)`), so they are not
   promoted as transpose-faithful ECG results. No headline-results direction bug.
 
-## Related
+## 3-simulator equivalence showcase + debug proof
 
-- [[Cache-Simulation]] — simulator architecture, all `ECG_MODE` values, env vars
-- [[ECG-Final-Runs]] — gem5/Sniper final-run profiles, charged P-OPT, topology caveats
+`scripts/experiments/ecg/three_sim_showcase.py` runs the same policies on the same cell across
+cache_sim / gem5 / Sniper and prints an L3 miss-rate table plus a per-sim `[ECG-CONFIG …]` banner.
+It drives the committed `roi_matrix` with the verified cell geometry — a raw
+`roi_matrix --policies ECG:…` that omits the load-bearing knobs (`ECG_EDGE_MASK_CHARGED`,
+`CACHE_ULTRAFAST=0`, the L1/L2 sizes) makes ECG **degenerate**, so the showcase pins them.
+
+**Two separate claims — keep them apart:**
+
+**(A) ECG advantage — ECG beats GRASP *and* P-OPT** (real graphs, cache_sim = functional authority,
+`-o5`, `ECG_VARIANT=shortcircuit`). ECG_GRASP_POPT = GRASP's degree-aware insertion + P-OPT's
+next-reference eviction, so the target is `LRU > GRASP > P-OPT ≥ ECG` (lower miss rate better):
+
+| cell (cache_sim, -o5) | LRU | GRASP | P-OPT | **ECG** |
+|---|---|---|---|---|
+| web-Google @ 512kB | 0.8440 | 0.6733 | 0.6326 | **0.6229** |
+| cit-Patents @ 1MB | 0.8958 | 0.8196 | 0.7471 | **0.6795** |
+
+ECG is the lowest in both — it beats GRASP and the (all-ways, uncharged) P-OPT with a memory-resident
+mask and no reserved way.
+
+**(B) 3-sim equivalence** — the same policy moves the miss rate the same DIRECTION in all three
+simulators. This needs a gem5/Sniper-feasible cell, so it uses the SYNTHETIC kron_s16_k4, whose
+Kronecker structure does NOT reward the epoch — so ECG does **not** beat GRASP here; this cell
+certifies cross-sim AGREEMENT, not the ECG advantage. (kron_s16_k4 @ 128kB/16w, L1d=16kB, L2=64kB,
+`-o5`, `ECG_VARIANT=rrip_first`):
+
+| policy | cache_sim | gem5 | Sniper |
+|---|---|---|---|
+| LRU | 0.6606 | 0.6475 | 0.5695 |
+| GRASP | **0.5319** | **0.5655** | **0.4771** |
+| ECG_GRASP_POPT | 0.5718 | eviction-spec | eviction-spec |
+
+Read as **direction vs LRU**, not absolute (gem5/Sniper see the full ISA stream, cache_sim graph-only).
+GRASP helps in all three (the equivalence). gem5/Sniper ECG on a *pressured* cell exceeds the sim
+timeout, so their ECG correctness is the eviction-spec (40/40) + the byte-identical
+`ecg_victim_policy.h` decision, not a full miss-rate run. On a *tiny* L3 the gem5 full-ISA stream
+swamps the signal (a documented access-population confound).
+
+**Debug proof:** `ECG_DEBUG=1` makes each sim emit one `[ECG-CONFIG sim=… policy=… mode=… variant=…]`
+line at policy init (verified identical mode/variant across all three); `ECG_EVICT_TRACE=N` dumps the
+first N L3 evictions (`[EVICT L3 pol=… reason=…]`), proving the policy acts. Details:
+`docs/findings/ecg_mask_direction_and_metadata.md` §20.
+
+**Multi-kernel equivalence** (`experiments.py verify --kernels [--gem5 --sniper]`,
+`verify/equiv_kernels.py`): the eviction DECISION is kernel-agnostic, so it is certified for
+**PR / BFS / BC** across the simulators — every `(kernel × sim)` obeys the eviction spec AND emits
+the debug banner (PR/BFS: cache_sim+gem5+Sniper; BC: cache_sim+gem5; SSSP needs a weighted `.wsg`;
+Sniper `sg_kernel` has no BC target). This is the DECISION equivalence; the per-edge mask DIRECTION
+is still PR-tuned (BFS/BC out-edge direction uncertified — a miss-rate, not a spec, concern). §21.
+
+## Related
 - [[Baseline-Literature-Faithfulness]] — GRASP/P-OPT faithfulness audit

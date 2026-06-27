@@ -30,6 +30,8 @@ Cross-sim equivalence argument (what guarantees cache_sim == gem5 == Sniper):
 """
 import os, re, subprocess, sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from equiv import check_insertion_rrpv_invariant, check_behavioral_equivalence  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
 PR = ROOT / "bench" / "bin_sim" / "pr"
@@ -80,6 +82,47 @@ def run_bc(policy_env, extra=None):
 
 GEM5_OPT = ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 ROI_MATRIX = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
+
+
+def run_gem5_isa_modes():
+    """Run EVERY consolidated ecg.load (mode x dest-width) through the REAL gem5 RISC-V
+    DECODER and verify the decoded dest (rd = prop[dest], prop[i]=i). The field-parity
+    test only checks a C++ MIRROR of the decoder shifts and the 3-sim verify exercises
+    eviction via the X86 m5op path, so NEITHER runs the actual decoded ecg.load for the
+    new modes/widths — this does. Includes a TEETH proof: forcing the EMITTED width wrong
+    (ECG_TEST_FORCE_WC) while the record is packed correctly MUST make the decoder extract
+    a different dest -> FAIL, proving ECG_WIDTH is load-bearing (the test is not vacuous)."""
+    gem5_dir = ROOT / "bench" / "include" / "gem5_sim" / "gem5"
+    se = gem5_dir / "configs" / "deprecated" / "example" / "se.py"
+    binp = ROOT / "bench" / "bin_gem5" / "test_ecg_load_modes_riscv_m5ops"
+    if not binp.exists():
+        subprocess.run(["make", "bench/bin_gem5/test_ecg_load_modes_riscv_m5ops"],
+                       cwd=str(ROOT), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    if not binp.exists():
+        print("  gem5 ISA decode: [FAIL] could not build test_ecg_load_modes"); return False
+
+    def _run(env_file=None):
+        cmd = [str(GEM5_OPT), "--outdir=/tmp/ecg_modes_verify", str(se),
+               "--cmd", str(binp), "--cpu-type=AtomicSimpleCPU"]
+        if env_file:
+            cmd += ["--env", env_file]
+        try:
+            p = subprocess.run(cmd, cwd=str(gem5_dir), capture_output=True, text=True, timeout=300)
+        except subprocess.TimeoutExpired:
+            return ""
+        return p.stdout + p.stderr
+
+    normal = _run()
+    normal_pass = "RESULT: PASS" in normal
+    ef = Path("/tmp") / "ecg_force_wc0.env"
+    ef.write_text("ECG_TEST_FORCE_WC=0\n")
+    teeth = _run(str(ef))
+    teeth_fail = "RESULT: FAIL" in teeth
+    print(f"  gem5 ISA decode every (mode,width) via REAL decoder -> PASS: "
+          f"{'[OK ]' if normal_pass else '[FAIL]'}")
+    print(f"  gem5 ISA teeth (forced-wrong ECG_WIDTH must mis-decode -> FAIL): "
+          f"{'[OK ]' if teeth_fail else '[FAIL]'}")
+    return normal_pass and teeth_fail
 
 
 def run_gem5(variant, cov=False):
@@ -490,6 +533,8 @@ def main(argv=None):
         gem5_md5 = hashlib.md5(GEM5_OPT.read_bytes()).hexdigest()[:12]
         print(f"\n-- gem5 compile-once: ONE binary gem5.opt md5={gem5_md5} drives all "
               f"tie-break x cache runs below (runtime sweep, no recompile) --")
+        print("\n-- gem5 ISA decode: every ecg.load (mode x dest-width) through the REAL decoder + teeth --")
+        ok_all &= run_gem5_isa_modes()
         print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
         for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ", reasons=live_reasons)
@@ -510,6 +555,18 @@ def main(argv=None):
     print("\n-- live-trace branch coverage (default geometry) --")
     print(f"  live eviction reasons seen: {sorted(live_reasons) or '(none)'}")
     print(f"  epoch-property branch fired in default geom: {'yes' if epoch_reasons else 'NO (covered by synthetic + epoch-coverage runs)'}")
+
+    # ---------------------------------------------------------------------- #
+    # BEHAVIORAL equivalence + INSERTION-RRPV invariant. The per-sim eviction-
+    # spec checks above are necessary but NOT sufficient: they pass even with a
+    # backwards insertion RRPV (gem5 non-property=2 backfire bug), an unreordered
+    # workload (Sniper sg_kernel -o ignored), or cross-sim direction disagreement.
+    # These gates enforce behavioral correctness/equivalence. See verify/equiv.py.
+    # ---------------------------------------------------------------------- #
+    print("\n" + "=" * 72)
+    sims = ["cache_sim"] + (["gem5"] if args.gem5 else []) + (["sniper"] if args.sniper else [])
+    ok_all &= check_behavioral_equivalence(sims)
+    ok_all &= check_insertion_rrpv_invariant()
 
     print("\nRESULT:", "ALL POLICIES VERIFIED ✓" if ok_all else "VERIFICATION FAILED ✗")
     return 0 if ok_all else 1

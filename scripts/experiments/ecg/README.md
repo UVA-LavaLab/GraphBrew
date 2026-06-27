@@ -6,6 +6,22 @@ the small, structured module set below. **Every experiment is defined in
 `experiments.json` and run through `experiments.py`** — do not add new top-level
 scripts.
 
+## The story this testbed proves (three axes)
+
+ECG unifies three prior, separate graph-cache mechanisms into ONE per-edge
+*epoch* carried in the edge stream (`ECG_EXTRACT`), reserving zero cache ways:
+
+| axis | prior mechanism | ECG's claim | experiment |
+|------|-----------------|-------------|------------|
+| **A1 replacement vs GRASP** | degree-based retention | epoch encodes degree priority; ECG >= GRASP, wins on community/mesh | `headline-scale`, `multi-kernel` |
+| **A1 replacement vs P-OPT** | next-reference matrix in reserved ways | epoch encodes next-ref order at **0 ways**; ECG >= P-OPT iso-area | `headline-scale`, `prefetch-off-control` |
+| **A2 prefetch vs DROPLET** | structure-aware prefetch engine | the SAME epoch filters edge-stream lookahead | `prefetch-axis` |
+| **A3 combined** | GRASP/P-OPT + DROPLET (two engines) | one epoch drives both replacement + prefetch | `combined-axis` |
+
+*Carry the epoch, not the matrix -- and not a second prefetcher.* Honest caveat:
+on the prefetch axis DROPLET is latency-optimal (cuts demand most) while ECG_PFX
+is efficiency-optimal (~3x fewer fills, all useful) -- a Pareto trade, not a rout.
+
 ## Layout
 
 ```
@@ -21,8 +37,9 @@ flows/              experiment generators (produce raw data; each wraps roi_matr
   paper_pipeline.py     one-command paper pipeline
 
 verify/             correctness gates (3-sim equivalence)
-  ecg.py                eviction-policy equivalence (cache_sim/gem5/Sniper)
+  ecg.py                eviction-policy spec-compliance (cache_sim/gem5/Sniper) + runs equiv.py gates
   pfx.py                prefetch-path equivalence
+  equiv.py              BEHAVIORAL cross-sim equivalence + reorder guard + insertion-RRPV invariant
 
 analysis/           turn results into tables/figures
   scale.py              aggregate the scale sweep (regime map)
@@ -52,10 +69,23 @@ python3 experiments.py run headline-scale --dry-run          # print commands on
 python3 experiments.py run headline-scale --only cit-Patents # filter cells
 
 # correctness + analysis
-python3 experiments.py verify          # verify/ecg.py  (eviction equivalence)
+python3 experiments.py verify          # spec-compliance + behavioral equivalence + insertion invariant
+python3 experiments.py verify --equiv  # ONLY the behavioral equivalence/insertion gate (fast, cache_sim)
 python3 experiments.py verify --pfx    # verify/pfx.py  (prefetch equivalence)
 python3 experiments.py analyze         # analysis/scale.py (regime map)
+# deep cross-sim behavioral equivalence (slow; pressured kron cell):
+python3 verify/equiv.py --gem5         #   add gem5;  --sniper add Sniper
 ```
+
+### What the equivalence gate guards (and why spec-compliance alone did not)
+`verify/ecg.py` asserts every *eviction* obeys its policy spec. That is necessary
+but cannot catch: a backwards *insertion* RRPV (gem5 once inserted non-property
+data near-MRU → GRASP backfired), an *unreordered* workload (Sniper's sg_kernel
+once ignored `-o`), or cross-sim *direction* disagreement. `verify/equiv.py` adds
+behavioral gates on a **pressured** cell (property > L3) where all three sims must
+agree GRASP/ECG help, plus a static invariant that non-property inserts stay
+SRRIP-distant. These run automatically at the end of `experiments.py verify`.
+
 
 ## Adding an experiment (the only allowed way to grow this folder)
 
@@ -63,12 +93,14 @@ Add a named entry under `"experiments"` in `experiments.json`. An experiment is 
 cartesian product expanded into resumable `roi_matrix` cells:
 
 ```
-graphs x l3_sizes x policies x benchmarks
+graphs x l3_sizes x policies x benchmarks x prefetchers
 ```
 
 Every field falls back to `"defaults"`; `"graphs": "@eval"` resolves a named
-graph set. The headline config (8B epoch, structure prefetcher, iso-area charged
-P-OPT) lives in `"defaults"`, so a new experiment only overrides what differs.
+graph set; `"prefetchers"` defaults to `["none"]` (replacement axes) and is set
+to `["none", "DROPLET", "ECG_PFX"]` for the prefetch/combined axes. The headline
+config (8B epoch, structure prefetcher, iso-area charged P-OPT) lives in
+`"defaults"`, so a new experiment only overrides what differs.
 
 If a genuinely new *kind* of experiment is needed, add a thin module under
 `flows/` and a dispatch line in `experiments.py` — never a loose top-level script.

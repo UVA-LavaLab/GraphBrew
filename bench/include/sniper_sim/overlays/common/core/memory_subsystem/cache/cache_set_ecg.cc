@@ -66,6 +66,19 @@ CacheSetECG::CacheSetECG(
    if (Sim()->getCfg()->hasKey(cfgname + "/cache_size", core_id)) {
       m_llc_size_bytes = UInt64(Sim()->getCfg()->getIntArray(cfgname + "/cache_size", core_id)) * k_KILO;
    }
+   // ECG-CONFIG proof banner (ECG_DEBUG=1): same format as cache_sim/gem5. CacheSetECG is
+   // per-set, so a static one-shot guard prints exactly once per process.
+   static bool ecg_announced = false;
+   const char* dbg = std::getenv("ECG_DEBUG");
+   if (!ecg_announced && dbg && *dbg && std::string(dbg) != "0") {
+      ecg_announced = true;
+      const char* m = std::getenv("SNIPER_ECG_MODE");
+      const char* var = std::getenv("ECG_VARIANT");
+      std::fprintf(stderr,
+                   "[ECG-CONFIG sim=sniper policy=ECG mode=%s variant=%s llc=%lluB]\n",
+                   m ? m : "DBG_PRIMARY", var ? var : "rrip_first",
+                   (unsigned long long)m_llc_size_bytes);
+   }
 }
 
 CacheSetECG::~CacheSetECG()

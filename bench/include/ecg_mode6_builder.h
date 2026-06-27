@@ -115,6 +115,46 @@ inline uint32_t extractPrefetchTargetWide(uint64_t m) {
     return static_cast<uint32_t>((m >> kPrefetchWideShift) & 0xFFFFFFu);
 }
 
+// === CONFIGURABLE-WIDTH EVICT layout (the consolidated ecg.load headline) =====
+// The dest field is sized to fit the graph so one instruction scales without a
+// wider register: width class wc in {0,1,2,3} -> W = 8/16/24/32 dest bits, and the
+// next-ref EPOCH always rides the next 16 bits [W:W+16]; EVICT+PFX puts the (Path-B)
+// prefetch target above [W+16:64]. The gem5 ecg.load decoder reads wc from FUNCT7
+// bits[26:25] (ECG_WIDTH) and computes W = 8*(wc+1) -> these helpers MUST stay
+// bit-identical to that ea_code (the field-parity test pins it across all 3 sims).
+//   wc=2 (W=24) == packMaskEpochWide above (the 24-bit headline default).
+inline int      ecgEvictWidthBits(int wc)  { return 8 * ((wc & 0x3) + 1); }          // 8/16/24/32
+inline int      ecgEvictWidthClass(uint64_t num_vertices) {
+    // smallest W in {8,16,24,32} that holds an id in [0, num_vertices)
+    if (num_vertices <= (1ULL << 8))  return 0;
+    if (num_vertices <= (1ULL << 16)) return 1;
+    if (num_vertices <= (1ULL << 24)) return 2;
+    return 3;
+}
+inline uint64_t ecgEvictDestMask(int wc) {
+    int W = ecgEvictWidthBits(wc);
+    return (W >= 32) ? 0xFFFFFFFFULL : ((1ULL << W) - 1);
+}
+inline uint64_t packEvict(uint32_t dest, uint16_t epoch, int wc) {
+    int W = ecgEvictWidthBits(wc);
+    return (static_cast<uint64_t>(dest) & ecgEvictDestMask(wc)) |
+           (static_cast<uint64_t>(epoch & 0xFFFFu) << W);
+}
+inline uint64_t packEvictPfx(uint32_t dest, uint16_t epoch, uint32_t pfx, int wc) {
+    int W = ecgEvictWidthBits(wc);
+    return packEvict(dest, epoch, wc) |
+           (static_cast<uint64_t>(pfx & 0xFFFFFFu) << (W + 16));
+}
+inline uint32_t extractEvictDest(uint64_t m, int wc) {
+    return static_cast<uint32_t>(m & ecgEvictDestMask(wc));
+}
+inline uint16_t extractEvictEpoch(uint64_t m, int wc) {
+    return static_cast<uint16_t>((m >> ecgEvictWidthBits(wc)) & 0xFFFFu);
+}
+inline uint32_t extractEvictPfxTarget(uint64_t m, int wc) {
+    return static_cast<uint32_t>((m >> (ecgEvictWidthBits(wc) + 16)) & 0xFFFFFFu);
+}
+
 // === EPOCH-ONLY honest layout (headline ECG_GRASP_POPT + Path A, doc S13) =====
 // The stored prefetch-TARGET field is Path B — DEAD WEIGHT for the headline:
 // Path A reads the next-K targets straight from the CSR edge stream (= DROPLET's

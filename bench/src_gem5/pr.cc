@@ -183,6 +183,10 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     uint32_t pack_id_bits = 1, pack_id_mask = 1;
     bool packed_ok = false;
     bool ecg_extract_enabled = gem5_ecg_extract_enabled();
+    // FUSED ecg.load: one custom-0 I-type op replaces demand-load + repack +
+    // ecg.extract. Implies the extract delivery (so the mode-6 masks are built).
+    bool ecg_load_enabled = gem5_ecg_load_enabled();
+    if (ecg_load_enabled) ecg_extract_enabled = true;
     if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6) {
         vector<uint8_t> avg_reref_by_line;
         ecg_mode6::computeAvgRerefByLine(popt_matrix.data(), popt_num_cache_lines,
@@ -303,11 +307,48 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
             if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6
                 && u < static_cast<NodeID>(in_edge_masks_by_src.size())) {
                 const auto& src_masks = in_edge_masks_by_src[u];
+                // FUSED ecg.load handles the demand delivery (dest + epoch + Path-B
+                // prefetch target, all from the decoder) for the eviction-only and
+                // Path-B cases. Path A (lean_pfx_k>0) runs a separate lookahead loop
+                // that must own prefetch, so it keeps the non-fused demand path.
+                const bool use_fused_load = ecg_load_enabled && (lean_pfx_k == 0);
+                // FUSED indexed-property load: replaces the demand `contrib[v]` load
+                // AND the epoch delivery with one ecg.pload. Eviction-only / Path-B
+                // only (Path A owns its own lookahead).
+                const bool use_pload = gem5_ecg_pload_enabled() && (lean_pfx_k == 0);
+                // dest-field width class for the ecg.load EVICT record: fit the graph
+                // (W = 8/16/24/32 bits) so the same op scales to 4.29B vertices.
+                const int ecg_evict_wc =
+                    ecg_mode6::ecgEvictWidthClass(g.num_nodes());
+                if (use_pload) {
+                    static bool _ecg_pload_announced = false;
+                    if (!_ecg_pload_announced) {
+                        _ecg_pload_announced = true;
+                        fprintf(stderr, "[ECG_PLOAD] fused indexed-property ecg.pload ACTIVE\n");
+                    }
+                }
+                if (use_fused_load) {
+                    static bool _ecg_load_announced = false;
+                    if (!_ecg_load_announced) {
+                        _ecg_load_announced = true;
+                        fprintf(stderr, "[ECG_LOAD] fused ecg.load delivery ACTIVE\n");
+                    }
+                }
                 size_t edge_pos = 0;
                 for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
                     uint64_t mask;
                     NodeID v;
-                    if (packed_ok && (!ecg_prefetch_enabled || lean_pfx_k > 0)) {
+                    if (use_fused_load) {
+                        // FUSED PATH: a single ecg.load reads the 8-byte WIDE record
+                        // AND side-delivers its epoch (+ prefetch target) to the LLC,
+                        // returning the demand vertex in rd — replacing demand-load +
+                        // register-repack + ecg.extract with ONE instruction. (X86
+                        // fallback dereferences the record so the kernel still runs.)
+                        const uint64_t* rec_ptr =
+                            (edge_pos < src_masks.size()) ? &src_masks[edge_pos] : nullptr;
+                        v = static_cast<NodeID>(gem5_ecg_load_instruction(rec_ptr));
+                        mask = 0;  // unused after for the fused cases
+                    } else if (packed_ok && (!ecg_prefetch_enabled || lean_pfx_k > 0)) {
                         // EVICTION-ONLY demand mask (dest+epoch, NO fat-mask pfx
                         // target). Path A also takes this branch: it prefetches
                         // via the epoch-filtered lookahead below, so the demand
@@ -334,7 +375,9 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                         mask = (edge_pos < src_masks.size()) ? src_masks[edge_pos] : 0;
                         v = static_cast<NodeID>(ecg_mode6::extractDest(mask));
                     }
-                    if (ecg_extract_enabled) {
+                    if (ecg_extract_enabled && !use_fused_load && !use_pload) {
+                        // Separate register-only ecg.extract delivery. Skipped on the
+                        // fused path, where ecg.load already delivered the metadata.
                         GEM5_ECG_EXTRACT_MASK(mask);
                     }
                     if (lean_pfx_k > 0 && ecg_prefetch_enabled) {
@@ -393,7 +436,23 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                             }
                         }
                     }
-                    incoming_total += outgoing_contrib[v];
+                    if (use_pload) {
+                        // FUSED: ecg.load (EVICT) loads contrib[v] AND delivers v's epoch
+                        // in one custom-0 op. The record is the width-aware EVICT layout
+                        // (dest[0:W] | epoch[W:W+16]); the emitter encodes wc in FUNCT7.
+                        uint16_t ep_p = (edge_pos < src_masks.size())
+                            ? static_cast<uint16_t>(ecg_mode6::extractEpochWide(src_masks[edge_pos]))
+                            : 0;
+                        uint64_t fat_p = ecg_mode6::packEvict(
+                            static_cast<uint32_t>(v), ep_p, ecg_evict_wc);
+                        uint32_t _bits = gem5_ecg_load_evict(
+                            outgoing_contrib.data(), fat_p, ecg_evict_wc);
+                        ScoreT _pv;
+                        std::memcpy(&_pv, &_bits, sizeof(ScoreT));
+                        incoming_total += _pv;
+                    } else {
+                        incoming_total += outgoing_contrib[v];
+                    }
                 }
                 ScoreT old_score = scores[u];
                 scores[u] = base_score + kDamp * incoming_total;

@@ -84,6 +84,13 @@ def benchmark_environment(args):
         f"GEM5_ECG_PFX_FILTER_ELEM_SIZE=4",
         f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
         f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_grasp_popt or (args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
+        # Fused ecg.load prototype: host GEM5_FORCE_ECG_LOAD=1 selects the single
+        # custom-0 load-and-deliver instruction instead of demand-load + ecg.extract.
+        f"GEM5_ENABLE_ECG_LOAD={1 if os.environ.get('GEM5_FORCE_ECG_LOAD') == '1' else 0}",
+        # Fused indexed-property load prototype: host GEM5_FORCE_ECG_PLOAD=1 selects
+        # the single custom-0 R-type op that loads property[base+index*4] AND delivers
+        # the index's epoch, replacing unpack+ecg.extract+property-load.
+        f"GEM5_ENABLE_ECG_PLOAD={1 if os.environ.get('GEM5_FORCE_ECG_PLOAD') == '1' else 0}",
     ]
     # Propagate ECG mode + per-edge-mask lookahead from the outer harness
     # env so kernel-side `ecg_pfx_mode` reads the value roi_matrix.py set.

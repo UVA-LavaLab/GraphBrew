@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <chrono>
+#include <cstdio>
 #include <iostream>
 #include <limits>
 #include <queue>
@@ -8,6 +10,8 @@
 #include <vector>
 
 #include "benchmark.h"
+#include "builder.h"
+#include "command_line.h"
 #include "graph.h"
 #include "pvector.h"
 #include "reader.h"
@@ -35,6 +39,8 @@ struct Options {
     int max_iters = 2;
     NodeID source = 0;
     WeightT delta = 1;
+    std::string reorder_spec;   // -o value (e.g. "5" = DBG); empty = no reorder
+    bool symmetrize = false;    // -s
 };
 
 bool has_value(int index, int argc) {
@@ -56,9 +62,13 @@ Options parse_options(int argc, char** argv) {
         } else if (arg == "-d" && has_value(i, argc)) {
             options.delta = static_cast<WeightT>(std::atol(argv[++i]));
             if (options.delta <= 0) options.delta = 1;
-        } else if ((arg == "-g" || arg == "-k" || arg == "-o" || arg == "-n" || arg == "-t") && has_value(i, argc)) {
+        } else if (arg == "-o" && has_value(i, argc)) {
+            options.reorder_spec = argv[++i];   // forward to Builder reorder (was discarded!)
+        } else if ((arg == "-g" || arg == "-k" || arg == "-n" || arg == "-t") && has_value(i, argc)) {
             ++i;
-        } else if (arg == "-s" || arg == "-a" || arg == "-v" || arg == "--") {
+        } else if (arg == "-s") {
+            options.symmetrize = true;
+        } else if (arg == "-a" || arg == "-v" || arg == "--") {
             continue;
         } else if (arg == "-h" || arg == "--help") {
             std::cout << "Usage: sg_kernel --benchmark pr|bfs|sssp -f graph.sg [-i iters] [-r source] [-d delta]\n";
@@ -68,14 +78,43 @@ Options parse_options(int argc, char** argv) {
     return options;
 }
 
-Graph load_graph(const std::string& path) {
-    Reader<NodeID> reader(path);
-    return reader.ReadSerializedGraph();
+// Build a minimal GAPBS CLI argv from the parsed options so the graph is loaded
+// through Builder.MakeGraph() — IDENTICAL path to cache_sim/gem5 (bench/src_sim,
+// bench/src_gem5 pr.cc), which applies the -o reorder. Reading the .sg directly
+// (the old behaviour) silently skipped the reorder, making all Sniper degree-
+// policy runs operate on UNREORDERED graphs.
+namespace {
+std::vector<std::string> build_gapbs_args(const Options& opt) {
+    std::vector<std::string> args = {"sg_kernel", "-f", opt.graph_path};
+    if (opt.symmetrize) args.push_back("-s");
+    if (!opt.reorder_spec.empty()) {
+        args.push_back("-o");
+        args.push_back(opt.reorder_spec);
+    }
+    return args;
+}
+}  // namespace
+
+Graph load_graph(const Options& opt) {
+    std::vector<std::string> args = build_gapbs_args(opt);
+    std::vector<char*> cargv;
+    cargv.reserve(args.size());
+    for (auto& s : args) cargv.push_back(const_cast<char*>(s.c_str()));
+    CLApp cli(static_cast<int>(cargv.size()), cargv.data(), "sg_kernel");
+    cli.ParseArgs();
+    Builder b(cli);
+    return b.MakeGraph();
 }
 
-WGraph load_weighted_graph(const std::string& path) {
-    Reader<NodeID, WNode, WeightT> reader(path);
-    return reader.ReadSerializedGraph();
+WGraph load_weighted_graph(const Options& opt) {
+    std::vector<std::string> args = build_gapbs_args(opt);
+    std::vector<char*> cargv;
+    cargv.reserve(args.size());
+    for (auto& s : args) cargv.push_back(const_cast<char*>(s.c_str()));
+    CLDelta<WeightT> cli(static_cast<int>(cargv.size()), cargv.data(), "sg_kernel");
+    cli.ParseArgs();
+    WeightedBuilder b(cli);
+    return b.MakeGraph();
 }
 
 template <typename GraphType, typename ValueT>
@@ -220,10 +259,33 @@ int run_pr(const Graph& graph, int max_iters) {
 
     SNIPER_ROI_BEGIN();
 
+    // S70-DEBUG: progress instrumentation — write heartbeats to a file
+    // (not stderr — Pin SIFT trace recorder may not handle inline
+    // stderr writes from sg_kernel cleanly). The file is overwritten
+    // each iteration so only the LAST checkpoint is preserved (lightweight).
+    uint64_t progress_node_count = 0;
+    auto progress_start = std::chrono::steady_clock::now();
+    const char* progress_path = std::getenv("SNIPER_SG_PROGRESS_FILE");
+    if (!progress_path) progress_path = "/tmp/sniper_sg_progress.txt";
+
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
             ScoreT incoming_total = 0.0f;
+
+            // S70-DEBUG: heartbeat every 1000 nodes (written to file)
+            if (++progress_node_count % 1000 == 0) {
+                auto now = std::chrono::steady_clock::now();
+                double elapsed_s = std::chrono::duration<double>(now - progress_start).count();
+                FILE* pf = std::fopen(progress_path, "w");
+                if (pf) {
+                    std::fprintf(pf,
+                        "iter=%d node=%d processed=%lu elapsed=%.1fs emits=%lu dedups=%lu\n",
+                        iter, node, progress_node_count, elapsed_s,
+                        kernel_emit_count, kernel_dedup_count);
+                    std::fclose(pf);
+                }
+            }
 
             // Mode 6: per-edge ECG fat-mask path (paper's ECG ISA design).
             //
@@ -474,15 +536,15 @@ int main(int argc, char** argv) {
     }
 
     if (options.benchmark == "pr") {
-        Graph graph = load_graph(options.graph_path);
+        Graph graph = load_graph(options);
         return run_pr(graph, options.max_iters);
     }
     if (options.benchmark == "bfs") {
-        Graph graph = load_graph(options.graph_path);
+        Graph graph = load_graph(options);
         return run_bfs(graph, options.source);
     }
     if (options.benchmark == "sssp") {
-        WGraph graph = load_weighted_graph(options.graph_path);
+        WGraph graph = load_weighted_graph(options);
         return run_sssp(graph, options.source, options.delta);
     }
 

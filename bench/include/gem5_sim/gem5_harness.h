@@ -47,6 +47,105 @@
 #define GEM5_WORK_ECG_PFX_TARGET 0x47504658ULL  // GraphBrew ECG PFX target hint
 #define GEM5_WORK_ECG_PFX_TARGET_EPOCH 0x47504659ULL  // Path A: target|epoch<<32
 
+// GEM5_ENABLE_ECG_LOAD=1 selects the FUSED ecg.load custom-0 RISC-V instruction:
+// ONE I-type op that demand-loads the 8-byte packed mode-6 record from mem AND
+// side-delivers its epoch + prefetch target to the LLC (returning the demand
+// vertex in rd) — replacing the demand-load + register-repack + ecg.extract
+// sequence (~3-4 dynamic instructions) with a single instruction. RISC-V only.
+inline bool gem5_ecg_load_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_LOAD");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+// Emit `ecg.load rd, 0(rs1)` (custom-0 opcode 0x0b, FUNCT3=0x1, I-type). rs1 =
+// address of the 8-byte WIDE record; rd = unpacked demand vertex. The cache-side
+// epoch/prefetch delivery is the instruction's architectural side effect.
+inline uint32_t gem5_ecg_load_instruction(const void* record_ptr) {
+#if defined(__riscv)
+    uint64_t dest = 0;
+    asm volatile (".insn i 0x0b, 0x1, %0, 0(%1)"
+                  : "=r"(dest)
+                  : "r"(record_ptr)
+                  : "memory");
+    return static_cast<uint32_t>(dest);
+#else
+    return record_ptr
+        ? static_cast<uint32_t>((*static_cast<const uint64_t*>(record_ptr)) & 0xFFFFFFULL)
+        : 0;
+#endif
+}
+
+// GEM5_ENABLE_ECG_PLOAD=1 selects the FUSED INDEXED-PROPERTY load `ecg.pload`: ONE
+// custom-0 R-type op that loads property[base + index*4] AND delivers index's epoch
+// to the LLC, replacing (unpack index + unpack epoch + ecg.extract + load property).
+inline bool gem5_ecg_pload_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_PLOAD");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+// Emit `ecg.load rd, rs1, rs2` (custom-0 0x0b, FUNCT3=0x2, R-type): an indexed-property
+// cache-control load. rs1 = property base; rs2 = fat edge record. EA = rs1 + dest*4; loads
+// the 4-byte property word, side-delivers the caching metadata BEFORE the fill (so the line
+// is stamped), and returns the loaded word in rd.
+//
+// FUNCT7 = ECG_MODE<31:27> | ECG_WIDTH<26:25>, i.e. (mode<<2)|wc, matching the SSOT
+// ecg_mode6_builder.h layouts. `.insn r` needs a CONSTANT funct7, so the width class is a
+// 4-way switch (one constant per width). Layouts:
+//   EVICT     (mode 0): dest[0:W] | epoch[W:W+16]                 W = 8/16/24/32 by wc (HEADLINE)
+//   EVICT+PFX (mode 1): dest[0:W] | epoch[W:W+16] | pfx[W+16:64]
+//   EMBEDDED  (mode 2): NARROW dest[0:24]|dbg[24:26]|popt[26:33]|epoch[33:49]|pfx[49:64] (fixed)
+inline uint32_t gem5_ecg_load_evict(const void* prop_base, uint64_t fat_edge, int wc) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    switch (wc & 0x3) {  // FUNCT7 = (mode 0 << 2) | wc = wc
+        case 0: asm volatile(".insn r 0x0b, 0x2, 0x00, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+        case 1: asm volatile(".insn r 0x0b, 0x2, 0x01, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+        case 2: asm volatile(".insn r 0x0b, 0x2, 0x02, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+        default:asm volatile(".insn r 0x0b, 0x2, 0x03, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+    }
+    return static_cast<uint32_t>(val);
+#else
+    const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    unsigned W = 8u * ((wc & 0x3) + 1);
+    uint64_t dmask = (W >= 32) ? 0xFFFFFFFFULL : ((1ULL << W) - 1);
+    return base ? base[fat_edge & dmask] : 0;
+#endif
+}
+inline uint32_t gem5_ecg_load_pfx(const void* prop_base, uint64_t fat_edge, int wc) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    switch (wc & 0x3) {  // FUNCT7 = (mode 1 << 2) | wc = 0x04 + wc
+        case 0: asm volatile(".insn r 0x0b, 0x2, 0x04, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+        case 1: asm volatile(".insn r 0x0b, 0x2, 0x05, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+        case 2: asm volatile(".insn r 0x0b, 0x2, 0x06, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+        default:asm volatile(".insn r 0x0b, 0x2, 0x07, %0, %1, %2" : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory"); break;
+    }
+    return static_cast<uint32_t>(val);
+#else
+    const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    unsigned W = 8u * ((wc & 0x3) + 1);
+    uint64_t dmask = (W >= 32) ? 0xFFFFFFFFULL : ((1ULL << W) - 1);
+    return base ? base[fat_edge & dmask] : 0;
+#endif
+}
+inline uint32_t gem5_ecg_load_embedded(const void* prop_base, uint64_t fat_edge) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x08, %0, %1, %2"   // FUNCT7 = mode 2 << 2 (wc ignored)
+                  : "=r"(val) : "r"(prop_base), "r"(fat_edge) : "memory");
+    return static_cast<uint32_t>(val);
+#else
+    const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    return base ? base[fat_edge & 0xFFFFFFULL] : 0;
+#endif
+}
+
 #ifndef NO_M5OPS
 inline bool gem5_vertex_hints_enabled() {
     static int enabled = []() {

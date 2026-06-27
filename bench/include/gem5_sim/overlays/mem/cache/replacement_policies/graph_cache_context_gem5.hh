@@ -691,11 +691,12 @@ struct GraphCacheContext {
                     regions[num_regions].bucket_bounds[1] = regions[num_regions].base_address + 2 * third;
                     regions[num_regions].bucket_bounds[2] = regions[num_regions].upper_bound;
 
-                    // GRASP hot region = frontier_frac (upstream ligra.h:66 default=50).
-                    // Actual classification reads the GraphGraspRP hot_fraction
-                    // Param (default 0.50) in classifyGRASP(); this is just the
-                    // logged registration value.
-                    constexpr uint32_t kSidebandHotPct = 50;
+                    // GRASP hot region = frontier_frac as % of VERTEX SPACE.
+                    // LOG-ONLY value: the actual classification uses the
+                    // GraphGraspRP hot_fraction Param / classifyGRASP default
+                    // (0.15), matching cache_sim + Sniper. Keep 15 for an
+                    // honest, equivalent log (was a misleading 50).
+                    constexpr uint32_t kSidebandHotPct = 15;
                     logGraphCtxRegistration("gem5", nullptr,
                                             regions[num_regions].base_address,
                                             regions[num_regions].upper_bound,

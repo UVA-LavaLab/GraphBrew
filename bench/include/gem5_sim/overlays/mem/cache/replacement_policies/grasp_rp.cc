@@ -82,7 +82,12 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
             data->is_property_data = true;
             ctx.updateVertexFromAddr(addr);
         } else {
-            data->rrpv = 2;
+            // Non-property / unclassified data (edge CSR stream, stack, etc.) must
+            // use the SRRIP baseline "distant" insertion (maxRRPV-1), matching the
+            // GRASP paper, cache_sim (tier-3=M_RRIP) and Sniper (m_rrip_insert).
+            // The previous value (2, near-MRU) PROTECTED the streaming edge data
+            // over the property vertices GRASP is meant to keep -> GRASP backfired.
+            data->rrpv = maxRRPV - 1;
             data->is_property_data = false;
         }
     } else {

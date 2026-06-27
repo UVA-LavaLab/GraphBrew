@@ -42,4 +42,89 @@
                     }});
                 }
             }
+            // GraphBrew FUSED ecg.load (custom-0, FUNCT3=0x1, I-type): a single
+            // instruction that LOADS the 8-byte packed mode-6 WIDE record from
+            // mem[rs1+imm] AND side-delivers its epoch + prefetch target to the
+            // LLC, returning the demand vertex in rd. Replaces the 3-step demand-
+            // load + register-repack + ecg.extract sequence with ONE instruction.
+            // Same WIDE layout the register ecg.extract decodes:
+            //   [0:24] dest_id  [24:40] epoch(16b)  [40:64] prefetch target(24b)
+            format Load {
+                0x1: ecg_load({{
+                    uint64_t fat_mask = Mem_ud;
+                    uint32_t dest_id     = static_cast<uint32_t>((fat_mask >>  0) & 0xFFFFFFULL);
+                    uint8_t  dbg_tier    = 0;
+                    uint8_t  popt_quant  = 0;
+                    uint16_t epoch       = static_cast<uint16_t>((fat_mask >> 24) & 0xFFFFULL);
+                    uint32_t pfx_target  = static_cast<uint32_t>((fat_mask >> 40) & 0xFFFFFFULL);
+                    gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                        dest_id, dbg_tier, popt_quant, epoch);
+                    gem5::replacement_policy::graph::setDecodedEcgExtractHint(
+                        dest_id, dbg_tier, popt_quant, 0, epoch);
+                    if (pfx_target != 0) {
+                        gem5::replacement_policy::graph::setPrefetchTargetHint(pfx_target);
+                    }
+                    Rd = rvZext(dest_id);
+                }});
+            }
+            // GraphBrew FUSED ecg.load (custom-0, FUNCT3=0x2, R-type): indexed-
+            // property load + metadata delivery in ONE op. rs1 = property base, rs2 =
+            // fat edge record. EA = rs1 + dest*4; loads property[dest]; delivers the
+            // caching metadata in ea_code (BEFORE the access) so the line is stamped on
+            // fill; rd = property value. FUNCT7 = ECG_MODE<31:27> | ECG_WIDTH<26:25>:
+            // the MODE picks the caching axis; for EVICT/PFX the WIDTH class selects the
+            // dest field width W = 8/16/24/32 bits (epoch rides [W:W+16]), so one op
+            // scales from 256 to 4.29B vertices. Bit layouts = ecg_mode6_builder.h SSOT.
+            format Load {
+                0x2: decode ECG_MODE {
+                    // 0x00 EVICT (WIDE, configurable dest): dest[0:W] | epoch[W:W+16].
+                    0x00: ecg_load_evict({{
+                        Rd = Mem_uw;
+                    }}, ea_code={{
+                        uint64_t fat = Rs2;
+                        unsigned W = 8u * (ECG_WIDTH + 1);              // 8/16/24/32
+                        uint64_t dmask = (W >= 32) ? 0xFFFFFFFFULL : ((1ULL << W) - 1);
+                        uint32_t dest_id = static_cast<uint32_t>(fat & dmask);
+                        uint16_t epoch   = static_cast<uint16_t>((fat >> W) & 0xFFFFULL);
+                        gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                            dest_id, 0, 0, epoch);
+                        EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
+                    }});
+                    // 0x01 EVICT+PFX (WIDE, configurable): dest[0:W] | epoch[W:W+16] | pfx[W+16:64].
+                    0x01: ecg_load_pfx({{
+                        Rd = Mem_uw;
+                    }}, ea_code={{
+                        uint64_t fat = Rs2;
+                        unsigned W = 8u * (ECG_WIDTH + 1);
+                        uint64_t dmask = (W >= 32) ? 0xFFFFFFFFULL : ((1ULL << W) - 1);
+                        uint32_t dest_id = static_cast<uint32_t>(fat & dmask);
+                        uint16_t epoch   = static_cast<uint16_t>((fat >> W) & 0xFFFFULL);
+                        uint32_t pfx     = static_cast<uint32_t>((fat >> (W + 16)) & 0xFFFFFFULL);
+                        gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                            dest_id, 0, 0, epoch);
+                        if (pfx != 0) {
+                            gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
+                        }
+                        EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
+                    }});
+                    // 0x02 EMBEDDED (NARROW packMaskEpoch, fixed 24-bit dest, dbg-carrying):
+                    // dest[0:24] | dbg[24:26] | popt[26:33] | epoch[33:49] | pfx[49:64].
+                    0x02: ecg_load_embedded({{
+                        Rd = Mem_uw;
+                    }}, ea_code={{
+                        uint64_t fat = Rs2;
+                        uint32_t dest_id = static_cast<uint32_t>(fat & 0xFFFFFFULL);
+                        uint8_t  dbg     = static_cast<uint8_t> ((fat >> 24) & 0x3ULL);
+                        uint8_t  popt    = static_cast<uint8_t> ((fat >> 26) & 0x7FULL);
+                        uint16_t epoch   = static_cast<uint16_t>((fat >> 33) & 0xFFFFULL);
+                        uint32_t pfx     = static_cast<uint32_t>((fat >> 49) & 0x7FFFULL);
+                        gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                            dest_id, dbg, popt, epoch);
+                        if (pfx != 0) {
+                            gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
+                        }
+                        EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
+                    }});
+                }
+            }
         }

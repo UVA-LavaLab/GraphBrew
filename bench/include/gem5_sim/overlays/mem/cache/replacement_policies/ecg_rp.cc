@@ -9,6 +9,7 @@
 
 #include "mem/cache/replacement_policies/ecg_rp.hh"
 
+#include "mem/cache/replacement_policies/ecg_epoch_request_ext.hh"
 #include "mem/cache/replacement_policies/ecg_victim_policy.hh"
 
 #include <algorithm>
@@ -29,6 +30,16 @@ GraphEcgRP::GraphEcgRP(const Params &p)
       sidebandPath(p.sideband_path),
       poptMatrixPath(p.popt_matrix_path)
 {
+    // ECG-CONFIG proof banner (ECG_DEBUG=1): same format as cache_sim/sniper, proving
+    // which mode/variant this gem5 ECG replacement policy resolved. p.ecg_mode is the
+    // mode string straight from the SimObject Param (no reverse lookup needed).
+    const char* dbg = std::getenv("ECG_DEBUG");
+    if (dbg && *dbg && std::string(dbg) != "0") {
+        const char* var = std::getenv("ECG_VARIANT");
+        std::cerr << "[ECG-CONFIG sim=gem5 policy=ECG mode=" << p.ecg_mode
+                  << " variant=" << (var ? var : "rrip_first")
+                  << " llc=" << llcSize << "B]\n";
+    }
 }
 
 
@@ -207,9 +218,15 @@ GraphEcgRP::reset(
             if (vertex != UINT32_MAX) {
                 uint8_t isa_dbg = 0, isa_popt = 0;
                 uint16_t isa_epoch = 0;
-                bool got = (ecgMode == graph::ECGMode::ECG_GRASP_POPT)
-                    ? graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt, isa_epoch)
-                    : graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt, isa_epoch);
+                // OoO request-sideband FIRST (race-free; an O3 ecg.load attaches the
+                // epoch to the demand request). Falls back to the in-order single-slot
+                // mailbox / per-vertex table, which is equivalent for serialized loads.
+                bool got = graph::readEcgEpoch(pkt->req, isa_epoch, isa_dbg, isa_popt);
+                if (!got) {
+                    got = (ecgMode == graph::ECGMode::ECG_GRASP_POPT)
+                        ? graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt, isa_epoch)
+                        : graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt, isa_epoch);
+                }
                 if (got) {
                     // Use ISA-delivered metadata directly.
                     data->ecg_dbg_tier = isa_dbg;

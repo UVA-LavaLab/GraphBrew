@@ -142,6 +142,65 @@ int main() {
               extractDestEpochOnly(packMaskEpochOnly(7, 0, 916428u)), 7u);
     }
 
+    // (7) CONFIGURABLE-WIDTH EVICT layout (the consolidated ecg.load): dest width
+    //     W = 8/16/24/32 per width-class wc in {0,1,2,3}, epoch at [W:W+16], pfx at
+    //     [W+16:64]. Pins round-trip at every width AND the gem5 decoder DRIFT GUARD:
+    //     the ecg.load ea_code hand-codes W = 8*(wc+1), dest = m & dmask,
+    //     epoch = (m>>W)&0xFFFF, pfx = (m>>(W+16))&0xFFFFFF — assert that equals the
+    //     builder helpers, so a layout change that forgets the .isa fails HERE.
+    {
+        printf("  -- configurable-width EVICT (W=8/16/24/32) + ISA drift guard --\n");
+        struct { int wc; uint32_t dest; const char* lbl; } cases[] = {
+            {0, 200u,        "wc0 W8  (<=255)"},
+            {1, 60000u,      "wc1 W16 (<=65535)"},
+            {2, 12345678u,   "wc2 W24 (<=16.7M)"},
+            {3, 3000000000u, "wc3 W32 (<=4.29B)"},
+        };
+        for (auto& c : cases) {
+            uint16_t epoch = 0xBEEF; uint32_t pfx = 0xABCD;
+            uint64_t m  = packEvict(c.dest, epoch, c.wc);
+            uint64_t mp = packEvictPfx(c.dest, epoch, pfx, c.wc);
+            char nm[96];
+            snprintf(nm, sizeof nm, "%s dest round-trip", c.lbl);
+            check(nm, extractEvictDest(m, c.wc), c.dest);
+            snprintf(nm, sizeof nm, "%s epoch round-trip", c.lbl);
+            check(nm, extractEvictEpoch(m, c.wc), epoch);
+            snprintf(nm, sizeof nm, "%s +pfx dest/epoch/pfx round-trip", c.lbl);
+            check(nm, (extractEvictDest(mp, c.wc) == c.dest &&
+                       extractEvictEpoch(mp, c.wc) == epoch &&
+                       extractEvictPfxTarget(mp, c.wc) == pfx) ? 1u : 0u, 1u);
+            // ISA DRIFT GUARD: hand-coded decoder ea_code logic == builder helpers.
+            unsigned W = 8u * (c.wc + 1);
+            uint64_t dmask = (W >= 32) ? 0xFFFFFFFFULL : ((1ULL << W) - 1);
+            uint64_t isa_dest  = mp & dmask;
+            uint64_t isa_epoch = (mp >> W) & 0xFFFFULL;
+            uint64_t isa_pfx   = (mp >> (W + 16)) & 0xFFFFFFULL;
+            snprintf(nm, sizeof nm, "%s ISA W=8*(wc+1)", c.lbl);
+            check(nm, W, (unsigned)ecgEvictWidthBits(c.wc));
+            snprintf(nm, sizeof nm, "%s ISA dest>>0  == builder", c.lbl);
+            check(nm, isa_dest, extractEvictDest(mp, c.wc));
+            snprintf(nm, sizeof nm, "%s ISA epoch>>W == builder", c.lbl);
+            check(nm, isa_epoch, extractEvictEpoch(mp, c.wc));
+            snprintf(nm, sizeof nm, "%s ISA pfx>>(W+16) == builder", c.lbl);
+            check(nm, isa_pfx, extractEvictPfxTarget(mp, c.wc));
+        }
+        // wc=2 (W=24) EVICT == the existing 24-bit WIDE headline (consistency).
+        {
+            uint32_t dest = 0xABCDEF; uint16_t epoch = 0x1234;
+            check("wc2 EVICT dest == packMaskEpochWide dest",
+                  extractEvictDest(packEvict(dest, epoch, 2), 2),
+                  extractDest(packMaskEpochWide(dest, epoch, 0)));
+            check("wc2 EVICT epoch == packMaskEpochWide epoch",
+                  extractEvictEpoch(packEvict(dest, epoch, 2), 2),
+                  extractEpochWide(packMaskEpochWide(dest, epoch, 0)));
+        }
+        // Width-class selection by graph size.
+        check("ecgEvictWidthClass(256) -> wc0", (unsigned)ecgEvictWidthClass(256), 0u);
+        check("ecgEvictWidthClass(65536) -> wc1", (unsigned)ecgEvictWidthClass(65536), 1u);
+        check("ecgEvictWidthClass(16.7M) -> wc2", (unsigned)ecgEvictWidthClass(16777216ULL), 2u);
+        check("ecgEvictWidthClass(100M) -> wc3", (unsigned)ecgEvictWidthClass(100000000ULL), 3u);
+    }
+
     printf("  RESULT: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

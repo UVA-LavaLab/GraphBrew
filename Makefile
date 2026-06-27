@@ -222,7 +222,7 @@ RISCV_CROSS_COMPILE ?= riscv64-linux-gnu-
 # Static linking for gem5 SE mode. -O1 to avoid unsupported instructions.
 CXXFLAGS_GEM5 = -std=c++17 -O1 -Wall -g -DNDEBUG -DNO_M5OPS -fopenmp
 CXXFLAGS_GEM5_M5OPS = $(filter-out -DNO_M5OPS,$(CXXFLAGS_GEM5)) -I$(GEM5_DIR)/include
-CXXFLAGS_GEM5_RISCV_M5OPS = $(CXXFLAGS_GEM5_M5OPS) -static
+CXXFLAGS_GEM5_RISCV_M5OPS = $(CXXFLAGS_GEM5_M5OPS) -static -mno-relax
 KERNELS_GEM5 = pr pr_spmv bfs sssp cc cc_sv bc tc
 
 $(BIN_GEM5_DIR):

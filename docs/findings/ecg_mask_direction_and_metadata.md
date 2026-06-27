@@ -1017,3 +1017,207 @@ claim. Report this honestly.
 - Eviction is cache_sim/gem5/Sniper-equivalent on traffic; the prefetch LATENCY claim needs a gem5
   cycle-accurate spot-check (cache_sim models traffic, not MSHR/timeliness), and Sniper is parity
   corroboration only (its L2 enqueue filter suppresses fills). See todos cu-gem5-pfx-spotcheck.
+
+## 19. Consolidated ECG ISA: ONE instruction, mode-controlled caching (2026-06-26)
+
+The prototyping forms (`ecg.extract` reg-hint FUNCT3=0x0, `ecg.load` side-record FUNCT3=0x1)
+are SUBSUMED into a SINGLE headline instruction. The paper presents one custom-0 op; a FUNCT7
+MODE field selects which caching axis the per-edge metadata drives.
+
+### 19.1 The instruction
+```
+ecg.load  rd, rs1, rs2        custom-0 (opcode 0x0b), FUNCT3=0x2, R-type
+    rs1 = property base (&prop[0]);  rs2 = fat edge (mode-6 record);  rd = prop[dest]
+    dest = rs2 & ((1<<W)-1);  EA = rs1 + dest*elem_size;  deliver metadata per MODE BEFORE
+    the fill (so the line is stamped on insertion);  rd = Mem[EA].
+```
+The instruction word is a fixed 32 bits; the 64-bit metadata lives in the register `rs2`, never
+in the instruction. `W` is the configurable dest-field width (§19.5). Decoder SSOT:
+`overlays/arch/riscv/isa/decoder_ecg_extract.isa` + `formats/ecg.isa` (the `ECG_MODE`/`ECG_WIDTH`
+bitfields), mirrored byte-identical to the gem5/src build tree by `setup_gem5.py`.
+
+### 19.2 FUNCT7 = ECG_MODE<31:27> | ECG_WIDTH<26:25>  (mode picks the axis, width sizes dest)
+| ECG_MODE | mode | SSOT layout (bits of rs2) | caching effect |
+|---|---|---|---|
+| 0x00 | **EVICT** (headline) | `dest[0:W] | epoch[W:W+16]` (`packEvict`) | next-ref epoch eviction (P-OPT-class) |
+| 0x01 | EVICT+PFX | `dest[0:W] | epoch[W:W+16] | pfx[W+16:64]` (`packEvictPfx`) | + Path-B prefetch target |
+| 0x02 | EMBEDDED | NARROW `packMaskEpoch`: `dest[0:24] | dbg[24:26] | popt[26:33] | epoch[33:49] | pfx[49:64]` | full legacy metadata (fixed 24-bit dest) |
+
+`FUNCT7 = (ECG_MODE<<2) | ECG_WIDTH`. The shifts come from the builder constants, so the gem5
+decoder, the cache_sim/Sniper models, and the kernel packer read the SAME bits.
+
+### 19.3 Bug fixed this session (the consolidation)
+- An earlier hand-edit that added `ecg.load`/`ecg.pload` as FUNCT3 cases **dropped the `}` that
+  closes the custom-0 `0x02: decode FUNCT3 {` block**, so the standard LOAD opcode (and everything
+  after) was wrongly nested inside custom-0. The gem5 ISA parser reported only `At 0: unknown
+  syntax error` (EOF). Restored the missing brace; gem5/src is now byte-identical to the overlay.
+- The dbg-delivery modes had a **layout collision**: they put `dbg` at bit 40, which the WIDE layout
+  uses for `pfx`. Reconciled: dbg is carried ONLY by the NARROW `packMaskEpoch` (EMBEDDED, 0x01);
+  the WIDE modes (EVICT/EVICT+PFX) carry no dbg (it is vestigial and reclaimed for the wider pfx,
+  §10.2/§14). The non-SSOT FULL (0x03) mode was dropped (EMBEDDED already carries every field).
+
+### 19.4 Validation (no bugs)
+- ISA parses clean standalone (`isa_parser` → `PARSE_OK`); gem5 RISCV `gem5.opt` rebuilds rc=0
+  (`[ISA DESC]` regenerates + compiles + links). The generated decoder resolves `ECG_WIDTH` to
+  `bits(machInst,26,25)` (verified in the generated `.inc`).
+- **Real-decoder gate** (`test_ecg_load_modes.cc`, wired into `verify_ecg.py --gem5`): issues EVERY
+  `(mode × dest-width)` `ecg.load` through the ACTUAL gem5 RISC-V decoder and checks the decoded dest
+  via `rd = prop[dest]`. The field-parity test only checks a C++ MIRROR of the shifts and the 3-sim
+  verify drives eviction via the X86 m5op path, so this is the only thing that runs the real decoded
+  instruction for the new modes/widths. Includes a TEETH proof: forcing the emitted width wrong
+  (`ECG_TEST_FORCE_WC`) while packing correctly makes the decoder mis-extract dest → the test FAILs,
+  proving `ECG_WIDTH` is load-bearing (non-vacuous). Both pass: normal=PASS, forced-wrong=FAIL.
+- Field-layout parity + drift guard (`test_ecg_packed_field_parity.cc`) = 95/0, pinning the WIDE
+  shifts AND the configurable-width `W = 8*(wc+1)` decoder logic against the builder SSOT for every
+  width class; EMBEDDED's NARROW shifts verified equal to `packMaskEpoch`.
+- `experiments.py verify` (cache_sim) = ALL POLICIES VERIFIED; `--gem5 --sniper` = ALL POLICIES
+  VERIFIED — 3-sim eviction equivalence (shared `ecg_victim_policy.h` decision + shared
+  `ecg_mode6_builder.h` layout), cache_sim + gem5 + sniper all agree GRASP helps. Epoch width is
+  analytical (§14.4): `b ≈ log2(N·ρ/C)` ⇒ ~10-bit saturation on the eval corpus and ≤16 bits for
+  ~100M nodes @ 1MB LLC.
+
+### 19.5 Configurable dest width (8/16/24/32) — one op scales to 4.29B vertices
+The `ECG_WIDTH` field (FUNCT7 bits[26:25]) selects the dest-field width class
+`wc ∈ {0,1,2,3} → W = 8/16/24/32` bits; the next-ref EPOCH always rides `[W:W+16]`, and EVICT+PFX
+puts the prefetch target above `[W+16:64]`. So a single instruction sizes its dest to the graph:
+W8 ≤ 256 verts, W16 ≤ 65 K, W24 ≤ 16.7 M (the headline default == the prior 24-bit WIDE layout),
+W32 ≤ 4.29 B — covering twitter/friendster/kron-s27 and beyond without a wider register or a
+second op. SSOT helpers in `ecg_mode6_builder.h`: `ecgEvictWidthClass(N)`, `ecgEvictWidthBits(wc)`,
+`packEvict`/`packEvictPfx`, `extractEvict{Dest,Epoch,PfxTarget}`. `.insn r` needs a constant funct7,
+so the kernel emitter (`gem5_ecg_load_evict`) is a 4-way switch over the constant FUNCT7 per width;
+the PR kernel computes `wc = ecgEvictWidthClass(g.num_nodes())` once. This is the scaling axis the
+analytical bit budget motivates: with a fixed cache the dest grows with the graph, not the epoch.
+
+### 19.6 OoO request-sideband — the race-free, HW-realizable delivery (final piece)
+The epoch must reach the LLC fill associated with the RIGHT demand. Two in-order models existed:
+the single-slot mailbox (`setDecodedEcgExtractHint`) and the per-vertex table
+(`storeEcgMetadataByVertex`). The mailbox **races under an out-of-order CPU** (a later `ecg.load`'s
+epoch can overwrite an earlier one before its fill stamps the line); the table is **O(num_vertices)**
+— the very cost ECG avoids. The correct OoO + HW-realizable delivery is a per-REQUEST sideband: the
+`ecg.load` AGU tags the demand `Request` with `{dest, epoch}` (a few tag bits riding the in-flight
+load), and the LLC reads it on the fill. The epoch travels WITH the specific request → no shared
+structure to race, no per-vertex storage.
+
+Implemented as a first-class gem5 `Request::Extension` (`Request` is `Extensible<Request>`):
+`overlays/mem/cache/replacement_policies/ecg_epoch_request_ext.hh` defines `EcgEpochExtension` +
+`attachEcgEpoch(req,…)` (the O3 AGU side) + `readEcgEpoch(req,…)` (the LLC side). `ecg_rp.cc` reset
+now consults `readEcgEpoch(pkt->req,…)` FIRST and falls back to the in-order mailbox/table. Compiles
++ links into RISCV `gem5.opt` (rc=0); a standalone unit check confirms the attach/read round-trip.
+
+In-order equivalence (why the case study is valid): on the serialized TimingSimpleCPU the mailbox
+holds exactly the demanded vertex's epoch when its fill reaches the LLC, so it is mathematically
+equivalent to the sideband (no race possible) — the replacement policy is validated in-order via the
+mailbox, and the `EcgEpochExtension` is the SAME information delivered race-free for the O3CPU /
+multicore form. The remaining O3 integration is the AGU attach (a custom `ecg.load` format's
+`initiateAcc` calling `attachEcgEpoch` on the request it issues); the read side + extension are in
+place so that path is correct the moment it is wired.
+
+## 20. Three-simulator equivalence showcase + debug proof (2026-06-26)
+
+`scripts/experiments/ecg/three_sim_showcase.py` runs the same policies on the same cell across
+cache_sim / gem5 / Sniper and prints (a) an L3 miss-rate table and (b) the per-sim `[ECG-CONFIG …]`
+banner. It drives the committed `roi_matrix` with the verified cell geometry, so the ECG headline is
+NOT hand-rolled — a raw `roi_matrix --policies ECG:…` that omits the load-bearing knobs
+(`ECG_EDGE_MASK_CHARGED`, `CACHE_ULTRAFAST=0`, the L1/L2 sizes) makes ECG DEGENERATE (kron@128kB
+ECG 0.67 > LRU 0.66). With the correct geometry ECG matches verify exactly (0.5718).
+
+**Two distinct claims — do not conflate them:**
+- **(A) ECG ADVANTAGE** — ECG beats GRASP *and* P-OPT. This is a REAL-GRAPH claim on cache_sim (the
+  functional authority), §20.0.
+- **(B) 3-SIM EQUIVALENCE** — the same policy moves the miss rate the same DIRECTION in all three
+  simulators. This needs a gem5/Sniper-feasible cell, so it uses the SYNTHETIC kron_s16_k4 (§20.1).
+  kron's Kronecker structure does NOT reward the next-reference epoch, so ECG does NOT beat GRASP on
+  kron — that cell certifies cross-sim agreement, NOT the ECG advantage.
+
+### 20.0 ECG ADVANTAGE (real graphs, cache_sim, -o5, ECG_VARIANT=shortcircuit): ECG beats GRASP AND P-OPT
+ECG_GRASP_POPT layers GRASP's degree-aware INSERTION + P-OPT's next-reference EVICTION (the epoch is
+strictly more information than degree), so the design target is `LRU > GRASP > P-OPT ≥ ECG` (lower
+miss rate is better). On graphs with exploitable next-reference structure it holds:
+
+| cell (cache_sim, -o5) | LRU | GRASP | P-OPT | **ECG** |
+|---|---|---|---|---|
+| web-Google @ 512kB (L1=32k,L2=256k) | 0.8440 | 0.6733 | 0.6326 | **0.6229** |
+| cit-Patents @ 1MB (L1=32k,L2=256k)  | 0.8958 | 0.8196 | 0.7471 | **0.6795** |
+
+ECG is the LOWEST miss rate in both — it beats GRASP and the (all-ways, uncharged) P-OPT, using a
+memory-resident per-edge mask and NO reserved LLC way (§14, §21 on P-OPT's 1-way charge makes the
+margin larger still). This is the headline; the kron cell below is ONLY for cross-sim equivalence.
+
+### 20.1 Equivalence cell — NOT the ECG advantage (kron_s16_k4 @ L3=128kB/16w, L1d=16kB, L2=64kB, -o5, PR, ECG_VARIANT=rrip_first)
+| policy | cache_sim | gem5 | Sniper |
+|---|---|---|---|
+| LRU | 0.6606 | 0.6475 | 0.5695 |
+| GRASP | **0.5319** | **0.5655** | **0.4771** |
+| ECG_GRASP_POPT | **0.5718** | (eviction-spec) | (eviction-spec) |
+
+Read as DIRECTION vs LRU, not absolute (absolute rates are NOT comparable across simulators: gem5/
+Sniper see the full ISA access stream, cache_sim sees graph accesses only — §10/§16.4). GRASP HELPS
+in ALL THREE simulators (−0.129 / −0.082 / −0.092); cache_sim ECG helps (−0.089). This is the same
+result the verify GATE 1+2 asserts (`helps=['cache_sim','gem5','sniper']`).
+
+### 20.2 gem5/Sniper ECG on a PRESSURED cell = eviction-spec, not full-run
+gem5/Sniper ECG_GRASP_POPT on kron@128kB exceeds the per-run sim timeout (≈15 min of detailed sim;
+the ECG mask/epoch path is heavier than LRU/GRASP). Their ECG correctness is therefore established by
+the eviction-SPEC checks (`verify_ecg.py --gem5 --sniper`: 40/40 each), the byte-identical shared
+`ecg_victim_policy.h` decision, the field-parity drift guard, and the real-decoder gate — NOT by a
+full miss-rate run on the pressured cell. cache_sim (the functional authority) carries the ECG
+miss-rate headline.
+
+### 20.3 Small-cache confound (why the cell matters)
+On a TINY L3 (email-Eu-core @ 8kB) cache_sim shows GRASP/ECG helping (0.657→0.534/0.536) but gem5
+shows them HURTING — the gem5 L3 is swamped by the full-ISA stream, so the graph-property retention
+signal is drowned out. This is the documented access-population confound (§10), not an equivalence
+failure: equivalence must be read on a cell large enough that the property region is the L3 working
+set (kron@128kB), where all three simulators agree.
+
+### 20.4 Debug proof (the runs are what they claim)
+- `ECG_DEBUG=1` → each sim emits ONE `[ECG-CONFIG sim=… policy=… mode=… variant=… …]` line at
+  policy init, proving the resolved config. Verified identical across all three on kron:
+  `sim=cache_sim policy=ECG mode=ECG_GRASP_POPT variant=rrip_first charged=1`,
+  `sim=gem5 … llc=131072B`, `sim=sniper … policy=ECG mode=ECG_GRASP_POPT variant=rrip_first`.
+  Banners live in `cache_sim` `MaskConfig::initFromEnv`, gem5 `GraphEcgRP` ctor, Sniper `CacheSetECG`
+  ctor (one-shot).
+- `ECG_EVICT_TRACE=N` → each sim dumps the first N L3 evictions (`[EVICT L3 pol=… curEpoch=… ->
+  victim=way… reason=…]`), proving the policy ACTS (already present in cache_sim + gem5 + Sniper).
+
+## 21. FULL multi-kernel equivalence + full debug (2026-06-26)
+
+The ECG eviction DECISION (`ecg_victim_policy.h`) is kernel-AGNOSTIC and byte-identical across the
+three simulators, so the policy must obey the same eviction spec for EVERY kernel in EVERY
+simulator — not only PageRank. `scripts/experiments/ecg/verify/equiv_kernels.py`
+(`experiments.py verify --kernels [--gem5 --sniper]`) runs each kernel under ECG_GRASP_POPT with the
+eviction trace on, asserts every L3 eviction obeys the policy spec (reusing `verify_ecg.py`'s
+kernel-agnostic `verify_trace`), AND captures the per-sim `[ECG-CONFIG …]` debug banner.
+
+### 21.1 Result (email-Eu-core, coverage geometry, ECG_VARIANT=rrip_first) — ALL PASS
+| kernel | cache_sim | gem5 (X86) | Sniper |
+|---|---|---|---|
+| PR  | ok (2070/2070) | ok (4000/4000) | ok (40/40) |
+| BFS | ok (489/489)   | ok (2637/2637) | ok (40/40) |
+| BC  | ok (503/503)   | ok (629/629)   | n/a |
+
+Every cell: eviction-spec PASS **and** the `[ECG-CONFIG sim=… policy=ECG mode=ECG_GRASP_POPT
+variant=rrip_first …]` banner present. So the eviction-decision equivalence holds across kernels
+*and* simulators, not just PR.
+
+Honest gaps (documented, not silently skipped):
+- **SSSP** needs a WEIGHTED graph (`.wsg`). On the unweighted `email-Eu-core.sg` it sees ~63 accesses
+  and never pressures the L3 (≈0 evictions); the eval corpus ships only unweighted `.sg` and the
+  `converter` has no weight-generation flag. SSSP is therefore omitted from the matrix.
+- **BC on Sniper**: the Sniper `sg_kernel` driver has no `bc` target (cache_sim + gem5 only).
+
+### 21.2 Scope: this is the DECISION equivalence; the mask DIRECTION is still PR-tuned
+`verify_trace` certifies that each eviction obeys the spec *given the masks the kernel delivered* —
+which is kernel-agnostic and direction-independent. It does NOT certify that the per-edge mask
+direction is OPTIMAL for BFS/BC: the next-ref matrix defaults to `out_neigh` (PR's in-pull
+transpose), while BFS-top-down/BC traverse out-edges (§ "graph-direction correctness"; uncertified
+on directed graphs). That is a miss-rate concern, not a spec one — PR remains the direction-correct
+performance headline (§20.0).
+
+### 21.3 Full debug
+Two independent proofs fire for every kernel × sim:
+- `ECG_DEBUG=1` → one-shot `[ECG-CONFIG sim=… policy=… mode=… variant=…]` at policy init. cache_sim's
+  banner now lives in `traceEvict` (the first L3 eviction — universal across PR/BFS/BC, unlike the
+  former PR-only `MaskConfig::initFromEnv` placement); gem5 `GraphEcgRP` ctor; Sniper `CacheSetECG` ctor.
+- `ECG_EVICT_TRACE=N` → the first N L3 evictions with every candidate's fields + chosen victim +
+  reason (`[EVICT L3 pol=ECG:rrip_first … -> victim=way… reason=…]`), proving the policy ACTS.
