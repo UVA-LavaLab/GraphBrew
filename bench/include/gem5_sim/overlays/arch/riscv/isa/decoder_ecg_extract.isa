@@ -88,6 +88,11 @@
                         uint16_t epoch   = static_cast<uint16_t>((fat >> W) & 0xFFFFULL);
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, 0, 0, epoch);
+                        // Also populate the single-slot mailbox: ECG_GRASP_POPT stamps
+                        // property fills from lookupDecodedEcgHint (ecg_rp.cc), NOT the
+                        // per-vertex table — without this the epoch never reaches the line.
+                        gem5::replacement_policy::graph::setDecodedEcgExtractHint(
+                            dest_id, 0, 0, 0, epoch);
                         EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
                     // 0x01 EVICT+PFX (WIDE, configurable): dest[0:W] | epoch[W:W+16] | pfx[W+16:64].
@@ -102,6 +107,8 @@
                         uint32_t pfx     = static_cast<uint32_t>((fat >> (W + 16)) & 0xFFFFFFULL);
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, 0, 0, epoch);
+                        gem5::replacement_policy::graph::setDecodedEcgExtractHint(
+                            dest_id, 0, 0, 0, epoch);
                         if (pfx != 0) {
                             gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
                         }
@@ -120,6 +127,8 @@
                         uint32_t pfx     = static_cast<uint32_t>((fat >> 49) & 0x7FFFULL);
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, dbg, popt, epoch);
+                        gem5::replacement_policy::graph::setDecodedEcgExtractHint(
+                            dest_id, dbg, popt, 0, epoch);
                         if (pfx != 0) {
                             gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
                         }

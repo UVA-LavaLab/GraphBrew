@@ -39,7 +39,12 @@ pvector<NodeID> BFS_Sniper(const Graph &g, NodeID source) {
         constexpr int numVtxPerLine = 64 / sizeof(NodeID);
         constexpr int numEpochs = 256;
         static pvector<uint8_t> popt_matrix;
-        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+        // BFS top-down pushes along OUT-edges reading parent[dest]; the next-ref of a
+        // vertex's property is over its IN-neighbours, so the reref matrix is the graph
+        // TRANSPOSE (CSC/in_neigh, traverseCSR=false) — matching cache_sim's natural_csr=
+        // false. Default true=out_neigh is only correct for PR's in-pull. Undirected graphs
+        // force true internally (out==in), so this is do-no-harm on the symmetric corpus.
+        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs, /*traverseCSR=*/false);
         int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
         sniper_export_popt_matrix(popt_matrix.data(), numCacheLines,
                                   numEpochs, g.num_nodes());

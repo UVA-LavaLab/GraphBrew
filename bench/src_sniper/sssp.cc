@@ -86,7 +86,11 @@ pvector<WeightT> DeltaStep_Sniper(const WGraph &g, NodeID source, WeightT delta)
         constexpr int numVtxPerLine = 64 / sizeof(WeightT);
         constexpr int numEpochs = 256;
         static pvector<uint8_t> popt_matrix;
-        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+        // SSSP relaxes OUT-edges reading dist[dest]; the next-ref of dist[v] is over v's
+        // IN-neighbours, so the reref matrix is the graph TRANSPOSE (CSC/in_neigh,
+        // traverseCSR=false) — matching cache_sim's natural_csr=false. Default true=out_neigh
+        // is only correct for PR's in-pull. Undirected forces true internally (do-no-harm).
+        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs, /*traverseCSR=*/false);
         int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
         sniper_export_popt_matrix(popt_matrix.data(), numCacheLines,
                                   numEpochs, g.num_nodes());

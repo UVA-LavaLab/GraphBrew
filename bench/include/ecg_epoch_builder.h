@@ -34,12 +34,21 @@ inline bool prefetchKeep(uint16_t cand_ep, uint32_t cur_ep, uint32_t ne,
     return true;
 }
 
+// Build per-edge next-reference epochs. By default (push_out_edges=false) this is PR's
+// in-PULL pattern: src reads in_neigh(src)'s property, and a dest's property is next
+// referenced by dest's OUT-neighbours (the other vertices that pull it). For PUSH/out
+// kernels (BFS top-down, SSSP — push_out_edges=true) src writes out_neigh(src)'s property,
+// and a dest's property is next referenced by dest's IN-neighbours. Swapping the two
+// neighbour directions makes the per-edge epoch the graph TRANSPOSE for the kernel (the
+// same direction cache_sim's buildOutEdgeMasks uses), so non-PR ECG_GRASP_POPT delivers a
+// correct-direction epoch instead of nothing.
 template <typename GraphT>
 void buildInEdgeEpochs(const GraphT& g,
                        uint32_t numVtxPerLine,
                        uint32_t ne,
                        bool linemin,
-                       std::vector<std::vector<uint16_t>>& out)
+                       std::vector<std::vector<uint16_t>>& out,
+                       bool push_out_edges = false)
 {
     const uint32_t n = static_cast<uint32_t>(g.num_nodes());
     out.clear();
@@ -54,9 +63,18 @@ void buildInEdgeEpochs(const GraphT& g,
 
     for (uint32_t v = 0; v < n; ++v) {
         off[v] = nbr.size();
-        for (auto w_raw : g.out_neigh(v)) {
-            const uint32_t w = static_cast<uint32_t>(w_raw);
-            if (w < n) nbr.push_back(w);
+        // dest is next-referenced by the vertices that ACCESS it: out_neigh for PR's pull,
+        // in_neigh for push/out kernels (the transpose).
+        if (push_out_edges) {
+            for (auto w_raw : g.in_neigh(v)) {
+                const uint32_t w = static_cast<uint32_t>(w_raw);
+                if (w < n) nbr.push_back(w);
+            }
+        } else {
+            for (auto w_raw : g.out_neigh(v)) {
+                const uint32_t w = static_cast<uint32_t>(w_raw);
+                if (w < n) nbr.push_back(w);
+            }
         }
         std::sort(nbr.begin() + static_cast<std::ptrdiff_t>(off[v]), nbr.end());
     }
@@ -69,9 +87,17 @@ void buildInEdgeEpochs(const GraphT& g,
         const uint32_t src = static_cast<uint32_t>(src_i);
         std::vector<uint32_t> in;
         in.reserve(64);
-        for (auto dest_raw : g.in_neigh(src)) {
-            const uint32_t dest = static_cast<uint32_t>(dest_raw);
-            in.push_back(dest);
+        // The edges src ACCESSES: in_neigh for PR's pull, out_neigh for push/out kernels.
+        if (push_out_edges) {
+            for (auto dest_raw : g.out_neigh(src)) {
+                const uint32_t dest = static_cast<uint32_t>(dest_raw);
+                in.push_back(dest);
+            }
+        } else {
+            for (auto dest_raw : g.in_neigh(src)) {
+                const uint32_t dest = static_cast<uint32_t>(dest_raw);
+                in.push_back(dest);
+            }
         }
 
         auto& epochs = out[src];

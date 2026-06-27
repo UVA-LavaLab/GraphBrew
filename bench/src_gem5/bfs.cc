@@ -5,6 +5,7 @@
 // Bottom-up phase requires parallel/atomics which gem5 SE doesn't support well.
 // ============================================================================
 
+#include <cstring>
 #include <iostream>
 #include <queue>
 #include <vector>
@@ -16,6 +17,8 @@
 #include "pvector.h"
 
 #include "graphbrew/partition/cagra/popt.h"
+#include "ecg_epoch_builder.h"
+#include "ecg_mode6_builder.h"
 
 #include "gem5_sim/gem5_harness.h"
 
@@ -35,14 +38,44 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     };
     Gem5EdgeRegion edge_regions[2];
     int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
+
+    // Per-edge next-ref EPOCH budget (mirror gem5 PR pr.cc:46-53): epoch packs into the
+    // spare high bits above the dest id.
+    constexpr int kNumVtxPerLine = 64 / sizeof(NodeID);
+    uint8_t edge_id_bits = 1;
+    while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
+    uint32_t edge_epoch_count = 2;
+    if (edge_id_bits < 32) {
+        uint32_t spare = 32u - edge_id_bits;
+        uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
+        edge_epoch_count = std::min<uint32_t>(65535u, std::max<uint32_t>(2u, ne_cap));
+    }
     gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
-                        edge_regions, num_edge_regions);
+                        edge_regions, num_edge_regions, edge_epoch_count);
+
+    // A5: deliver the per-edge next-ref epoch for ECG_GRASP_POPT. BFS-TD pushes along
+    // OUT-edges writing parent[dest]; dest's property is next-referenced by dest's
+    // IN-neighbours, so build epochs with push_out_edges=true (the transpose — same
+    // direction as cache_sim's buildOutEdgeMasks). Without this, gem5 BFS delivered NO
+    // epoch and ECG_GRASP_POPT degenerated to recency (rubber-duck rd-phase-a / A5).
+    const bool ecg_extract_on = gem5_ecg_extract_enabled();
+    std::vector<std::vector<uint16_t>> out_edge_epochs;
+    if (ecg_extract_on) {
+        ecg_epoch::buildInEdgeEpochs(g, static_cast<uint32_t>(kNumVtxPerLine),
+                                     edge_epoch_count, /*linemin=*/true,
+                                     out_edge_epochs, /*push_out_edges=*/true);
+    }
 
     {
         constexpr int numVtxPerLine = 64 / sizeof(NodeID);
         constexpr int numEpochs = 256;
         static pvector<uint8_t> popt_matrix;
-        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);
+        // BFS top-down pushes along OUT-edges reading parent[dest]; the next-ref of a
+        // vertex's property is over its IN-neighbours, so the reref matrix is the graph
+        // TRANSPOSE (CSC/in_neigh, traverseCSR=false) — matching cache_sim's natural_csr=
+        // false. Default true=out_neigh is only correct for PR's in-pull. Undirected graphs
+        // force true internally (out==in), so this is do-no-harm on the symmetric corpus.
+        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs, /*traverseCSR=*/false);
         int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
         gem5_export_popt_matrix(popt_matrix.data(), numCacheLines,
                                 numEpochs, g.num_nodes());
@@ -52,6 +85,19 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
 
+    // A5: the fused ecg.load EVICT (indexed-property) op reads parent[v] AND delivers v's
+    // next-ref epoch to the LLC in one custom-0 instruction (RISC-V), stamping the property
+    // line for ECG_GRASP_POPT next-reference eviction — exactly as gem5 PR delivers contrib[v]
+    // (pr.cc gem5_ecg_load_evict). Gated on GEM5_ENABLE_ECG_PLOAD; X86 falls back to a plain
+    // indexed load (no delivery -> cache_sim is authoritative there).
+    const bool ecg_load_evict_on = gem5_ecg_pload_enabled() && ecg_extract_on;
+    const int  ecg_evict_wc = ecg_mode6::ecgEvictWidthClass(g.num_nodes());
+    if (ecg_load_evict_on) {
+        static bool _ann = false;
+        if (!_ann) { _ann = true;
+            fprintf(stderr, "[ECG_PLOAD] BFS fused ecg.load EVICT delivery ACTIVE\n"); }
+    }
+
     queue<NodeID> frontier;
     frontier.push(source);
     while (!frontier.empty()) {
@@ -59,7 +105,11 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         frontier.pop();
         GEM5_SET_VERTEX(u);
         auto out_neigh = g.out_neigh(u);
-        for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+        const std::vector<uint16_t>* u_epochs =
+            (ecg_extract_on && static_cast<size_t>(u) < out_edge_epochs.size())
+                ? &out_edge_epochs[u] : nullptr;
+        size_t edge_pos = 0;
+        for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
             NodeID v = *it;
             if (pfx_lookahead > 0) {
                 auto jt = it;
@@ -72,7 +122,22 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
             } else {
                 GEM5_ECG_PFX_TARGET(v);
             }
-            if (parent[v] == -1) {
+            // Read parent[v]. On the ecg.load EVICT path the load also stamps the property
+            // line with v's epoch (push_out_edges=true transpose matches BFS-TD's out-edge
+            // traversal); otherwise it is a plain read.
+            NodeID pv;
+            if (ecg_load_evict_on && u_epochs) {
+                uint16_t epoch = (edge_pos < u_epochs->size())
+                    ? (*u_epochs)[edge_pos]
+                    : static_cast<uint16_t>(edge_epoch_count - 1);
+                uint64_t fat = ecg_mode6::packEvict(static_cast<uint32_t>(v),
+                                                    epoch, ecg_evict_wc);
+                uint32_t bits = gem5_ecg_load_evict(parent.data(), fat, ecg_evict_wc);
+                std::memcpy(&pv, &bits, sizeof(NodeID));
+            } else {
+                pv = parent[v];
+            }
+            if (pv == -1) {
                 parent[v] = u;
                 frontier.push(v);
             }

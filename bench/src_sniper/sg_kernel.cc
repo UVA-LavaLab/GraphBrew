@@ -21,6 +21,9 @@
 
 // ECG mode 6 (per-edge mask) builder — shared with cache_sim and gem5.
 #include "ecg_mode6_builder.h"
+// Shared per-edge next-ref epoch builder (SNIPER_ECG_EXTRACT delivery; same SSOT as
+// cache_sim/gem5).
+#include "ecg_epoch_builder.h"
 
 // File-backed kernel diagnostic target. Native execution is intentionally kept
 // lightweight for checking .sg parameters and sideband export. Do not use this
@@ -122,7 +125,11 @@ void export_popt_for_graph(const GraphType& graph) {
     constexpr int kNumEpochs = 256;
     const int num_vtx_per_line = std::max<int>(1, 64 / sizeof(ValueT));
     pvector<uint8_t> popt_matrix;
-    makeOffsetMatrix(graph, popt_matrix, num_vtx_per_line, kNumEpochs);
+    // Only BFS + SSSP call this helper; both traverse OUT-edges reading the dest
+    // property, so the reref matrix is the graph TRANSPOSE (CSC/in_neigh,
+    // traverseCSR=false) — matching cache_sim. PR uses its own inline call (true).
+    // Undirected graphs force true internally (out==in), so this is do-no-harm there.
+    makeOffsetMatrix(graph, popt_matrix, num_vtx_per_line, kNumEpochs, /*traverseCSR=*/false);
     int num_cache_lines = (graph.num_nodes() + num_vtx_per_line - 1) / num_vtx_per_line;
     sniper_export_popt_matrix(popt_matrix.data(), num_cache_lines, kNumEpochs, graph.num_nodes());
 }
@@ -259,33 +266,10 @@ int run_pr(const Graph& graph, int max_iters) {
 
     SNIPER_ROI_BEGIN();
 
-    // S70-DEBUG: progress instrumentation — write heartbeats to a file
-    // (not stderr — Pin SIFT trace recorder may not handle inline
-    // stderr writes from sg_kernel cleanly). The file is overwritten
-    // each iteration so only the LAST checkpoint is preserved (lightweight).
-    uint64_t progress_node_count = 0;
-    auto progress_start = std::chrono::steady_clock::now();
-    const char* progress_path = std::getenv("SNIPER_SG_PROGRESS_FILE");
-    if (!progress_path) progress_path = "/tmp/sniper_sg_progress.txt";
-
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
             ScoreT incoming_total = 0.0f;
-
-            // S70-DEBUG: heartbeat every 1000 nodes (written to file)
-            if (++progress_node_count % 1000 == 0) {
-                auto now = std::chrono::steady_clock::now();
-                double elapsed_s = std::chrono::duration<double>(now - progress_start).count();
-                FILE* pf = std::fopen(progress_path, "w");
-                if (pf) {
-                    std::fprintf(pf,
-                        "iter=%d node=%d processed=%lu elapsed=%.1fs emits=%lu dedups=%lu\n",
-                        iter, node, progress_node_count, elapsed_s,
-                        kernel_emit_count, kernel_dedup_count);
-                    std::fclose(pf);
-                }
-            }
 
             // Mode 6: per-edge ECG fat-mask path (paper's ECG ISA design).
             //
@@ -433,6 +417,22 @@ int run_bfs(const Graph& graph, NodeID source) {
     sniper_export_context(regions, 1, graph, nullptr, edge_regions, num_edge_regions);
     export_popt_for_graph<Graph, NodeID>(graph);
 
+    // SNIPER_ECG_EXTRACT (delivery-faithful, mirrors gem5 ecg.load EVICT): deliver each
+    // demand edge's next-ref epoch so ECG_GRASP_POPT ranks parent[] by a delivered epoch
+    // instead of the host-side findNextRef matrix. BFS-TD pushes OUT-edges writing
+    // parent[dest]; dest is next-referenced by its IN-neighbours -> push_out_edges=true
+    // (the transpose; same builder as cache_sim/gem5). Gated on SNIPER_ENABLE_ECG_EXTRACT.
+    constexpr uint32_t kNumVtxPerLine = 64 / sizeof(NodeID);
+    const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
+    const uint32_t ecg_epoch_count = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", 256, 2, 65535));
+    std::vector<std::vector<uint16_t>> out_edge_epochs;
+    if (ecg_extract_on) {
+        ecg_epoch::buildInEdgeEpochs(graph, kNumVtxPerLine, ecg_epoch_count,
+                                     /*linemin=*/true, out_edge_epochs,
+                                     /*push_out_edges=*/true);
+    }
+
     SNIPER_ROI_BEGIN();
     std::queue<NodeID> frontier;
     frontier.push(source);
@@ -440,18 +440,24 @@ int run_bfs(const Graph& graph, NodeID source) {
         NodeID node = frontier.front();
         frontier.pop();
         SNIPER_SET_VERTEX(node);
-        // ECG_PFX hint: emit the head of the frontier (the node we'll
-        // expand next after this iteration completes) so the
-        // prefetcher can warm parent[next_node] before we touch it.
-        // Lookahead = current frontier depth, which on real BFS is
-        // typically 10s of nodes — gives Sniper's PREFETCH_INTERVAL
-        // ~250 cycles × queue-depth iterations of head-start.
-        // Filtering inside set_prefetch_target via
-        // SNIPER_ENABLE_ECG_PFX_HINTS so non-ECG_PFX runs pay nothing.
+        // ECG_PFX hint: emit the head of the frontier (the node we'll expand next) so the
+        // prefetcher can warm parent[next_node]. Env-gated (SNIPER_ENABLE_ECG_PFX_HINTS).
         if (!frontier.empty()) {
             SNIPER_ECG_PFX_TARGET(frontier.front());
         }
+        const std::vector<uint16_t>* eps =
+            (ecg_extract_on && static_cast<size_t>(node) < out_edge_epochs.size())
+                ? &out_edge_epochs[node] : nullptr;
+        size_t edge_pos = 0;
         for (NodeID neighbor : graph.out_neigh(node)) {
+            // Deliver neighbor's epoch BEFORE reading parent[neighbor] so cache_set_ecg
+            // stamps the property line on fill.
+            if (eps) {
+                uint16_t ep = (edge_pos < eps->size()) ? (*eps)[edge_pos]
+                    : static_cast<uint16_t>(ecg_epoch_count - 1);
+                SNIPER_ECG_EXTRACT(neighbor, ep);
+            }
+            ++edge_pos;
             if (parent[neighbor] == -1) {
                 parent[neighbor] = node;
                 frontier.push(neighbor);
@@ -483,6 +489,21 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
     sniper_export_context(regions, 1, graph, nullptr, edge_regions, num_edge_regions);
     export_popt_for_graph<WGraph, WeightT>(graph);
 
+    // SNIPER_ECG_EXTRACT (delivery-faithful, mirrors gem5 ecg.load EVICT): deliver each
+    // relaxed edge's next-ref epoch so ECG_GRASP_POPT ranks dist[] by a delivered epoch.
+    // SSSP relaxes OUT-edges reading dist[dest]; dest is next-referenced by its
+    // IN-neighbours -> push_out_edges=true (transpose). Gated on SNIPER_ENABLE_ECG_EXTRACT.
+    constexpr uint32_t kNumVtxPerLine = 64 / sizeof(WeightT);
+    const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
+    const uint32_t ecg_epoch_count = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", 256, 2, 65535));
+    std::vector<std::vector<uint16_t>> out_edge_epochs;
+    if (ecg_extract_on) {
+        ecg_epoch::buildInEdgeEpochs(graph, kNumVtxPerLine, ecg_epoch_count,
+                                     /*linemin=*/true, out_edge_epochs,
+                                     /*push_out_edges=*/true);
+    }
+
     SNIPER_ROI_BEGIN();
     std::queue<NodeID> frontier;
     frontier.push(source);
@@ -492,15 +513,24 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         frontier.pop();
         in_queue[node] = 0;
         SNIPER_SET_VERTEX(node);
-        // ECG_PFX hint: emit the head of the frontier (next node to
-        // expand after this iteration) so the prefetcher can warm
-        // its dist[next]/edge entries before we touch them.
-        // Lookahead = current frontier depth — gives PREFETCH_INTERVAL
-        // queue-depth iterations of head-start. Env-gated.
+        // ECG_PFX hint: emit the head of the frontier (next node to expand) so the
+        // prefetcher can warm dist[next]. Env-gated.
         if (!frontier.empty()) {
             SNIPER_ECG_PFX_TARGET(frontier.front());
         }
+        const std::vector<uint16_t>* eps =
+            (ecg_extract_on && static_cast<size_t>(node) < out_edge_epochs.size())
+                ? &out_edge_epochs[node] : nullptr;
+        size_t edge_pos = 0;
         for (WNode edge : graph.out_neigh(node)) {
+            // Deliver edge.v's epoch BEFORE reading dist[edge.v] so cache_set_ecg stamps
+            // the property line on fill.
+            if (eps) {
+                uint16_t ep = (edge_pos < eps->size()) ? (*eps)[edge_pos]
+                    : static_cast<uint16_t>(ecg_epoch_count - 1);
+                SNIPER_ECG_EXTRACT(edge.v, ep);
+            }
+            ++edge_pos;
             WeightT candidate = dist[node] + edge.w;
             if (candidate < dist[edge.v]) {
                 dist[edge.v] = candidate;

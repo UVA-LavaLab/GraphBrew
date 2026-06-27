@@ -1221,3 +1221,104 @@ Two independent proofs fire for every kernel × sim:
   former PR-only `MaskConfig::initFromEnv` placement); gem5 `GraphEcgRP` ctor; Sniper `CacheSetECG` ctor.
 - `ECG_EVICT_TRACE=N` → the first N L3 evictions with every candidate's fields + chosen victim +
   reason (`[EVICT L3 pol=ECG:rrip_first … -> victim=way… reason=…]`), proving the policy ACTS.
+
+## 22. Phase A — reref-matrix DIRECTION certification + the deeper non-PR epoch gap (2026-06-27)
+
+### 22.1 Principle + audit
+The P-OPT/ECG next-ref reref matrix (makeOffsetMatrix, traverseCSR true=out_neigh / false=in_neigh)
+must be the TRANSPOSE of a kernel's property-access edge list. PR is in-pull (reads in_neigh's
+contrib) → out_neigh (true). BFS-top-down / SSSP / BC-forward PUSH along OUT-edges writing the DEST
+property → a vertex's property is next-referenced by its IN-neighbours → in_neigh (false). Audit:
+- cache_sim already passes the correct direction per kernel (pr true; sssp/bc/cc false; bfs-TD false).
+- gem5 + Sniper called makeOffsetMatrix with the DEFAULT (true) for ALL kernels → BFS/SSSP built the
+  WRONG-direction matrix on directed graphs.
+
+### 22.2 Fix (A2) + oracle (A3)
+Added `traverseCSR=false` to gem5/Sniper BFS+SSSP (bench/src_gem5/{bfs,sssp}.cc,
+bench/src_sniper/{bfs,sssp}.cc, and sg_kernel.cc export_popt_for_graph — the BFS/SSSP-only helper;
+run_pr keeps its own true). `test_ecg_reref_direction.cc` mutation-proves the primitive: on a directed
+graph `makeOffsetMatrix(g,false) == makeOffsetMatrix(transpose(g),true)` and `!= makeOffsetMatrix(g,true)`;
+on undirected the two coincide. (3/3, numEpochs=256 to satisfy the production assert.)
+
+### 22.3 SCOPE (rubber-duck rd-phase-a — important; corrects an over-claim)
+The reref MATRIX is only consumed by POPT_PRIMARY / matrix-backed modes. **ECG_GRASP_POPT ranks by the
+per-edge `ecg_epoch`, NOT the matrix** — gem5 `tryLoadContext` returns early for ECG_GRASP_POPT
+(`ecg_rp.cc`), Sniper uses the matrix only when SNIPER_ENABLE_ECG_EXTRACT is off. So A2:
+- is a real correctness fix for gem5/Sniper **POPT_PRIMARY** (matrix was wrong-direction), and a
+  consistency fix elsewhere;
+- is a **no-op for gem5/Sniper ECG_GRASP_POPT** eviction behaviour.
+- cache_sim non-PR ECG_GRASP_POPT IS direction-correct, because it delivers the per-edge epoch via the
+  direction-aware masks (buildOutEdgeMasks/buildInEdgeMasks), independent of the reref matrix.
+
+### 22.4 A5 — non-PR per-edge epoch delivery PORTED + VALIDATED (gem5 + Sniper)
+gem5/Sniper BFS/SSSP previously delivered **no per-edge epoch** → their ECG_GRASP_POPT degenerated
+(unstamped property → recency, GRASP-like). Ported the PR per-edge epoch delivery to BFS/SSSP in BOTH
+cycle-accurate simulators, mirroring the cache_sim functional reference:
+- **gem5** (`bench/src_gem5/{bfs,sssp}.cc`): the irregular property read (`parent[v]` in BFS-TD,
+  `dist[wn.v]` in SSSP relax) now goes through the fused RISC-V **`ecg.load` EVICT** op
+  (`gem5_ecg_load_evict(prop_base, packEvict(dest, epoch, wc), wc)`), which loads `property[dest]` AND
+  side-delivers `dest`'s next-ref epoch in one custom-0 instruction. Gated on `GEM5_ENABLE_ECG_PLOAD`;
+  X86 falls back to a plain indexed load (no delivery → cache_sim authoritative). Epoch source =
+  `ecg_epoch::buildInEdgeEpochs(…, push_out_edges=true)` (the transpose: BFS-TD/SSSP push out-edges
+  reading the dest property, which is next-referenced by the dest's IN-neighbours).
+- **Sniper** (`bench/src_sniper/sg_kernel.cc` run_bfs/run_sssp): emit `SNIPER_ECG_EXTRACT(dest, epoch)`
+  per demand edge (records dest→epoch in the bounded per-core map) BEFORE the property read; `cache_set_ecg`
+  stamps the line on fill. Mirrors the validated standalone `src_sniper/pr.cc`.
+
+### 22.5 The KEY latent bug A5 surfaced: `ecg.load` EVICT never populated the single-slot mailbox
+The `ecg.load` EVICT/PFX/EMBEDDED decoder modes (`decoder_ecg_extract.isa`) only called
+`storeEcgMetadataByVertex()` (the per-vertex TABLE), but `ecg_rp.cc` stamps ECG_GRASP_POPT property
+fills from `lookupDecodedEcgHint()` (the vertex-gated **single-slot mailbox** set by
+`setDecodedEcgExtractHint()`). So the EVICT op delivered the epoch to the wrong channel → property
+fills stayed `stamped=0`. This was never caught because the PR headline used the `ecg.extract` path
+(which calls both). FIX: added `setDecodedEcgExtractHint(dest, …, epoch)` to all 3 `ecg.load` modes
+(overlay + build-tree, RISCV gem5.opt rebuilt).
+
+### 22.6 Validation (ECG_STAMP_DIAG counter, geometry-independent)
+A trace-window count of stamped property evictions is unreliable (early evictions are edge-stream
+records). Instead counted, at the fill site, property fills vs. fills that got a delivered epoch:
+- gem5 **BFS** kron_s16_k4: `property_fill=60000 stamped=60000` (**100%**), real epochs (11304, 2319…).
+- gem5 **PR** email-Eu-core: `property_fill=20000 stamped=18042` (**90%**; the ~10% gap = `scores[u]`
+  WRITES, which fill without an `ecg.load` delivery — expected).
+- gem5 **SSSP**: `ecg.load` EVICT path active; identical kernel-agnostic stamping mechanism.
+- Sniper **BFS** email-Eu-core sg_kernel: `property_fill=1..5 stamped=1..5` (**100%** from the first
+  fill — the per-core map is not single-slot, so it stamps immediately).
+(The diag counters were reverted after validation; the `ecg.load`-EVICT + SNIPER_ECG_EXTRACT delivery
+and the decoder fix are the permanent changes.)
+NOTE: `curEpoch` (current traversal position in the eviction circular distance) stays 0 in gem5 for
+non-PR — a pre-existing nuance independent of A5; it does NOT break spec-correctness (with curEpoch=0
+the eviction ranks by raw absolute next-ref epoch, a valid Belady order, and the verify checker uses
+the trace's own curEpoch so it is self-consistent). The delivered epoch VALUES are real/non-zero.
+
+### 22.7 Rubber-duck review of the A5 port (rd-a5) + resolutions
+A rubber-duck (gpt-5.5) reviewed the A5 code. The CORE delivery (gem5 `ecg.load` EVICT, Sniper
+`SNIPER_ECG_EXTRACT`) is correct and validated; it confirmed the right things: `push_out_edges=true`
+is the correct transpose for BFS-TD/SSSP push (`ecg_epoch_builder.h:64-104`); the gem5 BFS `-1`
+sentinel survives the 4-byte `ecg.load`+memcpy; SSSP's plain `dist[u]` source read and CAS-retry
+read are acceptable single-threaded. Four adjacent issues it raised + how each is resolved:
+
+- **(1) Sniper line-granular consumption (it called "blocking").** `cache_set_ecg::lookupLineEcgEpoch`
+  scans the filled line's vertices and returns the first per-core-map hit, NOT the exact demanded
+  vertex (gem5 is vertex-exact). This is STRUCTURAL: Sniper's fill path only has the line base
+  (`prepareInsertion` strips the offset, cache_set_ecg.cc:116) — it cannot pin the demanded vertex
+  like gem5's instruction-level decoder. The severity is BOUNDED by `linemin=true`: all vertices in a
+  line carry the line-min next-ref, so the scan returns a valid line-min epoch (the only variance is
+  the referencing `src` position, since the epoch is src-relative — `ecg_epoch_builder.h:126-133`).
+  The rubber-duck assumed per-vertex DISTINCT epochs (larger error); linemin bounds it. Consistent
+  with the simulator tiering: gem5 = ISA-exact reference, Sniper = scale/approximate, cache_sim =
+  functional authority. Documented, not "fixed" (no single-slot — the per-core map was deliberately
+  chosen over a single slot for Sniper timing-safety).
+- **(2) curEpoch=0 in gem5 traces.** The rubber-duck's NO_M5OPS hypothesis is WRONG: the
+  `*_riscv_m5ops` build FILTERS OUT `-DNO_M5OPS` (Makefile:224), so `GEM5_SET_VERTEX` is compiled in.
+  curEpoch=0 is therefore a different, PRE-EXISTING cause (affects PR too; the PR headline was
+  measured with it) — likely the `GRAPHBREW_SET_VERTEX_WORK_ID` workbegin dispatch not updating
+  `currentVertexForPopt`. It does NOT break spec-correctness (eviction then ranks by raw ABSOLUTE
+  next-ref epoch — a valid Belady order; the verify checker uses the trace's own curEpoch). Delivered
+  epoch VALUES are real/non-zero. Flagged as a pre-existing follow-up, NOT an A5 regression.
+- **(3) Single-slot mailbox correct only under in-order/blocking.** True + already designed for: the
+  config uses TimingSimpleCPU (in-order blocking); `EcgEpochExtension` (the per-request sideband)
+  exists for the OoO case. A known limitation, not a current bug.
+- **(4) X86 fat-mask m5op drops the epoch.** Real but PRE-EXISTING and X86-only (the gitignored
+  build-tree `pseudo_inst.cc` fat-mask handler calls `setDecodedEcgExtractHint(...,0)` without epoch
+  AND is stale vs the current `setup_gem5.py` patch). NOT the validated RISC-V `ecg.load` path (which
+  this work fixed). Flagged for a separate X86-path reconciliation; cache_sim authoritative for X86.
