@@ -35,6 +35,9 @@ BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 # its dist[] spills to the L3 so the epoch eviction is exercised (banner + nonzero stamped epochs).
 # BC runs unweighted (uses BFS internally) but Sniper's sg_kernel has no bc target, so BC/CC/SSSP
 # are cache_sim + gem5 (gem5 via the validated RISC-V ecg.load EVICT delivery on dist[]).
+# tc (triangle counting) is intentionally EXCLUDED: it is a pure set-intersection over CSR neighbour
+# lists with NO vertex-indexed property array (gem5 tc registers 0 property regions), so ECG's
+# per-edge epoch has nothing to stamp — out of the mechanism's scope (see findings 22.13).
 KERNEL_SIMS = {
     "pr":   ["cache_sim", "gem5", "sniper"],
     "bfs":  ["cache_sim", "gem5", "sniper"],

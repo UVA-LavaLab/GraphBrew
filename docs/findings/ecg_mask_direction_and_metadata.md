@@ -1448,3 +1448,27 @@ RESULT: full equiv `--kernels pr bfs bc cc sssp` → ALL 10 (kernel×sim) cells 
 are now in the 3-sim eviction-equivalence matrix (PR decisive on both sims; bfs/bc/cc/sssp deliver real
 nonzero epochs, not collapsed). Only triangle-counting (tc) remains — it has no vertex-indexed property
 array to mask (set-intersection), so it would be a decision-only cell (a separate design call).
+
+### 22.13 B4 close: tc (triangle counting) is OUT-OF-SCOPE for the ECG epoch mechanism
+Decision (user-confirmed): tc is documented as out-of-scope rather than forced into the matrix.
+Investigation of the tc kernels:
+- `bench/src/tc.cc` / `bench/src_sim/tc.cc`: the algorithm is a pure set-INTERSECTION of adjacency
+  lists (`for v in out_neigh(u): intersect(out_neigh(u), out_neigh(v))`). The output is a single
+  scalar triangle counter. There is **no vertex-indexed property array** (no `scores[v]`/`dist[v]`/
+  `comp[v]`/`parent[v]`/`depth[v]`) — the only data touched are the CSR neighbour lists themselves,
+  modelled via `SIM_CACHE_TRACK_NEIGHBOR` (topology/edge-stream accesses, which ECG treats as
+  NON-property *records* that evict first).
+- `bench/src_gem5/tc.cc` confirms it structurally: `gem5_export_context(regions, 0, ...)` registers
+  **zero** property regions.
+Consequence: ECG's per-edge next-ref **epoch has nothing to stamp** (no property line) — the mechanism
+is inapplicable, not merely unexercised. Empirically, on email-Eu-core even at L2 1kB/L3 2kB cache_sim
+tc produces 0 L3 evictions + no banner (its CSR footprint fits), so a "decision-only" tc cell would also
+need a contrived tiny-cache/large-graph regime and would only re-confirm record-first eviction (already
+covered by every other kernel's record evictions). This matches P-OPT's own scope: next-reference
+replacement targets kernels with an irregular *property* structure; pure-topology set-intersection is
+outside it.
+
+**Phase B verdict**: the 5 property-accessing GAP kernels (pr, bfs, sssp, cc, bc) are ECG's applicable
+set and ALL are now in the 3-sim eviction-equivalence matrix (PR decisively exercises stamped-epoch
+eviction; bfs/sssp/cc/bc verify policy + real nonzero-epoch delivery, do-no-harm). tc is the honest
+mechanism boundary (no vertex property → no epoch). Phase B closed.
