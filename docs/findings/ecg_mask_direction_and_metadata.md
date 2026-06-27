@@ -1340,3 +1340,35 @@ its fat-mask delivery is now fixed — §22.7(4)). So the multi-kernel equivalen
 stamped-epoch eviction as the headline, not a delivery-agnostic decision check. Result: ALL
 (kernel × sim) PASS — cache_sim/pr 2070, gem5/pr 4000 (RISC-V), cache_sim/bfs 489, gem5/bfs 2291
 (RISC-V), cache_sim/bc 503, gem5/bc 629 (X86) — eviction-spec + debug banner OK.
+
+### 22.9 Rubber-duck of the follow-ups (rd-followups) — caught a VACUOUS equivalence; fixed
+The follow-up rubber-duck found the multi-kernel equivalence's gem5 leg was effectively VACUOUS, and
+a coverage gate proved it: ALL gem5 cells exercised ZERO epoch-ranked property victims (pr/bfs/bc
+0/4000), i.e. the "PASS" only validated record/recency decisions, NOT the stamped-epoch eviction the
+headline depends on. cache_sim cells were real-epoch (70/7/463). Root cause was NOT the policy — it was
+the TRACE WINDOW: `ECG_EVICT_TRACE=N` captured the first N L3 evictions, which for gem5 are all PRE-ROI
+(graph build + reorder generate 250k+ evictions before the kernel stamps any property). cache_sim has no
+pre-ROI ISA traffic. Fixes:
+- **Coverage gate** (`verify/ecg.py verify_trace(coverage=...)`): counts EPOCH-RANKED property victims
+  (victim prop=1 stamped=1). `equiv_kernels.py` now labels each cell `ok` (epoch path exercised) vs
+  `ok(dec-only)` (record/recency only) — so a PASS can no longer be vacuous.
+- **ROI-gated trace** (`ecg_rp.cc`, opt-in `ECG_EVICT_TRACE_ROI=1`): only trace evictions once the
+  kernel has begun its traversal (`hasCurrentVertexHint()` — set by the first GEM5_SET_VERTEX), skipping
+  pre-ROI graph-build traffic.
+- **Geometry**: gem5 equiv L2 1MB→2kB so the small property spills past L2 to the 4kB L3 (cache_sim's
+  L2=1MB works for it because it sees graph-only accesses; gem5's full-ISA stream lets a 4KB property
+  fit in a 1MB L2 and never reach L3).
+- **bc epoch delivery** (`bench/src_gem5/bc.cc`): wired the forward-BFS `depth[v]` read through the fused
+  ecg.load EVICT (depth is the 4-byte irregular property; path_counts is 8-byte so unsuitable). bc now
+  runs the equiv on RISC-V — so NO equiv cell depends on the X86 fat-mask path.
+RESULT: all 6 cells (pr/bfs/bc × cache_sim/gem5) now real-epoch — gem5/pr 766, gem5/bfs 530, gem5/bc
+1510 epoch-ranked victims; bc Verification PASS. Base verify_ecg still ALL POLICIES VERIFIED; A3 oracle 3/3.
+
+Residual caveats (documented, not equiv-blocking):
+- The X86 fat-mask handler infers fat-mask vs bare-target from `(payload>>24)!=0`, so a WIDE mask with
+  epoch==0 && pfx==0 is mis-read as a bare target (epoch-0 property not stamped on X86). Now MOOT for the
+  equiv (all-RISC-V); a non-equiv X86-PR fidelity nit. Proper fix = a distinct work-id for fat vs bare.
+- X86 BFS/SSSP/BC have NO epoch delivery (ecg.load EVICT is a plain indexed load on X86; the old
+  GEM5_ECG_EXTRACT_MASK path was removed). RISC-V is the delivery reference; cache_sim is authoritative.
+- gem5/Sniper SSSP epoch stamping is still mechanism-inferred (BFS-identical), not directly observed;
+  direct SSSP coverage needs a weighted graph fixture (Phase B B1/B2).

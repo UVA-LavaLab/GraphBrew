@@ -369,10 +369,16 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
         // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
         // obeys the variant spec (one checker across all three simulators).
+        // ECG_EVICT_TRACE_ROI=1 restricts the trace to evictions that occur AFTER the
+        // kernel has begun its property traversal (hasCurrentVertexHint() — set by the
+        // first GEM5_SET_VERTEX). Without it, the first N evictions are PRE-ROI graph
+        // build + reorder traffic (no property stamped yet) which makes the trace
+        // record/recency-only and the epoch-eviction path appear unexercised.
         static long ecgEvTrace = [](){ const char* e=std::getenv("ECG_EVICT_TRACE"); return e?std::atol(e):0L; }();
+        static bool ecgEvRoi = std::getenv("ECG_EVICT_TRACE_ROI") != nullptr;
         const char* epol = (variant==1) ? "ECG:epoch_first" : "ECG:epoch_only";
         auto traced = [&](ReplaceableEntry* victimEntry, const char* pol, const char* reason)->ReplaceableEntry* {
-            if (ecgEvTrace > 0) {
+            if (ecgEvTrace > 0 && (!ecgEvRoi || graph::hasCurrentVertexHint())) {
                 --ecgEvTrace;
                 int vidx = -1;
                 for (size_t i=0;i<candidates.size();++i) if (candidates[i]==victimEntry){ vidx=(int)i; break; }

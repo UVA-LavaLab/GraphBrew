@@ -245,10 +245,15 @@ def _shortcircuit_rule(ways, v):
     return _eff_d(ways[v]) == max(_eff_d(w) for w in ways)  # all property -> max effective dist
 
 
-def verify_trace(name, result, prefix="", reasons=None):
+def verify_trace(name, result, prefix="", reasons=None, coverage=None):
     """Assert each victim in a (text, ran_ok) result obeys its policy rule.
     Hard-fails on runner failure (no/empty trace) and on any emitted policy with
-    no rule. Tallies eviction `reason=` strings into `reasons` for coverage."""
+    no rule. Tallies eviction `reason=` strings into `reasons` for coverage.
+    If `coverage` (a dict) is passed, also counts total victims and EPOCH-RANKED
+    property victims (victim prop=1 stamped=1) so callers can detect a trace that
+    only exercised record/recency decisions (epoch_victims==0 => the stamped-epoch
+    eviction path was never exercised; a 'PASS' there is decision-only, not
+    delivery-validated)."""
     text, ran_ok = result
     if not ran_ok:
         print(f"  {prefix}{name:14s}: runner FAILED (crash / no log)   [FAIL]")
@@ -276,6 +281,10 @@ def verify_trace(name, result, prefix="", reasons=None):
         if victim is None:
             continue
         checked += 1
+        if coverage is not None:
+            coverage["victims"] = coverage.get("victims", 0) + 1
+            if ways[victim]["prop"] == 1 and ways[victim]["stamped"]:
+                coverage["epoch_victims"] = coverage.get("epoch_victims", 0) + 1
         if rule(ways, victim):
             passed += 1
         else:

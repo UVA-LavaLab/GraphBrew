@@ -42,9 +42,9 @@ KERNEL_SIMS = {
 GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt"
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
-# (GEM5_FORCE_ECG_PLOAD). bc has no RISC-V m5op binary, so it stays on X86 (whose fat-mask
-# m5op epoch delivery was fixed to the WIDE layout — see setup_gem5.py).
-GEM5_RISCV_KERNELS = {"pr", "bfs"}
+# (GEM5_FORCE_ECG_PLOAD). All three now ship a *_riscv_m5ops binary with real epoch delivery
+# (pr: contrib; bfs: parent; bc: depth), so no equiv cell depends on the X86 fat-mask path.
+GEM5_RISCV_KERNELS = {"pr", "bfs", "bc"}
 
 
 def _banner(text):
@@ -82,17 +82,19 @@ def run_gem5(kernel):
         env = {**os.environ, "GEM5_OPT": str(GEM5_RISCV), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
                "GEM5_FORCE_ECG_PLOAD": "1", "GEM5_FORCE_ECG_EXTRACT": "1",
                "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
-               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000", "ECG_STORED_REFRESH": "1",
+               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000",
+               "ECG_EVICT_TRACE_ROI": "1", "ECG_STORED_REFRESH": "1",
                "ECG_DEBUG": "1"}
     else:
         env = {**os.environ, "GEM5_OPT": str(GEM5_X86), "GEM5_KERNEL_SUFFIX": "_m5ops",
                "GEM5_FORCE_ECG_EXTRACT": "1", "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
-               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000", "ECG_STORED_REFRESH": "1",
+               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000",
+               "ECG_EVICT_TRACE_ROI": "1", "ECG_STORED_REFRESH": "1",
                "ECG_DEBUG": "1"}
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", "4kB", "--l3-ways", "8",
-           "--l1d-size", "2kB", "--l2-size", "1MB", "--out-dir", str(out)]
+           "--l1d-size", "1kB", "--l2-size", "2kB", "--out-dir", str(out)]
     subprocess.run(cmd, env=env, cwd=str(ecg.ROOT), stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL, timeout=1200, check=False)
     text, ran = _roi_log(out)
@@ -127,7 +129,8 @@ def main(argv=None):
 
     enabled = {"cache_sim"}
     if args.gem5:
-        missing = [str(p) for p in (GEM5_RISCV, GEM5_X86) if not p.exists()]
+        need = {(GEM5_RISCV if k in GEM5_RISCV_KERNELS else GEM5_X86) for k in args.kernels}
+        missing = [str(p) for p in need if not p.exists()]
         if missing:
             print("FAIL: build gem5 first: " + ", ".join(missing)); return 2
         enabled.add("gem5")
@@ -149,15 +152,23 @@ def main(argv=None):
                 results[(sim, kernel)] = "n/a"
                 continue
             result, banner = RUNNERS[sim](kernel)
-            spec_ok = ecg.verify_trace(f"{sim}/{kernel}", result)
+            cov = {}
+            spec_ok = ecg.verify_trace(f"{sim}/{kernel}", result, coverage=cov)
+            ev, tv = cov.get("epoch_victims", 0), cov.get("victims", 0)
+            real_epoch = ev > 0
+            print(f"      epoch-ranked property victims={ev}/{tv}  "
+                  f"[{'real-epoch delivery exercised' if real_epoch else 'DECISION-ONLY: epoch path NOT exercised'}]")
             banner_ok = ("policy=ECG" in banner) and ("ECG_GRASP_POPT" in banner)
             print(f"      debug banner: {banner}  [{'OK' if banner_ok else 'MISSING'}]")
-            status = "ok" if (spec_ok and banner_ok) else (
-                "spec-FAIL" if not spec_ok else "banner-X")
+            if not (spec_ok and banner_ok):
+                status = "spec-FAIL" if not spec_ok else "banner-X"
+            else:
+                status = "ok" if real_epoch else "ok(dec-only)"
             results[(sim, kernel)] = status
-            ok_all &= (status == "ok")
+            ok_all &= status.startswith("ok")
 
-    print("\n## kernel x sim matrix (ok = eviction-spec PASS + debug banner present)")
+    print("\n## kernel x sim matrix (ok=spec PASS + banner + epoch path exercised; "
+          "ok(dec-only)=spec/banner OK but trace had NO epoch-ranked property victim)")
     hdr = "kernel".ljust(8) + "".join(s.ljust(14) for s in sims_order)
     print(hdr)
     for kernel in args.kernels:
@@ -165,7 +176,11 @@ def main(argv=None):
         for sim in sims_order:
             row += results[(sim, kernel)].ljust(14)
         print(row)
-    print(f"\nRESULT: {'ALL (kernel x sim): eviction-spec + debug banner OK ✓' if ok_all else 'see FAIL above'}")
+    dec_only = [f"{s}/{k}" for (s, k), v in results.items() if v == "ok(dec-only)"]
+    if dec_only:
+        print(f"\nNOTE: decision-only cells (eviction policy verified, but the stamped-epoch path was "
+              f"NOT exercised — record/recency trace): {', '.join(sorted(dec_only))}")
+    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (see real-epoch vs dec-only above)' if ok_all else 'see FAIL above'}")
     return 0 if ok_all else 1
 
 
