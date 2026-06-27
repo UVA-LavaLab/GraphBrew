@@ -200,6 +200,32 @@ def _eff_d(w):
     return w["dist"] if (w["prop"] == 1 and w["stamped"]) else 0
 
 
+def _epoch_decisive(ways, victim, pol):
+    """True iff the epoch DISTANCE strictly decided this victim — i.e. the policy reached the
+    property/epoch branch (no record candidate vetoes it) AND the victim's effective epoch
+    distance is a STRICT max among the competing candidates. This is stronger than "a stamped
+    property line was evicted": it rules out victims chosen because they were the only candidate
+    or won an eff-dist tie by way/recency (which would make 'epoch ranking' vacuous). Used to
+    certify that stamped-epoch eviction was genuinely exercised, not just that property churned."""
+    vw = ways[victim]
+    if not (vw["prop"] == 1 and vw["stamped"]):
+        return False
+    if pol == "ECG:rrip_first":
+        mx = max(w["rrpv"] for w in ways)
+        cand = [w for w in ways if w["rrpv"] == mx]
+    elif pol in ("ECG:epoch_first", "ECG:epoch_only",
+                 "ECG:shortcircuit", "ECG:shortcircuit+epoch"):
+        cand = list(ways)
+    else:
+        return False
+    if any(w["prop"] == 0 for w in cand):
+        return False  # a record candidate is evicted first -> epoch did not decide
+    others = [w for w in cand if w["way"] != vw["way"]]
+    if not others:
+        return False  # victim was the only candidate -> epoch not decisive
+    return _eff_d(vw) > max(_eff_d(w) for w in others)
+
+
 # rule(ways, victim) -> True if victim is EXACTLY what the policy must evict
 RULES = {
     "LRU": lambda ways, v: ways[v]["last"] == min(w["last"] for w in ways),
@@ -285,6 +311,8 @@ def verify_trace(name, result, prefix="", reasons=None, coverage=None):
             coverage["victims"] = coverage.get("victims", 0) + 1
             if ways[victim]["prop"] == 1 and ways[victim]["stamped"]:
                 coverage["epoch_victims"] = coverage.get("epoch_victims", 0) + 1
+            if _epoch_decisive(ways, victim, pol):
+                coverage["epoch_decisive"] = coverage.get("epoch_decisive", 0) + 1
         if rule(ways, victim):
             passed += 1
         else:

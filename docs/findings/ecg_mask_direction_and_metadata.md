@@ -1372,3 +1372,28 @@ Residual caveats (documented, not equiv-blocking):
   GEM5_ECG_EXTRACT_MASK path was removed). RISC-V is the delivery reference; cache_sim is authoritative.
 - gem5/Sniper SSSP epoch stamping is still mechanism-inferred (BFS-identical), not directly observed;
   direct SSSP coverage needs a weighted graph fixture (Phase B B1/B2).
+
+### 22.10 Rubber-duck of the coverage gate (rd-covgate) — "stamped victim" was a FALSE POSITIVE; fixed
+A second rubber-duck on the 696ea648 fix found the coverage gate itself was unsound: counting a victim
+with `prop=1 && stamped=1` proves a stamped property line was EVICTED, not that epoch DISTANCE decided
+it (the victim could be the only max-RRPV candidate, or win an eff-dist TIE by way/recency). My earlier
+cross-check against the trace `reason=` string was circular (the reason has the same weakness). Fixes:
+- **Decisive measure** (`verify/ecg.py _epoch_decisive`): counts only victims where, after restricting
+  to the policy's candidate set and confirming NO record vetoes (records evict first), the victim's
+  effective epoch distance is a STRICT max among >=1 competing candidate. This is "epoch ranking
+  actually decided the victim", not "property churned".
+- **Kernel-aware hard gate** (`equiv_kernels.py`): EXPECTED_DECISIVE={pr} (the property-reuse headline)
+  MUST have decisive>0 on every sim; bfs/bc are do-no-harm (low reuse) so they require epoch DELIVERY
+  (stamped victims>0) and report decisive (0 is expected). A true vacuous cell (0 delivered) hard-fails.
+The decisive measure then revealed the honest reality (it was hidden before): cache_sim/pr decisive=2,
+gem5/pr decisive=17 (headline real-epoch, both sims); gem5/bfs 14, gem5/bc 27 (decisive); but
+cache_sim/bfs 0 and cache_sim/bc 0 decisive despite 7 / 463 stamped victims — i.e. cache_sim bfs/bc
+evict stamped property on TIED eff-dist (do-no-harm, consistent with ECG~=GRASP on frontier kernels).
+RESULT (pr/bfs/bc): pr decisive on both sims; bfs/bc deliver — equiv PASS, now defensible as
+"PR decisively exercises stamped-epoch eviction across sims; bfs/bc verify policy+delivery (do-no-harm)".
+SSSP: gem5/sssp ecg.load EVICT delivers (607 stamped, 3 decisive); the 3-sim SSSP equiv is deferred —
+on email-Eu-core cache_sim SSSP either fits dist in L3 (no eviction) or fills it with uniform-epoch
+all-property sets (0 decisive); it needs a larger graph (Phase B B2). rd-covgate residuals: the ROI
+trace gate uses hasCurrentVertexHint() (never cleared) — fine for these kernels (SET_VERTEX is the
+first ROI act) but not a precise ROI boundary; an explicit work-begin/end ECG-trace-active flag is the
+robust fix (deferred).

@@ -30,19 +30,27 @@ import ecg  # noqa: E402  (reuse verify_trace, BASE_ENV, ECG_ENV, COV_ENV, GRAPH
 
 BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 # kernel -> simulators that can run it on the UNWEIGHTED eval graph (available binaries).
-# SSSP is omitted: it needs a WEIGHTED (.wsg) graph (on email-Eu-core.sg it sees ~63 accesses
-# and never pressures the L3); the eval corpus ships only unweighted .sg, and the converter has
-# no weight-generation flag. BC runs unweighted (uses BFS internally) but Sniper's sg_kernel has
-# no bc target, so BC is cache_sim + gem5 only.
+# SSSP is omitted from the 3-sim matrix: on the small email-Eu-core.sg its dist[] either fits in
+# the L3 (no eviction) or, shrunk below it, fills the L3 with all-property uniform-epoch sets (no
+# DECISIVE epoch eviction) — it needs a larger graph for clean cache_sim L3 pressure (Phase B B2).
+# gem5/sssp epoch DELIVERY is validated separately (ecg.load EVICT: 607 stamped, 3 decisive victims).
+# BC runs unweighted (uses BFS internally) but Sniper's sg_kernel has no bc target, so BC is
+# cache_sim + gem5 only.
 KERNEL_SIMS = {
     "pr":  ["cache_sim", "gem5", "sniper"],
     "bfs": ["cache_sim", "gem5", "sniper"],
     "bc":  ["cache_sim", "gem5"],
 }
+# Headline kernels with property REUSE that MUST decisively exercise epoch eviction (epoch
+# distance strictly decides >=1 victim) on every sim. bfs/bc are do-no-harm (low property reuse,
+# ECG ~= GRASP): they verify policy + epoch DELIVERY, but epoch is seldom strictly decisive
+# (e.g. cache_sim bfs/bc evict stamped property on tied eff-dist), so a 0 decisive count there is
+# expected, not a failure. (See findings 22.10.)
+EXPECTED_DECISIVE = {"pr"}
 GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt"
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
-# (GEM5_FORCE_ECG_PLOAD). All three now ship a *_riscv_m5ops binary with real epoch delivery
+# (GEM5_FORCE_ECG_PLOAD). All ship a *_riscv_m5ops binary with real epoch delivery
 # (pr: contrib; bfs: parent; bc: depth), so no equiv cell depends on the X86 fat-mask path.
 GEM5_RISCV_KERNELS = {"pr", "bfs", "bc"}
 
@@ -155,20 +163,34 @@ def main(argv=None):
             cov = {}
             spec_ok = ecg.verify_trace(f"{sim}/{kernel}", result, coverage=cov)
             ev, tv = cov.get("epoch_victims", 0), cov.get("victims", 0)
-            real_epoch = ev > 0
-            print(f"      epoch-ranked property victims={ev}/{tv}  "
-                  f"[{'real-epoch delivery exercised' if real_epoch else 'DECISION-ONLY: epoch path NOT exercised'}]")
+            dec = cov.get("epoch_decisive", 0)
+            delivery_ok = ev > 0          # >=1 stamped property line was evicted (epoch DELIVERED)
+            decisive_ok = dec > 0         # epoch DISTANCE strictly decided >=1 victim
+            if kernel in EXPECTED_DECISIVE:
+                cell_ok = decisive_ok     # headline (property-reuse) kernel MUST be decisive
+                label = ("decisive real-epoch (headline)" if decisive_ok
+                         else "FAIL: headline kernel, NO decisive epoch eviction")
+            else:
+                cell_ok = delivery_ok     # do-no-harm kernels: delivery + policy; epoch rarely decisive
+                label = (f"delivery+policy verified; epoch decisive {dec}x"
+                         + ("" if decisive_ok else " (do-no-harm: low property reuse -> epoch seldom decisive)")
+                         if delivery_ok else "FAIL: NO epoch delivered (vacuous)")
+            print(f"      epoch coverage: decisive={dec}  stamped-prop-victims={ev} / {tv} total  [{label}]")
             banner_ok = ("policy=ECG" in banner) and ("ECG_GRASP_POPT" in banner)
             print(f"      debug banner: {banner}  [{'OK' if banner_ok else 'MISSING'}]")
-            if not (spec_ok and banner_ok):
-                status = "spec-FAIL" if not spec_ok else "banner-X"
+            if not spec_ok:
+                status = "spec-FAIL"
+            elif not banner_ok:
+                status = "banner-X"
+            elif not cell_ok:
+                status = "FAIL-dec0" if kernel in EXPECTED_DECISIVE else "FAIL-nodeliv"
             else:
-                status = "ok" if real_epoch else "ok(dec-only)"
+                status = "ok"
             results[(sim, kernel)] = status
-            ok_all &= status.startswith("ok")
+            ok_all &= (status == "ok")
 
-    print("\n## kernel x sim matrix (ok=spec PASS + banner + epoch path exercised; "
-          "ok(dec-only)=spec/banner OK but trace had NO epoch-ranked property victim)")
+    print("\n## kernel x sim matrix (ok = spec PASS + banner + [pr: >=1 DECISIVE epoch victim] "
+          "[bfs/bc/sssp: epoch DELIVERED]); decisive counts reported per cell above")
     hdr = "kernel".ljust(8) + "".join(s.ljust(14) for s in sims_order)
     print(hdr)
     for kernel in args.kernels:
@@ -176,11 +198,10 @@ def main(argv=None):
         for sim in sims_order:
             row += results[(sim, kernel)].ljust(14)
         print(row)
-    dec_only = [f"{s}/{k}" for (s, k), v in results.items() if v == "ok(dec-only)"]
-    if dec_only:
-        print(f"\nNOTE: decision-only cells (eviction policy verified, but the stamped-epoch path was "
-              f"NOT exercised — record/recency trace): {', '.join(sorted(dec_only))}")
-    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (see real-epoch vs dec-only above)' if ok_all else 'see FAIL above'}")
+    bad = [f"{s}/{k}" for (s, k), v in results.items() if v.startswith("FAIL")]
+    if bad:
+        print(f"\nFAIL: {', '.join(sorted(bad))}")
+    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (pr decisive on all sims; bfs/bc/sssp deliver epochs)' if ok_all else 'see FAIL above'}")
     return 0 if ok_all else 1
 
 
