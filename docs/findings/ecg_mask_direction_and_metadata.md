@@ -1428,3 +1428,23 @@ missing banner on one kernel but not others ⇒ suspect a stale `bin_sim/*` bina
 
 RESULT: full multi-kernel equiv `--kernels pr bfs bc cc` ALL 8 (kernel×sim) cells PASS ✓ — pr decisive
 on both sims (cache_sim 2, gem5 17); bfs/bc/cc deliver nonzero epochs (not collapsed); all banners OK.
+
+### 22.12 B2: SSSP 3-sim equivalence — both deferral reasons resolved (no .wsg; small-cache pressure)
+22.10 deferred SSSP from the matrix for two reasons; both turned out to be non-blockers:
+- **"needs a weighted .wsg graph"** — FALSE. GAPBS `WeightedBuilder b(cli); WGraph g = b.MakeGraph()`
+  (`bench/src_sim/sssp.cc`) deterministically SYNTHESIZES edge weights from an unweighted `.sg`, so
+  cache_sim sssp runs directly on `email-Eu-core.sg` and its `SSSPVerifier` PASSes. No `.wsg` build.
+- **"dist[] fits L3 / fills it with uniform-epoch sets (no banner)"** — fixed by the same cc small-cache
+  geometry (L2 1kB/L3 2kB). At that geometry cache_sim sssp produces 4000 L3 evictions, the `[ECG-CONFIG]`
+  banner, and nonzero=3869/4000 stamped victims (do-no-harm, like cc/bc: tied eff-dist → 0 decisive).
+
+Wired SSSP into the matrix: `KERNEL_SIMS["sssp"]=["cache_sim","gem5"]`, added to `GEM5_RISCV_KERNELS`
+(so `run_gem5` uses the validated RISC-V `ecg.load` EVICT on `dist[]`, NOT the X86 fat-mask which has no
+BFS/SSSP/BC delivery), and the cc small-cache branch now covers sssp. gem5/sssp delivers decisive=3,
+nonzero=584/607 — bit-for-bit the "607 stamped, 3 decisive" number 22.10 validated separately, now
+exercised inside the equivalence harness.
+
+RESULT: full equiv `--kernels pr bfs bc cc sssp` → ALL 10 (kernel×sim) cells PASS ✓. The GAP-5 minus tc
+are now in the 3-sim eviction-equivalence matrix (PR decisive on both sims; bfs/bc/cc/sssp deliver real
+nonzero epochs, not collapsed). Only triangle-counting (tc) remains — it has no vertex-indexed property
+array to mask (set-intersection), so it would be a decision-only cell (a separate design call).

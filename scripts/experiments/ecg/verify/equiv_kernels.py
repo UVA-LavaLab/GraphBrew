@@ -30,17 +30,17 @@ import ecg  # noqa: E402  (reuse verify_trace, BASE_ENV, ECG_ENV, COV_ENV, GRAPH
 
 BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 # kernel -> simulators that can run it on the UNWEIGHTED eval graph (available binaries).
-# SSSP is omitted from the 3-sim matrix: on the small email-Eu-core.sg its dist[] either fits in
-# the L3 (no eviction) or, shrunk below it, fills the L3 with all-property uniform-epoch sets (no
-# DECISIVE epoch eviction) — it needs a larger graph for clean cache_sim L3 pressure (Phase B B2).
-# gem5/sssp epoch DELIVERY is validated separately (ecg.load EVICT: 607 stamped, 3 decisive victims).
-# BC runs unweighted (uses BFS internally) but Sniper's sg_kernel has no bc target, so BC is
-# cache_sim + gem5 only.
+# SSSP runs on the unweighted email-Eu-core.sg via GAPBS WeightedBuilder (it deterministically
+# synthesizes edge weights — no .wsg needed) and, at the cc small-cache geometry (L2 1kB/L3 2kB),
+# its dist[] spills to the L3 so the epoch eviction is exercised (banner + nonzero stamped epochs).
+# BC runs unweighted (uses BFS internally) but Sniper's sg_kernel has no bc target, so BC/CC/SSSP
+# are cache_sim + gem5 (gem5 via the validated RISC-V ecg.load EVICT delivery on dist[]).
 KERNEL_SIMS = {
-    "pr":  ["cache_sim", "gem5", "sniper"],
-    "bfs": ["cache_sim", "gem5", "sniper"],
-    "bc":  ["cache_sim", "gem5"],
-    "cc":  ["cache_sim", "gem5"],
+    "pr":   ["cache_sim", "gem5", "sniper"],
+    "bfs":  ["cache_sim", "gem5", "sniper"],
+    "bc":   ["cache_sim", "gem5"],
+    "cc":   ["cache_sim", "gem5"],
+    "sssp": ["cache_sim", "gem5"],
 }
 # Headline kernels with property REUSE that MUST decisively exercise epoch eviction (epoch
 # distance strictly decides >=1 victim) on every sim. bfs/bc are do-no-harm (low property reuse,
@@ -52,8 +52,9 @@ GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
 # (GEM5_FORCE_ECG_PLOAD). All ship a *_riscv_m5ops binary with real epoch delivery
-# (pr: contrib; bfs: parent; bc: depth; cc: comp), so no equiv cell depends on the X86 fat-mask.
-GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc"}
+# (pr: contrib; bfs: parent; bc: depth; cc: comp; sssp: dist), so no equiv cell depends on the
+# X86 fat-mask (BFS/SSSP/BC/CC have no X86 epoch delivery).
+GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc", "sssp"}
 
 
 def _banner(text):
@@ -68,12 +69,12 @@ def run_cache(kernel):
         return ("", False), "(binary missing)"
     env = {**os.environ, **ecg.BASE_ENV, **ecg.ECG_ENV, **ecg.COV_ENV,
            "ECG_VARIANT": "rrip_first", "ECG_DEBUG": "1"}
-    if kernel == "cc":
-        # cc-Afforest's comp[] (~4KB) fits the 1MB COV L2 -> never reaches L3 (PR's contrib is
-        # re-read every iteration so it churns; gem5/cc works because its full-ISA stream churns
-        # the L3). Shrink the cache_sim L2+L3 below the comp footprint so the epoch eviction is
-        # exercised; cc is do-no-harm (union-find, low reuse) so this verifies DELIVERY (the
-        # epochs are real/nonzero, just tied -> 0 decisive, like bc).
+    if kernel in ("cc", "sssp"):
+        # cc-Afforest's comp[] (~4KB) and sssp's dist[] fit the 1MB COV L2 -> never reach L3
+        # (PR's contrib is re-read every iteration so it churns; gem5 works because its full-ISA
+        # stream churns the L3). Shrink the cache_sim L2+L3 below the property footprint so the
+        # epoch eviction is exercised; both are do-no-harm frontier kernels (union-find / delta-
+        # stepping, low reuse) so this verifies DELIVERY (epochs real/nonzero, tied -> 0 decisive).
         env["CACHE_L2_SIZE"] = "1kB"
         env["CACHE_L3_SIZE"] = "2kB"
     p = subprocess.run([str(binp), "-f", str(ecg.GRAPH), "-o", "0", "-n", "1"],
@@ -159,7 +160,7 @@ def main(argv=None):
     print("== Multi-kernel 3-sim ECG equivalence (eviction-spec + debug banner) ==")
     print(f"   graph={ecg.GRAPH.name}  policy=ECG:ECG_GRASP_POPT variant=rrip_first  "
           f"sims={sims_order}")
-    print("   (SSSP omitted: needs a weighted .wsg graph; BC has no Sniper sg_kernel target)\n")
+    print("   (BC/CC/SSSP: cache_sim + gem5; SSSP weights auto-synthesized by WeightedBuilder)\n")
 
     ok_all = True
     results = {}   # (sim, kernel) -> status: 'ok' / 'spec-FAIL' / 'banner-X' / 'n/a'
