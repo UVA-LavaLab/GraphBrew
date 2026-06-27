@@ -45,12 +45,15 @@ KERNEL_SIMS = {
     "cc":   ["cache_sim", "gem5"],
     "sssp": ["cache_sim", "gem5"],
 }
-# Headline kernels with property REUSE that MUST decisively exercise epoch eviction (epoch
-# distance strictly decides >=1 victim) on every sim. bfs/bc are do-no-harm (low property reuse,
-# ECG ~= GRASP): they verify policy + epoch DELIVERY, but epoch is seldom strictly decisive
-# (e.g. cache_sim bfs/bc evict stamped property on tied eff-dist), so a 0 decisive count there is
-# expected, not a failure. (See findings 22.10.)
-EXPECTED_DECISIVE = {"pr"}
+# Headline kernels with property REUSE that MUST decisively exercise epoch eviction (epoch distance
+# strictly decides >=1 victim) on EVERY sim. With the faithful per-edge OUT-direction masks delivered
+# (ECG_EDGE_MASKS=1 on the cache_sim out-traversal legs; the gem5 ecg.load EVICT path already delivers
+# them), pr/bfs/bc/sssp are all decisive on both sims (cache_sim 2/1/123/5, gem5 17/14/27/3) -> these
+# cells prove the EPOCH ordering (not just record/recency) is what selects victims, cross-sim.
+# cc is the sole DO-NO-HARM cell: undirected union-find with low property reuse and no OUT-edge-mask
+# consumption in the cache_sim kernel -> decisive=0 on BOTH sims (epoch delivered + policy-compliant,
+# but eff-dist ties dominate, consistent with ECG ~= GRASP on that access pattern). (Findings 22.14.)
+EXPECTED_DECISIVE = {"pr", "bfs", "bc", "sssp"}
 GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt"
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
@@ -65,19 +68,44 @@ def _banner(text):
     return m.group(0) if m else "(no banner)"
 
 
+def _stale(binp, kernel):
+    """Return a [STALE] note if bin_sim/<kernel> predates the ECG headers/policy/kernel source it
+    is built from (the cc/sssp banner trap: a binary built before a header change silently runs old
+    logic). Empty string when fresh. Guards the equiv against a stale-binary false pass/fail."""
+    if not binp.exists():
+        return ""
+    bmt = binp.stat().st_mtime
+    inc = ecg.ROOT / "bench" / "include"
+    deps = [inc / "cache_sim" / "cache_sim.h", inc / "ecg_victim_policy.h",
+            inc / "ecg_epoch_builder.h", inc / "ecg_mode6_builder.h",
+            inc / "cache_sim" / "graph_cache_context.h",
+            ecg.ROOT / "bench" / "src_sim" / f"{kernel}.cc"]
+    newer = [d.name for d in deps if d.exists() and d.stat().st_mtime > bmt]
+    return f"  [STALE] bin_sim/{kernel} older than {', '.join(newer)} — rebuild (make bench/bin_sim/{kernel})\n" if newer else ""
+
+
 def run_cache(kernel):
     """cache_sim <kernel> with ECG_GRASP_POPT + coverage geometry (force property eviction)."""
     binp = ecg.ROOT / "bench" / "bin_sim" / kernel
     if not binp.exists():
         return ("", False), "(binary missing)"
+    stale = _stale(binp, kernel)
+    if stale:
+        sys.stderr.write(stale)
     env = {**os.environ, **ecg.BASE_ENV, **ecg.ECG_ENV, **ecg.COV_ENV,
            "ECG_VARIANT": "rrip_first", "ECG_DEBUG": "1"}
+    if kernel in ("bfs", "bc", "sssp"):
+        # Out-traversal kernels read property[dest] over out_neigh(u); deliver the FAITHFUL per-edge
+        # OUT-direction next-ref masks (ECG_EDGE_MASKS=1, epoch = next in_neigh(dest) > u) — the same
+        # direction the gem5 ecg.load EVICT leg delivers. This makes the epoch STRICTLY DECIDE victims
+        # on cache_sim (sssp 5, bfs 1, bc 123), matching the already-decisive gem5 legs, so the cell
+        # proves epoch-equivalence (not just delivery). (Default PR mode-6 in-edge env stays for pr.)
+        env["ECG_EDGE_MASKS"] = "1"
     if kernel in ("cc", "sssp"):
         # cc-Afforest's comp[] (~4KB) and sssp's dist[] fit the 1MB COV L2 -> never reach L3
         # (PR's contrib is re-read every iteration so it churns; gem5 works because its full-ISA
         # stream churns the L3). Shrink the cache_sim L2+L3 below the property footprint so the
-        # epoch eviction is exercised; both are do-no-harm frontier kernels (union-find / delta-
-        # stepping, low reuse) so this verifies DELIVERY (epochs real/nonzero, tied -> 0 decisive).
+        # epoch eviction is exercised. (cc has no OUT-edge-mask consumption -> stays do-no-harm.)
         env["CACHE_L2_SIZE"] = "1kB"
         env["CACHE_L3_SIZE"] = "2kB"
     p = subprocess.run([str(binp), "-f", str(ecg.GRAPH), "-o", "0", "-n", "1"],
@@ -183,7 +211,7 @@ def main(argv=None):
             # collapse check: stamped property was evicted but EVERY delivered epoch was 0 -> the
             # epochs collapsed (a delivery-quality regression, not the benign tied-eff-dist case).
             collapsed = delivery_ok and nz == 0
-            if kernel in EXPECTED_DECISIVE:
+            if kernel in EXPECTED_DECISIVE and sim != "sniper":
                 cell_ok = decisive_ok     # headline (property-reuse) kernel MUST be decisive
                 label = ("decisive real-epoch (headline)" if decisive_ok
                          else "FAIL: headline kernel, NO decisive epoch eviction")
@@ -205,7 +233,7 @@ def main(argv=None):
             elif not banner_ok:
                 status = "banner-X"
             elif not cell_ok:
-                if kernel in EXPECTED_DECISIVE:
+                if kernel in EXPECTED_DECISIVE and sim != "sniper":
                     status = "FAIL-dec0"
                 elif collapsed:
                     status = "FAIL-collapse"
@@ -216,8 +244,8 @@ def main(argv=None):
             results[(sim, kernel)] = status
             ok_all &= (status == "ok")
 
-    print("\n## kernel x sim matrix (ok = spec PASS + banner + [pr: >=1 DECISIVE epoch victim] "
-          "[bfs/bc/sssp: epoch DELIVERED]); decisive counts reported per cell above")
+    print("\n## kernel x sim matrix (ok = spec PASS + banner + [pr/bfs/bc/sssp on cache_sim+gem5: "
+          ">=1 DECISIVE epoch victim] [cc + any sniper leg: epoch DELIVERED, do-no-harm])")
     hdr = "kernel".ljust(8) + "".join(s.ljust(14) for s in sims_order)
     print(hdr)
     for kernel in args.kernels:
@@ -228,7 +256,7 @@ def main(argv=None):
     bad = [f"{s}/{k}" for (s, k), v in results.items() if v.startswith("FAIL")]
     if bad:
         print(f"\nFAIL: {', '.join(sorted(bad))}")
-    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (pr decisive on all sims; bfs/bc/sssp deliver epochs)' if ok_all else 'see FAIL above'}")
+    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (pr/bfs/bc/sssp DECISIVE on cache_sim+gem5; cc do-no-harm)' if ok_all else 'see FAIL above'}")
     return 0 if ok_all else 1
 
 

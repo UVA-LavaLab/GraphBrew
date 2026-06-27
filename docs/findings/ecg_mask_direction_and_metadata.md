@@ -1454,12 +1454,14 @@ Decision (user-confirmed): tc is documented as out-of-scope rather than forced i
 Investigation of the tc kernels:
 - `bench/src/tc.cc` / `bench/src_sim/tc.cc`: the algorithm is a pure set-INTERSECTION of adjacency
   lists (`for v in out_neigh(u): intersect(out_neigh(u), out_neigh(v))`). The output is a single
-  scalar triangle counter. There is **no vertex-indexed property array** (no `scores[v]`/`dist[v]`/
-  `comp[v]`/`parent[v]`/`depth[v]`) — the only data touched are the CSR neighbour lists themselves,
+  scalar triangle counter. The reuse-critical accesses are the CSR neighbour lists themselves,
   modelled via `SIM_CACHE_TRACK_NEIGHBOR` (topology/edge-stream accesses, which ECG treats as
-  NON-property *records* that evict first).
-- `bench/src_gem5/tc.cc` confirms it structurally: `gem5_export_context(regions, 0, ...)` registers
-  **zero** property regions.
+  NON-property *records* that evict first). The `OrderedCount_Sim` variant does materialize a
+  vertex-indexed `degrees[]` array, but that is implementation-local ordering metadata (written once
+  for the degree-relabel, not an irregular reuse property) and is NOT aligned across the three
+  simulators — so tc exposes no *aligned*, ECG-stampable property stream.
+- `bench/src_gem5/tc.cc` confirms the canonical form is topology-only: `gem5_export_context(regions,
+  0, ...)` registers **zero** property regions.
 Consequence: ECG's per-edge next-ref **epoch has nothing to stamp** (no property line) — the mechanism
 is inapplicable, not merely unexercised. Empirically, on email-Eu-core even at L2 1kB/L3 2kB cache_sim
 tc produces 0 L3 evictions + no banner (its CSR footprint fits), so a "decision-only" tc cell would also
@@ -1472,3 +1474,39 @@ outside it.
 set and ALL are now in the 3-sim eviction-equivalence matrix (PR decisively exercises stamped-epoch
 eviction; bfs/sssp/cc/bc verify policy + real nonzero-epoch delivery, do-no-harm). tc is the honest
 mechanism boundary (no vertex property → no epoch). Phase B closed.
+
+### 22.14 Rubber-duck of the Phase-B close (rd-phaseb) — STRENGTHENED the decisive claim + stale guard
+rd-phaseb found no correctness bug but one BLOCKING claim-precision issue + 3 non-blocking ones; all
+resolved (the resolution made the matrix materially stronger):
+- **Issue 1 (claim precision → strengthened, not downgraded)**: a "do-no-harm" cell (decisive=0)
+  proves epoch DELIVERY + policy-compliance but NOT that the epoch *ordering* selected the victim.
+  Resolution: deliver the FAITHFUL per-edge OUT-direction next-ref masks (`ECG_EDGE_MASKS=1`) on the
+  cache_sim bfs/bc/sssp legs — the same direction the gem5 `ecg.load` EVICT legs already deliver. This
+  flips them DECISIVE on cache_sim (sssp 5, bfs 1, bc 123; all Verification PASS), matching the
+  already-decisive gem5 legs (14/27/3). `EXPECTED_DECISIVE` is now `{pr,bfs,bc,sssp}` and the gate
+  HARD-requires decisive>0 for them on cache_sim+gem5. **cc is the sole honest do-no-harm cell**
+  (decisive=0 on BOTH sims — the cache_sim cc kernel has no OUT-edge-mask consumption, and gem5/cc
+  ties; undirected union-find, low reuse). Result: 4/5 kernels now prove epoch-DECIDES-victims
+  cross-sim (cache_sim+gem5), not just delivery.
+- **Issue 2 (tc wording)**: 22.13 reworded — cache_sim tc's `degrees[]` is impl-local ordering metadata
+  (not an aligned reuse property), canonical/gem5 tc is topology-only (0 regions); tc has no *aligned*
+  ECG-stampable property stream.
+- **Issue 3 (cross-sim scoping)**: made explicit — the matrix verifies each sim's victims against the
+  shared eviction SPEC computed from THAT sim's own trace (eviction-rule compliance + decisive epoch
+  ranking + delivery), NOT a numerical absolute-miss-rate cross-sim comparison. Per-kernel cache
+  geometry differs by design (cc/sssp use L2 1kB/L3 2kB to force property spill); each cell is a
+  spec-compliance + decisive-epoch claim, not a miss-rate-equality claim. The sniper leg (structural
+  findNextRef epoch, L2-enqueue filter) is do-no-harm corroboration, so decisive is required only on
+  cache_sim+gem5.
+- **Issue 4 (stale-binary guard) — caught a real stale binary**: added `_stale()` to the equiv harness
+  — it warns `[STALE]` if `bin_sim/<kernel>` predates any ECG header it includes (cache_sim.h,
+  ecg_victim_policy.h, ecg_epoch_builder.h, ecg_mode6_builder.h, graph_cache_context.h) or its source.
+  It immediately flagged bin_sim/pr/bfs/bc as older than `ecg_epoch_builder.h` (changed in the Phase A
+  commit 0a50ff91). ROOT CAUSE: the Makefile bin_sim rule has NO header-dependency tracking (depends
+  only on the .cc), so a header change never triggers a rebuild — exactly the cc-banner trap mechanism.
+  Forced a clean rebuild (`rm bin_sim/{pr,bfs,bc} && make`); decisive counts came back IDENTICAL
+  (pr 2/17, bfs 1/14, bc 123/27), confirming the Phase A change was behaviorally benign for those
+  kernels AND that the validation is now built from current source.
+
+RESULT: `--kernels pr bfs bc cc sssp` → ALL 10 cells PASS with the stronger claim: pr/bfs/bc/sssp are
+DECISIVE on cache_sim+gem5 (epoch distance strictly selects victims), cc is do-no-harm; no stale binaries.
