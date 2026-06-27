@@ -1285,10 +1285,13 @@ records). Instead counted, at the fill site, property fills vs. fills that got a
   fill — the per-core map is not single-slot, so it stamps immediately).
 (The diag counters were reverted after validation; the `ecg.load`-EVICT + SNIPER_ECG_EXTRACT delivery
 and the decoder fix are the permanent changes.)
-NOTE: `curEpoch` (current traversal position in the eviction circular distance) stays 0 in gem5 for
-non-PR — a pre-existing nuance independent of A5; it does NOT break spec-correctness (with curEpoch=0
-the eviction ranks by raw absolute next-ref epoch, a valid Belady order, and the verify checker uses
-the trace's own curEpoch so it is self-consistent). The delivered epoch VALUES are real/non-zero.
+NOTE: `curEpoch` (current traversal position in the eviction circular distance) was INITIALLY
+observed as 0 in gem5 traces — but that was a SAMPLING ARTIFACT: the trace/diag caught PRE-ROI
+evictions (graph build + reorder, before the kernel calls any GEM5_SET_VERTEX). During the actual
+kernel (ROI), curEpoch advances CORRECTLY: a directed probe (sampling only evictions where the vertex
+hint is set) showed `vtx=254 valid=1 curEpoch=16563` (= 254*65535/1005, exact). So gem5 ECG eviction
+is FULL fidelity — real delivered epochs (the line stamp) AND a correctly-advancing current position
+(the circular next-ref distance). See §22.7(2).
 
 ### 22.7 Rubber-duck review of the A5 port (rd-a5) + resolutions
 A rubber-duck (gpt-5.5) reviewed the A5 code. The CORE delivery (gem5 `ecg.load` EVICT, Sniper
@@ -1308,13 +1311,15 @@ read are acceptable single-threaded. Four adjacent issues it raised + how each i
   with the simulator tiering: gem5 = ISA-exact reference, Sniper = scale/approximate, cache_sim =
   functional authority. Documented, not "fixed" (no single-slot — the per-core map was deliberately
   chosen over a single slot for Sniper timing-safety).
-- **(2) curEpoch=0 in gem5 traces.** The rubber-duck's NO_M5OPS hypothesis is WRONG: the
-  `*_riscv_m5ops` build FILTERS OUT `-DNO_M5OPS` (Makefile:224), so `GEM5_SET_VERTEX` is compiled in.
-  curEpoch=0 is therefore a different, PRE-EXISTING cause (affects PR too; the PR headline was
-  measured with it) — likely the `GRAPHBREW_SET_VERTEX_WORK_ID` workbegin dispatch not updating
-  `currentVertexForPopt`. It does NOT break spec-correctness (eviction then ranks by raw ABSOLUTE
-  next-ref epoch — a valid Belady order; the verify checker uses the trace's own curEpoch). Delivered
-  epoch VALUES are real/non-zero. Flagged as a pre-existing follow-up, NOT an A5 regression.
+- **(2) curEpoch=0 in gem5 traces — RESOLVED: NOT a bug (sampling artifact).** The rubber-duck's
+  NO_M5OPS hypothesis is WRONG (the `*_riscv_m5ops` build FILTERS OUT `-DNO_M5OPS`, Makefile:224, so
+  `GEM5_SET_VERTEX` is compiled in). A directed probe settled it: the `GRAPHBREW_SET_VERTEX_WORK_ID`
+  workbegin handler IS reached with the right varying vertices (254, 8, 11…), the setter+reader share
+  the SAME storage address, and when sampling only evictions WHERE the hint is set, curEpoch advances
+  correctly (`vtx=254 → curEpoch=16563 = 254*65535/1005`). The earlier `curEpoch=0` came entirely from
+  PRE-ROI evictions (graph build + reorder generate 250k+ L3 evictions before the first SET_VERTEX),
+  which the first-N / every-Nth trace sampling happened to land on. gem5 ECG eviction QUALITY is
+  therefore correct (proper circular next-ref distance from the current vertex), not degraded.
 - **(3) Single-slot mailbox correct only under in-order/blocking.** True + already designed for: the
   config uses TimingSimpleCPU (in-order blocking); `EcgEpochExtension` (the per-request sideband)
   exists for the OoO case. A known limitation, not a current bug.
