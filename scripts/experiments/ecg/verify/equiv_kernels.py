@@ -40,6 +40,7 @@ KERNEL_SIMS = {
     "pr":  ["cache_sim", "gem5", "sniper"],
     "bfs": ["cache_sim", "gem5", "sniper"],
     "bc":  ["cache_sim", "gem5"],
+    "cc":  ["cache_sim", "gem5"],
 }
 # Headline kernels with property REUSE that MUST decisively exercise epoch eviction (epoch
 # distance strictly decides >=1 victim) on every sim. bfs/bc are do-no-harm (low property reuse,
@@ -51,8 +52,8 @@ GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
 # (GEM5_FORCE_ECG_PLOAD). All ship a *_riscv_m5ops binary with real epoch delivery
-# (pr: contrib; bfs: parent; bc: depth), so no equiv cell depends on the X86 fat-mask path.
-GEM5_RISCV_KERNELS = {"pr", "bfs", "bc"}
+# (pr: contrib; bfs: parent; bc: depth; cc: comp), so no equiv cell depends on the X86 fat-mask.
+GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc"}
 
 
 def _banner(text):
@@ -67,6 +68,14 @@ def run_cache(kernel):
         return ("", False), "(binary missing)"
     env = {**os.environ, **ecg.BASE_ENV, **ecg.ECG_ENV, **ecg.COV_ENV,
            "ECG_VARIANT": "rrip_first", "ECG_DEBUG": "1"}
+    if kernel == "cc":
+        # cc-Afforest's comp[] (~4KB) fits the 1MB COV L2 -> never reaches L3 (PR's contrib is
+        # re-read every iteration so it churns; gem5/cc works because its full-ISA stream churns
+        # the L3). Shrink the cache_sim L2+L3 below the comp footprint so the epoch eviction is
+        # exercised; cc is do-no-harm (union-find, low reuse) so this verifies DELIVERY (the
+        # epochs are real/nonzero, just tied -> 0 decisive, like bc).
+        env["CACHE_L2_SIZE"] = "1kB"
+        env["CACHE_L3_SIZE"] = "2kB"
     p = subprocess.run([str(binp), "-f", str(ecg.GRAPH), "-o", "0", "-n", "1"],
                        env=env, capture_output=True, text=True, timeout=300)
     return (p.stderr, p.returncode == 0), _banner(p.stderr)
@@ -164,18 +173,27 @@ def main(argv=None):
             spec_ok = ecg.verify_trace(f"{sim}/{kernel}", result, coverage=cov)
             ev, tv = cov.get("epoch_victims", 0), cov.get("victims", 0)
             dec = cov.get("epoch_decisive", 0)
+            nz = cov.get("epoch_victims_nz", 0)   # stamped victims with a NON-ZERO delivered epoch
             delivery_ok = ev > 0          # >=1 stamped property line was evicted (epoch DELIVERED)
             decisive_ok = dec > 0         # epoch DISTANCE strictly decided >=1 victim
+            # collapse check: stamped property was evicted but EVERY delivered epoch was 0 -> the
+            # epochs collapsed (a delivery-quality regression, not the benign tied-eff-dist case).
+            collapsed = delivery_ok and nz == 0
             if kernel in EXPECTED_DECISIVE:
                 cell_ok = decisive_ok     # headline (property-reuse) kernel MUST be decisive
                 label = ("decisive real-epoch (headline)" if decisive_ok
                          else "FAIL: headline kernel, NO decisive epoch eviction")
+            elif not delivery_ok:
+                cell_ok = False
+                label = "FAIL: NO epoch delivered (vacuous)"
+            elif collapsed:
+                cell_ok = False
+                label = f"FAIL: {ev} stamped victims but ALL epoch=0 (delivery COLLAPSED, not do-no-harm)"
             else:
-                cell_ok = delivery_ok     # do-no-harm kernels: delivery + policy; epoch rarely decisive
-                label = (f"delivery+policy verified; epoch decisive {dec}x"
-                         + ("" if decisive_ok else " (do-no-harm: low property reuse -> epoch seldom decisive)")
-                         if delivery_ok else "FAIL: NO epoch delivered (vacuous)")
-            print(f"      epoch coverage: decisive={dec}  stamped-prop-victims={ev} / {tv} total  [{label}]")
+                cell_ok = True            # do-no-harm: delivery + policy verified
+                label = (f"delivery+policy verified; epoch decisive {dec}x, nonzero {nz}/{ev}"
+                         + ("" if decisive_ok else " (do-no-harm: tied eff-dist -> epoch seldom decisive)"))
+            print(f"      epoch coverage: decisive={dec} nonzero={nz} stamped={ev} / {tv} total  [{label}]")
             banner_ok = ("policy=ECG" in banner) and ("ECG_GRASP_POPT" in banner)
             print(f"      debug banner: {banner}  [{'OK' if banner_ok else 'MISSING'}]")
             if not spec_ok:
@@ -183,7 +201,12 @@ def main(argv=None):
             elif not banner_ok:
                 status = "banner-X"
             elif not cell_ok:
-                status = "FAIL-dec0" if kernel in EXPECTED_DECISIVE else "FAIL-nodeliv"
+                if kernel in EXPECTED_DECISIVE:
+                    status = "FAIL-dec0"
+                elif collapsed:
+                    status = "FAIL-collapse"
+                else:
+                    status = "FAIL-nodeliv"
             else:
                 status = "ok"
             results[(sim, kernel)] = status

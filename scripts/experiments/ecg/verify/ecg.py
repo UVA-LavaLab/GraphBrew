@@ -203,26 +203,32 @@ def _eff_d(w):
 def _epoch_decisive(ways, victim, pol):
     """True iff the epoch DISTANCE strictly decided this victim — i.e. the policy reached the
     property/epoch branch (no record candidate vetoes it) AND the victim's effective epoch
-    distance is a STRICT max among the competing candidates. This is stronger than "a stamped
-    property line was evicted": it rules out victims chosen because they were the only candidate
-    or won an eff-dist tie by way/recency (which would make 'epoch ranking' vacuous). Used to
-    certify that stamped-epoch eviction was genuinely exercised, not just that property churned."""
+    distance is a STRICT max among the COMPETING candidates the rule actually ranks. This is
+    stronger than "a stamped property line was evicted": it rules out victims chosen because they
+    were the only candidate or won an eff-dist tie by way/recency. Used to certify that
+    stamped-epoch eviction was genuinely exercised, not just that property churned."""
     vw = ways[victim]
     if not (vw["prop"] == 1 and vw["stamped"]):
         return False
     if pol == "ECG:rrip_first":
         mx = max(w["rrpv"] for w in ways)
         cand = [w for w in ways if w["rrpv"] == mx]
+        if any(w["prop"] == 0 for w in cand):
+            return False  # a record at max-rrpv is evicted first -> epoch did not decide
+        # _rrip_rule ranks max EFFECTIVE distance over ALL max-rrpv property (unstamped -> 0),
+        # so the victim competes against every other max-rrpv candidate (rd-decisive: correct).
+        others = [w for w in cand if w["way"] != vw["way"]]
     elif pol in ("ECG:epoch_first", "ECG:epoch_only",
                  "ECG:shortcircuit", "ECG:shortcircuit+epoch"):
-        cand = list(ways)
+        if any(w["prop"] == 0 for w in ways):
+            return False  # records evicted first
+        # _epoch_rule / _shortcircuit_rule rank farthest dist among STAMPED property only, so the
+        # victim must strictly beat another STAMPED competitor (rd-decisive fix: not unstamped).
+        others = [w for w in ways if w["way"] != vw["way"] and w["prop"] == 1 and w["stamped"]]
     else:
         return False
-    if any(w["prop"] == 0 for w in cand):
-        return False  # a record candidate is evicted first -> epoch did not decide
-    others = [w for w in cand if w["way"] != vw["way"]]
     if not others:
-        return False  # victim was the only candidate -> epoch not decisive
+        return False  # no competitor -> epoch ranking did not decide
     return _eff_d(vw) > max(_eff_d(w) for w in others)
 
 
@@ -309,8 +315,15 @@ def verify_trace(name, result, prefix="", reasons=None, coverage=None):
         checked += 1
         if coverage is not None:
             coverage["victims"] = coverage.get("victims", 0) + 1
-            if ways[victim]["prop"] == 1 and ways[victim]["stamped"]:
+            vwc = ways[victim]
+            if vwc["prop"] == 1 and vwc["stamped"]:
                 coverage["epoch_victims"] = coverage.get("epoch_victims", 0) + 1
+                # tie-vs-collapse diagnostic: a stamped victim with dist>0 means a real (non-zero)
+                # epoch was delivered (just tied with others -> do-no-harm); if ALL stamped victims
+                # have dist==0 the delivered epochs COLLAPSED to 0 (a delivery-quality regression,
+                # not do-no-harm). rd-decisive suggestion.
+                if vwc["dist"] > 0:
+                    coverage["epoch_victims_nz"] = coverage.get("epoch_victims_nz", 0) + 1
             if _epoch_decisive(ways, victim, pol):
                 coverage["epoch_decisive"] = coverage.get("epoch_decisive", 0) + 1
         if rule(ways, victim):

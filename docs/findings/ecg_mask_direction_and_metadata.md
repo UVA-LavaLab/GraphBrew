@@ -1397,3 +1397,34 @@ all-property sets (0 decisive); it needs a larger graph (Phase B B2). rd-covgate
 trace gate uses hasCurrentVertexHint() (never cleared) — fine for these kernels (SET_VERTEX is the
 first ROI act) but not a precise ROI boundary; an explicit work-begin/end ECG-trace-active flag is the
 robust fix (deferred).
+
+### 22.11 B3-cc: gem5 CC epoch delivery wired + rd-decisive fixes + the cc banner stale-binary trap
+Third review cycle. Rubber-duck of the decisive measure (rd-decisive) found `_epoch_decisive` SOUND
+for the `rrip_first` headline variant but flagged two non-blocking refinements, both applied:
+- **epoch-variant over-count** (`verify/ecg.py _epoch_decisive`): for `epoch_first`/`epoch_only`/
+  `shortcircuit` the candidate `others` set is now restricted to STAMPED-only ways (those variants
+  rank by epoch first, so an unstamped eff-dist=0 way is not a real competitor); `rrip_first` keeps
+  the full max-RRPV candidate set (unstamped eff=0 IS a correct competitor there).
+- **tie-vs-collapse diagnostic** (`verify_trace` coverage adds `epoch_victims_nz` + `equiv_kernels.py`
+  collapse check): a do-no-harm cell (decisive=0) is now split into TIED (nonzero epochs present, just
+  not strict-max) vs COLLAPSED (all epochs 0 = no delivery). The latter hard-fails. Confirmed
+  cache_sim/bc is `nonzero=445/463` = genuinely tied (do-no-harm), NOT collapsed.
+
+**gem5 CC wired (B3-cc)**: `bench/src_gem5/cc.cc` Afforest now delivers `comp[dest]`'s next-ref epoch
+for ECG_GRASP_POPT via the fused `ecg.load` EVICT (RISC-V `gem5_ecg_load_evict`), mirroring bc.cc.
+CC traverses OUT-edges reading `comp[dest]`; dest's comp is next-referenced by its IN-neighbours →
+`buildInEdgeEpochs(push_out_edges=true)`. Delivery wraps both Afforest phases (the sampled-round Link
+and the full-graph finalize Link); the union-find pointer-chasing reads (`comp[high]`/`comp[comp[..]]`)
+stay plain (no static next-ref). `deliver_comp` fires before each `Link`. Built `cc_riscv_m5ops` +
+`cc_m5ops`; CC Verification PASS; delivers (gem5/cc 28 stamped, all nonzero, do-no-harm tied).
+
+**The cc banner stale-binary trap (the real blocker this cycle)**: cache_sim/cc emitted 327 `[EVICT L3]`
+lines but NO `[ECG-CONFIG]` banner → would fail `banner_ok`. Root cause was NOT logic: the banner is a
+one-shot in `cache_sim.h traceEvict` (fires on the first L3 eviction under `ECG_DEBUG`), universal to
+every cache_sim kernel that includes the header. The `bin_sim/cc` (and `bin_sim/sssp`) binaries were
+simply STALE — built before the banner was moved into `traceEvict`, while pr/bfs/bc had been rebuilt.
+`make bench/bin_sim/{cc,sssp}` picked up the current header and both now emit the banner. Lesson: a
+missing banner on one kernel but not others ⇒ suspect a stale `bin_sim/*` binary, not a code path.
+
+RESULT: full multi-kernel equiv `--kernels pr bfs bc cc` ALL 8 (kernel×sim) cells PASS ✓ — pr decisive
+on both sims (cache_sim 2, gem5 17); bfs/bc/cc deliver nonzero epochs (not collapsed); all banners OK.
