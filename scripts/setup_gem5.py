@@ -368,7 +368,20 @@ def apply_current_vertex_pseudo_inst_patch():
     if "GRAPHBREW_ECG_PFX_TARGET_WORK_ID" not in content:
         hint_blocks.append(
             "    if (workid == replacement_policy::graph::GRAPHBREW_ECG_PFX_TARGET_WORK_ID) {\n"
-            "        replacement_policy::graph::setPrefetchTargetHint(threadid);\n"
+            "        if ((threadid >> 24) != 0) {\n"
+            "            // WIDE mask (packMaskEpochWide): dest[0:24] | epoch[24:40] | pfx[40:64].\n"
+            "            // Deliver epoch to the table AND the single-slot mailbox (ECG_GRASP_POPT\n"
+            "            // stamps from the mailbox) — the X86 analogue of the RISC-V ecg.load EVICT.\n"
+            "            uint64_t fat_mask = threadid;\n"
+            "            uint32_t dest_id = static_cast<uint32_t>((fat_mask >> 0) & 0xFFFFFFULL);\n"
+            "            uint16_t epoch = static_cast<uint16_t>((fat_mask >> 24) & 0xFFFFULL);\n"
+            "            uint32_t pfx_target = static_cast<uint32_t>((fat_mask >> 40) & 0xFFFFFFULL);\n"
+            "            replacement_policy::graph::storeEcgMetadataByVertex(dest_id, 0, 0, epoch);\n"
+            "            replacement_policy::graph::setDecodedEcgExtractHint(dest_id, 0, 0, 0, epoch);\n"
+            "            if (pfx_target != 0) replacement_policy::graph::setPrefetchTargetHint(pfx_target);\n"
+            "        } else {\n"
+            "            replacement_policy::graph::setPrefetchTargetHint(threadid);\n"
+            "        }\n"
             "        return;\n"
             "    }\n\n"
         )

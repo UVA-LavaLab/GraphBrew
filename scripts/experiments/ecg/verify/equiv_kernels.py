@@ -40,6 +40,11 @@ KERNEL_SIMS = {
     "bc":  ["cache_sim", "gem5"],
 }
 GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt"
+GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
+# Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
+# (GEM5_FORCE_ECG_PLOAD). bc has no RISC-V m5op binary, so it stays on X86 (whose fat-mask
+# m5op epoch delivery was fixed to the WIDE layout — see setup_gem5.py).
+GEM5_RISCV_KERNELS = {"pr", "bfs"}
 
 
 def _banner(text):
@@ -66,15 +71,24 @@ def _roi_log(out):
 
 
 def run_gem5(kernel):
-    """gem5 (X86, m5op ECG delivery) <kernel> with ECG_GRASP_POPT + coverage geometry. X86 is
-    used because it ships pr/bfs/bc m5op binaries (the eviction DECISION is delivery-agnostic;
-    the RISCV ISA path is exercised separately by verify_ecg.py --gem5)."""
+    """gem5 <kernel> with ECG_GRASP_POPT + coverage geometry. pr/bfs run on RISC-V via the
+    validated fused ecg.load EVICT delivery (GEM5_FORCE_ECG_PLOAD); bc runs on X86 (its m5op
+    fat-mask epoch delivery was fixed to the WIDE layout). The eviction DECISION is
+    delivery-agnostic, but using the real epoch-delivery path makes the equivalence exercise
+    the same stamped-epoch eviction the headline does."""
     out = Path("/tmp") / f"equivk_gem5_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
-    env = {**os.environ, "GEM5_OPT": str(GEM5_X86), "GEM5_KERNEL_SUFFIX": "_m5ops",
-           "GEM5_FORCE_ECG_EXTRACT": "1", "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
-           "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000", "ECG_STORED_REFRESH": "1",
-           "ECG_DEBUG": "1"}
+    if kernel in GEM5_RISCV_KERNELS:
+        env = {**os.environ, "GEM5_OPT": str(GEM5_RISCV), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+               "GEM5_FORCE_ECG_PLOAD": "1", "GEM5_FORCE_ECG_EXTRACT": "1",
+               "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
+               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000", "ECG_STORED_REFRESH": "1",
+               "ECG_DEBUG": "1"}
+    else:
+        env = {**os.environ, "GEM5_OPT": str(GEM5_X86), "GEM5_KERNEL_SUFFIX": "_m5ops",
+               "GEM5_FORCE_ECG_EXTRACT": "1", "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
+               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000", "ECG_STORED_REFRESH": "1",
+               "ECG_DEBUG": "1"}
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", "4kB", "--l3-ways", "8",
@@ -113,8 +127,9 @@ def main(argv=None):
 
     enabled = {"cache_sim"}
     if args.gem5:
-        if not GEM5_X86.exists():
-            print(f"FAIL: build gem5 X86 first: {GEM5_X86}"); return 2
+        missing = [str(p) for p in (GEM5_RISCV, GEM5_X86) if not p.exists()]
+        if missing:
+            print("FAIL: build gem5 first: " + ", ".join(missing)); return 2
         enabled.add("gem5")
     if args.sniper:
         enabled.add("sniper")

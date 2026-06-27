@@ -1323,7 +1323,20 @@ read are acceptable single-threaded. Four adjacent issues it raised + how each i
 - **(3) Single-slot mailbox correct only under in-order/blocking.** True + already designed for: the
   config uses TimingSimpleCPU (in-order blocking); `EcgEpochExtension` (the per-request sideband)
   exists for the OoO case. A known limitation, not a current bug.
-- **(4) X86 fat-mask m5op drops the epoch.** Real but PRE-EXISTING and X86-only (the gitignored
-  build-tree `pseudo_inst.cc` fat-mask handler calls `setDecodedEcgExtractHint(...,0)` without epoch
-  AND is stale vs the current `setup_gem5.py` patch). NOT the validated RISC-V `ecg.load` path (which
-  this work fixed). Flagged for a separate X86-path reconciliation; cache_sim authoritative for X86.
+- **(4) X86 fat-mask m5op dropped the epoch — FIXED.** Two bugs: the handler unpacked epoch from
+  the NARROW `packMaskEpoch` layout `[33:49]` while the kernel emits the WIDE `packMaskEpochWide`
+  (`dest[0:24] | epoch[24:40] | pfx[40:64]`), AND it passed `setDecodedEcgExtractHint(...,0)` dropping
+  the epoch. Plus the build-tree handler had drifted from the (over-simplified) `setup_gem5.py` patch.
+  FIX: rewrote the handler to the WIDE layout + deliver the epoch to BOTH the table and the single-slot
+  mailbox (the X86 analogue of the RISC-V ecg.load EVICT decoder fix), in BOTH the build-tree
+  `pseudo_inst.cc` and the `setup_gem5.py` SSOT patch. Validated: X86 PR now stamps ~80% of property
+  fills with real epochs (vs the RISC-V fused path's 90%). `ecg_pfx_metadata` includes ecg_grasp_popt
+  so `GEM5_ENABLE_ECG_PFX_HINTS=1` and the macro fires.
+
+### 22.8 Multi-kernel equivalence now uses the validated epoch-delivery paths
+Switched `verify/equiv_kernels.py run_gem5` to be kernel-aware: pr/bfs run the gem5 leg on RISC-V via
+the fused `ecg.load` EVICT delivery (`GEM5_FORCE_ECG_PLOAD`), bc runs on X86 (no RISC-V m5op binary;
+its fat-mask delivery is now fixed — §22.7(4)). So the multi-kernel equivalence exercises the SAME
+stamped-epoch eviction as the headline, not a delivery-agnostic decision check. Result: ALL
+(kernel × sim) PASS — cache_sim/pr 2070, gem5/pr 4000 (RISC-V), cache_sim/bfs 489, gem5/bfs 2291
+(RISC-V), cache_sim/bc 503, gem5/bc 629 (X86) — eviction-spec + debug banner OK.
