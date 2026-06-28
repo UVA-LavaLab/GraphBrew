@@ -31,11 +31,12 @@ COLUMNS = [
 
 def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
              timeout_cell=3600, run_id="run", popt_reserve_model="fixed_one",
-             ecg_epoch_pack_bits=32, ecg_epochs=65535, stream_prefetch_degree=0):
+             ecg_epoch_pack_bits=32, ecg_epochs=65535, stream_prefetch_degree=0,
+             benchmark="pr"):
     gpath = GRAPHS / graph / f"{graph}.sg"
-    outdir = Path("/tmp") / f"evm_{run_id}_{suite}_{graph}_{l3}_o{order}_{label.replace(':','_')}"
+    outdir = Path("/tmp") / f"evm_{run_id}_{suite}_{benchmark}_{graph}_{l3}_o{order}_{label.replace(':','_')}"
     cmd = [sys.executable, str(ROOT / "scripts/experiments/ecg/roi_matrix.py"),
-           "--suite", suite, "--no-build", "--benchmark", "pr",
+           "--suite", suite, "--no-build", "--benchmark", benchmark,
            "--policies", policy,
            "--options", f"-f {gpath} -o {order} {opts}",
            "--l3-sizes", l3, "--l3-ways", "16",
@@ -57,6 +58,16 @@ def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
         rows = json.load(open(outdir / "roi_matrix.json"))
         rows = rows if isinstance(rows, list) else [rows]
         x = rows[0]
+        # Guard empty cells: if the L3 saw no accesses (e.g. a kernel whose ROI
+        # never reached the LLC, or a sink source), l3_miss_rate degenerates to
+        # 1.0 with 0 hits/0 misses -> report None so the matrix shows "--" not a
+        # fake 100% miss.
+        if x.get("l3_exercised") is False:
+            return None
+        hits = x.get("l3_hits") or 0
+        misses = x.get("l3_misses") or 0
+        if (x.get("total_accesses") == 0) or (hits == 0 and misses == 0):
+            return None
         return x.get("l3_miss_rate")
     except Exception as e:
         return None
@@ -65,6 +76,9 @@ def run_cell(suite, graph, l3, order, label, policy, variant, opts, gem5_env,
 def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--suite", default="cache-sim", choices=["cache-sim", "gem5", "sniper"])
+    ap.add_argument("--benchmark", default="pr",
+                    help="Kernel to run (pr/bfs/sssp/bc/cc). Per-kernel flags go in --options "
+                         "(e.g. pr '-i 2', bfs '-r 0', sssp '-r 0 -d 1').")
     ap.add_argument("--cells", default="kron_s16_k4:128kB",
                     help="space-separated graph:l3size cells")
     ap.add_argument("--orders", default="0 5",
@@ -101,7 +115,7 @@ def main(argv):
     orders = args.orders.split()
     labels = [c[0] for c in COLUMNS]
 
-    print(f"\n=== ECG variant matrix [{args.suite}]  (l3_miss_rate; lower=better) ===")
+    print(f"\n=== ECG variant matrix [{args.suite}/{args.benchmark}]  (l3_miss_rate; lower=better) ===")
     print("(-o0 = original order, -o5 = DBG reorder which GRASP/ECG-insertion need)")
     print("graph/L3/order".ljust(24) + "".join(l.rjust(15) for l in labels))
     md = ["| graph/L3/order | " + " | ".join(labels) + " |",
@@ -116,7 +130,8 @@ def main(argv):
                              popt_reserve_model=args.popt_reserve_model,
                              ecg_epoch_pack_bits=args.ecg_epoch_pack_bits,
                              ecg_epochs=args.ecg_epochs,
-                             stream_prefetch_degree=args.cache_stream_prefetch_degree)
+                             stream_prefetch_degree=args.cache_stream_prefetch_degree,
+                             benchmark=args.benchmark)
                 vals.append(r)
             tag = f"{graph}/{l3}/o{order}"
             print(tag.ljust(24) + "".join(
