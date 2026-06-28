@@ -1539,3 +1539,26 @@ this is NOT session-introduced — it is a pre-existing gem5 ECG-policy modeling
 worse than the dedicated `GraphGraspRP`, though both are degree-based, suggesting the ECG degree-mode
 insertion did not get the GRASP non-property-RRPV fix analogue). PHASE C BLOCKER: investigate gem5
 ECG:DBG_PRIMARY insertion before the cross-sim ECG performance claim is clean; Sniper leg held pending.
+
+### 22.16 CORRECTION: the gem5 ECG:DBG_PRIMARY anomaly is a REPLACEMENT gap, NOT the prefetch mismatch
+22.15 hypothesized the gem5 ECG:DBG_PRIMARY anomaly (.692 > LRU .645 while cache_sim helps .533) was
+caused by the cross-sim PREFETCH mismatch (gem5 structure prefetch ON, cache_sim OFF). The fix (commit
+0640009e: added structure_prefetch_degree=0 to xsim-gem5) is VALID METHODOLOGY (the cross-sim must match
+prefetch), but the re-run DISPROVED the hypothesis: with `--structure-prefetch-degree 0` confirmed in the
+gem5 command, ECG:DBG_PRIMARY is BYTE-IDENTICAL (.6917) to the prefetch-ON run. The anomaly PERSISTS.
+- The "ECG adaptive prefetch: 32-bit container ... 64-entry hot table" log line is a RED HERRING: it is
+  KERNEL-side container-init logging (bench/src_gem5/pr.cc:129 / src_sniper/pr.cc:94 describing the mask
+  bit budget), NOT active prefetch in the replacement policy.
+- ROOT CAUSE (confirmed): a pure REPLACEMENT modeling gap. cache_sim's ECG:DBG_PRIMARY uses the GRASP
+  3-tier insertion (cache_sim.h:989 "DBG_ONLY/DBG_PRIMARY/ECG_EMBEDDED variants: use GRASP 3-tier 1/6/7")
+  so it ~= GRASP and HELPS (.533 ~= GRASP .532). gem5's ECG policy in DBG_PRIMARY mode does NOT replicate
+  that tiered insertion (gem5 GRASP=GraphGraspRP helps .562, but gem5 ECG:DBG hurts .692), so the two
+  sims' DBG_PRIMARY are NOT the same policy.
+RESOLUTION for the cross-sim ECG claim (honest reframing): ECG:DBG_PRIMARY is NOT a clean cross-sim
+PERFORMANCE proxy. The cross-sim ECG story rests on (a) ECG_GRASP_POPT eviction-DECISION equivalence
+(Phase B, proven: decisive epochs byte-identical cache_sim+gem5), (b) GRASP and P-OPT performance
+DIRECTION agreement across sims (both help, validated), (c) cache_sim as the ECG miss-rate authority +
+gem5 IPC as the cycle-accurate case study. TRACKED Phase C item: either fix gem5 ECG:DBG_PRIMARY to apply
+the GRASP 3-tier insertion (so it matches cache_sim), or drop ECG:DBG_PRIMARY from the cross-sim table and
+use ECG_GRASP_POPT decision-equivalence instead. SRRIP gem5 anomaly (.986) is a separate pre-existing
+baseline issue. NOTE: commit 0640009e's message overclaimed ("the likely cause"); this entry corrects it.
