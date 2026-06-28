@@ -21,6 +21,30 @@
 namespace gem5 {
 namespace replacement_policy {
 
+namespace {
+// ECG GRASP-tier SOURCE (ECG_GRASP_SRC), mirrors cache_sim's two variants:
+//   mask (0, our ECG): DELIVERED per-vertex graspTierByIndex keyed by the INSERTED
+//     LINE's own vertex (graph::addressToVertex) — identical across simulators.
+//   region (1, default, original GRASP): classifyGRASP(addr) spatial top-fraction.
+// Templated on the context type to avoid spelling graph::GraphCacheContext.
+template <typename Ctx>
+inline uint32_t ecgGraspTier(const Ctx& ctx, uint64_t addr, uint64_t llcSize) {
+    static const int gsrc = [](){
+        const char* v = std::getenv("ECG_GRASP_SRC");
+        return (v && std::string(v) == "mask") ? 0 : 1;  // default 1 = region
+    }();
+    static const double ghf = [](){
+        const char* v = std::getenv("GRASP_HOT_FRACTION");
+        double f = v ? std::atof(v) : 0.15;
+        return (f > 0.0 && f <= 1.0) ? f : 0.15;
+    }();
+    if (gsrc == 0) {  // MASK (ECG): delivered per-vertex tier, byte-exact to region
+        return ctx.maskGraspTier(addr, ghf);
+    }
+    return ctx.classifyGRASP(addr, llcSize);  // REGION (GRASP)
+}
+}  // namespace
+
 GraphEcgRP::GraphEcgRP(const Params &p)
     : Base(p),
       rrpvMax(p.rrpv_max),
@@ -122,7 +146,7 @@ GraphEcgRP::touch(
                     data->ecg_epoch_valid = true;
                 }
             }
-            uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+            uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
             if (tier == 1) {
                 data->rrpv = 0;
             } else if (data->rrpv > 0) {
@@ -258,7 +282,7 @@ GraphEcgRP::reset(
                 return v && std::string(v) == "shortcircuit";
             }();
             if (data->is_property_data && ctx.loaded) {
-                uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+                uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
                 if (tier == 1) data->rrpv = pRrip;
                 else if (tier == 2) data->rrpv = iRrip;
                 else data->rrpv = mRrip;
@@ -272,7 +296,7 @@ GraphEcgRP::reset(
         } else if (ecgMode == graph::ECGMode::ECG_COMBINED) {
             uint8_t dbgRrpv = mRrip;
             if (data->is_property_data && ctx.loaded) {
-                uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+                uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
                 if (tier == 1) dbgRrpv = pRrip;
                 else if (tier == 2) dbgRrpv = iRrip;
             }
@@ -283,7 +307,7 @@ GraphEcgRP::reset(
             if (combined == 0 && dbgRrpv > 0) combined = 1;
             data->rrpv = std::min<uint8_t>(combined, rrpvMax);
         } else if (data->is_property_data && ctx.loaded) {
-            uint32_t tier = ctx.classifyGRASP(addr, llcSize);
+            uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
             if (tier == 1) data->rrpv = pRrip;
             else if (tier == 2) data->rrpv = iRrip;
             else data->rrpv = mRrip;

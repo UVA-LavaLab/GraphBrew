@@ -1848,6 +1848,20 @@ struct GraphCacheContext {
         return UINT32_MAX;
     }
 
+    // ECG "mask" variant insertion tier: the delivered per-vertex GRASP tier for the
+    // line owning `addr`, BYTE-EXACT to classifyGRASP (passes the region's elem_size
+    // to graspTierByIndex so the +8 boundary matches). Cross-sim identical.
+    uint32_t maskGraspTier(uint64_t addr) const {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            const PropertyRegion& r = regions[i];
+            if (addr >= r.base_address && addr < r.upper_bound && r.elem_size > 0)
+                return ecg_policy::graspTierByIndex(
+                    (addr - r.base_address) / r.elem_size, topology.num_vertices,
+                    mask_config.grasp_hot_fraction, r.elem_size);
+        }
+        return 3;
+    }
+
     // Map a bucket index to an RRPV value (GRASP-XP style).
     // Uses degree-proportional mapping: buckets with more total edges
     // get lower RRPV (higher cache priority).

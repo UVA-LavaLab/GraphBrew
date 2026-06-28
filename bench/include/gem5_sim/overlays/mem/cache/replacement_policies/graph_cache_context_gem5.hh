@@ -634,6 +634,33 @@ struct GraphCacheContext {
         return mask_config.dbgTierToRRPV(static_cast<uint8_t>(bucket));
     }
 
+    // ECG "mask" variant: map a property cache-line address to its vertex id, so
+    // the INSERTED LINE gets ITS OWN delivered tier (ecg_policy::graspTierByIndex)
+    // — identical across simulators. UINT32_MAX if not in any property region.
+    uint32_t addressToVertex(uint64_t addr) const {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (regions[i].contains(addr) && regions[i].elem_size > 0)
+                return graph::addressToVertex(addr, regions[i].base_address,
+                                              regions[i].upper_bound, regions[i].elem_size);
+        }
+        return UINT32_MAX;
+    }
+
+    // ECG "mask" variant insertion tier: delivered per-vertex GRASP tier for the
+    // line owning `addr`, BYTE-EXACT to classifyGRASP (passes elem_size so the +8
+    // boundary matches). Cross-sim identical with cache_sim/Sniper.
+    uint32_t maskGraspTier(uint64_t addr, double hot_fraction) const {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (regions[i].contains(addr) && regions[i].elem_size > 0) {
+                uint32_t vtx = graph::addressToVertex(addr, regions[i].base_address,
+                                   regions[i].upper_bound, regions[i].elem_size);
+                return ecg_policy::graspTierByIndex(vtx, topology.num_vertices,
+                                                    hot_fraction, regions[i].elem_size);
+            }
+        }
+        return 3;
+    }
+
     bool loadFromSideband(const std::string& path) {
         std::ifstream file(path);
         if (!file.is_open()) return false;

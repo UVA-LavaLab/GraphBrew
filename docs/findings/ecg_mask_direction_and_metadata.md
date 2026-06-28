@@ -1584,3 +1584,44 @@ cross-sim anchor now uses ECG_GRASP_POPT on cache_sim (xsim-cache) and drops the
 (now fully SSOT: shared insertion + shared victim). Residuals (tracked): Sniper.so rebuild deferred
 (numerically ~nil -- only the [upper,upper+8) edge case changed); routing DBG_PRIMARY's victim through
 selectVictim(GRASP_ONLY) would make even the degree-only mode faithful (follow-up).
+
+### 22.18 Two GRASP-tier-source variants (ECG mask vs original GRASP) — byte-exact across 3 sims (HPCA)
+The user asked for two selectable variants of the GRASP insertion tier so the paper can ablate "our ECG
+delivered mask" against "the original GRASP region lookup", and demanded byte-identity ("aimed for HPCA,
+we can't afford any mistakes"). Knob `ECG_GRASP_SRC` -> `grasp_tier_source`:
+  region (DEFAULT, faithful GRASP): tier = classifyGRASP(addr) -- the address-range region lookup.
+  mask   (our ECG):                 tier = the DELIVERED per-vertex tier for the INSERTED LINE's vertex.
+Default is `region` in all three sims -> ZERO number change unless the ablation is explicitly requested.
+
+Two bugs were fixed to make `mask == region` BYTE-IDENTICAL (the ablation must isolate delivery mechanism,
+not perturb numbers):
+1. (commit ffb833cf) The mask variant first read `decodeDBG(hints.mask)` = the CURRENT ACCESS's vertex
+   tier, but the INSERTED line can be a DIFFERENT vertex (prefetch / non-demand fill) -> wrong tier ->
+   web-Google diverged 0.5820 vs region 0.5718. Fix: key the tier by the inserted line's OWN vertex
+   (addressToVertex), exactly as gem5's reset already does.
+2. (this entry) The delivered tier used `graspTierByIndex(v, n, hf)` (a plain v/n split) while the region
+   classifier `classifyGraspTier` computes the hot bound in BYTE space with a `+8` boundary nudge. On
+   small graphs ~1 boundary vertex flipped tier -> bc decisive 122 (mask) vs 123 (region). Fix: gave
+   `graspTierByIndex(v, n, hf, elem_size)` a byte-exact path (when elem_size>0 it mirrors classifyGraspTier
+   including the `+8`); added a `maskGraspTier(addr)` context helper in each sim that resolves the region ->
+   (vertex, elem_size) and calls the byte-exact form. cache_sim insertion, gem5 `ecgGraspTier`, and Sniper
+   `ecgGraspTier` mask branches all route through it.
+
+VALIDATION (all three sims, mask vs region):
+- cache_sim REAL graph byte-identity: web-Google (916K vtx) pr AND bc, both -o5 and -o0, give IDENTICAL
+  L1/L2/L3 hit rates + memory accesses (e.g. pr -o5 36.0226% L3, 14843982 mem; bc -o5 5.3669% L3,
+  31346441 mem) -- region == mask exactly.
+- 3-sim DECISIVE equiv (cache_sim + gem5, gem5 freshly rebuilt RISCV+X86): ECG_GRASP_SRC=mask reproduces
+  the region baseline EXACTLY -- cache_sim pr 2 / bfs 1 / bc 123 / cc 0 / sssp 5; gem5 pr 17 / bfs 14 /
+  bc 27 / cc 0 / sssp 3. ALL (kernel x sim) PASS. The +8 fix closed the bc 122->123 gap on both sims.
+- tier unit test ECG_VARIANT=tier 10/10; SSOT byte-identity 5/5; base verify ALL POLICIES VERIFIED
+  (GATE 1+2 web-Google GRASP 0.5319/ECG 0.5718, GATE 3 insertion invariant on all 3 sims).
+Sniper: source updated byte-exact (same SSOT graspTierByIndex + the vertexForAddress its eviction already
+uses); .so rebuilt cleanly with the overlays (cache_set_ecg.o recompiled, no errors). Sniper byte-identity
+CANNOT be measured numerically: the guarded sg_kernel is NON-DETERMINISTIC run-to-run (email-Eu-core pr,
+the IDENTICAL region config gave 0.9148 then 0.8911 — a ~2.4pp swing — even single-threaded; from SDE
+interval-sim timing / ASLR heap layout). The mask result (0.8918) sits inside that region run-to-run band,
+so there is no evidence of a mask-path discrepancy; the variants are byte-exact by construction. Sniper is
+the scale-corroboration tier (cache_sim is the deterministic functional authority for traffic).
+The two-variant is now a clean, byte-identical mechanism ablation proven on the two DETERMINISTIC sims
+(cache_sim + gem5); byte-exact-by-construction on Sniper.

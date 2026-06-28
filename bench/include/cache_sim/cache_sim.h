@@ -1051,11 +1051,8 @@ public:
                     uint32_t tier;
                     if (graph_ctx_->mask_config.grasp_tier_source == 0) {  // MASK (ECG)
                         // The DELIVERED per-vertex GRASP tier, keyed by the INSERTED
-                        // LINE's own vertex (not the current access's hint) so it is
-                        // correct for every fill and identical across simulators.
-                        uint32_t vtx = graph_ctx_->addressToVertex(address);
-                        tier = (vtx == UINT32_MAX) ? 3u
-                                                   : graph_ctx_->graspTier3(vtx);
+                        // LINE's own vertex, BYTE-EXACT to the region variant.
+                        tier = graph_ctx_->maskGraspTier(address);
                     } else {                                               // REGION (GRASP)
                         tier = graph_ctx_->classifyGRASP(address, size_bytes_);
                     }

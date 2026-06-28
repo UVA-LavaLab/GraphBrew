@@ -8,8 +8,35 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
+#include <string>
 
 namespace {
+
+// ECG GRASP-tier SOURCE (ECG_GRASP_SRC), mirrors cache_sim/gem5 two variants:
+//   mask (0, our ECG): DELIVERED per-vertex graspTierByIndex keyed by the INSERTED
+//     LINE's own vertex (vertexForAddress) -- identical across simulators.
+//   region (1, default, original GRASP): classifyGRASP(addr) spatial top-fraction.
+template <typename Ctx>
+inline uint32_t ecgGraspTier(const Ctx& ctx, uint64_t addr, uint64_t llc_size) {
+    static const int gsrc = [](){
+        const char* v = std::getenv("ECG_GRASP_SRC");
+        return (v && std::string(v) == "mask") ? 0 : 1;  // default 1 = region
+    }();
+    static const double ghf = [](){
+        const char* v = std::getenv("GRASP_HOT_FRACTION");
+        double f = v ? std::atof(v) : 0.15;
+        return (f > 0.0 && f <= 1.0) ? f : 0.15;
+    }();
+    if (gsrc == 0) {  // MASK (ECG): delivered per-vertex tier, byte-exact to region
+        uint32_t vtx = ctx.vertexForAddress(addr);
+        if (vtx == UINT32_MAX) return 3u;
+        uint32_t es = ctx.propertyElemSizeForAddress(addr);
+        return static_cast<uint32_t>(ecg_policy::graspTierByIndex(
+            vtx, ctx.topology.num_vertices, ghf, es));
+    }
+    return ctx.classifyGRASP(addr, llc_size);  // REGION (GRASP)
+}
 
 const char* envOrDefault(const char* name, const char* fallback)
 {
@@ -124,7 +151,7 @@ CacheSetECG::graspInsertionRRPV(IntPtr addr) const
    const auto& context = graphbrew::sniper::globalContext();
    if (context.loaded && context.isPropertyData(static_cast<uint64_t>(addr))) {
       uint64_t llc_size = m_llc_size_bytes ? m_llc_size_bytes : UInt64(m_associativity) * m_blocksize;
-      uint32_t tier = context.classifyGRASP(static_cast<uint64_t>(addr), llc_size);
+      uint32_t tier = ecgGraspTier(context, static_cast<uint64_t>(addr), llc_size);
       if (tier == 1) return 1;
       if (tier == 2) return m_rrip_max > 0 ? m_rrip_max - 1 : 0;
       return m_rrip_max;
@@ -554,8 +581,7 @@ CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
    }
    if (m_property_lines[accessed_index] && graphbrew::sniper::globalContext().loaded) {
       uint64_t llc_size = m_llc_size_bytes ? m_llc_size_bytes : UInt64(m_associativity) * m_blocksize;
-      uint32_t tier = graphbrew::sniper::globalContext().classifyGRASP(
-            static_cast<uint64_t>(m_line_addrs[accessed_index]), llc_size);
+      uint32_t tier = ecgGraspTier(graphbrew::sniper::globalContext(), static_cast<uint64_t>(m_line_addrs[accessed_index]), llc_size);
       if (tier == 1) {
          m_rrip_bits[accessed_index] = 0;
          return;
