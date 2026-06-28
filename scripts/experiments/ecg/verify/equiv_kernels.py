@@ -62,6 +62,15 @@ GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "R
 # X86 fat-mask (BFS/SSSP/BC/CC have no X86 epoch delivery).
 GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc", "sssp"}
 
+# Optional cross-sim stream-prefetcher degree (--stream-prefetch-degree). 0 = off
+# (the byte-identical-decisive baseline). >0 turns on each sim's native structure
+# prefetcher (cache_sim next-line via CACHE_STREAM_PREFETCH_DEGREE; gem5 stride via
+# roi_matrix --prefetcher STRIDE) so the run proves the policy spec still holds with
+# the realistic prefetcher. The prefetchers are NOT algorithm-identical, so under
+# prefetch the equivalence is SPEC-level (every eviction obeys the ECG spec), not
+# byte-identical counts.
+STREAM_PF_DEGREE = 0
+
 
 def _banner(text):
     m = BANNER_RE.search(text or "")
@@ -108,6 +117,8 @@ def run_cache(kernel):
         # epoch eviction is exercised. (cc has no OUT-edge-mask consumption -> stays do-no-harm.)
         env["CACHE_L2_SIZE"] = "1kB"
         env["CACHE_L3_SIZE"] = "2kB"
+    if STREAM_PF_DEGREE > 0:
+        env["CACHE_STREAM_PREFETCH_DEGREE"] = str(STREAM_PF_DEGREE)
     p = subprocess.run([str(binp), "-f", str(ecg.GRAPH), "-o", "0", "-n", "1"],
                        env=env, capture_output=True, text=True, timeout=300)
     return (p.stderr, p.returncode == 0), _banner(p.stderr)
@@ -144,6 +155,8 @@ def run_gem5(kernel):
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", "4kB", "--l3-ways", "8",
            "--l1d-size", "1kB", "--l2-size", "2kB", "--out-dir", str(out)]
+    if STREAM_PF_DEGREE > 0:
+        cmd += ["--prefetcher", "STRIDE", "--structure-prefetch-degree", str(STREAM_PF_DEGREE)]
     subprocess.run(cmd, env=env, cwd=str(ecg.ROOT), stdout=subprocess.DEVNULL,
                    stderr=subprocess.DEVNULL, timeout=1200, check=False)
     text, ran = _roi_log(out)
@@ -174,7 +187,13 @@ def main(argv=None):
     ap.add_argument("--sniper", action="store_true", help="also run Sniper (guarded; slowest)")
     ap.add_argument("--kernels", nargs="+", default=list(KERNEL_SIMS),
                     choices=list(KERNEL_SIMS))
+    ap.add_argument("--stream-prefetch-degree", type=int, default=0,
+                    help="cross-sim structure stream-prefetcher degree (0=off, the byte-identical "
+                         "baseline; >0 = spec-level equivalence under the realistic prefetcher).")
     args = ap.parse_args(argv)
+
+    global STREAM_PF_DEGREE
+    STREAM_PF_DEGREE = args.stream_prefetch_degree
 
     enabled = {"cache_sim"}
     if args.gem5:
@@ -211,7 +230,16 @@ def main(argv=None):
             # collapse check: stamped property was evicted but EVERY delivered epoch was 0 -> the
             # epochs collapsed (a delivery-quality regression, not the benign tied-eff-dist case).
             collapsed = delivery_ok and nz == 0
-            if kernel in EXPECTED_DECISIVE and sim != "sniper":
+            if STREAM_PF_DEGREE > 0:
+                # Under the realistic stream prefetcher, the prefetched STRUCTURAL lines
+                # change the cache contents (and carry no epoch), so the epoch may no
+                # longer strictly DECIDE a victim -- decisive/nonzero are degree-0 metrics.
+                # The equivalence here is SPEC-level: every eviction must still obey the
+                # ECG policy spec (verify_trace -> spec_ok).
+                cell_ok = spec_ok
+                label = (f"prefetch(d{STREAM_PF_DEGREE}) spec-level: evictions obey spec; "
+                         f"decisive {dec}x nonzero {nz} stamped {ev} (decisiveness is the degree-0 metric)")
+            elif kernel in EXPECTED_DECISIVE and sim != "sniper":
                 cell_ok = decisive_ok     # headline (property-reuse) kernel MUST be decisive
                 label = ("decisive real-epoch (headline)" if decisive_ok
                          else "FAIL: headline kernel, NO decisive epoch eviction")
