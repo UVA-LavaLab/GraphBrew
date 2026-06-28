@@ -50,6 +50,7 @@ FLAG_MAP = {
     "l3_ways": "--l3-ways", "line_size": "--line-size",
     "ecg_epoch_pack_bits": "--ecg-epoch-pack-bits", "ecg_epochs": "--ecg-epochs",
     "ecg_charged": "--ecg-charged", "cache_stream_prefetch_degree": "--cache-stream-prefetch-degree",
+    "structure_prefetch_degree": "--structure-prefetch-degree",
     "popt_reserve_model": "--popt-reserve-model", "popt_active_columns": "--popt-active-columns",
     "timeout_cache": "--timeout-cache", "timeout_gem5": "--timeout-gem5",
     "timeout_sniper": "--timeout-sniper",

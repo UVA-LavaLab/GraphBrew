@@ -133,6 +133,7 @@
       "l3_ways": 16,
       "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
       "cache_stream_prefetch_degree": 0,
+      "structure_prefetch_degree": 0,
       "timeout_gem5": 3600
     },
     "xsim-sniper": {
@@ -149,6 +150,7 @@
       "l3_ways": 16,
       "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
       "cache_stream_prefetch_degree": 0,
+      "structure_prefetch_degree": 0,
       "timeout_sniper": 1800
     }
   }
