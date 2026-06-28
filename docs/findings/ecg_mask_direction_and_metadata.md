@@ -1625,3 +1625,28 @@ so there is no evidence of a mask-path discrepancy; the variants are byte-exact 
 the scale-corroboration tier (cache_sim is the deterministic functional authority for traffic).
 The two-variant is now a clean, byte-identical mechanism ablation proven on the two DETERMINISTIC sims
 (cache_sim + gem5); byte-exact-by-construction on Sniper.
+
+### 22.19 Phase C multi-kernel headline: source methodology (user-flagged "picking the right source matters")
+The PR headline (eviction_matrix, m3_local_fit) is SOURCE-INDEPENDENT (iterative, re-sweeps scores[]): ECG vs
+min(GRASP,POPT) = WIN7/TIE2/LOSE3 on the real corpus (wins web-Google/cit-Patents/soc-pokec/com-orkut; loses
+kron-s22 degree-backfire + roadNet-CA low-degree mesh). Extending the SSOT ECG-variant matrix to BFS/SSSP/BC
+(eviction_matrix.py gained --benchmark + an empty-cell guard) exposed a SOURCE-SELECTION issue the user
+flagged:
+- `-r 0` SINK TRAP: a fixed source 0 after the -o5 DBG reorder yields an EMPTY ROI (0 total_accesses, fake
+  l3_mr=1.0) on some graphs (soc-pokec) -- even with -s. The run_cell guard now returns None (cell shows --).
+- FIX: omit -r so the GAPBS SourcePicker (benchmark.h GenerateConsistentSources) picks valid NON-SINK sources
+  stored as ORIGINAL ids + translated per ordering with a fixed kRandSeed -> the SAME giant-component source(s)
+  for every policy and every reorder. Keeps the graph DIRECTED (consistent with PR + Phase-A direction cert);
+  no -s symmetrization.
+- SUBSTANTIAL FRONTIER + SOURCE-ROBUST (empirical): sssp -o5 explores ~10M (web-Google) / ~48M (soc-pokec)
+  property accesses PER source. Increasing the source count barely moves the numbers and NEVER flips the
+  policy ordering: web-Google -n1->-n8 GRASP 0.7973->0.7966, POPT 0.8152->0.8179 (ECG=GRASP<POPT both);
+  soc-pokec -n1->-n4 GRASP/ECG 0.5639 identical, POPT 0.6175->0.6193 (ECG=GRASP<POPT both). So the COMPARATIVE
+  claim does not depend on the source (given it is not a sink).
+- DECISION (user): run BFS/SSSP at -n 4 (4 consistent giant-component sources, averaged) on the full corpus;
+  BC is inherently multi-source (default -i 4 BFS roots); PR stays -n 1 -i 3 (source-independent). Modest -n 4
+  preempts a single-source critique without the cost of -n 16.
+- NOTE: BFS is replacement-INSENSITIVE (writes parent[] ~once, low reuse) -> all policies cluster near the
+  same high miss rate; PR is the high-reuse quantitative headline, SSSP/BC the reuse-bearing corroboration.
+Run (in flight, detached, OMP=1): results/ecg_experiments/c3_multikernel/eviction_matrix_{pr,sssp,bc,bfs}.md;
+assemble with analysis/headline_summary.py. Tooling committed dd1dc242.
