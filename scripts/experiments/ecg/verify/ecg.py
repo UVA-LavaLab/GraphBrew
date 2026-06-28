@@ -174,7 +174,7 @@ def run_sniper(variant):
 
 def parse_blocks(text):
     """Yield (pol, ways[list of dict], victim_way, reason)."""
-    pol = None; ways = []; reason = None
+    pol = None; ways = []; victim = None; reason = None
     for line in text.splitlines():
         h = HDR_RE.search(line)
         if h:
@@ -218,13 +218,19 @@ def _epoch_decisive(ways, victim, pol):
         # _rrip_rule ranks max EFFECTIVE distance over ALL max-rrpv property (unstamped -> 0),
         # so the victim competes against every other max-rrpv candidate (rd-decisive: correct).
         others = [w for w in cand if w["way"] != vw["way"]]
-    elif pol in ("ECG:epoch_first", "ECG:epoch_only",
-                 "ECG:shortcircuit", "ECG:shortcircuit+epoch"):
+    elif pol in ("ECG:epoch_first", "ECG:epoch_only"):
         if any(w["prop"] == 0 for w in ways):
-            return False  # records evicted first
-        # _epoch_rule / _shortcircuit_rule rank farthest dist among STAMPED property only, so the
-        # victim must strictly beat another STAMPED competitor (rd-decisive fix: not unstamped).
+            return False  # records evicted first (oldest by recency)
+        # _epoch_rule ranks farthest `dist` among STAMPED property ONLY, so the victim must
+        # strictly beat another STAMPED competitor (unstamped property does not compete).
         others = [w for w in ways if w["way"] != vw["way"] and w["prop"] == 1 and w["stamped"]]
+    elif pol in ("ECG:shortcircuit", "ECG:shortcircuit+epoch"):
+        if any(w["prop"] == 0 for w in ways):
+            return False  # a record is evicted first (first-by-way) -> epoch did not decide
+        # _shortcircuit_rule ranks _eff_d over ALL property (unstamped -> 0), so the victim
+        # competes against EVERY other property line (mirror rrip_first; no max-rrpv gate). A
+        # stamped victim with dist>0 strictly beats unstamped eff=0 lines -> decisive.
+        others = [w for w in ways if w["way"] != vw["way"] and w["prop"] == 1]
     else:
         return False
     if not others:

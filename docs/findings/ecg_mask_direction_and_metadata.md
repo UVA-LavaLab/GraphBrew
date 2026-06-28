@@ -1510,3 +1510,32 @@ resolved (the resolution made the matrix materially stronger):
 
 RESULT: `--kernels pr bfs bc cc sssp` → ALL 10 cells PASS with the stronger claim: pr/bfs/bc/sssp are
 DECISIVE on cache_sim+gem5 (epoch distance strictly selects victims), cc is do-no-harm; no stale binaries.
+
+### 22.15 SSOT-debloat + bug-scan review (cr-session) + Phase C cross-sim START (gem5 ECG:DBG gap)
+A full code-review pass (cr-session) of the session's `a6cfb54f..HEAD` changes found **NO genuine bugs**;
+the two highest-risk claims were validated empirically: the per-edge epoch DIRECTION (all 4 gem5 non-PR
+kernels read property[out-neighbour] → next-ref via in-neighbours → `buildInEdgeEpochs(push_out_edges=
+true)`) passes the in-repo transpose oracle 3/3, and `packEvict`/`ecgEvictWidthClass` passes field-parity
+95/95. Two small follow-ups applied (Python-only, no rebuild):
+- `ecg.py parse_blocks`: `victim` now initialized at function scope (was referenced before its in-branch
+  init — pyflakes undefined-name; runtime-safe via the `pol`-gate invariant, but fragile). Pre-existing.
+- `ecg.py _epoch_decisive`: split the `shortcircuit`/`shortcircuit+epoch` variants out of the stamped-only
+  branch. `_shortcircuit_rule` ranks `_eff_d` over ALL property (unstamped→0), unlike `_epoch_rule`
+  (stamped-only `dist`), so lumping them under-counted decisive. Now shortcircuit competes against all
+  property (mirrors rrip_first). DORMANT (the equiv forces rrip_first) + was CONSERVATIVE (never a false
+  pass), so no past result changes; unit-tested 6/6; cache_sim equiv decisive counts UNCHANGED.
+SSOT-debloat finding (deferred, tracked): the `edge_epoch_count` bit-budget block is duplicated 5× across
+the gem5 kernels (pr/bfs/sssp/bc/cc) with stylistic drift → a `ecg_epoch::edgeEpochCount()` helper.
+Deferred because it needs a RISC-V+X86 rebuild + equiv revalidation (unsafe to refactor validated kernels
+while a cross-sim run depends on them / would create a stale-binary state).
+
+**Phase C cross-sim (kron_s16_k4@128kB, pressured)** — cache_sim headline is solid (multi-kernel
+ECG≥max(GRASP,POPT): WIN 7/TIE 3/LOSE 0, ECG<POPT 8/10; cit-Patents byte-identical post fresh-rebuild).
+The cross-sim direction table (l3_miss_rate): cache_sim LRU .661/SRRIP .558/GRASP .532/ECG:DBG .533/POPT
+.476 vs gem5 LRU .645/SRRIP **.986**/GRASP .562/POPT .469/ECG:DBG **.692**. GRASP and POPT DIRECTIONS
+AGREE across sims (both help, POPT most), but TWO gem5 anomalies: SRRIP catastrophic and ECG:DBG_PRIMARY
+HURTS vs LRU while it HELPS in cache_sim. The session's `ecg_rp.cc` change is TRACE-ONLY (verified) so
+this is NOT session-introduced — it is a pre-existing gem5 ECG-policy modeling gap (gem5 ECG:DBG behaves
+worse than the dedicated `GraphGraspRP`, though both are degree-based, suggesting the ECG degree-mode
+insertion did not get the GRASP non-property-RRPV fix analogue). PHASE C BLOCKER: investigate gem5
+ECG:DBG_PRIMARY insertion before the cross-sim ECG performance claim is clean; Sniper leg held pending.

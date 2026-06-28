@@ -110,6 +110,46 @@
       "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
       "cache_stream_prefetch_degree": 0,
       "timeout_sniper": 540
+    },
+    "xsim-cache": {
+      "description": "Phase C cross-sim direction-agreement on cache_sim. PRESSURED cell kron_s16_k4@128kB (property 256KB > L2 64kB > nothing -> spills to L3) where all 3 sims AGREE GRASP/ECG help (email-Eu-core@1MB has no pressure -> uninformative). Robust policy set all 3 sims model identically; prefetch OFF, -o5 (DBG reorder = GRASP-fair).",
+      "graphs": ["kron_s16_k4"],
+      "benchmark": ["pr"],
+      "l3_sizes": ["128kB"],
+      "l1d_size": "16kB",
+      "l2_size": "64kB",
+      "l3_ways": 16,
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "cache_stream_prefetch_degree": 0
+    },
+    "xsim-gem5": {
+      "description": "Phase C cross-sim direction-agreement on gem5 (cycle-accurate). Same pressured kron_s16_k4@128kB cell + policy set as xsim-cache. Absolute miss rates differ from cache_sim (full-ISA vs graph-only access population) -> the claim is DIRECTION/ranking agreement, not absolute equality.",
+      "suite": "gem5",
+      "graphs": ["kron_s16_k4"],
+      "benchmark": ["pr"],
+      "l3_sizes": ["128kB"],
+      "l1d_size": "16kB",
+      "l2_size": "64kB",
+      "l3_ways": 16,
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "cache_stream_prefetch_degree": 0,
+      "timeout_gem5": 3600
+    },
+    "xsim-sniper": {
+      "description": "Phase C cross-sim direction-agreement on Sniper (interval, REAL sg_kernel). Same pressured kron_s16_k4@128kB cell + policy set. Memory-capped (SDE runaway guard).",
+      "suite": "sniper",
+      "sniper_workload": "sg_kernel",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 16,
+      "graphs": ["kron_s16_k4"],
+      "benchmark": ["pr"],
+      "l3_sizes": ["128kB"],
+      "l1d_size": "16kB",
+      "l2_size": "64kB",
+      "l3_ways": 16,
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "cache_stream_prefetch_degree": 0,
+      "timeout_sniper": 1800
     }
   }
 }
