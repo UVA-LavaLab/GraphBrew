@@ -34,6 +34,9 @@
 #include <string>
 #include <vector>
 
+// SSOT: shared GRASP insertion-tier classifier (also defines the eviction policy).
+#include "mem/cache/replacement_policies/ecg_victim_policy.hh"
+
 namespace gem5 {
 namespace replacement_policy {
 namespace graph {
@@ -611,28 +614,16 @@ struct GraphCacheContext {
 
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size,
                            double hot_fraction = 0.15) const {
-        // GRASP-faithful (ligra.h add_region): the hot region is a fraction of the
-        // VERTEX SPACE (frontier_frac x n) = a fraction of the property ARRAY, NOT
-        // of the LLC. Auto-scales with graph size (a fixed LLC byte range
-        // under-protects large graphs). Default ~0.15 (~Faldu's vertex-relative
-        // "10%") reproduces the corpus AND scales. GRASP policy passes its Param;
-        // ECG DBG-tier callers use the default.
+        // GRASP-faithful: hot region = a fraction of the property ARRAY (vertex
+        // space), auto-scaling with graph size. SSOT: the per-region tier math is
+        // ecg_policy::classifyGraspTier (shared with cache_sim + Sniper). ECG
+        // DBG-tier callers use the default ~0.15 (~Faldu's vertex-relative 10%).
         (void)llc_size;
         for (uint32_t i = 0; i < num_regions; ++i) {
             if (!regions[i].grasp_region) continue;
-            if (regions[i].contains(addr)) {
-                uint64_t array_bytes = regions[i].upper_bound - regions[i].base_address;
-                uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * array_bytes);
-                uint64_t hot_bound = regions[i].base_address + hot_bytes;
-                uint64_t moderate_bound = regions[i].base_address + 2 * hot_bytes;
-                if (hot_bound > regions[i].upper_bound) hot_bound = regions[i].upper_bound;
-                if (moderate_bound > regions[i].upper_bound) moderate_bound = regions[i].upper_bound;
-                hot_bound += 8;
-                moderate_bound += 8;
-                if (addr < hot_bound) return 1;
-                if (addr < moderate_bound) return 2;
-                return 3;
-            }
+            uint32_t tier = ecg_policy::classifyGraspTier(
+                addr, regions[i].base_address, regions[i].upper_bound, hot_fraction);
+            if (tier != 0) return tier;
         }
         return 3;
     }

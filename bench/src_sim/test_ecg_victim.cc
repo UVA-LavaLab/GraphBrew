@@ -176,6 +176,26 @@ int main() {
         check(L3, "aging to max-rrpv (way6 reaches 7 first)",
               {{paddr(0),3,0,0,0},{paddr(1),5,0,0,0},{paddr(2),2,0,0,0},{paddr(3),4,0,0,0},
                {paddr(4),1,0,0,0},{paddr(5),0,0,0,0},{raddr(6),6,0,0,0},{paddr(7),2,0,0,0}}, 6);
+    } else if (var == "tier") {
+        // SSOT GRASP insertion classifier (ecg_policy::classifyGraspTier /
+        // graspTierRRPV) — the SAME functions cache_sim, gem5 and Sniper call.
+        // Region [PB,PU) = 64 KiB; hot_fraction 0.15 -> hot_bytes=9830, +8 boundary
+        // -> HOT [0,9838), MOD [9838,19668), COLD [19668,65536); outside -> 0.
+        auto tcheck = [](const char* name, uint32_t got, uint32_t want) {
+            if (got == want) { g_pass++; }
+            else { g_fail++; printf("  [tier] FAIL %s got=%u expect=%u\n", name, got, want); }
+        };
+        const double hf = 0.15;
+        tcheck("base -> HOT",        ecg_policy::classifyGraspTier(PB,         PB, PU, hf), 1);
+        tcheck("mid-hot -> HOT",     ecg_policy::classifyGraspTier(PB + 5000,  PB, PU, hf), 1);
+        tcheck("moderate -> MOD",    ecg_policy::classifyGraspTier(PB + 12000, PB, PU, hf), 2);
+        tcheck("cold -> COLD",       ecg_policy::classifyGraspTier(PB + 40000, PB, PU, hf), 3);
+        tcheck("at upper -> OUT",    ecg_policy::classifyGraspTier(PU,         PB, PU, hf), 0);
+        tcheck("below base -> OUT",  ecg_policy::classifyGraspTier(PB - 64,    PB, PU, hf), 0);
+        tcheck("rrpv HOT=1",  ecg_policy::graspTierRRPV(1, 7), 1);
+        tcheck("rrpv MOD=6",  ecg_policy::graspTierRRPV(2, 7), 6);
+        tcheck("rrpv COLD=7", ecg_policy::graspTierRRPV(3, 7), 7);
+        tcheck("rrpv OUT=7",  ecg_policy::graspTierRRPV(0, 7), 7);
     } else {
         printf("  (no scenarios for variant '%s')\n", var.c_str());
         return 2;

@@ -49,6 +49,7 @@
 #endif
 
 #include "../ecg_mode6_builder.h"
+#include "../ecg_victim_policy.h"
 
 namespace cache_sim {
 
@@ -1793,22 +1794,15 @@ struct GraphCacheContext {
     // under-protects at scale). llc_size is no longer used for the boundary.
     uint32_t classifyGRASP(uint64_t addr, size_t llc_size) const {
         (void)llc_size;
+        // SSOT: the per-region GRASP tier math lives in ecg_policy::classifyGraspTier
+        // (shared with gem5 + Sniper). hot_fraction = grasp_hot_percent/100 (default
+        // 0.15). Returns the first region's tier; cold if in none.
         for (uint32_t i = 0; i < num_regions; ++i) {
             const PropertyRegion& r = regions[i];
             if (!r.grasp_region) continue;
-            if (addr >= r.base_address) {
-                uint64_t array_bytes = r.upper_bound - r.base_address;
-                uint64_t hot_bytes = (uint64_t(r.grasp_hot_percent) * array_bytes) / 100;
-                uint64_t hot_bound = r.base_address + hot_bytes;
-                uint64_t moderate_bound = r.base_address + 2 * hot_bytes;
-                if (hot_bound > r.upper_bound) hot_bound = r.upper_bound;
-                if (moderate_bound > r.upper_bound) moderate_bound = r.upper_bound;
-                hot_bound += 8;       // Matches upstream common.h boundary rule.
-                moderate_bound += 8;  // Matches upstream common.h boundary rule.
-                if (addr < hot_bound)      return 1;  // HOT (hubs)
-                if (addr < moderate_bound) return 2;  // MODERATE
-                if (addr < r.upper_bound) return 3;   // COLD within this property region
-            }
+            uint32_t tier = ecg_policy::classifyGraspTier(
+                addr, r.base_address, r.upper_bound, r.grasp_hot_percent / 100.0);
+            if (tier != 0) return tier;
         }
         return 3;  // Not in any property region → cold
     }

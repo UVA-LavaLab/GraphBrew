@@ -1,4 +1,5 @@
 #include "graph_cache_context_sniper.h"
+#include "ecg_victim_policy.h"  // SSOT: shared GRASP insertion-tier classifier
 
 #include <algorithm>
 #include <array>
@@ -613,19 +614,10 @@ uint32_t GraphCacheContext::classifyGRASP(uint64_t addr, uint64_t llc_size) cons
     (void)llc_size;
     for (uint32_t i = 0; i < num_regions; ++i) {
         if (!regions[i].grasp_region) continue;
-        if (regions[i].contains(addr)) {
-            uint64_t array_bytes = regions[i].upper_bound - regions[i].base_address;
-            uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * array_bytes);
-            uint64_t hot_bound = regions[i].base_address + hot_bytes;
-            uint64_t moderate_bound = regions[i].base_address + 2 * hot_bytes;
-            if (hot_bound > regions[i].upper_bound) hot_bound = regions[i].upper_bound;
-            if (moderate_bound > regions[i].upper_bound) moderate_bound = regions[i].upper_bound;
-            hot_bound += 8;
-            moderate_bound += 8;
-            if (addr < hot_bound) return 1;
-            if (addr < moderate_bound) return 2;
-            return 3;
-        }
+        // SSOT: per-region tier math shared with cache_sim + gem5.
+        uint32_t tier = ecg_policy::classifyGraspTier(
+            addr, regions[i].base_address, regions[i].upper_bound, hot_fraction);
+        if (tier != 0) return tier;
     }
     return 3;
 }

@@ -51,6 +51,21 @@ def test_calls_present_in_each_simulator():
         assert token in text, f"{rel} does not call the shared {token}"
 
 
+def test_grasp_insertion_classifier_is_shared():
+    """The GRASP insertion tier (the INSERTION half of the policy) is also SSOT:
+    each simulator's graph context must call ecg_policy::classifyGraspTier rather
+    than duplicate the per-region boundary math (which previously drifted — e.g.
+    cache_sim classified [upper,upper+8) as MODERATE while gem5/Sniper did not)."""
+    callers = {
+        "bench/include/cache_sim/graph_cache_context.h": 'ecg_policy::classifyGraspTier',
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/graph_cache_context_gem5.hh": 'ecg_policy::classifyGraspTier',
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/graph_cache_context_sniper.cc": 'ecg_policy::classifyGraspTier',
+    }
+    for rel, token in callers.items():
+        text = (ROOT / rel).read_text(errors="ignore")
+        assert token in text, f"{rel} does not call the shared {token} (GRASP tier drift risk)"
+
+
 def test_prefetch_target_is_shared():
     """ECG prefetch-target selection is a single shared header
     (bench/include/ecg_mode6_builder.h, compiled into every kernel). The cache_sim

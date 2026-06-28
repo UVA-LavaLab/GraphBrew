@@ -400,11 +400,11 @@ def run_synthetic():
     if not SYNTH_BIN.exists():
         print("  [synthetic] FAIL: could not build test_ecg_victim"); return False
     ok = True
-    for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+    for variant in ["tier", "grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
         p = subprocess.run([str(SYNTH_BIN)], env={**os.environ, "ECG_VARIANT": variant},
                            capture_output=True, text=True, timeout=60)
         for line in p.stdout.splitlines():
-            if "expect=" in line or line.startswith("[test_ecg_victim]"):
+            if "expect=" in line or line.startswith("[test_ecg_victim]") or "RESULT[tier]" in line:
                 print("  " + line.rstrip())
         if p.returncode != 0:
             ok = False

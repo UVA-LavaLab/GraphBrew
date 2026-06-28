@@ -1,4 +1,5 @@
-// ECG_GRASP_POPT eviction decision — single source of truth for all simulators.
+// ECG policy (GRASP insertion tier + ECG_GRASP_POPT eviction) — single source of
+// truth for all simulators.
 //
 // cache_sim, gem5 and Sniper all call ecg_policy::selectVictim with a per-way
 // WayState built from their native cache-line structures. The DECISION logic is
@@ -108,6 +109,46 @@ inline size_t selectVictim(WayState* ways, size_t n, int variant, uint8_t rrpvMa
         if (propIdx != n) return propIdx;
         for (size_t i = 0; i < n; i++) if (ways[i].rrpv < rrpvMax) ways[i].rrpv++;
     }
+}
+
+// ---------------------------------------------------------------------------
+// GRASP insertion classification — the OTHER half of the ECG policy SSOT.
+// Insertion RRPV is GRASP's whole mechanism (Faldu HPCA'20): high-degree
+// property lines are protected, low-degree lines are evicted first. A single
+// implementation here guarantees cache_sim / gem5 / Sniper classify and insert
+// identically (the eviction DECISION above and the INSERTION tier below are now
+// both single-source). cache_sim/gem5/Sniper each iterate their own property
+// regions and call classifyGraspTier per region — no logic is mirrored.
+// ---------------------------------------------------------------------------
+
+// GRASP degree tier of `addr` within ONE property region [base, upper):
+// the top `hot_fraction` of the (DBG-reordered) array is HOT(1), the next
+// `hot_fraction` is MODERATE(2), the rest is COLD(3). Returns 0 when `addr`
+// is outside [base, upper) so the caller can try the next region. The +8
+// boundary nudge matches the upstream GRASP (ligra common.h add_region) rule.
+inline uint32_t classifyGraspTier(uint64_t addr, uint64_t base, uint64_t upper,
+                                  double hot_fraction) {
+    if (addr < base || addr >= upper) return 0;
+    const uint64_t array_bytes = upper - base;
+    const uint64_t hot_bytes = static_cast<uint64_t>(hot_fraction * array_bytes);
+    uint64_t hot_bound = base + hot_bytes;
+    uint64_t moderate_bound = base + 2 * hot_bytes;
+    if (hot_bound > upper) hot_bound = upper;
+    if (moderate_bound > upper) moderate_bound = upper;
+    hot_bound += 8;
+    moderate_bound += 8;
+    if (addr < hot_bound) return 1;       // HOT (hubs)  -> protected insertion
+    if (addr < moderate_bound) return 2;  // MODERATE
+    return 3;                             // COLD        -> evict-first insertion
+}
+
+// GRASP insertion RRPV for a degree tier (1/2/3 from classifyGraspTier; 0 or
+// out-of-region maps to cold). P_RRIP=1 (protected), I_RRIP=rrpvMax-1,
+// M_RRIP=rrpvMax — i.e. 1 / 6 / 7 for a 3-bit RRPV.
+inline uint8_t graspTierRRPV(uint32_t tier, uint8_t rrpvMax) {
+    if (tier == 1) return 1;
+    if (tier == 2) return (rrpvMax > 1) ? static_cast<uint8_t>(rrpvMax - 1) : rrpvMax;
+    return rrpvMax;
 }
 
 }  // namespace ecg_policy
