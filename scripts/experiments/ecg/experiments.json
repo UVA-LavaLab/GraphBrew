@@ -112,18 +112,18 @@
       "timeout_sniper": 540
     },
     "xsim-cache": {
-      "description": "Phase C cross-sim direction-agreement on cache_sim. PRESSURED cell kron_s16_k4@128kB (property 256KB > L2 64kB > nothing -> spills to L3) where all 3 sims AGREE GRASP/ECG help (email-Eu-core@1MB has no pressure -> uninformative). Robust policy set all 3 sims model identically; prefetch OFF, -o5 (DBG reorder = GRASP-fair).",
+      "description": "Phase C cross-sim BASELINE direction-agreement on cache_sim, PLUS the ECG_GRASP_POPT headline on the cache_sim authority. PRESSURED cell kron_s16_k4@128kB (property 256KB > L2 64kB -> spills to L3; email-Eu-core@1MB has no pressure). prefetch OFF, -o5 (DBG reorder = GRASP-fair). NOTE: the 3-sim ECG EQUIVALENCE is proven by verify/equiv_kernels.py (ECG_GRASP_POPT victim+insertion are SSOT-shared and decision-identical across sims); this anchor only shows cache_sim performance + baseline cross-sim direction.",
       "graphs": ["kron_s16_k4"],
       "benchmark": ["pr"],
       "l3_sizes": ["128kB"],
       "l1d_size": "16kB",
       "l2_size": "64kB",
       "l3_ways": 16,
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:ECG_GRASP_POPT"],
       "cache_stream_prefetch_degree": 0
     },
     "xsim-gem5": {
-      "description": "Phase C cross-sim direction-agreement on gem5 (cycle-accurate). Same pressured kron_s16_k4@128kB cell + policy set as xsim-cache. Absolute miss rates differ from cache_sim (full-ISA vs graph-only access population) -> the claim is DIRECTION/ranking agreement, not absolute equality.",
+      "description": "Phase C cross-sim BASELINE direction-agreement on gem5 (cycle-accurate): LRU/SRRIP/GRASP/POPT only. ECG is intentionally EXCLUDED here -- the ECG_GRASP_POPT headline needs the RISC-V ecg.load epoch delivery (this X86 leg cannot deliver it), and ECG:DBG_PRIMARY bypasses the shared ecg_policy::selectVictim (the shared SSOT engages only for ECG_GRASP_POPT), so it is NOT a faithful cross-sim proxy. The 3-sim ECG equivalence is the decision-test in verify/equiv_kernels.py. Absolute miss rates differ from cache_sim (full-ISA vs graph-only) -> DIRECTION/ranking agreement only.",
       "suite": "gem5",
       "graphs": ["kron_s16_k4"],
       "benchmark": ["pr"],
@@ -131,13 +131,13 @@
       "l1d_size": "16kB",
       "l2_size": "64kB",
       "l3_ways": 16,
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT"],
       "cache_stream_prefetch_degree": 0,
       "structure_prefetch_degree": 0,
       "timeout_gem5": 3600
     },
     "xsim-sniper": {
-      "description": "Phase C cross-sim direction-agreement on Sniper (interval, REAL sg_kernel). Same pressured kron_s16_k4@128kB cell + policy set. Memory-capped (SDE runaway guard).",
+      "description": "Phase C cross-sim BASELINE direction-agreement on Sniper (interval, REAL sg_kernel): LRU/SRRIP/GRASP/POPT only. ECG excluded for the same reason as xsim-gem5 (DBG_PRIMARY bypasses the shared victim SSOT; the ECG headline needs the epoch-delivery path). 3-sim ECG equivalence = verify/equiv_kernels.py. Memory-capped (SDE runaway guard).",
       "suite": "sniper",
       "sniper_workload": "sg_kernel",
       "allow_sniper_sg_kernel_workload": true,
@@ -148,7 +148,7 @@
       "l1d_size": "16kB",
       "l2_size": "64kB",
       "l3_ways": 16,
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT"],
       "cache_stream_prefetch_degree": 0,
       "structure_prefetch_degree": 0,
       "timeout_sniper": 1800

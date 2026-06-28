@@ -1562,3 +1562,25 @@ gem5 IPC as the cycle-accurate case study. TRACKED Phase C item: either fix gem5
 the GRASP 3-tier insertion (so it matches cache_sim), or drop ECG:DBG_PRIMARY from the cross-sim table and
 use ECG_GRASP_POPT decision-equivalence instead. SRRIP gem5 anomaly (.986) is a separate pre-existing
 baseline issue. NOTE: commit 0640009e's message overclaimed ("the likely cause"); this entry corrects it.
+
+### 22.17 SSOT FIX: unify the GRASP insertion classifier (user caught "same impl across 3 sims" gap)
+The user challenged the equivalence claim: "didn't we say same implementation across 3 sims?" Correct, and
+it exposed a real gap. What WAS single-source: the eviction DECISION (ecg_victim_policy.h selectVictim).
+What was NOT: the INSERTION tier classifier classifyGRASP had THREE separate copies (cache_sim/gem5/Sniper)
+that had ALREADY drifted -- cache_sim classified [upper,upper+8) as MODERATE (it checked only addr>=base)
+while gem5/Sniper used strict contains() bounds.
+FIX (commit 2b996d65): added ecg_policy::classifyGraspTier(addr,base,upper,hot_fraction) + graspTierRRPV()
+to the canonical ecg_victim_policy.h (synced byte-identical to both overlay copies); all three graph
+contexts now call it. The header is now the full ECG policy SSOT (insertion tier + eviction decision).
+VALIDATION (faithful, no result change): cache_sim cit-Patents PR byte-identical (.5672/.4231/.3565/.3084);
+base verify ALL VERIFIED + GATE 3 OK; gem5 rebuilt (scons -- setup_gem5 skips when binary exists, a stale
+trap) and the headline ECG_GRASP_POPT 3-sim equiv re-run gave IDENTICAL decisive counts (pr 2/17, bfs 1/14,
+bc 123/27, cc 0/0, sssp 5/3), ALL PASS. New tier unit test (ECG_VARIANT=tier 10/10) + SSOT test asserts
+each sim calls classifyGraspTier.
+DBG_PRIMARY resolution: the shared selectVictim engages ONLY for ECG_GRASP_POPT, so DBG_PRIMARY's victim
+path is unshared -> it is NOT a faithful cross-sim proxy (this is why gem5 ECG:DBG diverged, 22.16). The
+cross-sim anchor now uses ECG_GRASP_POPT on cache_sim (xsim-cache) and drops the DBG proxy on gem5/Sniper
+(LRU/SRRIP/GRASP/POPT baselines); the 3-sim ECG EQUIVALENCE is the headline equiv_kernels decision-test
+(now fully SSOT: shared insertion + shared victim). Residuals (tracked): Sniper.so rebuild deferred
+(numerically ~nil -- only the [upper,upper+8) edge case changed); routing DBG_PRIMARY's victim through
+selectVictim(GRASP_ONLY) would make even the degree-only mode faithful (follow-up).
