@@ -280,6 +280,17 @@ struct MaskConfig {
     uint8_t  degree_mode = 0;       // 0=OUT, 1=IN, 2=BOTH
     bool     per_vertex = false;    // false=per-edge O(m), true=per-vertex O(n)
     bool     enabled = false;
+    // GRASP insertion-tier SOURCE for the ECG policy — TWO VARIANTS (ECG_GRASP_SRC):
+    //   0 = MASK  : tier is DELIVERED in the per-edge bit mask (our ECG; encoded
+    //               offline via ecg_policy::graspTierByIndex, read via decodeDBG —
+    //               identical across cache_sim/gem5/Sniper by construction).
+    //   1 = REGION: tier is RECOMPUTED at insertion from the property region
+    //               (the original GRASP / Faldu spatial top-fraction, classifyGRASP).
+    // Default REGION = the faithful baseline (no number change). The MASK variant
+    // (our ECG, delivered + cross-sim identical) is opt-in via ECG_GRASP_SRC=mask
+    // while its prefetch-fill delivery is finalized + propagated to gem5/Sniper.
+    uint8_t  grasp_tier_source = 1;       // 1=region (default, GRASP), 0=mask (ECG)
+    double   grasp_hot_fraction = 0.15;   // top fraction = HOT (GRASP_HOT_FRACTION)
 
     // ── Field positions (computed) ──
     uint8_t  prefetch_shift = 0;
@@ -376,6 +387,12 @@ struct MaskConfig {
             if (std::string(v) == "IN") degree_mode = 1;
             else if (std::string(v) == "BOTH") degree_mode = 2;
             else degree_mode = 0;
+        }
+        if ((v = std::getenv("ECG_GRASP_SRC")))
+            grasp_tier_source = (std::string(v) == "region" || std::string(v) == "REGION") ? 1 : 0;
+        if ((v = std::getenv("GRASP_HOT_FRACTION"))) {
+            double f = std::atof(v);
+            if (f > 0.0 && f <= 1.0) grasp_hot_fraction = f;
         }
     }
 
@@ -1807,6 +1824,16 @@ struct GraphCacheContext {
         return 3;  // Not in any property region → cold
     }
 
+    // ECG "mask" variant source: the GRASP 3-tier of vertex v by its array
+    // POSITION (shared SSOT ecg_policy::graspTierByIndex). Precomputed offline and
+    // delivered in the per-edge mask (encoded at the build sites below, read via
+    // decodeDBG at insertion) — identical across simulators, no per-sim regions.
+    // On the DBG-reordered corpus this equals the region-based classifyGRASP.
+    uint8_t graspTier3(uint32_t v) const {
+        return static_cast<uint8_t>(ecg_policy::graspTierByIndex(
+            v, topology.num_vertices, mask_config.grasp_hot_fraction));
+    }
+
     // Map a bucket index to an RRPV value (GRASP-XP style).
     // Uses degree-proportional mapping: buckets with more total edges
     // get lower RRPV (higher cache priority).
@@ -2171,7 +2198,7 @@ struct GraphCacheContext {
                 if (pfx_value != 0) pfx_encoded++;
             }
 
-            masks[v] = mask_config.encode(tiers[v],
+            masks[v] = mask_config.encode(graspTier3(v),
                                           static_cast<uint8_t>(std::min(popt_hint, popt_max)),
                                           pfx_value);
         }
@@ -2333,7 +2360,7 @@ struct GraphCacheContext {
                 edge_count++;
 
                 // POPT/DBG fields for dest
-                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                uint8_t dbg = graspTier3(dest);  // ECG mask: delivered 3-tier (SSOT)
                 uint8_t popt = 0;
                 if (!avg_reref_by_line.empty()) {
                     uint32_t dest_cline = dest / numVtxPerLine;
@@ -2470,7 +2497,7 @@ struct GraphCacheContext {
             for (size_t i = 0; i < neighbors.size(); i++) {
                 uint32_t dest = neighbors[i];
                 edge_count++;
-                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                uint8_t dbg = graspTier3(dest);  // ECG mask: delivered 3-tier (SSOT)
                 // Absolute next-ref epoch of dest via the IN-adjacency: soonest next
                 // in-neighbour of dest (or its line) strictly > src, wrapping to the
                 // next iteration. Identical math to buildInEdgeMasks_PR's epoch path
@@ -2566,7 +2593,7 @@ struct GraphCacheContext {
             for (size_t i = 0; i < neighbors.size(); i++) {
                 uint32_t dest = neighbors[i];
                 edge_count++;
-                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                uint8_t dbg = graspTier3(dest);  // ECG mask: delivered 3-tier (SSOT)
                 // Soonest next out-neighbour of dest (or its 16-vertex line) strictly
                 // > src, wrapping to the next iteration. Mirror of buildOutEdgeMasks
                 // over the (local) out-adjacency instead of exact_in_*.
@@ -2689,7 +2716,7 @@ struct GraphCacheContext {
             for (size_t i = 0; i < neighbors.size(); i++) {
                 uint32_t dest = neighbors[i];
                 edge_count++;
-                uint8_t dbg = (dest < tiers.size()) ? tiers[dest] : 0;
+                uint8_t dbg = graspTier3(dest);  // ECG mask: delivered 3-tier (SSOT)
                 uint8_t popt = 0;
                 if (!avg_reref_by_line.empty()) {
                     uint32_t cl = dest / numVtxPerLine;

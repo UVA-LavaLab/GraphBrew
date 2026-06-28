@@ -151,6 +151,21 @@ inline uint8_t graspTierRRPV(uint32_t tier, uint8_t rrpvMax) {
     return rrpvMax;
 }
 
+// GRASP degree tier of vertex v by its POSITION in the (DBG-reordered) property
+// array: top hot_fraction = HOT(1), next hot_fraction = MODERATE(2), rest COLD(3).
+// This is classifyGraspTier expressed by vertex INDEX (pos = v/num_vertices),
+// so the SAME tier can be precomputed offline and DELIVERED in the per-edge mask
+// (the "ECG mask" variant) — identical across simulators with NO per-sim region
+// bounds. On a DBG-reordered graph pos == degree rank, so it matches the
+// region-based classifyGraspTier (the "original GRASP" variant).
+inline uint32_t graspTierByIndex(uint64_t v, uint64_t num_vertices, double hot_fraction) {
+    if (num_vertices == 0) return 3;
+    double pos = static_cast<double>(v) / static_cast<double>(num_vertices);
+    if (pos < hot_fraction) return 1;        // HOT (hubs at the array front)
+    if (pos < 2.0 * hot_fraction) return 2;  // MODERATE
+    return 3;                                // COLD
+}
+
 }  // namespace ecg_policy
 
 #endif  // ECG_VICTIM_POLICY_H

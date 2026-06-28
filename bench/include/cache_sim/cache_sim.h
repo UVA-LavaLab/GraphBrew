@@ -1040,15 +1040,20 @@ public:
                 if (combined == 0 && dbg_rrpv > 0) combined = 1;  // Reserve 0 for hits
                 set[victim_idx].rrpv = combined;
             } else {
-                // GRASP-faithful 3-tier for DBG_PRIMARY, DBG_ONLY, ECG_EMBEDDED variants
-                constexpr uint8_t P_RRIP = 1;
-                constexpr uint8_t I_RRIP = 6;
-                constexpr uint8_t M_RRIP_C = 7;
+                // GRASP 3-tier insertion for DBG_PRIMARY/DBG_ONLY/ECG_EMBEDDED/
+                // ECG_GRASP_POPT. TWO VARIANTS (mask_config.grasp_tier_source):
+                //   MASK (0, our ECG): tier DELIVERED in the per-edge mask
+                //     (decodeDBG of the current hint) — cross-sim identical.
+                //   REGION (1, original GRASP): classifyGRASP(address) recomputed
+                //     from the property region (Faldu spatial top-fraction).
+                // Both map through the shared ecg_policy::graspTierRRPV (1/6/7).
                 if (graph_ctx_) {
-                    uint32_t tier = graph_ctx_->classifyGRASP(address, size_bytes_);
-                    if (tier == 1)       set[victim_idx].rrpv = P_RRIP;
-                    else if (tier == 2)  set[victim_idx].rrpv = I_RRIP;
-                    else                 set[victim_idx].rrpv = M_RRIP_C;
+                    uint32_t tier = (graph_ctx_->mask_config.grasp_tier_source == 0)
+                        ? graph_ctx_->mask_config.decodeDBG(
+                              graph_ctx_->hints_for_thread().mask)
+                        : graph_ctx_->classifyGRASP(address, size_bytes_);
+                    set[victim_idx].rrpv = ecg_policy::graspTierRRPV(
+                        static_cast<uint32_t>(tier), 7);
                 }
             }
 
