@@ -1048,10 +1048,17 @@ public:
                 //     from the property region (Faldu spatial top-fraction).
                 // Both map through the shared ecg_policy::graspTierRRPV (1/6/7).
                 if (graph_ctx_) {
-                    uint32_t tier = (graph_ctx_->mask_config.grasp_tier_source == 0)
-                        ? graph_ctx_->mask_config.decodeDBG(
-                              graph_ctx_->hints_for_thread().mask)
-                        : graph_ctx_->classifyGRASP(address, size_bytes_);
+                    uint32_t tier;
+                    if (graph_ctx_->mask_config.grasp_tier_source == 0) {  // MASK (ECG)
+                        // The DELIVERED per-vertex GRASP tier, keyed by the INSERTED
+                        // LINE's own vertex (not the current access's hint) so it is
+                        // correct for every fill and identical across simulators.
+                        uint32_t vtx = graph_ctx_->addressToVertex(address);
+                        tier = (vtx == UINT32_MAX) ? 3u
+                                                   : graph_ctx_->graspTier3(vtx);
+                    } else {                                               // REGION (GRASP)
+                        tier = graph_ctx_->classifyGRASP(address, size_bytes_);
+                    }
                     set[victim_idx].rrpv = ecg_policy::graspTierRRPV(
                         static_cast<uint32_t>(tier), 7);
                 }

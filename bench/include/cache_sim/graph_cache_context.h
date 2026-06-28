@@ -1834,6 +1834,20 @@ struct GraphCacheContext {
             v, topology.num_vertices, mask_config.grasp_hot_fraction));
     }
 
+    // Map a cache-line address to its property vertex id (the region that contains
+    // it). UINT32_MAX if not in any property region. Used by the ECG "mask" variant
+    // so the INSERTED LINE gets ITS OWN vertex's delivered tier (mirrors gem5's
+    // addressToVertex) — NOT the current access's hint, which is stale for fills
+    // whose vertex differs from the demand (e.g. prefetch fills).
+    uint32_t addressToVertex(uint64_t addr) const {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            const PropertyRegion& r = regions[i];
+            if (addr >= r.base_address && addr < r.upper_bound && r.elem_size > 0)
+                return static_cast<uint32_t>((addr - r.base_address) / r.elem_size);
+        }
+        return UINT32_MAX;
+    }
+
     // Map a bucket index to an RRPV value (GRASP-XP style).
     // Uses degree-proportional mapping: buckets with more total edges
     // get lower RRPV (higher cache priority).
