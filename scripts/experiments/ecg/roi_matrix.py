@@ -27,6 +27,7 @@ import csv
 import hashlib
 import json
 import os
+import platform
 import re
 import signal
 import shlex
@@ -1133,6 +1134,16 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         except RuntimeError as exc:
             row.update({"status": "error", "error": str(exc)})
             return [row]
+
+    # Disable ASLR so the simulated workload's heap arrays land at fixed
+    # addresses every run. Sniper models physical cache set-indexing on those
+    # addresses, so ASLR alone produces run-to-run miss-rate swings (the graph
+    # property/edge arrays randomly collide in sets). cache_sim/gem5 use fixed
+    # addresses; setarch -R gives Sniper the same determinism. No-op if absent.
+    setarch = shutil.which("setarch")
+    if setarch:
+        cmd = [setarch, platform.machine(), "-R", *cmd]
+        row["sniper_aslr_disabled"] = 1
 
     env = dict(os.environ)
     env["OMP_NUM_THREADS"] = str(args.sniper_cores)
