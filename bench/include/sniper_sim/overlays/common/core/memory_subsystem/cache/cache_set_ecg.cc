@@ -315,20 +315,16 @@ CacheSetECG::findPOPTVictim(CacheCntlr *cntlr)
    }
 
    while (true) {
-      UInt32 best = m_associativity;
-      UInt8 best_dbg = 0;
+      // POPT_PRIMARY is the pure P-OPT ablation: evict the FIRST way at max
+      // reref distance (matches standalone CacheSetPOPT and cache_sim/gem5).
+      // No DBG-tier tiebreak — that is an ECG-combined feature, not P-OPT.
       for (UInt32 way = 0; way < m_associativity; way++) {
          UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
-         if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] >= m_rrip_max &&
-             (best == m_associativity || m_dbg_tiers[way] > best_dbg)) {
-            best = way;
-            best_dbg = m_dbg_tiers[way];
+         if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] >= m_rrip_max) {
+            applyPendingInsertion(way);
+            LOG_ASSERT_ERROR(isValidReplacement(way), "ECG POPT selected an invalid replacement candidate");
+            return way;
          }
-      }
-      if (best != m_associativity) {
-         applyPendingInsertion(best);
-         LOG_ASSERT_ERROR(isValidReplacement(best), "ECG POPT selected an invalid replacement candidate");
-         return best;
       }
       for (UInt32 way = 0; way < m_associativity; way++) {
          UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
@@ -577,6 +573,11 @@ CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
    if (m_mode == graphbrew::sniper::ECGMode::POPT_PRIMARY ||
        m_mode == graphbrew::sniper::ECGMode::ECG_COMBINED) {
       m_rrip_bits[accessed_index] = 0;
+      // Advance the P-OPT vertex pointer on hit, exactly like standalone
+      // CacheSetPOPT::updateReplacementIndex — otherwise POPT_PRIMARY and POPT
+      // see different current vertices and diverge.
+      graphbrew::sniper::globalContext().updateVertexFromAddr(
+            static_cast<uint64_t>(m_line_addrs[accessed_index]), m_core_id);
       return;
    }
    if (m_property_lines[accessed_index] && graphbrew::sniper::globalContext().loaded) {
