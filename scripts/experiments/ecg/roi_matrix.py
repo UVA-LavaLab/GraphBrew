@@ -154,6 +154,12 @@ GEM5_STAT_KEYS = {
     "l1_accesses": "system.cpu.dcache.overallAccesses::total",
     "l2_accesses": "system.l2cache.overallAccesses::total",
     "l3_accesses": "system.l3cache.overallAccesses::total",
+    # Demand-load (cpu.data) L3 stats EXCLUDING prefetcher fills, so gem5's L3
+    # miss rate is apples-to-apples with cache_sim/Sniper (both loads-only). The
+    # L2 stream prefetcher otherwise dominates overall::total (>>demand), making
+    # gem5 mr ~0.89 vs cache_sim ~0.68 for identical LRU. cpu.data aligns them.
+    "l3_data_misses": "system.l3cache.overallMisses::cpu.data",
+    "l3_data_hits": "system.l3cache.overallHits::cpu.data",
 }
 
 GEM5_PREFETCH_STAT_KEYS = {
@@ -1306,6 +1312,14 @@ def parse_gem5_sections(stats_path: Path) -> list[dict[str, Any]]:
                 continue
             value = match.group(1)
             stats[out_key] = parse_gem5_number(value)
+        # Override L3 miss rate with DEMAND-LOAD (cpu.data) only — exclude L2
+        # stream-prefetcher fills so gem5 matches cache_sim/Sniper (loads-only).
+        dm = stats.get("l3_data_misses")
+        dh = stats.get("l3_data_hits")
+        if dm is not None and dh is not None and (dm + dh) > 0:
+            stats["l3_miss_rate"] = dm / (dm + dh)
+            stats["l3_misses"] = dm
+            stats["l3_accesses"] = dm + dh
         parsed.append(stats)
     return parsed
 
