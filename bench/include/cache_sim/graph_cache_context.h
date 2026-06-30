@@ -815,6 +815,10 @@ struct AccessHints {
                                         // gem5/Sniper which stamp only on real per-edge delivery.
                                         // Resolves the epoch==0 ambiguity (real epoch-0 delivery is
                                         // still valid; a cleared read is not).
+    // ECG_EDGE_MASK_SCHED: forward schedule of the next-K absolute next-ref epochs
+    // (sorted ascending) delivered alongside edge_epoch. n=0 => no schedule (inert).
+    uint16_t edge_epoch_sched[4] = {0, 0, 0, 0};
+    uint8_t  edge_epoch_sched_n = 0;
 
     // ECG mask encoding constants (2-bit, from ECG -M flag graphConfig.h)
     static constexpr uint8_t MASK_HOT      = 0x03;  // 11
@@ -1395,6 +1399,13 @@ struct GraphCacheContext {
     // ECG_EDGE_MASK_EPOCH is set; the kernel carries it on the demand via
     // AccessHints::edge_epoch so the cache can use >128 epochs.
     std::vector<std::vector<uint16_t>> in_edge_epoch_by_src;
+
+    // ECG_EDGE_MASK_SCHED=K: parallel per-edge forward SCHEDULE — the next-K absolute
+    // next-ref epochs of dest's line (sorted ascending), flattened K-per-edge so edge i
+    // occupies [i*K, i*K+K). Lets a resident line self-advance across epochs (matrix-like)
+    // without a reserved way. Built by buildInEdgeMasks_PR when ECG_EDGE_MASK_SCHED set.
+    std::vector<std::vector<uint16_t>> in_edge_epoch_sched_by_src;
+    uint32_t edge_epoch_sched_k = 0;  // K (0 = disabled / single-epoch legacy path)
 
     // === OUT-edge per-edge masks (dual-direction capability) ===
     // The mirror of in_edge_masks_by_src for kernels that traverse the OUT edge
@@ -2278,6 +2289,8 @@ struct GraphCacheContext {
         in_edge_masks_by_src.resize(n);
         in_edge_epoch_by_src.clear();
         in_edge_epoch_by_src.resize(n);
+        in_edge_epoch_sched_by_src.clear();
+        in_edge_epoch_sched_by_src.resize(n);
         if (n == 0) return;
 
         // ECG_EDGE_MASK_EXACT: fill the per-edge POPT field [26:33] with the
@@ -2299,6 +2312,17 @@ struct GraphCacheContext {
         // the 16 vertices sharing dest's cache line) instead of just dest's — matches
         // P-OPT's per-line granularity. 16x build cost, fully parallel.
         const bool edge_mask_linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
+        // ECG_EDGE_MASK_SCHED=K: also store the next-K (not just the soonest) line
+        // next-ref epochs per edge, so a resident line self-advances as cur_epoch passes
+        // each — recovering the matrix's per-epoch dimension. K in [0,4] (0=disabled).
+        // Most effective WITH linemin (multiple vertices/line => multiple distinct
+        // future touches of the line). edge_epoch_sched_k records the active K.
+        uint32_t sched_k = 0;
+        if (const char* sk = std::getenv("ECG_EDGE_MASK_SCHED")) {
+            int sv = std::atoi(sk);
+            sched_k = (sv <= 0) ? 0u : (sv > 4 ? 4u : (uint32_t)sv);
+        }
+        edge_epoch_sched_k = sched_k;
         {   // # epochs the absolute-epoch mask quantizes to (7-bit field => <=128)
             const char* ev = std::getenv("ECG_EDGE_MASK_EPOCHS");
             uint32_t ec = ev ? (uint32_t)std::atoi(ev) : 32u;
@@ -2382,6 +2406,8 @@ struct GraphCacheContext {
             masks.resize(neighbors.size(), 0);
             auto& eps = in_edge_epoch_by_src[src];
             if (edge_mask_epoch) eps.resize(neighbors.size(), 0);
+            auto& sch = in_edge_epoch_sched_by_src[src];
+            if (edge_mask_epoch && sched_k) sch.assign(neighbors.size() * sched_k, 0);
 
             for (size_t i = 0; i < neighbors.size(); i++) {
                 uint32_t dest = neighbors[i];
@@ -2440,6 +2466,45 @@ struct GraphCacheContext {
                     popt = (best_ep >= kNumEpochs5 ? (kNumEpochs5 - 1) : best_ep) & 0x7F;
                     if (i < eps.size()) eps[i] = static_cast<uint16_t>(
                         best_ep >= kNumEpochs5 ? (kNumEpochs5 - 1) : best_ep);  // FULL epoch (untruncated)
+
+                    // ECG_EDGE_MASK_SCHED: build the next-K forward schedule (additive;
+                    // leaves eps[i]/best_ep above untouched so the sched-off path stays
+                    // byte-identical). Collect up to K forward refs of EACH vertex on the
+                    // line (positions lo..lo+K), plus the wrap ref for vertices with no
+                    // out-neighbor > src; keep the K SOONEST distances as the schedule.
+                    if (sched_k && i * sched_k < sch.size()) {
+                        constexpr int kCandCap = 4 * numVtxPerLine;  // 64
+                        std::pair<uint32_t, uint32_t> cand[kCandCap];  // (dist, epoch)
+                        int nc = 0;
+                        for (uint32_t w = v0; w < v1 && nc < kCandCap; ++w) {
+                            int64_t a = exact_off[w], b = exact_off[w + 1];
+                            if (a >= b) continue;
+                            int64_t lo = a, hi = b;
+                            while (lo < hi) { int64_t mid = (lo + hi) >> 1;
+                                if ((uint32_t)exact_nbr[mid] > src) hi = mid; else lo = mid + 1; }
+                            if (lo < b) {
+                                for (int64_t p = lo; p < b && p < lo + (int64_t)sched_k && nc < kCandCap; ++p) {
+                                    uint32_t nb = (uint32_t)exact_nbr[p];
+                                    uint32_t ep = (uint32_t)(((uint64_t)nb * kNumEpochs5) / std::max<uint32_t>(1u, n));
+                                    if (ep >= kNumEpochs5) ep = kNumEpochs5 - 1;
+                                    cand[nc++] = { nb - src, ep };
+                                }
+                            } else {  // wrap: vertex's first out-neighbor (next iteration)
+                                uint32_t nb = (uint32_t)exact_nbr[a];
+                                uint32_t ep = (uint32_t)(((uint64_t)nb * kNumEpochs5) / std::max<uint32_t>(1u, n));
+                                if (ep >= kNumEpochs5) ep = kNumEpochs5 - 1;
+                                cand[nc++] = { nb + n - src, ep };
+                            }
+                        }
+                        std::sort(cand, cand + nc,
+                                  [](const std::pair<uint32_t, uint32_t>& x,
+                                     const std::pair<uint32_t, uint32_t>& y) { return x.first < y.first; });
+                        uint32_t fallback = best_ep >= kNumEpochs5 ? (kNumEpochs5 - 1) : best_ep;
+                        for (uint32_t k = 0; k < sched_k; ++k)
+                            sch[i * sched_k + k] = (k < (uint32_t)nc)
+                                ? static_cast<uint16_t>(cand[k].second)
+                                : static_cast<uint16_t>(fallback);
+                    }
                 }
 
                 // Per-edge prefetch target (shared decision: ecg_mode6::
@@ -2815,6 +2880,23 @@ struct GraphCacheContext {
         hints_for_thread().edge_epoch =
             (src < eps.size() && edge_pos < eps[src].size()) ? eps[src][edge_pos] : 0;
         hints_for_thread().edge_epoch_valid = true;  // a real per-edge epoch was delivered
+        // ECG_EDGE_MASK_SCHED: deliver the forward schedule (IN direction only — built by
+        // buildInEdgeMasks_PR). Inert (n=0) when no schedule was built / OUT direction.
+        {
+            auto& H = hints_for_thread();
+            if (edge_epoch_sched_k && dir == EdgeMaskDir::IN
+                && src < in_edge_epoch_sched_by_src.size()) {
+                const auto& sc = in_edge_epoch_sched_by_src[src];
+                uint32_t K = edge_epoch_sched_k;
+                uint8_t kn = static_cast<uint8_t>(std::min<uint32_t>(K, 4));
+                H.edge_epoch_sched_n = kn;
+                for (uint8_t k = 0; k < kn; ++k)
+                    H.edge_epoch_sched[k] = (edge_pos * K + k < sc.size())
+                        ? sc[edge_pos * K + k] : H.edge_epoch;
+            } else {
+                H.edge_epoch_sched_n = 0;
+            }
+        }
         return edgeMaskPOPT(masks[src][edge_pos]);
     }
 

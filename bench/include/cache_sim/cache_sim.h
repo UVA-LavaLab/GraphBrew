@@ -424,6 +424,15 @@ struct CacheLine {
                                   // Distinguishes a real epoch-0 (low-ID next-referencer) from an
                                   // undelivered line — epoch==0 alone is ambiguous. Mirrors Sniper's
                                   // m_ecg_epoch_valid so all 3 sims represent "stamped" identically.
+    // ECG_EDGE_MASK_SCHED=K: a short per-line forward SCHEDULE of the next-K ABSOLUTE
+    // next-ref epochs (sorted ascending). Recovers the P-OPT matrix's per-epoch
+    // self-advance: at eviction the SOONEST schedule entry still ahead of cur_epoch is
+    // used, so a resident line is no longer BLIND to references after the first stamped
+    // one (the root cause of the 1-D mask's staleness vs the matrix's 2-D row). Inert
+    // (n=0) unless ECG_EDGE_MASK_SCHED delivers a schedule; ecg_epoch stays primary.
+    static constexpr int ECG_SCHED_KMAX = 4;
+    uint16_t ecg_epoch_sched[ECG_SCHED_KMAX] = {0, 0, 0, 0};
+    uint8_t  ecg_epoch_sched_n = 0;
     uint32_t ecg_exact_pred = UINT32_MAX; // ECG_EXACT_STORED: exact next-ref STAMPED at access (precomputed-mask model)
     bool pin = false;            // PIN policy: line is pinned in cache (high-reuse region)
 };
@@ -867,6 +876,19 @@ public:
         return false;
     }
 
+    // ECG_EDGE_MASK_SCHED: copy the per-thread schedule hint onto a line at fill/refresh.
+    // No-op (clears to n=0) when no schedule is delivered, so the single-epoch path is
+    // byte-identical to before. Mirrors the ecg_epoch stamp, kept next to it at every site.
+    inline void stampEpochSchedule(CacheLine& L) {
+        if (!graph_ctx_) { L.ecg_epoch_sched_n = 0; return; }
+        const auto& H = graph_ctx_->hints_for_thread();
+        uint8_t kn = H.edge_epoch_sched_n;
+        if (kn > CacheLine::ECG_SCHED_KMAX) kn = CacheLine::ECG_SCHED_KMAX;
+        L.ecg_epoch_sched_n = kn;
+        for (uint8_t k = 0; k < CacheLine::ECG_SCHED_KMAX; ++k)
+            L.ecg_epoch_sched[k] = (k < kn) ? H.edge_epoch_sched[k] : 0;
+    }
+
     // ECG_EXACT_STORED: refresh a resident line's stamped prediction on a demand
     // access EVEN IF this level didn't serve it. Models the per-edge mask hint
     // being broadcast to the LLC on every edge load (the ecg.extract instruction
@@ -889,6 +911,7 @@ public:
                     // ECG_GRASP_POPT: refresh the stored epoch only on a real delivery
                     set[i].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
                     set[i].ecg_epoch_valid = true;
+                    stampEpochSchedule(set[i]);
                 }
                 return;
             }
@@ -1080,6 +1103,7 @@ public:
                     set[victim_idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
                     set[victim_idx].ecg_epoch_valid =
                         graph_ctx_->hints_for_thread().edge_epoch_valid;
+                    stampEpochSchedule(set[victim_idx]);
                 } else {
                     set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
                 }
@@ -1268,6 +1292,7 @@ private:
                     graph_ctx_->hints_for_thread().edge_epoch_valid) {
                     set[idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
                     set[idx].ecg_epoch_valid = true;
+                    stampEpochSchedule(set[idx]);
                 }
             }
         }
@@ -1759,7 +1784,19 @@ private:
             if (cur_epoch >= ne) cur_epoch = ne - 1;
             constexpr uint8_t RRPV_MAX = 7;
             auto isProp  = [&](size_t i){ return graph_ctx_->isPropertyData(set[i].line_addr); };
-            auto dist    = [&](size_t i){ return (uint32_t(set[i].ecg_epoch) + ne - cur_epoch) % ne; };
+            auto dist    = [&](size_t i){
+                // 1-D base: circular distance to the single stamped next-ref epoch.
+                uint32_t d = (uint32_t(set[i].ecg_epoch) + ne - cur_epoch) % ne;
+                // 2-D recovery (ECG_EDGE_MASK_SCHED): take the SOONEST upcoming entry in
+                // the per-line schedule. A passed entry wraps to a large circular
+                // distance, so min() naturally skips it and the line self-advances to
+                // its next true reference — emulating the matrix's per-epoch recompute.
+                for (uint8_t k = 0; k < set[i].ecg_epoch_sched_n; ++k) {
+                    uint32_t dk = (uint32_t(set[i].ecg_epoch_sched[k]) + ne - cur_epoch) % ne;
+                    if (dk < d) d = dk;
+                }
+                return d;
+            };
             auto stamped = [&](size_t i){ return isProp(i) && set[i].ecg_epoch_valid; };
 
             // Build the per-way state and delegate the DECISION to the shared

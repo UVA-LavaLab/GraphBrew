@@ -334,6 +334,21 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         v = v_un; carried_epoch = ep_un;
                     }
                     graph_ctx.hints_for_thread().edge_epoch = carried_epoch;
+                    // ECG_EDGE_MASK_SCHED: deliver the per-edge forward schedule so the
+                    // resident line can self-advance across epochs (matrix-like). Inert
+                    // (n=0) when ECG_EDGE_MASK_SCHED is unset.
+                    if (graph_ctx.edge_epoch_sched_k) {
+                        const auto& sc = graph_ctx.in_edge_epoch_sched_by_src[u];
+                        uint32_t K = graph_ctx.edge_epoch_sched_k;
+                        auto& H = graph_ctx.hints_for_thread();
+                        uint8_t kn = static_cast<uint8_t>(std::min<uint32_t>(K, 4));
+                        H.edge_epoch_sched_n = kn;
+                        for (uint8_t k = 0; k < kn; ++k)
+                            H.edge_epoch_sched[k] = ((size_t)edge_pos * K + k < sc.size())
+                                ? sc[(size_t)edge_pos * K + k] : carried_epoch;
+                    } else {
+                        graph_ctx.hints_for_thread().edge_epoch_sched_n = 0;
+                    }
                     SIM_CACHE_READ_MASKED(cache, contrib_ptr, v, graph_ctx, demand_hint);
                     incoming_total += outgoing_contrib[v];
                 }

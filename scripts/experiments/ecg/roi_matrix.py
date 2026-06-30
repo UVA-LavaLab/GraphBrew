@@ -733,6 +733,14 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
                 "ECG_EDGE_MASK_PACK_BITS": str(args.ecg_epoch_pack_bits),
                 "ECG_EDGE_MASK_CHARGED": str(args.ecg_charged),
             })
+            # ECG_STORED_REFRESH gate is PRESENCE-based in cache_sim.h (getenv != null),
+            # so only inject the key when enabled; never set it to "0" (that would still
+            # enable it). The dominant faithful lever — keeps the per-edge epoch stamp
+            # fresh so the 1-D mask tracks the matrix's live 2-D next-ref.
+            if getattr(args, "ecg_stored_refresh", 1):
+                env["ECG_STORED_REFRESH"] = "1"
+            else:
+                env.pop("ECG_STORED_REFRESH", None)
     return env
 
 
@@ -1487,6 +1495,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "scale (committed reproductions unchanged). 64 = ISA-faithful 64-bit "
                              "packed record: full epoch resolution at any scale; the wider (8B) "
                              "record stream is honestly charged by ecgRecordBytes under CHARGED=1.")
+    parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=1,
+                        help="ECG_STORED_REFRESH: re-stamp a resident LLC line's next-ref "
+                             "epoch from the per-edge hint on EVERY access (even when L1/L2 "
+                             "served the demand), modelling the ecg.extract mask being "
+                             "re-delivered per edge. FAITHFUL (the per-edge epoch is already "
+                             "streamed; free under LEAN+PACK) and gated by edge_epoch_valid so "
+                             "frontier kernels' sequential-read hygiene is preserved. This is "
+                             "the dominant ECG_GRASP_POPT lever: it keeps the 1-D stamp fresh "
+                             "(vs the P-OPT matrix's live 2-D next-ref), closing ~2.4pp of the "
+                             "eviction gap. 1 (default) = on; 0 = legacy stale-stamp behaviour.")
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--timeout-cache", type=int, default=600)
     parser.add_argument("--timeout-gem5", type=int, default=900)
