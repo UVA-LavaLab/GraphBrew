@@ -152,3 +152,38 @@ without modelling both metadata streams inside the simulator.
 it matches within <1pp at zero reserved ways. Whether "P-OPT-competitive at lower dedicated
 LLC cost" clears the project bar is a **strategic thesis decision left to the user** — the
 data does not support a clean miss-rate win, and this write-up avoids manufacturing one.
+
+## 8. Literature synthesis (2026-06-30) — is "beat P-OPT" even the right bar?
+
+Prompted by "let's see out there in literature to draw insight." External web search
+was unavailable; this draws on the local corpus (primary: the P-OPT HPCA'21 paper) and
+the team's `research/caching/` notes.
+
+**Insight 1 — the goal in this space is to APPROACH the oracle, not beat it.** The ECG
+notes' own expected hierarchy is `P-OPT ≤ ECG(DBG_PRIMARY) ≤ … ≤ GRASP` (research/caching/
+ecg.md:289) — P-OPT is positioned as the *oracle ceiling*. P-OPT itself only *approaches*
+Belady/T-OPT (its paper reports within ~1–5% of OPT, not beating it). So the honest ECG
+thesis is the analogue: **approach P-OPT at lower hardware overhead** — which the measured
+<1pp gap at zero reserved ways achieves. "Beat P-OPT's miss rate" was never the paper's
+claim and is not the literature's bar.
+
+**Insight 2 — why generic predictors fail on graphs (P-OPT §II, lines 280–311).** SHiP/
+Hawkeye predict reuse from PC or address, assuming all accesses by an instruction/region
+share reuse. Graph kernels violate this: the *same* load has different locality for high-
+vs low-degree vertices; "even with infinite storage, SHiP-Mem gives little improvement
+over LRU." This is precisely the gap ECG's **per-vertex** mask fills — a graph-aware
+predictor where per-PC predictors are blind.
+
+**Insight 3 — but insertion-time reuse hints don't help here (measured).** The team's
+Hawkeye-inspired feasible modes were evaluated (web-Google 2MB/16w, −i3):
+POPT 0.1991 · **ECG_GRASP_POPT(epoch) 0.2205** · GRASP 0.2291 · ECG_EMBEDDED 0.2350 ·
+ECG_COMBINED 0.2539. The insertion-blend modes are *worse than plain GRASP* — a static
+reref hint dilutes GRASP's clean degree signal (consistent with the epoch-at-insertion
+result in §7). The best *feasible* mode remains GRASP insertion + epoch eviction-tiebreak.
+
+**Net.** The literature reframes the project honestly: ECG's contribution is **P-OPT-
+quality graph caching (within <1pp) via a memory-resident per-vertex mask — no reserved
+LLC way, no matrix stream** — mirroring how P-OPT is positioned vs Belady. This is a
+defensible thesis; "beat P-OPT" is not the right bar and is not supported. Recommended
+paper framing: *practical, overhead-free approximation of the graph-caching oracle*, with
+P-OPT as the ceiling ECG approaches, not a baseline ECG must exceed.
