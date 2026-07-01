@@ -2134,8 +2134,10 @@ public:
         
         // ECG_EXACT_STORED: broadcast the per-edge hint to the LLC every demand
         // access so its stamp stays fresh even when L1/L2 serve the reference
-        // (gated env, no-op for other policies).
-        if (refresh_exact_stamp_) l3_->refreshExactStamp(address);
+        // (gated env, no-op for other policies). Under ECG_REFRESH_LLC_ONLY the
+        // write is deferred to the L3-reaching path below (piggybacks a real L3
+        // access = HW-free), instead of firing here on L1/L2 hits too.
+        if (refresh_exact_stamp_ && !refresh_llc_only_) l3_->refreshExactStamp(address);
 
         // Uniform structure-stream (next-line) prefetcher — faithful to the HW
         // stride prefetchers in GRASP/P-OPT/DROPLET (cache_sim previously had none,
@@ -2171,6 +2173,10 @@ public:
         
         // L2 miss, try L3
         if (l3_->access(address, is_write)) {
+            // ECG_REFRESH_LLC_ONLY: the access reached L3, so stamping the epoch here
+            // piggybacks an L3 access already in flight (HW-free). (L3-miss fills stamp
+            // via insert() already, so the hit path is the only extra site needed.)
+            if (refresh_exact_stamp_ && refresh_llc_only_) l3_->refreshExactStamp(address);
             if (was_prefetched) markPrefetchUseful(line_addr);
             l2_->insert(address, is_write);  // Bring to L2
             l1_->insert(address, is_write);  // Bring to L1
@@ -2516,6 +2522,13 @@ private:
     // ECG_EXACT_STORED: when set (env ECG_STORED_REFRESH=1), broadcast the
     // per-edge hint to the LLC on every demand access to keep its stamp fresh.
     bool refresh_exact_stamp_ = std::getenv("ECG_STORED_REFRESH") != nullptr;
+    // ECG_REFRESH_LLC_ONLY: HW-feasibility gate. When set, the epoch hint is written
+    // to the L3 line ONLY on accesses that actually REACH L3 (miss L1+L2) — i.e. the
+    // metadata write piggybacks an L3 access that is already happening (free), instead
+    // of the default aggressive broadcast that also writes L3 on L1/L2 hits (an extra
+    // L3 metadata transaction per inner-cache hit). Isolates how much of the refresh
+    // win needs the aggressive broadcast vs is recoverable by the free piggybacked form.
+    bool refresh_llc_only_ = std::getenv("ECG_REFRESH_LLC_ONLY") != nullptr;
     const GraphCacheContext* graph_ctx_ = nullptr;  // for the structure-stream prefetcher
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};

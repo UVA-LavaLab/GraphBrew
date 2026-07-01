@@ -733,14 +733,22 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
                 "ECG_EDGE_MASK_PACK_BITS": str(args.ecg_epoch_pack_bits),
                 "ECG_EDGE_MASK_CHARGED": str(args.ecg_charged),
             })
-            # ECG_STORED_REFRESH gate is PRESENCE-based in cache_sim.h (getenv != null),
-            # so only inject the key when enabled; never set it to "0" (that would still
-            # enable it). The dominant faithful lever — keeps the per-edge epoch stamp
-            # fresh so the 1-D mask tracks the matrix's live 2-D next-ref.
-            if getattr(args, "ecg_stored_refresh", 1):
+            # ECG_STORED_REFRESH / ECG_REFRESH_LLC_ONLY gates are PRESENCE-based in
+            # cache_sim.h (getenv != null), so only inject each key when enabled; never
+            # set "0" (still enables). Refresh defaults OFF: the aggressive form is an
+            # IDEALIZED CEILING (uncharged per-access LLC metadata write on L1/L2 hits),
+            # NOT hardware-free — its feasible piggybacked form recovers ~0. Enable it
+            # only as a labelled ceiling, optionally with --ecg-refresh-llc-only for the
+            # feasible measurement.
+            if getattr(args, "ecg_stored_refresh", 0):
                 env["ECG_STORED_REFRESH"] = "1"
+                if getattr(args, "ecg_refresh_llc_only", 0):
+                    env["ECG_REFRESH_LLC_ONLY"] = "1"
+                else:
+                    env.pop("ECG_REFRESH_LLC_ONLY", None)
             else:
                 env.pop("ECG_STORED_REFRESH", None)
+                env.pop("ECG_REFRESH_LLC_ONLY", None)
     return env
 
 
@@ -1495,16 +1503,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "scale (committed reproductions unchanged). 64 = ISA-faithful 64-bit "
                              "packed record: full epoch resolution at any scale; the wider (8B) "
                              "record stream is honestly charged by ecgRecordBytes under CHARGED=1.")
-    parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=1,
+    parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=0,
                         help="ECG_STORED_REFRESH: re-stamp a resident LLC line's next-ref "
-                             "epoch from the per-edge hint on EVERY access (even when L1/L2 "
-                             "served the demand), modelling the ecg.extract mask being "
-                             "re-delivered per edge. FAITHFUL (the per-edge epoch is already "
-                             "streamed; free under LEAN+PACK) and gated by edge_epoch_valid so "
-                             "frontier kernels' sequential-read hygiene is preserved. This is "
-                             "the dominant ECG_GRASP_POPT lever: it keeps the 1-D stamp fresh "
-                             "(vs the P-OPT matrix's live 2-D next-ref), closing ~2.4pp of the "
-                             "eviction gap. 1 (default) = on; 0 = legacy stale-stamp behaviour.")
+                             "epoch from the per-edge hint on EVERY access, INCLUDING L1/L2 "
+                             "hits (an aggressive per-access LLC metadata broadcast). This is "
+                             "an IDEALIZED EVICTION CEILING, NOT hardware-free: the HW-feasible "
+                             "piggybacked form (--ecg-refresh-llc-only, write only when the "
+                             "access actually reaches L3) recovers ~ZERO of its benefit "
+                             "(== no-refresh). It closes ~2.4pp only because it does uncharged "
+                             "L3 tag-writes on inner-cache hits, which cache_sim does not model. "
+                             "0 (default) = feasible stale-stamp behaviour; 1 = idealized ceiling "
+                             "(pair with --ecg-refresh-llc-only for the feasible measurement).")
+    parser.add_argument("--ecg-refresh-llc-only", type=int, choices=[0, 1], default=0,
+                        help="ECG_REFRESH_LLC_ONLY: with --ecg-stored-refresh 1, restrict the "
+                             "epoch re-stamp to accesses that actually REACH L3 (miss L1+L2), so "
+                             "the metadata write piggybacks a real L3 access (HW-free). This is "
+                             "the FEASIBLE refresh; empirically it recovers ~0 of the aggressive "
+                             "form's benefit, i.e. feasible ECG does not beat P-OPT on eviction.")
     parser.add_argument("--out-dir", default="")
     parser.add_argument("--timeout-cache", type=int, default=600)
     parser.add_argument("--timeout-gem5", type=int, default=900)
