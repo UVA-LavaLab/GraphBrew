@@ -116,3 +116,39 @@ mechanism that closes the gap for ECG is an idealized, uncharged broadcast. ECG'
 advantage is therefore **scale/feasibility** (the memory-resident mask scales with the edge
 list and works where P-OPT's reserved matrix cannot fit, `popt_matrix_fits=0`), plus
 GRASP-degree insertion — **not** a faithful miss-rate win over P-OPT via the epoch eviction.
+
+## 7. Exhaustive verdict: can any FEASIBLE mask-only mechanism beat P-OPT? (2026-06-30)
+
+Prompted by "if we can't match or beat P-OPT using mask bits only we give up." Every
+hardware-feasible mask-only mechanism (no reserved way, hint delivered only when the
+access legitimately reaches the line) was tested:
+
+| mechanism | feasible? | beats P-OPT miss rate? |
+|---|---|---|
+| GRASP degree tiers (insertion) | yes | no (first-order proxy only) |
+| coarse epoch stamp @ eviction | yes | no (stale) |
+| multi-ref schedule `ECG_EDGE_MASK_SCHED` | yes | no (dominated by refresh) |
+| refresh, feasible `ECG_REFRESH_LLC_ONLY` | yes | no (recovers ~0, §6) |
+| epoch @ INSERTION (freshest moment) | yes | **no — HURTS** (web-Google 0.32 vs 0.23) |
+| refresh, aggressive | **NO** (§6) | yes, but idealized/uncharged |
+
+**Root cause (fundamental).** PageRank is *cyclic* — every vertex is re-referenced every
+iteration — so a **frozen** per-line stamp is a weak signal *no matter when it is written*
+(insertion or eviction). P-OPT wins via **live per-epoch sub-ordering**, which only a
+resident matrix (reserved way) or an infeasible per-access broadcast can supply.
+
+**Standing (feasible, mask-only, demand L3 miss rate, charged P-OPT):**
+web-Google POPT 0.2126 / ECG 0.2205 (+0.8pp); soc-pokec 0.3262 / 0.3284 (+0.2pp);
+soc-LiveJournal 0.3499 / 0.3913 (+4.1pp). ECG **matches within <1pp on 2/3 graphs at 0
+reserved ways** but does **not** cleanly beat P-OPT.
+
+**Total-memory-traffic angle is INCONCLUSIVE** (not a win): charging P-OPT's uncharged
+matrix stream (~16·|V|/sweep) makes ECG's total DRAM 90% of P-OPT on web-Google but 107%
+on soc-pokec — the accounting is confounded (ECG's CHARGED=1 mask stream is already inside
+its `memory_accesses`; mode-6 adds mask-array accesses). No clean claim is supportable
+without modelling both metadata streams inside the simulator.
+
+**Conclusion for the project.** Feasible mask-only ECG does **not** beat P-OPT's miss rate;
+it matches within <1pp at zero reserved ways. Whether "P-OPT-competitive at lower dedicated
+LLC cost" clears the project bar is a **strategic thesis decision left to the user** — the
+data does not support a clean miss-rate win, and this write-up avoids manufacturing one.
