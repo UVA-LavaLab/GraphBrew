@@ -93,6 +93,10 @@
                         // per-vertex table — without this the epoch never reaches the line.
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint(
                             dest_id, 0, 0, 0, epoch);
+                        // GraphBrew ECG producer: stash {dest,epoch} on THIS dynamic inst so
+                        // the LSQ binds it to this ecg.load's own demand Request (race-free
+                        // O3 delivery). No-op on in-order CPUs (default ExecContext hook).
+                        xc->setEcgLoadHint(dest_id, epoch);
                         EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
                     // 0x01 EVICT+PFX (WIDE, configurable): dest[0:W] | epoch[W:W+16] | pfx[W+16:64].

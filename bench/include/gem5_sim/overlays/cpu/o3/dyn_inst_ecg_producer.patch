@@ -1,0 +1,25 @@
+diff --git a/src/cpu/o3/dyn_inst.hh b/src/cpu/o3/dyn_inst.hh
+index 63bf5ac..92003c4 100644
+--- a/src/cpu/o3/dyn_inst.hh
++++ b/src/cpu/o3/dyn_inst.hh
+@@ -982,6 +982,20 @@ class DynInst : public ExecContext, public RefCounted
+     uint64_t htmUid = -1;
+     uint64_t htmDepth = 0;
+ 
++    // GraphBrew ECG ecg.load producer sideband (per-dynamic-instruction, O3-safe): ea_code
++    // stashes {dest,epoch} here via setEcgLoadHint; LSQRequest::addReq binds it to THIS
++    // instruction's demand Request. NOT a StaticInst member (that is shared across dynamic
++    // executions and would recreate the mailbox race).
++    uint32_t _ecgDest = 0;
++    uint16_t _ecgEpoch = 0;
++    bool _ecgValid = false;
++
++  public:
++    void setEcgLoadHint(uint32_t dest, uint16_t epoch) override
++    { _ecgDest = dest; _ecgEpoch = epoch; _ecgValid = true; }
++    bool ecgLoadHint(uint32_t &dest, uint16_t &epoch) const
++    { dest = _ecgDest; epoch = _ecgEpoch; return _ecgValid; }
++
+   public:
+ #if TRACING_ON
+     // Value -1 indicates that particular phase

@@ -178,13 +178,59 @@ strongly motivates wiring the producer. (Throwaway diagnostics: race counter in 
 [gitignored], synthetic branch in pr.cc + env passthrough in graph_se.py [tracked — reverted after the
 producer A/B]. RISC-V `ecg.load` path used, not the X86 `workbegin` m5op which serializes.)
 
+## PRODUCER WIRED + VALIDATED (the fix works): O3 delivery 0% → 100% correct
+The producer is implemented and empirically validated. Wiring (4 hunks, gated on env
+`GEM5_ECG_PRODUCER=1` for a one-binary A/B):
+1. **ExecContext hook (`cpu/exec_context.hh`)** — a default no-op `virtual void
+   setEcgLoadHint(uint32_t dest, uint16_t epoch) {}` (non-invasive: in-order/Minor/Checker inherit
+   the no-op; only O3 overrides).
+2. **O3 DynInst (`cpu/o3/dyn_inst.hh`)** — per-dynamic members `{_ecgDest,_ecgEpoch,_ecgValid}` +
+   `setEcgLoadHint` override + `ecgLoadHint(dest,epoch)` getter. Per-dynamic (NOT StaticInst) so no
+   re-race; discarded on squash (speculation-safe).
+3. **ea_code (`decoder_ecg_extract.isa` snippet, ecg_load_evict)** — `xc->setEcgLoadHint(dest_id,
+   epoch);` right where it computes `{dest,epoch}`.
+4. **LSQ attach (`cpu/o3/lsq.cc` `LSQRequest::addReq`)** — right after `make_shared<Request>`, if
+   `_inst->isLoad()` and `_inst->ecgLoadHint(...)`, call `attachEcgEpoch(req, dest, epoch)` — binds the
+   epoch to THIS ecg.load's own demand Request. Gated on `GEM5_ECG_PRODUCER`.
+
+**A/B (RISC-V DerivO3CPU, clean synthetic gather, same binary):**
+
+| O3 run | mailbox MISMATCH | ext delivered | ext dest-guard match |
+|--------|---:|---:|---:|
+| producer OFF (mailbox-only) | 37999/38000 | **0** | 0 |
+| **producer ON (extension)** | 37999/38000 (now irrelevant) | **38000/38000 = 100%** | **38000/38000 = 100%** |
+
+With the producer, **every** property fill carries the ecg.load's own `{dest,epoch}` (ext=100%), and the
+extension's `dest` maps to the filled vertex on **every** fill (dest-guard 100% — coalescing first-target
+is always within-line here). So the extension delivers the correct epoch **race-free under O3**, where
+the single-slot mailbox delivers ~0% correct. **This is the paper figure that motivates the instruction:
+naive shared-state delivery races catastrophically on OoO cores; the request-local ecg.load extension
+does not.**
+
+**Persistence:** the ea_code line lives in the `decoder_ecg_extract.isa` overlay (SSOT); the 3 core-file
+hunks are saved as `overlays/cpu/{exec_context,o3/dyn_inst,o3/lsq}_ecg_producer.patch` and registered in
+`scripts/setup_gem5.py` `UNIFIED_DIFF_PATCHES` (all 3 verified `patch -p1 --dry-run` clean against the
+pristine gem5 baseline). Clean RISCV rebuild + normal-ECG smoke (l3_mr 0.888) confirm no regression. The
+throwaway race harness (synthetic gather + counter + guest-env passthrough) is saved at
+`session files/ooo_race_repro.patch` and reverted from the tree.
+
+**Remaining hardening (optional, non-blocking — the A/B shows it never triggers):**
+- **Consumer dest-guard in production:** `readEcgEpoch` could return `dest` and `ecg_rp` reject an epoch
+  whose `dest` is not within the filled line. The A/B measured ext-dest-match = 100%, so this is a
+  defensive assertion, not a correctness fix. (Deferred to avoid churning the `readEcgEpoch` signature.)
+- **Line-min epoch:** deliver per-line-min (cache_sim `ECG_EDGE_MASK_LINEMIN`) so MSHR coalescing
+  (first-target wins) matches cache_sim exactly. Currently first-toucher's epoch; within-line so benign.
+- Wire the producer for the other ecg.load modes (pfx/embedded) — only EVICT is wired/validated.
+
 ## Verdict
-Approach is viable and de-risked: propagation is proven by source audit **and confirmed
-empirically** (arrived=100%, matched=100%); the O3 race is **confirmed CATASTROPHIC when isolated**
-(clean synthetic gather: in-order 0% wrong vs O3 ~100% wrong epoch — see MEASURED #2). The single-slot
-mailbox is an in-order-only model; under O3 it degrades to ~LRU. The producer is therefore REQUIRED,
-and its A/B is a clean, dramatic figure. The remaining work is the PRODUCER — bind the extension to the
-ecg.load's demand request:
+DONE + VALIDATED. Propagation proven (source audit + arrived/matched=100%); the O3 mailbox race is
+**catastrophic when isolated** (in-order 0% vs O3 ~100% wrong epoch); and the **producer fixes it**
+(extension O3 = 100% correct delivery, dest-guard 100%). The request-local `ecg.load` extension is the
+correct, race-free O3/multicore delivery — the single-slot mailbox is an in-order-only model that
+degrades to ~LRU under OoO. Persisted to overlays + setup_gem5 patches. Original design notes retained
+below for reference.
+
+### Original producer design notes (now implemented)
 - **Producer mechanism:** the O3 `LSQRequest` holds the per-dynamic `DynInstPtr _inst`
   (`cpu/o3/lsq.hh:247`, `instruction()` at 334) — the OoO-safe carrier (NOT StaticInst). ea_code
   stores `{dest, epoch}` on per-dynamic-instruction state via an ExecContext hook; the LSQ
