@@ -116,6 +116,8 @@
                         if (pfx != 0) {
                             gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
                         }
+                        // GraphBrew ECG producer (see ecg_load_evict): race-free O3 delivery.
+                        xc->setEcgLoadHint(dest_id, epoch);
                         EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
                     // 0x02 EMBEDDED (NARROW packMaskEpoch, fixed 24-bit dest, dbg-carrying):
@@ -136,6 +138,8 @@
                         if (pfx != 0) {
                             gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
                         }
+                        // GraphBrew ECG producer (see ecg_load_evict): race-free O3 delivery.
+                        xc->setEcgLoadHint(dest_id, epoch);
                         EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
                 }

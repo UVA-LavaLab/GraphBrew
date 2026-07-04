@@ -80,6 +80,21 @@ inline bool readEcgEpoch(const gem5::RequestPtr& req, uint16_t& epoch_out,
     return true;
 }
 
+// Same, but also returns the ecg.load's dest vertex so the consumer can assert the
+// epoch maps to the filled line (the dest-guard — cheap correctness check under OoO
+// coalescing; the mailbox path has an equivalent vertex guard).
+inline bool readEcgEpoch(const gem5::RequestPtr& req, uint16_t& epoch_out,
+                         uint8_t& dbg_out, uint8_t& popt_out, uint32_t& dest_out) {
+    if (!req) return false;
+    auto ext = req->getExtension<EcgEpochExtension>();
+    if (!ext) return false;
+    epoch_out = ext->epoch();
+    dbg_out = ext->dbg();
+    popt_out = ext->popt();
+    dest_out = ext->dest();
+    return true;
+}
+
 }  // namespace graph
 }  // namespace replacement_policy
 }  // namespace gem5

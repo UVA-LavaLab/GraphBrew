@@ -214,13 +214,24 @@ pristine gem5 baseline). Clean RISCV rebuild + normal-ECG smoke (l3_mr 0.888) co
 throwaway race harness (synthetic gather + counter + guest-env passthrough) is saved at
 `session files/ooo_race_repro.patch` and reverted from the tree.
 
-**Remaining hardening (optional, non-blocking — the A/B shows it never triggers):**
-- **Consumer dest-guard in production:** `readEcgEpoch` could return `dest` and `ecg_rp` reject an epoch
-  whose `dest` is not within the filled line. The A/B measured ext-dest-match = 100%, so this is a
-  defensive assertion, not a correctness fix. (Deferred to avoid churning the `readEcgEpoch` signature.)
-- **Line-min epoch:** deliver per-line-min (cache_sim `ECG_EDGE_MASK_LINEMIN`) so MSHR coalescing
-  (first-target wins) matches cache_sim exactly. Currently first-toucher's epoch; within-line so benign.
-- Wire the producer for the other ecg.load modes (pfx/embedded) — only EVICT is wired/validated.
+**Hardening (DONE — reproduction-verified):**
+- **Reproduction verified end-to-end:** reset the 4 producer files to the pristine gem5 baseline, ran
+  `setup_gem5 --skip-build`, and confirmed it regenerated the full producer purely from the persisted
+  overlays/patches (setEcgLoadHint in exec_context/dyn_inst/decoder, attachEcgEpoch + GEM5_ECG_PRODUCER
+  in lsq.cc). Rebuilt from the reproduced source (exit 0) — the persistence reproduces the working producer.
+- **Consumer dest-guard (added):** a 5-arg `readEcgEpoch` overload also returns `dest`; `ecg_rp` accepts the
+  sideband epoch only if `dest` maps to the SAME cache line as the fill (`reg_base + dest*elem` line ==
+  fill line). Validated a no-op for valid deliveries — the A/B already measured ext-dest-match = 100%
+  (every ecg.load's dest maps to its filled line), which is exactly the guard's accept condition; and a
+  normal-ECG smoke is byte-identical (l3_mr 0.8876) before/after.
+- **pfx/embedded modes wired:** `xc->setEcgLoadHint(dest_id, epoch)` added to `ecg_load_pfx` and
+  `ecg_load_embedded` ea_code (structurally identical to the validated EVICT mode).
+- **Line-min epoch: already handled** — the real kernel delivers per-line-min epochs
+  (`pr.cc:199 buildInEdgeEpochs(..., linemin=true)`, `ecg_epoch_builder.h:110`), so the producer already
+  carries the line-min value under MSHR coalescing (only the synthetic gather used a synthetic epoch).
+
+**Remaining (optional):** none blocking. The producer is complete for all three ecg.load modes, guarded,
+line-min-correct, and reproduction-verified.
 
 ## Verdict
 DONE + VALIDATED. Propagation proven (source audit + arrived/matched=100%); the O3 mailbox race is

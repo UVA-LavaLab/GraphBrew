@@ -231,21 +231,34 @@ GraphEcgRP::reset(
         // table has no entry for this vertex.
         if (data->is_property_data && ctx.loaded && ctx.num_regions > 0) {
             uint32_t vertex = UINT32_MAX;
+            uint64_t reg_base = 0; uint32_t reg_elem = 0;
             for (uint32_t ri = 0; ri < ctx.num_regions; ++ri) {
                 const auto& reg = ctx.regions[ri];
                 if (addr >= reg.base_address && addr < reg.upper_bound) {
                     vertex = graph::addressToVertex(addr, reg.base_address,
                                  reg.upper_bound, reg.elem_size);
+                    reg_base = reg.base_address; reg_elem = reg.elem_size;
                     break;
                 }
             }
             if (vertex != UINT32_MAX) {
                 uint8_t isa_dbg = 0, isa_popt = 0;
                 uint16_t isa_epoch = 0;
+                uint32_t isa_dest = 0;
                 // OoO request-sideband FIRST (race-free; an O3 ecg.load attaches the
                 // epoch to the demand request). Falls back to the in-order single-slot
                 // mailbox / per-vertex table, which is equivalent for serialized loads.
-                bool got = graph::readEcgEpoch(pkt->req, isa_epoch, isa_dbg, isa_popt);
+                bool got = graph::readEcgEpoch(pkt->req, isa_epoch, isa_dbg,
+                                               isa_popt, isa_dest);
+                if (got && reg_elem > 0) {
+                    // Dest-guard: accept the sideband epoch only if the ecg.load's dest
+                    // maps to the SAME cache line as this fill (defends against MSHR
+                    // coalescing delivering a different line's epoch). Within-line by
+                    // construction in the validated A/B, so this never rejects there.
+                    uint64_t dest_line =
+                        (reg_base + static_cast<uint64_t>(isa_dest) * reg_elem) & ~uint64_t(63);
+                    if (dest_line != (addr & ~uint64_t(63))) got = false;
+                }
                 if (!got) {
                     got = (ecgMode == graph::ECGMode::ECG_GRASP_POPT)
                         ? graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt, isa_epoch)
