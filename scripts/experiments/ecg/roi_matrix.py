@@ -868,6 +868,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         "--l2-size", args.l2_size,
         "--l3-size", effective_l3_size,
         "--l3-ways", effective_l3_ways,
+        "--cpu-type", args.gem5_cpu_type,
     ]
     if args.prefetcher == "DROPLET":
         cmd.extend([
@@ -1426,6 +1427,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--options", default="-g 10 -k 16 -o 5 -n 1 -i 5")
     parser.add_argument("--policies", nargs="+", default=None)
     parser.add_argument("--all-policies", action="store_true", help="Use the full ECG validation policy set.")
+    parser.add_argument("--gem5-cpu-type", choices=["timing", "O3", "minor"], default="timing",
+                        help="gem5 CPU model (graph_se.py --cpu-type). 'timing'=TimingSimpleCPU "
+                             "(in-order, default, all ECG validation used this); 'O3'=DerivO3CPU "
+                             "(out-of-order) for the ecg.load OoO-pipeline evaluation. NOTE: under "
+                             "O3 the ecg.load epoch must ride the per-request EcgEpochExtension "
+                             "sideband (race-free) rather than the single-slot mailbox, which "
+                             "assumes in-order load serialization.")
     parser.add_argument("--prefetcher", choices=["none", "DROPLET", "ECG_PFX", "STRIDE"], default="none",
                         help="Prefetcher to attach. ECG_PFX is supported by cache_sim and experimental gem5/Sniper hint paths. STRIDE = uniform structure-stream prefetcher (all policies) to level the structure-prefetch axis across sims.")
     parser.add_argument("--structure-prefetch-degree", type=int, default=4,
