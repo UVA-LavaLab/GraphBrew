@@ -93,16 +93,61 @@ gem5 stays a small-graph MECHANISM/correctness artifact; the scale story is cach
 
 ## Validation plan (when the wiring is done)
 On a 64–256-vertex micro-kernel, O3:
-1. **Demonstrate the race:** with the mailbox only, log expected-vertex vs mailbox-vertex
-   mismatch count > 0 (proves in-order-only delivery fails under OoO).
-2. **Prove the fix:** ECG-O3 with the extension should match ECG-timing (hint survives OoO);
-   without it, ECG-O3 degrades toward LRU. This A/B is also the paper figure that MOTIVATES
-   the instruction (naive hint delivery races on real cores).
+1. **Demonstrate the race:** DONE ahead of the producer (see the MEASURED section) — the mailbox-only
+   O3 mismatch already exceeds in-order (real but ~3% of source loads at gem5 scale; understated by
+   edge-serialization + confounded by destination fills).
+2. **Prove the fix:** ECG-O3 with the extension should recover those raced source loads (O3 source-match
+   → ~in-order). Because the gem5 gap is modest, report the **guarded-match delta** (raced source loads
+   eliminated) + the correctness argument, NOT a headline miss-rate figure. Set expectations: the A/B is
+   a *correctness* figure (naive shared-mailbox delivery races on real cores; the request-local extension
+   does not), not a large Δmiss-rate — that story lives in cache_sim/Sniper scale + the traversal win.
+
+## MEASURED (env-gated race counter, throwaway diagnostic): the O3 race is REAL but SMALL at gem5 scale
+Rubber-duck RE-SCOPE verdict (2026-07-04): before wiring the producer, prove the O3 mailbox race
+is real and material. Added an env-gated (`GEM5_ECG_RACE_COUNT=1`) counter at the ecg_rp fill
+site: at each property-data L3 fill, compare the filled vertex `v_fill` (addr→vertex) to the
+single-slot mailbox's last-decoded vertex; split demand vs prefetch fills. Ran the SAME config on
+DerivO3CPU vs TimingSimpleCPU. Config: PR `-g8` (256 vtx) `-k8 -i2`, L1d=L2=L3=512B (force property
+thrash), **DDR4_2400 memory (realistic ~100+ cyc latency), DerivO3CPU default window (192 ROB /
+32 LQ)**, ECG:ECG_GRASP_POPT mode-6.
+
+| CPU | mbvalid | match | MISMATCH | mismatch-rate |
+|-----|--------:|------:|---------:|--------------:|
+| TimingSimpleCPU (in-order) | 1984 | 1221 | 763 | 38.5% |
+| DerivO3CPU (OoO)           | 1984 | 1183 | **801** | **40.4%** |
+
+- **Race is REAL and directional:** O3 mismatch > in-order at every checkpoint (fills 1000/1500/2000;
+  delta grew 8→38). O3 has **38 fewer matches** → ~**3.1% of the ~1221 source (ecg-stamped) fills are
+  raced** under O3 (the mailbox was overwritten by a later ecg.load before the earlier fill landed).
+- **The ~38% baseline is a STRUCTURAL confound, NOT a race:** PR's destination `score[u]` writes are
+  property-classified but are *not* preceded by an `ecg.load` for `u`, so the mailbox (holding a
+  neighbor `v`) mismatches `v_fill=u`. This is present IN-ORDER too and is correctly rejected by the
+  production vertex-guard (`lookupDecodedEcgHint` returns false → falls to degree-based dbg). `pf=0`
+  (no prefetch fills in this config), so the baseline is purely non-ecg-stamped property fills.
+- **Why the race is SMALL at gem5 scale (mechanism):** the fused `ecg.load(v)` computes its address
+  from `Rs2` (the fat edge record loaded by a *prior* instruction). With thrashing caches the
+  edge-record loads MISS, so each `ecg.load` waits on its record → consecutive `ecg.load`s
+  **serialize**, limiting the in-flight overlap that overwrites the single-slot mailbox. A real core
+  (sequential hardware-prefetched edge stream + deep window + DRAM latency) would overlap far more →
+  a much larger race. gem5 micro-kernels **cannot** stress the "edges cached / property missing"
+  regime with a shared cache and a CSR where edges ≥ vtx, so they **structurally understate** the race.
+
+**Decision-relevant conclusion:** the request-extension producer is the architecturally-correct
+O3/multicore delivery (race-free by construction, no shared mailbox, no O(V) table), and the race it
+fixes is empirically real. BUT the gem5 O3 A/B will show only a **modest** gap (~3% of source loads
+at feasible scale), confounded by destination fills and understated by edge-serialization — it is
+**not** a dramatic paper figure. The extension's motivation is **correctness + scaling** (deep
+windows, multicore, DRAM latency), argued analytically + validated in-order (mailbox ≡ extension for
+serialized loads), with the O3 race shown **directionally**. Don't over-invest expecting a large gem5
+number; the headline stays the cache_sim/Sniper scale results + the BFS/SSSP traversal win.
+(Counter reverted after measurement; gem5/src restored from the clean overlay + rebuilt.)
 
 ## Verdict
 Approach is viable and de-risked: propagation is proven by source audit **and confirmed
-empirically** (arrived=100%, matched=100%). The remaining work is the PRODUCER — bind the
-extension to the ecg.load's demand request:
+empirically** (arrived=100%, matched=100%); the O3 race is **directionally confirmed but modest at
+gem5 micro-kernel scale** (see the measured table above — the motivation is architectural correctness,
+not a large gem5 miss-rate gap). The remaining work is the PRODUCER — bind the extension to the
+ecg.load's demand request:
 - **Producer mechanism:** the O3 `LSQRequest` holds the per-dynamic `DynInstPtr _inst`
   (`cpu/o3/lsq.hh:247`, `instruction()` at 334) — the OoO-safe carrier (NOT StaticInst). ea_code
   stores `{dest, epoch}` on per-dynamic-instruction state via an ExecContext hook; the LSQ
