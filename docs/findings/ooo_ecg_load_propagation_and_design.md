@@ -102,7 +102,11 @@ On a 64–256-vertex micro-kernel, O3:
    a *correctness* figure (naive shared-mailbox delivery races on real cores; the request-local extension
    does not), not a large Δmiss-rate — that story lives in cache_sim/Sniper scale + the traversal win.
 
-## MEASURED (env-gated race counter, throwaway diagnostic): the O3 race is REAL but SMALL at gem5 scale
+## MEASURED #1 (PR kernel — CONFOUNDED, SUPERSEDED by the clean synthetic gather below)
+> NOTE: the "small race" reading here is a PR-kernel ARTIFACT (destination-fill confound +
+> edge-record serialization). The clean synthetic-gather measurement (next section) isolates the
+> race and finds it is **~100%** under O3. Read this section only for the confound analysis.
+
 Rubber-duck RE-SCOPE verdict (2026-07-04): before wiring the producer, prove the O3 mailbox race
 is real and material. Added an env-gated (`GEM5_ECG_RACE_COUNT=1`) counter at the ecg_rp fill
 site: at each property-data L3 fill, compare the filled vertex `v_fill` (addr→vertex) to the
@@ -132,21 +136,54 @@ thrash), **DDR4_2400 memory (realistic ~100+ cyc latency), DerivO3CPU default wi
   a much larger race. gem5 micro-kernels **cannot** stress the "edges cached / property missing"
   regime with a shared cache and a CSR where edges ≥ vtx, so they **structurally understate** the race.
 
-**Decision-relevant conclusion:** the request-extension producer is the architecturally-correct
-O3/multicore delivery (race-free by construction, no shared mailbox, no O(V) table), and the race it
-fixes is empirically real. BUT the gem5 O3 A/B will show only a **modest** gap (~3% of source loads
-at feasible scale), confounded by destination fills and understated by edge-serialization — it is
-**not** a dramatic paper figure. The extension's motivation is **correctness + scaling** (deep
-windows, multicore, DRAM latency), argued analytically + validated in-order (mailbox ≡ extension for
-serialized loads), with the O3 race shown **directionally**. Don't over-invest expecting a large gem5
-number; the headline stays the cache_sim/Sniper scale results + the BFS/SSSP traversal win.
-(Counter reverted after measurement; gem5/src restored from the clean overlay + rebuilt.)
+**Decision-relevant conclusion (CONFOUNDED — see clean result below):** in the PR kernel the O3-vs-
+in-order gap is only ~3% of source loads, but this is an ARTIFACT: (a) ~38% of "mismatches" are
+non-ecg-stamped destination `score[u]` fills (present in-order too), and (b) the fused ecg.load's
+address depends on `Rs2` (edge record from a prior load), so thrashing caches SERIALIZE consecutive
+ecg.loads and throttle the O3 overlap. Both confounds vanish in the clean synthetic gather below.
+
+## MEASURED #2 (clean synthetic gather — DECISIVE): the isolated O3 race is ~100%
+To remove both confounds, added an env-gated (`GEM5_ECG_SYNTH_GATHER=1`, guest env forwarded via
+graph_se.py) synthetic gather in pr.cc (runs right after the property regions are exported, before the
+O(N) mask build, and `return`s): a tight loop of `gem5_ecg_load_evict(contrib, fat, wc=3)` where
+`fat = dest | epoch<<32` and `dest = (i * 2654435761) % N` is a **register-computed multiplicative
+hash** — NO destination writes (kills confound a) and NO edge-record load (kills confound b, so the
+ecg.loads are independent and issue back-to-back). Run on the **faithful RISC-V `ecg.load` path**
+(build/RISCV/gem5.opt + `pr_riscv_m5ops`, `GEM5_KERNEL_SUFFIX=_riscv_m5ops`) with `contrib` sized ≫ the
+tiny L3 so every hashed access misses. `pf=0`, `ext=0` (no producer yet — mailbox-only delivery).
+
+| CPU | fills | match | MISMATCH | mismatch-rate |
+|-----|------:|------:|---------:|--------------:|
+| TimingSimpleCPU (in-order), -g12 iters=50000 | 46500 | 46500 | 0 | **0.000%** |
+| TimingSimpleCPU (in-order), -g11 iters=40000 | 38500 | 38499 | 1 | **0.003%** |
+| **DerivO3CPU (OoO), -g11 iters=40000** | 38000 | **1** | **37999** | **99.997%** |
+
+**The single-slot mailbox delivery is CATASTROPHIC under O3 for independent ecg.loads: ~100% of source
+loads get the WRONG epoch** (the mailbox is overwritten by later in-flight ecg.loads before each fill
+lands — with a ~32-deep load queue and no address dependency, essentially every fill is stale). In-order
+it is PERFECT (0%). This is the un-confounded truth the PR kernel hid.
+
+**Why the PR kernel looked benign (~3%) but the truth is ~100%:** PR's ecg.load address depends on the
+edge record, so a real gather's ecg.loads partly serialize (edge-record misses gate them) → limited
+overlap → the mailbox is only sometimes stale. The synthetic gather removes that dependency, exposing
+the worst case a deep OoO core reaches when the address stream is independent/prefetched. Real
+aggressive cores (sequential HW-prefetched edge streams, deep windows, multicore) approach the
+synthetic regime, not the throttled PR one.
+
+**Decision-relevant conclusion (CORRECTED):** the single-slot mailbox is an in-order-only model; under
+O3 it degrades to ~LRU (≈100% wrong epoch). The request-extension producer is therefore not just
+"architecturally cleaner" — it is REQUIRED for correct O3/multicore delivery, and the A/B is a clean,
+dramatic figure: mailbox-only O3 ≈100% wrong → extension O3 ≈0% wrong (race-free, request-local). This
+strongly motivates wiring the producer. (Throwaway diagnostics: race counter in gem5/src ecg_rp.cc
+[gitignored], synthetic branch in pr.cc + env passthrough in graph_se.py [tracked — reverted after the
+producer A/B]. RISC-V `ecg.load` path used, not the X86 `workbegin` m5op which serializes.)
 
 ## Verdict
 Approach is viable and de-risked: propagation is proven by source audit **and confirmed
-empirically** (arrived=100%, matched=100%); the O3 race is **directionally confirmed but modest at
-gem5 micro-kernel scale** (see the measured table above — the motivation is architectural correctness,
-not a large gem5 miss-rate gap). The remaining work is the PRODUCER — bind the extension to the
+empirically** (arrived=100%, matched=100%); the O3 race is **confirmed CATASTROPHIC when isolated**
+(clean synthetic gather: in-order 0% wrong vs O3 ~100% wrong epoch — see MEASURED #2). The single-slot
+mailbox is an in-order-only model; under O3 it degrades to ~LRU. The producer is therefore REQUIRED,
+and its A/B is a clean, dramatic figure. The remaining work is the PRODUCER — bind the extension to the
 ecg.load's demand request:
 - **Producer mechanism:** the O3 `LSQRequest` holds the per-dynamic `DynInstPtr _inst`
   (`cpu/o3/lsq.hh:247`, `instruction()` at 334) — the OoO-safe carrier (NOT StaticInst). ea_code
