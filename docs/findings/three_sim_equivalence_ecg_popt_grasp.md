@@ -54,9 +54,20 @@ any simulator** — it only certifies that every policy beats LRU (direction).
   and large (Sniper) graphs. Spot-check — BFS on kron_s16_k4 (`-r 212` hub, 128kB): LRU
   0.9515, GRASP 0.8872, **POPT 0.8913 (worse than GRASP)**, **ECG 0.8613 (best)** — the same
   ordering as the real-graph traversal cells, and gem5-feasible.
-- **gem5's role is a small-graph mechanism/ISA spot-check**, not the ECG-advantage graph
-  (its cycle-accurate model can't run the large real graphs where the PR-epoch advantage
-  lives). Reading ECG's *rank* off gem5's synthetic equivalence cell over-reads it.
+- **gem5's role is a small-graph mechanism/ISA spot-check**, not the ECG-advantage graph.
+  This is NOT "scale for its own sake" — it is *structure* × *pressure*. ECG's advantage
+  needs (real degree/reuse skew) × (enough vertices to create LLC pressure), and that
+  combination only exists in graphs too large for gem5's cycle-accurate model. Evidence
+  that the gem5-feasible graphs cannot substitute (cache_sim, BFS, 128kB unless noted):
+  - **synthetic kron is inconsistent**: kron_s16_k4 → ECG best (POPT 0.8913 > GRASP 0.8872 >
+    ECG 0.8613); but denser **kron_s16_k16 → POPT best** (0.7002 < GRASP 0.7694 / ECG 0.7313).
+    The traversal advantage does not reliably reproduce on RMAT structure.
+  - **tiny real is degenerate**: email-Eu-core (~1K vtx, 16kB L3) → 0.93–0.99 miss for all;
+    replacement barely matters and GRASP/POPT even *hurt* vs LRU (cold-miss dominated).
+  - **real skewed graphs show it robustly** (web-Google/soc-pokec/soc-LiveJournal, BFS/SSSP:
+    ECG beats charged P-OPT +3–7pp) but are gem5-infeasible in size.
+  So reading ECG's *rank* off gem5's synthetic equivalence cell over-reads it; gem5 confirms
+  only that the ECG mechanism executes and that direction agrees.
 
 **Recommendation:** for the paper's cross-sim ECG story, use the **BFS/SSSP traversal
 advantage** (robust, feasible on all 3 sims), and take the PR-epoch advantage from cache_sim
