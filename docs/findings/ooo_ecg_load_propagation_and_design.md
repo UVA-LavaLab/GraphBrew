@@ -24,8 +24,10 @@ callers.
 ## PROVEN (source audit): the extension propagates CPU → L1 → L2 → L3
 The load-bearing question was whether a `Request::Extension` survives to the fill packet the L3
 replacement policy sees. gem5 copy-constructs requests along the miss/fill path
-(`base.cc:499,252,789`: `std::make_shared<Request>(*pkt->req)`). The `Extensible` copy
-constructor **clones every extension**:
+(`base.cc:499,252,789`: `std::make_shared<Request>(*pkt->req)`), AND the outgoing miss packet is
+built with the SAME `RequestPtr` as the first demand target
+(`cache.cc createMissPacket`: `new Packet(cpu_pkt->req, cmd, blkSize)`; `sendMSHRQueuePacket`
+uses `mshr->getTarget()->pkt`). The `Extensible` copy constructor **clones every extension**:
 ```cpp
 // base/extensible.hh:124
 Extensible(const Extensible& other) {
@@ -33,9 +35,28 @@ Extensible(const Extensible& other) {
         extensions.emplace_back(ext->clone());   // EcgEpochExtension::clone() is defined
 }
 ```
-So the extension is preserved through every request copy → it reaches `handleFill` →
-`allocateBlock(pkt)` → `insertBlock`/replacement `reset(pkt)`. **Propagation is sound** (the
-#1 risk is retired without a rebuild).
+So the extension is preserved (same object or clone) → it reaches `handleFill` →
+`allocateBlock(pkt)` → `insertBlock`/replacement `reset(pkt)`.
+
+## CONFIRMED (empirical, gem5 micro-kernel): arrived = 100%, matched = 100%
+A synthetic harness (env `GEM5_ECG_SYNTH_PROP=1`, inert otherwise) stood in for the ecg.load
+producer: it tagged every read demand at cache entry (`BaseCache::recvTimingReq`) with an
+address-derived `EcgEpochExtension`, and the L3 replacement `reset()` verified arrival + value.
+Result on gem5 PR (‑g12, L3=8kB to force fills, TimingSimpleCPU):
+```
+[ECG SYNTH-PROP] fills=4000 arrived=4000 (100.0%) matched=4000 (100.0%)
+```
+- **arrived=100%** — the extension set at L1 entry reaches the L3 fill on EVERY property fill:
+  propagation through L1→L2→L3 + MSHR/coalescing is confirmed end-to-end.
+- **matched=100%** — the arrived epoch always corresponds to a word WITHIN the filled cache
+  line: no corruption, correct block association, coalescing picks a word in the line.
+
+**The #1 load-bearing risk (does the extension propagate + survive coalescing) is retired both
+by source audit AND empirically.** (Harness reproduction: 1 include + a `maybeSynthAttachEcgEpoch`
+call at the top of `BaseCache::recvTimingReq`, plus a `ecgSynthVerify` call at the `readEcgEpoch`
+site in `ecg_rp.cc reset()`; helpers live in `ecg_epoch_request_ext.hh`. Kept out of the tree —
+it is a local gem5-tree diagnostic, env-gated. Note: attach and verify must use the SAME address
+basis — vaddr-preferring — or the value check spuriously fails on the vaddr/paddr difference.)
 
 ## OPEN: MSHR coalescing semantics (a design decision, not a blocker)
 `recvTimingResp` uses `initial_tgt = mshr->getTarget()` (the FIRST demand that opened the MSHR),
@@ -79,8 +100,22 @@ On a 64–256-vertex micro-kernel, O3:
    the instruction (naive hint delivery races on real cores).
 
 ## Verdict
-Approach is viable (propagation proven). Do NOT hand-wire the ISA/core blindly this session
-(rebuild + O3 both too slow to get a same-session signal). Next concrete step: implement the
-per-request delivery (option: `initiateMemRead` extension overload) + consumer `dest` guard +
-line-min epoch in the record, then the micro-kernel O3 A/B. Enabler already landed:
-`roi_matrix --gem5-cpu-type O3`.
+Approach is viable and de-risked: propagation is proven by source audit **and confirmed
+empirically** (arrived=100%, matched=100%). The remaining work is the PRODUCER — bind the
+extension to the ecg.load's demand request:
+- **Producer mechanism:** the O3 `LSQRequest` holds the per-dynamic `DynInstPtr _inst`
+  (`cpu/o3/lsq.hh:247`, `instruction()` at 334) — the OoO-safe carrier (NOT StaticInst). ea_code
+  stores `{dest, epoch}` on per-dynamic-instruction state via an ExecContext hook; the LSQ
+  request setup reads it and calls `attachEcgEpoch(req, dest, line_min_epoch)`.
+- **Consumer:** add the `dest` guard to `readEcgEpoch`/`ecg_rp` (accept the epoch only if `dest`
+  is within the filled line) — the harness confirmed the value is a within-line word, so the
+  guard is a cheap correctness assertion.
+- **Record:** deliver the per-LINE-min epoch (cache_sim already computes `ECG_EDGE_MASK_LINEMIN`)
+  so coalescing (first-target wins) is order-independent.
+- **Validate:** micro-kernel (64–256 vtx) O3 A/B — mailbox-only shows expected-vs-delivered
+  mismatch > 0 (the race); extension shows ECG-O3 == ECG-timing (hint survives OoO). This A/B is
+  the paper figure that MOTIVATES the instruction.
+
+Enablers landed: `roi_matrix --gem5-cpu-type {timing,O3,minor}`; incremental gem5 rebuild
+measured at ~80s (cache objects), so the producer iterate-loop is faster than feared (the O3
+RUN, not the build, is the slow part → keep validation to micro-kernels).
