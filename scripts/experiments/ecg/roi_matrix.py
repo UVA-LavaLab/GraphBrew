@@ -270,11 +270,16 @@ def parse_policy_spec(text: str) -> PolicySpec:
         # Plain POPT is the PRACTICAL P-OPT (Balaji & Lucia, HPCA'21): it
         # reserves one LLC way for the rereference-matrix streaming buffer, so
         # the capacity overhead is charged BY DEFAULT. The label stays "POPT"
-        # (it is the paper's policy). Use "POPT:UNCHARGED" only for the
-        # non-faithful, full-capacity diagnostic variant.
+        # (it is the paper's policy). "POPT:UNCHARGED" is the idealized
+        # full-capacity diagnostic (free fully-resident matrix, no reserved
+        # way); it takes a distinct label so it never collides with the charged
+        # POPT in output dirs or result tables. Note: uncharged POPT is only
+        # meaningful in cache_sim (an idealization) — on a real cache
+        # (gem5/Sniper NUCA) the matrix must physically reserve the way.
         if not explicit_charge:
             charge_popt = True
-        return PolicySpec(label="POPT", policy="POPT",
+        label = "POPT" if charge_popt else "POPT_UNCHARGED"
+        return PolicySpec(label=label, policy="POPT",
                           charge_popt_overhead=charge_popt)
     return PolicySpec(label=upper, policy=upper, charge_popt_overhead=charge_popt)
 
