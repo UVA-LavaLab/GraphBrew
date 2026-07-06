@@ -169,12 +169,20 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
 
     SNIPER_ROI_BEGIN();
 
-    vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
-    int pfx_window_pos = 0;
-
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
-        for (NodeID u = 0; u < g.num_nodes(); u++) {
+        // Parallel PR gather: each OpenMP thread runs on a distinct Sniper core
+        // (real multi-core scaling). The read-of-neighbor-contrib while a peer
+        // updates its own contrib[u] is the benign convergent race GAPBS tolerates.
+        #pragma omp parallel reduction(+ : error)
+        {
+            // Per-thread prefetch-dedup window: each core has its own prefetch
+            // stream, so the window is thread-private (a shared window would race
+            // and conflate the cores' prefetch histories).
+            vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
+            int pfx_window_pos = 0;
+            #pragma omp for schedule(dynamic, 1024)
+            for (NodeID u = 0; u < g.num_nodes(); u++) {
             SNIPER_SET_VERTEX(u);
             ScoreT incoming_total = 0;
 
@@ -324,6 +332,7 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
             scores[u] = base_score + kDamp * incoming_total;
             error += fabs(scores[u] - old_score);
             outgoing_contrib[u] = scores[u] / g.out_degree(u);
+            }
         }
         if (error < epsilon) break;
     }

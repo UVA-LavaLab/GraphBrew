@@ -13,7 +13,9 @@
 #include "builder.h"
 #include "command_line.h"
 #include "graph.h"
+#include "platform_atomics.h"
 #include "pvector.h"
+#include "sliding_queue.h"
 
 #include "graphbrew/partition/cagra/popt.h"
 #include "sniper_sim/sniper_harness.h"
@@ -56,31 +58,48 @@ pvector<NodeID> BFS_Sniper(const Graph &g, NodeID source) {
         graphbrew_sniper::env_int_clamped("ECG_PREFETCH_LOOKAHEAD", 4, 0, 64),
         0, 64);
 
-    queue<NodeID> frontier;
-    frontier.push(source);
+    // Level-synchronous parallel BFS (GAPBS top-down): the whole current frontier
+    // is expanded in parallel across the OpenMP threads (= Sniper cores). parent[]
+    // is claimed with an atomic compare-and-swap so exactly one thread owns each
+    // newly discovered vertex; per-thread QueueBuffers build the next frontier.
+    // Any valid BFS tree at the correct depths passes BFSVerifier, so the
+    // nondeterministic parent choice among a level is fine.
+    SlidingQueue<NodeID> frontier(g.num_nodes());
+    frontier.push_back(source);
+    frontier.slide_window();
     while (!frontier.empty()) {
-        NodeID u = frontier.front();
-        frontier.pop();
-        SNIPER_SET_VERTEX(u);
-        auto out_neigh = g.out_neigh(u);
-        for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
-            NodeID v = *it;
-            if (pfx_lookahead > 0) {
-                auto jt = it;
-                for (int step = 0; step < pfx_lookahead; step++) {
-                    ++jt;
-                    if (jt == out_neigh.end()) break;
-                    SNIPER_ECG_PFX_TARGET(*jt);
-                    break;
+        #pragma omp parallel
+        {
+            QueueBuffer<NodeID> lqueue(frontier);
+            #pragma omp for schedule(dynamic, 64) nowait
+            for (auto q_iter = frontier.begin(); q_iter < frontier.end(); q_iter++) {
+                NodeID u = *q_iter;
+                SNIPER_SET_VERTEX(u);
+                auto out_neigh = g.out_neigh(u);
+                for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+                    NodeID v = *it;
+                    if (pfx_lookahead > 0) {
+                        auto jt = it;
+                        for (int step = 0; step < pfx_lookahead; step++) {
+                            ++jt;
+                            if (jt == out_neigh.end()) break;
+                            SNIPER_ECG_PFX_TARGET(*jt);
+                            break;
+                        }
+                    } else {
+                        SNIPER_ECG_PFX_TARGET(v);
+                    }
+                    NodeID curr_val = parent[v];
+                    if (curr_val == -1) {
+                        if (compare_and_swap(parent[v], curr_val, u)) {
+                            lqueue.push_back(v);
+                        }
+                    }
                 }
-            } else {
-                SNIPER_ECG_PFX_TARGET(v);
             }
-            if (parent[v] == -1) {
-                parent[v] = u;
-                frontier.push(v);
-            }
+            lqueue.flush();
         }
+        frontier.slide_window();
     }
 
     SNIPER_ROI_END();

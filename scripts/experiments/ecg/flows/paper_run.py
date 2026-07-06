@@ -170,6 +170,22 @@ def merged_defaults(manifest: dict[str, Any], stage: dict[str, Any]) -> dict[str
     return defaults
 
 
+def scale_size(size_str: str, factor: int) -> str:
+    """Multiply a cache size like '2MB' by an integer factor -> '8MB'. Used to hold
+    per-core LLC constant across a Sniper multi-core sweep (shared L3 = per_core * cores)."""
+    units = {"B": 1, "kB": 1024, "MB": 1024 ** 2, "GB": 1024 ** 3}
+    m = re.match(r"^\s*(\d+)\s*([kKmMgG]?[bB])\s*$", str(size_str))
+    if not m:
+        return str(size_str)
+    val = int(m.group(1))
+    unit = {"kb": "kB", "mb": "MB", "gb": "GB", "b": "B"}.get(m.group(2).lower(), "B")
+    total = val * units[unit] * int(factor)
+    for u in ("GB", "MB", "kB", "B"):
+        if total % units[u] == 0:
+            return f"{total // units[u]}{u}"
+    return f"{total}B"
+
+
 def expand_jobs(args: argparse.Namespace, manifest: dict[str, Any], run_dir: Path) -> list[Job]:
     profiles = set(args.profile)
     stages = manifest.get("stages", [])
@@ -204,7 +220,22 @@ def expand_jobs(args: argparse.Namespace, manifest: dict[str, Any], run_dir: Pat
                 for benchmark in settings.get("benchmarks", []):
                     if not token_matches(str(benchmark), args.benchmark):
                         continue
-                    jobs.append(make_roi_job(args, manifest, run_dir, settings, graph, graph_path, benchmark))
+                    # Sniper multi-core LLC-constant sweep: hold per-core LLC fixed by
+                    # scaling the shared L3 with the core count (per_core_l3 * cores). So
+                    # {1,2,4,8} cores at 2MB/core -> {2,4,8,16}MB shared. gem5/cache_sim
+                    # stay single-core (no sweep). This is how DROPLET(4c/8MB=2MB/core) and
+                    # POPT(8c) core counts are matched at a constant per-core capacity.
+                    core_sweep = settings.get("sniper_core_sweep")
+                    if core_sweep and str(settings.get("suite")) == "sniper":
+                        per_core = str(settings.get("per_core_l3", "2MB"))
+                        for cores in core_sweep:
+                            js = dict(settings)
+                            js["sniper_cores"] = cores
+                            js["l3_sizes"] = [scale_size(per_core, int(cores))]
+                            js["_core_tag"] = f"c{cores}"
+                            jobs.append(make_roi_job(args, manifest, run_dir, js, graph, graph_path, benchmark))
+                    else:
+                        jobs.append(make_roi_job(args, manifest, run_dir, settings, graph, graph_path, benchmark))
         else:
             raise SystemExit(f"unsupported stage kind={kind!r} in {stage['name']}")
 
@@ -251,9 +282,25 @@ def make_roi_job(
     benchmark: str,
 ) -> Job:
     graph_name = str(graph["name"])
+    # Per-graph paper-faithful cell: a graph entry may carry its own cache cell
+    # (l1d_size/l2_size/l3_ways/l3_sizes/line_size and structure_prefetch_degree)
+    # so each real graph runs at a realistic hierarchy. These override the
+    # stage/default. EXCEPTION: during a Sniper multi-core sweep the shared L3 is
+    # computed from per_core_l3 * cores, so the graph's l3_sizes must NOT clobber it.
+    settings = dict(settings)
+    _skip = {"l3_sizes"} if settings.get("_core_tag") else set()
+    for _cell_key in (
+        "l1d_size", "l2_size", "l3_ways", "l3_sizes", "line_size",
+        "structure_prefetch_degree",
+    ):
+        if _cell_key in graph and _cell_key not in _skip:
+            settings[_cell_key] = graph[_cell_key]
     options = options_for(manifest, graph, graph_path, benchmark)
+    core_tag = str(settings.get("_core_tag", ""))
     out_dir = run_dir / "matrices" / str(settings.get("out_subdir", settings["name"])) / graph_name / benchmark
-    job_id = sanitize(f"{settings['name']}_{graph_name}_{benchmark}")
+    if core_tag:
+        out_dir = out_dir / core_tag
+    job_id = sanitize(f"{settings['name']}_{graph_name}_{benchmark}" + (f"_{core_tag}" if core_tag else ""))
     policies = filter_policy_specs([str(policy) for policy in settings.get("policies", [])], args.policy)
     if not policies:
         raise SystemExit(
@@ -274,6 +321,8 @@ def make_roi_job(
         "--prefetcher-level", str(settings.get("prefetcher_level", "l2")),
         "--l1d-size", str(settings["l1d_size"]),
         "--l2-size", str(settings["l2_size"]),
+        "--l1d-ways", str(settings.get("l1d_ways", "8")),
+        "--l2-ways", str(settings.get("l2_ways", "8")),
         "--l3-sizes", *settings.get("l3_sizes", ["4kB"]),
         "--l3-ways", str(settings["l3_ways"]),
         "--line-size", str(settings["line_size"]),

@@ -15,6 +15,18 @@ from typing import Any
 
 def parse_value(text: str) -> int | float | str:
     stripped = text.strip()
+    # Multi-core Sniper writes per-core (and per-NUCA-slice) counters as a
+    # comma-separated list, e.g. "5169547, 3395879". Aggregate cache/instruction
+    # counters are summed across cores so the whole-run miss rate is well-defined
+    # (single-core values contain no comma and are unaffected).
+    if "," in stripped:
+        parts = [part.strip() for part in stripped.split(",") if part.strip() != ""]
+        try:
+            if any(any(ch in part for ch in (".", "e", "E")) for part in parts):
+                return sum(float(part) for part in parts)
+            return sum(int(part) for part in parts)
+        except ValueError:
+            return stripped
     try:
         if any(char in stripped for char in (".", "e", "E")):
             return float(stripped)
@@ -42,7 +54,12 @@ def read_sniper_stats(path: str | Path) -> dict[str, Any]:
 
 def extract_graphbrew_metrics(rows: dict[str, Any]) -> dict[str, Any]:
     instructions = rows.get("core.instructions", 0)
-    cycles = rows.get("performance_model.elapsed_time", rows.get("barrier.global_time", 0))
+    # barrier.global_time is the whole-run wall clock reported once (on core 0; the
+    # other cores report 0), so its summed value stays correct under multi-core.
+    # performance_model.elapsed_time is replicated per core and would inflate the
+    # denominator. IPC = total instructions (summed) / global wall clock = a
+    # system-wide throughput smoke field.
+    cycles = rows.get("barrier.global_time", rows.get("performance_model.elapsed_time", 0))
     ipc = 0.0
     try:
         if cycles:

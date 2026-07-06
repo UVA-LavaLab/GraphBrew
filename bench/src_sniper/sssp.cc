@@ -198,7 +198,9 @@ bool SSSPVerifier(const WGraph &g, NodeID source, const pvector<WeightT> &dist) 
 int main(int argc, char *argv[]) {
     CLDelta<WeightT> cli(argc, argv, "sssp-sniper");
     if (!cli.ParseArgs()) return -1;
-    omp_set_num_threads(1);
+    // Thread count is controlled by OMP_NUM_THREADS (roi_matrix sets it to the
+    // Sniper core count) so delta-stepping scales across the modeled cores. The
+    // former hard omp_set_num_threads(1) pinned SSSP to a single core.
     WeightedBuilder b(cli);
     WGraph g = b.MakeGraph();
     SourcePicker<WGraph> sp(g, cli.start_vertex());

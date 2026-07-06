@@ -92,20 +92,23 @@
       {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"}
     ],
     "cit_patents": [
-      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg"}
+      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]}
+    ],
+    "web_google": [
+      {"name": "web-Google", "path": "results/graphs/web-Google/web-Google.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]}
     ],
     "local_large": [
-      {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg"},
-      {"name": "soc-LiveJournal1", "path": "results/graphs/soc-LiveJournal1/soc-LiveJournal1.sg", "options_key": "file_dbg"},
-      {"name": "com-orkut", "path": "results/graphs/com-orkut/com-orkut.sg", "options_key": "file_dbg"},
-      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg"}
+      {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]},
+      {"name": "soc-LiveJournal1", "path": "results/graphs/soc-LiveJournal1/soc-LiveJournal1.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]},
+      {"name": "com-orkut", "path": "results/graphs/com-orkut/com-orkut.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]},
+      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]}
     ],
     "local_l_curve": [
-      {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg"}
+      {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["512kB", "1MB", "2MB", "4MB", "8MB", "16MB"]}
     ],
     "available_local": [
       {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"},
-      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg"}
+      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]}
     ]
   },
   "stages": [
@@ -587,6 +590,45 @@
       "prefetcher_level": "l1d",
       "out_subdir": "30_gem5_large_droplet",
       "timeout_gem5": 259200
+    },
+    {
+      "name": "40_sniper_final_replacement",
+      "kind": "roi_matrix",
+      "profiles": ["final_sniper_replacement"],
+      "suite": "sniper",
+      "graph_set": "local_large",
+      "benchmarks": ["pr", "bfs", "sssp", "cc", "cc_sv", "bc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT_CHARGED", "POPT", "ECG:DBG_ONLY", "ECG:DBG_PRIMARY_CHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "sniper_workload": "benchmark",
+      "sniper_frontend": "sift",
+      "allow_sniper_benchmark_workload": true,
+      "sniper_memory_limit_gb": 16,
+      "sniper_address_domain": "virtual",
+      "sniper_core_sweep": [1, 2, 4, 8],
+      "per_core_l3": "2MB",
+      "out_subdir": "40_sniper_final_replacement",
+      "timeout_sniper": 7200
+    },
+    {
+      "name": "41_sniper_final_droplet",
+      "kind": "roi_matrix",
+      "profiles": ["final_sniper_droplet"],
+      "suite": "sniper",
+      "graph_set": "local_large",
+      "benchmarks": ["pr", "bfs", "sssp", "cc", "cc_sv", "bc"],
+      "policies": ["LRU", "GRASP", "POPT", "ECG:DBG_PRIMARY"],
+      "prefetcher": "DROPLET",
+      "prefetcher_level": "l1d",
+      "sniper_workload": "benchmark",
+      "sniper_frontend": "sift",
+      "allow_sniper_benchmark_workload": true,
+      "sniper_memory_limit_gb": 16,
+      "sniper_address_domain": "virtual",
+      "sniper_core_sweep": [1, 2, 4, 8],
+      "per_core_l3": "2MB",
+      "out_subdir": "41_sniper_final_droplet",
+      "timeout_sniper": 7200
     }
   ]
 }

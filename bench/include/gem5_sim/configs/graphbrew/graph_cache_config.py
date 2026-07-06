@@ -33,7 +33,7 @@ DEFAULTS = {
     "l1i_size":  "32kB",
     "l1i_assoc": 8,
     "l2_size":   "256kB",
-    "l2_assoc":  4,
+    "l2_assoc":  8,
     "l3_size":   "8MB",
     "l3_assoc":  16,
     "line_size":  64,
