@@ -1175,8 +1175,23 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
 
     env = dict(os.environ)
     env["OMP_NUM_THREADS"] = str(args.sniper_cores)
-    if args.sniper_omp_wait_policy != "unset":
-        env["OMP_WAIT_POLICY"] = args.sniper_omp_wait_policy
+    # Multi-core OpenMP under Sniper deadlocks with PASSIVE waits: idle threads
+    # call futex_wait with no timeout, so when every core is sleeping at a barrier
+    # at once Sniper's barrier_sync_server aborts ("No threads running, no
+    # timeout. Application has deadlocked"). ACTIVE spin-waits keep the threads
+    # runnable, so the deadlock never fires. Passive is kept for single-core runs
+    # (one thread never blocks at a barrier, and passive avoids spin cache-noise).
+    wait_policy = args.sniper_omp_wait_policy
+    try:
+        _sniper_core_count = int(args.sniper_cores)
+    except (TypeError, ValueError):
+        _sniper_core_count = 1
+    if _sniper_core_count > 1 and wait_policy != "active":
+        print(f"[sniper] cores={_sniper_core_count} > 1: forcing OMP_WAIT_POLICY=active "
+              f"(passive deadlocks multi-core OpenMP under Sniper)")
+        wait_policy = "active"
+    if wait_policy != "unset":
+        env["OMP_WAIT_POLICY"] = wait_policy
     else:
         env.pop("OMP_WAIT_POLICY", None)
     env["SNIPER_GRAPHBREW_CTX"] = str(sidebands["context"])
