@@ -1104,6 +1104,14 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         "--roi",
         "--no-cache-warming",
     ]
+    # DROPLET-style bounded ROI: cap the DETAILED region at a fixed instruction
+    # budget (aggregated over cores) so simulation time stays bounded regardless
+    # of graph size. With --roi, Sniper fast-forwards pre-ROI, switches to
+    # DETAILED at the ROI marker, and ends after N instructions — matching the
+    # DROPLET paper (-s stop-by-icount:600000000) and the field practice of
+    # simulating a bounded steady-state window rather than the whole graph.
+    if int(args.sniper_roi_icount) > 0:
+        cmd.extend(["-s", f"stop-by-icount:{int(args.sniper_roi_icount)}"])
     if args.sniper_frontend == "sift":
         cmd.append("--sift")
     cmd.extend([
@@ -1577,6 +1585,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="Sniper checkout/install root containing run-sniper. Relative paths are resolved from the GraphBrew repository root.")
     parser.add_argument("--sniper-frontend", choices=["live", "sift"], default="live",
                         help="Sniper frontend mode. 'live' is the proven default; 'sift' inserts --sift for bounded trace-frontend probes.")
+    parser.add_argument("--sniper-roi-icount", default="0",
+                        help="Cap the Sniper DETAILED ROI at this many instructions (aggregated over cores) via '-s stop-by-icount:N'. "
+                             "0 disables the cap (full ROI). Bounds simulation time on large graphs regardless of size, matching the "
+                             "DROPLET paper (600000000) and P-OPT's iteration-sampling; the fast cache_sim runs the full ROI as the authority.")
     parser.add_argument("--sniper-omp-wait-policy", choices=["passive", "active", "unset"], default="passive",
                         help="OMP_WAIT_POLICY for Sniper benchmark processes. Passive avoids SIFT/OpenMP barrier deadlocks observed with full wrappers.")
     parser.add_argument("--sniper-config", nargs="*", default=[], help="Additional Sniper -c config names after --sniper-base-config.")
