@@ -40,6 +40,7 @@
     "available_sniper_replacement": "Placeholder for available-local Sniper replacement sweep after Sniper/SDE full-wrapper or trace-reuse run mode is fixed.",
     "final_sniper_replacement": "Placeholder for final Sniper replacement sweep after Sniper/SDE full-wrapper or trace-reuse run mode is fixed.",
     "final_sniper_droplet": "Placeholder for final Sniper DROPLET sweep after full run mode and final-workload prefetch counters prove active.",
+    "final_sniper_scaling": "Focused multi-core scaling study: cit-Patents + soc-pokec, PR/BFS/CC, core sweep {1,2,4,8} at 2MB/core, key policies, DROPLET-style 1B aggregate ROI instruction cap.",
     "available_replacement": "Replacement-only gem5 sweep on graph files currently present in results/graphs.",
     "local_cache_sim_diversity_smoke": "Small-graph cache_sim diversity screen over email-Eu-core with additional kernels beyond PR/BFS/SSSP.",
     "local_cache_sim_diversity_medium": "Medium-graph cache_sim diversity screen over cit-Patents with safe additional kernels.",
@@ -105,6 +106,10 @@
     ],
     "local_l_curve": [
       {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["512kB", "1MB", "2MB", "4MB", "8MB", "16MB"]}
+    ],
+    "scaling_focused": [
+      {"name": "cit-Patents", "path": "results/graphs/cit-Patents/cit-Patents.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]},
+      {"name": "soc-pokec", "path": "results/graphs/soc-pokec/soc-pokec.sg", "options_key": "file_dbg", "l1d_size": "32kB", "l2_size": "256kB", "l3_ways": "16", "l3_sizes": ["2MB"]}
     ],
     "available_local": [
       {"name": "email-Eu-core", "path": "results/graphs/email-Eu-core/email-Eu-core.sg", "options_key": "file_dbg"},
@@ -629,6 +634,26 @@
       "per_core_l3": "2MB",
       "out_subdir": "41_sniper_final_droplet",
       "timeout_sniper": 7200
+    },
+    {
+      "name": "42_sniper_scaling_focused",
+      "kind": "roi_matrix",
+      "profiles": ["final_sniper_scaling"],
+      "suite": "sniper",
+      "graph_set": "scaling_focused",
+      "benchmarks": ["pr", "bfs", "cc"],
+      "policies": ["LRU", "GRASP", "POPT", "POPT:UNCHARGED", "ECG:DBG_PRIMARY", "ECG:POPT_PRIMARY"],
+      "prefetcher": "none",
+      "sniper_workload": "benchmark",
+      "sniper_frontend": "sift",
+      "allow_sniper_benchmark_workload": true,
+      "sniper_memory_limit_gb": 40,
+      "sniper_address_domain": "virtual",
+      "sniper_core_sweep": [1, 2, 4, 8],
+      "per_core_l3": "2MB",
+      "sniper_roi_icount": 1000000000,
+      "out_subdir": "42_sniper_scaling_focused",
+      "timeout_sniper": 10800
     }
   ]
 }

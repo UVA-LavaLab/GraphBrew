@@ -360,6 +360,8 @@ def make_roi_job(
         command.extend(["--sniper-root", str(settings.get("sniper_root", "bench/include/sniper_sim/snipersim"))])
         command.extend(["--sniper-frontend", str(settings.get("sniper_frontend", "live"))])
         command.extend(["--sniper-omp-wait-policy", str(settings.get("sniper_omp_wait_policy", "passive"))])
+        if settings.get("sniper_roi_icount"):
+            command.extend(["--sniper-roi-icount", str(settings.get("sniper_roi_icount"))])
         command.extend(["--sniper-base-config", str(settings.get("sniper_base_config", "graphbrew/graph_sniper"))])
         command.extend(["--sniper-address-domain", str(settings.get("sniper_address_domain", "virtual"))])
         command.extend(["--sniper-memory-limit-gb", str(settings.get("sniper_memory_limit_gb", 16))])
