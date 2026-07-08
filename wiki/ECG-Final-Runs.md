@@ -27,6 +27,11 @@ current-vertex validation. Other gem5 wrappers may have graph hints, but do not
 use them for final P-OPT claims until their matrix export and sideband paths are
 audited.
 
+Sniper additionally has parallel (multicore) `cc`, `cc_sv`, and `bc` wrappers
+that mirror the same sideband + ROI + P-OPT-matrix scaffold and pass their
+correctness verifiers; the focused multicore scaling study uses `pr`/`bfs`/`cc`.
+See [ECG Sniper Runs → Multicore Scaling](ECG-Sniper-Runs#multicore-scaling-enabled-2026-07).
+
 ## ROI And Sidebands
 
 gem5 wrappers load/build the graph, allocate property arrays, export sideband
