@@ -6,7 +6,9 @@ evidence, while gem5 remains the detailed ISA/custom-hint validation path.
 
 ## Current Status
 
-Validated single-thread Sniper paths now include:
+Multicore scaling is now enabled and validated (see
+[Multicore Scaling](#multicore-scaling-enabled-2026-07) below). Validated
+single-thread Sniper paths include:
 
 - safe kernel profiles for PR/BFS/SSSP and DROPLET PR/BFS,
 - bounded SIFT full-wrapper synthetic PR/BFS/SSSP,
@@ -128,6 +130,95 @@ Next unblocked Sniper work:
 - aggregate cit-Patents rows into the paper pipeline,
 - expand full-wrapper thread validation beyond the email-Eu-core 1/2-thread
   smoke before making broad multicore claims.
+
+## Multicore Scaling (enabled 2026-07)
+
+Sniper's stated purpose — scalable multicore/cache-timing evidence — is now
+realized. Previously the ROI compute kernels were single-threaded (only core 0
+did work; extra cores idled), so `--sniper-cores N` allocated cores but did not
+parallelize the measured region.
+
+**Kernels parallelized.** OpenMP was re-added to the Sniper ROI compute in
+`bench/src_sniper/`:
+
+- `pr.cc` — `#pragma omp parallel` PR gather with a thread-private prefetch
+  window (GAPBS-faithful benign convergent contrib race),
+- `sssp.cc` — removed the hard `omp_set_num_threads(1)` (delta-stepping was
+  already parallel),
+- `bfs.cc` — rewritten from a sequential `std::queue` to a level-synchronous
+  parallel BFS (`SlidingQueue` + atomic `compare_and_swap` parent-claim),
+- new `cc.cc` (Afforest), `cc_sv.cc` (Shiloach-Vishkin), `bc.cc` (Brandes) —
+  parallel, mirroring the PR/BFS sideband + ROI + ECG (context, P-OPT reref
+  matrix, per-edge epoch delivery, `SNIPER_SET_VERTEX`) scaffold.
+
+Verified: native OpenMP 4–6× at 8 threads; all six verifiers pass; per-core work
+balanced under Sniper; BC top scores identical 1t vs 8t.
+
+**Deadlock fix.** Multicore OpenMP under Sniper deadlocks with
+`OMP_WAIT_POLICY=passive` — idle threads `futex_wait` with no timeout, so when
+every core sleeps at a barrier at once `barrier_sync_server` aborts
+(`No threads running, no timeout. Application has deadlocked`). `roi_matrix` now
+forces `OMP_WAIT_POLICY=active` whenever `--sniper-cores > 1` (spin-waits keep
+threads runnable). Single-core keeps passive.
+
+**Multicore stats.** `bench/include/sniper_sim/scripts/parse_stats.py` sums the
+per-core comma-separated counters (`core.instructions = X, Y`) and uses
+`barrier.global_time` for the IPC smoke field, so the multicore L3 miss rate is
+well-defined (was `None`).
+
+**Feasibility — DROPLET-style ROI instruction cap.** Full cycle-accurate
+simulation of a real-graph ROI is infeasible (cit-Patents PR at 1 core exceeded
+a 150-minute timeout; Sniper is ~300× slower than `cache_sim`, and the core
+model — `interval` vs `oneipc` — does not change this because the cost is the
+SIFT/Pin instrumentation plus per-access memory-hierarchy timing). This matches
+the field: P-OPT and GRASP derive their large-graph replacement results from a
+fast serial Pin/trace cache simulator (exactly what `cache_sim` is, ~3 s) with
+iteration sampling, validated within 5% of Sniper on a subset; DROPLET caps
+Sniper with `-s stop-by-icount:600000000`. `roi_matrix --sniper-roi-icount N`
+adds `-s stop-by-icount:N`, so with `--roi` Sniper fast-forwards pre-ROI,
+switches to DETAILED at the ROI marker, and stops after N instructions
+(aggregated over cores). cit-Patents PR c1 dropped from >150 min to 7m40s at
+200M; a 1B cap is more representative (miss 0.60 → 0.705, closing the
+hot-vertex window bias toward the `cache_sim` authority 0.779 — the residual
+gap is the inherent non-inclusive-NUCA difference). `cache_sim` remains the
+absolute miss-rate authority (full ROI); capped Sniper is the bounded
+direction/scale spot-check.
+
+**Focused scaling profile** `final_sniper_scaling` (manifest stage
+`42_sniper_scaling_focused`): cit-Patents + soc-pokec, PR/BFS/CC, core sweep
+`{1,2,4,8}` holding per-core LLC = 2 MB (shared 2/4/8/16 MB, DROPLET-style weak
+scaling), policies `LRU GRASP POPT POPT:UNCHARGED ECG:DBG_PRIMARY
+ECG:POPT_PRIMARY`, 1B aggregate ROI cap.
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile final_sniper_scaling --no-stop-on-error --skip-literature-gate
+# resume / fill intermittent-error cells (uses the same run dir):
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile final_sniper_scaling --run-dir <run> --no-stop-on-error
+```
+
+Always pass `--no-stop-on-error`: multicore Sniper has a rare intermittent
+SIGSEGV race (any policy, ≥2 cores) that a re-run recovers; without the flag one
+failed cell halts the whole sweep.
+
+**Early scaling findings (cit-Patents, capped 1B, per-core 2 MB).** ECG's two
+variants each win their kernel type:
+
+- **PR (iterative):** `ECG:POPT_PRIMARY` (findNextRef) wins — it matches the
+  idealized `POPT:UNCHARGED` at *zero* reserved-way cost and beats charged POPT
+  at every core count (margin ~2 pp, shrinking as the growing shared cache
+  dilutes pressure).
+- **BFS (frontier traversal):** degree-based `ECG:DBG_PRIMARY` wins and P-OPT
+  *loses* to GRASP/ECG (charged POPT ~0.781 barely beats LRU ~0.784 at c1) —
+  the traversal story on a kernel class P-OPT never evaluated.
+- **CC:** compressed and graph-dependent (ECG:POPT_PRIMARY best at low cores,
+  GRASP competitive).
+
+All policies beat LRU across the core sweep, the reserved-way charge effect
+(POPT vs POPT:UNCHARGED) is ~2 pp on PR, and the policy ordering is preserved as
+cores scale. Absolute policy *separation* comes from `cache_sim` (the capped
+window compresses mid-tier gaps because it samples the hot DBG-reordered head).
 
 ## Current Safe Path
 
@@ -479,6 +570,12 @@ address domain per row so proof and paper sweeps remain explicit in the CSV.
 The current thread profile validates runner/config plumbing only. The
 `pr_kernel_smoke` workload is single-threaded, so these rows are not final
 thread-scaling evidence.
+
+> Real multicore thread-scaling now uses the full `benchmark` workload (the
+> parallelized `bench/src_sniper` kernels), not the kernel-smoke variants — see
+> [Multicore Scaling](#multicore-scaling-enabled-2026-07) and the
+> `final_sniper_scaling` profile. `pr_kernel_smoke` remains single-threaded and
+> is kept only as a fast plumbing check.
 
 ```bash
 python3 scripts/experiments/ecg/final_paper_run.py \
