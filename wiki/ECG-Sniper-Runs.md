@@ -193,14 +193,17 @@ ECG:POPT_PRIMARY`, 1B aggregate ROI cap.
 **Multicore crash fix.** The intermittent multicore SIGSEGV — and the earlier
 deadlock — both originate in Sniper's `clock_skew_minimization` **barrier**
 scheme (crash backtrace `barrier_sync_client.cc:50` via
-`PerformanceModel::iterate`; deadlock in `barrier_sync_server`). GraphBrew's
-`graph_sniper.cfg` now sets `clock_skew_minimization/scheme = none`, so the
-barrier client/server are never instantiated and the crashing path structurally
-cannot run. This is safe for the miss-rate metric — `scheme=none` reproduces the
-barrier scheme within noise (cit-Patents PR c4 LRU 0.2968 vs 0.2970; CC c4
-ECG:DBG 0.6316 on the cell that crashed 2/2 under the barrier scheme) because the
-capacity-bound miss rate does not depend on the cross-core clock sync. Passing
-`--no-stop-on-error` is now belt-and-suspenders rather than load-bearing.
+`PerformanceModel::iterate`; deadlock in `barrier_sync_server`). `roi_matrix`
+forces `clock_skew_minimization/scheme = none` via a `-g` command-line override
+(the value in `graph_sniper.cfg` alone does **not** win — `base.cfg`'s
+`scheme = barrier` takes precedence over the `-c` config file, as verified in
+`sim.cfg`, so the `-g` override is required). With `scheme=none` the barrier
+client/server are never instantiated and the crashing path structurally cannot
+run. This is safe for the miss-rate metric — `scheme=none` reproduces the barrier
+scheme within noise (cit-Patents PR c4 LRU 0.2968 vs 0.2970; CC c4 GRASP 0.6303
+vs 0.630 and ECG:DBG 0.6316, on cells that crashed under the barrier scheme)
+because the capacity-bound miss rate does not depend on cross-core clock sync.
+Passing `--no-stop-on-error` is now belt-and-suspenders rather than load-bearing.
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
