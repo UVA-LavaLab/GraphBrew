@@ -1123,6 +1123,12 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         cmd.extend(["-c", config_name])
     sniper_config_values = {
         "general/total_cores": args.sniper_cores,
+        # Disable the periodic barrier clock-skew scheme via a -g override (config
+        # files do not reliably override base.cfg's scheme=barrier here). The
+        # barrier client/server are the source of both the multicore OpenMP
+        # deadlock and an intermittent SIGSEGV; cache miss rate is capacity/reuse
+        # dominated and is unchanged by the scheme (validated within noise).
+        "clock_skew_minimization/scheme": "none",
         "perf_model/l1_icache/cache_block_size": line_size,
         "perf_model/l1_dcache/cache_block_size": line_size,
         "perf_model/l2_cache/cache_block_size": line_size,
