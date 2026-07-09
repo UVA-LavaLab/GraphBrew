@@ -202,23 +202,42 @@ Always pass `--no-stop-on-error`: multicore Sniper has a rare intermittent
 SIGSEGV race (any policy, ≥2 cores) that a re-run recovers; without the flag one
 failed cell halts the whole sweep.
 
-**Early scaling findings (cit-Patents, capped 1B, per-core 2 MB).** ECG's two
-variants each win their kernel type:
+**Scaling findings (cit-Patents + soc-pokec, capped 1B, per-core 2 MB → shared
+2/4/8/16 MB).** ECG's two variants each win their kernel type, and the result
+holds on both graphs and across the core sweep:
 
-- **PR (iterative):** `ECG:POPT_PRIMARY` (findNextRef) wins — it matches the
-  idealized `POPT:UNCHARGED` at *zero* reserved-way cost and beats charged POPT
-  at every core count (margin ~2 pp, shrinking as the growing shared cache
-  dilutes pressure).
-- **BFS (frontier traversal):** degree-based `ECG:DBG_PRIMARY` wins and P-OPT
-  *loses* to GRASP/ECG (charged POPT ~0.781 barely beats LRU ~0.784 at c1) —
-  the traversal story on a kernel class P-OPT never evaluated.
-- **CC:** compressed and graph-dependent (ECG:POPT_PRIMARY best at low cores,
-  GRASP competitive).
+- **PR (iterative) — the headline.** `ECG:POPT_PRIMARY` (findNextRef) wins on
+  both graphs: it matches the idealized `POPT:UNCHARGED` at *zero* reserved-way
+  cost and beats charged POPT at every core count.
 
-All policies beat LRU across the core sweep, the reserved-way charge effect
-(POPT vs POPT:UNCHARGED) is ~2 pp on PR, and the policy ordering is preserved as
-cores scale. Absolute policy *separation* comes from `cache_sim` (the capped
-window compresses mid-tier gaps because it samples the hot DBG-reordered head).
+  | policy | cit-Patents c1→c8 | soc-pokec c1→c8 |
+  |---|---|---|
+  | LRU | 0.705 → 0.131 | 0.398 → 0.106 |
+  | GRASP | 0.583 → 0.128 | 0.313 → 0.104 |
+  | POPT (charged) | 0.573 → 0.102 | 0.295 → 0.101 |
+  | POPT:UNCHARGED | 0.552 → 0.098 | 0.272 → 0.101 |
+  | **ECG:POPT_PRIMARY** | **0.552 → 0.098** | **0.272 → 0.101** |
+
+- **BFS (frontier traversal).** On cit-Patents, degree-based `ECG:DBG_PRIMARY`
+  wins (0.720 at c1) and P-OPT *loses* — charged POPT (0.781) barely beats LRU
+  (0.784) and trails GRASP/ECG — the traversal story on a kernel class P-OPT
+  never evaluated. On soc-pokec, BFS is capacity-bound (the 6.4 MB `parent`
+  array does not fit until 8 MB): all policies thrash at ~1.0 miss at 2–4 MB and
+  differentiate only at 8 MB+ (POPT:UNCHARGED / ECG:POPT_PRIMARY best).
+
+- **CC — graph-dependent.** cit-Patents favors findNextRef
+  (ECG:POPT_PRIMARY / POPT:UNCHARGED best); soc-pokec favors degree (GRASP
+  best). Both are compressed (all graph-aware policies within ~1–2 pp).
+
+All graph-aware policies beat LRU across the sweep (outside the degenerate
+soc-pokec BFS 2–4 MB regime), the reserved-way charge effect (POPT vs
+POPT:UNCHARGED) is ~2 pp on PR, and the policy ordering is preserved as cores
+scale. Absolute policy *separation* comes from `cache_sim` (the capped window
+compresses mid-tier gaps because it samples the hot DBG-reordered head; the
+full-ROI `cache_sim` authority for these cells is the reference — run the same
+graphs/kernels/policies with `--suite cache-sim` at 2 MB/16-way). Both graphs
+completed 24/24 cells; a rare intermittent multicore SIGSEGV (2 of 144
+policy-runs) is recovered by a `--resume` pass.
 
 ## Current Safe Path
 
