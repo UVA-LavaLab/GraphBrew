@@ -190,17 +190,25 @@ direction/scale spot-check.
 scaling), policies `LRU GRASP POPT POPT:UNCHARGED ECG:DBG_PRIMARY
 ECG:POPT_PRIMARY`, 1B aggregate ROI cap.
 
+**Multicore crash fix.** The intermittent multicore SIGSEGV — and the earlier
+deadlock — both originate in Sniper's `clock_skew_minimization` **barrier**
+scheme (crash backtrace `barrier_sync_client.cc:50` via
+`PerformanceModel::iterate`; deadlock in `barrier_sync_server`). GraphBrew's
+`graph_sniper.cfg` now sets `clock_skew_minimization/scheme = none`, so the
+barrier client/server are never instantiated and the crashing path structurally
+cannot run. This is safe for the miss-rate metric — `scheme=none` reproduces the
+barrier scheme within noise (cit-Patents PR c4 LRU 0.2968 vs 0.2970; CC c4
+ECG:DBG 0.6316 on the cell that crashed 2/2 under the barrier scheme) because the
+capacity-bound miss rate does not depend on the cross-core clock sync. Passing
+`--no-stop-on-error` is now belt-and-suspenders rather than load-bearing.
+
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile final_sniper_scaling --no-stop-on-error --skip-literature-gate
-# resume / fill intermittent-error cells (uses the same run dir):
+# resume / fill any error cells (uses the same run dir):
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile final_sniper_scaling --run-dir <run> --no-stop-on-error
 ```
-
-Always pass `--no-stop-on-error`: multicore Sniper has a rare intermittent
-SIGSEGV race (any policy, ≥2 cores) that a re-run recovers; without the flag one
-failed cell halts the whole sweep.
 
 **Scaling findings (cit-Patents + soc-pokec, capped 1B, per-core 2 MB → shared
 2/4/8/16 MB).** ECG's two variants each win their kernel type, and the result
@@ -236,8 +244,10 @@ scale. Absolute policy *separation* comes from `cache_sim` (the capped window
 compresses mid-tier gaps because it samples the hot DBG-reordered head; the
 full-ROI `cache_sim` authority for these cells is the reference — run the same
 graphs/kernels/policies with `--suite cache-sim` at 2 MB/16-way). Both graphs
-completed 24/24 cells; a rare intermittent multicore SIGSEGV (2 of 144
-policy-runs) is recovered by a `--resume` pass.
+completed 24/24 cells. (The original run hit a rare intermittent multicore
+SIGSEGV on 2 of 144 policy-runs; this is now fixed at the source by
+`clock_skew_minimization/scheme = none` — see the crash-fix note above — so
+re-runs are crash-free.)
 
 ## Current Safe Path
 
