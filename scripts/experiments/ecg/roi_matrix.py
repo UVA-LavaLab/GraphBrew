@@ -875,6 +875,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         "--l3-ways", effective_l3_ways,
         "--cpu-type", args.gem5_cpu_type,
     ]
+    if int(args.gem5_max_insts) > 0:
+        cmd.extend(["--max-insts", str(int(args.gem5_max_insts))])
     if args.prefetcher == "DROPLET":
         cmd.extend([
             "--droplet-prefetch-degree", str(args.droplet_prefetch_degree),
@@ -1468,6 +1470,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "O3 the ecg.load epoch must ride the per-request EcgEpochExtension "
                              "sideband (race-free) rather than the single-slot mailbox, which "
                              "assumes in-order load serialization.")
+    parser.add_argument("--gem5-max-insts", default="0",
+                        help="Cap gem5 at this many committed instructions (0 = run to completion). "
+                             "Bounds gem5 on large graphs like Sniper's --sniper-roi-icount. The "
+                             "benchmark's m5_reset_stats/m5_dump_stats scope the recorded window to "
+                             "the ROI. Pair with GEM5_OPT=.../build/RISCV/gem5.opt + "
+                             "GEM5_KERNEL_SUFFIX=_riscv_m5ops + GEM5_FORCE_ECG_LOAD=1 (host var; "
+                             "maps to the benchmark's GEM5_ENABLE_ECG_LOAD=1) to exercise the "
+                             "RISC-V ecg.load instruction at scale.")
     parser.add_argument("--prefetcher", choices=["none", "DROPLET", "ECG_PFX", "STRIDE"], default="none",
                         help="Prefetcher to attach. ECG_PFX is supported by cache_sim and experimental gem5/Sniper hint paths. STRIDE = uniform structure-stream prefetcher (all policies) to level the structure-prefetch axis across sims.")
     parser.add_argument("--structure-prefetch-degree", type=int, default=4,

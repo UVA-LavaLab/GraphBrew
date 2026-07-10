@@ -183,6 +183,12 @@ def parse_args():
     parser.add_argument("--l3-size", default=DEFAULTS["l3_size"])
     parser.add_argument("--l3-ways", type=int, default=DEFAULTS["l3_assoc"],
         help="L3 associativity / data ways (default: GraphBrew DEFAULTS l3_assoc)")
+    parser.add_argument("--max-insts", type=int, default=0,
+        help="Cap total committed instructions (0 = run to completion). Bounds "
+             "gem5 on large graphs like Sniper's stop-by-icount. The benchmark's "
+             "m5_reset_stats at ROI start scopes the dumped window to the ROI; if "
+             "the cap fires before the ROI's own m5_dump_stats, this config dumps "
+             "stats at the cap so the ROI window is still recorded.")
 
     return parser.parse_args()
 
@@ -204,6 +210,13 @@ def create_system(args):
         system.cpu = MinorCPU()
     else:
         system.cpu = TimingSimpleCPU()
+
+    # Instruction cap (bounds gem5 on large graphs, like Sniper's stop-by-icount).
+    # Counts total committed instructions; the ROI window is scoped by the
+    # benchmark's m5_reset_stats/m5_dump_stats, and main() dumps stats if the cap
+    # fires mid-ROI before the benchmark's own dump.
+    if args.max_insts and args.max_insts > 0:
+        system.cpu.max_insts_any_thread = args.max_insts
 
     # ── L3 replacement policy (graph-aware) ──
     l3_policy_kwargs = {}
@@ -337,6 +350,16 @@ def create_system(args):
     process = Process()
     process.cmd = [binary] + args.options.split()
     process.env = benchmark_environment(args)
+    # Redirect the simulated benchmark's stdout/stderr to files in the run's
+    # output dir. In SE mode this output (Reorder/Trial times, and the
+    # "[ECG_LOAD] fused ecg.load delivery ACTIVE" confirmation) does not reach
+    # the gem5 process stdout the runner captures, so capture it here for
+    # debugging and to make the RISC-V ecg.load path visible.
+    try:
+        process.output = os.path.join(m5.options.outdir, "benchmark_stdout.txt")
+        process.errout = os.path.join(m5.options.outdir, "benchmark_stderr.txt")
+    except Exception:
+        pass
     system.cpu.workload = process
     system.cpu.createThreads()
 
@@ -378,7 +401,15 @@ def main():
 
     print("Starting simulation...")
     exit_event = m5.simulate()
-    print(f"Exiting @ tick {m5.curTick()} because {exit_event.getCause()}")
+    cause = exit_event.getCause()
+    print(f"Exiting @ tick {m5.curTick()} because {cause}")
+    # If the instruction cap fired before the benchmark's own m5_dump_stats
+    # (i.e. mid-ROI), dump the ROI-window stats now so they are still recorded.
+    # The benchmark's m5_reset_stats at ROI start scopes this window to the ROI.
+    if args.max_insts and args.max_insts > 0 and "max instruction count" in cause:
+        print(f"[max-insts] instruction cap ({args.max_insts}) reached mid-run; "
+              f"dumping ROI-window stats.")
+        m5.stats.dump()
 
 
 if __name__ == "__m5_main__":
