@@ -42,7 +42,7 @@ ROI_MATRIX = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
 SUITE = {"cache_sim": "cache-sim", "gem5": "gem5", "sniper": "sniper"}
 EXTRA = {
     "cache_sim": [],
-    "gem5": [],
+    "gem5": ["--timeout-gem5", "3600"],
     "sniper": ["--sniper-workload", "sg_kernel", "--allow-sniper-sg-kernel-workload",
                "--sniper-memory-limit-gb", "20", "--sniper-enable-graph-policies",
                "--timeout-sniper", "540"],
