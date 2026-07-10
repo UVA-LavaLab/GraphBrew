@@ -53,6 +53,53 @@ Rows record these as `gem5_context_path`, `gem5_popt_matrix_path`,
 gem5 aligned with the Sniper sideband discipline and avoids shared `/tmp`
 metadata when jobs are sharded.
 
+## Bounding gem5 (instruction cap + RISC-V ecg.load)
+
+Cycle-accurate gem5 is too slow to run a full ROI on large graphs, so it is
+bounded the same way DROPLET/Sniper bound their runs (`stop-by-icount`).
+`roi_matrix --gem5-max-insts N` passes `--max-insts N` to `graph_se.py`, which
+sets `system.cpu.max_insts_any_thread = N` (cap on total committed
+instructions). The benchmark's `m5_reset_stats` at ROI start scopes the
+recorded window to the ROI; if the cap fires mid-ROI before the benchmark's own
+`m5_dump_stats`, `graph_se.py` dumps stats on the `"max instruction count"`
+exit so the ROI window is still recorded.
+
+Caveat — the cap counts from instruction 0, so it must exceed the graph-build +
+sideband/mask-build cost or it fires mid-build (garbage). ECG's per-edge mask
+build (`buildInEdgeMasks_PR`) is much heavier than LRU's, so a cap that reaches
+the ROI for LRU may not for ECG. Confirmation that the ROI was reached is the
+benchmark's own output (see below).
+
+**RISC-V `ecg.load` (the fused ISA delivery).** To exercise the custom-0
+`ecg.load` instruction at scale, run the RISC-V build with the RISC-V m5ops
+kernel and force the fused-load path:
+
+```bash
+GEM5_OPT=$PWD/bench/include/gem5_sim/gem5/build/RISCV/gem5.opt \
+GEM5_KERNEL_SUFFIX=_riscv_m5ops \
+GEM5_FORCE_ECG_LOAD=1 \
+python3 scripts/experiments/ecg/roi_matrix.py --suite gem5 --benchmark pr \
+  --policies ECG:ECG_GRASP_POPT --gem5-max-insts 1500000000 \
+  --l1d-size 32kB --l2-size 256kB --l3-sizes 2MB --l3-ways 16 --l2-ways 8 --l1d-ways 8 \
+  --options "-f results/graphs/web-Google/web-Google.sg -o 5 -n 1 -i 2" \
+  --no-build --out-dir /tmp/gdemo_wg
+```
+
+- The **host** env var is `GEM5_FORCE_ECG_LOAD=1` (not `GEM5_ENABLE_ECG_LOAD`);
+  `benchmark_environment()` in `graph_se.py` maps host `GEM5_FORCE_ECG_LOAD==1`
+  → the simulated benchmark's `GEM5_ENABLE_ECG_LOAD=1`.
+- SE-mode redirects the simulated benchmark's stdout/stderr away from the gem5
+  stdout the runner captures, so `graph_se.py` writes them to
+  `benchmark_stdout.txt` / `benchmark_stderr.txt` in the gem5 out-dir. The line
+  `[ECG_LOAD] fused ecg.load delivery ACTIVE` in `benchmark_stderr.txt`
+  confirms the custom-0 `ecg.load` was decoded and executed in the ROI. (Under
+  an instruction cap this appears only if the cap reached the ROI; a clean
+  small-graph run always shows it.)
+- `ecg.load` decodes at custom-0 (`FUNCT3=0x2`,
+  `overlays/arch/riscv/isa/decoder_ecg_extract.isa`), calling `setEcgLoadHint`
+  to side-deliver the epoch; a run that finishes `rc=0` (no illegal-instruction
+  fault) is itself evidence the RISC-V decoder handled the instruction.
+
 ## Policy Labels
 
 Replacement-only final profile:
