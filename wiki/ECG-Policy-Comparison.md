@@ -449,9 +449,12 @@ first N L3 evictions (`[EVICT L3 pol=… reason=…]`), proving the policy acts.
 
 **Multi-kernel equivalence** (`experiments.py verify --kernels [--gem5 --sniper]`,
 `verify/equiv_kernels.py`): the eviction DECISION is kernel-agnostic, so it is certified for
-**PR / BFS / BC** across the simulators — every `(kernel × sim)` obeys the eviction spec AND emits
-the debug banner (PR/BFS: cache_sim+gem5+Sniper; BC: cache_sim+gem5; SSSP needs a weighted `.wsg`;
-Sniper `sg_kernel` has no BC target). This is the DECISION equivalence; the per-edge mask DIRECTION
+**PR / BFS / BC / CC** across all three simulators — every `(kernel × sim)` obeys the eviction spec
+AND emits the debug banner. PR/BFS/BC are DECISIVE (the epoch distance strictly decides ≥1 victim)
+on cache_sim + gem5 + Sniper; CC is the do-no-harm cell (epoch delivered on the inclusive cache_sim/gem5
+legs, DECISION-level on the non-inclusive Sniper leg where its small union-find `comp[]` never creates
+property-eviction pressure). SSSP is cache_sim + gem5 (the Sniper `sg_kernel` SSSP target needs a
+weighted `.wsg` the eval corpus lacks). This is the DECISION equivalence; the per-edge mask DIRECTION
 is still PR-tuned (BFS/BC out-edge direction uncertified — a miss-rate, not a spec, concern). §21.
 
 ## Related
