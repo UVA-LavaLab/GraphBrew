@@ -353,3 +353,38 @@ those entries until the CSVs land and the audit table can be amended.)
    `KNOWN_DISAGREEMENTS` and the audit follow-up list).
 4. Enable a non-SDE-heavy Sniper workload (`kernel_smoke` covers PR/BFS/SSSP;
    BC needs a dedicated path) so the BC half of the matrix can be measured.
+
+### 2026-07-09 — Sniper standalone-POPT tight-L3 "inertness" RESOLVED (not a bug)
+
+Long-standing open item: standalone Sniper POPT looked inert (≈LRU, or a noisy
+"worse than LRU") at tight L3 on small graphs, while cache_sim/gem5 POPT helped.
+Root-caused to **degenerate geometry, not a code bug**:
+
+- **Static faithfulness (verified byte-for-byte).** Sniper POPT is faithful to
+  cache_sim: same `makeOffsetMatrix` builder (PR uses `traverseCSR=true`; BFS/SSSP
+  use `false` = out-edge transpose, matching cache_sim's `natural_csr`), same
+  exported header math (`epoch_size = ceil(V/256)`, `sub_epoch_size = ceil(epoch/128)`
+  in `sniper_harness.h` == `graph_cache_context.h`), byte-identical inner
+  `RereferenceMatrix::findNextRef`, same per-region `cline_id`, and an
+  identically-structured victim selection (`cache_set_popt.cc getReplacementIndex`
+  ≡ `cache_sim.h findVictimPOPT`: Phase 1 non-property evict → Phase 2 max
+  next-ref distance → Phase 3 RRIP tiebreak). The epoch clock is correctly wired
+  (`SNIPER_SET_VERTEX` → magic `GRAPHBREW_SET_VERTEX_WORK_ID` → `setCurrentVertexHint`
+  → `currentVertexForPopt`).
+- **The "inertness" is an unexercised L3.** On a small graph at a tight geometry
+  the property working set fits in the inner caches, so the L3 sees only the
+  cold-miss stream: kron_s16_k4 PR at L3=64kB **and** L3=128kB gives 89 L3
+  accesses, 100% miss, for **every** policy (LRU=POPT=GRASP=1.0). No policy can
+  differentiate. `roi_matrix` flags these cells (`annotate_l3_pressure` →
+  `l3_exercised=False`, `[warn] L3 inert`). The historical "POPT 0.526 > LRU
+  0.229" was noise (the debugging checkpoint itself flagged it).
+- **With the L3 exercised, standalone POPT is correct.** cit-Patents PR (Sniper,
+  1B cap, `l3_exercised=True`, ~16M L3 accesses): POPT beats LRU at every core
+  count — c1 0.573<0.705, c2 0.375<0.529, c4 0.202<0.297, c8 0.102<0.131, with
+  the expected LRU>GRASP>POPT ordering.
+
+**Hardening.** Propagated the `l3_exercised=False` guard so degenerate inert
+cells never enter a policy/miss-rate comparison in any tool:
+`flows/eviction_matrix.py` (already `--`) + `flows/paper_pipeline.py`
+`_l_curve_groups` (now skips inert cells before L-curve averaging). Documented
+the exercised-L3 requirement inline in `cache_set_popt.cc`.

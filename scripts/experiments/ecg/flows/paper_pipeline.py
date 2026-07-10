@@ -1286,6 +1286,14 @@ def l_curve_rows(roi_rows: list[dict[str, Any]]) -> dict[tuple[str, str], list[d
     for row in roi_rows:
         if row.get("simulator") != "cache_sim":
             continue
+        # Skip degenerate cells the pressure guard flagged as inert: when the
+        # property working set fits in the inner caches the L3 sees only the
+        # cold-miss stream (l3_miss_rate == 1.0 for EVERY policy), which carries
+        # no policy signal and would skew the averaged L-curve. annotate_l3_pressure
+        # sets l3_exercised=False on these (roi_matrix.py). Only drop explicit
+        # False so older rows without the flag are still included.
+        if row.get("l3_exercised") is False:
+            continue
         graph = _graph_from_row(row)
         app = str(row.get("benchmark") or "").strip()
         policy = str(row.get("policy_label") or row.get("policy") or "").strip()

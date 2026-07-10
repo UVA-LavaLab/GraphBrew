@@ -179,6 +179,21 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
       }
    }
 
+   // P-OPT eviction: evict the property line whose next reference (from the
+   // rereference matrix, indexed by the current-vertex epoch clock) is farthest
+   // in the future. This is byte-faithful to cache_sim findVictimPOPT
+   // (Phase 1 non-property evict -> Phase 2 max next-ref distance -> Phase 3 RRIP
+   // tiebreak) and gem5's ecg_rp: same makeOffsetMatrix builder, same
+   // epoch_size/sub_epoch_size, same findNextRef, same cline_id mapping.
+   //
+   // NOTE (validated 2026-07): standalone POPT only produces a signal when the
+   // L3 is actually exercised (property_bytes > effective LLC). On a small graph
+   // at a tight geometry the property set fits in the inner caches, so the L3
+   // sees only the cold-miss stream and EVERY policy (LRU/GRASP/POPT) reports
+   // l3_miss_rate == 1.0 -- POPT looks "inert", but this is degenerate geometry,
+   // not a matrix/lookup bug. roi_matrix flags these cells (l3_exercised=False,
+   // "[warn] L3 inert"). With the L3 exercised (e.g. cit-Patents PR) standalone
+   // Sniper POPT beats LRU by 3-15pp, matching cache_sim direction.
    UInt32 max_distance = 0;
    for (UInt32 way = 0; way < m_associativity; way++) {
       UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
