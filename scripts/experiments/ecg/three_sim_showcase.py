@@ -50,21 +50,8 @@ EXTRA = {
 BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 
 
-def run_cell(suite, policy, graph, cell, reorder, out, extra, timeout, benchmark="pr"):
-    """One roi_matrix run -> (l3_miss_rate or None, banner string or '')."""
-    import shutil
-    shutil.rmtree(out, ignore_errors=True)
-    cmd = [sys.executable, str(ROI_MATRIX), "--suite", suite, "--no-build",
-           "--benchmark", benchmark, "--policies", policy,
-           "--options", f"-f {graph} -o {reorder} -n 1 -i 1",
-           "--l3-sizes", cell["l3"], "--l3-ways", cell["ways"],
-           "--l1d-size", cell["l1d"], "--l2-size", cell["l2"],
-           "--out-dir", str(out)] + (extra or [])
-    try:
-        subprocess.run(cmd, cwd=str(ROOT), stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL, timeout=timeout, check=False)
-    except subprocess.TimeoutExpired:
-        return None, "(timeout)"
+def _parse_cell(out):
+    """Parse (l3_miss_rate|None, banner|'') from an existing cell out dir."""
     mr = None
     for p in glob.glob(os.path.join(str(out), "**", "roi_matrix.json"), recursive=True):
         try:
@@ -92,6 +79,34 @@ def run_cell(suite, policy, graph, cell, reorder, out, extra, timeout, benchmark
     return mr, banner
 
 
+def run_cell(suite, policy, graph, cell, reorder, out, extra, timeout, benchmark="pr", resume=False):
+    """One roi_matrix run -> (l3_miss_rate or None, banner string or '').
+
+    With resume=True, a cell that already has a valid result (parseable
+    l3_miss_rate) is NOT re-run — this lets a re-launch with an extended policy
+    set (e.g. adding SRRIP) reuse the finished cells instead of recomputing the
+    slow gem5 legs.
+    """
+    import shutil
+    if resume:
+        mr, banner = _parse_cell(out)
+        if mr is not None:
+            return mr, banner
+    shutil.rmtree(out, ignore_errors=True)
+    cmd = [sys.executable, str(ROI_MATRIX), "--suite", suite, "--no-build",
+           "--benchmark", benchmark, "--policies", policy,
+           "--options", f"-f {graph} -o {reorder} -n 1 -i 1",
+           "--l3-sizes", cell["l3"], "--l3-ways", cell["ways"],
+           "--l1d-size", cell["l1d"], "--l2-size", cell["l2"],
+           "--out-dir", str(out)] + (extra or [])
+    try:
+        subprocess.run(cmd, cwd=str(ROOT), stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        return None, "(timeout)"
+    return _parse_cell(out)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="3-sim ECG equivalence showcase")
     ap.add_argument("--sims", nargs="+", default=["cache_sim", "gem5", "sniper"],
@@ -101,7 +116,10 @@ def main(argv=None):
                          "For bc/cc on Sniper use a tiny cell (e.g. --l1d 1kB --l2 1kB --l3 2kB) "
                          "so the small property array spills past the non-inclusive inner caches.")
     ap.add_argument("--policies", nargs="+",
-                    default=["LRU", "GRASP", "ECG:ECG_GRASP_POPT"])
+                    default=["LRU", "SRRIP", "GRASP", "POPT", "ECG:ECG_GRASP_POPT"],
+                    help="Baselines to compare side-by-side. Default is the full set "
+                         "(LRU, SRRIP, GRASP, P-OPT, ECG) so every table has complete "
+                         "context and policy-rank flips are interpretable.")
     ap.add_argument("--graph",
                     default=str(ROOT / "results" / "graphs" / "kron_s16_k4" / "kron_s16_k4.sg"))
     ap.add_argument("--l3", default="128kB")
@@ -115,6 +133,9 @@ def main(argv=None):
                          "finding; the showcase fixes ONE variant across all 3 sims to read "
                          "cross-sim agreement, not to compare variants).")
     ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument("--resume", action="store_true",
+                    help="Reuse cells that already have a valid result (skip re-running the "
+                         "slow gem5 legs) — e.g. when re-launching with an added policy.")
     ap.add_argument("--out", default="/tmp/three_sim_showcase")
     args = ap.parse_args(argv)
 
@@ -136,7 +157,7 @@ def main(argv=None):
             tag = re.sub(r"[^0-9A-Za-z]+", "_", pol)
             out = Path(args.out) / f"{sim}_{tag}"
             mr, banner = run_cell(SUITE[sim], pol, args.graph, cell, args.reorder,
-                                  out, EXTRA[sim], args.timeout, args.benchmark)
+                                  out, EXTRA[sim], args.timeout, args.benchmark, args.resume)
             results[(sim, pol)] = (mr, banner)
             mrs = f"{mr:.4f}" if mr is not None else "  --  "
             print(f"  [{sim:9}] {pol:20} L3_mr={mrs}   {banner}")
