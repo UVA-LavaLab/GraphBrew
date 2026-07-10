@@ -735,7 +735,8 @@ property regions (mirroring `isPropertyData`/`findNextRef`); `edge_epoch_count` 
 
 **Updated cross-sim eviction faithfulness:** all 3 sims now deliver the per-edge epoch through the
 hierarchy (cache_sim packed record, gem5 packed-flat/ecg.extract, Sniper SNIPER_ECG_EXTRACT).
-Sniper's `findNextRef` matrix remains the default/oracle path.
+Sniper's `findNextRef` matrix is diagnostic-only; paper/performance runs default to the delivered
+epoch with fill/L3-hit-only refresh and requester-core clock propagation through the shared NUCA.
 
 ## 13. IMPLEMENTED + VALIDATED: Sniper Path A (epoch-filtered next-K lookahead, 2026-06-21)
 

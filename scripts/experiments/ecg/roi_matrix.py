@@ -1214,6 +1214,12 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     env["SNIPER_POPT_MATRIX"] = str(sidebands["popt_matrix"])
     env["SNIPER_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["SNIPER_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
+    # Level the simulated instruction stream across every policy while exposing
+    # the real outer-vertex clock required by P-OPT/ECG. Without this, the
+    # SNIPER_SET_VERTEX calls are no-ops and graph policies fall back to a
+    # property-address-derived pseudo-clock.
+    env["SNIPER_ENABLE_VERTEX_HINTS"] = "1"
+    row["sniper_vertex_clock"] = "outer-vertex"
     if args.prefetcher == "ECG_PFX":
         env.update(ecg_pfx_env(args))
         env["SNIPER_ENABLE_ECG_PFX_HINTS"] = "1"
@@ -1224,6 +1230,16 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env["SNIPER_ECG_PFX_FILTER_LINE_SIZE"] = str(args.line_size)
     if spec.ecg_mode and policy_name == "ecg":
         env["SNIPER_ECG_MODE"] = spec.ecg_mode
+    ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
+    if (spec.ecg_mode == "ECG_GRASP_POPT" and policy_name == "ecg"
+            and ecg_variant != "grasp_only"):
+        # Performance-equivalent to gem5/cache_sim: consume the delivered
+        # per-edge epoch, not Sniper's stronger live findNextRef oracle.
+        env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
+        env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
+        row["sniper_ecg_delivery"] = "per-edge-extract"
+    else:
+        env.pop("SNIPER_ENABLE_ECG_EXTRACT", None)
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_sniper, log_path, args.dry_run)
     if args.dry_run:
         return []

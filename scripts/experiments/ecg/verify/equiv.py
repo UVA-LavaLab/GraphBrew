@@ -8,11 +8,11 @@ The per-simulator eviction-spec checks in verify/ecg.py assert that *every
 eviction obeys its policy spec*. That is necessary but NOT sufficient — it
 structurally cannot catch three real bug classes that all shipped "green":
 
-  1. A backwards INSERTION RRPV. gem5 GraphGraspRP inserted non-property /
-     streaming data at rrpv=2 (near-MRU, protected) instead of the SRRIP-distant
-     maxRRPV-1. Every eviction still obeyed spec (it always evicted the max-RRPV
-     line); the bug was that the *wrong lines* held low RRPV. GRASP then BACKFIRED
-     (hurt vs LRU) only in gem5 — invisible to a per-sim eviction check.
+  1. A backwards INSERTION RRPV. Official GRASP inserts every address outside
+     the high/moderate regions at M_RRIP=max (7). Earlier gem5/Sniper ports used
+     near-MRU constants or SRRIP's max-1, so GRASP/ECG did not implement the
+     same insertion policy across simulators. Every eviction still obeyed spec,
+     because the bug was in which lines reached max RRPV.
   2. An UNREORDERED workload. Sniper's sg_kernel silently ignored -o5, so all its
      degree-policy runs used original-order graphs. Every eviction still obeyed
      spec, so verify --sniper passed on a graph the policy was never meant to see.
@@ -217,43 +217,65 @@ def _slice(text: str, start_pat: str, span: int = 1200) -> str:
     return text[m.start():m.start() + span] if m else ""
 
 
+def check_srrip_invariant() -> bool:
+    """Assert gem5 uses true 3-bit SRRIP, not BRRIP with btp=0.
+
+    gem5 BRRIP's btp is the probability of LONG (max-1) insertion:
+    btp=0 means every line inserts DISTANT/max, while RRIPRP pins btp=100.
+    """
+    print("\n== GATE 3: gem5 SRRIP invariant (RRIPRP, btp=100, 3-bit) ==")
+    text = _read("bench/include/gem5_sim/configs/graphbrew/graph_cache_config.py")
+    true_srrip = re.search(
+        r'"SRRIP"\s*:\s*lambda\s*:\s*RRIPRP\s*\(\s*num_bits\s*=\s*3\s*\)',
+        text,
+    ) is not None
+    bad_btp0 = re.search(
+        r'"SRRIP"\s*:\s*lambda\s*:\s*BRRIPRP\s*\([^)]*btp\s*=\s*0',
+        text,
+    ) is not None
+    if true_srrip and not bad_btp0:
+        print("  [gem5 SRRIP] RRIPRP(num_bits=3), implicit btp=100: [OK ]")
+        return True
+    print(f"  [gem5 SRRIP] FAIL: true_srrip={true_srrip} stale_btp0={bad_btp0}")
+    return False
+
+
 def check_insertion_rrpv_invariant() -> bool:
-    """Assert each sim inserts NON-property / unclassified data at the SRRIP-distant
-    RRPV (>= maxRRPV-1), never a near-MRU constant. Pins the exact bug #1 lines."""
-    print("\n== GATE 3: insertion-RRPV invariant (non-property must insert DISTANT) ==")
+    """Assert official GRASP insertion: HIGH=1, MODERATE=6, ELSE=M_RRIP=7.
+
+    The official faldupriyank/grasp trace simulator inserts every address
+    outside the high/moderate regions at max RRPV, including non-property data.
+    """
+    print("\n== GATE 4: GRASP insertion invariant (non-property -> M_RRIP=max) ==")
     ok = True
 
     # gem5 GraphGraspRP::reset (grasp_rp.cc). The whole policy classifies property
     # via insertionRRPV(tier); its ONLY other insert is the non-property else-branch
-    # right after `isPropertyData(addr)`. The backfire bug was that branch using
-    # rrpv=2. Scope the scan to that insertion else-branch (NOT promoteOnHit, whose
-    # rrpv=0 HOT promotion is legitimate).
+    # right after `isPropertyData(addr)`. Scope the scan to that insertion branch.
     g = _read("bench/include/gem5_sim/gem5/src/mem/cache/replacement_policies/grasp_rp.cc")
     g_reset_else = _slice(g, r"ctx\.isPropertyData\(addr\)", 1000)
-    g_bad = re.search(r"\}\s*else\s*\{[^}]*?data->rrpv\s*=\s*([0-5])\s*;", g_reset_else, re.DOTALL)
-    g_distant = re.search(r"\}\s*else\s*\{[^}]*?data->rrpv\s*=\s*maxRRPV(\s*-\s*1)?\s*;",
-                          g_reset_else, re.DOTALL) is not None
-    if g_bad:
-        print(f"  [gem5  GraphGraspRP] FAIL: non-property inserts near-MRU rrpv={g_bad.group(1)} "
-              f"(must be maxRRPV-1). THE GRASP-backfire bug.")
-        ok = False
-    elif g_distant:
-        print("  [gem5  GraphGraspRP] non-property insert -> maxRRPV-1 (distant): [OK ]")
+    g_max = re.search(r"\}\s*else\s*\{[^}]*?data->rrpv\s*=\s*maxRRPV\s*;",
+                      g_reset_else, re.DOTALL) is not None
+    g_max_minus_one = re.search(
+        r"\}\s*else\s*\{[^}]*?data->rrpv\s*=\s*maxRRPV\s*-\s*1\s*;",
+        g_reset_else, re.DOTALL) is not None
+    if g_max and not g_max_minus_one:
+        print("  [gem5  GraphGraspRP] non-property -> maxRRPV (M_RRIP=7): [OK ]")
     else:
-        print("  [gem5  GraphGraspRP] FAIL: could not confirm non-property -> maxRRPV-1 "
-              "(review grasp_rp.cc reset()).")
+        print(f"  [gem5  GraphGraspRP] FAIL: max={g_max} max-1={g_max_minus_one}")
         ok = False
 
-    # Sniper CacheSetGRASP::insertionRRPV — non-property falls through to m_rrip_insert,
-    # which is constructed as (m_rrip_max - 1) = SRRIP distant.
+    # Sniper CacheSetGRASP::insertionRRPV — non-property must return m_rrip_max.
     sn = _read("bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/cache_set_grasp.cc")
-    sn_distant = re.search(r"m_rrip_insert\s*\(\s*m_rrip_max\s*-\s*1\s*\)", sn) is not None
-    sn_fallthrough = "return m_rrip_insert;" in sn
-    if sn_distant and sn_fallthrough:
-        print("  [sniper CacheSetGRASP] non-property -> m_rrip_insert=(maxRRPV-1): [OK ]")
+    sn_block = _slice(sn, r"CacheSetGRASP::insertionRRPV", 800)
+    sn_max = re.search(
+        r"\n\s*\}\s*\n(?:\s*//[^\n]*\n)*\s*return m_rrip_max;\s*\n\}",
+        sn_block,
+    ) is not None
+    if sn_max:
+        print("  [sniper CacheSetGRASP] non-property -> m_rrip_max (M_RRIP=7): [OK ]")
     else:
-        print(f"  [sniper CacheSetGRASP] FAIL: non-property not distant "
-              f"(m_rrip_insert=max-1:{sn_distant} returns it:{sn_fallthrough})")
+        print("  [sniper CacheSetGRASP] FAIL: non-property does not return m_rrip_max")
         ok = False
 
     # cache_sim GRASP (cache_sim.h) — every insert routes through classifyGRASP; the
@@ -278,6 +300,68 @@ def check_insertion_rrpv_invariant() -> bool:
         print("  [gem5  ECG_GRASP_POPT] FAIL: headline non-property path not -> mRrip "
               "(review ecg_rp.cc ECG_GRASP_POPT insertion).")
         ok = False
+
+    sniper_ecg = _read(
+        "bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/cache_set_ecg.cc"
+    )
+    sniper_ecg_block = _slice(
+        sniper_ecg, r"CacheSetECG::graspInsertionRRPV", 800
+    )
+    sniper_ecg_max = re.search(
+        r"\n\s*\}\s*\n(?:\s*//[^\n]*\n)*\s*return m_rrip_max;\s*\n\}",
+        sniper_ecg_block,
+    ) is not None
+    if sniper_ecg_max:
+        print("  [sniper ECG_GRASP_POPT] non-property -> m_rrip_max (M_RRIP=7): [OK ]")
+    else:
+        print("  [sniper ECG_GRASP_POPT] FAIL: GRASP insertion arm is not M_RRIP=7")
+        ok = False
+    return ok
+
+
+def check_sniper_ecg_signal_invariant() -> bool:
+    """Pin the faithful Sniper ECG adapter to gem5/cache_sim semantics."""
+    print("\n== GATE 5: Sniper ECG delivered-epoch / LLC-only-refresh invariant ==")
+    ok = True
+    runner = _read("scripts/experiments/ecg/roi_matrix.py")
+    cache = _read(
+        "bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/cache_set_ecg.cc"
+    )
+    context = _read(
+        "bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/"
+        "graph_cache_context_sniper.cc"
+    )
+    setup = _read("scripts/setup_sniper.py")
+    victim = _slice(cache, r"CacheSetECG::findECGGraspPoptVictim", 7000)
+    update = _slice(cache, r"CacheSetECG::updateReplacementIndex", 2200)
+
+    checks = {
+        "runner enables per-edge extract":
+            'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner,
+        "runner enables outer-vertex clock for all policies":
+            'env["SNIPER_ENABLE_VERTEX_HINTS"] = "1"' in runner,
+        "runner pins epoch count":
+            'env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)' in runner,
+        "eviction does not broadcast-refresh resident lines":
+            "lookupLineEcgEpoch(m_line_addrs[way]" not in victim,
+        "actual L3 hit refreshes only accessed line":
+            "lookupLineEcgEpoch(m_line_addrs[accessed_index]" in update,
+        "true recency feeds shared victim":
+            "ws[w].recency = m_last_touch[w];" in victim,
+        "trace prints computed current epoch":
+            "curEpoch=%u" in victim and "pol, cur_ep" in victim,
+        "shared-LLC ROI trace uses any-core hint":
+            "hasAnyCurrentVertexHint()" in victim,
+        "shared-LLC replacement uses requester core":
+            "requesterCoreOr(m_core_id)" in victim,
+        "epoch map uses stable versioned snapshots":
+            "version" in context and "before != after" in context,
+        "setup propagates requester through NUCA":
+            "address, requester, data_buf" in setup,
+    }
+    for label, passed in checks.items():
+        print(f"  [sniper ECG] {label}: [{'OK' if passed else 'FAIL'}]")
+        ok &= passed
     return ok
 
 
@@ -300,7 +384,9 @@ def main(argv=None):
 
     ok = True
     ok &= check_behavioral_equivalence(sims)
+    ok &= check_srrip_invariant()
     ok &= check_insertion_rrpv_invariant()
+    ok &= check_sniper_ecg_signal_invariant()
 
     print("\nRESULT:", "EQUIVALENCE VERIFIED ✓" if ok else "EQUIVALENCE FAILED ✗")
     return 0 if ok else 1

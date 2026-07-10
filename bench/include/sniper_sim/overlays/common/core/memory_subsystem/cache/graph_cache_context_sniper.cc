@@ -129,6 +129,15 @@ bool hasCurrentVertexHint(uint32_t core_id)
         vertexValidStorage()[core_id].load(std::memory_order_acquire);
 }
 
+bool hasAnyCurrentVertexHint()
+{
+    for (uint32_t core_id = 0; core_id < MAX_TRACKED_CORES; ++core_id) {
+        if (vertexValidStorage()[core_id].load(std::memory_order_acquire))
+            return true;
+    }
+    return false;
+}
+
 uint32_t getCurrentVertexHint(uint32_t core_id)
 {
     if (core_id >= MAX_TRACKED_CORES) return 0;
@@ -139,6 +148,22 @@ void clearCurrentVertexHint(uint32_t core_id)
 {
     if (core_id >= MAX_TRACKED_CORES) return;
     vertexValidStorage()[core_id].store(false, std::memory_order_release);
+}
+
+static uint32_t& currentNucaRequesterCoreStorage()
+{
+    static thread_local uint32_t requester_core = UINT32_MAX;
+    return requester_core;
+}
+
+void setCurrentNucaRequesterCore(uint32_t core_id)
+{
+    currentNucaRequesterCoreStorage() = core_id;
+}
+
+uint32_t currentNucaRequesterCore()
+{
+    return currentNucaRequesterCoreStorage();
 }
 
 // === Per-core prefetch-target hint ring buffer (sprint 6f-6 fix) ===
@@ -233,14 +258,17 @@ void clearPrefetchTargetHint(uint32_t core_id)
 
 // === SNIPER_ECG_EXTRACT per-core epoch map (direct-mapped by vertex) ===
 // Slots store (vertex+1) so the zero-initialized (BSS, lazily paged) array means
-// "empty" without an eager init loop. Collisions drop a stale entry; the per-line
-// stamp taken at prepareInsertion is the fallback. Updated on every demand edge,
-// so eviction reads the latest delivered epoch (non-invasive refresh).
+// "empty" without an eager init loop. A monotonically increasing delivery
+// sequence lets a cache-line lookup choose the most recently delivered vertex
+// instead of the first stale vertex in that line. The map is consumed only on
+// fill or an actual L3 hit (hardware-feasible LLC-only metadata refresh).
 static constexpr std::size_t kEcgEpochMapSize = 8192;
 
 struct PerCoreEpochMap {
     std::array<std::atomic<uint32_t>, kEcgEpochMapSize> vertex_plus1{};
     std::array<std::atomic<uint16_t>, kEcgEpochMapSize> epoch{};
+    // Seqlock word: (global_delivery_sequence << 1) | write_in_progress.
+    std::array<std::atomic<uint64_t>, kEcgEpochMapSize> version{};
 };
 
 static std::array<PerCoreEpochMap, MAX_TRACKED_CORES>& ecgEpochMaps()
@@ -249,23 +277,59 @@ static std::array<PerCoreEpochMap, MAX_TRACKED_CORES>& ecgEpochMaps()
     return maps;
 }
 
+static std::atomic<uint64_t>& ecgEpochGlobalSequence()
+{
+    static std::atomic<uint64_t> sequence{0};
+    return sequence;
+}
+
 void recordEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t epoch)
 {
     if (core_id >= MAX_TRACKED_CORES) return;
+    static std::atomic<uint32_t> debug_count{0};
+    static std::atomic<uint32_t> debug_nonzero_count{0};
+    const char* debug = std::getenv("ECG_DEBUG");
+    uint32_t debug_index = debug_count.fetch_add(1, std::memory_order_relaxed);
+    uint32_t debug_nonzero_index = epoch != 0
+        ? debug_nonzero_count.fetch_add(1, std::memory_order_relaxed)
+        : UINT32_MAX;
+    if (debug && debug[0] && std::strcmp(debug, "0") != 0 &&
+        (debug_index < 4 || (epoch != 0 && debug_nonzero_index < 4))) {
+        std::fprintf(stderr,
+                     "[ECG-DELIVER sim=sniper core=%u vertex=%u epoch=%u]\n",
+                     core_id, vertex, static_cast<unsigned>(epoch));
+    }
     auto& m = ecgEpochMaps()[core_id];
     std::size_t i = vertex % kEcgEpochMapSize;
+    uint64_t sequence =
+        ecgEpochGlobalSequence().fetch_add(1, std::memory_order_relaxed) + 1;
+    m.version[i].exchange(
+        (sequence << 1) | 1u, std::memory_order_acq_rel);
     m.epoch[i].store(epoch, std::memory_order_relaxed);
-    m.vertex_plus1[i].store(vertex + 1u, std::memory_order_release);
+    m.vertex_plus1[i].store(vertex + 1u, std::memory_order_relaxed);
+    m.version[i].store(sequence << 1, std::memory_order_release);
 }
 
-bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t& epoch)
+bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex,
+                    uint16_t& epoch, uint64_t& sequence)
 {
     if (core_id >= MAX_TRACKED_CORES) return false;
     auto& m = ecgEpochMaps()[core_id];
     std::size_t i = vertex % kEcgEpochMapSize;
-    if (m.vertex_plus1[i].load(std::memory_order_acquire) != vertex + 1u) return false;
-    epoch = m.epoch[i].load(std::memory_order_relaxed);
-    return true;
+    for (unsigned attempt = 0; attempt < 4; ++attempt) {
+        uint64_t before = m.version[i].load(std::memory_order_acquire);
+        if (before == 0 || (before & 1u)) continue;
+        uint32_t stored_vertex =
+            m.vertex_plus1[i].load(std::memory_order_relaxed);
+        uint16_t stored_epoch = m.epoch[i].load(std::memory_order_relaxed);
+        uint64_t after = m.version[i].load(std::memory_order_acquire);
+        if (before != after || (after & 1u)) continue;
+        if (stored_vertex != vertex + 1u) return false;
+        epoch = stored_epoch;
+        sequence = after >> 1;
+        return true;
+    }
+    return false;
 }
 
 ECGMode stringToECGMode(const std::string& text)

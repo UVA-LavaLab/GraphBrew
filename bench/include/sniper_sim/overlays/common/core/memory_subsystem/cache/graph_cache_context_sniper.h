@@ -21,15 +21,19 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 static constexpr uint32_t MAX_TRACKED_CORES = 1024;
 static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
 static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
-// SNIPER_ECG_EXTRACT: delivers a per-edge next-ref epoch (vertex|epoch<<48) so
+// SNIPER_ECG_EXTRACT: delivers a per-edge next-ref epoch
+// (vertex[31:0] | epoch[15:0]<<32, entirely within the magic ABI's low 48 bits) so
 // ECG_GRASP_POPT eviction can use a delivered (HW-faithful) epoch instead of the
 // host-side findNextRef matrix, matching gem5/cache_sim.
 static constexpr uint64_t GRAPHBREW_ECG_EXTRACT_WORK_ID = 0x47464C44ULL;  // ECG epoch-extract delivery
 
 void setCurrentVertexHint(uint32_t core_id, uint64_t vertex);
 bool hasCurrentVertexHint(uint32_t core_id);
+bool hasAnyCurrentVertexHint();
 uint32_t getCurrentVertexHint(uint32_t core_id);
 void clearCurrentVertexHint(uint32_t core_id);
+void setCurrentNucaRequesterCore(uint32_t core_id);
+uint32_t currentNucaRequesterCore();
 
 void setPrefetchTargetHint(uint32_t core_id, uint64_t vertex);
 bool hasPrefetchTargetHint(uint32_t core_id);
@@ -41,7 +45,8 @@ void clearPrefetchTargetHint(uint32_t core_id);
 // vertex, updated on every demand edge. lookupEcgEpoch returns false if the
 // vertex's epoch is not currently held (line then ranks as unstamped).
 void recordEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t epoch);
-bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t& epoch);
+bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex,
+                    uint16_t& epoch, uint64_t& sequence);
 
 enum class ECGMode : uint8_t {
     DBG_PRIMARY,

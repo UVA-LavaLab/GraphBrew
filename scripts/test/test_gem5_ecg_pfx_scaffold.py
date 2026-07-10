@@ -100,3 +100,9 @@ def test_gem5_graph_context_stores_decoded_ecg_extract_hint():
     assert "decodedEcgRealVertexStorage" in text
     assert "decodedEcgMetadataStorage" in text
     assert "setDecodedEcgExtractHint" in text
+
+
+def test_gem5_srrip_is_true_three_bit_srrip():
+    text = read("bench/include/gem5_sim/configs/graphbrew/graph_cache_config.py")
+    assert '"SRRIP": lambda: RRIPRP(num_bits=3)' in text
+    assert '"SRRIP": lambda: BRRIPRP(btp=0)' not in text

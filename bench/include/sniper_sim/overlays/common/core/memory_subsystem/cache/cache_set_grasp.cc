@@ -34,7 +34,7 @@ CacheSetGRASP::CacheSetGRASP(
    , m_context_load_attempted(false)
    , m_has_pending_insert(false)
    , m_pending_insert_addr(0)
-   , m_pending_insert_rrpv(m_rrip_insert)
+   , m_pending_insert_rrpv(m_rrip_max)
    , m_llc_size_bytes(0)
    , m_sideband_path(envOrDefault("SNIPER_GRAPHBREW_CTX", "/tmp/sniper_graphbrew_ctx.json"))
 {
@@ -89,7 +89,9 @@ CacheSetGRASP::insertionRRPV(IntPtr addr) const
       if (tier == 2) return m_rrip_max > 0 ? m_rrip_max - 1 : 0;
       return m_rrip_max;
    }
-   return m_rrip_insert;
+   // Official GRASP inserts every address outside the high/moderate regions
+   // at M_RRIP (max=7), not SRRIP's max-1 insertion.
+   return m_rrip_max;
 }
 
 void
@@ -103,7 +105,7 @@ CacheSetGRASP::applyPendingInsertion(UInt32 way)
       m_has_pending_insert = false;
       return;
    }
-   m_rrip_bits[way] = m_rrip_insert;
+   m_rrip_bits[way] = m_rrip_max;
    m_line_addrs[way] = 0;
    m_property_lines[way] = false;
 }

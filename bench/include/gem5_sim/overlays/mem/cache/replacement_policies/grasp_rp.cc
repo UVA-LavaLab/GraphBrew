@@ -82,16 +82,14 @@ GraphGraspRP::reset(const std::shared_ptr<ReplacementData>& replacement_data,
             data->is_property_data = true;
             ctx.updateVertexFromAddr(addr);
         } else {
-            // Non-property / unclassified data (edge CSR stream, stack, etc.) must
-            // use the SRRIP baseline "distant" insertion (maxRRPV-1), matching the
-            // GRASP paper, cache_sim (tier-3=M_RRIP) and Sniper (m_rrip_insert).
-            // The previous value (2, near-MRU) PROTECTED the streaming edge data
-            // over the property vertices GRASP is meant to keep -> GRASP backfired.
-            data->rrpv = maxRRPV - 1;
+            // Official faldupriyank/grasp: everything outside the high/moderate
+            // regions inserts at M_RRIP (max=7), including CSR/stack/instruction
+            // traffic. This must match cache_sim and ECG's GRASP insertion arm.
+            data->rrpv = maxRRPV;
             data->is_property_data = false;
         }
     } else {
-        data->rrpv = maxRRPV - 1;
+        data->rrpv = maxRRPV;
         data->is_property_data = false;
     }
 }
@@ -101,7 +99,7 @@ GraphGraspRP::reset(
     const std::shared_ptr<ReplacementData>& replacement_data) const
 {
     auto data = std::static_pointer_cast<GraspReplData>(replacement_data);
-    data->rrpv = maxRRPV - 1;
+    data->rrpv = maxRRPV;
 }
 
 ReplaceableEntry*

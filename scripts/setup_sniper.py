@@ -500,9 +500,20 @@ def patch_popt_overlay(args: argparse.Namespace) -> None:
     )
 def patch_ecg_overlay(args: argparse.Namespace) -> None:
     cache_dir = SNIPER_DIR / "common" / "core" / "memory_subsystem" / "cache"
+    nuca_dir = (
+        SNIPER_DIR / "common" / "core" / "memory_subsystem" /
+        "parametric_dram_directory_msi"
+    )
+    directory_dir = (
+        SNIPER_DIR / "common" / "core" / "memory_subsystem" /
+        "pr_l1_pr_l2_dram_directory_msi"
+    )
     cache_base = cache_dir / "cache_base.h"
     cache_set = cache_dir / "cache_set.cc"
     cache = cache_dir / "cache.cc"
+    nuca_header = nuca_dir / "nuca_cache.h"
+    nuca_source = nuca_dir / "nuca_cache.cc"
+    directory_source = directory_dir / "dram_directory_cntlr.cc"
 
     replace_once(
         cache_base,
@@ -588,6 +599,81 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
         args.dry_run,
     )
     replace_once(
+        nuca_header,
+        """      boost::tuple<SubsecondTime, HitWhere::where_t> read(IntPtr address, Byte* data_buf, SubsecondTime now, ShmemPerf *perf, bool count, bool is_metadata = false);
+""",
+        """      boost::tuple<SubsecondTime, HitWhere::where_t> read(IntPtr address, core_id_t requester, Byte* data_buf, SubsecondTime now, ShmemPerf *perf, bool count, bool is_metadata = false);
+""",
+        args.dry_run,
+    )
+    replace_once(
+        nuca_header,
+        """      boost::tuple<SubsecondTime, HitWhere::where_t> write(IntPtr address, Byte* data_buf, bool& eviction, IntPtr& evict_address, Byte* evict_buf, SubsecondTime now, bool count, bool is_metadata = false);
+""",
+        """      boost::tuple<SubsecondTime, HitWhere::where_t> write(IntPtr address, core_id_t requester, Byte* data_buf, bool& eviction, IntPtr& evict_address, Byte* evict_buf, SubsecondTime now, bool count, bool is_metadata = false);
+""",
+        args.dry_run,
+    )
+    replace_once(
+        nuca_source,
+        """#include "shmem_perf.h"
+""",
+        """#include "shmem_perf.h"
+#include "core/memory_subsystem/cache/graph_cache_context_sniper.h"
+""",
+        args.dry_run,
+    )
+    replace_once(
+        nuca_source,
+        """NucaCache::read(IntPtr address, Byte* data_buf, SubsecondTime now, ShmemPerf *perf, bool count, bool is_metadata)
+{
+   HitWhere::where_t hit_where = HitWhere::MISS;
+""",
+        """NucaCache::read(IntPtr address, core_id_t requester, Byte* data_buf, SubsecondTime now, ShmemPerf *perf, bool count, bool is_metadata)
+{
+   graphbrew::sniper::setCurrentNucaRequesterCore(
+      static_cast<uint32_t>(requester));
+   HitWhere::where_t hit_where = HitWhere::MISS;
+""",
+        args.dry_run,
+        ["NucaCache::read(IntPtr address, core_id_t requester"],
+    )
+    replace_once(
+        nuca_source,
+        """NucaCache::write(IntPtr address, Byte* data_buf, bool& eviction, IntPtr& evict_address, Byte* evict_buf, SubsecondTime now, bool count, bool is_metadata)
+{
+   HitWhere::where_t hit_where = HitWhere::MISS;
+""",
+        """NucaCache::write(IntPtr address, core_id_t requester, Byte* data_buf, bool& eviction, IntPtr& evict_address, Byte* evict_buf, SubsecondTime now, bool count, bool is_metadata)
+{
+   graphbrew::sniper::setCurrentNucaRequesterCore(
+      static_cast<uint32_t>(requester));
+   HitWhere::where_t hit_where = HitWhere::MISS;
+""",
+        args.dry_run,
+["NucaCache::write(IntPtr address, core_id_t requester"],
+    )
+    replace_once(
+        directory_source,
+        """boost::tie(nuca_latency, hit_where) = m_nuca_cache->read(address, nuca_data_buf, getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_SIM_THREAD), orig_shmem_msg->getPerf(), true,orig_shmem_msg->getBlockType());
+""",
+        """boost::tie(nuca_latency, hit_where) = m_nuca_cache->read(address, orig_shmem_msg->getRequester(), nuca_data_buf, getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_SIM_THREAD), orig_shmem_msg->getPerf(), true,orig_shmem_msg->getBlockType());
+""",
+        args.dry_run,
+        ["m_nuca_cache->read(address, orig_shmem_msg->getRequester()"],
+    )
+    replace_once(
+        directory_source,
+        """      m_nuca_cache->write(
+         address, data_buf,
+""",
+        """      m_nuca_cache->write(
+         address, requester, data_buf,
+""",
+        args.dry_run,
+        ["m_nuca_cache->write(\n         address, requester, data_buf,"],
+    )
+    replace_once(
         cache,
         """\t\tif (auto popt_set = dynamic_cast<CacheSetPOPT*>(m_fake_sets[0]))
 		{
@@ -661,6 +747,37 @@ def patch_droplet_overlay(args: argparse.Namespace) -> None:
 
 def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
     magic_server = SNIPER_DIR / "common" / "system" / "magic_server.cc"
+    sim_api = SNIPER_DIR / "include" / "sim_api.h"
+    sim_api_text = sim_api.read_text()
+    old_constraint = ': "=a"(_res) /* output    */'
+    new_constraint = ': "=&a"(_res) /* early-clobber: inputs cannot alias RAX */'
+    if sim_api_text.count(new_constraint) >= 3:
+        log.info("Overlay patch already present in include/sim_api.h")
+    elif sim_api_text.count(old_constraint) >= 3:
+        log.info("Patch include/sim_api.h (SimMagic0/1/2 early-clobber)")
+        if not args.dry_run:
+            sim_api.write_text(
+                sim_api_text.replace(old_constraint, new_constraint, 3)
+            )
+    else:
+        raise SystemExit(
+            "Could not patch include/sim_api.h SimMagic1/2 constraints; "
+            "expected three '=a' outputs or three GraphBrew early-clobber outputs."
+        )
+    magic_text = magic_server.read_text()
+    old_decode = (
+        "uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFFFFFULL);\n"
+        "             uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);"
+    )
+    new_decode = (
+        "uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);\n"
+        "             uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);"
+    )
+    if old_decode in magic_text:
+        log.info("Upgrade common/system/magic_server.cc ECG extract payload decode")
+        magic_text = magic_text.replace(old_decode, new_decode, 1)
+        if not args.dry_run:
+            magic_server.write_text(magic_text)
     replace_once(
         magic_server,
         """#include "magic_server.h"
@@ -672,15 +789,18 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
 """,
         args.dry_run,
     )
-    replace_once(
-        magic_server,
-        """      case SIM_CMD_USER:
+    if new_decode in magic_text:
+       log.info("Overlay patch already present in common/system/magic_server.cc")
+    else:
+       replace_once(
+           magic_server,
+           """      case SIM_CMD_USER:
       {
          MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };
          return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_USER, (UInt64)&args, true /* expect return value */);
       }
 """,
-        """      case SIM_CMD_USER:
+           """      case SIM_CMD_USER:
       {
          if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
          {
@@ -694,8 +814,8 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
          }
          if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT_WORK_ID)
          {
-            uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFFFFFULL);
-            uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);
+            uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);
+            uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);
             graphbrew::sniper::recordEcgEpoch(static_cast<uint32_t>(core_id), fl_vertex, fl_epoch);
             return 0;
          }
@@ -703,9 +823,8 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
          return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_USER, (UInt64)&args, true /* expect return value */);
       }
 """,
-        args.dry_run,
-        ["GRAPHBREW_ECG_EXTRACT_WORK_ID"],
-    )
+           args.dry_run,
+)
 
 
 def patch_ecg_pfx_prefetcher_overlay(args: argparse.Namespace) -> None:

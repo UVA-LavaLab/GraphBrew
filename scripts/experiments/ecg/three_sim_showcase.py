@@ -143,6 +143,7 @@ def main(argv=None):
     # ECG_DEBUG -> the [ECG-CONFIG] banner; ECG_EVICT_TRACE -> per-eviction proof.
     os.environ["ECG_DEBUG"] = "1"
     os.environ.setdefault("ECG_EVICT_TRACE", "20")
+    os.environ["ECG_EVICT_TRACE_ROI"] = "1"
     os.environ["ECG_VARIANT"] = args.variant
 
     print(f"# 3-sim ECG equivalence showcase")

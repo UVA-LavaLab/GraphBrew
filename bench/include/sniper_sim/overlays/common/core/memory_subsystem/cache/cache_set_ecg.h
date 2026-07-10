@@ -51,6 +51,8 @@ class CacheSetECG : public CacheSet
       bool* m_property_lines;
       UInt16* m_ecg_epoch;        // SNIPER_ECG_EXTRACT delivered next-ref epoch
       bool* m_ecg_epoch_valid;    // epoch delivered for this line (0 is valid)
+      UInt64* m_last_touch;        // true recency, smaller == older (cache_sim/gem5 parity)
+      UInt64 m_access_tick;
       UInt8 m_replacement_pointer;
       CacheSetInfoLRU* m_set_info;
       bool m_srrip_tlb_enabled;

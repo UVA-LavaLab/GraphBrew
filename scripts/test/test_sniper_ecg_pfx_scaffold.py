@@ -74,3 +74,49 @@ def test_setup_sniper_patches_simuser_hint_dispatch() -> None:
     assert "GRAPHBREW_ECG_PFX_TARGET_WORK_ID" in text
     assert "setCurrentVertexHint" in text
     assert "setPrefetchTargetHint" in text
+
+
+def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
+    harness = read("bench/include/sniper_sim/sniper_harness.h")
+    setup = read("scripts/setup_sniper.py")
+    context_h = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "graph_cache_context_sniper.h"
+    )
+    context_cc = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "graph_cache_context_sniper.cc"
+    )
+    cache = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "cache_set_ecg.cc"
+    )
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+
+    # Keep NodeID[31:0]+epoch[15:0] inside the magic ABI's reliable low 48 bits.
+    assert "(vertex & 0xFFFFFFFFULL)" in harness
+    assert "static_cast<uint64_t>(epoch) << 32" in harness
+    assert "arg1 & 0xFFFFFFFFULL" in setup
+    assert "(arg1 >> 32) & 0xFFFFULL" in setup
+    assert "epoch) << 48" not in harness
+
+    # SimMagic inputs must not alias the RAX output and get overwritten by cmd=5.
+    assert "early-clobber: inputs cannot alias RAX" in setup
+    assert "replace(old_constraint, new_constraint, 3)" in setup
+    assert "old_decode" in setup
+    assert "new_decode" in setup
+
+    # Shared LLC consumes only the requesting core's newest stable delivery.
+    assert "lookupEcgEpochAnyCore" not in context_h
+    assert "ecgEpochGlobalSequence" in context_cc
+    assert "before != after" in context_cc
+    assert "lookupEcgEpoch(" in cache
+    assert "currentNucaRequesterCore()" in cache
+    assert "address, requester, data_buf" in setup
+    assert "NucaCache::read(IntPtr address, core_id_t requester" in setup
+    assert "NucaCache::write(IntPtr address, core_id_t requester" in setup
+
+    # Paper runs use the real outer clock + delivered epoch, not the live oracle.
+    assert 'env["SNIPER_ENABLE_VERTEX_HINTS"] = "1"' in runner
+    assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
+    assert "ws[w].recency = m_last_touch[w];" in cache

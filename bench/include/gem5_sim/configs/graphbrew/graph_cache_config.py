@@ -46,7 +46,10 @@ DEFAULTS = {
 POLICY_MAP = {
     "LRU":   lambda: LRURP(),
     "FIFO":  lambda: FIFORP(),
-    "SRRIP": lambda: BRRIPRP(btp=0),  # BRRIP with btp=0 == SRRIP
+    # gem5 BRRIP uses btp as the probability of LONG (max-1) insertion.
+    # btp=0 therefore means always DISTANT/max insertion (BRRIP), not SRRIP.
+    # RRIPRP pins btp=100; use 3 bits to match GRASP/POPT/ECG and Sniper.
+    "SRRIP": lambda: RRIPRP(num_bits=3),
     "BRRIP": lambda: BRRIPRP(),
     "RANDOM": lambda: RandomRP(),
 }

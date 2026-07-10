@@ -162,6 +162,9 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
    if (!context.loaded || !context.rereference.enabled) {
       return findSRRIPVictim(cntlr);
    }
+   uint32_t requester_core = graphbrew::sniper::currentNucaRequesterCore();
+   if (requester_core >= graphbrew::sniper::MAX_TRACKED_CORES)
+      requester_core = static_cast<uint32_t>(m_core_id);
 
    UInt32 property_count = 0;
    for (UInt32 way = 0; way < m_associativity; way++) {
@@ -198,13 +201,15 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
    // matching cache_sim direction.
    UInt32 max_distance = 0;
    for (UInt32 way = 0; way < m_associativity; way++) {
-      UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
+      UInt32 distance = context.findNextRef(
+            static_cast<uint64_t>(m_line_addrs[way]), requester_core);
       max_distance = std::max(max_distance, std::min(distance, uint32_t(127)));
    }
 
    while (true) {
       for (UInt32 way = 0; way < m_associativity; way++) {
-         UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
+         UInt32 distance = context.findNextRef(
+               static_cast<uint64_t>(m_line_addrs[way]), requester_core);
          if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] >= m_rrip_max) {
             applyPendingInsertion(way);
             LOG_ASSERT_ERROR(isValidReplacement(way), "POPT selected an invalid replacement candidate");
@@ -212,7 +217,8 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
          }
       }
       for (UInt32 way = 0; way < m_associativity; way++) {
-         UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
+         UInt32 distance = context.findNextRef(
+               static_cast<uint64_t>(m_line_addrs[way]), requester_core);
          if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] < m_rrip_max) {
             m_rrip_bits[way]++;
          }

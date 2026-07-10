@@ -163,8 +163,11 @@ inline void ecg_extract(uint64_t vertex, uint16_t epoch) {
     if (!ecg_extract_enabled()) {
         return;
     }
-    uint64_t packed = (vertex & 0xFFFFFFFFFFFFULL) |
-                      (static_cast<uint64_t>(epoch) << 48);
+    // Sniper's magic user payload reliably carries 48 bits. Keep the complete
+    // 32-bit NodeID plus 16-bit epoch inside bits [0:47]; the previous
+    // vertex[47:0]|epoch[63:48] layout silently dropped every nonzero epoch.
+    uint64_t packed = (vertex & 0xFFFFFFFFULL) |
+                      (static_cast<uint64_t>(epoch) << 32);
     notify_user(GRAPHBREW_SNIPER_USER_ECG_EXTRACT, packed);
 }
 

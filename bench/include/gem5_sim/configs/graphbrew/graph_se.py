@@ -66,16 +66,16 @@ def clear_runtime_sideband_files():
 
 
 def needs_vertex_hints(args):
-    """Return whether benchmark should emit explicit P-OPT current-vertex hints."""
-    return args.policy == "POPT" or (
-        args.policy == "ECG" and args.ecg_mode != "DBG_ONLY"
-    )
+    """Keep the outer-vertex marker stream identical for every L3 policy."""
+    return True
 
 
 def benchmark_environment(args):
     """Environment variables visible inside the simulated benchmark."""
     ecg_grasp_popt = args.policy == "ECG" and args.ecg_mode == "ECG_GRASP_POPT"
-    ecg_pfx_metadata = args.prefetcher == "ECG_PFX" or ecg_grasp_popt
+    ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
+    ecg_epoch_delivery = ecg_grasp_popt and ecg_variant != "grasp_only"
+    ecg_pfx_metadata = args.prefetcher == "ECG_PFX" or ecg_epoch_delivery
     env = [
         f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",
         f"GEM5_ENABLE_ECG_PFX_HINTS={1 if ecg_pfx_metadata else 0}",
@@ -83,7 +83,7 @@ def benchmark_environment(args):
         f"GEM5_ECG_PFX_HINT_FILTER={args.ecg_pfx_hint_filter if args.prefetcher == 'ECG_PFX' else 0}",
         f"GEM5_ECG_PFX_FILTER_ELEM_SIZE=4",
         f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
-        f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_grasp_popt or (args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
+        f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_epoch_delivery or (args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
         # Fused ecg.load prototype: host GEM5_FORCE_ECG_LOAD=1 selects the single
         # custom-0 load-and-deliver instruction instead of demand-load + ecg.extract.
         f"GEM5_ENABLE_ECG_LOAD={1 if os.environ.get('GEM5_FORCE_ECG_LOAD') == '1' else 0}",

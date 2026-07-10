@@ -49,6 +49,22 @@ graphbrew::sniper::ECGMode modeFromEnv()
    return graphbrew::sniper::stringToECGMode(envOrDefault("SNIPER_ECG_MODE", "DBG_PRIMARY"));
 }
 
+bool sniperEcgExtractEnabled()
+{
+   static const bool enabled = []() {
+      const char* value = std::getenv("SNIPER_ENABLE_ECG_EXTRACT");
+      return value && value[0] && std::string(value) != "0";
+   }();
+   return enabled;
+}
+
+uint32_t requesterCoreOr(core_id_t fallback)
+{
+   uint32_t requester = graphbrew::sniper::currentNucaRequesterCore();
+   if (requester < graphbrew::sniper::MAX_TRACKED_CORES) return requester;
+   return static_cast<uint32_t>(fallback);
+}
+
 }  // namespace
 
 CacheSetECG::CacheSetECG(
@@ -64,6 +80,7 @@ CacheSetECG::CacheSetECG(
    , m_rrip_insert(m_rrip_max - 1)
    , m_num_attempts(num_attempts)
    , m_mode(modeFromEnv())
+   , m_access_tick(0)
    , m_replacement_pointer(0)
    , m_set_info(set_info)
    , m_srrip_tlb_enabled(Sim()->getCfg()->getBoolArray(cfgname + "/srrip/tlb_enabled", core_id))
@@ -81,6 +98,7 @@ CacheSetECG::CacheSetECG(
    m_property_lines = new bool[m_associativity];
    m_ecg_epoch = new UInt16[m_associativity];
    m_ecg_epoch_valid = new bool[m_associativity];
+   m_last_touch = new UInt64[m_associativity];
    for (UInt32 way = 0; way < m_associativity; way++) {
       m_rrip_bits[way] = m_rrip_insert;
       m_dbg_tiers[way] = 0;
@@ -89,6 +107,7 @@ CacheSetECG::CacheSetECG(
       m_property_lines[way] = false;
       m_ecg_epoch[way] = 0;
       m_ecg_epoch_valid[way] = false;
+      m_last_touch[way] = 0;
    }
    if (Sim()->getCfg()->hasKey(cfgname + "/cache_size", core_id)) {
       m_llc_size_bytes = UInt64(Sim()->getCfg()->getIntArray(cfgname + "/cache_size", core_id)) * k_KILO;
@@ -117,20 +136,25 @@ CacheSetECG::~CacheSetECG()
    delete [] m_property_lines;
    delete [] m_ecg_epoch;
    delete [] m_ecg_epoch_valid;
+   delete [] m_last_touch;
 }
 
 void
 CacheSetECG::tryLoadContext()
 {
    auto& context = graphbrew::sniper::globalContext();
-   if (context.loaded && context.rereference.enabled) return;
+   if (context.loaded &&
+       (sniperEcgExtractEnabled() || context.rereference.enabled)) return;
    if (m_context_load_attempted) return;
    m_context_load_attempted = true;
    context.setCacheLineSize(m_blocksize);
    if (!context.loaded) {
       context.loadFromSideband(m_sideband_path);
    }
-   if (!context.rereference.enabled && context.loadRereferenceMatrix(m_popt_matrix_path) &&
+   // The faithful ECG_GRASP_POPT path consumes the delivered per-edge epoch.
+   // Load the live P-OPT oracle only for explicit non-delivery diagnostics.
+   if (!sniperEcgExtractEnabled() && !context.rereference.enabled &&
+       context.loadRereferenceMatrix(m_popt_matrix_path) &&
        context.num_regions > 0) {
       context.rereference.base_address = context.regions[0].base_address;
    }
@@ -142,7 +166,8 @@ CacheSetECG::prepareInsertion(IntPtr addr)
    tryLoadContext();
    m_pending_insert_addr = addr & ~(IntPtr(m_blocksize) - 1);
    m_has_pending_insert = true;
-   graphbrew::sniper::globalContext().updateVertexFromAddr(m_pending_insert_addr, m_core_id);
+   graphbrew::sniper::globalContext().updateVertexFromAddr(
+         m_pending_insert_addr, requesterCoreOr(m_core_id));
 }
 
 UInt8
@@ -156,7 +181,8 @@ CacheSetECG::graspInsertionRRPV(IntPtr addr) const
       if (tier == 2) return m_rrip_max > 0 ? m_rrip_max - 1 : 0;
       return m_rrip_max;
    }
-   return m_rrip_insert;
+   // ECG's insertion arm is GRASP: outside high/moderate regions -> M_RRIP.
+   return m_rrip_max;
 }
 
 UInt8
@@ -177,7 +203,8 @@ CacheSetECG::poptHint(IntPtr addr) const
        !context.isPropertyData(static_cast<uint64_t>(addr))) {
       return 0;
    }
-   uint32_t dist = context.findNextRef(static_cast<uint64_t>(addr), m_core_id);
+   uint32_t dist = context.findNextRef(
+         static_cast<uint64_t>(addr), requesterCoreOr(m_core_id));
    return static_cast<UInt8>(std::min(dist, uint32_t(127)) >> 3);
 }
 
@@ -191,11 +218,25 @@ CacheSetECG::lookupLineEcgEpoch(IntPtr line_addr, UInt16& epoch) const
    if (elem == 0) elem = 4u;
    uint32_t vtx_per_line = static_cast<uint32_t>(m_blocksize) / elem;
    if (vtx_per_line == 0) vtx_per_line = 1;
+   bool found = false;
+   UInt16 newest_epoch = 0;
+   uint64_t newest_sequence = 0;
+   uint32_t requester_core = requesterCoreOr(m_core_id);
+   if (requester_core >= graphbrew::sniper::MAX_TRACKED_CORES) return false;
    for (uint32_t i = 0; i < vtx_per_line; i++) {
-      if (graphbrew::sniper::lookupEcgEpoch(static_cast<uint32_t>(m_core_id), v0 + i, epoch))
-         return true;
+      UInt16 candidate_epoch = 0;
+      uint64_t candidate_sequence = 0;
+      if (graphbrew::sniper::lookupEcgEpoch(
+              requester_core, v0 + i,
+              candidate_epoch, candidate_sequence) &&
+          (!found || candidate_sequence > newest_sequence)) {
+         found = true;
+         newest_epoch = candidate_epoch;
+         newest_sequence = candidate_sequence;
+      }
    }
-   return false;
+   if (found) epoch = newest_epoch;
+   return found;
 }
 
 void
@@ -231,16 +272,18 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       } else {
          m_rrip_bits[way] = graspInsertionRRPV(m_pending_insert_addr);
       }
+      m_last_touch[way] = ++m_access_tick;
       m_has_pending_insert = false;
       return;
    }
 
-   m_rrip_bits[way] = m_rrip_insert;
+   m_rrip_bits[way] = m_rrip_max;
    m_dbg_tiers[way] = graphbrew::sniper::globalContext().mask_config.num_buckets - 1;
    m_popt_hints[way] = 0;
    m_line_addrs[way] = 0;
    m_property_lines[way] = false;
    m_ecg_epoch_valid[way] = false;
+   m_last_touch[way] = ++m_access_tick;
 }
 
 UInt32
@@ -309,8 +352,10 @@ CacheSetECG::findPOPTVictim(CacheCntlr *cntlr)
    }
 
    UInt32 max_distance = 0;
+   uint32_t requester_core = requesterCoreOr(m_core_id);
    for (UInt32 way = 0; way < m_associativity; way++) {
-      UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
+      UInt32 distance = context.findNextRef(
+            static_cast<uint64_t>(m_line_addrs[way]), requester_core);
       max_distance = std::max(max_distance, std::min(distance, uint32_t(127)));
    }
 
@@ -323,7 +368,8 @@ CacheSetECG::findPOPTVictim(CacheCntlr *cntlr)
       UInt32 best = m_associativity;
       UInt8 best_dbg = 0;
       for (UInt32 way = 0; way < m_associativity; way++) {
-         UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
+         UInt32 distance = context.findNextRef(
+               static_cast<uint64_t>(m_line_addrs[way]), requester_core);
          if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] >= m_rrip_max &&
              (best == m_associativity || m_dbg_tiers[way] > best_dbg)) {
             best = way;
@@ -336,7 +382,8 @@ CacheSetECG::findPOPTVictim(CacheCntlr *cntlr)
          return best;
       }
       for (UInt32 way = 0; way < m_associativity; way++) {
-         UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);
+         UInt32 distance = context.findNextRef(
+               static_cast<uint64_t>(m_line_addrs[way]), requester_core);
          if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] < m_rrip_max) {
             m_rrip_bits[way]++;
          }
@@ -349,6 +396,7 @@ CacheSetECG::findDBGPrimaryVictim(CacheCntlr *cntlr)
 {
    (void)cntlr;
    while (true) {
+      uint32_t requester_core = requesterCoreOr(m_core_id);
       UInt32 max_count = 0;
       UInt8 max_dbg = 0;
       for (UInt32 way = 0; way < m_associativity; way++) {
@@ -364,7 +412,8 @@ CacheSetECG::findDBGPrimaryVictim(CacheCntlr *cntlr)
          for (UInt32 way = 0; way < m_associativity; way++) {
             if (m_rrip_bits[way] < m_rrip_max || m_dbg_tiers[way] != max_dbg) continue;
             UInt32 dist = context.rereference.enabled
-               ? context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id)
+               ? context.findNextRef(
+                    static_cast<uint64_t>(m_line_addrs[way]), requester_core)
                : 0;
             if (best == m_associativity || dist > best_dist) {
                best = way;
@@ -423,14 +472,12 @@ UInt32
 CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
 {
    // ECG_GRASP_POPT factorial ablation (ECG_VARIANT) — Sniper analog of
-   // cache_sim findVictimECG / gem5 ecg_rp.cc getVictim. The property
-   // next-reference distance is sourced from Sniper's native findNextRef (the
-   // P-OPT next-ref machinery, current-epoch aware via current_src_vertex);
-   // recency is the RRIP age (rrpv, higher = older). Invariants in ALL variants:
-   // the epoch/next-ref signal is PROPERTY-ONLY; record (non-property) lines are
-   // evicted by recency. NB: Sniper's distance is matrix-derived, so this
-   // isolates the eviction LEVERS rather than the per-edge memory-resident mask
-   // (which cache_sim and gem5 carry). See wiki/ECG-Policy-Comparison.md.
+   // cache_sim findVictimECG / gem5 ecg_rp.cc getVictim. The paper path consumes
+   // the delivered per-edge epoch (SNIPER_ENABLE_ECG_EXTRACT=1), stores it per
+   // line on fill/L3 hit, and uses true per-set access recency. Native
+   // findNextRef remains only as an explicit non-delivery diagnostic fallback.
+   // Invariants in ALL variants: epoch is PROPERTY-ONLY; record lines are
+   // ordered by recency.
    //   grasp_only(0): pure RRIP, no next-ref
    //   epoch_first(1): records by recency, then farthest-next-ref property
    //   rrip_first(2,default): max-rrpv set; records-first, then farthest property
@@ -453,8 +500,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    // (HW-faithful, matching gem5/cache_sim) instead of the host-side findNextRef
    // matrix. cur_ep formula mirrors ecg_epoch::currentEpoch (snipersim build has
    // no bench/include path; the kernel side uses the shared helper).
-   static const bool fatLoad = [](){ const char* e = std::getenv("SNIPER_ENABLE_ECG_EXTRACT");
-      return e && e[0] && std::string(e) != "0"; }();
+   const bool fatLoad = sniperEcgExtractEnabled();
 
    // grasp_only, or no usable next-ref signal -> pure RRIP. In fat-load mode the
    // signal is the delivered epoch (needs only the property region, not the matrix).
@@ -463,21 +509,13 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
 
    const uint32_t ne = context.edge_epoch_count ? context.edge_epoch_count : 256u;
    const uint32_t N = context.topology.num_vertices;
-   const uint32_t srcv = context.currentVertexForPopt(m_core_id);
+   uint32_t requester_core = requesterCoreOr(m_core_id);
+   const uint32_t srcv = context.currentVertexForPopt(requester_core);
    const uint32_t cur_ep = (N > 0)
       ? static_cast<uint32_t>((static_cast<uint64_t>(srcv) * ne) / N) : 0u;
 
    for (UInt32 way = 0; way < m_associativity; way++) {
       m_property_lines[way] = context.isPropertyData(static_cast<uint64_t>(m_line_addrs[way]));
-      // Non-invasive refresh: re-stamp from the current epoch map (updated on
-      // every demand edge) so resident lines pick up newer delivered epochs.
-      if (fatLoad && m_property_lines[way]) {
-         UInt16 ep = 0;
-         if (lookupLineEcgEpoch(m_line_addrs[way], ep)) {
-            m_ecg_epoch[way] = ep;
-            m_ecg_epoch_valid[way] = true;
-         }
-      }
    }
    auto isProp = [&](UInt32 w) { return m_property_lines[w]; };
    auto dist   = [&](UInt32 w) -> uint32_t {
@@ -485,28 +523,44 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
          uint32_t e = m_ecg_epoch[w]; if (e >= ne) e = ne - 1;
          return (e + ne - cur_ep) % ne;
       }
-      return std::min(context.findNextRef(static_cast<uint64_t>(m_line_addrs[w]), m_core_id),
+      return std::min(context.findNextRef(
+                          static_cast<uint64_t>(m_line_addrs[w]), requester_core),
                       uint32_t(127));
    };
    auto stamped = [&](UInt32 w) { return isProp(w) && (!fatLoad || m_ecg_epoch_valid[w]); };
    // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
    // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
-   // obeys the variant spec (one checker across all three simulators). Sniper
-   // has no per-line stored epoch: the next-ref distance is findNextRef, every
-   // property line is "stamped" (epoch marker = 1), and recency is normalised so
-   // lower `last` == older (m_rrip_max - rrip), matching cache_sim/gem5.
+   // obeys the variant spec. The faithful path prints the real stored epoch,
+   // computed current epoch, delivery-valid bit, and true recency.
    static long ecgEvTrace = [](){ const char* e = std::getenv("ECG_EVICT_TRACE"); return e ? std::atol(e) : 0L; }();
+   static long ecgEvTraceSkip = [](){
+      const char* e = std::getenv("ECG_EVICT_TRACE_SKIP");
+      return e ? std::max(0L, std::atol(e)) : 0L;
+   }();
+   static const bool ecgEvTraceRoi = [](){
+      const char* e = std::getenv("ECG_EVICT_TRACE_ROI");
+      return e && e[0] && std::string(e) != "0";
+   }();
    const char* epol = (variant == 1) ? "ECG:epoch_first" : "ECG:epoch_only";
    auto emitTrace = [&](UInt32 victimWay, const char* pol, const char* reason) {
       if (ecgEvTrace <= 0) return;
+      // Shared NUCA sets do not carry a normal application core ID. Gate on
+      // whether any application core has entered its vertex loop instead.
+      if (ecgEvTraceRoi && !graphbrew::sniper::hasAnyCurrentVertexHint()) return;
+      if (ecgEvTraceSkip > 0) {
+         --ecgEvTraceSkip;
+         return;
+      }
       --ecgEvTrace;
-      std::fprintf(stderr, "[EVICT L3 pol=%s curEpoch=0 set_ways=%u]\n", pol, m_associativity);
+      std::fprintf(stderr, "[EVICT L3 pol=%s curEpoch=%u set_ways=%u]\n",
+                   pol, cur_ep, m_associativity);
       for (UInt32 w = 0; w < m_associativity; w++) {
          UInt32 d = isProp(w) ? dist(w) : 0;
-         UInt32 last = (m_rrip_max >= m_rrip_bits[w]) ? (m_rrip_max - m_rrip_bits[w]) : 0;
-         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d stamped=%d last=%u%s\n",
-                      w, (int)m_rrip_bits[w], (int)(isProp(w) ? 1 : 0), d, (int)isProp(w),
-                      (int)(stamped(w) ? 1 : 0), last,
+         UInt32 epoch = (fatLoad && isProp(w)) ? m_ecg_epoch[w] : (isProp(w) ? 1u : 0u);
+         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d stamped=%d last=%llu%s\n",
+                      w, (int)m_rrip_bits[w], (int)epoch, d, (int)isProp(w),
+                      (int)(stamped(w) ? 1 : 0),
+                      (unsigned long long)m_last_touch[w],
                       w == victimWay ? "   <== VICTIM" : "");
       }
       std::fprintf(stderr, "   -> victim=way%u reason=%s\n", victimWay, reason);
@@ -514,13 +568,13 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
 
    // Build the per-way state and delegate the DECISION to the shared
    // ecg_policy::selectVictim (identical across cache_sim / gem5 / Sniper).
-   // Sniper maps: recency = m_rrip_max - rrip (lower == older, like last_access);
-   // every property line is "stamped" (its next-ref distance is findNextRef).
+   // True recency is tracked explicitly so records tied at max RRPV are ordered
+   // exactly like cache_sim (last_access) and gem5 (lastTouchTick).
    ecg_policy::WayState ws[64];
    for (UInt32 w = 0; w < m_associativity; w++) {
       ws[w].prop    = isProp(w);
       ws[w].rrpv    = m_rrip_bits[w];
-      ws[w].recency = (m_rrip_max >= m_rrip_bits[w]) ? (m_rrip_max - m_rrip_bits[w]) : 0;
+      ws[w].recency = m_last_touch[w];
       ws[w].dbg     = m_dbg_tiers[w];
       ws[w].dist    = dist(w);
       ws[w].stamped = stamped(w);
@@ -574,6 +628,7 @@ void
 CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
 {
    m_set_info->increment(m_rrip_bits[accessed_index]);
+   m_last_touch[accessed_index] = ++m_access_tick;
    if (m_cache_block_info_array[accessed_index]->isPageTableBlock() && m_srrip_tlb_enabled) {
       m_rrip_bits[accessed_index] = 0;
       return;
@@ -586,8 +641,20 @@ CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
       // CacheSetPOPT::updateReplacementIndex — otherwise POPT_PRIMARY and POPT
       // see different current vertices and diverge.
       graphbrew::sniper::globalContext().updateVertexFromAddr(
-            static_cast<uint64_t>(m_line_addrs[accessed_index]), m_core_id);
+            static_cast<uint64_t>(m_line_addrs[accessed_index]),
+            requesterCoreOr(m_core_id));
       return;
+   }
+   // Hardware-feasible epoch refresh: the access reached this L3 set, so update
+   // only the line that was actually touched. Do not broadcast inner-cache hits
+   // to every resident L3 line at eviction time.
+   if (m_mode == graphbrew::sniper::ECGMode::ECG_GRASP_POPT &&
+       sniperEcgExtractEnabled() && m_property_lines[accessed_index]) {
+      UInt16 ep = 0;
+      if (lookupLineEcgEpoch(m_line_addrs[accessed_index], ep)) {
+         m_ecg_epoch[accessed_index] = ep;
+         m_ecg_epoch_valid[accessed_index] = true;
+      }
    }
    if (m_property_lines[accessed_index] && graphbrew::sniper::globalContext().loaded) {
       uint64_t llc_size = m_llc_size_bytes ? m_llc_size_bytes : UInt64(m_associativity) * m_blocksize;

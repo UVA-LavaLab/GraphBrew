@@ -169,6 +169,46 @@ int run_pr(const Graph& graph, int max_iters) {
     sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
                               kNumEpochs, graph.num_nodes());
 
+    // Per-edge next-reference epoch delivery for ECG_GRASP_POPT. PR pulls
+    // IN-edges reading contrib[neighbor], so each entry in node's in-neighbour
+    // list carries neighbor's next-reference epoch (the default PR direction,
+    // push_out_edges=false). Build before ROI; deliver immediately before the
+    // governed contrib[] demand, matching cache_sim/gem5.
+    const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
+    const uint32_t ecg_epoch_count = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped(
+            "ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
+    std::vector<std::vector<uint16_t>> in_edge_epochs_by_src;
+    if (ecg_extract_on) {
+        ecg_epoch::buildInEdgeEpochs(
+            graph, num_vtx_per_line, ecg_epoch_count,
+            /*linemin=*/true, in_edge_epochs_by_src);
+        const char* debug = std::getenv("ECG_DEBUG");
+        if (debug && debug[0] && std::string(debug) != "0") {
+            uint64_t total = 0;
+            uint64_t nonzero = 0;
+            uint16_t min_epoch = std::numeric_limits<uint16_t>::max();
+            uint16_t max_epoch = 0;
+            for (const auto& epochs : in_edge_epochs_by_src) {
+                for (uint16_t epoch : epochs) {
+                    ++total;
+                    if (epoch != 0) ++nonzero;
+                    min_epoch = std::min(min_epoch, epoch);
+                    max_epoch = std::max(max_epoch, epoch);
+                }
+            }
+            if (total == 0) min_epoch = 0;
+            std::fprintf(stderr,
+                         "[ECG-EPOCH-BUILD sim=sniper kernel=pr total=%llu "
+                         "nonzero=%llu min=%u max=%u ne=%u]\n",
+                         (unsigned long long)total,
+                         (unsigned long long)nonzero,
+                         static_cast<unsigned>(min_epoch),
+                         static_cast<unsigned>(max_epoch),
+                         ecg_epoch_count);
+        }
+    }
+
     // Lookahead distance for ECG_PFX hints. node+1 is too close on
     // small graphs (Sniper's cache_cntlr.cc:1146 filters
     // already-in-cache addresses, dropping ECG_PFX hints whose target
@@ -295,6 +335,13 @@ int run_pr(const Graph& graph, int max_iters) {
                     const uint64_t mask = src_masks[edge_idx];
                     NodeID neighbor = static_cast<NodeID>(ecg_mode6::extractDest(mask));
                     if (neighbor < 0 || neighbor >= graph.num_nodes()) continue;
+                    if (ecg_extract_on &&
+                        static_cast<size_t>(node) < in_edge_epochs_by_src.size()) {
+                        const auto& eps = in_edge_epochs_by_src[node];
+                        uint16_t ep = (edge_idx < eps.size()) ? eps[edge_idx]
+                            : static_cast<uint16_t>(ecg_epoch_count - 1);
+                        SNIPER_ECG_EXTRACT(neighbor, ep);
+                    }
                     uint32_t prefetch_target = ecg_mode6::extractPrefetchTarget(mask);
                     if (prefetch_target != 0 &&
                         prefetch_target < static_cast<uint32_t>(graph.num_nodes())) {
@@ -378,7 +425,16 @@ int run_pr(const Graph& graph, int max_iters) {
                 if (pfx_target < graph.num_nodes()) {
                     SNIPER_ECG_PFX_TARGET(pfx_target);
                 }
+                size_t edge_pos = 0;
                 for (NodeID neighbor : graph.in_neigh(node)) {
+                    if (ecg_extract_on &&
+                        static_cast<size_t>(node) < in_edge_epochs_by_src.size()) {
+                        const auto& eps = in_edge_epochs_by_src[node];
+                        uint16_t ep = (edge_pos < eps.size()) ? eps[edge_pos]
+                            : static_cast<uint16_t>(ecg_epoch_count - 1);
+                        SNIPER_ECG_EXTRACT(neighbor, ep);
+                    }
+                    ++edge_pos;
                     incoming_total += contrib[neighbor];
                 }
             }

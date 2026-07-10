@@ -97,14 +97,15 @@ native cache lines (epoch via memory-resident mask for cache_sim/gem5, via
 |-----------|------------------------------|--------------|--------|
 | **cache_sim** | yes | per-edge memory-resident mask (0 LLC ways) | **verified** (`verify_ecg.py`, 7×40/40) + matrix |
 | **gem5** | yes | per-edge mask via ISA `ecg.load` (custom-0, FUNCT3=0x2; see below) | **verified** (`verify_ecg.py --gem5`, 5×40/40) |
-| **Sniper** | yes | native `findNextRef` (P-OPT next-ref) | **verified** (`verify_ecg.py --sniper`, 4×40/40, guarded) |
+| **Sniper** | yes | per-edge epoch via `SNIPER_ECG_EXTRACT` (fill/L3-hit refresh only) | **verified** (`verify_ecg.py --sniper`, guarded) |
 
-Sniper's variant uses its native `findNextRef` for the property next-reference
-distance (so it isolates the same eviction *levers* rather than the per-edge
-mask). Real-graph Sniper runs are gated behind `--allow-sniper-sg-kernel-workload`
-because the Sniper/SDE frontend has a documented ~50 GiB memory runaway
-(infrastructure, independent of the ECG policy); run it under
-`--sniper-memory-limit-gb`.
+Sniper paper runs now consume the same delivered per-edge epoch as cache_sim and
+gem5. The native `findNextRef` matrix remains an explicit diagnostic fallback,
+not the performance path. The runner also emits the outer-vertex clock for every
+policy (leveling the stream), refreshes epoch metadata only on fill or an actual
+L3 hit, and propagates the requesting core through the shared NUCA so multicore
+evictions use the correct core's clock. Real-graph Sniper runs remain guarded by
+`--allow-sniper-sg-kernel-workload` and `--sniper-memory-limit-gb`.
 
 ## ECG ISA: one instruction, mode-controlled caching
 
