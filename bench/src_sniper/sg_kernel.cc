@@ -7,6 +7,7 @@
 #include <limits>
 #include <queue>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "benchmark.h"
@@ -74,7 +75,7 @@ Options parse_options(int argc, char** argv) {
         } else if (arg == "-a" || arg == "-v" || arg == "--") {
             continue;
         } else if (arg == "-h" || arg == "--help") {
-            std::cout << "Usage: sg_kernel --benchmark pr|bfs|sssp -f graph.sg [-i iters] [-r source] [-d delta]\n";
+            std::cout << "Usage: sg_kernel --benchmark pr|bfs|sssp|bc|cc -f graph.sg [-i iters] [-r source] [-d delta]\n";
             std::exit(0);
         }
     }
@@ -556,6 +557,232 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
     return reached > 0 ? 0 : 1;
 }
 
+// ── CC (Afforest) union-find helpers — single-threaded (equivalence workload) ──
+// Same logic as bench/src_sniper/cc.cc with the atomics removed (no CAS needed on
+// one thread); the eviction DECISION is thread-count-agnostic.
+void cc_link(NodeID u, NodeID v, pvector<NodeID>& comp) {
+    NodeID p1 = comp[u];
+    NodeID p2 = comp[v];
+    while (p1 != p2) {
+        NodeID high = p1 > p2 ? p1 : p2;
+        NodeID low = p1 + (p2 - high);
+        NodeID p_high = comp[high];
+        if (p_high == low) break;
+        if (p_high == high) { comp[high] = low; break; }
+        p1 = comp[comp[high]];
+        p2 = comp[low];
+    }
+}
+
+void cc_compress(const Graph& g, pvector<NodeID>& comp) {
+    for (NodeID n = 0; n < g.num_nodes(); n++)
+        while (comp[n] != comp[comp[n]])
+            comp[n] = comp[comp[n]];
+}
+
+// Betweenness Centrality (Brandes) — single-threaded port of the audited
+// Brandes_Sniper (bench/src_sniper/bc.cc): four grasp-protected vertex property
+// regions (scores/depth/path_counts/deltas), transpose P-OPT reref matrix keyed on
+// depth (BC pushes OUT-edges reading depth[dest] -> traverseCSR=false), and per-edge
+// ECG epoch delivery. Mirrors the cache_sim/gem5 BC so the shared eviction decision
+// is exercised identically across the three simulators.
+int run_bc(const Graph& graph, int num_iters) {
+    pvector<ScoreT> scores(graph.num_nodes(), ScoreT(0));
+    pvector<int32_t> depth(graph.num_nodes(), int32_t(-1));
+    pvector<int64_t> path_counts(graph.num_nodes(), int64_t(0));
+    pvector<ScoreT> deltas(graph.num_nodes(), ScoreT(0));
+
+    SniperPropertyRegion regions[4] = {
+        {"scores", reinterpret_cast<uint64_t>(scores.data()),
+         static_cast<uint64_t>(graph.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(graph.num_nodes()), sizeof(ScoreT), true},
+        {"depth", reinterpret_cast<uint64_t>(depth.data()),
+         static_cast<uint64_t>(graph.num_nodes()) * sizeof(int32_t),
+         static_cast<uint32_t>(graph.num_nodes()), sizeof(int32_t), true},
+        {"path_counts", reinterpret_cast<uint64_t>(path_counts.data()),
+         static_cast<uint64_t>(graph.num_nodes()) * sizeof(int64_t),
+         static_cast<uint32_t>(graph.num_nodes()), sizeof(int64_t), true},
+        {"deltas", reinterpret_cast<uint64_t>(deltas.data()),
+         static_cast<uint64_t>(graph.num_nodes()) * sizeof(ScoreT),
+         static_cast<uint32_t>(graph.num_nodes()), sizeof(ScoreT), true},
+    };
+    SniperEdgeRegion edge_regions[2];
+    int num_edge_regions = sniper_make_edge_regions(graph, edge_regions, 2, true);
+    sniper_export_context(regions, 4, graph, nullptr, edge_regions, num_edge_regions);
+
+    constexpr int kNumVtxPerLine = 64 / sizeof(int32_t);
+    constexpr int kNumEpochs = 256;
+    pvector<uint8_t> popt_matrix;
+    int popt_num_cache_lines = (graph.num_nodes() + kNumVtxPerLine - 1) / kNumVtxPerLine;
+    makeOffsetMatrix(graph, popt_matrix, kNumVtxPerLine, kNumEpochs, /*traverseCSR=*/false);
+    sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
+                              kNumEpochs, graph.num_nodes());
+
+    const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
+    const uint32_t ecg_epoch_count = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
+    std::vector<std::vector<uint16_t>> out_edge_epochs;
+    if (ecg_extract_on) {
+        ecg_epoch::buildInEdgeEpochs(graph, kNumVtxPerLine, ecg_epoch_count,
+                                     /*linemin=*/true, out_edge_epochs,
+                                     /*push_out_edges=*/true);
+    }
+    auto deliver = [&](NodeID u, size_t edge_pos, NodeID v) {
+        if (!ecg_extract_on || static_cast<size_t>(u) >= out_edge_epochs.size()) return;
+        const auto& eps = out_edge_epochs[u];
+        uint16_t ep = (edge_pos < eps.size()) ? eps[edge_pos]
+                      : static_cast<uint16_t>(ecg_epoch_count - 1);
+        SNIPER_ECG_EXTRACT(v, ep);
+    };
+
+    if (num_iters < 1) num_iters = 1;
+    SNIPER_ROI_BEGIN();
+    for (int iter = 0; iter < num_iters; iter++) {
+        NodeID source = static_cast<NodeID>(iter % graph.num_nodes());
+        for (NodeID n = 0; n < graph.num_nodes(); n++) {
+            depth[n] = -1; path_counts[n] = 0; deltas[n] = 0;
+        }
+        depth[source] = 0;
+        path_counts[source] = 1;
+
+        // Forward BFS, single-threaded, recording per-level frontiers.
+        std::vector<std::vector<NodeID>> levels;
+        levels.push_back(std::vector<NodeID>{source});
+        int cur_level = 0;
+        while (!levels[cur_level].empty()) {
+            std::vector<NodeID> next_level;
+            for (NodeID u : levels[cur_level]) {
+                SNIPER_SET_VERTEX(u);
+                size_t edge_pos = 0;
+                for (NodeID v : graph.out_neigh(u)) {
+                    deliver(u, edge_pos, v);
+                    ++edge_pos;
+                    if (depth[v] == -1) {
+                        depth[v] = cur_level + 1;
+                        next_level.push_back(v);
+                    }
+                    if (depth[v] == cur_level + 1)
+                        path_counts[v] += path_counts[u];
+                }
+            }
+            if (next_level.empty()) break;
+            levels.push_back(std::move(next_level));
+            cur_level++;
+        }
+
+        // Backward dependency accumulation, deepest level first.
+        for (int d = static_cast<int>(levels.size()) - 1; d > 0; d--) {
+            for (NodeID w : levels[d]) {
+                ScoreT delta_w = 0;
+                for (NodeID v : graph.out_neigh(w)) {
+                    if (depth[v] == depth[w] + 1)
+                        delta_w += static_cast<ScoreT>(path_counts[w]) /
+                                   path_counts[v] * (1.0f + deltas[v]);
+                }
+                deltas[w] = delta_w;
+                if (w != source) scores[w] += delta_w;
+            }
+        }
+    }
+    SNIPER_ROI_END();
+
+    double checksum = 0;
+    for (ScoreT s : scores) checksum += s;
+    std::cout << "GraphBrew Sniper SG BC checksum: " << checksum << std::endl;
+    return graph.num_nodes() > 0 ? 0 : 1;
+}
+
+// Connected Components (Afforest) — single-threaded port of the audited
+// Afforest_Sniper (bench/src_sniper/cc.cc): one grasp-protected comp[] region,
+// transpose P-OPT reref matrix (CC reads comp[dest] over OUT-edges -> traverseCSR=
+// false), and per-edge ECG epoch delivery. CC is the documented DO-NO-HARM cell
+// (low property reuse, ECG ~= GRASP), certified for policy-compliance not a win.
+int run_cc(const Graph& graph, int neighbor_rounds) {
+    if (neighbor_rounds < 1) neighbor_rounds = 2;
+    pvector<NodeID> comp(graph.num_nodes());
+    for (NodeID n = 0; n < graph.num_nodes(); n++) comp[n] = n;
+
+    SniperPropertyRegion regions[1] = {
+        {"comp", reinterpret_cast<uint64_t>(comp.data()),
+         static_cast<uint64_t>(graph.num_nodes()) * sizeof(NodeID),
+         static_cast<uint32_t>(graph.num_nodes()), sizeof(NodeID), true},
+    };
+    SniperEdgeRegion edge_regions[2];
+    int num_edge_regions = sniper_make_edge_regions(graph, edge_regions, 2, true);
+    sniper_export_context(regions, 1, graph, nullptr, edge_regions, num_edge_regions);
+
+    constexpr int kNumVtxPerLine = 64 / sizeof(NodeID);
+    constexpr int kNumEpochs = 256;
+    pvector<uint8_t> popt_matrix;
+    int popt_num_cache_lines = (graph.num_nodes() + kNumVtxPerLine - 1) / kNumVtxPerLine;
+    makeOffsetMatrix(graph, popt_matrix, kNumVtxPerLine, kNumEpochs, /*traverseCSR=*/false);
+    sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
+                              kNumEpochs, graph.num_nodes());
+
+    const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
+    const uint32_t ecg_epoch_count = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
+    std::vector<std::vector<uint16_t>> out_edge_epochs;
+    if (ecg_extract_on) {
+        ecg_epoch::buildInEdgeEpochs(graph, kNumVtxPerLine, ecg_epoch_count,
+                                     /*linemin=*/true, out_edge_epochs,
+                                     /*push_out_edges=*/true);
+    }
+    auto deliver = [&](NodeID u, size_t edge_pos, NodeID v) {
+        if (!ecg_extract_on || static_cast<size_t>(u) >= out_edge_epochs.size()) return;
+        const auto& eps = out_edge_epochs[u];
+        uint16_t ep = (edge_pos < eps.size()) ? eps[edge_pos]
+                      : static_cast<uint16_t>(ecg_epoch_count - 1);
+        SNIPER_ECG_EXTRACT(v, ep);
+    };
+
+    SNIPER_ROI_BEGIN();
+    // Phase 1: sample the r-th out-neighbour of each vertex, compress.
+    for (int r = 0; r < neighbor_rounds; r++) {
+        for (NodeID u = 0; u < graph.num_nodes(); u++) {
+            SNIPER_SET_VERTEX(u);
+            auto out_neigh = graph.out_neigh(u);
+            auto it = out_neigh.begin();
+            for (int i = 0; i < r && it != out_neigh.end(); ++i, ++it) {}
+            if (it != out_neigh.end()) {
+                deliver(u, static_cast<size_t>(r), *it);
+                cc_link(u, *it, comp);
+            }
+        }
+        cc_compress(graph, comp);
+    }
+
+    // Most frequent component = the giant component skipped in phase 2.
+    std::unordered_map<NodeID, int64_t> count;
+    for (NodeID n = 0; n < graph.num_nodes(); n++) count[comp[n]]++;
+    NodeID largest = graph.num_nodes() > 0 ? comp[0] : 0;
+    int64_t largest_count = -1;
+    for (const auto& kv : count) {
+        if (kv.second > largest_count) { largest_count = kv.second; largest = kv.first; }
+    }
+
+    // Phase 2: full traversal for vertices outside the giant component.
+    for (NodeID u = 0; u < graph.num_nodes(); u++) {
+        if (comp[u] == largest) continue;
+        SNIPER_SET_VERTEX(u);
+        size_t edge_pos = 0;
+        for (NodeID v : graph.out_neigh(u)) {
+            deliver(u, edge_pos, v);
+            ++edge_pos;
+            cc_link(u, v, comp);
+        }
+    }
+    cc_compress(graph, comp);
+    SNIPER_ROI_END();
+
+    int64_t num_comps = 0;
+    for (NodeID n = 0; n < graph.num_nodes(); n++)
+        if (comp[n] == n) num_comps++;
+    std::cout << "GraphBrew Sniper SG CC components: "
+              << static_cast<long long>(num_comps) << std::endl;
+    return graph.num_nodes() > 0 ? 0 : 1;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -576,6 +803,15 @@ int main(int argc, char** argv) {
     if (options.benchmark == "sssp") {
         WGraph graph = load_weighted_graph(options);
         return run_sssp(graph, options.source, options.delta);
+    }
+
+    if (options.benchmark == "bc") {
+        Graph graph = load_graph(options);
+        return run_bc(graph, options.max_iters);
+    }
+    if (options.benchmark == "cc") {
+        Graph graph = load_graph(options);
+        return run_cc(graph, /*neighbor_rounds=*/2);
     }
 
     std::cerr << "unsupported sg_kernel benchmark: " << options.benchmark << std::endl;
