@@ -186,14 +186,16 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
    // tiebreak) and gem5's ecg_rp: same makeOffsetMatrix builder, same
    // epoch_size/sub_epoch_size, same findNextRef, same cline_id mapping.
    //
-   // NOTE (validated 2026-07): standalone POPT only produces a signal when the
-   // L3 is actually exercised (property_bytes > effective LLC). On a small graph
-   // at a tight geometry the property set fits in the inner caches, so the L3
-   // sees only the cold-miss stream and EVERY policy (LRU/GRASP/POPT) reports
-   // l3_miss_rate == 1.0 -- POPT looks "inert", but this is degenerate geometry,
-   // not a matrix/lookup bug. roi_matrix flags these cells (l3_exercised=False,
-   // "[warn] L3 inert"). With the L3 exercised (e.g. cit-Patents PR) standalone
-   // Sniper POPT beats LRU by 3-15pp, matching cache_sim direction.
+   // NOTE (validated 2026-07): standalone POPT only produces a signal when this
+   // NON-INCLUSIVE L3 is actually exercised (property working set > L1+L2). On a
+   // small/sparse graph the L2 absorbs the working set, so this L3 sees only a
+   // tiny cold stream (e.g. kron_s16_k4 PR -> 89 accesses, 100% miss for
+   // LRU=POPT=GRASP) and POPT looks "inert". That is a non-inclusive-L3 geometry
+   // effect, NOT a matrix/lookup bug: cache_sim's INCLUSIVE L3 IS exercised on the
+   // same cell (POPT 0.447 < LRU 0.639). roi_matrix flags the inert Sniper cell
+   // (l3_exercised=False, "[warn] L3 inert"). With this L3 exercised (e.g.
+   // cit-Patents PR, ~16M L3 accesses) standalone Sniper POPT beats LRU by 3-15pp,
+   // matching cache_sim direction.
    UInt32 max_distance = 0;
    for (UInt32 way = 0; way < m_associativity; way++) {
       UInt32 distance = context.findNextRef(static_cast<uint64_t>(m_line_addrs[way]), m_core_id);

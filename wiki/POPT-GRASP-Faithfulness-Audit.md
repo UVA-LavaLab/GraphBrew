@@ -371,13 +371,25 @@ Root-caused to **degenerate geometry, not a code bug**:
   next-ref distance → Phase 3 RRIP tiebreak). The epoch clock is correctly wired
   (`SNIPER_SET_VERTEX` → magic `GRAPHBREW_SET_VERTEX_WORK_ID` → `setCurrentVertexHint`
   → `currentVertexForPopt`).
-- **The "inertness" is an unexercised L3.** On a small graph at a tight geometry
-  the property working set fits in the inner caches, so the L3 sees only the
-  cold-miss stream: kron_s16_k4 PR at L3=64kB **and** L3=128kB gives 89 L3
-  accesses, 100% miss, for **every** policy (LRU=POPT=GRASP=1.0). No policy can
-  differentiate. `roi_matrix` flags these cells (`annotate_l3_pressure` →
-  `l3_exercised=False`, `[warn] L3 inert`). The historical "POPT 0.526 > LRU
-  0.229" was noise (the debugging checkpoint itself flagged it).
+- **The "inertness" is an unexercised NON-INCLUSIVE L3.** The apparent
+  contradiction — cache_sim POPT helps but Sniper POPT looks inert at the *same
+  nominal geometry* — is the inclusive-vs-non-inclusive L3 difference, not a POPT
+  bug. cache_sim/gem5 model an **inclusive** L3 (duplicates L1+L2 content, so it
+  always sees the full traffic); Sniper models a **non-inclusive** NUCA L3 (sees
+  only what L2 evicts). On a small/sparse graph the L2 absorbs the whole working
+  set, so Sniper's non-inclusive L3 sees only a tiny cold stream. Measured at the
+  identical cell (kron_s16_k4 PR, L1d=16kB/L2=64kB/L3=128kB, reproducible across
+  `-i 1..20` and `-o 0/5`):
+  - cache_sim (inclusive L3): LRU 0.639 > GRASP 0.509 > **POPT 0.447** — L3
+    exercised, POPT works, correct ordering.
+  - Sniper (non-inclusive L3): **89** L3 accesses, 100% miss for LRU=POPT=GRASP —
+    L3 shadowed by L2, `l3_exercised=False`, no policy signal.
+
+  `roi_matrix` flags the Sniper cell (`annotate_l3_pressure` → `l3_exercised=False`,
+  `[warn] L3 inert`). The historical "POPT 0.526 > LRU 0.229" was noise (the
+  debugging checkpoint itself flagged it). To exercise Sniper's non-inclusive L3
+  you need a graph whose property working set exceeds L1+L2 (a real graph, not a
+  small kron).
 - **With the L3 exercised, standalone POPT is correct.** cit-Patents PR (Sniper,
   1B cap, `l3_exercised=True`, ~16M L3 accesses): POPT beats LRU at every core
   count — c1 0.573<0.705, c2 0.375<0.529, c4 0.202<0.297, c8 0.102<0.131, with
