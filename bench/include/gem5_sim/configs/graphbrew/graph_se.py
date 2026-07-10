@@ -74,7 +74,10 @@ def benchmark_environment(args):
     """Environment variables visible inside the simulated benchmark."""
     ecg_grasp_popt = args.policy == "ECG" and args.ecg_mode == "ECG_GRASP_POPT"
     ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
-    ecg_epoch_delivery = ecg_grasp_popt and ecg_variant != "grasp_only"
+    force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
+    ecg_epoch_delivery = (
+        ecg_grasp_popt and (ecg_variant != "grasp_only" or force_delivery)
+    )
     ecg_pfx_metadata = args.prefetcher == "ECG_PFX" or ecg_epoch_delivery
     env = [
         f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",

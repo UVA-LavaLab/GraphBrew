@@ -896,6 +896,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         sidebands["context"].parent.mkdir(parents=True, exist_ok=True)
         clear_sideband_files(sidebands)
 
+    gem5_ecg_delivery = ""
     env = dict(os.environ)
     env["GEM5_GRAPHBREW_CTX"] = str(sidebands["context"])
     env["GEM5_POPT_MATRIX"] = str(sidebands["popt_matrix"])
@@ -910,6 +911,19 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "ECG_EDGE_MASK_EPOCHS": str(args.ecg_epochs),
             "ECG_EDGE_MASK_PACK_BITS": str(args.ecg_epoch_pack_bits),
         })
+        riscv_delivery = (
+            "RISCV" in str(GEM5_OPT).upper()
+            or "_riscv" in str(GEM5_KERNEL_SUFFIX).lower()
+        )
+        ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
+        force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
+        if riscv_delivery and (ecg_variant != "grasp_only" or force_delivery):
+            if args.benchmark == "pr":
+                env["GEM5_FORCE_ECG_LOAD"] = "1"
+                gem5_ecg_delivery = "ecg.load"
+            elif args.benchmark in ("bfs", "bc", "cc", "sssp"):
+                env["GEM5_FORCE_ECG_PLOAD"] = "1"
+                gem5_ecg_delivery = "ecg.pload"
     if args.prefetcher == "ECG_PFX":
         env.update(ecg_pfx_env(args))
         env["GEM5_ENABLE_ECG_PFX_HINTS"] = "1"
@@ -920,6 +934,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         return []
 
     base = base_row("gem5", args, spec, l3_size, charge)
+    if gem5_ecg_delivery:
+        base["gem5_ecg_delivery"] = gem5_ecg_delivery
     base.update({
         "log_path": str(log_path),
         "gem5_out": str(gem5_out),
@@ -1231,8 +1247,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if spec.ecg_mode and policy_name == "ecg":
         env["SNIPER_ECG_MODE"] = spec.ecg_mode
     ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
+    force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
     if (spec.ecg_mode == "ECG_GRASP_POPT" and policy_name == "ecg"
-            and ecg_variant != "grasp_only"):
+            and (ecg_variant != "grasp_only" or force_delivery)):
         # Performance-equivalent to gem5/cache_sim: consume the delivered
         # per-edge epoch, not Sniper's stronger live findNextRef oracle.
         env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"

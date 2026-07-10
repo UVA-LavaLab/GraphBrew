@@ -119,4 +119,5 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
     # Paper runs use the real outer clock + delivered epoch, not the live oracle.
     assert 'env["SNIPER_ENABLE_VERTEX_HINTS"] = "1"' in runner
     assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
+    assert 'os.environ.get("ECG_FORCE_DELIVERY") == "1"' in runner
     assert "ws[w].recency = m_last_touch[w];" in cache

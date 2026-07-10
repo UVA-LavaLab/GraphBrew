@@ -45,7 +45,7 @@ EXTRA = {
     "gem5": ["--timeout-gem5", "3600"],
     "sniper": ["--sniper-workload", "sg_kernel", "--allow-sniper-sg-kernel-workload",
                "--sniper-memory-limit-gb", "20", "--sniper-enable-graph-policies",
-               "--timeout-sniper", "540"],
+               "--timeout-sniper", "1800"],
 }
 BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 

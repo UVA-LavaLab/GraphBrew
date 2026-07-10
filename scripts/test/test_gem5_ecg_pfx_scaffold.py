@@ -106,3 +106,13 @@ def test_gem5_srrip_is_true_three_bit_srrip():
     text = read("bench/include/gem5_sim/configs/graphbrew/graph_cache_config.py")
     assert '"SRRIP": lambda: RRIPRP(num_bits=3)' in text
     assert '"SRRIP": lambda: BRRIPRP(btp=0)' not in text
+
+
+def test_roi_matrix_auto_selects_riscv_ecg_delivery():
+    text = read("scripts/experiments/ecg/roi_matrix.py")
+    graph_se = read("bench/include/gem5_sim/configs/graphbrew/graph_se.py")
+    assert 'env["GEM5_FORCE_ECG_LOAD"] = "1"' in text
+    assert 'env["GEM5_FORCE_ECG_PLOAD"] = "1"' in text
+    assert 'row["gem5_ecg_delivery"] = "ecg.load"' not in text
+    assert 'base["gem5_ecg_delivery"] = gem5_ecg_delivery' in text
+    assert 'os.environ.get("ECG_FORCE_DELIVERY") == "1"' in graph_se
