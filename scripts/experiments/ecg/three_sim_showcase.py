@@ -50,12 +50,12 @@ EXTRA = {
 BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 
 
-def run_cell(suite, policy, graph, cell, reorder, out, extra, timeout):
+def run_cell(suite, policy, graph, cell, reorder, out, extra, timeout, benchmark="pr"):
     """One roi_matrix run -> (l3_miss_rate or None, banner string or '')."""
     import shutil
     shutil.rmtree(out, ignore_errors=True)
     cmd = [sys.executable, str(ROI_MATRIX), "--suite", suite, "--no-build",
-           "--benchmark", "pr", "--policies", policy,
+           "--benchmark", benchmark, "--policies", policy,
            "--options", f"-f {graph} -o {reorder} -n 1 -i 1",
            "--l3-sizes", cell["l3"], "--l3-ways", cell["ways"],
            "--l1d-size", cell["l1d"], "--l2-size", cell["l2"],
@@ -96,6 +96,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="3-sim ECG equivalence showcase")
     ap.add_argument("--sims", nargs="+", default=["cache_sim", "gem5", "sniper"],
                     choices=["cache_sim", "gem5", "sniper"])
+    ap.add_argument("--benchmark", default="pr", choices=["pr", "bfs", "bc", "cc", "sssp"],
+                    help="Kernel to run (all 3-sim certified except sssp=cache_sim+gem5). "
+                         "For bc/cc on Sniper use a tiny cell (e.g. --l1d 1kB --l2 1kB --l3 2kB) "
+                         "so the small property array spills past the non-inclusive inner caches.")
     ap.add_argument("--policies", nargs="+",
                     default=["LRU", "GRASP", "ECG:ECG_GRASP_POPT"])
     ap.add_argument("--graph",
@@ -121,7 +125,7 @@ def main(argv=None):
     os.environ["ECG_VARIANT"] = args.variant
 
     print(f"# 3-sim ECG equivalence showcase")
-    print(f"# graph={Path(args.graph).name}  cell: L3={args.l3}/{args.ways}w "
+    print(f"# benchmark={args.benchmark}  graph={Path(args.graph).name}  cell: L3={args.l3}/{args.ways}w "
           f"L1d={args.l1d} L2={args.l2}  -o{args.reorder}  ECG_VARIANT={args.variant}")
     print(f"# metric = L3 miss rate (lower better); read DIRECTION vs LRU per sim "
           f"(absolute rates not comparable across sims).\n")
@@ -132,7 +136,7 @@ def main(argv=None):
             tag = re.sub(r"[^0-9A-Za-z]+", "_", pol)
             out = Path(args.out) / f"{sim}_{tag}"
             mr, banner = run_cell(SUITE[sim], pol, args.graph, cell, args.reorder,
-                                  out, EXTRA[sim], args.timeout)
+                                  out, EXTRA[sim], args.timeout, args.benchmark)
             results[(sim, pol)] = (mr, banner)
             mrs = f"{mr:.4f}" if mr is not None else "  --  "
             print(f"  [{sim:9}] {pol:20} L3_mr={mrs}   {banner}")
