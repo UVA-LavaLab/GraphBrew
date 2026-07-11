@@ -187,3 +187,37 @@ LLC way, no matrix stream** — mirroring how P-OPT is positioned vs Belady. Thi
 defensible thesis; "beat P-OPT" is not the right bar and is not supported. Recommended
 paper framing: *practical, overhead-free approximation of the graph-caching oracle*, with
 P-OPT as the ceiling ECG approaches, not a baseline ECG must exceed.
+
+## 9. New mechanism: StreamShield + Schedule-2 (2026-07-10, cache_sim prototype)
+
+The §7 verdict remains correct for the **old single-epoch mask alone**. A new mechanism
+adds two orthogonal capabilities P-OPT does not have:
+
+1. **StreamShield:** packed one-touch edge records carry a non-temporal hint. After an
+   L2 miss they bypass the LLC tag/data/allocation path and fill only L2/L1. A
+   bypass-aware stride prefetcher warms those private caches without consuming LLC ways.
+2. **Schedule-2:** the 8-byte record carries the next two per-line reference epochs.
+   Resident property lines self-advance to the second epoch after the first passes,
+   recovering one extra dimension of the P-OPT matrix without a reserved way or matrix.
+
+The implementation is gated by `ECG_STREAM_BYPASS=1` and
+`ECG_EDGE_MASK_SCHED=2`; both are default-off. Record sizing is honestly charged:
+web-Google's 20-bit ID + 2×12-bit epochs + tier fits one 8-byte record; K4 promotes
+to 16 bytes and is rejected as traffic-heavy.
+
+Full five-policy PR results (`-o5`, L1D=32kB, L2=256kB, 16-way LLC, STRIDE degree
+8; lower demand memory accesses is better):
+
+| graph / LLC | LRU | SRRIP | GRASP | P-OPT | StreamShield+K2 | vs P-OPT |
+|---|---:|---:|---:|---:|---:|---:|
+| web-Google / 2MB | 1,758,103 | 1,390,247 | 1,330,034 | 1,036,428 | **823,201** | **-20.6%** |
+| soc-pokec / 2MB | 13,400,665 | 11,489,464 | 9,249,576 | 8,143,075 | **6,329,546** | **-22.3%** |
+| cit-Patents / 8MB | 9,389,641 | 7,624,847 | 6,251,112 | 4,769,337 | **3,932,460** | **-17.5%** |
+| LiveJournal / 4MB | 17,620,119 | 15,578,298 | 13,073,778 | 10,452,323 | **10,296,042** | **-1.5%** |
+| roadNet-CA / 512kB | 749,039 | 751,715 | 767,935 | **713,682** | 767,348 | +7.5% |
+
+**Boundary:** the win is power-law/irregular-property specific; roadNet remains
+out-of-domain. **Traffic caveat:** K2 total traffic is still 17–43% above uncharged
+P-OPT because its 8-byte stream is wider and private-cache prefetch fills are charged.
+The next gate is cycle-accurate gem5 + scale Sniper: port two-epoch delivery and true
+LLC bypass, then test whether fewer demand DRAM misses outweigh the extra bandwidth.

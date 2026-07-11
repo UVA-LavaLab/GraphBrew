@@ -2191,6 +2191,68 @@ public:
         l1_->insert(address, is_write);
     }
 
+    // ECG StreamShield prototype: an explicit non-temporal packed-edge request
+    // bypasses the LLC tag/data path after an L2 miss and fills only L2/L1.
+    // This removes both one-touch record lookup/allocation churn without
+    // reserving any LLC ways; property accesses use the normal hierarchy.
+    void accessStream(uint64_t address, bool is_write = false) {
+        if (!enabled_) return;
+        const uint64_t line_addr = lineAddress(address);
+        const bool was_prefetched = hasPrefetchedLine(line_addr);
+        static const int stream_pf_degree = [](){
+            const char* value = std::getenv("CACHE_STREAM_PREFETCH_DEGREE");
+            int degree = value ? std::atoi(value) : 0;
+            return degree < 0 ? 0 : (degree > 32 ? 32 : degree);
+        }();
+        for (int k = 1; k <= stream_pf_degree; ++k)
+            prefetchStream(address + static_cast<uint64_t>(k) * line_size_);
+
+        total_accesses_++;
+        if (l1_->access(address, is_write)) {
+            if (was_prefetched) markPrefetchUseful(line_addr);
+            return;
+        }
+        if (l2_->access(address, is_write)) {
+            if (was_prefetched) markPrefetchUseful(line_addr);
+            l1_->insert(address, is_write);
+            return;
+        }
+        // Deliberately skip l3_->access(): a hardware non-temporal/bypass hint
+        // routes this one-touch record around the LLC.
+        memory_accesses_++;
+        if (was_prefetched) markPrefetchEvictedBeforeUse(line_addr);
+        l2_->insert(address, is_write);
+        l1_->insert(address, is_write);
+    }
+
+    // StreamShield prefetch: warm private caches without allocating the
+    // one-touch record in LLC. Existing L3 data may still be promoted downward.
+    void prefetchStream(uint64_t address) {
+        if (!enabled_) return;
+        const uint64_t line_addr = lineAddress(address);
+        prefetch_requests_++;
+        recordPrefetchTranslation(address);
+        if (l1_->contains(address)) {
+            prefetch_cache_hits_++;
+            return;
+        }
+        if (l2_->contains(address)) {
+            prefetch_cache_hits_++;
+            l1_->insert(address, false);
+            return;
+        }
+        if (l3_->contains(address)) {
+            prefetch_cache_hits_++;
+            l2_->insert(address, false);
+            l1_->insert(address, false);
+            return;
+        }
+        prefetch_fills_++;
+        markPrefetchFill(line_addr);
+        l2_->insert(address, false);
+        l1_->insert(address, false);
+    }
+
     // Prefetch: bring data into cache without counting as a demand access.
     // In real hardware, prefetches are non-blocking fills that don't
     // appear in demand miss statistics. Only demand accesses count.
@@ -2632,6 +2694,10 @@ public:
         l1_->insert(address);
     }
 
+    inline void accessStream(uint64_t address, bool is_write = false) {
+        access(address, is_write);
+    }
+
     template<typename T>
     inline void read(const T* ptr) { access(reinterpret_cast<uint64_t>(ptr), false); }
 
@@ -2824,6 +2890,10 @@ public:
         l3_->insert(address);
         l2_->insert(address);
         l1_->insert(address);
+    }
+
+    inline void accessStream(uint64_t address, bool is_write = false) {
+        access(address, is_write);
     }
 
     template<typename T>
@@ -3039,6 +3109,12 @@ public:
         
         int core_id = omp_get_thread_num() % num_cores_;
         accessCore(core_id, address, is_write);
+    }
+
+    void accessStream(uint64_t address, bool is_write = false) {
+        // Prototype falls back to the normal multicore path. The paper path is
+        // validated first in the deterministic single-core cache simulator.
+        access(address, is_write);
     }
 
     // Access from specific core
@@ -3423,6 +3499,10 @@ public:
         l3_->insert(address);
         l2_->insert(address);
         l1_->insert(address);
+    }
+
+    inline void accessStream(uint64_t address, bool is_write = false) {
+        access(address, is_write);
     }
 
     template<typename T>

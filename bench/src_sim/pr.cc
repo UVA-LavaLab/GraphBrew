@@ -47,7 +47,11 @@ static inline int ecgRecordBytes(uint64_t num_vertices, int epoch_bits) {
     int tier_bits     = GraphSimEnvIntClamped("ECG_RECORD_TIER_BITS", 2, 0, 8);
     int popt_bits     = GraphSimEnvIntClamped("ECG_RECORD_POPT_BITS", 0, 0, 8);
     int prefetch_bits = GraphSimEnvIntClamped("ECG_RECORD_PREFETCH_BITS", 0, 0, 32);
-    int needed = id_bits + epoch_bits + tier_bits + popt_bits + prefetch_bits;
+    int sched_k       = GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    // K includes the primary next-ref epoch (K=1 == legacy single epoch).
+    int epoch_payload_bits = epoch_bits * std::max(1, sched_k);
+    int needed = id_bits + epoch_payload_bits +
+                 tier_bits + popt_bits + prefetch_bits;
     if (needed <= 32) return 4;
     if (needed <= 64) return 8;
     return 16;
@@ -174,6 +178,8 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                 const auto& src_eps = graph_ctx.in_edge_epoch_by_src[u];
                 const bool edge_mask_lean = GraphSimEnvIntClamped("ECG_EDGE_MASK_LEAN", 0, 0, 1) > 0;
                 const bool edge_mask_pack = GraphSimEnvIntClamped("ECG_EDGE_MASK_PACK", 0, 0, 1) > 0;
+                const bool stream_bypass =
+                    GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1) > 0;
                 // Combined stack: DROPLET-style lookahead prefetch layered ON TOP of
                 // the ECG_GRASP_POPT epoch eviction. The epoch stamp reduces TOTAL
                 // memory traffic (fewer unique fetches — something DROPLET cannot do,
@@ -221,11 +227,31 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         // traffic) which carries the full mask suite incl. the epoch in
                         // ONE stream. 16B charges a second 8-byte half (4 records/line).
                         if (record_bytes <= 4 || src_masks.empty()) {
-                            SIM_CACHE_READ_EDGE(cache, it);
+                            if (stream_bypass)
+                                SIM_CACHE_READ_EDGE_BYPASS(cache, it);
+                            else
+                                SIM_CACHE_READ_EDGE(cache, it);
                         } else {
-                            SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
-                            if (record_bytes >= 16 && edge_pos + 1 < src_masks.size())
-                                SIM_CACHE_READ(cache, src_masks.data(), edge_pos + 1);
+                            if (record_bytes >= 16) {
+                                // Model a true 16-byte record stride. src_masks
+                                // stores only one 64-bit payload per edge, so
+                                // indexing edge_pos+1 would alias the next record.
+                                const uint64_t rec_addr =
+                                    reinterpret_cast<uint64_t>(src_masks.data()) +
+                                    static_cast<uint64_t>(edge_pos) * 16;
+                                if (stream_bypass) {
+                                    cache.accessStream(rec_addr, false);
+                                    cache.accessStream(rec_addr + 8, false);
+                                } else {
+                                    cache.access(rec_addr, false);
+                                    cache.access(rec_addr + 8, false);
+                                }
+                            } else if (stream_bypass) {
+                                SIM_CACHE_READ_STREAM_BYPASS(
+                                    cache, src_masks.data(), edge_pos);
+                            } else {
+                                SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
+                            }
                         }
                         v = *it;
                         // Back-compat: legacy explicit 2-byte epoch charge (superseded by

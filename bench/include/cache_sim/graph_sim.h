@@ -142,6 +142,14 @@ private:
 #define SIM_CACHE_READ_EDGE(cache, neighbor_ptr) \
     (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
 
+// ECG StreamShield: one-touch packed edge records can bypass LLC allocation
+// while still filling the private caches. Only ECG's explicit stream path uses
+// this; baseline CSR accesses remain unchanged.
+#define SIM_CACHE_READ_EDGE_BYPASS(cache, neighbor_ptr) \
+    (cache).accessStream(reinterpret_cast<uint64_t>(neighbor_ptr), false)
+#define SIM_CACHE_READ_STREAM_BYPASS(cache, ptr, idx) \
+    (cache).accessStream(reinterpret_cast<uint64_t>(&(ptr)[idx]), false)
+
 // Track CSR offset array access (reading row pointer for vertex u).
 // Call once per vertex to track the offset[u] and offset[u+1] lookups.
 #define SIM_CACHE_READ_OFFSET(cache, offset_arr, u) \
