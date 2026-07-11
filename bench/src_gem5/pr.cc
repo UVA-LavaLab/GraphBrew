@@ -77,9 +77,6 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     };
     Gem5EdgeRegion edge_regions[2];
     int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2, true);
-    gem5_export_context(regions, 2, g, GEM5_SIDEBAND_PATH,
-                        edge_regions, num_edge_regions, edge_epoch_count);
-
     // Build P-OPT rereference matrix (matching standalone src_sim/pr.cc)
     // Predicts future cache line accesses from graph structure.
     static pvector<uint8_t> popt_matrix;
@@ -188,9 +185,9 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     // contiguous stream. Mirror that with a flat, CSR-ordered uint32 array
     // (dest | epoch<<id_bits): reading record r delivers BOTH the neighbor and
     // its next-ref epoch with the footprint of a single 4-byte CSR edge.
-    vector<uint32_t> in_edge_packed_flat;
+    pvector<uint32_t> in_edge_packed_flat;
     vector<uint64_t> packed_off;
-    vector<uint64_t> in_edge_pair_flat;
+    pvector<uint64_t> in_edge_pair_flat;
     vector<uint64_t> pair_off;
     uint32_t pack_id_bits = 1, pack_id_mask = 1;
     bool packed_ok = false;
@@ -202,9 +199,15 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     if (ecg_load_enabled) ecg_extract_enabled = true;
     if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6) {
         if (ecg_sched_k == 2) {
+            std::vector<uint64_t> pair_records;
             ecg_epoch::buildInEdgeEpochPairRecords(
                 g, kNumVtxPerLine, edge_epoch_count, true,
-                pair_off, in_edge_pair_flat);
+                pair_off, pair_records);
+            in_edge_pair_flat = pvector<uint64_t>(
+                pair_records.size(), uint64_t(0), 4096);
+            std::copy(
+                pair_records.begin(), pair_records.end(),
+                in_edge_pair_flat.begin());
             pair_ok = true;
             printf("[gem5 ECG mode 6] Schedule-2 record ON: "
                    "ne=%u records=%llu (8-byte dest+epoch1+epoch2)\n",
@@ -278,7 +281,8 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 for (uint32_t u = 0; u < nn; u++)
                     packed_off[u + 1] = packed_off[u] +
                         static_cast<uint64_t>(g.in_degree(u));
-                in_edge_packed_flat.assign(packed_off[nn], 0);
+                in_edge_packed_flat = pvector<uint32_t>(
+                    packed_off[nn], uint32_t(0), 4096);
                 for (uint32_t u = 0; u < nn; u++) {
                     const auto& eps = in_edge_epochs_by_src[u];
                     size_t i = 0;
@@ -304,6 +308,16 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         }
         }
     }
+    gem5_export_context(
+        regions, 2, g, GEM5_SIDEBAND_PATH,
+        edge_regions, num_edge_regions, edge_epoch_count,
+        pair_ok && !in_edge_pair_flat.empty()
+            ? reinterpret_cast<uint64_t>(in_edge_pair_flat.data())
+            : (packed_ok && !in_edge_packed_flat.empty()
+                ? reinterpret_cast<uint64_t>(in_edge_packed_flat.data()) : 0),
+        pair_ok ? in_edge_pair_flat.size() * sizeof(uint64_t)
+                : (packed_ok
+                    ? in_edge_packed_flat.size() * sizeof(uint32_t) : 0));
 
     for (NodeID n = 0; n < g.num_nodes(); n++)
         outgoing_contrib[n] = init_score / g.out_degree(n);

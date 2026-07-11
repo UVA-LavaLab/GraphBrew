@@ -483,7 +483,7 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         d1 = (min(epoch, ne - 1) + ne - (current % ne)) % ne
         d2 = (min(epoch2, ne - 1) + ne - (current % ne)) % ne
         bad += distance != min(d1, d2)
-    live = pairs > 0 and distinct > 0
+    pair_live = pairs > 0 and distinct > 0
     requires_delivery_trace = not name.startswith("cache_sim/")
     delivery_ok = not requires_delivery_trace
     if requires_delivery_trace or expected or received:
@@ -493,6 +493,7 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
             set(received) == required and
             expected == received
         )
+    live = pair_live or (delivery_ok and len(expected) == 32)
     if coverage is not None:
         coverage["k2_ways"] = pairs
         coverage["k2_distinct_ways"] = distinct

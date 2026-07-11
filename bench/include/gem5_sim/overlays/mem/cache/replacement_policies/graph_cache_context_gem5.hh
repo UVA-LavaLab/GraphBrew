@@ -604,6 +604,8 @@ struct GraphTopology {
 struct GraphCacheContext {
     PropertyRegion regions[MAX_PROPERTY_REGIONS];
     uint32_t num_regions = 0;
+    uint64_t stream_bypass_base = 0;
+    uint64_t stream_bypass_upper = 0;
 
     GraphTopology topology;
     MaskConfig mask_config;
@@ -640,6 +642,11 @@ struct GraphCacheContext {
             if (regions[i].contains(addr)) return true;
         }
         return false;
+    }
+
+    bool isStreamBypassData(uint64_t addr) const {
+        return stream_bypass_base < stream_bypass_upper &&
+               addr >= stream_bypass_base && addr < stream_bypass_upper;
     }
 
     bool isEcgEpochData(uint64_t addr) const {
@@ -733,6 +740,11 @@ struct GraphCacheContext {
         topology.num_vertices = parseJsonUint(content, "\"num_vertices\"");
         topology.num_edges = parseJsonUint(content, "\"num_edges\"");
         topology.edge_epoch_count = parseJsonUint(content, "\"edge_epoch_count\"");
+        stream_bypass_base =
+            parseJsonUint(content, "\"stream_bypass_base\"");
+        uint64_t stream_bypass_size =
+            parseJsonUint(content, "\"stream_bypass_size\"");
+        stream_bypass_upper = stream_bypass_base + stream_bypass_size;
         if (topology.edge_epoch_count < 2) topology.edge_epoch_count = 2;
         topology.avg_degree = (topology.num_vertices > 0)
             ? static_cast<double>(topology.num_edges) / topology.num_vertices : 0.0;
@@ -813,6 +825,45 @@ private:
         return json.compare(pos, 4, "true") == 0;
     }
 };
+
+inline bool isEcgStreamBypassAddress(uint64_t addr) {
+    const char* enabled = std::getenv("ECG_STREAM_BYPASS");
+    if (!enabled || std::strcmp(enabled, "0") == 0) return false;
+    static GraphCacheContext context;
+    if (!context.loaded ||
+        context.stream_bypass_base >= context.stream_bypass_upper) {
+        const char* path = std::getenv("GEM5_GRAPHBREW_CTX");
+        if (!path || !path[0]) path = "/tmp/gem5_graphbrew_ctx.json";
+        context.loaded = context.loadFromSideband(path);
+    }
+    const bool match = context.loaded && context.isStreamBypassData(addr);
+    static uint64_t probes = 0;
+    static const uint64_t limit = []() {
+        const char* value = std::getenv("ECG_STREAM_BYPASS_TRACE");
+        return value ? std::strtoull(value, nullptr, 10) : 0;
+    }();
+    if (probes++ < limit) {
+        std::fprintf(stderr,
+            "[ECG-STREAM-PROBE sim=gem5 addr=%#llx base=%#llx "
+            "upper=%#llx loaded=%d match=%d]\n",
+            static_cast<unsigned long long>(addr),
+            static_cast<unsigned long long>(context.stream_bypass_base),
+            static_cast<unsigned long long>(context.stream_bypass_upper),
+            context.loaded ? 1 : 0, match ? 1 : 0);
+    }
+    static uint64_t ranged_probes = 0;
+    if (context.stream_bypass_base < context.stream_bypass_upper &&
+        ranged_probes++ < limit) {
+        std::fprintf(stderr,
+            "[ECG-STREAM-RANGED sim=gem5 addr=%#llx base=%#llx "
+            "upper=%#llx match=%d]\n",
+            static_cast<unsigned long long>(addr),
+            static_cast<unsigned long long>(context.stream_bypass_base),
+            static_cast<unsigned long long>(context.stream_bypass_upper),
+            match ? 1 : 0);
+    }
+    return match;
+}
 
 } // namespace graph
 } // namespace replacement_policy

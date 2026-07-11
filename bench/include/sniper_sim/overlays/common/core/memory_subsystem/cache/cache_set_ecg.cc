@@ -524,7 +524,8 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       ? static_cast<uint32_t>((static_cast<uint64_t>(srcv) * ne) / N) : 0u;
 
    for (UInt32 way = 0; way < m_associativity; way++) {
-      m_property_lines[way] = context.isPropertyData(static_cast<uint64_t>(m_line_addrs[way]));
+      m_property_lines[way] =
+         context.isEcgEpochData(static_cast<uint64_t>(m_line_addrs[way]));
    }
    auto isProp = [&](UInt32 w) { return m_property_lines[w]; };
    auto dist   = [&](UInt32 w) -> uint32_t {

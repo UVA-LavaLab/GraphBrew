@@ -372,6 +372,40 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         for (uint8_t k = 0; k < kn; ++k)
                             H.edge_epoch_sched[k] = ((size_t)edge_pos * K + k < sc.size())
                                 ? sc[(size_t)edge_pos * K + k] : carried_epoch;
+                        static uint64_t k2_trace_sequence = 0;
+                        static const uint64_t k2_trace_limit = []() {
+                            const char* value =
+                                std::getenv("ECG_K2_DELIVERY_TRACE");
+                            return value
+                                ? static_cast<uint64_t>(
+                                      std::strtoull(value, nullptr, 10))
+                                : 0;
+                        }();
+                        const uint64_t sequence = k2_trace_sequence++;
+                        if (kn >= 2 && sequence < k2_trace_limit) {
+                            const uint16_t expected_first =
+                                ((size_t)edge_pos * K < sc.size())
+                                    ? sc[(size_t)edge_pos * K]
+                                    : carried_epoch;
+                            const uint16_t expected_second =
+                                ((size_t)edge_pos * K + 1 < sc.size())
+                                    ? sc[(size_t)edge_pos * K + 1]
+                                    : carried_epoch;
+                            std::fprintf(stderr,
+                                "[ECG-K2-EXPECT sim=cache_sim seq=%llu "
+                                "dest=%u epoch1=%u epoch2=%u]\n",
+                                (unsigned long long)sequence,
+                                static_cast<unsigned>(v),
+                                static_cast<unsigned>(expected_first),
+                                static_cast<unsigned>(expected_second));
+                            std::fprintf(stderr,
+                                "[ECG-K2-RECV sim=cache_sim seq=%llu "
+                                "dest=%u epoch1=%u epoch2=%u]\n",
+                                (unsigned long long)sequence,
+                                static_cast<unsigned>(v),
+                                static_cast<unsigned>(H.edge_epoch_sched[0]),
+                                static_cast<unsigned>(H.edge_epoch_sched[1]));
+                        }
                     } else {
                         graph_ctx.hints_for_thread().edge_epoch_sched_n = 0;
                     }

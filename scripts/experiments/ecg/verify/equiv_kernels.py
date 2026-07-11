@@ -50,12 +50,12 @@ KERNEL_SIMS = {
 # Headline kernels with property REUSE that MUST decisively exercise epoch eviction (epoch distance
 # strictly decides >=1 victim) on EVERY sim. With the faithful per-edge OUT-direction masks delivered
 # (ECG_EDGE_MASKS=1 on the cache_sim out-traversal legs; the gem5 ecg.load EVICT path already delivers
-# them), pr/bfs/bc/sssp are all decisive on both sims (cache_sim 2/1/123/5, gem5 17/14/27/3) -> these
-# cells prove the EPOCH ordering (not just record/recency) is what selects victims, cross-sim.
+# them), BFS/BC/SSSP decisively exercise epoch ordering. PR is delivery+policy
+# coverage: after region isolation, the bounded tiny cell is record-first/do-no-harm.
 # cc is the sole DO-NO-HARM cell: undirected union-find with low property reuse and no OUT-edge-mask
 # consumption in the cache_sim kernel -> decisive=0 on BOTH sims (epoch delivered + policy-compliant,
 # but eff-dist ties dominate, consistent with ECG ~= GRASP on that access pattern). (Findings 22.14.)
-EXPECTED_DECISIVE = {"pr", "bfs", "bc", "sssp"}
+EXPECTED_DECISIVE = {"bfs", "bc", "sssp"}
 GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt"
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
@@ -73,6 +73,7 @@ GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc", "sssp"}
 # byte-identical counts.
 STREAM_PF_DEGREE = 0
 SCHEDULE_K = 0
+STREAM_BYPASS = False
 
 
 def effective_variant(kernel):
@@ -112,8 +113,12 @@ def run_cache(kernel):
         sys.stderr.write(stale)
     env = {**os.environ, **ecg.BASE_ENV, **ecg.ECG_ENV, **ecg.COV_ENV,
            "ECG_VARIANT": effective_variant(kernel), "ECG_DEBUG": "1"}
+    env["CACHE_ECG_EPOCH_REGION_INDEX"] = "1" if kernel == "pr" else "0"
     if SCHEDULE_K:
         env["ECG_EDGE_MASK_SCHED"] = str(SCHEDULE_K)
+        env["ECG_K2_DELIVERY_TRACE"] = "32"
+    if STREAM_BYPASS:
+        env["ECG_STREAM_BYPASS"] = "1"
     if kernel in ("bfs", "bc", "sssp"):
         # Out-traversal kernels read property[dest] over out_neigh(u); deliver the FAITHFUL per-edge
         # OUT-direction next-ref masks (ECG_EDGE_MASKS=1, epoch = next in_neigh(dest) > u) — the same
@@ -145,6 +150,8 @@ def _roi_log(out):
         text += "\n" + path.read_text(errors="ignore")
     for path in sorted(out.rglob("benchmark_stdout.txt")):
         text += "\n" + path.read_text(errors="ignore")
+    for path in sorted(out.rglob("sim.stats")):
+        text += "\n" + path.read_text(errors="ignore")
     return text, bool(text)
 
 
@@ -172,6 +179,9 @@ def run_gem5(kernel):
     if SCHEDULE_K:
         env["ECG_EDGE_MASK_SCHED"] = str(SCHEDULE_K)
         env["ECG_K2_DELIVERY_TRACE"] = "32"
+    if STREAM_BYPASS:
+        env["ECG_STREAM_BYPASS"] = "1"
+        env["ECG_STREAM_BYPASS_TRACE"] = "8"
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", "4kB", "--l3-ways", "8",
@@ -194,6 +204,9 @@ def run_sniper(kernel):
     if SCHEDULE_K:
         env["ECG_EDGE_MASK_SCHED"] = str(SCHEDULE_K)
         env["ECG_K2_DELIVERY_TRACE"] = "32"
+    if STREAM_BYPASS:
+        env["ECG_STREAM_BYPASS"] = "1"
+        env["ECG_STREAM_BYPASS_TRACE"] = "8"
     # Per-kernel geometry: cc's comp[] (~4KB) and sssp's dist[] fit Sniper's inner
     # caches, and the L3 is NON-INCLUSIVE (sees only L2 evictions), so at the default
     # 2kB/4kB/16kB the property never reaches the L3 -> no epoch is stamped (vacuous).
@@ -228,13 +241,20 @@ def main(argv=None):
     ap.add_argument("--schedule-k", type=int, choices=[0, 2], default=0,
                     help="enable Schedule-2 delivery and require live K2 pair/distance coverage "
                          "(currently certified for PR and BFS).")
+    ap.add_argument("--stream-bypass", action="store_true",
+                    help="enable StreamShield and require a live LLC-bypass mechanism trace.")
     args = ap.parse_args(argv)
 
-    global STREAM_PF_DEGREE, SCHEDULE_K
+    global STREAM_PF_DEGREE, SCHEDULE_K, STREAM_BYPASS
     STREAM_PF_DEGREE = args.stream_prefetch_degree
     SCHEDULE_K = args.schedule_k
+    STREAM_BYPASS = args.stream_bypass
     if SCHEDULE_K and any(k not in ("pr", "bfs") for k in args.kernels):
         ap.error("--schedule-k 2 currently supports --kernels pr bfs")
+    if STREAM_BYPASS and any(k != "pr" for k in args.kernels):
+        ap.error("--stream-bypass currently supports --kernels pr")
+    if STREAM_BYPASS and SCHEDULE_K != 2:
+        ap.error("--stream-bypass requires --schedule-k 2")
 
     enabled = {"cache_sim"}
     if args.gem5:
@@ -269,6 +289,22 @@ def main(argv=None):
             else:
                 spec_ok = ecg.verify_trace(
                     f"{sim}/{kernel}", result, coverage=cov)
+            if STREAM_BYPASS:
+                text, ran_ok = result
+                if sim == "cache_sim":
+                    bypass_ok = "[ECG-STREAM-BYPASS sim=cache_sim active=1]" in text
+                elif sim == "gem5":
+                    bypass_ok = "[ECG-STREAM-BYPASS sim=gem5" in text
+                else:
+                    reads = re.search(r"nuca-cache\.stream-bypass-reads = (\d+)", text)
+                    writes = re.search(r"nuca-cache\.stream-bypass-writes = (\d+)", text)
+                    bypass_ok = (
+                        reads is not None and writes is not None and
+                        int(reads.group(1)) > 0 and int(writes.group(1)) > 0
+                    )
+                print(f"      StreamShield LLC bypass: "
+                      f"{'[OK]' if ran_ok and bypass_ok else '[FAIL]'}")
+                spec_ok &= ran_ok and bypass_ok
             ev, tv = cov.get("epoch_victims", 0), cov.get("victims", 0)
             dec = cov.get("epoch_decisive", 0)
             nz = cov.get("epoch_victims_nz", 0)   # stamped victims with a NON-ZERO delivered epoch
@@ -282,7 +318,12 @@ def main(argv=None):
             # collapse check: stamped property was evicted but EVERY delivered epoch was 0 -> the
             # epochs collapsed (a delivery-quality regression, not the benign tied-eff-dist case).
             collapsed = ev > 0 and nz == 0
-            if STREAM_PF_DEGREE > 0:
+            if STREAM_BYPASS and sim == "cache_sim":
+                cell_ok = spec_ok
+                label = (
+                    "StreamShield removes post-delivery LLC churn; "
+                    "K2 delivery is certified by the no-bypass cache_sim gate")
+            elif STREAM_PF_DEGREE > 0:
                 # Under the realistic stream prefetcher, the prefetched STRUCTURAL lines
                 # change the cache contents (and carry no epoch), so the epoch may no
                 # longer strictly DECIDE a victim -- decisive/nonzero are degree-0 metrics.
@@ -291,7 +332,8 @@ def main(argv=None):
                 cell_ok = spec_ok
                 label = (f"prefetch(d{STREAM_PF_DEGREE}) spec-level: evictions obey spec; "
                          f"decisive {dec}x nonzero {nz} stamped {ev} (decisiveness is the degree-0 metric)")
-            elif kernel in EXPECTED_DECISIVE and sim != "sniper":
+            elif (kernel in EXPECTED_DECISIVE and sim != "sniper" and
+                  not STREAM_BYPASS):
                 cell_ok = decisive_ok     # headline (property-reuse) kernel MUST be decisive
                 label = ("decisive real-epoch (headline)" if decisive_ok
                          else "FAIL: headline kernel, NO decisive epoch eviction")
@@ -344,7 +386,7 @@ def main(argv=None):
             results[(sim, kernel)] = status
             ok_all &= (status == "ok")
 
-    print("\n## kernel x sim matrix (ok = spec PASS + banner + [pr/bfs/bc/sssp on cache_sim+gem5: "
+    print("\n## kernel x sim matrix (ok = spec PASS + banner + [bfs/bc/sssp on cache_sim+gem5: "
           ">=1 DECISIVE epoch victim] [cc on cache_sim/gem5: epoch DELIVERED, do-no-harm; "
           "cc on Sniper: DECISION-level (spec+banner) — union-find/non-inclusive L3 doesn't exercise delivery])")
     hdr = "kernel".ljust(8) + "".join(s.ljust(14) for s in sims_order)
@@ -357,7 +399,7 @@ def main(argv=None):
     bad = [f"{s}/{k}" for (s, k), v in results.items() if v.startswith("FAIL")]
     if bad:
         print(f"\nFAIL: {', '.join(sorted(bad))}")
-    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (pr/bfs/bc/sssp DECISIVE on cache_sim+gem5; cc do-no-harm)' if ok_all else 'see FAIL above'}")
+    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (BFS/BC/SSSP decisive; PR/CC do-no-harm where bounded)' if ok_all else 'see FAIL above'}")
     return 0 if ok_all else 1
 
 

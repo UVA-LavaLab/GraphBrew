@@ -1930,6 +1930,14 @@ struct GraphCacheContext {
         return classifyAddress(addr) != 0;
     }
 
+    bool isEcgEpochData(uint64_t addr) const {
+        const char* value = std::getenv("CACHE_ECG_EPOCH_REGION_INDEX");
+        int index = value ? std::atoi(value) : (num_regions > 1 ? 1 : 0);
+        return index >= 0 && static_cast<uint32_t>(index) < num_regions &&
+               addr >= regions[index].base_address &&
+               addr < regions[index].upper_bound;
+    }
+
     // Find the property region containing an address.
     const PropertyRegion* findRegion(uint64_t addr) const {
         for (uint32_t i = 0; i < num_regions; ++i) {

@@ -107,5 +107,6 @@ builder, the `dest32|epoch1|epoch2` delivery record, `min(d1,d2)` line distance,
 the exact victim rule. PR uses `epoch_first`; BFS uses `degree_first`.
 
 All cache_sim/gem5/Sniper PR and BFS cells pass. BFS exercises epoch-decisive victims
-in every simulator (3/20/10 respectively). This certifies the adaptive **decision**;
-the final miss-rate/traffic claim still waits on the StreamShield bypass ports.
+in every simulator. This certifies the adaptive **decision**;
+StreamShield is now ported separately for PR. BFS/SSSP remain degree-first K2
+without bypass; the final scale miss-rate/traffic matrix is still pending.

@@ -899,6 +899,8 @@ public:
         ECGMode mode = graph_ctx_->mask_config.enabled
             ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
         if (mode != ECGMode::ECG_EXACT_STORED && mode != ECGMode::ECG_GRASP_POPT) return;
+        if (mode == ECGMode::ECG_GRASP_POPT &&
+            !graph_ctx_->isEcgEpochData(address)) return;
         std::lock_guard<std::mutex> lock(mutex_);
         uint64_t tag = getTag(address);
         size_t set_idx = getSetIndex(address);
@@ -1093,9 +1095,11 @@ public:
                               graph_ctx_->classifyGRASP(address, size_bytes_))
                         : graph_ctx_->mask_config.decodeDBG(mask_entry);
                 set[victim_idx].ecg_epoch_valid = false;  // reset; set true only on a real delivery
+                set[victim_idx].ecg_epoch_sched_n = 0;
                 if (mode == ECGMode::ECG_EXACT_MASK) {
                     // already set ecg_popt_hint from the fixed per-edge layout above
-                } else if (mode == ECGMode::ECG_GRASP_POPT) {
+                } else if (mode == ECGMode::ECG_GRASP_POPT &&
+                           graph_ctx_->isEcgEpochData(address)) {
                     // per-edge mask carries the ABSOLUTE next-ref epoch (untruncated).
                     // Stamp validity from the delivery flag: a cleared/sequential read
                     // (clearEdgeEpoch -> valid=false) fills an UNSTAMPED line. This brings
@@ -1293,6 +1297,7 @@ private:
                 // a delivery and must leave the line's existing stamp untouched (matching
                 // gem5/Sniper, which only stamp on real delivery).
                 if (mode == ECGMode::ECG_GRASP_POPT && graph_ctx_ &&
+                    graph_ctx_->isEcgEpochData(set[idx].line_addr) &&
                     graph_ctx_->hints_for_thread().edge_epoch_valid) {
                     set[idx].ecg_epoch = graph_ctx_->hints_for_thread().edge_epoch;
                     set[idx].ecg_epoch_valid = true;
@@ -1336,7 +1341,14 @@ private:
         std::cerr << "[EVICT L3 pol=" << pol << " curEpoch=" << curEpoch
                   << " set_ways=" << associativity_ << "]\n";
         for (size_t i = 0; i < associativity_; i++) {
-            bool prop = graph_ctx_ && graph_ctx_->isPropertyData(set[i].line_addr);
+            bool prop = false;
+            if (graph_ctx_) {
+                const char* mode = std::getenv("ECG_MODE");
+                prop = (policy_ == EvictionPolicy::ECG && mode &&
+                        std::string(mode) == "ECG_GRASP_POPT")
+                    ? graph_ctx_->isEcgEpochData(set[i].line_addr)
+                    : graph_ctx_->isPropertyData(set[i].line_addr);
+            }
             uint32_t ne = (graph_ctx_ && graph_ctx_->edge_epoch_count)
                 ? graph_ctx_->edge_epoch_count : 32u;
             uint32_t dist = ecg_policy::epochDistance(
@@ -1799,7 +1811,9 @@ private:
                 ? static_cast<uint32_t>(((uint64_t)cur * ne) / n) : 0;
             if (cur_epoch >= ne) cur_epoch = ne - 1;
             constexpr uint8_t RRPV_MAX = 7;
-            auto isProp  = [&](size_t i){ return graph_ctx_->isPropertyData(set[i].line_addr); };
+            auto isProp  = [&](size_t i){
+                return graph_ctx_->isEcgEpochData(set[i].line_addr);
+            };
             auto dist    = [&](size_t i){
                 // 1-D base: circular distance to the single stamped next-ref epoch.
                 uint32_t d = ecg_policy::epochDistance(
@@ -2219,6 +2233,11 @@ public:
     // reserving any LLC ways; property accesses use the normal hierarchy.
     void accessStream(uint64_t address, bool is_write = false) {
         if (!enabled_) return;
+        static bool announced = false;
+        if (!announced) {
+            announced = true;
+            std::cerr << "[ECG-STREAM-BYPASS sim=cache_sim active=1]\n";
+        }
         const uint64_t line_addr = lineAddress(address);
         const bool was_prefetched = hasPrefetchedLine(line_addr);
         static const int stream_pf_degree = [](){

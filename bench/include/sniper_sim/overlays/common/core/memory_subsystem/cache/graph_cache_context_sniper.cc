@@ -542,6 +542,10 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
 
     topology.num_vertices = static_cast<uint32_t>(parseJsonUint(content, "\"num_vertices\""));
     topology.num_edges = parseJsonUint(content, "\"num_edges\"");
+    stream_bypass_base = parseJsonUint(content, "\"stream_bypass_base\"");
+    const uint64_t stream_bypass_size =
+        parseJsonUint(content, "\"stream_bypass_size\"");
+    stream_bypass_upper = stream_bypass_base + stream_bypass_size;
     topology.max_degree = static_cast<uint32_t>(parseJsonUint(content, "\"max_degree\""));
     topology.avg_degree = topology.num_vertices > 0
         ? static_cast<double>(topology.num_edges) / topology.num_vertices
@@ -721,6 +725,12 @@ bool GraphCacheContext::isEcgEpochData(uint64_t addr) const
     return false;
 }
 
+bool GraphCacheContext::isStreamBypassData(uint64_t addr) const
+{
+    return stream_bypass_base < stream_bypass_upper &&
+           addr >= stream_bypass_base && addr < stream_bypass_upper;
+}
+
 bool GraphCacheContext::isEdgeData(uint64_t addr) const
 {
     for (uint32_t i = 0; i < num_edge_regions; ++i) {
@@ -783,6 +793,46 @@ GraphCacheContext& globalContext()
 {
     static GraphCacheContext context;
     return context;
+}
+
+bool isEcgStreamBypassAddress(uint64_t addr)
+{
+    const char* enabled = std::getenv("ECG_STREAM_BYPASS");
+    if (!enabled || std::strcmp(enabled, "0") == 0) return false;
+    GraphCacheContext& context = globalContext();
+    if (!context.loaded ||
+        context.stream_bypass_base >= context.stream_bypass_upper) {
+        const char* path = std::getenv("SNIPER_GRAPHBREW_CTX");
+        if (!path || !path[0]) path = "/tmp/sniper_graphbrew_ctx.json";
+        context.loaded = context.loadFromSideband(path);
+    }
+    const bool match = context.loaded && context.isStreamBypassData(addr);
+    static uint64_t probes = 0;
+    static const uint64_t limit = []() {
+        const char* value = std::getenv("ECG_STREAM_BYPASS_TRACE");
+        return value ? std::strtoull(value, nullptr, 10) : 0;
+    }();
+    if (probes++ < limit) {
+        std::fprintf(stderr,
+            "[ECG-STREAM-PROBE sim=sniper addr=%#llx base=%#llx "
+            "upper=%#llx loaded=%d match=%d]\n",
+            static_cast<unsigned long long>(addr),
+            static_cast<unsigned long long>(context.stream_bypass_base),
+            static_cast<unsigned long long>(context.stream_bypass_upper),
+            context.loaded ? 1 : 0, match ? 1 : 0);
+    }
+    static uint64_t ranged_probes = 0;
+    if (context.stream_bypass_base < context.stream_bypass_upper &&
+        ranged_probes++ < limit) {
+        std::fprintf(stderr,
+            "[ECG-STREAM-RANGED sim=sniper addr=%#llx base=%#llx "
+            "upper=%#llx match=%d]\n",
+            static_cast<unsigned long long>(addr),
+            static_cast<unsigned long long>(context.stream_bypass_base),
+            static_cast<unsigned long long>(context.stream_bypass_upper),
+            match ? 1 : 0);
+    }
+    return match;
 }
 
 }  // namespace sniper

@@ -122,11 +122,17 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
 ```
 
 The gate requires non-identical pairs, zero distance mismatches, and exact victim
-compliance. PR and BFS pass on cache_sim, gem5, and Sniper. StreamShield record
-bypass is still cache_sim-only, so this certifies K2/adaptive **decision
-equivalence**, not the final demand-traffic advantage. gem5 O3 is explicitly
-rejected for K2 until the epoch pair can ride the specific demand request rather
-than the in-order mailbox.
+compliance. PR and BFS pass on cache_sim, gem5, and Sniper. StreamShield is also
+implemented for PR: gem5 suppresses L3 `allocOnFill`, while Sniper skips NUCA
+lookup/insertion for the packed range. Verify the combined mechanism with:
+
+```bash
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --sniper --kernels pr --schedule-k 2 --stream-bypass
+```
+
+gem5 O3 remains explicitly rejected for K2 until the epoch pair can ride the
+specific demand request rather than the in-order mailbox.
 
 ## ECG ISA: one instruction, mode-controlled caching
 

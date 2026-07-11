@@ -654,6 +654,93 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
 ["NucaCache::write(IntPtr address, core_id_t requester"],
     )
     replace_once(
+        nuca_header,
+        """      UInt64 m_reads, m_writes, m_read_misses, m_write_misses;
+""",
+        """      UInt64 m_reads, m_writes, m_read_misses, m_write_misses;
+      UInt64 m_stream_bypass_reads, m_stream_bypass_writes;
+""",
+        args.dry_run,
+        ["m_stream_bypass_reads"],
+    )
+    replace_once(
+        nuca_source,
+        """   , m_write_misses(0)
+{
+""",
+        """   , m_write_misses(0)
+   , m_stream_bypass_reads(0)
+   , m_stream_bypass_writes(0)
+{
+""",
+        args.dry_run,
+        ["m_stream_bypass_reads(0)"],
+    )
+    replace_once(
+        nuca_source,
+        """   registerStatsMetric("nuca-cache", m_core_id, "write-misses", &m_write_misses);
+}
+""",
+        """   registerStatsMetric("nuca-cache", m_core_id, "write-misses", &m_write_misses);
+   registerStatsMetric("nuca-cache", m_core_id, "stream-bypass-reads", &m_stream_bypass_reads);
+   registerStatsMetric("nuca-cache", m_core_id, "stream-bypass-writes", &m_stream_bypass_writes);
+}
+""",
+        args.dry_run,
+        ['"stream-bypass-reads"'],
+    )
+    replace_once(
+        nuca_source,
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+   perf->updateTime(now);
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+   perf->updateTime(now);
+   if (graphbrew::sniper::isEcgStreamBypassAddress(
+           static_cast<uint64_t>(address)))
+   {
+      ++m_stream_bypass_reads;
+      if (count) {
+         ++m_reads;
+         ++m_read_misses;
+      }
+      return boost::tuple<SubsecondTime, HitWhere::where_t>(
+         SubsecondTime::Zero(), HitWhere::MISS);
+   }
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        args.dry_run,
+        ["m_stream_bypass_reads;"],
+    )
+    replace_once(
+        nuca_source,
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+   if (graphbrew::sniper::isEcgStreamBypassAddress(
+           static_cast<uint64_t>(address)))
+   {
+      eviction = false;
+      ++m_stream_bypass_writes;
+      if (count) {
+         ++m_writes;
+         ++m_write_misses;
+      }
+      return boost::tuple<SubsecondTime, HitWhere::where_t>(
+         SubsecondTime::Zero(), HitWhere::MISS);
+   }
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        args.dry_run,
+        ["m_stream_bypass_writes;"],
+    )
+    replace_once(
         directory_source,
         """boost::tie(nuca_latency, hit_where) = m_nuca_cache->read(address, nuca_data_buf, getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_SIM_THREAD), orig_shmem_msg->getPerf(), true,orig_shmem_msg->getBlockType());
 """,

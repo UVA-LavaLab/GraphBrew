@@ -59,9 +59,6 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
             edge_epoch_count = 2;
         }
     }
-    gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
-                        edge_regions, num_edge_regions, edge_epoch_count);
-
     // A5: deliver the per-edge next-ref epoch for ECG_GRASP_POPT. BFS-TD pushes along
     // OUT-edges writing parent[dest]; dest's property is next-referenced by dest's
     // IN-neighbours, so build epochs with push_out_edges=true (the transpose — same
@@ -78,17 +75,23 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         }
     }
     std::vector<uint64_t> pair_off;
-    std::vector<uint64_t> pair_flat;
+    pvector<uint64_t> pair_flat;
     bool pair_ok = false;
     if (ecg_extract_on && ecg_sched_k == 2) {
+        std::vector<uint64_t> pair_records;
         ecg_epoch::buildInEdgeEpochPairRecords(
             g, static_cast<uint32_t>(kNumVtxPerLine),
             edge_epoch_count, /*linemin=*/true,
-            pair_off, pair_flat, /*push_out_edges=*/true);
+            pair_off, pair_records, /*push_out_edges=*/true);
+        pair_flat = pvector<uint64_t>(
+            pair_records.size(), uint64_t(0), 4096);
+        std::copy(
+            pair_records.begin(), pair_records.end(),
+            pair_flat.begin());
         pair_ok = true;
     }
     std::vector<uint64_t> epoch_packed_off;
-    std::vector<uint32_t> epoch_packed_flat;
+    pvector<uint32_t> epoch_packed_flat;
     uint32_t epoch_pack_id_bits = 1;
     uint32_t epoch_pack_id_mask = 1;
     bool epoch_packed_ok = false;
@@ -107,7 +110,8 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
             for (uint32_t u = 0; u < nn; ++u)
                 epoch_packed_off[u + 1] =
                     epoch_packed_off[u] + g.out_degree(u);
-            epoch_packed_flat.assign(epoch_packed_off[nn], 0);
+            epoch_packed_flat = pvector<uint32_t>(
+                epoch_packed_off[nn], uint32_t(0), 4096);
             for (uint32_t u = 0; u < nn; ++u) {
                 const auto& epochs = out_edge_epochs[u];
                 size_t edge_pos = 0;
@@ -125,6 +129,9 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
             epoch_packed_ok = true;
         }
     }
+    gem5_export_context(
+        regions, 1, g, GEM5_SIDEBAND_PATH,
+        edge_regions, num_edge_regions, edge_epoch_count);
 
     if (ecg_sched_k != 2) {
         constexpr int numVtxPerLine = 64 / sizeof(NodeID);

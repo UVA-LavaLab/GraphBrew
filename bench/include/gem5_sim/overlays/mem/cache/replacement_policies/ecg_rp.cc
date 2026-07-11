@@ -527,7 +527,10 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         int propCount = 0;
         for (const auto& c : candidates) {
             auto data = getData(c);
-            data->is_property_data = ctx.isPropertyData(data->line_addr);
+            data->is_property_data =
+                ecgMode == graph::ECGMode::ECG_GRASP_POPT
+                    ? ctx.isEcgEpochData(data->line_addr)
+                    : ctx.isPropertyData(data->line_addr);
             if (data->is_property_data) propCount++;
         }
 

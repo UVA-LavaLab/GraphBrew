@@ -210,15 +210,15 @@ Full five-policy PR results (`-o5`, L1D=32kB, L2=256kB, 16-way LLC, STRIDE degre
 
 | graph / LLC | LRU | SRRIP | GRASP | P-OPT | StreamShield+K2 | vs P-OPT |
 |---|---:|---:|---:|---:|---:|---:|
-| web-Google / 2MB | 1,758,103 | 1,390,247 | 1,330,034 | 1,036,428 | **823,201** | **-20.6%** |
-| soc-pokec / 2MB | 13,400,665 | 11,489,464 | 9,249,576 | 8,143,075 | **6,329,546** | **-22.3%** |
-| cit-Patents / 8MB | 9,389,641 | 7,624,847 | 6,251,112 | 4,769,337 | **3,932,460** | **-17.5%** |
-| LiveJournal / 4MB | 17,620,119 | 15,578,298 | 13,073,778 | 10,452,323 | **10,296,042** | **-1.5%** |
-| roadNet-CA / 512kB | 749,039 | 751,715 | 767,935 | **713,682** | 767,348 | +7.5% |
+| web-Google / 2MB | 1,758,103 | 1,390,247 | 1,330,034 | 1,036,428 | **764,123** | **-26.3%** |
+| soc-pokec / 2MB | 13,400,665 | 11,489,464 | 9,249,576 | 8,143,075 | **6,228,099** | **-23.5%** |
+| cit-Patents / 8MB | 9,389,641 | 7,624,847 | 6,251,112 | 4,769,337 | **3,747,240** | **-21.4%** |
 
-**Boundary:** the win is power-law/irregular-property specific; roadNet remains
-out-of-domain. **Traffic caveat:** K2 total traffic is still 17–43% above uncharged
-P-OPT because its 8-byte stream is wider and private-cache prefetch fills are charged.
+These corrected rows isolate epoch metadata to the governed PR `contrib[]` region;
+older five-graph numbers that allowed `scores[]` to borrow the same epoch are
+superseded. LiveJournal and roadNet controls require rerun under this corrected
+region isolation. **Traffic caveat:** total traffic remains above uncharged P-OPT
+because the 8-byte record stream and private-cache prefetch fills are charged.
 Schedule-2 delivery is now ported and decision-verified in gem5 and Sniper (§10).
 **StreamShield LLC bypass remains cache_sim-only**; that is the remaining mechanism gap
 before the demand-miss/traffic result can be claimed outside the prototype.
@@ -269,7 +269,54 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
 ```
 
 This closes **K2 construction, delivery, line metadata, distance, and victim-decision
-equivalence**. It does not close StreamShield: gem5 and Sniper still allocate the
-packed record in their LLCs. gem5 K2 is currently restricted to in-order CPUs:
-`ecg.extract2` uses the serialized mailbox, so the runner rejects O3 until a
-request-bound epoch-pair extension is implemented.
+equivalence**. Section 11 closes the subsequent StreamShield allocation gap.
+gem5 K2 remains restricted to in-order CPUs: `ecg.extract2` uses the serialized
+mailbox, so the runner rejects O3 until a request-bound epoch-pair extension exists.
+
+## 11. StreamShield port and K2-vs-bypass attribution (2026-07-11)
+
+StreamShield is now implemented in all three simulators for PR:
+
+- **cache_sim:** `accessStream()` skips LLC lookup/allocation and fills L2/L1.
+- **gem5:** the PR packed-record virtual range is exported in the sideband;
+  shared `system.l3cache` sets the MSHR `allocOnFill` bit to false. The response
+  still fills the private hierarchy.
+- **Sniper:** NUCA reads for the packed range return a miss without a tag/data
+  lookup, and the returning NUCA write is discarded without insertion. Dedicated
+  `stream-bypass-reads/writes` counters prove both halves fire.
+
+The bypass is PR-only, ECG-only, and default-off. Baseline policies never inherit
+`ECG_STREAM_BYPASS`, so P-OPT still builds and uses its matrix.
+
+Reproduce the mechanism gate:
+
+```bash
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --sniper --kernels pr --schedule-k 2 --stream-bypass
+```
+
+### 2×2 factorial: which mechanism contributes more?
+
+PR `-i1`, `-o5`, L1D=32kB, L2=256kB, 16-way LLC, STRIDE8. Lower demand
+memory accesses is better. `K1` is the original single-epoch ECG.
+
+| graph | LRU | SRRIP | GRASP | P-OPT | K1 | K1+StreamShield | K2 | K2+StreamShield |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| web-Google / 2MB | 1,758,103 | 1,390,247 | 1,330,034 | 1,036,428 | 1,080,415 | 997,671 | 815,073 | **764,123** |
+| soc-pokec / 2MB | 13,400,665 | 11,489,464 | 9,249,576 | 8,143,075 | 7,551,255 | 7,323,620 | 6,433,736 | **6,228,099** |
+| cit-Patents / 8MB | 9,389,641 | 7,624,847 | 6,251,112 | 4,769,337 | 4,288,176 | 4,063,879 | 3,943,972 | **3,747,240** |
+
+Shapley attribution averages each mechanism's marginal contribution with the
+other mechanism off and on:
+
+| graph | total K1 → K2+SS reduction | StreamShield share | K2 share |
+|---|---:|---:|---:|
+| web-Google | 29.3% | 21.1% | **78.9%** |
+| soc-pokec | 17.5% | 16.4% | **83.6%** |
+| cit-Patents | 12.6% | 38.9% | **61.1%** |
+| aggregate, weighted by avoided accesses | — | 22.7% | **77.3%** |
+
+**Conclusion:** K2 is the dominant mechanism, contributing about three quarters
+of the combined reduction. StreamShield contributes the remaining quarter and is
+still material, especially on cit-Patents. The interaction is mildly antagonistic:
+once K2 removes property misses, fewer pollution misses remain for bypass to remove.

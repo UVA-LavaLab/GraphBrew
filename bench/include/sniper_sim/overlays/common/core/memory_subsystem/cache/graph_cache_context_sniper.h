@@ -146,6 +146,8 @@ struct GraphCacheContext {
     uint32_t num_regions = 0;
     std::array<EdgeRegion, 2> edge_regions{};
     uint32_t num_edge_regions = 0;
+    uint64_t stream_bypass_base = 0;
+    uint64_t stream_bypass_upper = 0;
 
     GraphTopology topology;
     MaskConfig mask_config;
@@ -173,6 +175,7 @@ struct GraphCacheContext {
     uint32_t propertyElemSizeForAddress(uint64_t addr) const;
     bool isPropertyData(uint64_t addr) const;
     bool isEcgEpochData(uint64_t addr) const;
+    bool isStreamBypassData(uint64_t addr) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;
     uint32_t findNextRef(uint64_t addr, uint32_t core_id) const;
@@ -181,6 +184,7 @@ struct GraphCacheContext {
 };
 
 GraphCacheContext& globalContext();
+bool isEcgStreamBypassAddress(uint64_t addr);
 
 }  // namespace sniper
 }  // namespace graphbrew

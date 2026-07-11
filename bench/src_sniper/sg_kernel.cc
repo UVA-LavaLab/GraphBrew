@@ -157,7 +157,6 @@ int run_pr(const Graph& graph, int max_iters) {
     };
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(graph, edge_regions, 2, true);
-    sniper_export_context(regions, 2, graph, nullptr, edge_regions, num_edge_regions);
 
     const int ecg_sched_k =
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
@@ -280,6 +279,15 @@ int run_pr(const Graph& graph, int max_iters) {
                          ecg_epoch_count);
         }
     }
+    sniper_export_context(
+        regions, 2, graph, nullptr, edge_regions, num_edge_regions,
+        epoch_pair_ok && !epoch_pair_flat.empty()
+            ? reinterpret_cast<uint64_t>(epoch_pair_flat.data())
+            : (epoch_packed_ok && !epoch_packed_flat.empty()
+                ? reinterpret_cast<uint64_t>(epoch_packed_flat.data()) : 0),
+        epoch_pair_ok ? epoch_pair_flat.size() * sizeof(uint64_t)
+                      : (epoch_packed_ok
+                          ? epoch_packed_flat.size() * sizeof(uint32_t) : 0));
 
     // Lookahead distance for ECG_PFX hints. node+1 is too close on
     // small graphs (Sniper's cache_cntlr.cc:1146 filters
@@ -589,7 +597,6 @@ int run_bfs(const Graph& graph, NodeID source) {
     };
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(graph, edge_regions, 2);
-    sniper_export_context(regions, 1, graph, nullptr, edge_regions, num_edge_regions);
     const int bfs_sched_k =
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
     if (bfs_sched_k != 2)
@@ -673,6 +680,8 @@ int run_bfs(const Graph& graph, NodeID source) {
             }
         }
     }
+    sniper_export_context(
+        regions, 1, graph, nullptr, edge_regions, num_edge_regions);
 
     SNIPER_ROI_BEGIN();
     std::queue<NodeID> frontier;

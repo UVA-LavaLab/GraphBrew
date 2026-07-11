@@ -114,6 +114,9 @@ UNIFIED_DIFF_PATCHES = [
     ("cpu/exec_context_ecg_producer.patch", "."),
     ("cpu/o3/dyn_inst_ecg_producer.patch", "."),
     ("cpu/o3/lsq_ecg_producer.patch", "."),
+    # StreamShield: packed ECG record misses retain normal L1/L2 fills but
+    # suppress shared-L3 allocation through the MSHR allocOnFill bit.
+    ("mem/cache/base_stream_bypass.patch", "."),
 ]
 
 

@@ -618,7 +618,9 @@ inline void gem5_export_context(
     const char* path = GEM5_SIDEBAND_PATH,
     const Gem5EdgeRegion* edge_regions = nullptr,
     int num_edge_regions = 0,
-    uint32_t edge_epoch_count = 0)
+    uint32_t edge_epoch_count = 0,
+    uint64_t stream_bypass_base = 0,
+    uint64_t stream_bypass_size = 0)
 {
     FILE* f = fopen(path, "w");
     if (!f) {
@@ -630,6 +632,16 @@ inline void gem5_export_context(
     fprintf(f, "  \"num_vertices\": %ld,\n", (long)g.num_nodes());
     fprintf(f, "  \"num_edges\": %ld,\n", (long)g.num_edges_directed());
     fprintf(f, "  \"edge_epoch_count\": %u,\n", edge_epoch_count);
+    fprintf(f, "  \"stream_bypass_base\": %lu,\n",
+            (unsigned long)stream_bypass_base);
+    fprintf(f, "  \"stream_bypass_size\": %lu,\n",
+            (unsigned long)stream_bypass_size);
+    if (stream_bypass_size > 0) {
+        fprintf(stderr,
+            "[ECG-STREAM-REGION sim=gem5 base=%#lx size=%lu]\n",
+            (unsigned long)stream_bypass_base,
+            (unsigned long)stream_bypass_size);
+    }
     fprintf(f, "  \"directed\": %s,\n", g.directed() ? "true" : "false");
 
     // Property regions

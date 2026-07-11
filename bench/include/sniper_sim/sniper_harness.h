@@ -271,7 +271,9 @@ inline void sniper_export_context(
     const GraphType& g,
     const char* path = nullptr,
     const SniperEdgeRegion* edge_regions = nullptr,
-    int num_edge_regions = 0) {
+    int num_edge_regions = 0,
+    uint64_t stream_bypass_base = 0,
+    uint64_t stream_bypass_size = 0) {
     const std::string resolved_path = path ? std::string(path) : graphbrew_sniper::context_path();
     FILE* f = fopen(resolved_path.c_str(), "w");
     if (!f) {
@@ -282,6 +284,16 @@ inline void sniper_export_context(
     fprintf(f, "{\n");
     fprintf(f, "  \"num_vertices\": %ld,\n", (long)g.num_nodes());
     fprintf(f, "  \"num_edges\": %ld,\n", (long)g.num_edges_directed());
+    fprintf(f, "  \"stream_bypass_base\": %lu,\n",
+            (unsigned long)stream_bypass_base);
+    fprintf(f, "  \"stream_bypass_size\": %lu,\n",
+            (unsigned long)stream_bypass_size);
+    if (stream_bypass_size > 0) {
+        fprintf(stderr,
+            "[ECG-STREAM-REGION sim=sniper base=%#lx size=%lu]\n",
+            (unsigned long)stream_bypass_base,
+            (unsigned long)stream_bypass_size);
+    }
     fprintf(f, "  \"directed\": %s,\n", g.directed() ? "true" : "false");
 
     fprintf(f, "  \"property_regions\": [\n");

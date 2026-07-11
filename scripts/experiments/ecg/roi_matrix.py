@@ -695,6 +695,11 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
     if not is_k2_ecg:
         env.pop("ECG_EDGE_MASK_SCHED", None)
         env.pop("ECG_K2_DELIVERY_TRACE", None)
+        env.pop("ECG_STREAM_BYPASS", None)
+        env.pop("ECG_STREAM_BYPASS_TRACE", None)
+    if args.benchmark != "pr":
+        env.pop("ECG_STREAM_BYPASS", None)
+        env.pop("ECG_STREAM_BYPASS_TRACE", None)
     env.update({
         "CACHE_ULTRAFAST": "0",
         "CACHE_POLICY": spec.policy,
@@ -726,6 +731,8 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
         # nondeterministic interleaved order, so >1 thread yields
         # non-reproducible, thread-count-dependent miss counts.
         "OMP_NUM_THREADS": str(args.cache_sim_omp_threads),
+        "CACHE_ECG_EPOCH_REGION_INDEX": str(
+            cache_sim_ecg_epoch_region_index(args.benchmark)),
     })
     env.update(ecg_pfx_env(args))
     if spec.ecg_mode:
@@ -780,6 +787,10 @@ def ecg_epoch_region(benchmark: str) -> str:
 
 def gem5_ecg_epoch_region_index(benchmark: str) -> int:
     return 1 if benchmark in ("pr", "bc") else 0
+
+
+def cache_sim_ecg_epoch_region_index(benchmark: str) -> int:
+    return 1 if benchmark == "pr" else 0
 
 
 def effective_ecg_variant(args: argparse.Namespace) -> str:
@@ -944,6 +955,11 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     if not is_k2_ecg:
         env.pop("ECG_EDGE_MASK_SCHED", None)
         env.pop("ECG_K2_DELIVERY_TRACE", None)
+        env.pop("ECG_STREAM_BYPASS", None)
+        env.pop("ECG_STREAM_BYPASS_TRACE", None)
+    if args.benchmark != "pr":
+        env.pop("ECG_STREAM_BYPASS", None)
+        env.pop("ECG_STREAM_BYPASS_TRACE", None)
     requested_ecg_load = os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"
     env.pop("GEM5_FORCE_ECG_LOAD", None)
     env.pop("GEM5_FORCE_ECG_PLOAD", None)
@@ -1041,6 +1057,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         "gem5_in_edges_path": str(sidebands["in_edges"]),
         "gem5_ecg_pfx_experimental": int(args.prefetcher == "ECG_PFX" and args.allow_gem5_ecg_pfx),
     })
+    if log_path.exists():
+        base["gem5_stream_bypass_trace_events"] = (
+            log_path.read_text(errors="ignore").count(
+                "[ECG-STREAM-BYPASS sim=gem5"))
     if result is None or result.returncode != 0:
         base.update({"section": 0, "status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
         return [base]
@@ -1305,6 +1325,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if not is_k2_ecg:
         env.pop("ECG_EDGE_MASK_SCHED", None)
         env.pop("ECG_K2_DELIVERY_TRACE", None)
+        env.pop("ECG_STREAM_BYPASS", None)
+        env.pop("ECG_STREAM_BYPASS_TRACE", None)
+    if args.benchmark != "pr":
+        env.pop("ECG_STREAM_BYPASS", None)
+        env.pop("ECG_STREAM_BYPASS_TRACE", None)
     env["OMP_NUM_THREADS"] = str(args.sniper_cores)
     # Multi-core OpenMP under Sniper deadlocks with PASSIVE waits: idle threads
     # call futex_wait with no timeout, so when every core is sleeping at a barrier
@@ -1368,6 +1393,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         raise RuntimeError(
             "Sniper Schedule-2 requires --sniper-workload sg_kernel; "
             "the smoke/full-wrapper workloads do not emit extract2 pairs.")
+    if (env.get("ECG_STREAM_BYPASS") == "1" and
+            args.sniper_workload != "sg_kernel"):
+        raise RuntimeError(
+            "Sniper StreamShield requires --sniper-workload sg_kernel; "
+            "the smoke/full-wrapper workloads do not export packed-stream ranges.")
     force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
     if (spec.ecg_mode == "ECG_GRASP_POPT" and policy_name == "ecg"
             and (ecg_variant != "grasp_only" or force_delivery)):
@@ -1421,6 +1451,17 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         "l2_policy": "LRU",
         "l3_policy": policy_name.upper(),
     })
+    stats_path = Path(str(metrics.get("stats_path", "")))
+    if stats_path.exists():
+        stats_text = stats_path.read_text(errors="ignore")
+        for field, metric in (
+            ("sniper_stream_bypass_reads", "stream-bypass-reads"),
+            ("sniper_stream_bypass_writes", "stream-bypass-writes"),
+        ):
+            match = re.search(
+                rf"nuca-cache\.{re.escape(metric)}\s*=\s*(\d+)",
+                stats_text)
+            row[field] = int(match.group(1)) if match else 0
     for key in (
         "pf_issued",
         "pf_fillups",
@@ -1574,6 +1615,17 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "ecg_epoch_pack_bits": args.ecg_epoch_pack_bits,
         "ecg_epochs": args.ecg_epochs,
         "ecg_charged": args.ecg_charged,
+        "ecg_schedule_k": (
+            requested_ecg_schedule_k()
+            if spec.policy == "ECG" and spec.ecg_mode == "ECG_GRASP_POPT"
+            else 0
+        ),
+        "ecg_stream_bypass": (
+            1 if (args.benchmark == "pr" and
+                  spec.policy == "ECG" and
+                  spec.ecg_mode == "ECG_GRASP_POPT" and
+                  os.environ.get("ECG_STREAM_BYPASS") == "1") else 0
+        ),
         "popt_reserve_model": args.popt_reserve_model,
         "policy_label": spec.label,
         "policy": spec.policy,
