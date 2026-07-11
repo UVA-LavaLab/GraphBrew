@@ -78,15 +78,16 @@ def benchmark_environment(args):
     ecg_epoch_delivery = (
         ecg_grasp_popt and (ecg_variant != "grasp_only" or force_delivery)
     )
-    ecg_pfx_metadata = args.prefetcher == "ECG_PFX" or ecg_epoch_delivery
+    ecg_pfx_enabled = args.prefetcher == "ECG_PFX"
     env = [
         f"GEM5_ENABLE_VERTEX_HINTS={1 if needs_vertex_hints(args) else 0}",
-        f"GEM5_ENABLE_ECG_PFX_HINTS={1 if ecg_pfx_metadata else 0}",
-        f"GEM5_ECG_PFX_LOOKAHEAD={args.ecg_pfx_lookahead if ecg_pfx_metadata else 0}",
+        f"GRAPHBREW_PREFETCHER={args.prefetcher}",
+        f"GEM5_ENABLE_ECG_PFX_HINTS={1 if ecg_pfx_enabled else 0}",
+        f"GEM5_ECG_PFX_LOOKAHEAD={args.ecg_pfx_lookahead if ecg_pfx_enabled else 0}",
         f"GEM5_ECG_PFX_HINT_FILTER={args.ecg_pfx_hint_filter if args.prefetcher == 'ECG_PFX' else 0}",
         f"GEM5_ECG_PFX_FILTER_ELEM_SIZE=4",
         f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
-        f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_epoch_delivery or (args.prefetcher == 'ECG_PFX' and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
+        f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_epoch_delivery or (ecg_pfx_enabled and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
         # Fused ecg.load prototype: host GEM5_FORCE_ECG_LOAD=1 selects the single
         # custom-0 load-and-deliver instruction instead of demand-load + ecg.extract.
         f"GEM5_ENABLE_ECG_LOAD={1 if os.environ.get('GEM5_FORCE_ECG_LOAD') == '1' else 0}",

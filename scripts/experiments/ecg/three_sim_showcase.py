@@ -52,7 +52,7 @@ BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 
 def _parse_cell(out):
     """Parse (l3_miss_rate|None, banner|'') from an existing cell out dir."""
-    mr = None
+    candidates = []
     for p in glob.glob(os.path.join(str(out), "**", "roi_matrix.json"), recursive=True):
         try:
             rows = json.load(open(p))
@@ -64,9 +64,15 @@ def _parse_cell(out):
             v = r.get("l3_miss_rate")
             if v is not None:
                 try:
-                    mr = float(v)
+                    candidates.append((int(r.get("section") or 0), float(v)))
                 except (TypeError, ValueError):
                     pass
+    # gem5 writes the benchmark's explicit ROI dump as section 1, then emits an
+    # automatic final section after the ROI (including teardown/destructors).
+    # Prefer section 1 so large ECG metadata structures cannot contaminate the
+    # reported policy result. Other simulators generally emit one section.
+    roi = [v for section, v in candidates if section == 1]
+    mr = roi[0] if roi else (candidates[0][1] if candidates else None)
     banner = ""
     for lg in glob.glob(os.path.join(str(out), "**", "*.log"), recursive=True):
         try:

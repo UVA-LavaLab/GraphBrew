@@ -898,6 +898,9 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
 
     gem5_ecg_delivery = ""
     env = dict(os.environ)
+    requested_ecg_load = os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"
+    env.pop("GEM5_FORCE_ECG_LOAD", None)
+    env.pop("GEM5_FORCE_ECG_PLOAD", None)
     env["GEM5_GRAPHBREW_CTX"] = str(sidebands["context"])
     env["GEM5_POPT_MATRIX"] = str(sidebands["popt_matrix"])
     env["GEM5_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
@@ -919,8 +922,28 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
         if riscv_delivery and (ecg_variant != "grasp_only" or force_delivery):
             if args.benchmark == "pr":
-                env["GEM5_FORCE_ECG_LOAD"] = "1"
-                gem5_ecg_delivery = "ecg.load"
+                # PR already has a 4-byte packed edge-record path (dest+epoch)
+                # followed by register-only ecg.extract. Do NOT force the 8-byte
+                # WIDE ecg.load record in performance runs; keep it as an
+                # explicit GEM5_FORCE_ECG_LOAD=1 ISA-cost ablation.
+                if args.gem5_cpu_type == "O3":
+                    env["GEM5_FORCE_ECG_PLOAD"] = "1"
+                    env["GEM5_ECG_PRODUCER"] = "1"
+                    gem5_ecg_delivery = "ecg.pload-request-bound"
+                elif requested_ecg_load:
+                    gem5_ecg_delivery = "ecg.load"
+                    env["GEM5_FORCE_ECG_LOAD"] = "1"
+                elif args.prefetcher == "ECG_PFX":
+                    path_a = int(effective_ecg_pfx_value(
+                        args, "ECG_EDGE_MASK_PREFETCH"
+                    )) > 0
+                    gem5_ecg_delivery = (
+                        "packed4+ecg.extract+pathA"
+                        if path_a
+                        else "wide64+ecg.extract+pathB"
+                    )
+                else:
+                    gem5_ecg_delivery = "packed4+ecg.extract"
             elif args.benchmark in ("bfs", "bc", "cc", "sssp"):
                 env["GEM5_FORCE_ECG_PLOAD"] = "1"
                 gem5_ecg_delivery = "ecg.pload"
@@ -1230,6 +1253,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     env["SNIPER_POPT_MATRIX"] = str(sidebands["popt_matrix"])
     env["SNIPER_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["SNIPER_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
+    env["SNIPER_GRAPHBREW_PREFETCHER"] = str(args.prefetcher)
     # Level the simulated instruction stream across every policy while exposing
     # the real outer-vertex clock required by P-OPT/ECG. Without this, the
     # SNIPER_SET_VERTEX calls are no-ops and graph policies fall back to a

@@ -290,12 +290,46 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     // Prefetch dedup window — tracks recently prefetched hub indices
     vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
     int pfx_window_pos = 0;
+    const char* configured_prefetcher = std::getenv("GRAPHBREW_PREFETCHER");
+    const bool no_edge_prefetcher =
+        !configured_prefetcher || std::string(configured_prefetcher) == "none";
+    const bool packed_extract_only =
+        ecg_extract_enabled && !ecg_prefetch_enabled &&
+        ecg_pfx_mode == 6 && packed_ok && pack_id_bits <= 24 &&
+        !ecg_load_enabled && !gem5_ecg_pload_enabled() &&
+        no_edge_prefetcher;
+    if (packed_extract_only) {
+        fprintf(stderr,
+                "[ECG_PACKED4] PR eviction-only packed record fast path ACTIVE\n");
+    }
 
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             GEM5_SET_VERTEX(u);
             ScoreT incoming_total = 0;
+
+            if (packed_extract_only &&
+                static_cast<size_t>(u + 1) < packed_off.size()) {
+                const uint64_t begin = packed_off[u];
+                const uint64_t end = packed_off[u + 1];
+                for (uint64_t pos = begin; pos < end; ++pos) {
+                    const uint32_t rec = in_edge_packed_flat[pos];
+                    const NodeID v = static_cast<NodeID>(rec & pack_id_mask);
+                    const uint16_t ep =
+                        static_cast<uint16_t>(rec >> pack_id_bits);
+                    const uint64_t mask =
+                        (static_cast<uint64_t>(v) & 0xFFFFFFULL) |
+                        (static_cast<uint64_t>(ep) << 24);
+                    GEM5_ECG_EXTRACT_MASK(mask);
+                    incoming_total += outgoing_contrib[v];
+                }
+                const ScoreT old_score = scores[u];
+                scores[u] = base_score + kDamp * incoming_total;
+                error += fabs(scores[u] - old_score);
+                outgoing_contrib[u] = scores[u] / g.out_degree(u);
+                continue;
+            }
 
             auto in_neigh = g.in_neigh(u);
 
@@ -409,7 +443,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                             GEM5_ECG_PFX_TARGET_EPOCH(static_cast<uint32_t>(cand),
                                                       cand_ep);
                         }
-                    } else {
+                    } else if (ecg_prefetch_enabled) {
                         // Path B: single packed prefetch target.
                         uint32_t prefetch_target =
                             ecg_mode6::extractPrefetchTargetWide(mask);

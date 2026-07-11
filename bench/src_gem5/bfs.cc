@@ -65,6 +65,44 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
                                      edge_epoch_count, /*linemin=*/true,
                                      out_edge_epochs, /*push_out_edges=*/true);
     }
+    std::vector<uint64_t> epoch_packed_off;
+    std::vector<uint32_t> epoch_packed_flat;
+    uint32_t epoch_pack_id_bits = 1;
+    uint32_t epoch_pack_id_mask = 1;
+    bool epoch_packed_ok = false;
+    if (ecg_extract_on) {
+        const uint32_t nn = static_cast<uint32_t>(g.num_nodes());
+        while (epoch_pack_id_bits < 31 &&
+               (uint64_t{1} << epoch_pack_id_bits) < nn)
+            ++epoch_pack_id_bits;
+        uint32_t epoch_bits = 1;
+        while (epoch_bits < 16 &&
+               (uint32_t{1} << epoch_bits) < edge_epoch_count)
+            ++epoch_bits;
+        if (epoch_pack_id_bits + epoch_bits <= 32) {
+            epoch_pack_id_mask = (uint32_t{1} << epoch_pack_id_bits) - 1;
+            epoch_packed_off.assign(static_cast<size_t>(nn) + 1, 0);
+            for (uint32_t u = 0; u < nn; ++u)
+                epoch_packed_off[u + 1] =
+                    epoch_packed_off[u] + g.out_degree(u);
+            epoch_packed_flat.assign(epoch_packed_off[nn], 0);
+            for (uint32_t u = 0; u < nn; ++u) {
+                const auto& epochs = out_edge_epochs[u];
+                size_t edge_pos = 0;
+                for (NodeID v_raw : g.out_neigh(u)) {
+                    const uint32_t v = static_cast<uint32_t>(v_raw);
+                    const uint16_t epoch = edge_pos < epochs.size()
+                        ? epochs[edge_pos]
+                        : static_cast<uint16_t>(edge_epoch_count - 1);
+                    epoch_packed_flat[epoch_packed_off[u] + edge_pos] =
+                        (v & epoch_pack_id_mask) |
+                        (static_cast<uint32_t>(epoch) << epoch_pack_id_bits);
+                    ++edge_pos;
+                }
+            }
+            epoch_packed_ok = true;
+        }
+    }
 
     {
         constexpr int numVtxPerLine = 64 / sizeof(NodeID);
@@ -84,6 +122,9 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
+    const char* configured_prefetcher = std::getenv("GRAPHBREW_PREFETCHER");
+    const bool no_edge_prefetcher =
+        !configured_prefetcher || std::string(configured_prefetcher) == "none";
 
     // A5: the fused ecg.load EVICT (indexed-property) op reads parent[v] AND delivers v's
     // next-ref epoch to the LLC in one custom-0 instruction (RISC-V), stamping the property
@@ -108,6 +149,39 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         const std::vector<uint16_t>* u_epochs =
             (ecg_extract_on && static_cast<size_t>(u) < out_edge_epochs.size())
                 ? &out_edge_epochs[u] : nullptr;
+        if (epoch_packed_ok && epoch_pack_id_bits <= 24 &&
+            !gem5_ecg_pfx_hints_enabled() &&
+            no_edge_prefetcher &&
+            static_cast<size_t>(u + 1) < epoch_packed_off.size()) {
+            const uint64_t begin = epoch_packed_off[u];
+            const uint64_t end = epoch_packed_off[u + 1];
+            for (uint64_t pos = begin; pos < end; ++pos) {
+                const uint32_t rec = epoch_packed_flat[pos];
+                const NodeID v =
+                    static_cast<NodeID>(rec & epoch_pack_id_mask);
+                const uint16_t epoch =
+                    static_cast<uint16_t>(rec >> epoch_pack_id_bits);
+                NodeID pv;
+                if (ecg_load_evict_on) {
+                    const uint64_t fat = ecg_mode6::packEvict(
+                        static_cast<uint32_t>(v), epoch, ecg_evict_wc);
+                    const uint32_t bits =
+                        gem5_ecg_load_evict(parent.data(), fat, ecg_evict_wc);
+                    std::memcpy(&pv, &bits, sizeof(NodeID));
+                } else {
+                    const uint64_t mask =
+                        (static_cast<uint64_t>(v) & 0xFFFFFFULL) |
+                        (static_cast<uint64_t>(epoch) << 24);
+                    GEM5_ECG_EXTRACT_MASK(mask);
+                    pv = parent[v];
+                }
+                if (pv == -1) {
+                    parent[v] = u;
+                    frontier.push(v);
+                }
+            }
+            continue;
+        }
         size_t edge_pos = 0;
         for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
             NodeID v = *it;
@@ -135,6 +209,16 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
                 uint32_t bits = gem5_ecg_load_evict(parent.data(), fat, ecg_evict_wc);
                 std::memcpy(&pv, &bits, sizeof(NodeID));
             } else {
+                if (ecg_extract_on && u_epochs &&
+                    static_cast<uint32_t>(v) < (1u << 24)) {
+                    const uint16_t epoch = edge_pos < u_epochs->size()
+                        ? (*u_epochs)[edge_pos]
+                        : static_cast<uint16_t>(edge_epoch_count - 1);
+                    const uint64_t mask =
+                        (static_cast<uint64_t>(v) & 0xFFFFFFULL) |
+                        (static_cast<uint64_t>(epoch) << 24);
+                    GEM5_ECG_EXTRACT_MASK(mask);
+                }
                 pv = parent[v];
             }
             if (pv == -1) {

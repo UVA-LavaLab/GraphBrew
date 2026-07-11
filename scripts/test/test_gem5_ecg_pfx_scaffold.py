@@ -100,6 +100,7 @@ def test_gem5_graph_context_stores_decoded_ecg_extract_hint():
     assert "decodedEcgRealVertexStorage" in text
     assert "decodedEcgMetadataStorage" in text
     assert "setDecodedEcgExtractHint" in text
+    assert "GRAPHBREW_ECG_EXTRACT_MASK_WORK_ID" in text
 
 
 def test_gem5_srrip_is_true_three_bit_srrip():
@@ -111,8 +112,44 @@ def test_gem5_srrip_is_true_three_bit_srrip():
 def test_roi_matrix_auto_selects_riscv_ecg_delivery():
     text = read("scripts/experiments/ecg/roi_matrix.py")
     graph_se = read("bench/include/gem5_sim/configs/graphbrew/graph_se.py")
-    assert 'env["GEM5_FORCE_ECG_LOAD"] = "1"' in text
     assert 'env["GEM5_FORCE_ECG_PLOAD"] = "1"' in text
+    assert '"packed4+ecg.extract"' in text
+    assert 'os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"' in text
+    assert '"ecg.pload-request-bound"' in text
+    assert 'env["GEM5_ECG_PRODUCER"] = "1"' in text
+    assert '"ECG_EDGE_MASK_PREFETCH"' in text
     assert 'row["gem5_ecg_delivery"] = "ecg.load"' not in text
     assert 'base["gem5_ecg_delivery"] = gem5_ecg_delivery' in text
     assert 'os.environ.get("ECG_FORCE_DELIVERY") == "1"' in graph_se
+    assert 'ecg_pfx_enabled = args.prefetcher == "ECG_PFX"' in graph_se
+    assert "or ecg_epoch_delivery" not in graph_se
+
+
+def test_epoch_extract_is_not_gated_by_prefetch_enable():
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    good = (
+        "#define GEM5_ECG_EXTRACT_MASK(mask_u64) \\\n"
+        "    do { \\\n"
+        "        if (gem5_ecg_extract_enabled()) {"
+    )
+    bad = (
+        "#define GEM5_ECG_EXTRACT_MASK(mask_u64) \\\n"
+        "    do { \\\n"
+        "        if (gem5_ecg_pfx_hints_enabled() && "
+        "gem5_ecg_extract_enabled()) {"
+    )
+    assert harness.count(good) == 2
+    assert bad not in harness
+    assert "GEM5_WORK_ECG_EXTRACT_MASK" in harness
+
+
+def test_setup_gem5_uses_dedicated_x86_extract_work_id():
+    text = read("scripts/setup_gem5.py")
+    assert "legacy content-based PFX/mask multiplexing" in text
+    assert "GRAPHBREW_ECG_EXTRACT_MASK_WORK_ID" in text
+
+
+def test_three_sim_showcase_selects_explicit_roi_section():
+    text = read("scripts/experiments/ecg/three_sim_showcase.py")
+    assert "section == 1" in text
+    assert "automatic final section after the ROI" in text

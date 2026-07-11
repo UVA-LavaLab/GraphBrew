@@ -46,6 +46,7 @@
 #define GEM5_WORK_SET_VERTEX 0x47525654ULL  // GraphBrew current vertex hint
 #define GEM5_WORK_ECG_PFX_TARGET 0x47504658ULL  // GraphBrew ECG PFX target hint
 #define GEM5_WORK_ECG_PFX_TARGET_EPOCH 0x47504659ULL  // Path A: target|epoch<<32
+#define GEM5_WORK_ECG_EXTRACT_MASK 0x4745584DULL  // "GEXM": full dest+epoch mask
 
 // GEM5_ENABLE_ECG_LOAD=1 selects the FUSED ecg.load custom-0 RISC-V instruction:
 // ONE I-type op that demand-loads the 8-byte packed mode-6 record from mem AND
@@ -286,7 +287,7 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
     return static_cast<uint32_t>(real_vertex);
 #elif defined(__x86_64__)
     // X86 fallback: work_begin can carry the full 64-bit mask as threadid.
-    gem5_x86_work_begin_instruction(GEM5_WORK_ECG_PFX_TARGET,
+    gem5_x86_work_begin_instruction(GEM5_WORK_ECG_EXTRACT_MASK,
                                     fat_mask);
     return static_cast<uint32_t>(fat_mask & 0xFFFFFFULL);
 #else
@@ -299,7 +300,7 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
 // filter — caller is responsible for not over-emitting.
 #define GEM5_ECG_EXTRACT_MASK(mask_u64) \
     do { \
-        if (gem5_ecg_pfx_hints_enabled() && gem5_ecg_extract_enabled()) { \
+        if (gem5_ecg_extract_enabled()) { \
             (void)gem5_ecg_extract_mask_instruction(static_cast<uint64_t>(mask_u64)); \
         } \
     } while (0)
@@ -431,7 +432,7 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
 
 #define GEM5_ECG_EXTRACT_MASK(mask_u64) \
     do { \
-        if (gem5_ecg_pfx_hints_enabled() && gem5_ecg_extract_enabled()) { \
+        if (gem5_ecg_extract_enabled()) { \
             (void)gem5_ecg_extract_mask_instruction(static_cast<uint64_t>(mask_u64)); \
         } \
     } while (0)

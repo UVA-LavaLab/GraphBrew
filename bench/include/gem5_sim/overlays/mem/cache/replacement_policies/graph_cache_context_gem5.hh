@@ -75,6 +75,7 @@ static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
 static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
+static constexpr uint64_t GRAPHBREW_ECG_EXTRACT_MASK_WORK_ID = 0x4745584DULL;
 // Path A (epoch-filtered DROPLET lookahead): a dedicated hint work-id that
 // carries (target | epoch<<32) so the prefetched line can recover its
 // candidate epoch at fill — distinct from the fat-mask work-id above (no
