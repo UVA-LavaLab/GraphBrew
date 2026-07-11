@@ -140,13 +140,17 @@ GraphEcgRP::touch(
                 uint16_t isa_epoch = data->ecg_epoch;
                 if (graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt,
                                                 isa_epoch)) {
-                    data->ecg_dbg_tier = isa_dbg;
+                    // ECG_GRASP_POPT's EVICT format carries no DBG field.
+                    // Preserve the address-derived GRASP tier for degree_first.
+                    if (ecgMode != graph::ECGMode::ECG_GRASP_POPT)
+                        data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;
                     data->ecg_epoch = isa_epoch;
                     data->ecg_epoch_valid = true;
                 }
             }
             uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
+            data->ecg_dbg_tier = static_cast<uint8_t>(tier);
             if (tier == 1) {
                 data->rrpv = 0;
             } else if (data->rrpv > 0) {
@@ -266,7 +270,8 @@ GraphEcgRP::reset(
                 }
                 if (got) {
                     // Use ISA-delivered metadata directly.
-                    data->ecg_dbg_tier = isa_dbg;
+                    if (ecgMode != graph::ECGMode::ECG_GRASP_POPT)
+                        data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;  // 7-bit POPT quant
                     data->ecg_epoch = isa_epoch;
                     data->ecg_epoch_valid = true;
@@ -296,6 +301,7 @@ GraphEcgRP::reset(
             }();
             if (data->is_property_data && ctx.loaded) {
                 uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
+                data->ecg_dbg_tier = static_cast<uint8_t>(tier);
                 if (tier == 1) data->rrpv = pRrip;
                 else if (tier == 2) data->rrpv = iRrip;
                 else data->rrpv = mRrip;
@@ -393,6 +399,7 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
             if (s=="rrip_first")  return 2;
             if (s=="epoch_only")  return 3;
             if (s=="shortcircuit"||s=="legacy") return 4;
+            if (s=="degree_first"||s=="traversal") return 5;
             return 2;
         }();
         const uint32_t n = std::max<uint32_t>(1u, ctx.topology.num_vertices);
@@ -427,6 +434,7 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
                               << " epoch=" << dd->ecg_epoch << " dist=" << dist(candidates[i])
                               << " prop=" << (int)isProp(candidates[i])
                               << " stamped=" << (int)(stamped(candidates[i]) ? 1 : 0)
+                              << " dbg=" << (int)dd->ecg_dbg_tier
                               << " last=" << dd->lastTouchTick
                               << ((int)i==vidx ? "   <== VICTIM" : "") << "\n";
                 }
@@ -461,6 +469,10 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         } else if (variant == 2) {
             pol = "ECG:rrip_first";
             reason = !isProp(victim) ? "max-rrpv record by recency" : "max-rrpv farthest-epoch property";
+        } else if (variant == 5) {
+            pol = "ECG:degree_first";
+            reason = !isProp(victim) ? "max-rrpv record by recency"
+                                     : "max-rrpv coldest-degree then epoch";
         } else {
             pol = epol;
             reason = !isProp(victim) ? "record by recency"

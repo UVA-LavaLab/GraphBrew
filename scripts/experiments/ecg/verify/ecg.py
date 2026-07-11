@@ -54,7 +54,10 @@ ECG_ENV = dict(CACHE_POLICY="ECG", CACHE_L3_POLICY="ECG", ECG_MODE="ECG_GRASP_PO
 COV_ENV = dict(CACHE_L2_SIZE="1MB", CACHE_L3_SIZE="4kB", ECG_STORED_REFRESH="1",
                ECG_EVICT_TRACE="4000")
 
-WAY_RE = re.compile(r"way(\d+) valid=(\d+) rrpv=(\d+) epoch=(\d+) dist=(\d+) prop=(\d+) stamped=(\d+) last=(\d+)")
+WAY_RE = re.compile(
+    r"way(\d+) valid=(\d+) rrpv=(\d+) epoch=(\d+) dist=(\d+) "
+    r"prop=(\d+) stamped=(\d+)(?: dbg=(\d+))? last=(\d+)"
+)
 HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
 VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
 
@@ -182,9 +185,13 @@ def parse_blocks(text):
             pol = h.group(1); ways = []; victim = None; reason = None; continue
         m = WAY_RE.search(line)
         if m:
-            w, valid, rrpv, epoch, dist, prop, stamped, last = map(int, m.groups())
+            groups = m.groups()
+            w, valid, rrpv, epoch, dist, prop, stamped = map(int, groups[:7])
+            dbg = int(groups[7]) if groups[7] is not None else 0
+            last = int(groups[8])
             ways.append(dict(way=w, valid=valid, rrpv=rrpv, epoch=epoch,
-                             dist=dist, prop=prop, stamped=stamped, last=last))
+                             dist=dist, prop=prop, stamped=stamped,
+                             dbg=dbg, last=last))
         v = VIC_RE.search(line)
         if v:
             victim = int(v.group(1)); reason = (v.group(2) or "").strip()
@@ -231,6 +238,17 @@ def _epoch_decisive(ways, victim, pol):
         # competes against EVERY other property line (mirror rrip_first; no max-rrpv gate). A
         # stamped victim with dist>0 strictly beats unstamped eff=0 lines -> decisive.
         others = [w for w in ways if w["way"] != vw["way"] and w["prop"] == 1]
+    elif pol == "ECG:degree_first":
+        mx = max(w["rrpv"] for w in ways)
+        cand = [w for w in ways if w["rrpv"] == mx]
+        if any(w["prop"] == 0 for w in cand):
+            return False
+        coldest = max(w["dbg"] for w in cand)
+        tier = [w for w in cand if w["dbg"] == coldest]
+        others = [
+            w for w in tier
+            if w["way"] != vw["way"] and w["prop"] == 1 and w["stamped"]
+        ]
     else:
         return False
     if not others:
@@ -251,6 +269,7 @@ RULES = {
     "ECG:epoch_only": lambda ways, v: _epoch_rule(ways, v),
     # rrip_first: among max-rrpv, oldest record by recency; else max effective-epoch property
     "ECG:rrip_first": lambda ways, v: _rrip_rule(ways, v),
+    "ECG:degree_first": lambda ways, v: _degree_rule(ways, v),
 }
 
 
@@ -274,6 +293,28 @@ def _rrip_rule(ways, v):
         return ways[v]["prop"] == 0 and ways[v]["last"] == min(w["last"] for w in recs)
     # else farthest EFFECTIVE-epoch property among max-rrpv (unstamped -> 0)
     return ways[v]["prop"] == 1 and _eff_d(ways[v]) == max(_eff_d(w) for w in cand)
+
+
+def _degree_rule(ways, v):
+    mx = max(w["rrpv"] for w in ways)
+    if ways[v]["rrpv"] != mx:
+        return False
+    cand = [w for w in ways if w["rrpv"] == mx]
+    recs = [w for w in cand if w["prop"] == 0]
+    if recs:
+        return (
+            ways[v]["prop"] == 0
+            and ways[v]["last"] == min(w["last"] for w in recs)
+        )
+    coldest = max(w["dbg"] for w in cand)
+    tier = [w for w in cand if w["dbg"] == coldest]
+    farthest = max(_eff_d(w) for w in tier)
+    tied = [w for w in tier if _eff_d(w) == farthest]
+    return (
+        ways[v]["dbg"] == coldest
+        and _eff_d(ways[v]) == farthest
+        and ways[v]["last"] == min(w["last"] for w in tied)
+    )
 
 
 def _shortcircuit_rule(ways, v):
@@ -400,7 +441,8 @@ def run_synthetic():
     if not SYNTH_BIN.exists():
         print("  [synthetic] FAIL: could not build test_ecg_victim"); return False
     ok = True
-    for variant in ["tier", "grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+    for variant in ["tier", "grasp_only", "epoch_only", "rrip_first",
+                    "epoch_first", "degree_first", "shortcircuit"]:
         p = subprocess.run([str(SYNTH_BIN)], env={**os.environ, "ECG_VARIANT": variant},
                            capture_output=True, text=True, timeout=60)
         for line in p.stdout.splitlines():
@@ -522,6 +564,7 @@ def main(argv=None):
               ("epoch_only", {**ECG_ENV, "ECG_VARIANT": "epoch_only"}),
               ("rrip_first", {**ECG_ENV, "ECG_VARIANT": "rrip_first"}),
               ("epoch_first", {**ECG_ENV, "ECG_VARIANT": "epoch_first"}),
+              ("degree_first", {**ECG_ENV, "ECG_VARIANT": "degree_first"}),
               ("shortcircuit", {**ECG_ENV, "ECG_VARIANT": "shortcircuit"})]
     ok_all = True
     live_reasons = set()
@@ -554,7 +597,8 @@ def main(argv=None):
     # pattern. verify_trace also enforces the record-never-stamped invariant (C).
     if BC.exists():
         print("\n-- cache_sim BC cross-kernel (BC evicts property -> live epoch branch + stamp invariant) --")
-        for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+        for variant in ["grasp_only", "epoch_only", "rrip_first",
+                        "epoch_first", "degree_first", "shortcircuit"]:
             ok_all &= verify_trace(f"bc/{variant}", run_bc({**ECG_ENV, "ECG_VARIANT": variant}, COV_ENV),
                                    prefix="(bc) ", reasons=live_reasons)
         # BC epoch-coverage is INFORMATIONAL (strict=False): BC's property lines carry
@@ -592,7 +636,8 @@ def main(argv=None):
         print("\n-- gem5 ISA decode: every ecg.load (mode x dest-width) through the REAL decoder + teeth --")
         ok_all &= run_gem5_isa_modes()
         print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
-        for variant in ["grasp_only", "epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+        for variant in ["grasp_only", "epoch_only", "rrip_first",
+                        "epoch_first", "degree_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ", reasons=live_reasons)
         print("\n-- gem5 epoch-coverage (exact rules on forced geometry; epoch-value gate informational) --")
         for variant in ["rrip_first", "epoch_first"]:
@@ -602,7 +647,8 @@ def main(argv=None):
         # grasp_only delegates to the shared SRRIP path (no ECG trace); verify the
         # four ECG-specific variants. Runs are memory-capped (Sniper/SDE runaway).
         print("\n-- sniper (ECG_GRASP_POPT variants, email-Eu-core/-o5, guarded) --")
-        for variant in ["epoch_only", "rrip_first", "epoch_first", "shortcircuit"]:
+        for variant in ["epoch_only", "rrip_first", "epoch_first",
+                        "degree_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_sniper(variant), prefix="sniper ", reasons=live_reasons)
 
     # Live default-geometry coverage note: that workload only ever evicts records,

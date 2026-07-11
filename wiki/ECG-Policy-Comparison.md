@@ -35,6 +35,7 @@ rather than to an opaque bundle.
 | `rrip_first`   | Max-RRPV set; records first, then farthest-epoch property | recency vetoes epoch |
 | `epoch_first`  | Records by recency, then farthest-epoch property (epoch vetoes RRPV) | epoch vetoes recency |
 | `shortcircuit` | Evict any non-property line first, then farthest-epoch property | property-protection (legacy) |
+| `degree_first` | Max-RRPV records first; then coldest GRASP degree tier; K2 epoch breaks tier ties | frontier traversal (BFS/SSSP/BC) |
 
 ## Methodology: run BOTH `-o 0` and `-o 5`
 

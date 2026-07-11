@@ -33,6 +33,7 @@ enum Variant {
     RRIP_FIRST   = 2,  // max-rrpv set (recency vetoes); records-first, then farthest-epoch property
     EPOCH_ONLY   = 3,  // same eviction as EPOCH_FIRST (differs only at insertion)
     SHORTCIRCUIT = 4,  // non-property first (set order), then farthest RAW-dist property
+    DEGREE_FIRST = 5,  // max-rrpv set; records, then coldest degree tier, then farthest epoch
 };
 
 struct WayState {
@@ -88,6 +89,41 @@ inline size_t selectVictim(WayState* ways, size_t n, int variant, uint8_t rrpvMa
         size_t v = 0; uint64_t o = ways[0].recency;
         for (size_t i = 1; i < n; i++) if (ways[i].recency < o) { o = ways[i].recency; v = i; }
         return v;
+    }
+
+    // degree_first (frontier traversal): keep RRIP's eligibility gate, then
+    // protect high-degree property lines independent of visit order. Within the
+    // coldest degree tier, Schedule-2/epoch distance selects the farthest next
+    // use; true recency resolves any remaining tie.
+    if (variant == DEGREE_FIRST) {
+        for (;;) {
+            size_t recIdx = n; uint64_t recOldest = 0;
+            size_t propIdx = n; uint8_t coldest = 0;
+            uint32_t farthest = 0; uint64_t propOldest = 0;
+            for (size_t i = 0; i < n; ++i) {
+                if (ways[i].rrpv < rrpvMax) continue;
+                if (!ways[i].prop) {
+                    if (recIdx == n || ways[i].recency < recOldest) {
+                        recIdx = i; recOldest = ways[i].recency;
+                    }
+                    continue;
+                }
+                const uint32_t d = effDist(ways[i]);
+                if (propIdx == n || ways[i].dbg > coldest ||
+                    (ways[i].dbg == coldest && d > farthest) ||
+                    (ways[i].dbg == coldest && d == farthest &&
+                     ways[i].recency < propOldest)) {
+                    propIdx = i;
+                    coldest = ways[i].dbg;
+                    farthest = d;
+                    propOldest = ways[i].recency;
+                }
+            }
+            if (recIdx != n) return recIdx;
+            if (propIdx != n) return propIdx;
+            for (size_t i = 0; i < n; ++i)
+                if (ways[i].rrpv < rrpvMax) ways[i].rrpv++;
+        }
     }
 
     // rrip_first (default): among the max-RRPV set, evict the oldest record by

@@ -246,7 +246,14 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       m_line_addrs[way] = m_pending_insert_addr;
       m_property_lines[way] = graphbrew::sniper::globalContext().isPropertyData(
             static_cast<uint64_t>(m_pending_insert_addr));
-      m_dbg_tiers[way] = dbgTier(m_pending_insert_addr);
+      m_dbg_tiers[way] =
+         (m_mode == graphbrew::sniper::ECGMode::ECG_GRASP_POPT)
+            ? static_cast<UInt8>(ecgGraspTier(
+                 graphbrew::sniper::globalContext(),
+                 static_cast<uint64_t>(m_pending_insert_addr),
+                 m_llc_size_bytes ? m_llc_size_bytes
+                                  : UInt64(m_associativity) * m_blocksize))
+            : dbgTier(m_pending_insert_addr);
       m_popt_hints[way] = poptHint(m_pending_insert_addr);
 
       // SNIPER_ECG_EXTRACT fill-stamp: the demand for this vertex delivered its
@@ -492,6 +499,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       if (s == "rrip_first")   return 2;
       if (s == "epoch_only")   return 3;
       if (s == "shortcircuit" || s == "legacy") return 4;
+      if (s == "degree_first" || s == "traversal") return 5;
       return 2;
    }();
 
@@ -557,9 +565,9 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       for (UInt32 w = 0; w < m_associativity; w++) {
          UInt32 d = isProp(w) ? dist(w) : 0;
          UInt32 epoch = (fatLoad && isProp(w)) ? m_ecg_epoch[w] : (isProp(w) ? 1u : 0u);
-         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d stamped=%d last=%llu%s\n",
+         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d stamped=%d dbg=%d last=%llu%s\n",
                       w, (int)m_rrip_bits[w], (int)epoch, d, (int)isProp(w),
-                      (int)(stamped(w) ? 1 : 0),
+                      (int)(stamped(w) ? 1 : 0), (int)m_dbg_tiers[w],
                       (unsigned long long)m_last_touch[w],
                       w == victimWay ? "   <== VICTIM" : "");
       }
@@ -591,6 +599,10 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    } else if (variant == 2) {
       pol = "ECG:rrip_first";
       reason = !isProp(victimWay) ? "max-rrpv record by recency" : "max-rrpv farthest-epoch property";
+   } else if (variant == 5) {
+      pol = "ECG:degree_first";
+      reason = !isProp(victimWay) ? "max-rrpv record by recency"
+                                  : "max-rrpv coldest-degree then epoch";
    } else {
       pol = epol;
       reason = !isProp(victimWay) ? "record by recency" : "farthest-epoch property";

@@ -726,6 +726,7 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
     env.update(ecg_pfx_env(args))
     if spec.ecg_mode:
         env["ECG_MODE"] = spec.ecg_mode
+        env["ECG_VARIANT"] = effective_ecg_variant(args)
         if spec.ecg_mode == "ECG_GRASP_POPT":
             env.update({
                 "ECG_EXACT_REREF": "1",
@@ -755,6 +756,20 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
                 env.pop("ECG_STORED_REFRESH", None)
                 env.pop("ECG_REFRESH_LLC_ONLY", None)
     return env
+
+
+def effective_ecg_variant(args: argparse.Namespace) -> str:
+    requested = os.environ.get("ECG_VARIANT", "rrip_first")
+    if requested != "adaptive":
+        return requested
+    benchmark = str(args.benchmark).lower()
+    if benchmark in ("bfs", "sssp"):
+        return "degree_first"
+    if benchmark == "pr":
+        return "epoch_first"
+    # BC/CC mix frontier work with backward/pointer-chasing phases; rrip_first
+    # is the measured do-no-harm arm and remains the safe adaptive fallback.
+    return "rrip_first"
 
 
 def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size: str) -> list[dict[str, Any]]:
@@ -918,7 +933,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "RISCV" in str(GEM5_OPT).upper()
             or "_riscv" in str(GEM5_KERNEL_SUFFIX).lower()
         )
-        ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
+        ecg_variant = effective_ecg_variant(args)
+        env["ECG_VARIANT"] = ecg_variant
         force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
         if riscv_delivery and (ecg_variant != "grasp_only" or force_delivery):
             if args.benchmark == "pr":
@@ -1270,7 +1286,8 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env["SNIPER_ECG_PFX_FILTER_LINE_SIZE"] = str(args.line_size)
     if spec.ecg_mode and policy_name == "ecg":
         env["SNIPER_ECG_MODE"] = spec.ecg_mode
-    ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
+    ecg_variant = effective_ecg_variant(args)
+    env["ECG_VARIANT"] = ecg_variant
     force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
     if (spec.ecg_mode == "ECG_GRASP_POPT" and policy_name == "ecg"
             and (ecg_variant != "grasp_only" or force_delivery)):
@@ -1479,6 +1496,13 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "policy_label": spec.label,
         "policy": spec.policy,
         "ecg_mode": spec.ecg_mode or "",
+        "ecg_variant_requested": (
+            os.environ.get("ECG_VARIANT", "rrip_first")
+            if spec.ecg_mode else ""
+        ),
+        "ecg_variant_effective": (
+            effective_ecg_variant(args) if spec.ecg_mode else ""
+        ),
         "l1d_size": args.l1d_size,
         "l2_size": args.l2_size,
         "l3_size": l3_size,

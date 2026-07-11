@@ -1087,7 +1087,11 @@ public:
             // Store ECG mask fields for eviction tiebreaking
             if (graph_ctx_ && graph_ctx_->mask_array.enabled) {
                 uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
-                set[victim_idx].ecg_dbg_tier = graph_ctx_->mask_config.decodeDBG(mask_entry);
+                set[victim_idx].ecg_dbg_tier =
+                    (mode == ECGMode::ECG_GRASP_POPT)
+                        ? static_cast<uint8_t>(
+                              graph_ctx_->classifyGRASP(address, size_bytes_))
+                        : graph_ctx_->mask_config.decodeDBG(mask_entry);
                 set[victim_idx].ecg_epoch_valid = false;  // reset; set true only on a real delivery
                 if (mode == ECGMode::ECG_EXACT_MASK) {
                     // already set ecg_popt_hint from the fixed per-edge layout above
@@ -1343,6 +1347,7 @@ private:
                       << " dist=" << dist
                       << " prop=" << (int)prop
                       << " stamped=" << (int)(prop && set[i].ecg_epoch_valid)
+                      << " dbg=" << (int)set[i].ecg_dbg_tier
                       << " last=" << set[i].last_access
                       << (i == victim ? "   <== VICTIM" : "") << "\n";
         }
@@ -1774,6 +1779,7 @@ private:
                 if (s=="rrip_first")   return 2;
                 if (s=="epoch_only")   return 3;
                 if (s=="shortcircuit"||s=="legacy") return 4;
+                if (s=="degree_first"||s=="traversal") return 5;
                 return 2;
             }();
             const uint32_t n = graph_ctx_->exact_nv;
@@ -1822,6 +1828,10 @@ private:
             } else if (variant == 2) {
                 pol = "ECG:rrip_first";
                 reason = !isProp(victim) ? "max-rrpv record by recency" : "max-rrpv farthest-epoch property";
+            } else if (variant == 5) {
+                pol = "ECG:degree_first";
+                reason = !isProp(victim) ? "max-rrpv record by recency"
+                                         : "max-rrpv coldest-degree then epoch";
             } else {
                 pol = (variant == 1) ? "ECG:epoch_first" : "ECG:epoch_only";
                 reason = !isProp(victim) ? "record by recency"

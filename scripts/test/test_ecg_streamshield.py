@@ -1,4 +1,7 @@
 from pathlib import Path
+import argparse
+import importlib.util
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,3 +42,23 @@ def test_schedule_bits_are_charged_in_record_width():
     assert 'GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4)' in pr
     assert "epoch_bits * std::max(1, sched_k)" in pr
     assert "static_cast<uint64_t>(edge_pos) * 16" in pr
+
+
+def test_adaptive_variant_selects_by_kernel(monkeypatch):
+    path = ROOT / "scripts/experiments/ecg/roi_matrix.py"
+    spec = importlib.util.spec_from_file_location("roi_matrix_adaptive", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    monkeypatch.setenv("ECG_VARIANT", "adaptive")
+    expected = {
+        "pr": "epoch_first",
+        "bfs": "degree_first",
+        "sssp": "degree_first",
+        "bc": "rrip_first",
+        "cc": "rrip_first",
+    }
+    for benchmark, variant in expected.items():
+        args = argparse.Namespace(benchmark=benchmark)
+        assert module.effective_ecg_variant(args) == variant

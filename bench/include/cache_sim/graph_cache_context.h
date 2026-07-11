@@ -2865,7 +2865,7 @@ struct GraphCacheContext {
         return !masks.empty() && src < masks.size() && masks[src].size() == degree;
     }
 
-    // Resolve the per-edge POPT mask for edge `edge_pos` of `src` in direction `dir` and
+    // Resolve the full per-edge mask for edge `edge_pos` of `src` in direction `dir` and
     // set the per-thread next-ref epoch hint. Returns `vertex_fallback` (and leaves the
     // epoch untouched) when the row isn't built/sized — so the mask-off path is
     // byte-identical to the per-vertex mask. Pass this result to SIM_CACHE_READ_MASKED.
@@ -2897,7 +2897,7 @@ struct GraphCacheContext {
                 H.edge_epoch_sched_n = 0;
             }
         }
-        return edgeMaskPOPT(masks[src][edge_pos]);
+        return masks[src][edge_pos];
     }
 
     // Clear the sticky per-edge epoch before a non-edge (SEQUENTIAL source) read so its

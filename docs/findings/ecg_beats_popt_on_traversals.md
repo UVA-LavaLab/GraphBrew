@@ -60,3 +60,41 @@ This is a genuine, feasible, honest win and the correct paper framing.
   authority. Add BC (betweenness) for a 3rd traversal kernel.
 - CC is mixed (Afforest/SV has a partly sweep-like pattern); report it honestly, don't
   headline it.
+
+## Traversal-adaptive eviction (2026-07-10)
+
+Implemented shared `ECG_VARIANT=degree_first` (cache_sim/gem5/Sniper SSOT):
+
+```text
+max-RRPV eligibility
+→ oldest record
+→ coldest GRASP degree tier
+→ farthest delivered epoch / Schedule-2 within that tier
+→ oldest recency
+```
+
+This combines order-independent reuse **frequency** (degree) with reuse **timing**
+(epoch) using fields already present in the ECG record; no reserved way, matrix,
+or additional record bits.
+
+Full five-policy cache_sim validation (2MB/16-way, `-o5`, source 1):
+
+| graph · kernel | LRU | SRRIP | GRASP | P-OPT | ECG degree-first |
+|---|---:|---:|---:|---:|---:|
+| web-Google · BFS | .7451 | .7303 | .6876 | .7328 | **.6837** |
+| web-Google · SSSP | .3541 | .3405 | .3389 | .3646 | **.3386** |
+| soc-pokec · BFS | .6426 | .6139 | .5767 | .6104 | **.5750** |
+| soc-pokec · SSSP | .3900 | .3515 | **.2977** | .3383 | .2991 |
+| web-Google · BC (`rrip_first`) | **.7000** | .6914 | .7112 | .7268 | .7007 |
+
+Degree-first beats P-OPT on every BFS/SSSP cell, beats GRASP on both BFS cells
+and web-Google SSSP, and stays within 0.14pp on soc-pokec SSSP. BC is mixed:
+degree-first overweights its backward/pointer phase, so adaptive ECG selects
+`rrip_first`, a do-no-harm tie with LRU (0.06pp) that still beats GRASP/P-OPT.
+
+The adaptive policy is therefore:
+
+- monotonic/iterative PR: StreamShield + Schedule-2 + `epoch_first`;
+- data-dependent BFS/SSSP: `degree_first` (Schedule-2 as the within-tier tie);
+- mixed BC/CC: `rrip_first` (safe do-no-harm fallback);
+- road/uniform graphs: bypass/adaptive fallback required; remain out-of-domain.

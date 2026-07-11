@@ -152,6 +152,22 @@ int main() {
         checkV(L3, "all-unstamped, no record -> LRU fallback (way1 oldest)",
               {{paddr(0),0,5,50,0,0},{paddr(1),0,9,10,0,0},{paddr(2),0,1,20,0,0},{paddr(3),0,8,30,0,0},
                {paddr(4),0,7,40,0,0},{paddr(5),0,3,60,0,0},{paddr(6),0,2,70,0,0},{paddr(7),0,4,80,0,0}}, 1);
+    } else if (var == "degree_first" || var == "traversal") {
+        check(L3, "all-prop -> coldest degree tier wins (way2 dbg=5)",
+              {{paddr(0),7,20,40,0},{paddr(1),7,18,30,2},{paddr(2),7,2,20,5},{paddr(3),7,25,10,1},
+               {paddr(4),7,7,50,3},{paddr(5),7,15,60,1},{paddr(6),7,2,70,0},{paddr(7),7,11,80,2}}, 2);
+        check(L3, "same degree tier -> farthest epoch wins (way4=22)",
+              {{paddr(0),7,20,40,1},{paddr(1),7,18,30,3},{paddr(2),7,2,20,3},{paddr(3),7,25,10,2},
+               {paddr(4),7,22,50,3},{paddr(5),7,15,60,1},{paddr(6),7,2,70,0},{paddr(7),7,11,80,2}}, 4);
+        check(L3, "same degree+epoch -> oldest recency wins (way1)",
+              {{paddr(0),7,20,40,1},{paddr(1),7,18,10,3},{paddr(2),7,18,20,3},{paddr(3),7,25,30,2},
+               {paddr(4),7,7,50,2},{paddr(5),7,15,60,1},{paddr(6),7,2,70,0},{paddr(7),7,11,80,2}}, 1);
+        check(L3, "record still evicts first by recency (way1)",
+              {{raddr(0),7,0,50,0},{raddr(1),7,0,10,0},{paddr(2),7,2,20,5},{paddr(3),7,25,30,2},
+               {paddr(4),7,7,50,3},{paddr(5),7,15,60,1},{paddr(6),7,2,70,0},{paddr(7),7,11,80,2}}, 1);
+        check(L3, "sub-max cold line ignored by RRIP gate (way3)",
+              {{paddr(0),3,20,40,7},{paddr(1),7,18,30,2},{paddr(2),7,2,20,3},{paddr(3),7,25,10,3},
+               {paddr(4),7,7,50,1},{paddr(5),7,15,60,1},{paddr(6),7,2,70,0},{paddr(7),7,11,80,2}}, 3);
     } else if (var == "shortcircuit") {
         // any non-property first (SET ORDER, not recency), else farthest-epoch + DBG.
         check(L3, "mixed -> FIRST record in set order (way1, not older way2)",
