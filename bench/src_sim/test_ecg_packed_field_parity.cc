@@ -12,6 +12,7 @@
 // packMask preserves them -> the gem5 large-graph ECG_PFX limitation (doc S10 validity
 // matrix). verify_pfx.py proves target SELECTION parity; this proves field DELIVERY parity.
 #include "ecg_mode6_builder.h"
+#include "ecg_epoch_builder.h"
 #include <cstdio>
 #include <cstdint>
 
@@ -199,6 +200,31 @@ int main() {
         check("ecgEvictWidthClass(65536) -> wc1", (unsigned)ecgEvictWidthClass(65536), 1u);
         check("ecgEvictWidthClass(16.7M) -> wc2", (unsigned)ecgEvictWidthClass(16777216ULL), 2u);
         check("ecgEvictWidthClass(100M) -> wc3", (unsigned)ecgEvictWidthClass(100000000ULL), 3u);
+    }
+
+    // (8) Schedule-2 delivery layout shared by gem5 ecg.extract2 and Sniper
+    // SimMagic2: dest[0:32] | epoch1[32:48] | epoch2[48:64].
+    {
+        printf("  -- Schedule-2 dest32+epoch16+epoch16 layout --\n");
+        const uint32_t dest = 0x89ABCDEFu;
+        const uint16_t first = 0x1234u;
+        const uint16_t second = 0xFEDCu;
+        const uint64_t record =
+            ecg_epoch::packEpochPairRecord(dest, first, second);
+        check("K2 dest round-trip",
+              ecg_epoch::extractEpochPairDest(record), dest);
+        check("K2 epoch1 round-trip",
+              ecg_epoch::extractEpochPairFirst(record), first);
+        check("K2 epoch2 round-trip",
+              ecg_epoch::extractEpochPairSecond(record), second);
+        // ISA/magic-handler drift guard: these shifts are hand-coded in the
+        // gem5 RISC-V decoder and both simulator magic handlers.
+        check("K2 decoder drift: dest>>0",
+              record & 0xFFFFFFFFULL, dest);
+        check("K2 decoder drift: epoch1>>32",
+              (record >> 32) & 0xFFFFULL, first);
+        check("K2 decoder drift: epoch2>>48",
+              (record >> 48) & 0xFFFFULL, second);
     }
 
     printf("  RESULT: %d passed, %d failed\n", g_pass, g_fail);

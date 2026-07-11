@@ -4,6 +4,7 @@
 import importlib.util
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -13,6 +14,13 @@ setup_gem5 = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 sys.modules["setup_gem5"] = setup_gem5
 spec.loader.exec_module(setup_gem5)
+
+ROI_MATRIX_PATH = PROJECT_ROOT / "scripts/experiments/ecg/roi_matrix.py"
+roi_spec = importlib.util.spec_from_file_location("ecg_roi_matrix", ROI_MATRIX_PATH)
+roi_matrix = importlib.util.module_from_spec(roi_spec)
+assert roi_spec.loader is not None
+sys.modules["ecg_roi_matrix"] = roi_matrix
+roi_spec.loader.exec_module(roi_matrix)
 
 
 def read(path: str) -> str:
@@ -101,6 +109,71 @@ def test_gem5_graph_context_stores_decoded_ecg_extract_hint():
     assert "decodedEcgMetadataStorage" in text
     assert "setDecodedEcgExtractHint" in text
     assert "GRAPHBREW_ECG_EXTRACT_MASK_WORK_ID" in text
+
+
+def test_gem5_schedule2_delivery_is_pair_aware():
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    decoder = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa"
+    )
+    context = read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "graph_cache_context_gem5.hh"
+    )
+    policy = read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "ecg_rp.cc"
+    )
+    setup = read("scripts/setup_gem5.py")
+
+    assert "GEM5_ECG_EXTRACT2" in harness
+    assert "0x01: ecg_extract2" in decoder
+    assert "(packed >> 32) & 0xFFFF" in decoder
+    assert "(packed >> 48) & 0xFFFF" in decoder
+    assert "setDecodedEcgExtractHint2" in decoder
+    assert "lookupDecodedEcgHint2" in context
+    assert "isEcgEpochData" in context
+    assert "ecg_epoch2" in policy
+    assert "ecg_epoch_count" in policy
+    assert "epochPairDistance(" in policy
+    assert "GRAPHBREW_ECG_EXTRACT2_WORK_ID" in setup
+
+
+def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):
+    monkeypatch.delenv("ECG_VARIANT", raising=False)
+    monkeypatch.setenv("ECG_EDGE_MASK_SCHED", "2")
+    assert roi_matrix.effective_ecg_variant(
+        SimpleNamespace(benchmark="pr")) == "epoch_first"
+    assert roi_matrix.effective_ecg_variant(
+        SimpleNamespace(benchmark="bfs")) == "degree_first"
+
+    monkeypatch.setenv("ECG_VARIANT", "rrip_first")
+    assert roi_matrix.effective_ecg_variant(
+        SimpleNamespace(benchmark="pr")) == "rrip_first"
+
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    graph_se = read("bench/include/gem5_sim/configs/graphbrew/graph_se.py")
+    assert "Schedule-2 gem5 delivery is in-order only" in runner
+    assert 'args.gem5_cpu_type == "O3"' in runner
+    assert "Schedule-2 ecg.extract2 uses the in-order mailbox" in graph_se
+    assert "prefetcher none or STRIDE" in runner
+    assert "GEM5_ECG_EPOCH_REGION_INDEX" in graph_se
+    verifier = read("scripts/experiments/ecg/verify/ecg.py")
+    assert "required = set(range(32))" in verifier
+
+
+def test_gem5_k2_uses_configured_epoch_count_not_packed4_cap():
+    for path in ("bench/src_gem5/pr.cc", "bench/src_gem5/bfs.cc"):
+        text = read(path)
+        assert 'gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS"' in text
+        assert "ecg_sched_k != 2" in text
+        assert "requested_epoch_count" in text
+    pr = read("bench/src_gem5/pr.cc")
+    assert "Schedule-2 record ON" in pr
+    assert "buildInEdgeEpochPairRecords" in pr
+    cache_context = read("bench/include/cache_sim/graph_cache_context.h")
+    assert 'std::getenv("ECG_EDGE_MASK_PACK") && sched_k != 2' in cache_context
 
 
 def test_gem5_srrip_is_true_three_bit_srrip():

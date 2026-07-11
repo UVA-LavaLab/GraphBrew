@@ -43,14 +43,22 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     pvector<ScoreT> scores(g.num_nodes(), init_score, kPropAlign);
     pvector<ScoreT> outgoing_contrib(g.num_nodes(), ScoreT(0), kPropAlign);
 
+    const int ecg_sched_k =
+        gem5_env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    const uint32_t requested_epoch_count = static_cast<uint32_t>(
+        gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS", 65535, 2, 65535));
     uint8_t edge_id_bits = 1;
     while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
-    uint32_t edge_epoch_count = 2;
-    if (edge_id_bits < 32) {
-        uint32_t spare = 32u - edge_id_bits;
-        uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
-        if (ne_cap < 2) ne_cap = 2;
-        edge_epoch_count = std::min<uint32_t>(65535u, ne_cap);
+    uint32_t edge_epoch_count = requested_epoch_count;
+    if (ecg_sched_k != 2) {
+        if (edge_id_bits < 32) {
+            uint32_t spare = 32u - edge_id_bits;
+            uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
+            if (ne_cap < 2) ne_cap = 2;
+            edge_epoch_count = std::min<uint32_t>(edge_epoch_count, ne_cap);
+        } else {
+            edge_epoch_count = 2;
+        }
     }
 
     gem5_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
@@ -78,7 +86,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     constexpr int kNumVtxPerLine = 64 / sizeof(ScoreT);  // 16 floats per line
     constexpr int kNumEpochs = 256;
     int popt_num_cache_lines = (g.num_nodes() + kNumVtxPerLine - 1) / kNumVtxPerLine;
-    {
+    if (ecg_sched_k != 2) {
         makeOffsetMatrix(g, popt_matrix, kNumVtxPerLine, kNumEpochs);
         gem5_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
                                 kNumEpochs, g.num_nodes());
@@ -109,7 +117,8 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     else if (spare >= 6)  pfx_bits = spare - 4;
     // else: pfx_bits = 0
     
-    int hot_table_size = pfx_bits > 0 ? (1 << pfx_bits) : 0;
+    int hot_table_size =
+        (ecg_sched_k == 2) ? 0 : (pfx_bits > 0 ? (1 << pfx_bits) : 0);
     hot_table_size = min(hot_table_size, (int)g.num_nodes());
     constexpr int PREFETCH_WINDOW = 16;  // Dedup window
 
@@ -138,7 +147,8 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     
     // Build per-vertex prefetch index: for each vertex, what's its rank
     // in the hot table? This lets us quickly check if a neighbor is a hub.
-    vector<int> hub_rank(g.num_nodes(), -1);  // -1 = not a hub
+    vector<int> hub_rank;
+    if (hot_table_size > 0) hub_rank.assign(g.num_nodes(), -1);
     for (int i = 0; i < hot_table_size; i++)
         hub_rank[hot_table[i]] = i;
 
@@ -180,14 +190,27 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     // its next-ref epoch with the footprint of a single 4-byte CSR edge.
     vector<uint32_t> in_edge_packed_flat;
     vector<uint64_t> packed_off;
+    vector<uint64_t> in_edge_pair_flat;
+    vector<uint64_t> pair_off;
     uint32_t pack_id_bits = 1, pack_id_mask = 1;
     bool packed_ok = false;
+    bool pair_ok = false;
     bool ecg_extract_enabled = gem5_ecg_extract_enabled();
     // FUSED ecg.load: one custom-0 I-type op replaces demand-load + repack +
     // ecg.extract. Implies the extract delivery (so the mode-6 masks are built).
     bool ecg_load_enabled = gem5_ecg_load_enabled();
     if (ecg_load_enabled) ecg_extract_enabled = true;
     if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6) {
+        if (ecg_sched_k == 2) {
+            ecg_epoch::buildInEdgeEpochPairRecords(
+                g, kNumVtxPerLine, edge_epoch_count, true,
+                pair_off, in_edge_pair_flat);
+            pair_ok = true;
+            printf("[gem5 ECG mode 6] Schedule-2 record ON: "
+                   "ne=%u records=%llu (8-byte dest+epoch1+epoch2)\n",
+                   edge_epoch_count,
+                   (unsigned long long)in_edge_pair_flat.size());
+        } else {
         vector<uint8_t> avg_reref_by_line;
         ecg_mode6::computeAvgRerefByLine(popt_matrix.data(), popt_num_cache_lines,
                                          kNumEpochs, avg_reref_by_line);
@@ -279,6 +302,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                        pack_id_bits, epoch_bits);
             }
         }
+        }
     }
 
     for (NodeID n = 0; n < g.num_nodes(); n++)
@@ -300,7 +324,15 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         ecg_pfx_mode == 6 && packed_ok && pack_id_bits <= 24 &&
         !ecg_load_enabled && !gem5_ecg_pload_enabled() &&
         packed_stream_compatible;
-    if (packed_extract_only) {
+    const bool pair_extract_only =
+        ecg_extract_enabled && !ecg_prefetch_enabled &&
+        ecg_pfx_mode == 6 && pair_ok &&
+        !ecg_load_enabled && !gem5_ecg_pload_enabled() &&
+        packed_stream_compatible;
+    if (pair_extract_only) {
+        fprintf(stderr,
+                "[ECG_PACKED8_K2] PR Schedule-2 packed record path ACTIVE\n");
+    } else if (packed_extract_only) {
         fprintf(stderr,
                 "[ECG_PACKED4] PR eviction-only packed record fast path ACTIVE\n");
     }
@@ -310,6 +342,24 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             GEM5_SET_VERTEX(u);
             ScoreT incoming_total = 0;
+
+            if (pair_extract_only &&
+                static_cast<size_t>(u + 1) < pair_off.size()) {
+                const uint64_t begin = pair_off[u];
+                const uint64_t end = pair_off[u + 1];
+                for (uint64_t pos = begin; pos < end; ++pos) {
+                    const uint64_t rec = in_edge_pair_flat[pos];
+                    const NodeID v =
+                        static_cast<NodeID>(rec & 0xFFFFFFFFULL);
+                    GEM5_ECG_EXTRACT2(rec);
+                    incoming_total += outgoing_contrib[v];
+                }
+                const ScoreT old_score = scores[u];
+                scores[u] = base_score + kDamp * incoming_total;
+                error += fabs(scores[u] - old_score);
+                outgoing_contrib[u] = scores[u] / g.out_degree(u);
+                continue;
+            }
 
             if (packed_extract_only &&
                 static_cast<size_t>(u + 1) < packed_off.size()) {

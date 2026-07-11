@@ -691,6 +691,10 @@ def parse_ecg_log_stats(log_path: Path) -> dict[str, Any]:
 def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size: str,
                   effective_l3_ways: str, json_path: Path) -> dict[str, str]:
     env = dict(os.environ)
+    is_k2_ecg = spec.policy == "ECG" and spec.ecg_mode == "ECG_GRASP_POPT"
+    if not is_k2_ecg:
+        env.pop("ECG_EDGE_MASK_SCHED", None)
+        env.pop("ECG_K2_DELIVERY_TRACE", None)
     env.update({
         "CACHE_ULTRAFAST": "0",
         "CACHE_POLICY": spec.policy,
@@ -758,8 +762,31 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
     return env
 
 
+def requested_ecg_schedule_k() -> int:
+    raw = os.environ.get("ECG_EDGE_MASK_SCHED", "0") or "0"
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"ECG_EDGE_MASK_SCHED must be an integer, got {raw!r}") from exc
+
+
+def ecg_epoch_region(benchmark: str) -> str:
+    return {
+        "pr": "contrib", "bfs": "parent", "sssp": "dist",
+        "bc": "depth", "cc": "comp",
+    }.get(benchmark, "")
+
+
+def gem5_ecg_epoch_region_index(benchmark: str) -> int:
+    return 1 if benchmark in ("pr", "bc") else 0
+
+
 def effective_ecg_variant(args: argparse.Namespace) -> str:
-    requested = os.environ.get("ECG_VARIANT", "rrip_first")
+    requested = os.environ.get("ECG_VARIANT")
+    if requested is None:
+        schedule_k = requested_ecg_schedule_k()
+        requested = "adaptive" if schedule_k == 2 else "rrip_first"
     if requested != "adaptive":
         return requested
     benchmark = str(args.benchmark).lower()
@@ -913,6 +940,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
 
     gem5_ecg_delivery = ""
     env = dict(os.environ)
+    is_k2_ecg = spec.policy == "ECG" and spec.ecg_mode == "ECG_GRASP_POPT"
+    if not is_k2_ecg:
+        env.pop("ECG_EDGE_MASK_SCHED", None)
+        env.pop("ECG_K2_DELIVERY_TRACE", None)
     requested_ecg_load = os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"
     env.pop("GEM5_FORCE_ECG_LOAD", None)
     env.pop("GEM5_FORCE_ECG_PLOAD", None)
@@ -920,6 +951,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     env["GEM5_POPT_MATRIX"] = str(sidebands["popt_matrix"])
     env["GEM5_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["GEM5_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
+    epoch_region = ecg_epoch_region(args.benchmark)
+    if epoch_region:
+        env["GEM5_ECG_EPOCH_REGION_INDEX"] = str(
+            gem5_ecg_epoch_region_index(args.benchmark))
     if spec.ecg_mode == "ECG_GRASP_POPT":
         env.update({
             "GEM5_ECG_PFX_MODE": "6",
@@ -935,8 +970,29 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         )
         ecg_variant = effective_ecg_variant(args)
         env["ECG_VARIANT"] = ecg_variant
+        schedule_k = requested_ecg_schedule_k() if is_k2_ecg else 0
+        if schedule_k not in (0, 2):
+            raise RuntimeError(
+                "gem5 Schedule-K delivery currently supports only "
+                "ECG_EDGE_MASK_SCHED=2.")
+        if schedule_k == 2 and (
+                args.benchmark not in ("pr", "bfs")
+                or args.prefetcher not in ("none", "STRIDE")):
+            raise RuntimeError(
+                "gem5 Schedule-2 is implemented only for PR/BFS with "
+                "prefetcher none or STRIDE.")
         force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
-        if riscv_delivery and (ecg_variant != "grasp_only" or force_delivery):
+        if (schedule_k == 2 and args.benchmark in ("pr", "bfs")
+                and (ecg_variant != "grasp_only" or force_delivery)):
+            if args.gem5_cpu_type == "O3":
+                raise RuntimeError(
+                    "Schedule-2 gem5 delivery is in-order only: ecg.extract2 "
+                    "uses the serialized mailbox. O3 requires a request-bound "
+                    "epoch-pair extension, which is not implemented.")
+            env.pop("GEM5_FORCE_ECG_LOAD", None)
+            env.pop("GEM5_FORCE_ECG_PLOAD", None)
+            gem5_ecg_delivery = "packed8+k2+ecg.extract2"
+        elif riscv_delivery and (ecg_variant != "grasp_only" or force_delivery):
             if args.benchmark == "pr":
                 # PR already has a 4-byte packed edge-record path (dest+epoch)
                 # followed by register-only ecg.extract. Do NOT force the 8-byte
@@ -1245,6 +1301,10 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row["sniper_aslr_disabled"] = 1
 
     env = dict(os.environ)
+    is_k2_ecg = policy_name == "ecg" and spec.ecg_mode == "ECG_GRASP_POPT"
+    if not is_k2_ecg:
+        env.pop("ECG_EDGE_MASK_SCHED", None)
+        env.pop("ECG_K2_DELIVERY_TRACE", None)
     env["OMP_NUM_THREADS"] = str(args.sniper_cores)
     # Multi-core OpenMP under Sniper deadlocks with PASSIVE waits: idle threads
     # call futex_wait with no timeout, so when every core is sleeping at a barrier
@@ -1270,6 +1330,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     env["SNIPER_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["SNIPER_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
     env["SNIPER_GRAPHBREW_PREFETCHER"] = str(args.prefetcher)
+    epoch_region = ecg_epoch_region(args.benchmark)
+    if epoch_region:
+        env["SNIPER_ECG_EPOCH_REGION"] = epoch_region
+    env["SNIPER_ECG_VERTICES_PER_LINE"] = str(
+        max(1, int(args.line_size) // 4))
     # Level the simulated instruction stream across every policy while exposing
     # the real outer-vertex clock required by P-OPT/ECG. Without this, the
     # SNIPER_SET_VERTEX calls are no-ops and graph policies fall back to a
@@ -1288,6 +1353,21 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env["SNIPER_ECG_MODE"] = spec.ecg_mode
     ecg_variant = effective_ecg_variant(args)
     env["ECG_VARIANT"] = ecg_variant
+    schedule_k = requested_ecg_schedule_k() if is_k2_ecg else 0
+    if schedule_k not in (0, 2):
+        raise RuntimeError(
+            "Sniper Schedule-K delivery currently supports only "
+            "ECG_EDGE_MASK_SCHED=2.")
+    if schedule_k == 2 and (
+            args.benchmark not in ("pr", "bfs")
+            or args.prefetcher not in ("none", "STRIDE")):
+        raise RuntimeError(
+            "Sniper Schedule-2 is implemented only for PR/BFS with "
+            "prefetcher none or STRIDE.")
+    if schedule_k == 2 and args.sniper_workload != "sg_kernel":
+        raise RuntimeError(
+            "Sniper Schedule-2 requires --sniper-workload sg_kernel; "
+            "the smoke/full-wrapper workloads do not emit extract2 pairs.")
     force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
     if (spec.ecg_mode == "ECG_GRASP_POPT" and policy_name == "ecg"
             and (ecg_variant != "grasp_only" or force_delivery)):
@@ -1295,7 +1375,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         # per-edge epoch, not Sniper's stronger live findNextRef oracle.
         env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
         env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
-        row["sniper_ecg_delivery"] = "per-edge-extract"
+        row["sniper_ecg_delivery"] = (
+            "per-edge-extract2-k2" if schedule_k == 2
+            else "per-edge-extract")
     else:
         env.pop("SNIPER_ENABLE_ECG_EXTRACT", None)
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_sniper, log_path, args.dry_run)

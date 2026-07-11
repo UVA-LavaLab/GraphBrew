@@ -138,8 +138,9 @@ void export_popt_for_graph(const GraphType& graph) {
 int run_pr(const Graph& graph, int max_iters) {
     const ScoreT init_score = graph.num_nodes() > 0 ? 1.0f / graph.num_nodes() : 0.0f;
     const ScoreT base_score = graph.num_nodes() > 0 ? (1.0f - kDamp) / graph.num_nodes() : 0.0f;
-    pvector<ScoreT> scores(graph.num_nodes(), init_score);
-    pvector<ScoreT> contrib(graph.num_nodes(), 0.0f);
+    constexpr size_t kPropAlign = 64;
+    pvector<ScoreT> scores(graph.num_nodes(), init_score, kPropAlign);
+    pvector<ScoreT> contrib(graph.num_nodes(), 0.0f, kPropAlign);
 
     for (NodeID node = 0; node < graph.num_nodes(); ++node) {
         int64_t degree = graph.out_degree(node);
@@ -158,16 +159,20 @@ int run_pr(const Graph& graph, int max_iters) {
     int num_edge_regions = sniper_make_edge_regions(graph, edge_regions, 2, true);
     sniper_export_context(regions, 2, graph, nullptr, edge_regions, num_edge_regions);
 
-    // Build POPT matrix inline (was export_popt_for_graph helper) so we
-    // can reuse the matrix to derive the per-edge mode 6 mask.
+    const int ecg_sched_k =
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    // Build POPT matrix inline for legacy single-epoch/POPT runs. K2 is
+    // matrix-free and retains only its packed 8-byte record stream.
     constexpr int kNumEpochs = 256;
     const int num_vtx_per_line = std::max<int>(1, 64 / static_cast<int>(sizeof(ScoreT)));
     pvector<uint8_t> popt_matrix;
-    makeOffsetMatrix(graph, popt_matrix, num_vtx_per_line, kNumEpochs);
     const int popt_num_cache_lines =
         (graph.num_nodes() + num_vtx_per_line - 1) / num_vtx_per_line;
-    sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
-                              kNumEpochs, graph.num_nodes());
+    if (ecg_sched_k != 2) {
+        makeOffsetMatrix(graph, popt_matrix, num_vtx_per_line, kNumEpochs);
+        sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
+                                  kNumEpochs, graph.num_nodes());
+    }
 
     // Per-edge next-reference epoch delivery for ECG_GRASP_POPT. PR pulls
     // IN-edges reading contrib[neighbor], so each entry in node's in-neighbour
@@ -181,13 +186,18 @@ int run_pr(const Graph& graph, int max_iters) {
     std::vector<std::vector<uint16_t>> in_edge_epochs_by_src;
     std::vector<uint64_t> epoch_packed_off;
     std::vector<uint32_t> epoch_packed_flat;
+    std::vector<uint64_t> epoch_pair_off;
+    std::vector<uint64_t> epoch_pair_flat;
     uint32_t epoch_pack_id_bits = 1;
     uint32_t epoch_pack_id_mask = 1;
     bool epoch_packed_ok = false;
+    bool epoch_pair_ok = false;
     if (ecg_extract_on) {
-        ecg_epoch::buildInEdgeEpochs(
-            graph, num_vtx_per_line, ecg_epoch_count,
-            /*linemin=*/true, in_edge_epochs_by_src);
+        if (ecg_sched_k != 2) {
+            ecg_epoch::buildInEdgeEpochs(
+                graph, num_vtx_per_line, ecg_epoch_count,
+                /*linemin=*/true, in_edge_epochs_by_src);
+        }
 
         const uint32_t nn = static_cast<uint32_t>(graph.num_nodes());
         while (epoch_pack_id_bits < 31 &&
@@ -197,7 +207,7 @@ int run_pr(const Graph& graph, int max_iters) {
         while (epoch_bits < 16 &&
                (uint32_t{1} << epoch_bits) < ecg_epoch_count)
             ++epoch_bits;
-        if (epoch_pack_id_bits + epoch_bits <= 32) {
+        if (ecg_sched_k != 2 && epoch_pack_id_bits + epoch_bits <= 32) {
             epoch_pack_id_mask = (uint32_t{1} << epoch_pack_id_bits) - 1;
             epoch_packed_off.assign(static_cast<size_t>(nn) + 1, 0);
             for (uint32_t u = 0; u < nn; ++u)
@@ -220,6 +230,12 @@ int run_pr(const Graph& graph, int max_iters) {
             }
             epoch_packed_ok = true;
         }
+        if (ecg_sched_k == 2) {
+            ecg_epoch::buildInEdgeEpochPairRecords(
+                graph, num_vtx_per_line, ecg_epoch_count,
+                /*linemin=*/true, epoch_pair_off, epoch_pair_flat);
+            epoch_pair_ok = true;
+        }
 
         const char* debug = std::getenv("ECG_DEBUG");
         if (debug && debug[0] && std::string(debug) != "0") {
@@ -227,12 +243,23 @@ int run_pr(const Graph& graph, int max_iters) {
             uint64_t nonzero = 0;
             uint16_t min_epoch = std::numeric_limits<uint16_t>::max();
             uint16_t max_epoch = 0;
-            for (const auto& epochs : in_edge_epochs_by_src) {
-                for (uint16_t epoch : epochs) {
-                    ++total;
-                    if (epoch != 0) ++nonzero;
-                    min_epoch = std::min(min_epoch, epoch);
-                    max_epoch = std::max(max_epoch, epoch);
+            if (epoch_pair_ok) {
+                total = epoch_pair_flat.size();
+                for (uint64_t record : epoch_pair_flat) {
+                    uint16_t first = ecg_epoch::extractEpochPairFirst(record);
+                    uint16_t second = ecg_epoch::extractEpochPairSecond(record);
+                    if (first != 0 || second != 0) ++nonzero;
+                    min_epoch = std::min(min_epoch, std::min(first, second));
+                    max_epoch = std::max(max_epoch, std::max(first, second));
+                }
+            } else {
+                for (const auto& epochs : in_edge_epochs_by_src) {
+                    for (uint16_t epoch : epochs) {
+                        ++total;
+                        if (epoch != 0) ++nonzero;
+                        min_epoch = std::min(min_epoch, epoch);
+                        max_epoch = std::max(max_epoch, epoch);
+                    }
                 }
             }
             if (epoch_packed_ok) {
@@ -361,6 +388,27 @@ int run_pr(const Graph& graph, int max_iters) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
             ScoreT incoming_total = 0.0f;
+
+            if (epoch_pair_ok && !ecg_enabled && packed_stream_compatible &&
+                static_cast<size_t>(node + 1) < epoch_pair_off.size()) {
+                const uint64_t begin = epoch_pair_off[node];
+                const uint64_t end = epoch_pair_off[node + 1];
+                for (uint64_t pos = begin; pos < end; ++pos) {
+                    const uint64_t rec = epoch_pair_flat[pos];
+                    const NodeID neighbor =
+                        static_cast<NodeID>(ecg_epoch::extractEpochPairDest(rec));
+                    const uint16_t first =
+                        ecg_epoch::extractEpochPairFirst(rec);
+                    const uint16_t second =
+                        ecg_epoch::extractEpochPairSecond(rec);
+                    SNIPER_ECG_EXTRACT2(neighbor, first, second);
+                    incoming_total += contrib[neighbor];
+                }
+                scores[node] = base_score + kDamp * incoming_total;
+                const int64_t degree = graph.out_degree(node);
+                contrib[node] = degree > 0 ? scores[node] / degree : 0.0f;
+                continue;
+            }
 
             if (epoch_packed_ok && !ecg_enabled && packed_stream_compatible &&
                 static_cast<size_t>(node + 1) < epoch_packed_off.size()) {
@@ -530,7 +578,8 @@ int run_pr(const Graph& graph, int max_iters) {
 
 int run_bfs(const Graph& graph, NodeID source) {
     if (source < 0 || source >= graph.num_nodes()) source = 0;
-    pvector<NodeID> parent(graph.num_nodes(), -1);
+    constexpr size_t kPropAlign = 64;
+    pvector<NodeID> parent(graph.num_nodes(), -1, kPropAlign);
     parent[source] = source;
 
     SniperPropertyRegion regions[1] = {
@@ -541,7 +590,10 @@ int run_bfs(const Graph& graph, NodeID source) {
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(graph, edge_regions, 2);
     sniper_export_context(regions, 1, graph, nullptr, edge_regions, num_edge_regions);
-    export_popt_for_graph<Graph, NodeID>(graph);
+    const int bfs_sched_k =
+        graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    if (bfs_sched_k != 2)
+        export_popt_for_graph<Graph, NodeID>(graph);
 
     // SNIPER_ECG_EXTRACT (delivery-faithful, mirrors gem5 ecg.load EVICT): deliver each
     // demand edge's next-ref epoch so ECG_GRASP_POPT ranks parent[] by a delivered epoch
@@ -559,16 +611,29 @@ int run_bfs(const Graph& graph, NodeID source) {
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", 256, 2, 65535));
     std::vector<std::vector<uint16_t>> out_edge_epochs;
     if (ecg_extract_on) {
-        ecg_epoch::buildInEdgeEpochs(graph, kNumVtxPerLine, ecg_epoch_count,
-                                     /*linemin=*/true, out_edge_epochs,
-                                     /*push_out_edges=*/true);
+        if (bfs_sched_k != 2) {
+            ecg_epoch::buildInEdgeEpochs(
+                graph, kNumVtxPerLine, ecg_epoch_count,
+                /*linemin=*/true, out_edge_epochs,
+                /*push_out_edges=*/true);
+        }
+    }
+    std::vector<uint64_t> bfs_pair_off;
+    std::vector<uint64_t> bfs_pair_flat;
+    bool bfs_pair_ok = false;
+    if (ecg_extract_on && bfs_sched_k == 2) {
+        ecg_epoch::buildInEdgeEpochPairRecords(
+            graph, kNumVtxPerLine, ecg_epoch_count,
+            /*linemin=*/true, bfs_pair_off, bfs_pair_flat,
+            /*push_out_edges=*/true);
+        bfs_pair_ok = true;
     }
     std::vector<uint64_t> bfs_packed_off;
     std::vector<uint32_t> bfs_packed_flat;
     uint32_t bfs_pack_id_bits = 1;
     uint32_t bfs_pack_id_mask = 1;
     bool bfs_packed_ok = false;
-    if (ecg_extract_on) {
+    if (ecg_extract_on && bfs_sched_k != 2) {
         const uint32_t nn = static_cast<uint32_t>(graph.num_nodes());
         while (bfs_pack_id_bits < 31 &&
                (uint64_t{1} << bfs_pack_id_bits) < nn)
@@ -620,6 +685,27 @@ int run_bfs(const Graph& graph, NodeID source) {
         // prefetcher can warm parent[next_node]. Env-gated (SNIPER_ENABLE_ECG_PFX_HINTS).
         if (!frontier.empty()) {
             SNIPER_ECG_PFX_TARGET(frontier.front());
+        }
+        if (bfs_pair_ok && !graphbrew_sniper::ecg_pfx_hints_enabled() &&
+            packed_stream_compatible &&
+            static_cast<size_t>(node + 1) < bfs_pair_off.size()) {
+            const uint64_t begin = bfs_pair_off[node];
+            const uint64_t end = bfs_pair_off[node + 1];
+            for (uint64_t pos = begin; pos < end; ++pos) {
+                const uint64_t rec = bfs_pair_flat[pos];
+                const NodeID neighbor =
+                    static_cast<NodeID>(ecg_epoch::extractEpochPairDest(rec));
+                const uint16_t first =
+                    ecg_epoch::extractEpochPairFirst(rec);
+                const uint16_t second =
+                    ecg_epoch::extractEpochPairSecond(rec);
+                SNIPER_ECG_EXTRACT2(neighbor, first, second);
+                if (parent[neighbor] == -1) {
+                    parent[neighbor] = node;
+                    frontier.push(neighbor);
+                }
+            }
+            continue;
         }
         if (bfs_packed_ok && !graphbrew_sniper::ecg_pfx_hints_enabled() &&
             packed_stream_compatible &&

@@ -76,6 +76,7 @@ static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
 static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
 static constexpr uint64_t GRAPHBREW_ECG_EXTRACT_MASK_WORK_ID = 0x4745584DULL;
+static constexpr uint64_t GRAPHBREW_ECG_EXTRACT2_WORK_ID = 0x47455832ULL;
 // Path A (epoch-filtered DROPLET lookahead): a dedicated hint work-id that
 // carries (target | epoch<<32) so the prefetched line can recover its
 // candidate epoch at fill — distinct from the fat-mask work-id above (no
@@ -230,6 +231,16 @@ inline std::atomic<uint16_t>& decodedEcgEpochStorage() {
     return epoch;
 }
 
+inline std::atomic<uint16_t>& decodedEcgEpoch2Storage() {
+    static std::atomic<uint16_t> epoch{0};
+    return epoch;
+}
+
+inline std::atomic<uint8_t>& decodedEcgEpochCountStorage() {
+    static std::atomic<uint8_t> count{0};
+    return count;
+}
+
 inline void setDecodedEcgExtractHint(uint32_t real_vertex,
                                      uint8_t dbg_hint,
                                      uint8_t popt_hint,
@@ -239,8 +250,33 @@ inline void setDecodedEcgExtractHint(uint32_t real_vertex,
         | (static_cast<uint32_t>(popt_hint) << 8)
         | (static_cast<uint32_t>(pfx_hint) << 16);
     decodedEcgEpochStorage().store(epoch_hint, std::memory_order_release);
+    decodedEcgEpoch2Storage().store(epoch_hint, std::memory_order_release);
+    decodedEcgEpochCountStorage().store(1, std::memory_order_release);
     decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
     decodedEcgMetadataStorage().store(metadata, std::memory_order_release);
+    decodedEcgHintValidStorage().store(true, std::memory_order_release);
+}
+
+inline void setDecodedEcgExtractHint2(
+        uint32_t real_vertex, uint16_t first, uint16_t second) {
+    static std::atomic<uint64_t> trace_sequence{0};
+    static const uint64_t trace_limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10)) : 0;
+    }();
+    const uint64_t sequence =
+        trace_sequence.fetch_add(1, std::memory_order_relaxed);
+    if (sequence < trace_limit) {
+        std::fprintf(stderr,
+            "[ECG-K2-RECV sim=gem5 seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            (unsigned long long)sequence, real_vertex,
+            static_cast<unsigned>(first), static_cast<unsigned>(second));
+    }
+    decodedEcgEpochStorage().store(first, std::memory_order_release);
+    decodedEcgEpoch2Storage().store(second, std::memory_order_release);
+    decodedEcgEpochCountStorage().store(2, std::memory_order_release);
+    decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
+    decodedEcgMetadataStorage().store(0, std::memory_order_release);
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
 }
 
@@ -265,6 +301,18 @@ inline bool lookupDecodedEcgHint(uint32_t vertex,
     popt_out = static_cast<uint8_t>((md >> 8) & 0xFF);
     epoch_out = decodedEcgEpochStorage().load(std::memory_order_acquire);
     return true;
+}
+
+inline bool lookupDecodedEcgHint2(
+        uint32_t vertex, uint16_t& first, uint16_t& second, uint8_t& count) {
+    if (!decodedEcgHintValidStorage().load(std::memory_order_acquire))
+        return false;
+    if (decodedEcgRealVertexStorage().load(std::memory_order_acquire) != vertex)
+        return false;
+    first = decodedEcgEpochStorage().load(std::memory_order_acquire);
+    second = decodedEcgEpoch2Storage().load(std::memory_order_acquire);
+    count = decodedEcgEpochCountStorage().load(std::memory_order_acquire);
+    return count > 0;
 }
 
 // === S69PRE-M1-MASK: Per-vertex ECG metadata table ===
@@ -592,6 +640,18 @@ struct GraphCacheContext {
             if (regions[i].contains(addr)) return true;
         }
         return false;
+    }
+
+    bool isEcgEpochData(uint64_t addr) const {
+        const char* requested = std::getenv("GEM5_ECG_EPOCH_REGION_INDEX");
+        if (requested && requested[0]) {
+            int index = std::atoi(requested);
+            return index >= 0 && static_cast<uint32_t>(index) < num_regions &&
+                   regions[index].contains(addr);
+        }
+        if (num_regions == 1) return regions[0].contains(addr);
+        // PR registers scores first and governed contrib second.
+        return num_regions > 1 && regions[1].contains(addr);
     }
 
     uint32_t classifyBucket(uint64_t addr) const {

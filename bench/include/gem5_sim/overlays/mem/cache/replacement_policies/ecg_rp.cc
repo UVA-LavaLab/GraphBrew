@@ -103,6 +103,8 @@ GraphEcgRP::invalidate(
     data->ecg_dbg_tier = 0;
     data->ecg_popt_hint = 0;
     data->ecg_epoch = 0;
+    data->ecg_epoch2 = 0;
+    data->ecg_epoch_count = 0;
     data->ecg_epoch_valid = false;
     data->is_property_data = false;
     data->line_addr = 0;
@@ -135,17 +137,23 @@ GraphEcgRP::touch(
                     break;
                 }
             }
-            if (vertex != UINT32_MAX) {
+            if (vertex != UINT32_MAX &&
+                (ecgMode != graph::ECGMode::ECG_GRASP_POPT ||
+                 ctx.isEcgEpochData(addr))) {
                 uint8_t isa_dbg = 0, isa_popt = 0;
                 uint16_t isa_epoch = data->ecg_epoch;
-                if (graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt,
-                                                isa_epoch)) {
+                uint16_t isa_epoch2 = data->ecg_epoch2;
+                uint8_t isa_count = data->ecg_epoch_count;
+                if (graph::lookupDecodedEcgHint2(
+                        vertex, isa_epoch, isa_epoch2, isa_count)) {
                     // ECG_GRASP_POPT's EVICT format carries no DBG field.
                     // Preserve the address-derived GRASP tier for degree_first.
                     if (ecgMode != graph::ECGMode::ECG_GRASP_POPT)
                         data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;
                     data->ecg_epoch = isa_epoch;
+                    data->ecg_epoch2 = isa_epoch2;
+                    data->ecg_epoch_count = isa_count;
                     data->ecg_epoch_valid = true;
                 }
             }
@@ -219,6 +227,8 @@ GraphEcgRP::reset(
 
         data->ecg_popt_hint = 0;
         data->ecg_epoch = 0;
+        data->ecg_epoch2 = 0;
+        data->ecg_epoch_count = 0;
         data->ecg_epoch_valid = false;
             if (data->is_property_data && ctx.rereference.enabled &&
             ecgMode != graph::ECGMode::ECG_GRASP_POPT) {
@@ -245,15 +255,23 @@ GraphEcgRP::reset(
                     break;
                 }
             }
-            if (vertex != UINT32_MAX) {
+            if (vertex != UINT32_MAX &&
+                (ecgMode != graph::ECGMode::ECG_GRASP_POPT ||
+                 ctx.isEcgEpochData(addr))) {
                 uint8_t isa_dbg = 0, isa_popt = 0;
                 uint16_t isa_epoch = 0;
+                uint16_t isa_epoch2 = 0;
+                uint8_t isa_count = 0;
                 uint32_t isa_dest = 0;
                 // OoO request-sideband FIRST (race-free; an O3 ecg.load attaches the
                 // epoch to the demand request). Falls back to the in-order single-slot
                 // mailbox / per-vertex table, which is equivalent for serialized loads.
                 bool got = graph::readEcgEpoch(pkt->req, isa_epoch, isa_dbg,
                                                isa_popt, isa_dest);
+                if (got) {
+                    isa_epoch2 = isa_epoch;
+                    isa_count = 1;
+                }
                 if (got && reg_elem > 0) {
                     // Dest-guard: accept the sideband epoch only if the ecg.load's dest
                     // maps to the SAME cache line as this fill (defends against MSHR
@@ -264,9 +282,17 @@ GraphEcgRP::reset(
                     if (dest_line != (addr & ~uint64_t(63))) got = false;
                 }
                 if (!got) {
-                    got = (ecgMode == graph::ECGMode::ECG_GRASP_POPT)
-                        ? graph::lookupDecodedEcgHint(vertex, isa_dbg, isa_popt, isa_epoch)
-                        : graph::lookupEcgMetadataByVertex(vertex, isa_dbg, isa_popt, isa_epoch);
+                    if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
+                        got = graph::lookupDecodedEcgHint2(
+                            vertex, isa_epoch, isa_epoch2, isa_count);
+                    } else {
+                        got = graph::lookupEcgMetadataByVertex(
+                            vertex, isa_dbg, isa_popt, isa_epoch);
+                        if (got) {
+                            isa_epoch2 = isa_epoch;
+                            isa_count = 1;
+                        }
+                    }
                 }
                 if (got) {
                     // Use ISA-delivered metadata directly.
@@ -274,6 +300,8 @@ GraphEcgRP::reset(
                         data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;  // 7-bit POPT quant
                     data->ecg_epoch = isa_epoch;
+                    data->ecg_epoch2 = isa_epoch2;
+                    data->ecg_epoch_count = isa_count;
                     data->ecg_epoch_valid = true;
                 } else if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
                     // Path A: this is a prefetch FILL (the in-order demand
@@ -283,6 +311,8 @@ GraphEcgRP::reset(
                     uint16_t pf_epoch = 0;
                     if (graph::consumePendingPrefetchEpoch(vertex, pf_epoch)) {
                         data->ecg_epoch = pf_epoch;
+                        data->ecg_epoch2 = pf_epoch;
+                        data->ecg_epoch_count = 1;
                         data->ecg_epoch_valid = true;
                     }
                 }
@@ -341,6 +371,8 @@ GraphEcgRP::reset(
         data->ecg_dbg_tier = numBuckets - 1;
         data->ecg_popt_hint = 0;
         data->ecg_epoch = 0;
+        data->ecg_epoch2 = 0;
+        data->ecg_epoch_count = 0;
         data->ecg_epoch_valid = false;
             data->is_property_data = false;
         data->line_addr = 0;
@@ -356,6 +388,8 @@ GraphEcgRP::reset(
     data->ecg_dbg_tier = numBuckets - 1;
     data->ecg_popt_hint = 0;
     data->ecg_epoch = 0;
+    data->ecg_epoch2 = 0;
+    data->ecg_epoch_count = 0;
     data->ecg_epoch_valid = false;
 }
 
@@ -408,7 +442,12 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
             (static_cast<uint64_t>(ctx.currentVertexForPopt()) * ne) / n);
         if (curEpoch >= ne) curEpoch = ne - 1;
         auto isProp  = [&](ReplaceableEntry* c){ return ctx.isPropertyData(getData(c)->line_addr); };
-        auto dist    = [&](ReplaceableEntry* c){ uint32_t e=getData(c)->ecg_epoch; if(e>=ne)e=ne-1; return (e+ne-curEpoch)%ne; };
+        auto dist    = [&](ReplaceableEntry* c){
+            auto data = getData(c);
+            return ecg_policy::epochPairDistance(
+                data->ecg_epoch, data->ecg_epoch2,
+                data->ecg_epoch_count, curEpoch, ne);
+        };
         auto stamped = [&](ReplaceableEntry* c){ return isProp(c) && getData(c)->ecg_epoch_valid; };
         // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
         // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
@@ -436,6 +475,8 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
                               << " stamped=" << (int)(stamped(candidates[i]) ? 1 : 0)
                               << " dbg=" << (int)dd->ecg_dbg_tier
                               << " last=" << dd->lastTouchTick
+                              << " epoch2=" << dd->ecg_epoch2
+                              << " sched_n=" << (int)dd->ecg_epoch_count
                               << ((int)i==vidx ? "   <== VICTIM" : "") << "\n";
                 }
                 std::cerr << "   -> victim=way" << vidx << " reason=" << reason << "\n";

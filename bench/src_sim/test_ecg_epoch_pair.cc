@@ -1,4 +1,5 @@
 #include "ecg_epoch_builder.h"
+#include "ecg_victim_policy.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -29,10 +30,14 @@ static bool checkDirection(const TinyGraph& graph, bool push)
 {
     std::vector<std::vector<uint16_t>> single;
     std::vector<std::vector<ecg_epoch::EpochPair>> pairs;
+    std::vector<uint64_t> record_off;
+    std::vector<uint64_t> records;
     ecg_epoch::buildInEdgeEpochs(
         graph, 2, 32, true, single, push);
     ecg_epoch::buildInEdgeEpochPairs(
         graph, 2, 32, true, pairs, push);
+    ecg_epoch::buildInEdgeEpochPairRecords(
+        graph, 2, 32, true, record_off, records, push);
 
     if (single.size() != pairs.size()) return false;
     for (size_t src = 0; src < single.size(); ++src) {
@@ -40,6 +45,12 @@ static bool checkDirection(const TinyGraph& graph, bool push)
         for (size_t edge = 0; edge < single[src].size(); ++edge) {
             if (!pairs[src][edge].valid) return false;
             if (pairs[src][edge].first != single[src][edge]) return false;
+            const uint64_t record = records[record_off[src] + edge];
+            if (ecg_epoch::extractEpochPairFirst(record) !=
+                    pairs[src][edge].first ||
+                ecg_epoch::extractEpochPairSecond(record) !=
+                    pairs[src][edge].second)
+                return false;
         }
     }
     if (push) {
@@ -51,6 +62,21 @@ static bool checkDirection(const TinyGraph& graph, bool push)
             return false;
     }
     return true;
+}
+
+static bool checkSingleReaderWrap()
+{
+    TinyGraph graph(16);
+    graph.addEdge(1, 0);
+    graph.addEdge(4, 1);
+    graph.addEdge(12, 2);
+
+    std::vector<std::vector<ecg_epoch::EpochPair>> pairs;
+    ecg_epoch::buildInEdgeEpochPairs(
+        graph, 16, 16, true, pairs, true);
+    return pairs.size() > 12 && pairs[12].size() == 1 &&
+           pairs[12][0].first == 1 &&
+           pairs[12][0].second == 4;
 }
 
 int main()
@@ -69,8 +95,25 @@ int main()
 
     const bool pull_ok = checkDirection(graph, false);
     const bool push_ok = checkDirection(graph, true);
-    std::printf("[test_ecg_epoch_pair] pull=%s push=%s\n",
+    const bool single_reader_ok = checkSingleReaderWrap();
+    const uint64_t record =
+        ecg_epoch::packEpochPairRecord(0x89ABCDEFu, 26, 0);
+    const bool wire_ok =
+        ecg_epoch::extractEpochPairDest(record) == 0x89ABCDEFu &&
+        ecg_epoch::extractEpochPairFirst(record) == 26 &&
+        ecg_epoch::extractEpochPairSecond(record) == 0;
+    const bool distance_ok =
+        ecg_policy::epochPairDistance(26, 0, 1, 27, 32) == 31 &&
+        ecg_policy::epochPairDistance(26, 0, 2, 27, 32) == 5 &&
+        ecg_policy::epochPairDistance(65, 130, 2, 0, 65535) == 65;
+    std::printf(
+        "[test_ecg_epoch_pair] pull=%s push=%s single-reader=%s "
+        "wire=%s distance=%s\n",
                 pull_ok ? "OK" : "FAIL",
-                push_ok ? "OK" : "FAIL");
-    return pull_ok && push_ok ? 0 : 1;
+                push_ok ? "OK" : "FAIL",
+                single_reader_ok ? "OK" : "FAIL",
+                wire_ok ? "OK" : "FAIL",
+                distance_ok ? "OK" : "FAIL");
+    return pull_ok && push_ok && single_reader_ok && wire_ok && distance_ok
+        ? 0 : 1;
 }

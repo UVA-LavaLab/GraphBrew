@@ -35,7 +35,8 @@ class CacheSetECG : public CacheSet
       // SNIPER_ECG_EXTRACT: a property cache line holds blocksize/elem_size
       // vertices; the kernel records the epoch under the DEMANDED vertex, so scan
       // the line's vertices for a delivered epoch (linemin => all agree).
-      bool lookupLineEcgEpoch(IntPtr line_addr, UInt16& epoch) const;
+      bool lookupLineEcgEpochPair(IntPtr line_addr,
+            UInt16& first, UInt16& second, UInt8& count) const;
 
       const String m_cfgname;
       const core_id_t m_core_id;
@@ -50,6 +51,8 @@ class CacheSetECG : public CacheSet
       IntPtr* m_line_addrs;
       bool* m_property_lines;
       UInt16* m_ecg_epoch;        // SNIPER_ECG_EXTRACT delivered next-ref epoch
+      UInt16* m_ecg_epoch2;       // Schedule-2 second next-ref epoch
+      UInt8* m_ecg_epoch_count;   // 0=unstamped, 1=single, 2=pair
       bool* m_ecg_epoch_valid;    // epoch delivered for this line (0 is valid)
       UInt64* m_last_touch;        // true recency, smaller == older (cache_sim/gem5 parity)
       UInt64 m_access_tick;

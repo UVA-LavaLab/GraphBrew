@@ -4,8 +4,8 @@ This page is the reproducible artifact for the ECG L3 replacement study: how to
 run the policy comparison, verify each policy is implemented correctly, and the
 headline result. Everything here is regenerable from two scripts.
 
-- Run the matrix: `scripts/experiments/ecg/ecg_variant_matrix.py`
-- Verify correctness: `scripts/experiments/ecg/verify_ecg.py`
+- Run the matrix: `scripts/experiments/ecg/flows/eviction_matrix.py`
+- Verify correctness: `scripts/experiments/ecg/verify/ecg.py`
 
 ## The policy set
 
@@ -92,7 +92,8 @@ across backends (a SSOT test asserts the co-located copies are byte-identical),
 and one unit test of that function verifies the eviction choice for all three.
 Each simulator keeps only a thin adapter that builds the per-way state from its
 native cache lines (epoch via memory-resident mask for cache_sim/gem5, via
-`findNextRef` for Sniper); the adapter is covered by that backend's live trace.
+delivered per-edge epochs for Sniper); the adapter is covered by that backend's
+live trace.
 
 | Simulator | ECG_GRASP_POPT + ECG_VARIANT | Epoch source | Status |
 |-----------|------------------------------|--------------|--------|
@@ -107,6 +108,25 @@ policy (leveling the stream), refreshes epoch metadata only on fill or an actual
 L3 hit, and propagates the requesting core through the shared NUCA so multicore
 evictions use the correct core's clock. Real-graph Sniper runs remain guarded by
 `--allow-sniper-sg-kernel-workload` and `--sniper-memory-limit-gb`.
+
+### Schedule-2 / adaptive PR+BFS equivalence
+
+Schedule-2 is now live in all three simulators. The shared record is
+`dest[0:32] | epoch1[32:48] | epoch2[48:64]`; each adapter stores both epochs and
+uses the shared `epochPairDistance=min(d1,d2)`. PR uses `epoch_first`; BFS uses
+`degree_first`.
+
+```bash
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --sniper --kernels pr bfs --schedule-k 2
+```
+
+The gate requires non-identical pairs, zero distance mismatches, and exact victim
+compliance. PR and BFS pass on cache_sim, gem5, and Sniper. StreamShield record
+bypass is still cache_sim-only, so this certifies K2/adaptive **decision
+equivalence**, not the final demand-traffic advantage. gem5 O3 is explicitly
+rejected for K2 until the epoch pair can ride the specific demand request rather
+than the in-order mailbox.
 
 ## ECG ISA: one instruction, mode-controlled caching
 
@@ -174,12 +194,12 @@ forcing the width wrong mis-decodes (so `ECG_WIDTH` is load-bearing).
 make sim-pr
 
 # 2. run the full factorial matrix (rows=graphs, cols=variants), both orders
-python3 scripts/experiments/ecg/ecg_variant_matrix.py --suite cache-sim \
+python3 scripts/experiments/ecg/flows/eviction_matrix.py --suite cache-sim \
     --cells "web-Google:512kB cit-Patents:1MB soc-pokec:1MB com-orkut:2MB roadNet-CA:512kB" \
     --orders "0 5" --out /tmp/ecg_matrix.md
 
 # 3. same framework on gem5 (RISC-V backend; rrip_first is the gem5 default)
-python3 scripts/experiments/ecg/ecg_variant_matrix.py --suite gem5 \
+python3 scripts/experiments/ecg/flows/eviction_matrix.py --suite gem5 \
     --cells "email-Eu-core:16kB" --orders "5"
 ```
 
@@ -214,9 +234,9 @@ line-by-line mirror of the strictly-verified cache_sim block. Sniper runs layer 
 
 ```bash
 make sim-pr
-python3 scripts/experiments/ecg/verify_ecg.py            # synthetic + cache_sim live + epoch-coverage
-python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 live + gem5 epoch-coverage
-python3 scripts/experiments/ecg/verify_ecg.py --sniper   # + Sniper live (guarded, prlimit)
+python3 scripts/experiments/ecg/verify/ecg.py            # synthetic + cache_sim live + epoch-coverage
+python3 scripts/experiments/ecg/verify/ecg.py --gem5     # + gem5 live + gem5 epoch-coverage
+python3 scripts/experiments/ecg/verify/ecg.py --sniper   # + Sniper live (guarded, prlimit)
 # expected: each policy "N/N evictions obey spec [OK]" → "ALL POLICIES VERIFIED ✓"
 ```
 

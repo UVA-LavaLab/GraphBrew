@@ -49,6 +49,7 @@
 #endif
 
 #include "../ecg_mode6_builder.h"
+#include "../ecg_epoch_builder.h"
 #include "../ecg_victim_policy.h"
 
 namespace cache_sim {
@@ -1419,6 +1420,7 @@ struct GraphCacheContext {
     // masks. See docs/findings/ecg_mask_direction_and_metadata.md.
     std::vector<std::vector<uint64_t>> out_edge_masks_by_src;
     std::vector<std::vector<uint16_t>> out_edge_epoch_by_src;
+    std::vector<std::vector<uint16_t>> out_edge_epoch_sched_by_src;
     // IN-adjacency (sorted) used as the next-ref source for OUT-edge epochs —
     // separate from exact_off/exact_nbr (which hold the OUT-adjacency for in-edge
     // masks) so the two directions never clobber each other.
@@ -2280,6 +2282,40 @@ struct GraphCacheContext {
     //   [24:26] DBG tier (2 bits)
     //   [26:33] POPT quant (7 bits)
     //   [33:64] prefetch target (31 bits)
+    inline uint32_t configuredEpochScheduleK() const {
+        const char* value = std::getenv("ECG_EDGE_MASK_SCHED");
+        if (!value) return 0;
+        int parsed = std::atoi(value);
+        if (parsed <= 0) return 0;
+        return parsed > 4 ? 4u : static_cast<uint32_t>(parsed);
+    }
+
+    inline uint32_t configuredEdgeEpochCount() const {
+        const char* value = std::getenv("ECG_EDGE_MASK_EPOCHS");
+        uint32_t count = value ? static_cast<uint32_t>(std::atoi(value)) : 32u;
+        if (count < 2) count = 2;
+        if (count > 65535) count = 65535;
+        return count;
+    }
+
+    template<typename GraphT>
+    void buildK2EpochSchedule(
+            const GraphT& g, bool push_out_edges, uint32_t ne, bool linemin,
+            std::vector<std::vector<uint16_t>>& target) {
+        std::vector<std::vector<ecg_epoch::EpochPair>> pairs;
+        ecg_epoch::buildInEdgeEpochPairs(
+            g, 16, ne, linemin, pairs, push_out_edges);
+        target.assign(pairs.size(), {});
+        for (size_t src = 0; src < pairs.size(); ++src) {
+            auto& row = target[src];
+            row.resize(pairs[src].size() * 2);
+            for (size_t edge = 0; edge < pairs[src].size(); ++edge) {
+                row[edge * 2] = pairs[src][edge].first;
+                row[edge * 2 + 1] = pairs[src][edge].second;
+            }
+        }
+    }
+
     template<typename GraphT>
     void buildInEdgeMasks_PR(const GraphT& g, int k_lookahead) {
         using Clock = std::chrono::steady_clock;
@@ -2317,19 +2353,10 @@ struct GraphCacheContext {
         // each — recovering the matrix's per-epoch dimension. K in [0,4] (0=disabled).
         // Most effective WITH linemin (multiple vertices/line => multiple distinct
         // future touches of the line). edge_epoch_sched_k records the active K.
-        uint32_t sched_k = 0;
-        if (const char* sk = std::getenv("ECG_EDGE_MASK_SCHED")) {
-            int sv = std::atoi(sk);
-            sched_k = (sv <= 0) ? 0u : (sv > 4 ? 4u : (uint32_t)sv);
-        }
+        uint32_t sched_k = configuredEpochScheduleK();
         edge_epoch_sched_k = sched_k;
-        {   // # epochs the absolute-epoch mask quantizes to (7-bit field => <=128)
-            const char* ev = std::getenv("ECG_EDGE_MASK_EPOCHS");
-            uint32_t ec = ev ? (uint32_t)std::atoi(ev) : 32u;
-            if (ec < 2) ec = 2; if (ec > 65535) ec = 65535;
-            edge_epoch_count = ec;
-        }
-        // ECG_EDGE_MASK_PACK: enforce the REAL spare-bit cap — the epoch must fit
+        edge_epoch_count = configuredEdgeEpochCount();
+        // ECG_EDGE_MASK_PACK: enforce the REAL packed4 spare-bit cap — the epoch must fit
         // in the spare high bits of the per-edge record container:
         //   spare = pack_bits - ceil(log2 N), ne_cap = 2^spare.
         // Default container = 32 bits (a 4B fat-CSR edge word). ECG_EDGE_MASK_PACK_BITS=64
@@ -2340,7 +2367,9 @@ struct GraphCacheContext {
         // switch under CHARGED=1 (and is free under CHARGED=0 / ISA delivery). For large
         // graphs (e.g. kron-s24, id_bits=24) the 8B record is already required, so the
         // 32-bit cap throws away epoch resolution for NO bandwidth saving.
-        if (std::getenv("ECG_EDGE_MASK_PACK")) {
+        // Schedule-2 uses its own 64-bit dest32+epoch16+epoch16 record, so this
+        // legacy 32/64-bit single-epoch cap does not apply to K2.
+        if (std::getenv("ECG_EDGE_MASK_PACK") && sched_k != 2) {
             uint32_t pack_bits = 32;
             if (const char* pb = std::getenv("ECG_EDGE_MASK_PACK_BITS")) {
                 pack_bits = ((uint32_t)std::atoi(pb) >= 64) ? 64u : 32u;
@@ -2526,6 +2555,14 @@ struct GraphCacheContext {
                 masks[i] = mask;
             }
         }
+        // Schedule-2 is shared with gem5/Sniper through ecg_epoch_builder.h.
+        // Overwrite the legacy local K2 construction so all three simulators
+        // use exactly the same second-reference and wrap semantics.
+        if (edge_mask_epoch && sched_k == 2) {
+            buildK2EpochSchedule(
+                g, false, kNumEpochs5, edge_mask_linemin,
+                in_edge_epoch_sched_by_src);
+        }
 
         auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
             Clock::now() - build_start).count();
@@ -2554,10 +2591,14 @@ struct GraphCacheContext {
         uint32_t n = g.num_nodes();
         out_edge_masks_by_src.assign(n, {});
         out_edge_epoch_by_src.assign(n, {});
+        out_edge_epoch_sched_by_src.assign(n, {});
         if (n == 0) return;
+        const uint32_t sched_k = configuredEpochScheduleK();
+        if (sched_k == 2) edge_epoch_count = configuredEdgeEpochCount();
         const uint32_t ne = edge_epoch_count ? edge_epoch_count : 32u;
         constexpr int numVtxPerLine = 16;
         const bool linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
+        if (sched_k == 2) edge_epoch_sched_k = 2;
 
         // Build the sorted IN-adjacency (the transpose of OUT traversal) once.
         exact_in_nv = n;
@@ -2622,6 +2663,10 @@ struct GraphCacheContext {
                 masks[i] = mask;
             }
         }
+        if (sched_k == 2) {
+            buildK2EpochSchedule(
+                g, true, ne, linemin, out_edge_epoch_sched_by_src);
+        }
         auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
             Clock::now() - build_start).count();
         std::cout << "ECG OUT-edge mask build: vertices=" << n << " edges=" << edge_count
@@ -2651,10 +2696,14 @@ struct GraphCacheContext {
         uint32_t n = g.num_nodes();
         in_edge_masks_by_src.assign(n, {});
         in_edge_epoch_by_src.assign(n, {});
+        in_edge_epoch_sched_by_src.assign(n, {});
         if (n == 0) return;
+        const uint32_t sched_k = configuredEpochScheduleK();
+        if (sched_k == 2) edge_epoch_count = configuredEdgeEpochCount();
         const uint32_t ne = edge_epoch_count ? edge_epoch_count : 32u;
         constexpr int numVtxPerLine = 16;
         const bool linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
+        if (sched_k == 2) edge_epoch_sched_k = 2;
 
         // LOCAL sorted OUT-adjacency (the transpose of IN traversal) for next-ref.
         std::vector<int64_t> off((size_t)n + 1, 0);
@@ -2716,6 +2765,10 @@ struct GraphCacheContext {
                 mask |= static_cast<uint64_t>(popt & 0x7Fu) << 26;
                 masks[i] = mask;
             }
+        }
+        if (sched_k == 2) {
+            buildK2EpochSchedule(
+                g, false, ne, linemin, in_edge_epoch_sched_by_src);
         }
         auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
             Clock::now() - build_start).count();
@@ -2880,19 +2933,24 @@ struct GraphCacheContext {
         hints_for_thread().edge_epoch =
             (src < eps.size() && edge_pos < eps[src].size()) ? eps[src][edge_pos] : 0;
         hints_for_thread().edge_epoch_valid = true;  // a real per-edge epoch was delivered
-        // ECG_EDGE_MASK_SCHED: deliver the forward schedule (IN direction only — built by
-        // buildInEdgeMasks_PR). Inert (n=0) when no schedule was built / OUT direction.
+        // ECG_EDGE_MASK_SCHED: deliver the direction-matched forward schedule.
+        // Schedule-2 rows for both directions come from the shared epoch builder;
+        // PR retains its legacy IN-direction K3/K4 ablation support.
         {
             auto& H = hints_for_thread();
-            if (edge_epoch_sched_k && dir == EdgeMaskDir::IN
-                && src < in_edge_epoch_sched_by_src.size()) {
-                const auto& sc = in_edge_epoch_sched_by_src[src];
+            const auto& schedules = (dir == EdgeMaskDir::OUT)
+                ? out_edge_epoch_sched_by_src : in_edge_epoch_sched_by_src;
+            if (edge_epoch_sched_k && src < schedules.size()) {
+                const auto& sc = schedules[src];
                 uint32_t K = edge_epoch_sched_k;
                 uint8_t kn = static_cast<uint8_t>(std::min<uint32_t>(K, 4));
-                H.edge_epoch_sched_n = kn;
-                for (uint8_t k = 0; k < kn; ++k)
-                    H.edge_epoch_sched[k] = (edge_pos * K + k < sc.size())
-                        ? sc[edge_pos * K + k] : H.edge_epoch;
+                if (edge_pos * K + kn <= sc.size()) {
+                    H.edge_epoch_sched_n = kn;
+                    for (uint8_t k = 0; k < kn; ++k)
+                        H.edge_epoch_sched[k] = sc[edge_pos * K + k];
+                } else {
+                    H.edge_epoch_sched_n = 0;
+                }
             } else {
                 H.edge_epoch_sched_n = 0;
             }

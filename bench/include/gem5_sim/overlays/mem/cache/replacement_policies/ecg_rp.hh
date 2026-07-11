@@ -30,6 +30,8 @@ class GraphEcgRP : public Base
         uint8_t ecg_dbg_tier;
         uint8_t ecg_popt_hint;
         uint16_t ecg_epoch;
+        uint16_t ecg_epoch2;
+        uint8_t ecg_epoch_count;
         bool ecg_epoch_valid;  // a per-edge epoch was DELIVERED (vs epoch==0 ambiguity);
                                // mirrors cache_sim/Sniper so `stamped` is identical
         bool is_property_data;
@@ -38,7 +40,8 @@ class GraphEcgRP : public Base
 
         EcgReplData(uint8_t max_rrpv)
             : rrpv(max_rrpv), ecg_dbg_tier(0), ecg_popt_hint(0),
-              ecg_epoch(0), ecg_epoch_valid(false), is_property_data(false), line_addr(0),
+              ecg_epoch(0), ecg_epoch2(0), ecg_epoch_count(0),
+              ecg_epoch_valid(false), is_property_data(false), line_addr(0),
               lastTouchTick(0) {}
     };
 

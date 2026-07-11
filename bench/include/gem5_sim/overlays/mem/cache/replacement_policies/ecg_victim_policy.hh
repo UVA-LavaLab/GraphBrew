@@ -49,6 +49,28 @@ struct WayState {
 // distance 0 (kept), so only genuinely stamped property competes on epoch.
 inline uint32_t effDist(const WayState& w) { return w.stamped ? w.dist : 0; }
 
+// Circular distance from the current traversal epoch to one delivered next-ref
+// epoch. Clamp malformed/out-of-range payloads to the last valid epoch.
+inline uint32_t epochDistance(uint16_t epoch, uint32_t current, uint32_t ne) {
+    if (ne < 2) return 0;
+    uint32_t e = epoch;
+    if (e >= ne) e = ne - 1;
+    return (e + ne - (current % ne)) % ne;
+}
+
+// Schedule-2 effective distance: the line is needed at the nearer of its next
+// two references. count<=1 preserves the legacy single-epoch behavior.
+inline uint32_t epochPairDistance(uint16_t first, uint16_t second,
+                                  uint8_t count, uint32_t current,
+                                  uint32_t ne) {
+    uint32_t distance = epochDistance(first, current, ne);
+    if (count > 1) {
+        uint32_t second_distance = epochDistance(second, current, ne);
+        if (second_distance < distance) distance = second_distance;
+    }
+    return distance;
+}
+
 // Select the victim index among ways[0..n). Ages rrpv in place where the variant
 // ages. n must be >= 1.
 inline size_t selectVictim(WayState* ways, size_t n, int variant, uint8_t rrpvMax) {

@@ -219,5 +219,57 @@ Full five-policy PR results (`-o5`, L1D=32kB, L2=256kB, 16-way LLC, STRIDE degre
 **Boundary:** the win is power-law/irregular-property specific; roadNet remains
 out-of-domain. **Traffic caveat:** K2 total traffic is still 17–43% above uncharged
 P-OPT because its 8-byte stream is wider and private-cache prefetch fills are charged.
-The next gate is cycle-accurate gem5 + scale Sniper: port two-epoch delivery and true
-LLC bypass, then test whether fewer demand DRAM misses outweigh the extra bandwidth.
+Schedule-2 delivery is now ported and decision-verified in gem5 and Sniper (§10).
+**StreamShield LLC bypass remains cache_sim-only**; that is the remaining mechanism gap
+before the demand-miss/traffic result can be claimed outside the prototype.
+
+## 10. Schedule-2 three-simulator equivalence (2026-07-11)
+
+Schedule-2 now uses one shared builder and one shared effective-distance rule:
+
+- `ecg_epoch::buildInEdgeEpochPairs` builds pull (PR) and push (BFS) pairs;
+- the wire record is `dest[0:32] | epoch1[32:48] | epoch2[48:64]`;
+- `ecg_policy::epochPairDistance` computes
+  `min((e1-cur+ne)%ne, (e2-cur+ne)%ne)`;
+- PR selects `epoch_first`; BFS selects traversal-safe `degree_first`.
+- gem5/Sniper build the packed stream directly and skip the P-OPT matrix plus
+  legacy single-epoch/mask copies in K2 runs; Sniper's bounded delivery map is
+  cache-line keyed and region-gated, so collisions leave a line unstamped
+  instead of borrowing stale metadata from another vertex/property array.
+- the runner scopes `ECG_EDGE_MASK_SCHED=2` to the ECG policy only; side-by-side
+  P-OPT cells still build/load their rereference matrix.
+
+The verifier runs the same pressured graph and parses every native backend trace.
+It requires non-identical K2 pairs, zero distance mismatches, and exact victim-rule
+compliance:
+
+| kernel | simulator | traced K2 property ways | non-identical pairs | distance mismatches | epoch-decisive victims |
+|---|---|---:|---:|---:|---:|
+| PR | cache_sim | 23,579 | 14,345 | 0 | 3 |
+| PR | gem5 | 6,281 | 2,058 | 0 | 131 |
+| PR | Sniper | 7,843 | 5,129 | 0 | 0* |
+| BFS | cache_sim | 3,454 | 2,825 | 0 | 3 |
+| BFS | gem5 | 7,328 | 3,071 | 0 | 9 |
+| BFS | Sniper | 5,214 | 2,605 | 0 | 3 |
+
+\* Sniper PR's bounded non-inclusive trace evicted records throughout; resident
+property lines still carried distinct K2 pairs whose effective distances were
+verified. The shared exact-victim test plus cache_sim/gem5 decisive PR coverage
+prevents this do-no-harm cell from becoming a vacuous policy check.
+
+For gem5 and Sniper, the verifier also compares the first 32 kernel-emitted
+`(dest,epoch1,epoch2)` records against the 32 records actually decoded by the
+backend; both are **32/32 exact matches** for PR and BFS.
+
+Reproduce:
+
+```bash
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --sniper --kernels pr bfs --schedule-k 2
+```
+
+This closes **K2 construction, delivery, line metadata, distance, and victim-decision
+equivalence**. It does not close StreamShield: gem5 and Sniper still allocate the
+packed record in their LLCs. gem5 K2 is currently restricted to in-order CPUs:
+`ecg.extract2` uses the serialized mailbox, so the runner rejects O3 until a
+request-bound epoch-pair extension is implemented.

@@ -8,11 +8,13 @@
 #pragma once
 
 #include <cstdint>
+#include <atomic>
 #include <cstdlib>
 #include <cstdio>
 #include <fstream>
 #include <string>
 
+#include "ecg_epoch_builder.h"
 #include <graph.h>
 #include <pvector.h>
 
@@ -34,6 +36,7 @@ constexpr uint64_t GRAPHBREW_SNIPER_USER_CONTEXT_READY = 0x47524358ULL;  // "GRC
 constexpr uint64_t GRAPHBREW_SNIPER_USER_POPT_READY = 0x47504f50ULL;  // "GPOP"
 constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET = 0x47504658ULL;  // "GPFX"
 constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_EXTRACT = 0x47464C44ULL;  // ECG epoch-extract delivery
+constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_EXTRACT2 = 0x47464C45ULL; // dest + two epochs
 
 inline const char* env_or_default(const char* name, const char* fallback) {
     const char* value = std::getenv(name);
@@ -169,6 +172,28 @@ inline void ecg_extract(uint64_t vertex, uint16_t epoch) {
     uint64_t packed = (vertex & 0xFFFFFFFFULL) |
                       (static_cast<uint64_t>(epoch) << 32);
     notify_user(GRAPHBREW_SNIPER_USER_ECG_EXTRACT, packed);
+}
+
+inline void ecg_extract2(
+        uint32_t vertex, uint16_t first, uint16_t second) {
+    if (!ecg_extract_enabled()) return;
+    static std::atomic<uint64_t> trace_sequence{0};
+    static const uint64_t trace_limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10)) : 0;
+    }();
+    const uint64_t sequence =
+        trace_sequence.fetch_add(1, std::memory_order_relaxed);
+    if (sequence < trace_limit) {
+        std::fprintf(stderr,
+            "[ECG-K2-EXPECT sim=sniper seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            (unsigned long long)sequence, vertex,
+            static_cast<unsigned>(first), static_cast<unsigned>(second));
+    }
+    // SimMagic2 is 64-bit safe after the early-clobber fix.
+    const uint64_t packed =
+        ecg_epoch::packEpochPairRecord(vertex, first, second);
+    notify_user(GRAPHBREW_SNIPER_USER_ECG_EXTRACT2, packed);
 }
 
 inline void write_minimal_context(uint64_t vertices, uint64_t edges) {
@@ -402,3 +427,4 @@ inline bool sniper_export_popt_matrix(
 #define SNIPER_SET_VERTEX(vertex_id) ::graphbrew_sniper::set_vertex(static_cast<uint64_t>(vertex_id))
 #define SNIPER_ECG_PFX_TARGET(vertex_id) ::graphbrew_sniper::set_prefetch_target(static_cast<uint64_t>(vertex_id))
 #define SNIPER_ECG_EXTRACT(vertex_id, epoch) ::graphbrew_sniper::ecg_extract(static_cast<uint64_t>(vertex_id), static_cast<uint16_t>(epoch))
+#define SNIPER_ECG_EXTRACT2(vertex_id, epoch1, epoch2) ::graphbrew_sniper::ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))

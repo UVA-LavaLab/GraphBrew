@@ -40,6 +40,22 @@
                         }
                         Rd = rvZext(dest_id);
                     }});
+                    // Schedule-2 register delivery:
+                    // dest[31:0] | epoch1[47:32] | epoch2[63:48].
+                    0x01: ecg_extract2({{
+                        uint64_t packed = Rs1;
+                        uint32_t dest_id = static_cast<uint32_t>(
+                            packed & 0xFFFFFFFFULL);
+                        uint16_t epoch1 = static_cast<uint16_t>(
+                            (packed >> 32) & 0xFFFFULL);
+                        uint16_t epoch2 = static_cast<uint16_t>(
+                            (packed >> 48) & 0xFFFFULL);
+                        gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                            dest_id, 0, 0, epoch1);
+                        gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
+                            dest_id, epoch1, epoch2);
+                        Rd = rvZext(dest_id);
+                    }});
                 }
             }
             // GraphBrew FUSED ecg.load (custom-0, FUNCT3=0x1, I-type): a single

@@ -110,7 +110,16 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
     assert "lookupEcgEpochAnyCore" not in context_h
     assert "ecgEpochGlobalSequence" in context_cc
     assert "before != after" in context_cc
-    assert "lookupEcgEpoch(" in cache
+    assert "lookupLineEcgEpochPair(" in cache
+    assert "lookupEcgEpochPair(" in context_cc
+    assert "recordEcgEpochPair(" in context_cc
+    assert "line_plus1" in context_cc
+    assert "vertex_plus1" not in context_cc
+    assert "ecgVerticesPerLine()" in context_cc
+    assert "isEcgEpochData" in context_h
+    assert "SNIPER_ECG_EPOCH_REGION" in context_cc
+    assert "GRAPHBREW_ECG_EXTRACT2_WORK_ID" in setup
+    assert "epochPairDistance(" in cache
     assert "currentNucaRequesterCore()" in cache
     assert "address, requester, data_buf" in setup
     assert "NucaCache::read(IntPtr address, core_id_t requester" in setup
@@ -119,5 +128,7 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
     # Paper runs use the real outer clock + delivered epoch, not the live oracle.
     assert 'env["SNIPER_ENABLE_VERTEX_HINTS"] = "1"' in runner
     assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
+    assert 'int(args.line_size) // 4' in runner
+    assert "requires --sniper-workload sg_kernel" in runner
     assert 'os.environ.get("ECG_FORCE_DELIVERY") == "1"' in runner
     assert "ws[w].recency = m_last_touch[w];" in cache

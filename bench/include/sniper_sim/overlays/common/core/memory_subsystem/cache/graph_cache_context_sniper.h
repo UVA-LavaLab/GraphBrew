@@ -26,6 +26,7 @@ static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
 // ECG_GRASP_POPT eviction can use a delivered (HW-faithful) epoch instead of the
 // host-side findNextRef matrix, matching gem5/cache_sim.
 static constexpr uint64_t GRAPHBREW_ECG_EXTRACT_WORK_ID = 0x47464C44ULL;  // ECG epoch-extract delivery
+static constexpr uint64_t GRAPHBREW_ECG_EXTRACT2_WORK_ID = 0x47464C45ULL;
 
 void setCurrentVertexHint(uint32_t core_id, uint64_t vertex);
 bool hasCurrentVertexHint(uint32_t core_id);
@@ -42,11 +43,16 @@ bool consumePrefetchTargetHint(uint32_t core_id, uint32_t& vertex);
 void clearPrefetchTargetHint(uint32_t core_id);
 
 // SNIPER_ECG_EXTRACT per-edge epoch delivery: a bounded per-core map keyed by
-// vertex, updated on every demand edge. lookupEcgEpoch returns false if the
-// vertex's epoch is not currently held (line then ranks as unstamped).
+// property cache line (the delivered epoch is line-min). A collision invalidates
+// the old line tag instead of falling back to stale metadata from another vertex.
 void recordEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t epoch);
+void recordEcgEpochPair(uint32_t core_id, uint32_t vertex,
+                        uint16_t first, uint16_t second);
 bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex,
                     uint16_t& epoch, uint64_t& sequence);
+bool lookupEcgEpochPair(uint32_t core_id, uint32_t vertex,
+                        uint16_t& first, uint16_t& second,
+                        uint8_t& count, uint64_t& sequence);
 
 enum class ECGMode : uint8_t {
     DBG_PRIMARY,
@@ -166,6 +172,7 @@ struct GraphCacheContext {
     // elem_size of the property region owning addr (0 if none).
     uint32_t propertyElemSizeForAddress(uint64_t addr) const;
     bool isPropertyData(uint64_t addr) const;
+    bool isEcgEpochData(uint64_t addr) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;
     uint32_t findNextRef(uint64_t addr, uint32_t core_id) const;

@@ -56,8 +56,8 @@ This is a genuine, feasible, honest win and the correct paper framing.
 - P-OPT-on-traversal here follows the same matrix mechanism cache_sim uses for PR; whether
   a *different* frontier-aware P-OPT variant could recover is untested (P-OPT's paper offers
   none for single-source BFS/SSSP). The claim is about P-OPT *as designed/evaluated*.
-- Confirm on gem5/Sniper (cycle-accurate) for the paper; cache_sim is the functional
-  authority. Add BC (betweenness) for a 3rd traversal kernel.
+- Absolute performance still needs the final gem5/Sniper matrix; cache_sim remains the
+  functional authority. BC is mixed and uses the safe `rrip_first` fallback.
 - CC is mixed (Afforest/SV has a partly sweep-like pattern); report it honestly, don't
   headline it.
 
@@ -98,3 +98,14 @@ The adaptive policy is therefore:
 - data-dependent BFS/SSSP: `degree_first` (Schedule-2 as the within-tier tie);
 - mixed BC/CC: `rrip_first` (safe do-no-harm fallback);
 - road/uniform graphs: bypass/adaptive fallback required; remain out-of-domain.
+
+## Schedule-2 cross-simulator status (2026-07-11)
+
+The adaptive PR/BFS mechanisms are now implementation-equivalent across all three
+simulators. `equiv_kernels.py --schedule-k 2` verifies the shared pull/push pair
+builder, the `dest32|epoch1|epoch2` delivery record, `min(d1,d2)` line distance, and
+the exact victim rule. PR uses `epoch_first`; BFS uses `degree_first`.
+
+All cache_sim/gem5/Sniper PR and BFS cells pass. BFS exercises epoch-decisive victims
+in every simulator (3/20/10 respectively). This certifies the adaptive **decision**;
+the final miss-rate/traffic claim still waits on the StreamShield bypass ports.

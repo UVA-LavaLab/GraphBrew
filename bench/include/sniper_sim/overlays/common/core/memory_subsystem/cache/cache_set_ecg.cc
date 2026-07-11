@@ -97,6 +97,8 @@ CacheSetECG::CacheSetECG(
    m_line_addrs = new IntPtr[m_associativity];
    m_property_lines = new bool[m_associativity];
    m_ecg_epoch = new UInt16[m_associativity];
+   m_ecg_epoch2 = new UInt16[m_associativity];
+   m_ecg_epoch_count = new UInt8[m_associativity];
    m_ecg_epoch_valid = new bool[m_associativity];
    m_last_touch = new UInt64[m_associativity];
    for (UInt32 way = 0; way < m_associativity; way++) {
@@ -106,6 +108,8 @@ CacheSetECG::CacheSetECG(
       m_line_addrs[way] = 0;
       m_property_lines[way] = false;
       m_ecg_epoch[way] = 0;
+      m_ecg_epoch2[way] = 0;
+      m_ecg_epoch_count[way] = 0;
       m_ecg_epoch_valid[way] = false;
       m_last_touch[way] = 0;
    }
@@ -135,6 +139,8 @@ CacheSetECG::~CacheSetECG()
    delete [] m_line_addrs;
    delete [] m_property_lines;
    delete [] m_ecg_epoch;
+   delete [] m_ecg_epoch2;
+   delete [] m_ecg_epoch_count;
    delete [] m_ecg_epoch_valid;
    delete [] m_last_touch;
 }
@@ -209,34 +215,19 @@ CacheSetECG::poptHint(IntPtr addr) const
 }
 
 bool
-CacheSetECG::lookupLineEcgEpoch(IntPtr line_addr, UInt16& epoch) const
+CacheSetECG::lookupLineEcgEpochPair(
+      IntPtr line_addr, UInt16& first, UInt16& second, UInt8& count) const
 {
    const auto& context = graphbrew::sniper::globalContext();
+   if (!context.isEcgEpochData(static_cast<uint64_t>(line_addr)))
+      return false;
    uint32_t v0 = context.vertexForAddress(static_cast<uint64_t>(line_addr));
    if (v0 == UINT32_MAX) return false;
-   uint32_t elem = context.propertyElemSizeForAddress(static_cast<uint64_t>(line_addr));
-   if (elem == 0) elem = 4u;
-   uint32_t vtx_per_line = static_cast<uint32_t>(m_blocksize) / elem;
-   if (vtx_per_line == 0) vtx_per_line = 1;
-   bool found = false;
-   UInt16 newest_epoch = 0;
-   uint64_t newest_sequence = 0;
    uint32_t requester_core = requesterCoreOr(m_core_id);
    if (requester_core >= graphbrew::sniper::MAX_TRACKED_CORES) return false;
-   for (uint32_t i = 0; i < vtx_per_line; i++) {
-      UInt16 candidate_epoch = 0;
-      uint64_t candidate_sequence = 0;
-      if (graphbrew::sniper::lookupEcgEpoch(
-              requester_core, v0 + i,
-              candidate_epoch, candidate_sequence) &&
-          (!found || candidate_sequence > newest_sequence)) {
-         found = true;
-         newest_epoch = candidate_epoch;
-         newest_sequence = candidate_sequence;
-      }
-   }
-   if (found) epoch = newest_epoch;
-   return found;
+   uint64_t sequence = 0;
+   return graphbrew::sniper::lookupEcgEpochPair(
+       requester_core, v0, first, second, count, sequence);
 }
 
 void
@@ -259,11 +250,18 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       // SNIPER_ECG_EXTRACT fill-stamp: the demand for this vertex delivered its
       // next-ref epoch (recordEcgEpoch); stamp the line so the eviction can rank
       // it by the delivered (HW-faithful) epoch instead of the findNextRef matrix.
+      m_ecg_epoch[way] = 0;
+      m_ecg_epoch2[way] = 0;
+      m_ecg_epoch_count[way] = 0;
       m_ecg_epoch_valid[way] = false;
       if (m_property_lines[way]) {
-         UInt16 ep = 0;
-         if (lookupLineEcgEpoch(m_pending_insert_addr, ep)) {
-            m_ecg_epoch[way] = ep;
+         UInt16 first = 0, second = 0;
+         UInt8 count = 0;
+         if (lookupLineEcgEpochPair(
+                 m_pending_insert_addr, first, second, count)) {
+            m_ecg_epoch[way] = first;
+            m_ecg_epoch2[way] = second;
+            m_ecg_epoch_count[way] = count;
             m_ecg_epoch_valid[way] = true;
          }
       }
@@ -289,6 +287,9 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
    m_popt_hints[way] = 0;
    m_line_addrs[way] = 0;
    m_property_lines[way] = false;
+   m_ecg_epoch[way] = 0;
+   m_ecg_epoch2[way] = 0;
+   m_ecg_epoch_count[way] = 0;
    m_ecg_epoch_valid[way] = false;
    m_last_touch[way] = ++m_access_tick;
 }
@@ -528,8 +529,9 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    auto isProp = [&](UInt32 w) { return m_property_lines[w]; };
    auto dist   = [&](UInt32 w) -> uint32_t {
       if (fatLoad) {
-         uint32_t e = m_ecg_epoch[w]; if (e >= ne) e = ne - 1;
-         return (e + ne - cur_ep) % ne;
+         return ecg_policy::epochPairDistance(
+               m_ecg_epoch[w], m_ecg_epoch2[w],
+               m_ecg_epoch_count[w], cur_ep, ne);
       }
       return std::min(context.findNextRef(
                           static_cast<uint64_t>(m_line_addrs[w]), requester_core),
@@ -565,10 +567,12 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       for (UInt32 w = 0; w < m_associativity; w++) {
          UInt32 d = isProp(w) ? dist(w) : 0;
          UInt32 epoch = (fatLoad && isProp(w)) ? m_ecg_epoch[w] : (isProp(w) ? 1u : 0u);
-         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d stamped=%d dbg=%d last=%llu%s\n",
+         std::fprintf(stderr, "   way%u valid=1 rrpv=%d epoch=%d dist=%u prop=%d stamped=%d dbg=%d last=%llu epoch2=%u sched_n=%u%s\n",
                       w, (int)m_rrip_bits[w], (int)epoch, d, (int)isProp(w),
                       (int)(stamped(w) ? 1 : 0), (int)m_dbg_tiers[w],
                       (unsigned long long)m_last_touch[w],
+                      (unsigned)m_ecg_epoch2[w],
+                      (unsigned)m_ecg_epoch_count[w],
                       w == victimWay ? "   <== VICTIM" : "");
       }
       std::fprintf(stderr, "   -> victim=way%u reason=%s\n", victimWay, reason);
@@ -662,9 +666,13 @@ CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
    // to every resident L3 line at eviction time.
    if (m_mode == graphbrew::sniper::ECGMode::ECG_GRASP_POPT &&
        sniperEcgExtractEnabled() && m_property_lines[accessed_index]) {
-      UInt16 ep = 0;
-      if (lookupLineEcgEpoch(m_line_addrs[accessed_index], ep)) {
-         m_ecg_epoch[accessed_index] = ep;
+      UInt16 first = 0, second = 0;
+      UInt8 count = 0;
+      if (lookupLineEcgEpochPair(
+              m_line_addrs[accessed_index], first, second, count)) {
+         m_ecg_epoch[accessed_index] = first;
+         m_ecg_epoch2[accessed_index] = second;
+         m_ecg_epoch_count[accessed_index] = count;
          m_ecg_epoch_valid[accessed_index] = true;
       }
    }

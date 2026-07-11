@@ -1339,7 +1339,15 @@ private:
             bool prop = graph_ctx_ && graph_ctx_->isPropertyData(set[i].line_addr);
             uint32_t ne = (graph_ctx_ && graph_ctx_->edge_epoch_count)
                 ? graph_ctx_->edge_epoch_count : 32u;
-            uint32_t dist = (uint32_t(set[i].ecg_epoch) + ne - curEpoch) % ne;
+            uint32_t dist = ecg_policy::epochDistance(
+                set[i].ecg_epoch, curEpoch, ne);
+            for (uint8_t k = 0; k < set[i].ecg_epoch_sched_n; ++k) {
+                uint32_t scheduled = ecg_policy::epochDistance(
+                    set[i].ecg_epoch_sched[k], curEpoch, ne);
+                if (scheduled < dist) dist = scheduled;
+            }
+            uint16_t epoch2 = set[i].ecg_epoch_sched_n > 1
+                ? set[i].ecg_epoch_sched[1] : set[i].ecg_epoch;
             std::cerr << "   way" << i
                       << " valid=" << set[i].valid
                       << " rrpv=" << (int)set[i].rrpv
@@ -1349,6 +1357,8 @@ private:
                       << " stamped=" << (int)(prop && set[i].ecg_epoch_valid)
                       << " dbg=" << (int)set[i].ecg_dbg_tier
                       << " last=" << set[i].last_access
+                      << " epoch2=" << epoch2
+                      << " sched_n=" << (int)set[i].ecg_epoch_sched_n
                       << (i == victim ? "   <== VICTIM" : "") << "\n";
         }
         std::cerr << "   -> victim=way" << victim << " reason=" << reason << "\n";
@@ -1792,13 +1802,15 @@ private:
             auto isProp  = [&](size_t i){ return graph_ctx_->isPropertyData(set[i].line_addr); };
             auto dist    = [&](size_t i){
                 // 1-D base: circular distance to the single stamped next-ref epoch.
-                uint32_t d = (uint32_t(set[i].ecg_epoch) + ne - cur_epoch) % ne;
+                uint32_t d = ecg_policy::epochDistance(
+                    set[i].ecg_epoch, cur_epoch, ne);
                 // 2-D recovery (ECG_EDGE_MASK_SCHED): take the SOONEST upcoming entry in
                 // the per-line schedule. A passed entry wraps to a large circular
                 // distance, so min() naturally skips it and the line self-advances to
                 // its next true reference — emulating the matrix's per-epoch recompute.
                 for (uint8_t k = 0; k < set[i].ecg_epoch_sched_n; ++k) {
-                    uint32_t dk = (uint32_t(set[i].ecg_epoch_sched[k]) + ne - cur_epoch) % ne;
+                    uint32_t dk = ecg_policy::epochDistance(
+                        set[i].ecg_epoch_sched[k], cur_epoch, ne);
                     if (dk < d) d = dk;
                 }
                 return d;

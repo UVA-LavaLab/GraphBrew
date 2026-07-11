@@ -415,6 +415,16 @@ def apply_current_vertex_pseudo_inst_patch():
             "        return;\n"
             "    }\n\n"
         )
+    if "GRAPHBREW_ECG_EXTRACT2_WORK_ID" not in content:
+        hint_blocks.append(
+            "    if (workid == replacement_policy::graph::GRAPHBREW_ECG_EXTRACT2_WORK_ID) {\n"
+            "        uint32_t dest_id = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
+            "        uint16_t epoch1 = static_cast<uint16_t>((threadid >> 32) & 0xFFFFULL);\n"
+            "        uint16_t epoch2 = static_cast<uint16_t>((threadid >> 48) & 0xFFFFULL);\n"
+            "        replacement_policy::graph::setDecodedEcgExtractHint2(dest_id, epoch1, epoch2);\n"
+            "        return;\n"
+            "    }\n\n"
+        )
     if "GRAPHBREW_ECG_PFX_TARGET_EPOCH_WORK_ID" not in content:
         # Path A (epoch-filtered DROPLET lookahead): threadid = target | epoch<<32.
         # Record the candidate epoch in the bounded in-flight buffer (so the

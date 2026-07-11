@@ -72,6 +72,13 @@ GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc", "sssp"}
 # prefetch the equivalence is SPEC-level (every eviction obeys the ECG spec), not
 # byte-identical counts.
 STREAM_PF_DEGREE = 0
+SCHEDULE_K = 0
+
+
+def effective_variant(kernel):
+    if SCHEDULE_K == 2:
+        return "epoch_first" if kernel == "pr" else "degree_first"
+    return "rrip_first"
 
 
 def _banner(text):
@@ -104,7 +111,9 @@ def run_cache(kernel):
     if stale:
         sys.stderr.write(stale)
     env = {**os.environ, **ecg.BASE_ENV, **ecg.ECG_ENV, **ecg.COV_ENV,
-           "ECG_VARIANT": "rrip_first", "ECG_DEBUG": "1"}
+           "ECG_VARIANT": effective_variant(kernel), "ECG_DEBUG": "1"}
+    if SCHEDULE_K:
+        env["ECG_EDGE_MASK_SCHED"] = str(SCHEDULE_K)
     if kernel in ("bfs", "bc", "sssp"):
         # Out-traversal kernels read property[dest] over out_neigh(u); deliver the FAITHFUL per-edge
         # OUT-direction next-ref masks (ECG_EDGE_MASKS=1, epoch = next in_neigh(dest) > u) — the same
@@ -129,6 +138,13 @@ def run_cache(kernel):
 def _roi_log(out):
     logs = sorted((out / "logs").glob("*.log")) if (out / "logs").exists() else []
     text = logs[0].read_text(errors="ignore") if logs else ""
+    # gem5 redirects benchmark stdout/stderr away from the simulator log. Append
+    # them so K2 EXPECT records from the guest can be matched against RECV records
+    # emitted by the decoder/backend.
+    for path in sorted(out.rglob("benchmark_stderr.txt")):
+        text += "\n" + path.read_text(errors="ignore")
+    for path in sorted(out.rglob("benchmark_stdout.txt")):
+        text += "\n" + path.read_text(errors="ignore")
     return text, bool(text)
 
 
@@ -144,15 +160,18 @@ def run_gem5(kernel):
         env = {**os.environ, "GEM5_OPT": str(GEM5_RISCV), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
                "GEM5_FORCE_ECG_PLOAD": "1", "GEM5_FORCE_ECG_EXTRACT": "1",
                "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
-               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000",
+               "ECG_VARIANT": effective_variant(kernel), "ECG_EVICT_TRACE": "4000",
                "ECG_EVICT_TRACE_ROI": "1", "ECG_STORED_REFRESH": "1",
                "ECG_DEBUG": "1"}
     else:
         env = {**os.environ, "GEM5_OPT": str(GEM5_X86), "GEM5_KERNEL_SUFFIX": "_m5ops",
                "GEM5_FORCE_ECG_EXTRACT": "1", "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
-               "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000",
+               "ECG_VARIANT": effective_variant(kernel), "ECG_EVICT_TRACE": "4000",
                "ECG_EVICT_TRACE_ROI": "1", "ECG_STORED_REFRESH": "1",
                "ECG_DEBUG": "1"}
+    if SCHEDULE_K:
+        env["ECG_EDGE_MASK_SCHED"] = str(SCHEDULE_K)
+        env["ECG_K2_DELIVERY_TRACE"] = "32"
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", "4kB", "--l3-ways", "8",
@@ -170,7 +189,11 @@ def run_sniper(kernel):
     out = Path("/tmp") / f"equivk_sniper_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
     env = {**os.environ, "SNIPER_ECG_MODE": "ECG_GRASP_POPT",
-           "ECG_VARIANT": "rrip_first", "ECG_EVICT_TRACE": "4000", "ECG_DEBUG": "1"}
+           "ECG_VARIANT": effective_variant(kernel),
+           "ECG_EVICT_TRACE": "4000", "ECG_DEBUG": "1"}
+    if SCHEDULE_K:
+        env["ECG_EDGE_MASK_SCHED"] = str(SCHEDULE_K)
+        env["ECG_K2_DELIVERY_TRACE"] = "32"
     # Per-kernel geometry: cc's comp[] (~4KB) and sssp's dist[] fit Sniper's inner
     # caches, and the L3 is NON-INCLUSIVE (sees only L2 evictions), so at the default
     # 2kB/4kB/16kB the property never reaches the L3 -> no epoch is stamped (vacuous).
@@ -202,10 +225,16 @@ def main(argv=None):
     ap.add_argument("--stream-prefetch-degree", type=int, default=0,
                     help="cross-sim structure stream-prefetcher degree (0=off, the byte-identical "
                          "baseline; >0 = spec-level equivalence under the realistic prefetcher).")
+    ap.add_argument("--schedule-k", type=int, choices=[0, 2], default=0,
+                    help="enable Schedule-2 delivery and require live K2 pair/distance coverage "
+                         "(currently certified for PR and BFS).")
     args = ap.parse_args(argv)
 
-    global STREAM_PF_DEGREE
+    global STREAM_PF_DEGREE, SCHEDULE_K
     STREAM_PF_DEGREE = args.stream_prefetch_degree
+    SCHEDULE_K = args.schedule_k
+    if SCHEDULE_K and any(k not in ("pr", "bfs") for k in args.kernels):
+        ap.error("--schedule-k 2 currently supports --kernels pr bfs")
 
     enabled = {"cache_sim"}
     if args.gem5:
@@ -220,7 +249,8 @@ def main(argv=None):
     sims_order = [s for s in ("cache_sim", "gem5", "sniper") if s in enabled]
 
     print("== Multi-kernel 3-sim ECG equivalence (eviction-spec + debug banner) ==")
-    print(f"   graph={ecg.GRAPH.name}  policy=ECG:ECG_GRASP_POPT variant=rrip_first  "
+    variant_label = "PR=epoch_first,BFS=degree_first" if SCHEDULE_K else "rrip_first"
+    print(f"   graph={ecg.GRAPH.name}  policy=ECG:ECG_GRASP_POPT variant={variant_label}  "
           f"sims={sims_order}")
     print("   (BC/CC/SSSP: cache_sim + gem5; SSSP weights auto-synthesized by WeightedBuilder)\n")
 
@@ -233,15 +263,25 @@ def main(argv=None):
                 continue
             result, banner = RUNNERS[sim](kernel)
             cov = {}
-            spec_ok = ecg.verify_trace(f"{sim}/{kernel}", result, coverage=cov)
+            if SCHEDULE_K:
+                spec_ok = ecg.verify_k2_trace(
+                    f"{sim}/{kernel}", result, ne=65535, coverage=cov)
+            else:
+                spec_ok = ecg.verify_trace(
+                    f"{sim}/{kernel}", result, coverage=cov)
             ev, tv = cov.get("epoch_victims", 0), cov.get("victims", 0)
             dec = cov.get("epoch_decisive", 0)
             nz = cov.get("epoch_victims_nz", 0)   # stamped victims with a NON-ZERO delivered epoch
-            delivery_ok = ev > 0          # >=1 stamped property line was evicted (epoch DELIVERED)
+            k2_live = cov.get("k2_ways", 0) > 0
+            delivery_ok = ev > 0 or (SCHEDULE_K == 2 and k2_live)
+            # >=1 stamped property victim normally proves delivery. Under K2,
+            # resident stamped K2 property ways + verified pair distances also
+            # prove delivery even if a non-inclusive backend evicts records for
+            # the whole bounded trace (Sniper PR's do-no-harm geometry).
             decisive_ok = dec > 0         # epoch DISTANCE strictly decided >=1 victim
             # collapse check: stamped property was evicted but EVERY delivered epoch was 0 -> the
             # epochs collapsed (a delivery-quality regression, not the benign tied-eff-dist case).
-            collapsed = delivery_ok and nz == 0
+            collapsed = ev > 0 and nz == 0
             if STREAM_PF_DEGREE > 0:
                 # Under the realistic stream prefetcher, the prefetched STRUCTURAL lines
                 # change the cache contents (and carry no epoch), so the epoch may no
@@ -278,8 +318,13 @@ def main(argv=None):
                 label = f"FAIL: {ev} stamped victims but ALL epoch=0 (delivery COLLAPSED, not do-no-harm)"
             else:
                 cell_ok = True            # do-no-harm: delivery + policy verified
-                label = (f"delivery+policy verified; epoch decisive {dec}x, nonzero {nz}/{ev}"
-                         + ("" if decisive_ok else " (do-no-harm: tied eff-dist -> epoch seldom decisive)"))
+                if SCHEDULE_K == 2 and k2_live and ev == 0:
+                    label = (
+                        f"K2 resident+distance verified ({cov.get('k2_ways', 0)} ways); "
+                        "no property victim in bounded trace (record-first do-no-harm)")
+                else:
+                    label = (f"delivery+policy verified; epoch decisive {dec}x, nonzero {nz}/{ev}"
+                             + ("" if decisive_ok else " (do-no-harm: tied eff-dist -> epoch seldom decisive)"))
             print(f"      epoch coverage: decisive={dec} nonzero={nz} stamped={ev} / {tv} total  [{label}]")
             banner_ok = ("policy=ECG" in banner) and ("ECG_GRASP_POPT" in banner)
             print(f"      debug banner: {banner}  [{'OK' if banner_ok else 'MISSING'}]")

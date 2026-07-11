@@ -26,6 +26,8 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+
+#include "ecg_epoch_builder.h"
 #include <string>
 
 #ifndef NO_M5OPS
@@ -47,6 +49,7 @@
 #define GEM5_WORK_ECG_PFX_TARGET 0x47504658ULL  // GraphBrew ECG PFX target hint
 #define GEM5_WORK_ECG_PFX_TARGET_EPOCH 0x47504659ULL  // Path A: target|epoch<<32
 #define GEM5_WORK_ECG_EXTRACT_MASK 0x4745584DULL  // "GEXM": full dest+epoch mask
+#define GEM5_WORK_ECG_EXTRACT2 0x47455832ULL      // "GEX2": dest + two epochs
 
 // GEM5_ENABLE_ECG_LOAD=1 selects the FUSED ecg.load custom-0 RISC-V instruction:
 // ONE I-type op that demand-loads the 8-byte packed mode-6 record from mem AND
@@ -295,6 +298,44 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
 #endif
 }
 
+inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
+    static uint64_t trace_sequence = 0;
+    static const uint64_t trace_limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10)) : 0;
+    }();
+    const uint64_t sequence = trace_sequence++;
+    if (sequence < trace_limit) {
+        std::fprintf(stderr,
+            "[ECG-K2-EXPECT sim=gem5 seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            (unsigned long long)sequence,
+            ecg_epoch::extractEpochPairDest(packed),
+            static_cast<unsigned>(ecg_epoch::extractEpochPairFirst(packed)),
+            static_cast<unsigned>(ecg_epoch::extractEpochPairSecond(packed)));
+    }
+#if defined(__riscv)
+    uint64_t real_vertex = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x01, %0, %1, x0"
+                  : "=r"(real_vertex)
+                  : "r"(packed)
+                  : "memory");
+    return static_cast<uint32_t>(real_vertex);
+#elif defined(__x86_64__)
+    gem5_x86_work_begin_instruction(GEM5_WORK_ECG_EXTRACT2, packed);
+    return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
+#else
+    return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
+#endif
+}
+
+#define GEM5_ECG_EXTRACT2(packed_u64) \
+    do { \
+        if (gem5_ecg_extract_enabled()) { \
+            (void)gem5_ecg_extract2_instruction( \
+                static_cast<uint64_t>(packed_u64)); \
+        } \
+    } while (0)
+
 // GEM5_ECG_EXTRACT_MASK(mask_u64): emit the full mode-6 mask via the
 // RISCV ecg.extract opcode (or the X86 fallback). Bypasses the dedup
 // filter — caller is responsible for not over-emitting.
@@ -452,6 +493,7 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
 inline bool gem5_ecg_pfx_hints_enabled() { return false; }
 inline bool gem5_ecg_extract_enabled() { return false; }
 #define GEM5_ECG_EXTRACT_MASK(mask_u64) do {} while(0)
+#define GEM5_ECG_EXTRACT2(packed_u64) do {} while(0)
 #define GEM5_ECG_PFX_TARGET(vertex_id) do {} while(0)
 #define GEM5_ECG_PFX_TARGET_EPOCH(target_id, epoch_id) do {} while(0)
 #endif

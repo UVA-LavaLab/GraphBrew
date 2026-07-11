@@ -42,13 +42,22 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     // Per-edge next-ref EPOCH budget (mirror gem5 PR pr.cc:46-53): epoch packs into the
     // spare high bits above the dest id.
     constexpr int kNumVtxPerLine = 64 / sizeof(NodeID);
+    const int ecg_sched_k =
+        gem5_env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    const uint32_t requested_epoch_count = static_cast<uint32_t>(
+        gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS", 65535, 2, 65535));
     uint8_t edge_id_bits = 1;
     while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
-    uint32_t edge_epoch_count = 2;
-    if (edge_id_bits < 32) {
-        uint32_t spare = 32u - edge_id_bits;
-        uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
-        edge_epoch_count = std::min<uint32_t>(65535u, std::max<uint32_t>(2u, ne_cap));
+    uint32_t edge_epoch_count = requested_epoch_count;
+    if (ecg_sched_k != 2) {
+        if (edge_id_bits < 32) {
+            uint32_t spare = 32u - edge_id_bits;
+            uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
+            edge_epoch_count = std::min<uint32_t>(
+                edge_epoch_count, std::max<uint32_t>(2u, ne_cap));
+        } else {
+            edge_epoch_count = 2;
+        }
     }
     gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
                         edge_regions, num_edge_regions, edge_epoch_count);
@@ -61,16 +70,29 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     const bool ecg_extract_on = gem5_ecg_extract_enabled();
     std::vector<std::vector<uint16_t>> out_edge_epochs;
     if (ecg_extract_on) {
-        ecg_epoch::buildInEdgeEpochs(g, static_cast<uint32_t>(kNumVtxPerLine),
-                                     edge_epoch_count, /*linemin=*/true,
-                                     out_edge_epochs, /*push_out_edges=*/true);
+        if (ecg_sched_k != 2) {
+            ecg_epoch::buildInEdgeEpochs(
+                g, static_cast<uint32_t>(kNumVtxPerLine),
+                edge_epoch_count, /*linemin=*/true,
+                out_edge_epochs, /*push_out_edges=*/true);
+        }
+    }
+    std::vector<uint64_t> pair_off;
+    std::vector<uint64_t> pair_flat;
+    bool pair_ok = false;
+    if (ecg_extract_on && ecg_sched_k == 2) {
+        ecg_epoch::buildInEdgeEpochPairRecords(
+            g, static_cast<uint32_t>(kNumVtxPerLine),
+            edge_epoch_count, /*linemin=*/true,
+            pair_off, pair_flat, /*push_out_edges=*/true);
+        pair_ok = true;
     }
     std::vector<uint64_t> epoch_packed_off;
     std::vector<uint32_t> epoch_packed_flat;
     uint32_t epoch_pack_id_bits = 1;
     uint32_t epoch_pack_id_mask = 1;
     bool epoch_packed_ok = false;
-    if (ecg_extract_on) {
+    if (ecg_extract_on && ecg_sched_k != 2) {
         const uint32_t nn = static_cast<uint32_t>(g.num_nodes());
         while (epoch_pack_id_bits < 31 &&
                (uint64_t{1} << epoch_pack_id_bits) < nn)
@@ -104,7 +126,7 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         }
     }
 
-    {
+    if (ecg_sched_k != 2) {
         constexpr int numVtxPerLine = 64 / sizeof(NodeID);
         constexpr int numEpochs = 256;
         static pvector<uint8_t> popt_matrix;
@@ -127,6 +149,9 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         !configured_prefetcher ||
         std::string(configured_prefetcher) == "none" ||
         std::string(configured_prefetcher) == "STRIDE";
+    const bool pair_extract_only =
+        pair_ok && !gem5_ecg_pfx_hints_enabled() &&
+        packed_stream_compatible;
 
     // A5: the fused ecg.load EVICT (indexed-property) op reads parent[v] AND delivers v's
     // next-ref epoch to the LLC in one custom-0 instruction (RISC-V), stamping the property
@@ -135,7 +160,10 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     // indexed load (no delivery -> cache_sim is authoritative there).
     const bool ecg_load_evict_on = gem5_ecg_pload_enabled() && ecg_extract_on;
     const int  ecg_evict_wc = ecg_mode6::ecgEvictWidthClass(g.num_nodes());
-    if (ecg_load_evict_on) {
+    if (pair_extract_only) {
+        fprintf(stderr,
+                "[ECG_PACKED8_K2] BFS Schedule-2 packed record path ACTIVE\n");
+    } else if (ecg_load_evict_on) {
         static bool _ann = false;
         if (!_ann) { _ann = true;
             fprintf(stderr, "[ECG_PLOAD] BFS fused ecg.load EVICT delivery ACTIVE\n"); }
@@ -151,6 +179,23 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         const std::vector<uint16_t>* u_epochs =
             (ecg_extract_on && static_cast<size_t>(u) < out_edge_epochs.size())
                 ? &out_edge_epochs[u] : nullptr;
+        if (pair_extract_only &&
+            static_cast<size_t>(u + 1) < pair_off.size()) {
+            const uint64_t begin = pair_off[u];
+            const uint64_t end = pair_off[u + 1];
+            for (uint64_t pos = begin; pos < end; ++pos) {
+                const uint64_t rec = pair_flat[pos];
+                const NodeID v =
+                    static_cast<NodeID>(rec & 0xFFFFFFFFULL);
+                GEM5_ECG_EXTRACT2(rec);
+                const NodeID pv = parent[v];
+                if (pv == -1) {
+                    parent[v] = u;
+                    frontier.push(v);
+                }
+            }
+            continue;
+        }
         if (epoch_packed_ok && epoch_pack_id_bits <= 24 &&
             !gem5_ecg_pfx_hints_enabled() &&
             packed_stream_compatible &&

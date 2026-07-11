@@ -24,9 +24,9 @@ Cross-sim equivalence argument (what guarantees cache_sim == gem5 == Sniper):
   ECG_STORED_REFRESH there), so their epoch-coverage is INFORMATIONAL; the strict
   epoch-discrimination guarantee comes from (1) + the cache_sim mirror.
 
-  python3 scripts/experiments/ecg/verify_ecg.py            # cache_sim (+ synthetic)
-  python3 scripts/experiments/ecg/verify_ecg.py --gem5     # + gem5 adapter traces
-  python3 scripts/experiments/ecg/verify_ecg.py --sniper   # + Sniper adapter traces
+  python3 scripts/experiments/ecg/verify/ecg.py            # cache_sim (+ synthetic)
+  python3 scripts/experiments/ecg/verify/ecg.py --gem5     # + gem5 adapter traces
+  python3 scripts/experiments/ecg/verify/ecg.py --sniper   # + Sniper adapter traces
 """
 import os, re, subprocess, sys
 from pathlib import Path
@@ -57,8 +57,13 @@ COV_ENV = dict(CACHE_L2_SIZE="1MB", CACHE_L3_SIZE="4kB", ECG_STORED_REFRESH="1",
 WAY_RE = re.compile(
     r"way(\d+) valid=(\d+) rrpv=(\d+) epoch=(\d+) dist=(\d+) "
     r"prop=(\d+) stamped=(\d+)(?: dbg=(\d+))? last=(\d+)"
+    r"(?: epoch2=(\d+) sched_n=(\d+))?"
 )
 HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
+K2_HDR_RE = re.compile(r"\[EVICT L3 .*curEpoch=(\d+)")
+K2_DELIVERY_RE = re.compile(
+    r"\[ECG-K2-(EXPECT|RECV) sim=(\w+) seq=(\d+) "
+    r"dest=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
 VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
 
 
@@ -189,9 +194,12 @@ def parse_blocks(text):
             w, valid, rrpv, epoch, dist, prop, stamped = map(int, groups[:7])
             dbg = int(groups[7]) if groups[7] is not None else 0
             last = int(groups[8])
+            epoch2 = int(groups[9]) if groups[9] is not None else epoch
+            sched_n = int(groups[10]) if groups[10] is not None else 1
             ways.append(dict(way=w, valid=valid, rrpv=rrpv, epoch=epoch,
                              dist=dist, prop=prop, stamped=stamped,
-                             dbg=dbg, last=last))
+                             dbg=dbg, last=last, epoch2=epoch2,
+                             sched_n=sched_n))
         v = VIC_RE.search(line)
         if v:
             victim = int(v.group(1)); reason = (v.group(2) or "").strip()
@@ -392,6 +400,7 @@ def verify_trace(name, result, prefix="", reasons=None, coverage=None):
 
 SYNTH_BIN = ROOT / "bench" / "bin_sim" / "test_ecg_victim"
 PARITY_SRC = ROOT / "bench" / "src_sim" / "test_ecg_packed_field_parity.cc"
+PAIR_SRC = ROOT / "bench" / "src_sim" / "test_ecg_epoch_pair.cc"
 
 
 def run_field_parity():
@@ -414,6 +423,89 @@ def run_field_parity():
     ok = (p.returncode == 0)
     print(f"  field-parity (ISA layout SSOT + drift guard): [{'OK ' if ok else 'FAIL'}]")
     return ok
+
+
+def run_epoch_pair_unit():
+    """Build and run the shared pull/push K2 builder + wire/distance test."""
+    binp = Path("/tmp") / "verify_ecg_epoch_pair"
+    cc = subprocess.run(
+        ["g++", "-O2", "-std=c++17", f"-I{ROOT}/bench/include",
+         str(PAIR_SRC), "-o", str(binp)],
+        capture_output=True, text=True)
+    if cc.returncode != 0:
+        print(f"  [epoch-pair] FAIL: compile error\n{cc.stderr[:400]}")
+        return False
+    p = subprocess.run([str(binp)], capture_output=True, text=True, timeout=60)
+    if p.stdout.strip():
+        print("  " + p.stdout.strip())
+    ok = p.returncode == 0
+    print(f"  epoch-pair builder/wire/distance SSOT: [{'OK ' if ok else 'FAIL'}]")
+    return ok
+
+
+def verify_k2_trace(name, result, ne, prefix="", coverage=None):
+    """Verify Schedule-2 reached resident lines and each traced `dist` is
+    min(distance(epoch1), distance(epoch2)). Combined with verify_trace's exact
+    victim rule, this certifies the K2 adapter and eviction decision."""
+    text, ran_ok = result
+    ok = verify_trace(name, result, prefix=prefix, coverage=coverage)
+    if not ran_ok:
+        return False
+    current = None
+    pairs = distinct = bad = 0
+    expected = {}
+    received = {}
+    for line in text.splitlines():
+        delivery = K2_DELIVERY_RE.search(line)
+        if delivery:
+            kind, _sim, seq, dest, first, second = delivery.groups()
+            target = expected if kind == "EXPECT" else received
+            target[int(seq)] = (int(dest), int(first), int(second))
+            continue
+        h = K2_HDR_RE.search(line)
+        if h:
+            current = int(h.group(1))
+            continue
+        m = WAY_RE.search(line)
+        if not m or current is None:
+            continue
+        groups = m.groups()
+        epoch = int(groups[3])
+        distance = int(groups[4])
+        prop = int(groups[5])
+        stamped = int(groups[6])
+        epoch2 = int(groups[9]) if groups[9] is not None else epoch
+        sched_n = int(groups[10]) if groups[10] is not None else 1
+        if sched_n < 2 or not (prop and stamped):
+            continue
+        pairs += 1
+        distinct += epoch != epoch2
+        d1 = (min(epoch, ne - 1) + ne - (current % ne)) % ne
+        d2 = (min(epoch2, ne - 1) + ne - (current % ne)) % ne
+        bad += distance != min(d1, d2)
+    live = pairs > 0 and distinct > 0
+    requires_delivery_trace = not name.startswith("cache_sim/")
+    delivery_ok = not requires_delivery_trace
+    if requires_delivery_trace or expected or received:
+        required = set(range(32))
+        delivery_ok = (
+            set(expected) == required and
+            set(received) == required and
+            expected == received
+        )
+    if coverage is not None:
+        coverage["k2_ways"] = pairs
+        coverage["k2_distinct_ways"] = distinct
+        coverage["k2_distance_mismatches"] = bad
+        coverage["k2_delivery_records"] = len(expected)
+        coverage["k2_delivery_match"] = delivery_ok
+    if bad or not live or not delivery_ok:
+        ok = False
+    print(f"  {prefix}{name:14s}: K2 ways={pairs} distinct={distinct} "
+          f"distance_mismatches={bad} delivery={len(expected)}/{len(received)}"
+          f"{' match' if delivery_ok else ' MISMATCH'}   "
+          f"[{'OK ' if ok and live else 'FAIL'}]")
+    return ok and live and delivery_ok
 
 
 def verify_unknown_mode_hardfails():
@@ -572,6 +664,8 @@ def main(argv=None):
     ok_all &= run_synthetic()
     print("\n-- ISA field-layout parity + drift guard (shared ecg_mode6_builder.h) --")
     ok_all &= run_field_parity()
+    print("\n-- Schedule-2 shared builder + wire/distance parity --")
+    ok_all &= run_epoch_pair_unit()
     print("\n-- negative test: unknown ECG_MODE must hard-fail (not silent DBG_PRIMARY) --")
     ok_all &= verify_unknown_mode_hardfails()
     print("\n-- cache_sim (L3 policies, email-Eu-core; live-trace integration) --")

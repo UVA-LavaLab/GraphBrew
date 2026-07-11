@@ -819,12 +819,51 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
             graphbrew::sniper::recordEcgEpoch(static_cast<uint32_t>(core_id), fl_vertex, fl_epoch);
             return 0;
          }
+         if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT2_WORK_ID)
+         {
+            uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);
+            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);
+            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);
+            graphbrew::sniper::recordEcgEpochPair(
+               static_cast<uint32_t>(core_id), fl_vertex, fl_epoch1, fl_epoch2);
+            return 0;
+         }
          MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };
          return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_USER, (UInt64)&args, true /* expect return value */);
       }
 """,
            args.dry_run,
 )
+    replace_once(
+magic_server,
+"""          if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT_WORK_ID)
+  {
+            uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);
+            uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);
+            graphbrew::sniper::recordEcgEpoch(static_cast<uint32_t>(core_id), fl_vertex, fl_epoch);
+            return 0;
+  }
+""",
+"""          if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT_WORK_ID)
+  {
+            uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);
+            uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);
+            graphbrew::sniper::recordEcgEpoch(static_cast<uint32_t>(core_id), fl_vertex, fl_epoch);
+            return 0;
+  }
+  if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT2_WORK_ID)
+  {
+            uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);
+            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);
+            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);
+            graphbrew::sniper::recordEcgEpochPair(
+               static_cast<uint32_t>(core_id), fl_vertex, fl_epoch1, fl_epoch2);
+            return 0;
+  }
+""",
+args.dry_run,
+["GRAPHBREW_ECG_EXTRACT2_WORK_ID"],
+    )
 
 
 def patch_ecg_pfx_prefetcher_overlay(args: argparse.Namespace) -> None:

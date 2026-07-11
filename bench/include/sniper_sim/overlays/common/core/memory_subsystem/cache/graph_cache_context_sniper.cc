@@ -256,17 +256,16 @@ void clearPrefetchTargetHint(uint32_t core_id)
     prefetchTargetValidStorage()[core_id].store(false, std::memory_order_release);
 }
 
-// === SNIPER_ECG_EXTRACT per-core epoch map (direct-mapped by vertex) ===
-// Slots store (vertex+1) so the zero-initialized (BSS, lazily paged) array means
-// "empty" without an eager init loop. A monotonically increasing delivery
-// sequence lets a cache-line lookup choose the most recently delivered vertex
-// instead of the first stale vertex in that line. The map is consumed only on
-// fill or an actual L3 hit (hardware-feasible LLC-only metadata refresh).
+// === SNIPER_ECG_EXTRACT per-core epoch map (direct-mapped by cache line) ===
+// The builder delivers line-min epochs, so keying the bounded map by line avoids
+// a stale fallback to another vertex after a direct-mapped collision.
 static constexpr std::size_t kEcgEpochMapSize = 8192;
 
 struct PerCoreEpochMap {
-    std::array<std::atomic<uint32_t>, kEcgEpochMapSize> vertex_plus1{};
+    std::array<std::atomic<uint32_t>, kEcgEpochMapSize> line_plus1{};
     std::array<std::atomic<uint16_t>, kEcgEpochMapSize> epoch{};
+    std::array<std::atomic<uint16_t>, kEcgEpochMapSize> epoch2{};
+    std::array<std::atomic<uint8_t>, kEcgEpochMapSize> count{};
     // Seqlock word: (global_delivery_sequence << 1) | write_in_progress.
     std::array<std::atomic<uint64_t>, kEcgEpochMapSize> version{};
 };
@@ -283,49 +282,113 @@ static std::atomic<uint64_t>& ecgEpochGlobalSequence()
     return sequence;
 }
 
+static uint32_t ecgVerticesPerLine()
+{
+    static const uint32_t value = []() {
+        const char* raw = std::getenv("SNIPER_ECG_VERTICES_PER_LINE");
+        int parsed = raw ? std::atoi(raw) : 16;
+        if (parsed < 1) parsed = 1;
+        if (parsed > 1024) parsed = 1024;
+        return static_cast<uint32_t>(parsed);
+    }();
+    return value;
+}
+
 void recordEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t epoch)
 {
     if (core_id >= MAX_TRACKED_CORES) return;
-    static std::atomic<uint32_t> debug_count{0};
-    static std::atomic<uint32_t> debug_nonzero_count{0};
-    const char* debug = std::getenv("ECG_DEBUG");
-    uint32_t debug_index = debug_count.fetch_add(1, std::memory_order_relaxed);
-    uint32_t debug_nonzero_index = epoch != 0
-        ? debug_nonzero_count.fetch_add(1, std::memory_order_relaxed)
-        : UINT32_MAX;
-    if (debug && debug[0] && std::strcmp(debug, "0") != 0 &&
-        (debug_index < 4 || (epoch != 0 && debug_nonzero_index < 4))) {
-        std::fprintf(stderr,
-                     "[ECG-DELIVER sim=sniper core=%u vertex=%u epoch=%u]\n",
-                     core_id, vertex, static_cast<unsigned>(epoch));
-    }
     auto& m = ecgEpochMaps()[core_id];
-    std::size_t i = vertex % kEcgEpochMapSize;
+    const uint32_t line = vertex / ecgVerticesPerLine();
+    std::size_t i = line % kEcgEpochMapSize;
     uint64_t sequence =
         ecgEpochGlobalSequence().fetch_add(1, std::memory_order_relaxed) + 1;
     m.version[i].exchange(
         (sequence << 1) | 1u, std::memory_order_acq_rel);
     m.epoch[i].store(epoch, std::memory_order_relaxed);
-    m.vertex_plus1[i].store(vertex + 1u, std::memory_order_relaxed);
+    m.epoch2[i].store(epoch, std::memory_order_relaxed);
+    m.count[i].store(1, std::memory_order_relaxed);
+    m.line_plus1[i].store(line + 1u, std::memory_order_relaxed);
+    m.version[i].store(sequence << 1, std::memory_order_release);
+}
+
+void recordEcgEpochPair(uint32_t core_id, uint32_t vertex,
+                        uint16_t first, uint16_t second)
+{
+    if (core_id >= MAX_TRACKED_CORES) return;
+    static std::atomic<uint64_t> trace_sequence{0};
+    static const uint64_t trace_limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10)) : 0;
+    }();
+    const uint64_t sequence_index =
+        trace_sequence.fetch_add(1, std::memory_order_relaxed);
+    if (sequence_index < trace_limit) {
+        std::fprintf(stderr,
+            "[ECG-K2-RECV sim=sniper seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            (unsigned long long)sequence_index, vertex,
+            static_cast<unsigned>(first), static_cast<unsigned>(second));
+    }
+    static std::atomic<uint32_t> debug_count{0};
+    static std::atomic<uint32_t> debug_nonzero_count{0};
+    const char* debug = std::getenv("ECG_DEBUG");
+    uint32_t debug_index = debug_count.fetch_add(1, std::memory_order_relaxed);
+    uint32_t debug_nonzero_index = (first != 0 || second != 0)
+        ? debug_nonzero_count.fetch_add(1, std::memory_order_relaxed)
+        : UINT32_MAX;
+    if (debug && debug[0] && std::strcmp(debug, "0") != 0 &&
+        (debug_index < 4 ||
+         ((first != 0 || second != 0) && debug_nonzero_index < 4))) {
+        std::fprintf(stderr,
+                     "[ECG-DELIVER2 sim=sniper core=%u vertex=%u "
+                     "epoch1=%u epoch2=%u]\n",
+                     core_id, vertex, static_cast<unsigned>(first),
+                     static_cast<unsigned>(second));
+    }
+    auto& m = ecgEpochMaps()[core_id];
+    const uint32_t line = vertex / ecgVerticesPerLine();
+    std::size_t i = line % kEcgEpochMapSize;
+    uint64_t sequence =
+        ecgEpochGlobalSequence().fetch_add(1, std::memory_order_relaxed) + 1;
+    m.version[i].exchange(
+        (sequence << 1) | 1u, std::memory_order_acq_rel);
+    m.epoch[i].store(first, std::memory_order_relaxed);
+    m.epoch2[i].store(second, std::memory_order_relaxed);
+    m.count[i].store(2, std::memory_order_relaxed);
+    m.line_plus1[i].store(line + 1u, std::memory_order_relaxed);
     m.version[i].store(sequence << 1, std::memory_order_release);
 }
 
 bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex,
                     uint16_t& epoch, uint64_t& sequence)
 {
+    uint16_t second = 0;
+    uint8_t count = 0;
+    return lookupEcgEpochPair(
+        core_id, vertex, epoch, second, count, sequence);
+}
+
+bool lookupEcgEpochPair(uint32_t core_id, uint32_t vertex,
+                        uint16_t& first, uint16_t& second,
+                        uint8_t& count, uint64_t& sequence)
+{
     if (core_id >= MAX_TRACKED_CORES) return false;
     auto& m = ecgEpochMaps()[core_id];
-    std::size_t i = vertex % kEcgEpochMapSize;
+    const uint32_t line = vertex / ecgVerticesPerLine();
+    std::size_t i = line % kEcgEpochMapSize;
     for (unsigned attempt = 0; attempt < 4; ++attempt) {
         uint64_t before = m.version[i].load(std::memory_order_acquire);
         if (before == 0 || (before & 1u)) continue;
-        uint32_t stored_vertex =
-            m.vertex_plus1[i].load(std::memory_order_relaxed);
-        uint16_t stored_epoch = m.epoch[i].load(std::memory_order_relaxed);
+        uint32_t stored_line =
+            m.line_plus1[i].load(std::memory_order_relaxed);
+        uint16_t stored_first = m.epoch[i].load(std::memory_order_relaxed);
+        uint16_t stored_second = m.epoch2[i].load(std::memory_order_relaxed);
+        uint8_t stored_count = m.count[i].load(std::memory_order_relaxed);
         uint64_t after = m.version[i].load(std::memory_order_acquire);
         if (before != after || (after & 1u)) continue;
-        if (stored_vertex != vertex + 1u) return false;
-        epoch = stored_epoch;
+        if (stored_line != line + 1u) return false;
+        first = stored_first;
+        second = stored_second;
+        count = stored_count;
         sequence = after >> 1;
         return true;
     }
@@ -631,6 +694,29 @@ bool GraphCacheContext::isPropertyData(uint64_t addr) const
 {
     for (uint32_t i = 0; i < num_regions; ++i) {
         if (regions[i].contains(addr)) return true;
+    }
+    return false;
+}
+
+bool GraphCacheContext::isEcgEpochData(uint64_t addr) const
+{
+    const char* requested = std::getenv("SNIPER_ECG_EPOCH_REGION");
+    if (requested && requested[0]) {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (regions[i].name == requested)
+                return regions[i].contains(addr);
+        }
+        return false;
+    }
+    if (num_regions == 1) return regions[0].contains(addr);
+    static const char* defaults[] = {
+        "contrib", "parent", "dist", "depth", "comp"
+    };
+    for (const char* name : defaults) {
+        for (uint32_t i = 0; i < num_regions; ++i) {
+            if (regions[i].name == name)
+                return regions[i].contains(addr);
+        }
     }
     return false;
 }

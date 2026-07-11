@@ -87,6 +87,9 @@ def benchmark_environment(args):
         f"GEM5_ECG_PFX_HINT_FILTER={args.ecg_pfx_hint_filter if args.prefetcher == 'ECG_PFX' else 0}",
         f"GEM5_ECG_PFX_FILTER_ELEM_SIZE=4",
         f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
+        f"ECG_EDGE_MASK_SCHED={os.environ.get('ECG_EDGE_MASK_SCHED', '0')}",
+        f"ECG_K2_DELIVERY_TRACE={os.environ.get('ECG_K2_DELIVERY_TRACE', '0')}",
+        f"GEM5_ECG_EPOCH_REGION_INDEX={os.environ.get('GEM5_ECG_EPOCH_REGION_INDEX', '')}",
         f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_epoch_delivery or (ecg_pfx_enabled and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
         # Fused ecg.load prototype: host GEM5_FORCE_ECG_LOAD=1 selects the single
         # custom-0 load-and-deliver instruction instead of demand-load + ecg.extract.
@@ -199,6 +202,15 @@ def parse_args():
 
 def create_system(args):
     """Create the full gem5 system for graph benchmark simulation."""
+
+    if os.environ.get("ECG_EDGE_MASK_SCHED", "0") == "2":
+        if args.cpu_type == "O3":
+            raise RuntimeError(
+                "Schedule-2 ecg.extract2 uses the in-order mailbox; O3 "
+                "requires a request-bound epoch-pair extension.")
+        if args.prefetcher not in ("none", "STRIDE"):
+            raise RuntimeError(
+                "Schedule-2 is implemented only with prefetcher none or STRIDE.")
 
     system = System()
     system.clk_domain = SrcClockDomain()
