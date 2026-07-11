@@ -291,13 +291,15 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
     int pfx_window_pos = 0;
     const char* configured_prefetcher = std::getenv("GRAPHBREW_PREFETCHER");
-    const bool no_edge_prefetcher =
-        !configured_prefetcher || std::string(configured_prefetcher) == "none";
+    const bool packed_stream_compatible =
+        !configured_prefetcher ||
+        std::string(configured_prefetcher) == "none" ||
+        std::string(configured_prefetcher) == "STRIDE";
     const bool packed_extract_only =
         ecg_extract_enabled && !ecg_prefetch_enabled &&
         ecg_pfx_mode == 6 && packed_ok && pack_id_bits <= 24 &&
         !ecg_load_enabled && !gem5_ecg_pload_enabled() &&
-        no_edge_prefetcher;
+        packed_stream_compatible;
     if (packed_extract_only) {
         fprintf(stderr,
                 "[ECG_PACKED4] PR eviction-only packed record fast path ACTIVE\n");

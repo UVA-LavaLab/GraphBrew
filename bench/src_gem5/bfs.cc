@@ -123,8 +123,10 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
     const char* configured_prefetcher = std::getenv("GRAPHBREW_PREFETCHER");
-    const bool no_edge_prefetcher =
-        !configured_prefetcher || std::string(configured_prefetcher) == "none";
+    const bool packed_stream_compatible =
+        !configured_prefetcher ||
+        std::string(configured_prefetcher) == "none" ||
+        std::string(configured_prefetcher) == "STRIDE";
 
     // A5: the fused ecg.load EVICT (indexed-property) op reads parent[v] AND delivers v's
     // next-ref epoch to the LLC in one custom-0 instruction (RISC-V), stamping the property
@@ -151,7 +153,7 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
                 ? &out_edge_epochs[u] : nullptr;
         if (epoch_packed_ok && epoch_pack_id_bits <= 24 &&
             !gem5_ecg_pfx_hints_enabled() &&
-            no_edge_prefetcher &&
+            packed_stream_compatible &&
             static_cast<size_t>(u + 1) < epoch_packed_off.size()) {
             const uint64_t begin = epoch_packed_off[u];
             const uint64_t end = epoch_packed_off[u + 1];

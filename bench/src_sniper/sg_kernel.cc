@@ -276,8 +276,10 @@ int run_pr(const Graph& graph, int max_iters) {
     const char* ecg_enable_env = std::getenv("SNIPER_ENABLE_ECG_PFX_HINTS");
     const bool ecg_enabled = ecg_enable_env && std::string(ecg_enable_env) != "0";
     const char* configured_prefetcher = std::getenv("SNIPER_GRAPHBREW_PREFETCHER");
-    const bool no_edge_prefetcher =
-        !configured_prefetcher || std::string(configured_prefetcher) == "none";
+    const bool packed_stream_compatible =
+        !configured_prefetcher ||
+        std::string(configured_prefetcher) == "none" ||
+        std::string(configured_prefetcher) == "STRIDE";
 
     // Build mode-6 fat-mask array BEFORE entering ROI (otherwise
     // Sniper cycle-accurately simulates the offline construction
@@ -360,7 +362,7 @@ int run_pr(const Graph& graph, int max_iters) {
             SNIPER_SET_VERTEX(node);
             ScoreT incoming_total = 0.0f;
 
-            if (epoch_packed_ok && !ecg_enabled && no_edge_prefetcher &&
+            if (epoch_packed_ok && !ecg_enabled && packed_stream_compatible &&
                 static_cast<size_t>(node + 1) < epoch_packed_off.size()) {
                 const uint64_t begin = epoch_packed_off[node];
                 const uint64_t end = epoch_packed_off[node + 1];
@@ -549,8 +551,10 @@ int run_bfs(const Graph& graph, NodeID source) {
     constexpr uint32_t kNumVtxPerLine = 64 / sizeof(NodeID);
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
     const char* configured_prefetcher = std::getenv("SNIPER_GRAPHBREW_PREFETCHER");
-    const bool no_edge_prefetcher =
-        !configured_prefetcher || std::string(configured_prefetcher) == "none";
+    const bool packed_stream_compatible =
+        !configured_prefetcher ||
+        std::string(configured_prefetcher) == "none" ||
+        std::string(configured_prefetcher) == "STRIDE";
     const uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", 256, 2, 65535));
     std::vector<std::vector<uint16_t>> out_edge_epochs;
@@ -618,7 +622,7 @@ int run_bfs(const Graph& graph, NodeID source) {
             SNIPER_ECG_PFX_TARGET(frontier.front());
         }
         if (bfs_packed_ok && !graphbrew_sniper::ecg_pfx_hints_enabled() &&
-            no_edge_prefetcher &&
+            packed_stream_compatible &&
             static_cast<size_t>(node + 1) < bfs_packed_off.size()) {
             const uint64_t begin = bfs_packed_off[node];
             const uint64_t end = bfs_packed_off[node + 1];
