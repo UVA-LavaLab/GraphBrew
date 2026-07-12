@@ -138,7 +138,7 @@ void export_popt_for_graph(const GraphType& graph) {
 int run_pr(const Graph& graph, int max_iters) {
     const ScoreT init_score = graph.num_nodes() > 0 ? 1.0f / graph.num_nodes() : 0.0f;
     const ScoreT base_score = graph.num_nodes() > 0 ? (1.0f - kDamp) / graph.num_nodes() : 0.0f;
-    constexpr size_t kPropAlign = 64;
+    const size_t kPropAlign = graphbrew_sniper::property_alignment();
     pvector<ScoreT> scores(graph.num_nodes(), init_score, kPropAlign);
     pvector<ScoreT> contrib(graph.num_nodes(), 0.0f, kPropAlign);
 
@@ -163,7 +163,10 @@ int run_pr(const Graph& graph, int max_iters) {
     // Build POPT matrix inline for legacy single-epoch/POPT runs. K2 is
     // matrix-free and retains only its packed 8-byte record stream.
     constexpr int kNumEpochs = 256;
-    const int num_vtx_per_line = std::max<int>(1, 64 / static_cast<int>(sizeof(ScoreT)));
+    const int num_vtx_per_line = graphbrew_sniper::env_int_clamped(
+        "SNIPER_ECG_VERTICES_PER_LINE",
+        std::max<int>(1, 64 / static_cast<int>(sizeof(ScoreT))),
+        1, 1024);
     pvector<uint8_t> popt_matrix;
     const int popt_num_cache_lines =
         (graph.num_nodes() + num_vtx_per_line - 1) / num_vtx_per_line;
@@ -179,6 +182,10 @@ int run_pr(const Graph& graph, int max_iters) {
     // push_out_edges=false). Build before ROI; deliver immediately before the
     // governed contrib[] demand, matching cache_sim/gem5.
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
+    const bool fused_k2_model = []() {
+        const char* value = std::getenv("SNIPER_ECG_FUSED_K2");
+        return value && value[0] && std::string(value) != "0";
+    }();
     const uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped(
             "ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
@@ -279,7 +286,7 @@ int run_pr(const Graph& graph, int max_iters) {
                          ecg_epoch_count);
         }
     }
-    sniper_export_context(
+    if (!sniper_export_context(
         regions, 2, graph, nullptr, edge_regions, num_edge_regions,
         epoch_pair_ok && !epoch_pair_flat.empty()
             ? reinterpret_cast<uint64_t>(epoch_pair_flat.data())
@@ -287,7 +294,14 @@ int run_pr(const Graph& graph, int max_iters) {
                 ? reinterpret_cast<uint64_t>(epoch_packed_flat.data()) : 0),
         epoch_pair_ok ? epoch_pair_flat.size() * sizeof(uint64_t)
                       : (epoch_packed_ok
-                          ? epoch_packed_flat.size() * sizeof(uint32_t) : 0));
+                          ? epoch_packed_flat.size() * sizeof(uint32_t) : 0),
+        epoch_pair_ok ? epoch_pair_off.data() : nullptr,
+        epoch_pair_ok ? epoch_pair_off.size() : 0,
+        epoch_pair_ok ? epoch_pair_flat.data() : nullptr,
+        epoch_pair_ok ? epoch_pair_flat.size() : 0)) {
+        std::fprintf(stderr, "sniper-sg PR: context/K2 sideband export failed\n");
+        return 2;
+    }
 
     // Lookahead distance for ECG_PFX hints. node+1 is too close on
     // small graphs (Sniper's cache_cntlr.cc:1146 filters
@@ -405,11 +419,19 @@ int run_pr(const Graph& graph, int max_iters) {
                     const uint64_t rec = epoch_pair_flat[pos];
                     const NodeID neighbor =
                         static_cast<NodeID>(ecg_epoch::extractEpochPairDest(rec));
-                    const uint16_t first =
-                        ecg_epoch::extractEpochPairFirst(rec);
-                    const uint16_t second =
-                        ecg_epoch::extractEpochPairSecond(rec);
-                    SNIPER_ECG_EXTRACT2(neighbor, first, second);
+                    if (fused_k2_model) {
+                        if (graphbrew_sniper::ecg_k2_trace_enabled()) {
+                            SNIPER_ECG_EXPECT2(
+                                neighbor,
+                                ecg_epoch::extractEpochPairFirst(rec),
+                                ecg_epoch::extractEpochPairSecond(rec));
+                        }
+                    } else {
+                        SNIPER_ECG_EXTRACT2(
+                            neighbor,
+                            ecg_epoch::extractEpochPairFirst(rec),
+                            ecg_epoch::extractEpochPairSecond(rec));
+                    }
                     incoming_total += contrib[neighbor];
                 }
                 scores[node] = base_score + kDamp * incoming_total;
@@ -586,7 +608,7 @@ int run_pr(const Graph& graph, int max_iters) {
 
 int run_bfs(const Graph& graph, NodeID source) {
     if (source < 0 || source >= graph.num_nodes()) source = 0;
-    constexpr size_t kPropAlign = 64;
+    const size_t kPropAlign = graphbrew_sniper::property_alignment();
     pvector<NodeID> parent(graph.num_nodes(), -1, kPropAlign);
     parent[source] = source;
 
@@ -607,7 +629,10 @@ int run_bfs(const Graph& graph, NodeID source) {
     // instead of the host-side findNextRef matrix. BFS-TD pushes OUT-edges writing
     // parent[dest]; dest is next-referenced by its IN-neighbours -> push_out_edges=true
     // (the transpose; same builder as cache_sim/gem5). Gated on SNIPER_ENABLE_ECG_EXTRACT.
-    constexpr uint32_t kNumVtxPerLine = 64 / sizeof(NodeID);
+    const uint32_t kNumVtxPerLine = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped(
+            "SNIPER_ECG_VERTICES_PER_LINE",
+            64 / sizeof(NodeID), 1, 1024));
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
     const char* configured_prefetcher = std::getenv("SNIPER_GRAPHBREW_PREFETCHER");
     const bool packed_stream_compatible =

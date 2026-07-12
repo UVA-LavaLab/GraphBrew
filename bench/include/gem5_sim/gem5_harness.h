@@ -298,12 +298,13 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
 #endif
 }
 
-inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
+inline void gem5_trace_ecg_k2_expect(uint64_t packed) {
     static uint64_t trace_sequence = 0;
     static const uint64_t trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
         return value ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10)) : 0;
     }();
+    if (trace_limit == 0) return;
     const uint64_t sequence = trace_sequence++;
     if (sequence < trace_limit) {
         std::fprintf(stderr,
@@ -313,6 +314,10 @@ inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
             static_cast<unsigned>(ecg_epoch::extractEpochPairFirst(packed)),
             static_cast<unsigned>(ecg_epoch::extractEpochPairSecond(packed)));
     }
+}
+
+inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
+    gem5_trace_ecg_k2_expect(packed);
 #if defined(__riscv)
     uint64_t real_vertex = 0;
     asm volatile (".insn r 0x0b, 0x0, 0x01, %0, %1, x0"
@@ -326,6 +331,53 @@ inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
 #else
     return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
 #endif
+}
+
+inline bool gem5_ecg_stream_load2_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_STREAM_LOAD2");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+inline bool gem5_ecg_load2_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ENABLE_ECG_LOAD2");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
+// ecg.stream.load2 rd, 0(rs1): load one packed K2 record with a request-bound
+// LLC no-allocate flag. rd returns the full record; the decoder also delivers
+// both epochs to ECG replacement metadata.
+inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
+    uint64_t packed = 0;
+#if defined(__riscv)
+    asm volatile (".insn i 0x0b, 0x3, %0, 0(%1)"
+                  : "=r"(packed)
+                  : "r"(record_ptr)
+                  : "memory");
+#else
+    if (record_ptr) packed = *static_cast<const uint64_t*>(record_ptr);
+#endif
+    gem5_trace_ecg_k2_expect(packed);
+    return packed;
+}
+
+inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
+    uint64_t packed = 0;
+#if defined(__riscv)
+    asm volatile (".insn i 0x0b, 0x4, %0, 0(%1)"
+                  : "=r"(packed)
+                  : "r"(record_ptr)
+                  : "memory");
+#else
+    if (record_ptr) packed = *static_cast<const uint64_t*>(record_ptr);
+#endif
+    gem5_trace_ecg_k2_expect(packed);
+    return packed;
 }
 
 #define GEM5_ECG_EXTRACT2(packed_u64) \

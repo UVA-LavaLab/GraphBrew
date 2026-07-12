@@ -62,6 +62,23 @@ inline int env_int_clamped(const char* name, int fallback, int min_value, int ma
     return static_cast<int>(parsed);
 }
 
+inline size_t cache_line_size() {
+    return static_cast<size_t>(
+        env_int_clamped("SNIPER_CACHE_LINE_SIZE", 64, 1, 4096));
+}
+
+inline size_t property_alignment() {
+    const size_t alignment = cache_line_size();
+    if (alignment < sizeof(void*) ||
+        (alignment & (alignment - 1)) != 0) {
+        std::fprintf(stderr,
+            "sniper_harness: cache line size %zu is not a valid allocation alignment\n",
+            alignment);
+        std::abort();
+    }
+    return alignment;
+}
+
 inline std::string context_path() {
     return env_or_default("SNIPER_GRAPHBREW_CTX", "/tmp/sniper_graphbrew_ctx.json");
 }
@@ -174,14 +191,23 @@ inline void ecg_extract(uint64_t vertex, uint16_t epoch) {
     notify_user(GRAPHBREW_SNIPER_USER_ECG_EXTRACT, packed);
 }
 
-inline void ecg_extract2(
-        uint32_t vertex, uint16_t first, uint16_t second) {
-    if (!ecg_extract_enabled()) return;
-    static std::atomic<uint64_t> trace_sequence{0};
+inline uint64_t ecg_k2_trace_limit() {
     static const uint64_t trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
         return value ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10)) : 0;
     }();
+    return trace_limit;
+}
+
+inline bool ecg_k2_trace_enabled() {
+    return ecg_k2_trace_limit() > 0;
+}
+
+inline void trace_ecg_extract2(
+        uint32_t vertex, uint16_t first, uint16_t second) {
+    const uint64_t trace_limit = ecg_k2_trace_limit();
+    if (trace_limit == 0) return;
+    static std::atomic<uint64_t> trace_sequence{0};
     const uint64_t sequence =
         trace_sequence.fetch_add(1, std::memory_order_relaxed);
     if (sequence < trace_limit) {
@@ -190,6 +216,12 @@ inline void ecg_extract2(
             (unsigned long long)sequence, vertex,
             static_cast<unsigned>(first), static_cast<unsigned>(second));
     }
+}
+
+inline void ecg_extract2(
+        uint32_t vertex, uint16_t first, uint16_t second) {
+    if (!ecg_extract_enabled()) return;
+    trace_ecg_extract2(vertex, first, second);
     // SimMagic2 is 64-bit safe after the early-clobber fix.
     const uint64_t packed =
         ecg_epoch::packEpochPairRecord(vertex, first, second);
@@ -265,20 +297,88 @@ inline int sniper_make_edge_regions(const GraphType& g,
     return 2;
 }
 
+inline bool sniper_write_binary_atomic(
+    const std::string& path, const void* data, size_t elem_size, size_t count) {
+    const std::string temp_path = path + ".tmp";
+    FILE* output = fopen(temp_path.c_str(), "wb");
+    if (!output) return false;
+
+    const bool wrote_all =
+        fwrite(data, elem_size, count, output) == count;
+    const bool flushed = fflush(output) == 0 && ferror(output) == 0;
+    const bool closed = fclose(output) == 0;
+    if (wrote_all && flushed && closed &&
+        std::rename(temp_path.c_str(), path.c_str()) == 0) {
+        return true;
+    }
+    std::remove(temp_path.c_str());
+    return false;
+}
+
 template<typename GraphType>
-inline void sniper_export_context(
+inline bool sniper_export_context(
     const SniperPropertyRegion* regions, int num_regions,
     const GraphType& g,
     const char* path = nullptr,
     const SniperEdgeRegion* edge_regions = nullptr,
     int num_edge_regions = 0,
     uint64_t stream_bypass_base = 0,
-    uint64_t stream_bypass_size = 0) {
+    uint64_t stream_bypass_size = 0,
+    const uint64_t* k2_offsets = nullptr,
+    size_t k2_offset_count = 0,
+    const uint64_t* k2_records = nullptr,
+    size_t k2_record_count = 0) {
     const std::string resolved_path = path ? std::string(path) : graphbrew_sniper::context_path();
-    FILE* f = fopen(resolved_path.c_str(), "w");
+    if (stream_bypass_size > 0) {
+        const uint64_t line_size =
+            static_cast<uint64_t>(graphbrew_sniper::cache_line_size());
+        if (stream_bypass_base > UINT64_MAX - stream_bypass_size) {
+            fprintf(stderr, "sniper_harness: stream bypass range overflow\n");
+            return false;
+        }
+        const uint64_t raw_upper = stream_bypass_base + stream_bypass_size;
+        stream_bypass_base -= stream_bypass_base % line_size;
+        const uint64_t remainder = raw_upper % line_size;
+        const uint64_t padding = remainder == 0 ? 0 : line_size - remainder;
+        if (raw_upper > UINT64_MAX - padding) {
+            fprintf(stderr, "sniper_harness: aligned stream bypass range overflow\n");
+            return false;
+        }
+        const uint64_t aligned_upper = raw_upper + padding;
+        stream_bypass_size = aligned_upper - stream_bypass_base;
+    }
+
+    std::string k2_offsets_path;
+    std::string k2_records_path;
+    const bool k2_requested =
+        k2_offsets || k2_offset_count || k2_records || k2_record_count;
+    if (k2_requested) {
+        if (!k2_offsets || k2_offset_count == 0 ||
+            !k2_records || k2_record_count == 0) {
+            fprintf(stderr, "sniper_harness: incomplete K2 sideband inputs\n");
+            return false;
+        }
+        k2_offsets_path = resolved_path + ".k2_offsets.bin";
+        k2_records_path = resolved_path + ".k2_records.bin";
+        const bool offsets_ok = sniper_write_binary_atomic(
+            k2_offsets_path, k2_offsets, sizeof(uint64_t), k2_offset_count);
+        const bool records_ok = sniper_write_binary_atomic(
+            k2_records_path, k2_records, sizeof(uint64_t), k2_record_count);
+        if (!offsets_ok || !records_ok) {
+            std::remove(k2_offsets_path.c_str());
+            std::remove(k2_records_path.c_str());
+            fprintf(stderr, "sniper_harness: cannot publish complete K2 sidebands\n");
+            return false;
+        }
+    }
+
+    const std::string temp_context_path = resolved_path + ".tmp";
+    FILE* f = fopen(temp_context_path.c_str(), "w");
     if (!f) {
         fprintf(stderr, "sniper_harness: cannot write sideband to %s\n", resolved_path.c_str());
-        return;
+        std::remove(k2_offsets_path.c_str());
+        std::remove(k2_records_path.c_str());
+        return false;
     }
 
     fprintf(f, "{\n");
@@ -294,6 +394,10 @@ inline void sniper_export_context(
             (unsigned long)stream_bypass_base,
             (unsigned long)stream_bypass_size);
     }
+    fprintf(f, "  \"k2_offsets_path\": \"%s\",\n",
+            k2_offsets_path.c_str());
+    fprintf(f, "  \"k2_records_path\": \"%s\",\n",
+            k2_records_path.c_str());
     fprintf(f, "  \"directed\": %s,\n", g.directed() ? "true" : "false");
 
     fprintf(f, "  \"property_regions\": [\n");
@@ -320,12 +424,9 @@ inline void sniper_export_context(
             data_path = default_data_path;
         }
         if (data_path && edge_regions[i].data && edge_regions[i].size_bytes > 0) {
-            FILE* ef = fopen(data_path, "wb");
-            if (ef) {
-                fwrite(edge_regions[i].data, 1,
-                       static_cast<size_t>(edge_regions[i].size_bytes), ef);
-                fclose(ef);
-            } else {
+            if (!sniper_write_binary_atomic(
+                    data_path, edge_regions[i].data, 1,
+                    static_cast<size_t>(edge_regions[i].size_bytes))) {
                 fprintf(stderr, "sniper_harness: cannot write edge data to %s\n", data_path);
                 data_path = nullptr;
             }
@@ -384,13 +485,24 @@ inline void sniper_export_context(
     fprintf(f, "]\n");
     fprintf(f, "  }\n");
     fprintf(f, "}\n");
-    fclose(f);
+    const bool context_complete = fflush(f) == 0 && ferror(f) == 0;
+    const bool context_closed = fclose(f) == 0;
+    if (!context_complete || !context_closed ||
+        std::rename(temp_context_path.c_str(), resolved_path.c_str()) != 0) {
+        std::remove(temp_context_path.c_str());
+        std::remove(k2_offsets_path.c_str());
+        std::remove(k2_records_path.c_str());
+        fprintf(stderr, "sniper_harness: cannot publish complete context %s\n",
+                resolved_path.c_str());
+        return false;
+    }
 
     graphbrew_sniper::notify_user(
         graphbrew_sniper::GRAPHBREW_SNIPER_USER_CONTEXT_READY,
         reinterpret_cast<uint64_t>(resolved_path.c_str()));
     printf("sniper_harness: exported context to %s (%ld vertices, %ld edges, %d regions)\n",
            resolved_path.c_str(), (long)g.num_nodes(), (long)g.num_edges_directed(), num_regions);
+    return true;
 }
 
 inline void sniper_report_region(const char* name, const void* base, size_t count, size_t elem_size) {
@@ -440,3 +552,4 @@ inline bool sniper_export_popt_matrix(
 #define SNIPER_ECG_PFX_TARGET(vertex_id) ::graphbrew_sniper::set_prefetch_target(static_cast<uint64_t>(vertex_id))
 #define SNIPER_ECG_EXTRACT(vertex_id, epoch) ::graphbrew_sniper::ecg_extract(static_cast<uint64_t>(vertex_id), static_cast<uint16_t>(epoch))
 #define SNIPER_ECG_EXTRACT2(vertex_id, epoch1, epoch2) ::graphbrew_sniper::ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))
+#define SNIPER_ECG_EXPECT2(vertex_id, epoch1, epoch2) ::graphbrew_sniper::trace_ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))

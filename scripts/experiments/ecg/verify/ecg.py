@@ -62,8 +62,14 @@ WAY_RE = re.compile(
 HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
 K2_HDR_RE = re.compile(r"\[EVICT L3 .*curEpoch=(\d+)")
 K2_DELIVERY_RE = re.compile(
-    r"\[ECG-K2-(EXPECT|RECV) sim=(\w+) seq=(\d+) "
+    r"\[ECG-K2-(EXPECT|RECV|SIDEBAND) sim=(\w+) seq=(\d+) "
     r"dest=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+K2_FUSED_RECV_RE = re.compile(
+    r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
+    r"line=(\d+) vpl=(\d+) index=(\d+) begin=(\d+) end=(\d+) "
+    r"dest=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+K2_FUSED_VALID_RE = re.compile(
+    r"\[ECG-K2-FUSED-VALID count=(\d+) bad=(\d+)\]")
 VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
 
 
@@ -121,13 +127,16 @@ def run_gem5_isa_modes():
         return p.stdout + p.stderr
 
     normal = _run()
-    normal_pass = "RESULT: PASS" in normal
+    stream_load_pass = "LOAD2/K2" in normal and "stream=" in normal
+    normal_pass = "RESULT: PASS" in normal and stream_load_pass
     ef = Path("/tmp") / "ecg_force_wc0.env"
     ef.write_text("ECG_TEST_FORCE_WC=0\n")
     teeth = _run(str(ef))
     teeth_fail = "RESULT: FAIL" in teeth
     print(f"  gem5 ISA decode every (mode,width) via REAL decoder -> PASS: "
           f"{'[OK ]' if normal_pass else '[FAIL]'}")
+    print(f"  gem5 StreamShield request-bound LOAD2/K2 round-trip: "
+          f"{'[OK ]' if stream_load_pass else '[FAIL]'}")
     print(f"  gem5 ISA teeth (forced-wrong ECG_WIDTH must mis-decode -> FAIL): "
           f"{'[OK ]' if teeth_fail else '[FAIL]'}")
     return normal_pass and teeth_fail
@@ -455,11 +464,26 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
     pairs = distinct = bad = 0
     expected = {}
     received = {}
+    sideband = {}
+    fused_receipts = []
+    fused_validation = None
     for line in text.splitlines():
+        validated = K2_FUSED_VALID_RE.search(line)
+        if validated:
+            fused_validation = tuple(map(int, validated.groups()))
+            continue
+        fused = K2_FUSED_RECV_RE.search(line)
+        if fused:
+            fused_receipts.append(tuple(map(int, fused.groups())))
+            continue
         delivery = K2_DELIVERY_RE.search(line)
         if delivery:
             kind, _sim, seq, dest, first, second = delivery.groups()
-            target = expected if kind == "EXPECT" else received
+            target = (
+                expected if kind == "EXPECT"
+                else sideband if kind == "SIDEBAND"
+                else received
+            )
             target[int(seq)] = (int(dest), int(first), int(second))
             continue
         h = K2_HDR_RE.search(line)
@@ -486,7 +510,22 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
     pair_live = pairs > 0 and distinct > 0
     requires_delivery_trace = not name.startswith("cache_sim/")
     delivery_ok = not requires_delivery_trace
-    if requires_delivery_trace or expected or received:
+    if sideband:
+        required = set(range(32))
+        fused_valid = all(
+            begin <= index < end and vpl > 0 and dest // vpl == line_id
+            for (_seq, _src, line_id, vpl, index, begin, end,
+                 dest, _first, _second) in fused_receipts
+        )
+        delivery_ok = (
+            set(expected) == required and
+            set(sideband) == required and
+            expected == sideband and
+            bool(fused_receipts) and fused_valid and
+            fused_validation is not None and
+            fused_validation[0] > 0 and fused_validation[1] == 0
+        )
+    elif requires_delivery_trace or expected or received:
         required = set(range(32))
         delivery_ok = (
             set(expected) == required and
@@ -500,10 +539,12 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         coverage["k2_distance_mismatches"] = bad
         coverage["k2_delivery_records"] = len(expected)
         coverage["k2_delivery_match"] = delivery_ok
+        coverage["k2_fused_receipts"] = len(fused_receipts)
     if bad or not live or not delivery_ok:
         ok = False
     print(f"  {prefix}{name:14s}: K2 ways={pairs} distinct={distinct} "
-          f"distance_mismatches={bad} delivery={len(expected)}/{len(received)}"
+          f"distance_mismatches={bad} delivery={len(expected)}/"
+          f"{len(sideband) if sideband else len(received)}"
           f"{' match' if delivery_ok else ' MISMATCH'}   "
           f"[{'OK ' if ok and live else 'FAIL'}]")
     return ok and live and delivery_ok

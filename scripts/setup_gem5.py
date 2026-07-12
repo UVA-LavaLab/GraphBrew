@@ -116,7 +116,10 @@ UNIFIED_DIFF_PATCHES = [
     ("cpu/o3/lsq_ecg_producer.patch", "."),
     # StreamShield: packed ECG record misses retain normal L1/L2 fills but
     # suppress shared-L3 allocation through the MSHR allocOnFill bit.
+    ("mem/request_stream_bypass.patch", "."),
     ("mem/cache/base_stream_bypass.patch", "."),
+    ("mem/cache/base_stream_bypass_request_flag.patch", "."),
+    ("mem/cache/prefetch_stream_bypass.patch", "."),
 ]
 
 
@@ -324,6 +327,22 @@ def apply_unified_diff_patches():
         if not target.exists():
             log.warn(f"  Target dir not found: {target}")
             continue
+
+        marker_targets = {
+            "mem/cache/prefetch/queued_cc_latency.patch": (
+                target / "src/mem/cache/prefetch/queued.cc",
+                "S68-LATENCY-GUARD-PATCH",
+            ),
+            "mem/cache/prefetch_stream_bypass.patch": (
+                target / "src/mem/cache/prefetch/queued.cc",
+                "pfInfo.isStreamBypass()",
+            ),
+        }
+        marker_target = marker_targets.get(overlay_rel)
+        if marker_target and marker_target[0].exists():
+            if marker_target[1] in marker_target[0].read_text():
+                log.info(f"  Patch already applied (marker): {overlay_rel}")
+                continue
 
         # Dry-run forward to see if already applied
         dry_fwd = subprocess.run(
@@ -533,11 +552,10 @@ def build_gem5(isas: list, build_type: str, jobs: int):
         binary = GEM5_DIR / target
 
         if binary.exists():
-            log.info(f"gem5 binary already exists: {target}")
-            continue
-
-        log.info(f"Building gem5 for {isa} ({build_type})...")
-        log.info(f"This will take 10-30 minutes with {jobs} jobs.")
+            log.info(f"Incrementally rebuilding gem5: {target}")
+        else:
+            log.info(f"Building gem5 for {isa} ({build_type})...")
+            log.info(f"This will take 10-30 minutes with {jobs} jobs.")
 
         run_cmd(
             ["scons", f"-j{jobs}", target],

@@ -188,7 +188,7 @@ defensible thesis; "beat P-OPT" is not the right bar and is not supported. Recom
 paper framing: *practical, overhead-free approximation of the graph-caching oracle*, with
 P-OPT as the ceiling ECG approaches, not a baseline ECG must exceed.
 
-## 9. New mechanism: StreamShield + Schedule-2 (2026-07-10, cache_sim prototype)
+## 9. New mechanism: StreamShield + Schedule-2 (2026-07-10, cache_sim result)
 
 The §7 verdict remains correct for the **old single-epoch mask alone**. A new mechanism
 adds two orthogonal capabilities P-OPT does not have:
@@ -219,9 +219,10 @@ older five-graph numbers that allowed `scores[]` to borrow the same epoch are
 superseded. LiveJournal and roadNet controls require rerun under this corrected
 region isolation. **Traffic caveat:** total traffic remains above uncharged P-OPT
 because the 8-byte record stream and private-cache prefetch fills are charged.
-Schedule-2 delivery is now ported and decision-verified in gem5 and Sniper (§10).
-**StreamShield LLC bypass remains cache_sim-only**; that is the remaining mechanism gap
-before the demand-miss/traffic result can be claimed outside the prototype.
+Schedule-2 delivery and StreamShield allocation control are now ported and
+decision-verified in gem5 and Sniper (§10-§12). The real-graph demand-miss and
+traffic result remains cache_sim-authoritative until a feasible real-graph Sniper
+matrix confirms the full performance claim.
 
 ## 10. Schedule-2 three-simulator equivalence (2026-07-11)
 
@@ -281,9 +282,10 @@ StreamShield is now implemented in all three simulators for PR:
 - **gem5:** the PR packed-record virtual range is exported in the sideband;
   shared `system.l3cache` sets the MSHR `allocOnFill` bit to false. The response
   still fills the private hierarchy.
-- **Sniper:** NUCA reads for the packed range return a miss without a tag/data
-  lookup, and the returning NUCA write is discarded without insertion. Dedicated
-  `stream-bypass-reads/writes` counters prove both halves fire.
+- **Sniper:** NUCA reads retain normal tag lookup, hit handling, and latency. On a
+  miss, the returning NUCA write is discarded without insertion. Dedicated
+  `stream-bypass-reads/writes` counters prove the read-miss and suppressed-write
+  halves fire.
 
 The bypass is PR-only, ECG-only, and default-off. Baseline policies never inherit
 `ECG_STREAM_BYPASS`, so P-OPT still builds and uses its matrix.
@@ -320,3 +322,58 @@ other mechanism off and on:
 of the combined reduction. StreamShield contributes the remaining quarter and is
 still material, especially on cit-Patents. The interaction is mildly antagonistic:
 once K2 removes property misses, fewer pollution misses remain for bypass to remove.
+
+## 12. Request-bound RISC-V implementation and Sniper fused model
+
+StreamShield is now an instruction property rather than only an address-range
+experiment. Two custom-0 I-type record loads use the same K2 wire layout:
+
+| instruction | custom-0 FUNCT3 | action |
+|---|---:|---|
+| `ecg.load2 rd, 0(rs1)` | `0x4` | load and return the 64-bit K2 record; deliver both epochs normally |
+| `ecg.stream.load2 rd, 0(rs1)` | `0x3` | same load/delivery plus `Request::ECG_STREAM_BYPASS` |
+
+The request flag rides the specific load through the core and cache hierarchy.
+L1/L2 behave normally. At `system.l3cache`, the flag clears the MSHR
+`allocOnFill` decision; an LLC hit remains usable, but an LLC miss is not
+installed. STRIDE prefetches derived from that load inherit the same request flag.
+Request-bound cells disable the address-range fallback, and logs report
+`source=request-flag`, so the ISA bit is independently load-bearing. This is
+race-free under OoO because the bypass decision is per request, not a mailbox.
+
+The RISC-V decoder test executes both instructions through the real gem5 decoder,
+checks the complete 64-bit record round trip, and confirms the StreamShield request
+reaches the L3 no-allocate path.
+
+Sniper cannot execute RISC-V binaries directly, so its scale model uses the same
+single-record-load semantics without per-edge SimMagic: K2 offsets/records are
+exported before the ROI, and the cache consumes the exact pair for
+`(current source, property line)` when the governed line reaches the LLC. Live
+receipt traces are checked against the exported binary records; temporary K2
+sidebands are deleted after each cell.
+
+### Matched fused-load performance check
+
+Both K2 cells now use one fused record-load instruction/model; their only
+difference is the StreamShield no-allocate bit.
+
+| simulator / graph | LRU | SRRIP | GRASP | P-OPT | K2 | K2+StreamShield | StreamShield marginal speedup |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| gem5 / kron_s16_k4, simulated ticks | 23.076B | 22.520B | 22.192B | **21.600B** | 30.476B | 26.962B | **13.03%** |
+| Sniper / kron_s16_k16, simulated ticks | timeout | timeout | **35.865T** | timeout | 46.952T | 46.647T | **0.65%** |
+
+gem5 logs identify the source as
+`source=request-flag allocate=0`, proving the custom instruction—not only the
+address-range fallback—drives the no-allocation decision.
+
+In clean gem5, StreamShield also cuts K2 L3 misses from 39,333 to 16,425
+(**-58.24%**). In clean Sniper, it cuts K2 L3 misses from 9,889,214 to
+9,859,131 (**-0.30%**) while executing the exact same 118,517,996 instructions.
+However, K2+StreamShield still does **not** beat the available full baselines on
+these synthetic mechanism cells. The kron cells are unsuitable
+for an ECG quality claim (the epoch signal is weak/inert and Sniper's
+non-inclusive hierarchy changes record reuse). Therefore the valid statement is:
+
+> StreamShield improves the K2 implementation in both gem5 and Sniper. The overall
+> ECG-vs-P-OPT performance win remains established only by the corrected
+> cache_sim real-graph factorial until a feasible real-graph Sniper matrix is completed.

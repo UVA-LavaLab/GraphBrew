@@ -123,8 +123,9 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
 
 The gate requires non-identical pairs, zero distance mismatches, and exact victim
 compliance. PR and BFS pass on cache_sim, gem5, and Sniper. StreamShield is also
-implemented for PR: gem5 suppresses L3 `allocOnFill`, while Sniper skips NUCA
-lookup/insertion for the packed range. Verify the combined mechanism with:
+implemented for PR: gem5 suppresses L3 `allocOnFill`; Sniper preserves NUCA tag
+hits and latency but suppresses insertion after a bypassed miss. Verify the
+combined mechanism with:
 
 ```bash
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
@@ -165,6 +166,29 @@ presents this one instruction. The decoder is the tracked overlay `decoder_ecg_e
 build tree. EVICT is validated end-to-end on RISC-V (`[ECG_PLOAD] ACTIVE`, correct PageRank
 result, no illegal-instruction); the field-parity drift guard in `verify_ecg.py` pins the
 decoder shifts against the builder for every width class (95/0).
+
+### StreamShield record-load companion
+
+Schedule-2 records use a request-bound custom load before the governed property
+access:
+
+```text
+ecg.load2        rd, 0(rs1)   # FUNCT3=0x4: cached K2 record load
+ecg.stream.load2 rd, 0(rs1)   # FUNCT3=0x3: same + LLC no-allocate request bit
+```
+
+Both return the complete `dest32|epoch1|epoch2` record in `rd` and deliver the
+pair to ECG metadata. `ecg.stream.load2` sets `Request::ECG_STREAM_BYPASS`;
+private caches fill normally, while an L3 miss does not allocate. Thus K2-only
+and K2+StreamShield differ by one request flag—not by extra instructions.
+Derived STRIDE prefetch requests inherit the flag, and request-bound runs disable
+the address-range fallback.
+
+The clean matched fused-load check shows StreamShield improves K2 by **13.03%**
+in gem5 and **0.65%** in Sniper. It cuts K2 L3 misses by **58.24%** and
+**0.30%**, respectively. Those synthetic cells do not show an overall ECG win
+over P-OPT/GRASP; the real-graph cache_sim factorial is the current source of
+the ECG-vs-P-OPT demand-access result.
 
 **OoO delivery (sideband):** the epoch reaches the LLC race-free under an out-of-order CPU via a
 gem5 `Request::Extension` (`EcgEpochExtension`) tagged on the demand load — no shared mailbox, no

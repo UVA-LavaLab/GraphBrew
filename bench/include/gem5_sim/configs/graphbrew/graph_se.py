@@ -100,6 +100,8 @@ def benchmark_environment(args):
         # the single custom-0 R-type op that loads property[base+index*4] AND delivers
         # the index's epoch, replacing unpack+ecg.extract+property-load.
         f"GEM5_ENABLE_ECG_PLOAD={1 if os.environ.get('GEM5_FORCE_ECG_PLOAD') == '1' else 0}",
+        f"GEM5_ENABLE_ECG_STREAM_LOAD2={1 if os.environ.get('GEM5_FORCE_ECG_STREAM_LOAD2') == '1' else 0}",
+        f"GEM5_ENABLE_ECG_LOAD2={1 if os.environ.get('GEM5_FORCE_ECG_LOAD2') == '1' else 0}",
     ]
     # Propagate ECG mode + per-edge-mask lookahead from the outer harness
     # env so kernel-side `ecg_pfx_mode` reads the value roi_matrix.py set.

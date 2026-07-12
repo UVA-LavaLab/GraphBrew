@@ -148,6 +148,11 @@ struct GraphCacheContext {
     uint32_t num_edge_regions = 0;
     uint64_t stream_bypass_base = 0;
     uint64_t stream_bypass_upper = 0;
+    std::vector<uint64_t> k2_offsets;
+    std::vector<uint64_t> k2_line_offsets;
+    std::vector<uint32_t> k2_line_ids;
+    std::vector<uint64_t> k2_line_records;
+    std::vector<uint64_t> k2_line_indices;
 
     GraphTopology topology;
     MaskConfig mask_config;
@@ -176,6 +181,8 @@ struct GraphCacheContext {
     bool isPropertyData(uint64_t addr) const;
     bool isEcgEpochData(uint64_t addr) const;
     bool isStreamBypassData(uint64_t addr) const;
+    bool lookupFusedK2Pair(uint64_t line_addr, uint32_t core_id,
+                           uint16_t& first, uint16_t& second) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;
     uint32_t findNextRef(uint64_t addr, uint32_t core_id) const;

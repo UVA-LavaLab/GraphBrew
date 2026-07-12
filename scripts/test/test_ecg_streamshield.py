@@ -42,19 +42,45 @@ def test_gem5_streamshield_suppresses_only_l3_allocation():
         "bench/include/gem5_sim/overlays/mem/cache/"
         "base_stream_bypass.patch"
     )
+    flag_patch = read(
+        "bench/include/gem5_sim/overlays/mem/cache/"
+        "base_stream_bypass_request_flag.patch"
+    )
     context = read(
         "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
         "graph_cache_context_gem5.hh"
     )
+    request_patch = read(
+        "bench/include/gem5_sim/overlays/mem/request_stream_bypass.patch"
+    )
+    prefetch_patch = read(
+        "bench/include/gem5_sim/overlays/mem/cache/"
+        "prefetch_stream_bypass.patch"
+    )
+    decoder = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa"
+    )
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
     assert 'find("l3cache")' in patch
     assert "getVaddr()" in patch
+    assert "Request::ECG_STREAM_BYPASS" in flag_patch
+    assert "GEM5_ECG_STREAM_REQUEST_BOUND" in flag_patch
     assert "allocOnFill(pkt->cmd) && !stream_bypass" in patch
     assert "allow_alloc_on_fill" in patch
     assert "isEcgStreamBypassAddress" in context
     assert "stream_bypass_base" in context
+    assert "ECG_STREAM_BYPASS" in request_patch
+    assert "isStreamBypass" in prefetch_patch
+    assert "req->setFlags(Request::ECG_STREAM_BYPASS)" in prefetch_patch
+    assert "ecg_stream_load2" in decoder
+    assert "ecg_load2" in decoder
+    assert "mem_flags=[ECG_STREAM_BYPASS]" in decoder
+    assert ".insn i 0x0b, 0x3" in harness
+    assert ".insn i 0x0b, 0x4" in harness
 
 
-def test_sniper_streamshield_skips_nuca_lookup_and_fill():
+def test_sniper_streamshield_preserves_nuca_lookup_and_skips_miss_fill():
     setup = read("scripts/setup_sniper.py")
     context = read(
         "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
@@ -62,23 +88,70 @@ def test_sniper_streamshield_skips_nuca_lookup_and_fill():
     )
     assert "m_stream_bypass_reads" in setup
     assert "m_stream_bypass_writes" in setup
-    assert "SubsecondTime::Zero(), HitWhere::MISS" in setup
+    assert "latency, HitWhere::MISS" in setup
+    assert "if (stream_bypass) ++m_stream_bypass_reads;" in setup
     assert "eviction = false" in setup
     assert "isEcgStreamBypassAddress" in context
+    assert "lookupFusedK2Pair" in context
+    assert "k2_offsets_path" in context
+    assert "k2_line_offsets" in context
+    assert "std::lower_bound" in context
+    assert "Sniper fused K2 sideband is missing or incomplete" in context
+    harness = read("bench/include/sniper_sim/sniper_harness.h")
+    assert "sniper_write_binary_atomic" in harness
+    assert '"SNIPER_CACHE_LINE_SIZE"' in harness
+    assert "property_alignment()" in harness
+    assert "stream_bypass_base -= stream_bypass_base % line_size" in harness
+    assert "const uint64_t aligned_upper = raw_upper + padding" in harness
+    assert "std::remove(k2_offsets_path.c_str())" in harness
+    sniper = read("bench/src_sniper/sg_kernel.cc")
+    assert "context/K2 sideband export failed" in sniper
+
+
+def test_sniper_dry_run_migration_updates_virtual_text(tmp_path):
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location("setup_sniper_dry_run", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    target = tmp_path / "legacy.cc"
+    target.write_text("old anchor\n")
+    module.SNIPER_DIR = tmp_path
+    module._DRY_RUN_OVERLAY_TEXT.clear()
+    module.migrate_if_present(target, "old anchor", "migrated anchor", True)
+    module.replace_once(target, "migrated anchor", "final content", True)
+
+    assert target.read_text() == "old anchor\n"
+    assert module._overlay_text(target, True) == "final content\n"
 
 
 def test_streamshield_is_policy_isolated_and_verified():
     runner = read("scripts/experiments/ecg/roi_matrix.py")
     verifier = read("scripts/experiments/ecg/verify/equiv_kernels.py")
+    ecg_verifier = read("scripts/experiments/ecg/verify/ecg.py")
     assert 'env.pop("ECG_STREAM_BYPASS", None)' in runner
     assert '"ecg_stream_bypass"' in runner
     assert "--stream-bypass" in verifier
     assert "stream-bypass-reads" in verifier
     assert "stream-bypass-writes" in verifier
+    assert "dest // vpl == line_id" in ecg_verifier
     assert "cache_sim_ecg_epoch_region_index" in runner
     assert "Sniper StreamShield requires --sniper-workload sg_kernel" in runner
     assert 'env.get("ECG_STREAM_BYPASS") == "1"' in runner
     assert "--stream-bypass requires --schedule-k 2" in verifier
+    assert "SNIPER_ECG_FUSED_K2" in runner
+    assert 'env.pop("SNIPER_ECG_FUSED_K2", None)' in runner
+    assert 'env.pop("SNIPER_ECG_FUSED_VALIDATE", None)' in runner
+    assert 'env["SNIPER_CACHE_LINE_SIZE"] = str(args.line_size)' in runner
+    assert "GEM5_ECG_STREAM_REQUEST_BOUND" in runner
+    assert "previous == record_count" in runner
+    assert "mmap.mmap" in runner
+    assert ".read_bytes()" not in runner.split(
+        "def validate_sniper_fused_receipts", 1
+    )[1].split("def ", 1)[0]
+    assert "fused_k2 = False" in runner
 
 
 def test_streamshield_is_pr_only_in_detailed_kernels():
@@ -90,6 +163,16 @@ def test_streamshield_is_pr_only_in_detailed_kernels():
         "sniper_export_context(\n        regions, 1, graph", 1
     )[1].split(");", 1)[0]
     assert "bfs_pair_flat.data()" not in bfs_export
+
+
+def test_streamshield_setup_migrates_and_rebuilds():
+    gem5_setup = read("scripts/setup_gem5.py")
+    sniper_setup = read("scripts/setup_sniper.py")
+    assert "Incrementally rebuilding gem5" in gem5_setup
+    assert "base_stream_bypass_request_flag.patch" in gem5_setup
+    assert "prefetch_stream_bypass.patch" in gem5_setup
+    assert "def migrate_if_present" in sniper_setup
+    assert "migrate_if_present(\n        magic_server, old_decode, new_decode" in sniper_setup
 
 
 def test_schedule_bits_are_charged_in_record_width():

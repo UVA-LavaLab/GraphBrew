@@ -83,6 +83,39 @@
                     Rd = rvZext(dest_id);
                 }});
             }
+            // StreamShield Schedule-2 record load. The request flag is carried
+            // with this specific load through every CPU model; only the shared
+            // LLC suppresses allocation, while L1/L2 fill normally.
+            format Load {
+                0x3: ecg_stream_load2({{
+                    uint64_t packed = Mem_ud;
+                    uint32_t dest_id = static_cast<uint32_t>(
+                        packed & 0xFFFFFFFFULL);
+                    uint16_t epoch1 = static_cast<uint16_t>(
+                        (packed >> 32) & 0xFFFFULL);
+                    uint16_t epoch2 = static_cast<uint16_t>(
+                        (packed >> 48) & 0xFFFFULL);
+                    gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                        dest_id, 0, 0, epoch1);
+                    gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
+                        dest_id, epoch1, epoch2);
+                    Rd = packed;
+                }}, mem_flags=[ECG_STREAM_BYPASS]);
+                0x4: ecg_load2({{
+                    uint64_t packed = Mem_ud;
+                    uint32_t dest_id = static_cast<uint32_t>(
+                        packed & 0xFFFFFFFFULL);
+                    uint16_t epoch1 = static_cast<uint16_t>(
+                        (packed >> 32) & 0xFFFFULL);
+                    uint16_t epoch2 = static_cast<uint16_t>(
+                        (packed >> 48) & 0xFFFFULL);
+                    gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                        dest_id, 0, 0, epoch1);
+                    gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
+                        dest_id, epoch1, epoch2);
+                    Rd = packed;
+                }});
+            }
             // GraphBrew FUSED ecg.load (custom-0, FUNCT3=0x2, R-type): indexed-
             // property load + metadata delivery in ONE op. rs1 = property base, rs2 =
             // fat edge record. EA = rs1 + dest*4; loads property[dest]; delivers the

@@ -15,6 +15,10 @@
 #include <cstdlib>
 
 static int g_fail = 0;
+alignas(64) static uint64_t g_k2_record =
+    (static_cast<uint64_t>(0xACE0u) << 48) |
+    (static_cast<uint64_t>(0x2468u) << 32) |
+    0x12345678u;
 
 // TEETH PROOF: ECG_TEST_FORCE_WC forces the EMITTED width class (FUNCT7) to a fixed value
 // while the record is still packed with the CORRECT wc. If the gem5 decoder truly reads
@@ -65,6 +69,21 @@ int main() {
         prop[dest] = dest;
         uint64_t rec = ecg_mode6::packMaskEpoch(dest, 2, 0x5A, 0x1234, 0x7F);
         check("EMBEDDED", 24, dest, gem5_ecg_load_embedded(prop, rec));
+    }
+    {
+        constexpr uint64_t record =
+            (static_cast<uint64_t>(0xACE0u) << 48) |
+            (static_cast<uint64_t>(0x2468u) << 32) |
+            0x12345678u;
+        uint64_t rd_stream = gem5_ecg_stream_load2_instruction(&g_k2_record);
+        uint64_t rd = gem5_ecg_load2_instruction(&g_k2_record);
+        bool ok = rd == record && rd_stream == record;
+        printf("[test_ecg_load_modes] LOAD2/K2 record=%#llx rd=%#llx "
+               "stream=%#llx [%s]\n",
+               (unsigned long long)record, (unsigned long long)rd,
+               (unsigned long long)rd_stream,
+               ok ? "OK" : "FAIL");
+        if (!ok) g_fail++;
     }
 
     printf("[test_ecg_load_modes] RESULT: %s (%d fail)\n",

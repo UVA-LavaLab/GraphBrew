@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 namespace {
@@ -221,10 +222,18 @@ CacheSetECG::lookupLineEcgEpochPair(
    const auto& context = graphbrew::sniper::globalContext();
    if (!context.isEcgEpochData(static_cast<uint64_t>(line_addr)))
       return false;
-   uint32_t v0 = context.vertexForAddress(static_cast<uint64_t>(line_addr));
-   if (v0 == UINT32_MAX) return false;
    uint32_t requester_core = requesterCoreOr(m_core_id);
    if (requester_core >= graphbrew::sniper::MAX_TRACKED_CORES) return false;
+   const char* fused = std::getenv("SNIPER_ECG_FUSED_K2");
+   if (fused && fused[0] && std::strcmp(fused, "0") != 0 &&
+       context.lookupFusedK2Pair(
+           static_cast<uint64_t>(line_addr), requester_core,
+           first, second)) {
+      count = 2;
+      return true;
+   }
+   uint32_t v0 = context.vertexForAddress(static_cast<uint64_t>(line_addr));
+   if (v0 == UINT32_MAX) return false;
    uint64_t sequence = 0;
    return graphbrew::sniper::lookupEcgEpochPair(
        requester_core, v0, first, second, count, sequence);

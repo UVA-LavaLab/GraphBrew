@@ -26,6 +26,7 @@ import argparse
 import csv
 import hashlib
 import json
+import mmap
 import os
 import platform
 import re
@@ -630,6 +631,94 @@ def clear_sideband_files(paths: dict[str, Path]) -> None:
             pass
 
 
+def clear_sniper_k2_sidebands(paths: dict[str, Path]) -> None:
+    for key in ("k2_offsets", "k2_records"):
+        try:
+            paths[key].unlink()
+        except (KeyError, FileNotFoundError):
+            pass
+
+
+def validate_sniper_fused_receipts(
+        log_path: Path, paths: dict[str, Path]) -> tuple[int, int]:
+    receipt_re = re.compile(
+        r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
+        r"line=(\d+) vpl=(\d+) index=(\d+) begin=(\d+) end=(\d+) "
+        r"dest=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+    if not log_path.exists():
+        return 0, 0
+    receipts = []
+    with log_path.open(errors="ignore") as log:
+        for line in log:
+            match = receipt_re.search(line)
+            if match:
+                receipts.append(tuple(map(int, match.groups())))
+    if not receipts:
+        return 0, 0
+    try:
+        offsets_file = paths["k2_offsets"].open("rb")
+        records_file = paths["k2_records"].open("rb")
+    except (KeyError, FileNotFoundError, OSError):
+        return len(receipts), len(receipts)
+    try:
+        offsets_bytes = offsets_file.seek(0, os.SEEK_END)
+        records_bytes = records_file.seek(0, os.SEEK_END)
+        offsets_file.seek(0)
+        records_file.seek(0)
+        if (offsets_bytes < 16 or offsets_bytes % 8 != 0 or
+                records_bytes < 8 or records_bytes % 8 != 0):
+            return len(receipts), len(receipts)
+        offset_count = offsets_bytes // 8
+        record_count = records_bytes // 8
+        with (
+            mmap.mmap(offsets_file.fileno(), 0, access=mmap.ACCESS_READ) as offsets,
+            mmap.mmap(records_file.fileno(), 0, access=mmap.ACCESS_READ) as records,
+        ):
+            def offset_at(index: int) -> int:
+                return struct.unpack_from("<Q", offsets, index * 8)[0]
+
+            def record_at(index: int) -> int:
+                return struct.unpack_from("<Q", records, index * 8)[0]
+
+            previous = offset_at(0)
+            sideband_valid = previous == 0
+            for offset_index in range(1, offset_count):
+                current = offset_at(offset_index)
+                if current < previous:
+                    sideband_valid = False
+                    break
+                previous = current
+            sideband_valid = sideband_valid and previous == record_count
+            bad = 0 if sideband_valid else max(1, len(receipts))
+            for (_seq, src, line_id, vpl, index, begin, end,
+                 dest, first, second) in receipts:
+                valid = (
+                    src + 1 < offset_count and
+                    offset_at(src) == begin and
+                    offset_at(src + 1) == end and
+                    begin <= index < end and
+                    index < record_count and vpl > 0
+                )
+                if valid:
+                    record = record_at(index)
+                    valid = (
+                        (record & 0xFFFFFFFF) == dest and
+                        ((record >> 32) & 0xFFFF) == first and
+                        ((record >> 48) & 0xFFFF) == second and
+                        dest // vpl == line_id
+                    )
+                bad += not valid
+    except (OSError, ValueError, struct.error):
+        return len(receipts), len(receipts)
+    finally:
+        offsets_file.close()
+        records_file.close()
+    with log_path.open("a") as out:
+        out.write(
+            f"\n[ECG-K2-FUSED-VALID count={len(receipts)} bad={bad}]\n")
+    return len(receipts), bad
+
+
 def sniper_sideband_paths(sniper_out: Path) -> dict[str, Path]:
     # FIXED-LENGTH sideband directory, independent of the policy-named sniper_out
     # (mirrors gem5_sideband_paths). The sideband file paths are read by the
@@ -640,11 +729,14 @@ def sniper_sideband_paths(sniper_out: Path) -> dict[str, Path]:
     # while making every policy's paths identical length.
     digest = hashlib.sha1(str(sniper_out).encode("utf-8")).hexdigest()[:16]
     sideband_dir = Path(tempfile.gettempdir()) / f"snsb_{digest}"
+    context = sideband_dir / "sniper_graphbrew_ctx.json"
     return {
-        "context": sideband_dir / "sniper_graphbrew_ctx.json",
+        "context": context,
         "popt_matrix": sideband_dir / "sniper_popt_matrix.bin",
         "out_edges": sideband_dir / "sniper_graphbrew_out_edges.bin",
         "in_edges": sideband_dir / "sniper_graphbrew_in_edges.bin",
+        "k2_offsets": Path(str(context) + ".k2_offsets.bin"),
+        "k2_records": Path(str(context) + ".k2_records.bin"),
     }
 
 
@@ -963,6 +1055,9 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     requested_ecg_load = os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"
     env.pop("GEM5_FORCE_ECG_LOAD", None)
     env.pop("GEM5_FORCE_ECG_PLOAD", None)
+    env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
+    env.pop("GEM5_FORCE_ECG_LOAD2", None)
+    env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
     env["GEM5_GRAPHBREW_CTX"] = str(sidebands["context"])
     env["GEM5_POPT_MATRIX"] = str(sidebands["popt_matrix"])
     env["GEM5_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
@@ -1007,7 +1102,22 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                     "epoch-pair extension, which is not implemented.")
             env.pop("GEM5_FORCE_ECG_LOAD", None)
             env.pop("GEM5_FORCE_ECG_PLOAD", None)
-            gem5_ecg_delivery = "packed8+k2+ecg.extract2"
+            if (args.benchmark == "pr" and riscv_delivery and
+                    env.get("ECG_STREAM_BYPASS") == "1"):
+                env["GEM5_FORCE_ECG_STREAM_LOAD2"] = "1"
+                env["GEM5_ECG_STREAM_REQUEST_BOUND"] = "1"
+                env.pop("GEM5_FORCE_ECG_LOAD2", None)
+                gem5_ecg_delivery = "ecg.stream.load2"
+            elif args.benchmark == "pr" and riscv_delivery:
+                env["GEM5_FORCE_ECG_LOAD2"] = "1"
+                env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
+                env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
+                gem5_ecg_delivery = "ecg.load2"
+            else:
+                env.pop("GEM5_FORCE_ECG_LOAD2", None)
+                env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
+                env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
+                gem5_ecg_delivery = "packed8+k2+ecg.extract2"
         elif riscv_delivery and (ecg_variant != "grasp_only" or force_delivery):
             if args.benchmark == "pr":
                 # PR already has a 4-byte packed edge-record path (dest+epoch)
@@ -1321,6 +1431,8 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row["sniper_aslr_disabled"] = 1
 
     env = dict(os.environ)
+    env.pop("SNIPER_ECG_FUSED_K2", None)
+    env.pop("SNIPER_ECG_FUSED_VALIDATE", None)
     is_k2_ecg = policy_name == "ecg" and spec.ecg_mode == "ECG_GRASP_POPT"
     if not is_k2_ecg:
         env.pop("ECG_EDGE_MASK_SCHED", None)
@@ -1355,6 +1467,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     env["SNIPER_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["SNIPER_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
     env["SNIPER_GRAPHBREW_PREFETCHER"] = str(args.prefetcher)
+    env["SNIPER_CACHE_LINE_SIZE"] = str(args.line_size)
     epoch_region = ecg_epoch_region(args.benchmark)
     if epoch_region:
         env["SNIPER_ECG_EPOCH_REGION"] = epoch_region
@@ -1399,15 +1512,36 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             "Sniper StreamShield requires --sniper-workload sg_kernel; "
             "the smoke/full-wrapper workloads do not export packed-stream ranges.")
     force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
+    fused_k2 = False
     if (spec.ecg_mode == "ECG_GRASP_POPT" and policy_name == "ecg"
             and (ecg_variant != "grasp_only" or force_delivery)):
         # Performance-equivalent to gem5/cache_sim: consume the delivered
         # per-edge epoch, not Sniper's stronger live findNextRef oracle.
         env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
         env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
+        fused_k2 = (
+            schedule_k == 2 and args.benchmark == "pr" and
+            args.sniper_workload == "sg_kernel"
+        )
+        if fused_k2:
+            env["SNIPER_ECG_FUSED_K2"] = "1"
+            env["SNIPER_ECG_FUSED_VALIDATE"] = "1"
         row["sniper_ecg_delivery"] = (
-            "per-edge-extract2-k2" if schedule_k == 2
+            "fused-k2-model" if fused_k2
+            else "per-edge-extract2-k2" if schedule_k == 2
             else "per-edge-extract")
+        if fused_k2:
+            row["timing_model"] = "fused_record_load_sideband_model"
+            row["timing_valid_for_speedup"] = "1"
+            row["timing_caveat"] = (
+                "Sniper models the RISC-V fused record-load sideband without "
+                "per-edge SimMagic instruction overhead.")
+        elif schedule_k == 2:
+            row["timing_model"] = "prototype_explicit_magic_delivery"
+            row["timing_valid_for_speedup"] = "0"
+            row["timing_caveat"] = (
+                "This kernel still emits per-edge SimMagic for K2 delivery; "
+                "use cache metrics, not speedup.")
     else:
         env.pop("SNIPER_ENABLE_ECG_EXTRACT", None)
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_sniper, log_path, args.dry_run)
@@ -1415,11 +1549,13 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         return []
 
     if result is None or result.returncode != 0:
+        clear_sniper_k2_sidebands(sidebands)
         row.update({"status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
         return [row]
 
     raw_stats = read_sniper_stats(sniper_out)
     if not raw_stats.get("success"):
+        clear_sniper_k2_sidebands(sidebands)
         row.update({"status": "error", "error": raw_stats.get("error", "missing Sniper stats")})
         return [row]
 
@@ -1451,6 +1587,16 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         "l2_policy": "LRU",
         "l3_policy": policy_name.upper(),
     })
+    fused_count, fused_bad = validate_sniper_fused_receipts(
+        log_path, sidebands)
+    row["sniper_fused_k2_receipts"] = fused_count
+    row["sniper_fused_k2_bad_receipts"] = fused_bad
+    if fused_k2 and (fused_count == 0 or fused_bad != 0):
+        row["status"] = "error"
+        row["error"] = (
+            "fused K2 receipt validation failed: "
+            f"count={fused_count} bad={fused_bad}")
+        row["timing_valid_for_speedup"] = "0"
     stats_path = Path(str(metrics.get("stats_path", "")))
     if stats_path.exists():
         stats_text = stats_path.read_text(errors="ignore")
@@ -1541,6 +1687,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             })
         else:
             row["ecg_pfx_activity"] = "issued"
+    clear_sniper_k2_sidebands(sidebands)
     return [row]
 
 

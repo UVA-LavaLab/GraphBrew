@@ -193,6 +193,11 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     bool packed_ok = false;
     bool pair_ok = false;
     bool ecg_extract_enabled = gem5_ecg_extract_enabled();
+    const bool ecg_stream_load2_on =
+        gem5_ecg_stream_load2_enabled();
+    const bool ecg_load2_on = gem5_ecg_load2_enabled();
+    if (ecg_stream_load2_on || ecg_load2_on)
+        ecg_extract_enabled = true;
     // FUSED ecg.load: one custom-0 I-type op replaces demand-load + repack +
     // ecg.extract. Implies the extract delivery (so the mode-6 masks are built).
     bool ecg_load_enabled = gem5_ecg_load_enabled();
@@ -345,7 +350,11 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         packed_stream_compatible;
     if (pair_extract_only) {
         fprintf(stderr,
-                "[ECG_PACKED8_K2] PR Schedule-2 packed record path ACTIVE\n");
+            ecg_stream_load2_on
+                ? "[ECG_STREAM_LOAD2] PR request-bound StreamShield+K2 ACTIVE\n"
+                : ecg_load2_on
+                    ? "[ECG_LOAD2] PR fused K2 record load ACTIVE\n"
+                    : "[ECG_PACKED8_K2] PR Schedule-2 packed record path ACTIVE\n");
     } else if (packed_extract_only) {
         fprintf(stderr,
                 "[ECG_PACKED4] PR eviction-only packed record fast path ACTIVE\n");
@@ -362,10 +371,17 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 const uint64_t begin = pair_off[u];
                 const uint64_t end = pair_off[u + 1];
                 for (uint64_t pos = begin; pos < end; ++pos) {
-                    const uint64_t rec = in_edge_pair_flat[pos];
+                    const uint64_t rec = ecg_stream_load2_on
+                        ? gem5_ecg_stream_load2_instruction(
+                              &in_edge_pair_flat[pos])
+                        : ecg_load2_on
+                            ? gem5_ecg_load2_instruction(
+                                  &in_edge_pair_flat[pos])
+                            : in_edge_pair_flat[pos];
                     const NodeID v =
                         static_cast<NodeID>(rec & 0xFFFFFFFFULL);
-                    GEM5_ECG_EXTRACT2(rec);
+                    if (!ecg_stream_load2_on && !ecg_load2_on)
+                        GEM5_ECG_EXTRACT2(rec);
                     incoming_total += outgoing_contrib[v];
                 }
                 const ScoreT old_score = scores[u];

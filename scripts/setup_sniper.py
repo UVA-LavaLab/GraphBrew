@@ -142,6 +142,23 @@ def build_sniper(args: argparse.Namespace) -> None:
     run_cmd(command, cwd=SNIPER_DIR)
 
 
+_DRY_RUN_OVERLAY_TEXT: dict[Path, str] = {}
+
+
+def _overlay_text(path: Path, dry_run: bool) -> str:
+    key = path.resolve()
+    if dry_run and key in _DRY_RUN_OVERLAY_TEXT:
+        return _DRY_RUN_OVERLAY_TEXT[key]
+    return path.read_text()
+
+
+def _write_overlay_text(path: Path, text: str, dry_run: bool) -> None:
+    if dry_run:
+        _DRY_RUN_OVERLAY_TEXT[path.resolve()] = text
+    else:
+        path.write_text(text)
+
+
 def replace_once(
     path: Path,
     old: str,
@@ -151,7 +168,7 @@ def replace_once(
 ) -> None:
     if not path.exists():
         raise SystemExit(f"Sniper overlay patch target missing: {path}")
-    text = path.read_text()
+    text = _overlay_text(path, dry_run)
     if new in text:
         log.info(f"Overlay patch already present in {path.relative_to(SNIPER_DIR)}")
         return
@@ -164,8 +181,18 @@ def replace_once(
             "The Sniper checkout may have changed."
         )
     log.info(f"Patch {path.relative_to(SNIPER_DIR)}")
-    if not dry_run:
-        path.write_text(text.replace(old, new, 1))
+    _write_overlay_text(path, text.replace(old, new, 1), dry_run)
+
+
+def migrate_if_present(path: Path, old: str, new: str, dry_run: bool) -> None:
+    """Upgrade a previously installed overlay without requiring a pristine anchor."""
+    if not path.exists():
+        raise SystemExit(f"Sniper overlay migration target missing: {path}")
+    text = _overlay_text(path, dry_run)
+    if old not in text or new in text:
+        return
+    log.info(f"Migrate {path.relative_to(SNIPER_DIR)}")
+    _write_overlay_text(path, text.replace(old, new, 1), dry_run)
 
 
 def overlay_source_files() -> list[Path]:
@@ -689,13 +716,8 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
         args.dry_run,
         ['"stream-bypass-reads"'],
     )
-    replace_once(
+    migrate_if_present(
         nuca_source,
-        """   HitWhere::where_t hit_where = HitWhere::MISS;
-   perf->updateTime(now);
-
-   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
-""",
         """   HitWhere::where_t hit_where = HitWhere::MISS;
    perf->updateTime(now);
    if (graphbrew::sniper::isEcgStreamBypassAddress(
@@ -712,15 +734,18 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
 
    PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
 """,
-        args.dry_run,
-        ["m_stream_bypass_reads;"],
-    )
-    replace_once(
-        nuca_source,
         """   HitWhere::where_t hit_where = HitWhere::MISS;
+   perf->updateTime(now);
+   const bool stream_bypass =
+      graphbrew::sniper::isEcgStreamBypassAddress(
+         static_cast<uint64_t>(address));
 
    PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
 """,
+        args.dry_run,
+    )
+    migrate_if_present(
+        nuca_source,
         """   HitWhere::where_t hit_where = HitWhere::MISS;
    if (graphbrew::sniper::isEcgStreamBypassAddress(
            static_cast<uint64_t>(address)))
@@ -737,8 +762,90 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
 
    PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
 """,
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+   const bool stream_bypass =
+      graphbrew::sniper::isEcgStreamBypassAddress(
+         static_cast<uint64_t>(address));
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
         args.dry_run,
-        ["m_stream_bypass_writes;"],
+    )
+    replace_once(
+        nuca_source,
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+   perf->updateTime(now);
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+   perf->updateTime(now);
+   const bool stream_bypass =
+      graphbrew::sniper::isEcgStreamBypassAddress(
+         static_cast<uint64_t>(address));
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        args.dry_run,
+        ["perf->updateTime(now);\n   const bool stream_bypass ="],
+    )
+    replace_once(
+        nuca_source,
+        """   else
+   {
+      if (count) ++m_read_misses;
+   }
+""",
+        """   else
+   {
+      if (stream_bypass) ++m_stream_bypass_reads;
+      if (count) ++m_read_misses;
+   }
+""",
+        args.dry_run,
+        ["if (stream_bypass) ++m_stream_bypass_reads;"],
+    )
+    replace_once(
+        nuca_source,
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        """   HitWhere::where_t hit_where = HitWhere::MISS;
+   const bool stream_bypass =
+      graphbrew::sniper::isEcgStreamBypassAddress(
+         static_cast<uint64_t>(address));
+
+   PrL1CacheBlockInfo* block_info = (PrL1CacheBlockInfo*)m_cache->peekSingleLine(address);
+""",
+        args.dry_run,
+        ["HitWhere::where_t hit_where = HitWhere::MISS;\n   const bool stream_bypass ="],
+    )
+    replace_once(
+        nuca_source,
+        """   else
+   {
+      PrL1CacheBlockInfo evict_block_info;
+
+      m_cache->insertSingleLine(address, data_buf,
+""",
+        """   else
+   {
+      if (stream_bypass)
+      {
+         eviction = false;
+         ++m_stream_bypass_writes;
+         if (count) ++m_write_misses;
+         if (count) ++m_writes;
+         return boost::tuple<SubsecondTime, HitWhere::where_t>(
+            latency, HitWhere::MISS);
+      }
+      PrL1CacheBlockInfo evict_block_info;
+
+      m_cache->insertSingleLine(address, data_buf,
+""",
+        args.dry_run,
+        ["if (stream_bypass)\n      {\n         eviction = false;"],
     )
     replace_once(
         directory_source,
@@ -851,7 +958,6 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
             "Could not patch include/sim_api.h SimMagic1/2 constraints; "
             "expected three '=a' outputs or three GraphBrew early-clobber outputs."
         )
-    magic_text = magic_server.read_text()
     old_decode = (
         "uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFFFFFULL);\n"
         "             uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);"
@@ -860,11 +966,9 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
         "uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);\n"
         "             uint16_t fl_epoch = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);"
     )
-    if old_decode in magic_text:
-        log.info("Upgrade common/system/magic_server.cc ECG extract payload decode")
-        magic_text = magic_text.replace(old_decode, new_decode, 1)
-        if not args.dry_run:
-            magic_server.write_text(magic_text)
+    migrate_if_present(
+        magic_server, old_decode, new_decode, args.dry_run)
+    magic_text = _overlay_text(magic_server, args.dry_run)
     replace_once(
         magic_server,
         """#include "magic_server.h"

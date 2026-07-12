@@ -103,6 +103,22 @@ std::string parseJsonString(const std::string& json, const std::string& key)
     return json.substr(pos + 1, end - pos - 1);
 }
 
+template <typename T>
+bool loadBinaryVector(const std::string& path, std::vector<T>& out)
+{
+    out.clear();
+    if (path.empty()) return false;
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) return false;
+    const std::streamsize bytes = file.tellg();
+    if (bytes <= 0 || bytes % static_cast<std::streamsize>(sizeof(T)) != 0)
+        return false;
+    out.resize(static_cast<size_t>(bytes) / sizeof(T));
+    file.seekg(0);
+    file.read(reinterpret_cast<char*>(out.data()), bytes);
+    return file.good();
+}
+
 bool parseJsonBool(const std::string& json, const std::string& key)
 {
     size_t pos = json.find(key);
@@ -546,6 +562,86 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
     const uint64_t stream_bypass_size =
         parseJsonUint(content, "\"stream_bypass_size\"");
     stream_bypass_upper = stream_bypass_base + stream_bypass_size;
+    std::vector<uint64_t> raw_k2_records;
+    const char* fused_k2 = std::getenv("SNIPER_ECG_FUSED_K2");
+    const bool offsets_loaded = loadBinaryVector(
+        parseJsonString(content, "\"k2_offsets_path\""), k2_offsets);
+    const bool records_loaded = loadBinaryVector(
+        parseJsonString(content, "\"k2_records_path\""), raw_k2_records);
+    const bool fused_k2_enabled =
+        fused_k2 && fused_k2[0] && std::strcmp(fused_k2, "0") != 0;
+    if (fused_k2_enabled &&
+        (!offsets_loaded || !records_loaded ||
+         k2_offsets.size() != static_cast<size_t>(topology.num_vertices) + 1 ||
+        k2_offsets.empty() || k2_offsets.back() != raw_k2_records.size())) {
+        std::fprintf(stderr,
+            "[FATAL] Sniper fused K2 sideband is missing or incomplete "
+            "(offsets=%zu records=%zu vertices=%u)\n",
+           k2_offsets.size(), raw_k2_records.size(),
+           topology.num_vertices);
+        std::abort();
+    }
+    const char* trace_value = std::getenv("ECG_K2_DELIVERY_TRACE");
+    const uint64_t trace_limit = trace_value
+        ? std::strtoull(trace_value, nullptr, 10) : 0;
+    if (fused_k2_enabled) {
+        const uint64_t count = std::min<uint64_t>(
+            trace_limit, raw_k2_records.size());
+        for (uint64_t sequence = 0; sequence < count; ++sequence) {
+            const uint64_t record = raw_k2_records[sequence];
+            std::fprintf(stderr,
+                "[ECG-K2-SIDEBAND sim=sniper seq=%llu dest=%u "
+                "epoch1=%u epoch2=%u]\n",
+                (unsigned long long)sequence,
+                static_cast<unsigned>(record & 0xFFFFFFFFULL),
+                static_cast<unsigned>((record >> 32) & 0xFFFFULL),
+                static_cast<unsigned>((record >> 48) & 0xFFFFULL));
+        }
+    }
+    k2_line_offsets.clear();
+    k2_line_ids.clear();
+    k2_line_records.clear();
+    k2_line_indices.clear();
+    if (fused_k2_enabled) {
+        struct IndexedK2Record {
+            uint32_t line_id;
+            uint64_t record;
+            uint64_t raw_index;
+        };
+        const uint32_t vertices_per_line = ecgVerticesPerLine();
+        k2_line_offsets.assign(
+            static_cast<size_t>(topology.num_vertices) + 1, 0);
+        std::vector<IndexedK2Record> source_lines;
+        for (uint32_t src = 0; src < topology.num_vertices; ++src) {
+            const uint64_t begin = k2_offsets[src];
+            const uint64_t end = k2_offsets[src + 1];
+            source_lines.clear();
+            source_lines.reserve(static_cast<size_t>(end - begin));
+            for (uint64_t index = begin; index < end; ++index) {
+                const uint64_t record = raw_k2_records[index];
+                source_lines.push_back({
+                    static_cast<uint32_t>(record) / vertices_per_line,
+                    record,
+                    index,
+                });
+            }
+            std::stable_sort(
+                source_lines.begin(), source_lines.end(),
+                [](const IndexedK2Record& left,
+                   const IndexedK2Record& right) {
+                    return left.line_id < right.line_id;
+                });
+            uint32_t previous_line = UINT32_MAX;
+            for (const IndexedK2Record& indexed : source_lines) {
+                if (indexed.line_id == previous_line) continue;
+                k2_line_ids.push_back(indexed.line_id);
+                k2_line_records.push_back(indexed.record);
+                k2_line_indices.push_back(indexed.raw_index);
+                previous_line = indexed.line_id;
+            }
+            k2_line_offsets[src + 1] = k2_line_records.size();
+        }
+    }
     topology.max_degree = static_cast<uint32_t>(parseJsonUint(content, "\"max_degree\""));
     topology.avg_degree = topology.num_vertices > 0
         ? static_cast<double>(topology.num_edges) / topology.num_vertices
@@ -729,6 +825,73 @@ bool GraphCacheContext::isStreamBypassData(uint64_t addr) const
 {
     return stream_bypass_base < stream_bypass_upper &&
            addr >= stream_bypass_base && addr < stream_bypass_upper;
+}
+
+bool GraphCacheContext::lookupFusedK2Pair(
+        uint64_t line_addr, uint32_t core_id,
+        uint16_t& first, uint16_t& second) const
+{
+    if (k2_offsets.empty() || k2_line_offsets.empty() ||
+        k2_line_ids.empty() || k2_line_records.empty() ||
+        k2_line_indices.empty())
+        return false;
+    const uint32_t src = currentVertexForPopt(core_id);
+    if (static_cast<size_t>(src + 1) >= k2_line_offsets.size()) return false;
+    const uint32_t line_vertex = vertexForAddress(line_addr);
+    if (line_vertex == UINT32_MAX) return false;
+    const uint32_t vertices_per_line = ecgVerticesPerLine();
+    const uint32_t line_id = line_vertex / vertices_per_line;
+    const uint64_t indexed_begin = k2_line_offsets[src];
+    const uint64_t indexed_end = std::min<uint64_t>(
+        k2_line_offsets[src + 1], k2_line_records.size());
+    const auto found = std::lower_bound(
+        k2_line_ids.begin() + indexed_begin,
+        k2_line_ids.begin() + indexed_end,
+        line_id);
+    if (found == k2_line_ids.begin() + indexed_end || *found != line_id)
+        return false;
+    const uint64_t indexed_position =
+        static_cast<uint64_t>(found - k2_line_ids.begin());
+    const uint64_t record = k2_line_records[indexed_position];
+    const uint64_t raw_index = k2_line_indices[indexed_position];
+    const uint64_t raw_begin = k2_offsets[src];
+    const uint64_t raw_end = k2_offsets[src + 1];
+    const uint32_t dest = static_cast<uint32_t>(record);
+    first = static_cast<uint16_t>((record >> 32) & 0xFFFFULL);
+    second = static_cast<uint16_t>((record >> 48) & 0xFFFFULL);
+    static std::atomic<uint64_t> fused_receipts{0};
+    static const uint64_t fused_trace_limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value ? std::strtoull(value, nullptr, 10) : 0;
+    }();
+    static const bool validate_once = []() {
+        const char* value = std::getenv("SNIPER_ECG_FUSED_VALIDATE");
+        return value && value[0] && std::strcmp(value, "0") != 0;
+    }();
+    static std::atomic<bool> validation_emitted{false};
+    const bool emit_validation =
+        validate_once &&
+        !validation_emitted.load(std::memory_order_relaxed) &&
+        !validation_emitted.exchange(true, std::memory_order_relaxed);
+    const uint64_t receipt = fused_trace_limit > 0
+        ? fused_receipts.fetch_add(1, std::memory_order_relaxed)
+        : 0;
+    if ((fused_trace_limit > 0 && receipt < fused_trace_limit) ||
+        emit_validation) {
+        std::fprintf(stderr,
+            "[ECG-K2-FUSED-RECV sim=sniper seq=%llu src=%u "
+            "line=%u vpl=%u index=%llu begin=%llu end=%llu "
+            "dest=%u epoch1=%u epoch2=%u]\n",
+            (unsigned long long)receipt, src,
+            line_id, vertices_per_line,
+            (unsigned long long)raw_index,
+            (unsigned long long)raw_begin,
+            (unsigned long long)raw_end,
+            dest,
+            static_cast<unsigned>(first),
+            static_cast<unsigned>(second));
+    }
+    return true;
 }
 
 bool GraphCacheContext::isEdgeData(uint64_t addr) const
