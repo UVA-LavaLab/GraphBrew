@@ -443,6 +443,20 @@ inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
     } while (0)
 #else
 #define GEM5_SET_VERTEX(vertex_id) do {} while(0)
+inline bool gem5_ecg_stream_load2_enabled() {
+    const char* value = std::getenv("GEM5_ENABLE_ECG_STREAM_LOAD2");
+    return value && std::strcmp(value, "0") != 0;
+}
+inline bool gem5_ecg_load2_enabled() {
+    const char* value = std::getenv("GEM5_ENABLE_ECG_LOAD2");
+    return value && std::strcmp(value, "0") != 0;
+}
+inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
+    return record_ptr ? *static_cast<const uint64_t*>(record_ptr) : 0;
+}
+inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
+    return record_ptr ? *static_cast<const uint64_t*>(record_ptr) : 0;
+}
 #if defined(__riscv)
 inline bool gem5_ecg_pfx_hints_enabled() {
     static int enabled = []() {

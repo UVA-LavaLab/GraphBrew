@@ -56,7 +56,7 @@ void BCBFS_Sim(const Graph &g, NodeID source,
     // GRASP region (the original behaviour) caused the other three to
     // thrash under SRRIP while the one protected array hogged the LLC,
     // costing roughly 20 pp of L3 hit-rate vs LRU on web-Google.  See
-    // wiki/Baseline-Literature-Faithfulness.md "BC multi-property fix".
+    // research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md "BC multi-property fix".
     graph_ctx.registerPropertyArray(depths.data(), g.num_nodes(), sizeof(int32_t), llc_size, -1.0, true);
     graph_ctx.registerPropertyArray(path_counts.data(), g.num_nodes(), sizeof(int64_t), llc_size, -1.0, true);
     graph_ctx.registerPropertyArray(scores.data(), g.num_nodes(), sizeof(ScoreT), llc_size, -1.0, true);

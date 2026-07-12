@@ -284,6 +284,26 @@ def write_outputs(out_dir: Path, rows: list[dict[str, Any]]) -> None:
     print(f"[write] {csv_path}")
 
 
+def write_completion_marker(
+        out_dir: Path, rows: list[dict[str, Any]]) -> None:
+    marker = out_dir / "proof_matrix.complete.json"
+    temp = out_dir / "proof_matrix.complete.json.tmp"
+    payload = {
+        "complete": True,
+        "all_rows_ok": bool(rows) and all(
+            row.get("status") == "ok" for row in rows),
+        "matrix_id": os.environ.get(
+            "GRAPHBREW_MATRIX_ID", out_dir.name),
+        "shard_group": os.environ.get(
+            "GRAPHBREW_SHARD_GROUP", out_dir.parent.name),
+        "config_hash": os.environ.get(
+            "GRAPHBREW_MATRIX_CONFIG_HASH", ""),
+        "rows": len(rows),
+    }
+    temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    temp.replace(marker)
+
+
 def adaptive_group_key(row: dict[str, Any]) -> tuple[str, ...]:
     return tuple(str(row.get(field, "")) for field in ADAPTIVE_GROUP_FIELDS)
 
@@ -357,6 +377,8 @@ def main(argv: list[str]) -> int:
     if not out_dir.is_absolute():
         out_dir = PROJECT_ROOT / out_dir
 
+    if not args.dry_run:
+        (out_dir / "proof_matrix.complete.json").unlink(missing_ok=True)
     build_targets(args)
     rows: list[dict[str, Any]] = []
     for benchmark in args.benchmarks:
@@ -366,6 +388,7 @@ def main(argv: list[str]) -> int:
     if not args.dry_run:
         rows.extend(synthesize_adaptive_rows(rows))
         write_outputs(out_dir, rows)
+        write_completion_marker(out_dir, rows)
     return 0
 
 

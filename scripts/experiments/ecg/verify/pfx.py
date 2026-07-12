@@ -26,7 +26,7 @@ numbers required:
 Exit code 0 iff the synthetic decision is exact AND every prefetcher obeys its
 spec. Researcher-runnable artifact verification.
 
-  python3 scripts/experiments/ecg/verify_pfx.py
+  python3 scripts/experiments/ecg/verify/pfx.py
 """
 import json, os, subprocess, sys
 from pathlib import Path

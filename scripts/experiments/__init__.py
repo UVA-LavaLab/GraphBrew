@@ -1,1 +1,1 @@
-# scripts/experiments/ — VLDB experiment runners
+"""ECG experiment package namespace."""

@@ -2,7 +2,7 @@
 // reref is inert on the symmetric eval corpus (CSR==CSC) and forward-looking for a
 // future direction-optimizing kernel with irregular property access in BOTH directions
 // (BFS-parent is sequential, so BFS doesn't benefit — see
-// docs/findings/ecg_mask_direction_and_metadata.md S9). This test runs on a DIRECTED
+// research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md S9). This test runs on a DIRECTED
 // graph (in_neigh != out_neigh) to prove the two matrices genuinely differ and that
 // setActiveRerefMatrix repoints the single reserved reref way.
 #include "cache_sim/graph_cache_context.h"

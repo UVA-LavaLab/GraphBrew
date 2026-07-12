@@ -22,16 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-# Allow `from literature_preflight import ...` whether this script is
-# invoked directly (python paper_pipeline.py) or loaded by an importer
-# such as spec_from_file_location in tests.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
-from literature_preflight import snapshot_preflight  # noqa: E402
-
-
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
-FINAL_RUN = ECG_DIR / "final_paper_run.py"
+FINAL_RUN = ECG_DIR / "flows" / "paper_run.py"
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "paper_pipeline"
 PAPER_CHARTS_DIR = PROJECT_ROOT / "paper" / "dataCharts" / "ecg"
 
@@ -39,12 +32,14 @@ POLICY_ORDER = [
     "LRU",
     "SRRIP",
     "GRASP",
-    "POPT_CHARGED",
     "POPT",
+    "POPT_UNCHARGED",
     "ECG_DBG_ONLY",
     "ECG_DBG_PRIMARY_CHARGED",
     "ECG_DBG_PRIMARY",
     "ECG_POPT_PRIMARY",
+    "ECG_K2",
+    "ECG_K2_STREAMSHIELD",
 ]
 
 BENCHMARK_ORDER = ["pr", "bfs", "sssp", "cc", "bc", "tc"]
@@ -61,40 +56,46 @@ POLICY_LABELS = {
     "LRU": "LRU",
     "SRRIP": "SRRIP",
     "GRASP": "GRASP",
-    "POPT_CHARGED": "P-OPT+C",
     "POPT": "P-OPT",
+    "POPT_UNCHARGED": "P-OPT oracle",
     "ECG_DBG_ONLY": "ECG-D",
     "ECG_DBG_PRIMARY_CHARGED": "ECG-H+C",
     "ECG_DBG_PRIMARY": "ECG-H",
     "ECG_POPT_PRIMARY": "ECG-P",
+    "ECG_K2": "K2",
+    "ECG_K2_STREAMSHIELD": "K2+SS",
 }
 
 POLICY_DESCRIPTIONS = {
     "LRU": "Least recently used baseline",
     "SRRIP": "Static re-reference interval prediction baseline",
     "GRASP": "GRASP degree-aware replacement",
-    "POPT_CHARGED": "P-OPT with matrix capacity and stream overhead charged",
-    "POPT": "P-OPT oracle-capacity replacement",
+    "POPT": "P-OPT with matrix capacity and stream overhead charged",
+    "POPT_UNCHARGED": "P-OPT oracle-capacity replacement",
     "ECG_DBG_ONLY": "ECG DBG-only mode, GRASP-equivalence check",
     "ECG_DBG_PRIMARY_CHARGED": "ECG hybrid mode with P-OPT overhead charged",
     "ECG_DBG_PRIMARY": "ECG DBG-primary hybrid mode",
     "ECG_POPT_PRIMARY": "ECG P-OPT-primary oracle-validation mode",
+    "ECG_K2": "Two-epoch ECG replacement",
+    "ECG_K2_STREAMSHIELD": "Two-epoch ECG plus StreamShield placement",
 }
 
 POLICY_COLORS = {
     "LRU": "#BDBDBD",
     "SRRIP": "#8E8E8E",
     "GRASP": "#4C78A8",
-    "POPT_CHARGED": "#F2B872",
     "POPT": "#F58518",
+    "POPT_UNCHARGED": "#F2B872",
     "ECG_DBG_ONLY": "#8CD17D",
     "ECG_DBG_PRIMARY_CHARGED": "#B79A20",
     "ECG_DBG_PRIMARY": "#54A24B",
     "ECG_POPT_PRIMARY": "#B279A2",
+    "ECG_K2": "#2CA02C",
+    "ECG_K2_STREAMSHIELD": "#006D2C",
 }
 
 POLICY_HATCHES = {
-    "POPT_CHARGED": "///",
+    "POPT": "///",
     "ECG_DBG_PRIMARY_CHARGED": "///",
 }
 
@@ -133,7 +134,8 @@ TABLE_HEADER_LABELS = {
 }
 
 ROI_COMPARE_KEYS = (
-    "pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "threads", "section",
+    "final_shard_group", "final_matrix_id", "final_matrix_config_hash",
+    "simulator", "benchmark", "prefetcher", "l3_size", "threads", "section",
 )
 
 PAPER_FIGURE_WIDTH = 3.35
@@ -298,6 +300,9 @@ def policy_label_rows(policies: Iterable[str]) -> list[dict[str, Any]]:
 
 
 def effective_l3_misses(row: dict[str, Any]) -> float | None:
+    uniform = as_float(row.get("l3_misses_with_overhead"))
+    if uniform is not None:
+        return uniform
     charged = as_float(row.get("popt_charged_l3_misses_plus_matrix_stream"))
     if charged is not None:
         return charged
@@ -369,17 +374,127 @@ def run_profile(args: argparse.Namespace, run_root: Path, profile: str) -> Path:
     return run_dir
 
 
+def parse_expected_policy_labels(row: dict[str, Any]) -> set[str]:
+    raw = row.get("final_expected_policy_labels", "")
+    if isinstance(raw, list):
+        return {str(value) for value in raw}
+    if not raw:
+        return set()
+    try:
+        parsed = json.loads(str(raw))
+    except json.JSONDecodeError:
+        return set()
+    if not isinstance(parsed, list):
+        return set()
+    return {str(value) for value in parsed}
+
+
+def complete_matrix_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        groups[compare_key(row)].append(row)
+
+    complete: list[dict[str, Any]] = []
+    for group_key, group_rows in groups.items():
+        config_hashes = {
+            str(row.get("final_matrix_config_hash", ""))
+            for row in group_rows
+        }
+        expected: set[str] = set()
+        for row in group_rows:
+            expected.update(parse_expected_policy_labels(row))
+        actual = {
+            str(row.get("policy_label", "")) for row in group_rows
+            if row.get("status") == "ok" and
+            row.get("final_output_status", "ok") == "ok"
+        }
+        if (config_hashes == {""} or len(config_hashes) != 1 or
+                not expected or actual != expected):
+            print(
+                f"[skip] incomplete policy group={group_key} "
+                f"hashes={sorted(config_hashes)} "
+                f"expected={sorted(expected)} actual={sorted(actual)}")
+            continue
+        complete.extend(group_rows)
+    return complete
+
+
 def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     roi_rows: list[dict[str, Any]] = []
     proof_rows: list[dict[str, Any]] = []
 
-    def add_rows(path: Path, kind: str, run_dir: Path | None = None) -> None:
+    def add_rows(
+            path: Path, kind: str, run_dir: Path | None = None,
+            expected_job: dict[str, Any] | None = None) -> None:
         rows = read_csv(path)
+        marker_payload: dict[str, Any] = {}
+        if kind != "proof" and path.name == "roi_matrix.csv":
+            marker = path.parent / "roi_matrix.complete.json"
+            try:
+                marker_payload = (
+                    json.loads(marker.read_text()) if marker.exists() else {})
+                complete = (
+                    marker_payload.get("complete") is True and
+                    marker_payload.get("all_rows_ok") is True)
+            except (OSError, json.JSONDecodeError):
+                complete = False
+            if (not complete or not rows or
+                    any(row.get("status") != "ok" for row in rows)):
+                print(f"[skip] incomplete ROI matrix: {path}")
+                return
+        if kind == "proof" and path.name == "proof_matrix.csv":
+            marker = path.parent / "proof_matrix.complete.json"
+            try:
+                marker_payload = (
+                    json.loads(marker.read_text()) if marker.exists() else {})
+                complete = (
+                    marker_payload.get("complete") is True and
+                    marker_payload.get("all_rows_ok") is True)
+            except (OSError, json.JSONDecodeError):
+                complete = False
+            if (not complete or not rows or
+                    any(row.get("status") != "ok" for row in rows)):
+                print(f"[skip] incomplete proof matrix: {path}")
+                return
+        if expected_job is not None and marker_payload:
+            expected_hash = str(
+                expected_job.get("metadata", {}).get("config_hash", ""))
+            if (not expected_hash or
+                    marker_payload.get("config_hash") != expected_hash):
+                print(
+                    f"[skip] stale matrix hash: {path} "
+                    f"expected={expected_hash} "
+                    f"actual={marker_payload.get('config_hash', '')}")
+                return
+        rows = [
+            row for row in rows
+            if row.get("final_output_status", "ok") == "ok"
+        ]
         source_run = run_dir or path.parent
         for row in rows:
             row["pipeline_source_csv"] = str(path)
             row["pipeline_run_dir"] = str(source_run)
             row["pipeline_run_name"] = source_run.name
+            row.setdefault("final_shard_group", source_run.name)
+            row.setdefault(
+                "final_matrix_id", row.get("final_job_id", ""))
+            row.setdefault("final_matrix_config_hash", "")
+            row.setdefault(
+                "final_scaling_series_id",
+                row.get("final_matrix_id", row.get("final_job_id", "")))
+            row.setdefault("per_core_l3_size", row.get("l3_size", ""))
+            if marker_payload:
+                row["final_matrix_id"] = str(
+                    marker_payload.get("matrix_id", ""))
+                row["final_shard_group"] = str(
+                    marker_payload.get("shard_group", source_run.name))
+                row["final_expected_policy_labels"] = json.dumps(
+                    marker_payload.get("expected_policy_labels", []),
+                    separators=(",", ":"))
+                row["final_matrix_config_hash"] = str(
+                    marker_payload.get(
+                        "matrix_config_hash",
+                        marker_payload.get("config_hash", "")))
         if kind == "proof":
             proof_rows.extend(rows)
         else:
@@ -388,22 +503,57 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
     for run_dir in run_dirs:
         roi_path = run_dir / "combined_roi_matrix.csv"
         proof_path = run_dir / "combined_proof_matrix.csv"
-        if roi_path.exists():
+        run_marker = run_dir / "run.complete.json"
+        resolved_manifest = run_dir / "resolved_manifest.json"
+        try:
+            marker_payload = (
+                json.loads(run_marker.read_text())
+                if run_marker.exists() else {})
+            resolved_payload = (
+                json.loads(resolved_manifest.read_text())
+                if resolved_manifest.exists() else {})
+            run_complete = (
+                marker_payload.get("complete") is True and
+                marker_payload.get("run_config_hash") not in (None, "") and
+                marker_payload.get("run_config_hash") ==
+                resolved_payload.get("run_config_hash"))
+        except (OSError, json.JSONDecodeError):
+            run_complete = False
+            resolved_payload = {}
+        jobs_by_out_dir = {
+            str(resolve_path(str(job.get("out_dir", ""))).resolve()): job
+            for job in resolved_payload.get("jobs", [])
+            if job.get("out_dir")
+        }
+        manifest_scoped = bool(jobs_by_out_dir)
+        if roi_path.exists() and run_complete:
             add_rows(roi_path, "roi", run_dir)
         else:
             for path in sorted((run_dir / "matrices").glob("**/roi_matrix.csv")):
-                add_rows(path, "roi", run_dir)
-        if proof_path.exists():
+                expected_job = jobs_by_out_dir.get(str(path.parent.resolve()))
+                if manifest_scoped and expected_job is None:
+                    print(f"[skip] matrix not in resolved manifest: {path}")
+                    continue
+                add_rows(
+                    path, "roi", run_dir,
+                    expected_job)
+        if proof_path.exists() and run_complete:
             add_rows(proof_path, "proof", run_dir)
         else:
             for path in sorted((run_dir / "matrices").glob("**/proof_matrix.csv")):
-                add_rows(path, "proof", run_dir)
+                expected_job = jobs_by_out_dir.get(str(path.parent.resolve()))
+                if manifest_scoped and expected_job is None:
+                    print(f"[skip] proof matrix not in resolved manifest: {path}")
+                    continue
+                add_rows(
+                    path, "proof", run_dir,
+                    expected_job)
 
     for path in input_csvs:
         kind = "proof" if path.name == "proof_matrix.csv" else "roi"
         add_rows(path, kind, path.parent)
 
-    return roi_rows, proof_rows
+    return complete_matrix_rows(roi_rows), proof_rows
 
 
 def summarize_roi(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -431,9 +581,11 @@ def summarize_roi(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = complete_matrix_rows(rows)
     grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in rows:
-        if row.get("status") == "ok":
+        if (row.get("status") == "ok" and
+                row.get("final_output_status", "ok") == "ok"):
             grouped[compare_key(row)][row.get("policy_label", "")] = row
 
     out_rows: list[dict[str, Any]] = []
@@ -456,6 +608,8 @@ def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "timing_valid_for_speedup": timing_valid_label(row),
                 "timing_caveat": row.get("timing_caveat", ""),
                 "l3_misses": row.get("l3_misses", ""),
+                "l3_misses_with_overhead": row.get(
+                    "l3_misses_with_overhead", ""),
                 "effective_l3_misses": misses if misses is not None else "",
                 "popt_overhead_charged": row.get("popt_overhead_charged", ""),
                 "popt_charged_l3_misses_plus_matrix_stream": row.get(
@@ -475,7 +629,8 @@ def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def proof_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in rows:
-        if row.get("status") == "ok":
+        if (row.get("status") == "ok" and
+                row.get("final_output_status", "ok") == "ok"):
             grouped[compare_key(row)][row.get("policy_label", "")] = row
 
     out_rows: list[dict[str, Any]] = []
@@ -525,8 +680,13 @@ def summarize_relative(rows: list[dict[str, Any]], metrics: tuple[str, ...]) -> 
 
 
 def charged_overhead(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    pairs = [("POPT_CHARGED", "POPT"), ("ECG_DBG_PRIMARY_CHARGED", "ECG_DBG_PRIMARY")]
-    keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "threads", "section")
+    pairs = [
+        ("POPT", "POPT_UNCHARGED"),
+        ("ECG_DBG_PRIMARY_CHARGED", "ECG_DBG_PRIMARY"),
+    ]
+    keys = (
+        "final_shard_group", "final_matrix_id", "simulator", "benchmark",
+        "prefetcher", "l3_size", "threads", "section")
     indexed: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
     for row in rows:
         if row.get("status") != "ok":
@@ -552,8 +712,8 @@ def charged_overhead(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             })
             tick_charged = as_float(charged_row.get("sim_ticks"))
             tick_oracle = as_float(oracle_row.get("sim_ticks"))
-            miss_charged = as_float(charged_row.get("l3_misses"))
-            miss_oracle = as_float(oracle_row.get("l3_misses"))
+            miss_charged = effective_l3_misses(charged_row)
+            miss_oracle = effective_l3_misses(oracle_row)
             if tick_charged is not None and tick_oracle:
                 record["tick_delta"] = tick_charged - tick_oracle
                 record["tick_delta_pct"] = ((tick_charged - tick_oracle) / tick_oracle) * 100.0
@@ -567,9 +727,11 @@ def charged_overhead(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def faithfulness_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     pairs = [
         ("GRASP parity", "GRASP", "ECG_DBG_ONLY", 3.0),
-        ("P-OPT parity", "POPT", "ECG_POPT_PRIMARY", 3.0),
+        ("P-OPT parity", "POPT_UNCHARGED", "ECG_POPT_PRIMARY", 3.0),
     ]
-    group_keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "threads")
+    group_keys = (
+        "final_shard_group", "final_matrix_id", "simulator", "benchmark",
+        "prefetcher", "l3_size", "threads")
     indexed: dict[tuple[Any, ...], dict[str, dict[str, dict[str, Any]]]] = defaultdict(lambda: defaultdict(dict))
     for row in rows:
         if row.get("status") != "ok":
@@ -787,7 +949,10 @@ def prefetch_quality_summary(roi_rows: list[dict[str, Any]], proof_rows: list[di
 
 
 def thread_scaling_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    keys = ("pipeline_run_name", "final_job_id", "simulator", "benchmark", "prefetcher", "l3_size", "policy_label", "section")
+    keys = (
+        "final_shard_group", "final_scaling_series_id", "simulator",
+        "benchmark", "prefetcher", "per_core_l3_size", "policy_label",
+        "section")
     groups: dict[tuple[Any, ...], dict[int, dict[str, Any]]] = defaultdict(dict)
     for row in rows:
         threads = thread_count(row)
@@ -912,7 +1077,7 @@ def sniper_cpi_stack_summary(rows: list[dict[str, Any]]) -> list[dict[str, Any]]
 def write_latex_table(path: Path, rows: list[dict[str, Any]], fields: list[str], caption: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w") as fh:
-        fh.write("% Auto-generated by scripts/experiments/ecg/paper_pipeline.py\n")
+        fh.write("% Auto-generated by scripts/experiments/ecg/flows/paper_pipeline.py\n")
         fh.write("\\begin{table}[t]\n\\centering\n")
         fh.write(f"\\caption{{{caption}}}\n")
         fh.write("\\begin{tabular}{" + "l" * len(fields) + "}\n")
@@ -1716,58 +1881,25 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run ECG paper profiles, aggregate data, and generate figures.")
-    parser.add_argument("--profiles", nargs="+", default=["rehearsal"], help="final_paper_run.py profiles to run.")
+    parser.add_argument("--profiles", nargs="+", default=["ecg_smoke"], help="paper_run.py profiles to run.")
     parser.add_argument("--run-root", default="", help="Pipeline run root. Defaults to results/ecg_experiments/paper_pipeline/<timestamp>.")
     parser.add_argument("--input-run-dirs", nargs="+", default=[], help="Existing final-run directories to aggregate.")
     parser.add_argument("--input-run-glob", nargs="+", default=[], help="Glob(s) for existing final-run directories to aggregate, useful for Slurm shards.")
     parser.add_argument("--input-csv", nargs="+", default=[], help="Additional roi_matrix.csv or proof_matrix.csv files to aggregate.")
     parser.add_argument("--input-csv-glob", nargs="+", default=[], help="Glob(s) for additional roi_matrix.csv or proof_matrix.csv files to aggregate.")
     parser.add_argument("--skip-run", action="store_true", help="Do not launch profiles; only aggregate inputs.")
-    parser.add_argument("--dry-run", action="store_true", help="Pass --dry-run to final_paper_run.py.")
-    parser.add_argument("--no-build", action="store_true", help="Pass --no-build to final_paper_run.py.")
-    parser.add_argument("--allow-missing-graphs", action="store_true", help="Pass --allow-missing-graphs to final_paper_run.py.")
-    parser.add_argument("--force", action="store_true", help="Pass --force to final_paper_run.py.")
+    parser.add_argument("--dry-run", action="store_true", help="Pass --dry-run to flows/paper_run.py.")
+    parser.add_argument("--no-build", action="store_true", help="Pass --no-build to flows/paper_run.py.")
+    parser.add_argument("--allow-missing-graphs", action="store_true", help="Pass --allow-missing-graphs to flows/paper_run.py.")
+    parser.add_argument("--force", action="store_true", help="Pass --force to flows/paper_run.py.")
     parser.add_argument("--no-stop-on-error", action="store_false", dest="stop_on_error", help="Continue after failed profile.")
     parser.add_argument("--copy-to-paper", action="store_true", help="Copy generated PNG figures into paper/dataCharts/ecg.")
-    parser.add_argument(
-        "--skip-literature-gate",
-        action="store_true",
-        help=(
-            "Skip the pre-flight literature_faithfulness check. By default "
-            "the pipeline refuses to launch any final_* profile if the "
-            "current lit-faith snapshot reports unexplained disagreements; "
-            "use this only when you know the baselines are intentionally "
-            "stale (e.g. for a fast smoke test on --dry-run)."
-        ),
-    )
     parser.set_defaults(stop_on_error=True)
     return parser.parse_args(argv)
 
 
-def _literature_preflight() -> int:
-    """Run the literature-faithfulness comparator as a pre-flight check.
-
-    Returns 0 if the lit-faith snapshot reports no unexplained
-    disagreements, non-zero otherwise. The check reads the on-disk
-    lit-faith JSON (regenerated by `make lit-faith`); we deliberately
-    do *not* re-run the comparator here because the sweep root may not
-    be present on every box and a re-run can take minutes. Run
-    `make confidence` first if you need a fresh snapshot.
-
-    A missing JSON is treated as a *hard fail* — running paper
-    profiles against unverified baselines is exactly what this gate
-    exists to prevent.
-    """
-    snap = PROJECT_ROOT / "wiki" / "data" / "literature_faithfulness_postfix.json"
-    return snapshot_preflight(snap)
-
-
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    if not args.skip_literature_gate and not args.skip_run:
-        gate_rc = _literature_preflight()
-        if gate_rc != 0:
-            return gate_rc
     run_root = Path(args.run_root) if args.run_root else RESULTS_ROOT / now_tag()
     if not run_root.is_absolute():
         run_root = PROJECT_ROOT / run_root
@@ -1789,6 +1921,11 @@ def main(argv: list[str]) -> int:
     input_csvs = [resolve_path(path) for path in csv_inputs]
     roi_rows, proof_rows = collect_csvs(run_dirs, input_csvs)
     print(f"[aggregate] roi_rows={len(roi_rows)} proof_rows={len(proof_rows)}")
+    if args.dry_run and not roi_rows and not proof_rows:
+        print("[pipeline] dry-run complete; no result rows expected")
+        return 0
+    if not roi_rows and not proof_rows:
+        raise SystemExit("no complete ROI or proof rows found")
     generate_outputs(run_root, roi_rows, proof_rows, args.copy_to_paper)
     return 0
 

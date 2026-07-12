@@ -1417,7 +1417,7 @@ struct GraphCacheContext {
     // exact_in_off/exact_in_nbr below), NOT g.out_neigh. Self-contained: built by
     // buildOutEdgeMasks(), never touches the PR in-edge path or the shared
     // exact_off/exact_nbr. On symmetric graphs (in==out) these equal the in-edge
-    // masks. See docs/findings/ecg_mask_direction_and_metadata.md.
+    // masks. See research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md.
     std::vector<std::vector<uint64_t>> out_edge_masks_by_src;
     std::vector<std::vector<uint16_t>> out_edge_epoch_by_src;
     std::vector<std::vector<uint16_t>> out_edge_epoch_sched_by_src;
@@ -1591,7 +1591,7 @@ struct GraphCacheContext {
     // sizes). Lets a direction-optimizing kernel swap the transpose-correct matrix per
     // phase WITHOUT reserving a second LLC way (POPT_DUAL_REREF). The matrix is
     // non-owned, so this is a pointer swap; do it between phases (no active parallel
-    // region). See docs/findings/ecg_mask_direction_and_metadata.md S9.
+    // region). See research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md S9.
     uint64_t reref_swap_count = 0;  // # real-time per-direction loads (observability)
     inline void setActiveRerefMatrix(const uint8_t* matrix) {
         if (rereference.matrix != matrix) reref_swap_count++;

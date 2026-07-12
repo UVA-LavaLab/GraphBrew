@@ -1,7 +1,7 @@
 """Static-invariant test for GRASP property-array registration.
 
 This test enforces the rule that surfaced from the
-``BC multi-property GRASP bug`` (commit landing wiki/Baseline-Literature-Faithfulness.md):
+``BC multi-property GRASP bug`` (commit landing research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md):
 
   In any cache_sim benchmark that registers more than one
   vertex-indexed property array via ``registerPropertyArray()``,
@@ -171,5 +171,5 @@ def test_multi_property_grasp_region_consistent(src_file: Path) -> None:
         f"{src_file.name} registers {len(flags)} property arrays with "
         f"mixed grasp_region flags {flags}. All must be true (preferred) "
         f"or all false. Mixed configuration caused the BC multi-property "
-        f"GRASP bug (see wiki/Baseline-Literature-Faithfulness.md)."
+        f"GRASP bug (see research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md)."
     )

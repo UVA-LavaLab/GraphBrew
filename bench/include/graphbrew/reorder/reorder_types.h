@@ -1289,7 +1289,7 @@ inline BenchmarkType GetBenchmarkType(const std::string& name) {
 // ============================================================================
 // Variant names (e.g. GraphBrewOrder_leiden, RABBITORDER_csr, RCM_bnf) are
 // resolved dynamically by ResolveVariantSelection() via prefix matching.
-// To add a new variant, update ONLY the Python SSOT in scripts/lib/core/utils.py;
+// This retained dependency is frozen for ECG graph loading/reordering support;
 // C++ recognizes any variant-prefixed name automatically.
 //
 // Variant prefixes used for dynamic dispatch and weight-file discovery:

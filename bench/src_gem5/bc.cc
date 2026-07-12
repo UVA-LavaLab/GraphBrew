@@ -43,7 +43,7 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
         // boundary per region; marking only one of four arrays (the original
         // behaviour) caused the other three to thrash under SRRIP. Mirror of
         // the cache_sim fix in bench/src_sim/bc.cc — see
-        // wiki/Baseline-Literature-Faithfulness.md "BC multi-property fix".
+        // research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md "BC multi-property fix".
         Gem5PropertyRegion regions[4] = {
         {"scores", reinterpret_cast<uint64_t>(scores.data()),
          static_cast<uint64_t>(g.num_nodes()) * sizeof(ScoreT),

@@ -23,7 +23,7 @@ locks in the runtime equivalence by:
 3. Diffing the two compressed matrices for **bit-exact** equality across two
    tiny synthetic graphs.
 
-The handoff (``wiki/HANDOFF-grasp-popt-validation.md`` Tier B) calls for
+The handoff (``research/ecg-hpca/CLAIMS.md`` Tier B) calls for
 diffing against an upstream reference run on ``web-Google.el``.  The upstream
 artifact source is not vendored in this repository (network clone required),
 so this test uses an in-repo Python clone of the published algorithm as the

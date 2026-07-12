@@ -43,6 +43,8 @@ struct Options {
     int max_iters = 2;
     NodeID source = 0;
     WeightT delta = 1;
+    int scale = -1;
+    int degree = 16;
     std::string reorder_spec;   // -o value (e.g. "5" = DBG); empty = no reorder
     bool symmetrize = false;    // -s
 };
@@ -68,14 +70,20 @@ Options parse_options(int argc, char** argv) {
             if (options.delta <= 0) options.delta = 1;
         } else if (arg == "-o" && has_value(i, argc)) {
             options.reorder_spec = argv[++i];   // forward to Builder reorder (was discarded!)
-        } else if ((arg == "-g" || arg == "-k" || arg == "-n" || arg == "-t") && has_value(i, argc)) {
+        } else if (arg == "-g" && has_value(i, argc)) {
+            options.scale = std::atoi(argv[++i]);
+        } else if (arg == "-k" && has_value(i, argc)) {
+            options.degree = std::max(1, std::atoi(argv[++i]));
+        } else if ((arg == "-n" || arg == "-t") && has_value(i, argc)) {
             ++i;
         } else if (arg == "-s") {
             options.symmetrize = true;
         } else if (arg == "-a" || arg == "-v" || arg == "--") {
             continue;
         } else if (arg == "-h" || arg == "--help") {
-            std::cout << "Usage: sg_kernel --benchmark pr|bfs|sssp|bc|cc -f graph.sg [-i iters] [-r source] [-d delta]\n";
+            std::cout << "Usage: sg_kernel --benchmark pr|bfs|sssp|bc|cc "
+                         "(-f graph.sg | -g scale [-k degree]) "
+                         "[-i iters] [-r source] [-d delta]\n";
             std::exit(0);
         }
     }
@@ -89,7 +97,15 @@ Options parse_options(int argc, char** argv) {
 // policy runs operate on UNREORDERED graphs.
 namespace {
 std::vector<std::string> build_gapbs_args(const Options& opt) {
-    std::vector<std::string> args = {"sg_kernel", "-f", opt.graph_path};
+    std::vector<std::string> args = {"sg_kernel"};
+    if (!opt.graph_path.empty()) {
+        args.insert(args.end(), {"-f", opt.graph_path});
+    } else {
+        args.insert(args.end(), {
+            "-g", std::to_string(opt.scale),
+            "-k", std::to_string(opt.degree),
+        });
+    }
     if (opt.symmetrize) args.push_back("-s");
     if (!opt.reorder_spec.empty()) {
         args.push_back("-o");
@@ -1101,8 +1117,8 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
 
 int main(int argc, char** argv) {
     Options options = parse_options(argc, argv);
-    if (options.graph_path.empty()) {
-        std::cerr << "sg_kernel requires -f graph.sg" << std::endl;
+    if (options.graph_path.empty() && options.scale < 1) {
+        std::cerr << "sg_kernel requires -f graph.sg or -g scale" << std::endl;
         return 2;
     }
 

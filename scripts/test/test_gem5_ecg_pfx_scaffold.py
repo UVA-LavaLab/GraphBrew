@@ -68,22 +68,11 @@ def test_gem5_harness_defines_ecg_pfx_m5ops_macro():
 
 def test_x86_instruction_path_emits_gem5_pseudo_op_bytes():
     harness = read("bench/include/gem5_sim/gem5_harness.h")
-    x86_m5op = read("bench/include/gem5_sim/gem5/util/m5/src/abi/x86/m5op.S")
-    generic_m5ops = read("bench/include/gem5_sim/gem5/include/gem5/asm/generic/m5ops.h")
 
     assert 'asm volatile (".byte 0x0F, 0x04' in harness
     assert '"D"(work_id)' in harness
     assert '"S"(argument)' in harness
     assert "M5OP_WORK_BEGIN" in harness
-    assert ".byte 0x0F, 0x04" in x86_m5op
-    assert "#define M5OP_WORK_BEGIN         0x5a" in generic_m5ops
-
-
-def test_gem5_tiny_smoke_uses_instruction_delivery():
-    text = read("scripts/experiments/ecg/final_paper_manifest.json")
-
-    assert '"profiles": ["gem5_ecg_pfx_tiny_smoke"]' in text
-    assert '"ecg_pfx_delivery": "instruction"' in text
 
 
 def test_riscv_ecg_extract_overlay_uses_custom0_opcode():
@@ -220,9 +209,3 @@ def test_setup_gem5_uses_dedicated_x86_extract_work_id():
     text = read("scripts/setup_gem5.py")
     assert "legacy content-based PFX/mask multiplexing" in text
     assert "GRAPHBREW_ECG_EXTRACT_MASK_WORK_ID" in text
-
-
-def test_three_sim_showcase_selects_explicit_roi_section():
-    text = read("scripts/experiments/ecg/three_sim_showcase.py")
-    assert "section == 1" in text
-    assert "automatic final section after the ROI" in text

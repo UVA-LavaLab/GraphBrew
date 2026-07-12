@@ -22,7 +22,7 @@ index f3620bd..650e8bd 100644
 +        // Without this, prefetchers that produce ONLY cross-page
 +        // candidates (e.g., ECG_PFX targeting property[random_v])
 +        // never get serviced and pf_issued stays 0. See
-+        // docs/findings/gem5_implementation_audit_v1.md and the
++        // research/ecg-hpca/evidence/gem5_implementation_audit_v1.md and the
 +        // M2 evidence in sprint S68.
 +        if (!pfq.empty()) return pfq.front().tick;
 +        if (!pfqMissingTranslation.empty()) return curTick();

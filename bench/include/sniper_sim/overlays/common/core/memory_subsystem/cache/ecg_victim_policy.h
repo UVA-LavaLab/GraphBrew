@@ -10,7 +10,7 @@
 // bench/src_sim/test_ecg_victim.cc.
 //
 // The five variants (selected by ECG_VARIANT) and the invariants are documented
-// in wiki/ECG-Policy-Comparison.md. Summary:
+// in wiki/ECG-HPCA-Paper.md. Summary:
 //   - epoch is PROPERTY-ONLY; record (non-property) lines never carry a usable
 //     epoch and are ranked by recency / set order.
 //   - "recency" is normalised so SMALLER == older == evict-first. cache_sim and

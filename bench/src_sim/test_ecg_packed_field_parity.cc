@@ -10,7 +10,7 @@
 // documented divergence: the 31-bit and 15-bit targets AGREE for targets <= 32767
 // (in-range parity), but packMaskEpoch TRUNCATES targets > 32767 to a WRONG vertex while
 // packMask preserves them -> the gem5 large-graph ECG_PFX limitation (doc S10 validity
-// matrix). verify_pfx.py proves target SELECTION parity; this proves field DELIVERY parity.
+// matrix). verify/pfx.py proves target SELECTION parity; this proves field DELIVERY parity.
 #include "ecg_mode6_builder.h"
 #include "ecg_epoch_builder.h"
 #include <cstdio>

@@ -6,7 +6,7 @@ Locks the invariant that each simulator (``cache_sim``, ``gem5``-native,
 ``email-Eu-core`` and that *both* of those regions are classified as
 GRASP regions at the GRASP-faithful array-relative ``hot_pct=15`` band.
 
-The handoff (``wiki/HANDOFF-grasp-popt-validation.md``) calls for "exactly 2
+The handoff (``research/ecg-hpca/CLAIMS.md``) calls for "exactly 2
 regions with ``grasp_region=1`` and the expected ``hot_pct`` (15 for
 PR/BC/Radii, 100 for BellmanFord)".  Two contexts apply:
 
@@ -18,7 +18,7 @@ PR/BC/Radii, 100 for BellmanFord)".  Two contexts apply:
   property arrays as a GRASP region caused the catastrophic BC bug
   where the unmarked arrays thrashed under SRRIP while the single hot
   array hogged the LLC — see
-  ``wiki/Baseline-Literature-Faithfulness.md`` and
+  ``research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md`` and
   ``scripts/test/test_grasp_multi_property_invariant.py``.
 
 Only PR is exercised end-to-end today because (a) it's the canonical
@@ -182,7 +182,7 @@ def _assert_grasp_invariant(regions: list[dict], app: AppSpec) -> None:
     # Post-fix invariant: *both* property arrays must be classified as
     # GRASP regions (the multi-property bug surfaced in BC was that only
     # the trailing array was a GRASP region — see
-    # wiki/Baseline-Literature-Faithfulness.md and
+    # research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md and
     # scripts/test/test_grasp_multi_property_invariant.py).
     assert sum(grasp_flags) == 2, (
         f"{app.name}: expected both regions with grasp_region=1, "

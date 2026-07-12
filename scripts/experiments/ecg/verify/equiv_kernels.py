@@ -11,7 +11,7 @@ per-sim `[ECG-CONFIG …]` banner (full debug: each run proves the policy/mode/v
 This certifies the DECISION equivalence across kernels. NOTE: the per-edge mask DIRECTION is
 PR-tuned (out-neigh = PR's in-pull transpose); BFS-top-down/SSSP traverse out-edges and are
 direction-UNCERTIFIED on directed graphs (a miss-rate, not a spec, concern — the spec holds
-because the policy correctly evicts given whatever masks it has). See wiki/ECG-Policy-Comparison.md.
+because the policy correctly evicts given whatever masks it has). See wiki/ECG-HPCA-Paper.md.
 
 Usage:
   python3 scripts/experiments/ecg/verify/equiv_kernels.py                 # cache_sim only (fast)
@@ -255,6 +255,31 @@ def main(argv=None):
         ap.error("--stream-bypass currently supports --kernels pr")
     if STREAM_BYPASS and SCHEDULE_K != 2:
         ap.error("--stream-bypass requires --schedule-k 2")
+
+    required = [ecg.GRAPH]
+    required.extend(
+        ecg.ROOT / "bench" / "bin_sim" / kernel
+        for kernel in args.kernels
+    )
+    if args.gem5:
+        required.extend(
+            ecg.ROOT / "bench" / "bin_gem5" /
+            f"{kernel}{'_riscv_m5ops' if kernel in GEM5_RISCV_KERNELS else '_m5ops'}"
+            for kernel in args.kernels
+        )
+    if args.sniper:
+        required.extend([
+            ecg.ROOT / "bench" / "bin_sniper" / "sg_kernel",
+            ecg.ROOT / "bench" / "include" / "sniper_sim" /
+            "snipersim" / "lib" / "sniper",
+        ])
+    missing_inputs = [str(path) for path in required if not path.exists()]
+    if missing_inputs:
+        print("FAIL: missing equivalence inputs:")
+        for path in missing_inputs:
+            print(f"  - {path}")
+        print("See research/ecg-hpca/RUNBOOK.md for graph staging and build commands.")
+        return 2
 
     enabled = {"cache_sim"}
     if args.gem5:

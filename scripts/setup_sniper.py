@@ -10,7 +10,7 @@ This script mirrors the gem5 setup flow at a lighter-weight level:
 Usage:
     python3 scripts/setup_sniper.py --dry-run
     python3 scripts/setup_sniper.py --skip-build
-    python3 scripts/setup_sniper.py --ref main --jobs 8
+    python3 scripts/setup_sniper.py --jobs 8
     python3 scripts/setup_sniper.py --clean
 
 The script is intentionally conservative: it does not copy overlays yet because
@@ -38,7 +38,7 @@ SNIPER_CONFIG_DIR = SNIPER_SIM_DIR / "configs"
 VERSION_FILE = SNIPER_SIM_DIR / ".sniper_version"
 OVERLAY_STATUS_FILE = SNIPER_SIM_DIR / ".sniper_overlays.json"
 SNIPER_REPO_URL = "https://github.com/snipersim/snipersim.git"
-SNIPER_DEFAULT_REF = "main"
+SNIPER_DEFAULT_REF = "56505e42fd98bca863fac181e769bd3c98d2bb33"
 
 
 class Logger:
@@ -109,6 +109,12 @@ def clone_or_update(args: argparse.Namespace) -> None:
 
     if args.ref:
         run_cmd(["git", "checkout", args.ref], cwd=SNIPER_DIR, dry_run=args.dry_run)
+    if not args.dry_run and args.ref == SNIPER_DEFAULT_REF:
+        actual = git_head(SNIPER_DIR)
+        if actual != SNIPER_DEFAULT_REF:
+            raise SystemExit(
+                "Sniper revision mismatch: "
+                f"expected {SNIPER_DEFAULT_REF}, got {actual}")
 
 
 def write_version(args: argparse.Namespace) -> None:
@@ -129,14 +135,14 @@ def build_sniper(args: argparse.Namespace) -> None:
     if args.skip_build:
         log.info("Skipping Sniper build (--skip-build).")
         return
-    if not SNIPER_DIR.exists():
-        raise SystemExit(f"Sniper checkout missing: {SNIPER_DIR}")
     command = ["make", f"-j{args.jobs}"]
     if args.build_target:
         command.append(args.build_target)
     if args.dry_run:
         log.info(f"Would build Sniper with: {command_text(command)}")
         return
+    if not SNIPER_DIR.exists():
+        raise SystemExit(f"Sniper checkout missing: {SNIPER_DIR}")
     if not args.skip_deps_check:
         check_host_dependencies()
     run_cmd(command, cwd=SNIPER_DIR)
@@ -1199,7 +1205,7 @@ def clean(args: argparse.Namespace) -> int:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Setup Sniper for GraphBrew.")
+    parser = argparse.ArgumentParser(description="Setup the pinned Sniper ECG backend.")
     parser.add_argument("--repo", default=SNIPER_REPO_URL, help="Sniper git repository URL.")
     parser.add_argument("--ref", default=SNIPER_DEFAULT_REF, help="Sniper branch/tag/commit to checkout.")
     parser.add_argument("--jobs", type=int, default=8, help="Parallel build jobs.")

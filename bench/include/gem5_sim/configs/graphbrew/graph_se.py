@@ -7,17 +7,17 @@ matching ECG defaults, running a graph benchmark binary under SE (syscall
 emulation) mode.
 
 Usage:
-    gem5.opt graph_se.py --binary bench/bin/pr \\
+    gem5.opt graph_se.py --binary bench/bin_gem5/pr_m5ops \\
         --options "-f graph.sg -s -n 1 -o 5" \\
         --policy GRASP \\
         --graph-metadata results/gem5_metadata/pokec/context.json
 
-    gem5.opt graph_se.py --binary bench/bin/bfs \\
+    gem5.opt graph_se.py --binary bench/bin_gem5/bfs_m5ops \\
         --options "-f graph.sg -s -n 1 -o 0" \\
         --policy ECG --ecg-mode DBG_PRIMARY \\
         --cpu-type O3
 
-    gem5.opt graph_se.py --binary bench/bin/pr \\
+    gem5.opt graph_se.py --binary bench/bin_gem5/pr_m5ops \\
         --options "-f graph.sg -s -n 1 -o 5" \\
         --policy GRASP --prefetcher DROPLET
 """
@@ -135,7 +135,7 @@ def parse_args():
         description="gem5 SE-mode config for GraphBrew graph benchmarks")
 
     parser.add_argument("--binary", required=True,
-        help="Path to the benchmark binary (e.g., bench/bin/pr)")
+        help="Path to the ECG benchmark binary (e.g., bench/bin_gem5/pr_m5ops)")
     parser.add_argument("--options", default="",
         help="Command-line arguments for the benchmark binary")
 
@@ -267,7 +267,7 @@ def create_system(args):
             system.cpu.dcache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
             # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
             # prefetches unless prefetcher.mmu is set. See
-            # docs/findings/gem5_implementation_audit_v1.md.
+            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
             _pf = system.cpu.dcache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -277,7 +277,7 @@ def create_system(args):
             system.l2cache.prefetcher = make_droplet_prefetcher(**droplet_kwargs)
             # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
             # prefetches unless prefetcher.mmu is set. See
-            # docs/findings/gem5_implementation_audit_v1.md.
+            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
             _pf = system.l2cache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -288,7 +288,7 @@ def create_system(args):
             system.cpu.dcache.prefetcher = make_ecg_pfx_prefetcher()
             # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
             # prefetches unless prefetcher.mmu is set. See
-            # docs/findings/gem5_implementation_audit_v1.md.
+            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
             _pf = system.cpu.dcache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -298,7 +298,7 @@ def create_system(args):
             system.l2cache.prefetcher = make_ecg_pfx_prefetcher()
             # S68-MMU-PATCH: gem5 Queued::notify drops cross-page
             # prefetches unless prefetcher.mmu is set. See
-            # docs/findings/gem5_implementation_audit_v1.md.
+            # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
             _pf = system.l2cache.prefetcher
             if hasattr(system.cpu, 'mmu'):
                 _pf.registerMMU(system.cpu.mmu)
@@ -316,7 +316,7 @@ def create_system(args):
             _pf = system.l2cache.prefetcher
         # S68-MMU-PATCH: gem5 Queued::notify drops cross-page prefetches
         # unless prefetcher.mmu is set. See
-        # docs/findings/gem5_implementation_audit_v1.md.
+        # research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
         if hasattr(system.cpu, 'mmu'):
             _pf.registerMMU(system.cpu.mmu)
         elif hasattr(system.cpu, 'dtb'):

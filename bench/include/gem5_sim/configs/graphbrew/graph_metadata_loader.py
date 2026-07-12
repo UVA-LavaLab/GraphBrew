@@ -86,7 +86,8 @@ def load_graph_metadata(json_path):
         raise FileNotFoundError(
             f"Graph metadata file not found: {json_path}\n"
             f"Run the pipeline first to generate metadata:\n"
-            f"  python scripts/graphbrew_experiment.py --phase export-gem5-metadata"
+            "  run scripts/experiments/ecg/roi_matrix.py so the benchmark "
+            "exports the required sideband metadata"
         )
 
     with open(path, "r") as f:

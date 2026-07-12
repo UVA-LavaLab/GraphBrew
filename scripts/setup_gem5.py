@@ -97,7 +97,7 @@ UNIFIED_DIFF_PATCHES = [
     # S68 queue-servicing fix: nextPrefetchReadyTime returns curTick()
     # when pfqMissingTranslation has entries even if pfq is empty.
     # Required for prefetchers like ECG_PFX that emit only cross-page
-    # candidates. See docs/findings/gem5_implementation_audit_v1.md.
+    # candidates. See research/ecg-hpca/evidence/gem5_implementation_audit_v1.md.
     ("mem/cache/prefetch/queued_hh.patch", "."),
     # S68 latency-readiness guard: getPacket() returns nullptr if the
     # front-of-queue prefetch's tick is in the future, preserving the
@@ -106,7 +106,7 @@ UNIFIED_DIFF_PATCHES = [
     # ECG ecg.load OoO producer: bind the per-dynamic {dest,epoch} to the
     # ecg.load's own demand Request (EcgEpochExtension) so the epoch reaches
     # the LLC race-free on DerivO3CPU (the single-slot mailbox is overwritten
-    # ~100% of the time under OoO — see docs/findings/ooo_ecg_load_propagation_
+    # ~100% of the time under OoO — see research/ecg-hpca/evidence/ooo_ecg_load_propagation_
     # and_design.md). exec_context.hh adds a default-noop setEcgLoadHint hook;
     # o3/dyn_inst.hh overrides it with per-dynamic state; o3/lsq.cc attaches the
     # extension in LSQRequest::addReq (gated on env GEM5_ECG_PRODUCER). The
@@ -639,13 +639,9 @@ def print_summary(isas: list, build_type: str):
         print(f"    {src_rel} [{status}]")
     print()
     print("  Next steps:")
-    print("    1. Run benchmarks:")
-    print(f"       {GEM5_DIR}/build/X86/gem5.{build_type} \\")
-    print("           gem5_sim/configs/graphbrew/graph_se.py \\")
-    print("           --binary bench/bin/pr --policy LRU")
-    print()
-    print("    2. Or use pipeline integration:")
-    print("       python scripts/graphbrew_experiment.py --phase cache --simulator gem5")
+    print("    make gem5-m5ops-pr")
+    print("    python3 scripts/experiments/ecg/roi_matrix.py \\")
+    print("        --suite gem5 --benchmark pr --policies LRU --no-build")
     print("=" * 70)
 
 

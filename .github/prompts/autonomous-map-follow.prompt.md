@@ -21,10 +21,12 @@ Operating rules:
 - If a long-running simulation is launched, record the terminal ID, run directory, current job, and safe monitoring command.
 - Continue until the slice is complete or genuinely blocked.
 
-For GraphBrew ECG/gem5/Sniper work, respect simulator guardrails:
+For ECG/gem5/Sniper work, respect simulator guardrails:
 
-- Do not run multiple GraphBrew gem5 jobs on the same node unless sideband files are isolated.
+- Do not run multiple gem5 ECG jobs on the same node unless sideband files are isolated.
 - Prefer existing runners over ad hoc commands.
-- Use `final_paper_run.py` for manifest jobs, `paper_pipeline.py --skip-run` for aggregation, and Slurm shard filters for distributed runs.
+- Use `scripts/experiments/ecg/flows/paper_run.py` for manifest jobs,
+  `flows/paper_pipeline.py --skip-run` for aggregation, and Slurm shard filters
+  for distributed runs.
 
 Start now by reading the plan and choosing the next unblocked task.

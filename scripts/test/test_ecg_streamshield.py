@@ -127,11 +127,31 @@ def test_sniper_dry_run_migration_updates_virtual_text(tmp_path):
     assert module._overlay_text(target, True) == "final content\n"
 
 
+def test_sniper_build_dry_run_does_not_require_checkout(tmp_path):
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location(
+        "setup_sniper_missing_checkout", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    module.SNIPER_DIR = tmp_path / "missing"
+    module.build_sniper(argparse.Namespace(
+        skip_build=False,
+        build_target="",
+        jobs=2,
+        dry_run=True,
+        skip_deps_check=True,
+    ))
+
+
 def test_streamshield_is_policy_isolated_and_verified():
     runner = read("scripts/experiments/ecg/roi_matrix.py")
+    policy_specs = read("scripts/experiments/ecg/lib/policy_specs.py")
     verifier = read("scripts/experiments/ecg/verify/equiv_kernels.py")
     ecg_verifier = read("scripts/experiments/ecg/verify/ecg.py")
-    assert 'env.pop("ECG_STREAM_BYPASS", None)' in runner
+    assert "apply_ecg_transport_env" in runner
+    assert '"ECG:K2_STREAMSHIELD"' in policy_specs
     assert '"ecg_stream_bypass"' in runner
     assert "--stream-bypass" in verifier
     assert "stream-bypass-reads" in verifier
@@ -142,6 +162,7 @@ def test_streamshield_is_policy_isolated_and_verified():
     assert 'env.get("ECG_STREAM_BYPASS") == "1"' in runner
     assert "--stream-bypass requires --schedule-k 2" in verifier
     assert "SNIPER_ECG_FUSED_K2" in runner
+    assert "StreamShield inactive" in runner
     assert 'env.pop("SNIPER_ECG_FUSED_K2", None)' in runner
     assert 'env.pop("SNIPER_ECG_FUSED_VALIDATE", None)' in runner
     assert 'env["SNIPER_CACHE_LINE_SIZE"] = str(args.line_size)' in runner
@@ -172,6 +193,7 @@ def test_streamshield_setup_migrates_and_rebuilds():
     assert "base_stream_bypass_request_flag.patch" in gem5_setup
     assert "prefetch_stream_bypass.patch" in gem5_setup
     assert "def migrate_if_present" in sniper_setup
+    assert 'SNIPER_DEFAULT_REF = "56505e42fd98bca863fac181e769bd3c98d2bb33"' in sniper_setup
     assert "migrate_if_present(\n        magic_server, old_decode, new_decode" in sniper_setup
 
 

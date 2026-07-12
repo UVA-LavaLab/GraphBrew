@@ -29,7 +29,7 @@
 //     [33:49] next-ref epoch (16 bits)
 //     [49:64] prefetch target (15 bits, 0 = no prefetch)
 //
-// LOAD-BEARING note (see docs/findings/ecg_mask_direction_and_metadata.md): the
+// LOAD-BEARING note (see research/ecg-hpca/evidence/ecg_mask_direction_and_metadata.md): the
 // ECG_GRASP_POPT headline EVICTION reads only the epoch (the 7-bit POPT-quant field
 // is vestigial there; it survives for legacy cache_sim modes + gem5 decode). The
 // prefetch target is read only by ECG_PFX. DIRECTION: the next-ref matrix must be the
@@ -195,7 +195,7 @@ inline uint64_t extractEpochOnly(uint64_t m)      { return (m >> kEoEpochShift) 
 // function via buildInEdgeMasks, and the prefetcher simply consumes the encoded
 // target. A single unit test of this pure function therefore verifies the ECG
 // prefetch target for cache_sim, gem5 and Sniper alike. See
-// bench/src_sim/test_ecg_prefetch.cc and scripts/experiments/ecg/verify_pfx.py.
+// bench/src_sim/test_ecg_prefetch.cc and scripts/experiments/ecg/verify/pfx.py.
 inline uint32_t selectPrefetchTarget(
     const uint32_t* neighbors, size_t n_neighbors, size_t i,
     const std::vector<uint8_t>& avg_reref_by_line,

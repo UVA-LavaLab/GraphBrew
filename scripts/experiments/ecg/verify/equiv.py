@@ -37,12 +37,9 @@ conformance:
     A fast static guard that pins the exact lines bug #1 lived on.
 
 Usage:
-  python3 scripts/experiments/ecg/experiments.py verify --equiv   # cache_sim (fast) + static invariant
-  python3 scripts/experiments/ecg/verify/equiv.py                 # same, direct
+  python3 scripts/experiments/ecg/verify/equiv.py                 # cache_sim + static invariant
   python3 scripts/experiments/ecg/verify/equiv.py --gem5          # + gem5 behavioral gate (slow)
   python3 scripts/experiments/ecg/verify/equiv.py --sniper        # + Sniper behavioral gate (slow, guarded)
-The behavioral gates also run automatically at the end of `experiments.py verify`
-(cache_sim always; gem5/Sniper with --gem5/--sniper).
 """
 
 from __future__ import annotations
@@ -62,9 +59,9 @@ ROI_MATRIX = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
 # actually differentiates. A tiny graph whose property fits in L3 (e.g.
 # email-Eu-core @ 16kB) leaves GRASP marginal/noisy and the cache_sim (graph-only)
 # vs gem5 (full-ISA) access-stream difference dominates -> false disagreement.
-# kron_s16_k4 @ 128kB/16-way is gem5/Sniper-feasible AND shows all three sims agree
+# kron scale-16/degree-4 @ 128kB/16-way is gem5/Sniper-feasible AND shows all three sims agree
 # GRASP/ECG help (this is the cell the non-property-RRPV fix was validated on).
-GRAPH = ROOT / "results" / "graphs" / "kron_s16_k4" / "kron_s16_k4.sg"
+GRAPH_OPTIONS = "-g 16 -k 4"
 CELL = dict(l3_size="128kB", l3_ways="16", l1d_size="16kB", l2_size="64kB")
 
 # A graph-aware policy must not be WORSE than LRU by more than this (noise band).
@@ -86,7 +83,7 @@ def _run_matrix(suite: str, policies: list[str], reorder: int, out: Path,
     out_str = str(out)
     cmd = [sys.executable, str(ROI_MATRIX), "--suite", suite, "--no-build",
            "--benchmark", "pr", "--policies", *policies,
-           "--options", f"-f {GRAPH} -o {reorder} -n 1 -i 1",
+           "--options", f"{GRAPH_OPTIONS} -o {reorder} -n 1 -i 1",
            "--l3-sizes", CELL["l3_size"], "--l3-ways", CELL["l3_ways"],
            "--l1d-size", CELL["l1d_size"], "--l2-size", CELL["l2_size"],
            "--out-dir", out_str]
@@ -252,7 +249,7 @@ def check_insertion_rrpv_invariant() -> bool:
     # gem5 GraphGraspRP::reset (grasp_rp.cc). The whole policy classifies property
     # via insertionRRPV(tier); its ONLY other insert is the non-property else-branch
     # right after `isPropertyData(addr)`. Scope the scan to that insertion branch.
-    g = _read("bench/include/gem5_sim/gem5/src/mem/cache/replacement_policies/grasp_rp.cc")
+    g = _read("bench/include/gem5_sim/overlays/mem/cache/replacement_policies/grasp_rp.cc")
     g_reset_else = _slice(g, r"ctx\.isPropertyData\(addr\)", 1000)
     g_max = re.search(r"\}\s*else\s*\{[^}]*?data->rrpv\s*=\s*maxRRPV\s*;",
                       g_reset_else, re.DOTALL) is not None
@@ -266,7 +263,7 @@ def check_insertion_rrpv_invariant() -> bool:
         ok = False
 
     # Sniper CacheSetGRASP::insertionRRPV — non-property must return m_rrip_max.
-    sn = _read("bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/cache_set_grasp.cc")
+    sn = _read("bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/cache_set_grasp.cc")
     sn_block = _slice(sn, r"CacheSetGRASP::insertionRRPV", 800)
     sn_max = re.search(
         r"\n\s*\}\s*\n(?:\s*//[^\n]*\n)*\s*return m_rrip_max;\s*\n\}",
@@ -293,7 +290,7 @@ def check_insertion_rrpv_invariant() -> bool:
 
     # gem5 ECG_GRASP_POPT headline path (ecg_rp.cc) — non-property (non-legacy
     # variants) inserts mRrip (distant); only the legacy shortcircuit variant uses 2.
-    ecg = _read("bench/include/gem5_sim/gem5/src/mem/cache/replacement_policies/ecg_rp.cc")
+    ecg = _read("bench/include/gem5_sim/overlays/mem/cache/replacement_policies/ecg_rp.cc")
     if "legacy_sc ? 2 : mRrip" in ecg:
         print("  [gem5  ECG_GRASP_POPT] non-property (non-legacy) -> mRrip (distant): [OK ]")
     else:
@@ -302,7 +299,7 @@ def check_insertion_rrpv_invariant() -> bool:
         ok = False
 
     sniper_ecg = _read(
-        "bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/cache_set_ecg.cc"
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/cache_set_ecg.cc"
     )
     sniper_ecg_block = _slice(
         sniper_ecg, r"CacheSetECG::graspInsertionRRPV", 800
@@ -325,10 +322,10 @@ def check_sniper_ecg_signal_invariant() -> bool:
     ok = True
     runner = _read("scripts/experiments/ecg/roi_matrix.py")
     cache = _read(
-        "bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/cache_set_ecg.cc"
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/cache_set_ecg.cc"
     )
     context = _read(
-        "bench/include/sniper_sim/snipersim/common/core/memory_subsystem/cache/"
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
         "graph_cache_context_sniper.cc"
     )
     setup = _read("scripts/setup_sniper.py")
@@ -343,9 +340,10 @@ def check_sniper_ecg_signal_invariant() -> bool:
         "runner pins epoch count":
             'env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)' in runner,
         "eviction does not broadcast-refresh resident lines":
-            "lookupLineEcgEpoch(m_line_addrs[way]" not in victim,
+            "lookupLineEcgEpochPair(m_line_addrs[way]" not in victim,
         "actual L3 hit refreshes only accessed line":
-            "lookupLineEcgEpoch(m_line_addrs[accessed_index]" in update,
+            "lookupLineEcgEpochPair(" in update and
+            "m_line_addrs[accessed_index]" in update,
         "true recency feeds shared victim":
             "ws[w].recency = m_last_touch[w];" in victim,
         "trace prints computed current epoch":
@@ -371,10 +369,6 @@ def main(argv=None):
     ap.add_argument("--gem5", action="store_true", help="include gem5 behavioral gate (slow)")
     ap.add_argument("--sniper", action="store_true", help="include Sniper behavioral gate (slow, guarded)")
     args = ap.parse_args(argv)
-
-    if not GRAPH.exists():
-        print(f"FAIL: tiny graph missing: {GRAPH}")
-        return 2
 
     sims = ["cache_sim"]
     if args.gem5:

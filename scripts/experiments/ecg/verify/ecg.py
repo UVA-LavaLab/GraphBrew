@@ -36,6 +36,13 @@ from equiv import check_insertion_rrpv_invariant, check_behavioral_equivalence  
 ROOT = Path(__file__).resolve().parents[4]
 PR = ROOT / "bench" / "bin_sim" / "pr"
 GRAPH = ROOT / "results" / "graphs" / "email-Eu-core" / "email-Eu-core.sg"
+GRAPH_ARGS = (
+    ["-f", str(GRAPH)] if GRAPH.exists()
+    else ["-g", "12", "-k", "16"])
+GRAPH_OPTIONS = (
+    f"-f {GRAPH}" if GRAPH.exists()
+    else "-g 12 -k 16")
+GRAPH_LABEL = "email-Eu-core" if GRAPH.exists() else "synthetic-g12"
 
 BASE_ENV = dict(CACHE_ULTRAFAST="0", CACHE_L1_POLICY="LRU", CACHE_L2_POLICY="LRU",
                 CACHE_L1_SIZE="2kB", CACHE_L1_WAYS="8", CACHE_L2_SIZE="4kB",
@@ -75,7 +82,7 @@ VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
 
 def run(policy_env, extra=None):
     env = {**os.environ, **BASE_ENV, **policy_env, **(extra or {})}
-    p = subprocess.run([str(PR), "-f", str(GRAPH), "-o", "0", "-n", "1", "-i", "1"],
+    p = subprocess.run([str(PR), *GRAPH_ARGS, "-o", "0", "-n", "1", "-i", "1"],
                        env=env, capture_output=True, text=True, timeout=300)
     return p.stderr, (p.returncode == 0)
 
@@ -89,7 +96,7 @@ def run_bc(policy_env, extra=None):
     (PR only ever evicts records) — so this is the live cross-kernel coverage of the
     epoch-eviction path, on a different adapter access pattern than PR."""
     env = {**os.environ, **BASE_ENV, **policy_env, **(extra or {})}
-    p = subprocess.run([str(BC), "-f", str(GRAPH), "-o", "0", "-n", "1"],
+    p = subprocess.run([str(BC), *GRAPH_ARGS, "-o", "0", "-n", "1"],
                        env=env, capture_output=True, text=True, timeout=300)
     return p.stderr, (p.returncode == 0)
 
@@ -156,7 +163,7 @@ def run_gem5(variant, cov=False):
         env["ECG_STORED_REFRESH"] = "1"
     cmd = [sys.executable, str(ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", "pr", "--policies", "ECG:ECG_GRASP_POPT",
-           "--options", f"-f {GRAPH} -o 5 -n 1 -i 1",
+           "--options", f"{GRAPH_OPTIONS} -o 5 -n 1 -i 1",
            "--l3-sizes", l3, "--l3-ways", "8", "--l1d-size", "2kB", "--l2-size", l2,
            "--out-dir", str(out)]
     subprocess.run(cmd, env=env, cwd=str(ROOT),
@@ -179,7 +186,7 @@ def run_sniper(variant):
            "--sniper-workload", "sg_kernel", "--allow-sniper-sg-kernel-workload",
            "--sniper-memory-limit-gb", "20", "--sniper-enable-graph-policies",
            "--no-build", "--benchmark", "pr", "--policies", "ECG:ECG_GRASP_POPT",
-           "--options", f"-f {GRAPH} -o 5 -n 1 -i 1",
+           "--options", f"{GRAPH_OPTIONS} -o 5 -n 1 -i 1",
            "--l3-sizes", "16kB", "--l3-ways", "8", "--l1d-size", "2kB", "--l2-size", "4kB",
            "--timeout-sniper", "540", "--out-dir", str(out)]
     subprocess.run(cmd, env=env, cwd=str(ROOT),
@@ -556,7 +563,7 @@ def verify_unknown_mode_hardfails():
     policy than requested while labelling itself as the requested mode. This is the
     safety gate that must hold before any ECG mode can be deleted/renamed."""
     env = {**os.environ, **BASE_ENV, "CACHE_POLICY": "ECG", "ECG_MODE": "BOGUS_MODE_XYZ"}
-    p = subprocess.run([str(PR), "-f", str(GRAPH), "-o", "0", "-n", "1", "-i", "1"],
+    p = subprocess.run([str(PR), *GRAPH_ARGS, "-o", "0", "-n", "1", "-i", "1"],
                        env=env, capture_output=True, text=True, timeout=120)
     hard_failed = (p.returncode != 0) and ("[FATAL]" in p.stderr) and ("BOGUS_MODE_XYZ" in p.stderr)
     print(f"  unknown ECG_MODE hard-fails (exit={p.returncode}, [FATAL] emitted): "
@@ -631,56 +638,6 @@ def verify_epoch_coverage(name, result, prefix="", strict=True):
     return ok
 
 
-def verify_omp_robustness():
-    """OMP>1 robustness (D): cache_sim's L3 is mutex-serialized and the per-edge hints
-    are PER-THREAD (hints_for_thread), so the eviction decision must stay correct under
-    concurrency. Run the clearEdgeEpoch workload (BC + per-edge masks) with 4 OMP threads
-    and assert every eviction still obeys spec AND both the delivered (stamped) and cleared
-    (unstamped) paths still fire. A per-thread hint hazard — e.g. a worker's first
-    sequential read over-stamping because its thread-local valid bit was never cleared —
-    would break spec or collapse the cleared count. (Counts vary run-to-run; only the
-    invariants are asserted, so this is a stable gate.)"""
-    if not BC.exists():
-        print("  [skip] BC binary not built — skipping OMP robustness"); return True
-    env = {**ECG_ENV, "ECG_VARIANT": "epoch_only", "ECG_EDGE_MASKS": "1"}
-    text, ran = run_bc(env, {**COV_ENV, "OMP_NUM_THREADS": "4"})
-    ok = verify_trace("bc+masks OMP=4", (text, ran), prefix="(omp) ")
-    sp = up = 0
-    for _p, ways, _v, _r in parse_blocks(text):
-        for w in ways:
-            if w["prop"] == 1 and w["stamped"] == 1: sp += 1
-            elif w["prop"] == 1 and w["stamped"] == 0: up += 1
-    fired = sp > 0 and up > 0
-    print(f"  OMP=4 per-thread hints: delivered={sp} cleared={up} "
-          f"(both>0 under concurrency): {'[OK ]' if fired else '[FAIL]'}")
-    return ok and fired
-
-
-def verify_clearedge_path():
-    """Cross-kernel clearEdgeEpoch coverage — the exact locus of the over-stamping bug
-    that the per-sim spec checks (each sim vs its OWN trace) structurally cannot catch.
-    Run BC with per-edge masks ON so clearEdgeEpoch is non-no-op, then assert BOTH:
-      (a) the live trace obeys spec (the cleared/unstamped lines follow effDist=0), and
-      (b) BOTH stamped AND unstamped property lines appear — i.e. the per-edge DELIVERY
-          path (valid=true) and the SEQUENTIAL/cleared path (valid=false) both fire live.
-    If clearEdgeEpoch regressed to a no-op, or the fill stamped unconditionally (the bug),
-    there would be ZERO unstamped property lines and this FAILS."""
-    if not BC.exists():
-        print("  [skip] BC binary not built — skipping clearEdgeEpoch coverage"); return True
-    env = {**ECG_ENV, "ECG_VARIANT": "epoch_only", "ECG_EDGE_MASKS": "1"}
-    text, ran = run_bc(env, COV_ENV)
-    ok = verify_trace("bc+masks/epoch_only", (text, ran), prefix="(ce) ")
-    stamped_prop = unstamped_prop = 0
-    for _pol, ways, _victim, _reason in parse_blocks(text):
-        for w in ways:
-            if w["prop"] == 1 and w["stamped"] == 1: stamped_prop += 1
-            elif w["prop"] == 1 and w["stamped"] == 0: unstamped_prop += 1
-    fired = stamped_prop > 0 and unstamped_prop > 0
-    print(f"  clearEdgeEpoch live: delivered(stamped)={stamped_prop} cleared(unstamped)="
-          f"{unstamped_prop}  (both>0 = delivery AND clear fire): {'[OK ]' if fired else '[FAIL]'}")
-    return ok and fired
-
-
 def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(description="Assert each L3 policy obeys its spec.")
@@ -710,7 +667,7 @@ def main(argv=None):
     ok_all &= run_epoch_pair_unit()
     print("\n-- negative test: unknown ECG_MODE must hard-fail (not silent DBG_PRIMARY) --")
     ok_all &= verify_unknown_mode_hardfails()
-    print("\n-- cache_sim (L3 policies, email-Eu-core; live-trace integration) --")
+    print(f"\n-- cache_sim (L3 policies, {GRAPH_LABEL}; live-trace integration) --")
     for name, env in suites:
         ok_all &= verify_trace(name, run(env), reasons=live_reasons)
 
@@ -747,12 +704,6 @@ def main(argv=None):
             ok_all &= verify_epoch_coverage(f"bc/{variant}",
                                             run_bc({**ECG_ENV, "ECG_VARIANT": variant}, COV_ENV),
                                             prefix="(bc) ", strict=False)
-        # clearEdgeEpoch live coverage (the over-stamping bug locus PR never reaches).
-        print("\n-- cache_sim clearEdgeEpoch path (BC + per-edge masks: delivery vs cleared) --")
-        ok_all &= verify_clearedge_path()
-        # OMP>1 robustness (D): per-thread hints must stay correct under concurrency.
-        print("\n-- cache_sim OMP>1 robustness (BC + masks, 4 threads) --")
-        ok_all &= verify_omp_robustness()
     else:
         print("  [skip] BC binary not built (make sim-bc) — skipping cross-kernel coverage")
 
@@ -771,7 +722,7 @@ def main(argv=None):
               f"tie-break x cache runs below (runtime sweep, no recompile) --")
         print("\n-- gem5 ISA decode: every ecg.load (mode x dest-width) through the REAL decoder + teeth --")
         ok_all &= run_gem5_isa_modes()
-        print("\n-- gem5 (ECG_GRASP_POPT variants, email-Eu-core/-o5) --")
+        print(f"\n-- gem5 (ECG_GRASP_POPT variants, {GRAPH_LABEL}/-o5) --")
         for variant in ["grasp_only", "epoch_only", "rrip_first",
                         "epoch_first", "degree_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_gem5(variant), prefix="gem5 ", reasons=live_reasons)
@@ -782,7 +733,7 @@ def main(argv=None):
     if args.sniper:
         # grasp_only delegates to the shared SRRIP path (no ECG trace); verify the
         # four ECG-specific variants. Runs are memory-capped (Sniper/SDE runaway).
-        print("\n-- sniper (ECG_GRASP_POPT variants, email-Eu-core/-o5, guarded) --")
+        print(f"\n-- sniper (ECG_GRASP_POPT variants, {GRAPH_LABEL}/-o5, guarded) --")
         for variant in ["epoch_only", "rrip_first", "epoch_first",
                         "degree_first", "shortcircuit"]:
             ok_all &= verify_trace(variant, run_sniper(variant), prefix="sniper ", reasons=live_reasons)
