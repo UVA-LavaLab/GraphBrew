@@ -2336,6 +2336,9 @@ struct GraphCacheContext {
         in_edge_epoch_sched_by_src.clear();
         in_edge_epoch_sched_by_src.resize(n);
         if (n == 0) return;
+        uint32_t sched_k = configuredEpochScheduleK();
+        if (sched_k == 2 && exact_off.empty())
+            registerOutAdjacencyExact(g);
 
         // ECG_EDGE_MASK_EXACT: fill the per-edge POPT field [26:33] with the
         // EXACT next-reference of dest (log2-quantized to 5 bits) instead of the
@@ -2361,7 +2364,6 @@ struct GraphCacheContext {
         // each — recovering the matrix's per-epoch dimension. K in [0,4] (0=disabled).
         // Most effective WITH linemin (multiple vertices/line => multiple distinct
         // future touches of the line). edge_epoch_sched_k records the active K.
-        uint32_t sched_k = configuredEpochScheduleK();
         edge_epoch_sched_k = sched_k;
         edge_epoch_count = configuredEdgeEpochCount();
         // ECG_EDGE_MASK_PACK: enforce the REAL packed4 spare-bit cap — the epoch must fit
@@ -2597,6 +2599,7 @@ struct GraphCacheContext {
         using Clock = std::chrono::steady_clock;
         auto build_start = Clock::now();
         uint32_t n = g.num_nodes();
+        exact_nv = n;
         out_edge_masks_by_src.assign(n, {});
         out_edge_epoch_by_src.assign(n, {});
         out_edge_epoch_sched_by_src.assign(n, {});
@@ -2702,6 +2705,7 @@ struct GraphCacheContext {
         using Clock = std::chrono::steady_clock;
         auto build_start = Clock::now();
         uint32_t n = g.num_nodes();
+        exact_nv = n;
         in_edge_masks_by_src.assign(n, {});
         in_edge_epoch_by_src.assign(n, {});
         in_edge_epoch_sched_by_src.assign(n, {});

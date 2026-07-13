@@ -12,5 +12,5 @@
 | `experiments/ecg/slurm/make_slurm_shards.py` | Generate policy-isolated Slurm rows |
 | `experiments/ecg/verify/` | Exact policy and cross-simulator correctness gates |
 
-New behavior belongs in `experiments/ecg/flows/`, `lib/`, `verify/`, or
-`slurm/`; do not add duplicate top-level wrappers.
+New behavior belongs in `experiments/ecg/flows/`, `policy_specs.py`, `verify/`,
+or `slurm/`; do not add duplicate top-level wrappers.

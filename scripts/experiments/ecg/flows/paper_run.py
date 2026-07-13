@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from policy_specs import policy_output_label  # noqa: E402
 
 
@@ -135,6 +135,50 @@ def path_fingerprint(path_text: str) -> str:
     return digest.hexdigest()
 
 
+def output_descriptor(path: Path) -> dict[str, Any]:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    rows = None
+    if path.suffix == ".csv":
+        with path.open(newline="") as handle:
+            rows = max(sum(1 for _ in handle) - 1, 0)
+    elif path.suffix == ".json":
+        try:
+            payload = json.loads(path.read_text())
+            if isinstance(payload, list):
+                rows = len(payload)
+        except (OSError, json.JSONDecodeError):
+            rows = None
+    return {
+        "sha256": digest.hexdigest(),
+        "size": path.stat().st_size,
+        "rows": rows,
+    }
+
+
+def validate_marker_outputs(
+        payload: dict[str, Any], base_dir: Path) -> tuple[bool, str]:
+    expected = payload.get("outputs")
+    if not isinstance(expected, dict) or not expected:
+        return False, "completion marker has no output digests"
+    for name, descriptor in expected.items():
+        path = base_dir / name
+        if not path.exists():
+            return False, f"missing completed output: {path}"
+        actual = output_descriptor(path)
+        for field in ("sha256", "size", "rows"):
+            if descriptor.get(field) != actual.get(field):
+                return (
+                    False,
+                    f"output digest mismatch for {name}: "
+                    f"{field} expected={descriptor.get(field)} "
+                    f"actual={actual.get(field)}",
+                )
+    return True, ""
+
+
 @functools.lru_cache(maxsize=1)
 def git_state_fingerprint() -> str:
     digest = hashlib.sha256()
@@ -161,7 +205,7 @@ def roi_input_fingerprints(
         "manifest": resolve_path(str(args.manifest)),
         "paper_run": Path(__file__).resolve(),
         "roi_matrix": ROI_MATRIX,
-        "policy_specs": ECG_DIR / "lib" / "policy_specs.py",
+        "policy_specs": ECG_DIR / "policy_specs.py",
     }
     if graph_path is not None:
         paths["graph"] = graph_path
@@ -357,8 +401,11 @@ def make_proof_job(args: argparse.Namespace, run_dir: Path, settings: dict[str, 
         "--out-dir", str(out_dir),
         "--timeout-cache", str(settings["timeout_cache"]),
     ]
-    if settings.get("no_build", True) or args.no_build:
-        command.append("--no-build")
+    if not (settings.get("no_build", True) or args.no_build):
+        raise SystemExit(
+            "paper_run requires prebuilt binaries; build first and keep "
+            "no_build=true so fingerprints cannot change during execution")
+    command.append("--no-build")
     if args.dry_run:
         command.append("--dry-run")
     proof_settings = {**settings, "suite": "cache-sim"}
@@ -516,8 +563,11 @@ def make_roi_job(
             command.append("--allow-sniper-sg-kernel-workload")
         if settings.get("sniper_threads"):
             command.extend(["--threads", *[str(value) for value in settings.get("sniper_threads", [])]])
-    if settings.get("no_build", True) or args.no_build:
-        command.append("--no-build")
+    if not (settings.get("no_build", True) or args.no_build):
+        raise SystemExit(
+            "paper_run requires prebuilt binaries; build first and keep "
+            "no_build=true so fingerprints cannot change during execution")
+    command.append("--no-build")
     if args.dry_run:
         command.append("--dry-run")
     env = {}
@@ -538,6 +588,14 @@ def make_roi_job(
             )
         for k, v in stage_env.items():
             env[str(k)] = str(v)
+    env["GRAPHBREW_EXPLICIT_CELL_ENV"] = json.dumps(
+        {
+            str(key): str(value)
+            for key, value in (stage_env or {}).items()
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     material_env = {
         key: value for key, value in os.environ.items()
         if key.startswith((
@@ -663,6 +721,10 @@ def job_csv_status(job: Job) -> tuple[str, str]:
             return "partial", "proof completion marker is not successful"
         if payload.get("config_hash") != job.metadata.get("config_hash"):
             return "partial", "proof completion marker config mismatch"
+        outputs_ok, output_detail = validate_marker_outputs(
+            payload, job.out_dir)
+        if not outputs_ok:
+            return "partial", output_detail
         return status, detail
     if job.kind != "roi_matrix":
         return status, detail
@@ -694,6 +756,10 @@ def job_csv_status(job: Job) -> tuple[str, str]:
     }
     if mismatches:
         return "partial", f"completion marker mismatch={mismatches}"
+    outputs_ok, output_detail = validate_marker_outputs(
+        payload, job.out_dir)
+    if not outputs_ok:
+        return "partial", output_detail
     return status, detail
 
 
@@ -941,7 +1007,8 @@ def write_combined_outputs(run_dir: Path, jobs: list[Job]) -> None:
         print(f"[write] {out_path}")
 
 
-def write_run_completion(run_dir: Path, jobs: list[Job]) -> None:
+def write_run_completion(
+        run_dir: Path, jobs: list[Job], successful: bool) -> None:
     statuses = {
         job.job_id: {
             "status": job_csv_status(job)[0],
@@ -949,7 +1016,7 @@ def write_run_completion(run_dir: Path, jobs: list[Job]) -> None:
         }
         for job in jobs
     }
-    complete = bool(statuses) and all(
+    complete = successful and bool(statuses) and all(
         value["status"] == "ok" for value in statuses.values())
     marker = run_dir / "run.complete.json"
     temp = run_dir / "run.complete.json.tmp"
@@ -959,10 +1026,16 @@ def write_run_completion(run_dir: Path, jobs: list[Job]) -> None:
         resolved_hash = str(resolved.get("run_config_hash", ""))
     except (OSError, json.JSONDecodeError):
         resolved_hash = ""
+    outputs = {}
+    for name in ("combined_roi_matrix.csv", "combined_proof_matrix.csv"):
+        path = run_dir / name
+        if path.exists():
+            outputs[name] = output_descriptor(path)
     temp.write_text(json.dumps({
         "complete": complete,
         "run_config_hash": resolved_hash,
         "jobs": statuses,
+        "outputs": outputs,
     }, indent=2, sort_keys=True) + "\n")
     temp.replace(marker)
 
@@ -1055,6 +1128,11 @@ def run_job(job: Job, run_dir: Path, args: argparse.Namespace) -> int:
         append_status(run_dir, {"job_id": job.job_id, "event": "dry_run"})
         return 0
 
+    marker_name = (
+        "proof_matrix.complete.json"
+        if job.kind == "proof_matrix"
+        else "roi_matrix.complete.json")
+    (job.out_dir / marker_name).unlink(missing_ok=True)
     job.log_path.parent.mkdir(parents=True, exist_ok=True)
     start = time.time()
     with job.log_path.open("w") as log:
@@ -1216,7 +1294,7 @@ def main(argv: list[str]) -> int:
 
     write_run_manifest(run_dir, args, manifest, jobs)
     write_combined_outputs(run_dir, jobs)
-    write_run_completion(run_dir, jobs)
+    write_run_completion(run_dir, jobs, successful=failures == 0)
     if failures:
         print(f"[final-run] completed with {failures} failure(s)")
         return 1

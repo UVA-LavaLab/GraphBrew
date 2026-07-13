@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import csv
 import glob
+import hashlib
 import json
 import math
 import re
@@ -175,6 +176,40 @@ def command_text(command: list[str]) -> str:
 def read_csv(path: Path) -> list[dict[str, Any]]:
     with path.open(newline="") as fh:
         return list(csv.DictReader(fh))
+
+
+def output_descriptor(path: Path) -> dict[str, Any]:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    rows = None
+    if path.suffix == ".csv":
+        with path.open(newline="") as handle:
+            rows = max(sum(1 for _ in handle) - 1, 0)
+    elif path.suffix == ".json":
+        try:
+            payload = json.loads(path.read_text())
+            if isinstance(payload, list):
+                rows = len(payload)
+        except (OSError, json.JSONDecodeError):
+            rows = None
+    return {
+        "sha256": digest.hexdigest(),
+        "size": path.stat().st_size,
+        "rows": rows,
+    }
+
+
+def marker_outputs_valid(payload: dict[str, Any], base_dir: Path) -> bool:
+    expected = payload.get("outputs")
+    if not isinstance(expected, dict) or not expected:
+        return False
+    for name, descriptor in expected.items():
+        path = base_dir / name
+        if not path.exists() or output_descriptor(path) != descriptor:
+            return False
+    return True
 
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -435,7 +470,8 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                     json.loads(marker.read_text()) if marker.exists() else {})
                 complete = (
                     marker_payload.get("complete") is True and
-                    marker_payload.get("all_rows_ok") is True)
+                    marker_payload.get("all_rows_ok") is True and
+                    marker_outputs_valid(marker_payload, path.parent))
             except (OSError, json.JSONDecodeError):
                 complete = False
             if (not complete or not rows or
@@ -449,7 +485,8 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                     json.loads(marker.read_text()) if marker.exists() else {})
                 complete = (
                     marker_payload.get("complete") is True and
-                    marker_payload.get("all_rows_ok") is True)
+                    marker_payload.get("all_rows_ok") is True and
+                    marker_outputs_valid(marker_payload, path.parent))
             except (OSError, json.JSONDecodeError):
                 complete = False
             if (not complete or not rows or
@@ -516,7 +553,8 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                 marker_payload.get("complete") is True and
                 marker_payload.get("run_config_hash") not in (None, "") and
                 marker_payload.get("run_config_hash") ==
-                resolved_payload.get("run_config_hash"))
+                resolved_payload.get("run_config_hash") and
+                marker_outputs_valid(marker_payload, run_dir))
         except (OSError, json.JSONDecodeError):
             run_complete = False
             resolved_payload = {}

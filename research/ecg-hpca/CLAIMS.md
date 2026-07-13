@@ -15,8 +15,6 @@
   LLC hits; only LLC miss allocation is suppressed.
 - Sniper preserves NUCA lookup, hits, and latency while suppressing insertion of
   bypassed misses.
-- The corrected cache_sim real-graph factorial attributes 77.3% of avoided demand
-  accesses to K2 and 22.7% to StreamShield.
 - On synthetic mechanism cells, StreamShield improves fused K2 in both gem5 and
   Sniper.
 
@@ -24,6 +22,9 @@
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   K2, and K2+StreamShield.
+- A fresh real-graph cache_sim factorial using the current tag-hit-preserving
+  StreamShield semantics. The legacy 77.3%/22.7% attribution used full LLC
+  lookup bypass and is not a current paper claim.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.
 

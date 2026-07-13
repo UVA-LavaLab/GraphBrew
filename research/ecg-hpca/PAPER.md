@@ -34,7 +34,7 @@ must be materially different.
 | single metadata mask concept | K2 two-future-reference records |
 | preliminary replacement/prefetch study | adaptive replacement plus StreamShield placement |
 | basic trace-driven evaluation | cache_sim + gem5 + Sniper implementation and equivalence |
-| conceptual graph instruction | executable `ecg.load2` / `ecg.stream.load2` request-bound ISA |
+| conceptual graph instruction | executable record-load ISA plus request-bound StreamShield placement |
 | no complete overhead attribution | K2-vs-bypass factorial, traffic, capacity, timing, and instruction accounting |
 | PageRank-focused | PR plus traversal-aware BFS/SSSP policy design |
 
@@ -47,14 +47,18 @@ decisions without P-OPT's reserved LLC ways or a separate metadata lookup.
 
 ## Mechanism
 
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the complete request flow,
+replacement logic, worked K2 example, ISA table, and baseline comparison.
+
 - **K2:** one 8-byte record carries `dest32 | epoch1_16 | epoch2_16`; replacement
   uses the nearer valid rereference.
-- **Adaptive eviction:** PR uses `epoch_first`; BFS/SSSP use `degree_first`;
-  BC/CC use `rrip_first`.
+- **Adaptive eviction:** PR uses `epoch_first`; BFS uses `degree_first`.
+  Other kernels are excluded from first-class K2 claims until complete pair
+  delivery and record-traffic accounting are implemented.
 - **StreamShield:** one-touch packed records fill private caches, retain LLC-hit
   behavior, and do not allocate after an LLC miss.
-- **ISA:** `ecg.load2` loads a cached K2 record; `ecg.stream.load2` adds the
-  request-bound LLC no-allocation bit.
+- **ISA:** PR uses fused `ecg.load2` and `ecg.stream.load2`; the current BFS
+  equivalence path uses a packed record load followed by `ecg.extract2`.
 
 ## Contributions
 

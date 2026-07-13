@@ -46,7 +46,7 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "roi_matrix"
-sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from policy_specs import PolicySpec, parse_policy_spec  # noqa: E402
 
 GEM5_OPT = Path(os.environ.get(
@@ -89,6 +89,7 @@ def gem5_sideband_paths(gem5_out: Path) -> dict[str, Path]:
 
 DEFAULT_SNIPER_ROOT = Path("bench") / "include" / "sniper_sim" / "snipersim"
 SNIPER_OVERLAY_STATUS = PROJECT_ROOT / "bench" / "include" / "sniper_sim" / ".sniper_overlays.json"
+PINNED_SNIPER_HEAD = "56505e42fd98bca863fac181e769bd3c98d2bb33"
 SNIPER_STATS_DIR = PROJECT_ROOT / "bench" / "include" / "sniper_sim" / "scripts"
 SNIPER_RUNTIME_SIDEBAND_FILES = (
     Path(os.environ.get("SNIPER_GRAPHBREW_CTX", "/tmp/sniper_graphbrew_ctx.json")),
@@ -740,10 +741,15 @@ def parse_ecg_log_stats(log_path: Path) -> dict[str, Any]:
 def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size: str,
                   effective_l3_ways: str, json_path: Path) -> dict[str, str]:
     env = dict(os.environ)
+    scrub_cell_mechanism_env(env)
+    apply_explicit_cell_mechanism_env(env, spec)
     transport = ecg_transport_for(spec, args.benchmark)
     apply_ecg_transport_env(env, transport)
     env.update({
         "CACHE_ULTRAFAST": "0",
+        "CACHE_FAST": "0",
+        "CACHE_SAMPLED": "0",
+        "CACHE_MULTICORE": "0",
         "CACHE_POLICY": spec.policy,
         "CACHE_L1_POLICY": "LRU",
         "CACHE_L2_POLICY": "LRU",
@@ -833,6 +839,10 @@ def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
         return EcgTransport()
 
     explicit = spec.ecg_transport_pinned
+    if (explicit and spec.ecg_schedule_k == 2 and
+            benchmark not in ("pr", "bfs")):
+        raise RuntimeError(
+            f"ECG K2 delivery is not implemented for benchmark {benchmark!r}.")
     schedule_k = (
         spec.ecg_schedule_k if explicit else requested_ecg_schedule_k())
     stream_bypass = (
@@ -854,6 +864,7 @@ def apply_ecg_transport_env(
         env: dict[str, str], transport: EcgTransport) -> None:
     for key in (
         "ECG_EDGE_MASK_SCHED",
+        "ECG_EDGE_MASKS",
         "ECG_K2_DELIVERY_TRACE",
         "ECG_STREAM_BYPASS",
         "ECG_STREAM_BYPASS_TRACE",
@@ -861,6 +872,7 @@ def apply_ecg_transport_env(
         env.pop(key, None)
     if transport.schedule_k:
         env["ECG_EDGE_MASK_SCHED"] = str(transport.schedule_k)
+        env["ECG_EDGE_MASKS"] = "1"
         if (transport.trace_enabled and
                 os.environ.get("ECG_K2_DELIVERY_TRACE")):
             env["ECG_K2_DELIVERY_TRACE"] = os.environ[
@@ -871,6 +883,58 @@ def apply_ecg_transport_env(
                 os.environ.get("ECG_STREAM_BYPASS_TRACE")):
             env["ECG_STREAM_BYPASS_TRACE"] = os.environ[
                 "ECG_STREAM_BYPASS_TRACE"]
+
+
+def scrub_cell_mechanism_env(env: dict[str, str]) -> None:
+    diagnostic_keys = {
+        "ECG_DEBUG",
+        "ECG_EVICT_TRACE",
+        "ECG_EVICT_TRACE_ROI",
+    }
+    diagnostics = {
+        key: os.environ[key]
+        for key in diagnostic_keys
+        if key in os.environ
+    }
+    prefixes = (
+        "ECG_",
+        "GEM5_ECG_",
+        "GEM5_FORCE_ECG_",
+        "SNIPER_ECG_",
+        "SNIPER_ENABLE_ECG_",
+        "CACHE_ECG_",
+        "GRASP_",
+        "POPT_",
+    )
+    for key in list(env):
+        if key.startswith(prefixes):
+            env.pop(key, None)
+    env.update(diagnostics)
+
+
+def apply_explicit_cell_mechanism_env(
+        env: dict[str, str], spec: PolicySpec) -> None:
+    raw = os.environ.get("GRAPHBREW_EXPLICIT_CELL_ENV", "{}")
+    try:
+        explicit = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "GRAPHBREW_EXPLICIT_CELL_ENV must be valid JSON") from exc
+    if not isinstance(explicit, dict):
+        raise RuntimeError(
+            "GRAPHBREW_EXPLICIT_CELL_ENV must encode an object")
+    for key, value in explicit.items():
+        key = str(key)
+        allowed = (
+            (key.startswith((
+                "ECG_", "GEM5_ECG_", "GEM5_FORCE_ECG_",
+                "SNIPER_ECG_", "SNIPER_ENABLE_ECG_", "CACHE_ECG_"))
+             and spec.policy == "ECG") or
+            (key.startswith("GRASP_") and spec.policy in ("GRASP", "ECG")) or
+            (key.startswith("POPT_") and spec.policy in ("POPT", "ECG"))
+        )
+        if allowed:
+            env[str(key)] = str(value)
 
 
 def ecg_epoch_region(benchmark: str) -> str:
@@ -983,6 +1047,12 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         else:
             row[f"{prefix}_prop_miss_rate"] = None
             row[f"{prefix}_struct_misses"] = None
+    transport = ecg_transport_for(spec, args.benchmark)
+    if transport.stream_bypass:
+        log_text = log_path.read_text(errors="ignore")
+        if "[ECG-STREAM-BYPASS sim=cache_sim active=1]" not in log_text:
+            row["status"] = "error"
+            row["error"] = "StreamShield requested but cache_sim bypass path was inactive"
     if spec.charge_popt_overhead:
         stream_lines = int(row.get("popt_matrix_stream_cache_lines") or 0)
         traffic = row.get("total_memory_traffic")
@@ -1052,6 +1122,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
 
     gem5_ecg_delivery = ""
     env = dict(os.environ)
+    scrub_cell_mechanism_env(env)
+    apply_explicit_cell_mechanism_env(env, spec)
     transport = ecg_transport_for(spec, args.benchmark)
     apply_ecg_transport_env(env, transport)
     is_k2_ecg = spec.policy == "ECG" and spec.ecg_mode == "ECG_GRASP_POPT"
@@ -1205,7 +1277,68 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
 
 
 def sniper_graph_policies_enabled(args: argparse.Namespace) -> bool:
-    return bool(args.sniper_enable_graph_policies or SNIPER_OVERLAY_STATUS.exists())
+    if getattr(args, "sniper_enable_graph_policies", False):
+        return True
+    if not SNIPER_OVERLAY_STATUS.exists():
+        return False
+    try:
+        status = json.loads(SNIPER_OVERLAY_STATUS.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False
+    if status.get("sniper_head") != PINNED_SNIPER_HEAD:
+        return False
+    if not {"grasp", "popt", "ecg"}.issubset(
+            set(status.get("policies", []))):
+        return False
+
+    sniper_root = sniper_root_path(args)
+    try:
+        actual_head = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=sniper_root, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    if actual_head != status.get("sniper_head"):
+        return False
+    overlay_root = (
+        PROJECT_ROOT / "bench" / "include" / "sniper_sim" / "overlays")
+    copied_files = status.get("copied_files", [])
+    if not isinstance(copied_files, list):
+        return False
+    expected_copied = sorted(
+        str(path.relative_to(overlay_root))
+        for path in overlay_root.rglob("*")
+        if path.is_file() and
+        path.suffix.lower() in {".h", ".hh", ".cc", ".cpp"}
+    )
+    if sorted(str(value) for value in copied_files) != expected_copied:
+        return False
+    file_hashes = status.get("file_hashes")
+    if not isinstance(file_hashes, dict):
+        return False
+    for relative in copied_files:
+        source = overlay_root / relative
+        installed = sniper_root / relative
+        if (not source.exists() or not installed.exists() or
+                source.read_bytes() != installed.read_bytes() or
+                hash_input_path(source) != file_hashes.get(relative) or
+                hash_input_path(installed) != file_hashes.get(relative)):
+            return False
+    for relative in status.get("patched_files", []):
+        installed = sniper_root / relative
+        if (not installed.exists() or
+                hash_input_path(installed) != file_hashes.get(relative)):
+            return False
+    binary_info = status.get("binary")
+    if not isinstance(binary_info, dict):
+        return False
+    binary = sniper_root / str(binary_info.get("path", ""))
+    if (not binary.exists() or
+            binary.stat().st_size != binary_info.get("size") or
+            hash_input_path(binary) != binary_info.get("sha256")):
+        return False
+    return True
 
 
 def sniper_policy_name(args: argparse.Namespace, spec: PolicySpec) -> str | None:
@@ -1441,6 +1574,8 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             "Paper Sniper runs require setarch -R, but setarch is unavailable.")
 
     env = dict(os.environ)
+    scrub_cell_mechanism_env(env)
+    apply_explicit_cell_mechanism_env(env, spec)
     env.pop("SNIPER_ECG_FUSED_K2", None)
     env.pop("SNIPER_ECG_FUSED_VALIDATE", None)
     transport = ecg_transport_for(spec, args.benchmark)
@@ -1854,8 +1989,7 @@ def standalone_matrix_config_hash(
         args: argparse.Namespace, policies: list[PolicySpec]) -> str:
     paths: dict[str, Path] = {
         "roi_matrix": Path(__file__).resolve(),
-        "policy_specs": Path(__file__).resolve().parent /
-        "lib" / "policy_specs.py",
+        "policy_specs": Path(__file__).resolve().parent / "policy_specs.py",
     }
     option_parts = shlex.split(args.options)
     if "-f" in option_parts:
@@ -1940,6 +2074,14 @@ def write_completion_marker(
         "GRAPHBREW_MATRIX_CONFIG_HASH", local_hash)
     matrix_config_hash = os.environ.get(
         "GRAPHBREW_MATRIX_GROUP_HASH", local_hash)
+    outputs = {}
+    for name in ("roi_matrix.csv", "roi_matrix.json"):
+        path = out_dir / name
+        outputs[name] = {
+            "sha256": hash_input_path(path),
+            "size": path.stat().st_size,
+            "rows": len(rows),
+        }
     payload = {
         "complete": True,
         "all_rows_ok": bool(rows) and all(
@@ -1965,6 +2107,7 @@ def write_completion_marker(
             args.structure_prefetch_degree
             if args.prefetcher == "STRIDE" else 0),
         "rows": len(rows),
+        "outputs": outputs,
     }
     temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     temp.replace(marker)

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import shlex
@@ -197,9 +198,6 @@ def run_ablation(
     env = dict(os.environ)
     env.update({
         "OMP_NUM_THREADS": str(args.omp_threads),
-        "ECG_PREFETCH_MODE": str(ablation.pfx_mode),
-        "ECG_PREFETCH_WINDOW": str(args.pfx_window),
-        "ECG_PREFETCH_LOOKAHEAD": str(ablation.pfx_lookahead),
     })
 
     cmd = [
@@ -218,6 +216,17 @@ def run_ablation(
         "--timeout-cache", str(args.timeout_cache),
         "--no-build",
     ]
+    if ablation.pfx_mode:
+        pfx_mode = {1: "degree", 2: "popt"}.get(ablation.pfx_mode)
+        if pfx_mode is None:
+            raise RuntimeError(
+                f"Unsupported proof-matrix PFX mode: {ablation.pfx_mode}")
+        cmd.extend([
+            "--prefetcher", "ECG_PFX",
+            "--ecg-pfx-mode", pfx_mode,
+            "--ecg-pfx-window", str(args.pfx_window),
+            "--ecg-pfx-lookahead", str(ablation.pfx_lookahead),
+        ])
     if args.dry_run:
         cmd.append("--dry-run")
 
@@ -288,6 +297,14 @@ def write_completion_marker(
         out_dir: Path, rows: list[dict[str, Any]]) -> None:
     marker = out_dir / "proof_matrix.complete.json"
     temp = out_dir / "proof_matrix.complete.json.tmp"
+    outputs = {}
+    for name in ("proof_matrix.csv", "proof_matrix.json"):
+        path = out_dir / name
+        outputs[name] = {
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "size": path.stat().st_size,
+            "rows": len(rows),
+        }
     payload = {
         "complete": True,
         "all_rows_ok": bool(rows) and all(
@@ -299,6 +316,7 @@ def write_completion_marker(
         "config_hash": os.environ.get(
             "GRAPHBREW_MATRIX_CONFIG_HASH", ""),
         "rows": len(rows),
+        "outputs": outputs,
     }
     temp.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     temp.replace(marker)

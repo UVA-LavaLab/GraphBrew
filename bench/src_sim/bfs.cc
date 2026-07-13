@@ -28,6 +28,7 @@ template<typename CacheType>
 int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
                    Bitmap &next, CacheType &cache,
                    GraphCacheContext &graph_ctx, const std::vector<uint32_t> &vertex_masks) {
+    const bool k2_record = GraphSimMatrixFreeK2();
     int64_t awake_count = 0;
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
@@ -53,7 +54,8 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
                 graph_ctx.edgeMaskReady(EdgeMaskDir::IN, (uint32_t)u, (size_t)g.in_degree(u));
             size_t edge_pos = 0;
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
-                SIM_CACHE_READ_EDGE(cache, it);
+                if (k2_record) SIM_CACHE_READ_EDGE_K2(cache, it);
+                else SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
                 if (use_in_edge_masks) {
                     uint32_t m = graph_ctx.resolveEdgeMaskAndEpoch(
@@ -84,6 +86,7 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
                    SlidingQueue<NodeID> &queue, CacheType &cache,
                    GraphCacheContext &graph_ctx, const std::vector<uint32_t> &vertex_masks,
                    int pfx_lookahead, int pfx_top_k = 1) {
+    const bool k2_record = GraphSimMatrixFreeK2();
     int64_t scout_count = 0;
     #pragma omp parallel
     {
@@ -100,7 +103,8 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             const size_t u_outdeg = (size_t)g.out_degree(u);
             size_t edge_pos = 0;
             for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
-                SIM_CACHE_READ_EDGE(cache, it);
+                if (k2_record) SIM_CACHE_READ_EDGE_K2(cache, it);
+                else SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
                 if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
                     if (graph_ctx.mask_config.prefetch_mode == 3) {
@@ -238,7 +242,10 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
         std::string policy_str = policy_env ? policy_env : "";
         const char* pfx_env = getenv("ECG_PREFETCH_MODE");
         bool popt_prefetch = pfx_env && atoi(pfx_env) == 2;
-        if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
+        const bool matrix_free_k2 = GraphSimMatrixFreeK2();
+        if (policy_str == "POPT" ||
+            (policy_str == "ECG" && !matrix_free_k2) ||
+            (popt_prefetch && !matrix_free_k2)) {
             constexpr int numVtxPerLine = 64 / sizeof(NodeID);
             constexpr int numEpochs = 256;
             // BFS is direction-optimizing, but its ONLY masked property read is the

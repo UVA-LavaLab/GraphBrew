@@ -21,6 +21,7 @@ we identify the exact Sniper cache/prefetch extension points for the pinned ref.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -250,12 +251,48 @@ def install_graphbrew_configs(args: argparse.Namespace) -> list[str]:
 
 
 def write_overlay_status(copied_files: list[str]) -> None:
+    binary = SNIPER_DIR / "lib" / "sniper"
+    if not binary.exists():
+        raise SystemExit(
+            f"Sniper build completed without expected binary: {binary}")
+    patched_files = [
+        "common/core/memory_subsystem/cache/cache_base.h",
+        "common/core/memory_subsystem/cache/cache_set.cc",
+        "common/core/memory_subsystem/cache/cache.cc",
+        "common/core/memory_subsystem/parametric_dram_directory_msi/nuca_cache.h",
+        "common/core/memory_subsystem/parametric_dram_directory_msi/nuca_cache.cc",
+        "common/core/memory_subsystem/parametric_dram_directory_msi/prefetcher.cc",
+        "common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_directory_cntlr.cc",
+        "common/system/magic_server.cc",
+        "include/sim_api.h",
+    ]
+    file_hashes = {}
+    for relative in [*copied_files, *patched_files]:
+        path = SNIPER_DIR / relative
+        if not path.exists():
+            raise SystemExit(f"Required patched Sniper file missing: {path}")
+        file_hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    newest_source_mtime = max(
+        (SNIPER_DIR / relative).stat().st_mtime_ns
+        for relative in [*copied_files, *patched_files]
+    )
+    if binary.stat().st_mtime_ns < newest_source_mtime:
+        raise SystemExit(
+            "Sniper binary is older than installed ECG sources; "
+            "run a full setup build before publishing capabilities.")
     data = {
         "created_utc": utc_now(),
         "sniper_head": git_head(SNIPER_DIR) if SNIPER_DIR.exists() else "",
         "policies": ["grasp", "popt", "ecg"],
         "prefetchers": ["droplet", "ecg_pfx"],
         "copied_files": copied_files,
+        "patched_files": patched_files,
+        "file_hashes": file_hashes,
+        "binary": {
+            "path": "lib/sniper",
+            "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+            "size": binary.stat().st_size,
+        },
         "patches": [
             "cache_base_replacement_policy_grasp",
             "cache_set_factory_grasp_popt_ecg",
@@ -1093,9 +1130,9 @@ def patch_ecg_pfx_prefetcher_overlay(args: argparse.Namespace) -> None:
     )
 
 
-def apply_overlays(args: argparse.Namespace) -> None:
+def apply_overlays(args: argparse.Namespace) -> list[str]:
     if not args.apply_overlays:
-        return
+        return []
     if not SNIPER_DIR.exists():
         raise SystemExit(f"Sniper checkout missing: {SNIPER_DIR}")
     log.info("Applying GraphBrew Sniper overlays")
@@ -1109,8 +1146,9 @@ def apply_overlays(args: argparse.Namespace) -> None:
     if args.dry_run:
         log.info("Overlay application dry-run completed.")
     else:
-        write_overlay_status(copied_files)
+        OVERLAY_STATUS_FILE.unlink(missing_ok=True)
         log.success("Applied GraphBrew Sniper overlays.")
+    return copied_files
 
 
 def compiler_for_checks() -> str:
@@ -1191,16 +1229,18 @@ def graphbrew_smoke_test(args: argparse.Namespace) -> None:
 
 
 def clean(args: argparse.Namespace) -> int:
-    if not SNIPER_DIR.exists():
-        log.info(f"No Sniper checkout to remove: {SNIPER_DIR}")
-        return 0
     if args.dry_run:
-        log.info(f"Would remove {SNIPER_DIR}")
+        log.info(
+            f"Would remove {SNIPER_DIR}, {VERSION_FILE}, and "
+            f"{OVERLAY_STATUS_FILE}")
         return 0
-    shutil.rmtree(SNIPER_DIR)
-    if VERSION_FILE.exists():
-        VERSION_FILE.unlink()
-    log.success(f"Removed {SNIPER_DIR}")
+    if SNIPER_DIR.exists():
+        shutil.rmtree(SNIPER_DIR)
+    else:
+        log.info(f"No Sniper checkout to remove: {SNIPER_DIR}")
+    for marker in (VERSION_FILE, OVERLAY_STATUS_FILE):
+        marker.unlink(missing_ok=True)
+    log.success("Removed Sniper checkout and capability markers.")
     return 0
 
 
@@ -1229,11 +1269,21 @@ def main(argv: list[str]) -> int:
         return clean(args)
     clone_or_update(args)
     write_version(args)
+    if not args.dry_run and (args.apply_overlays or not args.skip_build):
+        OVERLAY_STATUS_FILE.unlink(missing_ok=True)
     install_graphbrew_configs(args)
-    apply_overlays(args)
+    copied_files = apply_overlays(args)
     build_sniper(args)
     smoke_test(args)
     graphbrew_smoke_test(args)
+    if (args.apply_overlays and not args.dry_run and
+            not args.skip_build and not args.build_target):
+        write_overlay_status(copied_files)
+    elif (args.apply_overlays and not args.dry_run and
+          not args.skip_build and args.build_target):
+        log.warn(
+            "Not publishing Sniper capability marker for partial "
+            f"build target {args.build_target!r}; rerun without --build-target.")
     log.success("Sniper setup step completed.")
     return 0
 

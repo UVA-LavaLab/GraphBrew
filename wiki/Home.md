@@ -1,5 +1,8 @@
 # ECG Cache Architecture Artifact
 
+ECG carries future-reuse information in streamed graph edge records to guide
+both LLC replacement and record placement without reserving LLC ways.
+
 This wiki intentionally contains one paper-facing entry point:
 
 - [ECG-HPCA-Paper](ECG-HPCA-Paper) — architecture, evidence, claim boundary,

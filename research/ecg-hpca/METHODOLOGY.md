@@ -1,11 +1,14 @@
 # Methodology
 
+Architecture definitions and diagrams are centralized in
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Simulator roles
 
 | Simulator | Role |
 |---|---|
 | cache_sim | Fast functional authority, real-graph factorials, bug finding |
-| gem5 | Cycle-accurate ISA and request-bound mechanism confirmation |
+| gem5 | Cycle-accurate record-load ISA and request-bound StreamShield confirmation |
 | Sniper | Real-graph scale and paper timing matrix |
 
 Absolute gem5 and Sniper miss rates are not compared because their inclusion,

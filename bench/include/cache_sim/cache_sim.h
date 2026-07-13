@@ -1804,7 +1804,8 @@ private:
                 if (s=="degree_first"||s=="traversal") return 5;
                 return 2;
             }();
-            const uint32_t n = graph_ctx_->exact_nv;
+            const uint32_t n = graph_ctx_->exact_nv
+                ? graph_ctx_->exact_nv : graph_ctx_->topology.num_vertices;
             const uint32_t ne = graph_ctx_->edge_epoch_count ? graph_ctx_->edge_epoch_count : 32u;
             uint32_t cur = graph_ctx_->hints_for_thread().current_src;
             uint32_t cur_epoch = (n > 0 && cur != UINT32_MAX)
@@ -2227,10 +2228,8 @@ public:
         l1_->insert(address, is_write);
     }
 
-    // ECG StreamShield prototype: an explicit non-temporal packed-edge request
-    // bypasses the LLC tag/data path after an L2 miss and fills only L2/L1.
-    // This removes both one-touch record lookup/allocation churn without
-    // reserving any LLC ways; property accesses use the normal hierarchy.
+    // ECG StreamShield: an explicit non-temporal packed-edge request preserves
+    // LLC hits but suppresses allocation after an LLC miss. L1/L2 fill normally.
     void accessStream(uint64_t address, bool is_write = false) {
         if (!enabled_) return;
         static bool announced = false;
@@ -2258,8 +2257,13 @@ public:
             l1_->insert(address, is_write);
             return;
         }
-        // Deliberately skip l3_->access(): a hardware non-temporal/bypass hint
-        // routes this one-touch record around the LLC.
+        if (l3_->access(address, is_write)) {
+            if (was_prefetched) markPrefetchUseful(line_addr);
+            l2_->insert(address, is_write);
+            l1_->insert(address, is_write);
+            return;
+        }
+        // LLC miss: fetch without inserting the one-touch record into the LLC.
         memory_accesses_++;
         if (was_prefetched) markPrefetchEvictedBeforeUse(line_addr);
         l2_->insert(address, is_write);

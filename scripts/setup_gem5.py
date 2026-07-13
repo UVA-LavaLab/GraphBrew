@@ -18,6 +18,7 @@ The script is idempotent: re-running it will skip completed steps.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -37,9 +38,11 @@ GEM5_SIM_DIR = BENCH_DIR / "include" / "gem5_sim"
 GEM5_DIR = GEM5_SIM_DIR / "gem5"
 OVERLAYS_DIR = GEM5_SIM_DIR / "overlays"
 VERSION_FILE = GEM5_SIM_DIR / ".gem5_version"
+PATCH_STATE_FILE = GEM5_SIM_DIR / ".gem5_patch_state.json"
 
 GEM5_REPO_URL = "https://github.com/gem5/gem5.git"
 GEM5_DEFAULT_TAG = "v24.0"
+GEM5_DEFAULT_COMMIT = "b1a44b89c7bae73fae2dc547bc1f871452075b85"
 
 VALID_ISAS = ("X86", "RISCV", "ARM")
 VALID_BUILD_TYPES = ("opt", "debug", "fast")
@@ -121,6 +124,34 @@ UNIFIED_DIFF_PATCHES = [
     ("mem/cache/base_stream_bypass_request_flag.patch", "."),
     ("mem/cache/prefetch_stream_bypass.patch", "."),
 ]
+
+
+def unified_patch_target_paths() -> list[Path]:
+    targets = set()
+    for overlay_rel, _target_dir in UNIFIED_DIFF_PATCHES:
+        patch_file = OVERLAYS_DIR / overlay_rel
+        for line in patch_file.read_text().splitlines():
+            if line.startswith("+++ b/"):
+                targets.add(GEM5_DIR / line[len("+++ b/"):])
+    targets.update({
+        GEM5_DIR / "src/mem/cache/replacement_policies/SConscript",
+        GEM5_DIR / "src/mem/cache/prefetch/SConscript",
+        GEM5_DIR / "src/sim/pseudo_inst.cc",
+        GEM5_DIR / "src/arch/riscv/isa/formats/formats.isa",
+        GEM5_DIR / "src/arch/riscv/isa/includes.isa",
+        GEM5_DIR / "src/arch/riscv/isa/decoder.isa",
+    })
+    return sorted(targets)
+
+
+def installed_patch_target_hashes() -> dict[str, str]:
+    hashes = {}
+    for path in unified_patch_target_paths():
+        if not path.exists():
+            raise SystemExit(f"Required patched gem5 target missing: {path}")
+        relative = str(path.relative_to(GEM5_DIR))
+        hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashes
 
 
 # =============================================================================
@@ -213,18 +244,28 @@ def check_prerequisites():
 
 def clone_gem5(tag: str, force: bool = False):
     """Clone gem5 repository at the specified tag."""
+    if tag != GEM5_DEFAULT_TAG:
+        raise SystemExit(
+            "This ECG artifact is pinned to gem5 "
+            f"{GEM5_DEFAULT_TAG} ({GEM5_DEFAULT_COMMIT}); "
+            f"unsupported --tag {tag!r}.")
     if GEM5_DIR.exists() and not force:
         log.info(f"gem5 already cloned at {GEM5_DIR}")
-        # Check if version matches
-        if VERSION_FILE.exists():
-            stored = VERSION_FILE.read_text().strip()
-            if stored == tag:
-                log.success(f"gem5 version matches ({tag}), skipping clone.")
-                return
-            else:
-                log.warn(f"Version mismatch: have {stored}, want {tag}.")
-                log.warn("Use --clean first, or --force to re-clone.")
-                sys.exit(1)
+        actual = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=GEM5_DIR, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if tag == GEM5_DEFAULT_TAG and actual != GEM5_DEFAULT_COMMIT:
+            raise SystemExit(
+                "gem5 revision mismatch: "
+                f"expected {GEM5_DEFAULT_COMMIT}, got {actual}. "
+                "Use --clean and rerun setup.")
+        VERSION_FILE.write_text(
+            json.dumps({
+                "tag": tag,
+                "commit": actual,
+            }, indent=2, sort_keys=True) + "\n")
+        log.success(f"gem5 revision verified ({actual}).")
         return
 
     log.info(f"Cloning gem5 ({tag}) into {GEM5_DIR}...")
@@ -232,15 +273,26 @@ def clone_gem5(tag: str, force: bool = False):
 
     if force and GEM5_DIR.exists():
         shutil.rmtree(GEM5_DIR)
+        PATCH_STATE_FILE.unlink(missing_ok=True)
 
     run_cmd([
         "git", "clone", "--depth", "1", "--branch", tag,
         GEM5_REPO_URL, str(GEM5_DIR),
     ])
 
-    # Record version
-    VERSION_FILE.write_text(f"{tag}\n")
-    log.success(f"gem5 cloned successfully ({tag}).")
+    actual = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=GEM5_DIR, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    if tag == GEM5_DEFAULT_TAG and actual != GEM5_DEFAULT_COMMIT:
+        raise SystemExit(
+            f"cloned gem5 revision {actual}, expected {GEM5_DEFAULT_COMMIT}")
+    VERSION_FILE.write_text(
+        json.dumps({
+            "tag": tag,
+            "commit": actual,
+        }, indent=2, sort_keys=True) + "\n")
+    log.success(f"gem5 cloned successfully ({actual}).")
 
 
 def apply_overlays():
@@ -253,8 +305,7 @@ def apply_overlays():
         dst = GEM5_DIR / "src" / dst_rel
 
         if not src.exists():
-            log.warn(f"  Overlay file not found (will be created later): {src_rel}")
-            continue
+            raise SystemExit(f"Required gem5 overlay missing: {src}")
 
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
@@ -270,16 +321,14 @@ def apply_patches():
     for patch_rel in PATCH_FILES:
         patch_file = OVERLAYS_DIR / patch_rel
         if not patch_file.exists():
-            log.warn(f"  Patch file not found (will be created later): {patch_rel}")
-            continue
+            raise SystemExit(f"Required gem5 SConscript patch missing: {patch_file}")
 
         # Determine target SConscript
         patch_dir = Path(patch_rel).parent
         target_sconscript = GEM5_DIR / "src" / patch_dir / "SConscript"
 
         if not target_sconscript.exists():
-            log.warn(f"  Target SConscript not found: {target_sconscript}")
-            continue
+            raise SystemExit(f"Required gem5 SConscript missing: {target_sconscript}")
 
         # Read patch content (simple append-style patches)
         patch_content = patch_file.read_text()
@@ -316,22 +365,67 @@ def apply_unified_diff_patches():
     """
     import subprocess
     log.info("Applying unified-diff patches under gem5/...")
+    try:
+        patch_state = json.loads(PATCH_STATE_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        patch_state = {}
+    recorded_digests = patch_state.get("patches", {})
+    recorded_targets = patch_state.get("installed_targets", {})
+    if recorded_targets:
+        actual_targets = installed_patch_target_hashes()
+        if actual_targets != recorded_targets:
+            raise SystemExit(
+                "Installed gem5 patched sources differ from the verified "
+                "patch state. Run setup_gem5.py --clean and reinstall.")
 
     for overlay_rel, target_dir in UNIFIED_DIFF_PATCHES:
         patch_file = OVERLAYS_DIR / overlay_rel
         if not patch_file.exists():
-            log.warn(f"  Patch file not found: {overlay_rel}")
-            continue
+            raise SystemExit(f"Required gem5 patch file missing: {patch_file}")
 
         target = GEM5_DIR / target_dir
         if not target.exists():
-            log.warn(f"  Target dir not found: {target}")
-            continue
+            raise SystemExit(f"Required gem5 patch target missing: {target}")
+
+        patch_digest = hashlib.sha256(patch_file.read_bytes()).hexdigest()
+        recorded_digest = recorded_digests.get(overlay_rel)
+        if recorded_digest and recorded_digest != patch_digest:
+            raise SystemExit(
+                "Tracked gem5 patch changed after installation: "
+                f"{overlay_rel}. Run setup_gem5.py --clean and reinstall.")
 
         marker_targets = {
+            "mem/cache/prefetch/queued_hh.patch": (
+                target / "src/mem/cache/prefetch/queued.hh",
+                "S68-QUEUE-SERVICING-PATCH",
+            ),
             "mem/cache/prefetch/queued_cc_latency.patch": (
                 target / "src/mem/cache/prefetch/queued.cc",
                 "S68-LATENCY-GUARD-PATCH",
+            ),
+            "cpu/exec_context_ecg_producer.patch": (
+                target / "src/cpu/exec_context.hh",
+                "setEcgLoadHint",
+            ),
+            "cpu/o3/dyn_inst_ecg_producer.patch": (
+                target / "src/cpu/o3/dyn_inst.hh",
+                "setEcgLoadHint",
+            ),
+            "cpu/o3/lsq_ecg_producer.patch": (
+                target / "src/cpu/o3/lsq.cc",
+                "attachEcgEpoch",
+            ),
+            "mem/request_stream_bypass.patch": (
+                target / "src/mem/request.hh",
+                "ECG_STREAM_BYPASS",
+            ),
+            "mem/cache/base_stream_bypass.patch": (
+                target / "src/mem/cache/base.hh",
+                "allow_alloc_on_fill",
+            ),
+            "mem/cache/base_stream_bypass_request_flag.patch": (
+                target / "src/mem/cache/base.cc",
+                "GEM5_ECG_STREAM_REQUEST_BOUND",
             ),
             "mem/cache/prefetch_stream_bypass.patch": (
                 target / "src/mem/cache/prefetch/queued.cc",
@@ -349,17 +443,23 @@ def apply_unified_diff_patches():
             ["patch", "-p1", "--dry-run", "--silent", "-i", str(patch_file)],
             cwd=target, capture_output=True, text=True,
         )
-        # If dry-run forward says "already applied" or "reversed", skip
-        if "previously applied" in (dry_fwd.stdout + dry_fwd.stderr).lower() or \
-           "reversed" in (dry_fwd.stdout + dry_fwd.stderr).lower():
-            log.info(f"  Patch already applied (skip): {overlay_rel}")
-            continue
-
         if dry_fwd.returncode != 0:
-            log.warn(f"  Dry-run failed for {overlay_rel}:")
-            log.warn(f"    {dry_fwd.stdout.strip()}")
-            log.warn(f"    {dry_fwd.stderr.strip()}")
-            continue
+            dry_reverse = subprocess.run(
+                [
+                    "patch", "-R", "-p1", "--dry-run", "--silent",
+                    "-i", str(patch_file),
+                ],
+                cwd=target, capture_output=True, text=True,
+            )
+            if dry_reverse.returncode == 0:
+                log.info(f"  Patch already applied (reverse-check): {overlay_rel}")
+                continue
+            raise SystemExit(
+                f"Required gem5 patch is neither cleanly applicable nor "
+                f"fully installed: {overlay_rel}\n"
+                f"forward:\n{dry_fwd.stdout.strip()}\n{dry_fwd.stderr.strip()}\n"
+                f"reverse:\n{dry_reverse.stdout.strip()}\n"
+                f"{dry_reverse.stderr.strip()}")
 
         apply = subprocess.run(
             ["patch", "-p1", "-i", str(patch_file)],
@@ -368,9 +468,9 @@ def apply_unified_diff_patches():
         if apply.returncode == 0:
             log.success(f"  Applied: {overlay_rel}")
         else:
-            log.warn(f"  Apply failed for {overlay_rel}:")
-            log.warn(f"    {apply.stdout.strip()}")
-            log.warn(f"    {apply.stderr.strip()}")
+            raise SystemExit(
+                f"Required gem5 patch failed: {overlay_rel}\n"
+                f"{apply.stdout.strip()}\n{apply.stderr.strip()}")
 
 
 def apply_current_vertex_pseudo_inst_patch():
@@ -489,6 +589,96 @@ def insert_once(content: str, anchor: str, insertion: str, label: str) -> tuple[
         log.warn(f"  Could not locate {label} patch anchor")
         return content, False
     return content.replace(anchor, anchor + insertion, 1), True
+
+
+def verify_installation_postconditions():
+    """Fail if any required ECG overlay or patch is absent."""
+    failures = []
+    for src_rel, dst_rel in OVERLAY_FILE_MAP.items():
+        src = OVERLAYS_DIR / src_rel
+        dst = GEM5_DIR / "src" / dst_rel
+        if not src.exists() or not dst.exists() or src.read_bytes() != dst.read_bytes():
+            failures.append(f"overlay mismatch: {src_rel}")
+
+    marker_checks = {
+        GEM5_DIR / "src/mem/request.hh": [
+            "ECG_STREAM_BYPASS",
+        ],
+        GEM5_DIR / "src/mem/cache/base.cc": [
+            "Request::ECG_STREAM_BYPASS",
+            "GEM5_ECG_STREAM_REQUEST_BOUND",
+            "allocOnFill(pkt->cmd) && !stream_bypass",
+            "allocateMissBuffer(pkt, forward_time, true, !stream_bypass)",
+        ],
+        GEM5_DIR / "src/mem/cache/base.hh": [
+            "allow_alloc_on_fill",
+        ],
+        GEM5_DIR / "src/mem/cache/prefetch/base.cc": [
+            "streamBypass(pkt->req->getFlags()",
+        ],
+        GEM5_DIR / "src/mem/cache/prefetch/base.hh": [
+            "isStreamBypass",
+            "bool streamBypass",
+        ],
+        GEM5_DIR / "src/mem/cache/prefetch/queued.cc": [
+            "pfInfo.isStreamBypass()",
+            "S68-LATENCY-GUARD-PATCH",
+        ],
+        GEM5_DIR / "src/mem/cache/prefetch/queued.hh": [
+            "S68-QUEUE-SERVICING-PATCH",
+            "pfqMissingTranslation.empty()",
+        ],
+        GEM5_DIR / "src/cpu/exec_context.hh": [
+            "setEcgLoadHint",
+        ],
+        GEM5_DIR / "src/cpu/o3/dyn_inst.hh": [
+            "setEcgLoadHint",
+        ],
+        GEM5_DIR / "src/cpu/o3/lsq.cc": [
+            "attachEcgEpoch",
+        ],
+        GEM5_DIR / "src/sim/pseudo_inst.cc": [
+            "GRAPHBREW_SET_VERTEX_WORK_ID",
+            "GRAPHBREW_ECG_EXTRACT2_WORK_ID",
+        ],
+        GEM5_DIR / "src/arch/riscv/isa/decoder.isa": [
+            "ecg_stream_load2",
+            "ecg_load2",
+        ],
+        GEM5_DIR / "src/mem/cache/replacement_policies/SConscript": [
+            "grasp_rp.cc",
+            "popt_rp.cc",
+            "ecg_rp.cc",
+        ],
+        GEM5_DIR / "src/mem/cache/prefetch/SConscript": [
+            "droplet.cc",
+            "ecg_pfx.cc",
+        ],
+    }
+    for path, markers in marker_checks.items():
+        if not path.exists():
+            failures.append(f"missing patched file: {path}")
+            continue
+        text = path.read_text(errors="ignore")
+        for marker in markers:
+            if marker not in text:
+                failures.append(f"missing marker {marker!r} in {path}")
+
+    if failures:
+        raise SystemExit(
+            "gem5 ECG installation postcondition failure:\n  - " +
+            "\n  - ".join(failures))
+    log.success("All required gem5 ECG overlay/patch postconditions verified.")
+    PATCH_STATE_FILE.write_text(json.dumps({
+        "gem5_commit": GEM5_DEFAULT_COMMIT,
+        "patches": {
+            overlay_rel: hashlib.sha256(
+                (OVERLAYS_DIR / overlay_rel).read_bytes()).hexdigest()
+            for overlay_rel, _target_dir in UNIFIED_DIFF_PATCHES
+        },
+        "installed_targets": installed_patch_target_hashes(),
+    }, indent=2, sort_keys=True) + "\n")
+    log.success(f"Wrote verified gem5 patch state: {PATCH_STATE_FILE}")
 
 
 def apply_riscv_ecg_extract_patch():
@@ -610,8 +800,8 @@ def clean_gem5():
         log.info(f"Removing {GEM5_DIR}...")
         shutil.rmtree(GEM5_DIR)
         log.success("gem5 directory removed.")
-    if VERSION_FILE.exists():
-        VERSION_FILE.unlink()
+    for marker in (VERSION_FILE, PATCH_STATE_FILE):
+        marker.unlink(missing_ok=True)
     log.success("Clean complete.")
 
 
@@ -667,7 +857,7 @@ def main():
     )
     parser.add_argument(
         "--tag", default=GEM5_DEFAULT_TAG,
-        help=f"gem5 git tag to clone (default: {GEM5_DEFAULT_TAG})",
+        help=f"Pinned gem5 tag (must remain {GEM5_DEFAULT_TAG})",
     )
     parser.add_argument(
         "--jobs", type=int, default=max(1, os.cpu_count() - 2),
@@ -717,6 +907,7 @@ def main():
     apply_current_vertex_pseudo_inst_patch()
     apply_riscv_ecg_extract_patch()
     apply_unified_diff_patches()
+    verify_installation_postconditions()
 
     if not args.skip_build:
         # Step 5: Build

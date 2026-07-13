@@ -1,5 +1,6 @@
 import argparse
 import csv
+import hashlib
 import importlib.util
 import json
 import pytest
@@ -9,6 +10,19 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def output_descriptor(path: Path) -> dict:
+    with path.open("rb") as handle:
+        digest = hashlib.sha256(handle.read()).hexdigest()
+    rows = None
+    if path.suffix == ".csv":
+        rows = max(len(path.read_text().splitlines()) - 1, 0)
+    return {
+        "sha256": digest,
+        "size": path.stat().st_size,
+        "rows": rows,
+    }
 
 
 def load_module(name: str, path: Path):
@@ -33,6 +47,12 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
     assert k2.ecg_mode == "ECG_GRASP_POPT"
     assert module.ecg_transport_for(
         k2, "pr") == module.EcgTransport(2, False, False)
+    with pytest.raises(RuntimeError):
+        module.ecg_transport_for(k2, "cc")
+    with pytest.raises(RuntimeError):
+        module.ecg_transport_for(k2, "sssp")
+    with pytest.raises(RuntimeError):
+        module.ecg_transport_for(k2, "bc")
 
     streamshield = module.parse_policy_spec("ECG:K2_STREAMSHIELD")
     assert streamshield.label == "ECG_K2_STREAMSHIELD"
@@ -54,15 +74,58 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
     module.apply_ecg_transport_env(
         paper_env, module.ecg_transport_for(k2, "pr"))
     assert "ECG_K2_DELIVERY_TRACE" not in paper_env
+    assert paper_env["ECG_EDGE_MASKS"] == "1"
 
     baseline_env = {
         "ECG_EDGE_MASK_SCHED": "2",
+        "ECG_EDGE_MASKS": "1",
         "ECG_STREAM_BYPASS": "1",
     }
     module.apply_ecg_transport_env(
         baseline_env, module.EcgTransport())
     assert "ECG_EDGE_MASK_SCHED" not in baseline_env
+    assert "ECG_EDGE_MASKS" not in baseline_env
     assert "ECG_STREAM_BYPASS" not in baseline_env
+    contaminated = {
+        "ECG_PREFETCH_MODE": "6",
+        "ECG_MODE": "ECG_GRASP_POPT",
+        "GEM5_FORCE_ECG_LOAD2": "1",
+        "SNIPER_ECG_FUSED_K2": "1",
+        "GRASP_HOT_FRACTION": "0.40",
+        "POPT_DUAL_REREF": "1",
+        "ECG_DEBUG": "1",
+    }
+    monkeypatch.setenv("ECG_DEBUG", "1")
+    module.scrub_cell_mechanism_env(contaminated)
+    assert contaminated == {"ECG_DEBUG": "1"}
+    monkeypatch.setenv(
+        "GRAPHBREW_EXPLICIT_CELL_ENV",
+        json.dumps({
+            "ECG_EDGE_MASK_AMPLIFY": "3",
+            "ECG_EDGE_MASK_SCHED": "4",
+            "GRASP_HOT_FRACTION": "0.25",
+        }),
+    )
+    explicit_env = {}
+    module.apply_explicit_cell_mechanism_env(explicit_env, k2)
+    assert explicit_env == {
+        "ECG_EDGE_MASK_AMPLIFY": "3",
+        "ECG_EDGE_MASK_SCHED": "4",
+        "GRASP_HOT_FRACTION": "0.25",
+    }
+    module.apply_ecg_transport_env(
+        explicit_env, module.ecg_transport_for(k2, "pr"))
+    assert explicit_env["ECG_EDGE_MASK_AMPLIFY"] == "3"
+    assert explicit_env["ECG_EDGE_MASK_SCHED"] == "2"
+    assert explicit_env["GRASP_HOT_FRACTION"] == "0.25"
+    baseline = module.parse_policy_spec("LRU")
+    baseline_env = {}
+    module.apply_explicit_cell_mechanism_env(baseline_env, baseline)
+    assert baseline_env == {}
+    grasp_env = {}
+    module.apply_explicit_cell_mechanism_env(
+        grasp_env, module.parse_policy_spec("GRASP"))
+    assert grasp_env == {"GRASP_HOT_FRACTION": "0.25"}
 
 
 def test_streamshield_manifest_is_complete():
@@ -128,6 +191,21 @@ def test_sniper_sg_kernel_supports_synthetic_profiles():
     assert "-g" in options
 
 
+def test_k2_cache_sim_paths_do_not_build_popt_matrix():
+    helper = (
+        ROOT / "bench/include/cache_sim/graph_sim.h"
+    ).read_text()
+    assert "GraphSimMatrixFreeK2" in helper
+    for relative in (
+        "bench/src_sim/pr.cc",
+        "bench/src_sim/bfs.cc",
+    ):
+        source = (ROOT / relative).read_text()
+        assert "GraphSimMatrixFreeK2" in source, relative
+    bfs = (ROOT / "bench/src_sim/bfs.cc").read_text()
+    assert bfs.count("SIM_CACHE_READ_EDGE_K2") == 2
+
+
 def test_streamshield_profile_and_slurm_shards(tmp_path):
     run_dir = tmp_path / "dryrun"
     listed = subprocess.run(
@@ -190,6 +268,10 @@ def test_paper_pipeline_uses_canonical_runner():
     assert (
         ROOT / "scripts/experiments/ecg/flows/paper_run.py"
     ).is_file()
+    runner = (
+        ROOT / "scripts/experiments/ecg/flows/paper_run.py"
+    ).read_text()
+    assert "GRAPHBREW_EXPLICIT_CELL_ENV" in runner
     for removed_wrapper in (
         "final_paper_run.py",
         "paper_pipeline.py",
@@ -263,6 +345,10 @@ def test_complete_matrix_requires_matching_marker(tmp_path):
         "threads": ["1"],
         "structure_prefetch_degree": 8,
         "config_hash": "stale",
+        "outputs": {
+            "roi_matrix.csv": output_descriptor(
+                out_dir / "roi_matrix.csv"),
+        },
     }))
     assert module.job_csv_status(job)[0] == "partial"
     marker = json.loads(
@@ -270,12 +356,15 @@ def test_complete_matrix_requires_matching_marker(tmp_path):
     marker["config_hash"] = "abc"
     (out_dir / "roi_matrix.complete.json").write_text(json.dumps(marker))
     assert module.job_csv_status(job)[0] == "ok"
+    with (out_dir / "roi_matrix.csv").open("a") as handle:
+        handle.write("\n")
+    assert module.job_csv_status(job)[0] == "partial"
 
 
 def test_policy_labels_share_one_parser():
     module = load_module(
         "policy_specs_ssot",
-        ROOT / "scripts/experiments/ecg/lib/policy_specs.py",
+        ROOT / "scripts/experiments/ecg/policy_specs.py",
     )
     assert module.policy_output_label("POPT") == "POPT"
     assert module.policy_output_label("POPT_CHARGED") == "POPT"
@@ -448,6 +537,10 @@ def test_fallback_matrix_must_match_resolved_job_hash(tmp_path):
         "matrix_id": "matrix",
         "shard_group": "group",
         "expected_policy_labels": ["LRU"],
+        "outputs": {
+            "roi_matrix.csv": output_descriptor(
+                matrix_dir / "roi_matrix.csv"),
+        },
     }))
     (tmp_path / "resolved_manifest.json").write_text(json.dumps({
         "run_config_hash": "new-run",
@@ -528,6 +621,100 @@ def test_policy_filter_uses_shared_labels():
     )
     assert module.filter_policy_specs(
         ["LRU", "POPT"], ["POPT_CHARGED"]) == ["POPT"]
+
+
+def test_sniper_policy_marker_is_content_validated(tmp_path):
+    module = load_module(
+        "roi_matrix_sniper_marker",
+        ROOT / "scripts/experiments/ecg/roi_matrix.py",
+    )
+    relative = Path("common/core/memory_subsystem/cache/cache_set_ecg.cc")
+    overlay = tmp_path / "bench/include/sniper_sim/overlays" / relative
+    installed_root = tmp_path / "snipersim"
+    installed = installed_root / relative
+    overlay.parent.mkdir(parents=True)
+    installed.parent.mkdir(parents=True)
+    overlay.write_text("same")
+    installed.write_text("same")
+    binary = installed_root / "lib/sniper"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("binary")
+    subprocess.run(["git", "init", "-q"], cwd=installed_root, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=installed_root, check=True)
+    subprocess.run(
+        ["git", "config", "user.name", "Test"],
+        cwd=installed_root, check=True)
+    subprocess.run(["git", "add", "."], cwd=installed_root, check=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "fixture"],
+        cwd=installed_root, check=True)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=installed_root, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    module.PINNED_SNIPER_HEAD = head
+    marker = tmp_path / ".sniper_overlays.json"
+    marker.write_text(json.dumps({
+        "sniper_head": head,
+        "policies": ["grasp", "popt", "ecg"],
+        "copied_files": [str(relative)],
+        "patched_files": [],
+        "file_hashes": {
+            str(relative): hashlib.sha256(
+                installed.read_bytes()).hexdigest(),
+        },
+        "binary": {
+            "path": "lib/sniper",
+            "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+            "size": binary.stat().st_size,
+        },
+    }))
+    module.PROJECT_ROOT = tmp_path
+    module.SNIPER_OVERLAY_STATUS = marker
+    args = argparse.Namespace(
+        sniper_enable_graph_policies=False,
+        sniper_root=str(installed_root),
+    )
+    assert module.sniper_graph_policies_enabled(args)
+    extra = overlay.parent / "extra.cc"
+    extra.write_text("new overlay")
+    assert not module.sniper_graph_policies_enabled(args)
+    extra.unlink()
+    installed.write_text("stale")
+    assert not module.sniper_graph_policies_enabled(args)
+
+
+def test_failed_rerun_invalidates_completion_marker(tmp_path):
+    module = load_module(
+        "paper_run_failed_rerun",
+        ROOT / "scripts/experiments/ecg/flows/paper_run.py",
+    )
+    out_dir = tmp_path / "matrix"
+    out_dir.mkdir()
+    marker = out_dir / "roi_matrix.complete.json"
+    marker.write_text("{}")
+    job = module.Job(
+        job_id="failed",
+        stage="stage",
+        kind="roi_matrix",
+        command=[sys.executable, "-c", "raise SystemExit(1)"],
+        out_dir=out_dir,
+        log_path=tmp_path / "failed.log",
+        metadata={"policies": ["LRU"]},
+    )
+    args = argparse.Namespace(
+        force=True,
+        resume=True,
+        skip_failed=False,
+        dry_run=False,
+    )
+    assert module.run_job(job, tmp_path, args) == 1
+    assert not marker.exists()
+    module.write_run_completion(tmp_path, [job], successful=False)
+    payload = json.loads((tmp_path / "run.complete.json").read_text())
+    assert payload["complete"] is False
 
 
 def test_sniper_fingerprint_covers_sift_stack():
@@ -611,6 +798,15 @@ def test_pipeline_dry_run_succeeds_without_rows(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def test_proof_matrix_uses_supported_pfx_cli():
+    source = (
+        ROOT / "scripts/experiments/ecg/flows/proof_matrix.py"
+    ).read_text()
+    assert '"--prefetcher", "ECG_PFX"' in source
+    assert '"--ecg-pfx-mode", pfx_mode' in source
+    assert '"ECG_PREFETCH_MODE"' not in source
+
+
 def test_direct_complete_matrix_has_standalone_hash(tmp_path):
     module = load_module(
         "paper_pipeline_standalone_hash",
@@ -629,6 +825,9 @@ def test_direct_complete_matrix_has_standalone_hash(tmp_path):
         "shard_group": "direct",
         "matrix_config_hash": "standalone-hash",
         "expected_policy_labels": ["LRU"],
+        "outputs": {
+            "roi_matrix.csv": output_descriptor(matrix),
+        },
     }))
     roi, proof = module.collect_csvs([], [matrix])
     assert len(roi) == 1

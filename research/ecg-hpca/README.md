@@ -12,12 +12,13 @@ names.
 ## Read in this order
 
 1. [`PAPER.md`](PAPER.md) — thesis, title, abstract, and contribution outline.
-2. [`CHAIR_QUERY.md`](CHAIR_QUERY.md) — required HPCA prior-publication inquiry.
-3. [`CLAIMS.md`](CLAIMS.md) — claims that are proven, pending, or prohibited.
-4. [`METHODOLOGY.md`](METHODOLOGY.md) — simulator roles, baselines, and hardware model.
-5. [`RESULTS.md`](RESULTS.md) — frozen numerical results and their scope.
-6. [`RUNBOOK.md`](RUNBOOK.md) — canonical local and Slurm commands.
-7. [`evidence/`](evidence/) — dated audits and historical experiment findings.
+2. [`ARCHITECTURE.md`](ARCHITECTURE.md) — K2, StreamShield, ISA, diagrams, and comparisons.
+3. [`CHAIR_QUERY.md`](CHAIR_QUERY.md) — required HPCA prior-publication inquiry.
+4. [`CLAIMS.md`](CLAIMS.md) — claims that are proven, pending, or prohibited.
+5. [`METHODOLOGY.md`](METHODOLOGY.md) — simulator roles, baselines, and hardware model.
+6. [`RESULTS.md`](RESULTS.md) — frozen numerical results and their scope.
+7. [`RUNBOOK.md`](RUNBOOK.md) — canonical local and Slurm commands.
+8. [`evidence/`](evidence/) — dated audits and historical experiment findings.
 
 ## Canonical executable sources
 

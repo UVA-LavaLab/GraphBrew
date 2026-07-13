@@ -101,7 +101,10 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
         std::string policy_str = policy_env ? policy_env : "";
         const char* pfx_env = getenv("ECG_PREFETCH_MODE");
         bool popt_prefetch = pfx_env && (atoi(pfx_env) == 2 || atoi(pfx_env) == 4 || atoi(pfx_env) == 6 || atoi(pfx_env) == 7);
-        if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
+        const bool matrix_free_k2 = GraphSimMatrixFreeK2();
+        if (policy_str == "POPT" ||
+            (policy_str == "ECG" && !matrix_free_k2) ||
+            (popt_prefetch && !matrix_free_k2)) {
             constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
             constexpr int numEpochs = 256;
             buildAndRegisterReref(g, graph_ctx, /*natural_csr=*/true, "PR(pull/in)",

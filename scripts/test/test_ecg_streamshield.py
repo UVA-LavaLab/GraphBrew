@@ -18,12 +18,13 @@ def test_streamshield_is_explicit_and_default_off():
     assert "SIM_CACHE_READ_STREAM_BYPASS" in pr
 
 
-def test_streamshield_bypasses_llc_but_preserves_private_fills():
+def test_streamshield_preserves_llc_hits_and_suppresses_miss_fill():
     cache = read("bench/include/cache_sim/cache_sim.h")
     block = cache.split("void accessStream(", 1)[1].split(
         "// StreamShield prefetch", 1
     )[0]
-    assert "if (l3_->access" not in block
+    assert "if (l3_->access" in block
+    assert "l3_->insert" not in block
     assert "l2_->insert" in block
     assert "l1_->insert" in block
 
@@ -145,12 +146,36 @@ def test_sniper_build_dry_run_does_not_require_checkout(tmp_path):
     ))
 
 
+def test_sniper_clean_removes_all_capability_markers(tmp_path):
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location(
+        "setup_sniper_clean_markers", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    module.SNIPER_DIR = tmp_path / "snipersim"
+    module.VERSION_FILE = tmp_path / ".sniper_version"
+    module.OVERLAY_STATUS_FILE = tmp_path / ".sniper_overlays.json"
+    module.SNIPER_DIR.mkdir()
+    module.VERSION_FILE.write_text("{}")
+    module.OVERLAY_STATUS_FILE.write_text("{}")
+    module.clean(argparse.Namespace(dry_run=False))
+    assert not module.SNIPER_DIR.exists()
+    assert not module.VERSION_FILE.exists()
+    assert not module.OVERLAY_STATUS_FILE.exists()
+
+
 def test_streamshield_is_policy_isolated_and_verified():
     runner = read("scripts/experiments/ecg/roi_matrix.py")
-    policy_specs = read("scripts/experiments/ecg/lib/policy_specs.py")
+    policy_specs = read("scripts/experiments/ecg/policy_specs.py")
     verifier = read("scripts/experiments/ecg/verify/equiv_kernels.py")
     ecg_verifier = read("scripts/experiments/ecg/verify/ecg.py")
     assert "apply_ecg_transport_env" in runner
+    assert '"CACHE_FAST": "0"' in runner
+    assert '"CACHE_SAMPLED": "0"' in runner
+    assert '"CACHE_MULTICORE": "0"' in runner
+    assert "StreamShield requested but cache_sim bypass path was inactive" in runner
     assert '"ECG:K2_STREAMSHIELD"' in policy_specs
     assert '"ecg_stream_bypass"' in runner
     assert "--stream-bypass" in verifier
@@ -190,10 +215,23 @@ def test_streamshield_setup_migrates_and_rebuilds():
     gem5_setup = read("scripts/setup_gem5.py")
     sniper_setup = read("scripts/setup_sniper.py")
     assert "Incrementally rebuilding gem5" in gem5_setup
+    assert 'GEM5_DEFAULT_COMMIT = "b1a44b89c7bae73fae2dc547bc1f871452075b85"' in gem5_setup
+    assert "def verify_installation_postconditions" in gem5_setup
+    assert "PATCH_STATE_FILE" in gem5_setup
+    assert "PATCH_STATE_FILE.unlink(missing_ok=True)" in gem5_setup
+    assert "Tracked gem5 patch changed after installation" in gem5_setup
+    assert "S68-QUEUE-SERVICING-PATCH" in gem5_setup
+    assert "Required gem5 patch file missing" in gem5_setup
+    assert "unsupported --tag" in gem5_setup
     assert "base_stream_bypass_request_flag.patch" in gem5_setup
     assert "prefetch_stream_bypass.patch" in gem5_setup
     assert "def migrate_if_present" in sniper_setup
     assert 'SNIPER_DEFAULT_REF = "56505e42fd98bca863fac181e769bd3c98d2bb33"' in sniper_setup
+    main_block = sniper_setup.split("def main(argv:", 1)[1]
+    assert main_block.index("OVERLAY_STATUS_FILE.unlink(missing_ok=True)") < \
+        main_block.index("install_graphbrew_configs(args)")
+    assert main_block.index("graphbrew_smoke_test(args)") < \
+        main_block.index("write_overlay_status(copied_files)")
     assert "migrate_if_present(\n        magic_server, old_decode, new_decode" in sniper_setup
 
 

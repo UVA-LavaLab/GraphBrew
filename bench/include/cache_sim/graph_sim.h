@@ -9,6 +9,7 @@
 #include "graph_cache_context.h"
 #include <graph.h>
 #include <pvector.h>
+#include <string>
 
 namespace cache_sim {
 
@@ -18,6 +19,14 @@ inline int GraphSimEnvIntClamped(const char* name, int default_value,
     if (!value) return default_value;
     int parsed = std::atoi(value);
     return std::max(min_value, std::min(max_value, parsed));
+}
+
+inline bool GraphSimMatrixFreeK2() {
+    const char* policy = std::getenv("CACHE_POLICY");
+    const char* mode = std::getenv("ECG_MODE");
+    return policy && std::string(policy) == "ECG" &&
+           mode && std::string(mode) == "ECG_GRASP_POPT" &&
+           GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4) == 2;
 }
 
 // ============================================================================
@@ -141,6 +150,12 @@ private:
 // Call once per edge during neighbor iteration.
 #define SIM_CACHE_READ_EDGE(cache, neighbor_ptr) \
     (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
+
+// K2 replaces each 4-byte NodeID edge with one 8-byte packed record. Scaling
+// the contiguous NodeID address by two preserves edge order while charging the
+// doubled stream footprint (8 records per 64B line instead of 16).
+#define SIM_CACHE_READ_EDGE_K2(cache, neighbor_ptr) \
+    (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr) * 2ULL, false)
 
 // ECG StreamShield: one-touch packed edge records can bypass LLC allocation
 // while still filling the private caches. Only ECG's explicit stream path uses
