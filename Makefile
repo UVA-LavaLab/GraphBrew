@@ -120,6 +120,13 @@ check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p
 		fi; \
 	done; \
 	echo " $(PASS) Partitioned BFS P=1/2/4/16"
+	@output="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -f test/graphs/4.el -n 1 -r 0 -v -P 4 -B out)"; \
+		if ! echo "$$output" | grep -q "Verification: *PASS"; then \
+			echo " $(FAIL) Partitioned BFS directed graph"; \
+			echo "$$output"; \
+			exit 1; \
+		fi; \
+		echo " $(PASS) Partitioned BFS directed graph"
 
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
