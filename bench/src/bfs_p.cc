@@ -7,10 +7,10 @@
 #include <vector>
 
 #include "benchmark.h"
-#include "bfs_common.h"
 #include "builder.h"
 #include "command_line.h"
-#include "graph_partition.h"
+#include "bfs_common.h"
+#include "partition/compact_csr.h"
 #include "pvector.h"
 #include "timer.h"
 
@@ -326,6 +326,8 @@ pvector<NodeID> DOBFSPartitioned(
     int alpha = 15,
     int beta = 18)
 {
+    using graphbrew::database::AppendBenchmarkIterationEntry;
+    int bfs_step = 0;
     if (logging_enabled)
         PrintStep("Source", static_cast<std::int64_t>(source));
 
@@ -380,6 +382,14 @@ pvector<NodeID> DOBFSPartitioned(
                 timer.Seconds(),
                 static_cast<std::int64_t>(next.size()));
         }
+        AppendBenchmarkIterationEntry(
+            {
+                {"step", bfs_step++},
+                {"phase", bottom_up ? "p-bsp-bu" : "p-bsp-td"},
+                {"time_s", timer.Seconds()},
+                {"awake_count", static_cast<std::int64_t>(next.size())},
+                {"scout_count", scout_count},
+            });
 
         if (
             bottom_up &&
@@ -403,6 +413,8 @@ int main(int argc, char *argv[])
     if (!cli.ParseArgs())
         return -1;
 
+    SetBenchmarkTypeHint(BENCH_BFS);
+    graphbrew::database::InitSelfRecording(cli.db_dir());
     Builder builder(cli);
     Graph graph = builder.MakeGraph();
 
@@ -419,7 +431,7 @@ int main(int argc, char *argv[])
         partitioned.VerifyExact(graph);
 
     SourcePicker<Graph> source_picker(
-        graph, cli.start_vertex());
+        graph, cli.start_vertex(), cli.num_trials());
     auto bfs = [&source_picker, &cli, &partitioned](const Graph &)
     {
         return DOBFSPartitioned(
@@ -427,7 +439,7 @@ int main(int argc, char *argv[])
             cli.logging_en());
     };
     SourcePicker<Graph> verifier_source_picker(
-        graph, cli.start_vertex());
+        graph, cli.start_vertex(), cli.num_trials());
     auto verifier =
         [&verifier_source_picker](
             const Graph &input,
@@ -439,6 +451,29 @@ int main(int argc, char *argv[])
                 parent);
         };
     BenchmarkKernel(
-        cli, graph, bfs, PrintBFSStats, verifier);
+        cli,
+        graph,
+        bfs,
+        PrintBFSStats,
+        verifier,
+        "bfs_p",
+        [](const Graph &input, const pvector<NodeID> &parent)
+            -> nlohmann::json
+        {
+            nlohmann::json answer;
+            std::int64_t tree_size = 0;
+            std::int64_t edge_count = 0;
+            for (NodeID vertex = 0;
+                 vertex < input.num_nodes(); ++vertex)
+            {
+                if (parent[vertex] < 0)
+                    continue;
+                edge_count += input.out_degree(vertex);
+                ++tree_size;
+            }
+            answer["tree_nodes"] = tree_size;
+            answer["tree_edges"] = edge_count;
+            return answer;
+        });
     return 0;
 }

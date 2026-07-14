@@ -123,6 +123,8 @@ pvector<NodeID> InitParent(const Graph &g) {
 
 pvector<NodeID> DOBFS(const Graph &g, NodeID source, bool logging_enabled = false,
                       int alpha = 15, int beta = 18) {
+  using graphbrew::database::AppendBenchmarkIterationEntry;
+  int bfs_step = 0;
   if (logging_enabled)
     PrintStep("Source", static_cast<int64_t>(source));
   Timer t;
@@ -147,6 +149,7 @@ pvector<NodeID> DOBFS(const Graph &g, NodeID source, bool logging_enabled = fals
       TIME_OP(t, QueueToBitmap(queue, front));
       if (logging_enabled)
         PrintStep("e", t.Seconds());
+      AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "e"}, {"time_s", t.Seconds()}});
       awake_count = queue.size();
       queue.slide_window();
       do {
@@ -157,11 +160,13 @@ pvector<NodeID> DOBFS(const Graph &g, NodeID source, bool logging_enabled = fals
         t.Stop();
         if (logging_enabled)
           PrintStep("bu", t.Seconds(), awake_count);
+        AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "bu"}, {"time_s", t.Seconds()}, {"awake_count", awake_count}});
       } while ((awake_count >= old_awake_count) ||
                (awake_count > g.num_nodes() / beta));
       TIME_OP(t, BitmapToQueue(g, front, queue));
       if (logging_enabled)
         PrintStep("c", t.Seconds());
+      AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "c"}, {"time_s", t.Seconds()}});
       scout_count = 1;
     } else {
       t.Start();
@@ -171,6 +176,7 @@ pvector<NodeID> DOBFS(const Graph &g, NodeID source, bool logging_enabled = fals
       t.Stop();
       if (logging_enabled)
         PrintStep("td", t.Seconds(), queue.size());
+      AppendBenchmarkIterationEntry({{"step", bfs_step++}, {"phase", "td"}, {"time_s", t.Seconds()}, {"scout_count", scout_count}, {"queue_size", static_cast<int64_t>(queue.size())}});
     }
   }
   #pragma omp parallel for
@@ -185,16 +191,31 @@ int main(int argc, char* argv[]) {
   CLApp cli(argc, argv, "breadth-first search");
   if (!cli.ParseArgs())
     return -1;
+  SetBenchmarkTypeHint(BENCH_BFS);
+  graphbrew::database::InitSelfRecording(cli.db_dir());
   Builder b(cli);
   Graph g = b.MakeGraph();
-  SourcePicker<Graph> sp(g, cli.start_vertex());
+  // Create SourcePicker with pre-generated consistent sources based on num_trials
+  // This ensures all orderings use the same ORIGINAL vertex IDs as sources
+  SourcePicker<Graph> sp(g, cli.start_vertex(), cli.num_trials());
   auto BFSBound = [&sp,&cli] (const Graph &g) {
     return DOBFS(g, sp.PickNext(), cli.logging_en());
   };
-  SourcePicker<Graph> vsp(g, cli.start_vertex());
+  SourcePicker<Graph> vsp(g, cli.start_vertex(), cli.num_trials());
   auto VerifierBound = [&vsp] (const Graph &g, const pvector<NodeID> &parent) {
     return BFSVerifier(g, vsp.PickNext(), parent);
   };
-  BenchmarkKernel(cli, g, BFSBound, PrintBFSStats, VerifierBound);
+  BenchmarkKernel(cli, g, BFSBound, PrintBFSStats, VerifierBound,
+    "bfs",
+    [](const Graph &g, const pvector<NodeID> &parent) -> nlohmann::json {
+      nlohmann::json ans;
+      int64_t tree_size = 0, n_edges = 0;
+      for (NodeID n = 0; n < g.num_nodes(); n++) {
+        if (parent[n] >= 0) { n_edges += g.out_degree(n); tree_size++; }
+      }
+      ans["tree_nodes"] = tree_size;
+      ans["tree_edges"] = n_edges;
+      return ans;
+    });
   return 0;
 }

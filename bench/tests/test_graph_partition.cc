@@ -9,7 +9,7 @@
 #include <omp.h>
 #endif
 
-#include "graph_partition.h"
+#include "partition/compact_csr.h"
 
 namespace
 {

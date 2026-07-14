@@ -130,6 +130,11 @@ pvector<WeightT> DeltaStep(const WGraph &g, NodeID source, WeightT delta,
         t.Stop();
         if (logging_enabled)
           PrintStep(curr_bin_index, t.Millisecs(), curr_frontier_tail);
+        graphbrew::database::AppendBenchmarkIterationEntry({
+            {"iter", static_cast<int64_t>(iter)},
+            {"bin_index", static_cast<int64_t>(curr_bin_index)},
+            {"time_ms", t.Millisecs()},
+            {"frontier_size", static_cast<int64_t>(curr_frontier_tail)}});
         t.Start();
         curr_bin_index = kMaxBin;
         curr_frontier_tail = 0;
@@ -195,16 +200,30 @@ int main(int argc, char *argv[]) {
   CLDelta<WeightT> cli(argc, argv, "single-source shortest-path");
   if (!cli.ParseArgs())
     return -1;
+  SetBenchmarkTypeHint(BENCH_SSSP);
+  graphbrew::database::InitSelfRecording(cli.db_dir());
   WeightedBuilder b(cli);
   WGraph g = b.MakeGraph();
-  SourcePicker<WGraph> sp(g, cli.start_vertex());
+  // Create SourcePicker with pre-generated consistent sources based on num_trials
+  // This ensures all orderings use the same ORIGINAL vertex IDs as sources
+  SourcePicker<WGraph> sp(g, cli.start_vertex(), cli.num_trials());
   auto SSSPBound = [&sp, &cli](const WGraph &g) {
     return DeltaStep(g, sp.PickNext(), cli.delta(), cli.logging_en());
   };
-  SourcePicker<WGraph> vsp(g, cli.start_vertex());
+  SourcePicker<WGraph> vsp(g, cli.start_vertex(), cli.num_trials());
   auto VerifierBound = [&vsp](const WGraph &g, const pvector<WeightT> &dist) {
     return SSSPVerifier(g, vsp.PickNext(), dist);
   };
-  BenchmarkKernel(cli, g, SSSPBound, PrintSSSPStats, VerifierBound);
+  BenchmarkKernel(cli, g, SSSPBound, PrintSSSPStats, VerifierBound,
+    "sssp",
+    [](const WGraph &g, const pvector<WeightT> &dist) -> nlohmann::json {
+      nlohmann::json ans;
+      int64_t reachable = 0;
+      for (NodeID n = 0; n < g.num_nodes(); n++) {
+        if (dist[n] != kDistInf) reachable++;
+      }
+      ans["reachable_nodes"] = reachable;
+      return ans;
+    });
   return 0;
 }
