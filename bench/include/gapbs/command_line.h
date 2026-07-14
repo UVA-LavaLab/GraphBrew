@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <unistd.h>
@@ -311,6 +312,64 @@ public:
     bool do_verify() const
     {
         return do_verify_;
+    }
+};
+
+class CLPartitionApp : public CLApp
+{
+    int num_partitions_ = 2;
+    std::string partition_balance_ = "total";
+
+public:
+    CLPartitionApp(int argc, char **argv, std::string name)
+        : CLApp(argc, argv, name)
+    {
+        get_args_ += "P:B:";
+        AddHelpLine(
+            'P', "partitions", "build this many compact graph shards",
+            std::to_string(num_partitions_));
+        AddHelpLine(
+            'B', "balance", "partition balance: vertices, out, or total",
+            partition_balance_);
+    }
+
+    void HandleArg(signed char opt, char *opt_arg) override
+    {
+        switch (opt)
+        {
+        case 'P':
+            num_partitions_ = std::stoi(opt_arg);
+            if (num_partitions_ <= 0)
+                throw std::invalid_argument(
+                    "Graph partition count must be positive");
+            break;
+        case 'B':
+            partition_balance_ = opt_arg;
+            if (
+                partition_balance_ != "vertices" &&
+                partition_balance_ != "vertex" &&
+                partition_balance_ != "out" &&
+                partition_balance_ != "outgoing" &&
+                partition_balance_ != "total" &&
+                partition_balance_ != "edges")
+            {
+                throw std::invalid_argument(
+                    "Partition balance must be vertices, out, or total");
+            }
+            break;
+        default:
+            CLApp::HandleArg(opt, opt_arg);
+        }
+    }
+
+    int num_partitions() const
+    {
+        return num_partitions_;
+    }
+
+    const std::string &partition_balance() const
+    {
+        return partition_balance_;
     }
 };
 
