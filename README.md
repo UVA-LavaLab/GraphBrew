@@ -161,8 +161,10 @@ make bfs_p
 edge work (`out` and `vertices` are also available). Every shard owns a
 contiguous global vertex range, stores only its local CSR rows, encodes
 neighbors as owned/ghost-local slots, and records each ghost's global ID and
-owning shard. The CPU prototype retains the source graph for exact verification;
-the device transfer path will consume the shard image directly.
+owning shard. BFS state is partition-local: top-down rounds merge discoveries
+through owner inboxes, while bottom-up rounds synchronize ghost frontier bits.
+The CPU prototype retains the source graph for exact verification; the device
+transfer path will consume the shard image directly.
 ### Parameters Makefile
 All parameters [(section)](#graphbrew-parameters) can be passed through the Make command via:
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.

@@ -1,128 +1,323 @@
 // Copyright (c) 2015, The Regents of the University of California (Regents)
 // See LICENSE.txt for license details
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 #include "benchmark.h"
 #include "bfs_common.h"
-#include "bitmap.h"
 #include "builder.h"
 #include "command_line.h"
 #include "graph_partition.h"
-#include "platform_atomics.h"
 #include "pvector.h"
-#include "sliding_queue.h"
 #include "timer.h"
 
 using PartitionedBFSGraph = PartitionedGraph<NodeID>;
 
-std::int64_t PartitionedBUStep(
-    const PartitionedBFSGraph &graph,
-    pvector<NodeID> &parent,
-    Bitmap &front,
-    Bitmap &next)
+namespace
 {
-    std::int64_t awake_count = 0;
-    next.reset();
-    #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
-    for (NodeID vertex = 0;
-         vertex < graph.num_nodes(); ++vertex)
-    {
-        if (parent[vertex] >= 0)
-            continue;
-        for (NodeID predecessor : graph.in_neigh(vertex))
-        {
-            if (!front.get_bit(predecessor))
-                continue;
-            parent[vertex] = predecessor;
-            ++awake_count;
-            next.set_bit_atomic(vertex);
-            break;
-        }
-    }
-    return awake_count;
+
+constexpr NodeID kNoParent = -1;
+
+NodeID PendingParentSentinel()
+{
+    return std::numeric_limits<NodeID>::max();
 }
 
-std::int64_t PartitionedTDStep(
-    const PartitionedBFSGraph &graph,
-    pvector<NodeID> &parent,
-    SlidingQueue<NodeID> &queue)
+struct PartitionBFSState
 {
-    std::int64_t scout_count = 0;
+    explicit PartitionBFSState(
+        const PartitionedBFSGraph::Partition &partition)
+        : parent(partition.vertex_count(), kNoParent),
+          frontier_slots(
+              partition.vertex_count() + partition.ghost_count(), 0),
+          pending_parent(
+              partition.vertex_count(), PendingParentSentinel())
+    {
+    }
+
+    std::vector<NodeID> parent;
+    std::vector<std::uint8_t> frontier_slots;
+    std::vector<NodeID> pending_parent;
+};
+
+struct OwnedVertex
+{
+    std::size_t partition = 0;
+    std::size_t local = 0;
+};
+
+OwnedVertex LocateOwnedVertex(
+    const PartitionedBFSGraph &graph,
+    NodeID vertex)
+{
+    const std::size_t owner = graph.owner(vertex);
+    return {
+        owner,
+        graph.partition(owner).local_vertex(vertex),
+    };
+}
+
+bool AtomicWriteMin(NodeID &target, NodeID candidate)
+{
+    NodeID current = __atomic_load_n(&target, __ATOMIC_SEQ_CST);
+    while (candidate < current)
+    {
+        const NodeID previous = current;
+        if (__atomic_compare_exchange_n(
+                &target,
+                &current,
+                candidate,
+                false,
+                __ATOMIC_SEQ_CST,
+                __ATOMIC_SEQ_CST))
+        {
+            return previous == PendingParentSentinel();
+        }
+    }
+    return false;
+}
+
+void SyncGhostFrontier(
+    const PartitionedBFSGraph &graph,
+    std::vector<PartitionBFSState> &states)
+{
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (std::int64_t raw_partition = 0;
+         raw_partition <
+             static_cast<std::int64_t>(graph.num_partitions());
+         ++raw_partition)
+    {
+        const std::size_t partition_id =
+            static_cast<std::size_t>(raw_partition);
+        const auto &partition = graph.partition(partition_id);
+        auto &state = states[partition_id];
+        const std::size_t owned = partition.vertex_count();
+        for (std::size_t ghost_index = 0;
+             ghost_index < partition.ghost_count(); ++ghost_index)
+        {
+            const std::uint32_t owner =
+                partition.ghost_owner(ghost_index);
+            const auto &owner_partition = graph.partition(owner);
+            const std::size_t owner_local =
+                owner_partition.local_vertex(
+                    partition.ghost_global(ghost_index));
+            state.frontier_slots[owned + ghost_index] =
+                states[owner].frontier_slots[owner_local];
+        }
+    }
+}
+
+std::vector<NodeID> TopDownRound(
+    const PartitionedBFSGraph &graph,
+    std::vector<PartitionBFSState> &states,
+    const std::vector<NodeID> &frontier)
+{
+    std::vector<NodeID> touched;
     #pragma omp parallel
     {
-        QueueBuffer<NodeID> local_queue(queue);
-        #pragma omp for reduction(+ : scout_count) nowait schedule(dynamic, 64)
-        for (auto queue_it = queue.begin();
-             queue_it < queue.end(); ++queue_it)
+        std::vector<NodeID> local_touched;
+        #pragma omp for schedule(dynamic, 64) nowait
+        for (std::int64_t frontier_index = 0;
+             frontier_index <
+                 static_cast<std::int64_t>(frontier.size());
+             ++frontier_index)
         {
-            const NodeID vertex = *queue_it;
-            for (NodeID neighbor : graph.out_neigh(vertex))
+            const NodeID source =
+                frontier[static_cast<std::size_t>(frontier_index)];
+            const OwnedVertex source_location =
+                LocateOwnedVertex(graph, source);
+            const auto &source_partition =
+                graph.partition(source_location.partition);
+            const auto begin =
+                source_partition.out_offsets[source_location.local];
+            const auto end =
+                source_partition.out_offsets[source_location.local + 1];
+            for (auto edge = begin; edge < end; ++edge)
             {
-                const NodeID current = parent[neighbor];
-                if (
-                    current < 0 &&
-                    compare_and_swap(
-                        parent[neighbor], current, vertex))
+                const NodeID slot =
+                    source_partition.out_neighbors[
+                        static_cast<std::size_t>(edge)];
+                const NodeID destination =
+                    source_partition.global_vertex_from_slot(slot);
+                const std::size_t target_partition =
+                    static_cast<std::size_t>(slot) <
+                            source_partition.vertex_count()
+                        ? source_location.partition
+                        : source_partition.ghost_owner(
+                              static_cast<std::size_t>(slot) -
+                              source_partition.vertex_count());
+                const std::size_t target_local =
+                    graph.partition(target_partition)
+                        .local_vertex(destination);
+                auto &target_state = states[target_partition];
+                if (target_state.parent[target_local] != kNoParent)
+                    continue;
+                if (AtomicWriteMin(
+                        target_state.pending_parent[target_local],
+                        source))
                 {
-                    local_queue.push_back(neighbor);
-                    scout_count += -current;
+                    local_touched.push_back(destination);
                 }
             }
         }
-        local_queue.flush();
+        #pragma omp critical
+        touched.insert(
+            touched.end(),
+            local_touched.begin(),
+            local_touched.end());
     }
-    return scout_count;
+    return touched;
 }
 
-void PartitionedQueueToBitmap(
-    const SlidingQueue<NodeID> &queue,
-    Bitmap &bitmap)
-{
-    bitmap.reset();
-    #pragma omp parallel for
-    for (auto queue_it = queue.begin();
-         queue_it < queue.end(); ++queue_it)
-    {
-        bitmap.set_bit_atomic(*queue_it);
-    }
-}
-
-void PartitionedBitmapToQueue(
+std::vector<NodeID> ApplyTopDownDiscoveries(
     const PartitionedBFSGraph &graph,
-    const Bitmap &bitmap,
-    SlidingQueue<NodeID> &queue)
+    std::vector<PartitionBFSState> &states,
+    const std::vector<NodeID> &touched,
+    std::int64_t &scout_count)
 {
-    #pragma omp parallel
+    std::vector<NodeID> discovered(touched.size());
+    scout_count = 0;
+    #pragma omp parallel for reduction(+ : scout_count)
+    for (std::int64_t index = 0;
+         index < static_cast<std::int64_t>(touched.size());
+         ++index)
     {
-        QueueBuffer<NodeID> local_queue(queue);
-        #pragma omp for nowait
-        for (NodeID vertex = 0;
-             vertex < graph.num_nodes(); ++vertex)
-        {
-            if (bitmap.get_bit(vertex))
-                local_queue.push_back(vertex);
-        }
-        local_queue.flush();
+        const NodeID vertex =
+            touched[static_cast<std::size_t>(index)];
+        const OwnedVertex location =
+            LocateOwnedVertex(graph, vertex);
+        auto &state = states[location.partition];
+        state.parent[location.local] =
+            state.pending_parent[location.local];
+        state.pending_parent[location.local] =
+            PendingParentSentinel();
+        discovered[static_cast<std::size_t>(index)] = vertex;
+        scout_count += graph.out_degree(vertex);
     }
-    queue.slide_window();
+    return discovered;
 }
 
-pvector<NodeID> InitPartitionedParent(
-    const PartitionedBFSGraph &graph)
+std::vector<NodeID> BottomUpRound(
+    const PartitionedBFSGraph &graph,
+    std::vector<PartitionBFSState> &states,
+    std::int64_t &scout_count)
+{
+    std::vector<std::vector<NodeID>> discovered_by_partition(
+        graph.num_partitions());
+    scout_count = 0;
+    #pragma omp parallel for reduction(+ : scout_count) schedule(dynamic, 1)
+    for (std::int64_t raw_partition = 0;
+         raw_partition <
+             static_cast<std::int64_t>(graph.num_partitions());
+         ++raw_partition)
+    {
+        const std::size_t partition_id =
+            static_cast<std::size_t>(raw_partition);
+        const auto &partition = graph.partition(partition_id);
+        auto &state = states[partition_id];
+        auto &local_discovered =
+            discovered_by_partition[partition_id];
+        for (std::size_t local = 0;
+             local < partition.vertex_count(); ++local)
+        {
+            if (state.parent[local] != kNoParent)
+                continue;
+
+            const auto &offsets = partition.incoming_offsets();
+            const auto &neighbors = partition.incoming_neighbors();
+            for (auto edge = offsets[local];
+                 edge < offsets[local + 1]; ++edge)
+            {
+                const NodeID predecessor_slot =
+                    neighbors[static_cast<std::size_t>(edge)];
+                if (
+                    state.frontier_slots[
+                        static_cast<std::size_t>(
+                            predecessor_slot)] == 0)
+                {
+                    continue;
+                }
+                state.parent[local] =
+                    partition.global_vertex_from_slot(
+                        predecessor_slot);
+                const NodeID vertex =
+                    partition.global_vertex(local);
+                local_discovered.push_back(vertex);
+                scout_count += static_cast<std::int64_t>(
+                    partition.out_offsets[local + 1] -
+                    partition.out_offsets[local]);
+                break;
+            }
+        }
+    }
+
+    std::size_t discovered_count = 0;
+    for (const auto &local : discovered_by_partition)
+        discovered_count += local.size();
+    std::vector<NodeID> discovered;
+    discovered.reserve(discovered_count);
+    for (const auto &local : discovered_by_partition)
+        discovered.insert(discovered.end(), local.begin(), local.end());
+    return discovered;
+}
+
+void AdvanceFrontier(
+    const PartitionedBFSGraph &graph,
+    std::vector<PartitionBFSState> &states,
+    const std::vector<NodeID> &current,
+    const std::vector<NodeID> &next)
+{
+    #pragma omp parallel for
+    for (std::int64_t index = 0;
+         index < static_cast<std::int64_t>(current.size());
+         ++index)
+    {
+        const OwnedVertex location = LocateOwnedVertex(
+            graph, current[static_cast<std::size_t>(index)]);
+        states[location.partition]
+            .frontier_slots[location.local] = 0;
+    }
+    #pragma omp parallel for
+    for (std::int64_t index = 0;
+         index < static_cast<std::int64_t>(next.size());
+         ++index)
+    {
+        const OwnedVertex location = LocateOwnedVertex(
+            graph, next[static_cast<std::size_t>(index)]);
+        states[location.partition]
+            .frontier_slots[location.local] = 1;
+    }
+}
+
+pvector<NodeID> GatherParents(
+    const PartitionedBFSGraph &graph,
+    const std::vector<PartitionBFSState> &states)
 {
     pvector<NodeID> parent(graph.num_nodes());
-    #pragma omp parallel for
-    for (NodeID vertex = 0;
-         vertex < graph.num_nodes(); ++vertex)
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (std::int64_t raw_partition = 0;
+         raw_partition <
+             static_cast<std::int64_t>(graph.num_partitions());
+         ++raw_partition)
     {
-        const std::int64_t degree = graph.out_degree(vertex);
-        parent[vertex] =
-            degree == 0 ? -1 : -static_cast<NodeID>(degree);
+        const std::size_t partition_id =
+            static_cast<std::size_t>(raw_partition);
+        const auto &partition = graph.partition(partition_id);
+        const auto &state = states[partition_id];
+        for (std::size_t local = 0;
+             local < partition.vertex_count(); ++local)
+        {
+            parent[partition.global_vertex(local)] =
+                state.parent[local];
+        }
     }
     return parent;
 }
+
+} // namespace
 
 pvector<NodeID> DOBFSPartitioned(
     const PartitionedBFSGraph &graph,
@@ -134,77 +329,71 @@ pvector<NodeID> DOBFSPartitioned(
     if (logging_enabled)
         PrintStep("Source", static_cast<std::int64_t>(source));
 
-    Timer timer;
-    timer.Start();
-    pvector<NodeID> parent = InitPartitionedParent(graph);
-    timer.Stop();
-    if (logging_enabled)
-        PrintStep("p-i", timer.Seconds());
+    std::vector<PartitionBFSState> states;
+    states.reserve(graph.num_partitions());
+    for (const auto &partition : graph.partitions())
+        states.emplace_back(partition);
 
-    parent[source] = source;
-    SlidingQueue<NodeID> queue(graph.num_nodes());
-    queue.push_back(source);
-    queue.slide_window();
-    Bitmap current(graph.num_nodes());
-    current.reset();
-    Bitmap front(graph.num_nodes());
-    front.reset();
+    const OwnedVertex source_location =
+        LocateOwnedVertex(graph, source);
+    states[source_location.partition].parent[source_location.local] =
+        source;
+    states[source_location.partition]
+        .frontier_slots[source_location.local] = 1;
+
+    std::vector<NodeID> frontier{source};
     std::int64_t edges_to_check = graph.num_edges_directed();
     std::int64_t scout_count = graph.out_degree(source);
+    bool bottom_up = false;
+    Timer timer;
 
-    while (!queue.empty())
+    while (!frontier.empty())
     {
-        if (scout_count > edges_to_check / alpha)
+        if (!bottom_up && scout_count > edges_to_check / alpha)
+            bottom_up = true;
+
+        const std::size_t old_awake_count = frontier.size();
+        std::vector<NodeID> next;
+        timer.Start();
+        if (bottom_up)
         {
-            std::int64_t awake_count;
-            std::int64_t old_awake_count;
-            TIME_OP(timer, PartitionedQueueToBitmap(queue, front));
-            if (logging_enabled)
-                PrintStep("p-e", timer.Seconds());
-            awake_count = queue.size();
-            queue.slide_window();
-            do
-            {
-                timer.Start();
-                old_awake_count = awake_count;
-                awake_count = PartitionedBUStep(
-                    graph, parent, front, current);
-                front.swap(current);
-                timer.Stop();
-                if (logging_enabled)
-                    PrintStep("p-bu", timer.Seconds(), awake_count);
-            }
-            while (
-                awake_count >= old_awake_count ||
-                awake_count > graph.num_nodes() / beta);
-            TIME_OP(
-                timer,
-                PartitionedBitmapToQueue(graph, front, queue));
-            if (logging_enabled)
-                PrintStep("p-c", timer.Seconds());
-            scout_count = 1;
+            SyncGhostFrontier(graph, states);
+            next = BottomUpRound(graph, states, scout_count);
         }
         else
         {
-            timer.Start();
-            edges_to_check -= scout_count;
-            scout_count = PartitionedTDStep(graph, parent, queue);
-            queue.slide_window();
-            timer.Stop();
-            if (logging_enabled)
-                PrintStep(
-                    "p-td", timer.Seconds(), queue.size());
+            edges_to_check =
+                std::max<std::int64_t>(
+                    0, edges_to_check - scout_count);
+            const std::vector<NodeID> touched =
+                TopDownRound(graph, states, frontier);
+            next = ApplyTopDownDiscoveries(
+                graph, states, touched, scout_count);
         }
-    }
+        AdvanceFrontier(graph, states, frontier, next);
+        timer.Stop();
 
-    #pragma omp parallel for
-    for (NodeID vertex = 0;
-         vertex < graph.num_nodes(); ++vertex)
-    {
-        if (parent[vertex] < -1)
-            parent[vertex] = -1;
+        if (logging_enabled)
+        {
+            PrintStep(
+                bottom_up ? "p-bsp-bu" : "p-bsp-td",
+                timer.Seconds(),
+                static_cast<std::int64_t>(next.size()));
+        }
+
+        if (
+            bottom_up &&
+            !(next.size() >= old_awake_count ||
+              next.size() >
+                  static_cast<std::size_t>(
+                      graph.num_nodes() / beta)))
+        {
+            bottom_up = false;
+            scout_count = 1;
+        }
+        frontier.swap(next);
     }
-    return parent;
+    return GatherParents(graph, states);
 }
 
 int main(int argc, char *argv[])
