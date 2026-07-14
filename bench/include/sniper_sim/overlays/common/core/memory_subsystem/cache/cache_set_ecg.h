@@ -16,7 +16,7 @@ class CacheSetECG : public CacheSet
             CacheSetInfoLRU* set_info, UInt8 num_attempts, bool is_tlb_set);
       ~CacheSetECG();
 
-      void prepareInsertion(IntPtr addr);
+      void prepareInsertion(IntPtr addr, UInt32 set_index);
       UInt32 getReplacementIndex(CacheCntlr *cntlr) override;
       void updateReplacementIndex(UInt32 accessed_index) override;
       UInt8 getRecencyBits(UInt32 way) const override { return m_rrip_bits[way]; }
@@ -36,7 +36,8 @@ class CacheSetECG : public CacheSet
       // vertices; the kernel records the epoch under the DEMANDED vertex, so scan
       // the line's vertices for a delivered epoch (linemin => all agree).
       bool lookupLineEcgEpochPair(IntPtr line_addr,
-            UInt16& first, UInt16& second, UInt8& count) const;
+            UInt8& tier, UInt16& first, UInt16& second,
+            UInt8& count) const;
 
       const String m_cfgname;
       const core_id_t m_core_id;
@@ -62,6 +63,7 @@ class CacheSetECG : public CacheSet
       bool m_context_load_attempted;
       bool m_has_pending_insert;
       IntPtr m_pending_insert_addr;
+      UInt32 m_set_index;
       UInt64 m_llc_size_bytes;
       std::string m_sideband_path;
       std::string m_popt_matrix_path;

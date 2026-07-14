@@ -820,6 +820,8 @@ struct AccessHints {
     // (sorted ascending) delivered alongside edge_epoch. n=0 => no schedule (inert).
     uint16_t edge_epoch_sched[4] = {0, 0, 0, 0};
     uint8_t  edge_epoch_sched_n = 0;
+    uint8_t  edge_grasp_tier = 0;       // K2-carried 1/2/3 hot/moderate/cold tier
+    bool     edge_grasp_tier_valid = false;
 
     // ECG mask encoding constants (2-bit, from ECG -M flag graphConfig.h)
     static constexpr uint8_t MASK_HOT      = 0x03;  // 11
@@ -1406,6 +1408,7 @@ struct GraphCacheContext {
     // occupies [i*K, i*K+K). Lets a resident line self-advance across epochs (matrix-like)
     // without a reserved way. Built by buildInEdgeMasks_PR when ECG_EDGE_MASK_SCHED set.
     std::vector<std::vector<uint16_t>> in_edge_epoch_sched_by_src;
+    std::vector<std::vector<uint8_t>> in_edge_grasp_tier_by_src;
     uint32_t edge_epoch_sched_k = 0;  // K (0 = disabled / single-epoch legacy path)
 
     // === OUT-edge per-edge masks (dual-direction capability) ===
@@ -1421,6 +1424,7 @@ struct GraphCacheContext {
     std::vector<std::vector<uint64_t>> out_edge_masks_by_src;
     std::vector<std::vector<uint16_t>> out_edge_epoch_by_src;
     std::vector<std::vector<uint16_t>> out_edge_epoch_sched_by_src;
+    std::vector<std::vector<uint8_t>> out_edge_grasp_tier_by_src;
     // IN-adjacency (sorted) used as the next-ref source for OUT-edge epochs —
     // separate from exact_off/exact_nbr (which hold the OUT-adjacency for in-edge
     // masks) so the two directions never clobber each other.
@@ -2298,28 +2302,37 @@ struct GraphCacheContext {
         return parsed > 4 ? 4u : static_cast<uint32_t>(parsed);
     }
 
-    inline uint32_t configuredEdgeEpochCount() const {
+    inline uint32_t configuredEdgeEpochCount(
+            uint32_t fallback = 32u) const {
         const char* value = std::getenv("ECG_EDGE_MASK_EPOCHS");
-        uint32_t count = value ? static_cast<uint32_t>(std::atoi(value)) : 32u;
+        uint32_t count = value
+            ? static_cast<uint32_t>(std::atoi(value)) : fallback;
         if (count < 2) count = 2;
         if (count > 65535) count = 65535;
+        if (configuredEpochScheduleK() == 2)
+            count = ecg_epoch::normalizeK2EpochCount(count);
         return count;
     }
 
     template<typename GraphT>
     void buildK2EpochSchedule(
             const GraphT& g, bool push_out_edges, uint32_t ne, bool linemin,
-            std::vector<std::vector<uint16_t>>& target) {
+            std::vector<std::vector<uint16_t>>& target,
+            std::vector<std::vector<uint8_t>>& tier_target) {
         std::vector<std::vector<ecg_epoch::EpochPair>> pairs;
         ecg_epoch::buildInEdgeEpochPairs(
             g, 16, ne, linemin, pairs, push_out_edges);
         target.assign(pairs.size(), {});
+        tier_target.assign(pairs.size(), {});
         for (size_t src = 0; src < pairs.size(); ++src) {
             auto& row = target[src];
+            auto& tiers = tier_target[src];
             row.resize(pairs[src].size() * 2);
+            tiers.resize(pairs[src].size(), 0);
             for (size_t edge = 0; edge < pairs[src].size(); ++edge) {
                 row[edge * 2] = pairs[src][edge].first;
                 row[edge * 2 + 1] = pairs[src][edge].second;
+                tiers[edge] = pairs[src][edge].tier;
             }
         }
     }
@@ -2335,6 +2348,8 @@ struct GraphCacheContext {
         in_edge_epoch_by_src.resize(n);
         in_edge_epoch_sched_by_src.clear();
         in_edge_epoch_sched_by_src.resize(n);
+        in_edge_grasp_tier_by_src.clear();
+        in_edge_grasp_tier_by_src.resize(n);
         if (n == 0) return;
         uint32_t sched_k = configuredEpochScheduleK();
         if (sched_k == 2 && exact_off.empty())
@@ -2365,7 +2380,8 @@ struct GraphCacheContext {
         // Most effective WITH linemin (multiple vertices/line => multiple distinct
         // future touches of the line). edge_epoch_sched_k records the active K.
         edge_epoch_sched_k = sched_k;
-        edge_epoch_count = configuredEdgeEpochCount();
+        edge_epoch_count = configuredEdgeEpochCount(
+            edge_epoch_count ? edge_epoch_count : 32u);
         // ECG_EDGE_MASK_PACK: enforce the REAL packed4 spare-bit cap — the epoch must fit
         // in the spare high bits of the per-edge record container:
         //   spare = pack_bits - ceil(log2 N), ne_cap = 2^spare.
@@ -2377,7 +2393,7 @@ struct GraphCacheContext {
         // switch under CHARGED=1 (and is free under CHARGED=0 / ISA delivery). For large
         // graphs (e.g. kron-s24, id_bits=24) the 8B record is already required, so the
         // 32-bit cap throws away epoch resolution for NO bandwidth saving.
-        // Schedule-2 uses its own 64-bit dest32+epoch16+epoch16 record, so this
+        // Schedule-2 uses its own 64-bit dest32+tier2+epoch15+epoch15 record, so this
         // legacy 32/64-bit single-epoch cap does not apply to K2.
         if (std::getenv("ECG_EDGE_MASK_PACK") && sched_k != 2) {
             uint32_t pack_bits = 32;
@@ -2571,7 +2587,7 @@ struct GraphCacheContext {
         if (edge_mask_epoch && sched_k == 2) {
             buildK2EpochSchedule(
                 g, false, kNumEpochs5, edge_mask_linemin,
-                in_edge_epoch_sched_by_src);
+                in_edge_epoch_sched_by_src, in_edge_grasp_tier_by_src);
         }
 
         auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -2603,9 +2619,11 @@ struct GraphCacheContext {
         out_edge_masks_by_src.assign(n, {});
         out_edge_epoch_by_src.assign(n, {});
         out_edge_epoch_sched_by_src.assign(n, {});
+        out_edge_grasp_tier_by_src.assign(n, {});
         if (n == 0) return;
         const uint32_t sched_k = configuredEpochScheduleK();
-        if (sched_k == 2) edge_epoch_count = configuredEdgeEpochCount();
+        edge_epoch_count = configuredEdgeEpochCount(
+            edge_epoch_count ? edge_epoch_count : 32u);
         const uint32_t ne = edge_epoch_count ? edge_epoch_count : 32u;
         constexpr int numVtxPerLine = 16;
         const bool linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
@@ -2676,7 +2694,8 @@ struct GraphCacheContext {
         }
         if (sched_k == 2) {
             buildK2EpochSchedule(
-                g, true, ne, linemin, out_edge_epoch_sched_by_src);
+                g, true, ne, linemin, out_edge_epoch_sched_by_src,
+                out_edge_grasp_tier_by_src);
         }
         auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
             Clock::now() - build_start).count();
@@ -2709,9 +2728,11 @@ struct GraphCacheContext {
         in_edge_masks_by_src.assign(n, {});
         in_edge_epoch_by_src.assign(n, {});
         in_edge_epoch_sched_by_src.assign(n, {});
+        in_edge_grasp_tier_by_src.assign(n, {});
         if (n == 0) return;
         const uint32_t sched_k = configuredEpochScheduleK();
-        if (sched_k == 2) edge_epoch_count = configuredEdgeEpochCount();
+        edge_epoch_count = configuredEdgeEpochCount(
+            edge_epoch_count ? edge_epoch_count : 32u);
         const uint32_t ne = edge_epoch_count ? edge_epoch_count : 32u;
         constexpr int numVtxPerLine = 16;
         const bool linemin = std::getenv("ECG_EDGE_MASK_LINEMIN") != nullptr;
@@ -2780,7 +2801,8 @@ struct GraphCacheContext {
         }
         if (sched_k == 2) {
             buildK2EpochSchedule(
-                g, false, ne, linemin, in_edge_epoch_sched_by_src);
+                g, false, ne, linemin, in_edge_epoch_sched_by_src,
+                in_edge_grasp_tier_by_src);
         }
         auto build_us = std::chrono::duration_cast<std::chrono::microseconds>(
             Clock::now() - build_start).count();
@@ -2966,6 +2988,15 @@ struct GraphCacheContext {
             } else {
                 H.edge_epoch_sched_n = 0;
             }
+            const auto& tiers = (dir == EdgeMaskDir::OUT)
+                ? out_edge_grasp_tier_by_src : in_edge_grasp_tier_by_src;
+            if (src < tiers.size() && edge_pos < tiers[src].size()) {
+                H.edge_grasp_tier = tiers[src][edge_pos];
+                H.edge_grasp_tier_valid = H.edge_grasp_tier != 0;
+            } else {
+                H.edge_grasp_tier = 0;
+                H.edge_grasp_tier_valid = false;
+            }
         }
         return masks[src][edge_pos];
     }
@@ -2978,6 +3009,9 @@ struct GraphCacheContext {
         if (!out_edge_masks_by_src.empty() || !in_edge_masks_by_src.empty()) {
             hints_for_thread().edge_epoch = 0;
             hints_for_thread().edge_epoch_valid = false;  // sequential read: NOT a delivery
+            hints_for_thread().edge_epoch_sched_n = 0;
+            hints_for_thread().edge_grasp_tier = 0;
+            hints_for_thread().edge_grasp_tier_valid = false;
         }
     }
 

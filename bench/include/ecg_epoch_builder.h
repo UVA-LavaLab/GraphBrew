@@ -8,37 +8,54 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
+#include <numeric>
 #include <utility>
 #include <vector>
 
 namespace ecg_epoch {
 
+static constexpr uint16_t kK2EpochMask = 0x7FFFu;
+static constexpr uint32_t kK2MaxEpochCount = 1u << 15;
+
 struct EpochPair {
     uint16_t first = 0;
     uint16_t second = 0;
+    uint8_t tier = 0;
     bool valid = false;
 };
 
-// Schedule-2 wire format shared by gem5/Sniper kernels:
-// dest[0:32] | first[32:48] | second[48:64].
-inline uint64_t packEpochPairRecord(uint32_t dest, uint16_t first,
-                                    uint16_t second) {
+// Tiered Schedule-2 wire format shared by cache_sim/gem5/Sniper:
+// dest[0:32] | tier[32:34] | first[34:49] | second[49:64].
+// Tier 1/2/3 means hot/moderate/cold. Tier 0 is reserved for invalid metadata.
+inline uint64_t packEpochPairRecord(uint32_t dest, uint8_t tier,
+                                    uint16_t first, uint16_t second) {
     return static_cast<uint64_t>(dest) |
-           (static_cast<uint64_t>(first) << 32) |
-           (static_cast<uint64_t>(second) << 48);
+           (static_cast<uint64_t>(tier & 0x3u) << 32) |
+           (static_cast<uint64_t>(first & kK2EpochMask) << 34) |
+           (static_cast<uint64_t>(second & kK2EpochMask) << 49);
 }
 
 inline uint32_t extractEpochPairDest(uint64_t record) {
     return static_cast<uint32_t>(record);
 }
 
+inline uint8_t extractEpochPairTier(uint64_t record) {
+    return static_cast<uint8_t>((record >> 32) & 0x3u);
+}
+
 inline uint16_t extractEpochPairFirst(uint64_t record) {
-    return static_cast<uint16_t>((record >> 32) & 0xFFFFu);
+    return static_cast<uint16_t>((record >> 34) & kK2EpochMask);
 }
 
 inline uint16_t extractEpochPairSecond(uint64_t record) {
-    return static_cast<uint16_t>((record >> 48) & 0xFFFFu);
+    return static_cast<uint16_t>((record >> 49) & kK2EpochMask);
+}
+
+inline uint32_t normalizeK2EpochCount(uint32_t count) {
+    if (count < 2) return 2;
+    return std::min(count, kK2MaxEpochCount);
 }
 
 // Demand epoch for vertex u under a deterministic ID-order pull sweep (PR):
@@ -90,6 +107,45 @@ void buildReaderCsr(const GraphT& g, bool push_out_edges,
     off[n] = readers.size();
 }
 
+// Rank vertices by the number of accesses to their property value in the
+// selected kernel direction. Unlike address-region GRASP, this remains valid
+// when the graph is not degree reordered.
+inline std::vector<uint8_t> buildReuseTiers(
+        const std::vector<uint64_t>& off, uint32_t n,
+        double hot_fraction = 0.15) {
+    std::vector<uint8_t> tiers(n, 3);
+    if (n == 0 || off.size() < static_cast<size_t>(n) + 1) return tiers;
+    hot_fraction = std::max(0.0, std::min(0.5, hot_fraction));
+
+    std::vector<uint32_t> order(n);
+    std::iota(order.begin(), order.end(), 0u);
+    std::stable_sort(order.begin(), order.end(),
+        [&](uint32_t left, uint32_t right) {
+            const uint64_t left_count = off[left + 1] - off[left];
+            const uint64_t right_count = off[right + 1] - off[right];
+            if (left_count != right_count) return left_count > right_count;
+            return left < right;
+        });
+
+    size_t hot_count = static_cast<size_t>(hot_fraction * n);
+    if (hot_fraction > 0.0 && hot_count == 0) hot_count = 1;
+    hot_count = std::min(hot_count, static_cast<size_t>(n));
+    const size_t moderate_end =
+        std::min(static_cast<size_t>(n), hot_count * 2);
+    for (size_t rank = 0; rank < order.size(); ++rank) {
+        tiers[order[rank]] = rank < hot_count ? 1
+            : rank < moderate_end ? 2 : 3;
+    }
+    return tiers;
+}
+
+inline double configuredReuseHotFraction() {
+    const char* value = std::getenv("GRASP_HOT_FRACTION");
+    if (!value) return 0.15;
+    const double parsed = std::atof(value);
+    return parsed > 0.0 && parsed <= 0.5 ? parsed : 0.15;
+}
+
 template <typename GraphT>
 void accessedVertices(const GraphT& g, uint32_t src, bool push_out_edges,
                       std::vector<uint32_t>& accessed) {
@@ -106,6 +162,7 @@ void accessedVertices(const GraphT& g, uint32_t src, bool push_out_edges,
 inline EpochPair nextEpochPairForLine(
         const std::vector<uint64_t>& off,
         const std::vector<uint32_t>& readers,
+        const std::vector<uint8_t>& reuse_tiers,
         uint32_t n, uint32_t src, uint32_t dest,
         uint32_t numVtxPerLine, uint32_t ne, bool linemin) {
     EpochPair pair;
@@ -115,6 +172,11 @@ inline EpochPair nextEpochPairForLine(
     const uint32_t v1 = linemin
         ? std::min<uint32_t>(v0 + numVtxPerLine, n)
         : std::min<uint32_t>(dest + 1, n);
+    uint8_t hottest_tier = 3;
+    for (uint32_t w = v0; w < v1; ++w) {
+        if (w < reuse_tiers.size())
+            hottest_tier = std::min(hottest_tier, reuse_tiers[w]);
+    }
 
     uint64_t best_distance[2] = {
         std::numeric_limits<uint64_t>::max(),
@@ -164,6 +226,7 @@ inline EpochPair nextEpochPairForLine(
     pair.second =
         best_distance[1] == std::numeric_limits<uint64_t>::max()
             ? best_epoch[0] : best_epoch[1];
+    pair.tier = hottest_tier;
     pair.valid = true;
     return pair;
 }
@@ -252,12 +315,13 @@ void buildInEdgeEpochPairs(const GraphT& g,
     out.resize(n);
     if (n == 0) return;
     if (numVtxPerLine == 0) numVtxPerLine = 16;
-    if (ne < 2) ne = 2;
-    if (ne > 65535) ne = 65535;
+    ne = normalizeK2EpochCount(ne);
 
     std::vector<uint64_t> off;
     std::vector<uint32_t> readers;
     buildReaderCsr(g, push_out_edges, off, readers);
+    const std::vector<uint8_t> reuse_tiers =
+        buildReuseTiers(off, n, configuredReuseHotFraction());
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic, 128)
@@ -271,7 +335,7 @@ void buildInEdgeEpochPairs(const GraphT& g,
 
         for (size_t edge_pos = 0; edge_pos < accessed.size(); ++edge_pos) {
             pairs[edge_pos] = nextEpochPairForLine(
-                off, readers, n, src, accessed[edge_pos],
+                off, readers, reuse_tiers, n, src, accessed[edge_pos],
                 numVtxPerLine, ne, linemin);
         }
     }
@@ -290,12 +354,13 @@ void buildInEdgeEpochPairRecords(
     records.clear();
     if (n == 0) return;
     if (numVtxPerLine == 0) numVtxPerLine = 16;
-    if (ne < 2) ne = 2;
-    if (ne > 65535) ne = 65535;
+    ne = normalizeK2EpochCount(ne);
 
     std::vector<uint64_t> off;
     std::vector<uint32_t> readers;
     buildReaderCsr(g, push_out_edges, off, readers);
+    const std::vector<uint8_t> reuse_tiers =
+        buildReuseTiers(off, n, configuredReuseHotFraction());
     for (uint32_t src = 0; src < n; ++src) {
         std::vector<uint32_t> accessed;
         accessedVertices(g, src, push_out_edges, accessed);
@@ -312,10 +377,10 @@ void buildInEdgeEpochPairRecords(
         accessedVertices(g, src, push_out_edges, accessed);
         for (size_t edge = 0; edge < accessed.size(); ++edge) {
             const EpochPair pair = nextEpochPairForLine(
-                off, readers, n, src, accessed[edge],
+                off, readers, reuse_tiers, n, src, accessed[edge],
                 numVtxPerLine, ne, linemin);
             records[record_off[src] + edge] = packEpochPairRecord(
-                accessed[edge], pair.first, pair.second);
+                accessed[edge], pair.tier, pair.first, pair.second);
         }
     }
 }

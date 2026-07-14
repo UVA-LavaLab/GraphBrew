@@ -152,8 +152,10 @@ int main(int argc, char* argv[]) {
         GraphCacheContext graph_ctx;
         graph_ctx.initTopology(degrees.data(), graph.num_nodes(),
                                graph.num_edges_directed(), graph.directed());
-        std::vector<uint8_t> property_storage(
-            static_cast<size_t>(graph.num_nodes()) * static_cast<size_t>(property_bytes));
+        pvector<uint8_t> property_storage(
+            static_cast<size_t>(graph.num_nodes()) *
+                static_cast<size_t>(property_bytes),
+            uint8_t(0), cache_sim::GRAPH_SIM_PROPERTY_ALIGNMENT);
         graph_ctx.registerPropertyArray(property_storage.data(), graph.num_nodes(),
                                         static_cast<uint32_t>(property_bytes), llc_size);
 

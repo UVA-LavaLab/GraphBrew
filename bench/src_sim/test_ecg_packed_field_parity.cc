@@ -202,17 +202,21 @@ int main() {
         check("ecgEvictWidthClass(100M) -> wc3", (unsigned)ecgEvictWidthClass(100000000ULL), 3u);
     }
 
-    // (8) Schedule-2 delivery layout shared by gem5 ecg.extract2 and Sniper
-    // SimMagic2: dest[0:32] | epoch1[32:48] | epoch2[48:64].
+    // (8) Tiered Schedule-2 delivery layout shared by gem5 ecg.extract2 and
+    // Sniper SimMagic2:
+    // dest[0:32] | tier[32:34] | epoch1[34:49] | epoch2[49:64].
     {
-        printf("  -- Schedule-2 dest32+epoch16+epoch16 layout --\n");
+        printf("  -- Schedule-2 dest32+tier2+epoch15+epoch15 layout --\n");
         const uint32_t dest = 0x89ABCDEFu;
+        const uint8_t tier = 2;
         const uint16_t first = 0x1234u;
-        const uint16_t second = 0xFEDCu;
+        const uint16_t second = 0x7EDCu;
         const uint64_t record =
-            ecg_epoch::packEpochPairRecord(dest, first, second);
+            ecg_epoch::packEpochPairRecord(dest, tier, first, second);
         check("K2 dest round-trip",
               ecg_epoch::extractEpochPairDest(record), dest);
+        check("K2 tier round-trip",
+              ecg_epoch::extractEpochPairTier(record), tier);
         check("K2 epoch1 round-trip",
               ecg_epoch::extractEpochPairFirst(record), first);
         check("K2 epoch2 round-trip",
@@ -221,10 +225,15 @@ int main() {
         // gem5 RISC-V decoder and both simulator magic handlers.
         check("K2 decoder drift: dest>>0",
               record & 0xFFFFFFFFULL, dest);
-        check("K2 decoder drift: epoch1>>32",
-              (record >> 32) & 0xFFFFULL, first);
-        check("K2 decoder drift: epoch2>>48",
-              (record >> 48) & 0xFFFFULL, second);
+        check("K2 decoder drift: tier>>32",
+              (record >> 32) & 0x3ULL, tier);
+        check("K2 decoder drift: epoch1>>34",
+              (record >> 34) & 0x7FFFULL, first);
+        check("K2 decoder drift: epoch2>>49",
+              (record >> 49) & 0x7FFFULL, second);
+        check("K2 epoch-count clamp",
+              ecg_epoch::normalizeK2EpochCount(65535),
+              ecg_epoch::kK2MaxEpochCount);
     }
 
     printf("  RESULT: %d passed, %d failed\n", g_pass, g_fail);

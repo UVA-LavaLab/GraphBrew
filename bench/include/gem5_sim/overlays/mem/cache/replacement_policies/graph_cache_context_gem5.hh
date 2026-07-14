@@ -241,6 +241,11 @@ inline std::atomic<uint8_t>& decodedEcgEpochCountStorage() {
     return count;
 }
 
+inline void clearDecodedEcgExtractHint() {
+    decodedEcgEpochCountStorage().store(0, std::memory_order_release);
+    decodedEcgHintValidStorage().store(false, std::memory_order_release);
+}
+
 inline void setDecodedEcgExtractHint(uint32_t real_vertex,
                                      uint8_t dbg_hint,
                                      uint8_t popt_hint,
@@ -258,7 +263,12 @@ inline void setDecodedEcgExtractHint(uint32_t real_vertex,
 }
 
 inline void setDecodedEcgExtractHint2(
-        uint32_t real_vertex, uint16_t first, uint16_t second) {
+        uint32_t real_vertex, uint8_t tier,
+        uint16_t first, uint16_t second) {
+    if (tier == 0) {
+        clearDecodedEcgExtractHint();
+        return;
+    }
     static std::atomic<uint64_t> trace_sequence{0};
     static const uint64_t trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
@@ -268,15 +278,17 @@ inline void setDecodedEcgExtractHint2(
         trace_sequence.fetch_add(1, std::memory_order_relaxed);
     if (sequence < trace_limit) {
         std::fprintf(stderr,
-            "[ECG-K2-RECV sim=gem5 seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            "[ECG-K2-RECV sim=gem5 seq=%llu dest=%u tier=%u "
+            "epoch1=%u epoch2=%u]\n",
             (unsigned long long)sequence, real_vertex,
+            static_cast<unsigned>(tier),
             static_cast<unsigned>(first), static_cast<unsigned>(second));
     }
     decodedEcgEpochStorage().store(first, std::memory_order_release);
     decodedEcgEpoch2Storage().store(second, std::memory_order_release);
     decodedEcgEpochCountStorage().store(2, std::memory_order_release);
     decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
-    decodedEcgMetadataStorage().store(0, std::memory_order_release);
+    decodedEcgMetadataStorage().store(tier, std::memory_order_release);
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
 }
 
@@ -304,7 +316,8 @@ inline bool lookupDecodedEcgHint(uint32_t vertex,
 }
 
 inline bool lookupDecodedEcgHint2(
-        uint32_t vertex, uint16_t& first, uint16_t& second, uint8_t& count) {
+        uint32_t vertex, uint8_t& tier,
+        uint16_t& first, uint16_t& second, uint8_t& count) {
     if (!decodedEcgHintValidStorage().load(std::memory_order_acquire))
         return false;
     if (decodedEcgRealVertexStorage().load(std::memory_order_acquire) != vertex)
@@ -312,7 +325,12 @@ inline bool lookupDecodedEcgHint2(
     first = decodedEcgEpochStorage().load(std::memory_order_acquire);
     second = decodedEcgEpoch2Storage().load(std::memory_order_acquire);
     count = decodedEcgEpochCountStorage().load(std::memory_order_acquire);
-    return count > 0;
+    tier = static_cast<uint8_t>(
+        decodedEcgMetadataStorage().load(std::memory_order_acquire) & 0x3u);
+    const bool valid = count > 0;
+    if (valid)
+        clearDecodedEcgExtractHint();
+    return valid;
 }
 
 // === S69PRE-M1-MASK: Per-vertex ECG metadata table ===

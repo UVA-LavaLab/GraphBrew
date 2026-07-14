@@ -4,6 +4,9 @@
 // Single-threaded Brandes BC for gem5. BFS forward + backward accumulation.
 // ============================================================================
 
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <queue>
@@ -61,20 +64,30 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     Gem5EdgeRegion edge_regions[2];
     int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
 
-    // Per-edge next-ref EPOCH budget (mirror gem5 bfs.cc) keyed on depth (int32). BC pushes
-    // along OUT-edges reading depth[dest]; dest's property is next-referenced by its
-    // IN-neighbours -> push_out_edges=true.
+    // Per-edge next-ref epoch budget keyed on depth (int32). BC pushes along
+    // OUT-edges reading depth[dest]; Schedule-2 uses its fixed 8-byte pair
+    // record and bypasses the legacy 32-bit single-epoch cap.
     constexpr int kNumVtxPerLine = 64 / sizeof(int32_t);
+    const int ecg_sched_k =
+        gem5_env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    uint32_t requested_epoch_count = static_cast<uint32_t>(
+        gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS", 65535, 2, 65535));
+    if (ecg_sched_k == 2)
+        requested_epoch_count =
+            ecg_epoch::normalizeK2EpochCount(requested_epoch_count);
     uint8_t edge_id_bits = 1;
     while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
-    uint32_t edge_epoch_count = 2;
-    if (edge_id_bits < 32) {
-        uint32_t spare = 32u - edge_id_bits;
-        uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
-        edge_epoch_count = std::min<uint32_t>(65535u, std::max<uint32_t>(2u, ne_cap));
+    uint32_t edge_epoch_count = requested_epoch_count;
+    if (ecg_sched_k != 2) {
+        if (edge_id_bits < 32) {
+            uint32_t spare = 32u - edge_id_bits;
+            uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
+            edge_epoch_count = std::min<uint32_t>(
+                edge_epoch_count, std::max<uint32_t>(2u, ne_cap));
+        } else {
+            edge_epoch_count = 2;
+        }
     }
-    gem5_export_context(regions, 4, g, GEM5_SIDEBAND_PATH,
-                        edge_regions, num_edge_regions, edge_epoch_count);
 
     // A5: deliver depth[dest]'s next-ref epoch for ECG_GRASP_POPT via the fused ecg.load EVICT
     // (RISC-V); gated on GEM5_ENABLE_ECG_PLOAD. X86 falls back to a plain indexed load (no
@@ -82,15 +95,33 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     // forward BFS; the other BC arrays are read sequentially or are 8-byte (path_counts).
     const bool ecg_extract_on = gem5_ecg_extract_enabled();
     std::vector<std::vector<uint16_t>> out_edge_epochs;
-    if (ecg_extract_on) {
+    if (ecg_extract_on && ecg_sched_k != 2) {
         ecg_epoch::buildInEdgeEpochs(g, static_cast<uint32_t>(kNumVtxPerLine),
                                      edge_epoch_count, /*linemin=*/true,
                                      out_edge_epochs, /*push_out_edges=*/true);
     }
+    std::vector<uint64_t> pair_off;
+    pvector<uint64_t> pair_flat;
+    bool pair_ok = false;
+    if (ecg_extract_on && ecg_sched_k == 2) {
+        std::vector<uint64_t> pair_records;
+        ecg_epoch::buildInEdgeEpochPairRecords(
+            g, static_cast<uint32_t>(kNumVtxPerLine),
+            edge_epoch_count, /*linemin=*/true,
+            pair_off, pair_records, /*push_out_edges=*/true);
+        pair_flat = pvector<uint64_t>(
+            pair_records.size(), uint64_t(0), 4096);
+        std::copy(pair_records.begin(), pair_records.end(), pair_flat.begin());
+        pair_ok = true;
+    }
+    gem5_export_context(regions, 4, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions, edge_epoch_count);
     const bool ecg_load_evict_on = gem5_ecg_pload_enabled() && ecg_extract_on;
     const int  ecg_evict_wc = ecg_mode6::ecgEvictWidthClass(g.num_nodes());
     if (ecg_load_evict_on)
         fprintf(stderr, "[ECG_PLOAD] BC fused ecg.load EVICT delivery (depth) ACTIVE\n");
+    if (pair_ok)
+        fprintf(stderr, "[ECG_PACKED8_K2] BC Schedule-2 packed record path ACTIVE\n");
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -119,24 +150,7 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
             const std::vector<uint16_t>* u_epochs =
                 (ecg_load_evict_on && static_cast<size_t>(u) < out_edge_epochs.size())
                     ? &out_edge_epochs[u] : nullptr;
-            size_t edge_pos = 0;
-            for (NodeID v : g.out_neigh(u)) {
-                // Read depth[v]; on the ecg.load EVICT path the load also stamps depth[v]'s
-                // line with v's epoch (push_out_edges=true transpose), so ECG_GRASP_POPT ranks
-                // depth[] by next-reference.
-                int32_t dv;
-                if (u_epochs) {
-                    uint16_t epoch = (edge_pos < u_epochs->size())
-                        ? (*u_epochs)[edge_pos]
-                        : static_cast<uint16_t>(edge_epoch_count - 1);
-                    uint64_t fat = ecg_mode6::packEvict(static_cast<uint32_t>(v),
-                                                        epoch, ecg_evict_wc);
-                    uint32_t bits = gem5_ecg_load_evict(depth.data(), fat, ecg_evict_wc);
-                    std::memcpy(&dv, &bits, sizeof(int32_t));
-                } else {
-                    dv = depth[v];
-                }
-                ++edge_pos;
+            auto process_neighbor = [&](NodeID v, int32_t dv) {
                 if (dv == -1) {
                     depth[v] = depth[u] + 1;
                     q.push(v);
@@ -144,6 +158,38 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                 }
                 if (dv == depth[u] + 1)
                     path_counts[v] += path_counts[u];
+            };
+            if (pair_ok &&
+                static_cast<size_t>(u + 1) < pair_off.size()) {
+                // The packed K2 record replaces the unweighted CSR edge word.
+                for (uint64_t pos = pair_off[u];
+                     pos < pair_off[u + 1]; ++pos) {
+                    const uint64_t record = pair_flat[pos];
+                    const NodeID v = static_cast<NodeID>(
+                        ecg_epoch::extractEpochPairDest(record));
+                    GEM5_ECG_EXTRACT2(record);
+                    const int32_t dv = depth[v];
+                    GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                    process_neighbor(v, dv);
+                }
+            } else {
+                size_t edge_pos = 0;
+                for (NodeID v : g.out_neigh(u)) {
+                    int32_t dv;
+                    if (u_epochs) {
+                    uint16_t epoch = (edge_pos < u_epochs->size())
+                        ? (*u_epochs)[edge_pos]
+                        : static_cast<uint16_t>(edge_epoch_count - 1);
+                    uint64_t fat = ecg_mode6::packEvict(static_cast<uint32_t>(v),
+                                                        epoch, ecg_evict_wc);
+                    uint32_t bits = gem5_ecg_load_evict(depth.data(), fat, ecg_evict_wc);
+                    std::memcpy(&dv, &bits, sizeof(int32_t));
+                    } else {
+                        dv = depth[v];
+                    }
+                    ++edge_pos;
+                    process_neighbor(v, dv);
+                }
             }
         }
 

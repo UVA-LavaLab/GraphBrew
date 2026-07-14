@@ -1,7 +1,12 @@
 from pathlib import Path
 import argparse
 import importlib.util
+import json
+import os
+import subprocess
 import sys
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,8 +19,7 @@ def read(path: str) -> str:
 def test_streamshield_is_explicit_and_default_off():
     pr = read("bench/src_sim/pr.cc")
     assert 'GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1)' in pr
-    assert "SIM_CACHE_READ_EDGE_BYPASS" in pr
-    assert "SIM_CACHE_READ_STREAM_BYPASS" in pr
+    assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in pr
 
 
 def test_streamshield_preserves_llc_hits_and_suppresses_miss_fill():
@@ -101,12 +105,166 @@ def test_sniper_streamshield_preserves_nuca_lookup_and_skips_miss_fill():
     harness = read("bench/include/sniper_sim/sniper_harness.h")
     assert "sniper_write_binary_atomic" in harness
     assert '"SNIPER_CACHE_LINE_SIZE"' in harness
+    assert '"SNIPER_PROPERTY_ALIGNMENT", 4096' in harness
     assert "property_alignment()" in harness
     assert "stream_bypass_base -= stream_bypass_base % line_size" in harness
     assert "const uint64_t aligned_upper = raw_upper + padding" in harness
     assert "std::remove(k2_offsets_path.c_str())" in harness
     sniper = read("bench/src_sniper/sg_kernel.cc")
     assert "context/K2 sideband export failed" in sniper
+    assert "const bool stream_bypass_on" in sniper
+    assert "stream_bypass_on" in sniper.split(
+        "sniper_export_context(", 1)[1].split("))", 1)[0]
+
+
+def test_sniper_governed_properties_use_page_alignment():
+    expected = {
+        "bench/src_sniper/sg_kernel.cc": [
+            "pvector<ScoreT> scores(graph.num_nodes(), init_score, kPropAlign)",
+            "pvector<ScoreT> contrib(graph.num_nodes(), 0.0f, kPropAlign)",
+            "pvector<NodeID> parent(graph.num_nodes(), -1, kPropAlign)",
+            "pvector<WeightT> dist(graph.num_nodes(), kDistInf, kPropAlign)",
+            "pvector<ScoreT> scores(graph.num_nodes(), ScoreT(0), kPropAlign)",
+            "pvector<int32_t> depth(graph.num_nodes(), int32_t(-1), kPropAlign)",
+            "pvector<int64_t> path_counts(",
+            "pvector<ScoreT> deltas(graph.num_nodes(), ScoreT(0), kPropAlign)",
+            "pvector<NodeID> comp(graph.num_nodes(), NodeID(0), kPropAlign)",
+        ],
+        "bench/src_sniper/pr.cc": [
+            "pvector<ScoreT> scores(g.num_nodes(), init_score, kPropAlign)",
+            "pvector<ScoreT> outgoing_contrib(",
+        ],
+        "bench/src_sniper/bfs.cc": ["graphbrew_sniper::property_alignment()"],
+        "bench/src_sniper/sssp.cc": ["graphbrew_sniper::property_alignment()"],
+        "bench/src_sniper/bc.cc": ["graphbrew_sniper::property_alignment()"],
+        "bench/src_sniper/cc.cc": ["graphbrew_sniper::property_alignment()"],
+        "bench/src_sniper/cc_sv.cc": ["graphbrew_sniper::property_alignment()"],
+        "bench/src_sniper/pr_kernel_smoke.cc": [
+            "alignas(4096) ScoreT scores",
+            "alignas(4096) ScoreT contrib",
+        ],
+        "bench/src_sniper/bfs_kernel_smoke.cc": ["alignas(4096) int parent"],
+        "bench/src_sniper/sssp_kernel_smoke.cc": ["alignas(4096) int dist"],
+    }
+    for path, needles in expected.items():
+        source = read(path)
+        for needle in needles:
+            assert needle in source, (
+                f"{path} is missing aligned property allocation: {needle}")
+
+
+def test_sniper_exported_property_bases_are_page_aligned(tmp_path):
+    binary = ROOT / "bench/bin_sniper/sg_kernel"
+    graph = ROOT / "results/graphs/email-Eu-core/email-Eu-core.sg"
+    if not binary.exists() or not graph.exists():
+        pytest.skip("built Sniper sg_kernel and email-Eu-core graph are required")
+
+    for benchmark in ("pr", "bfs", "sssp", "bc", "cc"):
+        context = tmp_path / f"{benchmark}.json"
+        env = os.environ.copy()
+        env.update({
+            "OMP_NUM_THREADS": "1",
+            "SNIPER_GRAPHBREW_CTX": str(context),
+            "SNIPER_POPT_MATRIX": str(tmp_path / f"{benchmark}.matrix"),
+            "SNIPER_GRAPHBREW_IN_EDGES": str(tmp_path / f"{benchmark}.in"),
+            "SNIPER_GRAPHBREW_OUT_EDGES": str(tmp_path / f"{benchmark}.out"),
+        })
+        command = [
+            str(binary), "-f", str(graph), "-o", "0", "-n", "1",
+            "--benchmark", benchmark,
+        ]
+        if benchmark in ("pr", "bc"):
+            command += ["-i", "1"]
+        elif benchmark == "sssp":
+            command += ["-d", "1"]
+        subprocess.run(
+            command, cwd=ROOT, env=env, check=True, timeout=60,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        payload = json.loads(context.read_text())
+        regions = payload["property_regions"]
+        assert regions
+        assert all(int(region["base"]) % 4096 == 0 for region in regions)
+
+
+def test_k2_result_rows_report_effective_epoch_count():
+    path = ROOT / "scripts/experiments/ecg/roi_matrix.py"
+    spec = importlib.util.spec_from_file_location("roi_matrix_epochs", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    assert module.effective_ecg_epoch_count(65535, 0) == 65535
+    assert module.effective_ecg_epoch_count(65535, 2) == 32768
+    assert module.effective_ecg_epoch_count(1, 2) == 2
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    assert '"ecg_epochs_requested": args.ecg_epochs' in runner
+    assert '"ecg_epochs_effective": effective_ecg_epochs' in runner
+
+
+def test_k2_transport_supports_full_algorithm_suite():
+    path = ROOT / "scripts/experiments/ecg/roi_matrix.py"
+    spec = importlib.util.spec_from_file_location("roi_matrix_all_k2", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    k2 = module.parse_policy_spec("ECG:K2")
+    expected_variants = {
+        "pr": "epoch_first",
+        "bfs": "degree_first",
+        "sssp": "degree_first",
+        "bc": "rrip_first",
+        "cc": "rrip_first",
+    }
+    for benchmark, variant in expected_variants.items():
+        args = argparse.Namespace(benchmark=benchmark)
+        transport = module.ecg_transport_for(k2, benchmark)
+        assert transport.schedule_k == 2
+        assert module.effective_ecg_variant(args, 2, k2) == variant
+
+    for kernel in ("sssp", "bc", "cc"):
+        gem5 = read(f"bench/src_gem5/{kernel}.cc")
+        assert "buildInEdgeEpochPairRecords" in gem5
+        assert "GEM5_ECG_EXTRACT2" in gem5
+
+    sniper = read("bench/src_sniper/sg_kernel.cc")
+    for start, end in (
+        ("int run_sssp(", "void cc_link("),
+        ("int run_bc(", "int run_cc("),
+        ("int run_cc(", "}  // namespace"),
+    ):
+        block = sniper.split(start, 1)[1].split(end, 1)[0]
+        assert "buildInEdgeEpochPairRecords" in block
+        assert "SNIPER_ECG_EXTRACT2" in block
+        assert "SNIPER_ECG_CLEAR_EXTRACT2" in block
+
+    sniper_context = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "graph_cache_context_sniper.cc")
+    sniper_harness = read("bench/include/sniper_sim/sniper_harness.h")
+    assert "clearEcgEpochPair" in sniper_context
+    assert "if (tier == 0)" in sniper_context
+    assert "SNIPER_ECG_CLEAR_EXTRACT2" in sniper_harness
+    for kernel in ("sssp", "bc", "cc"):
+        standalone = read(f"bench/src_sniper/{kernel}.cc")
+        assert "buildInEdgeEpochPairRecords" in standalone
+        assert "SNIPER_ECG_EXTRACT2" in standalone
+        assert "SNIPER_ECG_CLEAR_EXTRACT2" in standalone
+
+    cache_sssp = read("bench/src_sim/sssp.cc")
+    cache_bc = read("bench/src_sim/bc.cc")
+    cache_cc = read("bench/src_sim/cc.cc")
+    assert "SIM_CACHE_READ_EDGE_RECORD" in cache_sssp
+    assert "SIM_CACHE_READ_EDGE_RECORD" in cache_bc
+    assert "buildOutEdgeMasks(g)" in cache_cc
+    assert "resolveEdgeMaskAndEpoch(" in cache_cc
+
+    verifier = read("scripts/experiments/ecg/verify/equiv_kernels.py")
+    assert '"sssp": ["cache_sim", "gem5", "sniper"]' in verifier
+    assert "--schedule-k 2 currently supports --kernels pr bfs" not in verifier
 
 
 def test_sniper_dry_run_migration_updates_virtual_text(tmp_path):
@@ -237,9 +395,26 @@ def test_streamshield_setup_migrates_and_rebuilds():
 
 def test_schedule_bits_are_charged_in_record_width():
     pr = read("bench/src_sim/pr.cc")
-    assert 'GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4)' in pr
-    assert "epoch_bits * std::max(1, sched_k)" in pr
-    assert "static_cast<uint64_t>(edge_pos) * 16" in pr
+    graph_sim = read("bench/include/cache_sim/graph_sim.h")
+    assert 'GraphSimEnvIntClamped(\n        "ECG_EDGE_MASK_SCHED", 0, 0, 4)' in graph_sim
+    assert "if (schedule_k == 2) return 8;" in graph_sim
+    assert "epoch_bits * std::max(1, schedule_k)" in graph_sim
+    assert 'std::getenv("ECG_BFS_EDGE_MASKS")' in graph_sim
+    assert 'GetEnvPolicy("CACHE_L3_POLICY", policy)' in graph_sim
+    assert "SIM_CACHE_READ_EDGE_RECORD" in graph_sim
+    assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in graph_sim
+    assert "1 <= tier <= 3" in read("scripts/experiments/ecg/roi_matrix.py")
+    assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in pr
+    assert "reinterpret_cast<uint64_t>(src_masks.data())" not in pr
+    assert "SIM_CACHE_READ_STREAM_BYPASS" not in pr
+    cache_sim = read("bench/include/cache_sim/cache_sim.h")
+    assert "current_src != UINT32_MAX" in cache_sim
+    assert "GRAPH_SIM_IN_RECORD_BASE" in graph_sim
+    assert "GRAPH_SIM_OUT_RECORD_BASE" in graph_sim
+    assert "_edge_index * static_cast<uint64_t>(record_bytes)" in graph_sim
+    assert "_record_addr + 8ULL" in graph_sim
+    bfs = read("bench/src_sim/bfs.cc")
+    assert "SIM_CACHE_READ(cache, front.data(), (size_t)v / 64)" in bfs
 
 
 def test_adaptive_variant_selects_by_kernel(monkeypatch):

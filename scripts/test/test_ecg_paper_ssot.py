@@ -45,27 +45,33 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
     k2 = module.parse_policy_spec("ECG:K2")
     assert k2.label == "ECG_K2"
     assert k2.ecg_mode == "ECG_GRASP_POPT"
-    assert module.ecg_transport_for(
-        k2, "pr") == module.EcgTransport(2, False, False)
-    with pytest.raises(RuntimeError):
-        module.ecg_transport_for(k2, "cc")
-    with pytest.raises(RuntimeError):
-        module.ecg_transport_for(k2, "sssp")
-    with pytest.raises(RuntimeError):
-        module.ecg_transport_for(k2, "bc")
+    for benchmark in ("pr", "bfs", "sssp", "bc", "cc"):
+        assert module.ecg_transport_for(
+            k2, benchmark) == module.EcgTransport(
+                2, False, False, False, True)
 
     streamshield = module.parse_policy_spec("ECG:K2_STREAMSHIELD")
     assert streamshield.label == "ECG_K2_STREAMSHIELD"
     assert module.ecg_transport_for(
-        streamshield, "pr") == module.EcgTransport(2, True, False)
+        streamshield, "pr") == module.EcgTransport(2, True, False, False, True)
     with pytest.raises(RuntimeError):
         module.ecg_transport_for(streamshield, "bfs")
     k1 = module.parse_policy_spec("ECG:K1")
     k1_ss = module.parse_policy_spec("ECG:K1_STREAMSHIELD")
     assert module.ecg_transport_for(
-        k1, "pr") == module.EcgTransport(0, False, False)
+        k1, "pr") == module.EcgTransport(0, False, False, False, True)
     assert module.ecg_transport_for(
-        k1_ss, "pr") == module.EcgTransport(0, True, False)
+        k1_ss, "pr") == module.EcgTransport(0, True, False, False, True)
+    k1_bfs_env = {}
+    module.apply_ecg_transport_env(
+        k1_bfs_env, module.ecg_transport_for(k1, "bfs"))
+    assert k1_bfs_env["ECG_EDGE_MASKS"] == "1"
+    assert "ECG_EDGE_MASK_SCHED" not in k1_bfs_env
+    online = module.parse_policy_spec("ECG:K2_ONLINE")
+    assert online.label == "ECG_K2_ONLINE"
+    online_transport = module.ecg_transport_for(online, "pr")
+    assert online_transport == module.EcgTransport(
+        2, False, False, True, True)
     monkeypatch.setenv("ECG_VARIANT", "grasp_only")
     assert module.effective_ecg_variant(
         argparse.Namespace(benchmark="pr"), 2, k2) == "epoch_first"
@@ -75,6 +81,9 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
         paper_env, module.ecg_transport_for(k2, "pr"))
     assert "ECG_K2_DELIVERY_TRACE" not in paper_env
     assert paper_env["ECG_EDGE_MASKS"] == "1"
+    online_env = {}
+    module.apply_ecg_transport_env(online_env, online_transport)
+    assert online_env["ECG_SET_DUELING"] == "1"
 
     baseline_env = {
         "ECG_EDGE_MASK_SCHED": "2",
@@ -133,6 +142,10 @@ def test_streamshield_manifest_is_complete():
         (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
     assert "streamshield_sniper_realgraph" in manifest["profiles"]
     assert "ecg_cache_sim_factorial" in manifest["profiles"]
+    assert "ecg_replacement_baseline" in manifest["profiles"]
+    assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
+    assert "ecg_preliminary_5alg_stride" in manifest["profiles"]
+    assert "ecg_online_dueling" in manifest["profiles"]
     assert "gem5_streamshield_mechanism" in manifest["profiles"]
     assert "sniper_streamshield_mechanism" in manifest["profiles"]
     stage = next(
@@ -140,13 +153,14 @@ def test_streamshield_manifest_is_complete():
         if stage["name"] == "40_sniper_streamshield_realgraph")
     assert stage["policies"] == [
         "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_STREAMSHIELD",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD",
     ]
     assert stage["prefetcher"] == "STRIDE"
     assert stage["popt_reserve_model"] == "size_correct"
     graph = manifest["graph_sets"]["web_google_streamshield"][0]
     assert graph["structure_prefetch_degree"] == 8
-    assert stage["sniper_roi_icount"] == 100000000
+    assert "sniper_roi_icount" not in stage
     assert stage["sniper_workload"] == "sg_kernel"
     assert stage["sniper_frontend"] == "sift"
     assert stage["require_sniper_aslr_disable"] is True
@@ -155,10 +169,59 @@ def test_streamshield_manifest_is_complete():
         stage for stage in manifest["stages"]
         if stage["name"] == "20_cache_sim_streamshield_factorial")
     assert factorial["policies"] == [
-        "LRU", "SRRIP", "GRASP", "POPT",
+        "LRU", "SRRIP", "GRASP", "POPT:UNCHARGED", "POPT",
         "ECG:K1", "ECG:K1_STREAMSHIELD",
         "ECG:K2", "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE", "ECG:K2_ONLINE_STREAMSHIELD",
     ]
+    replacement = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "19_cache_sim_replacement_baseline")
+    assert replacement["benchmarks"] == ["pr", "bfs", "sssp", "bc", "cc"]
+    all_kernel_options = manifest["benchmark_options"]["file_all_kernels_dbg"]
+    assert set(all_kernel_options) == {"pr", "bfs", "sssp", "bc", "cc"}
+    assert replacement["prefetcher"] == "none"
+    assert replacement["ecg_charged"] == 0
+    assert manifest["defaults"]["ecg_epoch_pack_bits"] == 64
+    assert manifest["defaults"]["require_cache_sim_aslr_disable"] is True
+    assert replacement["policies"][-1] == "ECG:K2_ONLINE"
+    preliminary = [
+        stage for stage in manifest["stages"]
+        if stage["name"] in {
+            "10_cache_sim_preliminary_5alg",
+            "11_gem5_preliminary_5alg",
+            "12_sniper_preliminary_5alg",
+        }
+    ]
+    assert len(preliminary) == 3
+    for stage in preliminary:
+        assert stage["benchmarks"] == ["pr", "bfs", "sssp", "bc", "cc"]
+        assert stage["policies"] == [
+            "LRU", "SRRIP", "GRASP", "POPT",
+            "ECG:K2", "ECG:K2_ONLINE",
+        ]
+        assert stage["graph_set"] == "synthetic_kron15_all"
+        assert stage["prefetcher"] == "none"
+        assert stage["ecg_charged"] == 1
+    stride_preliminary = [
+        stage for stage in manifest["stages"]
+        if stage["name"] in {
+            "13_cache_sim_preliminary_5alg_stride",
+            "14_gem5_preliminary_5alg_stride",
+            "15_sniper_preliminary_5alg_stride",
+        }
+    ]
+    assert len(stride_preliminary) == 3
+    for stage in stride_preliminary:
+        assert stage["benchmarks"] == ["pr", "bfs", "sssp", "bc", "cc"]
+        assert stage["policies"] == [
+            "LRU", "SRRIP", "GRASP", "POPT",
+            "ECG:K2", "ECG:K2_ONLINE",
+        ]
+        assert stage["graph_set"] == "synthetic_kron15_all_stride"
+        assert stage["prefetcher"] == "STRIDE"
+    stride_graph = manifest["graph_sets"]["synthetic_kron15_all_stride"][0]
+    assert stride_graph["structure_prefetch_degree"] == 8
     gem5_mechanism = next(
         stage for stage in manifest["stages"]
         if stage["name"] == "30_gem5_streamshield_mechanism")
@@ -167,6 +230,7 @@ def test_streamshield_manifest_is_complete():
         stage for stage in manifest["stages"]
         if stage["name"] == "31_sniper_streamshield_mechanism")
     assert sniper_mechanism["sniper_workload"] == "sg_kernel"
+    assert sniper_mechanism["sniper_require_fused_receipts"] is True
 
 
 def test_sniper_sg_kernel_supports_synthetic_profiles():
@@ -203,7 +267,29 @@ def test_k2_cache_sim_paths_do_not_build_popt_matrix():
         source = (ROOT / relative).read_text()
         assert "GraphSimMatrixFreeK2" in source, relative
     bfs = (ROOT / "bench/src_sim/bfs.cc").read_text()
-    assert bfs.count("SIM_CACHE_READ_EDGE_K2") == 2
+    assert bfs.count("SIM_CACHE_READ_EDGE_RECORD") == 2
+    assert bfs.count("GraphSimEcgRecordBytes") == 2
+    assert bfs.index("cache.resetStats();") < bfs.index(
+        "SlidingQueue<NodeID> queue")
+    pr = (ROOT / "bench/src_sim/pr.cc").read_text()
+    assert pr.index("cache.resetStats();") < pr.index(
+        "for (int iter = 0; iter < max_iters; iter++)")
+    assert "Identical post-metadata warm replay" in pr
+    assert "volatile ScoreT* warm_scores" in (
+        ROOT / "bench/src_gem5/pr.cc").read_text()
+    assert "volatile ScoreT* warm_scores" in (
+        ROOT / "bench/src_sniper/sg_kernel.cc").read_text()
+    for relative in (
+        "bench/src_sim/pr.cc",
+        "bench/src_sim/pr_spmv.cc",
+        "bench/src_sim/bfs.cc",
+        "bench/src_sim/bc.cc",
+        "bench/src_sim/cc.cc",
+        "bench/src_sim/cc_sv.cc",
+        "bench/src_sim/sssp.cc",
+    ):
+        assert "GRAPH_SIM_PROPERTY_ALIGNMENT" in (
+            ROOT / relative).read_text(), relative
 
 
 def test_streamshield_profile_and_slurm_shards(tmp_path):
@@ -224,10 +310,11 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
     assert listed.returncode == 0, listed.stdout + listed.stderr
     for policy in (
         "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_STREAMSHIELD",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD",
     ):
         assert policy in listed.stdout
-    assert "--sniper-roi-icount 100000000" in listed.stdout
+    assert "--sniper-roi-icount" not in listed.stdout
     assert "--structure-prefetch-degree 8" in listed.stdout
     assert "--popt-reserve-model size_correct" in listed.stdout
     assert "--require-sniper-aslr-disable" in listed.stdout
@@ -249,10 +336,11 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
     )
     assert generated.returncode == 0, generated.stdout + generated.stderr
     rows = [line.split("\t") for line in shards.read_text().splitlines()]
-    assert len(rows) == 6
+    assert len(rows) == 8
     assert [row[4] for row in rows] == [
         "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_STREAMSHIELD",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD",
     ]
     sbatch = (
         ROOT / "scripts/experiments/ecg/slurm/slurm_final_shard.sbatch"
@@ -265,6 +353,8 @@ def test_paper_pipeline_uses_canonical_runner():
         ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py"
     ).read_text()
     assert 'ECG_DIR / "flows" / "paper_run.py"' in pipeline
+    assert "(relative_summary if relative else summary)[:24]" not in pipeline
+    assert "stale.unlink()" in pipeline
     assert (
         ROOT / "scripts/experiments/ecg/flows/paper_run.py"
     ).is_file()
@@ -272,6 +362,11 @@ def test_paper_pipeline_uses_canonical_runner():
         ROOT / "scripts/experiments/ecg/flows/paper_run.py"
     ).read_text()
     assert "GRAPHBREW_EXPLICIT_CELL_ENV" in runner
+    roi_matrix = (
+        ROOT / "scripts/experiments/ecg/roi_matrix.py"
+    ).read_text()
+    assert 'cmd.insert(cmd.index("--roi") + 1, "--no-cache-warming")' in roi_matrix
+    assert "args.sniper_require_fused_receipts" in roi_matrix
     for removed_wrapper in (
         "final_paper_run.py",
         "paper_pipeline.py",
@@ -404,6 +499,201 @@ def test_sharded_policies_share_comparison_scope():
     assert len(relative) == 2
     k2 = next(row for row in relative if row["policy_label"] == "ECG_K2")
     assert k2["speedup_vs_lru"] == 1.25
+
+
+def test_online_dueling_regret_uses_best_static_k2_arm():
+    module = load_module(
+        "paper_pipeline_online_regret",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    policies = [
+        "POPT_UNCHARGED", "POPT",
+        "ECG_K2_GRASP", "ECG_K2_EPOCH", "ECG_K2_RRIP",
+        "ECG_K2_DEGREE", "ECG_K2_LRU", "ECG_K2_ONLINE",
+    ]
+    common = {
+        "status": "ok",
+        "final_output_status": "ok",
+        "final_shard_group": "run",
+        "final_matrix_id": "web_bfs",
+        "final_matrix_config_hash": "same",
+        "simulator": "cache_sim",
+        "benchmark": "bfs",
+        "prefetcher": "none",
+        "l3_size": "2MB",
+        "threads": "1",
+        "section": "0",
+        "total_accesses": 1000,
+        "l3_exercised": 1,
+        "final_expected_policy_labels": json.dumps(policies),
+    }
+    misses = {
+        "POPT_UNCHARGED": 90,
+        "POPT": 70,
+        "ECG_K2_GRASP": 100,
+        "ECG_K2_EPOCH": 120,
+        "ECG_K2_RRIP": 95,
+        "ECG_K2_DEGREE": 80,
+        "ECG_K2_LRU": 130,
+        "ECG_K2_ONLINE": 84,
+    }
+    rows = [
+        {
+            **common,
+            "policy_label": policy,
+            "l3_misses": value,
+            "l3_prop_misses": value - 10,
+            **({
+                "popt_charged_l3_misses_plus_matrix_stream": 140
+            } if policy == "POPT" else {}),
+        }
+        for policy, value in misses.items()
+    ]
+    regret = module.online_dueling_regret(rows)
+    assert len(regret) == 1
+    assert regret[0]["best_static_policy"] == "ECG_K2_DEGREE"
+    assert regret[0]["online_regret_pct"] == 5.0
+    assert regret[0]["online_delta_vs_popt_uncharged_pct"] == pytest.approx(
+        -6.6666666667)
+    assert regret[0]["online_delta_vs_popt_pct"] == -40.0
+
+    mismatched = [dict(row) for row in rows]
+    mismatched[-1]["total_accesses"] = 1001
+    with pytest.raises(RuntimeError, match="changes the demand stream"):
+        module.online_dueling_regret(mismatched)
+
+
+def test_preliminary_policy_ranks_use_overhead_aware_misses():
+    module = load_module(
+        "paper_pipeline_preliminary_ranks",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    policies = ["LRU", "SRRIP", "GRASP", "POPT", "ECG_K2", "ECG_K2_ONLINE"]
+    common = {
+        "status": "ok",
+        "final_output_status": "ok",
+        "final_shard_group": "prelim",
+        "final_matrix_id": "10_cache_sim_preliminary_5alg_kron_bfs",
+        "final_matrix_config_hash": "same",
+        "simulator": "cache_sim",
+        "benchmark": "bfs",
+        "prefetcher": "none",
+        "l3_size": "128kB",
+        "threads": "1",
+        "section": "0",
+        "l3_exercised": 1,
+        "total_accesses": 1000,
+        "final_expected_policy_labels": json.dumps(policies),
+    }
+    misses = {
+        "LRU": 100,
+        "SRRIP": 90,
+        "GRASP": 70,
+        "POPT": 60,
+        "ECG_K2": 65,
+        "ECG_K2_ONLINE": 68,
+    }
+    rows = [
+        {
+            **common,
+            "policy_label": policy,
+            "l3_misses": value,
+            **({"l3_misses_with_overhead": 80} if policy == "POPT" else {}),
+        }
+        for policy, value in misses.items()
+    ]
+    ranked = module.preliminary_policy_ranks(rows)
+    assert len(ranked) == 6
+    k2 = next(row for row in ranked if row["policy_label"] == "ECG_K2")
+    assert k2["best_policy"] == "ECG_K2"
+    assert k2["rank_within_simulator"] == 1
+    assert k2["effective_miss_reduction_vs_popt_pct"] == pytest.approx(18.75)
+    assert k2["record_transport_model"] == "fused_wide_record"
+    stride_rows = [
+        {**row, "prefetcher": "STRIDE",
+         "final_matrix_id":
+             "13_cache_sim_preliminary_5alg_stride_kron_bfs",
+         "final_matrix_config_hash": "stride"}
+        for row in rows
+    ]
+    assert len(module.preliminary_policy_ranks(rows + stride_rows)) == 6
+
+
+def test_unvalidated_fused_k2_timing_is_not_speedup_valid():
+    runner = (
+        ROOT / "scripts/experiments/ecg/roi_matrix.py"
+    ).read_text()
+    assert "if fused_k2 and (fused_count == 0 or fused_bad != 0)" in runner
+    assert "Fused K2 timing is not comparable with LRU" in runner
+
+
+def test_preliminary_stride_sensitivity_separates_demand_and_traffic():
+    module = load_module(
+        "paper_pipeline_stride_sensitivity",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    policies = ["LRU", "SRRIP", "GRASP", "POPT", "ECG_K2", "ECG_K2_ONLINE"]
+    rows = []
+    for prefetcher, miss_scale, traffic_scale, matrix in (
+        ("none", 1.0, 1.0, "base"),
+        ("STRIDE", 0.25, 1.5, "stride"),
+    ):
+        for index, policy in enumerate(policies):
+            rows.append({
+                "status": "ok",
+                "final_output_status": "ok",
+                "final_shard_group": matrix,
+                "final_matrix_id":
+                    f"{matrix}_cache_sim_preliminary_5alg_kron_pr",
+                "final_matrix_config_hash": matrix,
+                "final_comparison_config_hash": "same-comparison",
+                "final_graph": "kron",
+                "simulator": "cache_sim",
+                "benchmark": "pr",
+                "prefetcher": prefetcher,
+                "l3_size": "128kB",
+                "threads": "1",
+                "section": "0",
+                "policy_label": policy,
+                "l3_misses_with_overhead": (100 + index) * miss_scale,
+                "total_memory_traffic_with_overhead":
+                    (100 + index) * traffic_scale,
+                "timing_valid_for_speedup": "0",
+                "final_expected_policy_labels": json.dumps(policies),
+            })
+    sensitivity = module.preliminary_stride_sensitivity(rows)
+    k2 = next(row for row in sensitivity if row["policy_label"] == "ECG_K2")
+    assert k2["demand_miss_reduction_pct"] == 75.0
+    assert k2["traffic_change_pct"] == 50.0
+    assert k2["traffic_unit"] == "memory_transactions"
+    duplicate = [dict(row) for row in rows]
+    duplicate.append(dict(rows[0]))
+    with pytest.raises(RuntimeError, match="duplicate inputs"):
+        module.preliminary_stride_sensitivity(duplicate)
+    mismatched = [dict(row) for row in rows]
+    for row in mismatched:
+        if row["prefetcher"] == "STRIDE":
+            row["final_comparison_config_hash"] = "stale-comparison"
+    with pytest.raises(RuntimeError, match="comparison hash mismatch"):
+        module.preliminary_stride_sensitivity(mismatched)
+
+
+def test_l3_pressure_requires_positive_activity():
+    module = load_module(
+        "roi_matrix_l3_pressure",
+        ROOT / "scripts/experiments/ecg/roi_matrix.py",
+    )
+    assert module.annotate_l3_pressure(
+        {"status": "ok"})["l3_exercised"] is False
+    assert module.annotate_l3_pressure({
+        "status": "ok", "l3_accesses": 0, "l3_misses": 0,
+    })["l3_exercised"] is False
+    assert module.annotate_l3_pressure({
+        "status": "ok", "l3_accesses": 10, "l3_misses": 5,
+    })["l3_exercised"] is True
+    assert module.annotate_l3_pressure({
+        "status": "ok", "l3_accesses": 10, "l3_misses": 10,
+    })["l3_exercised"] is False
 
 
 def test_missing_policy_shards_produce_no_relative_rows():
@@ -552,6 +842,94 @@ def test_fallback_matrix_must_match_resolved_job_hash(tmp_path):
     roi, proof = module.collect_csvs([tmp_path], [])
     assert roi == []
     assert proof == []
+
+
+def test_fallback_matrix_recovers_legacy_comparison_hash(tmp_path):
+    runner = load_module(
+        "paper_run_legacy_comparison",
+        ROOT / "scripts/experiments/ecg/flows/paper_run.py",
+    )
+    pipeline = load_module(
+        "paper_pipeline_legacy_comparison",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    matrix_dir = tmp_path / "matrices" / "stage" / "graph" / "pr"
+    matrix_dir.mkdir(parents=True)
+    matrix = matrix_dir / "roi_matrix.csv"
+    with matrix.open("w", newline="") as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=["status", "policy_label"])
+        writer.writeheader()
+        writer.writerow({"status": "ok", "policy_label": "LRU"})
+    command = [
+        sys.executable, "roi_matrix.py",
+        "--policies", "LRU",
+        "--prefetcher", "none",
+        "--structure-prefetch-degree", "0",
+        "--out-dir", str(matrix_dir),
+    ]
+    material_env = {"GRAPHBREW_EXPLICIT_CELL_ENV": "{}"}
+    inputs = {"benchmark_binary": "binary"}
+    config_hash = hashlib.sha256(json.dumps(
+        {"command": command, "env": material_env, "inputs": inputs},
+        sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    expected_comparison_hash = runner.roi_comparison_config_hash(
+        command, material_env, inputs, ["LRU"])
+    (matrix_dir / "roi_matrix.complete.json").write_text(json.dumps({
+        "complete": True,
+        "all_rows_ok": True,
+        "config_hash": config_hash,
+        "matrix_config_hash": "matrix",
+        "matrix_id": "matrix",
+        "shard_group": "group",
+        "expected_policy_labels": ["LRU"],
+        "outputs": {
+            "roi_matrix.csv": output_descriptor(matrix),
+        },
+    }))
+    (tmp_path / "resolved_manifest.json").write_text(json.dumps({
+        "run_config_hash": "run",
+        "jobs": [{
+            "command": command,
+            "out_dir": str(matrix_dir),
+            "metadata": {
+                "config_hash": config_hash,
+                "env": {
+                    **material_env,
+                    "GRAPHBREW_MATRIX_CONFIG_HASH": config_hash,
+                    "GRAPHBREW_MATRIX_ID": "matrix",
+                },
+                "expected_policy_labels": ["LRU"],
+                "input_fingerprints": inputs,
+                "policies": ["LRU"],
+            },
+        }],
+    }))
+    roi, proof = pipeline.collect_csvs([tmp_path], [])
+    assert len(roi) == 1
+    assert roi[0]["final_comparison_config_hash"] == (
+        expected_comparison_hash)
+    assert proof == []
+
+
+def test_comparison_hash_ignores_redundant_git_state():
+    module = load_module(
+        "paper_run_comparison_git_state",
+        ROOT / "scripts/experiments/ecg/flows/paper_run.py",
+    )
+    command = [
+        sys.executable, "roi_matrix.py",
+        "--policies", "LRU",
+        "--prefetcher", "none",
+        "--structure-prefetch-degree", "0",
+        "--out-dir", "/tmp/matrix",
+    ]
+    common = {"benchmark_binary": "same-binary"}
+    first = module.roi_comparison_config_hash(
+        command, {}, {**common, "git_state": "dirty-a"}, ["LRU"])
+    second = module.roi_comparison_config_hash(
+        command, {}, {**common, "git_state": "dirty-b"}, ["LRU"])
+    assert first == second
 
 
 def test_charged_metrics_use_uniform_overhead_field():
@@ -715,6 +1093,31 @@ def test_failed_rerun_invalidates_completion_marker(tmp_path):
     module.write_run_completion(tmp_path, [job], successful=False)
     payload = json.loads((tmp_path / "run.complete.json").read_text())
     assert payload["complete"] is False
+
+
+def test_subset_run_cannot_replace_broader_manifest(tmp_path):
+    module = load_module(
+        "paper_run_manifest_scope",
+        ROOT / "scripts/experiments/ecg/flows/paper_run.py",
+    )
+    selected_dir = tmp_path / "selected"
+    omitted_dir = tmp_path / "omitted"
+    (tmp_path / "resolved_manifest.json").write_text(json.dumps({
+        "jobs": [
+            {"out_dir": str(selected_dir)},
+            {"out_dir": str(omitted_dir)},
+        ],
+    }))
+    job = module.Job(
+        job_id="selected",
+        stage="stage",
+        kind="roi_matrix",
+        command=[],
+        out_dir=selected_dir,
+        log_path=tmp_path / "selected.log",
+    )
+    with pytest.raises(SystemExit, match="broader resolved manifest"):
+        module.guard_run_manifest_scope(tmp_path, [job])
 
 
 def test_sniper_fingerprint_covers_sift_stack():

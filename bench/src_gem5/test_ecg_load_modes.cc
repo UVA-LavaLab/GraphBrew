@@ -16,9 +16,8 @@
 
 static int g_fail = 0;
 alignas(64) static uint64_t g_k2_record =
-    (static_cast<uint64_t>(0xACE0u) << 48) |
-    (static_cast<uint64_t>(0x2468u) << 32) |
-    0x12345678u;
+    ecg_epoch::packEpochPairRecord(
+        0x12345678u, 2, 0x2468u, 0x6CE0u);
 
 // TEETH PROOF: ECG_TEST_FORCE_WC forces the EMITTED width class (FUNCT7) to a fixed value
 // while the record is still packed with the CORRECT wc. If the gem5 decoder truly reads
@@ -71,10 +70,8 @@ int main() {
         check("EMBEDDED", 24, dest, gem5_ecg_load_embedded(prop, rec));
     }
     {
-        constexpr uint64_t record =
-            (static_cast<uint64_t>(0xACE0u) << 48) |
-            (static_cast<uint64_t>(0x2468u) << 32) |
-            0x12345678u;
+        const uint64_t record = ecg_epoch::packEpochPairRecord(
+            0x12345678u, 2, 0x2468u, 0x6CE0u);
         uint64_t rd_stream = gem5_ecg_stream_load2_instruction(&g_k2_record);
         uint64_t rd = gem5_ecg_load2_instruction(&g_k2_record);
         bool ok = rd == record && rd_stream == record;

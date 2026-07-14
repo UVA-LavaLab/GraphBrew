@@ -3,15 +3,14 @@
 
 The eviction DECISION (`ecg_victim_policy.h`) is kernel-AGNOSTIC and byte-identical across
 cache_sim / gem5 / Sniper, so the ECG policy must obey the same eviction spec for EVERY
-kernel in EVERY simulator — not just PageRank. This runs PR / BFS / SSSP (the kernels all
-three simulators share) on each simulator with the eviction trace on, asserts every L3
+kernel in EVERY simulator — not just PageRank. This runs PR/BFS/SSSP/BC/CC on
+each simulator with the eviction trace on, asserts every L3
 eviction obeys the policy spec (reusing `verify_ecg.py`'s `verify_trace`), AND captures the
 per-sim `[ECG-CONFIG …]` banner (full debug: each run proves the policy/mode/variant it ran).
 
-This certifies the DECISION equivalence across kernels. NOTE: the per-edge mask DIRECTION is
-PR-tuned (out-neigh = PR's in-pull transpose); BFS-top-down/SSSP traverse out-edges and are
-direction-UNCERTIFIED on directed graphs (a miss-rate, not a spec, concern — the spec holds
-because the policy correctly evicts given whatever masks it has). See wiki/ECG-HPCA-Paper.md.
+This certifies DECISION and Schedule-2 delivery equivalence across kernels.
+PR consumes IN-edge records; BFS/SSSP/BC consume transpose-correct OUT-edge
+records; CC follows OUT-edge records under its undirected/symmetric contract.
 
 Usage:
   python3 scripts/experiments/ecg/verify/equiv_kernels.py                 # cache_sim only (fast)
@@ -33,10 +32,9 @@ BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 # SSSP runs on the unweighted email-Eu-core.sg via GAPBS WeightedBuilder (it deterministically
 # synthesizes edge weights — no .wsg needed) and, at the cc small-cache geometry (L2 1kB/L3 2kB),
 # its dist[] spills to the L3 so the epoch eviction is exercised (banner + nonzero stamped epochs).
-# BC and CC now have a Sniper sg_kernel target (single-threaded ports of the audited
-# Brandes_Sniper/Afforest_Sniper, same 4-region/1-region + transpose reref + epoch delivery), so
-# they are certified on all three sims. SSSP stays cache_sim + gem5: the sg_kernel SSSP target
-# needs a weighted (.wsg) graph the unweighted eval corpus does not provide.
+# BC, CC, and SSSP have Sniper sg_kernel targets. WeightedBuilder deterministically
+# synthesizes SSSP weights from the unweighted fixture, so all five property kernels
+# are certified on all three simulators.
 # tc (triangle counting) is intentionally EXCLUDED: it is a pure set-intersection over CSR neighbour
 # lists with NO vertex-indexed property array (gem5 tc registers 0 property regions), so ECG's
 # per-edge epoch has nothing to stamp — out of the mechanism's scope (see findings 22.13).
@@ -45,7 +43,7 @@ KERNEL_SIMS = {
     "bfs":  ["cache_sim", "gem5", "sniper"],
     "bc":   ["cache_sim", "gem5", "sniper"],
     "cc":   ["cache_sim", "gem5", "sniper"],
-    "sssp": ["cache_sim", "gem5"],
+    "sssp": ["cache_sim", "gem5", "sniper"],
 }
 # Headline kernels with property REUSE that MUST decisively exercise epoch eviction (epoch distance
 # strictly decides >=1 victim) on EVERY sim. With the faithful per-edge OUT-direction masks delivered
@@ -78,7 +76,11 @@ STREAM_BYPASS = False
 
 def effective_variant(kernel):
     if SCHEDULE_K == 2:
-        return "epoch_first" if kernel == "pr" else "degree_first"
+        if kernel == "pr":
+            return "epoch_first"
+        if kernel in ("bfs", "sssp"):
+            return "degree_first"
+        return "rrip_first"
     return "rrip_first"
 
 
@@ -119,18 +121,18 @@ def run_cache(kernel):
         env["ECG_K2_DELIVERY_TRACE"] = "32"
     if STREAM_BYPASS:
         env["ECG_STREAM_BYPASS"] = "1"
-    if kernel in ("bfs", "bc", "sssp"):
+    if kernel in ("bfs", "bc", "cc", "sssp"):
         # Out-traversal kernels read property[dest] over out_neigh(u); deliver the FAITHFUL per-edge
         # OUT-direction next-ref masks (ECG_EDGE_MASKS=1, epoch = next in_neigh(dest) > u) — the same
         # direction the gem5 ecg.load EVICT leg delivers. This makes the epoch STRICTLY DECIDE victims
         # on cache_sim (sssp 5, bfs 1, bc 123), matching the already-decisive gem5 legs, so the cell
         # proves epoch-equivalence (not just delivery). (Default PR mode-6 in-edge env stays for pr.)
         env["ECG_EDGE_MASKS"] = "1"
-    if kernel in ("cc", "sssp"):
-        # cc-Afforest's comp[] (~4KB) and sssp's dist[] fit the 1MB COV L2 -> never reach L3
-        # (PR's contrib is re-read every iteration so it churns; gem5 works because its full-ISA
-        # stream churns the L3). Shrink the cache_sim L2+L3 below the property footprint so the
-        # epoch eviction is exercised. (cc has no OUT-edge-mask consumption -> stays do-no-harm.)
+    if kernel in ("bfs", "cc", "sssp"):
+        # These one-pass property arrays fit the default 1MB COV L2 after the
+        # policy-independent warm replay, so they would never reach L3. Shrink
+        # L2+L3 below the property footprint to exercise delivered epoch eviction.
+        # (cc has no OUT-edge-mask consumption -> stays do-no-harm.)
         env["CACHE_L2_SIZE"] = "1kB"
         env["CACHE_L3_SIZE"] = "2kB"
     if STREAM_PF_DEGREE > 0:
@@ -240,7 +242,7 @@ def main(argv=None):
                          "baseline; >0 = spec-level equivalence under the realistic prefetcher).")
     ap.add_argument("--schedule-k", type=int, choices=[0, 2], default=0,
                     help="enable Schedule-2 delivery and require live K2 pair/distance coverage "
-                         "(currently certified for PR and BFS).")
+                         "for PR/BFS/SSSP/BC/CC.")
     ap.add_argument("--stream-bypass", action="store_true",
                     help="enable StreamShield and require a live LLC-bypass mechanism trace.")
     args = ap.parse_args(argv)
@@ -249,8 +251,6 @@ def main(argv=None):
     STREAM_PF_DEGREE = args.stream_prefetch_degree
     SCHEDULE_K = args.schedule_k
     STREAM_BYPASS = args.stream_bypass
-    if SCHEDULE_K and any(k not in ("pr", "bfs") for k in args.kernels):
-        ap.error("--schedule-k 2 currently supports --kernels pr bfs")
     if STREAM_BYPASS and any(k != "pr" for k in args.kernels):
         ap.error("--stream-bypass currently supports --kernels pr")
     if STREAM_BYPASS and SCHEDULE_K != 2:
@@ -294,10 +294,12 @@ def main(argv=None):
     sims_order = [s for s in ("cache_sim", "gem5", "sniper") if s in enabled]
 
     print("== Multi-kernel 3-sim ECG equivalence (eviction-spec + debug banner) ==")
-    variant_label = "PR=epoch_first,BFS=degree_first" if SCHEDULE_K else "rrip_first"
+    variant_label = (
+        "PR=epoch_first,BFS/SSSP=degree_first,BC/CC=rrip_first"
+        if SCHEDULE_K else "rrip_first")
     print(f"   graph={ecg.GRAPH.name}  policy=ECG:ECG_GRASP_POPT variant={variant_label}  "
           f"sims={sims_order}")
-    print("   (BC/CC/SSSP: cache_sim + gem5; SSSP weights auto-synthesized by WeightedBuilder)\n")
+    print("   (SSSP weights are auto-synthesized by WeightedBuilder)\n")
 
     ok_all = True
     results = {}   # (sim, kernel) -> status: 'ok' / 'spec-FAIL' / 'banner-X' / 'n/a'
@@ -310,7 +312,9 @@ def main(argv=None):
             cov = {}
             if SCHEDULE_K:
                 spec_ok = ecg.verify_k2_trace(
-                    f"{sim}/{kernel}", result, ne=65535, coverage=cov)
+                    f"{sim}/{kernel}", result,
+                    ne=32768 if SCHEDULE_K == 2 else 65535,
+                    coverage=cov)
             else:
                 spec_ok = ecg.verify_trace(
                     f"{sim}/{kernel}", result, coverage=cov)
@@ -424,7 +428,7 @@ def main(argv=None):
     bad = [f"{s}/{k}" for (s, k), v in results.items() if v.startswith("FAIL")]
     if bad:
         print(f"\nFAIL: {', '.join(sorted(bad))}")
-    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (BFS/BC/SSSP decisive; PR/CC do-no-harm where bounded)' if ok_all else 'see FAIL above'}")
+    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (all five K2 algorithms certified)' if ok_all else 'see FAIL above'}")
     return 0 if ok_all else 1
 
 

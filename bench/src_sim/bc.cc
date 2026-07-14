@@ -26,16 +26,19 @@ typedef float ScoreT;
 template<typename CacheType>
 void BCBFS_Sim(const Graph &g, NodeID source, 
                pvector<ScoreT> &scores, CacheType &cache) {
-    pvector<int32_t> depths(g.num_nodes(), -1);
+    pvector<int32_t> depths(
+        g.num_nodes(), -1, GRAPH_SIM_PROPERTY_ALIGNMENT);
     depths[source] = 0;
     
     pvector<NodeID> succ;
     succ.reserve(g.num_edges_directed());
     
     pvector<int64_t> succ_start(g.num_nodes() + 1, 0);
-    pvector<int64_t> path_counts(g.num_nodes(), 0);
+    pvector<int64_t> path_counts(
+        g.num_nodes(), int64_t(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
     path_counts[source] = 1;
-    pvector<ScoreT> deltas(g.num_nodes(), 0);
+    pvector<ScoreT> deltas(
+        g.num_nodes(), ScoreT(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
 
     // --- Graph-aware cache context ---
     // Upstream GRASP's default BC instrumentation protects backward
@@ -81,13 +84,26 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             cout << "BC: OUT-edge per-edge masks enabled (forward push/out)" << endl;
         }
     }
+    const bool record_charged = GraphSimEcgEdgeRecord() &&
+        GraphSimEnvIntClamped("ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    int epoch_bits = 1;
+    const uint32_t edge_epochs =
+        graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2;
+    while (epoch_bits < 16 &&
+           (uint32_t(1) << epoch_bits) < edge_epochs) {
+        ++epoch_bits;
+    }
+    const int record_bytes = GraphSimEcgRecordBytes(
+        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    NodeID* out_edge_base = g.num_nodes() > 0
+        ? g.out_neigh(0).begin() : nullptr;
 
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;
     {
-        const char* policy_env = getenv("CACHE_POLICY");
-        std::string policy_str = policy_env ? policy_env : "";
-        if (policy_str == "POPT" || policy_str == "ECG") {
+        const EvictionPolicy policy = GraphSimEffectiveL3Policy();
+        if (policy == EvictionPolicy::POPT ||
+            policy == EvictionPolicy::ECG) {
             constexpr int numVtxPerLine = 64 / sizeof(int32_t);
             constexpr int numEpochs = 256;
             // BC forward phase is top-down BFS over out_neigh(u) reading depths[v]/
@@ -141,7 +157,17 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             // symmetric graphs (in==out); the correct dual mask for directed graphs.
             const size_t u_outdeg = (size_t)g.out_degree(u);
             size_t edge_pos = 0;
-            for (NodeID v : g.out_neigh(u)) {
+            auto out_neigh = g.out_neigh(u);
+            for (auto edge_it = out_neigh.begin();
+                 edge_it != out_neigh.end(); ++edge_it) {
+                if (record_charged) {
+                    SIM_CACHE_READ_EDGE_RECORD(
+                        cache, edge_it, out_edge_base,
+                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+                } else {
+                    SIM_CACHE_READ_EDGE(cache, edge_it);
+                }
+                NodeID v = *edge_it;
                 // Resolve this edge's mask once (sets the epoch) and reuse for both the
                 // depths[v] and path_counts[v] reads (same dest -> same epoch).
                 const uint32_t edge_mask_val = graph_ctx.resolveEdgeMaskAndEpoch(
@@ -210,7 +236,8 @@ void BCBFS_Sim(const Graph &g, NodeID source,
 
 template<typename CacheType>
 pvector<ScoreT> BC_Sim(const Graph &g, int num_iters, CacheType &cache) {
-    pvector<ScoreT> scores(g.num_nodes(), 0);
+    pvector<ScoreT> scores(
+        g.num_nodes(), ScoreT(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
     
     SourcePicker<Graph> sp(g);
     for (int i = 0; i < num_iters; i++) {

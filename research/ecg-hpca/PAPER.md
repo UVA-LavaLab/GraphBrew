@@ -36,7 +36,7 @@ must be materially different.
 | basic trace-driven evaluation | cache_sim + gem5 + Sniper implementation and equivalence |
 | conceptual graph instruction | executable record-load ISA plus request-bound StreamShield placement |
 | no complete overhead attribution | K2-vs-bypass factorial, traffic, capacity, timing, and instruction accounting |
-| PageRank-focused | PR plus traversal-aware BFS/SSSP policy design |
+| PageRank-focused | First-class PR/BFS/SSSP/BC/CC K2 delivery and online selection |
 
 ## Thesis
 
@@ -50,24 +50,29 @@ decisions without P-OPT's reserved LLC ways or a separate metadata lookup.
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the complete request flow,
 replacement logic, worked K2 example, ISA table, and baseline comparison.
 
-- **K2:** one 8-byte record carries `dest32 | epoch1_16 | epoch2_16`; replacement
-  uses the nearer valid rereference.
-- **Adaptive eviction:** PR uses `epoch_first`; BFS uses `degree_first`.
-  Other kernels are excluded from first-class K2 claims until complete pair
-  delivery and record-traffic accounting are implemented.
+- **Tiered K2:** one 8-byte record carries
+  `dest32 | tier2 | epoch1_15 | epoch2_15`; replacement uses the nearer valid
+  rereference and a direction-aware, order-independent property-line tier.
+- **Adaptive eviction:** PR uses `epoch_first`; BFS/SSSP use `degree_first`;
+  BC/CC use the safe `rrip_first` fallback. BC applies K2 to its forward
+  static-edge phase, and CC retains its undirected graph contract.
+- **Online eviction:** sampled leader sets choose among RRIP-, GRASP-, epoch-,
+  degree-, and LRU-first arms without using the graph or kernel name.
 - **StreamShield:** one-touch packed records fill private caches, retain LLC-hit
   behavior, and do not allocate after an LLC miss.
-- **ISA:** PR uses fused `ecg.load2` and `ecg.stream.load2`; the current BFS
-  equivalence path uses a packed record load followed by `ecg.extract2`.
+- **ISA:** PR uses fused `ecg.load2` and `ecg.stream.load2`; BFS/SSSP/BC/CC
+  use a packed record load followed by `ecg.extract2` in the in-order
+  mechanism path. Those explicit-delivery rows are not used for speedup.
 
 ## Contributions
 
-1. Edge-carried two-epoch reuse guidance with zero reserved LLC ways.
+1. Edge-carried degree and two-epoch reuse guidance with zero reserved LLC ways.
 2. Request-bound cache-placement control that separates private-cache streaming
    from shared-LLC residency.
-3. A shared eviction decision and exact delivery/decision gates across cache_sim,
+3. Online set-dueling that selects among graph-aware victim rules at runtime.
+4. A shared eviction decision and exact delivery/decision gates across cache_sim,
    gem5, and Sniper.
-4. Full accounting of record bytes, P-OPT reserved capacity, demand misses,
+5. Full accounting of record bytes, P-OPT reserved capacity, demand misses,
    total traffic, simulated time, and instruction count.
 
 ## Evaluation structure

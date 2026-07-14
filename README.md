@@ -7,7 +7,8 @@ Structures** (IEEE IPDPSW 2024).
 The new architecture adds:
 
 - **K2** two-future-reference edge records;
-- traversal-adaptive graph-cache replacement;
+- order-independent carried GRASP tiers;
+- static and online set-dueling graph-cache replacement;
 - **StreamShield** request-bound LLC placement control;
 - RISC-V PR `ecg.load2` and `ecg.stream.load2` plus BFS `ecg.extract2`;
 - cache_sim, gem5, and Sniper implementations with exact equivalence gates.
@@ -18,7 +19,7 @@ The public HPCA paper name remains open. Implementation names remain `ECG_*`.
 
 ```mermaid
 flowchart LR
-    A[Graph edge] --> B[dest + epoch1 + epoch2]
+    A[Graph edge] --> B[dest + tier + epoch1 + epoch2]
     B --> C{Record instruction}
     C -->|ecg.load2| D[K2 replacement metadata]
     C -->|ecg.stream.load2| E[K2 metadata + LLC no-allocate]
@@ -30,13 +31,15 @@ flowchart LR
 K2 uses one 64-bit record:
 
 ```text
-| epoch2:16 | epoch1:16 | destination:32 |
+| epoch2:15 | epoch1:15 | tier:2 | destination:32 |
 ```
 
 For current epoch `c`, each candidate property line is assigned the nearer of
-its two circular future-reference distances. PR uses epoch-first eviction and
-BFS uses degree-first with K2 tie-breaking. First-class K2 labels are rejected
-for other kernels until pair delivery and traffic accounting are complete.
+its two circular future-reference distances. The carried tier is computed from
+direction-aware property-reader counts and uses the hottest vertex sharing the
+line, so it does not require DBG physical ordering. PR uses epoch-first eviction,
+BFS uses degree-first, and `ECG:K2_ONLINE` samples RRIP, GRASP, epoch, degree, and
+LRU arms at runtime.
 StreamShield preserves private-cache fills and LLC hits while suppressing only
 LLC allocation after a record miss.
 
@@ -55,6 +58,7 @@ Full architecture diagrams and a worked example are in
 | GRASP | degree/address hotness | 0 | normal |
 | P-OPT | live rereference matrix | charged | normal |
 | ECG K2 | degree + RRIP + two edge-carried epochs | 0 | normal |
+| ECG K2 online | five-arm set dueling | 0 | normal |
 | ECG K2+StreamShield | K2 plus request-bound placement | 0 | no-allocate on record miss |
 
 ## Repository map
@@ -78,7 +82,8 @@ Full architecture diagrams and a worked example are in
 make setup-gem5
 make setup-sniper
 make all-sim
-make gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs
+make gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs \
+  gem5-riscv-m5ops-sssp gem5-riscv-m5ops-bc gem5-riscv-m5ops-cc
 make sniper-sg_kernel
 ```
 
@@ -90,7 +95,7 @@ RISC-V gem5 builds additionally require a RISC-V cross compiler.
 pytest -q scripts/test
 
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
-  --gem5 --sniper --kernels pr bfs --schedule-k 2
+  --gem5 --sniper --kernels pr bfs sssp bc cc --schedule-k 2
 
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr --schedule-k 2 --stream-bypass
@@ -101,11 +106,13 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
 Every reported comparison includes:
 
 ```text
-LRU  SRRIP  GRASP  charged P-OPT  K2  K2+StreamShield
+LRU  SRRIP  GRASP  charged P-OPT
+K2  K2-online  K2+StreamShield  K2-online+StreamShield
 ```
 
-The cache_sim factorial additionally exposes `ECG:K1` and
-`ECG:K1_STREAMSHIELD`.
+The cache_sim replacement baseline exposes uncharged and charged P-OPT,
+`ECG:K1`, every static K2 arm, and `ECG:K2_ONLINE`. The hardware-faithful
+factorial adds K1/K2 x StreamShield with record traffic charged.
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
@@ -121,11 +128,13 @@ Slurm, and aggregation workflows.
 
 | Profile | Purpose |
 |---|---|
-| `ecg_smoke` | Fast six-policy cache_sim check |
+| `ecg_smoke` | Fast cache_sim check including online K2 |
+| `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
+| `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |
 | `gem5_streamshield_mechanism` | RISC-V request-bound mechanism cell |
 | `sniper_streamshield_mechanism` | Fused K2/StreamShield timing mechanism cell |
-| `streamshield_sniper_realgraph` | Bounded web-Google paper matrix |
+| `streamshield_sniper_realgraph` | Full-iteration web-Google paper matrix |
 
 ## Prior-publication boundary
 

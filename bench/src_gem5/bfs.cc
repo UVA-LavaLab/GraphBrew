@@ -44,8 +44,11 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     constexpr int kNumVtxPerLine = 64 / sizeof(NodeID);
     const int ecg_sched_k =
         gem5_env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
-    const uint32_t requested_epoch_count = static_cast<uint32_t>(
+    uint32_t requested_epoch_count = static_cast<uint32_t>(
         gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS", 65535, 2, 65535));
+    if (ecg_sched_k == 2)
+        requested_epoch_count =
+            ecg_epoch::normalizeK2EpochCount(requested_epoch_count);
     uint8_t edge_id_bits = 1;
     while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
     uint32_t edge_epoch_count = requested_epoch_count;
@@ -147,6 +150,9 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         gem5_export_popt_matrix(popt_matrix.data(), numCacheLines,
                                 numEpochs, g.num_nodes());
     }
+    volatile NodeID* warm_parent = parent.data();
+    for (NodeID n = 0; n < g.num_nodes(); ++n)
+        warm_parent[n] = n == source ? source : -1;
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -196,6 +202,7 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
                     static_cast<NodeID>(rec & 0xFFFFFFFFULL);
                 GEM5_ECG_EXTRACT2(rec);
                 const NodeID pv = parent[v];
+                GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 if (pv == -1) {
                     parent[v] = u;
                     frontier.push(v);

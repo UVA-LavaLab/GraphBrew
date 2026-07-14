@@ -24,11 +24,11 @@ The architecture aims to:
 ```mermaid
 flowchart LR
     A[Offline graph pass] --> B[Compute next two property rereferences]
-    B --> C[Pack destination + epoch1 + epoch2]
+    B --> C[Pack destination + line tier + epoch1 + epoch2]
     C --> D{Record load}
     D -->|ecg.load2| E[Cached record request]
     D -->|ecg.stream.load2| F[Record request + LLC no-allocate flag]
-    E --> G[Decode K2 pair]
+    E --> G[Decode tier + K2 pair]
     F --> G
     G --> H[In-order delivery adapter]
     H --> I[Subsequent property request/fill]
@@ -40,11 +40,17 @@ flowchart LR
 ### K2 record format
 
 ```text
-63                    48 47                    32 31                     0
-+-----------------------+-----------------------+------------------------+
-|   epoch2 (16 bits)    |   epoch1 (16 bits)    |    destination (32)    |
-+-----------------------+-----------------------+------------------------+
+63                 49 48                 34 33   32 31                  0
++---------------------+---------------------+-------+---------------------+
+| epoch2 (15 bits)    | epoch1 (15 bits)    | tier  | destination (32)    |
++---------------------+---------------------+-------+---------------------+
 ```
+
+The 2-bit tier is `hot/moderate/cold`. It is computed from direction-aware
+property-reader counts and aggregated as the hottest tier sharing the property
+line (15% hot and 15% moderate by default), so it remains valid without DBG
+layout. The 15-bit epoch fields support
+up to 32,768 circular epochs.
 
 For `N_e` epochs, current epoch `c`, and delivered epoch `e`:
 
@@ -69,22 +75,29 @@ Assume `N_e = 256` and current epoch `c = 10`.
 If the lines are otherwise tied, epoch-first eviction selects **B**, whose
 nearest future use is farthest away.
 
-## Adaptive replacement
+## Static and online replacement
 
 ```mermaid
 flowchart TD
     A[Victim required] --> B{Kernel}
     B -->|PageRank| C[epoch_first]
-    B -->|BFS| D[degree_first]
-    B -->|Other kernels| E[Not a first-class K2 path]
+    B -->|BFS or SSSP| D[degree_first]
+    B -->|BC or CC| E[rrip_first]
     C --> F[Records by recency; farthest K2 property]
     D --> G[RRIP gate; records first; coldest degree tier; K2 tie-break]
-    E --> H[Reject until delivery and traffic accounting are complete]
+    E --> H[RRIP gate; K2 refines delivered forward-edge reads]
 ```
 
-Current first-class K2 claims cover PR and BFS. SSSP/BC/CC variants remain
-research evidence until their pair delivery and packed-record traffic are
-implemented consistently across the paper simulators.
+First-class K2 construction, pair delivery, and victim checks cover
+PR/BFS/SSSP/BC/CC across cache_sim, gem5, and Sniper. BC carries K2 on its
+forward Brandes edge traversal; its runtime successor-DAG backward phase has no
+static record position. CC remains scoped to undirected/symmetric graphs.
+
+`ECG:K2_ONLINE` instead assigns one leader set per arm in each 64-set group:
+RRIP-first, GRASP-only, epoch-first, degree-first, and LRU-only. Followers use
+the lowest-miss arm, with counters reset every 1024 sampled leader misses. This
+selection is live in cache_sim, gem5, and Sniper and does not inspect the graph
+or algorithm name.
 
 GRASP-compatible insertion uses 3-bit RRPV:
 
@@ -130,7 +143,7 @@ It suppresses only LLC allocation after a flagged miss.
 
 | Instruction | RISC-V custom-0 FUNCT3 | Meaning |
 |---|---:|---|
-| `ecg.load2 rd, 0(rs1)` | `0x4` | PR: load K2 record and deliver both epochs |
+| `ecg.load2 rd, 0(rs1)` | `0x4` | PR: load K2 record and deliver tier plus both epochs |
 | `ecg.stream.load2 rd, 0(rs1)` | `0x3` | PR: same plus request-bound LLC no-allocation |
 
 The full 64-bit record is returned in `rd`. The fused path avoids per-edge
@@ -152,9 +165,11 @@ by `ecg.extract2`. It is mechanism-valid but is not a fused-load timing result.
 | GRASP | degree/address hotness + RRIP | DBG hot/moderate ranges | 0 | normal |
 | P-OPT | live next-reference distance | rereference matrix | charged | normal |
 | ECG K2 | degree + RRIP + two edge-carried epochs | 8-byte edge record | 0 | normal |
+| ECG K2 online | five-arm sampled victim selection | same record + counters | 0 | normal |
 | ECG K2+StreamShield | K2 plus one-touch placement | record + request bit | 0 | no-allocate miss |
 
-Every reported comparison contains all six policies.
+The headline matrix contains all four baselines plus static/online K2 with and
+without StreamShield.
 
 ## Simulator mapping
 
@@ -162,13 +177,15 @@ Every reported comparison contains all six policies.
 |---|---|---|---|
 | K2 builder | shared | shared | shared |
 | Victim decision | shared selector | shared selector | shared selector |
-| Metadata delivery | instrumented record load | PR fused load2; BFS packed load + `ecg.extract2`; in-order pair mailbox | fused sideband model |
+| Metadata delivery | instrumented record load | PR fused load2; BFS/SSSP/BC/CC packed load + `ecg.extract2`; in-order pair mailbox | PR fused sideband; BFS/SSSP/BC/CC explicit `extract2` prototype |
 | StreamShield | preserve LLC hits, suppress miss insertion | clear LLC `allocOnFill` | preserve NUCA hits, suppress miss insertion |
 | Paper role | functional authority | cycle-accurate ISA proof | real-graph scale/timing |
 
 Absolute gem5 and Sniper miss rates are not compared because their cache
 inclusion, frontend, and accounting models differ. Direction relative to each
 simulator's LRU is the cross-simulator evidence.
+Only PR's fused Sniper sideband is timing-valid; explicit `extract2` rows for
+the other kernels certify cache behavior, not speedup.
 
 ## Evaluation flow
 
@@ -177,7 +194,7 @@ flowchart LR
     A[Unit and exact-victim gates] --> B[cache_sim K1/K2 factorial]
     B --> C[gem5 RISC-V mechanism profile]
     C --> D[Sniper fused mechanism profile]
-    D --> E[web-Google six-policy Sniper matrix]
+    D --> E[web-Google eight-policy Sniper matrix]
     E --> F[Completion + content/config hashes]
     F --> G[Paper tables and figures]
 ```
@@ -186,11 +203,13 @@ Canonical profiles:
 
 | Profile | Purpose |
 |---|---|
-| `ecg_smoke` | Fast six-policy cache_sim check |
+| `ecg_smoke` | Fast cache_sim check including online K2 |
+| `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
+| `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
 | `gem5_streamshield_mechanism` | Request-bound RISC-V mechanism cell |
 | `sniper_streamshield_mechanism` | Fused K2/StreamShield mechanism cell |
-| `streamshield_sniper_realgraph` | Bounded web-Google paper matrix |
+| `streamshield_sniper_realgraph` | Full-iteration web-Google paper matrix |
 
 ## Current evidence
 
@@ -201,8 +220,8 @@ Canonical profiles:
   K2 L3 misses by **58.24%**.
 - Sniper mechanism cell: StreamShield improves fused K2 by **0.65%** with the
   same instruction count.
-- K2 PR/BFS and StreamShield PR exact mechanism gates pass across all three
-  simulators.
+- K2 PR/BFS/SSSP/BC/CC and StreamShield PR exact mechanism gates pass across
+  all three simulators.
 
 These synthetic cells validate the mechanism; they do not rank the policies.
 Overall detailed-simulator superiority over P-OPT remains pending the complete
@@ -213,7 +232,7 @@ real-graph Sniper matrix.
 - 8-byte K2 edge record.
 - Zero ECG-reserved LLC ways.
 - One request-bound StreamShield bit.
-- Two 16-bit epochs plus valid/count state per governed line.
+- Two 15-bit epochs, a 2-bit carried tier, and valid/count state per governed line.
 - Charged P-OPT matrix capacity in every reported baseline.
 - Request-bound K2 pair propagation remains required before gem5 O3 evaluation.
 - No hidden matrix, zero-latency bypass, or aggressive per-access LLC metadata

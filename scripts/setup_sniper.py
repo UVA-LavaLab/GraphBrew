@@ -202,6 +202,76 @@ def migrate_if_present(path: Path, old: str, new: str, dry_run: bool) -> None:
     _write_overlay_text(path, text.replace(old, new, 1), dry_run)
 
 
+def normalize_context_ready_handler(path: Path, dry_run: bool) -> None:
+    """Install exactly one canonical context-ready handler."""
+    text = _overlay_text(path, dry_run)
+    marker = "if (arg0 == graphbrew::sniper::GRAPHBREW_CONTEXT_READY_WORK_ID)"
+    while marker in text:
+        marker_pos = text.index(marker)
+        start = text.rfind("\n", 0, marker_pos) + 1
+        brace = text.index("{", marker_pos)
+        depth = 0
+        end = brace
+        while end < len(text):
+            if text[end] == "{":
+                depth += 1
+            elif text[end] == "}":
+                depth -= 1
+                if depth == 0:
+                    end += 1
+                    while end < len(text) and text[end] in " \t":
+                        end += 1
+                    if end < len(text) and text[end] == "\n":
+                        end += 1
+                    break
+            end += 1
+        text = text[:start] + text[end:]
+
+    set_marker = "if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)"
+    set_pos = text.find(set_marker)
+    if set_pos < 0:
+        raise SystemExit(
+            f"Could not normalize context-ready handler in {path}; "
+            "set-vertex anchor missing.")
+    set_start = text.rfind("\n", 0, set_pos) + 1
+    indent = text[set_start:set_pos]
+    inner = indent + "   "
+    canonical = "\n".join([
+        indent + marker,
+        indent + "{",
+        inner + 'const char* ctx_path = std::getenv("SNIPER_GRAPHBREW_CTX");',
+        inner + "if (!ctx_path || !ctx_path[0])",
+        inner + '   ctx_path = "/tmp/sniper_graphbrew_ctx.json";',
+        inner + "auto& ctx = graphbrew::sniper::globalContext();",
+        inner + "ctx.loaded = ctx.loadFromSideband(ctx_path);",
+        inner + 'const char* require_reref = std::getenv("SNIPER_REQUIRE_POPT_MATRIX");',
+        inner + "bool reref_loaded = ctx.rereference.enabled;",
+        inner + "if (ctx.loaded && require_reref && require_reref[0] == '1') {",
+        inner + '   const char* matrix_path = std::getenv("SNIPER_POPT_MATRIX");',
+        inner + "   reref_loaded = matrix_path && matrix_path[0] &&",
+        inner + "      ctx.loadRereferenceMatrix(matrix_path);",
+        inner + "   if (reref_loaded && ctx.num_regions > 0)",
+        inner + "      ctx.rereference.base_address = ctx.regions[0].base_address;",
+        inner + "}",
+        inner + "std::fprintf(stderr,",
+        inner + '   "[ECG-CONTEXT-READY sim=sniper loaded=%d regions=%u reref=%d]\\n",',
+        inner + "   ctx.loaded ? 1 : 0, ctx.num_regions, reref_loaded ? 1 : 0);",
+        inner + "if (!ctx.loaded)",
+        inner + '   std::fprintf(stderr, "[FATAL] Sniper ECG context-ready load failed: %s\\n", ctx_path);',
+        inner + "if (require_reref && require_reref[0] == '1' && !reref_loaded)",
+        inner + '   std::fprintf(stderr, "[FATAL] Sniper P-OPT matrix-ready load failed\\n");',
+        inner + "return ctx.loaded &&",
+        inner + "   (!(require_reref && require_reref[0] == '1') || reref_loaded) ? 0 : 1;",
+        indent + "}",
+        "",
+    ])
+    text = text[:set_start] + canonical + text[set_start:]
+    if text.count(marker) != 1:
+        raise SystemExit(
+            f"Context-ready handler normalization failed in {path}")
+    _write_overlay_text(path, text, dry_run)
+
+
 def overlay_source_files() -> list[Path]:
     if not SNIPER_OVERLAY_DIR.exists():
         raise SystemExit(f"Sniper overlay directory missing: {SNIPER_OVERLAY_DIR}")
@@ -390,6 +460,34 @@ def patch_grasp_overlay(args: argparse.Namespace) -> None:
         ['if (policy == "popt")'],
     )
 
+    migrate_if_present(
+        cache,
+        """\t\tif (auto ecg_set = dynamic_cast<CacheSetECG*>(m_fake_sets[0]))
+		{
+			ecg_set->prepareInsertion(addr);
+		}
+""",
+        """\t\tif (auto ecg_set = dynamic_cast<CacheSetECG*>(m_fake_sets[0]))
+		{
+			ecg_set->prepareInsertion(addr, 0);
+		}
+""",
+        args.dry_run,
+    )
+    migrate_if_present(
+        cache,
+        """\t\tif (auto ecg_set = dynamic_cast<CacheSetECG*>(m_sets[set_index]))
+		{
+			ecg_set->prepareInsertion(addr);
+		}
+""",
+        """\t\tif (auto ecg_set = dynamic_cast<CacheSetECG*>(m_sets[set_index]))
+		{
+			ecg_set->prepareInsertion(addr, set_index);
+		}
+""",
+        args.dry_run,
+    )
     replace_once(
         cache,
         """#include "simulator.h"
@@ -924,7 +1022,7 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
 		}
 		if (auto ecg_set = dynamic_cast<CacheSetECG*>(m_fake_sets[0]))
 		{
-			ecg_set->prepareInsertion(addr);
+			ecg_set->prepareInsertion(addr, 0);
 		}
 		m_fake_sets[0]->insert(cache_block_info, fill_buff,
 """,
@@ -944,7 +1042,7 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
 		}
 		if (auto ecg_set = dynamic_cast<CacheSetECG*>(m_sets[set_index]))
 		{
-			ecg_set->prepareInsertion(addr);
+			ecg_set->prepareInsertion(addr, set_index);
 		}
 		m_sets[set_index]->insert(cache_block_info, fill_buff,
 """,
@@ -1011,7 +1109,97 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
     )
     migrate_if_present(
         magic_server, old_decode, new_decode, args.dry_run)
+    old_k2_decode = (
+        "uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);\n"
+        "            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);\n"
+        "            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);\n"
+        "            graphbrew::sniper::recordEcgEpochPair(\n"
+        "               static_cast<uint32_t>(core_id), fl_vertex, fl_epoch1, fl_epoch2);"
+    )
+    new_k2_decode = (
+        "uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);\n"
+        "            uint8_t fl_tier = static_cast<uint8_t>((arg1 >> 32) & 0x3ULL);\n"
+        "            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 34) & 0x7FFFULL);\n"
+        "            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 49) & 0x7FFFULL);\n"
+        "            graphbrew::sniper::recordEcgEpochPair(\n"
+        "               static_cast<uint32_t>(core_id), fl_vertex, fl_tier,\n"
+        "               fl_epoch1, fl_epoch2);"
+    )
+    migrate_if_present(
+        magic_server, old_k2_decode, new_k2_decode, args.dry_run)
+    migrate_if_present(
+        magic_server,
+        """ctx.loaded = ctx.loadFromSideband(ctx_path);
+            if (!ctx.loaded)
+""",
+        """ctx.loaded = ctx.loadFromSideband(ctx_path);
+            std::fprintf(stderr,
+               "[ECG-CONTEXT-READY sim=sniper loaded=%d regions=%u]\\n",
+               ctx.loaded ? 1 : 0, ctx.num_regions);
+            if (!ctx.loaded)
+""",
+        args.dry_run,
+    )
+    migrate_if_present(
+        magic_server,
+        """std::fprintf(stderr,
+               "[ECG-CONTEXT-READY sim=sniper loaded=%d regions=%u]\\n",
+               ctx.loaded ? 1 : 0, ctx.num_regions);
+            if (!ctx.loaded)
+""",
+        """const char* require_reref = std::getenv("SNIPER_REQUIRE_POPT_MATRIX");
+            bool reref_loaded = ctx.rereference.enabled;
+            if (ctx.loaded && require_reref && require_reref[0] == '1') {
+               const char* matrix_path = std::getenv("SNIPER_POPT_MATRIX");
+               reref_loaded = matrix_path && matrix_path[0] &&
+                  ctx.loadRereferenceMatrix(matrix_path);
+               if (reref_loaded && ctx.num_regions > 0)
+                  ctx.rereference.base_address = ctx.regions[0].base_address;
+            }
+            std::fprintf(stderr,
+               "[ECG-CONTEXT-READY sim=sniper loaded=%d regions=%u reref=%d]\\n",
+               ctx.loaded ? 1 : 0, ctx.num_regions, reref_loaded ? 1 : 0);
+            if (!ctx.loaded)
+""",
+        args.dry_run,
+    )
     magic_text = _overlay_text(magic_server, args.dry_run)
+    migrate_if_present(
+        magic_server,
+        """         if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
+         {
+""",
+        """         if (arg0 == graphbrew::sniper::GRAPHBREW_CONTEXT_READY_WORK_ID)
+         {
+            const char* ctx_path = std::getenv("SNIPER_GRAPHBREW_CTX");
+            if (!ctx_path || !ctx_path[0])
+               ctx_path = "/tmp/sniper_graphbrew_ctx.json";
+            auto& ctx = graphbrew::sniper::globalContext();
+            ctx.loaded = ctx.loadFromSideband(ctx_path);
+            const char* require_reref = std::getenv("SNIPER_REQUIRE_POPT_MATRIX");
+            bool reref_loaded = ctx.rereference.enabled;
+            if (ctx.loaded && require_reref && require_reref[0] == '1') {
+               const char* matrix_path = std::getenv("SNIPER_POPT_MATRIX");
+               reref_loaded = matrix_path && matrix_path[0] &&
+                  ctx.loadRereferenceMatrix(matrix_path);
+               if (reref_loaded && ctx.num_regions > 0)
+                  ctx.rereference.base_address = ctx.regions[0].base_address;
+            }
+            std::fprintf(stderr,
+               "[ECG-CONTEXT-READY sim=sniper loaded=%d regions=%u reref=%d]\\n",
+               ctx.loaded ? 1 : 0, ctx.num_regions, reref_loaded ? 1 : 0);
+            if (!ctx.loaded)
+               std::fprintf(stderr, "[FATAL] Sniper ECG context-ready load failed: %s\\n", ctx_path);
+            if (require_reref && require_reref[0] == '1' && !reref_loaded)
+               std::fprintf(stderr, "[FATAL] Sniper P-OPT matrix-ready load failed\\n");
+            return ctx.loaded &&
+               (!(require_reref && require_reref[0] == '1') || reref_loaded) ? 0 : 1;
+         }
+         if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
+         {
+""",
+        args.dry_run,
+    )
     replace_once(
         magic_server,
         """#include "magic_server.h"
@@ -1023,7 +1211,7 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
 """,
         args.dry_run,
     )
-    if new_decode in magic_text:
+    if "GRAPHBREW_SET_VERTEX_WORK_ID" in magic_text:
        log.info("Overlay patch already present in common/system/magic_server.cc")
     else:
        replace_once(
@@ -1036,7 +1224,33 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
 """,
            """      case SIM_CMD_USER:
       {
-         if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
+        if (arg0 == graphbrew::sniper::GRAPHBREW_CONTEXT_READY_WORK_ID)
+        {
+           const char* ctx_path = std::getenv("SNIPER_GRAPHBREW_CTX");
+           if (!ctx_path || !ctx_path[0])
+              ctx_path = "/tmp/sniper_graphbrew_ctx.json";
+           auto& ctx = graphbrew::sniper::globalContext();
+           ctx.loaded = ctx.loadFromSideband(ctx_path);
+           const char* require_reref = std::getenv("SNIPER_REQUIRE_POPT_MATRIX");
+           bool reref_loaded = ctx.rereference.enabled;
+           if (ctx.loaded && require_reref && require_reref[0] == '1') {
+              const char* matrix_path = std::getenv("SNIPER_POPT_MATRIX");
+              reref_loaded = matrix_path && matrix_path[0] &&
+                 ctx.loadRereferenceMatrix(matrix_path);
+              if (reref_loaded && ctx.num_regions > 0)
+                 ctx.rereference.base_address = ctx.regions[0].base_address;
+           }
+           std::fprintf(stderr,
+              "[ECG-CONTEXT-READY sim=sniper loaded=%d regions=%u reref=%d]\\n",
+              ctx.loaded ? 1 : 0, ctx.num_regions, reref_loaded ? 1 : 0);
+           if (!ctx.loaded)
+              std::fprintf(stderr, "[FATAL] Sniper ECG context-ready load failed: %s\\n", ctx_path);
+           if (require_reref && require_reref[0] == '1' && !reref_loaded)
+              std::fprintf(stderr, "[FATAL] Sniper P-OPT matrix-ready load failed\\n");
+           return ctx.loaded &&
+              (!(require_reref && require_reref[0] == '1') || reref_loaded) ? 0 : 1;
+        }
+        if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
          {
             graphbrew::sniper::setCurrentVertexHint(static_cast<uint32_t>(core_id), arg1);
             return 0;
@@ -1056,10 +1270,12 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
          if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT2_WORK_ID)
          {
             uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);
-            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);
-            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);
+            uint8_t fl_tier = static_cast<uint8_t>((arg1 >> 32) & 0x3ULL);
+            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 34) & 0x7FFFULL);
+            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 49) & 0x7FFFULL);
             graphbrew::sniper::recordEcgEpochPair(
-               static_cast<uint32_t>(core_id), fl_vertex, fl_epoch1, fl_epoch2);
+               static_cast<uint32_t>(core_id), fl_vertex, fl_tier,
+               fl_epoch1, fl_epoch2);
             return 0;
          }
          MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };
@@ -1088,16 +1304,56 @@ magic_server,
   if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT2_WORK_ID)
   {
             uint32_t fl_vertex = static_cast<uint32_t>(arg1 & 0xFFFFFFFFULL);
-            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 32) & 0xFFFFULL);
-            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 48) & 0xFFFFULL);
+            uint8_t fl_tier = static_cast<uint8_t>((arg1 >> 32) & 0x3ULL);
+            uint16_t fl_epoch1 = static_cast<uint16_t>((arg1 >> 34) & 0x7FFFULL);
+            uint16_t fl_epoch2 = static_cast<uint16_t>((arg1 >> 49) & 0x7FFFULL);
             graphbrew::sniper::recordEcgEpochPair(
-               static_cast<uint32_t>(core_id), fl_vertex, fl_epoch1, fl_epoch2);
+               static_cast<uint32_t>(core_id), fl_vertex, fl_tier,
+               fl_epoch1, fl_epoch2);
             return 0;
   }
 """,
 args.dry_run,
 ["GRAPHBREW_ECG_EXTRACT2_WORK_ID"],
     )
+    replace_once(
+        magic_server,
+        """         if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
+         {
+""",
+        """         if (arg0 == graphbrew::sniper::GRAPHBREW_CONTEXT_READY_WORK_ID)
+         {
+            const char* ctx_path = std::getenv("SNIPER_GRAPHBREW_CTX");
+            if (!ctx_path || !ctx_path[0])
+               ctx_path = "/tmp/sniper_graphbrew_ctx.json";
+            auto& ctx = graphbrew::sniper::globalContext();
+            ctx.loaded = ctx.loadFromSideband(ctx_path);
+            const char* require_reref = std::getenv("SNIPER_REQUIRE_POPT_MATRIX");
+            bool reref_loaded = ctx.rereference.enabled;
+            if (ctx.loaded && require_reref && require_reref[0] == '1') {
+               const char* matrix_path = std::getenv("SNIPER_POPT_MATRIX");
+               reref_loaded = matrix_path && matrix_path[0] &&
+                  ctx.loadRereferenceMatrix(matrix_path);
+               if (reref_loaded && ctx.num_regions > 0)
+                  ctx.rereference.base_address = ctx.regions[0].base_address;
+            }
+            std::fprintf(stderr,
+               "[ECG-CONTEXT-READY sim=sniper loaded=%d regions=%u reref=%d]\\n",
+               ctx.loaded ? 1 : 0, ctx.num_regions, reref_loaded ? 1 : 0);
+            if (!ctx.loaded)
+               std::fprintf(stderr, "[FATAL] Sniper ECG context-ready load failed: %s\\n", ctx_path);
+            if (require_reref && require_reref[0] == '1' && !reref_loaded)
+               std::fprintf(stderr, "[FATAL] Sniper P-OPT matrix-ready load failed\\n");
+            return ctx.loaded &&
+               (!(require_reref && require_reref[0] == '1') || reref_loaded) ? 0 : 1;
+         }
+         if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
+         {
+""",
+        args.dry_run,
+        ["GRAPHBREW_CONTEXT_READY_WORK_ID"],
+    )
+    normalize_context_ready_handler(magic_server, args.dry_run)
 
 
 def patch_ecg_pfx_prefetcher_overlay(args: argparse.Namespace) -> None:

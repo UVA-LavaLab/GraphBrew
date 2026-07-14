@@ -28,7 +28,8 @@
 using namespace std;
 
 pvector<NodeID> ShiloachVishkin_Sniper(const Graph &g) {
-    pvector<NodeID> comp(g.num_nodes());
+    pvector<NodeID> comp(
+        g.num_nodes(), NodeID(0), graphbrew_sniper::property_alignment());
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) comp[n] = n;
 
@@ -40,8 +41,6 @@ pvector<NodeID> ShiloachVishkin_Sniper(const Graph &g) {
     };
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(g, edge_regions, 2, true);
-    sniper_export_context(regions, 1, g, nullptr, edge_regions, num_edge_regions);
-
     // P-OPT reref matrix: SV reads comp[dest] over OUT-edges -> a vertex's comp is
     // next-referenced by its IN-neighbours -> transpose reref (traverseCSR=false).
     constexpr int kNumVtxPerLine = 64 / sizeof(NodeID);
@@ -51,6 +50,7 @@ pvector<NodeID> ShiloachVishkin_Sniper(const Graph &g) {
     makeOffsetMatrix(g, popt_matrix, kNumVtxPerLine, kNumEpochs, /*traverseCSR=*/false);
     sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
                               kNumEpochs, g.num_nodes());
+    sniper_export_context(regions, 1, g, nullptr, edge_regions, num_edge_regions);
 
     // Per-edge next-ref epochs for ECG_GRASP_POPT (SNIPER_ECG_EXTRACT, push_out_edges=true).
     bool ecg_extract_enabled = graphbrew_sniper::ecg_extract_enabled();

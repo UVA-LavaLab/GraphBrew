@@ -192,6 +192,39 @@ int main() {
         check(L3, "aging to max-rrpv (way6 reaches 7 first)",
               {{paddr(0),3,0,0,0},{paddr(1),5,0,0,0},{paddr(2),2,0,0,0},{paddr(3),4,0,0,0},
                {paddr(4),1,0,0,0},{paddr(5),0,0,0,0},{raddr(6),6,0,0,0},{paddr(7),2,0,0,0}}, 6);
+    } else if (var == "lru_only") {
+        check(L3, "oldest recency ignores metadata (way3)",
+              {{paddr(0),7,20,40,3},{raddr(1),7,0,30,0},{paddr(2),0,1,20,1},{paddr(3),0,2,10,1},
+              {paddr(4),7,31,50,3},{paddr(5),7,15,60,2},{paddr(6),7,2,70,1},{paddr(7),7,11,80,2}}, 3);
+    } else if (var == "dueling") {
+        ecg_policy::OnlineDuelingSelector selector;
+        size_t leader[ecg_policy::DUEL_ARM_COUNT] = {};
+        bool found[ecg_policy::DUEL_ARM_COUNT] = {};
+        for (size_t set = 0; set < 100000; ++set) {
+            int arm = ecg_policy::duelingLeaderArm(set);
+            if (arm >= 0 && !found[arm]) {
+               leader[arm] = set;
+               found[arm] = true;
+            }
+        }
+        bool leaders_ok = true;
+        for (bool present : found) leaders_ok = leaders_ok && present;
+        const int misses[ecg_policy::DUEL_ARM_COUNT] = {
+            300, 250, 200, 100, 174
+        };
+        for (uint8_t arm = 0; arm < ecg_policy::DUEL_ARM_COUNT; ++arm) {
+            for (int miss = 0; miss < misses[arm]; ++miss)
+               selector.recordMiss(leader[arm]);
+        }
+        const bool winner_ok =
+            selector.winnerArm() == ecg_policy::DUEL_DEGREE;
+        const bool leader_policy_ok =
+            selector.variantForSet(leader[ecg_policy::DUEL_EPOCH]) ==
+               ecg_policy::EPOCH_FIRST;
+        const bool ok = leaders_ok && winner_ok && leader_policy_ok;
+        printf("    %-46s [%s]\n",
+              "five-arm leaders + phase-window winner", ok ? "OK" : "FAIL");
+        if (ok) g_pass++; else g_fail++;
     } else if (var == "tier") {
         // SSOT GRASP insertion classifier (ecg_policy::classifyGraspTier /
         // graspTierRRPV) — the SAME functions cache_sim, gem5 and Sniper call.

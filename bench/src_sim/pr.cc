@@ -29,34 +29,6 @@ using namespace cache_sim;
 typedef float ScoreT;
 const float kDamp = 0.85;
 
-// ECG record auto-switch + configurable mask bit-widths (user spec 2026-06-19,
-// reviewer "how many bits?" question). ABLATION FINDING: ECG_GRASP_POPT eviction
-// uses ONLY the epoch (+ a ~0-contribution 2-bit tier tiebreak); POPT's 7 bits and
-// the prefetch field are structurally UNUSED. So the honest record counts only
-// dest(=CSR edge) + epoch + optional tier. Every field is a runtime knob so the
-// paper can sweep the bit budget:
-//   ECG_RECORD_TIER_BITS     (default 2)  degree tier (eviction tiebreak)
-//   ECG_RECORD_POPT_BITS     (default 0)  P-OPT rank — unused by ECG_GRASP_POPT
-//   ECG_RECORD_PREFETCH_BITS (default 0)  stored prefetch target — unused (read-ahead)
-// Record WIDTH auto-picks from id_bits + epoch_bits + the active field bits:
-//   4B if needed<=32, 8B if <=64, 16B beyond. ECG_EDGE_RECORD_BYTES forces 4|8|16.
-static inline int ecgRecordBytes(uint64_t num_vertices, int epoch_bits) {
-    int forced = GraphSimEnvIntClamped("ECG_EDGE_RECORD_BYTES", 0, 0, 16);
-    if (forced == 4 || forced == 8 || forced == 16) return forced;
-    int id_bits = 1; while (id_bits < 32 && (uint64_t(1) << id_bits) < num_vertices) id_bits++;
-    int tier_bits     = GraphSimEnvIntClamped("ECG_RECORD_TIER_BITS", 2, 0, 8);
-    int popt_bits     = GraphSimEnvIntClamped("ECG_RECORD_POPT_BITS", 0, 0, 8);
-    int prefetch_bits = GraphSimEnvIntClamped("ECG_RECORD_PREFETCH_BITS", 0, 0, 32);
-    int sched_k       = GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
-    // K includes the primary next-ref epoch (K=1 == legacy single epoch).
-    int epoch_payload_bits = epoch_bits * std::max(1, sched_k);
-    int needed = id_bits + epoch_payload_bits +
-                 tier_bits + popt_bits + prefetch_bits;
-    if (needed <= 32) return 4;
-    if (needed <= 64) return 8;
-    return 16;
-}
-
 // PageRank with cache simulation - template version works with both cache types
 template<typename CacheType>
 pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
@@ -64,8 +36,10 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                                     bool logging_enabled = false) {
     const ScoreT init_score = 1.0f / g.num_nodes();
     const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
-    pvector<ScoreT> scores(g.num_nodes(), init_score);
-    pvector<ScoreT> outgoing_contrib(g.num_nodes());
+    pvector<ScoreT> scores(
+        g.num_nodes(), init_score, GRAPH_SIM_PROPERTY_ALIGNMENT);
+    pvector<ScoreT> outgoing_contrib(
+        g.num_nodes(), ScoreT(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
     
     // Get raw pointers for cache tracking
     ScoreT* scores_ptr = scores.data();
@@ -97,13 +71,12 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     // numVtxPerLine = cache_line_size / sizeof(ScoreT) = 64/4 = 16
     static pvector<uint8_t> popt_matrix;  // Must outlive graph_ctx
     {
-        const char* policy_env = getenv("CACHE_POLICY");
-        std::string policy_str = policy_env ? policy_env : "";
+        const EvictionPolicy policy = GraphSimEffectiveL3Policy();
         const char* pfx_env = getenv("ECG_PREFETCH_MODE");
         bool popt_prefetch = pfx_env && (atoi(pfx_env) == 2 || atoi(pfx_env) == 4 || atoi(pfx_env) == 6 || atoi(pfx_env) == 7);
         const bool matrix_free_k2 = GraphSimMatrixFreeK2();
-        if (policy_str == "POPT" ||
-            (policy_str == "ECG" && !matrix_free_k2) ||
+        if (policy == EvictionPolicy::POPT ||
+            (policy == EvictionPolicy::ECG && !matrix_free_k2) ||
             (popt_prefetch && !matrix_free_k2)) {
             constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
             constexpr int numEpochs = 256;
@@ -147,11 +120,20 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
     // Initialize outgoing contributions
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) {
-        // Track: read degree (via neighbor iteration bounds), write contrib[n]
-        SIM_CACHE_READ(cache, scores_ptr, n);
-        SIM_CACHE_WRITE(cache, contrib_ptr, n);
         outgoing_contrib[n] = init_score / g.out_degree(n);
     }
+    // Identical post-metadata warm replay across cache_sim/gem5/Sniper.
+    graph_ctx.clearEdgeEpoch();
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); ++n) {
+        SIM_CACHE_READ(cache, scores_ptr, n);
+        SIM_CACHE_WRITE(cache, scores_ptr, n);
+        SIM_CACHE_READ(cache, contrib_ptr, n);
+        SIM_CACHE_WRITE(cache, contrib_ptr, n);
+    }
+    cache.resetStats();
+    const auto in_edge_base = g.num_nodes() > 0
+        ? g.in_neigh(0).begin() : nullptr;
     
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
@@ -179,6 +161,7 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
             if (graph_ctx.mask_config.prefetch_mode == 6 || graph_ctx.mask_config.prefetch_mode == 7) {
                 const auto& src_masks = graph_ctx.in_edge_masks_by_src[u];
                 const auto& src_eps = graph_ctx.in_edge_epoch_by_src[u];
+                const auto& src_tiers = graph_ctx.in_edge_grasp_tier_by_src[u];
                 const bool edge_mask_lean = GraphSimEnvIntClamped("ECG_EDGE_MASK_LEAN", 0, 0, 1) > 0;
                 const bool edge_mask_pack = GraphSimEnvIntClamped("ECG_EDGE_MASK_PACK", 0, 0, 1) > 0;
                 const bool stream_bypass =
@@ -203,7 +186,8 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                 // dest+DBG+POPT+epoch+prefetch in ONE stream (no separate side array).
                 int rec_ne = graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2;
                 int epoch_bits = 1; while ((1 << epoch_bits) < rec_ne && epoch_bits < 16) epoch_bits++;
-                const int record_bytes = ecgRecordBytes((uint64_t)g.num_nodes(), epoch_bits);
+                const int record_bytes = GraphSimEcgRecordBytes(
+                    static_cast<uint64_t>(g.num_nodes()), epoch_bits);
                 static bool rec_announced = false;
                 if (!rec_announced) {
                     rec_announced = true;
@@ -226,35 +210,19 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         // the epoch from the loaded edge word. No prefetch.
                         // Auto-switch record read: width = record_bytes. <=4 reads the
                         // 4-byte CSR edge (epoch in spare bits, 16 edges/line). >=8 reads
-                        // the 8-byte packed record (src_masks, 8 records/line = 2x edge
-                        // traffic) which carries the full mask suite incl. the epoch in
-                        // ONE stream. 16B charges a second 8-byte half (4 records/line).
-                        if (record_bytes <= 4 || src_masks.empty()) {
-                            if (stream_bypass)
-                                SIM_CACHE_READ_EDGE_BYPASS(cache, it);
-                            else
-                                SIM_CACHE_READ_EDGE(cache, it);
+                        // a globally contiguous 8-byte packed-record stream in the same
+                        // CSR edge order (8 records/line = 2x edge traffic). 16B charges
+                        // a second 8-byte half per record (4 records/line).
+                        if (!edge_mask_charged || src_masks.empty()) {
+                            SIM_CACHE_READ_EDGE(cache, it);
+                        } else if (stream_bypass) {
+                            SIM_CACHE_READ_EDGE_RECORD_BYPASS(
+                                cache, it, in_edge_base,
+                                GRAPH_SIM_IN_RECORD_BASE, record_bytes);
                         } else {
-                            if (record_bytes >= 16) {
-                                // Model a true 16-byte record stride. src_masks
-                                // stores only one 64-bit payload per edge, so
-                                // indexing edge_pos+1 would alias the next record.
-                                const uint64_t rec_addr =
-                                    reinterpret_cast<uint64_t>(src_masks.data()) +
-                                    static_cast<uint64_t>(edge_pos) * 16;
-                                if (stream_bypass) {
-                                    cache.accessStream(rec_addr, false);
-                                    cache.accessStream(rec_addr + 8, false);
-                                } else {
-                                    cache.access(rec_addr, false);
-                                    cache.access(rec_addr + 8, false);
-                                }
-                            } else if (stream_bypass) {
-                                SIM_CACHE_READ_STREAM_BYPASS(
-                                    cache, src_masks.data(), edge_pos);
-                            } else {
-                                SIM_CACHE_READ(cache, src_masks.data(), edge_pos);
-                            }
+                            SIM_CACHE_READ_EDGE_RECORD(
+                                cache, it, in_edge_base,
+                                GRAPH_SIM_IN_RECORD_BASE, record_bytes);
                         }
                         v = *it;
                         // Back-compat: legacy explicit 2-byte epoch charge (superseded by
@@ -270,6 +238,18 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         // reverts the bandwidth gain.
                         if (lean_pfx_k > 0) {
                             uint16_t saved_ep = graph_ctx.hints_for_thread().edge_epoch;
+                            bool saved_epoch_valid =
+                                graph_ctx.hints_for_thread().edge_epoch_valid;
+                            uint8_t saved_tier =
+                                graph_ctx.hints_for_thread().edge_grasp_tier;
+                            bool saved_tier_valid =
+                                graph_ctx.hints_for_thread().edge_grasp_tier_valid;
+                            uint8_t saved_sched_n =
+                                graph_ctx.hints_for_thread().edge_epoch_sched_n;
+                            uint16_t saved_sched[4] = {};
+                            for (uint8_t k = 0; k < 4; ++k)
+                                saved_sched[k] =
+                                    graph_ctx.hints_for_thread().edge_epoch_sched[k];
                             // Epoch filter (ecg_epoch::prefetchKeep): skip low-value prefetches.
                             const int pfx_filter = GraphSimEnvIntClamped("ECG_PREFETCH_EPOCH_FILTER", 0, 0, 2);
                             const int pfx_thresh_pct = GraphSimEnvIntClamped("ECG_PREFETCH_EPOCH_THRESH_PCT", 50, 0, 100);
@@ -307,10 +287,45 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                                         (uint32_t)rec_ne, pfx_filter, thresh))
                                     continue;
                                 graph_ctx.hints_for_thread().edge_epoch = cand_ep;
+                                graph_ctx.hints_for_thread().edge_epoch_valid = true;
+                                graph_ctx.hints_for_thread().edge_grasp_tier =
+                                    cpos < src_tiers.size() ? src_tiers[cpos] : 0;
+                                graph_ctx.hints_for_thread().edge_grasp_tier_valid =
+                                    graph_ctx.hints_for_thread().edge_grasp_tier != 0;
+                                if (graph_ctx.edge_epoch_sched_k) {
+                                    const auto& sc =
+                                        graph_ctx.in_edge_epoch_sched_by_src[u];
+                                    auto& H = graph_ctx.hints_for_thread();
+                                    const uint32_t K =
+                                        graph_ctx.edge_epoch_sched_k;
+                                    H.edge_epoch_sched_n =
+                                        static_cast<uint8_t>(
+                                            std::min<uint32_t>(K, 4));
+                                    for (uint8_t k = 0;
+                                         k < H.edge_epoch_sched_n; ++k) {
+                                        H.edge_epoch_sched[k] =
+                                            cpos * K + k < sc.size()
+                                                ? sc[cpos * K + k]
+                                                : cand_ep;
+                                    }
+                                } else {
+                                    graph_ctx.hints_for_thread().
+                                        edge_epoch_sched_n = 0;
+                                }
                                 SIM_CACHE_PREFETCH_VERTEX(cache, contrib_ptr,
                                     static_cast<uint32_t>(cand), graph_ctx);
                             }
                             graph_ctx.hints_for_thread().edge_epoch = saved_ep;
+                            graph_ctx.hints_for_thread().edge_epoch_valid =
+                                saved_epoch_valid;
+                            graph_ctx.hints_for_thread().edge_grasp_tier = saved_tier;
+                            graph_ctx.hints_for_thread().edge_grasp_tier_valid =
+                                saved_tier_valid;
+                            graph_ctx.hints_for_thread().edge_epoch_sched_n =
+                                saved_sched_n;
+                            for (uint8_t k = 0; k < 4; ++k)
+                                graph_ctx.hints_for_thread().edge_epoch_sched[k] =
+                                    saved_sched[k];
                         }
                     } else {
                         // Fat-mask path: decode dest from the mask (REPLACES the CSR
@@ -363,6 +378,11 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         v = v_un; carried_epoch = ep_un;
                     }
                     graph_ctx.hints_for_thread().edge_epoch = carried_epoch;
+                    graph_ctx.hints_for_thread().edge_epoch_valid = true;
+                    graph_ctx.hints_for_thread().edge_grasp_tier =
+                        edge_pos < src_tiers.size() ? src_tiers[edge_pos] : 0;
+                    graph_ctx.hints_for_thread().edge_grasp_tier_valid =
+                        graph_ctx.hints_for_thread().edge_grasp_tier != 0;
                     // ECG_EDGE_MASK_SCHED: deliver the per-edge forward schedule so the
                     // resident line can self-advance across epochs (matrix-like). Inert
                     // (n=0) when ECG_EDGE_MASK_SCHED is unset.
@@ -396,16 +416,20 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                                     : carried_epoch;
                             std::fprintf(stderr,
                                 "[ECG-K2-EXPECT sim=cache_sim seq=%llu "
-                                "dest=%u epoch1=%u epoch2=%u]\n",
+                                "dest=%u tier=%u epoch1=%u epoch2=%u]\n",
                                 (unsigned long long)sequence,
                                 static_cast<unsigned>(v),
+                                static_cast<unsigned>(
+                                    graph_ctx.hints_for_thread().edge_grasp_tier),
                                 static_cast<unsigned>(expected_first),
                                 static_cast<unsigned>(expected_second));
                             std::fprintf(stderr,
                                 "[ECG-K2-RECV sim=cache_sim seq=%llu "
-                                "dest=%u epoch1=%u epoch2=%u]\n",
+                                "dest=%u tier=%u epoch1=%u epoch2=%u]\n",
                                 (unsigned long long)sequence,
                                 static_cast<unsigned>(v),
+                                static_cast<unsigned>(
+                                    graph_ctx.hints_for_thread().edge_grasp_tier),
                                 static_cast<unsigned>(H.edge_epoch_sched[0]),
                                 static_cast<unsigned>(H.edge_epoch_sched[1]));
                         }
@@ -416,6 +440,7 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                     incoming_total += outgoing_contrib[v];
                 }
                 // Score update (replicated here so mode 6 matches the canonical path)
+                graph_ctx.clearEdgeEpoch();
                 SIM_CACHE_READ(cache, scores_ptr, u);
                 ScoreT old_score = scores[u];
                 ScoreT new_score = base_score + kDamp * incoming_total;

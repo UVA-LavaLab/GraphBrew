@@ -35,7 +35,9 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                            vector<vector<NodeID>> &local_bins,
                            CacheType &cache, GraphCacheContext &graph_ctx,
                            const vector<uint32_t> &vertex_masks,
-                           int pfx_lookahead, int pfx_top_k = 1) {
+                           int pfx_lookahead, int pfx_top_k,
+                           bool record_charged, int record_bytes,
+                           WNode* out_edge_base) {
     auto out_neigh = g.out_neigh(u);
     // ECG_EDGE_MASKS: consume the OUT-edge per-edge masks (transpose-correct — the
     // epoch is the next in-neighbour of dest > u, i.e. the next reader of dist[dest])
@@ -44,6 +46,15 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
     const size_t u_outdeg = (size_t)g.out_degree(u);
     size_t edge_pos = 0;
     for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
+        // The weighted CSR record remains an 8-byte baseline demand. Charged
+        // ECG additionally reads its packed metadata record; uncharged ISA
+        // delivery leaves the baseline stream unchanged.
+        SIM_CACHE_READ_EDGE(cache, it);
+        if (record_charged) {
+            SIM_CACHE_READ_EDGE_RECORD(
+                cache, it, out_edge_base,
+                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+        }
         WNode wn = *it;
         if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
             if (graph_ctx.mask_config.prefetch_mode == 3) {
@@ -125,7 +136,8 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
 template<typename CacheType>
 pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source, 
                                 WeightT delta, CacheType &cache) {
-    pvector<WeightT> dist(g.num_nodes(), kDistInf);
+    pvector<WeightT> dist(
+        g.num_nodes(), kDistInf, GRAPH_SIM_PROPERTY_ALIGNMENT);
     dist[source] = 0;
 
     // --- Graph-aware cache context ---
@@ -144,11 +156,11 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     // Build P-OPT rereference matrix before masks so POPT-ranked PFX can use it.
     static pvector<uint8_t> popt_matrix;
     {
-        const char* policy_env = getenv("CACHE_POLICY");
-        std::string policy_str = policy_env ? policy_env : "";
+        const EvictionPolicy policy = GraphSimEffectiveL3Policy();
         const char* pfx_env = getenv("ECG_PREFETCH_MODE");
         bool popt_prefetch = pfx_env && atoi(pfx_env) == 2;
-        if (policy_str == "POPT" || policy_str == "ECG" || popt_prefetch) {
+        if (policy == EvictionPolicy::POPT ||
+            policy == EvictionPolicy::ECG || popt_prefetch) {
             constexpr int numVtxPerLine = 64 / sizeof(WeightT);
             constexpr int numEpochs = 256;
             // SSSP traverses out_neigh(u) reading dist[v]; next-ref of dist[v] is
@@ -175,6 +187,19 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
         graph_ctx.buildOutEdgeMasks(g);
         cout << "SSSP: OUT-edge per-edge masks enabled (push/out)" << endl;
     }
+    const bool record_charged = GraphSimEcgEdgeRecord() &&
+        GraphSimEnvIntClamped("ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    int epoch_bits = 1;
+    const uint32_t edge_epochs =
+        graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2;
+    while (epoch_bits < 16 &&
+           (uint32_t(1) << epoch_bits) < edge_epochs) {
+        ++epoch_bits;
+    }
+    const int record_bytes = GraphSimEcgRecordBytes(
+        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    WNode* out_edge_base = g.num_nodes() > 0
+        ? g.out_neigh(0).begin() : nullptr;
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
     int pfx_top_k = GraphSimEnvIntClamped("ECG_PREFETCH_TOP_K", 1, 1, 64);
     if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
@@ -206,7 +231,9 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                 SIM_CACHE_READ(cache, dist.data(), u);
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
-                                   graph_ctx, vertex_masks, pfx_lookahead, pfx_top_k);
+                                   graph_ctx, vertex_masks, pfx_lookahead,
+                                   pfx_top_k, record_charged, record_bytes,
+                                   out_edge_base);
             }
 
             while (curr_bin_index < local_bins.size() &&
@@ -219,7 +246,9 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                     graph_ctx.clearEdgeEpoch();  // dist[u] is a SEQUENTIAL source read, not a per-edge delivery
                     SIM_CACHE_READ(cache, dist.data(), u);
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
-                                   graph_ctx, vertex_masks, pfx_lookahead, pfx_top_k);
+                                   graph_ctx, vertex_masks, pfx_lookahead,
+                                   pfx_top_k, record_charged, record_bytes,
+                                   out_edge_base);
                 }
             }
             

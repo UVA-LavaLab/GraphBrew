@@ -34,8 +34,10 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
                                        double epsilon = 0) {
     const ScoreT init_score = 1.0f / g.num_nodes();
     const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
-    pvector<ScoreT> scores(g.num_nodes(), init_score);
-    pvector<ScoreT> outgoing_contrib(g.num_nodes());
+    const size_t kPropAlign = graphbrew_sniper::property_alignment();
+    pvector<ScoreT> scores(g.num_nodes(), init_score, kPropAlign);
+    pvector<ScoreT> outgoing_contrib(
+        g.num_nodes(), ScoreT(0), kPropAlign);
 
     sniper_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
     sniper_report_region("contrib", outgoing_contrib.data(), g.num_nodes(), sizeof(ScoreT));
@@ -50,8 +52,6 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
     };
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(g, edge_regions, 2, true);
-    sniper_export_context(regions, 2, g, nullptr, edge_regions, num_edge_regions);
-
     static pvector<uint8_t> popt_matrix;
     constexpr int kNumVtxPerLine = 64 / sizeof(ScoreT);
     constexpr int kNumEpochs = 256;
@@ -61,6 +61,7 @@ pvector<ScoreT> PageRankPullGS_Sniper(const Graph &g, int max_iters,
         sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
                                   kNumEpochs, g.num_nodes());
     }
+    sniper_export_context(regions, 2, g, nullptr, edge_regions, num_edge_regions);
 
     uint8_t id_bits = 1;
     while ((1ULL << id_bits) < static_cast<uint64_t>(g.num_nodes())) id_bits++;

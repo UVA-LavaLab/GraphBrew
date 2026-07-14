@@ -229,7 +229,7 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
 void
 CacheSetPOPT::updateReplacementIndex(UInt32 accessed_index)
 {
-   m_set_info->increment(m_rrip_bits[accessed_index]);
+   m_set_info->increment(accessed_index);
 
    if (m_cache_block_info_array[accessed_index]->isPageTableBlock() && m_srrip_tlb_enabled) {
       m_rrip_bits[accessed_index] = 0;

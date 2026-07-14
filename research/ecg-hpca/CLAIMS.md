@@ -9,8 +9,16 @@
 
 ## Proven
 
-- K2 construction, delivery, line metadata, effective distance, and victim
-  decisions agree across cache_sim, gem5, and Sniper for PR and BFS.
+- Tiered K2 construction, delivery, line metadata, effective distance, and
+  victim decisions agree across cache_sim, gem5, and Sniper for
+  PR/BFS/SSSP/BC/CC.
+- The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
+  BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
+  undirected/symmetric only.
+- The 64-bit record carries an order-independent hottest-per-line GRASP tier and
+  two 15-bit epochs; the real RISC-V decoder round-trips all fields.
+- Five-arm online set dueling is live in cache_sim, gem5, and Sniper without a
+  benchmark-name decision.
 - StreamShield is request-bound in gem5 and preserves normal L1/L2 behavior and
   LLC hits; only LLC miss allocation is suppressed.
 - Sniper preserves NUCA lookup, hits, and latency while suppressing insertion of
@@ -21,11 +29,12 @@
 ## Pending
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
-  K2, and K2+StreamShield.
+  static/online K2, and both StreamShield variants.
 - A fresh real-graph cache_sim factorial using the current tag-hit-preserving
   StreamShield semantics. The legacy 77.3%/22.7% attribution used full LLC
   lookup bypass and is not a current paper claim.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
+- Real-graph online-selector regret versus the best static arm.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.
 
 ## Prohibited until the pending gate passes

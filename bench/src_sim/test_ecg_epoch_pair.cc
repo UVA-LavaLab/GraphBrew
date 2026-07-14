@@ -49,7 +49,9 @@ static bool checkDirection(const TinyGraph& graph, bool push)
             if (ecg_epoch::extractEpochPairFirst(record) !=
                     pairs[src][edge].first ||
                 ecg_epoch::extractEpochPairSecond(record) !=
-                    pairs[src][edge].second)
+                    pairs[src][edge].second ||
+                ecg_epoch::extractEpochPairTier(record) !=
+                    pairs[src][edge].tier)
                 return false;
         }
     }
@@ -79,6 +81,28 @@ static bool checkSingleReaderWrap()
            pairs[12][0].second == 4;
 }
 
+static bool checkReuseTiers()
+{
+    const uint64_t counts[] = {10, 1, 7, 0, 3, 2, 0, 0, 0, 0};
+    std::vector<uint64_t> off(11, 0);
+    for (size_t i = 0; i < 10; ++i) off[i + 1] = off[i] + counts[i];
+    const auto tiers = ecg_epoch::buildReuseTiers(off, 10, 0.10);
+    return tiers.size() == 10 &&
+           tiers[0] == 1 &&
+           tiers[2] == 2 &&
+           tiers[1] == 3 &&
+           tiers[4] == 3;
+}
+
+static bool checkK1FullRange(const TinyGraph& graph)
+{
+    std::vector<std::vector<uint16_t>> epochs;
+    ecg_epoch::buildInEdgeEpochs(
+        graph, 2, 65535, true, epochs, true);
+    return epochs.size() > 1 && !epochs[1].empty() &&
+           epochs[1][0] > ecg_epoch::kK2EpochMask;
+}
+
 int main()
 {
     TinyGraph graph(6);
@@ -96,10 +120,13 @@ int main()
     const bool pull_ok = checkDirection(graph, false);
     const bool push_ok = checkDirection(graph, true);
     const bool single_reader_ok = checkSingleReaderWrap();
+    const bool tiers_ok = checkReuseTiers();
+    const bool k1_range_ok = checkK1FullRange(graph);
     const uint64_t record =
-        ecg_epoch::packEpochPairRecord(0x89ABCDEFu, 26, 0);
+        ecg_epoch::packEpochPairRecord(0x89ABCDEFu, 2, 26, 0);
     const bool wire_ok =
         ecg_epoch::extractEpochPairDest(record) == 0x89ABCDEFu &&
+        ecg_epoch::extractEpochPairTier(record) == 2 &&
         ecg_epoch::extractEpochPairFirst(record) == 26 &&
         ecg_epoch::extractEpochPairSecond(record) == 0;
     const bool distance_ok =
@@ -107,13 +134,17 @@ int main()
         ecg_policy::epochPairDistance(26, 0, 2, 27, 32) == 5 &&
         ecg_policy::epochPairDistance(65, 130, 2, 0, 65535) == 65;
     std::printf(
-        "[test_ecg_epoch_pair] pull=%s push=%s single-reader=%s "
+        "[test_ecg_epoch_pair] pull=%s push=%s single-reader=%s tiers=%s "
+        "k1-range=%s "
         "wire=%s distance=%s\n",
                 pull_ok ? "OK" : "FAIL",
                 push_ok ? "OK" : "FAIL",
                 single_reader_ok ? "OK" : "FAIL",
+                tiers_ok ? "OK" : "FAIL",
+                k1_range_ok ? "OK" : "FAIL",
                 wire_ok ? "OK" : "FAIL",
                 distance_ok ? "OK" : "FAIL");
-    return pull_ok && push_ok && single_reader_ok && wire_ok && distance_ok
+    return pull_ok && push_ok && single_reader_ok && tiers_ok && k1_range_ok &&
+        wire_ok && distance_ok
         ? 0 : 1;
 }

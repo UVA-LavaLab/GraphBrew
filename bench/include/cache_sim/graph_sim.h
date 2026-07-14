@@ -13,6 +13,10 @@
 
 namespace cache_sim {
 
+static constexpr size_t GRAPH_SIM_PROPERTY_ALIGNMENT = 4096;
+static constexpr uint64_t GRAPH_SIM_IN_RECORD_BASE = 0x100000000000ULL;
+static constexpr uint64_t GRAPH_SIM_OUT_RECORD_BASE = 0x200000000000ULL;
+
 inline int GraphSimEnvIntClamped(const char* name, int default_value,
                                  int min_value, int max_value) {
     const char* value = std::getenv(name);
@@ -21,12 +25,58 @@ inline int GraphSimEnvIntClamped(const char* name, int default_value,
     return std::max(min_value, std::min(max_value, parsed));
 }
 
-inline bool GraphSimMatrixFreeK2() {
-    const char* policy = std::getenv("CACHE_POLICY");
+inline EvictionPolicy GraphSimEffectiveL3Policy() {
+    EvictionPolicy policy =
+        GetEnvPolicy("CACHE_POLICY", EvictionPolicy::LRU);
+    return GetEnvPolicy("CACHE_L3_POLICY", policy);
+}
+
+inline bool GraphSimEcgGraspPoptPolicy() {
+    const EvictionPolicy policy = GraphSimEffectiveL3Policy();
     const char* mode = std::getenv("ECG_MODE");
-    return policy && std::string(policy) == "ECG" &&
-           mode && std::string(mode) == "ECG_GRASP_POPT" &&
+    return policy == EvictionPolicy::ECG && mode &&
+           StringToECGMode(mode) == ECGMode::ECG_GRASP_POPT;
+}
+
+inline bool GraphSimMatrixFreeK2() {
+    return GraphSimEcgGraspPoptPolicy() &&
            GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4) == 2;
+}
+
+inline bool GraphSimEcgEdgeRecord() {
+    const bool masks_enabled =
+        std::getenv("ECG_EDGE_MASKS") != nullptr ||
+        std::getenv("ECG_BFS_EDGE_MASKS") != nullptr ||
+        std::getenv("ECG_SSSP_EDGE_MASKS") != nullptr ||
+        std::getenv("ECG_BC_EDGE_MASKS") != nullptr ||
+        std::getenv("ECG_CC_EDGE_MASKS") != nullptr;
+    return GraphSimEcgGraspPoptPolicy() && masks_enabled;
+}
+
+inline int GraphSimEcgRecordBytes(uint64_t num_vertices, int epoch_bits) {
+    int forced = GraphSimEnvIntClamped(
+        "ECG_EDGE_RECORD_BYTES", 0, 0, 16);
+    if (forced == 4 || forced == 8 || forced == 16) return forced;
+    int id_bits = 1;
+    while (id_bits < 32 &&
+           (uint64_t(1) << id_bits) < num_vertices) {
+        ++id_bits;
+    }
+    int tier_bits = GraphSimEnvIntClamped(
+        "ECG_RECORD_TIER_BITS", 2, 0, 8);
+    int popt_bits = GraphSimEnvIntClamped(
+        "ECG_RECORD_POPT_BITS", 0, 0, 8);
+    int prefetch_bits = GraphSimEnvIntClamped(
+        "ECG_RECORD_PREFETCH_BITS", 0, 0, 32);
+    int schedule_k = GraphSimEnvIntClamped(
+        "ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    if (schedule_k == 2) return 8;
+    int epoch_payload_bits = epoch_bits * std::max(1, schedule_k);
+    int needed = id_bits + epoch_payload_bits +
+                 tier_bits + popt_bits + prefetch_bits;
+    if (needed <= 32) return 4;
+    if (needed <= 64) return 8;
+    return 16;
 }
 
 // ============================================================================
@@ -151,11 +201,33 @@ private:
 #define SIM_CACHE_READ_EDGE(cache, neighbor_ptr) \
     (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
 
-// K2 replaces each 4-byte NodeID edge with one 8-byte packed record. Scaling
-// the contiguous NodeID address by two preserves edge order while charging the
-// doubled stream footprint (8 records per 64B line instead of 16).
-#define SIM_CACHE_READ_EDGE_K2(cache, neighbor_ptr) \
-    (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr) * 2ULL, false)
+#define SIM_CACHE_READ_EDGE_RECORD(cache, neighbor_ptr, edge_base, synthetic_base, record_bytes) \
+    do { \
+        const uint64_t _edge_index = static_cast<uint64_t>( \
+            (neighbor_ptr) - (edge_base)); \
+        const uint64_t _record_addr = (synthetic_base) + \
+            _edge_index * static_cast<uint64_t>(record_bytes); \
+        if ((record_bytes) >= 16) { \
+            (cache).access(_record_addr, false); \
+            (cache).access(_record_addr + 8ULL, false); \
+        } else { \
+            (cache).access(_record_addr, false); \
+        } \
+    } while (0)
+
+#define SIM_CACHE_READ_EDGE_RECORD_BYPASS(cache, neighbor_ptr, edge_base, synthetic_base, record_bytes) \
+    do { \
+        const uint64_t _edge_index = static_cast<uint64_t>( \
+            (neighbor_ptr) - (edge_base)); \
+        const uint64_t _record_addr = (synthetic_base) + \
+            _edge_index * static_cast<uint64_t>(record_bytes); \
+        if ((record_bytes) >= 16) { \
+            (cache).accessStream(_record_addr, false); \
+            (cache).accessStream(_record_addr + 8ULL, false); \
+        } else { \
+            (cache).accessStream(_record_addr, false); \
+        } \
+    } while (0)
 
 // ECG StreamShield: one-touch packed edge records can bypass LLC allocation
 // while still filling the private caches. Only ECG's explicit stream path uses

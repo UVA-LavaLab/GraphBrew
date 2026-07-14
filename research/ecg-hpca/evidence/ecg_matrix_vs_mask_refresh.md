@@ -2,6 +2,8 @@
 
 > **Historical evidence archive.** Current paper claims, methodology, results,
 > and pending gates live in `research/ecg-hpca/`.
+> The current K2 wire format is `dest32|tier2|epoch1_15|epoch2_15`; older
+> `dest32|epoch1_16|epoch2_16` references below describe the archived run.
 
 **Date:** 2026-06-30
 **Prompted by:** "can we enhance it … we have 30 bits … make the epoch analysis more

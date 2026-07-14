@@ -25,7 +25,8 @@ using namespace cache_sim;
 
 template<typename CacheType>
 pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
-    pvector<NodeID> comp(g.num_nodes());
+    pvector<NodeID> comp(
+        g.num_nodes(), NodeID(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
 
     // --- Graph-aware cache context ---
     GraphCacheContext graph_ctx;
@@ -48,9 +49,9 @@ pvector<NodeID> ShiloachVishkin_Sim(const Graph &g, CacheType &cache) {
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;
     {
-        const char* policy_env = getenv("CACHE_POLICY");
-        std::string policy_str = policy_env ? policy_env : "";
-        if (policy_str == "POPT" || policy_str == "ECG") {
+        const EvictionPolicy policy = GraphSimEffectiveL3Policy();
+        if (policy == EvictionPolicy::POPT ||
+            policy == EvictionPolicy::ECG) {
             constexpr int numVtxPerLine = 64 / sizeof(NodeID);
             constexpr int numEpochs = 256;
             makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);

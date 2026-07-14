@@ -866,13 +866,6 @@ public:
         // Miss
         stats_.misses++;
         if (graph_ctx_ && graph_ctx_->findRegion(address)) stats_.prop_misses++;
-        // Set-dueling: leader-set misses steer PSEL (epoch-leader miss -> toward LRU;
-        // LRU-leader miss -> toward epoch). Followers later read PSEL.
-        if (set_dueling_) {
-            size_t r = set_idx % 64;
-            if (r == 0) { if (psel_ < 1023) psel_++; }       // epoch leader missed
-            else if (r == 1) { if (psel_ > 0) psel_--; }     // LRU leader missed
-        }
         return false;
     }
 
@@ -887,6 +880,8 @@ public:
         L.ecg_epoch_sched_n = kn;
         for (uint8_t k = 0; k < CacheLine::ECG_SCHED_KMAX; ++k)
             L.ecg_epoch_sched[k] = (k < kn) ? H.edge_epoch_sched[k] : 0;
+        if (H.edge_grasp_tier_valid)
+            L.ecg_dbg_tier = H.edge_grasp_tier;
     }
 
     // ECG_EXACT_STORED: refresh a resident line's stamped prediction on a demand
@@ -943,6 +938,9 @@ public:
         uint64_t tag = getTag(address);
         size_t set_idx = getSetIndex(address);
         auto& set = cache_[set_idx];
+        if (policy_ == EvictionPolicy::ECG && set_dueling_ && graph_ctx_ &&
+            graph_ctx_->hints_for_thread().current_src != UINT32_MAX)
+            dueling_selector_.recordMiss(set_idx);
         
         // Find victim
         evicting_set_idx_ = set_idx;   // for set-dueling arm selection
@@ -1016,6 +1014,13 @@ public:
         if (policy_ == EvictionPolicy::ECG) {
             ECGMode mode = (graph_ctx_ && graph_ctx_->mask_config.enabled)
                 ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
+            const AccessHints* access_hints =
+                graph_ctx_ ? &graph_ctx_->hints_for_thread() : nullptr;
+            const bool has_carried_tier =
+                mode == ECGMode::ECG_GRASP_POPT &&
+                graph_ctx_ && access_hints &&
+                graph_ctx_->isEcgEpochData(address) &&
+                access_hints->edge_grasp_tier_valid;
 
             if (mode == ECGMode::ECG_EXACT_MASK) {
                 // Precomputed exact 5-bit next-ref carried on the demand (per-edge
@@ -1074,7 +1079,9 @@ public:
                 // Both map through the shared ecg_policy::graspTierRRPV (1/6/7).
                 if (graph_ctx_) {
                     uint32_t tier;
-                    if (graph_ctx_->mask_config.grasp_tier_source == 0) {  // MASK (ECG)
+                    if (has_carried_tier) {
+                        tier = access_hints->edge_grasp_tier;
+                    } else if (graph_ctx_->mask_config.grasp_tier_source == 0) {  // MASK (ECG)
                         // The DELIVERED per-vertex GRASP tier, keyed by the INSERTED
                         // LINE's own vertex, BYTE-EXACT to the region variant.
                         tier = graph_ctx_->maskGraspTier(address);
@@ -1091,8 +1098,9 @@ public:
                 uint32_t mask_entry = graph_ctx_->hints_for_thread().mask;
                 set[victim_idx].ecg_dbg_tier =
                     (mode == ECGMode::ECG_GRASP_POPT)
-                        ? static_cast<uint8_t>(
-                              graph_ctx_->classifyGRASP(address, size_bytes_))
+                        ? static_cast<uint8_t>(has_carried_tier
+                              ? access_hints->edge_grasp_tier
+                              : graph_ctx_->classifyGRASP(address, size_bytes_))
                         : graph_ctx_->mask_config.decodeDBG(mask_entry);
                 set[victim_idx].ecg_epoch_valid = false;  // reset; set true only on a real delivery
                 set[victim_idx].ecg_epoch_sched_n = 0;
@@ -1116,8 +1124,14 @@ public:
                     set[victim_idx].ecg_popt_hint = graph_ctx_->mask_config.decodePOPT(mask_entry);
                 }
             } else if (graph_ctx_) {
-                uint32_t bucket = graph_ctx_->classifyBucket(address);
-                set[victim_idx].ecg_dbg_tier = (bucket < 11) ? static_cast<uint8_t>(bucket) : 0;
+                if (has_carried_tier) {
+                    set[victim_idx].ecg_dbg_tier =
+                        access_hints->edge_grasp_tier;
+                } else {
+                    uint32_t bucket = graph_ctx_->classifyBucket(address);
+                    set[victim_idx].ecg_dbg_tier =
+                        (bucket < 11) ? static_cast<uint8_t>(bucket) : 0;
+                }
                 // Compute live P-OPT hint if matrix available
                 if (graph_ctx_->rereference.matrix) {
                     uint32_t dist = graph_ctx_->findNextRef(address);
@@ -1287,7 +1301,16 @@ private:
                 // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED variants
                 if (graph_ctx_) {
                     uint64_t addr = set[idx].line_addr;
-                    uint32_t tier = graph_ctx_->classifyGRASP(addr, size_bytes_);
+                    if (mode == ECGMode::ECG_GRASP_POPT &&
+                        graph_ctx_->isEcgEpochData(addr) &&
+                        graph_ctx_->hints_for_thread().edge_grasp_tier_valid) {
+                        set[idx].ecg_dbg_tier =
+                            graph_ctx_->hints_for_thread().edge_grasp_tier;
+                    }
+                    uint32_t tier = mode == ECGMode::ECG_GRASP_POPT &&
+                            set[idx].ecg_dbg_tier != 0
+                        ? set[idx].ecg_dbg_tier
+                        : graph_ctx_->classifyGRASP(addr, size_bytes_);
                     if (tier == 1) set[idx].rrpv = 0;           // Hot: aggressive reset
                     else if (set[idx].rrpv > 0) set[idx].rrpv--; // Others: gradual
                 }
@@ -1792,7 +1815,7 @@ private:
             //     epoch_only(3): records-first by recency, then farthest-epoch property
             //                     (insertion uniform -> isolates the epoch vs P-OPT)
             //     shortcircuit(4,legacy): non-property first, then epoch among property
-            static const int variant = [](){
+            static const int configured_variant = [](){
                 const char* v = std::getenv("ECG_VARIANT");
                 if (!v) return 2;
                 std::string s(v);
@@ -1802,8 +1825,13 @@ private:
                 if (s=="epoch_only")   return 3;
                 if (s=="shortcircuit"||s=="legacy") return 4;
                 if (s=="degree_first"||s=="traversal") return 5;
+                if (s=="lru_only") return 6;
                 return 2;
             }();
+            int variant = configured_variant;
+            if (set_dueling_) {
+                variant = dueling_selector_.variantForSet(evicting_set_idx_);
+            }
             const uint32_t n = graph_ctx_->exact_nv
                 ? graph_ctx_->exact_nv : graph_ctx_->topology.num_vertices;
             const uint32_t ne = graph_ctx_->edge_epoch_count ? graph_ctx_->edge_epoch_count : 32u;
@@ -1859,6 +1887,9 @@ private:
                 pol = "ECG:degree_first";
                 reason = !isProp(victim) ? "max-rrpv record by recency"
                                          : "max-rrpv coldest-degree then epoch";
+            } else if (variant == 6) {
+                pol = "ECG:lru_only";
+                reason = "oldest recency";
             } else {
                 pol = (variant == 1) ? "ECG:epoch_first" : "ECG:epoch_only";
                 reason = !isProp(victim) ? "record by recency"
@@ -2092,11 +2123,14 @@ private:
     GRASPState grasp_state_;  // GRASP degree-aware state (legacy, used if no GraphCacheContext)
     const GraphCacheContext* graph_ctx_ = nullptr;  // Unified graph-aware context (preferred)
 
-    // ECG_GRASP_POPT set-dueling (ECG_SET_DUELING=1): DRRIP-style adaptive choice
-    // between epoch eviction (good on power-law) and LRU (best stamp on mesh).
-    // ~1/64 sets are epoch-leaders, ~1/64 LRU-leaders; PSEL picks for followers.
-    bool set_dueling_ = std::getenv("ECG_SET_DUELING") != nullptr;
-    int psel_ = 512;                 // 0..1023; <512 => followers use epoch, else LRU
+    // ECG_GRASP_POPT online set dueling: five sampled leader arms
+    // (RRIP-first, GRASP-only, epoch-first, degree-first, LRU) train a
+    // phase-resetting winner used by follower sets.
+    bool set_dueling_ = []() {
+        const char* value = std::getenv("ECG_SET_DUELING");
+        return value && value[0] && std::string(value) != "0";
+    }();
+    ecg_policy::OnlineDuelingSelector dueling_selector_;
     size_t evicting_set_idx_ = 0;    // set index of the in-progress eviction
 };
 

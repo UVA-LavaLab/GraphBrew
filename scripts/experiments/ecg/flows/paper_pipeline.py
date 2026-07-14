@@ -23,6 +23,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from paper_run import recover_roi_comparison_config_hash  # noqa: E402
+
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
 FINAL_RUN = ECG_DIR / "flows" / "paper_run.py"
@@ -39,8 +42,15 @@ POLICY_ORDER = [
     "ECG_DBG_PRIMARY_CHARGED",
     "ECG_DBG_PRIMARY",
     "ECG_POPT_PRIMARY",
+    "ECG_K2_GRASP",
+    "ECG_K2_LRU",
+    "ECG_K2_RRIP",
+    "ECG_K2_DEGREE",
+    "ECG_K2_EPOCH",
     "ECG_K2",
+    "ECG_K2_ONLINE",
     "ECG_K2_STREAMSHIELD",
+    "ECG_K2_ONLINE_STREAMSHIELD",
 ]
 
 BENCHMARK_ORDER = ["pr", "bfs", "sssp", "cc", "bc", "tc"]
@@ -63,8 +73,15 @@ POLICY_LABELS = {
     "ECG_DBG_PRIMARY_CHARGED": "ECG-H+C",
     "ECG_DBG_PRIMARY": "ECG-H",
     "ECG_POPT_PRIMARY": "ECG-P",
+    "ECG_K2_GRASP": "K2-GRASP",
+    "ECG_K2_LRU": "K2-LRU",
+    "ECG_K2_RRIP": "K2-RRIP",
+    "ECG_K2_DEGREE": "K2-degree",
+    "ECG_K2_EPOCH": "K2-epoch",
     "ECG_K2": "K2",
+    "ECG_K2_ONLINE": "K2-online",
     "ECG_K2_STREAMSHIELD": "K2+SS",
+    "ECG_K2_ONLINE_STREAMSHIELD": "K2-online+SS",
 }
 
 POLICY_DESCRIPTIONS = {
@@ -77,8 +94,15 @@ POLICY_DESCRIPTIONS = {
     "ECG_DBG_PRIMARY_CHARGED": "ECG hybrid mode with P-OPT overhead charged",
     "ECG_DBG_PRIMARY": "ECG DBG-primary hybrid mode",
     "ECG_POPT_PRIMARY": "ECG P-OPT-primary oracle-validation mode",
+    "ECG_K2_GRASP": "K2 transport with GRASP-only victim selection",
+    "ECG_K2_LRU": "K2 transport with LRU-only victim selection",
+    "ECG_K2_RRIP": "K2 transport with RRIP-first victim selection",
+    "ECG_K2_DEGREE": "K2 transport with degree-first victim selection",
+    "ECG_K2_EPOCH": "K2 transport with epoch-first victim selection",
     "ECG_K2": "Two-epoch ECG replacement",
+    "ECG_K2_ONLINE": "Online set-dueling across all K2 victim arms",
     "ECG_K2_STREAMSHIELD": "Two-epoch ECG plus StreamShield placement",
+    "ECG_K2_ONLINE_STREAMSHIELD": "Online K2 plus StreamShield placement",
 }
 
 POLICY_COLORS = {
@@ -91,8 +115,15 @@ POLICY_COLORS = {
     "ECG_DBG_PRIMARY_CHARGED": "#B79A20",
     "ECG_DBG_PRIMARY": "#54A24B",
     "ECG_POPT_PRIMARY": "#B279A2",
+    "ECG_K2_GRASP": "#8CD17D",
+    "ECG_K2_LRU": "#9C9C9C",
+    "ECG_K2_RRIP": "#59A14F",
+    "ECG_K2_DEGREE": "#2F8F9D",
+    "ECG_K2_EPOCH": "#1F9D55",
     "ECG_K2": "#2CA02C",
+    "ECG_K2_ONLINE": "#007A3D",
     "ECG_K2_STREAMSHIELD": "#006D2C",
+    "ECG_K2_ONLINE_STREAMSHIELD": "#00441B",
 }
 
 POLICY_HATCHES = {
@@ -503,6 +534,28 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                     f"expected={expected_hash} "
                     f"actual={marker_payload.get('config_hash', '')}")
                 return
+            marker_comparison_hash = str(
+                marker_payload.get("comparison_config_hash", ""))
+            expected_comparison_hash = str(
+                expected_job.get("metadata", {}).get(
+                    "comparison_config_hash", ""))
+            if (marker_comparison_hash and expected_comparison_hash and
+                    marker_comparison_hash != expected_comparison_hash):
+                print(
+                    f"[skip] stale comparison hash: {path} "
+                    f"expected={expected_comparison_hash} "
+                    f"actual={marker_comparison_hash}")
+                return
+            if not marker_comparison_hash:
+                marker_comparison_hash = (
+                    expected_comparison_hash or
+                    recover_roi_comparison_config_hash(expected_job))
+                if marker_comparison_hash:
+                    marker_payload["comparison_config_hash"] = (
+                        marker_comparison_hash)
+                    print(
+                        "[metadata] recovered legacy comparison hash: "
+                        f"{path}")
         rows = [
             row for row in rows
             if row.get("final_output_status", "ok") == "ok"
@@ -516,6 +569,7 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
             row.setdefault(
                 "final_matrix_id", row.get("final_job_id", ""))
             row.setdefault("final_matrix_config_hash", "")
+            row.setdefault("final_comparison_config_hash", "")
             row.setdefault(
                 "final_scaling_series_id",
                 row.get("final_matrix_id", row.get("final_job_id", "")))
@@ -532,6 +586,8 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                     marker_payload.get(
                         "matrix_config_hash",
                         marker_payload.get("config_hash", "")))
+                row["final_comparison_config_hash"] = str(
+                    marker_payload.get("comparison_config_hash", ""))
         if kind == "proof":
             proof_rows.extend(rows)
         else:
@@ -662,6 +718,293 @@ def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 record["l3_miss_ratio_vs_lru"] = misses / lru_misses
             out_rows.append(record)
     return out_rows
+
+
+def is_preliminary_5alg_row(row: dict[str, Any]) -> bool:
+    return "preliminary_5alg" in str(row.get("final_matrix_id", ""))
+
+
+def preliminary_policy_ranks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    required = {
+        "LRU", "SRRIP", "GRASP", "POPT", "ECG_K2", "ECG_K2_ONLINE",
+    }
+    grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in complete_matrix_rows(rows):
+        if (row.get("status") == "ok" and
+                row.get("final_output_status", "ok") == "ok" and
+                row.get("prefetcher") == "none" and
+                is_preliminary_5alg_row(row)):
+            grouped[compare_key(row)][str(row.get("policy_label", ""))] = row
+
+    out: list[dict[str, Any]] = []
+    for group_key, by_policy in grouped.items():
+        if not required.issubset(by_policy):
+            continue
+        metrics = {
+            policy: effective_l3_misses(by_policy[policy])
+            for policy in required
+        }
+        if any(value is None or not math.isfinite(value)
+               for value in metrics.values()):
+            continue
+        ranked = sorted(
+            required,
+            key=lambda policy: (float(metrics[policy]), policy_sort_key(policy)),
+        )
+        rank = {policy: index + 1 for index, policy in enumerate(ranked)}
+        for policy in sorted(required, key=policy_sort_key):
+            row = by_policy[policy]
+            metric = float(metrics[policy])
+            record = {
+                key: value for key, value in zip(ROI_COMPARE_KEYS, group_key)
+            }
+            record.update({
+                "policy_label": policy,
+                "policy_short": policy_label(policy),
+                "effective_l3_misses": metric,
+                "rank_within_simulator": rank[policy],
+                "best_policy": ranked[0],
+                "record_transport_model": {
+                    "cache_sim": "fused_wide_record",
+                    "gem5": "explicit_record_delivery",
+                    "sniper": "instrumented_record_delivery",
+                }.get(str(row.get("simulator", "")), ""),
+                "l3_miss_rate": row.get("l3_miss_rate", ""),
+                "l3_prop_miss_rate": row.get("l3_prop_miss_rate", ""),
+                "l3_prefetch_misses": row.get("l3_prefetch_misses", ""),
+                "l3_prefetch_accesses": row.get("l3_prefetch_accesses", ""),
+                "dram_read_bytes": row.get("dram_read_bytes", ""),
+                "dram_write_bytes": row.get("dram_write_bytes", ""),
+                "dram_prefetch_read_bytes": row.get(
+                    "dram_prefetch_read_bytes", ""),
+                "total_accesses": row.get("total_accesses", ""),
+                "instructions": row.get("instructions", ""),
+                "l3_exercised": row.get("l3_exercised", ""),
+                "timing_model": timing_model_label(row),
+                "timing_valid_for_speedup": timing_valid_label(row),
+                "timing_caveat": row.get("timing_caveat", ""),
+            })
+            for baseline in ("LRU", "GRASP", "POPT"):
+                baseline_metric = float(metrics[baseline])
+                record[
+                    f"effective_miss_reduction_vs_{baseline.lower()}_pct"
+                ] = ((baseline_metric - metric) / baseline_metric) * 100.0
+            out.append(record)
+    return out
+
+
+def preliminary_stride_sensitivity(
+        rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    keys = (
+        "final_comparison_config_hash",
+        "simulator", "final_graph", "benchmark", "l3_size",
+        "l1d_size", "l2_size", "l3_ways", "options",
+        "threads", "section", "policy_label",
+    )
+    logical_keys = keys[1:]
+    required = {
+        "LRU", "SRRIP", "GRASP", "POPT", "ECG_K2", "ECG_K2_ONLINE",
+    }
+    grouped: dict[
+        tuple[Any, ...], dict[str, list[dict[str, Any]]]
+    ] = defaultdict(lambda: defaultdict(list))
+    hashes_by_logical: dict[
+        tuple[Any, ...], dict[str, set[str]]
+    ] = defaultdict(lambda: defaultdict(set))
+    for row in complete_matrix_rows(rows):
+        if (row.get("status") == "ok" and
+                row.get("final_output_status", "ok") == "ok" and
+                row.get("prefetcher") in ("none", "STRIDE") and
+                row.get("policy_label") in required and
+                is_preliminary_5alg_row(row)):
+            if not row.get("final_comparison_config_hash"):
+                raise RuntimeError(
+                    "preliminary STRIDE sensitivity lacks comparison hash: "
+                    f"matrix={row.get('final_matrix_id', '')}")
+            full_key = tuple(row.get(key, "") for key in keys)
+            prefetcher = str(row.get("prefetcher"))
+            grouped[full_key][prefetcher].append(row)
+            hashes_by_logical[
+                tuple(row.get(key, "") for key in logical_keys)
+            ][prefetcher].add(str(row["final_comparison_config_hash"]))
+
+    for logical_key, by_prefetcher in hashes_by_logical.items():
+        none_hashes = by_prefetcher.get("none", set())
+        stride_hashes = by_prefetcher.get("STRIDE", set())
+        if none_hashes and stride_hashes and none_hashes != stride_hashes:
+            raise RuntimeError(
+                "preliminary STRIDE sensitivity comparison hash mismatch: "
+                f"key={logical_key} none={sorted(none_hashes)} "
+                f"stride={sorted(stride_hashes)}")
+
+    def traffic(row: dict[str, Any]) -> tuple[float | None, str]:
+        dram_read = as_float(row.get("dram_read_bytes"))
+        dram_write = as_float(row.get("dram_write_bytes"))
+        if dram_read is not None or dram_write is not None:
+            return (dram_read or 0.0) + (dram_write or 0.0), "dram_bytes"
+        total = as_float(row.get("total_memory_traffic_with_overhead"))
+        if total is not None:
+            return total, "memory_transactions"
+        return None, ""
+
+    out: list[dict[str, Any]] = []
+    for key, by_prefetcher in grouped.items():
+        baseline_rows = by_prefetcher.get("none", [])
+        stride_rows = by_prefetcher.get("STRIDE", [])
+        if not baseline_rows or not stride_rows:
+            continue
+        if len(baseline_rows) != 1 or len(stride_rows) != 1:
+            raise RuntimeError(
+                "preliminary STRIDE sensitivity has duplicate inputs: "
+                f"key={key} none={len(baseline_rows)} "
+                f"stride={len(stride_rows)}")
+        baseline = baseline_rows[0]
+        stride = stride_rows[0]
+        baseline_misses = effective_l3_misses(baseline)
+        stride_misses = effective_l3_misses(stride)
+        baseline_traffic, traffic_unit = traffic(baseline)
+        stride_traffic, stride_unit = traffic(stride)
+        record = {name: value for name, value in zip(keys, key)}
+        record.update({
+            "baseline_prefetcher": "none",
+            "sensitivity_prefetcher": "STRIDE",
+            "structure_prefetch_degree": stride.get(
+                "structure_prefetch_degree", ""),
+            "baseline_effective_l3_misses":
+                baseline_misses if baseline_misses is not None else "",
+            "stride_effective_l3_misses":
+                stride_misses if stride_misses is not None else "",
+            "traffic_unit": traffic_unit if traffic_unit == stride_unit else "",
+            "baseline_traffic":
+                baseline_traffic if baseline_traffic is not None else "",
+            "stride_traffic":
+                stride_traffic if stride_traffic is not None else "",
+            "timing_valid_for_speedup": int(
+                timing_valid_for_speedup(baseline) and
+                timing_valid_for_speedup(stride)),
+        })
+        if baseline_misses and stride_misses is not None:
+            record["demand_miss_reduction_pct"] = (
+                (baseline_misses - stride_misses) / baseline_misses) * 100.0
+        if baseline_traffic and stride_traffic is not None:
+            record["traffic_change_pct"] = (
+                (stride_traffic - baseline_traffic) / baseline_traffic) * 100.0
+        baseline_ticks = as_float(baseline.get("sim_ticks"))
+        stride_ticks = as_float(stride.get("sim_ticks"))
+        if (record["timing_valid_for_speedup"] and
+                baseline_ticks and stride_ticks):
+            record["speedup_none_to_stride"] = baseline_ticks / stride_ticks
+        out.append(record)
+    return out
+
+
+def online_dueling_regret(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    static_policies = (
+        "ECG_K2_GRASP",
+        "ECG_K2_EPOCH",
+        "ECG_K2_RRIP",
+        "ECG_K2_DEGREE",
+        "ECG_K2_LRU",
+    )
+    grouped: dict[tuple[Any, ...], dict[str, dict[str, Any]]] = defaultdict(dict)
+    for row in complete_matrix_rows(rows):
+        if (row.get("status") == "ok" and
+                row.get("final_output_status", "ok") == "ok"):
+            grouped[compare_key(row)][str(row.get("policy_label", ""))] = row
+
+    out: list[dict[str, Any]] = []
+    for group_key, by_policy in grouped.items():
+        online = by_policy.get("ECG_K2_ONLINE")
+        static = [
+            by_policy[policy] for policy in static_policies
+            if policy in by_policy
+        ]
+        if online is None or len(static) != len(static_policies):
+            continue
+        demand_counts = set()
+        for policy, row in by_policy.items():
+            value = as_float(row.get("total_accesses"))
+            if value is None or not math.isfinite(value):
+                raise RuntimeError(
+                    "online-dueling matrix lacks a finite demand count: "
+                    f"matrix={group_key[1]} policy={policy}")
+            exercised = str(row.get("l3_exercised", "")).lower()
+            if exercised not in ("1", "true"):
+                raise RuntimeError(
+                    "online-dueling matrix has no exercised L3: "
+                    f"matrix={group_key[1]} policy={policy}")
+            demand_counts.add(value)
+        if len(demand_counts) > 1:
+            raise RuntimeError(
+                "online-dueling matrix changes the demand stream: "
+                f"matrix={group_key[1]} total_accesses={sorted(demand_counts)}")
+
+        metric = next(
+            (
+                field for field in (
+                    "l3_misses", "memory_accesses")
+                if as_float(online.get(field)) is not None and
+                all(as_float(row.get(field)) is not None for row in static)
+            ),
+            None,
+        )
+        if metric is None:
+            continue
+        best = min(
+            static,
+            key=lambda row: (
+                as_float(row.get(metric))
+                if as_float(row.get(metric)) is not None
+                else math.inf
+            ),
+        )
+        best_value = as_float(best.get(metric))
+        online_value = as_float(online.get(metric))
+        if not best_value or online_value is None:
+            continue
+        record = {
+            key: value for key, value in zip(ROI_COMPARE_KEYS, group_key)
+        }
+        record.update({
+            "metric": metric,
+            "best_static_policy": best.get("policy_label", ""),
+            "best_static_value": best_value,
+            "online_value": online_value,
+            "online_regret_pct": (
+                (online_value - best_value) / best_value) * 100.0,
+        })
+        property_values = [
+            (row, as_float(row.get("l3_prop_misses")))
+            for row in static
+        ]
+        online_property = as_float(online.get("l3_prop_misses"))
+        if (online_property is not None and all(
+                value is not None for _row, value in property_values)):
+            best_property_row, best_property = min(
+                property_values,
+                key=lambda item: (
+                    item[1] if item[1] is not None else math.inf),
+            )
+            if best_property:
+                record["best_static_property_policy"] = (
+                    best_property_row.get("policy_label", ""))
+                record["online_property_regret_pct"] = (
+                    (online_property - best_property) /
+                    best_property) * 100.0
+        for policy in ("POPT_UNCHARGED", "POPT"):
+            baseline = by_policy.get(policy)
+            value = None
+            if baseline:
+                value = (
+                    effective_l3_misses(baseline)
+                    if policy == "POPT" and metric == "l3_misses"
+                    else as_float(baseline.get(metric))
+                )
+            if value:
+                record[f"online_delta_vs_{policy.lower()}_pct"] = (
+                    (online_value - value) / value) * 100.0
+        out.append(record)
+    return out
 
 
 def proof_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1691,6 +2034,39 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
                         ),
                     ),
                 )
+        preliminary_ranks = preliminary_policy_ranks(roi_rows)
+        if preliminary_ranks:
+            write_csv(
+                aggregate_dir / "preliminary_5alg_policy_ranks.csv",
+                preliminary_ranks)
+        stride_sensitivity = preliminary_stride_sensitivity(roi_rows)
+        if stride_sensitivity:
+            write_csv(
+                aggregate_dir / "preliminary_5alg_stride_sensitivity.csv",
+                stride_sensitivity)
+        regret_csv = aggregate_dir / "online_dueling_regret.csv"
+        regret_tex = tables_dir / "online_dueling_regret.tex"
+        for stale in (regret_csv, regret_tex):
+            if stale.exists():
+                stale.unlink()
+                print(f"[remove] {stale}")
+        dueling_regret = online_dueling_regret(roi_rows)
+        if dueling_regret:
+            write_csv(regret_csv, dueling_regret)
+            write_latex_table(
+                regret_tex,
+                dueling_regret[:24],
+                [
+                    "final_matrix_id", "simulator", "benchmark", "l3_size",
+                    "metric",
+                    "best_static_policy", "online_regret_pct",
+                    "best_static_property_policy",
+                    "online_property_regret_pct",
+                    "online_delta_vs_popt_uncharged_pct",
+                    "online_delta_vs_popt_pct",
+                ],
+                "Online K2 set-dueling regret versus the best static arm",
+            )
         overhead = charged_overhead(roi_rows)
         if overhead:
             write_csv(aggregate_dir / "popt_charged_overhead.csv", overhead)
@@ -1702,7 +2078,7 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
             )
         write_latex_table(
             tables_dir / "roi_policy_summary.tex",
-            (relative_summary if relative else summary)[:24],
+            relative_summary if relative else summary,
             ["policy_short", "benchmark", "prefetcher", "avg_speedup_vs_lru", "avg_l3_miss_reduction_vs_lru_pct"]
             if relative else ["policy_short", "benchmark", "prefetcher", "avg_sim_ticks", "avg_l3_misses"],
             "ECG normalized ROI summary" if relative else "ECG ROI policy summary",

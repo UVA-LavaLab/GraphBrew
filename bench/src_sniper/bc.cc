@@ -31,10 +31,12 @@ using namespace std;
 typedef float ScoreT;
 
 pvector<ScoreT> Brandes_Sniper(const Graph &g, int num_iters) {
-    pvector<ScoreT> scores(g.num_nodes(), ScoreT(0));
-    pvector<int32_t> depth(g.num_nodes(), int32_t(-1));
-    pvector<int64_t> path_counts(g.num_nodes(), int64_t(0));
-    pvector<ScoreT> deltas(g.num_nodes(), ScoreT(0));
+    const size_t kPropAlign = graphbrew_sniper::property_alignment();
+    pvector<ScoreT> scores(g.num_nodes(), ScoreT(0), kPropAlign);
+    pvector<int32_t> depth(g.num_nodes(), int32_t(-1), kPropAlign);
+    pvector<int64_t> path_counts(
+        g.num_nodes(), int64_t(0), kPropAlign);
+    pvector<ScoreT> deltas(g.num_nodes(), ScoreT(0), kPropAlign);
 
     sniper_report_region("scores", scores.data(), g.num_nodes(), sizeof(ScoreT));
     sniper_report_region("depth", depth.data(), g.num_nodes(), sizeof(int32_t));
@@ -59,28 +61,49 @@ pvector<ScoreT> Brandes_Sniper(const Graph &g, int num_iters) {
     };
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(g, edge_regions, 2, true);
-    sniper_export_context(regions, 4, g, nullptr, edge_regions, num_edge_regions);
-
     // P-OPT reref matrix keyed on depth (int32): BC pushes OUT-edges reading
     // depth[dest], so depth is next-referenced by its IN-neighbours -> transpose
     // reref (traverseCSR=false), matching the push_out_edges=true epochs below.
     constexpr int kNumVtxPerLine = 64 / sizeof(int32_t);
     constexpr int kNumEpochs = 256;
+    const int ecg_sched_k =
+        graphbrew_sniper::env_int_clamped(
+            "ECG_EDGE_MASK_SCHED", 0, 0, 4);
     static pvector<uint8_t> popt_matrix;
     int popt_num_cache_lines = (g.num_nodes() + kNumVtxPerLine - 1) / kNumVtxPerLine;
-    makeOffsetMatrix(g, popt_matrix, kNumVtxPerLine, kNumEpochs, /*traverseCSR=*/false);
-    sniper_export_popt_matrix(popt_matrix.data(), popt_num_cache_lines,
-                              kNumEpochs, g.num_nodes());
+    if (ecg_sched_k != 2) {
+        makeOffsetMatrix(
+            g, popt_matrix, kNumVtxPerLine, kNumEpochs,
+            /*traverseCSR=*/false);
+        sniper_export_popt_matrix(
+            popt_matrix.data(), popt_num_cache_lines,
+            kNumEpochs, g.num_nodes());
+    }
 
     bool ecg_extract_enabled = graphbrew_sniper::ecg_extract_enabled();
     uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
+    if (ecg_sched_k == 2)
+        ecg_epoch_count =
+            ecg_epoch::normalizeK2EpochCount(ecg_epoch_count);
     vector<vector<uint16_t>> out_edge_epochs;
-    if (ecg_extract_enabled) {
+    if (ecg_extract_enabled && ecg_sched_k != 2) {
         ecg_epoch::buildInEdgeEpochs(g, kNumVtxPerLine, ecg_epoch_count,
                                      /*linemin=*/true, out_edge_epochs,
                                      /*push_out_edges=*/true);
     }
+    vector<uint64_t> pair_off;
+    vector<uint64_t> pair_flat;
+    bool pair_ok = false;
+    if (ecg_extract_enabled && ecg_sched_k == 2) {
+        ecg_epoch::buildInEdgeEpochPairRecords(
+            g, kNumVtxPerLine, ecg_epoch_count,
+            /*linemin=*/true, pair_off, pair_flat,
+            /*push_out_edges=*/true);
+        pair_ok = true;
+    }
+    sniper_export_context(
+        regions, 4, g, nullptr, edge_regions, num_edge_regions);
     auto deliver = [&](NodeID u, size_t edge_pos, NodeID v) {
         if (!ecg_extract_enabled || static_cast<size_t>(u) >= out_edge_epochs.size())
             return;
@@ -119,16 +142,42 @@ pvector<ScoreT> Brandes_Sniper(const Graph &g, int num_iters) {
                 for (size_t i = 0; i < frontier.size(); i++) {
                     NodeID u = frontier[i];
                     SNIPER_SET_VERTEX(u);
-                    size_t edge_pos = 0;
-                    for (NodeID v : g.out_neigh(u)) {
-                        deliver(u, edge_pos, v);
-                        ++edge_pos;
-                        if (depth[v] == -1 &&
-                            compare_and_swap(depth[v], int32_t(-1),
-                                             int32_t(cur_level + 1)))
+                    auto process_neighbor = [&](NodeID v, int32_t depth_v) {
+                        if (depth_v == -1 &&
+                            compare_and_swap(
+                                depth[v], int32_t(-1),
+                                int32_t(cur_level + 1))) {
                             local_next.push_back(v);
-                        if (depth[v] == cur_level + 1)
+                            depth_v = cur_level + 1;
+                        } else {
+                            depth_v = depth[v];
+                        }
+                        if (depth_v == cur_level + 1)
                             fetch_and_add(path_counts[v], path_counts[u]);
+                    };
+                    if (pair_ok &&
+                        static_cast<size_t>(u + 1) < pair_off.size()) {
+                        for (uint64_t pos = pair_off[u];
+                             pos < pair_off[u + 1]; ++pos) {
+                            const uint64_t record = pair_flat[pos];
+                            const NodeID v = static_cast<NodeID>(
+                                ecg_epoch::extractEpochPairDest(record));
+                            SNIPER_ECG_EXTRACT2(
+                                static_cast<uint32_t>(v),
+                                ecg_epoch::extractEpochPairTier(record),
+                                ecg_epoch::extractEpochPairFirst(record),
+                                ecg_epoch::extractEpochPairSecond(record));
+                            const int32_t depth_v = depth[v];
+                            SNIPER_ECG_CLEAR_EXTRACT2(v);
+                            process_neighbor(v, depth_v);
+                        }
+                    } else {
+                        size_t edge_pos = 0;
+                        for (NodeID v : g.out_neigh(u)) {
+                            deliver(u, edge_pos, v);
+                            ++edge_pos;
+                            process_neighbor(v, depth[v]);
+                        }
                     }
                 }
                 #pragma omp critical

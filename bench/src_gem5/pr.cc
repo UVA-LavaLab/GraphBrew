@@ -45,8 +45,11 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
 
     const int ecg_sched_k =
         gem5_env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
-    const uint32_t requested_epoch_count = static_cast<uint32_t>(
+    uint32_t requested_epoch_count = static_cast<uint32_t>(
         gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS", 65535, 2, 65535));
+    if (ecg_sched_k == 2)
+        requested_epoch_count =
+            ecg_epoch::normalizeK2EpochCount(requested_epoch_count);
     uint8_t edge_id_bits = 1;
     while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
     uint32_t edge_epoch_count = requested_epoch_count;
@@ -215,7 +218,8 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 in_edge_pair_flat.begin());
             pair_ok = true;
             printf("[gem5 ECG mode 6] Schedule-2 record ON: "
-                   "ne=%u records=%llu (8-byte dest+epoch1+epoch2)\n",
+                   "ne=%u records=%llu "
+                   "(8-byte dest32+tier2+epoch15+epoch15)\n",
                    edge_epoch_count,
                    (unsigned long long)in_edge_pair_flat.size());
         } else {
@@ -326,6 +330,12 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
 
     for (NodeID n = 0; n < g.num_nodes(); n++)
         outgoing_contrib[n] = init_score / g.out_degree(n);
+    volatile ScoreT* warm_scores = scores.data();
+    volatile ScoreT* warm_contrib = outgoing_contrib.data();
+    for (NodeID n = 0; n < g.num_nodes(); ++n) {
+        warm_scores[n] = warm_scores[n];
+        warm_contrib[n] = warm_contrib[n];
+    }
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -383,6 +393,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     if (!ecg_stream_load2_on && !ecg_load2_on)
                         GEM5_ECG_EXTRACT2(rec);
                     incoming_total += outgoing_contrib[v];
+                    GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 }
                 const ScoreT old_score = scores[u];
                 scores[u] = base_score + kDamp * incoming_total;

@@ -41,7 +41,7 @@ inline uint32_t ecgGraspTier(const Ctx& ctx, uint64_t addr, uint64_t llcSize) {
     if (gsrc == 0) {  // MASK (ECG): delivered per-vertex tier, byte-exact to region
         return ctx.maskGraspTier(addr, ghf);
     }
-    return ctx.classifyGRASP(addr, llcSize);  // REGION (GRASP)
+    return ctx.classifyGRASP(addr, llcSize, ghf);  // REGION (GRASP)
 }
 }  // namespace
 
@@ -106,6 +106,7 @@ GraphEcgRP::invalidate(
     data->ecg_epoch2 = 0;
     data->ecg_epoch_count = 0;
     data->ecg_epoch_valid = false;
+    data->valid = false;
     data->is_property_data = false;
     data->line_addr = 0;
 }
@@ -145,10 +146,8 @@ GraphEcgRP::touch(
                 uint16_t isa_epoch2 = data->ecg_epoch2;
                 uint8_t isa_count = data->ecg_epoch_count;
                 if (graph::lookupDecodedEcgHint2(
-                        vertex, isa_epoch, isa_epoch2, isa_count)) {
-                    // ECG_GRASP_POPT's EVICT format carries no DBG field.
-                    // Preserve the address-derived GRASP tier for degree_first.
-                    if (ecgMode != graph::ECGMode::ECG_GRASP_POPT)
+                        vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count)) {
+                    if (isa_dbg >= 1 && isa_dbg <= 3)
                         data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;
                     data->ecg_epoch = isa_epoch;
@@ -157,7 +156,9 @@ GraphEcgRP::touch(
                     data->ecg_epoch_valid = true;
                 }
             }
-            uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
+            uint32_t tier =
+                data->ecg_dbg_tier >= 1 && data->ecg_dbg_tier <= 3
+                ? data->ecg_dbg_tier : ecgGraspTier(ctx, addr, llcSize);
             data->ecg_dbg_tier = static_cast<uint8_t>(tier);
             if (tier == 1) {
                 data->rrpv = 0;
@@ -206,6 +207,7 @@ GraphEcgRP::reset(
     const PacketPtr pkt)
 {
     auto data = std::static_pointer_cast<EcgReplData>(replacement_data);
+    data->valid = true;
 
     tryLoadContext();
 
@@ -243,6 +245,7 @@ GraphEcgRP::reset(
         // CHARGED=0 paper-faithful DBG tier + POPT quant. Prefer those over
         // the sideband-JSON-derived values. Falls back to sideband if the
         // table has no entry for this vertex.
+        bool got_carried_tier = false;
         if (data->is_property_data && ctx.loaded && ctx.num_regions > 0) {
             uint32_t vertex = UINT32_MAX;
             uint64_t reg_base = 0; uint32_t reg_elem = 0;
@@ -284,7 +287,7 @@ GraphEcgRP::reset(
                 if (!got) {
                     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
                         got = graph::lookupDecodedEcgHint2(
-                            vertex, isa_epoch, isa_epoch2, isa_count);
+                            vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
                     } else {
                         got = graph::lookupEcgMetadataByVertex(
                             vertex, isa_dbg, isa_popt, isa_epoch);
@@ -296,8 +299,14 @@ GraphEcgRP::reset(
                 }
                 if (got) {
                     // Use ISA-delivered metadata directly.
-                    if (ecgMode != graph::ECGMode::ECG_GRASP_POPT)
+                    const bool valid_dbg =
+                        ecgMode == graph::ECGMode::ECG_GRASP_POPT
+                            ? isa_dbg >= 1 && isa_dbg <= 3
+                            : true;
+                    if (valid_dbg) {
                         data->ecg_dbg_tier = isa_dbg;
+                        got_carried_tier = true;
+                    }
                     data->ecg_popt_hint = isa_popt;  // 7-bit POPT quant
                     data->ecg_epoch = isa_epoch;
                     data->ecg_epoch2 = isa_epoch2;
@@ -330,7 +339,8 @@ GraphEcgRP::reset(
                 return v && std::string(v) == "shortcircuit";
             }();
             if (data->is_property_data && ctx.loaded) {
-                uint32_t tier = ecgGraspTier(ctx, addr, llcSize);
+                uint32_t tier = got_carried_tier
+                    ? data->ecg_dbg_tier : ecgGraspTier(ctx, addr, llcSize);
                 data->ecg_dbg_tier = static_cast<uint8_t>(tier);
                 if (tier == 1) data->rrpv = pRrip;
                 else if (tier == 2) data->rrpv = iRrip;
@@ -384,6 +394,7 @@ GraphEcgRP::reset(
     const std::shared_ptr<ReplacementData>& replacement_data) const
 {
     auto data = std::static_pointer_cast<EcgReplData>(replacement_data);
+    data->valid = true;
     data->rrpv = (rrpvMax > 0) ? rrpvMax - 1 : 0;
     data->ecg_dbg_tier = numBuckets - 1;
     data->ecg_popt_hint = 0;
@@ -401,6 +412,18 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
     auto getData = [](ReplaceableEntry* c) {
         return std::static_pointer_cast<EcgReplData>(c->replacementData);
     };
+    static const bool setDueling = []() {
+        const char* value = std::getenv("ECG_SET_DUELING");
+        return value && value[0] && std::string(value) != "0";
+    }();
+    if (ecgMode == graph::ECGMode::ECG_GRASP_POPT &&
+        setDueling && graph::hasCurrentVertexHint() &&
+        !candidates.empty()) {
+        duelingSelector.recordMiss(candidates.front()->getSet());
+    }
+    for (const auto& candidate : candidates) {
+        if (!getData(candidate)->valid) return candidate;
+    }
 
     if (ecgMode == graph::ECGMode::ECG_COMBINED) {
         while (true) {
@@ -424,7 +447,7 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         //                          then farthest-epoch property
         //   epoch_only(3): same eviction as epoch_first (insertion uniform, set in reset())
         //   shortcircuit(4,legacy): non-property first, then epoch among property
-        static const int variant = [](){
+        static const int configuredVariant = [](){
             const char* v = std::getenv("ECG_VARIANT");
             if (!v) return 2;
             std::string s(v);
@@ -434,14 +457,22 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
             if (s=="epoch_only")  return 3;
             if (s=="shortcircuit"||s=="legacy") return 4;
             if (s=="degree_first"||s=="traversal") return 5;
+            if (s=="lru_only") return 6;
             return 2;
         }();
+        int variant = configuredVariant;
+        if (setDueling && !candidates.empty()) {
+            const size_t setIndex = candidates.front()->getSet();
+            variant = duelingSelector.variantForSet(setIndex);
+        }
         const uint32_t n = std::max<uint32_t>(1u, ctx.topology.num_vertices);
         const uint32_t ne = std::max<uint32_t>(2u, ctx.topology.edge_epoch_count);
         uint32_t curEpoch = static_cast<uint32_t>(
             (static_cast<uint64_t>(ctx.currentVertexForPopt()) * ne) / n);
         if (curEpoch >= ne) curEpoch = ne - 1;
-        auto isProp  = [&](ReplaceableEntry* c){ return ctx.isPropertyData(getData(c)->line_addr); };
+        auto isProp = [&](ReplaceableEntry* c) {
+            return ctx.isEcgEpochData(getData(c)->line_addr);
+        };
         auto dist    = [&](ReplaceableEntry* c){
             auto data = getData(c);
             return ecg_policy::epochPairDistance(
@@ -491,6 +522,11 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         for (size_t i = 0; i < nc; i++) {
             auto dd = getData(candidates[i]);
             ws[i].prop    = isProp(candidates[i]);
+            if (ws[i].prop &&
+                (dd->ecg_dbg_tier < 1 || dd->ecg_dbg_tier > 3)) {
+                dd->ecg_dbg_tier = static_cast<uint8_t>(
+                    ecgGraspTier(ctx, dd->line_addr, llcSize));
+            }
             ws[i].rrpv    = dd->rrpv;
             ws[i].recency = dd->lastTouchTick;
             ws[i].dbg     = dd->ecg_dbg_tier;
@@ -514,6 +550,9 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
             pol = "ECG:degree_first";
             reason = !isProp(victim) ? "max-rrpv record by recency"
                                      : "max-rrpv coldest-degree then epoch";
+        } else if (variant == 6) {
+            pol = "ECG:lru_only";
+            reason = "oldest recency";
         } else {
             pol = epol;
             reason = !isProp(victim) ? "record by recency"

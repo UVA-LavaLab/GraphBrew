@@ -9,7 +9,7 @@
 // its live eviction trace. See scripts/experiments/ecg/verify_ecg.py and
 // bench/src_sim/test_ecg_victim.cc.
 //
-// The five variants (selected by ECG_VARIANT) and the invariants are documented
+// The seven variants (selected by ECG_VARIANT) and the invariants are documented
 // in wiki/ECG-HPCA-Paper.md. Summary:
 //   - epoch is PROPERTY-ONLY; record (non-property) lines never carry a usable
 //     epoch and are ranked by recency / set order.
@@ -22,6 +22,8 @@
 #ifndef ECG_VICTIM_POLICY_H
 #define ECG_VICTIM_POLICY_H
 
+#include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 
@@ -34,7 +36,85 @@ enum Variant {
     EPOCH_ONLY   = 3,  // same eviction as EPOCH_FIRST (differs only at insertion)
     SHORTCIRCUIT = 4,  // non-property first (set order), then farthest RAW-dist property
     DEGREE_FIRST = 5,  // max-rrpv set; records, then coldest degree tier, then farthest epoch
+    LRU_ONLY     = 6,  // oldest line regardless of metadata
 };
+
+enum DuelingArm : uint8_t {
+    DUEL_RRIP = 0,
+    DUEL_GRASP = 1,
+    DUEL_EPOCH = 2,
+    DUEL_DEGREE = 3,
+    DUEL_LRU = 4,
+    DUEL_ARM_COUNT = 5,
+};
+
+inline int duelingArmVariant(uint8_t arm) {
+    switch (arm) {
+        case DUEL_GRASP: return GRASP_ONLY;
+        case DUEL_EPOCH: return EPOCH_FIRST;
+        case DUEL_DEGREE: return DEGREE_FIRST;
+        case DUEL_LRU: return LRU_ONLY;
+        default: return RRIP_FIRST;
+    }
+}
+
+// Five of every 64 sets are leaders, one per arm. All other sets follow
+// the current online winner.
+inline int duelingLeaderArm(size_t set_index) {
+    const uint64_t slot = static_cast<uint64_t>(set_index) & 63u;
+    return slot < DUEL_ARM_COUNT ? static_cast<int>(slot) : -1;
+}
+
+class OnlineDuelingSelector {
+  public:
+    int variantForSet(size_t set_index) const {
+        const int leader = duelingLeaderArm(set_index);
+        const uint8_t arm = leader >= 0
+            ? static_cast<uint8_t>(leader)
+            : winner_.load(std::memory_order_relaxed);
+        return duelingArmVariant(arm);
+    }
+
+    void recordMiss(size_t set_index) {
+        const int leader = duelingLeaderArm(set_index);
+        if (leader < 0) return;
+        misses_[static_cast<size_t>(leader)].fetch_add(
+            1, std::memory_order_relaxed);
+        const uint64_t total =
+            sampled_misses_.fetch_add(1, std::memory_order_relaxed) + 1;
+        if ((total % kWindowMisses) != 0) return;
+
+        std::array<uint64_t, DUEL_ARM_COUNT> window{};
+        for (size_t arm = 0; arm < DUEL_ARM_COUNT; ++arm) {
+            window[arm] = misses_[arm].exchange(
+                0, std::memory_order_relaxed);
+        }
+        uint8_t best = winner_.load(std::memory_order_relaxed);
+        uint64_t best_misses = window[best];
+        for (uint8_t arm = 0; arm < DUEL_ARM_COUNT; ++arm) {
+            if (window[arm] < best_misses) {
+                best = arm;
+                best_misses = window[arm];
+            }
+        }
+        winner_.store(best, std::memory_order_relaxed);
+    }
+
+    uint8_t winnerArm() const {
+        return winner_.load(std::memory_order_relaxed);
+    }
+
+  private:
+    static constexpr uint64_t kWindowMisses = 1024;
+    std::array<std::atomic<uint64_t>, DUEL_ARM_COUNT> misses_{};
+    std::atomic<uint64_t> sampled_misses_{0};
+    std::atomic<uint8_t> winner_{DUEL_RRIP};
+};
+
+inline OnlineDuelingSelector& globalOnlineDuelingSelector() {
+    static OnlineDuelingSelector selector;
+    return selector;
+}
 
 struct WayState {
     bool     prop;     // property (vertex) line, vs record (edge-stream) line
@@ -80,6 +160,19 @@ inline size_t selectVictim(WayState* ways, size_t n, int variant, uint8_t rrpvMa
             for (size_t i = 0; i < n; i++) if (ways[i].rrpv >= rrpvMax) return i;
             for (size_t i = 0; i < n; i++) if (ways[i].rrpv < rrpvMax) ways[i].rrpv++;
         }
+
+    }
+
+    if (variant == LRU_ONLY) {
+        size_t victim = 0;
+        uint64_t oldest = ways[0].recency;
+        for (size_t i = 1; i < n; ++i) {
+            if (ways[i].recency < oldest) {
+                oldest = ways[i].recency;
+                victim = i;
+            }
+        }
+        return victim;
     }
 
     // shortcircuit (legacy): evict any non-property line first (set order); if the

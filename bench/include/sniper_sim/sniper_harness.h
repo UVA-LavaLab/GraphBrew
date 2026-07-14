@@ -68,11 +68,13 @@ inline size_t cache_line_size() {
 }
 
 inline size_t property_alignment() {
-    const size_t alignment = cache_line_size();
-    if (alignment < sizeof(void*) ||
+    const size_t alignment = static_cast<size_t>(
+        env_int_clamped("SNIPER_PROPERTY_ALIGNMENT", 4096, 64, 65536));
+    if (alignment < cache_line_size() ||
+        alignment < sizeof(void*) ||
         (alignment & (alignment - 1)) != 0) {
         std::fprintf(stderr,
-            "sniper_harness: cache line size %zu is not a valid allocation alignment\n",
+            "sniper_harness: property alignment %zu is invalid\n",
             alignment);
         std::abort();
     }
@@ -102,6 +104,13 @@ inline void notify_user(uint64_t command, uint64_t argument) {
     (void)command;
     (void)argument;
 #endif
+}
+
+inline void notify_context_ready() {
+    const std::string path = context_path();
+    notify_user(
+        GRAPHBREW_SNIPER_USER_CONTEXT_READY,
+        reinterpret_cast<uint64_t>(path.c_str()));
 }
 
 inline bool hints_enabled() {
@@ -204,7 +213,8 @@ inline bool ecg_k2_trace_enabled() {
 }
 
 inline void trace_ecg_extract2(
-        uint32_t vertex, uint16_t first, uint16_t second) {
+        uint32_t vertex, uint8_t tier,
+        uint16_t first, uint16_t second) {
     const uint64_t trace_limit = ecg_k2_trace_limit();
     if (trace_limit == 0) return;
     static std::atomic<uint64_t> trace_sequence{0};
@@ -212,20 +222,30 @@ inline void trace_ecg_extract2(
         trace_sequence.fetch_add(1, std::memory_order_relaxed);
     if (sequence < trace_limit) {
         std::fprintf(stderr,
-            "[ECG-K2-EXPECT sim=sniper seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            "[ECG-K2-EXPECT sim=sniper seq=%llu dest=%u tier=%u "
+            "epoch1=%u epoch2=%u]\n",
             (unsigned long long)sequence, vertex,
+            static_cast<unsigned>(tier),
             static_cast<unsigned>(first), static_cast<unsigned>(second));
     }
 }
 
 inline void ecg_extract2(
-        uint32_t vertex, uint16_t first, uint16_t second) {
+        uint32_t vertex, uint8_t tier,
+        uint16_t first, uint16_t second) {
     if (!ecg_extract_enabled()) return;
-    trace_ecg_extract2(vertex, first, second);
+    trace_ecg_extract2(vertex, tier, first, second);
     // SimMagic2 is 64-bit safe after the early-clobber fix.
     const uint64_t packed =
-        ecg_epoch::packEpochPairRecord(vertex, first, second);
+        ecg_epoch::packEpochPairRecord(vertex, tier, first, second);
     notify_user(GRAPHBREW_SNIPER_USER_ECG_EXTRACT2, packed);
+}
+
+inline void ecg_clear_extract2(uint32_t vertex) {
+    if (!ecg_extract_enabled()) return;
+    const uint64_t clear_record =
+        ecg_epoch::packEpochPairRecord(vertex, 0, 0, 0);
+    notify_user(GRAPHBREW_SNIPER_USER_ECG_EXTRACT2, clear_record);
 }
 
 inline void write_minimal_context(uint64_t vertices, uint64_t edges) {
@@ -239,9 +259,7 @@ inline void write_minimal_context(uint64_t vertices, uint64_t edges) {
     out << "  \"vertices\": " << vertices << ",\n";
     out << "  \"edges\": " << edges << "\n";
     out << "}\n";
-#if GRAPHBREW_SNIPER_HAS_SIM_API
-    notify_user(GRAPHBREW_SNIPER_USER_CONTEXT_READY, reinterpret_cast<uint64_t>(path.c_str()));
-#endif
+    notify_context_ready();
 }
 
 }  // namespace graphbrew_sniper
@@ -497,9 +515,7 @@ inline bool sniper_export_context(
         return false;
     }
 
-    graphbrew_sniper::notify_user(
-        graphbrew_sniper::GRAPHBREW_SNIPER_USER_CONTEXT_READY,
-        reinterpret_cast<uint64_t>(resolved_path.c_str()));
+    graphbrew_sniper::notify_context_ready();
     printf("sniper_harness: exported context to %s (%ld vertices, %ld edges, %d regions)\n",
            resolved_path.c_str(), (long)g.num_nodes(), (long)g.num_edges_directed(), num_regions);
     return true;
@@ -551,5 +567,6 @@ inline bool sniper_export_popt_matrix(
 #define SNIPER_SET_VERTEX(vertex_id) ::graphbrew_sniper::set_vertex(static_cast<uint64_t>(vertex_id))
 #define SNIPER_ECG_PFX_TARGET(vertex_id) ::graphbrew_sniper::set_prefetch_target(static_cast<uint64_t>(vertex_id))
 #define SNIPER_ECG_EXTRACT(vertex_id, epoch) ::graphbrew_sniper::ecg_extract(static_cast<uint64_t>(vertex_id), static_cast<uint16_t>(epoch))
-#define SNIPER_ECG_EXTRACT2(vertex_id, epoch1, epoch2) ::graphbrew_sniper::ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))
-#define SNIPER_ECG_EXPECT2(vertex_id, epoch1, epoch2) ::graphbrew_sniper::trace_ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))
+#define SNIPER_ECG_EXTRACT2(vertex_id, tier, epoch1, epoch2) ::graphbrew_sniper::ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint8_t>(tier), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))
+#define SNIPER_ECG_CLEAR_EXTRACT2(vertex_id) ::graphbrew_sniper::ecg_clear_extract2(static_cast<uint32_t>(vertex_id))
+#define SNIPER_ECG_EXPECT2(vertex_id, tier, epoch1, epoch2) ::graphbrew_sniper::trace_ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint8_t>(tier), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))

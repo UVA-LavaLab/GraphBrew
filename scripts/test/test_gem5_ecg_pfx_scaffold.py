@@ -115,18 +115,33 @@ def test_gem5_schedule2_delivery_is_pair_aware():
         "ecg_rp.cc"
     )
     setup = read("scripts/setup_gem5.py")
+    graph_se = read(
+        "bench/include/gem5_sim/configs/graphbrew/graph_se.py")
 
     assert "GEM5_ECG_EXTRACT2" in harness
     assert "0x01: ecg_extract2" in decoder
-    assert "(packed >> 32) & 0xFFFF" in decoder
-    assert "(packed >> 48) & 0xFFFF" in decoder
+    assert "(packed >> 32) & 0x3" in decoder
+    assert "(packed >> 34) & 0x7FFF" in decoder
+    assert "(packed >> 49) & 0x7FFF" in decoder
     assert "setDecodedEcgExtractHint2" in decoder
     assert "lookupDecodedEcgHint2" in context
     assert "isEcgEpochData" in context
     assert "ecg_epoch2" in policy
     assert "ecg_epoch_count" in policy
+    assert "bool valid;" in read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "ecg_rp.hh"
+    )
+    assert "if (!getData(candidate)->valid) return candidate;" in policy
+    assert "ctx.isEcgEpochData(getData(c)->line_addr)" in policy
+    assert "setDueling && graph::hasCurrentVertexHint()" in policy
+    assert "dd->ecg_dbg_tier < 1 || dd->ecg_dbg_tier > 3" in policy
+    assert "ctx.classifyGRASP(addr, llcSize, ghf)" in policy
+    assert "isa_dbg >= 1 && isa_dbg <= 3" in policy
     assert "epochPairDistance(" in policy
     assert "GRAPHBREW_ECG_EXTRACT2_WORK_ID" in setup
+    assert 'schedule_k == "2"' in graph_se
+    assert '"GRASP_HOT_FRACTION"' in graph_se
 
 
 def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):
@@ -136,6 +151,12 @@ def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):
         SimpleNamespace(benchmark="pr")) == "epoch_first"
     assert roi_matrix.effective_ecg_variant(
         SimpleNamespace(benchmark="bfs")) == "degree_first"
+    assert roi_matrix.effective_ecg_variant(
+        SimpleNamespace(benchmark="sssp")) == "degree_first"
+    assert roi_matrix.effective_ecg_variant(
+        SimpleNamespace(benchmark="bc")) == "rrip_first"
+    assert roi_matrix.effective_ecg_variant(
+        SimpleNamespace(benchmark="cc")) == "rrip_first"
 
     monkeypatch.setenv("ECG_VARIANT", "rrip_first")
     assert roi_matrix.effective_ecg_variant(
@@ -153,7 +174,13 @@ def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):
 
 
 def test_gem5_k2_uses_configured_epoch_count_not_packed4_cap():
-    for path in ("bench/src_gem5/pr.cc", "bench/src_gem5/bfs.cc"):
+    for path in (
+        "bench/src_gem5/pr.cc",
+        "bench/src_gem5/bfs.cc",
+        "bench/src_gem5/sssp.cc",
+        "bench/src_gem5/bc.cc",
+        "bench/src_gem5/cc.cc",
+    ):
         text = read(path)
         assert 'gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS"' in text
         assert "ecg_sched_k != 2" in text
@@ -163,6 +190,43 @@ def test_gem5_k2_uses_configured_epoch_count_not_packed4_cap():
     assert "buildInEdgeEpochPairRecords" in pr
     cache_context = read("bench/include/cache_sim/graph_cache_context.h")
     assert 'std::getenv("ECG_EDGE_MASK_PACK") && sched_k != 2' in cache_context
+
+
+def test_gem5_k2_mailbox_is_cleared_after_governed_load():
+    context = read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "graph_cache_context_gem5.hh")
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    assert "clearDecodedEcgExtractHint()" in context
+    assert "if (tier == 0)" in context
+    assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" in harness
+    for path in (
+        "bench/src_gem5/pr.cc",
+        "bench/src_gem5/bfs.cc",
+        "bench/src_gem5/sssp.cc",
+        "bench/src_gem5/bc.cc",
+        "bench/src_gem5/cc.cc",
+    ):
+        assert "GEM5_ECG_CLEAR_EXTRACT2_HINT()" in read(path)
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    assert '"prototype_instruction_delivery"' in runner
+    assert '"packed8+k2+ecg.extract2"' in runner
+
+
+def test_gem5_exports_prefetch_and_dram_traffic_metrics():
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    for metric in (
+        "l3_prefetch_misses",
+        "l3_prefetch_accesses",
+        "dram_read_bytes",
+        "dram_write_bytes",
+        "dram_prefetch_read_bytes",
+    ):
+        assert f'"{metric}"' in runner
+    assert "system.mem_ctrl.dram.bytesRead::total" in runner
+    assert "system.l3cache.overallMisses::l2cache.prefetcher" in runner
+    assert '"gem5_stats_sections_seen": len(sections)' in runner
+    assert "row.update(sections[0])" in runner
 
 
 def test_gem5_srrip_is_true_three_bit_srrip():

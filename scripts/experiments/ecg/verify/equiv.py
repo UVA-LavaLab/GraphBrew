@@ -111,9 +111,11 @@ def _run_matrix(suite: str, policies: list[str], reorder: int, out: Path,
 
 SUITE_OF = {"cache_sim": "cache-sim", "gem5": "gem5", "sniper": "sniper"}
 SUITE_EXTRA = {
+    # The pressured kron behavioral cell can exceed nine minutes under the
+    # live SIFT frontend even when healthy; keep timeout failures meaningful.
     "sniper": ["--sniper-workload", "sg_kernel", "--allow-sniper-sg-kernel-workload",
                "--sniper-memory-limit-gb", "20", "--sniper-enable-graph-policies",
-               "--timeout-sniper", "540"],
+               "--timeout-sniper", "1200"],
 }
 
 

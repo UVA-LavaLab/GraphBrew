@@ -28,7 +28,21 @@ template<typename CacheType>
 int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
                    Bitmap &next, CacheType &cache,
                    GraphCacheContext &graph_ctx, const std::vector<uint32_t> &vertex_masks) {
-    const bool k2_record = GraphSimMatrixFreeK2();
+    const bool ecg_record = GraphSimEcgEdgeRecord();
+    const uint32_t edge_epochs =
+        graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2u;
+    int epoch_bits = 1;
+    while (epoch_bits < 16 &&
+           (uint32_t(1) << epoch_bits) < edge_epochs) {
+        ++epoch_bits;
+    }
+    const int record_bytes = GraphSimEcgRecordBytes(
+        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    const bool record_charged = ecg_record &&
+        GraphSimEnvIntClamped(
+            "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    const auto in_edge_base = g.num_nodes() > 0
+        ? g.in_neigh(0).begin() : nullptr;
     int64_t awake_count = 0;
     next.reset();
     #pragma omp parallel for reduction(+ : awake_count) schedule(dynamic, 1024)
@@ -42,25 +56,25 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
         SIM_CACHE_READ(cache, parent.data(), u);
         if (parent[u] < 0) {
             auto in_neigh = g.in_neigh(u);
-            // ECG_BFS_EDGE_MASKS: model BU's frontier-bitmap membership probe as a
-            // cache access (a real load of front's word holding v's bit) and carry the
-            // IN-edge per-edge mask, so BU is masked symmetric to TD. The masked access
-            // is GATED on the mask existing (BU has no frontier cache read otherwise),
-            // so the default BFS access stream is unchanged. HONEST CAVEAT: a 64B bitmap
-            // line holds 512 vertices' bits and the bitmap is compact/uniformly-hot by
-            // design, so this is a do-no-harm completeness mask (~nil effect on the
-            // symmetric corpus).
+            // Every policy tracks the real frontier-bitmap membership load. ECG
+            // additionally carries the IN-edge metadata on that same demand so the
+            // policy never changes the functional access stream.
             const bool use_in_edge_masks =
                 graph_ctx.edgeMaskReady(EdgeMaskDir::IN, (uint32_t)u, (size_t)g.in_degree(u));
             size_t edge_pos = 0;
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
-                if (k2_record) SIM_CACHE_READ_EDGE_K2(cache, it);
+                if (record_charged)
+                    SIM_CACHE_READ_EDGE_RECORD(
+                        cache, it, in_edge_base,
+                        GRAPH_SIM_IN_RECORD_BASE, record_bytes);
                 else SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
                 if (use_in_edge_masks) {
                     uint32_t m = graph_ctx.resolveEdgeMaskAndEpoch(
                         EdgeMaskDir::IN, (uint32_t)u, (size_t)g.in_degree(u), edge_pos, 0);
                     SIM_CACHE_READ_MASKED(cache, front.data(), (size_t)v / 64, graph_ctx, m);
+                } else {
+                    SIM_CACHE_READ(cache, front.data(), (size_t)v / 64);
                 }
                 // Track: check if v is in frontier
                 if (front.get_bit(v)) {
@@ -86,7 +100,21 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
                    SlidingQueue<NodeID> &queue, CacheType &cache,
                    GraphCacheContext &graph_ctx, const std::vector<uint32_t> &vertex_masks,
                    int pfx_lookahead, int pfx_top_k = 1) {
-    const bool k2_record = GraphSimMatrixFreeK2();
+    const bool ecg_record = GraphSimEcgEdgeRecord();
+    const uint32_t edge_epochs =
+        graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2u;
+    int epoch_bits = 1;
+    while (epoch_bits < 16 &&
+           (uint32_t(1) << epoch_bits) < edge_epochs) {
+        ++epoch_bits;
+    }
+    const int record_bytes = GraphSimEcgRecordBytes(
+        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    const bool record_charged = ecg_record &&
+        GraphSimEnvIntClamped(
+            "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    const auto out_edge_base = g.num_nodes() > 0
+        ? g.out_neigh(0).begin() : nullptr;
     int64_t scout_count = 0;
     #pragma omp parallel
     {
@@ -103,7 +131,10 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             const size_t u_outdeg = (size_t)g.out_degree(u);
             size_t edge_pos = 0;
             for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
-                if (k2_record) SIM_CACHE_READ_EDGE_K2(cache, it);
+                if (record_charged)
+                    SIM_CACHE_READ_EDGE_RECORD(
+                        cache, it, out_edge_base,
+                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
                 else SIM_CACHE_READ_EDGE(cache, it);
                 NodeID v = *it;
                 if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
@@ -202,7 +233,8 @@ void BitmapToQueue(const Graph &g, const Bitmap &bm,
 }
 
 pvector<NodeID> InitParent(const Graph &g) {
-    pvector<NodeID> parent(g.num_nodes());
+    pvector<NodeID> parent(
+        g.num_nodes(), NodeID(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++)
         parent[n] = g.out_degree(n) != 0 ? -g.out_degree(n) : -1;
@@ -238,13 +270,12 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
     const uint8_t* reref_td = nullptr;
     const uint8_t* reref_bu = nullptr;
     {
-        const char* policy_env = getenv("CACHE_POLICY");
-        std::string policy_str = policy_env ? policy_env : "";
+        const EvictionPolicy policy = GraphSimEffectiveL3Policy();
         const char* pfx_env = getenv("ECG_PREFETCH_MODE");
         bool popt_prefetch = pfx_env && atoi(pfx_env) == 2;
         const bool matrix_free_k2 = GraphSimMatrixFreeK2();
-        if (policy_str == "POPT" ||
-            (policy_str == "ECG" && !matrix_free_k2) ||
+        if (policy == EvictionPolicy::POPT ||
+            (policy == EvictionPolicy::ECG && !matrix_free_k2) ||
             (popt_prefetch && !matrix_free_k2)) {
             constexpr int numVtxPerLine = 64 / sizeof(NodeID);
             constexpr int numEpochs = 256;
@@ -353,6 +384,14 @@ pvector<NodeID> DOBFS_Sim(const Graph &g, NodeID source, CacheType &cache,
              << " mode=" << int(graph_ctx.mask_config.prefetch_mode)
              << " top_k=" << pfx_top_k << endl;
     }
+
+    // Match gem5/Sniper ROI state: model the initialized parent[] stores before
+    // the ROI, retain the warmed cache contents, and reset only statistics.
+    graph_ctx.clearEdgeEpoch();
+    #pragma omp parallel for
+    for (NodeID n = 0; n < g.num_nodes(); ++n)
+        SIM_CACHE_WRITE(cache, parent.data(), n);
+    cache.resetStats();
 
     SlidingQueue<NodeID> queue(g.num_nodes());
     queue.push_back(source);

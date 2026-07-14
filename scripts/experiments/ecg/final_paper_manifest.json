@@ -20,14 +20,20 @@
     "sniper_mimicos_memory_mb": 4096,
     "sniper_mimicos_kernel_mb": 128,
     "popt_reserve_model": "size_correct",
+    "ecg_epoch_pack_bits": 64,
+    "require_cache_sim_aslr_disable": true,
     "no_build": true
   },
   "profiles": {
     "ecg_smoke": "Fast cache_sim smoke for the complete ECG policy set.",
+    "ecg_preliminary_5alg_3sim": "Bounded five-algorithm, six-policy diagnostic matrix on a common synthetic graph across cache_sim, gem5, and Sniper.",
+    "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
+    "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
+    "ecg_online_dueling": "Online K2 set-dueling regret study against every static K2 arm.",
     "ecg_cache_sim_factorial": "Real-graph K1/K2 x StreamShield cache_sim factorial with the full baseline set.",
     "gem5_streamshield_mechanism": "Synthetic gem5 mechanism cell for fused K2 versus K2+StreamShield.",
     "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused K2 versus K2+StreamShield.",
-    "streamshield_sniper_realgraph": "Bounded web-Google PR Sniper matrix for LRU, SRRIP, GRASP, charged P-OPT, K2, and K2+StreamShield."
+    "streamshield_sniper_realgraph": "Full-iteration web-Google PR Sniper matrix for the full baselines, static K2, online K2, and both StreamShield variants."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -39,8 +45,22 @@
     "synthetic_kron16_pr": {
       "pr": "-g 16 -k 16 -o 5 -n 1 -i 1"
     },
+    "synthetic_kron15_all": {
+      "pr": "-g 15 -k 4 -o 5 -n 1 -i 1",
+      "bfs": "-g 15 -k 4 -o 5 -n 1 -r 212",
+      "sssp": "-g 15 -k 4 -o 5 -n 1 -r 212",
+      "bc": "-g 15 -k 4 -o 5 -n 1 -i 1",
+      "cc": "-g 15 -k 4 -o 5 -n 1"
+    },
     "file_pr_i1_dbg": {
       "pr": "-f {graph_path} -o 5 -n 1 -i 1"
+    },
+    "file_all_kernels_dbg": {
+      "pr": "-f {graph_path} -o 5 -n 1 -i 1",
+      "bfs": "-f {graph_path} -o 5 -n 1 -r 212",
+      "sssp": "-f {graph_path} -o 5 -n 1 -r 212",
+      "bc": "-f {graph_path} -o 5 -n 1 -i 1",
+      "cc": "-f {graph_path} -o 5 -n 1"
     }
   },
   "graph_sets": {
@@ -77,11 +97,33 @@
         "structure_prefetch_degree": 8
       }
     ],
+    "synthetic_kron15_all": [
+      {
+        "name": "kron_s15_k4",
+        "options_key": "synthetic_kron15_all",
+        "l1d_size": "16kB",
+        "l2_size": "64kB",
+        "l3_ways": "16",
+        "l3_sizes": ["128kB"],
+        "structure_prefetch_degree": 0
+      }
+    ],
+    "synthetic_kron15_all_stride": [
+      {
+        "name": "kron_s15_k4",
+        "options_key": "synthetic_kron15_all",
+        "l1d_size": "16kB",
+        "l2_size": "64kB",
+        "l3_ways": "16",
+        "l3_sizes": ["128kB"],
+        "structure_prefetch_degree": 8
+      }
+    ],
     "web_google_streamshield": [
       {
         "name": "web-Google",
         "path": "results/graphs/web-Google/web-Google.sg",
-        "options_key": "file_pr_i1_dbg",
+        "options_key": "file_all_kernels_dbg",
         "l1d_size": "32kB",
         "l2_size": "256kB",
         "l3_ways": "16",
@@ -93,21 +135,21 @@
       {
         "name": "web-Google",
         "path": "results/graphs/web-Google/web-Google.sg",
-        "options_key": "file_pr_i1_dbg",
+        "options_key": "file_all_kernels_dbg",
         "l3_sizes": ["2MB"],
         "structure_prefetch_degree": 8
       },
       {
         "name": "soc-pokec",
         "path": "results/graphs/soc-pokec/soc-pokec.sg",
-        "options_key": "file_pr_i1_dbg",
+        "options_key": "file_all_kernels_dbg",
         "l3_sizes": ["2MB"],
         "structure_prefetch_degree": 8
       },
       {
         "name": "cit-Patents",
         "path": "results/graphs/cit-Patents/cit-Patents.sg",
-        "options_key": "file_pr_i1_dbg",
+        "options_key": "file_all_kernels_dbg",
         "l3_sizes": ["8MB"],
         "structure_prefetch_degree": 8
       }
@@ -121,11 +163,151 @@
       "suite": "cache-sim",
       "graph_set": "synthetic_smoke",
       "benchmarks": ["pr"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_STREAMSHIELD"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE", "ECG:K2_STREAMSHIELD"],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "out_subdir": "01_ecg_cache_sim_smoke",
       "timeout_cache": 600
+    },
+    {
+      "name": "10_cache_sim_preliminary_5alg",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_preliminary_5alg_3sim"],
+      "suite": "cache-sim",
+      "graph_set": "synthetic_kron15_all",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "10_cache_sim_preliminary_5alg",
+      "timeout_cache": 3600
+    },
+    {
+      "name": "11_gem5_preliminary_5alg",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_preliminary_5alg_3sim"],
+      "suite": "gem5",
+      "graph_set": "synthetic_kron15_all",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "11_gem5_preliminary_5alg",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
+    },
+    {
+      "name": "12_sniper_preliminary_5alg",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_preliminary_5alg_3sim"],
+      "suite": "sniper",
+      "graph_set": "synthetic_kron15_all",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_cores": 1,
+      "out_subdir": "12_sniper_preliminary_5alg",
+      "timeout_sniper": 21600
+    },
+    {
+      "name": "13_cache_sim_preliminary_5alg_stride",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_preliminary_5alg_stride"],
+      "suite": "cache-sim",
+      "graph_set": "synthetic_kron15_all_stride",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "STRIDE",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "13_cache_sim_preliminary_5alg_stride",
+      "timeout_cache": 3600
+    },
+    {
+      "name": "14_gem5_preliminary_5alg_stride",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_preliminary_5alg_stride"],
+      "suite": "gem5",
+      "graph_set": "synthetic_kron15_all_stride",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "STRIDE",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "14_gem5_preliminary_5alg_stride",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
+    },
+    {
+      "name": "15_sniper_preliminary_5alg_stride",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_preliminary_5alg_stride"],
+      "suite": "sniper",
+      "graph_set": "synthetic_kron15_all_stride",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "STRIDE",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_cores": 1,
+      "out_subdir": "15_sniper_preliminary_5alg_stride",
+      "timeout_sniper": 21600
+    },
+    {
+      "name": "19_cache_sim_replacement_baseline",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_replacement_baseline", "ecg_online_dueling"],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT:UNCHARGED",
+        "POPT",
+        "ECG:K1",
+        "ECG:K2_GRASP",
+        "ECG:K2_EPOCH",
+        "ECG:K2_RRIP",
+        "ECG:K2_DEGREE",
+        "ECG:K2_LRU",
+        "ECG:K2_ONLINE"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 0,
+      "ecg_epochs": 65535,
+      "out_subdir": "19_cache_sim_replacement_baseline",
+      "timeout_cache": 86400
     },
     {
       "name": "20_cache_sim_streamshield_factorial",
@@ -138,14 +320,19 @@
         "LRU",
         "SRRIP",
         "GRASP",
+        "POPT:UNCHARGED",
         "POPT",
         "ECG:K1",
         "ECG:K1_STREAMSHIELD",
         "ECG:K2",
-        "ECG:K2_STREAMSHIELD"
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
       "out_subdir": "20_cache_sim_streamshield_factorial",
       "timeout_cache": 86400
     },
@@ -182,6 +369,7 @@
       "sniper_memory_limit_gb": 12,
       "sniper_address_domain": "virtual",
       "require_sniper_aslr_disable": true,
+      "sniper_require_fused_receipts": true,
       "sniper_cores": 1,
       "out_subdir": "31_sniper_streamshield_mechanism",
       "timeout_sniper": 21600
@@ -193,7 +381,16 @@
       "suite": "sniper",
       "graph_set": "web_google_streamshield",
       "benchmarks": ["pr"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_STREAMSHIELD"],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "sniper_workload": "sg_kernel",
@@ -203,7 +400,6 @@
       "sniper_address_domain": "virtual",
       "require_sniper_aslr_disable": true,
       "sniper_cores": 1,
-      "sniper_roi_icount": 100000000,
       "out_subdir": "40_sniper_streamshield_realgraph",
       "timeout_sniper": 21600
     }

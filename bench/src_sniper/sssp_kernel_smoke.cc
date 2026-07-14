@@ -53,6 +53,8 @@ void export_context(int* dist) {
     out << "  \"degree_buckets\": {\"counts\": [0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], "
         << "\"total_degrees\": [0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0]}\n";
     out << "}\n";
+    out.close();
+    graphbrew_sniper::notify_context_ready();
 }
 
 void export_popt_matrix() {
@@ -64,12 +66,12 @@ void export_popt_matrix() {
 }  // namespace
 
 int main() {
-    alignas(64) int dist[kNodes * kPropertyStride];
+    alignas(4096) int dist[kNodes * kPropertyStride];
     for (int& value : dist) value = kInf;
     dist_at(dist, 0) = 0;
 
-    export_context(dist);
     export_popt_matrix();
+    export_context(dist);
 
     SNIPER_ROI_BEGIN();
     const volatile int* out_edges = kOutEdges;

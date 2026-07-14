@@ -70,11 +70,11 @@ HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
 K2_HDR_RE = re.compile(r"\[EVICT L3 .*curEpoch=(\d+)")
 K2_DELIVERY_RE = re.compile(
     r"\[ECG-K2-(EXPECT|RECV|SIDEBAND) sim=(\w+) seq=(\d+) "
-    r"dest=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+    r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
 K2_FUSED_RECV_RE = re.compile(
     r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
     r"line=(\d+) vpl=(\d+) index=(\d+) begin=(\d+) end=(\d+) "
-    r"dest=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+    r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
 K2_FUSED_VALID_RE = re.compile(
     r"\[ECG-K2-FUSED-VALID count=(\d+) bad=(\d+)\]")
 VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
@@ -285,6 +285,7 @@ RULES = {
     "LRU": lambda ways, v: ways[v]["last"] == min(w["last"] for w in ways),
     "GRASP": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
     "ECG:grasp_only": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
+    "ECG:lru_only": lambda ways, v: ways[v]["last"] == min(w["last"] for w in ways),
     # shortcircuit: FIRST record by set index; else farthest EFFECTIVE-dist property
     "ECG:shortcircuit": lambda ways, v: _shortcircuit_rule(ways, v),
     "ECG:shortcircuit+epoch": lambda ways, v: _eff_d(ways[v]) == max(_eff_d(w) for w in ways),
@@ -485,13 +486,14 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
             continue
         delivery = K2_DELIVERY_RE.search(line)
         if delivery:
-            kind, _sim, seq, dest, first, second = delivery.groups()
+            kind, _sim, seq, dest, tier, first, second = delivery.groups()
             target = (
                 expected if kind == "EXPECT"
                 else sideband if kind == "SIDEBAND"
                 else received
             )
-            target[int(seq)] = (int(dest), int(first), int(second))
+            target[int(seq)] = (
+                int(dest), int(tier), int(first), int(second))
             continue
         h = K2_HDR_RE.search(line)
         if h:
@@ -520,24 +522,36 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
     if sideband:
         required = set(range(32))
         fused_valid = all(
-            begin <= index < end and vpl > 0 and dest // vpl == line_id
+            begin <= index < end and vpl > 0 and dest // vpl == line_id and
+            1 <= tier <= 3
             for (_seq, _src, line_id, vpl, index, begin, end,
-                 dest, _first, _second) in fused_receipts
+                 dest, tier, _first, _second) in fused_receipts
+        )
+        tier_valid = all(
+            1 <= fields[1] <= 3 for fields in expected.values()
+        ) and all(
+            1 <= fields[1] <= 3 for fields in sideband.values()
         )
         delivery_ok = (
             set(expected) == required and
             set(sideband) == required and
             expected == sideband and
+            tier_valid and
             bool(fused_receipts) and fused_valid and
             fused_validation is not None and
             fused_validation[0] > 0 and fused_validation[1] == 0
         )
     elif requires_delivery_trace or expected or received:
         required = set(range(32))
+        tier_valid = all(
+            1 <= fields[1] <= 3 for fields in expected.values()
+        ) and all(
+            1 <= fields[1] <= 3 for fields in received.values()
+        )
         delivery_ok = (
             set(expected) == required and
             set(received) == required and
-            expected == received
+            expected == received and tier_valid
         )
     live = pair_live or (delivery_ok and len(expected) == 32)
     if coverage is not None:
@@ -582,8 +596,8 @@ def run_synthetic():
     if not SYNTH_BIN.exists():
         print("  [synthetic] FAIL: could not build test_ecg_victim"); return False
     ok = True
-    for variant in ["tier", "grasp_only", "epoch_only", "rrip_first",
-                    "epoch_first", "degree_first", "shortcircuit"]:
+    for variant in ["tier", "dueling", "grasp_only", "epoch_only", "rrip_first",
+                    "epoch_first", "degree_first", "lru_only", "shortcircuit"]:
         p = subprocess.run([str(SYNTH_BIN)], env={**os.environ, "ECG_VARIANT": variant},
                            capture_output=True, text=True, timeout=60)
         for line in p.stdout.splitlines():

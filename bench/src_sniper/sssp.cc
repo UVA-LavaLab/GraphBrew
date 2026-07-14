@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <omp.h>
@@ -31,14 +33,23 @@ const size_t kBinSizeThreshold = 1000;
 
 inline void RelaxEdges_Sniper(const WGraph &g, NodeID u, WeightT delta,
                               pvector<WeightT> &dist,
-                              vector<vector<NodeID>> &local_bins) {
+                              vector<vector<NodeID>> &local_bins,
+                              const vector<vector<uint16_t>>* out_edge_epochs,
+                              const vector<uint64_t>* pair_off,
+                              const vector<uint64_t>* pair_flat,
+                              uint32_t edge_epoch_count) {
     SNIPER_SET_VERTEX(u);
     int pfx_lookahead = graphbrew_sniper::env_int_clamped(
         "SNIPER_ECG_PFX_LOOKAHEAD",
         graphbrew_sniper::env_int_clamped("ECG_PREFETCH_LOOKAHEAD", 4, 0, 64),
         0, 64);
     auto out_neigh = g.out_neigh(u);
-    for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it) {
+    const vector<uint16_t>* epochs =
+        (out_edge_epochs && static_cast<size_t>(u) < out_edge_epochs->size())
+            ? &(*out_edge_epochs)[u] : nullptr;
+    size_t edge_pos = 0;
+    for (auto it = out_neigh.begin(); it != out_neigh.end();
+         ++it, ++edge_pos) {
         WNode wn = *it;
         if (pfx_lookahead > 0) {
             auto jt = it;
@@ -51,7 +62,36 @@ inline void RelaxEdges_Sniper(const WGraph &g, NodeID u, WeightT delta,
         } else {
             SNIPER_ECG_PFX_TARGET(wn.v);
         }
+        if (pair_off && pair_flat &&
+            static_cast<size_t>(u + 1) < pair_off->size()) {
+            const uint64_t pos = (*pair_off)[u] + edge_pos;
+            if (pos >= (*pair_off)[u + 1] || pos >= pair_flat->size()) {
+                std::fprintf(stderr,
+                    "Sniper standalone SSSP K2 index out of range: "
+                    "u=%d edge=%zu\n", static_cast<int>(u), edge_pos);
+                std::abort();
+            }
+            const uint64_t record = (*pair_flat)[pos];
+            if (ecg_epoch::extractEpochPairDest(record) !=
+                static_cast<uint32_t>(wn.v)) {
+                std::fprintf(stderr,
+                    "Sniper standalone SSSP K2 destination mismatch\n");
+                std::abort();
+            }
+            SNIPER_ECG_EXTRACT2(
+                static_cast<uint32_t>(wn.v),
+                ecg_epoch::extractEpochPairTier(record),
+                ecg_epoch::extractEpochPairFirst(record),
+                ecg_epoch::extractEpochPairSecond(record));
+        } else if (epochs) {
+            const uint16_t epoch = edge_pos < epochs->size()
+                ? (*epochs)[edge_pos]
+                : static_cast<uint16_t>(edge_epoch_count - 1);
+            SNIPER_ECG_EXTRACT(wn.v, epoch);
+        }
         WeightT old_dist = dist[wn.v];
+        if (pair_off && pair_flat)
+            SNIPER_ECG_CLEAR_EXTRACT2(wn.v);
         WeightT new_dist = dist[u] + wn.w;
         while (new_dist < old_dist) {
             if (compare_and_swap(dist[wn.v], old_dist, new_dist)) {
@@ -68,7 +108,8 @@ inline void RelaxEdges_Sniper(const WGraph &g, NodeID u, WeightT delta,
 }
 
 pvector<WeightT> DeltaStep_Sniper(const WGraph &g, NodeID source, WeightT delta) {
-    pvector<WeightT> dist(g.num_nodes(), kDistInf);
+    pvector<WeightT> dist(
+        g.num_nodes(), kDistInf, graphbrew_sniper::property_alignment());
     dist[source] = 0;
 
     sniper_report_region("dist", dist.data(), g.num_nodes(), sizeof(WeightT));
@@ -80,21 +121,52 @@ pvector<WeightT> DeltaStep_Sniper(const WGraph &g, NodeID source, WeightT delta)
     };
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(g, edge_regions, 2);
-    sniper_export_context(regions, 1, g, nullptr, edge_regions, num_edge_regions);
-
+    constexpr int kNumVtxPerLine = 64 / sizeof(WeightT);
+    constexpr int kNumEpochs = 256;
+    const int ecg_sched_k =
+        graphbrew_sniper::env_int_clamped(
+            "ECG_EDGE_MASK_SCHED", 0, 0, 4);
     {
-        constexpr int numVtxPerLine = 64 / sizeof(WeightT);
-        constexpr int numEpochs = 256;
         static pvector<uint8_t> popt_matrix;
         // SSSP relaxes OUT-edges reading dist[dest]; the next-ref of dist[v] is over v's
         // IN-neighbours, so the reref matrix is the graph TRANSPOSE (CSC/in_neigh,
         // traverseCSR=false) — matching cache_sim's natural_csr=false. Default true=out_neigh
         // is only correct for PR's in-pull. Undirected forces true internally (do-no-harm).
-        makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs, /*traverseCSR=*/false);
-        int numCacheLines = (g.num_nodes() + numVtxPerLine - 1) / numVtxPerLine;
-        sniper_export_popt_matrix(popt_matrix.data(), numCacheLines,
-                                  numEpochs, g.num_nodes());
+        if (ecg_sched_k != 2) {
+            makeOffsetMatrix(
+                g, popt_matrix, kNumVtxPerLine, kNumEpochs,
+                /*traverseCSR=*/false);
+            int numCacheLines =
+                (g.num_nodes() + kNumVtxPerLine - 1) / kNumVtxPerLine;
+            sniper_export_popt_matrix(
+                popt_matrix.data(), numCacheLines,
+                kNumEpochs, g.num_nodes());
+        }
     }
+    const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
+    uint32_t ecg_epoch_count = static_cast<uint32_t>(
+        graphbrew_sniper::env_int_clamped(
+            "ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
+    if (ecg_sched_k == 2)
+        ecg_epoch_count =
+            ecg_epoch::normalizeK2EpochCount(ecg_epoch_count);
+    vector<vector<uint16_t>> out_edge_epochs;
+    vector<uint64_t> pair_off;
+    vector<uint64_t> pair_flat;
+    bool pair_ok = false;
+    if (ecg_extract_on && ecg_sched_k == 2) {
+        ecg_epoch::buildInEdgeEpochPairRecords(
+            g, kNumVtxPerLine, ecg_epoch_count,
+            /*linemin=*/true, pair_off, pair_flat,
+            /*push_out_edges=*/true);
+        pair_ok = true;
+    } else if (ecg_extract_on) {
+        ecg_epoch::buildInEdgeEpochs(
+            g, kNumVtxPerLine, ecg_epoch_count,
+            /*linemin=*/true, out_edge_epochs,
+            /*push_out_edges=*/true);
+    }
+    sniper_export_context(regions, 1, g, nullptr, edge_regions, num_edge_regions);
 
     SNIPER_ROI_BEGIN();
 
@@ -117,7 +189,10 @@ pvector<WeightT> DeltaStep_Sniper(const WGraph &g, NodeID source, WeightT delta)
             for (size_t i = 0; i < curr_frontier_tail; i++) {
                 NodeID u = frontier[i];
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index)) {
-                    RelaxEdges_Sniper(g, u, delta, dist, local_bins);
+                    RelaxEdges_Sniper(
+                        g, u, delta, dist, local_bins, &out_edge_epochs,
+                        pair_ok ? &pair_off : nullptr,
+                        pair_ok ? &pair_flat : nullptr, ecg_epoch_count);
                 }
             }
 
@@ -127,7 +202,10 @@ pvector<WeightT> DeltaStep_Sniper(const WGraph &g, NodeID source, WeightT delta)
                 vector<NodeID> curr_bin_copy = local_bins[curr_bin_index];
                 local_bins[curr_bin_index].resize(0);
                 for (NodeID u : curr_bin_copy) {
-                    RelaxEdges_Sniper(g, u, delta, dist, local_bins);
+                    RelaxEdges_Sniper(
+                        g, u, delta, dist, local_bins, &out_edge_epochs,
+                        pair_ok ? &pair_off : nullptr,
+                        pair_ok ? &pair_flat : nullptr, ecg_epoch_count);
                 }
             }
 

@@ -30,9 +30,16 @@ using namespace cache_sim;
 template<typename CacheType>
 void Link_Sim(NodeID u, NodeID v, pvector<NodeID>& comp, NodeID* comp_ptr,
              CacheType& cache, GraphCacheContext& graph_ctx,
-             const std::vector<uint32_t>& vertex_masks) {
+             const std::vector<uint32_t>& vertex_masks,
+             size_t out_degree, size_t edge_pos) {
+    graph_ctx.clearEdgeEpoch();
     SIM_CACHE_READ(cache, comp_ptr, u);
-    SIM_CACHE_READ_MASKED(cache, comp_ptr, v, graph_ctx, vertex_masks[v]);
+    const uint32_t edge_mask = graph_ctx.resolveEdgeMaskAndEpoch(
+        EdgeMaskDir::OUT, static_cast<uint32_t>(u), out_degree,
+        edge_pos, vertex_masks[v]);
+    SIM_CACHE_READ_MASKED(cache, comp_ptr, v, graph_ctx, edge_mask);
+    // The remaining union-find pointer chasing is not tied to this edge record.
+    graph_ctx.clearEdgeEpoch();
     NodeID p1 = comp[u];
     NodeID p2 = comp[v];
     while (p1 != p2) {
@@ -60,6 +67,7 @@ void Compress_Sim(const Graph &g, pvector<NodeID>& comp, NodeID* comp_ptr,
                  const std::vector<uint32_t>& vertex_masks) {
     #pragma omp parallel for schedule(dynamic, 16384)
     for (NodeID n = 0; n < g.num_nodes(); n++) {
+        graph_ctx.clearEdgeEpoch();
         SIM_CACHE_READ(cache, comp_ptr, n);
         SIM_CACHE_READ(cache, comp_ptr, comp[n]);
         while (comp[n] != comp[comp[n]]) {
@@ -75,7 +83,8 @@ void Compress_Sim(const Graph &g, pvector<NodeID>& comp, NodeID* comp_ptr,
 template<typename CacheType>
 pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
                               int32_t neighbor_rounds = 2) {
-    pvector<NodeID> comp(g.num_nodes());
+    pvector<NodeID> comp(
+        g.num_nodes(), NodeID(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
     NodeID* comp_ptr = comp.data();
 
     // --- Graph-aware cache context ---
@@ -99,9 +108,9 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;
     {
-        const char* policy_env = getenv("CACHE_POLICY");
-        std::string policy_str = policy_env ? policy_env : "";
-        if (policy_str == "POPT" || policy_str == "ECG") {
+        const EvictionPolicy policy = GraphSimEffectiveL3Policy();
+        if (policy == EvictionPolicy::POPT ||
+            policy == EvictionPolicy::ECG) {
             constexpr int numVtxPerLine = 64 / sizeof(NodeID);
             constexpr int numEpochs = 256;
             // CC sweeps out_neigh(u); it assumes an UNDIRECTED graph (out==in), so
@@ -117,13 +126,28 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
         }
     }
 
-    // ECG_GRASP_POPT: build the per-edge absolute-epoch mask. For UNDIRECTED CC,
-    // out==in adjacency, so buildInEdgeMasks_PR (epoch = next out-neighbor of dest
-    // > src) aligns with CC's out_neigh(u) sweep. Carried on the comp[v] read.
-    if (graph_ctx.mask_config.prefetch_mode == 6 && std::getenv("ECG_EDGE_MASK_EPOCH")) {
-        int la = 8; const char* lv = std::getenv("ECG_EDGE_MASK_LOOKAHEAD"); if (lv) la = atoi(lv);
-        graph_ctx.buildInEdgeMasks_PR(g, la);
+    // CC traverses OUT-edges and reads comp[dest], so use the shared OUT-edge
+    // builder. CC remains undirected-only, but this keeps record position,
+    // tier, and K2 delivery exact instead of relying on IN/OUT order matching.
+    if (std::getenv("ECG_EDGE_MASKS") ||
+        std::getenv("ECG_CC_EDGE_MASKS") ||
+        (graph_ctx.mask_config.prefetch_mode == 6 &&
+         std::getenv("ECG_EDGE_MASK_EPOCH"))) {
+        graph_ctx.buildOutEdgeMasks(g);
     }
+    const bool record_charged = GraphSimEcgEdgeRecord() &&
+        GraphSimEnvIntClamped("ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    int epoch_bits = 1;
+    const uint32_t edge_epochs =
+        graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2;
+    while (epoch_bits < 16 &&
+           (uint32_t(1) << epoch_bits) < edge_epochs) {
+        ++epoch_bits;
+    }
+    const int record_bytes = GraphSimEcgRecordBytes(
+        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    NodeID* out_edge_base = g.num_nodes() > 0
+        ? g.out_neigh(0).begin() : nullptr;
 
     #pragma omp parallel for
     for (NodeID n = 0; n < g.num_nodes(); n++) {
@@ -136,8 +160,20 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
         #pragma omp parallel for schedule(dynamic, 16384)
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             SIM_SET_VERTEX(cache, u);
-            for (NodeID v : g.out_neigh(u, r)) {
-                Link_Sim(u, v, comp, comp_ptr, cache, graph_ctx, vertex_masks);
+            auto out_neigh = g.out_neigh(u, r);
+            for (auto edge_it = out_neigh.begin();
+                 edge_it != out_neigh.end(); ++edge_it) {
+                if (record_charged) {
+                    SIM_CACHE_READ_EDGE_RECORD(
+                        cache, edge_it, out_edge_base,
+                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+                } else {
+                    SIM_CACHE_READ_EDGE(cache, edge_it);
+                }
+                NodeID v = *edge_it;
+                Link_Sim(u, v, comp, comp_ptr, cache, graph_ctx,
+                         vertex_masks, static_cast<size_t>(g.out_degree(u)),
+                         static_cast<size_t>(r));
                 break;  // exactly ONE neighbor per round
             }
         }
@@ -159,16 +195,23 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
     #pragma omp parallel for schedule(dynamic, 16384)
     for (NodeID u = 0; u < g.num_nodes(); u++) {
         SIM_SET_VERTEX(cache, u);
+        graph_ctx.clearEdgeEpoch();
         SIM_CACHE_READ(cache, comp_ptr, u);
         if (comp[u] == c) continue;  // skip largest component
-        const bool has_eps = u < graph_ctx.in_edge_epoch_by_src.size();
         size_t epos = 0;
-        for (NodeID v : g.out_neigh(u)) {
-            if (has_eps) {
-                const auto& eps = graph_ctx.in_edge_epoch_by_src[u];
-                if (epos < eps.size()) graph_ctx.hints_for_thread().edge_epoch = eps[epos];
+        auto out_neigh = g.out_neigh(u);
+        for (auto edge_it = out_neigh.begin();
+             edge_it != out_neigh.end(); ++edge_it) {
+            if (record_charged) {
+                SIM_CACHE_READ_EDGE_RECORD(
+                    cache, edge_it, out_edge_base,
+                    GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+            } else {
+                SIM_CACHE_READ_EDGE(cache, edge_it);
             }
-            Link_Sim(u, v, comp, comp_ptr, cache, graph_ctx, vertex_masks);
+            NodeID v = *edge_it;
+            Link_Sim(u, v, comp, comp_ptr, cache, graph_ctx,
+                     vertex_masks, static_cast<size_t>(g.out_degree(u)), epos);
             ++epos;
         }
     }

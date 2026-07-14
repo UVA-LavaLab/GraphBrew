@@ -42,8 +42,10 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
                                  bool logging_enabled = false) {
     const ScoreT init_score = 1.0f / g.num_nodes();
     const ScoreT base_score = (1.0f - kDamp) / g.num_nodes();
-    pvector<ScoreT> scores(g.num_nodes(), init_score);
-    pvector<ScoreT> outgoing_contrib(g.num_nodes());
+    pvector<ScoreT> scores(
+        g.num_nodes(), init_score, GRAPH_SIM_PROPERTY_ALIGNMENT);
+    pvector<ScoreT> outgoing_contrib(
+        g.num_nodes(), ScoreT(0), GRAPH_SIM_PROPERTY_ALIGNMENT);
 
     ScoreT* scores_ptr = scores.data();
     ScoreT* contrib_ptr = outgoing_contrib.data();
@@ -70,9 +72,9 @@ pvector<ScoreT> PageRankSpMV_Sim(const Graph &g, CacheType &cache,
     // Build P-OPT rereference matrix (for POPT and ECG policies)
     static pvector<uint8_t> popt_matrix;
     {
-        const char* policy_env = getenv("CACHE_POLICY");
-        std::string policy_str = policy_env ? policy_env : "";
-        if (policy_str == "POPT" || policy_str == "ECG") {
+        const EvictionPolicy policy = GraphSimEffectiveL3Policy();
+        if (policy == EvictionPolicy::POPT ||
+            policy == EvictionPolicy::ECG) {
             constexpr int numVtxPerLine = 64 / sizeof(ScoreT);
             constexpr int numEpochs = 256;
             makeOffsetMatrix(g, popt_matrix, numVtxPerLine, numEpochs);

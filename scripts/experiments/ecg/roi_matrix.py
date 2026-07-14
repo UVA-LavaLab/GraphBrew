@@ -26,6 +26,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import mmap
 import os
 import platform
@@ -164,6 +165,18 @@ GEM5_STAT_KEYS = {
     # gem5 mr ~0.89 vs cache_sim ~0.68 for identical LRU. cpu.data aligns them.
     "l3_data_misses": "system.l3cache.overallMisses::cpu.data",
     "l3_data_hits": "system.l3cache.overallHits::cpu.data",
+    "l3_prefetch_misses":
+        "system.l3cache.overallMisses::l2cache.prefetcher",
+    "l3_prefetch_hits":
+        "system.l3cache.overallHits::l2cache.prefetcher",
+    "l3_prefetch_accesses":
+        "system.l3cache.overallAccesses::l2cache.prefetcher",
+    "dram_read_bytes": "system.mem_ctrl.dram.bytesRead::total",
+    "dram_write_bytes": "system.mem_ctrl.dram.bytesWritten::total",
+    "dram_read_requests": "system.mem_ctrl.dram.numReads::total",
+    "dram_write_requests": "system.mem_ctrl.dram.numWrites::total",
+    "dram_prefetch_read_bytes":
+        "system.mem_ctrl.dram.bytesRead::l2cache.prefetcher",
 }
 
 GEM5_PREFETCH_STAT_KEYS = {
@@ -330,6 +343,8 @@ def annotate_l3_pressure(row: dict[str, Any]) -> dict[str, Any]:
     misses = numeric(row.get("l3_misses"))
     accesses = numeric(row.get("l3_accesses"))
     rate = row.get("l3_miss_rate")
+    positive_activity = (
+        accesses is not None and math.isfinite(accesses) and accesses > 0)
     cold_only = (
         misses is not None
         and accesses is not None
@@ -341,14 +356,18 @@ def annotate_l3_pressure(row: dict[str, Any]) -> dict[str, Any]:
         hits = numeric(row.get("l3_hits"))
         m = numeric(row.get("l3_misses"))
         if hits is not None and m is not None and (hits + m) > 0:
+            positive_activity = True
             cold_only = hits == 0
-    row["l3_exercised"] = not bool(cold_only)
+    row["l3_exercised"] = bool(positive_activity and not cold_only)
     if cold_only:
         row["l3_pressure_note"] = (
             "L3 inert (cold-only: every access misses); property working set "
             "fits in L2 so the L3 replacement policy is not exercised at this "
             "cache geometry -- not a meaningful policy comparison."
         )
+    elif not positive_activity:
+        row["l3_pressure_note"] = (
+            "L3 unobserved: no finite positive LLC activity was reported.")
     return row
 
 
@@ -602,7 +621,7 @@ def validate_sniper_fused_receipts(
     receipt_re = re.compile(
         r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
         r"line=(\d+) vpl=(\d+) index=(\d+) begin=(\d+) end=(\d+) "
-        r"dest=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+        r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
     if not log_path.exists():
         return 0, 0
     receipts = []
@@ -649,7 +668,7 @@ def validate_sniper_fused_receipts(
             sideband_valid = sideband_valid and previous == record_count
             bad = 0 if sideband_valid else max(1, len(receipts))
             for (_seq, src, line_id, vpl, index, begin, end,
-                 dest, first, second) in receipts:
+                 dest, tier, first, second) in receipts:
                 valid = (
                     src + 1 < offset_count and
                     offset_at(src) == begin and
@@ -661,8 +680,10 @@ def validate_sniper_fused_receipts(
                     record = record_at(index)
                     valid = (
                         (record & 0xFFFFFFFF) == dest and
-                        ((record >> 32) & 0xFFFF) == first and
-                        ((record >> 48) & 0xFFFF) == second and
+                        1 <= tier <= 3 and
+                        ((record >> 32) & 0x3) == tier and
+                        ((record >> 34) & 0x7FFF) == first and
+                        ((record >> 49) & 0x7FFF) == second and
                         dest // vpl == line_id
                     )
                 bad += not valid
@@ -832,6 +853,8 @@ class EcgTransport:
     schedule_k: int = 0
     stream_bypass: bool = False
     trace_enabled: bool = True
+    set_dueling: bool = False
+    edge_masks: bool = False
 
 
 def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
@@ -840,7 +863,7 @@ def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
 
     explicit = spec.ecg_transport_pinned
     if (explicit and spec.ecg_schedule_k == 2 and
-            benchmark not in ("pr", "bfs")):
+            benchmark not in ("pr", "bfs", "sssp", "bc", "cc")):
         raise RuntimeError(
             f"ECG K2 delivery is not implemented for benchmark {benchmark!r}.")
     schedule_k = (
@@ -856,7 +879,9 @@ def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
     return EcgTransport(
         schedule_k=schedule_k,
         stream_bypass=stream_bypass,
+        set_dueling=spec.ecg_set_dueling,
         trace_enabled=not explicit,
+        edge_masks=explicit or schedule_k > 0,
     )
 
 
@@ -868,11 +893,13 @@ def apply_ecg_transport_env(
         "ECG_K2_DELIVERY_TRACE",
         "ECG_STREAM_BYPASS",
         "ECG_STREAM_BYPASS_TRACE",
+        "ECG_SET_DUELING",
     ):
         env.pop(key, None)
+    if transport.edge_masks:
+        env["ECG_EDGE_MASKS"] = "1"
     if transport.schedule_k:
         env["ECG_EDGE_MASK_SCHED"] = str(transport.schedule_k)
-        env["ECG_EDGE_MASKS"] = "1"
         if (transport.trace_enabled and
                 os.environ.get("ECG_K2_DELIVERY_TRACE")):
             env["ECG_K2_DELIVERY_TRACE"] = os.environ[
@@ -883,6 +910,8 @@ def apply_ecg_transport_env(
                 os.environ.get("ECG_STREAM_BYPASS_TRACE")):
             env["ECG_STREAM_BYPASS_TRACE"] = os.environ[
                 "ECG_STREAM_BYPASS_TRACE"]
+    if transport.set_dueling:
+        env["ECG_SET_DUELING"] = "1"
 
 
 def scrub_cell_mechanism_env(env: dict[str, str]) -> None:
@@ -981,6 +1010,12 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
     log_path = out_dir / "logs" / f"{label}.log"
     json_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [str(binary)] + shlex.split(args.options)
+    setarch = shutil.which("setarch")
+    if setarch:
+        cmd = [setarch, platform.machine(), "-R", *cmd]
+    elif args.require_cache_sim_aslr_disable:
+        raise RuntimeError(
+            "Paper cache_sim runs require setarch -R, but setarch is unavailable.")
     charge = popt_charge_metadata(args, spec, l3_size)
     effective_l3_size = str(charge["popt_effective_l3_size"])
     effective_l3_ways = str(charge["popt_effective_l3_ways"])
@@ -1163,14 +1198,14 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 "gem5 Schedule-K delivery currently supports only "
                 "ECG_EDGE_MASK_SCHED=2.")
         if schedule_k == 2 and (
-                args.benchmark not in ("pr", "bfs")
+                args.benchmark not in ("pr", "bfs", "sssp", "bc", "cc")
                 or args.prefetcher not in ("none", "STRIDE")):
             raise RuntimeError(
-                "gem5 Schedule-2 is implemented only for PR/BFS with "
+                "gem5 Schedule-2 is implemented for PR/BFS/SSSP/BC/CC with "
                 "prefetcher none or STRIDE.")
         force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
-        if (schedule_k == 2 and args.benchmark in ("pr", "bfs")
-                and (ecg_variant != "grasp_only" or force_delivery)):
+        if schedule_k == 2 and args.benchmark in (
+                "pr", "bfs", "sssp", "bc", "cc"):
             if args.gem5_cpu_type == "O3":
                 raise RuntimeError(
                     "Schedule-2 gem5 delivery is in-order only: ecg.extract2 "
@@ -1233,6 +1268,13 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     base = base_row("gem5", args, spec, l3_size, charge)
     if gem5_ecg_delivery:
         base["gem5_ecg_delivery"] = gem5_ecg_delivery
+    if gem5_ecg_delivery == "packed8+k2+ecg.extract2":
+        base["timing_model"] = "prototype_instruction_delivery"
+        base["timing_valid_for_speedup"] = "0"
+        base["timing_caveat"] = (
+            "This kernel uses a packed record load followed by ecg.extract2; "
+            "use cache metrics, not speedup, until request-bound fused load2 "
+            "delivery is implemented.")
     base.update({
         "log_path": str(log_path),
         "gem5_out": str(gem5_out),
@@ -1261,19 +1303,25 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         base.update({"section": 0, "status": "error", "error": "no stats sections"})
         return [base]
 
-    rows = []
-    for section_id, stats in enumerate(sections, 1):
-        row = dict(base)
-        row.update({"section": section_id, "status": "ok", "stats_path": str(stats_path)})
-        row.update(stats)
-        if spec.charge_popt_overhead:
-            stream_lines = int(row.get("popt_matrix_stream_cache_lines") or 0)
-            l3_misses = row.get("l3_misses")
-            if l3_misses not in (None, ""):
-                row["popt_charged_l3_misses_plus_matrix_stream"] = int(l3_misses) + stream_lines
-        apply_overhead_metrics(row)
-        rows.append(row)
-    return rows
+    # The benchmark emits the first stats block at the ROI boundary. gem5 then
+    # emits a second exit dump with teardown/post-ROI activity; reporting both
+    # double-weights gem5 and contaminates the matrix. Keep the benchmark ROI.
+    row = dict(base)
+    row.update({
+        "section": 1,
+        "status": "ok",
+        "stats_path": str(stats_path),
+        "gem5_stats_sections_seen": len(sections),
+    })
+    row.update(sections[0])
+    if spec.charge_popt_overhead:
+        stream_lines = int(row.get("popt_matrix_stream_cache_lines") or 0)
+        l3_misses = row.get("l3_misses")
+        if l3_misses not in (None, ""):
+            row["popt_charged_l3_misses_plus_matrix_stream"] = (
+                int(l3_misses) + stream_lines)
+    apply_overhead_metrics(row)
+    return [row]
 
 
 def sniper_graph_policies_enabled(args: argparse.Namespace) -> bool:
@@ -1485,14 +1533,10 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     cmd = [
         str(sniper_runner),
         "--roi",
-        "--no-cache-warming",
     ]
-    # DROPLET-style bounded ROI: cap the DETAILED region at a fixed instruction
-    # budget (aggregated over cores) so simulation time stays bounded regardless
-    # of graph size. With --roi, Sniper fast-forwards pre-ROI, switches to
-    # DETAILED at the ROI marker, and ends after N instructions — matching the
-    # DROPLET paper (-s stop-by-icount:600000000) and the field practice of
-    # simulating a bounded steady-state window rather than the whole graph.
+    # Keep Sniper's cache-warming fast-forward enabled so the ROI starts from the
+    # same warmed-but-stat-reset state as cache_sim and gem5. The detailed region
+    # is still bounded by a fixed instruction budget.
     if int(args.sniper_roi_icount) > 0:
         cmd.extend(["-s", f"stop-by-icount:{int(args.sniper_roi_icount)}"])
     if args.sniper_frontend == "sift":
@@ -1603,6 +1647,10 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env.pop("OMP_WAIT_POLICY", None)
     env["SNIPER_GRAPHBREW_CTX"] = str(sidebands["context"])
     env["SNIPER_POPT_MATRIX"] = str(sidebands["popt_matrix"])
+    if policy_name == "popt":
+        env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"
+    else:
+        env.pop("SNIPER_REQUIRE_POPT_MATRIX", None)
     env["SNIPER_GRAPHBREW_OUT_EDGES"] = str(sidebands["out_edges"])
     env["SNIPER_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
     env["SNIPER_GRAPHBREW_PREFETCHER"] = str(args.prefetcher)
@@ -1637,10 +1685,10 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             "Sniper Schedule-K delivery currently supports only "
             "ECG_EDGE_MASK_SCHED=2.")
     if schedule_k == 2 and (
-            args.benchmark not in ("pr", "bfs")
+            args.benchmark not in ("pr", "bfs", "sssp", "bc", "cc")
             or args.prefetcher not in ("none", "STRIDE")):
         raise RuntimeError(
-            "Sniper Schedule-2 is implemented only for PR/BFS with "
+            "Sniper Schedule-2 is implemented for PR/BFS/SSSP/BC/CC with "
             "prefetcher none or STRIDE.")
     if schedule_k == 2 and args.sniper_workload != "sg_kernel":
         raise RuntimeError(
@@ -1654,8 +1702,20 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
     fused_k2 = False
     fused_validation = False
+    k2_trace_requested = (
+        env.get("ECG_K2_DELIVERY_TRACE", "0") not in ("", "0"))
+    cold_mechanism_proof = (
+        args.sniper_require_fused_receipts or
+        (schedule_k == 2 and k2_trace_requested)
+    )
+    if cold_mechanism_proof:
+        cmd.insert(cmd.index("--roi") + 1, "--no-cache-warming")
+        row["sniper_cache_warming"] = 0
+    else:
+        row["sniper_cache_warming"] = 1
     if (spec.ecg_mode == "ECG_GRASP_POPT" and policy_name == "ecg"
-            and (ecg_variant != "grasp_only" or force_delivery)):
+            and (schedule_k == 2 or ecg_variant != "grasp_only"
+                 or force_delivery)):
         # Performance-equivalent to gem5/cache_sim: consume the delivered
         # per-edge epoch, not Sniper's stronger live findNextRef oracle.
         env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
@@ -1666,8 +1726,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         )
         if fused_k2:
             env["SNIPER_ECG_FUSED_K2"] = "1"
-            fused_validation = True
-            env["SNIPER_ECG_FUSED_VALIDATE"] = "1"
+            fused_validation = cold_mechanism_proof
+            if fused_validation:
+                env["SNIPER_ECG_FUSED_VALIDATE"] = "1"
         row["sniper_ecg_delivery"] = (
             "fused-k2-model" if fused_k2
             else "per-edge-extract2-k2" if schedule_k == 2
@@ -1694,6 +1755,31 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         clear_sniper_k2_sidebands(sidebands)
         row.update({"status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
         return [row]
+    log_text = log_path.read_text(errors="ignore")
+    if policy_name in ("grasp", "popt", "ecg"):
+        context_marker = re.search(
+            r"\[ECG-CONTEXT-READY sim=sniper loaded=1 "
+            r"regions=(\d+) reref=(\d+)\]",
+            log_text,
+        )
+        context_loaded = context_marker is not None
+        row["sniper_context_loaded"] = int(context_loaded)
+        if not context_loaded:
+            clear_sniper_k2_sidebands(sidebands)
+            row.update({
+                "status": "error",
+                "error": "Sniper graph policy completed without a loaded graph context",
+            })
+            return [row]
+        reref_loaded = int(context_marker.group(2))
+        row["sniper_rereference_loaded"] = reref_loaded
+        if policy_name == "popt" and reref_loaded != 1:
+            clear_sniper_k2_sidebands(sidebands)
+            row.update({
+                "status": "error",
+                "error": "Sniper P-OPT completed without a loaded rereference matrix",
+            })
+            return [row]
 
     raw_stats = read_sniper_stats(sniper_out)
     if not raw_stats.get("success"):
@@ -1734,6 +1820,12 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         log_path, sidebands)
     row["sniper_fused_k2_receipts"] = fused_count
     row["sniper_fused_k2_bad_receipts"] = fused_bad
+    if fused_k2 and (fused_count == 0 or fused_bad != 0):
+        row["timing_valid_for_speedup"] = "0"
+        row["timing_caveat"] = (
+            "Fused K2 timing is not comparable with LRU: this row lacks "
+            "validated fused receipts and uses a different packed-record "
+            "software path.")
     if fused_validation and (fused_count == 0 or fused_bad != 0):
         row["status"] = "error"
         row["error"] = (
@@ -1873,6 +1965,11 @@ def parse_gem5_sections(stats_path: Path) -> list[dict[str, Any]]:
     return parsed
 
 
+def effective_ecg_epoch_count(requested: int, schedule_k: int) -> int:
+    upper = 32768 if schedule_k == 2 else 65535
+    return min(max(int(requested), 2), upper)
+
+
 def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size: str,
              charge: dict[str, Any] | None = None) -> dict[str, Any]:
     transport = ecg_transport_for(spec, args.benchmark)
@@ -1893,6 +1990,8 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
     elif simulator == "cache-sim":
         timing_model = "cache_mechanism_model"
 
+    effective_ecg_epochs = effective_ecg_epoch_count(
+        args.ecg_epochs, transport.schedule_k)
     row = {
         "simulator": simulator,
         "benchmark": args.benchmark,
@@ -1916,7 +2015,9 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             args.structure_prefetch_degree
             if args.prefetcher == "STRIDE" else 0),
         "ecg_epoch_pack_bits": args.ecg_epoch_pack_bits,
-        "ecg_epochs": args.ecg_epochs,
+        "ecg_epochs": effective_ecg_epochs,
+        "ecg_epochs_requested": args.ecg_epochs,
+        "ecg_epochs_effective": effective_ecg_epochs,
         "ecg_charged": args.ecg_charged,
         "ecg_schedule_k": transport.schedule_k,
         "ecg_stream_bypass": int(transport.stream_bypass),
@@ -1998,6 +2099,11 @@ def standalone_matrix_config_hash(
             graph = Path(option_parts[index + 1])
             paths["graph"] = (
                 graph if graph.is_absolute() else PROJECT_ROOT / graph)
+    if args.suite in ("cache-sim", "both"):
+        setarch = shutil.which("setarch")
+        paths["cache_sim_setarch"] = (
+            Path(setarch) if setarch else
+            PROJECT_ROOT / ".missing-cache-sim-setarch")
     if args.suite == "sniper":
         root = sniper_root_path(args)
         workload = args.sniper_workload
@@ -2095,6 +2201,8 @@ def write_completion_marker(
         "config_hash": os.environ.get(
             "GRAPHBREW_MATRIX_CONFIG_HASH", config_hash),
         "matrix_config_hash": matrix_config_hash,
+        "comparison_config_hash": os.environ.get(
+            "GRAPHBREW_COMPARISON_CONFIG_HASH", ""),
         "policy_labels": [spec.label for spec in policies],
         "expected_policy_labels": (
             expected_policy_labels or [spec.label for spec in policies]),
@@ -2273,6 +2381,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--require-sniper-aslr-disable", action="store_true",
         help="Fail Sniper paper cells unless setarch -R is available and used.")
+    parser.add_argument(
+        "--sniper-require-fused-receipts", action="store_true",
+        help="Require live fused-K2 receipts and disable cache warming for this mechanism-proof cell.")
+    parser.add_argument(
+        "--require-cache-sim-aslr-disable", action="store_true",
+        help="Fail cache_sim paper cells unless setarch -R is available and used.")
     parser.add_argument("--no-build", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args(argv)

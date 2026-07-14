@@ -67,10 +67,72 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
 The command must contain exactly:
 
 ```text
-LRU SRRIP GRASP POPT ECG:K2 ECG:K2_STREAMSHIELD
+LRU SRRIP GRASP POPT ECG:K2 ECG:K2_ONLINE
+ECG:K2_STREAMSHIELD ECG:K2_ONLINE_STREAMSHIELD
 ```
 
 ## Reproduce the real-graph cache_sim factorial
+
+First run the bounded five-algorithm diagnostic matrix:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_preliminary_5alg_3sim \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_preliminary_5alg \
+  --no-build
+```
+
+This runs LRU, SRRIP, GRASP, charged P-OPT, static K2, and online K2 for
+PR/BFS/SSSP/BC/CC on the common `kron_s15_k4` cell in cache_sim, gem5, and
+Sniper. Compare policy direction and rank **within** each simulator. Do not
+compare absolute gem5 and Sniper miss rates, and do not use non-PR explicit
+`extract2` timing as speedup.
+
+Then run the matched structure-prefetch sensitivity:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_preliminary_5alg_stride \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_preliminary_5alg_stride \
+  --no-build
+```
+
+STRIDE8 is enabled for every policy. A lower demand miss rate does not imply
+lower bandwidth: compare `total_memory_traffic_with_overhead` and prefetch fills
+alongside demand misses.
+
+When rerunning only one simulator or stage, use a distinct `--run-dir`.
+`paper_run.py` refuses to replace a broader resolved manifest with an
+`--only`/filtered subset. Aggregate shard directories together with
+`paper_pipeline.py --input-run-dirs ...`.
+
+First isolate replacement quality and online regret:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_replacement_baseline \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_replacement \
+  --no-build
+```
+
+This PR/BFS/SSSP/BC/CC stage disables prefetching and uncharges ECG record delivery. It
+reports LRU, SRRIP, GRASP, uncharged and charged P-OPT, K1, all five static K2
+arms, and `ECG:K2_ONLINE`.
+
+Before launching real graphs, certify all five algorithms:
+
+```bash
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --sniper \
+  --kernels pr bfs sssp bc cc \
+  --schedule-k 2
+```
+
+BC certification applies K2 to the forward Brandes edge traversal only; its
+runtime successor-DAG backward phase is not a static record stream. CC uses the
+existing undirected/symmetric graph contract.
+
+Then run the hardware-faithful placement factorial:
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
@@ -79,9 +141,10 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --no-build
 ```
 
-The factorial adds `ECG:K1` and `ECG:K1_STREAMSHIELD` to the full baseline
-set. Use `--allow-missing-graphs --list --dry-run` to inspect the complete job
-set before staging all three graphs.
+The factorial includes uncharged and charged P-OPT, K1/K2, StreamShield, and
+online K2 with record traffic charged. Use
+`--allow-missing-graphs --list --dry-run` to inspect the complete job set before
+staging all three graphs.
 
 ## Reproduce the detailed-simulator mechanism cells
 
@@ -97,7 +160,7 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --no-build
 ```
 
-## Run the bounded local matrix
+## Run the full-iteration local matrix
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
@@ -123,7 +186,7 @@ Submit on a configured cluster:
 
 ```bash
 SHARDS=results/ecg_experiments/slurm/ecg_successor_webgoogle.tsv \
-sbatch --array=0-5 scripts/experiments/ecg/slurm/slurm_final_shard.sbatch
+sbatch --array=0-7 scripts/experiments/ecg/slurm/slurm_final_shard.sbatch
 ```
 
 ## Aggregate
@@ -132,15 +195,24 @@ sbatch --array=0-5 scripts/experiments/ecg/slurm/slurm_final_shard.sbatch
 python3 scripts/experiments/ecg/flows/paper_pipeline.py \
   --skip-run \
   --input-run-glob \
+    "results/ecg_experiments/final_paper_runs/ecg_replacement" \
     "results/ecg_experiments/final_paper_runs/slurm/ecg_successor_webgoogle/*" \
   --run-root results/ecg_experiments/paper_pipeline/ecg_successor_webgoogle
+
+test -f \
+  results/ecg_experiments/paper_pipeline/ecg_successor_webgoogle/aggregate/online_dueling_regret.csv
 ```
+
+The replacement profile emits
+`aggregate/online_dueling_regret.csv`, which reports online K2's delta from the
+best static arm using total LLC misses, plus a separate property-miss diagnostic
+and deltas from uncharged and overhead-aware charged P-OPT.
 
 ## Correctness gates
 
 ```bash
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
-  --gem5 --sniper --kernels pr bfs --schedule-k 2
+  --gem5 --sniper --kernels pr bfs sssp bc cc --schedule-k 2
 
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr --schedule-k 2 --stream-bypass

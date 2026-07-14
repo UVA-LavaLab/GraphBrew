@@ -308,9 +308,11 @@ inline void gem5_trace_ecg_k2_expect(uint64_t packed) {
     const uint64_t sequence = trace_sequence++;
     if (sequence < trace_limit) {
         std::fprintf(stderr,
-            "[ECG-K2-EXPECT sim=gem5 seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            "[ECG-K2-EXPECT sim=gem5 seq=%llu dest=%u tier=%u "
+            "epoch1=%u epoch2=%u]\n",
             (unsigned long long)sequence,
             ecg_epoch::extractEpochPairDest(packed),
+            static_cast<unsigned>(ecg_epoch::extractEpochPairTier(packed)),
             static_cast<unsigned>(ecg_epoch::extractEpochPairFirst(packed)),
             static_cast<unsigned>(ecg_epoch::extractEpochPairSecond(packed)));
     }
@@ -351,7 +353,7 @@ inline bool gem5_ecg_load2_enabled() {
 
 // ecg.stream.load2 rd, 0(rs1): load one packed K2 record with a request-bound
 // LLC no-allocate flag. rd returns the full record; the decoder also delivers
-// both epochs to ECG replacement metadata.
+// the carried tier and both epochs to ECG replacement metadata.
 inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
     uint64_t packed = 0;
 #if defined(__riscv)
@@ -380,12 +382,31 @@ inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
     return packed;
 }
 
+inline void gem5_ecg_clear_extract2_hint() {
+#if defined(__riscv)
+    uint64_t ignored = 0;
+    const uint64_t clear_record = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x01, %0, %1, x0"
+                  : "=r"(ignored)
+                  : "r"(clear_record)
+                  : "memory");
+#elif defined(__x86_64__)
+    gem5_x86_work_begin_instruction(GEM5_WORK_ECG_EXTRACT2, 0);
+#endif
+}
+
 #define GEM5_ECG_EXTRACT2(packed_u64) \
     do { \
         if (gem5_ecg_extract_enabled()) { \
             (void)gem5_ecg_extract2_instruction( \
                 static_cast<uint64_t>(packed_u64)); \
         } \
+    } while (0)
+
+#define GEM5_ECG_CLEAR_EXTRACT2_HINT() \
+    do { \
+        if (gem5_ecg_extract_enabled()) \
+            gem5_ecg_clear_extract2_hint(); \
     } while (0)
 
 // GEM5_ECG_EXTRACT_MASK(mask_u64): emit the full mode-6 mask via the
@@ -560,6 +581,7 @@ inline bool gem5_ecg_pfx_hints_enabled() { return false; }
 inline bool gem5_ecg_extract_enabled() { return false; }
 #define GEM5_ECG_EXTRACT_MASK(mask_u64) do {} while(0)
 #define GEM5_ECG_EXTRACT2(packed_u64) do {} while(0)
+#define GEM5_ECG_CLEAR_EXTRACT2_HINT() do {} while(0)
 #define GEM5_ECG_PFX_TARGET(vertex_id) do {} while(0)
 #define GEM5_ECG_PFX_TARGET_EPOCH(target_id, epoch_id) do {} while(0)
 #endif

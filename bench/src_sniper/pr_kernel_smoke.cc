@@ -54,6 +54,8 @@ void export_context(ScoreT* scores, ScoreT* contrib) {
     out << "  \"degree_buckets\": {\"counts\": [0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], "
         << "\"total_degrees\": [0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0]}\n";
     out << "}\n";
+    out.close();
+    graphbrew_sniper::notify_context_ready();
 }
 
 void export_popt_matrix() {
@@ -67,15 +69,15 @@ void export_popt_matrix() {
 }  // namespace
 
 int main() {
-    ScoreT scores[kNodes];
-    ScoreT contrib[kNodes];
+    alignas(4096) ScoreT scores[kNodes];
+    alignas(4096) ScoreT contrib[kNodes];
     for (int i = 0; i < kNodes; ++i) {
         scores[i] = 1.0f / kNodes;
         contrib[i] = scores[i] / kOutDegree[i];
     }
 
-    export_context(scores, contrib);
     export_popt_matrix();
+    export_context(scores, contrib);
 
     SNIPER_ROI_BEGIN();
     for (int iter = 0; iter < 2; ++iter) {

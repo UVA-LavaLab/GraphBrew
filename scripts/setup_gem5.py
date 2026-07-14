@@ -154,6 +154,23 @@ def installed_patch_target_hashes() -> dict[str, str]:
     return hashes
 
 
+def verify_existing_patch_state() -> None:
+    """Refuse to patch over a checkout that drifted since its last verification."""
+    try:
+        patch_state = json.loads(PATCH_STATE_FILE.read_text())
+    except FileNotFoundError:
+        return
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"Invalid gem5 patch state {PATCH_STATE_FILE}: {exc}") from exc
+
+    recorded_targets = patch_state.get("installed_targets", {})
+    if recorded_targets and installed_patch_target_hashes() != recorded_targets:
+        raise SystemExit(
+            "Installed gem5 patched sources differ from the verified patch "
+            "state. Run setup_gem5.py --clean and reinstall.")
+
+
 # =============================================================================
 # Utility Functions
 # =============================================================================
@@ -370,13 +387,6 @@ def apply_unified_diff_patches():
     except (FileNotFoundError, json.JSONDecodeError):
         patch_state = {}
     recorded_digests = patch_state.get("patches", {})
-    recorded_targets = patch_state.get("installed_targets", {})
-    if recorded_targets:
-        actual_targets = installed_patch_target_hashes()
-        if actual_targets != recorded_targets:
-            raise SystemExit(
-                "Installed gem5 patched sources differ from the verified "
-                "patch state. Run setup_gem5.py --clean and reinstall.")
 
     for overlay_rel, target_dir in UNIFIED_DIFF_PATCHES:
         patch_file = OVERLAYS_DIR / overlay_rel
@@ -508,6 +518,43 @@ def apply_current_vertex_pseudo_inst_patch():
             + "    }\n\n"
             + content[end:]
         )
+    legacy_k2 = (
+        "        uint32_t dest_id = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
+        "        uint16_t epoch1 = static_cast<uint16_t>((threadid >> 32) & 0xFFFFULL);\n"
+        "        uint16_t epoch2 = static_cast<uint16_t>((threadid >> 48) & 0xFFFFULL);\n"
+        "        replacement_policy::graph::setDecodedEcgExtractHint2(dest_id, epoch1, epoch2);"
+    )
+    tiered_k2 = (
+        "        uint32_t dest_id = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
+        "        uint8_t tier = static_cast<uint8_t>((threadid >> 32) & 0x3ULL);\n"
+        "        uint16_t epoch1 = static_cast<uint16_t>((threadid >> 34) & 0x7FFFULL);\n"
+        "        uint16_t epoch2 = static_cast<uint16_t>((threadid >> 49) & 0x7FFFULL);\n"
+        "        replacement_policy::graph::setDecodedEcgExtractHint2(dest_id, tier, epoch1, epoch2);"
+    )
+    if legacy_k2 in content:
+        content = content.replace(legacy_k2, tiered_k2, 1)
+    legacy_k2_wrapped = (
+        "        uint32_t dest_id = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
+        "        uint16_t epoch1 =\n"
+        "            static_cast<uint16_t>((threadid >> 32) & 0xFFFFULL);\n"
+        "        uint16_t epoch2 =\n"
+        "            static_cast<uint16_t>((threadid >> 48) & 0xFFFFULL);\n"
+        "        replacement_policy::graph::setDecodedEcgExtractHint2(\n"
+        "            dest_id, epoch1, epoch2);"
+    )
+    tiered_k2_wrapped = (
+        "        uint32_t dest_id = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
+        "        uint8_t tier = static_cast<uint8_t>((threadid >> 32) & 0x3ULL);\n"
+        "        uint16_t epoch1 =\n"
+        "            static_cast<uint16_t>((threadid >> 34) & 0x7FFFULL);\n"
+        "        uint16_t epoch2 =\n"
+        "            static_cast<uint16_t>((threadid >> 49) & 0x7FFFULL);\n"
+        "        replacement_policy::graph::setDecodedEcgExtractHint2(\n"
+        "            dest_id, tier, epoch1, epoch2);"
+    )
+    if legacy_k2_wrapped in content:
+        content = content.replace(
+            legacy_k2_wrapped, tiered_k2_wrapped, 1)
 
     hint_blocks = []
     if "GRAPHBREW_SET_VERTEX_WORK_ID" not in content:
@@ -541,9 +588,10 @@ def apply_current_vertex_pseudo_inst_patch():
         hint_blocks.append(
             "    if (workid == replacement_policy::graph::GRAPHBREW_ECG_EXTRACT2_WORK_ID) {\n"
             "        uint32_t dest_id = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
-            "        uint16_t epoch1 = static_cast<uint16_t>((threadid >> 32) & 0xFFFFULL);\n"
-            "        uint16_t epoch2 = static_cast<uint16_t>((threadid >> 48) & 0xFFFFULL);\n"
-            "        replacement_policy::graph::setDecodedEcgExtractHint2(dest_id, epoch1, epoch2);\n"
+            "        uint8_t tier = static_cast<uint8_t>((threadid >> 32) & 0x3ULL);\n"
+            "        uint16_t epoch1 = static_cast<uint16_t>((threadid >> 34) & 0x7FFFULL);\n"
+            "        uint16_t epoch2 = static_cast<uint16_t>((threadid >> 49) & 0x7FFFULL);\n"
+            "        replacement_policy::graph::setDecodedEcgExtractHint2(dest_id, tier, epoch1, epoch2);\n"
             "        return;\n"
             "    }\n\n"
         )
@@ -896,6 +944,7 @@ def main():
     # Step 2: Clone
     log.step(2, total_steps, "Cloning gem5...")
     clone_gem5(args.tag, force=args.force)
+    verify_existing_patch_state()
 
     # Step 3: Apply overlays
     log.step(3, total_steps, "Applying overlay files...")

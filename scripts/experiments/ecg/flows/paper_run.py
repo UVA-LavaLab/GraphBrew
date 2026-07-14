@@ -46,6 +46,14 @@ PROOF_MATRIX = ECG_DIR / "flows" / "proof_matrix.py"
 DEFAULT_MANIFEST = ECG_DIR / "final_paper_manifest.json"
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "final_paper_runs"
 DEFAULT_LOCK = Path(os.environ.get("GRAPHBREW_FINAL_RUN_LOCK", "/tmp/graphbrew_final_paper_run.lock"))
+ROI_RUNTIME_METADATA_ENV = frozenset({
+    "GRAPHBREW_MATRIX_CONFIG_HASH",
+    "GRAPHBREW_MATRIX_GROUP_HASH",
+    "GRAPHBREW_COMPARISON_CONFIG_HASH",
+    "GRAPHBREW_MATRIX_ID",
+    "GRAPHBREW_SHARD_GROUP",
+    "GRAPHBREW_EXPECTED_POLICY_LABELS",
+})
 
 
 @dataclass(frozen=True)
@@ -518,7 +526,16 @@ def make_roi_job(
         "--timeout-sniper", str(settings.get("timeout_sniper", 600)),
         "--popt-reserve-model",
         str(settings.get("popt_reserve_model", "fixed_one")),
+        "--ecg-charged", str(settings.get("ecg_charged", 1)),
+        "--ecg-epochs", str(settings.get("ecg_epochs", 65535)),
+        "--ecg-epoch-pack-bits",
+        str(settings.get("ecg_epoch_pack_bits", 64)),
+        "--cache-sim-omp-threads",
+        str(settings.get("cache_sim_omp_threads", 1)),
     ]
+    if (settings.get("require_cache_sim_aslr_disable") and
+            str(settings.get("suite")) in ("cache-sim", "both")):
+        command.append("--require-cache-sim-aslr-disable")
     if str(settings.get("prefetcher", "none")) == "ECG_PFX":
         command.extend(["--ecg-pfx-mode", str(settings.get("ecg_pfx_mode", "popt"))])
         command.extend(["--ecg-pfx-window", str(settings.get("ecg_pfx_window", 16))])
@@ -554,6 +571,8 @@ def make_roi_job(
         command.extend(["--sniper-address-domain", str(settings.get("sniper_address_domain", "virtual"))])
         if settings.get("require_sniper_aslr_disable"):
             command.append("--require-sniper-aslr-disable")
+        if settings.get("sniper_require_fused_receipts"):
+            command.append("--sniper-require-fused-receipts")
         command.extend(["--sniper-memory-limit-gb", str(settings.get("sniper_memory_limit_gb", 16))])
         command.extend(["--sniper-mimicos-memory-mb", str(settings.get("sniper_mimicos_memory_mb", 4096))])
         command.extend(["--sniper-mimicos-kernel-mb", str(settings.get("sniper_mimicos_kernel_mb", 128))])
@@ -618,11 +637,14 @@ def make_roi_job(
     matrix_config_hash = hashlib.sha256(json.dumps(
         {"command": matrix_command, "env": material_env, "inputs": inputs},
         sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    comparison_config_hash = roi_comparison_config_hash(
+        command, material_env, inputs, all_policies)
     shard_group = os.environ.get(
         "GRAPHBREW_SHARD_GROUP", run_dir.name)
     env.update({
         "GRAPHBREW_MATRIX_CONFIG_HASH": config_hash,
         "GRAPHBREW_MATRIX_GROUP_HASH": matrix_config_hash,
+        "GRAPHBREW_COMPARISON_CONFIG_HASH": comparison_config_hash,
         "GRAPHBREW_MATRIX_ID": matrix_id,
         "GRAPHBREW_SHARD_GROUP": shard_group,
         "GRAPHBREW_EXPECTED_POLICY_LABELS": json.dumps(
@@ -661,6 +683,7 @@ def make_roi_job(
             "expected_policy_labels": expected_policy_labels,
             "config_hash": config_hash,
             "matrix_config_hash": matrix_config_hash,
+            "comparison_config_hash": comparison_config_hash,
             "input_fingerprints": inputs,
             "prefetcher": settings.get("prefetcher", "none"),
             # Sprint 6f-7 / HPCA mode 6: record env knobs for reproducibility.
@@ -879,6 +902,71 @@ def command_text(command: list[str]) -> str:
     return " ".join(shlex.quote(part) for part in command)
 
 
+def roi_comparison_config_hash(
+        command: list[str], material_env: dict[str, str],
+        inputs: dict[str, Any], all_policies: list[str]) -> str:
+    comparison_command = list(command)
+    policy_start = comparison_command.index("--policies") + 1
+    policy_end = comparison_command.index("--prefetcher")
+    comparison_command[policy_start:policy_end] = all_policies
+    comparison_command[comparison_command.index("--out-dir") + 1] = (
+        "<MATRIX_OUT_DIR>")
+    for option, placeholder in (
+        ("--prefetcher", "<PREFETCHER>"),
+        ("--structure-prefetch-degree", "<STRUCTURE_PREFETCH_DEGREE>"),
+    ):
+        if option in comparison_command:
+            comparison_command[comparison_command.index(option) + 1] = (
+                placeholder)
+    comparison_inputs = {
+        key: value for key, value in inputs.items()
+        if key not in {
+            "git_state", "manifest", "paper_run", "roi_matrix", "policy_specs",
+        }
+    }
+    return hashlib.sha256(json.dumps(
+        {
+            "command": comparison_command,
+            "env": material_env,
+            "inputs": comparison_inputs,
+        },
+        sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def recover_roi_comparison_config_hash(
+        resolved_job: dict[str, Any]) -> str:
+    metadata = resolved_job.get("metadata", {})
+    stored = str(metadata.get("comparison_config_hash", ""))
+    if stored:
+        return stored
+    command = resolved_job.get("command")
+    inputs = metadata.get("input_fingerprints")
+    policies = metadata.get("policies")
+    expected_labels = metadata.get("expected_policy_labels")
+    recorded_env = metadata.get("env")
+    if not (
+            isinstance(command, list) and
+            isinstance(inputs, dict) and
+            isinstance(policies, list) and
+            isinstance(expected_labels, list) and
+            isinstance(recorded_env, dict) and
+            [policy_output_label(policy) for policy in policies] ==
+            expected_labels):
+        return ""
+    material_env = {
+        str(key): str(value)
+        for key, value in recorded_env.items()
+        if key not in ROI_RUNTIME_METADATA_ENV
+    }
+    recovered_config_hash = hashlib.sha256(json.dumps(
+        {"command": command, "env": material_env, "inputs": inputs},
+        sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    if recovered_config_hash != metadata.get("config_hash"):
+        return ""
+    return roi_comparison_config_hash(
+        command, material_env, inputs, policies)
+
+
 def run_config_hash(
         args: argparse.Namespace, jobs: list[Job]) -> str:
     payload = {
@@ -903,6 +991,32 @@ def run_config_hash(
     }
     return hashlib.sha256(json.dumps(
         payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def guard_run_manifest_scope(run_dir: Path, jobs: list[Job]) -> None:
+    path = run_dir / "resolved_manifest.json"
+    if not path.exists():
+        return
+    try:
+        existing = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(
+            f"refusing to replace unreadable run manifest {path}: {error}")
+    existing_out_dirs = {
+        str(Path(str(job.get("out_dir", ""))).resolve())
+        for job in existing.get("jobs", [])
+        if job.get("out_dir")
+    }
+    selected_out_dirs = {
+        str(job.out_dir.resolve())
+        for job in jobs
+    }
+    omitted = existing_out_dirs - selected_out_dirs
+    if omitted:
+        raise SystemExit(
+            "refusing to replace a broader resolved manifest with a subset; "
+            "use a distinct --run-dir for --only/--skip/filter shards and "
+            "aggregate the run directories afterward")
 
 
 def write_run_manifest(run_dir: Path, args: argparse.Namespace, manifest: dict[str, Any], jobs: list[Job]) -> None:
@@ -983,6 +1097,8 @@ def write_combined_outputs(run_dir: Path, jobs: list[Job]) -> None:
                     separators=(",", ":")),
                 "final_matrix_config_hash": str(job.metadata.get(
                     "matrix_config_hash", "")),
+                "final_comparison_config_hash": str(job.metadata.get(
+                    "comparison_config_hash", "")),
                 "final_shard_group": shard_group,
                 "final_stage": job.stage,
                 "final_kind": job.kind,
@@ -1255,6 +1371,7 @@ def main(argv: list[str]) -> int:
         raise SystemExit(
             "no jobs selected; check --profile/--only/--skip/--graph/--benchmark/--policy/--job filters"
         )
+    guard_run_manifest_scope(run_dir, jobs)
     write_run_manifest(run_dir, args, manifest, jobs)
     write_preflight(run_dir, args)
 

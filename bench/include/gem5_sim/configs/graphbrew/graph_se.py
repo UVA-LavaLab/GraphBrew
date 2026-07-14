@@ -75,8 +75,13 @@ def benchmark_environment(args):
     ecg_grasp_popt = args.policy == "ECG" and args.ecg_mode == "ECG_GRASP_POPT"
     ecg_variant = os.environ.get("ECG_VARIANT", "rrip_first")
     force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
+    schedule_k = os.environ.get("ECG_EDGE_MASK_SCHED", "0")
     ecg_epoch_delivery = (
-        ecg_grasp_popt and (ecg_variant != "grasp_only" or force_delivery)
+        ecg_grasp_popt and (
+            schedule_k == "2" or
+            ecg_variant != "grasp_only" or
+            force_delivery
+        )
     )
     ecg_pfx_enabled = args.prefetcher == "ECG_PFX"
     env = [
@@ -87,7 +92,7 @@ def benchmark_environment(args):
         f"GEM5_ECG_PFX_HINT_FILTER={args.ecg_pfx_hint_filter if args.prefetcher == 'ECG_PFX' else 0}",
         f"GEM5_ECG_PFX_FILTER_ELEM_SIZE=4",
         f"GEM5_ECG_PFX_FILTER_LINE_SIZE=64",
-        f"ECG_EDGE_MASK_SCHED={os.environ.get('ECG_EDGE_MASK_SCHED', '0')}",
+        f"ECG_EDGE_MASK_SCHED={schedule_k}",
         f"ECG_K2_DELIVERY_TRACE={os.environ.get('ECG_K2_DELIVERY_TRACE', '0')}",
         f"ECG_STREAM_BYPASS={os.environ.get('ECG_STREAM_BYPASS', '0')}",
         f"ECG_STREAM_BYPASS_TRACE={os.environ.get('ECG_STREAM_BYPASS_TRACE', '0')}",
@@ -113,6 +118,7 @@ def benchmark_environment(args):
         "ECG_EDGE_MASK_EPOCH",
         "ECG_EDGE_MASK_LINEMIN",
         "ECG_EDGE_MASK_EPOCHS",
+        "GRASP_HOT_FRACTION",
         # Path A (epoch-filtered DROPLET lookahead): the kernel gates the
         # next-K lookahead on these; gem5 SE mode does NOT inherit the host
         # env, so they must be forwarded explicitly or the kernel falls back

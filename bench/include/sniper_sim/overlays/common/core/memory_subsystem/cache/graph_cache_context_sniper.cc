@@ -281,6 +281,7 @@ struct PerCoreEpochMap {
     std::array<std::atomic<uint32_t>, kEcgEpochMapSize> line_plus1{};
     std::array<std::atomic<uint16_t>, kEcgEpochMapSize> epoch{};
     std::array<std::atomic<uint16_t>, kEcgEpochMapSize> epoch2{};
+    std::array<std::atomic<uint8_t>, kEcgEpochMapSize> tier{};
     std::array<std::atomic<uint8_t>, kEcgEpochMapSize> count{};
     // Seqlock word: (global_delivery_sequence << 1) | write_in_progress.
     std::array<std::atomic<uint64_t>, kEcgEpochMapSize> version{};
@@ -322,15 +323,20 @@ void recordEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t epoch)
         (sequence << 1) | 1u, std::memory_order_acq_rel);
     m.epoch[i].store(epoch, std::memory_order_relaxed);
     m.epoch2[i].store(epoch, std::memory_order_relaxed);
+    m.tier[i].store(0, std::memory_order_relaxed);
     m.count[i].store(1, std::memory_order_relaxed);
     m.line_plus1[i].store(line + 1u, std::memory_order_relaxed);
     m.version[i].store(sequence << 1, std::memory_order_release);
 }
 
 void recordEcgEpochPair(uint32_t core_id, uint32_t vertex,
-                        uint16_t first, uint16_t second)
+                        uint8_t tier, uint16_t first, uint16_t second)
 {
     if (core_id >= MAX_TRACKED_CORES) return;
+    if (tier == 0) {
+        clearEcgEpochPair(core_id, vertex);
+        return;
+    }
     static std::atomic<uint64_t> trace_sequence{0};
     static const uint64_t trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
@@ -340,8 +346,10 @@ void recordEcgEpochPair(uint32_t core_id, uint32_t vertex,
         trace_sequence.fetch_add(1, std::memory_order_relaxed);
     if (sequence_index < trace_limit) {
         std::fprintf(stderr,
-            "[ECG-K2-RECV sim=sniper seq=%llu dest=%u epoch1=%u epoch2=%u]\n",
+            "[ECG-K2-RECV sim=sniper seq=%llu dest=%u tier=%u "
+            "epoch1=%u epoch2=%u]\n",
             (unsigned long long)sequence_index, vertex,
+            static_cast<unsigned>(tier),
             static_cast<unsigned>(first), static_cast<unsigned>(second));
     }
     static std::atomic<uint32_t> debug_count{0};
@@ -356,8 +364,10 @@ void recordEcgEpochPair(uint32_t core_id, uint32_t vertex,
          ((first != 0 || second != 0) && debug_nonzero_index < 4))) {
         std::fprintf(stderr,
                      "[ECG-DELIVER2 sim=sniper core=%u vertex=%u "
-                     "epoch1=%u epoch2=%u]\n",
-                     core_id, vertex, static_cast<unsigned>(first),
+                     "tier=%u epoch1=%u epoch2=%u]\n",
+                     core_id, vertex,
+                     static_cast<unsigned>(tier),
+                     static_cast<unsigned>(first),
                      static_cast<unsigned>(second));
     }
     auto& m = ecgEpochMaps()[core_id];
@@ -369,8 +379,26 @@ void recordEcgEpochPair(uint32_t core_id, uint32_t vertex,
         (sequence << 1) | 1u, std::memory_order_acq_rel);
     m.epoch[i].store(first, std::memory_order_relaxed);
     m.epoch2[i].store(second, std::memory_order_relaxed);
+    m.tier[i].store(tier, std::memory_order_relaxed);
     m.count[i].store(2, std::memory_order_relaxed);
     m.line_plus1[i].store(line + 1u, std::memory_order_relaxed);
+    m.version[i].store(sequence << 1, std::memory_order_release);
+}
+
+void clearEcgEpochPair(uint32_t core_id, uint32_t vertex)
+{
+    if (core_id >= MAX_TRACKED_CORES) return;
+    auto& m = ecgEpochMaps()[core_id];
+    const uint32_t line = vertex / ecgVerticesPerLine();
+    const std::size_t i = line % kEcgEpochMapSize;
+    const uint64_t sequence =
+        ecgEpochGlobalSequence().fetch_add(1, std::memory_order_relaxed) + 1;
+    m.version[i].exchange(
+        (sequence << 1) | 1u, std::memory_order_acq_rel);
+    if (m.line_plus1[i].load(std::memory_order_relaxed) == line + 1u) {
+        m.count[i].store(0, std::memory_order_relaxed);
+        m.line_plus1[i].store(0, std::memory_order_relaxed);
+    }
     m.version[i].store(sequence << 1, std::memory_order_release);
 }
 
@@ -378,13 +406,14 @@ bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex,
                     uint16_t& epoch, uint64_t& sequence)
 {
     uint16_t second = 0;
+    uint8_t tier = 0;
     uint8_t count = 0;
     return lookupEcgEpochPair(
-        core_id, vertex, epoch, second, count, sequence);
+        core_id, vertex, tier, epoch, second, count, sequence);
 }
 
 bool lookupEcgEpochPair(uint32_t core_id, uint32_t vertex,
-                        uint16_t& first, uint16_t& second,
+                        uint8_t& tier, uint16_t& first, uint16_t& second,
                         uint8_t& count, uint64_t& sequence)
 {
     if (core_id >= MAX_TRACKED_CORES) return false;
@@ -398,12 +427,14 @@ bool lookupEcgEpochPair(uint32_t core_id, uint32_t vertex,
             m.line_plus1[i].load(std::memory_order_relaxed);
         uint16_t stored_first = m.epoch[i].load(std::memory_order_relaxed);
         uint16_t stored_second = m.epoch2[i].load(std::memory_order_relaxed);
+        uint8_t stored_tier = m.tier[i].load(std::memory_order_relaxed);
         uint8_t stored_count = m.count[i].load(std::memory_order_relaxed);
         uint64_t after = m.version[i].load(std::memory_order_acquire);
         if (before != after || (after & 1u)) continue;
         if (stored_line != line + 1u) return false;
         first = stored_first;
         second = stored_second;
+        tier = stored_tier;
         count = stored_count;
         sequence = after >> 1;
         return true;
@@ -591,11 +622,12 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
             const uint64_t record = raw_k2_records[sequence];
             std::fprintf(stderr,
                 "[ECG-K2-SIDEBAND sim=sniper seq=%llu dest=%u "
-                "epoch1=%u epoch2=%u]\n",
+                "tier=%u epoch1=%u epoch2=%u]\n",
                 (unsigned long long)sequence,
                 static_cast<unsigned>(record & 0xFFFFFFFFULL),
-                static_cast<unsigned>((record >> 32) & 0xFFFFULL),
-                static_cast<unsigned>((record >> 48) & 0xFFFFULL));
+                static_cast<unsigned>((record >> 32) & 0x3ULL),
+                static_cast<unsigned>((record >> 34) & 0x7FFFULL),
+                static_cast<unsigned>((record >> 49) & 0x7FFFULL));
         }
     }
     k2_line_offsets.clear();
@@ -653,7 +685,11 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
     if (const char* ne_env = std::getenv("ECG_EDGE_MASK_EPOCHS")) {
         uint32_t ne = static_cast<uint32_t>(std::strtoul(ne_env, nullptr, 10));
         if (ne < 2) ne = 2;
-        if (ne > 65535) ne = 65535;  // match the kernel clamp + the 16-bit epoch field
+        const char* schedule = std::getenv("ECG_EDGE_MASK_SCHED");
+        const bool tiered_k2 =
+            schedule && std::strcmp(schedule, "2") == 0;
+        const uint32_t max_epochs = tiered_k2 ? 32768u : 65535u;
+        if (ne > max_epochs) ne = max_epochs;
         edge_epoch_count = ne;
     }
 
@@ -829,7 +865,7 @@ bool GraphCacheContext::isStreamBypassData(uint64_t addr) const
 
 bool GraphCacheContext::lookupFusedK2Pair(
         uint64_t line_addr, uint32_t core_id,
-        uint16_t& first, uint16_t& second) const
+        uint8_t& tier, uint16_t& first, uint16_t& second) const
 {
     if (k2_offsets.empty() || k2_line_offsets.empty() ||
         k2_line_ids.empty() || k2_line_records.empty() ||
@@ -857,8 +893,9 @@ bool GraphCacheContext::lookupFusedK2Pair(
     const uint64_t raw_begin = k2_offsets[src];
     const uint64_t raw_end = k2_offsets[src + 1];
     const uint32_t dest = static_cast<uint32_t>(record);
-    first = static_cast<uint16_t>((record >> 32) & 0xFFFFULL);
-    second = static_cast<uint16_t>((record >> 48) & 0xFFFFULL);
+    tier = static_cast<uint8_t>((record >> 32) & 0x3ULL);
+    first = static_cast<uint16_t>((record >> 34) & 0x7FFFULL);
+    second = static_cast<uint16_t>((record >> 49) & 0x7FFFULL);
     static std::atomic<uint64_t> fused_receipts{0};
     static const uint64_t fused_trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
@@ -881,13 +918,14 @@ bool GraphCacheContext::lookupFusedK2Pair(
         std::fprintf(stderr,
             "[ECG-K2-FUSED-RECV sim=sniper seq=%llu src=%u "
             "line=%u vpl=%u index=%llu begin=%llu end=%llu "
-            "dest=%u epoch1=%u epoch2=%u]\n",
+            "dest=%u tier=%u epoch1=%u epoch2=%u]\n",
             (unsigned long long)receipt, src,
             line_id, vertices_per_line,
             (unsigned long long)raw_index,
             (unsigned long long)raw_begin,
             (unsigned long long)raw_end,
             dest,
+            static_cast<unsigned>(tier),
             static_cast<unsigned>(first),
             static_cast<unsigned>(second));
     }

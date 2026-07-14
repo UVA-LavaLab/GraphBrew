@@ -20,6 +20,7 @@ static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 static constexpr uint32_t MAX_TRACKED_CORES = 1024;
 static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
+static constexpr uint64_t GRAPHBREW_CONTEXT_READY_WORK_ID = 0x47524358ULL;
 static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
 // SNIPER_ECG_EXTRACT: delivers a per-edge next-ref epoch
 // (vertex[31:0] | epoch[15:0]<<32, entirely within the magic ABI's low 48 bits) so
@@ -47,11 +48,12 @@ void clearPrefetchTargetHint(uint32_t core_id);
 // the old line tag instead of falling back to stale metadata from another vertex.
 void recordEcgEpoch(uint32_t core_id, uint32_t vertex, uint16_t epoch);
 void recordEcgEpochPair(uint32_t core_id, uint32_t vertex,
-                        uint16_t first, uint16_t second);
+                        uint8_t tier, uint16_t first, uint16_t second);
+void clearEcgEpochPair(uint32_t core_id, uint32_t vertex);
 bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex,
                     uint16_t& epoch, uint64_t& sequence);
 bool lookupEcgEpochPair(uint32_t core_id, uint32_t vertex,
-                        uint16_t& first, uint16_t& second,
+                        uint8_t& tier, uint16_t& first, uint16_t& second,
                         uint8_t& count, uint64_t& sequence);
 
 enum class ECGMode : uint8_t {
@@ -182,6 +184,7 @@ struct GraphCacheContext {
     bool isEcgEpochData(uint64_t addr) const;
     bool isStreamBypassData(uint64_t addr) const;
     bool lookupFusedK2Pair(uint64_t line_addr, uint32_t core_id,
+                           uint8_t& tier,
                            uint16_t& first, uint16_t& second) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;

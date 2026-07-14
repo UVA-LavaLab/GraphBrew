@@ -88,6 +88,7 @@ CacheSetECG::CacheSetECG(
    , m_context_load_attempted(false)
    , m_has_pending_insert(false)
    , m_pending_insert_addr(0)
+   , m_set_index(0)
    , m_llc_size_bytes(0)
    , m_sideband_path(envOrDefault("SNIPER_GRAPHBREW_CTX", "/tmp/sniper_graphbrew_ctx.json"))
    , m_popt_matrix_path(envOrDefault("SNIPER_POPT_MATRIX", "/tmp/sniper_popt_matrix.bin"))
@@ -168,10 +169,18 @@ CacheSetECG::tryLoadContext()
 }
 
 void
-CacheSetECG::prepareInsertion(IntPtr addr)
+CacheSetECG::prepareInsertion(IntPtr addr, UInt32 set_index)
 {
    tryLoadContext();
    m_pending_insert_addr = addr & ~(IntPtr(m_blocksize) - 1);
+   m_set_index = set_index;
+   static const bool set_dueling = []() {
+      const char* value = std::getenv("ECG_SET_DUELING");
+      return value && value[0] && std::string(value) != "0";
+   }();
+   if (set_dueling && graphbrew::sniper::hasCurrentVertexHint(
+         requesterCoreOr(m_core_id)))
+      ecg_policy::globalOnlineDuelingSelector().recordMiss(set_index);
    m_has_pending_insert = true;
    graphbrew::sniper::globalContext().updateVertexFromAddr(
          m_pending_insert_addr, requesterCoreOr(m_core_id));
@@ -217,7 +226,8 @@ CacheSetECG::poptHint(IntPtr addr) const
 
 bool
 CacheSetECG::lookupLineEcgEpochPair(
-      IntPtr line_addr, UInt16& first, UInt16& second, UInt8& count) const
+      IntPtr line_addr, UInt8& tier,
+      UInt16& first, UInt16& second, UInt8& count) const
 {
    const auto& context = graphbrew::sniper::globalContext();
    if (!context.isEcgEpochData(static_cast<uint64_t>(line_addr)))
@@ -228,7 +238,7 @@ CacheSetECG::lookupLineEcgEpochPair(
    if (fused && fused[0] && std::strcmp(fused, "0") != 0 &&
        context.lookupFusedK2Pair(
            static_cast<uint64_t>(line_addr), requester_core,
-           first, second)) {
+           tier, first, second)) {
       count = 2;
       return true;
    }
@@ -236,7 +246,7 @@ CacheSetECG::lookupLineEcgEpochPair(
    if (v0 == UINT32_MAX) return false;
    uint64_t sequence = 0;
    return graphbrew::sniper::lookupEcgEpochPair(
-       requester_core, v0, first, second, count, sequence);
+       requester_core, v0, tier, first, second, count, sequence);
 }
 
 void
@@ -263,11 +273,15 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       m_ecg_epoch2[way] = 0;
       m_ecg_epoch_count[way] = 0;
       m_ecg_epoch_valid[way] = false;
-      if (m_property_lines[way]) {
+      const uint32_t requester_core = requesterCoreOr(m_core_id);
+      if (m_property_lines[way] &&
+          graphbrew::sniper::hasCurrentVertexHint(requester_core)) {
+         UInt8 tier = 0;
          UInt16 first = 0, second = 0;
          UInt8 count = 0;
          if (lookupLineEcgEpochPair(
-                 m_pending_insert_addr, first, second, count)) {
+                 m_pending_insert_addr, tier, first, second, count)) {
+            if (tier != 0) m_dbg_tiers[way] = tier;
             m_ecg_epoch[way] = first;
             m_ecg_epoch2[way] = second;
             m_ecg_epoch_count[way] = count;
@@ -284,7 +298,12 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
          if (combined == 0 && dbg_rrpv > 0) combined = 1;
          m_rrip_bits[way] = std::min<UInt8>(combined, m_rrip_max);
       } else {
-         m_rrip_bits[way] = graspInsertionRRPV(m_pending_insert_addr);
+         m_rrip_bits[way] =
+            m_mode == graphbrew::sniper::ECGMode::ECG_GRASP_POPT &&
+                  m_dbg_tiers[way] >= 1 && m_dbg_tiers[way] <= 3
+               ? ecg_policy::graspTierRRPV(
+                    m_dbg_tiers[way], m_rrip_max)
+               : graspInsertionRRPV(m_pending_insert_addr);
       }
       m_last_touch[way] = ++m_access_tick;
       m_has_pending_insert = false;
@@ -500,7 +519,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    //   rrip_first(2,default): max-rrpv set; records-first, then farthest property
    //   epoch_only(3): same eviction as epoch_first
    //   shortcircuit(4,legacy): non-property first, then farthest property
-   static const int variant = [](){
+   static const int configured_variant = [](){
       const char* v = std::getenv("ECG_VARIANT");
       if (!v) return 2;
       std::string s(v);
@@ -510,8 +529,18 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       if (s == "epoch_only")   return 3;
       if (s == "shortcircuit" || s == "legacy") return 4;
       if (s == "degree_first" || s == "traversal") return 5;
+      if (s == "lru_only") return 6;
       return 2;
    }();
+   static const bool set_dueling = []() {
+      const char* value = std::getenv("ECG_SET_DUELING");
+      return value && value[0] && std::string(value) != "0";
+   }();
+   int variant = configured_variant;
+   if (set_dueling) {
+      auto& selector = ecg_policy::globalOnlineDuelingSelector();
+      variant = selector.variantForSet(m_set_index);
+   }
 
    auto& context = graphbrew::sniper::globalContext();
    // SNIPER_ECG_EXTRACT: rank property lines by the DELIVERED per-edge epoch
@@ -522,7 +551,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
 
    // grasp_only, or no usable next-ref signal -> pure RRIP. In fat-load mode the
    // signal is the delivered epoch (needs only the property region, not the matrix).
-   if (variant == 0 || !context.loaded || (!fatLoad && !context.rereference.enabled))
+   if (!context.loaded || (!fatLoad && !context.rereference.enabled))
       return findSRRIPVictim(cntlr);
 
    const uint32_t ne = context.edge_epoch_count ? context.edge_epoch_count : 256u;
@@ -532,11 +561,12 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    const uint32_t cur_ep = (N > 0)
       ? static_cast<uint32_t>((static_cast<uint64_t>(srcv) * ne) / N) : 0u;
 
+   bool epoch_property[64] = {};
    for (UInt32 way = 0; way < m_associativity; way++) {
-      m_property_lines[way] =
+      epoch_property[way] =
          context.isEcgEpochData(static_cast<uint64_t>(m_line_addrs[way]));
    }
-   auto isProp = [&](UInt32 w) { return m_property_lines[w]; };
+   auto isProp = [&](UInt32 w) { return epoch_property[w]; };
    auto dist   = [&](UInt32 w) -> uint32_t {
       if (fatLoad) {
          return ecg_policy::epochPairDistance(
@@ -607,7 +637,10 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
 
    // Reconstruct the trace pol/reason (verify_ecg.py keys on the pol name).
    const char* pol; const char* reason;
-   if (variant == 4) {
+   if (variant == 0) {
+      pol = "ECG:grasp_only";
+      reason = "RRIP max-rrpv";
+   } else if (variant == 4) {
       if (!isProp(victimWay)) { pol = "ECG:shortcircuit";       reason = "first non-property"; }
       else                    { pol = "ECG:shortcircuit+epoch"; reason = "all-prop farthest epoch"; }
    } else if (variant == 2) {
@@ -617,6 +650,9 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       pol = "ECG:degree_first";
       reason = !isProp(victimWay) ? "max-rrpv record by recency"
                                   : "max-rrpv coldest-degree then epoch";
+   } else if (variant == 6) {
+      pol = "ECG:lru_only";
+      reason = "oldest recency";
    } else {
       pol = epol;
       reason = !isProp(victimWay) ? "record by recency" : "farthest-epoch property";
@@ -653,13 +689,18 @@ CacheSetECG::getReplacementIndex(CacheCntlr *cntlr)
 void
 CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
 {
-   m_set_info->increment(m_rrip_bits[accessed_index]);
+   m_set_info->increment(accessed_index);
    m_last_touch[accessed_index] = ++m_access_tick;
    if (m_cache_block_info_array[accessed_index]->isPageTableBlock() && m_srrip_tlb_enabled) {
       m_rrip_bits[accessed_index] = 0;
       return;
    }
    tryLoadContext();
+   auto& context = graphbrew::sniper::globalContext();
+   if (context.loaded && m_line_addrs[accessed_index] != 0) {
+      m_property_lines[accessed_index] = context.isPropertyData(
+            static_cast<uint64_t>(m_line_addrs[accessed_index]));
+   }
    if (m_mode == graphbrew::sniper::ECGMode::POPT_PRIMARY ||
        m_mode == graphbrew::sniper::ECGMode::ECG_COMBINED) {
       m_rrip_bits[accessed_index] = 0;
@@ -675,20 +716,34 @@ CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
    // only the line that was actually touched. Do not broadcast inner-cache hits
    // to every resident L3 line at eviction time.
    if (m_mode == graphbrew::sniper::ECGMode::ECG_GRASP_POPT &&
-       sniperEcgExtractEnabled() && m_property_lines[accessed_index]) {
+       sniperEcgExtractEnabled() && m_property_lines[accessed_index] &&
+       graphbrew::sniper::hasCurrentVertexHint(
+          requesterCoreOr(m_core_id))) {
+      UInt8 tier = 0;
       UInt16 first = 0, second = 0;
       UInt8 count = 0;
       if (lookupLineEcgEpochPair(
-              m_line_addrs[accessed_index], first, second, count)) {
+             m_line_addrs[accessed_index], tier, first, second, count)) {
+         if (tier != 0) m_dbg_tiers[accessed_index] = tier;
          m_ecg_epoch[accessed_index] = first;
          m_ecg_epoch2[accessed_index] = second;
          m_ecg_epoch_count[accessed_index] = count;
          m_ecg_epoch_valid[accessed_index] = true;
       }
    }
-   if (m_property_lines[accessed_index] && graphbrew::sniper::globalContext().loaded) {
+   if (m_property_lines[accessed_index] && context.loaded) {
       uint64_t llc_size = m_llc_size_bytes ? m_llc_size_bytes : UInt64(m_associativity) * m_blocksize;
-      uint32_t tier = ecgGraspTier(graphbrew::sniper::globalContext(), static_cast<uint64_t>(m_line_addrs[accessed_index]), llc_size);
+      uint32_t tier =
+         m_mode == graphbrew::sniper::ECGMode::ECG_GRASP_POPT &&
+               m_dbg_tiers[accessed_index] >= 1 &&
+               m_dbg_tiers[accessed_index] <= 3
+            ? m_dbg_tiers[accessed_index]
+            : ecgGraspTier(
+                 context,
+                 static_cast<uint64_t>(m_line_addrs[accessed_index]),
+                 llc_size);
+       if (tier >= 1 && tier <= 3)
+          m_dbg_tiers[accessed_index] = static_cast<UInt8>(tier);
       if (tier == 1) {
          m_rrip_bits[accessed_index] = 0;
          return;

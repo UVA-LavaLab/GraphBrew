@@ -4,6 +4,8 @@
 
 #include <cinttypes>
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <limits>
@@ -34,6 +36,8 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                             pvector<WeightT> &dist,
                             vector<vector<NodeID>> &local_bins,
                             const vector<vector<uint16_t>>* out_edge_epochs,
+                            const vector<uint64_t>* pair_off,
+                            const pvector<uint64_t>* pair_flat,
                             bool ecg_load_evict_on, int ecg_evict_wc,
                             uint32_t edge_epoch_count) {
     GEM5_SET_VERTEX(u);
@@ -60,7 +64,28 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
         // line with wn.v's next-ref epoch (push_out_edges=true transpose matches the out-edge
         // relax) in one custom-0 op, so ECG_GRASP_POPT ranks dist[] by next-reference.
         WeightT old_dist;
-        if (ecg_load_evict_on && u_epochs) {
+        if (pair_off && pair_flat &&
+            static_cast<size_t>(u + 1) < pair_off->size()) {
+            const uint64_t pos = (*pair_off)[u] + edge_pos;
+            if (pos >= (*pair_off)[u + 1] || pos >= pair_flat->size()) {
+                std::fprintf(stderr,
+                    "SSSP K2 pair index out of range: u=%d edge=%zu\n",
+                    static_cast<int>(u), edge_pos);
+                std::abort();
+            }
+            const uint64_t record = (*pair_flat)[pos];
+            if (ecg_epoch::extractEpochPairDest(record) !=
+                static_cast<uint32_t>(wn.v)) {
+                std::fprintf(stderr,
+                    "SSSP K2 destination mismatch: expected=%u got=%u\n",
+                    static_cast<unsigned>(wn.v),
+                    ecg_epoch::extractEpochPairDest(record));
+                std::abort();
+            }
+            GEM5_ECG_EXTRACT2(record);
+            old_dist = dist[wn.v];
+            GEM5_ECG_CLEAR_EXTRACT2_HINT();
+        } else if (ecg_load_evict_on && u_epochs) {
             uint16_t epoch = (edge_pos < u_epochs->size())
                 ? (*u_epochs)[edge_pos]
                 : static_cast<uint16_t>(edge_epoch_count - 1);
@@ -100,19 +125,29 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     Gem5EdgeRegion edge_regions[2];
     int num_edge_regions = gem5_make_edge_regions(g, edge_regions, 2);
 
-    // Per-edge next-ref EPOCH budget (mirror gem5 PR / bfs.cc): epoch packs into the spare
-    // high bits above the dest id.
+    // Per-edge next-ref epoch budget. Schedule-2 uses two 15-bit epochs in
+    // its fixed 8-byte record and therefore bypasses the legacy 32-bit cap.
     constexpr int kNumVtxPerLine = 64 / sizeof(WeightT);
+    const int ecg_sched_k =
+        gem5_env_int_clamped("ECG_EDGE_MASK_SCHED", 0, 0, 4);
+    uint32_t requested_epoch_count = static_cast<uint32_t>(
+        gem5_env_int_clamped("ECG_EDGE_MASK_EPOCHS", 65535, 2, 65535));
+    if (ecg_sched_k == 2)
+        requested_epoch_count =
+            ecg_epoch::normalizeK2EpochCount(requested_epoch_count);
     uint8_t edge_id_bits = 1;
     while ((1ULL << edge_id_bits) < static_cast<uint64_t>(g.num_nodes())) edge_id_bits++;
-    uint32_t edge_epoch_count = 2;
-    if (edge_id_bits < 32) {
-        uint32_t spare = 32u - edge_id_bits;
-        uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
-        edge_epoch_count = std::min<uint32_t>(65535u, std::max<uint32_t>(2u, ne_cap));
+    uint32_t edge_epoch_count = requested_epoch_count;
+    if (ecg_sched_k != 2) {
+        if (edge_id_bits < 32) {
+            uint32_t spare = 32u - edge_id_bits;
+            uint32_t ne_cap = (spare >= 16) ? 65535u : (1u << spare);
+            edge_epoch_count = std::min<uint32_t>(
+                edge_epoch_count, std::max<uint32_t>(2u, ne_cap));
+        } else {
+            edge_epoch_count = 2;
+        }
     }
-    gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
-                        edge_regions, num_edge_regions, edge_epoch_count);
 
     // A5: deliver the per-edge next-ref epoch for ECG_GRASP_POPT. SSSP relaxes OUT-edges
     // reading dist[dest]; dest's property is next-referenced by dest's IN-neighbours, so
@@ -120,11 +155,27 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     // NO epoch and ECG_GRASP_POPT degenerated to recency (rubber-duck rd-phase-a / A5).
     const bool ecg_extract_on = gem5_ecg_extract_enabled();
     std::vector<std::vector<uint16_t>> out_edge_epochs;
-    if (ecg_extract_on) {
+    if (ecg_extract_on && ecg_sched_k != 2) {
         ecg_epoch::buildInEdgeEpochs(g, static_cast<uint32_t>(kNumVtxPerLine),
                                      edge_epoch_count, /*linemin=*/true,
                                      out_edge_epochs, /*push_out_edges=*/true);
     }
+    std::vector<uint64_t> pair_off;
+    pvector<uint64_t> pair_flat;
+    bool pair_ok = false;
+    if (ecg_extract_on && ecg_sched_k == 2) {
+        std::vector<uint64_t> pair_records;
+        ecg_epoch::buildInEdgeEpochPairRecords(
+            g, static_cast<uint32_t>(kNumVtxPerLine),
+            edge_epoch_count, /*linemin=*/true,
+            pair_off, pair_records, /*push_out_edges=*/true);
+        pair_flat = pvector<uint64_t>(
+            pair_records.size(), uint64_t(0), 4096);
+        std::copy(pair_records.begin(), pair_records.end(), pair_flat.begin());
+        pair_ok = true;
+    }
+    gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
+                        edge_regions, num_edge_regions, edge_epoch_count);
     // The fused ecg.load EVICT op reads dist[dest] AND delivers dest's epoch in one custom-0
     // op (RISC-V); gated on GEM5_ENABLE_ECG_PLOAD. X86 falls back to a plain indexed load
     // (no delivery -> cache_sim is authoritative there).
@@ -132,8 +183,10 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     const int  ecg_evict_wc = ecg_mode6::ecgEvictWidthClass(g.num_nodes());
     if (ecg_load_evict_on)
         fprintf(stderr, "[ECG_PLOAD] SSSP fused ecg.load EVICT delivery ACTIVE\n");
+    if (pair_ok)
+        fprintf(stderr, "[ECG_PACKED8_K2] SSSP Schedule-2 packed record path ACTIVE\n");
 
-    {
+    if (ecg_sched_k != 2) {
         constexpr int numVtxPerLine = 64 / sizeof(WeightT);
         constexpr int numEpochs = 256;
         static pvector<uint8_t> popt_matrix;
@@ -170,6 +223,8 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                 NodeID u = frontier[i];
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
                     RelaxEdges_Gem5(g, u, delta, dist, local_bins, &out_edge_epochs,
+                                    pair_ok ? &pair_off : nullptr,
+                                    pair_ok ? &pair_flat : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count);
             }
 
@@ -180,6 +235,8 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                 local_bins[curr_bin_index].resize(0);
                 for (NodeID u : curr_bin_copy)
                     RelaxEdges_Gem5(g, u, delta, dist, local_bins, &out_edge_epochs,
+                                    pair_ok ? &pair_off : nullptr,
+                                    pair_ok ? &pair_flat : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count);
             }
 

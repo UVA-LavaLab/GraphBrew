@@ -16,6 +16,7 @@ class PolicySpec:
     ecg_stream_bypass: bool = False
     ecg_variant: str | None = None
     ecg_transport_pinned: bool = False
+    ecg_set_dueling: bool = False
 
     @property
     def safe_label(self) -> str:
@@ -50,6 +51,28 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_variant="adaptive",
             ecg_transport_pinned=True,
         )
+    k2_variants = {
+        "ECG:K2_GRASP": ("ECG_K2_GRASP", "grasp_only"),
+        "ECG_K2_GRASP": ("ECG_K2_GRASP", "grasp_only"),
+        "ECG:K2_EPOCH": ("ECG_K2_EPOCH", "epoch_first"),
+        "ECG_K2_EPOCH": ("ECG_K2_EPOCH", "epoch_first"),
+        "ECG:K2_RRIP": ("ECG_K2_RRIP", "rrip_first"),
+        "ECG_K2_RRIP": ("ECG_K2_RRIP", "rrip_first"),
+        "ECG:K2_DEGREE": ("ECG_K2_DEGREE", "degree_first"),
+        "ECG_K2_DEGREE": ("ECG_K2_DEGREE", "degree_first"),
+        "ECG:K2_LRU": ("ECG_K2_LRU", "lru_only"),
+        "ECG_K2_LRU": ("ECG_K2_LRU", "lru_only"),
+    }
+    if upper in k2_variants:
+        label, variant = k2_variants[upper]
+        return PolicySpec(
+            label=label,
+            policy="ECG",
+            ecg_mode="ECG_GRASP_POPT",
+            ecg_schedule_k=2,
+            ecg_variant=variant,
+            ecg_transport_pinned=True,
+        )
     if upper in (
         "ECG:K2_STREAMSHIELD",
         "ECG_K2_STREAMSHIELD",
@@ -64,6 +87,32 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_stream_bypass=True,
             ecg_variant="adaptive",
             ecg_transport_pinned=True,
+        )
+    if upper in ("ECG:K2_ONLINE", "ECG_K2_ONLINE"):
+        return PolicySpec(
+            label="ECG_K2_ONLINE",
+            policy="ECG",
+            ecg_mode="ECG_GRASP_POPT",
+            ecg_schedule_k=2,
+            ecg_variant="rrip_first",
+            ecg_transport_pinned=True,
+            ecg_set_dueling=True,
+        )
+    if upper in (
+        "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG_K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_SS",
+        "ECG_K2_ONLINE_SS",
+    ):
+        return PolicySpec(
+            label="ECG_K2_ONLINE_STREAMSHIELD",
+            policy="ECG",
+            ecg_mode="ECG_GRASP_POPT",
+            ecg_schedule_k=2,
+            ecg_stream_bypass=True,
+            ecg_variant="rrip_first",
+            ecg_transport_pinned=True,
+            ecg_set_dueling=True,
         )
     if upper in ("ECG:K1", "ECG_K1"):
         return PolicySpec(

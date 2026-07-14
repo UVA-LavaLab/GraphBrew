@@ -23,7 +23,8 @@
 using namespace std;
 
 pvector<NodeID> BFS_Sniper(const Graph &g, NodeID source) {
-    pvector<NodeID> parent(g.num_nodes(), -1);
+    pvector<NodeID> parent(
+        g.num_nodes(), NodeID(-1), graphbrew_sniper::property_alignment());
     parent[source] = source;
 
     sniper_report_region("parent", parent.data(), g.num_nodes(), sizeof(NodeID));
@@ -35,8 +36,6 @@ pvector<NodeID> BFS_Sniper(const Graph &g, NodeID source) {
     };
     SniperEdgeRegion edge_regions[2];
     int num_edge_regions = sniper_make_edge_regions(g, edge_regions, 2);
-    sniper_export_context(regions, 1, g, nullptr, edge_regions, num_edge_regions);
-
     {
         constexpr int numVtxPerLine = 64 / sizeof(NodeID);
         constexpr int numEpochs = 256;
@@ -51,6 +50,10 @@ pvector<NodeID> BFS_Sniper(const Graph &g, NodeID source) {
         sniper_export_popt_matrix(popt_matrix.data(), numCacheLines,
                                   numEpochs, g.num_nodes());
     }
+    sniper_export_context(regions, 1, g, nullptr, edge_regions, num_edge_regions);
+    volatile NodeID* warm_parent = parent.data();
+    for (NodeID n = 0; n < g.num_nodes(); ++n)
+        warm_parent[n] = n == source ? source : -1;
 
     SNIPER_ROI_BEGIN();
     int pfx_lookahead = graphbrew_sniper::env_int_clamped(

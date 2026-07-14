@@ -50,6 +50,8 @@ void export_context(int* parent) {
     out << "  \"degree_buckets\": {\"counts\": [0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], "
         << "\"total_degrees\": [0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0]}\n";
     out << "}\n";
+    out.close();
+    graphbrew_sniper::notify_context_ready();
 }
 
 void export_popt_matrix() {
@@ -61,12 +63,12 @@ void export_popt_matrix() {
 }  // namespace
 
 int main() {
-    alignas(64) int parent[kNodes * kPropertyStride];
+    alignas(4096) int parent[kNodes * kPropertyStride];
     for (int& value : parent) value = -1;
     parent_at(parent, 0) = 0;
 
-    export_context(parent);
     export_popt_matrix();
+    export_context(parent);
 
     SNIPER_ROI_BEGIN();
     std::queue<int> frontier;

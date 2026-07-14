@@ -1,3 +1,4 @@
+import importlib.util
 from pathlib import Path
 
 
@@ -6,6 +7,27 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def read(relative_path: str) -> str:
     return (ROOT / relative_path).read_text()
+
+
+def test_context_handler_normalizes_fresh_indent(tmp_path) -> None:
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location(
+        "setup_sniper_context_test", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    target = tmp_path / "magic_server.cc"
+    target.write_text(
+        "        if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)\n"
+        "        {\n"
+        "           return 0;\n"
+        "        }\n"
+    )
+    module.normalize_context_ready_handler(target, False)
+    module.normalize_context_ready_handler(target, False)
+    text = target.read_text()
+    assert text.count("GRAPHBREW_CONTEXT_READY_WORK_ID") == 1
+    assert "        if (arg0 == graphbrew::sniper::GRAPHBREW_CONTEXT_READY_WORK_ID)" in text
 
 
 def test_sniper_harness_defines_ecg_pfx_hint_surface() -> None:
@@ -99,6 +121,9 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
     assert "arg1 & 0xFFFFFFFFULL" in setup
     assert "(arg1 >> 32) & 0xFFFFULL" in setup
     assert "epoch) << 48" not in harness
+    assert "(arg1 >> 32) & 0x3ULL" in setup
+    assert "(arg1 >> 34) & 0x7FFFULL" in setup
+    assert "(arg1 >> 49) & 0x7FFFULL" in setup
 
     # SimMagic inputs must not alias the RAX output and get overwritten by cmd=5.
     assert "early-clobber: inputs cannot alias RAX" in setup
@@ -113,6 +138,29 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
     assert "lookupLineEcgEpochPair(" in cache
     assert "lookupEcgEpochPair(" in context_cc
     assert "recordEcgEpochPair(" in context_cc
+    assert "GRAPHBREW_CONTEXT_READY_WORK_ID" in context_h
+    assert "GRAPHBREW_CONTEXT_READY_WORK_ID" in setup
+    assert "ECG-CONTEXT-READY sim=sniper" in setup
+    assert "SNIPER_REQUIRE_POPT_MATRIX" in setup
+    assert "reref=%d" in setup
+    assert "normalize_context_ready_handler" in setup
+    assert "text.count(marker) != 1" in setup
+    for source_name in (
+        "pr_kernel_smoke.cc", "bfs_kernel_smoke.cc",
+        "sssp_kernel_smoke.cc",
+    ):
+        assert "notify_context_ready()" in read(
+            f"bench/src_sniper/{source_name}")
+    assert "bool epoch_property[64]" in cache
+    assert "hasCurrentVertexHint(" in cache
+    assert "m_property_lines[accessed_index] = context.isPropertyData" in cache
+    assert "m_set_info->increment(accessed_index)" in cache
+    assert "hasCurrentVertexHint(requester_core)" in cache
+    assert "Sniper graph policy completed without a loaded graph context" in runner
+    assert "[ECG-CONTEXT-READY sim=sniper loaded=1" in runner
+    assert "m_property_lines[way] =" not in cache.split(
+        "CacheSetECG::findECGGraspPoptVictim", 1)[1].split(
+            "CacheSetECG::getReplacementIndex", 1)[0]
     assert "line_plus1" in context_cc
     assert "vertex_plus1" not in context_cc
     assert "ecgVerticesPerLine()" in context_cc
