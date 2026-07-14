@@ -22,6 +22,8 @@ LIB_DIR = $(BENCH_DIR)/lib
 SRC_DIR = $(BENCH_DIR)/src
 INC_DIR = $(BENCH_DIR)/include
 OBJ_DIR = $(BENCH_DIR)/obj
+TEST_SRC_DIR = $(BENCH_DIR)/tests
+TEST_BIN_DIR = $(BENCH_DIR)/test_bin
 
 # =========================================================
 INCLUDE_GAPBS  = $(INC_DIR)/gapbs 
@@ -97,13 +99,27 @@ endif
 # =========================================================
 # Targets
 # =========================================================
-KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc tc_p
+KERNELS = bc bfs bfs_p cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
+UNIT_TESTS = test_graph_partition
+UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) converter all run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) converter all check-partition run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 all: $(SUITE)
+
+check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p
+	@$(TEST_BIN_DIR)/test_graph_partition
+	@for partitions in 1 2 4 16; do \
+		output="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -P $$partitions -B total)"; \
+		if ! echo "$$output" | grep -q "Verification: *PASS"; then \
+			echo " $(FAIL) Partitioned BFS P=$$partitions"; \
+			echo "$$output"; \
+			exit 1; \
+		fi; \
+	done; \
+	echo " $(PASS) Partitioned BFS P=1/2/4/16"
 
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
@@ -163,23 +179,29 @@ graph-%: install-py-deps $(BIN_DIR)/converter
 $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
+$(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) | $(TEST_BIN_DIR)
+	@$(CXX) $(CXXFLAGS_GAP) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
+
 # =========================================================
 # Directory Setup
 # =========================================================
 $(BIN_DIR):
 	@mkdir -p $@ $(CREATE_STATUS)
 
+$(TEST_BIN_DIR):
+	@mkdir -p $@ $(CREATE_STATUS)
+
 # =========================================================
 # Cleanup
 # =========================================================
 clean:
-	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
+	@rm -rf $(BIN_DIR) $(TEST_BIN_DIR) $(EXIT_STATUS)
 
 clean-all: clean-results
-	@rm -rf $(BIN_DIR) $(EXIT_STATUS)
+	@rm -rf $(BIN_DIR) $(TEST_BIN_DIR) $(EXIT_STATUS)
 
 scrub-all:
-	@rm -rf $(BIN_DIR) $(BACKUP_DIR) $(RES_DIR) 00_* $(EXIT_STATUS) 
+	@rm -rf $(BIN_DIR) $(TEST_BIN_DIR) $(BACKUP_DIR) $(RES_DIR) 00_* $(EXIT_STATUS)
 
 clean-results: 
 	@mkdir -p $(BACKUP_DIR)

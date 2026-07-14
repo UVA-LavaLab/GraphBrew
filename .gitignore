@@ -1,4 +1,5 @@
 bench/bin
+bench/test_bin
 bench/lib
 bench/results
 bench/backups

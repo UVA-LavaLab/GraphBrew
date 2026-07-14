@@ -20,6 +20,10 @@ This repository contains the GAP Benchmarks Suite [(GAPBS)](https://github.com/s
 ## Segmentation for Scalable Graph Processing
 * **Cagra:** [link1](https://github.com/CMUAbstract/POPT-CacheSim-HPCA21)/[link2](https://github.com/GraphIt-DSL/graphit) Integration of P-OPT/GraphIt-DSL segment graphs to improve locality.
 * **Trust:** [link](https://github.com/wzbxpy/TRUST) Graph partition for Triangle counting on large graph.
+* **Compact CSR shards:** deterministic contiguous ownership with edge-balanced
+  cuts, compact per-shard CSR rows, and explicit ghost-owner metadata. The
+  `bfs_p` prototype uses this path; legacy Cagra/TRUST experiments remain
+  separate research implementations.
 
 ## GAP Benchmarks
 
@@ -142,6 +146,23 @@ make run-<benchmark_name>
 ```bash
 make run-bfs
 ```
+
+### Partitioned BFS prototype
+
+`bfs_p` keeps the original `bfs` implementation unchanged and builds compact
+CPU shards before running direction-optimizing BFS:
+
+```bash
+make bfs_p
+./bench/bin/bfs_p -g 20 -n 1 -v -P 4 -B total
+```
+
+`-P` selects the shard count. `-B total` balances combined incoming/outgoing
+edge work (`out` and `vertices` are also available). Every shard owns a
+contiguous global vertex range, stores only its local CSR rows, encodes
+neighbors as owned/ghost-local slots, and records each ghost's global ID and
+owning shard. The CPU prototype retains the source graph for exact verification;
+the device transfer path will consume the shard image directly.
 ### Parameters Makefile
 All parameters [(section)](#graphbrew-parameters) can be passed through the Make command via:
    * `RUN_PARAMS='-n1 -o11'`, for controlling aspects of the algorithm and reordering.
