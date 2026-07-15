@@ -19,6 +19,9 @@
   two 15-bit epochs; the real RISC-V decoder round-trips all fields.
 - Five-arm online set dueling is live in cache_sim, gem5, and Sniper without a
   benchmark-name decision.
+- In the complete cache_sim real-graph replacement profile, every static arm is
+  best on at least one cell and online K2 is within 0.26% geomean LLC misses of
+  the per-cell best static arm while beating it on 8/15 cells.
 - StreamShield is request-bound in gem5 and preserves normal L1/L2 behavior and
   LLC hits; only LLC miss allocation is suppressed.
 - Sniper preserves NUCA lookup, hits, and latency while suppressing insertion of
@@ -36,7 +39,7 @@
 - A bounded Sniper structure-prefetch configuration that does not reproduce the
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
-- Real-graph online-selector regret versus the best static arm.
+- Detailed-simulator confirmation of the real-graph online-selector result.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.
 
 ## Prohibited until the pending gate passes

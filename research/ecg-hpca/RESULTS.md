@@ -22,13 +22,35 @@ Historical weighted attribution under full lookup bypass: **K2 77.3%**,
 Canonical replacement profile: `ecg_cache_sim_factorial`. A fresh rerun uses
 tag-hit-preserving StreamShield and the current size-correct charged P-OPT model.
 
-## Tiered K2 and online-selection baseline (pending)
+## Tiered K2 and online selection (cache_sim functional authority)
 
-The new `ecg_replacement_baseline` profile compares uncharged and charged P-OPT,
-K1, every static tiered-K2 arm, and `ECG:K2_ONLINE` on
-PR/BFS/SSSP/BC/CC. The pipeline emits `online_dueling_regret.csv`. No numerical
-online-selection claim is frozen until this complete real-graph profile
-finishes.
+The complete `ecg_replacement_baseline` contains 180 rows: three real graphs x
+PR/BFS/SSSP/BC/CC x 12 policies. It compares uncharged and charged P-OPT, K1,
+all five static tiered-K2 arms, and `ECG:K2_ONLINE`, with ECG delivery uncharged
+to isolate replacement quality.
+
+Every static arm is best on at least one cell: GRASP 5, degree 4, epoch 3, RRIP
+2, and LRU 1. This variation validates online selection rather than one
+benchmark-name mapping.
+
+| Reference | Online K2 geomean LLC-miss delta | Cells with fewer online misses |
+|---|---:|---:|
+| per-cell best static K2 arm | +0.26% | 8/15 |
+| LRU | -19.92% | 15/15 |
+| SRRIP | -13.99% | 14/15 |
+| GRASP | -4.49% | 10/15 |
+| charged P-OPT | -17.59% | 15/15 |
+| uncharged practical P-OPT | -4.49% | 11/15 |
+| K1 | -20.52% | 15/15 |
+
+Online K2's worst positive regret versus the best static arm is 6.72%; it also
+beats every static arm on 8/15 cells because followers can combine the
+leader-selected behavior over time. These are cache_sim replacement-authority
+results, not final detailed-simulator performance numbers.
+
+Aggregate: `results/ecg_experiments/paper_pipeline/`
+`ecg_replacement_baseline_final_20260714/aggregate/`
+`online_dueling_regret.csv`.
 
 The five-algorithm Schedule-2 mechanism matrix passes in cache_sim, gem5, and
 Sniper with zero K2 distance mismatches. This is mechanism/spec evidence, not a

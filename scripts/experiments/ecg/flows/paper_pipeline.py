@@ -167,7 +167,8 @@ TABLE_HEADER_LABELS = {
 
 ROI_COMPARE_KEYS = (
     "final_shard_group", "final_matrix_id", "final_matrix_config_hash",
-    "simulator", "benchmark", "prefetcher", "l3_size", "threads", "section",
+    "simulator", "final_graph", "benchmark", "prefetcher", "l3_size",
+    "threads", "section",
 )
 
 PAPER_FIGURE_WIDTH = 3.35

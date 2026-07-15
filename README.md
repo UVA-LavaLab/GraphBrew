@@ -140,6 +140,11 @@ Slurm, and aggregation workflows.
 | `sniper_streamshield_mechanism` | Fused K2/StreamShield timing mechanism cell |
 | `streamshield_sniper_realgraph` | Pending-calibration full-iteration web-Google matrix |
 
+The completed cache_sim real-graph replacement profile finds that all five K2
+arms are optimal somewhere; online K2 is within 0.26% geomean LLC misses of the
+per-cell best static arm and beats it on 8/15 cells. Detailed-simulator
+confirmation remains pending.
+
 ## Prior-publication boundary
 
 The IPDPSW 2024 ECG paper is archival. An HPCA submission must be materially

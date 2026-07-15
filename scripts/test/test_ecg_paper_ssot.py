@@ -534,6 +534,7 @@ def test_online_dueling_regret_uses_best_static_k2_arm():
         "final_matrix_id": "web_bfs",
         "final_matrix_config_hash": "same",
         "simulator": "cache_sim",
+        "final_graph": "web-Google",
         "benchmark": "bfs",
         "prefetcher": "none",
         "l3_size": "2MB",
@@ -567,6 +568,7 @@ def test_online_dueling_regret_uses_best_static_k2_arm():
     ]
     regret = module.online_dueling_regret(rows)
     assert len(regret) == 1
+    assert regret[0]["final_graph"] == "web-Google"
     assert regret[0]["best_static_policy"] == "ECG_K2_DEGREE"
     assert regret[0]["online_regret_pct"] == 5.0
     assert regret[0]["online_delta_vs_popt_uncharged_pct"] == pytest.approx(
