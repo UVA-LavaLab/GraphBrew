@@ -10,6 +10,7 @@
 #endif
 
 #include "partition/compact_csr.h"
+#include "partition/diagnostics.h"
 
 namespace
 {
@@ -20,8 +21,13 @@ class TestGraph
 {
 public:
     explicit TestGraph(std::size_t num_nodes, bool directed = true)
-        : out_(num_nodes), in_(num_nodes), directed_(directed)
+        : out_(num_nodes),
+          in_(num_nodes),
+          org_ids_(num_nodes),
+          directed_(directed)
     {
+        for (std::size_t index = 0; index < num_nodes; ++index)
+            org_ids_[index] = static_cast<Node>(index);
     }
 
     void AddEdge(Node source, Node destination)
@@ -77,9 +83,23 @@ public:
             : out_.at(static_cast<std::size_t>(vertex));
     }
 
+    Node *get_org_ids() const
+    {
+        return const_cast<Node *>(org_ids_.data());
+    }
+
+    void SetOriginalIds(const std::vector<Node> &org_ids)
+    {
+        if (org_ids.size() != out_.size())
+            throw std::invalid_argument(
+                "test graph original-ID size mismatch");
+        org_ids_ = org_ids;
+    }
+
 private:
     std::vector<std::vector<Node>> out_;
     std::vector<std::vector<Node>> in_;
+    std::vector<Node> org_ids_;
     bool directed_;
 };
 
@@ -98,6 +118,39 @@ TestGraph MakeSkewedGraph()
         graph.AddEdge(source, source + 1);
     graph.AddEdge(11, 0);
     return graph;
+}
+
+TestGraph PermuteGraph(
+    const TestGraph &graph,
+    const std::vector<Node> &old_to_new)
+{
+    const std::size_t nodes =
+        static_cast<std::size_t>(graph.num_nodes());
+    if (old_to_new.size() != nodes)
+        throw std::invalid_argument("test permutation size mismatch");
+    TestGraph permuted(nodes, graph.directed());
+    for (std::size_t old_source = 0;
+         old_source < nodes; ++old_source)
+    {
+        for (const Node old_destination : graph.out_neigh(
+                 static_cast<Node>(old_source)))
+        {
+            permuted.AddEdge(
+                old_to_new[old_source],
+                old_to_new[static_cast<std::size_t>(
+                    old_destination)]);
+        }
+    }
+    std::vector<Node> new_to_source(nodes, -1);
+    const Node *old_to_source = graph.get_org_ids();
+    for (std::size_t old = 0; old < nodes; ++old)
+    {
+        new_to_source[
+            static_cast<std::size_t>(old_to_new[old])] =
+                old_to_source[old];
+    }
+    permuted.SetOriginalIds(new_to_source);
+    return permuted;
 }
 
 void TestExactDirectedShards()
@@ -120,6 +173,25 @@ void TestExactDirectedShards()
     Require(
         partitioned.total_ghosts() > 0,
         "cross-shard graph must produce ghost metadata");
+    Require(
+        partitioned.remote_out_edges() ==
+            partitioned.remote_in_edges(),
+        "directed crossing arcs must be counted on both ownership sides");
+    Require(
+        partitioned.remote_out_edges() > 0,
+        "cross-shard graph must report remote arcs");
+    Require(
+        partitioned.total_ghost_metadata_bytes() ==
+            partitioned.total_ghosts() *
+                (sizeof(Node) + sizeof(std::uint32_t)),
+        "ghost metadata byte accounting is inconsistent");
+    Require(
+        partitioned.ghost_metadata_fraction() > 0.0,
+        "cross-shard graph must report a positive ghost byte fraction");
+    Require(
+        partitioned.max_remote_out_fraction() > 0.0 &&
+            partitioned.max_remote_in_fraction() > 0.0,
+        "per-shard remote fractions were not reported");
 
     for (const auto &shard : partitioned.partitions())
     {
@@ -197,6 +269,110 @@ void TestDeterministicBuild()
                 lhs.ghost_owners == rhs.ghost_owners,
             "deterministic build changed shard contents");
     }
+    Require(
+        graphbrew::partition::CompactShardFingerprint(first) ==
+            graphbrew::partition::CompactShardFingerprint(second),
+        "deterministic build changed the shard fingerprint");
+    Require(
+        graphbrew::partition::GhostMetadataFingerprint(first) ==
+            graphbrew::partition::GhostMetadataFingerprint(second),
+        "deterministic build changed the ghost fingerprint");
+}
+
+void TestSourceMappingAndTopologyFingerprints()
+{
+    const TestGraph graph = MakeSkewedGraph();
+    const auto mapping =
+        graphbrew::partition::BuildOriginalIdMapping(graph);
+    Require(
+        mapping.internal_to_source.front() == 0 &&
+            mapping.source_to_internal.back() ==
+                graph.num_nodes() - 1,
+        "identity source mapping was not preserved");
+
+    std::vector<Node> old_to_new(
+        static_cast<std::size_t>(graph.num_nodes()));
+    for (std::size_t old = 0; old < old_to_new.size(); ++old)
+    {
+        old_to_new[old] = static_cast<Node>(
+            old_to_new.size() - 1 - old);
+    }
+    const TestGraph permuted =
+        PermuteGraph(graph, old_to_new);
+    const auto permuted_mapping =
+        graphbrew::partition::BuildOriginalIdMapping(permuted);
+    Require(
+        mapping.fingerprint != permuted_mapping.fingerprint,
+        "different internal orders produced the same mapping fingerprint");
+    Require(
+        graphbrew::partition::SourceTopologyFingerprint(
+            graph, mapping) ==
+            graphbrew::partition::SourceTopologyFingerprint(
+                permuted, permuted_mapping),
+        "source topology fingerprint changed after a valid relabel");
+
+    TestGraph invalid = MakeSkewedGraph();
+    std::vector<Node> duplicate(
+        static_cast<std::size_t>(invalid.num_nodes()));
+    for (std::size_t index = 0; index < duplicate.size(); ++index)
+        duplicate[index] = static_cast<Node>(index);
+    duplicate[1] = 0;
+    invalid.SetOriginalIds(duplicate);
+    bool rejected = false;
+    try
+    {
+        const auto ignored =
+            graphbrew::partition::BuildOriginalIdMapping(invalid);
+        (void)ignored;
+    }
+    catch (const std::logic_error &)
+    {
+        rejected = true;
+    }
+    Require(rejected, "duplicate source IDs were not rejected");
+}
+
+void TestSourceDepthFingerprint()
+{
+    TestGraph graph(5, true);
+    graph.AddEdge(0, 1);
+    graph.AddEdge(1, 2);
+    graph.AddEdge(2, 3);
+    graph.AddEdge(0, 4);
+    const std::vector<Node> parent{0, 0, 1, 2, 0};
+    const auto mapping =
+        graphbrew::partition::BuildOriginalIdMapping(graph);
+    const auto summary =
+        graphbrew::partition::SourceDepthFingerprint(
+            graph, mapping, Node{0}, parent);
+    Require(
+        summary.source_id == 0 &&
+            summary.reachable_vertices == 5 &&
+            summary.max_depth == 3,
+        "source-space BFS summary is incorrect");
+
+    const std::vector<Node> old_to_new{3, 0, 4, 1, 2};
+    const TestGraph permuted =
+        PermuteGraph(graph, old_to_new);
+    std::vector<Node> permuted_parent(parent.size(), -1);
+    for (std::size_t old = 0; old < parent.size(); ++old)
+    {
+        permuted_parent[
+            static_cast<std::size_t>(old_to_new[old])] =
+                old_to_new[
+                    static_cast<std::size_t>(parent[old])];
+    }
+    const auto permuted_mapping =
+        graphbrew::partition::BuildOriginalIdMapping(permuted);
+    const auto permuted_summary =
+        graphbrew::partition::SourceDepthFingerprint(
+            permuted,
+            permuted_mapping,
+            old_to_new[0],
+            permuted_parent);
+    Require(
+        summary.fingerprint == permuted_summary.fingerprint,
+        "source-space BFS depth fingerprint changed after relabeling");
 }
 
 void TestEdgeBalanceImprovesSkew()
@@ -293,6 +469,8 @@ int main()
     {
         TestExactDirectedShards();
         TestDeterministicBuild();
+        TestSourceMappingAndTopologyFingerprints();
+        TestSourceDepthFingerprint();
         TestEdgeBalanceImprovesSkew();
         TestUndirectedStorageIsNotDuplicated();
         TestDegenerateInputs();
