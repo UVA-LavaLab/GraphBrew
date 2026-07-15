@@ -114,11 +114,15 @@ The cache_sim replacement baseline exposes uncharged and charged P-OPT,
 `ECG:K1`, every static K2 arm, and `ECG:K2_ONLINE`. The hardware-faithful
 factorial adds K1/K2 x StreamShield with record traffic charged.
 
+The full-iteration Sniper profile is pending prefetch calibration. The current
+generic STRIDE8 diagnostic increases LLC read traffic for every policy and must
+not be used as a headline configuration.
+
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile streamshield_sniper_realgraph \
   --run-dir results/ecg_experiments/final_paper_runs/ecg_successor_webgoogle \
-  --no-build
+  --list --dry-run --no-build
 ```
 
 See [`research/ecg-hpca/RUNBOOK.md`](research/ecg-hpca/RUNBOOK.md) for local,
@@ -134,7 +138,7 @@ Slurm, and aggregation workflows.
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |
 | `gem5_streamshield_mechanism` | RISC-V request-bound mechanism cell |
 | `sniper_streamshield_mechanism` | Fused K2/StreamShield timing mechanism cell |
-| `streamshield_sniper_realgraph` | Full-iteration web-Google paper matrix |
+| `streamshield_sniper_realgraph` | Pending-calibration full-iteration web-Google matrix |
 
 ## Prior-publication boundary
 

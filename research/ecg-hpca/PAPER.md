@@ -82,5 +82,7 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
 3. Scale and timing confirmation in Sniper using the full policy set.
 4. Hardware/storage accounting and sensitivity analysis.
 
-The real-graph Sniper matrix is the remaining gate before claiming overall
-detailed-simulator superiority over P-OPT.
+The real-graph Sniper matrix remains a gate before claiming overall
+detailed-simulator superiority over P-OPT. Its current generic STRIDE8
+configuration is rejected by the bounded diagnostic and must be replaced by a
+traffic-bounded setting before the headline run.

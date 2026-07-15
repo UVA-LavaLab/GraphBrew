@@ -33,6 +33,8 @@
 - A fresh real-graph cache_sim factorial using the current tag-hit-preserving
   StreamShield semantics. The legacy 77.3%/22.7% attribution used full LLC
   lookup bypass and is not a current paper claim.
+- A bounded Sniper structure-prefetch configuration that does not reproduce the
+  generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
 - Real-graph online-selector regret versus the best static arm.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.

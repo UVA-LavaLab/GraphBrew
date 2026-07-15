@@ -353,6 +353,13 @@ def expand_jobs(args: argparse.Namespace, manifest: dict[str, Any], run_dir: Pat
         if args.skip and any(token in stage["name"] for token in args.skip):
             continue
         settings = merged_defaults(manifest, stage)
+        blocked_reason = str(settings.get("blocked_reason", ""))
+        if (blocked_reason and
+                not (getattr(args, "list", False) or
+                     getattr(args, "dry_run", False) or
+                     getattr(args, "check_graphs", False))):
+            raise SystemExit(
+                f"stage {stage['name']} is blocked: {blocked_reason}")
         kind = str(stage["kind"])
         if kind == "proof_matrix":
             if args.policy:

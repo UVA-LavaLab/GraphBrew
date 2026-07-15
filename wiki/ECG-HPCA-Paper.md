@@ -209,7 +209,7 @@ Canonical profiles:
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
 | `gem5_streamshield_mechanism` | Request-bound RISC-V mechanism cell |
 | `sniper_streamshield_mechanism` | Fused K2/StreamShield mechanism cell |
-| `streamshield_sniper_realgraph` | Full-iteration web-Google paper matrix |
+| `streamshield_sniper_realgraph` | Pending-calibration full-iteration web-Google matrix |
 
 ## Current evidence
 
@@ -222,10 +222,14 @@ Canonical profiles:
   same instruction count.
 - K2 PR/BFS/SSSP/BC/CC and StreamShield PR exact mechanism gates pass across
   all three simulators.
+- The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
+  prefetcher: every policy overprefetches, and K2 LLC read traffic rises
+  93x--596x. Sniper demand misses are not inferred because NUCA statistics do
+  not split demand from prefetch misses.
 
 These synthetic cells validate the mechanism; they do not rank the policies.
 Overall detailed-simulator superiority over P-OPT remains pending the complete
-real-graph Sniper matrix.
+real-graph Sniper matrix and a bounded prefetch configuration.
 
 ## Hardware accounting
 
@@ -248,7 +252,7 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile streamshield_sniper_realgraph \
   --run-dir results/ecg_experiments/final_paper_runs/ecg_successor_webgoogle \
-  --no-build
+  --list --dry-run --no-build
 ```
 
 Full graph staging, mechanism profiles, Slurm, and aggregation commands are in

@@ -45,7 +45,8 @@ The no-prefetch `kron_s15_k4` preliminary matrix is complete:
 | CC | **2/6** | 4/6 | 4/6 | beats charged P-OPT, not GRASP |
 
 Aggregate: `results/ecg_experiments/paper_pipeline/`
-`ecg_preliminary_5alg_20260714/aggregate/preliminary_5alg_policy_ranks.csv`.
+`ecg_preliminary_5alg_final_20260714/aggregate/`
+`preliminary_5alg_policy_ranks.csv`.
 This synthetic result says BC is the strongest portable K2 candidate; it does
 not establish a real-graph win.
 
@@ -67,23 +68,29 @@ rows contribute only transport-inclusive cache diagnostics; their
 packed-record instruction count is not an apples-to-apples replacement-only
 comparison.
 
-### Preliminary STRIDE8 sensitivity (synthetic, not frozen)
+### Preliminary STRIDE8 sensitivity (synthetic diagnostic)
 
 K2 change from no prefetch to matched STRIDE8 on `kron_s15_k4`:
 
-| Kernel | cache_sim demand | cache_sim traffic | gem5 demand | gem5 DRAM |
-|---|---:|---:|---:|---:|
-| PR | -89.8% | +0.0% | -82.2% | +0.2% |
-| BFS | -79.2% | +81.8% | -29.2% | +41.1% |
-| SSSP | -66.7% | +255.1% | -31.0% | +37.8% |
-| BC | -27.0% | +94.9% | -16.5% | +15.6% |
-| CC | -78.5% | +122.0% | -52.9% | +1.6% |
+| Kernel | cache_sim demand | cache_sim traffic | gem5 demand | gem5 DRAM | Sniper demand | Sniper LLC-read traffic |
+|---|---:|---:|---:|---:|---:|---:|
+| PR | -89.8% | +0.0% | -82.2% | +0.2% | n/a | +9,195.1% |
+| BFS | -79.2% | +81.8% | -29.2% | +41.1% | n/a | +59,482.8% |
+| SSSP | -66.7% | +255.1% | -31.0% | +37.8% | n/a | +18,797.5% |
+| BC | -27.0% | +94.9% | -16.5% | +15.6% | n/a | +17,512.9% |
+| CC | -78.5% | +122.0% | -52.9% | +1.6% | n/a | +12,512.4% |
 
-PR confirms that the predictable record stream can hide demand latency without
-increasing total traffic relative to its own no-prefetch K2 run. BC and CC are
-the most promising non-PR detailed-simulator cells. BFS and especially SSSP
-remain bandwidth-heavy. These are within-simulator synthetic diagnostics; the
-Sniper sensitivity and real-graph confirmation remain pending.
+cache_sim and gem5 confirm that predictable record access can reduce demand
+misses, although only cache_sim PR is traffic-neutral and BFS/SSSP remain
+bandwidth-heavy. Sniper does not expose a demand/prefetch NUCA miss split; its
+K2 total LLC read misses increase by 93x--596x, and every policy overprefetches
+under the current generic simple prefetcher. Therefore the matched STRIDE8
+profile rejects that Sniper prefetch configuration as a cross-simulator paper
+path. No Sniper demand-miss reduction or speedup is inferred from these rows.
+
+Aggregate: `results/ecg_experiments/paper_pipeline/`
+`ecg_preliminary_5alg_final_20260714/aggregate/`
+`preliminary_5alg_stride_sensitivity.csv`.
 
 ## Detailed-simulator mechanism cells
 

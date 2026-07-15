@@ -101,6 +101,11 @@ STRIDE8 is enabled for every policy. A lower demand miss rate does not imply
 lower bandwidth: compare `total_memory_traffic_with_overhead` and prefetch fills
 alongside demand misses.
 
+The current Sniper simple-prefetcher implementation does not export a
+demand/prefetch NUCA miss split and expands total LLC read misses by 9x--596x
+on this diagnostic. Treat its output as a rejected prefetch configuration, not
+as demand-miss or speedup evidence.
+
 When rerunning only one simulator or stage, use a distinct `--run-dir`.
 `paper_run.py` refuses to replace a broader resolved manifest with an
 `--only`/filtered subset. Aggregate shard directories together with

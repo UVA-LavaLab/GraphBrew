@@ -491,7 +491,9 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
 
     def add_rows(
             path: Path, kind: str, run_dir: Path | None = None,
-            expected_job: dict[str, Any] | None = None) -> None:
+            expected_job: dict[str, Any] | None = None,
+            expected_jobs_by_id: dict[str, dict[str, Any]] | None = None
+            ) -> None:
         rows = read_csv(path)
         marker_payload: dict[str, Any] = {}
         if kind != "proof" and path.name == "roi_matrix.csv":
@@ -556,6 +558,57 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                     print(
                         "[metadata] recovered legacy comparison hash: "
                         f"{path}")
+        if expected_jobs_by_id is not None:
+            validated_rows = []
+            for row in rows:
+                job_id = str(row.get("final_job_id", ""))
+                row_job = expected_jobs_by_id.get(job_id)
+                if row_job is None:
+                    print(
+                        f"[skip] combined row not in resolved manifest: "
+                        f"{path} job={job_id}")
+                    continue
+                metadata = row_job.get("metadata", {})
+                expected_matrix_hash = str(
+                    metadata.get("matrix_config_hash", ""))
+                actual_matrix_hash = str(
+                    row.get("final_matrix_config_hash", ""))
+                expected_output = (
+                    Path(str(row_job.get("out_dir", ""))) /
+                    ("proof_matrix.csv"
+                     if row_job.get("kind") == "proof_matrix"
+                     else "roi_matrix.csv"))
+                actual_output = Path(
+                    str(row.get("final_output_csv", "")))
+                if (not expected_matrix_hash or
+                        actual_matrix_hash != expected_matrix_hash or
+                        not actual_output.is_absolute() or
+                        actual_output.resolve() != expected_output.resolve()):
+                    print(
+                        f"[skip] stale combined row: {path} job={job_id}")
+                    continue
+                comparison_hash = str(
+                    row.get("final_comparison_config_hash", ""))
+                expected_comparison_hash = str(
+                    metadata.get("comparison_config_hash", ""))
+                if (comparison_hash and expected_comparison_hash and
+                        comparison_hash != expected_comparison_hash):
+                    print(
+                        f"[skip] stale combined comparison hash: "
+                        f"{path} job={job_id}")
+                    continue
+                if not comparison_hash:
+                    comparison_hash = (
+                        expected_comparison_hash or
+                        recover_roi_comparison_config_hash(row_job))
+                    if comparison_hash:
+                        row["final_comparison_config_hash"] = (
+                            comparison_hash)
+                        print(
+                            "[metadata] recovered legacy combined "
+                            f"comparison hash: {path} job={job_id}")
+                validated_rows.append(row)
+            rows = validated_rows
         rows = [
             row for row in rows
             if row.get("final_output_status", "ok") == "ok"
@@ -619,9 +672,16 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
             for job in resolved_payload.get("jobs", [])
             if job.get("out_dir")
         }
+        jobs_by_id = {
+            str(job.get("job_id", "")): job
+            for job in resolved_payload.get("jobs", [])
+            if job.get("job_id")
+        }
         manifest_scoped = bool(jobs_by_out_dir)
         if roi_path.exists() and run_complete:
-            add_rows(roi_path, "roi", run_dir)
+            add_rows(
+                roi_path, "roi", run_dir,
+                expected_jobs_by_id=jobs_by_id)
         else:
             for path in sorted((run_dir / "matrices").glob("**/roi_matrix.csv")):
                 expected_job = jobs_by_out_dir.get(str(path.parent.resolve()))
@@ -632,7 +692,9 @@ def collect_csvs(run_dirs: list[Path], input_csvs: list[Path]) -> tuple[list[dic
                     path, "roi", run_dir,
                     expected_job)
         if proof_path.exists() and run_complete:
-            add_rows(proof_path, "proof", run_dir)
+            add_rows(
+                proof_path, "proof", run_dir,
+                expected_jobs_by_id=jobs_by_id)
         else:
             for path in sorted((run_dir / "matrices").glob("**/proof_matrix.csv")):
                 expected_job = jobs_by_out_dir.get(str(path.parent.resolve()))
@@ -837,6 +899,19 @@ def preliminary_stride_sensitivity(
                 f"key={logical_key} none={sorted(none_hashes)} "
                 f"stride={sorted(stride_hashes)}")
 
+    def demand_misses(
+            row: dict[str, Any]) -> tuple[float | None, str]:
+        total = effective_l3_misses(row)
+        if total is None:
+            return None, "missing_l3_misses"
+        if (row.get("simulator") == "sniper" and
+                row.get("prefetcher") != "none"):
+            prefetch_misses = as_float(row.get("l3_prefetch_misses"))
+            if prefetch_misses is None:
+                return None, "sniper_lacks_prefetch_miss_split"
+            return total - prefetch_misses, ""
+        return total, ""
+
     def traffic(row: dict[str, Any]) -> tuple[float | None, str]:
         dram_read = as_float(row.get("dram_read_bytes"))
         dram_write = as_float(row.get("dram_write_bytes"))
@@ -845,6 +920,10 @@ def preliminary_stride_sensitivity(
         total = as_float(row.get("total_memory_traffic_with_overhead"))
         if total is not None:
             return total, "memory_transactions"
+        if row.get("simulator") == "sniper":
+            misses = effective_l3_misses(row)
+            if misses is not None:
+                return misses, "llc_read_misses"
         return None, ""
 
     out: list[dict[str, Any]] = []
@@ -862,6 +941,10 @@ def preliminary_stride_sensitivity(
         stride = stride_rows[0]
         baseline_misses = effective_l3_misses(baseline)
         stride_misses = effective_l3_misses(stride)
+        baseline_demand_misses, baseline_demand_reason = (
+            demand_misses(baseline))
+        stride_demand_misses, stride_demand_reason = (
+            demand_misses(stride))
         baseline_traffic, traffic_unit = traffic(baseline)
         stride_traffic, stride_unit = traffic(stride)
         record = {name: value for name, value in zip(keys, key)}
@@ -874,6 +957,17 @@ def preliminary_stride_sensitivity(
                 baseline_misses if baseline_misses is not None else "",
             "stride_effective_l3_misses":
                 stride_misses if stride_misses is not None else "",
+            "baseline_demand_l3_misses":
+                baseline_demand_misses
+                if baseline_demand_misses is not None else "",
+            "stride_demand_l3_misses":
+                stride_demand_misses
+                if stride_demand_misses is not None else "",
+            "demand_miss_metric_available": int(
+                baseline_demand_misses is not None and
+                stride_demand_misses is not None),
+            "demand_miss_unavailable_reason":
+                stride_demand_reason or baseline_demand_reason,
             "traffic_unit": traffic_unit if traffic_unit == stride_unit else "",
             "baseline_traffic":
                 baseline_traffic if baseline_traffic is not None else "",
@@ -883,9 +977,11 @@ def preliminary_stride_sensitivity(
                 timing_valid_for_speedup(baseline) and
                 timing_valid_for_speedup(stride)),
         })
-        if baseline_misses and stride_misses is not None:
+        if (baseline_demand_misses and
+                stride_demand_misses is not None):
             record["demand_miss_reduction_pct"] = (
-                (baseline_misses - stride_misses) / baseline_misses) * 100.0
+                (baseline_demand_misses - stride_demand_misses) /
+                baseline_demand_misses) * 100.0
         if baseline_traffic and stride_traffic is not None:
             record["traffic_change_pct"] = (
                 (stride_traffic - baseline_traffic) / baseline_traffic) * 100.0

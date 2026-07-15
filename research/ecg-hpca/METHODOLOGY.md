@@ -65,6 +65,11 @@ preliminary ranks are consequently interpreted within each simulator; the
 cache_sim column is a fused replacement diagnostic and the detailed-simulator
 columns are transport-inclusive.
 
+For matched STRIDE sensitivity, cache_sim and gem5 expose demand LLC misses
+separately from prefetch traffic. Sniper's current NUCA statistics combine
+demand and prefetch read misses, so its STRIDE rows report total LLC read-miss
+traffic only; no Sniper demand-miss reduction is inferred from that aggregate.
+
 K1 retains its original 16-bit/65,535-epoch range. K2 independently clamps to
 32,768 epochs because its two 15-bit fields share the tiered 64-bit record.
 Result rows retain the requested value as `ecg_epochs_requested`, report the
@@ -101,7 +106,8 @@ rows additionally require `reref=1` before results are accepted.
 
 - Graph/kernel: web-Google PageRank, one iteration, DBG order
 - Caches: 32kB L1D, 256kB L2, 2MB/16-way LLC, 64B lines
-- Structure prefetch: STRIDE8 for every policy
+- Structure prefetch: pending a bounded Sniper configuration; the current
+  generic STRIDE8 setting is diagnostic-only because it overprefetches
 - Sniper: one core, virtual sideband domain, one complete PageRank iteration
 - Metrics: simulated time, instruction count, L3 accesses/misses, bypass
   reads/writes, and total traffic

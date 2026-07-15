@@ -33,7 +33,7 @@
     "ecg_cache_sim_factorial": "Real-graph K1/K2 x StreamShield cache_sim factorial with the full baseline set.",
     "gem5_streamshield_mechanism": "Synthetic gem5 mechanism cell for fused K2 versus K2+StreamShield.",
     "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused K2 versus K2+StreamShield.",
-    "streamshield_sniper_realgraph": "Full-iteration web-Google PR Sniper matrix for the full baselines, static K2, online K2, and both StreamShield variants."
+    "streamshield_sniper_realgraph": "Pending-calibration full-iteration web-Google PR Sniper matrix; do not freeze results with the rejected generic STRIDE8 configuration."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -378,6 +378,7 @@
       "name": "40_sniper_streamshield_realgraph",
       "kind": "roi_matrix",
       "profiles": ["streamshield_sniper_realgraph"],
+      "blocked_reason": "The bounded matched-STRIDE diagnostic rejects Sniper's generic simple prefetcher; calibrate a traffic-bounded configuration before launching the headline matrix.",
       "suite": "sniper",
       "graph_set": "web_google_streamshield",
       "benchmarks": ["pr"],

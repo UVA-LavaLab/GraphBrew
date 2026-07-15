@@ -319,6 +319,22 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
     assert "--popt-reserve-model size_correct" in listed.stdout
     assert "--require-sniper-aslr-disable" in listed.stdout
 
+    blocked = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/flows/paper_run.py",
+            "--profile", "streamshield_sniper_realgraph",
+            "--run-dir", str(tmp_path / "blocked"),
+            "--allow-missing-graphs", "--no-build",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert blocked.returncode != 0
+    assert "is blocked" in blocked.stderr
+
     shards = tmp_path / "shards.tsv"
     generated = subprocess.run(
         [
@@ -678,6 +694,54 @@ def test_preliminary_stride_sensitivity_separates_demand_and_traffic():
         module.preliminary_stride_sensitivity(mismatched)
 
 
+def test_sniper_stride_sensitivity_reports_traffic_without_demand_split():
+    module = load_module(
+        "paper_pipeline_sniper_stride_scope",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    policies = ["LRU", "SRRIP", "GRASP", "POPT", "ECG_K2", "ECG_K2_ONLINE"]
+    rows = []
+    for prefetcher, misses, matrix_hash in (
+            ("none", 100, "none"),
+            ("STRIDE", 400, "stride")):
+        for policy in policies:
+            rows.append({
+                "status": "ok",
+                "final_output_status": "ok",
+                "final_shard_group": matrix_hash,
+                "final_matrix_id":
+                    f"15_sniper_preliminary_5alg_{matrix_hash}_pr",
+                "final_matrix_config_hash": matrix_hash,
+                "final_comparison_config_hash": "same-comparison",
+                "final_graph": "kron",
+                "simulator": "sniper",
+                "benchmark": "pr",
+                "prefetcher": prefetcher,
+                "l3_size": "128kB",
+                "l1d_size": "16kB",
+                "l2_size": "64kB",
+                "l3_ways": "16",
+                "options": "-g 15",
+                "threads": "1",
+                "section": "1",
+                "policy_label": policy,
+                "l3_misses": misses,
+                "l3_misses_with_overhead": misses,
+                "l3_exercised": 1,
+                "final_expected_policy_labels": json.dumps(policies),
+            })
+    sensitivity = module.preliminary_stride_sensitivity(rows)
+    k2 = next(
+        row for row in sensitivity
+        if row["policy_label"] == "ECG_K2")
+    assert k2["demand_miss_metric_available"] == 0
+    assert k2["demand_miss_unavailable_reason"] == (
+        "sniper_lacks_prefetch_miss_split")
+    assert "demand_miss_reduction_pct" not in k2
+    assert k2["traffic_unit"] == "llc_read_misses"
+    assert k2["traffic_change_pct"] == pytest.approx(300.0)
+
+
 def test_l3_pressure_requires_positive_activity():
     module = load_module(
         "roi_matrix_l3_pressure",
@@ -803,6 +867,88 @@ def test_stale_combined_csv_requires_run_marker(tmp_path):
         writer.writerow({"status": "ok", "policy_label": "LRU"})
     roi, proof = module.collect_csvs([tmp_path], [])
     assert roi == []
+    assert proof == []
+
+
+def test_complete_combined_csv_recovers_legacy_comparison_hash(tmp_path):
+    runner = load_module(
+        "paper_run_combined_legacy_comparison",
+        ROOT / "scripts/experiments/ecg/flows/paper_run.py",
+    )
+    pipeline = load_module(
+        "paper_pipeline_combined_legacy_comparison",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    matrix_dir = tmp_path / "matrices" / "stage" / "graph" / "pr"
+    matrix_dir.mkdir(parents=True)
+    output_csv = matrix_dir / "roi_matrix.csv"
+    output_csv.write_text("status,policy_label\nok,LRU\n")
+    command = [
+        sys.executable, "roi_matrix.py",
+        "--policies", "LRU",
+        "--prefetcher", "none",
+        "--structure-prefetch-degree", "0",
+        "--out-dir", str(matrix_dir),
+    ]
+    material_env = {"GRAPHBREW_EXPLICIT_CELL_ENV": "{}"}
+    inputs = {"benchmark_binary": "binary"}
+    config_hash = hashlib.sha256(json.dumps(
+        {"command": command, "env": material_env, "inputs": inputs},
+        sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    matrix_hash = "matrix-hash"
+    comparison_hash = runner.roi_comparison_config_hash(
+        command, material_env, inputs, ["LRU"])
+    combined = tmp_path / "combined_roi_matrix.csv"
+    with combined.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=[
+            "status", "policy_label", "final_output_status",
+            "final_job_id", "final_matrix_id",
+            "final_matrix_config_hash", "final_output_csv",
+            "final_expected_policy_labels",
+        ])
+        writer.writeheader()
+        writer.writerow({
+            "status": "ok",
+            "policy_label": "LRU",
+            "final_output_status": "ok",
+            "final_job_id": "job",
+            "final_matrix_id": "matrix",
+            "final_matrix_config_hash": matrix_hash,
+            "final_output_csv": str(output_csv),
+            "final_expected_policy_labels": json.dumps(["LRU"]),
+        })
+    run_hash = "run-hash"
+    (tmp_path / "resolved_manifest.json").write_text(json.dumps({
+        "run_config_hash": run_hash,
+        "jobs": [{
+            "job_id": "job",
+            "kind": "roi_matrix",
+            "command": command,
+            "out_dir": str(matrix_dir),
+            "metadata": {
+                "config_hash": config_hash,
+                "env": {
+                    **material_env,
+                    "GRAPHBREW_MATRIX_CONFIG_HASH": config_hash,
+                    "GRAPHBREW_MATRIX_ID": "matrix",
+                },
+                "expected_policy_labels": ["LRU"],
+                "input_fingerprints": inputs,
+                "matrix_config_hash": matrix_hash,
+                "policies": ["LRU"],
+            },
+        }],
+    }))
+    (tmp_path / "run.complete.json").write_text(json.dumps({
+        "complete": True,
+        "run_config_hash": run_hash,
+        "outputs": {
+            "combined_roi_matrix.csv": output_descriptor(combined),
+        },
+    }))
+    roi, proof = pipeline.collect_csvs([tmp_path], [])
+    assert len(roi) == 1
+    assert roi[0]["final_comparison_config_hash"] == comparison_hash
     assert proof == []
 
 
