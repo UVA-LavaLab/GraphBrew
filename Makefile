@@ -96,15 +96,15 @@ endif
 # =========================================================
 KERNELS = bc bfs bfs_p cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
-SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
-UNIT_TESTS = test_graph_partition test_shard_manifest
+SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
+UNIT_TESTS = test_graph_partition test_shard_manifest test_shard_stream
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
 .PHONY: $(KERNELS) converter all check-partition run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 all: $(SUITE)
 
-check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p
+check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
 	@for test in $(UNIT_TESTS_BIN); do $$test; done
 	@for partitions in 1 2 4 16; do \
 		output="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -P $$partitions -B total)"; \
@@ -145,6 +145,18 @@ check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p
 			exit 1; \
 		fi; \
 		echo " $(PASS) RCM:bnf fingerprints/package OMP=1/4"
+	@sg_root="$$(mktemp -d)"; \
+		legacy_root="$$(mktemp -d)"; \
+		stream_root="$$(mktemp -d)"; \
+		trap 'rm -rf "$$sg_root" "$$legacy_root" "$$stream_root"' EXIT; \
+		$(BIN_DIR)/converter -g 10 -b "$$sg_root/graph.sg" >/dev/null 2>&1; \
+		OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -f "$$sg_root/graph.sg" -n 1 -r 0 -P 3 -B total -E "$$legacy_root/package" >/dev/null 2>&1; \
+		$(BIN_DIR)/graph_shard_export -f "$$sg_root/graph.sg" -P 3 -B total -E "$$stream_root/package" >/dev/null; \
+		if ! diff -qr "$$legacy_root/package" "$$stream_root/package" >/dev/null; then \
+			echo " $(FAIL) streaming graph.shard.v1 package differs from legacy"; \
+			exit 1; \
+		fi; \
+		echo " $(PASS) streaming .sg->graph.shard.v1 matches legacy"
 
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
@@ -198,6 +210,12 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 # =========================================================
 $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+
+# The streaming exporter only depends on the gapbs reader and the graphbrew
+# partition headers, so it builds with the lightweight GAP flags and links no
+# reorder/boost/tcmalloc dependencies.
+$(BIN_DIR)/graph_shard_export: $(SRC_DIR)/graph_shard_export.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) | $(BIN_DIR)
+	@$(CXX) $(CXXFLAGS_GAP) $(INCLUDES) $< -o $@ $(EXIT_STATUS)
 
 $(TEST_BIN_DIR)/%: $(TEST_SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) | $(TEST_BIN_DIR)
 	@$(CXX) $(CXXFLAGS_GAP) $(INCLUDES) $< -o $@ $(EXIT_STATUS)

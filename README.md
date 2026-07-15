@@ -260,6 +260,41 @@ package atomically; the validator checks schema, containment, array sizes,
 fingerprints, mappings, ownership coverage, CSR offsets, local slots, and ghost
 owners.
 
+`ValidateShardPackage` is the exhaustive checker (it also confirms the
+`graph.id`, `identity`, `directed`, `directed_edges`, and `policy` fields the
+reader consumes, and that per-shard edge totals match `directed_edges`).
+Consumers that only need their own shard should instead use the lightweight
+`LoadShardManifestHeader` (validates scalars, ownership map, and optionally the
+source mapping without touching any shard arrays) and `LoadShardPackageShard`
+(validates and materializes exactly one shard, plus `O(P)` ownership scalars),
+so a worker never reads every shard just to load the one it owns.
+
+### Streaming `.sg` → graph.shard.v1 export
+
+For large graphs that already live on disk as an unweighted serialized graph
+(`.sg`), `graph_shard_export` streams the same `graph.shard.v1` package without
+materialising a second in-memory CSR. It maps the `.sg` read-only, derives the
+identical balanced ownership as `PartitionedGraph::Build`, then builds, writes,
+and discards **one shard at a time**. Peak extra memory is `O(N)` scratch plus
+the single largest shard rather than every shard at once, and the emitted
+package is byte-identical to the in-memory `bfs_p -E` writer for the same graph,
+partition count, and balance policy.
+
+```bash
+make graph_shard_export
+./bench/bin/graph_shard_export -f results/graphs/web-Google/web-Google.sg \
+  -P 16 -B total -E results/shards/web-Google-p16
+```
+
+Flags: `-f` input `.sg`, `-E` output package directory, `-P` partition count,
+`-B` balance (`vertices`/`out`/`total`), and optional manifest metadata `-i`
+graph id, `-a` policy name, `-d` policy id, and repeatable `-o` policy options.
+The exporter preserves the vertex ordering (and therefore the policy/mapping
+semantics) already baked into the `.sg`'s `org_ids`; it does not run a new
+reorder. `make check-partition` verifies the streamed package is byte-identical
+to the legacy build path.
+
+
 ---
 
 ## Testing
