@@ -28,7 +28,8 @@ def test_streamshield_preserves_llc_hits_and_suppresses_miss_fill():
         "// StreamShield prefetch", 1
     )[0]
     assert "if (l3_->access" in block
-    assert "l3_->insert" not in block
+    assert "if (!bypass) l3_->insert" in block
+    assert "ECG_STREAM_BYPASS_ADAPTIVE" in cache
     assert "l2_->insert" in block
     assert "l1_->insert" in block
 
@@ -75,6 +76,8 @@ def test_gem5_streamshield_suppresses_only_l3_allocation():
     assert "allow_alloc_on_fill" in patch
     assert "isEcgStreamBypassAddress" in context
     assert "stream_bypass_base" in context
+    assert "ECG_STREAM_BYPASS_ADAPTIVE" in flag_patch
+    assert "globalOnlinePlacementSelector" in flag_patch
     assert "ECG_STREAM_BYPASS" in request_patch
     assert "isStreamBypass" in prefetch_patch
     assert "req->setFlags(Request::ECG_STREAM_BYPASS)" in prefetch_patch
@@ -97,6 +100,8 @@ def test_sniper_streamshield_preserves_nuca_lookup_and_skips_miss_fill():
     assert "if (stream_bypass) ++m_stream_bypass_reads;" in setup
     assert "eviction = false" in setup
     assert "isEcgStreamBypassAddress" in context
+    assert "recordEcgPlacementMiss" in context
+    assert "recordEcgPlacementMiss" in setup
     assert "lookupFusedK2Pair" in context
     assert "k2_offsets_path" in context
     assert "k2_line_offsets" in context
@@ -348,6 +353,7 @@ def test_streamshield_is_policy_isolated_and_verified():
     assert "--stream-bypass requires --schedule-k 2" in verifier
     assert "SNIPER_ECG_FUSED_K2" in runner
     assert "StreamShield inactive" in runner
+    assert "ECG_STREAM_BYPASS_ADAPTIVE" in runner
     assert 'env.pop("SNIPER_ECG_FUSED_K2", None)' in runner
     assert 'env.pop("SNIPER_ECG_FUSED_VALIDATE", None)' in runner
     assert 'env["SNIPER_CACHE_LINE_SIZE"] = str(args.line_size)' in runner

@@ -51,6 +51,7 @@ POLICY_ORDER = [
     "ECG_K2_ONLINE",
     "ECG_K2_STREAMSHIELD",
     "ECG_K2_ONLINE_STREAMSHIELD",
+    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
 ]
 
 BENCHMARK_ORDER = ["pr", "bfs", "sssp", "cc", "bc", "tc"]
@@ -82,6 +83,7 @@ POLICY_LABELS = {
     "ECG_K2_ONLINE": "K2-online",
     "ECG_K2_STREAMSHIELD": "K2+SS",
     "ECG_K2_ONLINE_STREAMSHIELD": "K2-online+SS",
+    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD": "K2-online+adaptive-SS",
 }
 
 POLICY_DESCRIPTIONS = {
@@ -103,6 +105,8 @@ POLICY_DESCRIPTIONS = {
     "ECG_K2_ONLINE": "Online set-dueling across all K2 victim arms",
     "ECG_K2_STREAMSHIELD": "Two-epoch ECG plus StreamShield placement",
     "ECG_K2_ONLINE_STREAMSHIELD": "Online K2 plus StreamShield placement",
+    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD":
+        "Online K2 plus allocate-vs-StreamShield placement dueling",
 }
 
 POLICY_COLORS = {
@@ -124,6 +128,7 @@ POLICY_COLORS = {
     "ECG_K2_ONLINE": "#007A3D",
     "ECG_K2_STREAMSHIELD": "#006D2C",
     "ECG_K2_ONLINE_STREAMSHIELD": "#00441B",
+    "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD": "#00331F",
 }
 
 POLICY_HATCHES = {

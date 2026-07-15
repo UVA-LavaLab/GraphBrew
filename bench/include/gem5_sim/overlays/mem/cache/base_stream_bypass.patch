@@ -2,15 +2,16 @@ diff --git a/src/mem/cache/base.cc b/src/mem/cache/base.cc
 index df0243a..4464e6f 100644
 --- a/src/mem/cache/base.cc
 +++ b/src/mem/cache/base.cc
-@@ -57,6 +57,7 @@
+@@ -57,6 +57,8 @@
  #include "mem/cache/mshr.hh"
  #include "mem/cache/prefetch/base.hh"
  #include "mem/cache/queue_entry.hh"
++#include "mem/cache/replacement_policies/ecg_victim_policy.hh"
 +#include "mem/cache/replacement_policies/graph_cache_context_gem5.hh"
  #include "mem/cache/tags/compressed_tags.hh"
  #include "mem/cache/tags/partitioning_policies/partition_manager.hh"
  #include "mem/cache/tags/super_blk.hh"
-@@ -67,6 +68,38 @@
+@@ -67,6 +69,38 @@
  namespace gem5
  {
  
@@ -49,7 +50,7 @@ index df0243a..4464e6f 100644
  BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
                                            BaseCache& _cache,
                                            const std::string &_label)
-@@ -309,6 +342,7 @@ void
+@@ -309,6 +343,7 @@ void
  BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                                 Tick forward_time, Tick request_time)
  {
@@ -57,7 +58,7 @@ index df0243a..4464e6f 100644
      if (writeAllocator &&
          pkt && pkt->isWrite() && !pkt->req->isUncacheable()) {
          writeAllocator->updateMode(pkt->getAddr(), pkt->getSize(),
-@@ -350,8 +384,9 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
+@@ -350,8 +385,9 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
                  // buffer and to schedule an event to the queued
                  // port and also takes into account the additional
                  // delay of the xbar.
@@ -69,7 +70,7 @@ index df0243a..4464e6f 100644
                  if (mshr->getNumTargets() >= numTarget) {
                      noTargetMSHR = mshr;
                      setBlocked(Blocked_NoTargets);
-@@ -398,7 +433,7 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
+@@ -398,7 +434,7 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
              // Here we are using forward_time, modelling the latency of
              // a miss (outbound) just as forwardLatency, neglecting the
              // lookupLatency component.

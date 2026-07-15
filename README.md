@@ -109,6 +109,7 @@ Every reported comparison includes:
 ```text
 LRU  SRRIP  GRASP  charged P-OPT
 K2  K2-online  K2+StreamShield  K2-online+StreamShield
+K2-online+adaptive-StreamShield
 ```
 
 The cache_sim replacement baseline exposes uncharged and charged P-OPT,

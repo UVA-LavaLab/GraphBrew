@@ -1022,6 +1022,26 @@ bool isEcgStreamBypassAddress(uint64_t addr)
         context.loaded = context.loadFromSideband(path);
     }
     const bool match = context.loaded && context.isStreamBypassData(addr);
+    static const bool adaptive = []() {
+        const char* value = std::getenv("ECG_STREAM_BYPASS_ADAPTIVE");
+        return value && std::strcmp(value, "0") != 0;
+    }();
+    if (adaptive) {
+        static bool announced = false;
+        if (!announced) {
+            announced = true;
+            std::fprintf(
+                stderr, "[ECG-STREAM-ADAPTIVE sim=sniper active=1]\n");
+        }
+    }
+    const uint64_t line_size =
+        context.rereference.cache_line_size
+            ? context.rereference.cache_line_size : 64;
+    const size_t set_index =
+        static_cast<size_t>(addr / line_size);
+    const bool bypass = match && (
+        !adaptive ||
+        ecg_policy::globalOnlinePlacementSelector().shouldBypass(set_index));
     static uint64_t probes = 0;
     static const uint64_t limit = []() {
         const char* value = std::getenv("ECG_STREAM_BYPASS_TRACE");
@@ -1034,7 +1054,7 @@ bool isEcgStreamBypassAddress(uint64_t addr)
             static_cast<unsigned long long>(addr),
             static_cast<unsigned long long>(context.stream_bypass_base),
             static_cast<unsigned long long>(context.stream_bypass_upper),
-            context.loaded ? 1 : 0, match ? 1 : 0);
+            context.loaded ? 1 : 0, bypass ? 1 : 0);
     }
     static uint64_t ranged_probes = 0;
     if (context.stream_bypass_base < context.stream_bypass_upper &&
@@ -1045,9 +1065,22 @@ bool isEcgStreamBypassAddress(uint64_t addr)
             static_cast<unsigned long long>(addr),
             static_cast<unsigned long long>(context.stream_bypass_base),
             static_cast<unsigned long long>(context.stream_bypass_upper),
-            match ? 1 : 0);
+            bypass ? 1 : 0);
     }
-    return match;
+    return bypass;
+}
+
+void recordEcgPlacementMiss(uint64_t addr)
+{
+    const char* value = std::getenv("ECG_STREAM_BYPASS_ADAPTIVE");
+    if (!value || std::strcmp(value, "0") == 0) return;
+    GraphCacheContext& context = globalContext();
+    const uint64_t line_size =
+        context.rereference.cache_line_size
+            ? context.rereference.cache_line_size : 64;
+    const size_t set_index =
+        static_cast<size_t>(addr / line_size);
+    ecg_policy::globalOnlinePlacementSelector().recordMiss(set_index);
 }
 
 }  // namespace sniper

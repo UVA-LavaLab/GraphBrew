@@ -223,4 +223,8 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr bfs sssp bc cc \
   --schedule-k 2 --stream-bypass
+
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --sniper --kernels pr bfs sssp bc cc \
+  --schedule-k 2 --stream-bypass --adaptive-stream-bypass
 ```

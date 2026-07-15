@@ -327,7 +327,8 @@
         "ECG:K2",
         "ECG:K2_STREAMSHIELD",
         "ECG:K2_ONLINE",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
@@ -390,7 +391,8 @@
         "ECG:K2",
         "ECG:K2_ONLINE",
         "ECG:K2_STREAMSHIELD",
-        "ECG:K2_ONLINE_STREAMSHIELD"
+        "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",

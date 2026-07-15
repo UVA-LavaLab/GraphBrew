@@ -116,6 +116,65 @@ inline OnlineDuelingSelector& globalOnlineDuelingSelector() {
     return selector;
 }
 
+enum PlacementArm : uint8_t {
+    PLACE_ALLOCATE = 0,
+    PLACE_SHIELD = 1,
+    PLACE_ARM_COUNT = 2,
+};
+
+// Slots 0..4 are reserved for replacement-policy leaders. Placement dueling
+// uses two disjoint leaders per 64 sets and leaves the other 62 as followers.
+inline int placementLeaderArm(size_t set_index) {
+    const uint64_t slot = static_cast<uint64_t>(set_index) & 63u;
+    if (slot == 5) return PLACE_ALLOCATE;
+    if (slot == 6) return PLACE_SHIELD;
+    return -1;
+}
+
+class OnlinePlacementSelector {
+  public:
+    bool shouldBypass(size_t set_index) const {
+        const int leader = placementLeaderArm(set_index);
+        const uint8_t arm = leader >= 0
+            ? static_cast<uint8_t>(leader)
+            : winner_.load(std::memory_order_relaxed);
+        return arm == PLACE_SHIELD;
+    }
+
+    void recordMiss(size_t set_index) {
+        const int leader = placementLeaderArm(set_index);
+        if (leader < 0) return;
+        misses_[static_cast<size_t>(leader)].fetch_add(
+            1, std::memory_order_relaxed);
+        const uint64_t total =
+            sampled_misses_.fetch_add(1, std::memory_order_relaxed) + 1;
+        if ((total % kWindowMisses) != 0) return;
+        const uint64_t allocate_misses = misses_[PLACE_ALLOCATE].exchange(
+            0, std::memory_order_relaxed);
+        const uint64_t shield_misses = misses_[PLACE_SHIELD].exchange(
+            0, std::memory_order_relaxed);
+        winner_.store(
+            shield_misses < allocate_misses
+                ? PLACE_SHIELD : PLACE_ALLOCATE,
+            std::memory_order_relaxed);
+    }
+
+    uint8_t winnerArm() const {
+        return winner_.load(std::memory_order_relaxed);
+    }
+
+  private:
+    static constexpr uint64_t kWindowMisses = 1024;
+    std::array<std::atomic<uint64_t>, PLACE_ARM_COUNT> misses_{};
+    std::atomic<uint64_t> sampled_misses_{0};
+    std::atomic<uint8_t> winner_{PLACE_ALLOCATE};
+};
+
+inline OnlinePlacementSelector& globalOnlinePlacementSelector() {
+    static OnlinePlacementSelector selector;
+    return selector;
+}
+
 struct WayState {
     bool     prop;     // property (vertex) line, vs record (edge-stream) line
     uint8_t  rrpv;     // RRIP age (aged in place for variants that age)

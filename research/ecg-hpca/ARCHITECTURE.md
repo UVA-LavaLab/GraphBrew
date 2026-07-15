@@ -135,6 +135,19 @@ graph- and kernel-name agnostic and is live in cache_sim, gem5, and Sniper.
 Tiered K2 construction, delivery, and victim checks are first-class for
 PR/BFS/SSSP/BC/CC in cache_sim, gem5, and Sniper.
 
+### Adaptive StreamShield placement
+
+`ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD` adds a separate two-arm placement duel:
+
+- set slot 5 always allocates eligible K2 records in the LLC;
+- set slot 6 always applies StreamShield;
+- the other 62/64 sets follow the current placement winner.
+
+Both leaders count total LLC misses, including property pollution and record
+reuse effects. Every 1024 sampled leader misses, the lower-miss placement wins;
+ties and startup choose allocation as the safe default. This selector is
+independent of the five-arm property victim selector.
+
 ## StreamShield placement
 
 StreamShield identifies packed record requests that should remain useful in the
@@ -242,6 +255,8 @@ and without StreamShield.
   state, and existing RRPV/recency state.
 - Online selector: five sampled leader classes plus small miss counters; no
   per-line selector state.
+- Adaptive StreamShield: two disjoint placement leaders, two miss counters, and
+  one winner bit; no per-line state.
 - gem5 O3 requires the planned request-bound K2 pair extension.
 - P-OPT comparison: charged for its active rereference-matrix capacity.
 

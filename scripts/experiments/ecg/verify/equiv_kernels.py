@@ -72,6 +72,7 @@ GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc", "sssp"}
 STREAM_PF_DEGREE = 0
 SCHEDULE_K = 0
 STREAM_BYPASS = False
+ADAPTIVE_STREAM_BYPASS = False
 
 
 def effective_variant(kernel):
@@ -121,6 +122,8 @@ def run_cache(kernel):
         env["ECG_K2_DELIVERY_TRACE"] = "32"
     if STREAM_BYPASS:
         env["ECG_STREAM_BYPASS"] = "1"
+        if ADAPTIVE_STREAM_BYPASS:
+            env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
     if kernel in ("bfs", "bc", "cc", "sssp"):
         # Out-traversal kernels read property[dest] over out_neigh(u); deliver the FAITHFUL per-edge
         # OUT-direction next-ref masks (ECG_EDGE_MASKS=1, epoch = next in_neigh(dest) > u) — the same
@@ -183,6 +186,8 @@ def run_gem5(kernel):
     if STREAM_BYPASS:
         env["ECG_STREAM_BYPASS"] = "1"
         env["ECG_STREAM_BYPASS_TRACE"] = "8"
+        if ADAPTIVE_STREAM_BYPASS:
+            env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", "4kB", "--l3-ways", "8",
@@ -208,6 +213,8 @@ def run_sniper(kernel):
     if STREAM_BYPASS:
         env["ECG_STREAM_BYPASS"] = "1"
         env["ECG_STREAM_BYPASS_TRACE"] = "8"
+        if ADAPTIVE_STREAM_BYPASS:
+            env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
     # Per-kernel geometry: cc's comp[] (~4KB) and sssp's dist[] fit Sniper's inner
     # caches, and the L3 is NON-INCLUSIVE (sees only L2 evictions), so at the default
     # 2kB/4kB/16kB the property never reaches the L3 -> no epoch is stamped (vacuous).
@@ -244,14 +251,21 @@ def main(argv=None):
                          "for PR/BFS/SSSP/BC/CC.")
     ap.add_argument("--stream-bypass", action="store_true",
                     help="enable StreamShield and require a live LLC-bypass mechanism trace.")
+    ap.add_argument("--adaptive-stream-bypass", action="store_true",
+                    help="duel LLC allocation versus StreamShield for eligible "
+                         "K2 records (requires --stream-bypass).")
     args = ap.parse_args(argv)
 
     global STREAM_PF_DEGREE, SCHEDULE_K, STREAM_BYPASS
+    global ADAPTIVE_STREAM_BYPASS
     STREAM_PF_DEGREE = args.stream_prefetch_degree
     SCHEDULE_K = args.schedule_k
     STREAM_BYPASS = args.stream_bypass
+    ADAPTIVE_STREAM_BYPASS = args.adaptive_stream_bypass
     if STREAM_BYPASS and SCHEDULE_K != 2:
         ap.error("--stream-bypass requires --schedule-k 2")
+    if ADAPTIVE_STREAM_BYPASS and not STREAM_BYPASS:
+        ap.error("--adaptive-stream-bypass requires --stream-bypass")
 
     required = [ecg.GRAPH]
     required.extend(
@@ -343,8 +357,15 @@ def main(argv=None):
             streamshield_ok = None
             if STREAM_BYPASS:
                 text, ran_ok = result
-                if sim == "cache_sim":
-                    bypass_ok = "[ECG-STREAM-BYPASS sim=cache_sim active=1]" in text
+                if ADAPTIVE_STREAM_BYPASS:
+                    adaptive_marker = (
+                        "[ECG-STREAM-BYPASS sim=cache_sim active=1 adaptive=1]"
+                        if sim == "cache_sim" else
+                        f"[ECG-STREAM-ADAPTIVE sim={sim} active=1]")
+                    bypass_ok = adaptive_marker in text
+                elif sim == "cache_sim":
+                    bypass_ok = (
+                        "[ECG-STREAM-BYPASS sim=cache_sim active=1" in text)
                 elif sim == "gem5":
                     bypass_ok = "[ECG-STREAM-BYPASS sim=gem5" in text
                 else:
@@ -375,7 +396,9 @@ def main(argv=None):
             if STREAM_BYPASS:
                 cell_ok = bool(streamshield_ok)
                 label = (
-                    "StreamShield removes post-delivery LLC churn; "
+                    ("adaptive allocate-vs-shield placement is live; "
+                     if ADAPTIVE_STREAM_BYPASS else
+                     "StreamShield removes post-delivery LLC churn; ") +
                     "K2 delivery is live and eviction is certified by the "
                     "separate no-bypass fused gate")
             elif STREAM_PF_DEGREE > 0:

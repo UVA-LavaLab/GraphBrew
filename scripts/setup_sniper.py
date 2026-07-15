@@ -988,6 +988,36 @@ def patch_ecg_overlay(args: argparse.Namespace) -> None:
         args.dry_run,
         ["if (stream_bypass)\n      {\n         eviction = false;"],
     )
+    migrate_if_present(
+        nuca_source,
+        """         if (count) ++m_write_misses;
+         if (count) ++m_writes;
+         return boost::tuple<SubsecondTime, HitWhere::where_t>(
+            latency, HitWhere::MISS);
+""",
+        """         if (count) ++m_write_misses;
+         if (count) ++m_writes;
+         graphbrew::sniper::recordEcgPlacementMiss(
+            static_cast<uint64_t>(address));
+         return boost::tuple<SubsecondTime, HitWhere::where_t>(
+            latency, HitWhere::MISS);
+""",
+        args.dry_run,
+    )
+    migrate_if_present(
+        nuca_source,
+        """      PrL1CacheBlockInfo evict_block_info;
+
+      m_cache->insertSingleLine(address, data_buf,
+""",
+        """      PrL1CacheBlockInfo evict_block_info;
+
+      graphbrew::sniper::recordEcgPlacementMiss(
+         static_cast<uint64_t>(address));
+      m_cache->insertSingleLine(address, data_buf,
+""",
+        args.dry_run,
+    )
     replace_once(
         directory_source,
         """boost::tie(nuca_latency, hit_where) = m_nuca_cache->read(address, nuca_data_buf, getShmemPerfModel()->getElapsedTime(ShmemPerfModel::_SIM_THREAD), orig_shmem_msg->getPerf(), true,orig_shmem_msg->getBlockType());

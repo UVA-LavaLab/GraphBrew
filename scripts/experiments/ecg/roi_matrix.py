@@ -855,6 +855,7 @@ class EcgTransport:
     trace_enabled: bool = True
     set_dueling: bool = False
     edge_masks: bool = False
+    stream_adaptive: bool = False
 
 
 def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
@@ -871,12 +872,16 @@ def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
     stream_bypass = (
         spec.ecg_stream_bypass if explicit
         else os.environ.get("ECG_STREAM_BYPASS") == "1")
+    stream_adaptive = (
+        spec.ecg_stream_adaptive if explicit
+        else os.environ.get("ECG_STREAM_BYPASS_ADAPTIVE") == "1")
     return EcgTransport(
         schedule_k=schedule_k,
         stream_bypass=stream_bypass,
         set_dueling=spec.ecg_set_dueling,
         trace_enabled=not explicit,
         edge_masks=explicit or schedule_k > 0,
+        stream_adaptive=stream_adaptive,
     )
 
 
@@ -888,6 +893,7 @@ def apply_ecg_transport_env(
         "ECG_K2_DELIVERY_TRACE",
         "ECG_STREAM_BYPASS",
         "ECG_STREAM_BYPASS_TRACE",
+        "ECG_STREAM_BYPASS_ADAPTIVE",
         "ECG_SET_DUELING",
     ):
         env.pop(key, None)
@@ -901,6 +907,8 @@ def apply_ecg_transport_env(
                 "ECG_K2_DELIVERY_TRACE"]
     if transport.stream_bypass:
         env["ECG_STREAM_BYPASS"] = "1"
+        if transport.stream_adaptive:
+            env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
         if (transport.trace_enabled and
                 os.environ.get("ECG_STREAM_BYPASS_TRACE")):
             env["ECG_STREAM_BYPASS_TRACE"] = os.environ[
@@ -1080,7 +1088,11 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
     transport = ecg_transport_for(spec, args.benchmark)
     if transport.stream_bypass:
         log_text = log_path.read_text(errors="ignore")
-        if "[ECG-STREAM-BYPASS sim=cache_sim active=1]" not in log_text:
+        expected = (
+            "[ECG-STREAM-BYPASS sim=cache_sim active=1 adaptive=1]"
+            if transport.stream_adaptive else
+            "[ECG-STREAM-BYPASS sim=cache_sim active=1")
+        if expected not in log_text:
             row["status"] = "error"
             row["error"] = "StreamShield requested but cache_sim bypass path was inactive"
     if spec.charge_popt_overhead:
@@ -1282,9 +1294,11 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         "gem5_ecg_pfx_experimental": int(args.prefetcher == "ECG_PFX" and args.allow_gem5_ecg_pfx),
     })
     if log_path.exists():
-        base["gem5_stream_bypass_trace_events"] = (
-            log_path.read_text(errors="ignore").count(
-                "[ECG-STREAM-BYPASS sim=gem5"))
+        log_text = log_path.read_text(errors="ignore")
+        base["gem5_stream_bypass_trace_events"] = log_text.count(
+            "[ECG-STREAM-BYPASS sim=gem5")
+        base["gem5_stream_adaptive_active"] = int(
+            "[ECG-STREAM-ADAPTIVE sim=gem5 active=1]" in log_text)
     if result is None or result.returncode != 0:
         base.update({"section": 0, "status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
         return [base]
@@ -1317,6 +1331,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             row["popt_charged_l3_misses_plus_matrix_stream"] = (
                 int(l3_misses) + stream_lines)
     apply_overhead_metrics(row)
+    if (transport.stream_adaptive and
+            not int(row.get("gem5_stream_adaptive_active") or 0)):
+        row["status"] = "error"
+        row["error"] = "adaptive StreamShield was requested but not active"
     return [row]
 
 
@@ -1841,7 +1859,16 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if transport.stream_bypass:
         bypass_reads = int(row.get("sniper_stream_bypass_reads") or 0)
         bypass_writes = int(row.get("sniper_stream_bypass_writes") or 0)
-        if bypass_reads <= 0 or bypass_writes <= 0:
+        log_text = log_path.read_text(errors="ignore")
+        adaptive_active = (
+            "[ECG-STREAM-ADAPTIVE sim=sniper active=1]" in log_text)
+        if transport.stream_adaptive and not adaptive_active:
+            row["status"] = "error"
+            row["error"] = (
+                "adaptive StreamShield was requested but not active")
+            row["timing_valid_for_speedup"] = "0"
+        elif (not transport.stream_adaptive and
+              (bypass_reads <= 0 or bypass_writes <= 0)):
             row["status"] = "error"
             row["error"] = (
                 "StreamShield inactive: expected positive NUCA bypass "
@@ -2016,6 +2043,7 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "ecg_charged": args.ecg_charged,
         "ecg_schedule_k": transport.schedule_k,
         "ecg_stream_bypass": int(transport.stream_bypass),
+        "ecg_stream_adaptive": int(transport.stream_adaptive),
         "popt_reserve_model": args.popt_reserve_model,
         "policy_label": spec.label,
         "policy": spec.policy,

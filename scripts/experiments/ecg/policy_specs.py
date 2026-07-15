@@ -14,6 +14,7 @@ class PolicySpec:
     charge_popt_overhead: bool = False
     ecg_schedule_k: int = 0
     ecg_stream_bypass: bool = False
+    ecg_stream_adaptive: bool = False
     ecg_variant: str | None = None
     ecg_transport_pinned: bool = False
     ecg_set_dueling: bool = False
@@ -110,6 +111,23 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_mode="ECG_GRASP_POPT",
             ecg_schedule_k=2,
             ecg_stream_bypass=True,
+            ecg_variant="rrip_first",
+            ecg_transport_pinned=True,
+            ecg_set_dueling=True,
+        )
+    if upper in (
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
+        "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_SS",
+        "ECG_K2_ONLINE_ADAPTIVE_SS",
+    ):
+        return PolicySpec(
+            label="ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
+            policy="ECG",
+            ecg_mode="ECG_GRASP_POPT",
+            ecg_schedule_k=2,
+            ecg_stream_bypass=True,
+            ecg_stream_adaptive=True,
             ecg_variant="rrip_first",
             ecg_transport_pinned=True,
             ecg_set_dueling=True,

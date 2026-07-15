@@ -1222,6 +1222,9 @@ public:
     // unit test can assert the EXACT victim per policy / ECG_VARIANT against an
     // independently hand-computed answer. See bench/src_sim/test_ecg_victim.cc.
     size_t selectVictimForTest(std::vector<CacheLine>& set) { return findVictim(set); }
+    size_t setIndexForAddress(uint64_t address) const {
+        return getSetIndex(address);
+    }
 
 private:
     static size_t log2i(size_t n) {
@@ -2255,6 +2258,9 @@ public:
         }
         
         // L3 miss - fetch from memory
+        if (adaptive_streamshield_) {
+            placement_selector_.recordMiss(l3_->setIndexForAddress(address));
+        }
         memory_accesses_++;
         if (was_prefetched) markPrefetchEvictedBeforeUse(line_addr);
         l3_->insert(address, is_write);
@@ -2269,7 +2275,8 @@ public:
         static bool announced = false;
         if (!announced) {
             announced = true;
-            std::cerr << "[ECG-STREAM-BYPASS sim=cache_sim active=1]\n";
+            std::cerr << "[ECG-STREAM-BYPASS sim=cache_sim active=1 adaptive="
+                      << (adaptive_streamshield_ ? 1 : 0) << "]\n";
         }
         const uint64_t line_addr = lineAddress(address);
         const bool was_prefetched = hasPrefetchedLine(line_addr);
@@ -2297,9 +2304,17 @@ public:
             l1_->insert(address, is_write);
             return;
         }
-        // LLC miss: fetch without inserting the one-touch record into the LLC.
+        const size_t set_index = l3_->setIndexForAddress(address);
+        if (adaptive_streamshield_) {
+            placement_selector_.recordMiss(set_index);
+        }
+        const bool bypass = !adaptive_streamshield_ ||
+            placement_selector_.shouldBypass(set_index);
+        // LLC miss: the static arm bypasses; the adaptive allocate arm retains
+        // the record so reused streams can opt out of StreamShield.
         memory_accesses_++;
         if (was_prefetched) markPrefetchEvictedBeforeUse(line_addr);
+        if (!bypass) l3_->insert(address, is_write);
         l2_->insert(address, is_write);
         l1_->insert(address, is_write);
     }
@@ -2326,8 +2341,15 @@ public:
             l1_->insert(address, false);
             return;
         }
+        const size_t set_index = l3_->setIndexForAddress(address);
+        if (adaptive_streamshield_) {
+            placement_selector_.recordMiss(set_index);
+        }
+        const bool bypass = !adaptive_streamshield_ ||
+            placement_selector_.shouldBypass(set_index);
         prefetch_fills_++;
         markPrefetchFill(line_addr);
+        if (!bypass) l3_->insert(address, false);
         l2_->insert(address, false);
         l1_->insert(address, false);
     }
@@ -2670,6 +2692,11 @@ private:
     // L3 metadata transaction per inner-cache hit). Isolates how much of the refresh
     // win needs the aggressive broadcast vs is recoverable by the free piggybacked form.
     bool refresh_llc_only_ = std::getenv("ECG_REFRESH_LLC_ONLY") != nullptr;
+    bool adaptive_streamshield_ = []() {
+        const char* value = std::getenv("ECG_STREAM_BYPASS_ADAPTIVE");
+        return value && value[0] && std::string(value) != "0";
+    }();
+    ecg_policy::OnlinePlacementSelector placement_selector_;
     const GraphCacheContext* graph_ctx_ = nullptr;  // for the structure-stream prefetcher
     std::atomic<uint64_t> total_accesses_{0};
     std::atomic<uint64_t> memory_accesses_{0};

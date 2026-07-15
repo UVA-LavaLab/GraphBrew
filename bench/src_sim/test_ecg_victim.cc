@@ -221,7 +221,33 @@ int main() {
         const bool leader_policy_ok =
             selector.variantForSet(leader[ecg_policy::DUEL_EPOCH]) ==
                ecg_policy::EPOCH_FIRST;
-        const bool ok = leaders_ok && winner_ok && leader_policy_ok;
+        ecg_policy::OnlinePlacementSelector placement;
+        size_t placement_leader[ecg_policy::PLACE_ARM_COUNT] = {};
+        size_t placement_follower = 0;
+        for (size_t set = 0; set < 100000; ++set) {
+            const int arm = ecg_policy::placementLeaderArm(set);
+            if (arm >= 0 && placement_leader[arm] == 0)
+                placement_leader[arm] = set;
+            else if (arm < 0 && placement_follower == 0)
+                placement_follower = set;
+        }
+        const bool placement_default_ok =
+            !placement.shouldBypass(placement_follower);
+        for (int miss = 0; miss < 700; ++miss)
+            placement.recordMiss(
+                placement_leader[ecg_policy::PLACE_ALLOCATE]);
+        for (int miss = 0; miss < 324; ++miss)
+            placement.recordMiss(
+                placement_leader[ecg_policy::PLACE_SHIELD]);
+        const bool placement_winner_ok =
+            placement.winnerArm() == ecg_policy::PLACE_SHIELD &&
+            placement.shouldBypass(placement_follower) &&
+            !placement.shouldBypass(
+                placement_leader[ecg_policy::PLACE_ALLOCATE]) &&
+            placement.shouldBypass(
+                placement_leader[ecg_policy::PLACE_SHIELD]);
+        const bool ok = leaders_ok && winner_ok && leader_policy_ok &&
+            placement_default_ok && placement_winner_ok;
         printf("    %-46s [%s]\n",
               "five-arm leaders + phase-window winner", ok ? "OK" : "FAIL");
         if (ok) g_pass++; else g_fail++;

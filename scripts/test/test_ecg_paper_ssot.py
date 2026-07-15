@@ -85,6 +85,24 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
     module.apply_ecg_transport_env(online_env, online_transport)
     assert online_env["ECG_SET_DUELING"] == "1"
 
+    adaptive_ss = module.parse_policy_spec(
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD")
+    adaptive_transport = module.ecg_transport_for(adaptive_ss, "sssp")
+    assert adaptive_ss.label == "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD"
+    assert adaptive_transport.stream_bypass
+    assert adaptive_transport.stream_adaptive
+    adaptive_env = {}
+    module.apply_ecg_transport_env(adaptive_env, adaptive_transport)
+    assert adaptive_env["ECG_STREAM_BYPASS"] == "1"
+    assert adaptive_env["ECG_STREAM_BYPASS_ADAPTIVE"] == "1"
+
+    monkeypatch.setenv("ECG_STREAM_BYPASS", "1")
+    monkeypatch.setenv("ECG_STREAM_BYPASS_ADAPTIVE", "1")
+    env_driven = module.ecg_transport_for(
+        module.parse_policy_spec("ECG:ECG_GRASP_POPT"), "bfs")
+    assert env_driven.stream_bypass
+    assert env_driven.stream_adaptive
+
     baseline_env = {
         "ECG_EDGE_MASK_SCHED": "2",
         "ECG_EDGE_MASKS": "1",
@@ -155,6 +173,7 @@ def test_streamshield_manifest_is_complete():
         "LRU", "SRRIP", "GRASP", "POPT",
         "ECG:K2", "ECG:K2_ONLINE",
         "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
     ]
     assert stage["prefetcher"] == "STRIDE"
     assert stage["popt_reserve_model"] == "size_correct"
@@ -173,6 +192,7 @@ def test_streamshield_manifest_is_complete():
         "ECG:K1", "ECG:K1_STREAMSHIELD",
         "ECG:K2", "ECG:K2_STREAMSHIELD",
         "ECG:K2_ONLINE", "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
     ]
     replacement = next(
         stage for stage in manifest["stages"]
@@ -353,11 +373,12 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
     )
     assert generated.returncode == 0, generated.stdout + generated.stderr
     rows = [line.split("\t") for line in shards.read_text().splitlines()]
-    assert len(rows) == 8
+    assert len(rows) == 9
     assert [row[4] for row in rows] == [
         "LRU", "SRRIP", "GRASP", "POPT",
         "ECG:K2", "ECG:K2_ONLINE",
         "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
     ]
     sbatch = (
         ROOT / "scripts/experiments/ecg/slurm/slurm_final_shard.sbatch"

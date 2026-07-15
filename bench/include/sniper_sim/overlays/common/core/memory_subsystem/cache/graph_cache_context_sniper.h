@@ -195,6 +195,7 @@ struct GraphCacheContext {
 
 GraphCacheContext& globalContext();
 bool isEcgStreamBypassAddress(uint64_t addr);
+void recordEcgPlacementMiss(uint64_t addr);
 
 }  // namespace sniper
 }  // namespace graphbrew
