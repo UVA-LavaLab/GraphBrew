@@ -19,8 +19,36 @@ memory accesses is better.
 Historical weighted attribution under full lookup bypass: **K2 77.3%**,
 **StreamShield 22.7%**. This is retained for provenance, not as a current claim.
 
-Canonical replacement profile: `ecg_cache_sim_factorial`. A fresh rerun uses
-tag-hit-preserving StreamShield and the current size-correct charged P-OPT model.
+Canonical corrected factorial profile: `ecg_cache_sim_factorial`.
+
+## Corrected tag-hit-preserving StreamShield factorial
+
+The current factorial contains 33 rows: three real graphs x 11 policies, PR
+`-i1 -o5`, matched STRIDE8, charged K1/K2 records, size-correct P-OPT, and
+StreamShield that preserves LLC lookup/hits and suppresses only miss allocation.
+“Full” is online K2+StreamShield.
+
+| Graph | K2 vs K1 demand reduction | Online vs K2 demand reduction | StreamShield on online demand | StreamShield on online traffic | Full demand reduction vs charged P-OPT | Full traffic delta vs charged P-OPT |
+|---|---:|---:|---:|---:|---:|---:|
+| web-Google / 2MB | 28.05% | 5.38% | 7.30% | 3.09% | 35.90% | **+7.58%** |
+| soc-pokec / 2MB | 18.14% | 10.80% | 4.81% | 2.70% | 26.37% | **+2.91%** |
+| cit-Patents / 8MB | 9.18% | 7.10% | 8.05% | 3.90% | 31.85% | **+5.42%** |
+
+Across graphs, StreamShield adds a 6.73% geomean demand-miss reduction and a
+3.23% total-traffic reduction beyond online K2. Full ECG reduces demand misses
+31.48% versus charged P-OPT and 7.72% versus uncharged practical P-OPT, but
+total traffic remains 5.28% and 29.17% higher, respectively. It also reduces
+demand misses 34.42% versus GRASP while using 2.09% more traffic.
+
+Weighted avoided-demand-miss attribution relative to K1, split at online K2,
+is **K2+online 83.94% / StreamShield 16.06%**. The static K2 split from the same
+K1 baseline is 81.62% / 18.38%. These replace the legacy 77.3% / 22.7%
+lookup-bypass attribution. The corrected factorial therefore validates
+StreamShield as a useful incremental placement mechanism, but not as a
+total-bandwidth win over P-OPT.
+
+Aggregate: `results/ecg_experiments/paper_pipeline/`
+`ecg_cache_sim_factorial_final_20260714/aggregate/roi_matrix_all.csv`.
 
 ## Tiered K2 and online selection (cache_sim functional authority)
 

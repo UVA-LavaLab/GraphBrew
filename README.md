@@ -145,6 +145,11 @@ arms are optimal somewhere; online K2 is within 0.26% geomean LLC misses of the
 per-cell best static arm and beats it on 8/15 cells. Detailed-simulator
 confirmation remains pending.
 
+Relative to K1, the corrected tag-hit-preserving cache_sim factorial attributes
+weighted avoided demand misses as **K2+online 83.94% / StreamShield 16.06%**.
+StreamShield improves online K2, but full ECG still uses 5.28% more geomean
+traffic than charged P-OPT.
+
 ## Prior-publication boundary
 
 The IPDPSW 2024 ECG paper is archival. An HPCA submission must be materially

@@ -28,14 +28,15 @@
   bypassed misses.
 - On synthetic mechanism cells, StreamShield improves fused K2 in both gem5 and
   Sniper.
+- In the corrected cache_sim real-graph factorial, StreamShield adds 6.73%
+  geomean demand-miss reduction and 3.23% traffic reduction beyond online K2;
+  full ECG beats charged P-OPT demand misses by 31.48% but uses 5.28% more
+  traffic.
 
 ## Pending
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   static/online K2, and both StreamShield variants.
-- A fresh real-graph cache_sim factorial using the current tag-hit-preserving
-  StreamShield semantics. The legacy 77.3%/22.7% attribution used full LLC
-  lookup bypass and is not a current paper claim.
 - A bounded Sniper structure-prefetch configuration that does not reproduce the
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.

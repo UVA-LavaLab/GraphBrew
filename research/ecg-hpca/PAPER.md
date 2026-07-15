@@ -82,6 +82,11 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
 3. Scale and timing confirmation in Sniper using the full policy set.
 4. Hardware/storage accounting and sensitivity analysis.
 
+The corrected cache_sim factorial is complete: StreamShield is an incremental
+demand/traffic improvement over online K2, while the full mechanism still uses
+more total traffic than P-OPT. This bounds the detailed-simulator claim before
+timing runs.
+
 The real-graph Sniper matrix remains a gate before claiming overall
 detailed-simulator superiority over P-OPT. Its current generic STRIDE8
 configuration is rejected by the bounded diagnostic and must be replaced by a

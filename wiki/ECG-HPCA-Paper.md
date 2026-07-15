@@ -225,6 +225,10 @@ Canonical profiles:
 - The complete cache_sim real-graph replacement profile exercises all five K2
   arms: online K2 is within 0.26% geomean LLC misses of the per-cell best
   static arm and beats it on 8/15 cells.
+- Relative to K1, the corrected tag-hit-preserving factorial attributes
+  weighted avoided demand misses as **K2+online 83.94% / StreamShield 16.06%**.
+  StreamShield reduces online-K2 traffic by 3.23%, but full ECG still uses
+  5.28% more traffic than charged P-OPT.
 - The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
   prefetcher: every policy overprefetches, and K2 LLC read traffic rises
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do
