@@ -30,6 +30,7 @@
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
     "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
     "ecg_online_dueling": "Online K2 set-dueling regret study against every static K2 arm.",
+    "ecg_streamshield_generality": "Real-graph all-kernel comparison of always-allocate, static StreamShield, and adaptive placement with the full baseline set.",
     "ecg_cache_sim_factorial": "Real-graph K1/K2 x StreamShield cache_sim factorial with the full baseline set.",
     "gem5_streamshield_mechanism": "Synthetic gem5 mechanism cell for fused K2 versus K2+StreamShield.",
     "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused K2 versus K2+StreamShield.",
@@ -335,6 +336,30 @@
       "ecg_charged": 1,
       "ecg_epochs": 65535,
       "out_subdir": "20_cache_sim_streamshield_factorial",
+      "timeout_cache": 86400
+    },
+    {
+      "name": "21_cache_sim_streamshield_generality",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_streamshield_generality"],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT:UNCHARGED",
+        "POPT",
+        "ECG:K2_ONLINE",
+        "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "21_cache_sim_streamshield_generality",
       "timeout_cache": 86400
     },
     {

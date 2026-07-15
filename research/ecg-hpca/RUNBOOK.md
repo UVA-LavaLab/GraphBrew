@@ -152,6 +152,15 @@ online K2 with record traffic charged. Use
 `--allow-missing-graphs --list --dry-run` to inspect the complete job set before
 staging all three graphs.
 
+To test adaptive placement on reused kernels with the full baseline set:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_streamshield_generality \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_streamshield_generality \
+  --no-build
+```
+
 ## Reproduce the detailed-simulator mechanism cells
 
 ```bash

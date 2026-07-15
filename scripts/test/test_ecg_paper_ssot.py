@@ -164,6 +164,7 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
     assert "ecg_preliminary_5alg_stride" in manifest["profiles"]
     assert "ecg_online_dueling" in manifest["profiles"]
+    assert "ecg_streamshield_generality" in manifest["profiles"]
     assert "gem5_streamshield_mechanism" in manifest["profiles"]
     assert "sniper_streamshield_mechanism" in manifest["profiles"]
     stage = next(
@@ -194,6 +195,17 @@ def test_streamshield_manifest_is_complete():
         "ECG:K2_ONLINE", "ECG:K2_ONLINE_STREAMSHIELD",
         "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
     ]
+    generality = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "21_cache_sim_streamshield_generality")
+    assert generality["benchmarks"] == ["pr", "bfs", "sssp", "bc", "cc"]
+    assert generality["policies"] == [
+        "LRU", "SRRIP", "GRASP", "POPT:UNCHARGED", "POPT",
+        "ECG:K2_ONLINE", "ECG:K2_ONLINE_STREAMSHIELD",
+        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
+    ]
+    assert generality["prefetcher"] == "none"
+    assert generality["ecg_charged"] == 1
     replacement = next(
         stage for stage in manifest["stages"]
         if stage["name"] == "19_cache_sim_replacement_baseline")
