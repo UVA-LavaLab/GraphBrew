@@ -3,7 +3,10 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iostream>
 #include <limits>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "benchmark.h"
@@ -11,6 +14,7 @@
 #include "command_line.h"
 #include "bfs_common.h"
 #include "partition/compact_csr.h"
+#include "partition/diagnostics.h"
 #include "pvector.h"
 #include "timer.h"
 
@@ -418,6 +422,16 @@ int main(int argc, char *argv[])
     Builder builder(cli);
     Graph graph = builder.MakeGraph();
 
+    Timer diagnostics_timer;
+    diagnostics_timer.Start();
+    const auto source_mapping =
+        graphbrew::partition::BuildOriginalIdMapping(graph);
+    const std::string source_topology_fingerprint =
+        graphbrew::partition::SourceTopologyFingerprint(
+            graph, source_mapping);
+    diagnostics_timer.Stop();
+    double diagnostics_seconds = diagnostics_timer.Seconds();
+
     Timer partition_timer;
     partition_timer.Start();
     auto partitioned = PartitionedBFSGraph::Build(
@@ -425,30 +439,86 @@ int main(int argc, char *argv[])
         static_cast<std::size_t>(cli.num_partitions()),
         ParseGraphPartitionBalance(cli.partition_balance()));
     partition_timer.Stop();
-    PrintTime("Partition Build Time", partition_timer.Seconds());
+    const double partition_build_seconds =
+        partition_timer.Seconds();
+    PrintTime("Partition Build Time", partition_build_seconds);
+
+    diagnostics_timer.Start();
+    const std::string shard_fingerprint =
+        graphbrew::partition::CompactShardFingerprint(partitioned);
+    const std::string ghost_fingerprint =
+        graphbrew::partition::GhostMetadataFingerprint(partitioned);
+    diagnostics_timer.Stop();
+    diagnostics_seconds += diagnostics_timer.Seconds();
+    PrintTime("Partition Diagnostics Time", diagnostics_seconds);
+    std::cout
+        << "Partition fingerprints: mapping="
+        << source_mapping.fingerprint
+        << " topology=" << source_topology_fingerprint
+        << " shards=" << shard_fingerprint
+        << " ghosts=" << ghost_fingerprint
+        << std::endl;
     partitioned.PrintStats();
     if (cli.do_verify())
         partitioned.VerifyExact(graph);
 
+    NodeID last_source = -1;
+    std::optional<
+        graphbrew::partition::BfsDepthSummary<NodeID>>
+        last_depth_summary;
+    std::string last_diagnostics_error;
     SourcePicker<Graph> source_picker(
         graph, cli.start_vertex(), cli.num_trials());
-    auto bfs = [&source_picker, &cli, &partitioned](const Graph &)
+    auto bfs = [
+        &source_picker,
+        &cli,
+        &partitioned,
+        &last_source,
+        &last_depth_summary,
+        &last_diagnostics_error](const Graph &)
     {
+        last_depth_summary.reset();
+        last_diagnostics_error.clear();
+        last_source = source_picker.PickNext();
         return DOBFSPartitioned(
-            partitioned, source_picker.PickNext(),
+            partitioned, last_source,
             cli.logging_en());
     };
     SourcePicker<Graph> verifier_source_picker(
         graph, cli.start_vertex(), cli.num_trials());
     auto verifier =
-        [&verifier_source_picker](
+        [
+            &verifier_source_picker,
+            &last_source,
+            &last_depth_summary,
+            &last_diagnostics_error](
             const Graph &input,
             const pvector<NodeID> &parent)
         {
-            return BFSVerifier(
-                input,
-                verifier_source_picker.PickNext(),
-                parent);
+            const NodeID verifier_source =
+                verifier_source_picker.PickNext();
+            if (verifier_source != last_source)
+            {
+                last_diagnostics_error =
+                    "kernel and verifier source selections differ";
+                return false;
+            }
+            if (!BFSVerifier(input, verifier_source, parent))
+            {
+                last_diagnostics_error =
+                    "BFS verifier rejected the parent result";
+                return false;
+            }
+            if (!last_depth_summary.has_value())
+            {
+                if (last_diagnostics_error.empty())
+                {
+                    last_diagnostics_error =
+                        "source-space BFS diagnostics unavailable";
+                }
+                return false;
+            }
+            return true;
         };
     BenchmarkKernel(
         cli,
@@ -457,7 +527,19 @@ int main(int argc, char *argv[])
         PrintBFSStats,
         verifier,
         "bfs_p",
-        [](const Graph &input, const pvector<NodeID> &parent)
+        [
+            &source_mapping,
+            &source_topology_fingerprint,
+            &shard_fingerprint,
+            &ghost_fingerprint,
+            &partitioned,
+            &last_source,
+            &last_depth_summary,
+            &last_diagnostics_error,
+            partition_build_seconds,
+            diagnostics_seconds](
+            const Graph &input,
+            const pvector<NodeID> &parent)
             -> nlohmann::json
         {
             nlohmann::json answer;
@@ -473,6 +555,84 @@ int main(int argc, char *argv[])
             }
             answer["tree_nodes"] = tree_size;
             answer["tree_edges"] = edge_count;
+            try
+            {
+                last_depth_summary =
+                    graphbrew::partition::SourceDepthFingerprint(
+                        input,
+                        source_mapping,
+                        last_source,
+                        parent);
+                std::cout
+                    << "BFS source diagnostics: source="
+                    << last_depth_summary->source_id
+                    << " reachable="
+                    << last_depth_summary->reachable_vertices
+                    << " max_depth="
+                    << last_depth_summary->max_depth
+                    << " depth="
+                    << last_depth_summary->fingerprint
+                    << std::endl;
+                answer["source_id"] =
+                    last_depth_summary->source_id;
+                answer["reachable_vertices"] =
+                    last_depth_summary->reachable_vertices;
+                answer["max_depth"] =
+                    last_depth_summary->max_depth;
+                answer["depth_fingerprint"] =
+                    last_depth_summary->fingerprint;
+            }
+            catch (const std::exception &error)
+            {
+                last_diagnostics_error = error.what();
+                last_depth_summary.reset();
+                answer["diagnostics_error"] =
+                    last_diagnostics_error;
+            }
+
+            nlohmann::json partition;
+            partition["count"] = partitioned.num_partitions();
+            partition["balance"] =
+                GraphPartitionBalanceName(partitioned.balance());
+            partition["build_seconds"] =
+                partition_build_seconds;
+            partition["diagnostics_seconds"] =
+                diagnostics_seconds;
+            partition["mapping_fingerprint"] =
+                source_mapping.fingerprint;
+            partition["source_topology_fingerprint"] =
+                source_topology_fingerprint;
+            partition["shard_fingerprint"] =
+                shard_fingerprint;
+            partition["ghost_fingerprint"] =
+                ghost_fingerprint;
+            partition["remote_out_fraction"] =
+                partitioned.remote_out_edge_fraction();
+            partition["remote_in_fraction"] =
+                partitioned.remote_in_edge_fraction();
+            partition["max_remote_out_fraction"] =
+                partitioned.max_remote_out_fraction();
+            partition["max_remote_in_fraction"] =
+                partitioned.max_remote_in_fraction();
+            partition["ghost_count"] =
+                partitioned.total_ghosts();
+            partition["ghost_bytes"] =
+                partitioned.total_ghost_metadata_bytes();
+            partition["ghost_byte_fraction"] =
+                partitioned.ghost_metadata_fraction();
+            partition["total_shard_bytes"] =
+                partitioned.total_storage_bytes();
+            partition["max_shard_bytes"] =
+                partitioned.max_shard_storage_bytes();
+            partition["vertex_imbalance"] =
+                partitioned.max_vertex_imbalance();
+            partition["out_edge_imbalance"] =
+                partitioned.max_out_edge_imbalance();
+            partition["in_edge_imbalance"] =
+                partitioned.max_in_edge_imbalance();
+            partition["storage_imbalance"] =
+                partitioned.max_shard_storage_imbalance();
+            answer["partition"] = std::move(partition);
             return answer;
         });
     return 0;

@@ -129,6 +129,15 @@ check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p
 			exit 1; \
 		fi; \
 		echo " $(PASS) Partitioned BFS symmetric graph"
+	@one="$$(OMP_NUM_THREADS=1 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o 11:bnf -P 4 -B total | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
+		many="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o 11:bnf -P 4 -B total | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
+		if test -z "$$one" || test "$$one" != "$$many"; then \
+			echo " $(FAIL) Reordered partition/BFS fingerprints differ across thread counts"; \
+			echo " OMP=1: $$one"; \
+			echo " OMP=4: $$many"; \
+			exit 1; \
+		fi; \
+		echo " $(PASS) RCM:bnf partition/BFS fingerprints OMP=1/4"
 
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS

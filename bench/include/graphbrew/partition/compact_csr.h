@@ -65,6 +65,7 @@ struct CompactGraphPartition
     std::vector<std::uint32_t> ghost_owners;
     std::uint64_t balance_weight = 0;
     std::uint64_t remote_out_edges = 0;
+    std::uint64_t remote_in_edges = 0;
     bool symmetric = false;
 
     std::size_t vertex_count() const
@@ -153,6 +154,20 @@ struct CompactGraphPartition
                 sizeof(NodeID_) +
             static_cast<std::uint64_t>(ghost_owners.size()) *
                 sizeof(std::uint32_t);
+    }
+
+    std::uint64_t ghost_metadata_bytes() const
+    {
+        return
+            static_cast<std::uint64_t>(ghost_globals.size()) *
+                sizeof(NodeID_) +
+            static_cast<std::uint64_t>(ghost_owners.size()) *
+                sizeof(std::uint32_t);
+    }
+
+    std::size_t incoming_edge_count() const
+    {
+        return symmetric ? out_neighbors.size() : in_neighbors.size();
     }
 
     const std::vector<Offset> &incoming_offsets() const
@@ -458,6 +473,7 @@ public:
         std::uint64_t total_out_edges = 0;
         std::uint64_t total_in_edges = 0;
         std::uint64_t remote_out_edges = 0;
+        std::uint64_t remote_in_edges = 0;
         std::uint64_t max_weight = 0;
         std::uint64_t total_weight = 0;
         for (Partition &partition : result.partitions_)
@@ -493,7 +509,20 @@ public:
             if (result.directed_)
             {
                 for (const NodeID_ neighbor : partition.in_neighbors)
+                {
+                    if (
+                        owner_by_vertex[
+                            static_cast<std::size_t>(neighbor)] !=
+                        partition.id)
+                    {
+                        ++partition.remote_in_edges;
+                    }
                     record_ghost(neighbor);
+                }
+            }
+            else
+            {
+                partition.remote_in_edges = partition.remote_out_edges;
             }
 
             const std::size_t owned = partition.vertex_count();
@@ -556,6 +585,8 @@ public:
                     : partition.out_neighbors.size());
             remote_out_edges = CheckedAdd(
                 remote_out_edges, partition.remote_out_edges);
+            remote_in_edges = CheckedAdd(
+                remote_in_edges, partition.remote_in_edges);
             max_weight = std::max(
                 max_weight, partition.balance_weight);
             total_weight = CheckedAdd(
@@ -571,6 +602,7 @@ public:
 
         result.total_ghosts_ = total_ghosts;
         result.remote_out_edges_ = remote_out_edges;
+        result.remote_in_edges_ = remote_in_edges;
         if (total_weight == 0)
         {
             result.max_balance_imbalance_ = 1.0;
@@ -684,12 +716,131 @@ public:
         return remote_out_edges_;
     }
 
+    std::uint64_t remote_in_edges() const
+    {
+        return remote_in_edges_;
+    }
+
     double remote_out_edge_fraction() const
     {
         if (num_edges_directed_ == 0)
             return 0.0;
         return static_cast<double>(remote_out_edges_) /
                static_cast<double>(num_edges_directed_);
+    }
+
+    double remote_in_edge_fraction() const
+    {
+        if (num_edges_directed_ == 0)
+            return 0.0;
+        return static_cast<double>(remote_in_edges_) /
+               static_cast<double>(num_edges_directed_);
+    }
+
+    std::uint64_t total_storage_bytes() const
+    {
+        std::uint64_t total = 0;
+        for (const Partition &part : partitions_)
+            total = CheckedAdd(total, part.storage_bytes());
+        return total;
+    }
+
+    std::uint64_t max_shard_storage_bytes() const
+    {
+        std::uint64_t maximum = 0;
+        for (const Partition &part : partitions_)
+            maximum = std::max(maximum, part.storage_bytes());
+        return maximum;
+    }
+
+    std::uint64_t total_ghost_metadata_bytes() const
+    {
+        std::uint64_t total = 0;
+        for (const Partition &part : partitions_)
+            total = CheckedAdd(total, part.ghost_metadata_bytes());
+        return total;
+    }
+
+    double ghost_metadata_fraction() const
+    {
+        const std::uint64_t total = total_storage_bytes();
+        if (total == 0)
+            return 0.0;
+        return static_cast<double>(total_ghost_metadata_bytes()) /
+               static_cast<double>(total);
+    }
+
+    double max_vertex_imbalance() const
+    {
+        return MaxImbalance(
+            static_cast<std::uint64_t>(num_nodes_),
+            [](const Partition &part)
+            {
+                return static_cast<std::uint64_t>(part.vertex_count());
+            });
+    }
+
+    double max_out_edge_imbalance() const
+    {
+        return MaxImbalance(
+            num_edges_directed_,
+            [](const Partition &part)
+            {
+                return static_cast<std::uint64_t>(
+                    part.out_neighbors.size());
+            });
+    }
+
+    double max_in_edge_imbalance() const
+    {
+        return MaxImbalance(
+            num_edges_directed_,
+            [](const Partition &part)
+            {
+                return static_cast<std::uint64_t>(
+                    part.incoming_edge_count());
+            });
+    }
+
+    double max_shard_storage_imbalance() const
+    {
+        return MaxImbalance(
+            total_storage_bytes(),
+            [](const Partition &part)
+            {
+                return part.storage_bytes();
+            });
+    }
+
+    double max_remote_out_fraction() const
+    {
+        double maximum = 0.0;
+        for (const Partition &part : partitions_)
+        {
+            if (part.out_neighbors.empty())
+                continue;
+            maximum = std::max(
+                maximum,
+                static_cast<double>(part.remote_out_edges) /
+                    static_cast<double>(part.out_neighbors.size()));
+        }
+        return maximum;
+    }
+
+    double max_remote_in_fraction() const
+    {
+        double maximum = 0.0;
+        for (const Partition &part : partitions_)
+        {
+            const std::size_t incoming = part.incoming_edge_count();
+            if (incoming == 0)
+                continue;
+            maximum = std::max(
+                maximum,
+                static_cast<double>(part.remote_in_edges) /
+                    static_cast<double>(incoming));
+        }
+        return maximum;
     }
 
     double max_balance_imbalance() const
@@ -699,30 +850,37 @@ public:
 
     void PrintStats(std::ostream &out = std::cout) const
     {
-        std::uint64_t total_storage = 0;
-        std::uint64_t max_shard_storage = 0;
-        for (const Partition &part : partitions_)
-        {
-            total_storage = CheckedAdd(
-                total_storage, part.storage_bytes());
-            max_shard_storage = std::max(
-                max_shard_storage, part.storage_bytes());
-        }
+        const std::uint64_t total_storage = total_storage_bytes();
+        const std::uint64_t max_shard_storage =
+            max_shard_storage_bytes();
         out << "Partitioned graph has " << num_partitions()
             << " compact shards, balance="
             << GraphPartitionBalanceName(balance_)
             << ", max imbalance=" << max_balance_imbalance_
-            << ", remote arc fraction=" << remote_out_edge_fraction()
+            << ", remote out=" << remote_out_edge_fraction()
+            << ", remote in=" << remote_in_edge_fraction()
+            << ", max remote out=" << max_remote_out_fraction()
+            << ", max remote in=" << max_remote_in_fraction()
             << ", ghosts=" << total_ghosts_
+            << ", ghost bytes=" << total_ghost_metadata_bytes()
+            << ", ghost fraction=" << ghost_metadata_fraction()
             << ", total bytes=" << total_storage
             << ", max shard bytes=" << max_shard_storage
+            << ", vertex imbalance=" << max_vertex_imbalance()
+            << ", out-edge imbalance=" << max_out_edge_imbalance()
+            << ", in-edge imbalance=" << max_in_edge_imbalance()
+            << ", storage imbalance=" << max_shard_storage_imbalance()
             << std::endl;
         for (const Partition &part : partitions_)
         {
             out << "  shard " << part.id << ": vertices ["
                 << part.vertex_begin << ", " << part.vertex_end
                 << "), out_edges=" << part.out_neighbors.size()
+                << ", in_edges=" << part.incoming_edge_count()
+                << ", remote_out=" << part.remote_out_edges
+                << ", remote_in=" << part.remote_in_edges
                 << ", ghosts=" << part.ghost_count()
+                << ", bytes=" << part.storage_bytes()
                 << ", weight=" << part.balance_weight << std::endl;
         }
     }
@@ -807,6 +965,22 @@ public:
     }
 
 private:
+    template <typename Measure>
+    double MaxImbalance(
+        std::uint64_t total,
+        Measure measure) const
+    {
+        if (partitions_.empty() || total == 0)
+            return 1.0;
+        std::uint64_t maximum = 0;
+        for (const Partition &part : partitions_)
+            maximum = std::max(maximum, measure(part));
+        const double average =
+            static_cast<double>(total) /
+            static_cast<double>(partitions_.size());
+        return static_cast<double>(maximum) / average;
+    }
+
     static std::uint64_t CheckedDegree(std::int64_t degree)
     {
         if (degree < 0)
@@ -1012,6 +1186,7 @@ private:
     std::vector<std::uint32_t> owner_by_vertex_;
     std::size_t total_ghosts_ = 0;
     std::uint64_t remote_out_edges_ = 0;
+    std::uint64_t remote_in_edges_ = 0;
     double max_balance_imbalance_ = 1.0;
 };
 

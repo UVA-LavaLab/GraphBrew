@@ -220,6 +220,12 @@ make check-partition
 Cagra and TRUST remain separate research partitioners under
 `bench/include/graphbrew/partition/`.
 
+Each `bfs_p` run validates the composed internal-to-source vertex permutation
+and reports stable mapping, source-topology, shard-CSR, ghost-metadata, and
+source-space BFS-depth fingerprints. Partition metrics include remote incoming
+and outgoing arc fractions, ghost metadata bytes, storage balance, and
+vertex/edge imbalance for deterministic cut-policy comparisons.
+
 ---
 
 ## Testing
