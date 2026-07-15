@@ -328,18 +328,21 @@ class CLPartitionApp : public CLApp
 {
     int num_partitions_ = 2;
     std::string partition_balance_ = "total";
+    std::string partition_export_dir_;
 
 public:
     CLPartitionApp(int argc, char **argv, std::string name)
         : CLApp(argc, argv, name)
     {
-        get_args_ += "P:B:";
+        get_args_ += "P:B:E:";
         AddHelpLine(
             'P', "partitions", "build this many compact graph shards",
             std::to_string(num_partitions_));
         AddHelpLine(
             'B', "balance", "partition balance: vertices, out, or total",
             partition_balance_);
+        AddHelpLine(
+            'E', "dir", "export a graph.shard.v1 package to this directory");
     }
 
     void HandleArg(signed char opt, char *opt_arg) override
@@ -366,6 +369,12 @@ public:
                     "Partition balance must be vertices, out, or total");
             }
             break;
+        case 'E':
+            partition_export_dir_ = opt_arg;
+            if (partition_export_dir_.empty())
+                throw std::invalid_argument(
+                    "Partition export directory must not be empty");
+            break;
         default:
             CLApp::HandleArg(opt, opt_arg);
         }
@@ -379,6 +388,11 @@ public:
     const std::string &partition_balance() const
     {
         return partition_balance_;
+    }
+
+    const std::string &partition_export_dir() const
+    {
+        return partition_export_dir_;
     }
 };
 

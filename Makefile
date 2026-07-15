@@ -97,7 +97,7 @@ endif
 KERNELS = bc bfs bfs_p cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter
-UNIT_TESTS = test_graph_partition
+UNIT_TESTS = test_graph_partition test_shard_manifest
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
@@ -105,7 +105,7 @@ UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 all: $(SUITE)
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p
-	@$(TEST_BIN_DIR)/test_graph_partition
+	@for test in $(UNIT_TESTS_BIN); do $$test; done
 	@for partitions in 1 2 4 16; do \
 		output="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -P $$partitions -B total)"; \
 		if ! echo "$$output" | grep -q "Verification: *PASS"; then \
@@ -129,15 +129,22 @@ check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p
 			exit 1; \
 		fi; \
 		echo " $(PASS) Partitioned BFS symmetric graph"
-	@one="$$(OMP_NUM_THREADS=1 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o 11:bnf -P 4 -B total | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
-		many="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o 11:bnf -P 4 -B total | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
+	@one_root="$$(mktemp -d)"; \
+		many_root="$$(mktemp -d)"; \
+		trap 'rm -rf "$$one_root" "$$many_root"' EXIT; \
+		one="$$(OMP_NUM_THREADS=1 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o 11:bnf -P 4 -B total -E "$$one_root/package" | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
+		many="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o 11:bnf -P 4 -B total -E "$$many_root/package" | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
 		if test -z "$$one" || test "$$one" != "$$many"; then \
 			echo " $(FAIL) Reordered partition/BFS fingerprints differ across thread counts"; \
 			echo " OMP=1: $$one"; \
 			echo " OMP=4: $$many"; \
 			exit 1; \
 		fi; \
-		echo " $(PASS) RCM:bnf partition/BFS fingerprints OMP=1/4"
+		if ! diff -qr "$$one_root/package" "$$many_root/package" >/dev/null; then \
+			echo " $(FAIL) graph.shard.v1 package differs across thread counts"; \
+			exit 1; \
+		fi; \
+		echo " $(PASS) RCM:bnf fingerprints/package OMP=1/4"
 
 # =========================================================
 # Runtime Flags OMP_NUM_THREADS
