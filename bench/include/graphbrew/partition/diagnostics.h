@@ -115,6 +115,17 @@ struct OriginalIdMapping
     std::string fingerprint;
 };
 
+template <typename Range>
+std::string OriginalIdMappingFingerprint(const Range &internal_to_source)
+{
+    OrderedFingerprint fingerprint;
+    fingerprint.Add(1);
+    fingerprint.Add(internal_to_source.size());
+    for (const auto source : internal_to_source)
+        fingerprint.AddIntegral(source);
+    return fingerprint.Hex();
+}
+
 template <typename GraphT>
 OriginalIdMapping<GraphNode<GraphT>> BuildOriginalIdMapping(
     const GraphT &graph)
@@ -134,10 +145,6 @@ OriginalIdMapping<GraphNode<GraphT>> BuildOriginalIdMapping(
     mapping.internal_to_source.resize(nodes);
     mapping.source_to_internal.resize(nodes);
     std::vector<std::uint8_t> seen(nodes, 0);
-    OrderedFingerprint fingerprint;
-    fingerprint.Add(1);
-    fingerprint.Add(nodes);
-
     for (std::size_t internal = 0; internal < nodes; ++internal)
     {
         const Node source = org_ids[internal];
@@ -159,10 +166,10 @@ OriginalIdMapping<GraphNode<GraphT>> BuildOriginalIdMapping(
         mapping.internal_to_source[internal] = source;
         mapping.source_to_internal[source_index] =
             static_cast<Node>(internal);
-        fingerprint.AddIntegral(source);
     }
 
-    mapping.fingerprint = fingerprint.Hex();
+    mapping.fingerprint =
+        OriginalIdMappingFingerprint(mapping.internal_to_source);
     return mapping;
 }
 

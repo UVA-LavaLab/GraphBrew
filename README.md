@@ -247,6 +247,19 @@ Current P16 result:
 No policy is a universal default: deterministic linear reordering strongly
 helps the real web graph but does not improve the synthetic Kronecker cut.
 
+Export the backend-neutral shard package with `-E`:
+
+```bash
+./bench/bin/bfs_p -g 20 -P 16 -B total \
+  -E results/shards/kron-s20-p16
+```
+
+`graph.shard.v1` consists of `manifest.json`, source/internal mapping sidecars,
+and per-shard little-endian binary CSR/ghost arrays. The writer replaces the
+package atomically; the validator checks schema, containment, array sizes,
+fingerprints, mappings, ownership coverage, CSR offsets, local slots, and ghost
+owners.
+
 ---
 
 ## Testing

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -15,6 +16,7 @@
 #include "bfs_common.h"
 #include "partition/compact_csr.h"
 #include "partition/diagnostics.h"
+#include "partition/shard_manifest.h"
 #include "pvector.h"
 #include "timer.h"
 
@@ -462,6 +464,47 @@ int main(int argc, char *argv[])
     if (cli.do_verify())
         partitioned.VerifyExact(graph);
 
+    std::string shard_manifest_path;
+    if (!cli.partition_export_dir().empty())
+    {
+        graphbrew::partition::ShardPackageMetadata metadata;
+        if (!cli.filename().empty())
+        {
+            metadata.graph_id =
+                std::filesystem::path(cli.filename()).stem().string();
+        }
+        else
+        {
+            metadata.graph_id =
+                std::string(cli.uniform() ? "uniform-s" : "kron-s") +
+                std::to_string(cli.scale());
+        }
+        metadata.policy_name =
+            graphbrew::database::GetReorderAlgoHint();
+        if (metadata.policy_name.empty())
+            metadata.policy_name = "Original";
+        metadata.policy_id =
+            graphbrew::database::GetReorderAlgoIdHint();
+        for (const auto &option : cli.reorder_options())
+        {
+            std::string encoded =
+                std::to_string(static_cast<int>(option.first));
+            for (const std::string &parameter : option.second)
+                encoded += ":" + parameter;
+            metadata.policy_options.push_back(std::move(encoded));
+        }
+        shard_manifest_path =
+            graphbrew::partition::WriteShardPackage(
+                cli.partition_export_dir(),
+                graph,
+                source_mapping,
+                partitioned,
+                metadata).string();
+        std::cout
+            << "Shard package manifest: "
+            << shard_manifest_path << std::endl;
+    }
+
     NodeID last_source = -1;
     std::optional<
         graphbrew::partition::BfsDepthSummary<NodeID>>
@@ -533,6 +576,7 @@ int main(int argc, char *argv[])
             &shard_fingerprint,
             &ghost_fingerprint,
             &partitioned,
+            &shard_manifest_path,
             &last_source,
             &last_depth_summary,
             &last_diagnostics_error,
@@ -634,6 +678,9 @@ int main(int argc, char *argv[])
                 partitioned.max_in_edge_imbalance();
             partition["storage_imbalance"] =
                 partitioned.max_shard_storage_imbalance();
+            if (!shard_manifest_path.empty())
+                partition["shard_manifest"] =
+                    shard_manifest_path;
             answer["partition"] = std::move(partition);
             return answer;
         });
