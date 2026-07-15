@@ -158,16 +158,15 @@ def _roi_log(out):
 
 
 def run_gem5(kernel):
-    """gem5 <kernel> with ECG_GRASP_POPT + coverage geometry. pr/bfs run on RISC-V via the
-    validated fused ecg.load EVICT delivery (GEM5_FORCE_ECG_PLOAD); bc runs on X86 (its m5op
-    fat-mask epoch delivery was fixed to the WIDE layout). The eviction DECISION is
-    delivery-agnostic, but using the real epoch-delivery path makes the equivalence exercise
-    the same stamped-epoch eviction the headline does."""
+    """gem5 <kernel> with ECG_GRASP_POPT + coverage geometry. Schedule-2 runs
+    all five kernels on RISC-V through the fused ecg.load2 record instruction;
+    the in-order mailbox remains the delivery model until the O3 request-bound
+    pair extension is implemented."""
     out = Path("/tmp") / f"equivk_gem5_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
     if kernel in GEM5_RISCV_KERNELS:
         env = {**os.environ, "GEM5_OPT": str(GEM5_RISCV), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
-               "GEM5_FORCE_ECG_PLOAD": "1", "GEM5_FORCE_ECG_EXTRACT": "1",
+               "GEM5_FORCE_ECG_EXTRACT": "1",
                "GEM5_ECG_PFX_MODE": "6", "ECG_PREFETCH_MODE": "6",
                "ECG_VARIANT": effective_variant(kernel), "ECG_EVICT_TRACE": "4000",
                "ECG_EVICT_TRACE_ROI": "1", "ECG_STORED_REFRESH": "1",
@@ -318,6 +317,23 @@ def main(argv=None):
             else:
                 spec_ok = ecg.verify_trace(
                     f"{sim}/{kernel}", result, coverage=cov)
+            if SCHEDULE_K == 2:
+                text, ran_ok = result
+                if sim == "gem5":
+                    fused_ok = (
+                        f"[ECG_LOAD2] {kernel.upper()} "
+                        "fused K2 record load ACTIVE" in text)
+                    print(f"      fused ecg.load2: "
+                          f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
+                    spec_ok &= ran_ok and fused_ok
+                elif sim == "sniper":
+                    valid = ecg.K2_FUSED_VALID_RE.search(text)
+                    fused_ok = (
+                        valid is not None and
+                        int(valid.group(1)) > 0 and int(valid.group(2)) == 0)
+                    print(f"      fused K2 sideband: "
+                          f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
+                    spec_ok &= ran_ok and fused_ok
             if STREAM_BYPASS:
                 text, ran_ok = result
                 if sim == "cache_sim":

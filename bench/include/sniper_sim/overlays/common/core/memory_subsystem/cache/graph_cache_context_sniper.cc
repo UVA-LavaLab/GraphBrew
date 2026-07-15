@@ -651,6 +651,9 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
             source_lines.reserve(static_cast<size_t>(end - begin));
             for (uint64_t index = begin; index < end; ++index) {
                 const uint64_t record = raw_k2_records[index];
+                if (((record >> 32) & 0x3ULL) == 0) {
+                    continue;
+                }
                 source_lines.push_back({
                     static_cast<uint32_t>(record) / vertices_per_line,
                     record,
@@ -665,7 +668,18 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
                 });
             uint32_t previous_line = UINT32_MAX;
             for (const IndexedK2Record& indexed : source_lines) {
-                if (indexed.line_id == previous_line) continue;
+                if (indexed.line_id == previous_line) {
+                    if ((indexed.record >> 32) !=
+                        (k2_line_records.back() >> 32)) {
+                        std::fprintf(
+                            stderr,
+                            "[FATAL] Sniper fused K2 line has inconsistent "
+                            "tier/epoch hints (src=%u line=%u)\n",
+                            src, indexed.line_id);
+                        std::abort();
+                    }
+                    continue;
+                }
                 k2_line_ids.push_back(indexed.line_id);
                 k2_line_records.push_back(indexed.record);
                 k2_line_indices.push_back(indexed.raw_index);

@@ -10,7 +10,7 @@ The new architecture adds:
 - order-independent carried GRASP tiers;
 - static and online set-dueling graph-cache replacement;
 - **StreamShield** request-bound LLC placement control;
-- RISC-V PR `ecg.load2` and `ecg.stream.load2` plus BFS `ecg.extract2`;
+- RISC-V `ecg.load2` for PR/BFS/SSSP/BC/CC plus PR `ecg.stream.load2`;
 - cache_sim, gem5, and Sniper implementations with exact equivalence gates.
 
 The public HPCA paper name remains open. Implementation names remain `ECG_*`.

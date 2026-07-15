@@ -33,6 +33,8 @@ The canonical Schedule-2 record is 64 bits:
 `epoch1` and `epoch2` are the next two quantized rereference epochs for the
 governed property line. They are constructed before the ROI and streamed with
 the edge. `tier` is `1/2/3` for hot/moderate/cold; zero is invalid.
+Fused sideband indexing drops zero-tier records, so an invalid hint never
+stamps LLC replacement metadata.
 
 The preprocessing pass counts property readers in the kernel's traversal
 direction, ranks vertices by that reuse count, assigns the top 15% hot and next
@@ -172,20 +174,22 @@ prefetches inherit the same request flag.
 
 ## ISA
 
-The fused PR path uses RISC-V custom-0 I-type encodings:
+The fused Schedule-2 path uses RISC-V custom-0 I-type encodings:
 
 | Instruction | FUNCT3 | Effect |
 |---|---:|---|
-| `ecg.load2 rd, 0(rs1)` | `0x4` | PR: load record and deliver tier plus both epochs |
+| `ecg.load2 rd, 0(rs1)` | `0x4` | PR/BFS/SSSP/BC/CC: load the K2 record and deliver tier plus both epochs |
 | `ecg.stream.load2 rd, 0(rs1)` | `0x3` | PR: same, plus request-bound LLC no-allocation |
 
 The complete packed record is returned in `rd`; no extra register repacking or
 per-edge SimMagic instruction is required. StreamShield is request-bound. K2
 pair delivery remains in-order-only until its request extension is implemented.
 
-The current gem5 BFS equivalence path performs a normal packed 8-byte record
-load followed by `ecg.extract2`. It validates K2 construction, delivery, and
-victim decisions, but is not used for fused-load timing claims.
+All five gem5 kernels execute `ecg.load2`; all five Sniper kernels use the
+equivalent fused record sideband model without per-edge SimMagic. The full
+15-cell gate requires exact K2 delivery and victim compliance in cache_sim,
+gem5, and Sniper. gem5 remains in-order-only until the pair is attached to the
+specific O3 request.
 
 ## Worked K2 example
 
@@ -222,9 +226,9 @@ and without StreamShield.
 |---|---|---|---|
 | K2 construction | shared builder | shared builder | shared builder |
 | K2 distance | shared selector | shared selector | shared selector |
-| Tier delivery | instrumented record | fused load2/extract2 | fused record sideband |
+| Tier delivery | instrumented record | fused `ecg.load2` | fused record sideband |
 | Online selection | exact set index | gem5 replaceable-entry set | Sniper cache-set index |
-| Epoch delivery | instrumented edge load | PR: fused load2; BFS: packed load + `ecg.extract2`; serialized in-order pair mailbox | fused record sideband model |
+| Epoch delivery | instrumented edge load | all five: fused `ecg.load2`; serialized in-order pair mailbox | all five: fused record sideband model |
 | StreamShield | preserve LLC hits, suppress miss insertion | request flag clears LLC `allocOnFill` | preserve NUCA hit path, suppress miss insertion |
 | Address stability | aligned properties + fixed indexed record streams | aligned properties/records | aligned properties/records |
 | Purpose | functional authority | cycle-accurate ISA confirmation | scale/timing confirmation |

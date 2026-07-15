@@ -102,6 +102,8 @@ def test_sniper_streamshield_preserves_nuca_lookup_and_skips_miss_fill():
     assert "k2_line_offsets" in context
     assert "std::lower_bound" in context
     assert "Sniper fused K2 sideband is missing or incomplete" in context
+    assert "Sniper fused K2 line has inconsistent" in context
+    assert '((record >> 32) & 0x3ULL) == 0' in context
     harness = read("bench/include/sniper_sim/sniper_harness.h")
     assert "sniper_write_binary_atomic" in harness
     assert '"SNIPER_CACHE_LINE_SIZE"' in harness
@@ -238,8 +240,8 @@ def test_k2_transport_supports_full_algorithm_suite():
     ):
         block = sniper.split(start, 1)[1].split(end, 1)[0]
         assert "buildInEdgeEpochPairRecords" in block
-        assert "SNIPER_ECG_EXTRACT2" in block
-        assert "SNIPER_ECG_CLEAR_EXTRACT2" in block
+        assert "deliver_k2_record" in block
+        assert "clear_k2_record" in block
 
     sniper_context = read(
         "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
@@ -361,12 +363,11 @@ def test_streamshield_is_policy_isolated_and_verified():
 def test_streamshield_is_pr_only_in_detailed_kernels():
     gem5_bfs = read("bench/src_gem5/bfs.cc")
     sniper = read("bench/src_sniper/sg_kernel.cc")
-    gem5_export = gem5_bfs.split("gem5_export_context(", 1)[1].split(");", 1)[0]
-    assert "pair_flat.data()" not in gem5_export
-    bfs_export = sniper.split(
-        "sniper_export_context(\n        regions, 1, graph", 1
-    )[1].split(");", 1)[0]
-    assert "bfs_pair_flat.data()" not in bfs_export
+    assert "gem5_ecg_stream_load2_instruction" not in gem5_bfs
+    bfs_block = sniper.split("int run_bfs(", 1)[1].split(
+        "int run_sssp(", 1)[0]
+    assert "ECG_STREAM_BYPASS" not in bfs_block
+    assert "bfs_pair_flat.data()" in bfs_block
 
 
 def test_streamshield_setup_migrates_and_rebuilds():

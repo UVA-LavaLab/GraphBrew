@@ -67,7 +67,12 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     // IN-neighbours, so build epochs with push_out_edges=true (the transpose — same
     // direction as cache_sim's buildOutEdgeMasks). Without this, gem5 BFS delivered NO
     // epoch and ECG_GRASP_POPT degenerated to recency (rubber-duck rd-phase-a / A5).
-    const bool ecg_extract_on = gem5_ecg_extract_enabled();
+    bool ecg_extract_on = gem5_ecg_extract_enabled();
+    // FUSED ecg.load2: one custom-0 I-type op replaces demand-load + ecg.extract2 for the
+    // Schedule-2 packed K2 record (mirrors gem5 PR pr.cc). Implies the extract delivery so
+    // the K2 records get built below even if GEM5_ENABLE_ECG_EXTRACT was left unset.
+    const bool ecg_load2_on = gem5_ecg_load2_enabled();
+    if (ecg_load2_on) ecg_extract_on = true;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
     if (ecg_extract_on) {
         if (ecg_sched_k != 2) {
@@ -175,7 +180,9 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     const int  ecg_evict_wc = ecg_mode6::ecgEvictWidthClass(g.num_nodes());
     if (pair_extract_only) {
         fprintf(stderr,
-                "[ECG_PACKED8_K2] BFS Schedule-2 packed record path ACTIVE\n");
+                ecg_load2_on
+                    ? "[ECG_LOAD2] BFS fused K2 record load ACTIVE\n"
+                    : "[ECG_PACKED8_K2] BFS Schedule-2 packed record path ACTIVE\n");
     } else if (ecg_load_evict_on) {
         static bool _ann = false;
         if (!_ann) { _ann = true;
@@ -197,10 +204,13 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
             const uint64_t begin = pair_off[u];
             const uint64_t end = pair_off[u + 1];
             for (uint64_t pos = begin; pos < end; ++pos) {
-                const uint64_t rec = pair_flat[pos];
+                const uint64_t rec = ecg_load2_on
+                    ? gem5_ecg_load2_instruction(&pair_flat[pos])
+                    : pair_flat[pos];
                 const NodeID v =
                     static_cast<NodeID>(rec & 0xFFFFFFFFULL);
-                GEM5_ECG_EXTRACT2(rec);
+                if (!ecg_load2_on)
+                    GEM5_ECG_EXTRACT2(rec);
                 const NodeID pv = parent[v];
                 GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 if (pv == -1) {

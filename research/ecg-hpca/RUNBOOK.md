@@ -85,8 +85,9 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
 This runs LRU, SRRIP, GRASP, charged P-OPT, static K2, and online K2 for
 PR/BFS/SSSP/BC/CC on the common `kron_s15_k4` cell in cache_sim, gem5, and
 Sniper. Compare policy direction and rank **within** each simulator. Do not
-compare absolute gem5 and Sniper miss rates, and do not use non-PR explicit
-`extract2` timing as speedup.
+compare absolute gem5 and Sniper miss rates. Canonical Schedule-2 reruns use
+fused delivery for all five kernels; gem5 O3 remains prohibited until the
+request-bound pair extension is complete.
 
 Then run the matched structure-prefetch sensitivity:
 

@@ -1208,9 +1208,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 "pr", "bfs", "sssp", "bc", "cc"):
             if args.gem5_cpu_type == "O3":
                 raise RuntimeError(
-                    "Schedule-2 gem5 delivery is in-order only: ecg.extract2 "
-                    "uses the serialized mailbox. O3 requires a request-bound "
-                    "epoch-pair extension, which is not implemented.")
+                    "Schedule-2 gem5 delivery is in-order only: ecg.load2 "
+                    "uses the serialized pair mailbox. O3 requires a "
+                    "request-bound epoch-pair extension, which is not "
+                    "implemented.")
             env.pop("GEM5_FORCE_ECG_LOAD", None)
             env.pop("GEM5_FORCE_ECG_PLOAD", None)
             if (args.benchmark == "pr" and riscv_delivery and
@@ -1219,7 +1220,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 env["GEM5_ECG_STREAM_REQUEST_BOUND"] = "1"
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
                 gem5_ecg_delivery = "ecg.stream.load2"
-            elif args.benchmark == "pr" and riscv_delivery:
+            elif riscv_delivery:
                 env["GEM5_FORCE_ECG_LOAD2"] = "1"
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
                 env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
@@ -1721,8 +1722,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
         env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
         fused_k2 = (
-            schedule_k == 2 and args.benchmark == "pr" and
-            args.sniper_workload == "sg_kernel"
+            schedule_k == 2 and args.sniper_workload == "sg_kernel"
         )
         if fused_k2:
             env["SNIPER_ECG_FUSED_K2"] = "1"

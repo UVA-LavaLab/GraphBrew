@@ -153,8 +153,9 @@ StreamShield is request-bound. Current gem5 K2 delivery uses a serialized
 in-order mailbox between the record load and subsequent property fill; a
 request-bound pair extension is required before O3.
 
-The current gem5 BFS equivalence path uses a normal packed 8-byte load followed
-by `ecg.extract2`. It is mechanism-valid but is not a fused-load timing result.
+All five gem5 kernels use fused `ecg.load2`; all five Sniper kernels use the
+fused record-sideband model. gem5 O3 still requires request-bound pair
+attachment.
 
 ## Comparison with prior policies
 
@@ -177,15 +178,15 @@ without StreamShield.
 |---|---|---|---|
 | K2 builder | shared | shared | shared |
 | Victim decision | shared selector | shared selector | shared selector |
-| Metadata delivery | instrumented record load | PR fused load2; BFS/SSSP/BC/CC packed load + `ecg.extract2`; in-order pair mailbox | PR fused sideband; BFS/SSSP/BC/CC explicit `extract2` prototype |
+| Metadata delivery | instrumented record load | all five fused `ecg.load2`; in-order pair mailbox | all five fused record sideband |
 | StreamShield | preserve LLC hits, suppress miss insertion | clear LLC `allocOnFill` | preserve NUCA hits, suppress miss insertion |
 | Paper role | functional authority | cycle-accurate ISA proof | real-graph scale/timing |
 
 Absolute gem5 and Sniper miss rates are not compared because their cache
 inclusion, frontend, and accounting models differ. Direction relative to each
 simulator's LRU is the cross-simulator evidence.
-Only PR's fused Sniper sideband is timing-valid; explicit `extract2` rows for
-the other kernels certify cache behavior, not speedup.
+Canonical all-kernel Schedule-2 rows use fused delivery. Historical explicit
+`extract2` rows remain cache-behavior evidence only.
 
 ## Evaluation flow
 

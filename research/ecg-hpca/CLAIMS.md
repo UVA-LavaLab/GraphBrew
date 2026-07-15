@@ -12,6 +12,9 @@
 - Tiered K2 construction, delivery, line metadata, effective distance, and
   victim decisions agree across cache_sim, gem5, and Sniper for
   PR/BFS/SSSP/BC/CC.
+- All five kernels pass the fused three-simulator gate: gem5 uses real RISC-V
+  `ecg.load2`, Sniper uses the fused record sideband model, and cache_sim remains
+  the functional reference.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.

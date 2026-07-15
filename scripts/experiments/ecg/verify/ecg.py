@@ -519,7 +519,32 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
     pair_live = pairs > 0 and distinct > 0
     requires_delivery_trace = not name.startswith("cache_sim/")
     delivery_ok = not requires_delivery_trace
-    if sideband:
+    if sideband and fused_receipts:
+        required = set(range(32))
+        fused_valid = all(
+            begin <= index < end and vpl > 0 and dest // vpl == line_id and
+            1 <= tier <= 3
+            for (_seq, _src, line_id, vpl, index, begin, end,
+                 dest, tier, _first, _second) in fused_receipts
+        )
+        sideband_tier_valid = all(
+            0 <= fields[1] <= 3 for fields in sideband.values()
+        ) and any(fields[1] > 0 for fields in sideband.values())
+        expected_tier_valid = all(
+            0 <= fields[1] <= 3 for fields in expected.values()
+        )
+        # Fused Sniper delivery is property-line coalesced: multiple raw edge
+        # records can target one line, so request order is not expected to match
+        # the raw sideband sequence. validate_sniper_fused_receipts independently
+        # checks every receipt's raw index and exact packed record against the
+        # exported K2 files; this verifier additionally pins line/dest/tier shape.
+        delivery_ok = (
+            set(sideband) == required and sideband_tier_valid and
+            expected_tier_valid and fused_valid and
+            fused_validation is not None and
+            fused_validation[0] > 0 and fused_validation[1] == 0
+        )
+    elif sideband:
         required = set(range(32))
         fused_valid = all(
             begin <= index < end and vpl > 0 and dest // vpl == line_id and
@@ -528,10 +553,10 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
                  dest, tier, _first, _second) in fused_receipts
         )
         tier_valid = all(
-            1 <= fields[1] <= 3 for fields in expected.values()
+            0 <= fields[1] <= 3 for fields in expected.values()
         ) and all(
-            1 <= fields[1] <= 3 for fields in sideband.values()
-        )
+            0 <= fields[1] <= 3 for fields in sideband.values()
+        ) and any(fields[1] > 0 for fields in sideband.values())
         delivery_ok = (
             set(expected) == required and
             set(sideband) == required and
@@ -544,10 +569,10 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
     elif requires_delivery_trace or expected or received:
         required = set(range(32))
         tier_valid = all(
-            1 <= fields[1] <= 3 for fields in expected.values()
+            0 <= fields[1] <= 3 for fields in expected.values()
         ) and all(
-            1 <= fields[1] <= 3 for fields in received.values()
-        )
+            0 <= fields[1] <= 3 for fields in received.values()
+        ) and any(fields[1] > 0 for fields in received.values())
         delivery_ok = (
             set(expected) == required and
             set(received) == required and

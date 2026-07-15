@@ -645,6 +645,37 @@ def test_unvalidated_fused_k2_timing_is_not_speedup_valid():
     assert "Fused K2 timing is not comparable with LRU" in runner
 
 
+def test_all_five_kernels_use_fused_k2_delivery():
+    for kernel in ("bfs", "sssp", "bc", "cc"):
+        source = (
+            ROOT / f"bench/src_gem5/{kernel}.cc"
+        ).read_text()
+        assert "gem5_ecg_load2_enabled()" in source, kernel
+        assert "gem5_ecg_load2_instruction" in source, kernel
+        assert f"[ECG_LOAD2] {kernel.upper()}" in source, kernel
+
+    sniper = (
+        ROOT / "bench/src_sniper/sg_kernel.cc"
+    ).read_text()
+    for kernel in ("BFS", "SSSP", "BC", "CC"):
+        assert f"[ECG_FUSED_K2] {kernel}" in sniper
+    assert sniper.count("const bool fused_k2_model =") == 5
+    assert sniper.count('"SNIPER_ECG_VERTICES_PER_LINE"') >= 5
+
+    runner = (
+        ROOT / "scripts/experiments/ecg/roi_matrix.py"
+    ).read_text()
+    assert (
+        'schedule_k == 2 and args.sniper_workload == "sg_kernel"'
+        in runner)
+    assert 'elif riscv_delivery:' in runner
+    verifier = (
+        ROOT / "scripts/experiments/ecg/verify/equiv_kernels.py"
+    ).read_text()
+    assert "fused ecg.load2" in verifier
+    assert "fused K2 sideband" in verifier
+
+
 def test_preliminary_stride_sensitivity_separates_demand_and_traffic():
     module = load_module(
         "paper_pipeline_stride_sensitivity",

@@ -80,9 +80,10 @@ Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_replacement_baseline_final_20260714/aggregate/`
 `online_dueling_regret.csv`.
 
-The five-algorithm Schedule-2 mechanism matrix passes in cache_sim, gem5, and
-Sniper with zero K2 distance mismatches. This is mechanism/spec evidence, not a
-frozen real-graph performance ranking.
+The current five-algorithm fused Schedule-2 gate passes in cache_sim, gem5, and
+Sniper with zero K2 distance mismatches: gem5 executes real RISC-V `ecg.load2`
+for every kernel and Sniper validates exact fused sideband receipts. This is
+mechanism/spec evidence, not a frozen real-graph performance ranking.
 
 The no-prefetch `kron_s15_k4` preliminary matrix is complete:
 
@@ -100,11 +101,10 @@ Aggregate: `results/ecg_experiments/paper_pipeline/`
 This synthetic result says BC is the strongest portable K2 candidate; it does
 not establish a real-graph win.
 
-The cache_sim column uses the fused widened-record model and emphasizes
-replacement behavior. gem5 and Sniper include explicit record-delivery
-accesses. Sniper ranks are cache-mechanism diagnostics only: policy-specific
-delivery changes the instruction stream, and rows without validated fused
-receipts are excluded from speedup claims.
+This preliminary table predates the all-kernel fused port. Its cache_sim column
+uses the fused widened-record model, while the historical gem5/Sniper rows
+include explicit instrumented delivery. Those detailed-simulator ranks remain
+cache diagnostics; future reruns use fused delivery and require live receipts.
 
 The bounded preliminary performance profile is
 `ecg_preliminary_5alg_3sim`. It uses the same `kron_s15_k4` workload and cache

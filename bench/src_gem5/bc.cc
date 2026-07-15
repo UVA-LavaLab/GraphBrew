@@ -93,7 +93,12 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     // (RISC-V); gated on GEM5_ENABLE_ECG_PLOAD. X86 falls back to a plain indexed load (no
     // delivery -> cache_sim authoritative). depth is the irregular property read in the
     // forward BFS; the other BC arrays are read sequentially or are 8-byte (path_counts).
-    const bool ecg_extract_on = gem5_ecg_extract_enabled();
+    bool ecg_extract_on = gem5_ecg_extract_enabled();
+    // FUSED ecg.load2: one custom-0 I-type op replaces demand-load + ecg.extract2 for the
+    // Schedule-2 packed K2 record (mirrors gem5 PR pr.cc). Implies the extract delivery so
+    // the K2 records get built below even if GEM5_ENABLE_ECG_EXTRACT was left unset.
+    const bool ecg_load2_on = gem5_ecg_load2_enabled();
+    if (ecg_load2_on) ecg_extract_on = true;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
     if (ecg_extract_on && ecg_sched_k != 2) {
         ecg_epoch::buildInEdgeEpochs(g, static_cast<uint32_t>(kNumVtxPerLine),
@@ -120,8 +125,12 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     const int  ecg_evict_wc = ecg_mode6::ecgEvictWidthClass(g.num_nodes());
     if (ecg_load_evict_on)
         fprintf(stderr, "[ECG_PLOAD] BC fused ecg.load EVICT delivery (depth) ACTIVE\n");
-    if (pair_ok)
-        fprintf(stderr, "[ECG_PACKED8_K2] BC Schedule-2 packed record path ACTIVE\n");
+    if (pair_ok) {
+        fprintf(stderr,
+                ecg_load2_on
+                    ? "[ECG_LOAD2] BC fused K2 record load ACTIVE\n"
+                    : "[ECG_PACKED8_K2] BC Schedule-2 packed record path ACTIVE\n");
+    }
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
@@ -164,10 +173,13 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                 // The packed K2 record replaces the unweighted CSR edge word.
                 for (uint64_t pos = pair_off[u];
                      pos < pair_off[u + 1]; ++pos) {
-                    const uint64_t record = pair_flat[pos];
+                    const uint64_t record = ecg_load2_on
+                        ? gem5_ecg_load2_instruction(&pair_flat[pos])
+                        : pair_flat[pos];
                     const NodeID v = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(record));
-                    GEM5_ECG_EXTRACT2(record);
+                    if (!ecg_load2_on)
+                        GEM5_ECG_EXTRACT2(record);
                     const int32_t dv = depth[v];
                     GEM5_ECG_CLEAR_EXTRACT2_HINT();
                     process_neighbor(v, dv);

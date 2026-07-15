@@ -14,11 +14,11 @@ Architecture definitions and diagrams are centralized in
 Absolute gem5 and Sniper miss rates are not compared because their inclusion,
 frontend, and accounting models differ. Cross-simulator evidence is interpreted
 as mechanism agreement and direction relative to each simulator's LRU.
-PR's request-bound gem5 `ecg.load2` and Sniper fused sideband are timing-valid.
-BFS/SSSP/BC/CC currently use packed-load plus explicit `ecg.extract2` delivery
-and are mechanism/cache-metric rows, not speedup rows.
-The preliminary three-simulator matrix therefore compares miss/access metrics
-and within-simulator policy ranks for every kernel; only PR timing is interpreted.
+PR/BFS/SSSP/BC/CC use gem5 `ecg.load2` and the equivalent Sniper fused record
+sideband, eliminating explicit per-edge `extract2` from canonical Schedule-2
+runs. Timing remains in-order-only in gem5; O3 is disabled until the epoch pair
+is attached to its exact request. Historical preliminary rows generated before
+the fused all-kernel port remain cache-metric evidence only.
 Even PR fused timing is accepted only when live fused receipts validate against
 the exported K2 sideband. Without receipts, the row remains cache-metric-only;
 its packed-record software path can execute a different instruction stream than
