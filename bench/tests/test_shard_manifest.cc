@@ -126,6 +126,42 @@ void CorruptFirstByte(const std::filesystem::path &path)
     Require(static_cast<bool>(file), "artifact corruption write failed");
 }
 
+template <typename Fn>
+bool RejectsInvalid(Fn &&fn)
+{
+    try
+    {
+        fn();
+    }
+    catch (const std::invalid_argument &)
+    {
+        return true;
+    }
+    catch (const std::out_of_range &)
+    {
+        return true;
+    }
+    return false;
+}
+
+// Write a copy of `manifest` (mutated by `mutate`) as a sibling manifest inside
+// the package directory so relative artifact paths still resolve, then return
+// its path.
+template <typename Mutate>
+std::filesystem::path WriteTamperedManifest(
+    const std::filesystem::path &package,
+    const nlohmann::json &manifest,
+    const std::string &name,
+    Mutate &&mutate)
+{
+    nlohmann::json copy = manifest;
+    mutate(copy);
+    const std::filesystem::path path = package / name;
+    std::ofstream file(path);
+    file << copy.dump(2) << '\n';
+    return path;
+}
+
 } // namespace
 
 int main()
@@ -210,6 +246,111 @@ int main()
         Require(
             rejected_traversal,
             "parent-traversing shard artifact was not rejected");
+
+        // Lightweight single-shard load API used by Blox workers.
+        const auto header =
+            graphbrew::partition::LoadShardManifestHeader<Node, Offset>(
+                replaced_manifest, true);
+        Require(header.nodes == 6, "header node count mismatch");
+        Require(header.partition_count == 3, "header partition count mismatch");
+        Require(header.graph_id == "unit-graph", "header graph id mismatch");
+        Require(header.policy_name == "Original", "header policy name mismatch");
+        Require(header.policy_id == 0, "header policy id mismatch");
+        Require(
+            header.policy_options.empty(),
+            "header policy options should be empty");
+        Require(header.balance == "total", "header balance mismatch");
+        Require(header.directed, "header directed flag mismatch");
+        Require(
+            header.directed_edges == graph.num_edges_directed(),
+            "header directed_edges mismatch");
+        Require(!header.identity.empty(), "header identity is empty");
+        Require(
+            header.ownership.size() == 3 &&
+                header.ownership.front().first == 0 &&
+                header.ownership.back().second == 6,
+            "header ownership does not cover every vertex");
+        Require(
+            header.mapping_loaded &&
+                header.internal_to_source.size() == 6,
+            "header mapping was not loaded");
+
+        // Each shard loads on its own and matches the manifest's cached scalars.
+        std::uint64_t summed_out = 0;
+        for (std::size_t id = 0; id < header.partition_count; ++id)
+        {
+            const auto shard =
+                graphbrew::partition::LoadShardPackageShard<Node, Offset>(
+                    replaced_manifest, id);
+            const auto &json_shard = replaced.at("shards").at(id);
+            Require(
+                shard.owned_begin ==
+                    json_shard.at("owned_begin").get<std::size_t>() &&
+                shard.owned_end ==
+                    json_shard.at("owned_end").get<std::size_t>(),
+                "single-shard ownership mismatch");
+            Require(
+                shard.storage_bytes ==
+                    json_shard.at("storage_bytes").get<std::uint64_t>() &&
+                shard.balance_weight ==
+                    json_shard.at("balance_weight").get<std::uint64_t>() &&
+                shard.remote_out_edges ==
+                    json_shard.at("remote_out_edges").get<std::uint64_t>(),
+                "single-shard scalar metadata mismatch");
+            Require(
+                shard.out_offsets.size() == shard.owned_count() + 1,
+                "single-shard out CSR size mismatch");
+            summed_out += shard.out_neighbors.size();
+        }
+        Require(
+            summed_out ==
+                static_cast<std::uint64_t>(graph.num_edges_directed()),
+            "single-shard edge totals mismatch");
+        Require(
+            RejectsInvalid([&]() {
+                const auto ignored =
+                    graphbrew::partition::LoadShardPackageShard<Node, Offset>(
+                        replaced_manifest, 3);
+                (void)ignored;
+            }),
+            "out-of-range shard id was not rejected");
+
+        // Tightened header validation rejects tampered consumer-facing fields.
+        const auto expect_reject =
+            [&](const std::string &name, auto mutate) {
+                const std::filesystem::path path =
+                    WriteTamperedManifest(package, replaced, name, mutate);
+                Require(
+                    RejectsInvalid([&]() {
+                        const auto ignored =
+                            graphbrew::partition::ValidateShardPackage<
+                                Node, Offset>(path);
+                        (void)ignored;
+                    }),
+                    ("tampered manifest accepted: " + name).c_str());
+            };
+        expect_reject("bad-graph-id.json", [](nlohmann::json &m) {
+            m["graph"]["id"] = "";
+        });
+        expect_reject("bad-identity.json", [](nlohmann::json &m) {
+            m["graph"]["identity"] = "0000000000000000";
+        });
+        expect_reject("bad-directed.json", [](nlohmann::json &m) {
+            m["graph"]["directed"] = false;
+        });
+        expect_reject("bad-directed-edges.json", [](nlohmann::json &m) {
+            m["graph"]["directed_edges"] =
+                m["graph"]["directed_edges"].get<std::int64_t>() + 1;
+        });
+        expect_reject("bad-policy-name.json", [](nlohmann::json &m) {
+            m["policy"]["name"] = "";
+        });
+        expect_reject("bad-policy-id.json", [](nlohmann::json &m) {
+            m["policy"]["id"] = "not-an-int";
+        });
+        expect_reject("bad-policy-options.json", [](nlohmann::json &m) {
+            m["policy"]["options"] = "not-an-array";
+        });
 
         const auto &out_artifact =
             replaced.at("shards")

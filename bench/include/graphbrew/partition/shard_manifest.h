@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "../../external/nlohmann_json.hpp"
+#include "partition/compact_csr.h"
 #include "partition/diagnostics.h"
 
 namespace graphbrew
@@ -230,32 +231,13 @@ inline void ReplacePackageDirectory(
     std::filesystem::remove_all(backup);
 }
 
-template <typename GraphT, typename PartitionedGraphT>
-std::filesystem::path WriteShardPackage(
-    const std::filesystem::path &output,
-    const GraphT &graph,
-    const OriginalIdMapping<GraphNode<GraphT>> &mapping,
-    const PartitionedGraphT &partitioned,
-    const ShardPackageMetadata &metadata)
+// Create the atomic-replacement staging directory for a shard package. Returns
+// {normalized output path, temporary staging path} and guarantees the staging
+// directory exists and is empty. Shared by the in-memory and streaming writers
+// so both stage identically before ReplacePackageDirectory.
+inline std::pair<std::filesystem::path, std::filesystem::path>
+PrepareShardPackageDirectories(const std::filesystem::path &output)
 {
-    using Node = GraphNode<GraphT>;
-    using Offset = typename PartitionedGraphT::Offset;
-    if (metadata.graph_id.empty() || metadata.policy_name.empty())
-        throw std::invalid_argument(
-            "Shard package metadata requires graph and policy names");
-    if (
-        mapping.internal_to_source.size() !=
-            static_cast<std::size_t>(graph.num_nodes()) ||
-        mapping.source_to_internal.size() !=
-            static_cast<std::size_t>(graph.num_nodes()))
-    {
-        throw std::invalid_argument(
-            "Shard package source mapping size mismatch");
-    }
-    if (partitioned.num_nodes() != graph.num_nodes())
-        throw std::invalid_argument(
-            "Shard package graph and partition vertex counts differ");
-
     const std::filesystem::path normalized =
         output.lexically_normal();
     if (normalized.empty() || normalized == normalized.root_path())
@@ -271,6 +253,32 @@ std::filesystem::path WriteShardPackage(
         (normalized.filename().string() + ".graph-shard-tmp");
     std::filesystem::remove_all(temporary);
     std::filesystem::create_directories(temporary);
+    return {normalized, temporary};
+}
+
+// Build the schema/graph/encoding/policy/mapping portion of a manifest and
+// write the mapping sidecar artifacts into `temporary`. Both writers share this
+// so their manifests are byte-identical up to the partitioning/shards sections.
+template <typename Offset_, typename GraphT>
+nlohmann::json BuildShardManifestHeader(
+    const std::filesystem::path &temporary,
+    const GraphT &graph,
+    const OriginalIdMapping<GraphNode<GraphT>> &mapping,
+    const ShardPackageMetadata &metadata)
+{
+    using Node = GraphNode<GraphT>;
+    if (metadata.graph_id.empty() || metadata.policy_name.empty())
+        throw std::invalid_argument(
+            "Shard package metadata requires graph and policy names");
+    if (
+        mapping.internal_to_source.size() !=
+            static_cast<std::size_t>(graph.num_nodes()) ||
+        mapping.source_to_internal.size() !=
+            static_cast<std::size_t>(graph.num_nodes()))
+    {
+        throw std::invalid_argument(
+            "Shard package source mapping size mismatch");
+    }
 
     nlohmann::json manifest;
     manifest["schema"] = kShardManifestSchema;
@@ -293,7 +301,7 @@ std::filesystem::path WriteShardPackage(
     manifest["encoding"] = {
         {"byte_order", "little"},
         {"node_id_type", IntegralTypeName<Node>()},
-        {"offset_type", IntegralTypeName<Offset>()},
+        {"offset_type", IntegralTypeName<Offset_>()},
         {"edge_value_type", "none"},
         {
             "local_slot_layout",
@@ -338,6 +346,89 @@ std::filesystem::path WriteShardPackage(
                 mapping.source_to_internal),
         },
     };
+    return manifest;
+}
+
+// Write one shard's six CSR/ghost arrays into `temporary` and return the shard's
+// manifest object. Shared by both writers so per-shard manifest bytes and
+// on-disk arrays are identical regardless of how the shard was produced.
+template <typename PartitionT>
+nlohmann::json WriteShardArtifacts(
+    const std::filesystem::path &temporary,
+    const PartitionT &part)
+{
+    const std::filesystem::path directory =
+        ShardDirectoryName(part.id);
+    nlohmann::json arrays;
+    arrays["out_offsets"] = WriteArrayArtifact(
+        temporary, directory / "out_offsets.bin", part.out_offsets);
+    arrays["out_neighbors"] = WriteArrayArtifact(
+        temporary, directory / "out_neighbors.bin", part.out_neighbors);
+    arrays["in_offsets"] = WriteArrayArtifact(
+        temporary, directory / "in_offsets.bin", part.in_offsets);
+    arrays["in_neighbors"] = WriteArrayArtifact(
+        temporary, directory / "in_neighbors.bin", part.in_neighbors);
+    arrays["ghost_globals"] = WriteArrayArtifact(
+        temporary, directory / "ghost_globals.bin", part.ghost_globals);
+    arrays["ghost_owners"] = WriteArrayArtifact(
+        temporary, directory / "ghost_owners.bin", part.ghost_owners);
+    return {
+        {"id", part.id},
+        {"owned_begin", part.vertex_begin},
+        {"owned_end", part.vertex_end},
+        {"symmetric", part.symmetric},
+        {"balance_weight", part.balance_weight},
+        {"remote_out_edges", part.remote_out_edges},
+        {"remote_in_edges", part.remote_in_edges},
+        {"storage_bytes", part.storage_bytes()},
+        {"arrays", std::move(arrays)},
+    };
+}
+
+// Serialize `manifest` into the staging directory and atomically swap it into
+// place at `normalized`.
+inline std::filesystem::path FinalizeShardPackage(
+    const std::filesystem::path &temporary,
+    const std::filesystem::path &normalized,
+    const nlohmann::json &manifest)
+{
+    const std::filesystem::path manifest_path =
+        temporary / "manifest.json";
+    {
+        std::ofstream file(manifest_path, std::ios::trunc);
+        if (!file)
+            throw std::runtime_error(
+                "Cannot write graph shard manifest");
+        file << manifest.dump(2) << '\n';
+        if (!file)
+            throw std::runtime_error(
+                "Failed writing graph shard manifest");
+    }
+    ReplacePackageDirectory(temporary, normalized);
+    return normalized / "manifest.json";
+}
+
+template <typename GraphT, typename PartitionedGraphT>
+std::filesystem::path WriteShardPackage(
+    const std::filesystem::path &output,
+    const GraphT &graph,
+    const OriginalIdMapping<GraphNode<GraphT>> &mapping,
+    const PartitionedGraphT &partitioned,
+    const ShardPackageMetadata &metadata)
+{
+    using Offset = typename PartitionedGraphT::Offset;
+    if (partitioned.num_nodes() != graph.num_nodes())
+        throw std::invalid_argument(
+            "Shard package graph and partition vertex counts differ");
+
+    std::filesystem::path normalized;
+    std::filesystem::path temporary;
+    std::tie(normalized, temporary) =
+        PrepareShardPackageDirectories(output);
+
+    nlohmann::json manifest =
+        BuildShardManifestHeader<Offset>(
+            temporary, graph, mapping, metadata);
     manifest["partitioning"] = {
         {"count", partitioned.num_partitions()},
         {"balance", GraphPartitionBalanceName(partitioned.balance())},
@@ -357,60 +448,187 @@ std::filesystem::path WriteShardPackage(
 
     for (const auto &part : partitioned.partitions())
     {
-        const std::filesystem::path directory =
-            ShardDirectoryName(part.id);
-        nlohmann::json arrays;
-        arrays["out_offsets"] = WriteArrayArtifact(
-            temporary,
-            directory / "out_offsets.bin",
-            part.out_offsets);
-        arrays["out_neighbors"] = WriteArrayArtifact(
-            temporary,
-            directory / "out_neighbors.bin",
-            part.out_neighbors);
-        arrays["in_offsets"] = WriteArrayArtifact(
-            temporary,
-            directory / "in_offsets.bin",
-            part.in_offsets);
-        arrays["in_neighbors"] = WriteArrayArtifact(
-            temporary,
-            directory / "in_neighbors.bin",
-            part.in_neighbors);
-        arrays["ghost_globals"] = WriteArrayArtifact(
-            temporary,
-            directory / "ghost_globals.bin",
-            part.ghost_globals);
-        arrays["ghost_owners"] = WriteArrayArtifact(
-            temporary,
-            directory / "ghost_owners.bin",
-            part.ghost_owners);
-        manifest["shards"].push_back({
-            {"id", part.id},
-            {"owned_begin", part.vertex_begin},
-            {"owned_end", part.vertex_end},
-            {"symmetric", part.symmetric},
-            {"balance_weight", part.balance_weight},
-            {"remote_out_edges", part.remote_out_edges},
-            {"remote_in_edges", part.remote_in_edges},
-            {"storage_bytes", part.storage_bytes()},
-            {"arrays", std::move(arrays)},
-        });
+        manifest["shards"].push_back(
+            WriteShardArtifacts(temporary, part));
     }
 
-    const std::filesystem::path manifest_path =
-        temporary / "manifest.json";
+    return FinalizeShardPackage(temporary, normalized, manifest);
+}
+
+// Instrumentation for the streaming exporter's memory profile. A structural
+// witness that at most one shard's arrays are resident at any moment.
+struct ShardStreamStats
+{
+    std::size_t max_live_shards = 0;
+    std::uint64_t max_live_shard_bytes = 0;
+    std::uint64_t total_shard_bytes = 0;
+};
+
+// One-shard-at-a-time exporter. Derives the same balanced ownership as
+// PartitionedGraph::Build, then materializes, writes and discards each shard in
+// turn so peak extra memory is O(N) scratch plus the single largest shard
+// instead of every shard at once. The emitted package is byte-identical to
+// WriteShardPackage(PartitionedGraph::Build(...)).
+template <typename GraphT>
+std::filesystem::path StreamShardPackage(
+    const std::filesystem::path &output,
+    const GraphT &graph,
+    const OriginalIdMapping<GraphNode<GraphT>> &mapping,
+    std::size_t requested_partitions,
+    GraphPartitionBalance balance,
+    const ShardPackageMetadata &metadata,
+    ShardStreamStats *stats = nullptr)
+{
+    using Node = GraphNode<GraphT>;
+    using Partition = CompactGraphPartition<Node>;
+    using Offset = typename Partition::Offset;
+
+    GraphPartitionPlan<Node> plan =
+        BuildGraphPartitionPlan<Node>(
+            graph, requested_partitions, balance);
+
+    std::filesystem::path normalized;
+    std::filesystem::path temporary;
+    std::tie(normalized, temporary) =
+        PrepareShardPackageDirectories(output);
+
+    nlohmann::json manifest =
+        BuildShardManifestHeader<Offset>(
+            temporary, graph, mapping, metadata);
+
+    const std::size_t partition_count = plan.partition_count;
+    const std::size_t num_nodes =
+        static_cast<std::size_t>(plan.num_nodes);
+    const std::uint64_t num_edges_directed = plan.num_edges_directed;
+
+    // Running fingerprints reproduced incrementally, one shard at a time, using
+    // the exact folds CompactShardFingerprint/GhostMetadataFingerprint use.
+    OrderedFingerprint shard_fp;
+    shard_fp.Add(1);
+    shard_fp.Add(graph.num_nodes());
+    shard_fp.Add(graph.num_edges_directed());
+    shard_fp.Add(plan.directed ? 1 : 0);
+    shard_fp.AddIntegral(balance);
+    shard_fp.Add(partition_count);
+    OrderedFingerprint ghost_fp;
+    ghost_fp.Add(1);
+    ghost_fp.Add(partition_count);
+
+    std::vector<std::uint32_t> ghost_stamp(num_nodes, 0);
+    std::vector<Node> ghost_slot_by_vertex(num_nodes, 0);
+
+    std::size_t total_ghosts = 0;
+    std::uint64_t total_out_edges = 0;
+    std::uint64_t total_in_edges = 0;
+    std::uint64_t remote_out_edges = 0;
+    std::uint64_t remote_in_edges = 0;
+    std::uint64_t total_ghost_bytes = 0;
+    std::uint64_t total_storage = 0;
+    std::uint64_t max_storage = 0;
+    std::uint64_t max_weight = 0;
+    std::uint64_t total_weight = 0;
+
+    std::size_t live_shards = 0;
+    std::size_t peak_live_shards = 0;
+
+    nlohmann::json shards = nlohmann::json::array();
+    for (std::size_t id = 0; id < partition_count; ++id)
     {
-        std::ofstream file(manifest_path, std::ios::trunc);
-        if (!file)
-            throw std::runtime_error(
-                "Cannot write graph shard manifest");
-        file << manifest.dump(2) << '\n';
-        if (!file)
-            throw std::runtime_error(
-                "Failed writing graph shard manifest");
+        Partition part = BuildCompactShard<Node>(
+            graph, plan, id, ghost_stamp, ghost_slot_by_vertex);
+        ++live_shards;
+        peak_live_shards = std::max(peak_live_shards, live_shards);
+
+        AccumulateCompactShardFingerprint(shard_fp, part);
+        AccumulateGhostFingerprint(ghost_fp, part);
+
+        const std::uint64_t storage_bytes = part.storage_bytes();
+        total_ghosts += part.ghost_count();
+        total_out_edges = graphbrew_compact_detail::CheckedAdd(
+            total_out_edges, part.out_neighbors.size());
+        total_in_edges = graphbrew_compact_detail::CheckedAdd(
+            total_in_edges,
+            plan.directed
+                ? part.in_neighbors.size()
+                : part.out_neighbors.size());
+        remote_out_edges = graphbrew_compact_detail::CheckedAdd(
+            remote_out_edges, part.remote_out_edges);
+        remote_in_edges = graphbrew_compact_detail::CheckedAdd(
+            remote_in_edges, part.remote_in_edges);
+        total_ghost_bytes = graphbrew_compact_detail::CheckedAdd(
+            total_ghost_bytes, part.ghost_metadata_bytes());
+        total_storage = graphbrew_compact_detail::CheckedAdd(
+            total_storage, storage_bytes);
+        max_storage = std::max(max_storage, storage_bytes);
+        max_weight = std::max(max_weight, part.balance_weight);
+        total_weight = graphbrew_compact_detail::CheckedAdd(
+            total_weight, part.balance_weight);
+
+        shards.push_back(WriteShardArtifacts(temporary, part));
+
+        // Release this shard's arrays before building the next one.
+        part = Partition();
+        --live_shards;
     }
-    ReplacePackageDirectory(temporary, normalized);
-    return normalized / "manifest.json";
+
+    if (total_out_edges != num_edges_directed)
+        throw std::logic_error(
+            "Streamed outgoing edge count does not match the graph");
+    if (total_in_edges != num_edges_directed)
+        throw std::logic_error(
+            "Streamed incoming edge count does not match the graph");
+
+    const auto edge_fraction =
+        [num_edges_directed](std::uint64_t remote) -> double
+        {
+            if (num_edges_directed == 0)
+                return 0.0;
+            return static_cast<double>(remote) /
+                   static_cast<double>(num_edges_directed);
+        };
+    const double ghost_byte_fraction =
+        total_storage == 0
+            ? 0.0
+            : static_cast<double>(total_ghost_bytes) /
+                  static_cast<double>(total_storage);
+    const double balance_imbalance =
+        total_weight == 0
+            ? 1.0
+            : static_cast<double>(max_weight) /
+                  (static_cast<double>(total_weight) /
+                   static_cast<double>(partition_count));
+    const double storage_imbalance =
+        (partition_count == 0 || total_storage == 0)
+            ? 1.0
+            : static_cast<double>(max_storage) /
+                  (static_cast<double>(total_storage) /
+                   static_cast<double>(partition_count));
+
+    manifest["partitioning"] = {
+        {"count", partition_count},
+        {"balance", GraphPartitionBalanceName(balance)},
+        {"shard_fingerprint", shard_fp.Hex()},
+        {"ghost_fingerprint", ghost_fp.Hex()},
+        {"remote_out_fraction", edge_fraction(remote_out_edges)},
+        {"remote_in_fraction", edge_fraction(remote_in_edges)},
+        {"ghost_count", total_ghosts},
+        {"ghost_bytes", total_ghost_bytes},
+        {"ghost_byte_fraction", ghost_byte_fraction},
+        {"total_shard_bytes", total_storage},
+        {"max_shard_bytes", max_storage},
+        {"balance_imbalance", balance_imbalance},
+        {"storage_imbalance", storage_imbalance},
+    };
+    manifest["shards"] = std::move(shards);
+
+    if (stats != nullptr)
+    {
+        stats->max_live_shards = peak_live_shards;
+        stats->max_live_shard_bytes = max_storage;
+        stats->total_shard_bytes = total_storage;
+    }
+
+    return FinalizeShardPackage(temporary, normalized, manifest);
 }
 
 inline const nlohmann::json &RequireObjectField(
@@ -492,8 +710,20 @@ std::vector<T> ValidateAndReadArrayArtifact(
     return values;
 }
 
-template <typename NodeID_, typename Offset_>
-nlohmann::json ValidateShardPackage(
+inline std::string RequireStringField(
+    const nlohmann::json &object,
+    const char *name)
+{
+    if (!object.contains(name) || !object.at(name).is_string())
+        throw std::invalid_argument(
+            std::string("Shard manifest field must be a string: ") + name);
+    return object.at(name).get<std::string>();
+}
+
+// Open, parse, and schema-check a manifest file. Shared by the full validator
+// and the lightweight single-shard loaders so all entry points reject a
+// foreign or malformed schema identically.
+inline nlohmann::json ParseShardManifestFile(
     const std::filesystem::path &manifest_path)
 {
     std::ifstream file(manifest_path);
@@ -509,9 +739,83 @@ nlohmann::json ValidateShardPackage(
         throw std::invalid_argument(
             "Unsupported graph shard manifest schema");
     }
+    return manifest;
+}
 
+// Validated, scalar-only view of a package that Blox workers can obtain without
+// reading or materializing any shard's CSR/ghost arrays. `ownership[i]` is the
+// half-open owned-vertex range of shard i, derived from the manifest scalars
+// and proven contiguous and covering. Mapping arrays are populated only when
+// requested.
+template <typename NodeID_>
+struct ShardManifestHeader
+{
+    std::size_t nodes = 0;
+    bool directed = false;
+    std::int64_t directed_edges = 0;
+    std::string graph_id;
+    std::string identity;
+    std::string policy_name;
+    int policy_id = 0;
+    std::vector<std::string> policy_options;
+    std::string balance;
+    std::size_t partition_count = 0;
+    std::vector<std::pair<std::size_t, std::size_t>> ownership;
+    bool mapping_loaded = false;
+    std::vector<NodeID_> internal_to_source;
+    std::vector<NodeID_> source_to_internal;
+};
+
+// A single validated shard's arrays plus its derived scalars. This is the unit
+// a Blox worker loads for the shard it owns.
+template <typename NodeID_, typename Offset_>
+struct LoadedShard
+{
+    std::uint32_t id = 0;
+    std::size_t owned_begin = 0;
+    std::size_t owned_end = 0;
+    bool symmetric = false;
+    std::vector<Offset_> out_offsets;
+    std::vector<NodeID_> out_neighbors;
+    std::vector<Offset_> in_offsets;
+    std::vector<NodeID_> in_neighbors;
+    std::vector<NodeID_> ghost_globals;
+    std::vector<std::uint32_t> ghost_owners;
+    std::uint64_t remote_out_edges = 0;
+    std::uint64_t remote_in_edges = 0;
+    std::uint64_t storage_bytes = 0;
+    std::uint64_t balance_weight = 0;
+
+    std::size_t owned_count() const
+    {
+        return owned_end - owned_begin;
+    }
+};
+
+template <typename OffsetT>
+bool ShardOffsetsAreValid(
+    const std::vector<OffsetT> &offsets,
+    std::size_t neighbors)
+{
+    if (offsets.empty() || offsets.front() != 0 ||
+        offsets.back() != neighbors)
+        return false;
+    return std::is_sorted(offsets.begin(), offsets.end());
+}
+
+// Validate the schema/graph/encoding/policy/partitioning/ownership metadata and
+// (optionally) the source mapping without touching any shard arrays. Tightened
+// to check graph.id/identity/directed/directed_edges and policy.name/id/options
+// because the Blox reader consumes those fields verbatim.
+template <typename NodeID_, typename Offset_>
+ShardManifestHeader<NodeID_> ValidateShardManifestHeaderJson(
+    const nlohmann::json &manifest,
+    const std::filesystem::path &root,
+    bool load_mapping)
+{
     const auto &graph = RequireObjectField(manifest, "graph");
     const auto &encoding = RequireObjectField(manifest, "encoding");
+    const auto &policy = RequireObjectField(manifest, "policy");
     const auto &mapping = RequireObjectField(manifest, "mapping");
     const auto &partitioning =
         RequireObjectField(manifest, "partitioning");
@@ -536,59 +840,92 @@ nlohmann::json ValidateShardPackage(
             "Graph shard encoding is incompatible");
     }
 
-    const std::size_t nodes =
-        graph.at("nodes").get<std::size_t>();
-    const auto internal_to_source =
-        ValidateAndReadArrayArtifact<NodeID_>(
-            manifest_path.parent_path(),
-            mapping.at("internal_to_source"));
-    const auto source_to_internal =
-        ValidateAndReadArrayArtifact<NodeID_>(
-            manifest_path.parent_path(),
-            mapping.at("source_to_internal"));
+    ShardManifestHeader<NodeID_> header;
+
+    header.graph_id = RequireStringField(graph, "id");
+    if (header.graph_id.empty())
+        throw std::invalid_argument(
+            "Graph shard manifest graph id is empty");
+
+    if (!graph.contains("directed") || !graph.at("directed").is_boolean())
+        throw std::invalid_argument(
+            "Graph shard manifest directed flag is missing or not a boolean");
+    header.directed = graph.at("directed").get<bool>();
+
     if (
-        internal_to_source.size() != nodes ||
-        source_to_internal.size() != nodes)
+        !graph.contains("directed_edges") ||
+        !graph.at("directed_edges").is_number_integer())
     {
         throw std::invalid_argument(
-            "Graph shard mapping count mismatch");
+            "Graph shard manifest directed_edges is missing or not integral");
     }
-    for (std::size_t internal = 0; internal < nodes; ++internal)
+    const std::int64_t directed_edges =
+        graph.at("directed_edges").get<std::int64_t>();
+    if (directed_edges < 0)
+        throw std::invalid_argument(
+            "Graph shard manifest directed_edges is negative");
+    header.directed_edges = directed_edges;
+
+    if (!graph.contains("nodes") || !graph.at("nodes").is_number_integer())
+        throw std::invalid_argument(
+            "Graph shard manifest node count is missing or not integral");
+    const std::int64_t raw_nodes = graph.at("nodes").get<std::int64_t>();
+    if (raw_nodes < 0)
+        throw std::invalid_argument(
+            "Graph shard manifest node count is negative");
+    header.nodes = static_cast<std::size_t>(raw_nodes);
+
+    header.identity = RequireStringField(graph, "identity");
+    const std::string topology =
+        RequireStringField(graph, "source_topology_fingerprint");
+    if (header.identity.empty() || topology.empty())
+        throw std::invalid_argument(
+            "Graph shard manifest topology fingerprint is empty");
+    if (header.identity != topology)
+        throw std::invalid_argument(
+            "Graph shard manifest identity and topology fingerprint disagree");
+
+    header.policy_name = RequireStringField(policy, "name");
+    if (header.policy_name.empty())
+        throw std::invalid_argument(
+            "Graph shard manifest policy name is empty");
+    if (!policy.contains("id") || !policy.at("id").is_number_integer())
+        throw std::invalid_argument(
+            "Graph shard manifest policy id is missing or not integral");
+    header.policy_id = policy.at("id").get<int>();
+    if (!policy.contains("options") || !policy.at("options").is_array())
+        throw std::invalid_argument(
+            "Graph shard manifest policy options must be an array");
+    for (const auto &option : policy.at("options"))
     {
-        const auto source = static_cast<std::size_t>(
-            internal_to_source[internal]);
-        if (
-            source >= nodes ||
-            static_cast<std::size_t>(
-                source_to_internal[source]) != internal)
-        {
+        if (!option.is_string())
             throw std::invalid_argument(
-                "Graph shard mappings are not inverses");
-        }
+                "Graph shard manifest policy option must be a string");
+        header.policy_options.push_back(option.get<std::string>());
     }
+
+    header.balance = RequireStringField(partitioning, "balance");
     if (
-        OriginalIdMappingFingerprint(internal_to_source) !=
-        mapping.at("fingerprint").get<std::string>())
+        header.balance != "vertices" &&
+        header.balance != "out" &&
+        header.balance != "total")
     {
         throw std::invalid_argument(
-            "Graph shard mapping fingerprint mismatch");
+            "Graph shard manifest balance policy is unknown");
     }
+    header.partition_count =
+        partitioning.at("count").get<std::size_t>();
 
     if (!manifest.contains("shards") || !manifest.at("shards").is_array())
         throw std::invalid_argument(
             "Graph shard manifest lacks shards");
     const auto &shards = manifest.at("shards");
-    if (
-        shards.size() !=
-        partitioning.at("count").get<std::size_t>())
-    {
+    if (shards.size() != header.partition_count)
         throw std::invalid_argument(
             "Graph shard count mismatch");
-    }
 
     std::size_t expected_begin = 0;
-    std::vector<std::pair<std::size_t, std::size_t>> ownership;
-    ownership.reserve(shards.size());
+    header.ownership.reserve(shards.size());
     for (std::size_t index = 0; index < shards.size(); ++index)
     {
         const auto &shard = shards.at(index);
@@ -602,148 +939,277 @@ nlohmann::json ValidateShardPackage(
         }
         const std::size_t owned_end =
             shard.at("owned_end").get<std::size_t>();
-        if (owned_end <= expected_begin || owned_end > nodes)
+        if (owned_end <= expected_begin || owned_end > header.nodes)
             throw std::invalid_argument(
                 "Graph shard ownership range is invalid");
-        ownership.emplace_back(expected_begin, owned_end);
+        if (shard.at("symmetric").get<bool>() == header.directed)
+            throw std::invalid_argument(
+                "Graph shard symmetry contradicts graph.directed");
+        header.ownership.emplace_back(expected_begin, owned_end);
         expected_begin = owned_end;
     }
-    if (expected_begin != nodes)
+    if (expected_begin != header.nodes)
         throw std::invalid_argument(
             "Graph shard ownership does not cover every vertex");
 
-    const auto offsets_are_valid =
-        [](const auto &offsets, std::size_t neighbors)
-        {
-            if (
-                offsets.empty() ||
-                offsets.front() != 0 ||
-                offsets.back() != neighbors)
-            {
-                return false;
-            }
-            return std::is_sorted(offsets.begin(), offsets.end());
-        };
-    for (std::size_t index = 0; index < shards.size(); ++index)
+    if (load_mapping)
     {
-        const auto &shard = shards.at(index);
-        const std::size_t owned =
-            ownership[index].second - ownership[index].first;
-        const auto &arrays = RequireObjectField(shard, "arrays");
-        const auto out_offsets =
-            ValidateAndReadArrayArtifact<Offset_>(
-                manifest_path.parent_path(), arrays.at("out_offsets"));
-        const auto out_neighbors =
+        header.internal_to_source =
             ValidateAndReadArrayArtifact<NodeID_>(
-                manifest_path.parent_path(), arrays.at("out_neighbors"));
-        const auto in_offsets =
-            ValidateAndReadArrayArtifact<Offset_>(
-                manifest_path.parent_path(), arrays.at("in_offsets"));
-        const auto in_neighbors =
+                root, mapping.at("internal_to_source"));
+        header.source_to_internal =
             ValidateAndReadArrayArtifact<NodeID_>(
-                manifest_path.parent_path(), arrays.at("in_neighbors"));
-        const auto ghost_globals =
-            ValidateAndReadArrayArtifact<NodeID_>(
-                manifest_path.parent_path(), arrays.at("ghost_globals"));
-        const auto ghost_owners =
-            ValidateAndReadArrayArtifact<std::uint32_t>(
-                manifest_path.parent_path(), arrays.at("ghost_owners"));
+                root, mapping.at("source_to_internal"));
         if (
-            out_offsets.size() != owned + 1 ||
-            !offsets_are_valid(
-                out_offsets, out_neighbors.size()))
+            header.internal_to_source.size() != header.nodes ||
+            header.source_to_internal.size() != header.nodes)
         {
             throw std::invalid_argument(
-                "Graph shard outgoing CSR is invalid");
+                "Graph shard mapping count mismatch");
         }
-        const bool symmetric =
-            shard.at("symmetric").get<bool>();
-        if (
-            symmetric
-                ? (!in_offsets.empty() || !in_neighbors.empty())
-                : (in_offsets.size() != owned + 1 ||
-                   !offsets_are_valid(
-                       in_offsets, in_neighbors.size())))
+        for (std::size_t internal = 0; internal < header.nodes; ++internal)
         {
-            throw std::invalid_argument(
-                "Graph shard incoming CSR is invalid");
-        }
-        if (ghost_globals.size() != ghost_owners.size())
-            throw std::invalid_argument(
-                "Graph shard ghost arrays differ in size");
-        const std::size_t slots = owned + ghost_globals.size();
-        std::uint64_t remote_out_edges = 0;
-        for (const NodeID_ slot : out_neighbors)
-        {
-            if (static_cast<std::size_t>(slot) >= slots)
-                throw std::invalid_argument(
-                    "Graph shard outgoing local slot is invalid");
-            if (static_cast<std::size_t>(slot) >= owned)
-                ++remote_out_edges;
-        }
-        std::uint64_t remote_in_edges = 0;
-        for (const NodeID_ slot : in_neighbors)
-        {
-            if (static_cast<std::size_t>(slot) >= slots)
-                throw std::invalid_argument(
-                    "Graph shard incoming local slot is invalid");
-            if (static_cast<std::size_t>(slot) >= owned)
-                ++remote_in_edges;
-        }
-        if (symmetric)
-            remote_in_edges = remote_out_edges;
-        for (std::size_t ghost = 0; ghost < ghost_globals.size(); ++ghost)
-        {
-            const std::size_t owner = ghost_owners[ghost];
-            const std::size_t global =
-                static_cast<std::size_t>(ghost_globals[ghost]);
+            const auto source = static_cast<std::size_t>(
+                header.internal_to_source[internal]);
             if (
-                global >= nodes ||
-                owner >= shards.size() ||
-                owner == index ||
-                global < ownership[owner].first ||
-                global >= ownership[owner].second)
+                source >= header.nodes ||
+                static_cast<std::size_t>(
+                    header.source_to_internal[source]) != internal)
             {
                 throw std::invalid_argument(
-                    "Graph shard ghost metadata is invalid");
+                    "Graph shard mappings are not inverses");
             }
         }
-        const std::uint64_t storage_bytes =
-            static_cast<std::uint64_t>(out_offsets.size()) *
-                sizeof(Offset_) +
-            static_cast<std::uint64_t>(in_offsets.size()) *
-                sizeof(Offset_) +
-            static_cast<std::uint64_t>(out_neighbors.size()) *
-                sizeof(NodeID_) +
-            static_cast<std::uint64_t>(in_neighbors.size()) *
-                sizeof(NodeID_) +
-            static_cast<std::uint64_t>(ghost_globals.size()) *
-                sizeof(NodeID_) +
-            static_cast<std::uint64_t>(ghost_owners.size()) *
-                sizeof(std::uint32_t);
-        const std::string balance =
-            partitioning.at("balance").get<std::string>();
-        const std::uint64_t expected_weight =
-            balance == "vertices"
-                ? owned
-                : balance == "out"
-                    ? out_neighbors.size()
-                    : out_neighbors.size() +
-                      (symmetric ? 0 : in_neighbors.size());
         if (
-            shard.at("remote_out_edges").get<std::uint64_t>() !=
-                remote_out_edges ||
-            shard.at("remote_in_edges").get<std::uint64_t>() !=
-                remote_in_edges ||
-            shard.at("storage_bytes").get<std::uint64_t>() !=
-                storage_bytes ||
-            shard.at("balance_weight").get<std::uint64_t>() !=
-                expected_weight)
+            OriginalIdMappingFingerprint(header.internal_to_source) !=
+            mapping.at("fingerprint").get<std::string>())
         {
             throw std::invalid_argument(
-                "Graph shard scalar metadata is inconsistent");
+                "Graph shard mapping fingerprint mismatch");
+        }
+        header.mapping_loaded = true;
+    }
+    else
+    {
+        RequireStringField(mapping, "fingerprint");
+    }
+
+    return header;
+}
+
+// Validate and load exactly one shard's arrays, checking its CSR structure,
+// local slot bounds, ghost metadata against every shard's ownership, and its
+// cached scalar metadata. Shared by the full validator and the single-shard
+// loader so both apply identical shard-level checks.
+template <typename NodeID_, typename Offset_>
+LoadedShard<NodeID_, Offset_> ValidateShardEntry(
+    const std::filesystem::path &root,
+    const nlohmann::json &shard,
+    const ShardManifestHeader<NodeID_> &header,
+    std::size_t index)
+{
+    LoadedShard<NodeID_, Offset_> loaded;
+    loaded.id = static_cast<std::uint32_t>(index);
+    loaded.owned_begin = header.ownership[index].first;
+    loaded.owned_end = header.ownership[index].second;
+    const std::size_t owned = loaded.owned_count();
+
+    const auto &arrays = RequireObjectField(shard, "arrays");
+    loaded.out_offsets =
+        ValidateAndReadArrayArtifact<Offset_>(
+            root, arrays.at("out_offsets"));
+    loaded.out_neighbors =
+        ValidateAndReadArrayArtifact<NodeID_>(
+            root, arrays.at("out_neighbors"));
+    loaded.in_offsets =
+        ValidateAndReadArrayArtifact<Offset_>(
+            root, arrays.at("in_offsets"));
+    loaded.in_neighbors =
+        ValidateAndReadArrayArtifact<NodeID_>(
+            root, arrays.at("in_neighbors"));
+    loaded.ghost_globals =
+        ValidateAndReadArrayArtifact<NodeID_>(
+            root, arrays.at("ghost_globals"));
+    loaded.ghost_owners =
+        ValidateAndReadArrayArtifact<std::uint32_t>(
+            root, arrays.at("ghost_owners"));
+
+    if (
+        loaded.out_offsets.size() != owned + 1 ||
+        !ShardOffsetsAreValid(
+            loaded.out_offsets, loaded.out_neighbors.size()))
+    {
+        throw std::invalid_argument(
+            "Graph shard outgoing CSR is invalid");
+    }
+    loaded.symmetric = shard.at("symmetric").get<bool>();
+    if (
+        loaded.symmetric
+            ? (!loaded.in_offsets.empty() || !loaded.in_neighbors.empty())
+            : (loaded.in_offsets.size() != owned + 1 ||
+               !ShardOffsetsAreValid(
+                   loaded.in_offsets, loaded.in_neighbors.size())))
+    {
+        throw std::invalid_argument(
+            "Graph shard incoming CSR is invalid");
+    }
+    if (loaded.ghost_globals.size() != loaded.ghost_owners.size())
+        throw std::invalid_argument(
+            "Graph shard ghost arrays differ in size");
+
+    const std::size_t slots = owned + loaded.ghost_globals.size();
+    std::uint64_t remote_out_edges = 0;
+    for (const NodeID_ slot : loaded.out_neighbors)
+    {
+        if (static_cast<std::size_t>(slot) >= slots)
+            throw std::invalid_argument(
+                "Graph shard outgoing local slot is invalid");
+        if (static_cast<std::size_t>(slot) >= owned)
+            ++remote_out_edges;
+    }
+    std::uint64_t remote_in_edges = 0;
+    for (const NodeID_ slot : loaded.in_neighbors)
+    {
+        if (static_cast<std::size_t>(slot) >= slots)
+            throw std::invalid_argument(
+                "Graph shard incoming local slot is invalid");
+        if (static_cast<std::size_t>(slot) >= owned)
+            ++remote_in_edges;
+    }
+    if (loaded.symmetric)
+        remote_in_edges = remote_out_edges;
+    for (
+        std::size_t ghost = 0;
+        ghost < loaded.ghost_globals.size();
+        ++ghost)
+    {
+        const std::size_t owner = loaded.ghost_owners[ghost];
+        const std::size_t global =
+            static_cast<std::size_t>(loaded.ghost_globals[ghost]);
+        if (
+            global >= header.nodes ||
+            owner >= header.ownership.size() ||
+            owner == index ||
+            global < header.ownership[owner].first ||
+            global >= header.ownership[owner].second)
+        {
+            throw std::invalid_argument(
+                "Graph shard ghost metadata is invalid");
         }
     }
+
+    loaded.remote_out_edges = remote_out_edges;
+    loaded.remote_in_edges = remote_in_edges;
+    loaded.storage_bytes =
+        static_cast<std::uint64_t>(loaded.out_offsets.size()) *
+            sizeof(Offset_) +
+        static_cast<std::uint64_t>(loaded.in_offsets.size()) *
+            sizeof(Offset_) +
+        static_cast<std::uint64_t>(loaded.out_neighbors.size()) *
+            sizeof(NodeID_) +
+        static_cast<std::uint64_t>(loaded.in_neighbors.size()) *
+            sizeof(NodeID_) +
+        static_cast<std::uint64_t>(loaded.ghost_globals.size()) *
+            sizeof(NodeID_) +
+        static_cast<std::uint64_t>(loaded.ghost_owners.size()) *
+            sizeof(std::uint32_t);
+    loaded.balance_weight =
+        header.balance == "vertices"
+            ? owned
+            : header.balance == "out"
+                ? loaded.out_neighbors.size()
+                : loaded.out_neighbors.size() +
+                  (loaded.symmetric ? 0 : loaded.in_neighbors.size());
+    if (
+        shard.at("remote_out_edges").get<std::uint64_t>() !=
+            loaded.remote_out_edges ||
+        shard.at("remote_in_edges").get<std::uint64_t>() !=
+            loaded.remote_in_edges ||
+        shard.at("storage_bytes").get<std::uint64_t>() !=
+            loaded.storage_bytes ||
+        shard.at("balance_weight").get<std::uint64_t>() !=
+            loaded.balance_weight)
+    {
+        throw std::invalid_argument(
+            "Graph shard scalar metadata is inconsistent");
+    }
+    return loaded;
+}
+
+// Lightweight header load for Blox workers: validates the manifest scalars and
+// ownership map (and optionally the source mapping) without reading a single
+// shard's CSR/ghost arrays.
+template <typename NodeID_, typename Offset_>
+ShardManifestHeader<NodeID_> LoadShardManifestHeader(
+    const std::filesystem::path &manifest_path,
+    bool load_mapping = false)
+{
+    const nlohmann::json manifest =
+        ParseShardManifestFile(manifest_path);
+    return ValidateShardManifestHeaderJson<NodeID_, Offset_>(
+        manifest, manifest_path.parent_path(), load_mapping);
+}
+
+// Load and validate exactly one shard, materializing only that shard's arrays
+// (plus O(P) ownership scalars and, optionally, the O(N) source mapping). Blox
+// workers use this instead of ValidateShardPackage so they never materialize
+// every shard just to read their own.
+template <typename NodeID_, typename Offset_>
+LoadedShard<NodeID_, Offset_> LoadShardPackageShard(
+    const std::filesystem::path &manifest_path,
+    std::size_t shard_id,
+    ShardManifestHeader<NodeID_> *header_out = nullptr,
+    bool load_mapping = false)
+{
+    const nlohmann::json manifest =
+        ParseShardManifestFile(manifest_path);
+    const std::filesystem::path root = manifest_path.parent_path();
+    const ShardManifestHeader<NodeID_> header =
+        ValidateShardManifestHeaderJson<NodeID_, Offset_>(
+            manifest, root, load_mapping);
+    if (shard_id >= header.partition_count)
+        throw std::out_of_range(
+            "Requested graph shard id is outside the package");
+    LoadedShard<NodeID_, Offset_> loaded =
+        ValidateShardEntry<NodeID_, Offset_>(
+            root, manifest.at("shards").at(shard_id), header, shard_id);
+    if (header_out != nullptr)
+        *header_out = header;
+    return loaded;
+}
+
+// Exhaustive validation: header, mapping, every shard, and the cross-shard edge
+// totals against graph.directed_edges. Callers that only need one shard should
+// prefer LoadShardPackageShard.
+template <typename NodeID_, typename Offset_>
+nlohmann::json ValidateShardPackage(
+    const std::filesystem::path &manifest_path)
+{
+    const nlohmann::json manifest =
+        ParseShardManifestFile(manifest_path);
+    const std::filesystem::path root = manifest_path.parent_path();
+    const ShardManifestHeader<NodeID_> header =
+        ValidateShardManifestHeaderJson<NodeID_, Offset_>(
+            manifest, root, /*load_mapping=*/true);
+
+    const auto &shards = manifest.at("shards");
+    std::uint64_t total_out_edges = 0;
+    std::uint64_t total_in_edges = 0;
+    for (std::size_t index = 0; index < shards.size(); ++index)
+    {
+        const LoadedShard<NodeID_, Offset_> loaded =
+            ValidateShardEntry<NodeID_, Offset_>(
+                root, shards.at(index), header, index);
+        total_out_edges += loaded.out_neighbors.size();
+        total_in_edges += loaded.symmetric
+            ? loaded.out_neighbors.size()
+            : loaded.in_neighbors.size();
+    }
+    const std::uint64_t directed_edges =
+        static_cast<std::uint64_t>(header.directed_edges);
+    if (total_out_edges != directed_edges || total_in_edges != directed_edges)
+        throw std::invalid_argument(
+            "Graph shard edge totals disagree with graph.directed_edges");
     return manifest;
 }
 

@@ -258,6 +258,41 @@ std::string SourceTopologyFingerprint(
     return fingerprint.Hex(nodes, graph.directed());
 }
 
+// Fold a single shard into a running compact-shard fingerprint. Sharing this
+// per-shard step lets the streaming exporter reproduce CompactShardFingerprint
+// without materializing every shard at once.
+template <typename PartitionT>
+void AccumulateCompactShardFingerprint(
+    OrderedFingerprint &fingerprint,
+    const PartitionT &part)
+{
+    fingerprint.Add(part.id);
+    fingerprint.AddIntegral(part.vertex_begin);
+    fingerprint.AddIntegral(part.vertex_end);
+    fingerprint.Add(part.balance_weight);
+    fingerprint.Add(part.remote_out_edges);
+    fingerprint.Add(part.remote_in_edges);
+    fingerprint.Add(part.symmetric ? 1 : 0);
+    fingerprint.AddRange(part.out_offsets);
+    fingerprint.AddRange(part.out_neighbors);
+    fingerprint.AddRange(part.in_offsets);
+    fingerprint.AddRange(part.in_neighbors);
+    fingerprint.AddRange(part.ghost_globals);
+    fingerprint.AddRange(part.ghost_owners);
+}
+
+template <typename PartitionT>
+void AccumulateGhostFingerprint(
+    OrderedFingerprint &fingerprint,
+    const PartitionT &part)
+{
+    fingerprint.Add(part.id);
+    fingerprint.AddIntegral(part.vertex_begin);
+    fingerprint.AddIntegral(part.vertex_end);
+    fingerprint.AddRange(part.ghost_globals);
+    fingerprint.AddRange(part.ghost_owners);
+}
+
 template <typename PartitionedGraphT>
 std::string CompactShardFingerprint(
     const PartitionedGraphT &graph)
@@ -270,21 +305,7 @@ std::string CompactShardFingerprint(
     fingerprint.AddIntegral(graph.balance());
     fingerprint.Add(graph.num_partitions());
     for (const auto &part : graph.partitions())
-    {
-        fingerprint.Add(part.id);
-        fingerprint.AddIntegral(part.vertex_begin);
-        fingerprint.AddIntegral(part.vertex_end);
-        fingerprint.Add(part.balance_weight);
-        fingerprint.Add(part.remote_out_edges);
-        fingerprint.Add(part.remote_in_edges);
-        fingerprint.Add(part.symmetric ? 1 : 0);
-        fingerprint.AddRange(part.out_offsets);
-        fingerprint.AddRange(part.out_neighbors);
-        fingerprint.AddRange(part.in_offsets);
-        fingerprint.AddRange(part.in_neighbors);
-        fingerprint.AddRange(part.ghost_globals);
-        fingerprint.AddRange(part.ghost_owners);
-    }
+        AccumulateCompactShardFingerprint(fingerprint, part);
     return fingerprint.Hex();
 }
 
@@ -296,13 +317,7 @@ std::string GhostMetadataFingerprint(
     fingerprint.Add(1);
     fingerprint.Add(graph.num_partitions());
     for (const auto &part : graph.partitions())
-    {
-        fingerprint.Add(part.id);
-        fingerprint.AddIntegral(part.vertex_begin);
-        fingerprint.AddIntegral(part.vertex_end);
-        fingerprint.AddRange(part.ghost_globals);
-        fingerprint.AddRange(part.ghost_owners);
-    }
+        AccumulateGhostFingerprint(fingerprint, part);
     return fingerprint.Hex();
 }
 

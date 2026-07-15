@@ -181,6 +181,458 @@ struct CompactGraphPartition
     }
 };
 
+// Shared building blocks for the in-memory partitioner and the one-shard-at-a-
+// time streaming exporter. Keeping the balancing, ghost, and localization logic
+// here guarantees PartitionedGraph::Build and the streaming writer produce
+// byte-identical shards.
+namespace graphbrew_compact_detail
+{
+
+inline std::uint64_t CheckedDegree(std::int64_t degree)
+{
+    if (degree < 0)
+        throw std::invalid_argument(
+            "Graph contains a negative vertex degree");
+    return static_cast<std::uint64_t>(degree);
+}
+
+inline std::uint64_t CheckedAdd(std::uint64_t lhs, std::uint64_t rhs)
+{
+    if (rhs > std::numeric_limits<std::uint64_t>::max() - lhs)
+        throw std::overflow_error(
+            "Graph partition size arithmetic overflow");
+    return lhs + rhs;
+}
+
+inline void CheckVectorSize(std::uint64_t size)
+{
+    if (
+        size > std::numeric_limits<std::size_t>::max() ||
+        size > static_cast<std::uint64_t>(
+                   std::numeric_limits<std::ptrdiff_t>::max()))
+    {
+        throw std::overflow_error(
+            "Graph partition adjacency exceeds host address space");
+    }
+}
+
+template <typename NodeID_>
+inline bool ValidVertex(NodeID_ vertex, NodeID_ num_nodes)
+{
+    if constexpr (std::is_signed<NodeID_>::value)
+    {
+        if (vertex < 0)
+            return false;
+    }
+    return vertex < num_nodes;
+}
+
+inline std::uint64_t SumRange(
+    const std::vector<std::uint64_t> &weights,
+    std::size_t begin,
+    std::size_t end)
+{
+    std::uint64_t total = 0;
+    for (std::size_t index = begin; index < end; ++index)
+        total = CheckedAdd(total, weights[index]);
+    return total;
+}
+
+inline std::vector<std::pair<std::size_t, std::size_t>>
+BuildBalancedRanges(
+    const std::vector<std::uint64_t> &weights,
+    std::size_t partition_count)
+{
+    const std::size_t num_nodes = weights.size();
+    std::vector<std::uint64_t> prefix(num_nodes + 1, 0);
+    for (std::size_t index = 0; index < num_nodes; ++index)
+    {
+        prefix[index + 1] =
+            CheckedAdd(prefix[index], weights[index]);
+    }
+
+    if (prefix.back() == 0)
+    {
+        for (std::size_t index = 0; index < num_nodes; ++index)
+            prefix[index + 1] = index + 1;
+    }
+
+    std::vector<std::size_t> cuts(partition_count + 1, 0);
+    cuts.back() = num_nodes;
+    const std::uint64_t total = prefix.back();
+    const std::uint64_t quotient =
+        total / partition_count;
+    const std::uint64_t remainder =
+        total % partition_count;
+
+    for (std::size_t part = 1;
+         part < partition_count; ++part)
+    {
+        const std::size_t min_cut = cuts[part - 1] + 1;
+        const std::size_t max_cut =
+            num_nodes - (partition_count - part);
+        const std::uint64_t target =
+            quotient * part +
+            (remainder * part) / partition_count;
+
+        auto lower = prefix.begin() +
+                     static_cast<std::ptrdiff_t>(min_cut);
+        auto upper = prefix.begin() +
+                     static_cast<std::ptrdiff_t>(max_cut + 1);
+        auto it = std::lower_bound(lower, upper, target);
+        std::size_t candidate =
+            it == upper
+                ? max_cut
+                : static_cast<std::size_t>(
+                      std::distance(prefix.begin(), it));
+        candidate = std::max(min_cut, std::min(candidate, max_cut));
+
+        if (candidate > min_cut)
+        {
+            const std::size_t previous = candidate - 1;
+            const std::uint64_t candidate_distance =
+                prefix[candidate] >= target
+                    ? prefix[candidate] - target
+                    : target - prefix[candidate];
+            const std::uint64_t previous_distance =
+                prefix[previous] >= target
+                    ? prefix[previous] - target
+                    : target - prefix[previous];
+            if (previous_distance <= candidate_distance)
+                candidate = previous;
+        }
+        cuts[part] = candidate;
+    }
+
+    std::vector<std::pair<std::size_t, std::size_t>> ranges;
+    ranges.reserve(partition_count);
+    for (std::size_t part = 0;
+         part < partition_count; ++part)
+    {
+        if (cuts[part] >= cuts[part + 1])
+            throw std::logic_error(
+                "Balanced graph partitioning produced an empty shard");
+        ranges.emplace_back(cuts[part], cuts[part + 1]);
+    }
+    return ranges;
+}
+
+} // namespace graphbrew_compact_detail
+
+// Deterministic partition plan: balanced vertex ranges, per-vertex ownership
+// and per-shard balance weights. It is O(N) and independent of how many shards
+// are materialized at once, so both the in-memory partitioner and the streaming
+// exporter derive identical ownership from it.
+template <typename NodeID_>
+struct GraphPartitionPlan
+{
+    using Offset = std::uint64_t;
+
+    std::size_t partition_count = 0;
+    bool directed = false;
+    GraphPartitionBalance balance =
+        GraphPartitionBalance::kTotalEdges;
+    NodeID_ num_nodes = 0;
+    std::uint64_t num_edges_directed = 0;
+    std::vector<std::uint64_t> weights;
+    std::vector<std::pair<std::size_t, std::size_t>> ranges;
+    std::vector<std::uint64_t> balance_weights;
+    std::vector<std::uint32_t> owner_by_vertex;
+};
+
+template <typename NodeID_, typename GraphT>
+GraphPartitionPlan<NodeID_> BuildGraphPartitionPlan(
+    const GraphT &graph,
+    std::size_t requested_partitions,
+    GraphPartitionBalance balance =
+        GraphPartitionBalance::kTotalEdges)
+{
+    namespace detail = graphbrew_compact_detail;
+    if (requested_partitions == 0)
+        throw std::invalid_argument(
+            "Graph partition count must be positive");
+    if (graph.num_nodes() < 0)
+        throw std::invalid_argument(
+            "Cannot partition a graph with a negative vertex count");
+    if (graph.num_edges_directed() < 0)
+        throw std::invalid_argument(
+            "Cannot partition a graph with a negative edge count");
+    if (
+        static_cast<std::uint64_t>(graph.num_nodes()) >
+        static_cast<std::uint64_t>(
+            std::numeric_limits<NodeID_>::max()))
+    {
+        throw std::overflow_error(
+            "Graph vertex count does not fit the partition vertex type");
+    }
+
+    GraphPartitionPlan<NodeID_> plan;
+    plan.directed = graph.directed();
+    plan.balance = balance;
+    plan.num_nodes = static_cast<NodeID_>(graph.num_nodes());
+    plan.num_edges_directed =
+        static_cast<std::uint64_t>(graph.num_edges_directed());
+
+    const std::size_t num_nodes =
+        static_cast<std::size_t>(graph.num_nodes());
+    if (num_nodes == 0)
+        return plan;
+
+    const std::size_t partition_count =
+        std::min(requested_partitions, num_nodes);
+    if (
+        partition_count >
+        std::numeric_limits<std::uint32_t>::max())
+    {
+        throw std::overflow_error(
+            "Graph partition count exceeds the manifest identifier width");
+    }
+    plan.partition_count = partition_count;
+
+    plan.weights.assign(num_nodes, 0);
+    for (std::size_t index = 0; index < num_nodes; ++index)
+    {
+        const NodeID_ vertex = static_cast<NodeID_>(index);
+        const std::uint64_t out_degree =
+            detail::CheckedDegree(graph.out_degree(vertex));
+        const std::uint64_t in_degree =
+            plan.directed
+                ? detail::CheckedDegree(graph.in_degree(vertex))
+                : out_degree;
+        switch (balance)
+        {
+        case GraphPartitionBalance::kVertices:
+            plan.weights[index] = 1;
+            break;
+        case GraphPartitionBalance::kOutgoingEdges:
+            plan.weights[index] = out_degree;
+            break;
+        case GraphPartitionBalance::kTotalEdges:
+            plan.weights[index] = plan.directed
+                ? detail::CheckedAdd(out_degree, in_degree)
+                : out_degree;
+            break;
+        }
+    }
+
+    plan.ranges = detail::BuildBalancedRanges(plan.weights, partition_count);
+    plan.balance_weights.resize(partition_count);
+    plan.owner_by_vertex.assign(num_nodes, 0);
+    for (std::size_t id = 0; id < partition_count; ++id)
+    {
+        plan.balance_weights[id] = detail::SumRange(
+            plan.weights, plan.ranges[id].first, plan.ranges[id].second);
+        std::fill(
+            plan.owner_by_vertex.begin() +
+                static_cast<std::ptrdiff_t>(plan.ranges[id].first),
+            plan.owner_by_vertex.begin() +
+                static_cast<std::ptrdiff_t>(plan.ranges[id].second),
+            static_cast<std::uint32_t>(id));
+    }
+    return plan;
+}
+
+// Materialize exactly one shard from the plan: its owned-vertex CSR, ghost
+// metadata and localized neighbor slots. `ghost_stamp` and
+// `ghost_slot_by_vertex` are reusable O(N) scratch buffers shared across
+// sequential calls (the stamp trick avoids clearing them between shards).
+template <typename NodeID_, typename GraphT>
+CompactGraphPartition<NodeID_> BuildCompactShard(
+    const GraphT &graph,
+    const GraphPartitionPlan<NodeID_> &plan,
+    std::size_t id,
+    std::vector<std::uint32_t> &ghost_stamp,
+    std::vector<NodeID_> &ghost_slot_by_vertex)
+{
+    namespace detail = graphbrew_compact_detail;
+    using Partition = CompactGraphPartition<NodeID_>;
+    using Offset = typename Partition::Offset;
+
+    Partition partition;
+    partition.id = static_cast<std::uint32_t>(id);
+    partition.vertex_begin =
+        static_cast<NodeID_>(plan.ranges[id].first);
+    partition.vertex_end =
+        static_cast<NodeID_>(plan.ranges[id].second);
+    partition.symmetric = !plan.directed;
+    partition.balance_weight = plan.balance_weights[id];
+
+    const std::size_t owned = partition.vertex_count();
+    partition.out_offsets.resize(owned + 1, 0);
+    if (plan.directed)
+        partition.in_offsets.resize(owned + 1, 0);
+
+    for (std::size_t local = 0; local < owned; ++local)
+    {
+        const NodeID_ vertex = partition.global_vertex(local);
+        partition.out_offsets[local + 1] = detail::CheckedAdd(
+            partition.out_offsets[local],
+            detail::CheckedDegree(graph.out_degree(vertex)));
+        if (plan.directed)
+        {
+            partition.in_offsets[local + 1] = detail::CheckedAdd(
+                partition.in_offsets[local],
+                detail::CheckedDegree(graph.in_degree(vertex)));
+        }
+    }
+
+    detail::CheckVectorSize(partition.out_offsets.back());
+    partition.out_neighbors.resize(
+        static_cast<std::size_t>(partition.out_offsets.back()));
+    if (plan.directed)
+    {
+        detail::CheckVectorSize(partition.in_offsets.back());
+        partition.in_neighbors.resize(
+            static_cast<std::size_t>(partition.in_offsets.back()));
+    }
+
+    std::atomic<bool> invalid_neighbor(false);
+    #pragma omp parallel for schedule(dynamic, 256)
+    for (std::int64_t local = 0;
+         local < static_cast<std::int64_t>(owned); ++local)
+    {
+        const NodeID_ vertex = partition.global_vertex(
+            static_cast<std::size_t>(local));
+        Offset out_offset =
+            partition.out_offsets[static_cast<std::size_t>(local)];
+        for (const auto raw_neighbor : graph.out_neigh(vertex))
+        {
+            const NodeID_ neighbor =
+                static_cast<NodeID_>(raw_neighbor);
+            if (!detail::ValidVertex(neighbor, plan.num_nodes))
+            {
+                invalid_neighbor.store(true);
+                continue;
+            }
+            partition.out_neighbors[
+                static_cast<std::size_t>(out_offset++)] = neighbor;
+        }
+        if (out_offset !=
+            partition.out_offsets[static_cast<std::size_t>(local) + 1])
+            invalid_neighbor.store(true);
+
+        if (plan.directed)
+        {
+            Offset in_offset =
+                partition.in_offsets[static_cast<std::size_t>(local)];
+            for (const auto raw_neighbor : graph.in_neigh(vertex))
+            {
+                const NodeID_ neighbor =
+                    static_cast<NodeID_>(raw_neighbor);
+                if (!detail::ValidVertex(neighbor, plan.num_nodes))
+                {
+                    invalid_neighbor.store(true);
+                    continue;
+                }
+                partition.in_neighbors[
+                    static_cast<std::size_t>(in_offset++)] = neighbor;
+            }
+            if (in_offset !=
+                partition.in_offsets[static_cast<std::size_t>(local) + 1])
+                invalid_neighbor.store(true);
+        }
+    }
+    if (invalid_neighbor.load())
+        throw std::invalid_argument(
+            "Graph adjacency contains an invalid vertex or degree");
+
+    const std::uint32_t stamp = partition.id + 1;
+    const auto record_ghost =
+        [&](NodeID_ neighbor)
+        {
+            const std::size_t owner =
+                plan.owner_by_vertex[
+                    static_cast<std::size_t>(neighbor)];
+            if (owner == partition.id)
+                return;
+            const std::size_t index =
+                static_cast<std::size_t>(neighbor);
+            if (ghost_stamp[index] == stamp)
+                return;
+            ghost_stamp[index] = stamp;
+            partition.ghost_globals.push_back(neighbor);
+        };
+
+    for (const NodeID_ neighbor : partition.out_neighbors)
+    {
+        if (
+            plan.owner_by_vertex[
+                static_cast<std::size_t>(neighbor)] !=
+            partition.id)
+        {
+            ++partition.remote_out_edges;
+        }
+        record_ghost(neighbor);
+    }
+    if (plan.directed)
+    {
+        for (const NodeID_ neighbor : partition.in_neighbors)
+        {
+            if (
+                plan.owner_by_vertex[
+                    static_cast<std::size_t>(neighbor)] !=
+                partition.id)
+            {
+                ++partition.remote_in_edges;
+            }
+            record_ghost(neighbor);
+        }
+    }
+    else
+    {
+        partition.remote_in_edges = partition.remote_out_edges;
+    }
+
+    const std::size_t ghost_count = partition.ghost_globals.size();
+    const std::uint64_t local_slot_count = detail::CheckedAdd(
+        owned, ghost_count);
+    if (
+        local_slot_count >
+        static_cast<std::uint64_t>(
+            std::numeric_limits<NodeID_>::max()))
+    {
+        throw std::overflow_error(
+            "Partition local and ghost vertices exceed the local ID width");
+    }
+
+    partition.ghost_owners.resize(ghost_count);
+    for (std::size_t index = 0; index < ghost_count; ++index)
+    {
+        const NodeID_ global_id = partition.ghost_globals[index];
+        const NodeID_ local_id =
+            static_cast<NodeID_>(owned + index);
+        ghost_slot_by_vertex[
+            static_cast<std::size_t>(global_id)] = local_id;
+        partition.ghost_owners[index] =
+            plan.owner_by_vertex[
+                static_cast<std::size_t>(global_id)];
+    }
+
+    const auto localize_neighbor =
+        [&](NodeID_ global_id)
+        {
+            if (
+                plan.owner_by_vertex[
+                    static_cast<std::size_t>(global_id)] ==
+                partition.id)
+            {
+                return static_cast<NodeID_>(
+                    global_id - partition.vertex_begin);
+            }
+            return ghost_slot_by_vertex[
+                static_cast<std::size_t>(global_id)];
+        };
+    for (NodeID_ &neighbor : partition.out_neighbors)
+        neighbor = localize_neighbor(neighbor);
+    if (plan.directed)
+    {
+        for (NodeID_ &neighbor : partition.in_neighbors)
+            neighbor = localize_neighbor(neighbor);
+    }
+
+    return partition;
+}
+
 template <typename NodeID_>
 class PartitionedGraph
 {
@@ -293,179 +745,23 @@ public:
         GraphPartitionBalance balance =
             GraphPartitionBalance::kTotalEdges)
     {
-        if (requested_partitions == 0)
-            throw std::invalid_argument(
-                "Graph partition count must be positive");
-        if (graph.num_nodes() < 0)
-            throw std::invalid_argument(
-                "Cannot partition a graph with a negative vertex count");
-        if (graph.num_edges_directed() < 0)
-            throw std::invalid_argument(
-                "Cannot partition a graph with a negative edge count");
-        if (
-            static_cast<std::uint64_t>(graph.num_nodes()) >
-            static_cast<std::uint64_t>(
-                std::numeric_limits<NodeID_>::max()))
-        {
-            throw std::overflow_error(
-                "Graph vertex count does not fit the partition vertex type");
-        }
+        GraphPartitionPlan<NodeID_> plan =
+            BuildGraphPartitionPlan<NodeID_>(
+                graph, requested_partitions, balance);
 
         PartitionedGraph result;
-        result.num_nodes_ = static_cast<NodeID_>(graph.num_nodes());
-        result.num_edges_directed_ =
-            static_cast<std::uint64_t>(graph.num_edges_directed());
-        result.directed_ = graph.directed();
+        result.num_nodes_ = plan.num_nodes;
+        result.num_edges_directed_ = plan.num_edges_directed;
+        result.directed_ = plan.directed;
         result.balance_ = balance;
-        const std::size_t num_nodes =
-            static_cast<std::size_t>(graph.num_nodes());
-        if (num_nodes == 0)
+        if (plan.partition_count == 0)
             return result;
 
-        const std::size_t partition_count =
-            std::min(requested_partitions, num_nodes);
-        if (
-            partition_count >
-            std::numeric_limits<std::uint32_t>::max())
-        {
-            throw std::overflow_error(
-                "Graph partition count exceeds the manifest identifier width");
-        }
-
-        std::vector<std::uint64_t> weights(num_nodes, 0);
-        for (std::size_t index = 0; index < num_nodes; ++index)
-        {
-            const NodeID_ vertex = static_cast<NodeID_>(index);
-            const std::uint64_t out_degree =
-                CheckedDegree(graph.out_degree(vertex));
-            const std::uint64_t in_degree =
-                result.directed_
-                    ? CheckedDegree(graph.in_degree(vertex))
-                    : out_degree;
-            switch (balance)
-            {
-            case GraphPartitionBalance::kVertices:
-                weights[index] = 1;
-                break;
-            case GraphPartitionBalance::kOutgoingEdges:
-                weights[index] = out_degree;
-                break;
-            case GraphPartitionBalance::kTotalEdges:
-                weights[index] = result.directed_
-                    ? CheckedAdd(out_degree, in_degree)
-                    : out_degree;
-                break;
-            }
-        }
-
-        const auto ranges = BuildBalancedRanges(weights, partition_count);
+        const std::size_t partition_count = plan.partition_count;
+        const std::size_t num_nodes =
+            static_cast<std::size_t>(plan.num_nodes);
         result.partitions_.resize(partition_count);
         result.cut_ends_.reserve(partition_count);
-        std::vector<std::uint32_t> owner_by_vertex(num_nodes, 0);
-
-        for (std::size_t id = 0; id < partition_count; ++id)
-        {
-            Partition &partition = result.partitions_[id];
-            partition.id = static_cast<std::uint32_t>(id);
-            partition.vertex_begin =
-                static_cast<NodeID_>(ranges[id].first);
-            partition.vertex_end =
-                static_cast<NodeID_>(ranges[id].second);
-            partition.symmetric = !result.directed_;
-            partition.balance_weight = SumRange(
-                weights, ranges[id].first, ranges[id].second);
-            result.cut_ends_.push_back(partition.vertex_end);
-            std::fill(
-                owner_by_vertex.begin() +
-                    static_cast<std::ptrdiff_t>(ranges[id].first),
-                owner_by_vertex.begin() +
-                    static_cast<std::ptrdiff_t>(ranges[id].second),
-                partition.id);
-
-            const std::size_t owned = partition.vertex_count();
-            partition.out_offsets.resize(owned + 1, 0);
-            if (result.directed_)
-                partition.in_offsets.resize(owned + 1, 0);
-
-            for (std::size_t local = 0; local < owned; ++local)
-            {
-                const NodeID_ vertex = partition.global_vertex(local);
-                partition.out_offsets[local + 1] = CheckedAdd(
-                    partition.out_offsets[local],
-                    CheckedDegree(graph.out_degree(vertex)));
-                if (result.directed_)
-                {
-                    partition.in_offsets[local + 1] = CheckedAdd(
-                        partition.in_offsets[local],
-                        CheckedDegree(graph.in_degree(vertex)));
-                }
-            }
-
-            CheckVectorSize(partition.out_offsets.back());
-            partition.out_neighbors.resize(
-                static_cast<std::size_t>(
-                    partition.out_offsets.back()));
-            if (result.directed_)
-            {
-                CheckVectorSize(partition.in_offsets.back());
-                partition.in_neighbors.resize(
-                    static_cast<std::size_t>(
-                        partition.in_offsets.back()));
-            }
-        }
-
-        std::atomic<bool> invalid_neighbor(false);
-        #pragma omp parallel for schedule(dynamic, 256)
-        for (std::int64_t raw_vertex = 0;
-             raw_vertex < static_cast<std::int64_t>(num_nodes);
-             ++raw_vertex)
-        {
-            const NodeID_ vertex = static_cast<NodeID_>(raw_vertex);
-            const std::size_t owner =
-                owner_by_vertex[static_cast<std::size_t>(vertex)];
-            Partition &partition = result.partitions_[owner];
-            const std::size_t local =
-                static_cast<std::size_t>(
-                    vertex - partition.vertex_begin);
-
-            Offset out_offset = partition.out_offsets[local];
-            for (const auto raw_neighbor : graph.out_neigh(vertex))
-            {
-                const NodeID_ neighbor =
-                    static_cast<NodeID_>(raw_neighbor);
-                if (!ValidVertex(neighbor, result.num_nodes_))
-                {
-                    invalid_neighbor.store(true);
-                    continue;
-                }
-                partition.out_neighbors[
-                    static_cast<std::size_t>(out_offset++)] = neighbor;
-            }
-            if (out_offset != partition.out_offsets[local + 1])
-                invalid_neighbor.store(true);
-
-            if (result.directed_)
-            {
-                Offset in_offset = partition.in_offsets[local];
-                for (const auto raw_neighbor : graph.in_neigh(vertex))
-                {
-                    const NodeID_ neighbor =
-                        static_cast<NodeID_>(raw_neighbor);
-                    if (!ValidVertex(neighbor, result.num_nodes_))
-                    {
-                        invalid_neighbor.store(true);
-                        continue;
-                    }
-                    partition.in_neighbors[
-                        static_cast<std::size_t>(in_offset++)] = neighbor;
-                }
-                if (in_offset != partition.in_offsets[local + 1])
-                    invalid_neighbor.store(true);
-            }
-        }
-        if (invalid_neighbor.load())
-            throw std::invalid_argument(
-                "Graph adjacency contains an invalid vertex or degree");
 
         std::vector<std::uint32_t> ghost_stamp(num_nodes, 0);
         std::vector<NodeID_> ghost_slot_by_vertex(num_nodes, 0);
@@ -476,121 +772,31 @@ public:
         std::uint64_t remote_in_edges = 0;
         std::uint64_t max_weight = 0;
         std::uint64_t total_weight = 0;
-        for (Partition &partition : result.partitions_)
+
+        for (std::size_t id = 0; id < partition_count; ++id)
         {
-            const std::uint32_t stamp = partition.id + 1;
-            const auto record_ghost =
-                [&](NodeID_ neighbor)
-                {
-                    const std::size_t owner =
-                        owner_by_vertex[
-                            static_cast<std::size_t>(neighbor)];
-                    if (owner == partition.id)
-                        return;
-                    const std::size_t index =
-                        static_cast<std::size_t>(neighbor);
-                    if (ghost_stamp[index] == stamp)
-                        return;
-                    ghost_stamp[index] = stamp;
-                    partition.ghost_globals.push_back(neighbor);
-                };
-
-            for (const NodeID_ neighbor : partition.out_neighbors)
-            {
-                if (
-                    owner_by_vertex[
-                        static_cast<std::size_t>(neighbor)] !=
-                    partition.id)
-                {
-                    ++partition.remote_out_edges;
-                }
-                record_ghost(neighbor);
-            }
-            if (result.directed_)
-            {
-                for (const NodeID_ neighbor : partition.in_neighbors)
-                {
-                    if (
-                        owner_by_vertex[
-                            static_cast<std::size_t>(neighbor)] !=
-                        partition.id)
-                    {
-                        ++partition.remote_in_edges;
-                    }
-                    record_ghost(neighbor);
-                }
-            }
-            else
-            {
-                partition.remote_in_edges = partition.remote_out_edges;
-            }
-
-            const std::size_t owned = partition.vertex_count();
-            const std::size_t ghost_count = partition.ghost_globals.size();
-            const std::uint64_t local_slot_count = CheckedAdd(
-                owned, ghost_count);
-            if (
-                local_slot_count >
-                static_cast<std::uint64_t>(
-                    std::numeric_limits<NodeID_>::max()))
-            {
-                throw std::overflow_error(
-                    "Partition local and ghost vertices exceed the local ID width");
-            }
-
-            partition.ghost_owners.resize(ghost_count);
-            for (std::size_t index = 0;
-                 index < ghost_count; ++index)
-            {
-                const NodeID_ global_id =
-                    partition.ghost_globals[index];
-                const NodeID_ local_id =
-                    static_cast<NodeID_>(owned + index);
-                ghost_slot_by_vertex[
-                    static_cast<std::size_t>(global_id)] = local_id;
-                partition.ghost_owners[index] =
-                    owner_by_vertex[
-                        static_cast<std::size_t>(global_id)];
-            }
-
-            const auto localize_neighbor =
-                [&](NodeID_ global_id)
-                {
-                    if (
-                        owner_by_vertex[
-                            static_cast<std::size_t>(global_id)] ==
-                        partition.id)
-                    {
-                        return static_cast<NodeID_>(
-                            global_id - partition.vertex_begin);
-                    }
-                    return ghost_slot_by_vertex[
-                        static_cast<std::size_t>(global_id)];
-                };
-            for (NodeID_ &neighbor : partition.out_neighbors)
-                neighbor = localize_neighbor(neighbor);
-            if (result.directed_)
-            {
-                for (NodeID_ &neighbor : partition.in_neighbors)
-                    neighbor = localize_neighbor(neighbor);
-            }
+            Partition partition = BuildCompactShard<NodeID_>(
+                graph, plan, id, ghost_stamp, ghost_slot_by_vertex);
+            result.cut_ends_.push_back(partition.vertex_end);
 
             total_ghosts += partition.ghost_count();
-            total_out_edges = CheckedAdd(
+            total_out_edges = graphbrew_compact_detail::CheckedAdd(
                 total_out_edges, partition.out_neighbors.size());
-            total_in_edges = CheckedAdd(
+            total_in_edges = graphbrew_compact_detail::CheckedAdd(
                 total_in_edges,
-                result.directed_
+                plan.directed
                     ? partition.in_neighbors.size()
                     : partition.out_neighbors.size());
-            remote_out_edges = CheckedAdd(
+            remote_out_edges = graphbrew_compact_detail::CheckedAdd(
                 remote_out_edges, partition.remote_out_edges);
-            remote_in_edges = CheckedAdd(
+            remote_in_edges = graphbrew_compact_detail::CheckedAdd(
                 remote_in_edges, partition.remote_in_edges);
             max_weight = std::max(
                 max_weight, partition.balance_weight);
-            total_weight = CheckedAdd(
+            total_weight = graphbrew_compact_detail::CheckedAdd(
                 total_weight, partition.balance_weight);
+
+            result.partitions_[id] = std::move(partition);
         }
 
         if (total_out_edges != result.num_edges_directed_)
@@ -615,7 +821,7 @@ public:
             result.max_balance_imbalance_ =
                 static_cast<double>(max_weight) / average;
         }
-        result.owner_by_vertex_ = std::move(owner_by_vertex);
+        result.owner_by_vertex_ = std::move(plan.owner_by_vertex);
         return result;
     }
 
@@ -981,44 +1187,16 @@ private:
         return static_cast<double>(maximum) / average;
     }
 
-    static std::uint64_t CheckedDegree(std::int64_t degree)
-    {
-        if (degree < 0)
-            throw std::invalid_argument(
-                "Graph contains a negative vertex degree");
-        return static_cast<std::uint64_t>(degree);
-    }
-
     static std::uint64_t CheckedAdd(
         std::uint64_t lhs,
         std::uint64_t rhs)
     {
-        if (rhs > std::numeric_limits<std::uint64_t>::max() - lhs)
-            throw std::overflow_error(
-                "Graph partition size arithmetic overflow");
-        return lhs + rhs;
-    }
-
-    static void CheckVectorSize(std::uint64_t size)
-    {
-        if (
-            size > std::numeric_limits<std::size_t>::max() ||
-            size > static_cast<std::uint64_t>(
-                       std::numeric_limits<std::ptrdiff_t>::max()))
-        {
-            throw std::overflow_error(
-                "Graph partition adjacency exceeds host address space");
-        }
+        return graphbrew_compact_detail::CheckedAdd(lhs, rhs);
     }
 
     static bool ValidVertex(NodeID_ vertex, NodeID_ num_nodes)
     {
-        if constexpr (std::is_signed<NodeID_>::value)
-        {
-            if (vertex < 0)
-                return false;
-        }
-        return vertex < num_nodes;
+        return graphbrew_compact_detail::ValidVertex(vertex, num_nodes);
     }
 
     void CheckVertex(NodeID_ vertex) const
@@ -1039,96 +1217,6 @@ private:
                 "Graph partition owner lookup is out of range");
         return static_cast<std::size_t>(
             std::distance(cut_ends.begin(), it));
-    }
-
-    static std::uint64_t SumRange(
-        const std::vector<std::uint64_t> &weights,
-        std::size_t begin,
-        std::size_t end)
-    {
-        std::uint64_t total = 0;
-        for (std::size_t index = begin; index < end; ++index)
-            total = CheckedAdd(total, weights[index]);
-        return total;
-    }
-
-    static std::vector<std::pair<std::size_t, std::size_t>>
-    BuildBalancedRanges(
-        const std::vector<std::uint64_t> &weights,
-        std::size_t partition_count)
-    {
-        const std::size_t num_nodes = weights.size();
-        std::vector<std::uint64_t> prefix(num_nodes + 1, 0);
-        for (std::size_t index = 0; index < num_nodes; ++index)
-        {
-            prefix[index + 1] =
-                CheckedAdd(prefix[index], weights[index]);
-        }
-
-        if (prefix.back() == 0)
-        {
-            for (std::size_t index = 0; index < num_nodes; ++index)
-                prefix[index + 1] = index + 1;
-        }
-
-        std::vector<std::size_t> cuts(partition_count + 1, 0);
-        cuts.back() = num_nodes;
-        const std::uint64_t total = prefix.back();
-        const std::uint64_t quotient =
-            total / partition_count;
-        const std::uint64_t remainder =
-            total % partition_count;
-
-        for (std::size_t part = 1;
-             part < partition_count; ++part)
-        {
-            const std::size_t min_cut = cuts[part - 1] + 1;
-            const std::size_t max_cut =
-                num_nodes - (partition_count - part);
-            const std::uint64_t target =
-                quotient * part +
-                (remainder * part) / partition_count;
-
-            auto lower = prefix.begin() +
-                         static_cast<std::ptrdiff_t>(min_cut);
-            auto upper = prefix.begin() +
-                         static_cast<std::ptrdiff_t>(max_cut + 1);
-            auto it = std::lower_bound(lower, upper, target);
-            std::size_t candidate =
-                it == upper
-                    ? max_cut
-                    : static_cast<std::size_t>(
-                          std::distance(prefix.begin(), it));
-            candidate = std::max(min_cut, std::min(candidate, max_cut));
-
-            if (candidate > min_cut)
-            {
-                const std::size_t previous = candidate - 1;
-                const std::uint64_t candidate_distance =
-                    prefix[candidate] >= target
-                        ? prefix[candidate] - target
-                        : target - prefix[candidate];
-                const std::uint64_t previous_distance =
-                    prefix[previous] >= target
-                        ? prefix[previous] - target
-                        : target - prefix[previous];
-                if (previous_distance <= candidate_distance)
-                    candidate = previous;
-            }
-            cuts[part] = candidate;
-        }
-
-        std::vector<std::pair<std::size_t, std::size_t>> ranges;
-        ranges.reserve(partition_count);
-        for (std::size_t part = 0;
-             part < partition_count; ++part)
-        {
-            if (cuts[part] >= cuts[part + 1])
-                throw std::logic_error(
-                    "Balanced graph partitioning produced an empty shard");
-            ranges.emplace_back(cuts[part], cuts[part + 1]);
-        }
-        return ranges;
     }
 
     static void VerifyOffsets(
