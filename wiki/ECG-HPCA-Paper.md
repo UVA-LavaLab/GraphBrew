@@ -232,7 +232,8 @@ Canonical profiles:
   5.28% more traffic than charged P-OPT.
 - A separate two-arm placement duel now selects LLC allocation versus
   StreamShield; the five-kernel three-simulator mechanism gate passes, while
-  performance evaluation is pending.
+  PR shows 4.28% geomean miss reduction versus always allocate and 2.62% regret
+  versus always shield. Reused-kernel evaluation is pending.
 - The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
   prefetcher: every policy overprefetches, and K2 LLC read traffic rises
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do

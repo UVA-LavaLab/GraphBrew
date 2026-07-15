@@ -23,7 +23,7 @@ Canonical corrected factorial profile: `ecg_cache_sim_factorial`.
 
 ## Corrected tag-hit-preserving StreamShield factorial
 
-The current factorial contains 33 rows: three real graphs x 11 policies, PR
+The current factorial contains 36 rows: three real graphs x 12 policies, PR
 `-i1 -o5`, matched STRIDE8, charged K1/K2 records, size-correct P-OPT, and
 StreamShield that preserves LLC lookup/hits and suppresses only miss allocation.
 “Full” is online K2+StreamShield.
@@ -47,8 +47,22 @@ lookup-bypass attribution. The corrected factorial therefore validates
 StreamShield as a useful incremental placement mechanism, but not as a
 total-bandwidth win over P-OPT.
 
+Adaptive allocate-vs-shield placement lands between the two static choices:
+
+| Graph | Adaptive miss delta vs static SS | Adaptive traffic delta vs static SS | Adaptive demand reduction vs online K2 | Adaptive traffic reduction vs online K2 |
+|---|---:|---:|---:|---:|
+| web-Google / 2MB | +4.54% | +1.84% | 3.09% | 1.31% |
+| soc-pokec / 2MB | +1.50% | +0.83% | 3.38% | 1.90% |
+| cit-Patents / 8MB | +1.84% | +0.85% | 6.35% | 3.08% |
+
+Geomean adaptive placement reduces demand misses 4.28% and traffic 2.10%
+versus always allocating online K2, but trails static StreamShield by 2.62%
+misses and 1.17% traffic on PR. This is the expected learning/leader overhead
+when shielding is uniformly favorable; adaptive placement is intended to avoid
+harm on kernels or phases with record reuse.
+
 Aggregate: `results/ecg_experiments/paper_pipeline/`
-`ecg_cache_sim_factorial_final_20260714/aggregate/roi_matrix_all.csv`.
+`ecg_cache_sim_factorial_adaptive_final_20260715/aggregate/roi_matrix_all.csv`.
 
 ## Tiered K2 and online selection (cache_sim functional authority)
 

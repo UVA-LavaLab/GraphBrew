@@ -30,7 +30,9 @@
 - The static StreamShield primitive passes the full PR/BFS/SSSP/BC/CC
   cache_sim/gem5/Sniper mechanism gate; adaptive eligibility remains separate.
 - Allocate-vs-StreamShield placement dueling is live in all three simulators and
-  passes the full five-kernel mechanism gate; performance remains pending.
+  passes the full five-kernel mechanism gate. On the three PR graphs it reduces
+  misses 4.28% versus always-allocate online K2, while paying 2.62% regret versus
+  always-shield; reused-kernel performance remains pending.
 - Sniper preserves NUCA lookup, hits, and latency while suppressing insertion of
   bypassed misses.
 - On synthetic mechanism cells, StreamShield improves fused K2 in both gem5 and

@@ -152,6 +152,9 @@ weighted avoided demand misses as **K2+online 83.94% / StreamShield 16.06%**.
 StreamShield improves online K2, but full ECG still uses 5.28% more geomean
 traffic than charged P-OPT.
 
+Adaptive placement recovers 4.28% geomean misses versus always allocating K2
+records, while paying 2.62% regret versus always shielding on PR.
+
 ## Prior-publication boundary
 
 The IPDPSW 2024 ECG paper is archival. An HPCA submission must be materially
