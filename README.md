@@ -226,6 +226,27 @@ source-space BFS-depth fingerprints. Partition metrics include remote incoming
 and outgoing arc fractions, ghost metadata bytes, storage balance, and
 vertex/edge imbalance for deterministic cut-policy comparisons.
 
+The frozen Phase 1 matrix runs ORIGINAL, `RCM:bnf`, `GORDER:csr`, and the
+research-only `comm_cut_min` comparator across repeated thread counts:
+
+```bash
+.venv/bin/python scripts/experiments/partition_cut/phase1.py \
+  --graph results/graphs/web-Google/web-Google.sg \
+  --threads 1,32 --repeats 3 --partitions 16
+```
+
+Current P16 result:
+
+| Graph/policy | Deterministic | Remote reduction | Ghost reduction | Max-shard ratio |
+|---|:---:|---:|---:|---:|
+| web-Google / `RCM:bnf` | yes | 2.39x | 3.23x | 1.013x |
+| web-Google / `GORDER:csr` | yes | 2.04x | 3.63x | 1.033x |
+| web-Google / `comm_cut_min` | no | 2.87x | 3.18x | 1.389x |
+| Scale-22 / `RCM:bnf` | yes | 0.99x | 1.00x | 1.531x |
+
+No policy is a universal default: deterministic linear reordering strongly
+helps the real web graph but does not improve the synthetic Kronecker cut.
+
 ---
 
 ## Testing
