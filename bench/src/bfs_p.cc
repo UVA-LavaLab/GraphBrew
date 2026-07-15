@@ -626,6 +626,8 @@ int main(int argc, char *argv[])
                 partitioned.max_shard_storage_bytes();
             partition["vertex_imbalance"] =
                 partitioned.max_vertex_imbalance();
+            partition["balance_imbalance"] =
+                partitioned.max_balance_imbalance();
             partition["out_edge_imbalance"] =
                 partitioned.max_out_edge_imbalance();
             partition["in_edge_imbalance"] =
