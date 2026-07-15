@@ -174,7 +174,6 @@ def test_streamshield_manifest_is_complete():
         "LRU", "SRRIP", "GRASP", "POPT",
         "ECG:K2", "ECG:K2_ONLINE",
         "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD",
-        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
     ]
     assert stage["prefetcher"] == "STRIDE"
     assert stage["popt_reserve_model"] == "size_correct"
@@ -385,12 +384,11 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
     )
     assert generated.returncode == 0, generated.stdout + generated.stderr
     rows = [line.split("\t") for line in shards.read_text().splitlines()]
-    assert len(rows) == 9
+    assert len(rows) == 8
     assert [row[4] for row in rows] == [
         "LRU", "SRRIP", "GRASP", "POPT",
         "ECG:K2", "ECG:K2_ONLINE",
         "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD",
-        "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
     ]
     sbatch = (
         ROOT / "scripts/experiments/ecg/slurm/slurm_final_shard.sbatch"

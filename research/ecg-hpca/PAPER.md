@@ -60,8 +60,6 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
   degree-, and LRU-first arms without using the graph or kernel name.
 - **StreamShield:** one-touch packed records fill private caches, retain LLC-hit
   behavior, and do not allocate after an LLC miss.
-- **Adaptive placement:** a separate allocate-vs-StreamShield duel learns
-  whether each execution phase benefits from record residency.
 - **ISA:** PR/BFS/SSSP/BC/CC use fused `ecg.load2` and request-bound
   `ecg.stream.load2` for StreamShield. The current gem5 path is in-order; O3
   awaits request-bound pair attachment.
@@ -72,10 +70,9 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
 2. Request-bound cache-placement control that separates private-cache streaming
    from shared-LLC residency.
 3. Online set-dueling that selects among graph-aware victim rules at runtime.
-4. Online placement dueling that selects LLC allocation versus StreamShield.
-5. A shared eviction decision and exact delivery/decision gates across cache_sim,
+4. A shared eviction decision and exact delivery/decision gates across cache_sim,
    gem5, and Sniper.
-6. Full accounting of record bytes, P-OPT reserved capacity, demand misses,
+5. Full accounting of record bytes, P-OPT reserved capacity, demand misses,
    total traffic, simulated time, and instruction count.
 
 ## Evaluation structure

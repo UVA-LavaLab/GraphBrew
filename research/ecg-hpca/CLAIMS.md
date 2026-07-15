@@ -32,7 +32,11 @@
 - Allocate-vs-StreamShield placement dueling is live in all three simulators and
   passes the full five-kernel mechanism gate. In cache_sim on the three PR
   graphs it reduces misses 4.28% versus always-allocate online K2, while paying
-  2.62% regret versus always-shield; reused-kernel performance remains pending.
+  2.62% regret versus always-shield.
+- The completed all-kernel placement matrix finds static StreamShield better
+  than always allocate on 15/15 cells. Adaptive placement has 0.95% geomean
+  regret versus static SS and remains a default-off ablation, not a headline
+  mechanism.
 - Sniper preserves NUCA lookup, hits, and latency while suppressing insertion of
   bypassed misses.
 - On synthetic mechanism cells, StreamShield improves fused K2 in both gem5 and

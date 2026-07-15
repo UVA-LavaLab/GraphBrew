@@ -39,12 +39,10 @@ Every reported comparison includes:
 6. online K2
 7. K2+StreamShield
 8. online K2+StreamShield
-9. online K2+adaptive StreamShield
 
 The canonical runner labels are `ECG:K2`, `ECG:K2_ONLINE`,
 `ECG:K2_STREAMSHIELD`, and `ECG:K2_ONLINE_STREAMSHIELD`.
-The adaptive placement candidate is
-`ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD`.
+`ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD` is retained only as a placement ablation.
 
 The replacement-quality profile additionally includes uncharged P-OPT,
 `ECG:K1`, every static K2 arm, and `ECG:K2_ONLINE`. These are diagnostic

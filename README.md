@@ -109,7 +109,6 @@ Every reported comparison includes:
 ```text
 LRU  SRRIP  GRASP  charged P-OPT
 K2  K2-online  K2+StreamShield  K2-online+StreamShield
-K2-online+adaptive-StreamShield
 ```
 
 The cache_sim replacement baseline exposes uncharged and charged P-OPT,
@@ -153,7 +152,8 @@ StreamShield improves online K2, but full ECG still uses 5.28% more geomean
 traffic than charged P-OPT.
 
 Adaptive placement recovers 4.28% geomean misses versus always allocating K2
-records, while paying 2.62% regret versus always shielding on PR.
+records on PR, but the all-kernel matrix finds static StreamShield better on
+15/15 cells. Adaptive placement remains a default-off ablation.
 
 ## Prior-publication boundary
 

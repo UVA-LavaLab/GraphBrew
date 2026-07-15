@@ -64,6 +64,35 @@ harm on kernels or phases with record reuse.
 Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_cache_sim_factorial_adaptive_final_20260715/aggregate/roi_matrix_all.csv`.
 
+## StreamShield all-kernel generality
+
+The no-prefetch generality matrix contains 120 rows: three real graphs x
+PR/BFS/SSSP/BC/CC x eight policies, with charged K2 records and the full
+LRU/SRRIP/GRASP/P-OPT baseline set. This isolates LLC placement rather than
+prefetch latency hiding.
+
+| Kernel | Static SS demand-miss reduction vs allocate | Adaptive demand-miss reduction vs allocate | Adaptive regret vs static SS |
+|---|---:|---:|---:|
+| PR | 3.17% | 2.02% | 1.18% |
+| BFS | 6.81% | 5.34% | 1.58% |
+| SSSP | 1.31% | 0.62% | 0.69% |
+| BC | 0.65% | 0.31% | 0.35% |
+| CC | 2.11% | 1.18% | 0.95% |
+
+Static StreamShield beats always allocating K2 records on all 15 graph/kernel
+cells. Adaptive placement beats static StreamShield on only 2/15 cells and is
+0.95% worse in geomean misses/traffic, with 3.36% maximum positive regret.
+There is therefore no evidence that LLC record reuse justifies the extra
+placement selector in this corpus. The final design uses generic static
+StreamShield; adaptive placement remains a validated, default-off ablation.
+
+Because this matrix disables prefetching while charging K2 records, it does not
+claim overall policy superiority. Its purpose is the allocate-vs-shield
+decision.
+
+Aggregate: `results/ecg_experiments/paper_pipeline/`
+`ecg_streamshield_generality_final_20260715/aggregate/roi_matrix_all.csv`.
+
 ## Tiered K2 and online selection (cache_sim functional authority)
 
 The complete `ecg_replacement_baseline` contains 180 rows: three real graphs x
