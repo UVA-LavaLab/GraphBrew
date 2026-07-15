@@ -221,5 +221,6 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr bfs sssp bc cc --schedule-k 2
 
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
-  --gem5 --sniper --kernels pr --schedule-k 2 --stream-bypass
+  --gem5 --sniper --kernels pr bfs sssp bc cc \
+  --schedule-k 2 --stream-bypass
 ```

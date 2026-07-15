@@ -871,11 +871,6 @@ def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
     stream_bypass = (
         spec.ecg_stream_bypass if explicit
         else os.environ.get("ECG_STREAM_BYPASS") == "1")
-    if explicit and spec.ecg_stream_bypass and benchmark != "pr":
-        raise RuntimeError(
-            "ECG:K2_STREAMSHIELD is currently implemented only for PageRank.")
-    if benchmark != "pr":
-        stream_bypass = False
     return EcgTransport(
         schedule_k=schedule_k,
         stream_bypass=stream_bypass,
@@ -1214,7 +1209,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                     "implemented.")
             env.pop("GEM5_FORCE_ECG_LOAD", None)
             env.pop("GEM5_FORCE_ECG_PLOAD", None)
-            if (args.benchmark == "pr" and riscv_delivery and
+            if (riscv_delivery and
                     env.get("ECG_STREAM_BYPASS") == "1"):
                 env["GEM5_FORCE_ECG_STREAM_LOAD2"] = "1"
                 env["GEM5_ECG_STREAM_REQUEST_BOUND"] = "1"

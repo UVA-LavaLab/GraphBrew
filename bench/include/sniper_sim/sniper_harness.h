@@ -355,15 +355,18 @@ inline bool sniper_export_context(
             return false;
         }
         const uint64_t raw_upper = stream_bypass_base + stream_bypass_size;
-        stream_bypass_base -= stream_bypass_base % line_size;
-        const uint64_t remainder = raw_upper % line_size;
-        const uint64_t padding = remainder == 0 ? 0 : line_size - remainder;
-        if (raw_upper > UINT64_MAX - padding) {
-            fprintf(stderr, "sniper_harness: aligned stream bypass range overflow\n");
+        const uint64_t base_remainder = stream_bypass_base % line_size;
+        const uint64_t base_padding =
+            base_remainder == 0 ? 0 : line_size - base_remainder;
+        if (stream_bypass_base > UINT64_MAX - base_padding) {
+            fprintf(stderr, "sniper_harness: aligned stream bypass base overflow\n");
             return false;
         }
-        const uint64_t aligned_upper = raw_upper + padding;
-        stream_bypass_size = aligned_upper - stream_bypass_base;
+        const uint64_t aligned_base = stream_bypass_base + base_padding;
+        const uint64_t aligned_upper = raw_upper - (raw_upper % line_size);
+        stream_bypass_base = aligned_base;
+        stream_bypass_size = aligned_upper > aligned_base
+            ? aligned_upper - aligned_base : 0;
     }
 
     std::string k2_offsets_path;

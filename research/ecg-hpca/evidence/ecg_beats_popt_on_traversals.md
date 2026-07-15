@@ -109,7 +109,6 @@ simulators. `equiv_kernels.py --schedule-k 2` verifies the shared pull/push pair
 builder, the `dest32|epoch1|epoch2` delivery record, `min(d1,d2)` line distance, and
 the exact victim rule. PR uses `epoch_first`; BFS uses `degree_first`.
 
-All cache_sim/gem5/Sniper PR and BFS cells pass. BFS exercises epoch-decisive victims
-in every simulator. This certifies the adaptive **decision**;
-StreamShield is now ported separately for PR. BFS/SSSP remain degree-first K2
-without bypass; the final scale miss-rate/traffic matrix is still pending.
+All cache_sim/gem5/Sniper PR/BFS/SSSP/BC/CC fused cells pass. Static
+StreamShield is now also mechanism-complete across all five kernels; whether a
+reused stream should enable bypass remains an adaptive placement decision.

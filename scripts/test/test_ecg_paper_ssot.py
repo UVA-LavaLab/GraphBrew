@@ -52,10 +52,10 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
 
     streamshield = module.parse_policy_spec("ECG:K2_STREAMSHIELD")
     assert streamshield.label == "ECG_K2_STREAMSHIELD"
-    assert module.ecg_transport_for(
-        streamshield, "pr") == module.EcgTransport(2, True, False, False, True)
-    with pytest.raises(RuntimeError):
-        module.ecg_transport_for(streamshield, "bfs")
+    for benchmark in ("pr", "bfs", "sssp", "bc", "cc"):
+        assert module.ecg_transport_for(
+            streamshield, benchmark) == module.EcgTransport(
+                2, True, False, False, True)
     k1 = module.parse_policy_spec("ECG:K1")
     k1_ss = module.parse_policy_spec("ECG:K1_STREAMSHIELD")
     assert module.ecg_transport_for(
@@ -267,7 +267,8 @@ def test_k2_cache_sim_paths_do_not_build_popt_matrix():
         source = (ROOT / relative).read_text()
         assert "GraphSimMatrixFreeK2" in source, relative
     bfs = (ROOT / "bench/src_sim/bfs.cc").read_text()
-    assert bfs.count("SIM_CACHE_READ_EDGE_RECORD") == 2
+    assert bfs.count("SIM_CACHE_READ_EDGE_RECORD(") == 2
+    assert bfs.count("SIM_CACHE_READ_EDGE_RECORD_BYPASS(") == 2
     assert bfs.count("GraphSimEcgRecordBytes") == 2
     assert bfs.index("cache.resetStats();") < bfs.index(
         "SlidingQueue<NodeID> queue")

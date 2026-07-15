@@ -39,7 +39,8 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                             const vector<uint64_t>* pair_off,
                             const pvector<uint64_t>* pair_flat,
                             bool ecg_load_evict_on, int ecg_evict_wc,
-                            uint32_t edge_epoch_count, bool ecg_load2_on) {
+                            uint32_t edge_epoch_count, bool ecg_load2_on,
+                            bool ecg_stream_load2_on) {
     GEM5_SET_VERTEX(u);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
     const vector<uint16_t>* u_epochs =
@@ -76,10 +77,14 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
             // FUSED ecg.load2: one custom-0 I-type op replaces demand-load + ecg.extract2
             // for the Schedule-2 packed K2 record (mirrors gem5 PR pr.cc). The weighted
             // edge (wn.w) stays a separate, ordinary CSR read below — only the K2 record
-            // carrying dest+tier+epochs is fused.
-            const uint64_t record = ecg_load2_on
-                ? gem5_ecg_load2_instruction(&(*pair_flat)[pos])
-                : (*pair_flat)[pos];
+            // carrying dest+tier+epochs is fused. ecg.stream.load2 is the request-bound
+            // StreamShield variant of the same fused load (a static no-allocate primitive,
+            // not an adaptive policy), selected ahead of the plain load2.
+            const uint64_t record = ecg_stream_load2_on
+                ? gem5_ecg_stream_load2_instruction(&(*pair_flat)[pos])
+                : ecg_load2_on
+                    ? gem5_ecg_load2_instruction(&(*pair_flat)[pos])
+                    : (*pair_flat)[pos];
             if (ecg_epoch::extractEpochPairDest(record) !=
                 static_cast<uint32_t>(wn.v)) {
                 std::fprintf(stderr,
@@ -88,7 +93,7 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                     ecg_epoch::extractEpochPairDest(record));
                 std::abort();
             }
-            if (!ecg_load2_on)
+            if (!ecg_stream_load2_on && !ecg_load2_on)
                 GEM5_ECG_EXTRACT2(record);
             old_dist = dist[wn.v];
             GEM5_ECG_CLEAR_EXTRACT2_HINT();
@@ -163,9 +168,13 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     const bool ecg_extract_on_env = gem5_ecg_extract_enabled();
     // FUSED ecg.load2: mirrors gem5 PR pr.cc — enabling GEM5_ENABLE_ECG_LOAD2 alone implies
     // the extract delivery so the K2 records get built even if GEM5_ENABLE_ECG_EXTRACT was
-    // left unset.
+    // left unset. ecg.stream.load2 is the request-bound StreamShield variant of the same
+    // fused load (static no-allocate primitive, not an adaptive policy) and implies the
+    // same delivery.
     const bool ecg_load2_on = gem5_ecg_load2_enabled();
-    const bool ecg_extract_on = ecg_extract_on_env || ecg_load2_on;
+    const bool ecg_stream_load2_on = gem5_ecg_stream_load2_enabled();
+    const bool ecg_extract_on =
+        ecg_extract_on_env || ecg_load2_on || ecg_stream_load2_on;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
     if (ecg_extract_on && ecg_sched_k != 2) {
         ecg_epoch::buildInEdgeEpochs(g, static_cast<uint32_t>(kNumVtxPerLine),
@@ -197,9 +206,11 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
         fprintf(stderr, "[ECG_PLOAD] SSSP fused ecg.load EVICT delivery ACTIVE\n");
     if (pair_ok) {
         fprintf(stderr,
-                ecg_load2_on
-                    ? "[ECG_LOAD2] SSSP fused K2 record load ACTIVE\n"
-                    : "[ECG_PACKED8_K2] SSSP Schedule-2 packed record path ACTIVE\n");
+                ecg_stream_load2_on
+                    ? "[ECG_STREAM_LOAD2] SSSP request-bound StreamShield+K2 ACTIVE\n"
+                    : ecg_load2_on
+                        ? "[ECG_LOAD2] SSSP fused K2 record load ACTIVE\n"
+                        : "[ECG_PACKED8_K2] SSSP Schedule-2 packed record path ACTIVE\n");
     }
 
     if (ecg_sched_k != 2) {
@@ -242,7 +253,7 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                                     pair_ok ? &pair_off : nullptr,
                                     pair_ok ? &pair_flat : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count,
-                                    ecg_load2_on);
+                                    ecg_load2_on, ecg_stream_load2_on);
             }
 
             while (curr_bin_index < local_bins.size() &&
@@ -255,7 +266,7 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                                     pair_ok ? &pair_off : nullptr,
                                     pair_ok ? &pair_flat : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count,
-                                    ecg_load2_on);
+                                    ecg_load2_on, ecg_stream_load2_on);
             }
 
             for (size_t i = curr_bin_index; i < local_bins.size(); i++) {

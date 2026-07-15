@@ -156,6 +156,11 @@ bool fused_k2_model_enabled() {
     return value && value[0] && std::string(value) != "0";
 }
 
+bool stream_bypass_enabled() {
+    const char* value = std::getenv("ECG_STREAM_BYPASS");
+    return value && value[0] && std::string(value) != "0";
+}
+
 void deliver_k2_record(uint64_t record, bool fused_k2_model) {
     const uint32_t dest = ecg_epoch::extractEpochPairDest(record);
     const uint8_t tier = ecg_epoch::extractEpochPairTier(record);
@@ -223,10 +228,7 @@ int run_pr(const Graph& graph, int max_iters) {
     // governed contrib[] demand, matching cache_sim/gem5.
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
     const bool fused_k2_model = fused_k2_model_enabled();
-    const bool stream_bypass_on = []() {
-        const char* value = std::getenv("ECG_STREAM_BYPASS");
-        return value && value[0] && std::string(value) != "0";
-    }();
+    const bool stream_bypass_on = stream_bypass_enabled();
     uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped(
             "ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
@@ -679,6 +681,7 @@ int run_bfs(const Graph& graph, NodeID source) {
             64 / sizeof(NodeID), 1, 1024));
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
     const bool fused_k2_model = fused_k2_model_enabled();
+    const bool stream_bypass_on = stream_bypass_enabled();
     const char* configured_prefetcher = std::getenv("SNIPER_GRAPHBREW_PREFETCHER");
     const bool packed_stream_compatible =
         !configured_prefetcher ||
@@ -755,7 +758,10 @@ int run_bfs(const Graph& graph, NodeID source) {
     }
     if (!sniper_export_context(
             regions, 1, graph, nullptr, edge_regions, num_edge_regions,
-            0, 0,
+            stream_bypass_on && bfs_pair_ok
+                ? reinterpret_cast<uint64_t>(bfs_pair_flat.data()) : 0,
+            stream_bypass_on && bfs_pair_ok
+                ? bfs_pair_flat.size() * sizeof(uint64_t) : 0,
             fused_k2_model && bfs_pair_ok ? bfs_pair_off.data() : nullptr,
             fused_k2_model && bfs_pair_ok ? bfs_pair_off.size() : 0,
             fused_k2_model && bfs_pair_ok ? bfs_pair_flat.data() : nullptr,
@@ -882,6 +888,7 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             64 / sizeof(WeightT), 1, 1024));
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
     const bool fused_k2_model = fused_k2_model_enabled();
+    const bool stream_bypass_on = stream_bypass_enabled();
     uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", 256, 2, 65535));
     if (ecg_sched_k == 2)
@@ -905,7 +912,10 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
     }
     if (!sniper_export_context(
             regions, 1, graph, nullptr, edge_regions, num_edge_regions,
-            0, 0,
+            stream_bypass_on && pair_ok
+                ? reinterpret_cast<uint64_t>(pair_flat.data()) : 0,
+            stream_bypass_on && pair_ok
+                ? pair_flat.size() * sizeof(uint64_t) : 0,
             fused_k2_model && pair_ok ? pair_off.data() : nullptr,
             fused_k2_model && pair_ok ? pair_off.size() : 0,
             fused_k2_model && pair_ok ? pair_flat.data() : nullptr,
@@ -1082,6 +1092,7 @@ int run_bc(const Graph& graph, int num_iters) {
 
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
     const bool fused_k2_model = fused_k2_model_enabled();
+    const bool stream_bypass_on = stream_bypass_enabled();
     uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
     if (ecg_sched_k == 2)
@@ -1105,7 +1116,10 @@ int run_bc(const Graph& graph, int num_iters) {
     }
     if (!sniper_export_context(
             regions, 4, graph, nullptr, edge_regions, num_edge_regions,
-            0, 0,
+            stream_bypass_on && pair_ok
+                ? reinterpret_cast<uint64_t>(pair_flat.data()) : 0,
+            stream_bypass_on && pair_ok
+                ? pair_flat.size() * sizeof(uint64_t) : 0,
             fused_k2_model && pair_ok ? pair_off.data() : nullptr,
             fused_k2_model && pair_ok ? pair_off.size() : 0,
             fused_k2_model && pair_ok ? pair_flat.data() : nullptr,
@@ -1240,6 +1254,7 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
 
     const bool ecg_extract_on = graphbrew_sniper::ecg_extract_enabled();
     const bool fused_k2_model = fused_k2_model_enabled();
+    const bool stream_bypass_on = stream_bypass_enabled();
     uint32_t ecg_epoch_count = static_cast<uint32_t>(
         graphbrew_sniper::env_int_clamped("ECG_EDGE_MASK_EPOCHS", kNumEpochs, 2, 65535));
     if (ecg_sched_k == 2)
@@ -1263,7 +1278,10 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
     }
     if (!sniper_export_context(
             regions, 1, graph, nullptr, edge_regions, num_edge_regions,
-            0, 0,
+            stream_bypass_on && pair_ok
+                ? reinterpret_cast<uint64_t>(pair_flat.data()) : 0,
+            stream_bypass_on && pair_ok
+                ? pair_flat.size() * sizeof(uint64_t) : 0,
             fused_k2_model && pair_ok ? pair_off.data() : nullptr,
             fused_k2_model && pair_ok ? pair_off.size() : 0,
             fused_k2_model && pair_ok ? pair_flat.data() : nullptr,

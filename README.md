@@ -10,7 +10,7 @@ The new architecture adds:
 - order-independent carried GRASP tiers;
 - static and online set-dueling graph-cache replacement;
 - **StreamShield** request-bound LLC placement control;
-- RISC-V `ecg.load2` for PR/BFS/SSSP/BC/CC plus PR `ecg.stream.load2`;
+- RISC-V `ecg.load2` and `ecg.stream.load2` for PR/BFS/SSSP/BC/CC;
 - cache_sim, gem5, and Sniper implementations with exact equivalence gates.
 
 The public HPCA paper name remains open. Implementation names remain `ECG_*`.
@@ -98,7 +98,8 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr bfs sssp bc cc --schedule-k 2
 
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
-  --gem5 --sniper --kernels pr --schedule-k 2 --stream-bypass
+  --gem5 --sniper --kernels pr bfs sssp bc cc \
+  --schedule-k 2 --stream-bypass
 ```
 
 ## Paper matrix

@@ -179,7 +179,7 @@ The fused Schedule-2 path uses RISC-V custom-0 I-type encodings:
 | Instruction | FUNCT3 | Effect |
 |---|---:|---|
 | `ecg.load2 rd, 0(rs1)` | `0x4` | PR/BFS/SSSP/BC/CC: load the K2 record and deliver tier plus both epochs |
-| `ecg.stream.load2 rd, 0(rs1)` | `0x3` | PR: same, plus request-bound LLC no-allocation |
+| `ecg.stream.load2 rd, 0(rs1)` | `0x3` | PR/BFS/SSSP/BC/CC: same, plus request-bound LLC no-allocation |
 
 The complete packed record is returned in `rd`; no extra register repacking or
 per-edge SimMagic instruction is required. StreamShield is request-bound. K2

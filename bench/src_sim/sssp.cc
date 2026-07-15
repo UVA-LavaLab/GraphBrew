@@ -36,7 +36,8 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                            CacheType &cache, GraphCacheContext &graph_ctx,
                            const vector<uint32_t> &vertex_masks,
                            int pfx_lookahead, int pfx_top_k,
-                           bool record_charged, int record_bytes,
+                           bool record_charged, bool stream_bypass,
+                           int record_bytes,
                            WNode* out_edge_base) {
     auto out_neigh = g.out_neigh(u);
     // ECG_EDGE_MASKS: consume the OUT-edge per-edge masks (transpose-correct — the
@@ -50,7 +51,11 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
         // ECG additionally reads its packed metadata record; uncharged ISA
         // delivery leaves the baseline stream unchanged.
         SIM_CACHE_READ_EDGE(cache, it);
-        if (record_charged) {
+        if (record_charged && stream_bypass) {
+            SIM_CACHE_READ_EDGE_RECORD_BYPASS(
+                cache, it, out_edge_base,
+                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+        } else if (record_charged) {
             SIM_CACHE_READ_EDGE_RECORD(
                 cache, it, out_edge_base,
                 GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
@@ -189,6 +194,8 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     }
     const bool record_charged = GraphSimEcgEdgeRecord() &&
         GraphSimEnvIntClamped("ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    const bool stream_bypass =
+        GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1) > 0;
     int epoch_bits = 1;
     const uint32_t edge_epochs =
         graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2;
@@ -232,7 +239,8 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                 if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
                                    graph_ctx, vertex_masks, pfx_lookahead,
-                                   pfx_top_k, record_charged, record_bytes,
+                                   pfx_top_k, record_charged, stream_bypass,
+                                   record_bytes,
                                    out_edge_base);
             }
 
@@ -247,7 +255,8 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                     SIM_CACHE_READ(cache, dist.data(), u);
                     RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
                                    graph_ctx, vertex_masks, pfx_lookahead,
-                                   pfx_top_k, record_charged, record_bytes,
+                                   pfx_top_k, record_charged, stream_bypass,
+                                   record_bytes,
                                    out_edge_base);
                 }
             }

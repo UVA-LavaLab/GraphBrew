@@ -109,8 +109,8 @@ def test_sniper_streamshield_preserves_nuca_lookup_and_skips_miss_fill():
     assert '"SNIPER_CACHE_LINE_SIZE"' in harness
     assert '"SNIPER_PROPERTY_ALIGNMENT", 4096' in harness
     assert "property_alignment()" in harness
-    assert "stream_bypass_base -= stream_bypass_base % line_size" in harness
-    assert "const uint64_t aligned_upper = raw_upper + padding" in harness
+    assert "const uint64_t aligned_base = stream_bypass_base + base_padding" in harness
+    assert "const uint64_t aligned_upper = raw_upper - (raw_upper % line_size)" in harness
     assert "std::remove(k2_offsets_path.c_str())" in harness
     sniper = read("bench/src_sniper/sg_kernel.cc")
     assert "context/K2 sideband export failed" in sniper
@@ -360,14 +360,24 @@ def test_streamshield_is_policy_isolated_and_verified():
     assert "fused_k2 = False" in runner
 
 
-def test_streamshield_is_pr_only_in_detailed_kernels():
-    gem5_bfs = read("bench/src_gem5/bfs.cc")
+def test_streamshield_is_generic_across_k2_kernels():
+    for kernel in ("bfs", "sssp", "bc", "cc"):
+        cache_sim = read(f"bench/src_sim/{kernel}.cc")
+        gem5 = read(f"bench/src_gem5/{kernel}.cc")
+        assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in cache_sim, kernel
+        assert "gem5_ecg_stream_load2_enabled()" in gem5, kernel
+        assert "gem5_ecg_stream_load2_instruction" in gem5, kernel
+        assert f"[ECG_STREAM_LOAD2] {kernel.upper()}" in gem5, kernel
+
     sniper = read("bench/src_sniper/sg_kernel.cc")
-    assert "gem5_ecg_stream_load2_instruction" not in gem5_bfs
-    bfs_block = sniper.split("int run_bfs(", 1)[1].split(
-        "int run_sssp(", 1)[0]
-    assert "ECG_STREAM_BYPASS" not in bfs_block
-    assert "bfs_pair_flat.data()" in bfs_block
+    for start, end in (
+            ("int run_bfs(", "int run_sssp("),
+            ("int run_sssp(", "void cc_link("),
+            ("int run_bc(", "int run_cc("),
+            ("int run_cc(", "}  // namespace")):
+        block = sniper.split(start, 1)[1].split(end, 1)[0]
+        assert "stream_bypass_on" in block
+        assert "reinterpret_cast<uint64_t>" in block
 
 
 def test_streamshield_setup_migrates_and_rebuilds():

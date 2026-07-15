@@ -250,8 +250,6 @@ def main(argv=None):
     STREAM_PF_DEGREE = args.stream_prefetch_degree
     SCHEDULE_K = args.schedule_k
     STREAM_BYPASS = args.stream_bypass
-    if STREAM_BYPASS and any(k != "pr" for k in args.kernels):
-        ap.error("--stream-bypass currently supports --kernels pr")
     if STREAM_BYPASS and SCHEDULE_K != 2:
         ap.error("--stream-bypass requires --schedule-k 2")
 
@@ -309,6 +307,7 @@ def main(argv=None):
                 continue
             result, banner = RUNNERS[sim](kernel)
             cov = {}
+            fused_path_ok = True
             if SCHEDULE_K:
                 spec_ok = ecg.verify_k2_trace(
                     f"{sim}/{kernel}", result,
@@ -320,10 +319,16 @@ def main(argv=None):
             if SCHEDULE_K == 2:
                 text, ran_ok = result
                 if sim == "gem5":
-                    fused_ok = (
+                    fused_marker = (
+                        f"[ECG_STREAM_LOAD2] {kernel.upper()} "
+                        "request-bound StreamShield+K2 ACTIVE"
+                        if STREAM_BYPASS else
                         f"[ECG_LOAD2] {kernel.upper()} "
-                        "fused K2 record load ACTIVE" in text)
-                    print(f"      fused ecg.load2: "
+                        "fused K2 record load ACTIVE")
+                    fused_ok = fused_marker in text
+                    fused_path_ok = ran_ok and fused_ok
+                    print(f"      fused "
+                          f"{'ecg.stream.load2' if STREAM_BYPASS else 'ecg.load2'}: "
                           f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
                     spec_ok &= ran_ok and fused_ok
                 elif sim == "sniper":
@@ -331,9 +336,11 @@ def main(argv=None):
                     fused_ok = (
                         valid is not None and
                         int(valid.group(1)) > 0 and int(valid.group(2)) == 0)
+                    fused_path_ok = ran_ok and fused_ok
                     print(f"      fused K2 sideband: "
                           f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
                     spec_ok &= ran_ok and fused_ok
+            streamshield_ok = None
             if STREAM_BYPASS:
                 text, ran_ok = result
                 if sim == "cache_sim":
@@ -349,7 +356,9 @@ def main(argv=None):
                     )
                 print(f"      StreamShield LLC bypass: "
                       f"{'[OK]' if ran_ok and bypass_ok else '[FAIL]'}")
-                spec_ok &= ran_ok and bypass_ok
+                streamshield_ok = (
+                    ran_ok and fused_path_ok and bypass_ok and
+                    bool(cov.get("k2_delivery_match", False)))
             ev, tv = cov.get("epoch_victims", 0), cov.get("victims", 0)
             dec = cov.get("epoch_decisive", 0)
             nz = cov.get("epoch_victims_nz", 0)   # stamped victims with a NON-ZERO delivered epoch
@@ -363,11 +372,12 @@ def main(argv=None):
             # collapse check: stamped property was evicted but EVERY delivered epoch was 0 -> the
             # epochs collapsed (a delivery-quality regression, not the benign tied-eff-dist case).
             collapsed = ev > 0 and nz == 0
-            if STREAM_BYPASS and sim == "cache_sim":
-                cell_ok = spec_ok
+            if STREAM_BYPASS:
+                cell_ok = bool(streamshield_ok)
                 label = (
                     "StreamShield removes post-delivery LLC churn; "
-                    "K2 delivery is certified by the no-bypass cache_sim gate")
+                    "K2 delivery is live and eviction is certified by the "
+                    "separate no-bypass fused gate")
             elif STREAM_PF_DEGREE > 0:
                 # Under the realistic stream prefetcher, the prefetched STRUCTURAL lines
                 # change the cache contents (and carry no epoch), so the epoch may no

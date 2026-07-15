@@ -137,6 +137,8 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
     }
     const bool record_charged = GraphSimEcgEdgeRecord() &&
         GraphSimEnvIntClamped("ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    const bool stream_bypass =
+        GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1) > 0;
     int epoch_bits = 1;
     const uint32_t edge_epochs =
         graph_ctx.edge_epoch_count ? graph_ctx.edge_epoch_count : 2;
@@ -163,7 +165,11 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
             auto out_neigh = g.out_neigh(u, r);
             for (auto edge_it = out_neigh.begin();
                  edge_it != out_neigh.end(); ++edge_it) {
-                if (record_charged) {
+                if (record_charged && stream_bypass) {
+                    SIM_CACHE_READ_EDGE_RECORD_BYPASS(
+                        cache, edge_it, out_edge_base,
+                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+                } else if (record_charged) {
                     SIM_CACHE_READ_EDGE_RECORD(
                         cache, edge_it, out_edge_base,
                         GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
@@ -202,7 +208,11 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
         auto out_neigh = g.out_neigh(u);
         for (auto edge_it = out_neigh.begin();
              edge_it != out_neigh.end(); ++edge_it) {
-            if (record_charged) {
+            if (record_charged && stream_bypass) {
+                SIM_CACHE_READ_EDGE_RECORD_BYPASS(
+                    cache, edge_it, out_edge_base,
+                    GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+            } else if (record_charged) {
                 SIM_CACHE_READ_EDGE_RECORD(
                     cache, edge_it, out_edge_base,
                     GRAPH_SIM_OUT_RECORD_BASE, record_bytes);

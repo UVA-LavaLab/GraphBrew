@@ -41,6 +41,8 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
     const bool record_charged = ecg_record &&
         GraphSimEnvIntClamped(
             "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    const bool stream_bypass =
+        GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1) > 0;
     const auto in_edge_base = g.num_nodes() > 0
         ? g.in_neigh(0).begin() : nullptr;
     int64_t awake_count = 0;
@@ -63,7 +65,11 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
                 graph_ctx.edgeMaskReady(EdgeMaskDir::IN, (uint32_t)u, (size_t)g.in_degree(u));
             size_t edge_pos = 0;
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
-                if (record_charged)
+                if (record_charged && stream_bypass)
+                    SIM_CACHE_READ_EDGE_RECORD_BYPASS(
+                        cache, it, in_edge_base,
+                        GRAPH_SIM_IN_RECORD_BASE, record_bytes);
+                else if (record_charged)
                     SIM_CACHE_READ_EDGE_RECORD(
                         cache, it, in_edge_base,
                         GRAPH_SIM_IN_RECORD_BASE, record_bytes);
@@ -113,6 +119,8 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
     const bool record_charged = ecg_record &&
         GraphSimEnvIntClamped(
             "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
+    const bool stream_bypass =
+        GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1) > 0;
     const auto out_edge_base = g.num_nodes() > 0
         ? g.out_neigh(0).begin() : nullptr;
     int64_t scout_count = 0;
@@ -131,7 +139,11 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             const size_t u_outdeg = (size_t)g.out_degree(u);
             size_t edge_pos = 0;
             for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
-                if (record_charged)
+                if (record_charged && stream_bypass)
+                    SIM_CACHE_READ_EDGE_RECORD_BYPASS(
+                        cache, it, out_edge_base,
+                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+                else if (record_charged)
                     SIM_CACHE_READ_EDGE_RECORD(
                         cache, it, out_edge_base,
                         GRAPH_SIM_OUT_RECORD_BASE, record_bytes);

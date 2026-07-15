@@ -27,6 +27,8 @@
   the per-cell best static arm while beating it on 8/15 cells.
 - StreamShield is request-bound in gem5 and preserves normal L1/L2 behavior and
   LLC hits; only LLC miss allocation is suppressed.
+- The static StreamShield primitive passes the full PR/BFS/SSSP/BC/CC
+  cache_sim/gem5/Sniper mechanism gate; adaptive eligibility remains separate.
 - Sniper preserves NUCA lookup, hits, and latency while suppressing insertion of
   bypassed misses.
 - On synthetic mechanism cells, StreamShield improves fused K2 in both gem5 and

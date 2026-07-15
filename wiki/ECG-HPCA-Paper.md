@@ -221,8 +221,8 @@ Canonical profiles:
   K2 L3 misses by **58.24%**.
 - Sniper mechanism cell: StreamShield improves fused K2 by **0.65%** with the
   same instruction count.
-- K2 PR/BFS/SSSP/BC/CC and StreamShield PR exact mechanism gates pass across
-  all three simulators.
+- K2 and static StreamShield exact mechanism gates pass for
+  PR/BFS/SSSP/BC/CC across all three simulators.
 - The complete cache_sim real-graph replacement profile exercises all five K2
   arms: online K2 is within 0.26% geomean LLC misses of the per-cell best
   static arm and beats it on 8/15 cells.

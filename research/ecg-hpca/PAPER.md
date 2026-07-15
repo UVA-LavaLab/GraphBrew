@@ -60,9 +60,9 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
   degree-, and LRU-first arms without using the graph or kernel name.
 - **StreamShield:** one-touch packed records fill private caches, retain LLC-hit
   behavior, and do not allocate after an LLC miss.
-- **ISA:** PR/BFS/SSSP/BC/CC use fused `ecg.load2`; PR additionally uses
-  request-bound `ecg.stream.load2` for StreamShield. The current gem5 path is
-  in-order; O3 awaits request-bound pair attachment.
+- **ISA:** PR/BFS/SSSP/BC/CC use fused `ecg.load2` and request-bound
+  `ecg.stream.load2` for StreamShield. The current gem5 path is in-order; O3
+  awaits request-bound pair attachment.
 
 ## Contributions
 

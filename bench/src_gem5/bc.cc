@@ -97,8 +97,12 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     // FUSED ecg.load2: one custom-0 I-type op replaces demand-load + ecg.extract2 for the
     // Schedule-2 packed K2 record (mirrors gem5 PR pr.cc). Implies the extract delivery so
     // the K2 records get built below even if GEM5_ENABLE_ECG_EXTRACT was left unset.
+    // ecg.stream.load2 is the request-bound StreamShield variant of the same fused load
+    // (no-allocate LLC hint); it is a static primitive selected ahead of the plain load2,
+    // not an adaptive policy.
     const bool ecg_load2_on = gem5_ecg_load2_enabled();
-    if (ecg_load2_on) ecg_extract_on = true;
+    const bool ecg_stream_load2_on = gem5_ecg_stream_load2_enabled();
+    if (ecg_load2_on || ecg_stream_load2_on) ecg_extract_on = true;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
     if (ecg_extract_on && ecg_sched_k != 2) {
         ecg_epoch::buildInEdgeEpochs(g, static_cast<uint32_t>(kNumVtxPerLine),
@@ -127,9 +131,11 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
         fprintf(stderr, "[ECG_PLOAD] BC fused ecg.load EVICT delivery (depth) ACTIVE\n");
     if (pair_ok) {
         fprintf(stderr,
-                ecg_load2_on
-                    ? "[ECG_LOAD2] BC fused K2 record load ACTIVE\n"
-                    : "[ECG_PACKED8_K2] BC Schedule-2 packed record path ACTIVE\n");
+                ecg_stream_load2_on
+                    ? "[ECG_STREAM_LOAD2] BC request-bound StreamShield+K2 ACTIVE\n"
+                    : ecg_load2_on
+                        ? "[ECG_LOAD2] BC fused K2 record load ACTIVE\n"
+                        : "[ECG_PACKED8_K2] BC Schedule-2 packed record path ACTIVE\n");
     }
 
     GEM5_RESET_STATS();
@@ -173,12 +179,14 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                 // The packed K2 record replaces the unweighted CSR edge word.
                 for (uint64_t pos = pair_off[u];
                      pos < pair_off[u + 1]; ++pos) {
-                    const uint64_t record = ecg_load2_on
-                        ? gem5_ecg_load2_instruction(&pair_flat[pos])
-                        : pair_flat[pos];
+                    const uint64_t record = ecg_stream_load2_on
+                        ? gem5_ecg_stream_load2_instruction(&pair_flat[pos])
+                        : ecg_load2_on
+                            ? gem5_ecg_load2_instruction(&pair_flat[pos])
+                            : pair_flat[pos];
                     const NodeID v = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(record));
-                    if (!ecg_load2_on)
+                    if (!ecg_stream_load2_on && !ecg_load2_on)
                         GEM5_ECG_EXTRACT2(record);
                     const int32_t dv = depth[v];
                     GEM5_ECG_CLEAR_EXTRACT2_HINT();
