@@ -32,6 +32,13 @@ from scripts.experiments.partition_cut.freeze_phase2 import (
     freeze_matrix,
     normalize_paths,
 )
+from scripts.experiments.partition_cut.freeze_ownership import (
+    type_strict_equal,
+)
+from scripts.experiments.partition_cut.ownership_ablation import (
+    validate_matrix_axes as validate_ownership_matrix_axes,
+    validate_report as validate_ownership_report,
+)
 
 
 def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
@@ -183,6 +190,88 @@ class TestPartitionCutPhase1(unittest.TestCase):
 
 
 class TestPartitionCutPhase2(unittest.TestCase):
+    def test_ownership_report_accepts_clamped_partition_count(self):
+        metrics = {
+            "remote_out_fraction": 0.0,
+            "remote_in_fraction": 0.0,
+            "max_remote_out_fraction": 0.0,
+            "max_remote_in_fraction": 0.0,
+            "partition_count": 4,
+            "ghost_slots": 0,
+            "ghost_bytes": 0,
+            "ownership_metadata_bytes": 0,
+            "bfs_bytes_per_superstep": 0,
+            "pr_bytes_per_iteration": 0,
+            "cc_bytes_per_iteration": 0,
+            "spmv_initial_bytes": 0,
+            "compact_total_storage_lower_bound_bytes": 1,
+            "compact_max_storage_lower_bound_bytes": 1,
+            "vertex_imbalance": 1.0,
+            "out_edge_imbalance": 1.0,
+            "in_edge_imbalance": 1.0,
+            "balance_imbalance": 1.0,
+            "compact_storage_lower_bound_imbalance": 1.0,
+            "owner_fingerprint": "owner",
+            "per_shard": {
+                "owned_vertices": [1, 1, 1, 1],
+                "out_edges": [0, 0, 0, 0],
+                "in_edges": [0, 0, 0, 0],
+                "ghost_slots": [0, 0, 0, 0],
+                "ownership_metadata_bytes": [0, 0, 0, 0],
+                "compact_storage_lower_bound_bytes": [1, 1, 1, 1],
+            },
+        }
+        report = {
+            "schema": "graphbrew.partition_ownership_analysis.v1",
+            "requested_partitions": 16,
+            "partitions": 4,
+            "vertices": 4,
+            "balance": "total",
+            "analysis_only": True,
+            "graph_shard_v1_compatible": False,
+            "complete_per_bank_working_set_evaluated": False,
+            "assignment_meets_work_balance_gate": True,
+            "communities": 1,
+            "membership_fingerprint": "membership",
+            "mapping_fingerprint": "mapping",
+            "contiguous": metrics,
+            "owner_by_vertex": metrics,
+        }
+        validate_ownership_report(report, 16, "total")
+        report["owner_by_vertex"] = dict(
+            metrics, partition_count=16)
+        with self.assertRaisesRegex(
+            RuntimeError, "partition count mismatch"
+        ):
+            validate_ownership_report(report, 16, "total")
+        report["requested_partitions"] = 16.0
+        with self.assertRaisesRegex(
+            RuntimeError, "must be an integer"
+        ):
+            validate_ownership_report(report, 16, "total")
+
+    def test_ownership_matrix_rejects_duplicate_axes(self):
+        validate_ownership_matrix_axes(
+            ["roadNet-PA"], [1, 32], 2)
+        for graphs, threads in (
+            (["roadNet-PA", "roadNet-PA"], [1, 32]),
+            (["roadNet-PA"], [1, 32, 32]),
+            (["roadNet-PA"], [1]),
+        ):
+            with self.assertRaises(ValueError):
+                validate_ownership_matrix_axes(
+                    graphs, threads, 2)
+
+    def test_ownership_evidence_comparison_is_type_strict(self):
+        self.assertTrue(type_strict_equal(
+            {"stable": True, "graphs": 8},
+            {"stable": True, "graphs": 8},
+        ))
+        self.assertFalse(type_strict_equal(
+            {"stable": True}, {"stable": 1}))
+        self.assertFalse(type_strict_equal(
+            {"graphs": 8}, {"graphs": 8.0}))
+
     def test_smoke_preset_covers_requested_graph_classes(self):
         self.assertEqual(
             DEFAULT_MAX_SHARD_BYTES,

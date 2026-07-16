@@ -96,12 +96,15 @@ endif
 # =========================================================
 KERNELS = bc bfs bfs_p cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
-SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
-UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest test_shard_stream
+SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export \
+	$(BIN_DIR)/ownership_analysis
+UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
+	test_shard_stream test_ownership_analysis
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
 .PHONY: $(KERNELS) converter all check-partition run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+ownership_analysis: $(BIN_DIR)/ownership_analysis
 all: $(SUITE)
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
