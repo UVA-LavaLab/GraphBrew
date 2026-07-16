@@ -16,6 +16,7 @@
 #include "bfs_common.h"
 #include "partition/compact_csr.h"
 #include "partition/diagnostics.h"
+#include "partition/runtime_traffic.h"
 #include "partition/shard_manifest.h"
 #include "pvector.h"
 #include "timer.h"
@@ -53,6 +54,12 @@ struct OwnedVertex
 {
     std::size_t partition = 0;
     std::size_t local = 0;
+};
+
+struct TopDownRoundResult
+{
+    std::vector<NodeID> touched;
+    std::vector<std::uint64_t> remote_messages_by_shard;
 };
 
 OwnedVertex LocateOwnedVertex(
@@ -116,15 +123,19 @@ void SyncGhostFrontier(
     }
 }
 
-std::vector<NodeID> TopDownRound(
+TopDownRoundResult TopDownRound(
     const PartitionedBFSGraph &graph,
     std::vector<PartitionBFSState> &states,
     const std::vector<NodeID> &frontier)
 {
-    std::vector<NodeID> touched;
+    TopDownRoundResult result;
+    result.remote_messages_by_shard.assign(
+        graph.num_partitions(), 0);
     #pragma omp parallel
     {
         std::vector<NodeID> local_touched;
+        std::vector<std::uint64_t> local_remote(
+            graph.num_partitions(), 0);
         #pragma omp for schedule(dynamic, 64) nowait
         for (std::int64_t frontier_index = 0;
              frontier_index <
@@ -161,6 +172,8 @@ std::vector<NodeID> TopDownRound(
                 auto &target_state = states[target_partition];
                 if (target_state.parent[target_local] != kNoParent)
                     continue;
+                if (target_partition != source_location.partition)
+                    ++local_remote[source_location.partition];
                 if (AtomicWriteMin(
                         target_state.pending_parent[target_local],
                         source))
@@ -170,12 +183,20 @@ std::vector<NodeID> TopDownRound(
             }
         }
         #pragma omp critical
-        touched.insert(
-            touched.end(),
+        {
+            result.touched.insert(
+            result.touched.end(),
             local_touched.begin(),
             local_touched.end());
+            for (std::size_t shard = 0;
+                 shard < local_remote.size(); ++shard)
+            {
+                result.remote_messages_by_shard[shard] +=
+                    local_remote[shard];
+            }
+        }
     }
-    return touched;
+    return result;
 }
 
 std::vector<NodeID> ApplyTopDownDiscoveries(
@@ -330,7 +351,8 @@ pvector<NodeID> DOBFSPartitioned(
     NodeID source,
     bool logging_enabled = false,
     int alpha = 15,
-    int beta = 18)
+    int beta = 18,
+    graphbrew::partition::BfsRuntimeTraffic *traffic = nullptr)
 {
     using graphbrew::database::AppendBenchmarkIterationEntry;
     int bfs_step = 0;
@@ -341,6 +363,8 @@ pvector<NodeID> DOBFSPartitioned(
     states.reserve(graph.num_partitions());
     for (const auto &partition : graph.partitions())
         states.emplace_back(partition);
+    if (traffic != nullptr)
+        traffic->initialize(graph);
 
     const OwnedVertex source_location =
         LocateOwnedVertex(graph, source);
@@ -362,6 +386,8 @@ pvector<NodeID> DOBFSPartitioned(
 
         const std::size_t old_awake_count = frontier.size();
         std::vector<NodeID> next;
+        std::vector<std::uint64_t> remote_messages(
+            graph.num_partitions(), 0);
         timer.Start();
         if (bottom_up)
         {
@@ -373,10 +399,19 @@ pvector<NodeID> DOBFSPartitioned(
             edges_to_check =
                 std::max<std::int64_t>(
                     0, edges_to_check - scout_count);
-            const std::vector<NodeID> touched =
+            const TopDownRoundResult top_down =
                 TopDownRound(graph, states, frontier);
             next = ApplyTopDownDiscoveries(
-                graph, states, touched, scout_count);
+                graph, states, top_down.touched, scout_count);
+            remote_messages = top_down.remote_messages_by_shard;
+        }
+        if (traffic != nullptr)
+        {
+            traffic->record_superstep(
+                static_cast<std::size_t>(bfs_step),
+                bottom_up ? "p-bsp-bu" : "p-bsp-td",
+                bottom_up,
+                remote_messages);
         }
         AdvanceFrontier(graph, states, frontier, next);
         timer.Stop();
@@ -509,6 +544,8 @@ int main(int argc, char *argv[])
     std::optional<
         graphbrew::partition::BfsDepthSummary<NodeID>>
         last_depth_summary;
+    graphbrew::partition::BfsRuntimeTraffic
+        last_runtime_traffic;
     std::string last_diagnostics_error;
     SourcePicker<Graph> source_picker(
         graph, cli.start_vertex(), cli.num_trials());
@@ -518,6 +555,7 @@ int main(int argc, char *argv[])
         &partitioned,
         &last_source,
         &last_depth_summary,
+        &last_runtime_traffic,
         &last_diagnostics_error](const Graph &)
     {
         last_depth_summary.reset();
@@ -525,7 +563,8 @@ int main(int argc, char *argv[])
         last_source = source_picker.PickNext();
         return DOBFSPartitioned(
             partitioned, last_source,
-            cli.logging_en());
+            cli.logging_en(), 15, 18,
+            &last_runtime_traffic);
     };
     SourcePicker<Graph> verifier_source_picker(
         graph, cli.start_vertex(), cli.num_trials());
@@ -579,6 +618,7 @@ int main(int argc, char *argv[])
             &shard_manifest_path,
             &last_source,
             &last_depth_summary,
+            &last_runtime_traffic,
             &last_diagnostics_error,
             partition_build_seconds,
             diagnostics_seconds](
@@ -678,6 +718,128 @@ int main(int argc, char *argv[])
                 partitioned.max_in_edge_imbalance();
             partition["storage_imbalance"] =
                 partitioned.max_shard_storage_imbalance();
+            nlohmann::json traffic;
+            traffic["schema"] =
+                "graphbrew.partition_runtime_traffic.v1";
+            traffic["ghost_slots"] =
+                last_runtime_traffic.projection.ghost_slots;
+            traffic["graphblox_projection"] = {
+                {
+                    "bfs_bytes_per_superstep",
+                    last_runtime_traffic.projection
+                        .bfs_bytes_per_superstep,
+                },
+                {
+                    "pr_bytes_per_iteration",
+                    last_runtime_traffic.projection
+                        .pr_bytes_per_iteration,
+                },
+                {
+                    "cc_bytes_per_iteration",
+                    last_runtime_traffic.projection
+                        .cc_bytes_per_iteration,
+                },
+                {
+                    "spmv_initial_bytes",
+                    last_runtime_traffic.projection
+                        .spmv_initial_bytes,
+                },
+            };
+            traffic["graphblox_projection"]["shards"] =
+                nlohmann::json::array();
+            for (const auto &shard :
+                 last_runtime_traffic.projection.shards)
+            {
+                traffic["graphblox_projection"]["shards"]
+                    .push_back({
+                        {"shard_id", shard.shard_id},
+                        {"ghost_slots", shard.ghost_slots},
+                        {
+                            "bfs_bytes_per_superstep",
+                            shard.bfs_bytes_per_superstep,
+                        },
+                        {
+                            "pr_bytes_per_iteration",
+                            shard.pr_bytes_per_iteration,
+                        },
+                        {
+                            "cc_bytes_per_iteration",
+                            shard.cc_bytes_per_iteration,
+                        },
+                        {
+                            "spmv_initial_bytes",
+                            shard.spmv_initial_bytes,
+                        },
+                    });
+            }
+            nlohmann::json bfs_traffic;
+            bfs_traffic["supersteps"] =
+                last_runtime_traffic.supersteps.size();
+            bfs_traffic["cpu_ghost_sync_values"] =
+                last_runtime_traffic.cpu_ghost_sync_values;
+            bfs_traffic["cpu_ghost_sync_bytes"] =
+                last_runtime_traffic.cpu_ghost_sync_bytes;
+            bfs_traffic["remote_parent_messages"] =
+                last_runtime_traffic.remote_parent_messages;
+            bfs_traffic["remote_parent_bytes"] =
+                last_runtime_traffic.remote_parent_bytes;
+            bfs_traffic["graphblox_halo_values"] =
+                last_runtime_traffic.graphblox_halo_values;
+            bfs_traffic["graphblox_halo_bytes"] =
+                last_runtime_traffic.graphblox_halo_bytes;
+            bfs_traffic["steps"] = nlohmann::json::array();
+            for (const auto &step :
+                 last_runtime_traffic.supersteps)
+            {
+                nlohmann::json step_json = {
+                    {"step", step.step},
+                    {"phase", step.phase},
+                    {
+                        "cpu_ghost_sync_bytes",
+                        step.cpu_ghost_sync_bytes,
+                    },
+                    {
+                        "remote_parent_messages",
+                        step.remote_parent_messages,
+                    },
+                    {
+                        "remote_parent_bytes",
+                        step.remote_parent_bytes,
+                    },
+                    {
+                        "graphblox_halo_bytes",
+                        step.graphblox_halo_bytes,
+                    },
+                };
+                step_json["shards"] = nlohmann::json::array();
+                for (const auto &shard : step.shards)
+                {
+                    step_json["shards"].push_back({
+                        {"shard_id", shard.shard_id},
+                        {
+                            "cpu_ghost_sync_bytes",
+                            shard.cpu_ghost_sync_bytes,
+                        },
+                        {
+                            "remote_parent_messages",
+                            shard.remote_parent_messages,
+                        },
+                        {
+                            "remote_parent_bytes",
+                            shard.remote_parent_bytes,
+                        },
+                        {
+                            "graphblox_halo_bytes",
+                            shard.graphblox_halo_bytes,
+                        },
+                    });
+                }
+                bfs_traffic["steps"].push_back(
+                    std::move(step_json));
+            }
+            traffic["bfs"] = std::move(bfs_traffic);
+            partition["runtime_traffic"] =
+                std::move(traffic);
             if (!shard_manifest_path.empty())
                 partition["shard_manifest"] =
                     shard_manifest_path;

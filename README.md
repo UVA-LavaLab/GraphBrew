@@ -226,6 +226,12 @@ source-space BFS-depth fingerprints. Partition metrics include remote incoming
 and outgoing arc fractions, ghost metadata bytes, storage balance, and
 vertex/edge imbalance for deterministic cut-policy comparisons.
 
+Self-recording also emits `graphbrew.partition_runtime_traffic.v1`. It records
+actual per-shard/per-superstep partitioned BFS payloads: bottom-up ghost-frontier
+copies and every cross-owner top-down parent proposal. It separately projects
+the GraphBlox host halo contract from ghost slots: two 32-bit values per BFS
+superstep and one 32-bit value per PR/CC iteration or initial SPMV transfer.
+
 The frozen Phase 1 matrix runs ORIGINAL, `RCM:bnf`, `GORDER:csr`, and the
 research-only `comm_cut_min` comparator across repeated thread counts:
 
@@ -265,8 +271,9 @@ source, thread, repeat, or Cartesian-matrix mismatches.
 The tracked
 [`phase2_native.json`](scripts/experiments/partition_cut/evidence/phase2_native.json)
 bundle freezes portable per-cell records, parsed runtime configurations,
-input/binary hashes, commands, and raw-log hashes. Regenerate it with
-`freeze_phase2.py`; unchanged evidence is byte-stable.
+runtime traffic, input/binary hashes, commands, and raw-log hashes. The freezer
+revalidates traffic invariants and recomputes summaries before accepting them.
+Regenerate it with `freeze_phase2.py`; unchanged evidence is byte-stable.
 
 The additional research policies are `sg_hilbert`, `intra_hub2`,
 `intra_rcmpp`, and `leiden_hubsort`. They are classified from observed
@@ -285,21 +292,25 @@ Final native-order P16 result over four smoke plus four scale graphs:
 | `intra_rcmpp` | repeat-variant at OMP=32 | 3.18x | 1.06x | 1.078x | 7/8 |
 
 “Structural reduction” is the conservative minimum of remote-arc reduction and
-ghost-metadata footprint reduction. It is not measured superstep/DMA traffic.
+ghost-metadata footprint reduction. Runtime reports and gates are separate:
+actual CPU BFS exchange combines ghost synchronization and remote-parent
+payloads, while GraphBlox BFS/PR/CC/SPMV halo payloads are projected from the
+validated shard ghost slots.
 
 `comm_cut_min` falls back to DegreeDesc on 4/8 graphs because community count
 exceeds 4096. `intra_rcmpp` executes its requested policy everywhere and is the
 quality leader, but only OMP=1 is repeat-stable. All scale cells remain far
 below the 512 MiB compact-CSR/ghost-metadata budget (largest observed shard is
-under 29 MiB). Algorithm state and per-superstep halo traffic are not included
-in that footprint.
+under 29 MiB). Algorithm state is not included in that footprint; runtime halo
+traffic is reported separately rather than counted as resident capacity.
 
 No universal default passes: RCM regresses native roadNet-CA by 23%; GORDER
 severely regresses native road layouts; and the community policies fail
 parallel determinism. Deterministic community construction/ordering is
-necessary but not sufficient: the next phase must add complete per-bank working
-sets and per-superstep communication, sweep balance policies, and compare
-contiguous with non-contiguous ownership before choosing the production seam.
+necessary but not sufficient. With runtime communication now explicit, the next
+phase must add complete per-bank working sets, sweep balance policies, and
+compare contiguous with non-contiguous ownership before choosing the production
+seam.
 
 Export the backend-neutral shard package with `-E`:
 

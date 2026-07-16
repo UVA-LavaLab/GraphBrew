@@ -19,7 +19,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.experiments.partition_cut.phase2 import (  # noqa: E402
+    POLICIES,
+    summarize_graph_records,
     summarize_corpus,
+    validate_runtime_traffic,
 )
 
 
@@ -76,6 +79,83 @@ def normalize_paths(value: Any) -> Any:
     if isinstance(value, str):
         return _repo_relative(value)
     return value
+
+
+def compact_runtime_traffic(
+    traffic: dict[str, Any],
+) -> dict[str, Any]:
+    projection = traffic["graphblox_projection"]
+    bfs = traffic["bfs"]
+    phase_totals = {
+        phase: {
+            "supersteps": 0,
+            "cpu_ghost_sync_bytes": 0,
+            "remote_parent_messages": 0,
+            "remote_parent_bytes": 0,
+            "graphblox_halo_bytes": 0,
+        }
+        for phase in ("p-bsp-td", "p-bsp-bu")
+    }
+    shard_totals = {
+        int(shard["shard_id"]): {
+            "shard_id": int(shard["shard_id"]),
+            "cpu_ghost_sync_bytes": 0,
+            "remote_parent_messages": 0,
+            "remote_parent_bytes": 0,
+            "graphblox_halo_bytes": 0,
+        }
+        for shard in projection["shards"]
+    }
+    for step in bfs["steps"]:
+        phase = phase_totals[str(step["phase"])]
+        phase["supersteps"] += 1
+        for field in (
+            "cpu_ghost_sync_bytes",
+            "remote_parent_messages",
+            "remote_parent_bytes",
+            "graphblox_halo_bytes",
+        ):
+            phase[field] += int(step[field])
+        for shard in step["shards"]:
+            aggregate = shard_totals[int(shard["shard_id"])]
+            for field in (
+                "cpu_ghost_sync_bytes",
+                "remote_parent_messages",
+                "remote_parent_bytes",
+                "graphblox_halo_bytes",
+            ):
+                aggregate[field] += int(shard[field])
+    step_payload = json.dumps(
+        bfs["steps"],
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode()
+    return {
+        "schema": traffic["schema"],
+        "ghost_slots": traffic["ghost_slots"],
+        "graphblox_projection": projection,
+        "bfs": {
+            key: bfs[key]
+            for key in (
+                "supersteps",
+                "cpu_ghost_sync_values",
+                "cpu_ghost_sync_bytes",
+                "remote_parent_messages",
+                "remote_parent_bytes",
+                "graphblox_halo_values",
+                "graphblox_halo_bytes",
+            )
+        }
+        | {
+            "phase_totals": phase_totals,
+            "shards": [
+                shard_totals[index]
+                for index in sorted(shard_totals)
+            ],
+            "steps_sha256": hashlib.sha256(step_payload).hexdigest(),
+        },
+    }
 
 
 def _git_output(*args: str) -> str:
@@ -164,6 +244,7 @@ def _freeze_records(
     for graph in summary["graph_results"]:
         graph_name = str(graph["graph"])
         for record in graph["records"]:
+            validate_runtime_traffic(record)
             run_dir = (
                 matrix_root
                 / graph_name
@@ -175,17 +256,25 @@ def _freeze_records(
             )
             stdout_path = run_dir / "stdout.log"
             stderr_path = run_dir / "stderr.log"
-            if not stdout_path.is_file() or not stderr_path.is_file():
+            benchmark_path = run_dir / "benchmarks.json"
+            if (
+                not stdout_path.is_file()
+                or not stderr_path.is_file()
+                or not benchmark_path.is_file()
+            ):
                 raise RuntimeError(
-                    f"missing raw logs for {run_dir}"
+                    f"missing raw evidence for {run_dir}"
                 )
             item = normalize_paths({
                 field: record[field]
                 for field in record_fields
             })
+            item["runtime_traffic"] = compact_runtime_traffic(
+                record["runtime_traffic"])
             item["raw_logs"] = {
                 "stdout_sha256": sha256_file(stdout_path),
                 "stderr_sha256": sha256_file(stderr_path),
+                "benchmarks_sha256": sha256_file(benchmark_path),
             }
             frozen.append(item)
     return frozen
@@ -203,6 +292,31 @@ def freeze_matrix(label: str, path: Path) -> dict[str, Any]:
         raise RuntimeError(
             f"{label} lacks complete determinism evidence"
         )
+    policy_names = [
+        str(policy["name"]) for policy in summary["policies"]
+    ]
+    policies = [POLICIES[name] for name in policy_names]
+    validated_graphs: list[dict[str, Any]] = []
+    for graph in summary["graph_results"]:
+        recomputed = summarize_graph_records(
+            graph["records"],
+            policies,
+            int(summary.get("max_shard_bytes") or 0),
+        )
+        if recomputed != graph["summaries"]:
+            raise RuntimeError(
+                f"{label}:{graph['graph']} has stale policy summaries"
+            )
+        item = dict(graph)
+        item["summaries"] = recomputed
+        item["summaries_by_policy"] = {
+            policy["policy"]: policy for policy in recomputed
+        }
+        validated_graphs.append(item)
+    recomputed_aggregates = summarize_corpus(
+        validated_graphs, policy_names)
+    if recomputed_aggregates != summary["aggregates"]:
+        raise RuntimeError(f"{label} has stale corpus aggregates")
     first_record = summary["graph_results"][0]["records"][0]
     return {
         "label": label,
@@ -233,7 +347,7 @@ def freeze_matrix(label: str, path: Path) -> dict[str, Any]:
                 "valid",
             )
         },
-        "aggregates": normalize_paths(summary["aggregates"]),
+        "aggregates": normalize_paths(recomputed_aggregates),
         "graphs": [
             {
                 "graph": graph["graph"],
@@ -243,7 +357,7 @@ def freeze_matrix(label: str, path: Path) -> dict[str, Any]:
                     graph["graph_identity"]),
                 "summaries": normalize_paths(graph["summaries"]),
             }
-            for graph in summary["graph_results"]
+            for graph in validated_graphs
         ],
         "records": _freeze_records(path, summary),
     }
@@ -345,7 +459,13 @@ def write_evidence(
         if _semantic_payload(existing) == _semantic_payload(payload):
             return
     output.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+        json.dumps(
+            payload,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        )
+        + "\n"
     )
 
 
