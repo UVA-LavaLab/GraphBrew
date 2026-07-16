@@ -1,6 +1,6 @@
 {
   "_generated": {
-    "generated_at": "2026-07-16T06:24:50Z",
+    "generated_at": "2026-07-16T08:46:47Z",
     "generator": "scripts/experiments/partition_cut/freeze_phase2.py",
     "inputs": [
       {
@@ -9,11 +9,11 @@
       },
       {
         "path": "scripts/experiments/partition_cut/phase2.py",
-        "sha256": "5490c85eba183a6c98b624e4aa246f443a9f274e866b3255b31677507a2ccd86"
+        "sha256": "8dff13d3ca6a3d806812a674fbf90870993c1b4906b79c2190907c88176253d3"
       }
     ],
     "regenerate": ".venv/bin/python scripts/experiments/partition_cut/freeze_phase2.py",
-    "source_commit": "0bef938ab4ae676d46aee51c2ae47fd3fd620a59",
+    "source_commit": "edd23c07a0091cb783172457a545e5c69a2509e8",
     "source_tree": "clean"
   },
   "combined_aggregates": {
@@ -284,7 +284,7 @@
         "--source",
         "0",
         "--max-shard-bytes",
-        "268435456"
+        "536870912"
       ],
       "configuration": {
         "balance": "total",
@@ -317,7 +317,7 @@
             "symmetric": false
           }
         ],
-        "max_shard_bytes": 268435456,
+        "max_shard_bytes": 536870912,
         "partitions": 16,
         "policies": [
           {
@@ -364,7 +364,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000090363394585,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -488,7 +488,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000003253082205,
               "bfs_speedup": 0.9910937940138904,
               "community_count_range": null,
@@ -612,7 +612,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000003253082205,
               "bfs_speedup": 0.9910646496019476,
               "community_count_range": null,
@@ -748,7 +748,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000108084532278,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -872,7 +872,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000108084532278,
               "bfs_speedup": 1.0078828228892927,
               "community_count_range": null,
@@ -996,7 +996,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000108084532278,
               "bfs_speedup": 1.000603542551558,
               "community_count_range": null,
@@ -1132,7 +1132,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000095042377701,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -1256,7 +1256,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000006114191177,
               "bfs_speedup": 1.1179142452346453,
               "community_count_range": null,
@@ -1380,7 +1380,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000095042377701,
               "bfs_speedup": 1.2727942414878153,
               "community_count_range": null,
@@ -1516,7 +1516,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000442810732635,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -1640,7 +1640,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000421911111035,
               "bfs_speedup": 1.0078235704571163,
               "community_count_range": null,
@@ -1764,7 +1764,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000453260543434,
               "bfs_speedup": 1.0246356750292789,
               "community_count_range": null,
@@ -4774,7 +4774,7 @@
         }
       ],
       "summary_path": "results/partition_cut/phase2-scale-native-production/phase2_summary.json",
-      "summary_sha256": "1aae90b4c99b27a9c7b02529720a5c7d530ab7ff498d7a73ea92aa89d2cd0033"
+      "summary_sha256": "00084958e54e86b2f035ab4ebc914f424e52a4a62f2a926023ddfbb9ba0f94e3"
     },
     "scale_research": {
       "aggregates": [
@@ -4882,7 +4882,7 @@
         "--source",
         "0",
         "--max-shard-bytes",
-        "268435456"
+        "536870912"
       ],
       "configuration": {
         "balance": "total",
@@ -4915,7 +4915,7 @@
             "symmetric": false
           }
         ],
-        "max_shard_bytes": 268435456,
+        "max_shard_bytes": 536870912,
         "partitions": 16,
         "policies": [
           {
@@ -4962,7 +4962,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000090363394585,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -5086,7 +5086,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000061447108317,
               "bfs_speedup": 0.9963775037307493,
               "community_count_range": {
@@ -5213,7 +5213,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000061447108317,
               "bfs_speedup": 0.9940471544160943,
               "community_count_range": {
@@ -5352,7 +5352,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000108084532278,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -5476,7 +5476,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000013351618693,
               "bfs_speedup": 1.0004073456412463,
               "community_count_range": {
@@ -5603,7 +5603,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000158947841584,
               "bfs_speedup": 0.9983838166188833,
               "community_count_range": {
@@ -5742,7 +5742,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000095042377701,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -5866,7 +5866,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000177372080679,
               "bfs_speedup": 1.2167586046928816,
               "community_count_range": {
@@ -5993,7 +5993,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000312973944405,
               "bfs_speedup": 1.0800514595825534,
               "community_count_range": {
@@ -6132,7 +6132,7 @@
           "size_tier": "scale",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000442810732635,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -6256,7 +6256,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000455872996135,
               "bfs_speedup": 1.073133880010588,
               "community_count_range": {
@@ -6383,7 +6383,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000654419401327,
               "bfs_speedup": 1.057575105560369,
               "community_count_range": {
@@ -9780,7 +9780,7 @@
         }
       ],
       "summary_path": "results/partition_cut/phase2-scale-native-determinism/phase2_summary.json",
-      "summary_sha256": "4984028bf718010e1794e3e69cead13f2b06a0888b86f0baeea39c8784d1bd97"
+      "summary_sha256": "7d6a4ff01e190dcc77e0ddce01fe98e008cf20483b226172870a36d711e00056"
     },
     "smoke": {
       "aggregates": [
@@ -10018,7 +10018,7 @@
         "--source",
         "0",
         "--max-shard-bytes",
-        "268435456"
+        "536870912"
       ],
       "configuration": {
         "balance": "total",
@@ -10051,7 +10051,7 @@
             "symmetric": false
           }
         ],
-        "max_shard_bytes": 268435456,
+        "max_shard_bytes": 536870912,
         "partitions": 16,
         "policies": [
           {
@@ -10138,7 +10138,7 @@
           "size_tier": "smoke",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000090797186325,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -10262,7 +10262,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000090797186325,
               "bfs_speedup": 0.9971654218769199,
               "community_count_range": null,
@@ -10386,7 +10386,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000142681292796,
               "bfs_speedup": 0.9832557626911065,
               "community_count_range": null,
@@ -10510,7 +10510,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000194565399267,
               "bfs_speedup": 0.9911896384437069,
               "community_count_range": {
@@ -10637,7 +10637,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000142681292796,
               "bfs_speedup": 0.9838044829482541,
               "community_count_range": {
@@ -10764,7 +10764,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000142681292796,
               "bfs_speedup": 0.9793041573366145,
               "community_count_range": {
@@ -10891,7 +10891,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000194565399267,
               "bfs_speedup": 0.9849723985919844,
               "community_count_range": {
@@ -11018,7 +11018,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000142681292796,
               "bfs_speedup": 0.9202505885697261,
               "community_count_range": {
@@ -11157,7 +11157,7 @@
           "size_tier": "smoke",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000101735609498,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -11281,7 +11281,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000813884875985,
               "bfs_speedup": 1.0051834881247963,
               "community_count_range": null,
@@ -11405,7 +11405,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0000813884875985,
               "bfs_speedup": 1.0071625495989027,
               "community_count_range": null,
@@ -11529,7 +11529,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0001627769751968,
               "bfs_speedup": 0.9987373228342445,
               "community_count_range": {
@@ -11656,7 +11656,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0001220827313977,
               "bfs_speedup": 1.0086074744551026,
               "community_count_range": {
@@ -11783,7 +11783,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000101735609498,
               "bfs_speedup": 1.0080477568051618,
               "community_count_range": {
@@ -11910,7 +11910,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000101735609498,
               "bfs_speedup": 0.9907008633680864,
               "community_count_range": {
@@ -12037,7 +12037,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000101735609498,
               "bfs_speedup": 1.0162509876506542,
               "community_count_range": {
@@ -12176,7 +12176,7 @@
           "size_tier": "smoke",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0011624210621208,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -12300,7 +12300,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0010485512437906,
               "bfs_speedup": 0.9851400244665641,
               "community_count_range": null,
@@ -12424,7 +12424,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0008208116071302,
               "bfs_speedup": 1.0107678647804732,
               "community_count_range": null,
@@ -12548,7 +12548,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0010295729407355,
               "bfs_speedup": 1.0099331983213542,
               "community_count_range": {
@@ -12675,7 +12675,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0020544013057073,
               "bfs_speedup": 0.9821383942153965,
               "community_count_range": {
@@ -12802,7 +12802,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0011624210621208,
               "bfs_speedup": 1.0086655898303662,
               "community_count_range": {
@@ -12929,7 +12929,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.001352204092671,
               "bfs_speedup": 0.9983503290467138,
               "community_count_range": {
@@ -13056,7 +13056,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.004274862763146,
               "bfs_speedup": 0.9957841741028409,
               "community_count_range": {
@@ -13195,7 +13195,7 @@
           "size_tier": "smoke",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0024620816483751,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -13319,7 +13319,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0039110752619358,
               "bfs_speedup": 0.9863744019113463,
               "community_count_range": null,
@@ -13443,7 +13443,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0013415265872216,
               "bfs_speedup": 0.9793864492680516,
               "community_count_range": null,
@@ -13567,7 +13567,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.018922649098424,
               "bfs_speedup": 1.0179810261453583,
               "community_count_range": {
@@ -13694,7 +13694,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0176958345056095,
               "bfs_speedup": 0.9879910231107022,
               "community_count_range": {
@@ -13821,7 +13821,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0203523227971372,
               "bfs_speedup": 0.9983378150810027,
               "community_count_range": {
@@ -13948,7 +13948,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.013696612132182,
               "bfs_speedup": 0.9967224564236625,
               "community_count_range": {
@@ -14075,7 +14075,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.005891366533802,
               "bfs_speedup": 0.9988437848368116,
               "community_count_range": {
@@ -22968,7 +22968,7 @@
         }
       ],
       "summary_path": "results/partition_cut/phase2-smoke-native/phase2_summary.json",
-      "summary_sha256": "f30760948e2fb281598e341eeb7aecda2f1218c0472a3585b567db4a3a1f079f"
+      "summary_sha256": "7461ee5a1c26497577a1958b8101040f3c25790d17e1ad174ac319d5852d15ad"
     },
     "web_anchor": {
       "aggregates": [
@@ -23110,7 +23110,7 @@
         "--source",
         "0",
         "--max-shard-bytes",
-        "268435456"
+        "536870912"
       ],
       "configuration": {
         "balance": "total",
@@ -23125,7 +23125,7 @@
             "symmetric": false
           }
         ],
-        "max_shard_bytes": 268435456,
+        "max_shard_bytes": 536870912,
         "partitions": 16,
         "policies": [
           {
@@ -23188,7 +23188,7 @@
           "size_tier": "anchor",
           "summaries": [
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000368459476999,
               "bfs_speedup": 1.0,
               "community_count_range": null,
@@ -23312,7 +23312,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0009733520155282,
               "bfs_speedup": 1.0027565165595023,
               "community_count_range": null,
@@ -23436,7 +23436,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.000028403308966,
               "bfs_speedup": 1.001982356252177,
               "community_count_range": null,
@@ -23560,7 +23560,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0022238811495858,
               "bfs_speedup": 1.0102164603944852,
               "community_count_range": {
@@ -23687,7 +23687,7 @@
               }
             },
             {
-              "absolute_capacity_limit": 268435456,
+              "absolute_capacity_limit": 536870912,
               "balance_imbalance": 1.0003762948725758,
               "bfs_speedup": 1.0382356070086893,
               "community_count_range": {
@@ -25128,7 +25128,7 @@
         }
       ],
       "summary_path": "results/partition_cut/phase2-web-native/phase2_summary.json",
-      "summary_sha256": "2c64cf0fbf9102ad4372a448210c7b67178a644d21f479628712ee1b0b778843"
+      "summary_sha256": "37bc952f66f7369d4ad8c11b927d5095667db5b7dbef8930b0ea387b19101089"
     }
   },
   "schema": "graphbrew.partition_cut.phase2.evidence.v1"
