@@ -1,11 +1,11 @@
 {
   "_generated": {
-    "generated_at": "2026-07-16T12:47:17Z",
+    "generated_at": "2026-07-16T12:56:04Z",
     "generator": "scripts/experiments/partition_cut/freeze_phase2.py",
     "inputs": [
       {
         "path": "scripts/experiments/partition_cut/freeze_phase2.py",
-        "sha256": "34d3036aa26770468ccb68dec9e505cc17076ceb56514f517571e58c5b9be916"
+        "sha256": "7e120b315d68f168f7fee4c30d39038f73cf9d9336b2d8efc7a685a1f3b87946"
       },
       {
         "path": "scripts/experiments/partition_cut/phase2.py",
@@ -13,7 +13,7 @@
       }
     ],
     "regenerate": ".venv/bin/python scripts/experiments/partition_cut/freeze_phase2.py",
-    "source_commit": "0d6565e7a02aa0be4ce2d5dc83ad9f812e2834a5",
+    "source_commit": "61f6ab2abd8cb4b71e29a897bc93b15e484cc9fb",
     "source_tree": "clean"
   },
   "balance_sweep": {
@@ -608,6 +608,43 @@
             "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
             "size": 25426249
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
+            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-PA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-PA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-PA",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-PA.mtx",
+                  "sha256": "5e3ebb35aa4266155c77e3caee2c2188332cdcb4492b040a4a28c68b04d13b64",
+                  "size": 21511862
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-PA/roadNet-PA.sg",
+                "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
+                "size": 25426249
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -926,6 +963,43 @@
             "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
             "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
             "size": 4718297
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
+            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n17.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n17.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n17",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n17.mtx",
+                  "sha256": "b6f5470754d99199b2d51199e88b405024c9224f34c86c8bfbbb3732b58e9a9c",
+                  "size": 4847316
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
+                "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
+                "size": 4718297
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -1246,6 +1320,42 @@
             "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
             "size": 4063225
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
+            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-HepPh.mtx",
+                  "-b",
+                  "cit-HepPh.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-HepPh",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-HepPh/cit-HepPh.mtx",
+                  "sha256": "ebc54ff9907b2b0970fc6456a2afc09c03ec03a7fa492b607aa4536a968e6438",
+                  "size": 4795556
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-HepPh/cit-HepPh.sg",
+                "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
+                "size": 4063225
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -1564,6 +1674,42 @@
             "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
             "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
             "size": 8172521
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
+            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Slashdot0811.mtx",
+                  "-b",
+                  "soc-Slashdot0811.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-Slashdot0811",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Slashdot0811.mtx",
+                  "sha256": "ce29f0899cb33fde724fce5557a5898cb714cebe0c2cc43d5a8e4a52089148e1",
+                  "size": 9845746
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
+                "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
+                "size": 8172521
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -1884,6 +2030,43 @@
             "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
             "size": 45788253
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
+            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-CA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-CA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-CA",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-CA.mtx",
+                  "sha256": "5f8e7c5be130933982c7d0116167c622e946e24f6d07e31d3739a24dc95131f7",
+                  "size": 41130398
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-CA/roadNet-CA.sg",
+                "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
+                "size": 45788253
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -2202,6 +2385,43 @@
             "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
             "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
             "size": 37748425
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
+            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n20.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n20.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n20",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n20.mtx",
+                  "sha256": "b8026eaeae55edf947b264635afa86dd68410be2e4ca84488586984968692db0",
+                  "size": 43672864
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
+                "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
+                "size": 37748425
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -2522,6 +2742,42 @@
             "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
             "size": 207646969
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
+            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-Patents.mtx",
+                  "-b",
+                  "cit-Patents.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-Patents",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-Patents.mtx",
+                  "sha256": "889dc8c3f3b0e02a47f43a492a2e61f64672826cc515db302c034984ad76d9af",
+                  "size": 261658301
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-Patents/cit-Patents.sg",
+                "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
+                "size": 207646969
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -2840,6 +3096,42 @@
             "path": "results/graphs/soc-pokec/soc-pokec.sg",
             "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
             "size": 277636605
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
+            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Pokec.mtx",
+                  "-b",
+                  "soc-pokec.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-pokec",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Pokec/soc-Pokec.mtx",
+                  "sha256": "b141720ebf661b73048d5a091bde299d57c8d7b804f7102a3ca17e0ba1452451",
+                  "size": 423957585
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-pokec/soc-pokec.sg",
+                "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
+                "size": 277636605
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -24200,6 +24492,43 @@
             "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
             "size": 25426249
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
+            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-PA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-PA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-PA",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-PA.mtx",
+                  "sha256": "5e3ebb35aa4266155c77e3caee2c2188332cdcb4492b040a4a28c68b04d13b64",
+                  "size": 21511862
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-PA/roadNet-PA.sg",
+                "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
+                "size": 25426249
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -24518,6 +24847,43 @@
             "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
             "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
             "size": 4718297
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
+            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n17.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n17.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n17",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n17.mtx",
+                  "sha256": "b6f5470754d99199b2d51199e88b405024c9224f34c86c8bfbbb3732b58e9a9c",
+                  "size": 4847316
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
+                "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
+                "size": 4718297
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -24838,6 +25204,42 @@
             "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
             "size": 4063225
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
+            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-HepPh.mtx",
+                  "-b",
+                  "cit-HepPh.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-HepPh",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-HepPh/cit-HepPh.mtx",
+                  "sha256": "ebc54ff9907b2b0970fc6456a2afc09c03ec03a7fa492b607aa4536a968e6438",
+                  "size": 4795556
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-HepPh/cit-HepPh.sg",
+                "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
+                "size": 4063225
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -25156,6 +25558,42 @@
             "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
             "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
             "size": 8172521
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
+            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Slashdot0811.mtx",
+                  "-b",
+                  "soc-Slashdot0811.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-Slashdot0811",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Slashdot0811.mtx",
+                  "sha256": "ce29f0899cb33fde724fce5557a5898cb714cebe0c2cc43d5a8e4a52089148e1",
+                  "size": 9845746
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
+                "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
+                "size": 8172521
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -25476,6 +25914,43 @@
             "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
             "size": 45788253
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
+            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-CA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-CA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-CA",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-CA.mtx",
+                  "sha256": "5f8e7c5be130933982c7d0116167c622e946e24f6d07e31d3739a24dc95131f7",
+                  "size": 41130398
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-CA/roadNet-CA.sg",
+                "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
+                "size": 45788253
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -25794,6 +26269,43 @@
             "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
             "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
             "size": 37748425
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
+            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n20.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n20.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n20",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n20.mtx",
+                  "sha256": "b8026eaeae55edf947b264635afa86dd68410be2e4ca84488586984968692db0",
+                  "size": 43672864
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
+                "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
+                "size": 37748425
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -26114,6 +26626,42 @@
             "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
             "size": 207646969
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
+            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-Patents.mtx",
+                  "-b",
+                  "cit-Patents.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-Patents",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-Patents.mtx",
+                  "sha256": "889dc8c3f3b0e02a47f43a492a2e61f64672826cc515db302c034984ad76d9af",
+                  "size": 261658301
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-Patents/cit-Patents.sg",
+                "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
+                "size": 207646969
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -26432,6 +26980,42 @@
             "path": "results/graphs/soc-pokec/soc-pokec.sg",
             "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
             "size": 277636605
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
+            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Pokec.mtx",
+                  "-b",
+                  "soc-pokec.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-pokec",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Pokec/soc-Pokec.mtx",
+                  "sha256": "b141720ebf661b73048d5a091bde299d57c8d7b804f7102a3ca17e0ba1452451",
+                  "size": 423957585
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-pokec/soc-pokec.sg",
+                "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
+                "size": 277636605
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -47792,6 +48376,43 @@
             "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
             "size": 25426249
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
+            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-PA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-PA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-PA",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-PA.mtx",
+                  "sha256": "5e3ebb35aa4266155c77e3caee2c2188332cdcb4492b040a4a28c68b04d13b64",
+                  "size": 21511862
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-PA/roadNet-PA.sg",
+                "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
+                "size": 25426249
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -48110,6 +48731,43 @@
             "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
             "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
             "size": 4718297
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
+            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n17.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n17.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n17",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n17.mtx",
+                  "sha256": "b6f5470754d99199b2d51199e88b405024c9224f34c86c8bfbbb3732b58e9a9c",
+                  "size": 4847316
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
+                "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
+                "size": 4718297
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -48430,6 +49088,42 @@
             "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
             "size": 4063225
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
+            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-HepPh.mtx",
+                  "-b",
+                  "cit-HepPh.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-HepPh",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-HepPh/cit-HepPh.mtx",
+                  "sha256": "ebc54ff9907b2b0970fc6456a2afc09c03ec03a7fa492b607aa4536a968e6438",
+                  "size": 4795556
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-HepPh/cit-HepPh.sg",
+                "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
+                "size": 4063225
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -48748,6 +49442,42 @@
             "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
             "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
             "size": 8172521
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
+            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Slashdot0811.mtx",
+                  "-b",
+                  "soc-Slashdot0811.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-Slashdot0811",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Slashdot0811.mtx",
+                  "sha256": "ce29f0899cb33fde724fce5557a5898cb714cebe0c2cc43d5a8e4a52089148e1",
+                  "size": 9845746
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
+                "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
+                "size": 8172521
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -49068,6 +49798,43 @@
             "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
             "size": 45788253
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
+            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-CA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-CA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-CA",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-CA.mtx",
+                  "sha256": "5f8e7c5be130933982c7d0116167c622e946e24f6d07e31d3739a24dc95131f7",
+                  "size": 41130398
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-CA/roadNet-CA.sg",
+                "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
+                "size": 45788253
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -49386,6 +50153,43 @@
             "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
             "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
             "size": 37748425
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
+            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n20.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n20.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n20",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n20.mtx",
+                  "sha256": "b8026eaeae55edf947b264635afa86dd68410be2e4ca84488586984968692db0",
+                  "size": 43672864
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
+                "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
+                "size": 37748425
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -49706,6 +50510,42 @@
             "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
             "size": 207646969
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
+            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-Patents.mtx",
+                  "-b",
+                  "cit-Patents.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-Patents",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-Patents.mtx",
+                  "sha256": "889dc8c3f3b0e02a47f43a492a2e61f64672826cc515db302c034984ad76d9af",
+                  "size": 261658301
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-Patents/cit-Patents.sg",
+                "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
+                "size": 207646969
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -50024,6 +50864,42 @@
             "path": "results/graphs/soc-pokec/soc-pokec.sg",
             "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
             "size": 277636605
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
+            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Pokec.mtx",
+                  "-b",
+                  "soc-pokec.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-pokec",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Pokec/soc-Pokec.mtx",
+                  "sha256": "b141720ebf661b73048d5a091bde299d57c8d7b804f7102a3ca17e0ba1452451",
+                  "size": 423957585
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-pokec/soc-pokec.sg",
+                "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
+                "size": 277636605
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -71406,6 +72282,43 @@
             "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
             "size": 45788253
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
+            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-CA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-CA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-CA",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-CA.mtx",
+                  "sha256": "5f8e7c5be130933982c7d0116167c622e946e24f6d07e31d3739a24dc95131f7",
+                  "size": 41130398
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-CA/roadNet-CA.sg",
+                "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
+                "size": 45788253
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -71873,6 +72786,43 @@
             "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
             "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
             "size": 37748425
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
+            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n20.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n20.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n20",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n20.mtx",
+                  "sha256": "b8026eaeae55edf947b264635afa86dd68410be2e4ca84488586984968692db0",
+                  "size": 43672864
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
+                "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
+                "size": 37748425
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -72342,6 +73292,42 @@
             "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
             "size": 207646969
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
+            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-Patents.mtx",
+                  "-b",
+                  "cit-Patents.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-Patents",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-Patents.mtx",
+                  "sha256": "889dc8c3f3b0e02a47f43a492a2e61f64672826cc515db302c034984ad76d9af",
+                  "size": 261658301
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-Patents/cit-Patents.sg",
+                "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
+                "size": 207646969
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -72809,6 +73795,42 @@
             "path": "results/graphs/soc-pokec/soc-pokec.sg",
             "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
             "size": 277636605
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
+            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Pokec.mtx",
+                  "-b",
+                  "soc-pokec.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-pokec",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Pokec/soc-Pokec.mtx",
+                  "sha256": "b141720ebf661b73048d5a091bde299d57c8d7b804f7102a3ca17e0ba1452451",
+                  "size": 423957585
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-pokec/soc-pokec.sg",
+                "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
+                "size": 277636605
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -96620,6 +97642,43 @@
             "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
             "size": 45788253
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
+            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-CA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-CA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-CA",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-CA.mtx",
+                  "sha256": "5f8e7c5be130933982c7d0116167c622e946e24f6d07e31d3739a24dc95131f7",
+                  "size": 41130398
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-CA/roadNet-CA.sg",
+                "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
+                "size": 45788253
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -97093,6 +98152,43 @@
             "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
             "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
             "size": 37748425
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
+            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n20.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n20.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n20",
+                  "size_tier": "scale",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n20.mtx",
+                  "sha256": "b8026eaeae55edf947b264635afa86dd68410be2e4ca84488586984968692db0",
+                  "size": 43672864
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n20/delaunay_n20.sg",
+                "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
+                "size": 37748425
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -97568,6 +98664,42 @@
             "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
             "size": 207646969
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
+            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-Patents.mtx",
+                  "-b",
+                  "cit-Patents.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-Patents",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-Patents.mtx",
+                  "sha256": "889dc8c3f3b0e02a47f43a492a2e61f64672826cc515db302c034984ad76d9af",
+                  "size": 261658301
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-Patents/cit-Patents.sg",
+                "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
+                "size": 207646969
+              }
+            }
+          },
           "size_tier": "scale",
           "summaries": [
             {
@@ -98041,6 +99173,42 @@
             "path": "results/graphs/soc-pokec/soc-pokec.sg",
             "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
             "size": 277636605
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
+            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Pokec.mtx",
+                  "-b",
+                  "soc-pokec.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-pokec",
+                  "size_tier": "scale",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Pokec/soc-Pokec.mtx",
+                  "sha256": "b141720ebf661b73048d5a091bde299d57c8d7b804f7102a3ca17e0ba1452451",
+                  "size": 423957585
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-pokec/soc-pokec.sg",
+                "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
+                "size": 277636605
+              }
+            }
           },
           "size_tier": "scale",
           "summaries": [
@@ -122588,6 +123756,43 @@
             "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
             "size": 25426249
           },
+          "preparation": {
+            "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
+            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "roadNet-PA.mtx",
+                  "-s",
+                  "-b",
+                  "roadNet-PA.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "road",
+                  "name": "roadNet-PA",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "roadNet-PA.mtx",
+                  "sha256": "5e3ebb35aa4266155c77e3caee2c2188332cdcb4492b040a4a28c68b04d13b64",
+                  "size": 21511862
+                }
+              },
+              "output": {
+                "path": "results/graphs/roadNet-PA/roadNet-PA.sg",
+                "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
+                "size": 25426249
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -123830,6 +125035,43 @@
             "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
             "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
             "size": 4718297
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
+            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "delaunay_n17.mtx",
+                  "-s",
+                  "-b",
+                  "delaunay_n17.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "mesh",
+                  "name": "delaunay_n17",
+                  "size_tier": "smoke",
+                  "symmetric": true
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "delaunay_n17.mtx",
+                  "sha256": "b6f5470754d99199b2d51199e88b405024c9224f34c86c8bfbbb3732b58e9a9c",
+                  "size": 4847316
+                }
+              },
+              "output": {
+                "path": "results/graphs/delaunay_n17/delaunay_n17.sg",
+                "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
+                "size": 4718297
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -125074,6 +126316,42 @@
             "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
             "size": 4063225
           },
+          "preparation": {
+            "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
+            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "cit-HepPh.mtx",
+                  "-b",
+                  "cit-HepPh.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "citation",
+                  "name": "cit-HepPh",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "cit-HepPh/cit-HepPh.mtx",
+                  "sha256": "ebc54ff9907b2b0970fc6456a2afc09c03ec03a7fa492b607aa4536a968e6438",
+                  "size": 4795556
+                }
+              },
+              "output": {
+                "path": "results/graphs/cit-HepPh/cit-HepPh.sg",
+                "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
+                "size": 4063225
+              }
+            }
+          },
           "size_tier": "smoke",
           "summaries": [
             {
@@ -126316,6 +127594,42 @@
             "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
             "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
             "size": 8172521
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
+            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "soc-Slashdot0811.mtx",
+                  "-b",
+                  "soc-Slashdot0811.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "social",
+                  "name": "soc-Slashdot0811",
+                  "size_tier": "smoke",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "soc-Slashdot0811.mtx",
+                  "sha256": "ce29f0899cb33fde724fce5557a5898cb714cebe0c2cc43d5a8e4a52089148e1",
+                  "size": 9845746
+                }
+              },
+              "output": {
+                "path": "results/graphs/soc-Slashdot0811/soc-Slashdot0811.sg",
+                "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
+                "size": 8172521
+              }
+            }
           },
           "size_tier": "smoke",
           "summaries": [
@@ -190805,6 +192119,42 @@
             "path": "results/graphs/web-Google/web-Google.sg",
             "sha256": "1704b8c9c1588940c410d39fdb3e890270ed7de766737b0c62d0c095d74cdc9b",
             "size": 59168905
+          },
+          "preparation": {
+            "manifest_path": "results/graphs/web-Google/phase2_prepare.json",
+            "manifest_sha256": "94d97848c5c89301924220cb31c4057cb5e03da1239c85de5f1288b180e5f678",
+            "record": {
+              "inputs": {
+                "arguments": [
+                  "-f",
+                  "web-Google.mtx",
+                  "-b",
+                  "web-Google.sg"
+                ],
+                "converter": {
+                  "path": "bench/bin/converter",
+                  "sha256": "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557",
+                  "size": 40130368
+                },
+                "graph": {
+                  "category": "web",
+                  "name": "web-Google",
+                  "size_tier": "anchor",
+                  "symmetric": false
+                },
+                "schema": "graphbrew.partition_cut.prepare.v1",
+                "source": {
+                  "relative_path": "web-Google.mtx",
+                  "sha256": "1b75dab8f83a8e597f71a678abccfb2334f6c29d3b61ccd30d3e5f535e068f91",
+                  "size": 70278579
+                }
+              },
+              "output": {
+                "path": "results/graphs/web-Google/web-Google.sg",
+                "sha256": "1704b8c9c1588940c410d39fdb3e890270ed7de766737b0c62d0c095d74cdc9b",
+                "size": 59168905
+              }
+            }
           },
           "size_tier": "anchor",
           "summaries": [
