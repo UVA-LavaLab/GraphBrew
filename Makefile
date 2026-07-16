@@ -147,6 +147,32 @@ check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_D
 			exit 1; \
 		fi; \
 		echo " $(PASS) RCM:bnf fingerprints/package OMP=1/4"
+	@for policy in \
+		"comm_cut_min:12:leiden:compose:comm_cut_min:intra_hubsort" \
+		"sg_hilbert:12:leiden:compose:sg_hilbert:comm_identity:intra_hubsort" \
+		"intra_hub2:12:leiden:compose:comm_degree_desc:intra_hub2" \
+		"intra_rcmpp:12:leiden:compose:comm_degree_desc:intra_rcmpp" \
+		"leiden_hubsort:12:leiden:compose:comm_degree_desc:intra_hubsort"; do \
+		name="$${policy%%:*}"; option="$${policy#*:}"; \
+		one="$$(OMP_NUM_THREADS=1 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o "$$option" -P 4 -B total | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
+		many="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -o "$$option" -P 4 -B total | sed -n -e 's/^Partition fingerprints: //p' -e 's/^BFS source diagnostics: //p')"; \
+		if test -z "$$one" || test "$$one" != "$$many"; then \
+			echo " $(FAIL) $$name fingerprints differ across thread counts"; \
+			echo " OMP=1: $$one"; \
+			echo " OMP=4: $$many"; \
+			exit 1; \
+		fi; \
+	done; \
+	echo " $(PASS) community fingerprints OMP=1/4"
+	@serial="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 8 -n 1 -r 0 -o 12:leiden:compose -P 2 -B total)"; \
+		parallel="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 8 -n 1 -r 0 -o 12:leiden:compose:cd_parallel -P 2 -B total)"; \
+		if ! echo "$$serial" | grep -q "community-detection=serial" || \
+		   ! echo "$$serial" | grep -q "ordering-threads=4" || \
+		   ! echo "$$parallel" | grep -q "community-detection=parallel"; then \
+			echo " $(FAIL) community thread-mode contract"; \
+			exit 1; \
+		fi; \
+		echo " $(PASS) community serial/parallel thread modes"
 	@sg_root="$$(mktemp -d)"; \
 		legacy_root="$$(mktemp -d)"; \
 		stream_root="$$(mktemp -d)"; \
