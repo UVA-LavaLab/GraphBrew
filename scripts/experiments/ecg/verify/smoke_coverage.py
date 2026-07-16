@@ -47,7 +47,8 @@ def require_number(
 
 def validate(
         rows: list[dict[str, str]],
-        graphs: tuple[str, ...] = DEFAULT_GRAPHS) -> list[str]:
+        graphs: tuple[str, ...] = DEFAULT_GRAPHS,
+        instruction_cap: int = 0) -> list[str]:
     errors: list[str] = []
     expected_cells = {
         (simulator, graph, benchmark)
@@ -111,6 +112,18 @@ def validate(
                     "sniper_cpi_base", "sniper_cpi_data_cache",
                     "sniper_cpi_data_llc", "sniper_cpi_data_dram"):
                 require_number(errors, row, field)
+
+        if instruction_cap > 0 and simulator in ("gem5", "sniper"):
+            cap_field = (
+                "gem5_max_insts"
+                if simulator == "gem5"
+                else "sniper_roi_icount")
+            if number(row, cap_field) != instruction_cap:
+                errors.append(
+                    f"{row_name(row)}: {cap_field} != {instruction_cap}")
+            if number(row, "timing_valid_for_speedup") != 0:
+                errors.append(
+                    f"{row_name(row)}: capped timing marked speed-valid")
 
         if policy in K2_POLICIES:
             if number(row, "ecg_schedule_k") != 2:
@@ -177,12 +190,15 @@ def main() -> int:
     parser.add_argument(
         "--graph", nargs="+", default=list(DEFAULT_GRAPHS),
         help="Expected graph names. Defaults to the bounded smoke graph.")
+    parser.add_argument(
+        "--instruction-cap", type=int, default=0,
+        help="Expected gem5/Sniper detailed-ROI instruction cap; 0 means full work.")
     args = parser.parse_args()
     path = Path(args.csv)
     with path.open(newline="") as handle:
         rows = list(csv.DictReader(handle))
     graphs = tuple(dict.fromkeys(args.graph))
-    errors = validate(rows, graphs)
+    errors = validate(rows, graphs, args.instruction_cap)
     counts = Counter(row.get("simulator", "") for row in rows)
     print(
         f"[smoke-coverage] rows={len(rows)} "

@@ -1287,6 +1287,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "This kernel uses a packed record load followed by ecg.extract2; "
             "use cache metrics, not speedup, until request-bound fused load2 "
             "delivery is implemented.")
+    apply_instruction_cap_provenance(base, "gem5", args)
     base.update({
         "log_path": str(log_path),
         "gem5_out": str(gem5_out),
@@ -1764,6 +1765,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
                 "use cache metrics, not speedup.")
     else:
         env.pop("SNIPER_ENABLE_ECG_EXTRACT", None)
+    apply_instruction_cap_provenance(row, "sniper", args)
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_sniper, log_path, args.dry_run)
     if args.dry_run:
         return []
@@ -1994,6 +1996,31 @@ def parse_gem5_sections(stats_path: Path) -> list[dict[str, Any]]:
 def effective_ecg_epoch_count(requested: int, schedule_k: int) -> int:
     upper = 32768 if schedule_k == 2 else 65535
     return min(max(int(requested), 2), upper)
+
+
+def apply_instruction_cap_provenance(
+        row: dict[str, Any], simulator: str,
+        args: argparse.Namespace) -> None:
+    cap = (
+        int(args.gem5_max_insts)
+        if simulator == "gem5"
+        else int(args.sniper_roi_icount)
+        if simulator == "sniper"
+        else 0
+    )
+    row["instruction_cap"] = cap
+    row["gem5_max_insts"] = (
+        int(args.gem5_max_insts) if simulator == "gem5" else 0)
+    row["sniper_roi_icount"] = (
+        int(args.sniper_roi_icount) if simulator == "sniper" else 0)
+    if cap <= 0:
+        return
+    row["timing_model"] = "instruction_capped_diagnostic"
+    row["timing_valid_for_speedup"] = "0"
+    row["timing_caveat"] = (
+        f"{simulator} stops after {cap} committed detailed-ROI instructions. "
+        "Policies may reach different graph progress; use cache metrics only "
+        "as an instruction-capped diagnostic.")
 
 
 def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size: str,

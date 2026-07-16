@@ -15,7 +15,7 @@ def load_module(name: str, path: Path):
     return module
 
 
-def make_rows(module, graphs=None):
+def make_rows(module, graphs=None, instruction_cap=0):
     rows = []
     graphs = graphs or module.DEFAULT_GRAPHS
     for simulator in module.SIMULATORS:
@@ -51,6 +51,7 @@ def make_rows(module, graphs=None):
                             "dram_write_bytes": "0",
                             "sim_ticks": "10",
                             "ipc": "1",
+                            "gem5_max_insts": str(instruction_cap),
                         })
                     else:
                         row.update({
@@ -62,7 +63,11 @@ def make_rows(module, graphs=None):
                             "sniper_cpi_data_cache": "0",
                             "sniper_cpi_data_llc": "0",
                             "sniper_cpi_data_dram": "0",
+                            "sniper_roi_icount": str(instruction_cap),
                         })
+                    if instruction_cap and simulator in ("gem5", "sniper"):
+                        row["timing_valid_for_speedup"] = "0"
+                        row["timing_model"] = "instruction_capped_diagnostic"
                     if policy in module.K2_POLICIES:
                         row.update({
                             "ecg_schedule_k": "2",
@@ -105,6 +110,17 @@ def test_smoke_coverage_accepts_three_graph_matrix():
     rows = make_rows(module, graphs)
     assert len(rows) == 360
     assert module.validate(rows, graphs) == []
+
+
+def test_smoke_coverage_accepts_three_graph_capped_matrix():
+    module = load_module(
+        "smoke_coverage_three_graph_capped",
+        ROOT / "scripts/experiments/ecg/verify/smoke_coverage.py")
+    graphs = ("web-Google", "soc-pokec", "cit-Patents")
+    cap = 1_000_000_000
+    rows = make_rows(module, graphs, cap)
+    assert len(rows) == 360
+    assert module.validate(rows, graphs, cap) == []
 
 
 def test_smoke_coverage_rejects_missing_backend_metric():

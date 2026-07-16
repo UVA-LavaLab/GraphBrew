@@ -201,11 +201,9 @@ def parse_args():
     parser.add_argument("--l3-ways", type=int, default=DEFAULTS["l3_assoc"],
         help="L3 associativity / data ways (default: GraphBrew DEFAULTS l3_assoc)")
     parser.add_argument("--max-insts", type=int, default=0,
-        help="Cap total committed instructions (0 = run to completion). Bounds "
-             "gem5 on large graphs like Sniper's stop-by-icount. The benchmark's "
-             "m5_reset_stats at ROI start scopes the dumped window to the ROI; if "
-             "the cap fires before the ROI's own m5_dump_stats, this config dumps "
-             "stats at the cap so the ROI window is still recorded.")
+        help="Cap committed instructions after the benchmark's ROI work-begin "
+             "marker (0 = run to completion). This excludes graph loading and "
+             "matches Sniper's detailed-ROI stop-by-icount behavior.")
 
     return parser.parse_args()
 
@@ -237,12 +235,10 @@ def create_system(args):
     else:
         system.cpu = TimingSimpleCPU()
 
-    # Instruction cap (bounds gem5 on large graphs, like Sniper's stop-by-icount).
-    # Counts total committed instructions; the ROI window is scoped by the
-    # benchmark's m5_reset_stats/m5_dump_stats, and main() dumps stats if the cap
-    # fires mid-ROI before the benchmark's own dump.
+    # Stop first at the benchmark's compute work-begin marker. The cap itself is
+    # scheduled from that point so graph loading does not consume the ROI budget.
     if args.max_insts and args.max_insts > 0:
-        system.cpu.max_insts_any_thread = args.max_insts
+        system.exit_on_work_items = True
 
     # ── L3 replacement policy (graph-aware) ──
     l3_policy_kwargs = {}
@@ -428,12 +424,21 @@ def main():
     print("Starting simulation...")
     exit_event = m5.simulate()
     cause = exit_event.getCause()
+    if args.max_insts and args.max_insts > 0 and "workbegin" not in cause:
+        raise RuntimeError(
+            "simulation exited before ROI work-begin; instruction cap was "
+            f"not applied (cause={cause!r})")
+    if args.max_insts and args.max_insts > 0:
+        print(f"[max-insts] ROI start reached; scheduling "
+              f"{args.max_insts} committed instructions.")
+        system.exit_on_work_items = False
+        system.cpu.scheduleInstStop(
+            0, args.max_insts, "ROI instruction cap reached")
+        exit_event = m5.simulate()
+        cause = exit_event.getCause()
     print(f"Exiting @ tick {m5.curTick()} because {cause}")
-    # If the instruction cap fired before the benchmark's own m5_dump_stats
-    # (i.e. mid-ROI), dump the ROI-window stats now so they are still recorded.
-    # The benchmark's m5_reset_stats at ROI start scopes this window to the ROI.
-    if args.max_insts and args.max_insts > 0 and "max instruction count" in cause:
-        print(f"[max-insts] instruction cap ({args.max_insts}) reached mid-run; "
+    if args.max_insts and args.max_insts > 0 and "ROI instruction cap" in cause:
+        print(f"[max-insts] ROI instruction cap ({args.max_insts}) reached; "
               f"dumping ROI-window stats.")
         m5.stats.dump()
 

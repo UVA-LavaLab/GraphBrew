@@ -231,6 +231,7 @@ Canonical profiles:
 | `ecg_smoke` | Fast cache_sim check including online K2 |
 | `ecg_3sim_allalg_smoke` | 3 simulators x 5 algorithms x 8 final policies |
 | `ecg_3sim_realgraph_allalg` | 3 simulators x 3 real graphs x 5 algorithms x 8 policies |
+| `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction detailed-simulator diagnostic |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
@@ -353,6 +354,11 @@ its 20-GiB cap. Interpret `roi_relative_metrics.csv` within each simulator
 relative to LRU; absolute cache_sim, gem5, and Sniper miss rates are not
 directly comparable. BC K2 covers the forward Brandes traversal; CC retains
 the undirected/symmetric graph contract.
+
+For faster diagnostic results, profile `ecg_3sim_realgraph_allalg_1b` keeps
+cache_sim at full workload completion and caps gem5/Sniper at one billion
+committed detailed-ROI instructions. Gem5 starts its budget at the compute
+work-begin marker. These rows are not speedup or equal-graph-work evidence.
 
 ### Other profiles
 

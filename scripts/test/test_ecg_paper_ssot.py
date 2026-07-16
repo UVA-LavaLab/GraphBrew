@@ -172,6 +172,7 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_cache_sim_factorial" in manifest["profiles"]
     assert "ecg_3sim_allalg_smoke" in manifest["profiles"]
     assert "ecg_3sim_realgraph_allalg" in manifest["profiles"]
+    assert "ecg_3sim_realgraph_allalg_1b" in manifest["profiles"]
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
     assert "ecg_preliminary_5alg_stride" in manifest["profiles"]
@@ -252,6 +253,17 @@ def test_streamshield_manifest_is_complete():
         for stage in realgraph_stages)
     assert all(len(stage["policies"]) == 8 for stage in realgraph_stages)
     assert all(stage["prefetcher"] == "none" for stage in realgraph_stages)
+    capped_stages = [
+        stage for stage in manifest["stages"]
+        if "ecg_3sim_realgraph_allalg_1b" in stage.get("profiles", [])]
+    assert {stage["suite"] for stage in capped_stages} == {
+        "cache-sim", "gem5", "sniper"}
+    capped_gem5 = next(
+        stage for stage in capped_stages if stage["suite"] == "gem5")
+    capped_sniper = next(
+        stage for stage in capped_stages if stage["suite"] == "sniper")
+    assert capped_gem5["gem5_max_insts"] == 1_000_000_000
+    assert capped_sniper["sniper_roi_icount"] == 1_000_000_000
     preliminary = [
         stage for stage in manifest["stages"]
         if stage["name"] in {
@@ -432,6 +444,26 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
     assert "${profile}_${safe_stage}_${graph}_${benchmark}_${safe_policy}" in sbatch
 
 
+def test_capped_realgraph_profile_forwards_instruction_budgets(tmp_path):
+    listed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/flows/paper_run.py",
+            "--profile", "ecg_3sim_realgraph_allalg_1b",
+            "--run-dir", str(tmp_path / "capped"),
+            "--allow-missing-graphs",
+            "--list", "--dry-run", "--no-build",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert listed.returncode == 0, listed.stdout + listed.stderr
+    assert "--gem5-max-insts 1000000000" in listed.stdout
+    assert "--sniper-roi-icount 1000000000" in listed.stdout
+
+
 def test_paper_pipeline_uses_canonical_runner():
     pipeline = (
         ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py"
@@ -473,6 +505,7 @@ def test_final_design_docs_and_run_flow_are_consistent():
     for profile in (
             "ecg_3sim_allalg_smoke",
             "ecg_3sim_realgraph_allalg",
+            "ecg_3sim_realgraph_allalg_1b",
             "ecg_replacement_baseline",
             "ecg_cache_sim_factorial",
             "ecg_streamshield_generality"):

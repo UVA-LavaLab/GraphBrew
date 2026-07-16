@@ -55,6 +55,14 @@ def test_graph_se_accepts_ecg_pfx_prefetcher():
     assert "make_ecg_pfx_prefetcher" in text
 
 
+def test_graph_se_caps_instructions_relative_to_roi():
+    text = read("bench/include/gem5_sim/configs/graphbrew/graph_se.py")
+    assert "system.exit_on_work_items = True" in text
+    assert "system.cpu.scheduleInstStop(" in text
+    assert '"ROI instruction cap reached"' in text
+    assert "simulation exited before ROI work-begin" in text
+
+
 def test_gem5_harness_defines_ecg_pfx_m5ops_macro():
     text = read("bench/include/gem5_sim/gem5_harness.h")
 

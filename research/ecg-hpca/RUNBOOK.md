@@ -137,6 +137,32 @@ job under its 20-GiB address-space cap. Reduce concurrency if memory pressure
 appears. BC K2 covers the forward Brandes traversal only; CC retains the
 artifact's undirected/symmetric graph contract.
 
+### Quick 1B-instruction diagnostic
+
+Use the already-complete full-work cache_sim rows and rerun only gem5/Sniper
+with a one-billion-instruction detailed-ROI cap:
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_realgraph_allalg_1b \
+  --run-tag ecg_3sim_realgraph_allalg_1b \
+  --out results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg_1b.tsv
+
+awk -F '\t' '$2 ~ /^25_|^26_/' \
+  results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg_1b.tsv \
+  > results/ecg_experiments/slurm/ecg_3sim_realgraph_detailed_1b.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_3sim_realgraph_detailed_1b.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 8 --gem5-jobs 4 --sniper-jobs 4
+```
+
+Gem5 schedules the cap from the compute ROI work-begin marker, so graph loading
+does not consume the one-billion-instruction budget. Capped rows set
+`timing_valid_for_speedup=0`; compare cache metrics only and label every table
+as instruction-capped diagnostic evidence.
+
 ## Inspect the blocked headline job
 
 ```bash

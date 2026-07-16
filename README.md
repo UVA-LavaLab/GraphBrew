@@ -181,6 +181,18 @@ conservative single-node default for a 32-core/62-GiB host. Compare
 `roi_relative_metrics.csv` within each simulator; absolute miss rates are not
 cross-simulator metrics.
 
+For quick diagnostic results, use `ecg_3sim_realgraph_allalg_1b`. Cache_sim
+still runs to completion; gem5 and Sniper stop after one billion committed
+detailed-ROI instructions. These capped rows are cache diagnostics, not
+speedup or equal-work results.
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_realgraph_allalg_1b \
+  --run-tag ecg_3sim_realgraph_allalg_1b \
+  --out results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg_1b.tsv
+```
+
 ### 6. Run cache_sim authority profiles
 
 ```bash
@@ -284,6 +296,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_smoke` | Fast cache_sim check including online K2 |
 | `ecg_3sim_allalg_smoke` | 120-row final data-shape smoke |
 | `ecg_3sim_realgraph_allalg` | 360-row three-simulator real-graph comparison |
+| `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction gem5/Sniper diagnostic |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |

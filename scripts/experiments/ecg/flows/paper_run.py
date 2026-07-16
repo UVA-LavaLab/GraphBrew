@@ -566,6 +566,10 @@ def make_roi_job(
             command.extend(["--droplet-indirect-degree", str(settings["droplet_indirect_degree"])])
         if "droplet_stride_table_size" in settings:
             command.extend(["--droplet-stride-table-size", str(settings["droplet_stride_table_size"])])
+    if (str(settings.get("suite")) == "gem5" and
+            settings.get("gem5_max_insts")):
+        command.extend([
+            "--gem5-max-insts", str(settings.get("gem5_max_insts"))])
     if str(settings.get("suite")) == "sniper":
         command.extend(["--sniper-workload", str(settings.get("sniper_workload", "pr_kernel_smoke"))])
         command.extend(["--sniper-cores", str(settings.get("sniper_cores", 1))])
