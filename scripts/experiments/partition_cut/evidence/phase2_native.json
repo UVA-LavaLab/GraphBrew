@@ -1,19 +1,19 @@
 {
   "_generated": {
-    "generated_at": "2026-07-16T12:56:04Z",
+    "generated_at": "2026-07-16T13:02:18Z",
     "generator": "scripts/experiments/partition_cut/freeze_phase2.py",
     "inputs": [
       {
         "path": "scripts/experiments/partition_cut/freeze_phase2.py",
-        "sha256": "7e120b315d68f168f7fee4c30d39038f73cf9d9336b2d8efc7a685a1f3b87946"
+        "sha256": "5f9fb7561d855f16d15ca354b7df5598c0abcbeff89142ea9ea09adfcd4cf75a"
       },
       {
         "path": "scripts/experiments/partition_cut/phase2.py",
-        "sha256": "0f2b6a87e645576ed57947db056578699bd6b463a0a4fc5c5be950aee75d46a5"
+        "sha256": "9418b0ca4cee3fba06ec2eacde60fa375d86e46e961da045b0fbfded8d6e4371"
       }
     ],
     "regenerate": ".venv/bin/python scripts/experiments/partition_cut/freeze_phase2.py",
-    "source_commit": "61f6ab2abd8cb4b71e29a897bc93b15e484cc9fb",
+    "source_commit": "fda0546f78a5c2924d6e7a5812452d72c57db531",
     "source_tree": "clean"
   },
   "balance_sweep": {
@@ -609,8 +609,8 @@
             "size": 25426249
           },
           "preparation": {
+            "canonical_manifest_sha256": "aeac9244d152c1f752cef8a9f2ef5ede79c8a70e5af9867785598f2acb207bec",
             "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
-            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
             "record": {
               "inputs": {
                 "arguments": [
@@ -643,6 +643,11 @@
                 "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
                 "size": 25426249
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -965,8 +970,8 @@
             "size": 4718297
           },
           "preparation": {
+            "canonical_manifest_sha256": "1369efd4dba885f018280abcd49d45c98d62d33db45df6ef8756e8f0cf422ec4",
             "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
-            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
             "record": {
               "inputs": {
                 "arguments": [
@@ -999,6 +1004,11 @@
                 "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
                 "size": 4718297
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -1321,8 +1331,8 @@
             "size": 4063225
           },
           "preparation": {
+            "canonical_manifest_sha256": "f5820bc8eb4a50ced5e78d0da2206d9f100b4e1715ad03815f5b6912dd887894",
             "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
-            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
             "record": {
               "inputs": {
                 "arguments": [
@@ -1354,6 +1364,11 @@
                 "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
                 "size": 4063225
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -1676,8 +1691,8 @@
             "size": 8172521
           },
           "preparation": {
+            "canonical_manifest_sha256": "fc839fa4e72372dd8920b4aec3159e8f90e0e880767d2a2144979ed73b75a577",
             "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
-            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
             "record": {
               "inputs": {
                 "arguments": [
@@ -1709,6 +1724,11 @@
                 "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
                 "size": 8172521
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -2031,8 +2051,8 @@
             "size": 45788253
           },
           "preparation": {
+            "canonical_manifest_sha256": "ded44c70195787a52cb2f0d4439060d5ad7187a824758742690e28a1cce58711",
             "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
-            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
             "record": {
               "inputs": {
                 "arguments": [
@@ -2065,6 +2085,11 @@
                 "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
                 "size": 45788253
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -2387,8 +2412,8 @@
             "size": 37748425
           },
           "preparation": {
+            "canonical_manifest_sha256": "e766be1adc29e3f2a949a103f6d29fd84db4224ceeae5bc0d96ea2cf5057fbfb",
             "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
-            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
             "record": {
               "inputs": {
                 "arguments": [
@@ -2421,6 +2446,11 @@
                 "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
                 "size": 37748425
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -2743,8 +2773,8 @@
             "size": 207646969
           },
           "preparation": {
+            "canonical_manifest_sha256": "a9ed79a52285fc36907c4162bdfdd178a101e923c1f6b0e2209a470939f314ea",
             "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
-            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
             "record": {
               "inputs": {
                 "arguments": [
@@ -2776,6 +2806,11 @@
                 "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
                 "size": 207646969
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -3098,8 +3133,8 @@
             "size": 277636605
           },
           "preparation": {
+            "canonical_manifest_sha256": "25b69305ce154c99cd308c1cc6cf46f289b5de11f5304517fcab78702360f60e",
             "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
-            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
             "record": {
               "inputs": {
                 "arguments": [
@@ -3131,6 +3166,11 @@
                 "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
                 "size": 277636605
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -24493,8 +24533,8 @@
             "size": 25426249
           },
           "preparation": {
+            "canonical_manifest_sha256": "aeac9244d152c1f752cef8a9f2ef5ede79c8a70e5af9867785598f2acb207bec",
             "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
-            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
             "record": {
               "inputs": {
                 "arguments": [
@@ -24527,6 +24567,11 @@
                 "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
                 "size": 25426249
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -24849,8 +24894,8 @@
             "size": 4718297
           },
           "preparation": {
+            "canonical_manifest_sha256": "1369efd4dba885f018280abcd49d45c98d62d33db45df6ef8756e8f0cf422ec4",
             "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
-            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
             "record": {
               "inputs": {
                 "arguments": [
@@ -24883,6 +24928,11 @@
                 "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
                 "size": 4718297
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -25205,8 +25255,8 @@
             "size": 4063225
           },
           "preparation": {
+            "canonical_manifest_sha256": "f5820bc8eb4a50ced5e78d0da2206d9f100b4e1715ad03815f5b6912dd887894",
             "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
-            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
             "record": {
               "inputs": {
                 "arguments": [
@@ -25238,6 +25288,11 @@
                 "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
                 "size": 4063225
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -25560,8 +25615,8 @@
             "size": 8172521
           },
           "preparation": {
+            "canonical_manifest_sha256": "fc839fa4e72372dd8920b4aec3159e8f90e0e880767d2a2144979ed73b75a577",
             "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
-            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
             "record": {
               "inputs": {
                 "arguments": [
@@ -25593,6 +25648,11 @@
                 "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
                 "size": 8172521
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -25915,8 +25975,8 @@
             "size": 45788253
           },
           "preparation": {
+            "canonical_manifest_sha256": "ded44c70195787a52cb2f0d4439060d5ad7187a824758742690e28a1cce58711",
             "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
-            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
             "record": {
               "inputs": {
                 "arguments": [
@@ -25949,6 +26009,11 @@
                 "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
                 "size": 45788253
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -26271,8 +26336,8 @@
             "size": 37748425
           },
           "preparation": {
+            "canonical_manifest_sha256": "e766be1adc29e3f2a949a103f6d29fd84db4224ceeae5bc0d96ea2cf5057fbfb",
             "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
-            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
             "record": {
               "inputs": {
                 "arguments": [
@@ -26305,6 +26370,11 @@
                 "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
                 "size": 37748425
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -26627,8 +26697,8 @@
             "size": 207646969
           },
           "preparation": {
+            "canonical_manifest_sha256": "a9ed79a52285fc36907c4162bdfdd178a101e923c1f6b0e2209a470939f314ea",
             "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
-            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
             "record": {
               "inputs": {
                 "arguments": [
@@ -26660,6 +26730,11 @@
                 "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
                 "size": 207646969
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -26982,8 +27057,8 @@
             "size": 277636605
           },
           "preparation": {
+            "canonical_manifest_sha256": "25b69305ce154c99cd308c1cc6cf46f289b5de11f5304517fcab78702360f60e",
             "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
-            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
             "record": {
               "inputs": {
                 "arguments": [
@@ -27015,6 +27090,11 @@
                 "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
                 "size": 277636605
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -48377,8 +48457,8 @@
             "size": 25426249
           },
           "preparation": {
+            "canonical_manifest_sha256": "aeac9244d152c1f752cef8a9f2ef5ede79c8a70e5af9867785598f2acb207bec",
             "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
-            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
             "record": {
               "inputs": {
                 "arguments": [
@@ -48411,6 +48491,11 @@
                 "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
                 "size": 25426249
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -48733,8 +48818,8 @@
             "size": 4718297
           },
           "preparation": {
+            "canonical_manifest_sha256": "1369efd4dba885f018280abcd49d45c98d62d33db45df6ef8756e8f0cf422ec4",
             "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
-            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
             "record": {
               "inputs": {
                 "arguments": [
@@ -48767,6 +48852,11 @@
                 "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
                 "size": 4718297
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -49089,8 +49179,8 @@
             "size": 4063225
           },
           "preparation": {
+            "canonical_manifest_sha256": "f5820bc8eb4a50ced5e78d0da2206d9f100b4e1715ad03815f5b6912dd887894",
             "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
-            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
             "record": {
               "inputs": {
                 "arguments": [
@@ -49122,6 +49212,11 @@
                 "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
                 "size": 4063225
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -49444,8 +49539,8 @@
             "size": 8172521
           },
           "preparation": {
+            "canonical_manifest_sha256": "fc839fa4e72372dd8920b4aec3159e8f90e0e880767d2a2144979ed73b75a577",
             "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
-            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
             "record": {
               "inputs": {
                 "arguments": [
@@ -49477,6 +49572,11 @@
                 "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
                 "size": 8172521
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -49799,8 +49899,8 @@
             "size": 45788253
           },
           "preparation": {
+            "canonical_manifest_sha256": "ded44c70195787a52cb2f0d4439060d5ad7187a824758742690e28a1cce58711",
             "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
-            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
             "record": {
               "inputs": {
                 "arguments": [
@@ -49833,6 +49933,11 @@
                 "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
                 "size": 45788253
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -50155,8 +50260,8 @@
             "size": 37748425
           },
           "preparation": {
+            "canonical_manifest_sha256": "e766be1adc29e3f2a949a103f6d29fd84db4224ceeae5bc0d96ea2cf5057fbfb",
             "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
-            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
             "record": {
               "inputs": {
                 "arguments": [
@@ -50189,6 +50294,11 @@
                 "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
                 "size": 37748425
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -50511,8 +50621,8 @@
             "size": 207646969
           },
           "preparation": {
+            "canonical_manifest_sha256": "a9ed79a52285fc36907c4162bdfdd178a101e923c1f6b0e2209a470939f314ea",
             "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
-            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
             "record": {
               "inputs": {
                 "arguments": [
@@ -50544,6 +50654,11 @@
                 "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
                 "size": 207646969
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -50866,8 +50981,8 @@
             "size": 277636605
           },
           "preparation": {
+            "canonical_manifest_sha256": "25b69305ce154c99cd308c1cc6cf46f289b5de11f5304517fcab78702360f60e",
             "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
-            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
             "record": {
               "inputs": {
                 "arguments": [
@@ -50899,6 +51014,11 @@
                 "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
                 "size": 277636605
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -72283,8 +72403,8 @@
             "size": 45788253
           },
           "preparation": {
+            "canonical_manifest_sha256": "ded44c70195787a52cb2f0d4439060d5ad7187a824758742690e28a1cce58711",
             "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
-            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
             "record": {
               "inputs": {
                 "arguments": [
@@ -72317,6 +72437,11 @@
                 "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
                 "size": 45788253
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -72788,8 +72913,8 @@
             "size": 37748425
           },
           "preparation": {
+            "canonical_manifest_sha256": "e766be1adc29e3f2a949a103f6d29fd84db4224ceeae5bc0d96ea2cf5057fbfb",
             "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
-            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
             "record": {
               "inputs": {
                 "arguments": [
@@ -72822,6 +72947,11 @@
                 "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
                 "size": 37748425
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -73293,8 +73423,8 @@
             "size": 207646969
           },
           "preparation": {
+            "canonical_manifest_sha256": "a9ed79a52285fc36907c4162bdfdd178a101e923c1f6b0e2209a470939f314ea",
             "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
-            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
             "record": {
               "inputs": {
                 "arguments": [
@@ -73326,6 +73456,11 @@
                 "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
                 "size": 207646969
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -73797,8 +73932,8 @@
             "size": 277636605
           },
           "preparation": {
+            "canonical_manifest_sha256": "25b69305ce154c99cd308c1cc6cf46f289b5de11f5304517fcab78702360f60e",
             "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
-            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
             "record": {
               "inputs": {
                 "arguments": [
@@ -73830,6 +73965,11 @@
                 "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
                 "size": 277636605
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -97643,8 +97783,8 @@
             "size": 45788253
           },
           "preparation": {
+            "canonical_manifest_sha256": "ded44c70195787a52cb2f0d4439060d5ad7187a824758742690e28a1cce58711",
             "manifest_path": "results/graphs/roadNet-CA/phase2_prepare.json",
-            "manifest_sha256": "957cb8724f8f5e75e140898e5e7abe2cc719097c52cf1ed5799ba1883cb0a8b0",
             "record": {
               "inputs": {
                 "arguments": [
@@ -97677,6 +97817,11 @@
                 "sha256": "f6f3f75487fa180ceebf9480e2ed27d5cc3df39d05111a3a09a497871f0301e7",
                 "size": 45788253
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -98154,8 +98299,8 @@
             "size": 37748425
           },
           "preparation": {
+            "canonical_manifest_sha256": "e766be1adc29e3f2a949a103f6d29fd84db4224ceeae5bc0d96ea2cf5057fbfb",
             "manifest_path": "results/graphs/delaunay_n20/phase2_prepare.json",
-            "manifest_sha256": "94d272a69f77441f6359daaf2f602b5f9e500f5711a9e18f1523c0581c64794d",
             "record": {
               "inputs": {
                 "arguments": [
@@ -98188,6 +98333,11 @@
                 "sha256": "6e533eeb5eea051304a01a94c95349bae4706f89edb7763adb97a75b0ccd6d32",
                 "size": 37748425
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -98665,8 +98815,8 @@
             "size": 207646969
           },
           "preparation": {
+            "canonical_manifest_sha256": "a9ed79a52285fc36907c4162bdfdd178a101e923c1f6b0e2209a470939f314ea",
             "manifest_path": "results/graphs/cit-Patents/phase2_prepare.json",
-            "manifest_sha256": "a4f80b1ef8943b9da4b61b4af823ae1fd7aa1cca611b2eba0f1c76e2ea3230d6",
             "record": {
               "inputs": {
                 "arguments": [
@@ -98698,6 +98848,11 @@
                 "sha256": "b215d2ea5c18c160f56ee7b6304df4f153dba4c86d455eb5fd1e2bf6adeabe20",
                 "size": 207646969
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -99175,8 +99330,8 @@
             "size": 277636605
           },
           "preparation": {
+            "canonical_manifest_sha256": "25b69305ce154c99cd308c1cc6cf46f289b5de11f5304517fcab78702360f60e",
             "manifest_path": "results/graphs/soc-pokec/phase2_prepare.json",
-            "manifest_sha256": "6434097e8700c221344298bc08ca1a338efecfc471b6ad992dec99da7aa1363c",
             "record": {
               "inputs": {
                 "arguments": [
@@ -99208,6 +99363,11 @@
                 "sha256": "cdd51c89fad974bc72ed115d9a8e83287a8ff5c7da66ca239cdc413cf8a03753",
                 "size": 277636605
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "scale",
@@ -123757,8 +123917,8 @@
             "size": 25426249
           },
           "preparation": {
+            "canonical_manifest_sha256": "aeac9244d152c1f752cef8a9f2ef5ede79c8a70e5af9867785598f2acb207bec",
             "manifest_path": "results/graphs/roadNet-PA/phase2_prepare.json",
-            "manifest_sha256": "7d67201942d1e3429734c1ea7a0d22a312107200045b23fa2fe51279e036bc92",
             "record": {
               "inputs": {
                 "arguments": [
@@ -123791,6 +123951,11 @@
                 "sha256": "4f9bdc407c8c3fe23db8f04f92c5ae1d54464dc87fed425abcb2be874759b47d",
                 "size": 25426249
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -125037,8 +125202,8 @@
             "size": 4718297
           },
           "preparation": {
+            "canonical_manifest_sha256": "1369efd4dba885f018280abcd49d45c98d62d33db45df6ef8756e8f0cf422ec4",
             "manifest_path": "results/graphs/delaunay_n17/phase2_prepare.json",
-            "manifest_sha256": "d1393448635819884d91167d6a996f5c3d0ae9ae5ee31bb777b1bd316cbaedb3",
             "record": {
               "inputs": {
                 "arguments": [
@@ -125071,6 +125236,11 @@
                 "sha256": "c992825ffe964f1cc31e5c79e3e83edebec2d647d2cc311524f41d0587a62a30",
                 "size": 4718297
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -126317,8 +126487,8 @@
             "size": 4063225
           },
           "preparation": {
+            "canonical_manifest_sha256": "f5820bc8eb4a50ced5e78d0da2206d9f100b4e1715ad03815f5b6912dd887894",
             "manifest_path": "results/graphs/cit-HepPh/phase2_prepare.json",
-            "manifest_sha256": "270af07b9a989654a438b3423ba01b302317ca7bfd6751a588da2991065747af",
             "record": {
               "inputs": {
                 "arguments": [
@@ -126350,6 +126520,11 @@
                 "sha256": "daf4d3a7c10a800f7debdc14eb98f490b391e7a1ec7880a937e2324138e33c3a",
                 "size": 4063225
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -127596,8 +127771,8 @@
             "size": 8172521
           },
           "preparation": {
+            "canonical_manifest_sha256": "fc839fa4e72372dd8920b4aec3159e8f90e0e880767d2a2144979ed73b75a577",
             "manifest_path": "results/graphs/soc-Slashdot0811/phase2_prepare.json",
-            "manifest_sha256": "62eda886f6816ee2f60d1aa7b05c2d27fbdc3beb2898da65e32495772b1889c9",
             "record": {
               "inputs": {
                 "arguments": [
@@ -127629,6 +127804,11 @@
                 "sha256": "1a2e3c3424ad9603812c65c00b722a37238c47db5e5a1c56a779aacc09a22db7",
                 "size": 8172521
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "smoke",
@@ -192121,8 +192301,8 @@
             "size": 59168905
           },
           "preparation": {
+            "canonical_manifest_sha256": "e08c2547989059a7a80e8e6dba6db870f429d7e831036b74acf7ac18339144ff",
             "manifest_path": "results/graphs/web-Google/phase2_prepare.json",
-            "manifest_sha256": "94d97848c5c89301924220cb31c4057cb5e03da1239c85de5f1288b180e5f678",
             "record": {
               "inputs": {
                 "arguments": [
@@ -192154,6 +192334,11 @@
                 "sha256": "1704b8c9c1588940c410d39fdb3e890270ed7de766737b0c62d0c095d74cdc9b",
                 "size": 59168905
               }
+            },
+            "reproduction": {
+              "converter_build_command": "RABBIT_ENABLE=0 make converter",
+              "source_commit": "d72db5c6ee4783850e968bac9f773519f25fcb63",
+              "source_tree": "clean"
             }
           },
           "size_tier": "anchor",
