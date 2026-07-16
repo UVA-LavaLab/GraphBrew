@@ -317,6 +317,20 @@ phase must carry complete per-bank resident bytes into the corpus, sweep balance
 policies, and compare contiguous with non-contiguous ownership before choosing
 the production seam.
 
+The deterministic `intra_rcmpp` balance sweep confirms `total` as the safest
+contiguous mode, not a solution:
+
+| Balance | Geo. structural reduction | Worst runtime reduction | Max-shard ratio | Worst storage imbalance | Worst edge imbalance |
+|---|---:|---:|---:|---:|---:|
+| `vertices` | 3.23x | 0.93x | 1.244x | 4.48x | 5.54x |
+| `out` | 3.11x | 1.00x | 1.021x | 4.60x | 6.37x |
+| `total` | 3.15x | 1.00x | 1.069x | 1.75x | 2.00x |
+
+The tracked Phase 2 evidence includes all three balance matrices. Since even
+`total` misses the 1.10 storage and edge-balance gates, the remaining analysis
+must compare contiguous ranges with a deterministic non-contiguous
+`owner_by_vertex` assignment on the same frozen communities.
+
 Export the backend-neutral shard package with `-E`:
 
 ```bash

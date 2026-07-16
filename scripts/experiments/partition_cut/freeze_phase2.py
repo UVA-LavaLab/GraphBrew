@@ -47,6 +47,21 @@ DEFAULT_MATRICES = {
         / "results/partition_cut/phase2-web-native/"
         "phase2_summary.json"
     ),
+    "balance_vertices": (
+        PROJECT_ROOT
+        / "results/partition_cut/balance-vertices-intra-rcmpp/"
+        "phase2_summary.json"
+    ),
+    "balance_out": (
+        PROJECT_ROOT
+        / "results/partition_cut/balance-out-intra-rcmpp/"
+        "phase2_summary.json"
+    ),
+    "balance_total": (
+        PROJECT_ROOT
+        / "results/partition_cut/balance-total-intra-rcmpp/"
+        "phase2_summary.json"
+    ),
 }
 
 
@@ -389,6 +404,21 @@ def combined_aggregates(
     }
 
 
+def balance_sweep(
+    matrices: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for balance in ("vertices", "out", "total"):
+        matrix = matrices[f"balance_{balance}"]
+        aggregate = next(
+            item
+            for item in matrix["aggregates"]
+            if item["policy"] == "intra_rcmpp"
+        )
+        result[balance] = aggregate
+    return result
+
+
 def _semantic_payload(value: dict[str, Any]) -> dict[str, Any]:
     result = dict(value)
     generated = dict(result.get("_generated", {}))
@@ -452,6 +482,7 @@ def write_evidence(
         },
         "matrices": frozen,
         "combined_aggregates": combined_aggregates(frozen),
+        "balance_sweep": balance_sweep(frozen),
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.is_file():
