@@ -262,6 +262,11 @@ Preparation preserves native IDs, symmetrizes only catalog-symmetric graphs,
 and records source/converter/output hashes plus exact converter arguments.
 `--summarize-existing` rejects graph, binary, policy, partition, balance,
 source, thread, repeat, or Cartesian-matrix mismatches.
+The tracked
+[`phase2_native.json`](scripts/experiments/partition_cut/evidence/phase2_native.json)
+bundle freezes portable per-cell records, parsed runtime configurations,
+input/binary hashes, commands, and raw-log hashes. Regenerate it with
+`freeze_phase2.py`; unchanged evidence is byte-stable.
 
 The additional research policies are `sg_hilbert`, `intra_hub2`,
 `intra_rcmpp`, and `leiden_hubsort`. They are classified from observed
