@@ -266,30 +266,35 @@ source, thread, repeat, or Cartesian-matrix mismatches.
 The additional research policies are `sg_hilbert`, `intra_hub2`,
 `intra_rcmpp`, and `leiden_hubsort`. They are classified from observed
 cross-thread/repeat fingerprints rather than presumed deterministic. The
-aggregate report computes geometric-mean cut/ghost reductions, worst-graph
+aggregate report computes geometric-mean cut/ghost-metadata reductions, worst-graph
 regression, worst-repeat capacity/work balance, absolute capacity, runtime
 fallbacks, and preprocessing gates.
 
 Final native-order P16 result over four smoke plus four scale graphs:
 
-| Policy | Determinism | Geo. combined reduction | Worst graph | Max-shard ratio | Widening wins |
+| Policy | Determinism | Geo. structural reduction | Worst graph | Max-shard ratio | Widening wins |
 |---|---|---:|---:|---:|---:|
 | `RCM:bnf` | deterministic | 1.71x | 0.77x | 1.010x | 4/8 |
 | `GORDER:csr` | deterministic | 0.84x | 0.15x | 1.592x | 3/8 |
 | `comm_cut_min` | repeat-variant at OMP=32 | 2.10x | 1.05x | 1.097x | 6/8 |
 | `intra_rcmpp` | repeat-variant at OMP=32 | 3.18x | 1.06x | 1.078x | 7/8 |
 
+“Structural reduction” is the conservative minimum of remote-arc reduction and
+ghost-metadata footprint reduction. It is not measured superstep/DMA traffic.
+
 `comm_cut_min` falls back to DegreeDesc on 4/8 graphs because community count
 exceeds 4096. `intra_rcmpp` executes its requested policy everywhere and is the
 quality leader, but only OMP=1 is repeat-stable. All scale cells remain far
-below the 256 MiB absolute shard budget (largest observed shard is under
-27 MiB).
+below the 256 MiB compact-CSR/ghost-metadata budget (largest observed shard is
+under 29 MiB). Algorithm state and per-superstep halo traffic are not included
+in that footprint.
 
 No universal default passes: RCM regresses native roadNet-CA by 23%; GORDER
 severely regresses native road layouts; and the community policies fail
-parallel determinism. The next policy lever is deterministic community
-construction/ordering. Non-contiguous ownership is not yet justified because
-serial `intra_rcmpp` already improves every tested class.
+parallel determinism. Deterministic community construction/ordering is
+necessary but not sufficient: the next phase must add complete per-bank working
+sets and per-superstep communication, sweep balance policies, and compare
+contiguous with non-contiguous ownership before choosing the production seam.
 
 Export the backend-neutral shard package with `-E`:
 

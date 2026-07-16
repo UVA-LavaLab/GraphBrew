@@ -15,6 +15,7 @@ from scripts.experiments.partition_cut.phase2 import (
     classify_determinism,
     converter_command,
     geometric_mean,
+    graph_needs_download,
     parse_runtime_config,
     selected_graphs,
     summarize_corpus,
@@ -23,6 +24,9 @@ from scripts.experiments.partition_cut.phase2 import (
     validate_runtime_config,
 )
 from scripts.experiments.vldb.config import COMPOSE_VARIANTS
+from scripts.experiments.partition_cut.freeze_phase2 import (
+    normalize_paths,
+)
 
 
 def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
@@ -165,6 +169,22 @@ class TestPartitionCutPhase2(unittest.TestCase):
         self.assertNotIn("-s", citation_command)
         self.assertNotIn("-o", road_command)
         self.assertNotIn("-o", citation_command)
+
+    def test_missing_conversion_source_requires_download(self):
+        import tempfile
+
+        graph = selected_graphs(
+            "smoke", ["cit-HepPh"])[0]
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            output = graph.path(root)
+            output.parent.mkdir(parents=True)
+            output.write_bytes(b"serialized")
+            self.assertTrue(graph_needs_download(graph, root))
+            (output.parent / "cit-HepPh.mtx").write_text(
+                "%%MatrixMarket matrix coordinate pattern general\n"
+            )
+            self.assertFalse(graph_needs_download(graph, root))
 
     def test_geometric_mean_and_cross_class_gate(self):
         self.assertAlmostEqual(geometric_mean([1.0, 4.0]), 2.0)
@@ -311,6 +331,16 @@ class TestPartitionCutPhase2(unittest.TestCase):
                 PHASE2_POLICIES["gorder_csr"],
                 {"algorithm": "GOrder"},
             )
+        wrong_compose = dict(parsed)
+        wrong_compose["m_computation"] = "half-edges"
+        wrong_compose["refine"] = "2swap"
+        with self.assertRaisesRegex(
+            RuntimeError, "runtime configuration"
+        ):
+            validate_runtime_config(
+                PHASE2_POLICIES["comm_cut_min"],
+                wrong_compose,
+            )
 
     def test_existing_record_matrix_is_exact_and_provenanced(self):
         metadata = {
@@ -357,6 +387,22 @@ class TestPartitionCutPhase2(unittest.TestCase):
             summary["quality_by_threads"]["32"]
             ["remote_fraction"]["median"],
             0.65,
+        )
+
+    def test_frozen_evidence_paths_are_repository_relative(self):
+        root = Path(__file__).resolve().parents[2]
+        value = {
+            "path": str(root / "results/graphs/demo.sg"),
+            "outside": "/tmp/external.log",
+        }
+        normalized = normalize_paths(value)
+        self.assertEqual(
+            normalized["path"],
+            "results/graphs/demo.sg",
+        )
+        self.assertEqual(
+            normalized["outside"],
+            "/tmp/external.log",
         )
 
 
