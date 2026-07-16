@@ -331,6 +331,28 @@ The tracked Phase 2 evidence includes all three balance matrices. Since even
 must compare contiguous ranges with a deterministic non-contiguous
 `owner_by_vertex` assignment on the same frozen communities.
 
+That analysis rejects the tested whole-community LPT design. A deterministic
+whole-community LPT assignment is stable and improves the cut/ghost geomean by
+1.61x versus contiguous `total`, but it passes the work, compact-storage, and
+edge-balance gates on only 4/8 graphs and the 1.10 compact-storage lower-bound
+max-shard ratio on only 1/8.
+Worst work imbalance reaches 14.15x. The compact-storage lower-bound max-shard
+ratio reaches 7.75x after accounting an owned-vertex map, but complete per-bank
+buffers are not modeled and may change that ratio. The result is explicitly
+analysis-only: it is incompatible with `graph.shard.v1`, does not claim measured
+runtime, and is not promotion evidence.
+
+The tracked
+[`ownership_ablation.json`](scripts/experiments/partition_cut/evidence/ownership_ablation.json)
+preserves deterministic fingerprints for the frozen membership, mapping, and
+both owner maps, plus per-shard metrics, raw-log hashes, and graph preparation
+provenance. This result does not justify introducing `graph.shard.v2`: the LPT
+assignment already fails the representation-independent work-balance gate on
+4/8 graphs, while the remaining graphs still require complete per-bank
+evaluation. Any future non-contiguous design must split oversized communities or
+optimize ownership directly while retaining the existing contiguous package as
+the production baseline.
+
 Export the backend-neutral shard package with `-E`:
 
 ```bash
