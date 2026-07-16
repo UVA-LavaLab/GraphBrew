@@ -425,6 +425,46 @@ def test_paper_pipeline_uses_canonical_runner():
         ).exists()
 
 
+def test_final_design_docs_and_run_flow_are_consistent():
+    readme = (ROOT / "README.md").read_text()
+    wiki = (ROOT / "wiki/ECG-HPCA-Paper.md").read_text()
+    runbook = (ROOT / "research/ecg-hpca/RUNBOOK.md").read_text()
+    manifest = json.loads(
+        (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+
+    assert "ECG:K2_ONLINE_STREAMSHIELD" in readme
+    assert "Static StreamShield beats normal LLC allocation on all 15" in readme
+    for profile in (
+            "ecg_replacement_baseline",
+            "ecg_cache_sim_factorial",
+            "ecg_streamshield_generality"):
+        assert f"--profile {profile}" in readme
+    assert "--input-run-dirs" in readme
+    assert "--list --dry-run --no-build" in readme
+
+    assert "## Method guide" in wiki
+    for method in (
+            "LRU", "SRRIP", "GRASP", "P-OPT", "K1",
+            "K2 static", "K2 online", "K2 online+SS", "Adaptive SS"):
+        assert method in wiki
+    assert "**final design**" in wiki
+
+    assert "## Final run order" in runbook
+    assert "## Full-iteration headline matrix (blocked)" in runbook
+    assert "Do not launch this profile" in runbook
+    assert "--input-run-dirs" in runbook
+
+    headline = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "40_sniper_streamshield_realgraph")
+    assert headline["blocked_reason"]
+    assert "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD" not in headline["policies"]
+    factorial = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "20_cache_sim_streamshield_factorial")
+    assert "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD" in factorial["policies"]
+
+
 def test_partial_policy_matrix_is_not_resumable(tmp_path):
     module = load_module(
         "paper_run_partial_matrix",

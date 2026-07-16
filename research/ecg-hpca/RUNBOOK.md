@@ -48,14 +48,25 @@ bench/bin/converter \
 ## Build correctness-gate binaries
 
 ```bash
-make sim-pr sim-bfs
 make setup-gem5
-make gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs
 make setup-sniper
+make all-sim
+make gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs \
+  gem5-riscv-m5ops-sssp gem5-riscv-m5ops-bc gem5-riscv-m5ops-cc
 make sniper-sg_kernel
 ```
 
-## Validate the resolved paper job
+## Final run order
+
+1. Run the three correctness gates.
+2. Run `ecg_replacement_baseline`.
+3. Run `ecg_cache_sim_factorial`.
+4. Run `ecg_streamshield_generality` as the placement ablation.
+5. Run gem5 and Sniper mechanism profiles.
+6. Aggregate only complete, hash-consistent runs.
+7. Run the blocked Sniper headline profile only after prefetch calibration.
+
+## Inspect the blocked headline job
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
@@ -175,16 +186,19 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --no-build
 ```
 
-## Run the full-iteration local matrix
+## Full-iteration headline matrix (blocked)
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile streamshield_sniper_realgraph \
-  --run-dir results/ecg_experiments/final_paper_runs/ecg_successor_webgoogle \
-  --no-build
+  --run-dir /tmp/ecg-successor-webgoogle-dryrun \
+  --list --dry-run --no-build
 ```
 
-## Generate one-policy Slurm shards
+Do not launch this profile until the manifest's `blocked_reason` is removed by
+the prefetch-calibration milestone.
+
+## Generate one-policy Slurm shards after calibration
 
 ```bash
 python3 -m venv .venv
@@ -206,16 +220,19 @@ sbatch --array=0-7 scripts/experiments/ecg/slurm/slurm_final_shard.sbatch
 
 ## Aggregate
 
+Local completed runs:
+
 ```bash
 python3 scripts/experiments/ecg/flows/paper_pipeline.py \
   --skip-run \
-  --input-run-glob \
-    "results/ecg_experiments/final_paper_runs/ecg_replacement" \
-    "results/ecg_experiments/final_paper_runs/slurm/ecg_successor_webgoogle/*" \
-  --run-root results/ecg_experiments/paper_pipeline/ecg_successor_webgoogle
+  --input-run-dirs \
+    results/ecg_experiments/final_paper_runs/ecg_replacement \
+    results/ecg_experiments/final_paper_runs/ecg_factorial \
+    results/ecg_experiments/final_paper_runs/ecg_streamshield_generality \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_final
 
 test -f \
-  results/ecg_experiments/paper_pipeline/ecg_successor_webgoogle/aggregate/online_dueling_regret.csv
+  results/ecg_experiments/paper_pipeline/ecg_final/aggregate/online_dueling_regret.csv
 ```
 
 The replacement profile emits

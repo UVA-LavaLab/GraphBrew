@@ -37,6 +37,16 @@ flowchart LR
     F --> L[Suppress returning LLC miss insertion]
 ```
 
+## Final design
+
+```text
+ECG:K2_ONLINE_STREAMSHIELD
+= K2 record + online replacement + static generic StreamShield
+```
+
+Adaptive allocate-vs-shield placement is retained only as a default-off
+ablation: static StreamShield wins all 15 tested graph/kernel placement cells.
+
 ### K2 record format
 
 ```text
@@ -74,6 +84,20 @@ Assume `N_e = 256` and current epoch `c = 10`.
 
 If the lines are otherwise tied, epoch-first eviction selects **B**, whose
 nearest future use is farthest away.
+
+## Method guide
+
+| Method | Decision | Small example | Paper role |
+|---|---|---|---|
+| LRU | oldest access | A last used before B → evict A | recency baseline |
+| SRRIP | largest RRPV | A=7, B=3 → evict A | generic predictor |
+| GRASP | degree tier + RRIP | hot vertex inserts at RRPV 1; cold at 7 | graph baseline |
+| P-OPT | matrix next reference | A next=4, B next=20 → evict B | charged practical oracle |
+| K1 | one carried epoch | A distance 4, B distance 20 → evict B | single-hint ablation |
+| K2 static | nearer of two epochs | B `(20,30)` is farther than A `(12,40)` | two-hint mechanism |
+| K2 online | five replacement leaders | degree arm has fewest sampled misses → followers use degree | final replacement |
+| K2 online+SS | online K2 + record no-allocate | record misses LLC → fill L1/L2, skip LLC fill | **final design** |
+| Adaptive SS | allocate vs shield leaders | shield has fewer misses → followers shield | default-off ablation |
 
 ## Static and online replacement
 
@@ -143,8 +167,8 @@ It suppresses only LLC allocation after a flagged miss.
 
 | Instruction | RISC-V custom-0 FUNCT3 | Meaning |
 |---|---:|---|
-| `ecg.load2 rd, 0(rs1)` | `0x4` | PR: load K2 record and deliver tier plus both epochs |
-| `ecg.stream.load2 rd, 0(rs1)` | `0x3` | PR: same plus request-bound LLC no-allocation |
+| `ecg.load2 rd, 0(rs1)` | `0x4` | all five kernels: load K2 record and deliver tier plus both epochs |
+| `ecg.stream.load2 rd, 0(rs1)` | `0x3` | all five kernels: same plus request-bound LLC no-allocation |
 
 The full 64-bit record is returned in `rd`. The fused path avoids per-edge
 SimMagic or a load/repack/extract instruction sequence.
@@ -208,15 +232,15 @@ Canonical profiles:
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
+| `ecg_streamshield_generality` | All-kernel allocate-vs-shield comparison |
 | `gem5_streamshield_mechanism` | Request-bound RISC-V mechanism cell |
 | `sniper_streamshield_mechanism` | Fused K2/StreamShield mechanism cell |
 | `streamshield_sniper_realgraph` | Pending-calibration full-iteration web-Google matrix |
 
 ## Current evidence
 
-- The historical cache_sim attribution was **K2 77.3%**, **StreamShield 22.7%**,
-  but used full LLC lookup bypass. It is retained as provenance and must be
-  rerun under the current tag-hit-preserving StreamShield semantics.
+- The historical **77.3% / 22.7%** lookup-bypass attribution is provenance only.
+  The corrected K1-relative split is **K2+online 83.94% / StreamShield 16.06%**.
 - gem5 mechanism cell: StreamShield improves fused K2 by **13.03%** and cuts
   K2 L3 misses by **58.24%**.
 - Sniper mechanism cell: StreamShield improves fused K2 by **0.65%** with the
@@ -239,9 +263,9 @@ Canonical profiles:
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do
   not split demand from prefetch misses.
 
-These synthetic cells validate the mechanism; they do not rank the policies.
-Overall detailed-simulator superiority over P-OPT remains pending the complete
-real-graph Sniper matrix and a bounded prefetch configuration.
+Synthetic cells validate delivery and request behavior only. Real-graph
+cache_sim rows provide replacement/placement authority; final timing claims
+remain pending the complete Sniper matrix and a bounded prefetch configuration.
 
 ## Hardware accounting
 
@@ -260,6 +284,23 @@ real-graph Sniper matrix and a bounded prefetch configuration.
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile ecg_smoke \
   --run-dir results/ecg_experiments/final_paper_runs/ecg_smoke
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_replacement_baseline \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_replacement \
+  --no-build
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_cache_sim_factorial \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_factorial \
+  --no-build
+
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-dirs \
+    results/ecg_experiments/final_paper_runs/ecg_replacement \
+    results/ecg_experiments/final_paper_runs/ecg_factorial \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_final
 
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile streamshield_sniper_realgraph \

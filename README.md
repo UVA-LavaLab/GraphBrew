@@ -49,6 +49,18 @@ in-order mailbox path; a request-bound pair extension is required before O3.
 Full architecture diagrams and a worked example are in
 [`research/ecg-hpca/ARCHITECTURE.md`](research/ecg-hpca/ARCHITECTURE.md).
 
+## Final design
+
+The selected design is:
+
+```text
+ECG:K2_ONLINE_STREAMSHIELD
+= tiered K2 + five-arm online replacement + static generic StreamShield
+```
+
+Static StreamShield beats normal LLC allocation on all 15 tested graph/kernel
+cells. `ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD` remains a default-off ablation.
+
 ## Policy comparison
 
 | Policy | Guidance | Reserved LLC ways | LLC placement |
@@ -76,7 +88,9 @@ Full architecture diagrams and a worked example are in
 | `bench/src_sniper/` | Sniper kernels and bounded SIFT workload |
 | `wiki/ECG-HPCA-Paper.md` | Minimal public-facing status page |
 
-## Setup
+## Reproduce
+
+### 1. Setup and build
 
 ```bash
 make setup-gem5
@@ -89,7 +103,26 @@ make sniper-sg_kernel
 
 RISC-V gem5 builds additionally require a RISC-V cross compiler.
 
-## Correctness gates
+Graph paths and dataset staging commands are in
+[`research/ecg-hpca/RUNBOOK.md`](research/ecg-hpca/RUNBOOK.md).
+
+### 2. Check graphs and inspect jobs
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_replacement_baseline \
+  --run-dir /tmp/ecg-check \
+  --check-graphs --no-build
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_cache_sim_factorial \
+  --run-dir /tmp/ecg-factorial-dry \
+  --list --dry-run --no-build
+```
+
+Use a new run directory for filtered or simulator-only shards.
+
+### 3. Run correctness gates
 
 ```bash
 pytest -q scripts/test
@@ -102,7 +135,64 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --schedule-k 2 --stream-bypass
 ```
 
-## Paper matrix
+### 4. Run cache_sim authority profiles
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_replacement_baseline \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_replacement \
+  --no-build
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_cache_sim_factorial \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_factorial \
+  --no-build
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_streamshield_generality \
+  --run-dir results/ecg_experiments/final_paper_runs/ecg_streamshield_generality \
+  --no-build
+```
+
+### 5. Run detailed-simulator mechanism cells
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile gem5_streamshield_mechanism \
+  --run-dir results/ecg_experiments/final_paper_runs/gem5_mechanism \
+  --no-build
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile sniper_streamshield_mechanism \
+  --run-dir results/ecg_experiments/final_paper_runs/sniper_mechanism \
+  --no-build
+```
+
+### 6. Aggregate
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-dirs \
+    results/ecg_experiments/final_paper_runs/ecg_replacement \
+    results/ecg_experiments/final_paper_runs/ecg_factorial \
+    results/ecg_experiments/final_paper_runs/ecg_streamshield_generality \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_final
+```
+
+### 7. Headline matrix status
+
+`streamshield_sniper_realgraph` is blocked until a bounded Sniper prefetch
+configuration replaces the rejected generic STRIDE8 setting. Inspect it only:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile streamshield_sniper_realgraph \
+  --run-dir /tmp/ecg-headline-dry \
+  --list --dry-run --no-build
+```
+
+## Reported policy set
 
 Every reported comparison includes:
 
@@ -115,20 +205,6 @@ The cache_sim replacement baseline exposes uncharged and charged P-OPT,
 `ECG:K1`, every static K2 arm, and `ECG:K2_ONLINE`. The hardware-faithful
 factorial adds K1/K2 x StreamShield with record traffic charged.
 
-The full-iteration Sniper profile is pending prefetch calibration. The current
-generic STRIDE8 diagnostic increases LLC read traffic for every policy and must
-not be used as a headline configuration.
-
-```bash
-python3 scripts/experiments/ecg/flows/paper_run.py \
-  --profile streamshield_sniper_realgraph \
-  --run-dir results/ecg_experiments/final_paper_runs/ecg_successor_webgoogle \
-  --list --dry-run --no-build
-```
-
-See [`research/ecg-hpca/RUNBOOK.md`](research/ecg-hpca/RUNBOOK.md) for local,
-Slurm, and aggregation workflows.
-
 ## Reproduction profiles
 
 | Profile | Purpose |
@@ -137,6 +213,7 @@ Slurm, and aggregation workflows.
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |
+| `ecg_streamshield_generality` | All-kernel allocate-vs-shield comparison |
 | `gem5_streamshield_mechanism` | RISC-V request-bound mechanism cell |
 | `sniper_streamshield_mechanism` | Fused K2/StreamShield timing mechanism cell |
 | `streamshield_sniper_realgraph` | Pending-calibration full-iteration web-Google matrix |
