@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
 import unittest
 
 from scripts.experiments.partition_cut.phase1 import (
@@ -8,6 +9,20 @@ from scripts.experiments.partition_cut.phase1 import (
     summarize_policy,
     validate_cross_policy,
 )
+from scripts.experiments.partition_cut.phase2 import (
+    DEFAULT_MAX_SHARD_BYTES,
+    POLICIES as PHASE2_POLICIES,
+    classify_determinism,
+    converter_command,
+    geometric_mean,
+    parse_runtime_config,
+    selected_graphs,
+    summarize_corpus,
+    summarize_phase2_policy,
+    validate_record_matrix,
+    validate_runtime_config,
+)
+from scripts.experiments.vldb.config import COMPOSE_VARIANTS
 
 
 def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
@@ -87,6 +102,262 @@ class TestPartitionCutPhase1(unittest.TestCase):
         changed["depth_fingerprint"] = "different"
         with self.assertRaisesRegex(RuntimeError, "BFS source-depth"):
             validate_cross_policy([record("a"), changed])
+
+
+class TestPartitionCutPhase2(unittest.TestCase):
+    def test_smoke_preset_covers_requested_graph_classes(self):
+        self.assertEqual(
+            DEFAULT_MAX_SHARD_BYTES,
+            256 * 1024 * 1024,
+        )
+        graphs = selected_graphs("smoke", None)
+        self.assertEqual(
+            {graph.category for graph in graphs},
+            {"road", "mesh", "citation", "social"},
+        )
+        self.assertEqual(len(graphs), 4)
+
+    def test_phase2_policy_tokens_cover_new_variants(self):
+        self.assertEqual(
+            PHASE2_POLICIES["sg_hilbert"].options,
+            (
+                "-o",
+                "12:leiden:compose:"
+                "sg_hilbert:comm_identity:intra_hubsort",
+            ),
+        )
+        self.assertIn(
+            "intra_hub2",
+            PHASE2_POLICIES["intra_hub2"].options[1],
+        )
+        self.assertIn(
+            "intra_rcmpp",
+            PHASE2_POLICIES["intra_rcmpp"].options[1],
+        )
+        self.assertFalse(
+            PHASE2_POLICIES["comm_cut_min"].deterministic_required
+        )
+        self.assertTrue(
+            all(
+                option.startswith("12:")
+                for _label, option in COMPOSE_VARIANTS
+            )
+        )
+
+    def test_converter_preserves_native_directed_order(self):
+        road = selected_graphs(
+            "smoke", ["roadNet-PA"])[0]
+        citation = selected_graphs(
+            "smoke", ["cit-HepPh"])[0]
+        road_command = converter_command(
+            Path("converter"),
+            road,
+            Path("road.mtx"),
+            Path("road.sg"),
+        )
+        citation_command = converter_command(
+            Path("converter"),
+            citation,
+            Path("citation.mtx"),
+            Path("citation.sg"),
+        )
+        self.assertIn("-s", road_command)
+        self.assertNotIn("-s", citation_command)
+        self.assertNotIn("-o", road_command)
+        self.assertNotIn("-o", citation_command)
+
+    def test_geometric_mean_and_cross_class_gate(self):
+        self.assertAlmostEqual(geometric_mean([1.0, 4.0]), 2.0)
+        baseline = summarize_policy([record("original")])
+        baseline["remote_reduction"] = 1.0
+        baseline["ghost_reduction"] = 1.0
+        baseline["max_shard_ratio"] = 1.0
+        baseline["preprocess_ratio"] = 1.0
+        candidate_a = dict(baseline)
+        candidate_a.update({
+            "policy": "candidate",
+            "remote_reduction": 2.0,
+            "ghost_reduction": 2.0,
+            "max_shard_ratio": 1.05,
+            "balance_imbalance": 1.02,
+            "storage_imbalance": 1.02,
+            "max_edge_imbalance": 1.02,
+            "passes_absolute_capacity_gate": True,
+            "preprocess_ratio": 2.0,
+            "stable": True,
+            "passes_widening_cut_gate": True,
+        })
+        candidate_b = dict(candidate_a)
+        candidate_b.update({
+            "remote_reduction": 1.5,
+            "ghost_reduction": 1.6,
+        })
+        graph_results = [
+            {
+                "category": "road",
+                "summaries_by_policy": {
+                    "original": baseline,
+                    "candidate": candidate_a,
+                },
+            },
+            {
+                "category": "social",
+                "summaries_by_policy": {
+                    "original": baseline,
+                    "candidate": candidate_b,
+                },
+            },
+        ]
+        aggregates = summarize_corpus(
+            graph_results, ["original", "candidate"]
+        )
+        candidate = next(
+            item
+            for item in aggregates
+            if item["policy"] == "candidate"
+        )
+        self.assertTrue(candidate["stable_on_all_graphs"])
+        self.assertAlmostEqual(
+            candidate["geomean_remote_reduction"],
+            geometric_mean([2.0, 1.5]),
+        )
+        self.assertTrue(
+            candidate["passes_universal_default_gate"]
+        )
+
+    def test_determinism_classifies_thread_and_repeat_variation(self):
+        deterministic = [
+            record("p", threads=1),
+            record("p", threads=1),
+            record("p", threads=32),
+            record("p", threads=32),
+        ]
+        self.assertEqual(
+            classify_determinism(deterministic)["classification"],
+            "deterministic",
+        )
+        thread_variant = [
+            record("p", suffix="a", threads=1),
+            record("p", suffix="a", threads=1),
+            record("p", suffix="b", threads=32),
+            record("p", suffix="b", threads=32),
+        ]
+        self.assertEqual(
+            classify_determinism(thread_variant)["classification"],
+            "thread_variant",
+        )
+        repeat_variant = [
+            record("p", suffix="a", threads=1),
+            record("p", suffix="b", threads=1),
+        ]
+        self.assertEqual(
+            classify_determinism(repeat_variant)["classification"],
+            "repeat_variant",
+        )
+        self.assertEqual(
+            classify_determinism(
+                [record("p", threads=32)]
+            )["classification"],
+            "insufficient_evidence",
+        )
+
+    def test_runtime_config_detects_cut_min_fallback(self):
+        parsed = parse_runtime_config(
+            "GraphBrew: aggregation=gve-csr, ordering=compose, "
+            "refinement=on (depth=0)\n"
+            "GraphBrew: mComputation=total-edges (GVE style)\n"
+            "GraphBrew: 3 passes, 8 iters, 5000 communities, "
+            "time=1.0s\n"
+            "  compose: sg=none "
+            "comm=cut_min_fallback_degree_desc "
+            "intra=hubsort refine=none, 5000 communities, "
+            "0.1s\n"
+            "Algorithm:           GraphBrewOrder\n"
+        )
+        self.assertEqual(parsed["communities"], 5000)
+        self.assertTrue(parsed["cut_min_fallback"])
+        validate_runtime_config(
+            PHASE2_POLICIES["comm_cut_min"], parsed)
+        validate_runtime_config(
+            PHASE2_POLICIES["original"], {})
+        validate_runtime_config(
+            PHASE2_POLICIES["rcm_bnf"],
+            {
+                "algorithm": "RCMOrder",
+                "rcm_variant": "bnf",
+            },
+        )
+        validate_runtime_config(
+            PHASE2_POLICIES["gorder_csr"],
+            {
+                "algorithm": "GOrder",
+                "gorder_variant": "csr",
+            },
+        )
+        with self.assertRaisesRegex(
+            RuntimeError, "runtime configuration"
+        ):
+            validate_runtime_config(
+                PHASE2_POLICIES["rcm_bnf"],
+                {
+                    "algorithm": "DefinitelyWrong",
+                    "rcm_variant": "bnf",
+                },
+            )
+        with self.assertRaisesRegex(
+            RuntimeError, "runtime configuration"
+        ):
+            validate_runtime_config(
+                PHASE2_POLICIES["gorder_csr"],
+                {"algorithm": "GOrder"},
+            )
+
+    def test_existing_record_matrix_is_exact_and_provenanced(self):
+        metadata = {
+            ("original", 1, 0): {"config": "expected"},
+        }
+        valid = record("original")
+        valid["run_metadata"] = {"config": "expected"}
+        self.assertEqual(
+            validate_record_matrix([valid], metadata),
+            [valid],
+        )
+        with self.assertRaisesRegex(RuntimeError, "duplicate"):
+            validate_record_matrix([valid, valid], metadata)
+        stale = dict(valid)
+        stale["run_metadata"] = {"config": "stale"}
+        with self.assertRaisesRegex(RuntimeError, "metadata"):
+            validate_record_matrix([stale], metadata)
+
+    def test_phase2_quality_uses_worst_primary_repeat(self):
+        serial = record("p", threads=1)
+        serial.update({
+            "max_shard_bytes": 1000,
+            "storage_imbalance": 1.3,
+            "out_edge_imbalance": 1.5,
+        })
+        first = record("p", threads=32)
+        second = record("p", threads=32)
+        second.update({
+            "remote_out_fraction": 0.8,
+            "remote_in_fraction": 0.7,
+            "ghost_bytes": 120,
+            "max_shard_bytes": 180,
+            "storage_imbalance": 1.2,
+            "out_edge_imbalance": 1.4,
+        })
+        summary = summarize_phase2_policy(
+            [serial, first, second])
+        self.assertEqual(summary["remote_fraction"], 0.8)
+        self.assertEqual(summary["ghost_bytes"], 120)
+        self.assertEqual(summary["max_shard_bytes"], 1000)
+        self.assertEqual(summary["storage_imbalance"], 1.4)
+        self.assertEqual(summary["max_edge_imbalance"], 1.5)
+        self.assertEqual(
+            summary["quality_by_threads"]["32"]
+            ["remote_fraction"]["median"],
+            0.65,
+        )
 
 
 if __name__ == "__main__":

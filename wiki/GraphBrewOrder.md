@@ -44,9 +44,9 @@ Three axes, two-or-more picks each:
 
 | Axis | CLI prefix | Picks |
 |---|---|---|
-| Super-graph order (which communities sit next to which) | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit` |
-| Community order (sort key on top of the super-graph perm) | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity` |
-| Intra-community order (vertex layout within a community) | `intra_` | `bfs`, `rcm`, `rcmpp`, `hubsort`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` |
+| Super-graph order (which communities sit next to which) | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit`, `hilbert` |
+| Community order (sort key on top of the super-graph perm) | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity`, `cut_min` |
+| Intra-community order (vertex layout within a community) | `intra_` | `bfs`, `rcm`, `rcmpp`, `hubsort`, `hub2`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` |
 | Refinement pass (post-intra polish) | `refine_` | `none`, `2swap` (adjacent-swap FM polish) |
 
 Intra-community picks at a glance:
@@ -75,13 +75,13 @@ Examples:
 -o 12:compose:sg_none:comm_size:intra_rcm
 
 # Leiden + per-community hub-first sort, communities ordered by total degree desc
--o 9:leiden:compose:comm_degree_desc:intra_hubsort
+-o 12:leiden:compose:comm_degree_desc:intra_hubsort
 
 # 4-axis: Rabbit super-graph × degree-desc community order × hub-first intra
 -o 12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort
 
 # Leiden + Gorder with a wider window than the default 5
--o 9:leiden:compose:intra_gorder:gw8
+-o 12:leiden:compose:intra_gorder:gw8
 ```
 
 Legacy aliases `s1_*`/`s2_*`/`s3_*` are still accepted (the older
@@ -229,8 +229,7 @@ All three slot into the existing parser with zero CLI changes. Composable
 with any other axis. Reference recipe:
 
 ```
--o 9:cd_leiden:compose:comm_degree_desc:intra_hub2
--o 9:cd_leiden:compose:comm_cut_min:intra_hubsort
--o 9:cd_leiden:compose:sg_hilbert:comm_identity:intra_hubsort
+-o 12:cd_leiden:compose:comm_degree_desc:intra_hub2
+-o 12:cd_leiden:compose:comm_cut_min:intra_hubsort
+-o 12:cd_leiden:compose:sg_hilbert:comm_identity:intra_hubsort
 ```
-

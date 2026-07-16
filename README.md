@@ -241,11 +241,55 @@ Current P16 result:
 |---|:---:|---:|---:|---:|
 | web-Google / `RCM:bnf` | yes | 2.39x | 3.23x | 1.013x |
 | web-Google / `GORDER:csr` | yes | 2.04x | 3.63x | 1.033x |
-| web-Google / `comm_cut_min` | no | 2.87x | 3.18x | 1.389x |
-| Scale-22 / `RCM:bnf` | yes | 0.99x | 1.00x | 1.531x |
+| web-Google / `comm_cut_min` fallback | no | 9.24x | 10.77x | 1.333x |
 
-No policy is a universal default: deterministic linear reordering strongly
-helps the real web graph but does not improve the synthetic Kronecker cut.
+The corrected `comm_cut_min` token explicitly selects GraphBrewOrder/Leiden.
+web-Google creates more than 4096 communities, so the quadratic CutMin stage
+reports and uses its DegreeDesc fallback; it is not evidence for CutMin itself.
+
+Phase 2 widens the same correctness/determinism/capacity contract across road,
+mesh, citation, and social classes. The smoke preset uses small real graphs;
+the scale preset uses roadNet-CA, delaunay_n20, cit-Patents, and soc-pokec.
+
+```bash
+.venv/bin/python scripts/experiments/partition_cut/phase2.py \
+  --preset smoke --prepare \
+  --threads 1,32 --repeats 3 --partitions 16 \
+  --max-shard-bytes 268435456
+```
+
+Preparation preserves native IDs, symmetrizes only catalog-symmetric graphs,
+and records source/converter/output hashes plus exact converter arguments.
+`--summarize-existing` rejects graph, binary, policy, partition, balance,
+source, thread, repeat, or Cartesian-matrix mismatches.
+
+The additional research policies are `sg_hilbert`, `intra_hub2`,
+`intra_rcmpp`, and `leiden_hubsort`. They are classified from observed
+cross-thread/repeat fingerprints rather than presumed deterministic. The
+aggregate report computes geometric-mean cut/ghost reductions, worst-graph
+regression, worst-repeat capacity/work balance, absolute capacity, runtime
+fallbacks, and preprocessing gates.
+
+Final native-order P16 result over four smoke plus four scale graphs:
+
+| Policy | Determinism | Geo. combined reduction | Worst graph | Max-shard ratio | Widening wins |
+|---|---|---:|---:|---:|---:|
+| `RCM:bnf` | deterministic | 1.71x | 0.77x | 1.010x | 4/8 |
+| `GORDER:csr` | deterministic | 0.84x | 0.15x | 1.592x | 3/8 |
+| `comm_cut_min` | repeat-variant at OMP=32 | 2.10x | 1.05x | 1.097x | 6/8 |
+| `intra_rcmpp` | repeat-variant at OMP=32 | 3.18x | 1.06x | 1.078x | 7/8 |
+
+`comm_cut_min` falls back to DegreeDesc on 4/8 graphs because community count
+exceeds 4096. `intra_rcmpp` executes its requested policy everywhere and is the
+quality leader, but only OMP=1 is repeat-stable. All scale cells remain far
+below the 256 MiB absolute shard budget (largest observed shard is under
+27 MiB).
+
+No universal default passes: RCM regresses native roadNet-CA by 23%; GORDER
+severely regresses native road layouts; and the community policies fail
+parallel determinism. The next policy lever is deterministic community
+construction/ordering. Non-contiguous ownership is not yet justified because
+serial `intra_rcmpp` already improves every tested class.
 
 Export the backend-neutral shard package with `-E`:
 

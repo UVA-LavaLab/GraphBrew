@@ -32,7 +32,10 @@ POLICIES = {
     "gorder_csr": Policy("gorder_csr", ("-o", "9:csr"), True),
     "comm_cut_min": Policy(
         "comm_cut_min",
-        ("-o", "12:compose:comm_cut_min:intra_hubsort"),
+        (
+            "-o",
+            "12:leiden:compose:comm_cut_min:intra_hubsort",
+        ),
         False,
     ),
 }

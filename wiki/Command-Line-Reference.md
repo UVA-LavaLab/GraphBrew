@@ -282,9 +282,9 @@ Options can be passed directly — the `graphbrew` prefix is **not required**.
 
 | Axis | Prefix | Picks | Maps to |
 |------|--------|-------|---------|
-| Super-graph order | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit` | `SuperGraphOrder` enum |
-| Community order   | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity` | `CommunityOrder` enum |
-| Intra-community order | `intra_` | `bfs`, `rcm`, `hubsort`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` | `IntraCommunityOrder` enum |
+| Super-graph order | `sg_` | `none`, `super_rabbit`, `super_rcm`, `tile_rabbit`, `hilbert` | `SuperGraphOrder` enum |
+| Community order   | `comm_` | `size`, `size_asc`, `degree_desc`, `degree_asc`, `identity`, `cut_min` | `CommunityOrder` enum |
+| Intra-community order | `intra_` | `bfs`, `rcm`, `rcmpp`, `hubsort`, `hub2`, `deg_asc`, `alternate`, `random`, `bndlast`, `core`, `dendrogram`, `gorder` | `IntraCommunityOrder` enum |
 | Refinement pass | `refine_` | `none`, `2swap` | `RefinementPass` enum |
 
 Extra compose modifiers (anywhere after `compose:`):
@@ -293,7 +293,7 @@ Extra compose modifiers (anywhere after `compose:`):
 |-------|--------|
 | `gw<N>` | Gorder window size, only with `intra_gorder` (default 5; `gw8` wins on dense PR cells) |
 | `sgres<F>` | Super-graph modularity resolution γ (default 0.10) |
-| `cd_rabbit` / `cd_leiden` | Override community-detection backend after a preset like `12:` or `9:` |
+| `cd_rabbit` / `cd_leiden` | Override the GraphBrewOrder community-detection backend after algorithm ID `12` |
 
 Legacy alias tokens `s1_*`, `s2_*`, `s3_*` are still accepted (older parity scripts depend on them).
 
@@ -301,7 +301,7 @@ Examples:
 - `-o 12:compose:sg_super_rabbit:comm_identity:intra_rcm` — equivalent to `12:hrab`
 - `-o 12:compose:sg_tile_rabbit:comm_identity:intra_bfs` — equivalent to `12:tqr`
 - `-o 12:compose:sg_none:comm_size:intra_rcm` — no super-graph, sort by size, RCM intra
-- `-o 9:leiden:compose:comm_degree_desc:intra_hubsort` — Leiden + per-community hub-first sort, communities ordered by total degree desc
+- `-o 12:leiden:compose:comm_degree_desc:intra_hubsort` — Leiden + per-community hub-first sort, communities ordered by total degree desc
 - `-o 12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort` — 4-axis Rabbit-super × degree-desc × hub-first
 
 Defaults if omitted: `sg_none`, `comm_size`, `intra_bfs`, `refine_none`.  See [GraphBrewOrder#the-compose-variant-pluggable-axes](GraphBrewOrder#the-compose-variant-pluggable-axes) for details.

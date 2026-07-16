@@ -5268,6 +5268,7 @@ void orderCompose(
     }
 
     // Stage 2 reorders the Stage 1 result (or sorts from identity if Stage 1=None)
+    bool cutMinFallback = false;
     if (config.communityOrder == CommunityOrder::SizeDesc) {
         std::sort(commOrder.begin(), commOrder.end(), [&](K a, K b) {
             return commVertices[a].size() > commVertices[b].size();
@@ -5303,6 +5304,7 @@ void orderCompose(
         // crossing-edge counts.  Skip if C>4096 (matrix gets too big).
         if (numComm > 4096) {
             // Fallback to DegreeDesc when C is too large.
+            cutMinFallback = true;
             std::vector<size_t> commTotalDeg(numComm, 0);
             #pragma omp parallel for schedule(dynamic, 256)
             for (K c = 0; c < numComm; ++c) {
@@ -5667,12 +5669,15 @@ void orderCompose(
         config.superGraphOrder == SuperGraphOrder::None ? "none" :
         config.superGraphOrder == SuperGraphOrder::SuperRabbit ? "super_rabbit" :
         config.superGraphOrder == SuperGraphOrder::SuperRCM ? "super_rcm" :
-        "tile_rabbit";
+        config.superGraphOrder == SuperGraphOrder::TileRabbit ? "tile_rabbit" :
+        "hilbert";
     const char* s2Name =
         config.communityOrder == CommunityOrder::SizeDesc   ? "size_desc"   :
         config.communityOrder == CommunityOrder::SizeAsc    ? "size_asc"    :
         config.communityOrder == CommunityOrder::DegreeDesc ? "degree_desc" :
         config.communityOrder == CommunityOrder::DegreeAsc  ? "degree_asc"  :
+        config.communityOrder == CommunityOrder::CutMin
+            ? (cutMinFallback ? "cut_min_fallback_degree_desc" : "cut_min") :
         "identity";
     const char* intraName =
         useDendrogram                                              ? "dendrogram"   :
