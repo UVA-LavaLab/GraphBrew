@@ -62,8 +62,10 @@ GRAPHBREW_SHARD_GROUP="$run_tag" \
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile "$profile" \
   --run-dir "$run_dir" \
+  --graph-dir "${GRAPHBREW_GRAPH_DIR:-results/graphs}" \
   --only "$stage" \
   --graph "$graph" \
   --benchmark "$benchmark" \
   --policy "$policy" \
+  --lock-path "$run_dir/.paper_run.lock" \
   --no-build

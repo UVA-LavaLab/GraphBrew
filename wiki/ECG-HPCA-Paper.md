@@ -308,6 +308,19 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --list --dry-run --no-build
 ```
 
+Independent matrix cells can run concurrently:
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_streamshield_generality \
+  --run-tag ecg_parallel \
+  --out results/ecg_experiments/slurm/ecg_parallel.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_parallel.tsv \
+  --jobs 8 --cache-sim-jobs 8 --gem5-jobs 1 --sniper-jobs 1
+```
+
 Full graph staging, mechanism profiles, Slurm, and aggregation commands are in
 `research/ecg-hpca/RUNBOOK.md`.
 

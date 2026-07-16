@@ -198,6 +198,32 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
 Do not launch this profile until the manifest's `blocked_reason` is removed by
 the prefetch-calibration milestone.
 
+## Run local shards in parallel
+
+All binaries must be prebuilt. The launcher gives every shard a unique run
+directory and lock; roi_matrix derives isolated fixed-length gem5/Sniper
+sideband directories from that output path.
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_streamshield_generality \
+  --run-tag ecg_generality_parallel \
+  --out results/ecg_experiments/slurm/ecg_generality_parallel.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_generality_parallel.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 8 \
+  --cache-sim-jobs 8 \
+  --gem5-jobs 1 \
+  --sniper-jobs 1
+```
+
+`--jobs` is the global process cap. Per-simulator caps prevent gem5/Sniper
+memory overcommit; raise them only on a machine sized for multiple simulators.
+Interrupted shards are resumable because each shard is a normal `paper_run.py`
+run with completion and content hashes.
+
 ## Generate one-policy Slurm shards after calibration
 
 ```bash
@@ -214,8 +240,11 @@ python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
 Submit on a configured cluster:
 
 ```bash
-SHARDS=results/ecg_experiments/slurm/ecg_successor_webgoogle.tsv \
-sbatch --array=0-7 scripts/experiments/ecg/slurm/slurm_final_shard.sbatch
+SHARDS=results/ecg_experiments/slurm/ecg_successor_webgoogle.tsv
+COUNT=$(wc -l < "$SHARDS")
+export SHARDS
+sbatch --array=0-$((COUNT - 1))%16 \
+  scripts/experiments/ecg/slurm/slurm_final_shard.sbatch
 ```
 
 ## Aggregate
@@ -233,6 +262,16 @@ python3 scripts/experiments/ecg/flows/paper_pipeline.py \
 
 test -f \
   results/ecg_experiments/paper_pipeline/ecg_final/aggregate/online_dueling_regret.csv
+```
+
+Parallel local or Slurm shards:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-glob \
+    "results/ecg_experiments/final_paper_runs/local/ecg_generality_parallel/*" \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_generality_parallel
 ```
 
 The replacement profile emits

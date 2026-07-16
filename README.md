@@ -180,7 +180,33 @@ python3 scripts/experiments/ecg/flows/paper_pipeline.py \
   --run-root results/ecg_experiments/paper_pipeline/ecg_final
 ```
 
-### 7. Headline matrix status
+### 7. Run independent shards in parallel
+
+Prebuild first; shards never build or share output directories.
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_streamshield_generality \
+  --run-tag ecg_generality_parallel \
+  --out results/ecg_experiments/slurm/ecg_generality_parallel.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_generality_parallel.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 8 --cache-sim-jobs 8 --gem5-jobs 1 --sniper-jobs 1
+
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-glob \
+    "results/ecg_experiments/final_paper_runs/local/ecg_generality_parallel/*" \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_generality_parallel
+```
+
+Each shard has a unique run directory, lock, and hashed gem5/Sniper sideband
+directory. Increase `--gem5-jobs` or `--sniper-jobs` only when host memory and
+CPU capacity are known.
+
+### 8. Headline matrix status
 
 `streamshield_sniper_realgraph` is blocked until a bounded Sniper prefetch
 configuration replaces the rejected generic STRIDE8 setting. Inspect it only:
