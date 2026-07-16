@@ -288,8 +288,8 @@ Final native-order P16 result over four smoke plus four scale graphs:
 |---|---|---:|---:|---:|---:|
 | `RCM:bnf` | deterministic | 1.71x | 1.56x | 0.68x | 1.010x |
 | `GORDER:csr` | deterministic | 0.84x | 0.81x | 0.15x | 1.592x |
-| `comm_cut_min` | repeat-variant at OMP=32 | 2.10x | 2.02x | 1.00x | 1.092x |
-| `intra_rcmpp` | repeat-variant at OMP=32 | 3.15x | 3.09x | 0.99x | 1.090x |
+| `comm_cut_min` | deterministic | 2.10x | 2.03x | 1.00x | 1.092x |
+| `intra_rcmpp` | deterministic | 3.15x | 3.10x | 1.00x | 1.069x |
 
 “Structural reduction” is the conservative minimum of remote-arc reduction and
 ghost-metadata footprint reduction. Runtime reports and gates are separate:
@@ -299,23 +299,23 @@ validated shard ghost slots.
 
 `comm_cut_min` falls back to DegreeDesc on 4/8 graphs because community count
 exceeds 4096. `intra_rcmpp` executes its requested policy everywhere and is the
-quality leader, but only OMP=1 is repeat-stable. RCM's structural roadNet-CA
-regression is worse in actual top-down traffic: remote-parent and total CPU BFS
-payloads rise to 1.46x ORIGINAL, so the reduction factor falls to 0.68x.
-`intra_rcmpp` has only a 1.5% worst runtime regression, but still fails parallel
-determinism. All scale cells remain far
+quality leader. Community detection is serialized deterministically while the
+compose ordering stage restores the requested OpenMP team; every community
+policy is repeat- and thread-stable. RCM's structural roadNet-CA regression is
+worse in actual top-down traffic: remote-parent and total CPU BFS payloads rise
+to 1.46x ORIGINAL, so the reduction factor falls to 0.68x. All scale cells remain far
 below the 512 MiB compact-CSR/ghost-metadata budget (largest observed shard is
 under 29 MiB). Algorithm state is not included in that footprint; runtime halo
 traffic is reported separately rather than counted as resident capacity.
 
 No universal default passes: RCM raises native roadNet-CA structural cost by
 about 30% and CPU BFS traffic by about 46%; GORDER severely regresses native
-road layouts; and the community policies fail parallel determinism.
-Deterministic community construction/ordering is
-necessary but not sufficient. With runtime communication now explicit, the next
-phase must add complete per-bank working sets, sweep balance policies, and
-compare contiguous with non-contiguous ownership before choosing the production
-seam.
+road layouts; `comm_cut_min` has runtime fallback; and the deterministic
+community policies still reach about 1.75x worst storage imbalance. With runtime
+communication explicit and the host-side JobSpec accountant available, the next
+phase must carry complete per-bank resident bytes into the corpus, sweep balance
+policies, and compare contiguous with non-contiguous ownership before choosing
+the production seam.
 
 Export the backend-neutral shard package with `-E`:
 
