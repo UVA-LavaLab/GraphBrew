@@ -64,14 +64,14 @@ GRAPHBREW_VARIANTS = [
 # ---------------------------------------------------------------------------
 COMPOSE_VARIANTS = [
     # label,        order_spec
-    ("LeidG8",      "9:leiden:compose:intra_gorder:gw8"),
-    ("LeidH",       "9:leiden:compose:intra_hubsort"),
-    ("LeidDA",      "9:leiden:compose:intra_deg_asc"),
-    ("LeidH_dgd",   "9:leiden:compose:comm_degree_desc:intra_hubsort"),
-    ("LeidDA_dgd",  "9:leiden:compose:comm_degree_desc:intra_deg_asc"),
+    ("LeidG8",      "12:leiden:compose:intra_gorder:gw8"),
+    ("LeidH",       "12:leiden:compose:intra_hubsort"),
+    ("LeidDA",      "12:leiden:compose:intra_deg_asc"),
+    ("LeidH_dgd",   "12:leiden:compose:comm_degree_desc:intra_hubsort"),
+    ("LeidDA_dgd",  "12:leiden:compose:comm_degree_desc:intra_deg_asc"),
     ("SgRabH_dgd",  "12:rabbit:compose:sg_super_rabbit:comm_degree_desc:intra_hubsort"),
-    ("LeidRCMpp",   "9:leiden:compose:intra_rcmpp"),
-    ("LeidRCMpp_dgd","9:leiden:compose:comm_degree_desc:intra_rcmpp"),
+    ("LeidRCMpp",   "12:leiden:compose:intra_rcmpp"),
+    ("LeidRCMpp_dgd","12:leiden:compose:comm_degree_desc:intra_rcmpp"),
 ]
 
 # RabbitOrder implementation variants (both use algorithm ID 8)
