@@ -3213,6 +3213,12 @@ public:
                     config.algorithm = graphbrew::GraphBrewAlgorithm::RABBIT_ORDER;
                 if (tok == "cd_leiden" || tok == "cd:leiden" || tok == "cdleiden")
                     config.algorithm = graphbrew::GraphBrewAlgorithm::LEIDEN;
+                if (tok == "cd_parallel" || tok == "cd:parallel" ||
+                    tok == "community_parallel")
+                    config.deterministicCommunityDetection = false;
+                if (tok == "cd_serial" || tok == "cd:serial" ||
+                    tok == "community_serial")
+                    config.deterministicCommunityDetection = true;
             }
         } else {
             // ── Direct token mode (hrab, dfs, conn, graphbrew:hrab, etc.) ─

@@ -212,7 +212,7 @@ class TestPartitionCutPhase2(unittest.TestCase):
             "intra_rcmpp",
             PHASE2_POLICIES["intra_rcmpp"].options[1],
         )
-        self.assertFalse(
+        self.assertTrue(
             PHASE2_POLICIES["comm_cut_min"].deterministic_required
         )
         self.assertTrue(
@@ -572,6 +572,8 @@ class TestPartitionCutPhase2(unittest.TestCase):
             "GraphBrew: aggregation=gve-csr, ordering=compose, "
             "refinement=on (depth=0)\n"
             "GraphBrew: mComputation=total-edges (GVE style)\n"
+            "GraphBrew: community-detection=serial\n"
+            "GraphBrew: ordering-threads=32\n"
             "GraphBrew: 3 passes, 8 iters, 5000 communities, "
             "time=1.0s\n"
             "  compose: sg=none "
@@ -581,9 +583,19 @@ class TestPartitionCutPhase2(unittest.TestCase):
             "Algorithm:           GraphBrewOrder\n"
         )
         self.assertEqual(parsed["communities"], 5000)
+        self.assertEqual(parsed["community_detection"], "serial")
+        self.assertEqual(parsed["ordering_threads"], 32)
         self.assertTrue(parsed["cut_min_fallback"])
         validate_runtime_config(
             PHASE2_POLICIES["comm_cut_min"], parsed)
+        with self.assertRaisesRegex(
+            RuntimeError, "ordering_threads"
+        ):
+            validate_runtime_config(
+                PHASE2_POLICIES["comm_cut_min"],
+                parsed,
+                expected_threads=1,
+            )
         validate_runtime_config(
             PHASE2_POLICIES["original"], {})
         validate_runtime_config(

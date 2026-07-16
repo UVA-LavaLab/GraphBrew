@@ -407,6 +407,7 @@ struct GraphBrewConfig {
     MComputation mComputation = MComputation::HALF_EDGES;  ///< How to compute M (total edge weight)
     bool usePrefetch = true;           ///< Enable cache prefetching
     bool useParallelSort = true;       ///< Use parallel sorting
+    bool deterministicCommunityDetection = true; ///< Serialize Leiden detection; ordering remains parallel
     bool verifyTopology = false;       ///< Verify topology after reordering
     bool useDynamicResolution = false; ///< Enable per-pass resolution adjustment
     bool useDegreeSorting = false;     ///< Process vertices by ascending degree (helps graphbrew:rabbit, not Leiden)
@@ -583,6 +584,35 @@ struct GraphBrewConfig {
         
         return cfg;
     }
+};
+
+class ScopedCommunityThreadLimit {
+public:
+    explicit ScopedCommunityThreadLimit(bool enabled) {
+#ifdef _OPENMP
+        if (enabled) {
+            previous_ = omp_get_max_threads();
+            active_ = previous_ > 1;
+            if (active_) omp_set_num_threads(1);
+        }
+#else
+        (void)enabled;
+#endif
+    }
+
+    ~ScopedCommunityThreadLimit() {
+#ifdef _OPENMP
+        if (active_) omp_set_num_threads(previous_);
+#endif
+    }
+
+    ScopedCommunityThreadLimit(const ScopedCommunityThreadLimit&) = delete;
+    ScopedCommunityThreadLimit& operator=(
+        const ScopedCommunityThreadLimit&) = delete;
+
+private:
+    int previous_ = 1;
+    bool active_ = false;
 };
 
 //=============================================================================
@@ -3533,7 +3563,11 @@ inline void intraRCM(
     K startV = verts[0];
     K minDeg = degrees[verts[0]];
     for (K v : verts) {
-        if (degrees[v] < minDeg) { minDeg = degrees[v]; startV = v; }
+        if (degrees[v] < minDeg ||
+            (degrees[v] == minDeg && v < startV)) {
+            minDeg = degrees[v];
+            startV = v;
+        }
     }
 
     // George-Liu pseudoperipheral iteration for sz > 32.  Bounded at 3
@@ -3682,7 +3716,11 @@ inline void intraRCMpp(
     K startV = verts[0];
     K minDeg = degrees[verts[0]];
     for (K v : verts) {
-        if (degrees[v] < minDeg) { minDeg = degrees[v]; startV = v; }
+        if (degrees[v] < minDeg ||
+            (degrees[v] == minDeg && v < startV)) {
+            minDeg = degrees[v];
+            startV = v;
+        }
     }
 
     // RCM++ Step 2 (NEW vs intraRCM): one BFS from the seed to record
@@ -3720,13 +3758,19 @@ inline void intraRCMpp(
             std::vector<size_t> degRank(sz), depthRank(sz);
             std::vector<K> sortedByDeg(verts), sortedByDepth(verts);
             std::sort(sortedByDeg.begin(), sortedByDeg.end(),
-                      [&](K a, K b){ return degrees[a] < degrees[b]; });
+                      [&](K a, K b){
+                          return degrees[a] != degrees[b]
+                              ? degrees[a] < degrees[b]
+                              : a < b;
+                      });
             std::sort(sortedByDepth.begin(), sortedByDepth.end(),
                       [&](K a, K b){
                           size_t ai = vertToLocal[a], bi = vertToLocal[b];
                           K ad = (ai < sz) ? depth[ai] : 0;
                           K bd = (bi < sz) ? depth[bi] : 0;
-                          return ad > bd;  // deeper = better rank (lower index)
+                          return ad != bd
+                              ? ad > bd
+                              : a < b;
                       });
             for (size_t i = 0; i < sz; ++i) {
                 size_t di = vertToLocal[sortedByDeg[i]];
@@ -3742,7 +3786,11 @@ inline void intraRCMpp(
                 if (vi >= sz) continue;
                 double s = 0.5 * static_cast<double>(degRank[vi]) +
                            0.5 * static_cast<double>(depthRank[vi]);
-                if (s < bestScore) { bestScore = s; bestStart = v; }
+                if (s < bestScore ||
+                    (s == bestScore && v < bestStart)) {
+                    bestScore = s;
+                    bestStart = v;
+                }
             }
             startV = bestStart;
         }
@@ -3781,7 +3829,9 @@ inline void intraRCMpp(
             K bestV = curLevel[0];
             K bestDeg = degrees[curLevel[0]];
             for (size_t i = 1; i < curLevel.size(); ++i) {
-                if (degrees[curLevel[i]] < bestDeg) {
+                if (degrees[curLevel[i]] < bestDeg ||
+                    (degrees[curLevel[i]] == bestDeg &&
+                     curLevel[i] < bestV)) {
                     bestDeg = degrees[curLevel[i]];
                     bestV = curLevel[i];
                 }
@@ -3820,9 +3870,13 @@ inline void intraRCMpp(
         for (auto& [d, v] : candidates) bfsQueue.push(v);
     }
     size_t mainSize = cmOrder.size();
+    std::vector<K> disconnected;
     for (size_t i = 0; i < sz; ++i) {
-        if (!visited[i]) cmOrder.push_back(verts[i]);
+        if (!visited[i]) disconnected.push_back(verts[i]);
     }
+    std::sort(disconnected.begin(), disconnected.end());
+    cmOrder.insert(
+        cmOrder.end(), disconnected.begin(), disconnected.end());
     for (size_t i = 0; i < mainSize; ++i) {
         localIds[cmOrder[i]] = static_cast<K>(mainSize - 1 - i);
     }
@@ -5158,10 +5212,13 @@ void orderCompose(
     // Pre-size each commVertices[c] via parallel histogram so push_back never
     // reallocates during the serial scatter below.
     std::vector<K> commSizes(numComm, 0);
+    int orderingThreads = 1;
     {
         const int nT = omp_get_max_threads();
         #pragma omp parallel
         {
+            #pragma omp single
+            orderingThreads = omp_get_num_threads();
             std::vector<K> localSizes(numComm, 0);
             #pragma omp for schedule(static) nowait
             for (int64_t v = 0; v < (int64_t)N; ++v) {
@@ -5176,6 +5233,7 @@ void orderCompose(
         }
         (void)nT;
     }
+    printf("GraphBrew: ordering-threads=%d\n", orderingThreads);
 
     std::vector<std::vector<K>> commVertices(numComm);
     #pragma omp parallel for schedule(dynamic, 256)
@@ -7904,6 +7962,8 @@ GraphBrewResult<K> runGraphBrew(
     const CSRGraph<NodeID_T, DestID_T, true>& g,
     const GraphBrewConfig& config) {
     
+    ScopedCommunityThreadLimit thread_limit(
+        config.deterministicCommunityDetection);
     const int64_t N = g.num_nodes();
     const Weight M = (config.mComputation == MComputation::TOTAL_EDGES)
         ? std::max(Weight(1), static_cast<Weight>(g.num_edges()))   // GVE style
@@ -8511,6 +8571,9 @@ void generateGraphBrewMapping(
            config.refinementDepth,
            config.useCommunityMerging ? ", merge=on" : "",
            config.useHubExtraction ? ", hubx=on" : "");
+    printf(
+        "GraphBrew: community-detection=%s\n",
+        config.deterministicCommunityDetection ? "serial" : "parallel");
     if (config.mComputation == MComputation::TOTAL_EDGES)
         printf("GraphBrew: mComputation=total-edges (GVE style)\n");
     if (config.useGorderIntra) {
@@ -8653,6 +8716,17 @@ inline GraphBrewConfig parseGraphBrewConfig(const std::vector<std::string>& opti
     for (size_t i = 0; i < options.size(); ++i) {
         const std::string& opt = options[i];
         if (opt.empty()) continue;
+
+        if (opt == "cd_parallel" || opt == "cd:parallel" ||
+            opt == "community_parallel") {
+            config.deterministicCommunityDetection = false;
+            continue;
+        }
+        if (opt == "cd_serial" || opt == "cd:serial" ||
+            opt == "community_serial") {
+            config.deterministicCommunityDetection = true;
+            continue;
+        }
         
         // Check for main algorithm selection (RabbitOrder from paper)
         if (opt == "rabbit" || opt == "rabbitorder" ||

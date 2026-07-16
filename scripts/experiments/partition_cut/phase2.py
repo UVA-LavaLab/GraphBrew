@@ -100,7 +100,7 @@ POLICIES = {
             "-o",
             "12:leiden:compose:comm_cut_min:intra_hubsort",
         ),
-        False,
+        True,
     ),
     "sg_hilbert": Policy(
         "sg_hilbert",
@@ -108,7 +108,7 @@ POLICIES = {
             "-o",
             "12:leiden:compose:sg_hilbert:comm_identity:intra_hubsort",
         ),
-        False,
+        True,
     ),
     "intra_hub2": Policy(
         "intra_hub2",
@@ -116,7 +116,7 @@ POLICIES = {
             "-o",
             "12:leiden:compose:comm_degree_desc:intra_hub2",
         ),
-        False,
+        True,
     ),
     "intra_rcmpp": Policy(
         "intra_rcmpp",
@@ -124,7 +124,7 @@ POLICIES = {
             "-o",
             "12:leiden:compose:comm_degree_desc:intra_rcmpp",
         ),
-        False,
+        True,
     ),
     "leiden_hubsort": Policy(
         "leiden_hubsort",
@@ -132,7 +132,7 @@ POLICIES = {
             "-o",
             "12:leiden:compose:comm_degree_desc:intra_hubsort",
         ),
-        False,
+        True,
     ),
 }
 
@@ -189,6 +189,14 @@ GRAPHBREW_M_RE = re.compile(
     r"^GraphBrew: mComputation=(\S+)",
     re.MULTILINE,
 )
+GRAPHBREW_COMMUNITY_THREADS_RE = re.compile(
+    r"^GraphBrew: community-detection=(serial|parallel)$",
+    re.MULTILINE,
+)
+GRAPHBREW_ORDERING_THREADS_RE = re.compile(
+    r"^GraphBrew: ordering-threads=(\d+)$",
+    re.MULTILINE,
+)
 GRAPHBREW_COMMUNITIES_RE = re.compile(
     r"^GraphBrew:\s+\d+ passes,\s+\d+ iters,\s+"
     r"(\d+) communities, time=",
@@ -217,6 +225,12 @@ def parse_runtime_config(stdout: str) -> dict[str, Any]:
     m_computation = GRAPHBREW_M_RE.search(stdout)
     if m_computation:
         runtime["m_computation"] = m_computation.group(1)
+    community_threads = GRAPHBREW_COMMUNITY_THREADS_RE.search(stdout)
+    if community_threads:
+        runtime["community_detection"] = community_threads.group(1)
+    ordering_threads = GRAPHBREW_ORDERING_THREADS_RE.search(stdout)
+    if ordering_threads:
+        runtime["ordering_threads"] = int(ordering_threads.group(1))
     communities = GRAPHBREW_COMMUNITIES_RE.search(stdout)
     if communities:
         runtime["communities"] = int(communities.group(1))
@@ -238,6 +252,7 @@ def parse_runtime_config(stdout: str) -> dict[str, Any]:
 def validate_runtime_config(
     policy: Policy,
     runtime: dict[str, Any],
+    expected_threads: int | None = None,
 ) -> None:
     expected = COMMUNITY_RUNTIME_EXPECTATIONS.get(policy.name)
     if expected is None:
@@ -260,6 +275,7 @@ def validate_runtime_config(
         "aggregation": "gve-csr",
         "ordering": "compose",
         "m_computation": "total-edges",
+        "community_detection": "serial",
         "super_graph": expected["super_graph"],
         "intra": expected["intra"],
         "refine": "none",
@@ -273,6 +289,14 @@ def validate_runtime_config(
         mismatches["community"] = (
             runtime.get("community"),
             sorted(expected["community"]),
+        )
+    if (
+        expected_threads is not None
+        and runtime.get("ordering_threads") != expected_threads
+    ):
+        mismatches["ordering_threads"] = (
+            runtime.get("ordering_threads"),
+            expected_threads,
         )
     if mismatches:
         raise RuntimeError(
@@ -1266,6 +1290,7 @@ def summarize_graph_records(
         validate_runtime_config(
             policy_by_name[policy_name],
             record.get("runtime_config", {}),
+            int(record["threads"]),
         )
     validate_cross_policy(records)
     summaries = [
@@ -1731,7 +1756,7 @@ def main() -> int:
                             stdout
                         )
                         validate_runtime_config(
-                            policy, runtime_config
+                            policy, runtime_config, threads
                         )
                         record["runtime_config"] = runtime_config
                         record["run_metadata"] = (
