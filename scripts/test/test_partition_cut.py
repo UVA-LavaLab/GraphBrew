@@ -112,7 +112,7 @@ class TestPartitionCutPhase2(unittest.TestCase):
     def test_smoke_preset_covers_requested_graph_classes(self):
         self.assertEqual(
             DEFAULT_MAX_SHARD_BYTES,
-            256 * 1024 * 1024,
+            512 * 1024 * 1024,
         )
         graphs = selected_graphs("smoke", None)
         self.assertEqual(

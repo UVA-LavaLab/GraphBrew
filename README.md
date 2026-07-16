@@ -255,7 +255,7 @@ the scale preset uses roadNet-CA, delaunay_n20, cit-Patents, and soc-pokec.
 .venv/bin/python scripts/experiments/partition_cut/phase2.py \
   --preset smoke --prepare \
   --threads 1,32 --repeats 3 --partitions 16 \
-  --max-shard-bytes 268435456
+  --max-shard-bytes 536870912
 ```
 
 Preparation preserves native IDs, symmetrizes only catalog-symmetric graphs,
@@ -290,7 +290,7 @@ ghost-metadata footprint reduction. It is not measured superstep/DMA traffic.
 `comm_cut_min` falls back to DegreeDesc on 4/8 graphs because community count
 exceeds 4096. `intra_rcmpp` executes its requested policy everywhere and is the
 quality leader, but only OMP=1 is repeat-stable. All scale cells remain far
-below the 256 MiB compact-CSR/ghost-metadata budget (largest observed shard is
+below the 512 MiB compact-CSR/ghost-metadata budget (largest observed shard is
 under 29 MiB). Algorithm state and per-superstep halo traffic are not included
 in that footprint.
 

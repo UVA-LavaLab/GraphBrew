@@ -18,7 +18,7 @@ from typing import Any
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_MAX_SHARD_BYTES = 256 * 1024 * 1024
+DEFAULT_MAX_SHARD_BYTES = 512 * 1024 * 1024
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.experiments.partition_cut.phase1 import (  # noqa: E402
