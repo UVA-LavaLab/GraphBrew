@@ -541,6 +541,10 @@ class TestPartitionCutPhase2(unittest.TestCase):
                         "size": 1,
                     },
                     "arguments": ["-f", "tiny.mtx", "-b", "tiny.sg"],
+                    "source_commit": "c" * 40,
+                    "source_tree": "clean",
+                    "converter_build_command":
+                        "RABBIT_ENABLE=0 make converter",
                 },
                 "output": {
                     "path": "tiny.sg",
@@ -557,6 +561,11 @@ class TestPartitionCutPhase2(unittest.TestCase):
                 frozen["graphs"][0]["preparation"]["record"]
                 ["inputs"]["source"]["sha256"],
                 "a" * 64,
+            )
+            self.assertEqual(
+                frozen["graphs"][0]["preparation"]["reproduction"]
+                ["source_commit"],
+                "c" * 40,
             )
             preparation["output"]["sha256"] = "wrong"
             (root / "tiny" / "phase2_prepare.json").write_text(

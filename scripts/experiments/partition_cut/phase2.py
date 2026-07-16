@@ -474,6 +474,23 @@ def prepare_graphs(
         raise RuntimeError(
             f"missing {converter}; run `make converter`"
         )
+    source_tree = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
+    if source_tree:
+        raise RuntimeError(
+            "Phase 2 graph preparation requires a clean source tree")
+    source_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip()
     for graph in graphs:
         output = graph.path(graph_root)
         graph_dir = output.parent
@@ -502,6 +519,10 @@ def prepare_graphs(
                 "sha256": sha256_file(converter),
             },
             "arguments": logical_args,
+            "source_commit": source_commit,
+            "source_tree": "clean",
+            "converter_build_command":
+                "RABBIT_ENABLE=0 make converter",
         }
         manifest_path = graph_dir / "phase2_prepare.json"
         if (

@@ -64,6 +64,11 @@ DEFAULT_MATRICES = {
     ),
 }
 
+PREPARATION_SOURCE_COMMITS = {
+    "c28d03768554dd3b72cd3ef79742897fafd57d919ce50b1e971e97b17a233557":
+        "d72db5c6ee4783850e968bac9f773519f25fcb63",
+}
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -368,6 +373,33 @@ def freeze_preparation(
         raise RuntimeError(
             f"invalid graph preparation converter path: {manifest_path}"
         )
+    converter_digest = converter["sha256"]
+    source_commit = inputs.get("source_commit")
+    if source_commit is None:
+        source_commit = PREPARATION_SOURCE_COMMITS.get(
+            converter_digest)
+    if (
+        not isinstance(source_commit, str)
+        or len(source_commit) != 40
+    ):
+        raise RuntimeError(
+            f"unknown graph preparation source commit: {manifest_path}"
+        )
+    build_command = inputs.get(
+        "converter_build_command",
+        "RABBIT_ENABLE=0 make converter",
+    )
+    if not isinstance(build_command, str) or not build_command:
+        raise RuntimeError(
+            f"invalid graph preparation build command: {manifest_path}"
+        )
+    normalized = normalize_paths(preparation)
+    canonical = json.dumps(
+        normalized,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode()
     prepared_graph = inputs.get("graph")
     if (
         not isinstance(prepared_graph, dict)
@@ -381,8 +413,14 @@ def freeze_preparation(
     return {
         "manifest_path": manifest_path.resolve().relative_to(
             PROJECT_ROOT).as_posix(),
-        "manifest_sha256": sha256_file(manifest_path),
-        "record": normalize_paths(preparation),
+        "canonical_manifest_sha256":
+            hashlib.sha256(canonical).hexdigest(),
+        "record": normalized,
+        "reproduction": {
+            "source_commit": source_commit,
+            "source_tree": inputs.get("source_tree", "clean"),
+            "converter_build_command": build_command,
+        },
     }
 
 
