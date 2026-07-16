@@ -259,8 +259,10 @@ def validate_runtime_config(
         "algorithm": "GraphBrewOrder",
         "aggregation": "gve-csr",
         "ordering": "compose",
+        "m_computation": "total-edges",
         "super_graph": expected["super_graph"],
         "intra": expected["intra"],
+        "refine": "none",
     }
     mismatches = {
         key: (runtime.get(key), value)
@@ -298,6 +300,17 @@ def _convertible_input(graph_dir: Path, name: str) -> Path | None:
         if candidates:
             break
     return candidates[0] if candidates else None
+
+
+def graph_needs_download(
+    graph: GraphCase,
+    graph_root: Path,
+) -> bool:
+    output = graph.path(graph_root)
+    return (
+        not output.is_file()
+        or _convertible_input(output.parent, graph.name) is None
+    )
 
 
 def sha256_file(path: Path) -> str:
@@ -414,7 +427,7 @@ def prepare_graphs(
     missing = [
         graph.name
         for graph in graphs
-        if not graph.path(graph_root).is_file()
+        if graph_needs_download(graph, graph_root)
     ]
     if missing:
         downloaded = download_graphs(
