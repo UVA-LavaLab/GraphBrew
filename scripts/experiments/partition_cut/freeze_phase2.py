@@ -238,6 +238,8 @@ def _semantic_payload(value: dict[str, Any]) -> dict[str, Any]:
     result = dict(value)
     generated = dict(result.get("_generated", {}))
     generated.pop("generated_at", None)
+    generated.pop("source_commit", None)
+    generated.pop("source_tree", None)
     result["_generated"] = generated
     return result
 
