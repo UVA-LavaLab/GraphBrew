@@ -125,6 +125,40 @@ def _freeze_records(
     summary_path: Path,
     summary: dict[str, Any],
 ) -> list[dict[str, Any]]:
+    record_fields = (
+        "policy",
+        "deterministic_required",
+        "threads",
+        "repeat",
+        "wall_seconds",
+        "bfs_seconds",
+        "reorder_seconds",
+        "partition_seconds",
+        "diagnostics_seconds",
+        "remote_out_fraction",
+        "remote_in_fraction",
+        "max_remote_out_fraction",
+        "max_remote_in_fraction",
+        "ghost_count",
+        "ghost_bytes",
+        "ghost_byte_fraction",
+        "total_shard_bytes",
+        "max_shard_bytes",
+        "vertex_imbalance",
+        "balance_imbalance",
+        "out_edge_imbalance",
+        "in_edge_imbalance",
+        "storage_imbalance",
+        "mapping_fingerprint",
+        "source_topology_fingerprint",
+        "shard_fingerprint",
+        "ghost_fingerprint",
+        "source_id",
+        "depth_fingerprint",
+        "reachable_vertices",
+        "max_depth",
+        "runtime_config",
+    )
     frozen: list[dict[str, Any]] = []
     matrix_root = summary_path.parent
     for graph in summary["graph_results"]:
@@ -145,7 +179,10 @@ def _freeze_records(
                 raise RuntimeError(
                     f"missing raw logs for {run_dir}"
                 )
-            item = normalize_paths(record)
+            item = normalize_paths({
+                field: record[field]
+                for field in record_fields
+            })
             item["raw_logs"] = {
                 "stdout_sha256": sha256_file(stdout_path),
                 "stderr_sha256": sha256_file(stderr_path),
@@ -166,6 +203,7 @@ def freeze_matrix(label: str, path: Path) -> dict[str, Any]:
         raise RuntimeError(
             f"{label} lacks complete determinism evidence"
         )
+    first_record = summary["graph_results"][0]["records"][0]
     return {
         "label": label,
         "summary_path": path.resolve().relative_to(
@@ -173,6 +211,9 @@ def freeze_matrix(label: str, path: Path) -> dict[str, Any]:
         ).as_posix(),
         "summary_sha256": sha256_file(path),
         "command": _matrix_command(summary),
+        "bfs_binary": normalize_paths(
+            first_record["run_metadata"]["bfs_binary"]
+        ),
         "configuration": {
             key: normalize_paths(summary.get(key))
             for key in (
