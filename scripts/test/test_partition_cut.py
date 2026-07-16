@@ -491,8 +491,11 @@ class TestPartitionCutPhase2(unittest.TestCase):
                 "graph": "tiny",
                 "category": "road",
                 "size_tier": "smoke",
-                "path": "tiny.sg",
-                "graph_identity": {},
+                "path": str(root / "tiny" / "tiny.sg"),
+                "graph_identity": {
+                    "sha256": "graph-digest",
+                    "size": 1,
+                },
                 "summaries": summaries,
                 "summaries_by_policy": {
                     "original": summaries[0],
@@ -519,9 +522,52 @@ class TestPartitionCutPhase2(unittest.TestCase):
                 "graph_results": [graph_result],
                 "aggregates": aggregate,
             }
+            preparation = {
+                "inputs": {
+                    "schema": "graphbrew.partition_cut.prepare.v1",
+                    "graph": {
+                        "name": "tiny",
+                        "category": "road",
+                        "size_tier": "smoke",
+                    },
+                    "source": {
+                        "relative_path": "tiny.mtx",
+                        "sha256": "a" * 64,
+                        "size": 1,
+                    },
+                    "converter": {
+                        "path": "bench/bin/converter",
+                        "sha256": "b" * 64,
+                        "size": 1,
+                    },
+                    "arguments": ["-f", "tiny.mtx", "-b", "tiny.sg"],
+                },
+                "output": {
+                    "path": "tiny.sg",
+                    "sha256": "graph-digest",
+                    "size": 1,
+                },
+            }
+            (root / "tiny" / "phase2_prepare.json").write_text(
+                json.dumps(preparation))
             path = root / "phase2_summary.json"
             path.write_text(json.dumps(summary))
-            freeze_matrix("test", path)
+            frozen = freeze_matrix("test", path)
+            self.assertEqual(
+                frozen["graphs"][0]["preparation"]["record"]
+                ["inputs"]["source"]["sha256"],
+                "a" * 64,
+            )
+            preparation["output"]["sha256"] = "wrong"
+            (root / "tiny" / "phase2_prepare.json").write_text(
+                json.dumps(preparation))
+            with self.assertRaisesRegex(
+                RuntimeError, "preparation/output identity"
+            ):
+                freeze_matrix("test", path)
+            preparation["output"]["sha256"] = "graph-digest"
+            (root / "tiny" / "phase2_prepare.json").write_text(
+                json.dumps(preparation))
             summary["graph_results"][0]["summaries"][0][
                 "bfs_cpu_total_bytes"
             ] += 1
