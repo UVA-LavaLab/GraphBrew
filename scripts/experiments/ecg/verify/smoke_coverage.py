@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Validate the final 3-simulator/all-algorithm smoke aggregate."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import math
+from collections import Counter, defaultdict
+from pathlib import Path
+
+
+SIMULATORS = ("cache_sim", "gem5", "sniper")
+BENCHMARKS = ("pr", "bfs", "sssp", "bc", "cc")
+POLICIES = (
+    "LRU", "SRRIP", "GRASP", "POPT",
+    "ECG_K2", "ECG_K2_ONLINE",
+    "ECG_K2_STREAMSHIELD", "ECG_K2_ONLINE_STREAMSHIELD",
+)
+K2_POLICIES = set(POLICIES[4:])
+SS_POLICIES = {"ECG_K2_STREAMSHIELD", "ECG_K2_ONLINE_STREAMSHIELD"}
+
+
+def number(row: dict[str, str], field: str) -> float | None:
+    value = row.get(field, "")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if math.isfinite(parsed) else None
+
+
+def require_number(
+        errors: list[str], row: dict[str, str], field: str,
+        *, positive: bool = False) -> None:
+    value = number(row, field)
+    if value is None or (positive and value <= 0):
+        errors.append(
+            f"{row.get('simulator')}/{row.get('benchmark')}/"
+            f"{row.get('policy_label')}: missing {field}")
+
+
+def validate(rows: list[dict[str, str]]) -> list[str]:
+    errors: list[str] = []
+    expected_cells = {
+        (simulator, benchmark)
+        for simulator in SIMULATORS for benchmark in BENCHMARKS
+    }
+    grouped: dict[tuple[str, str], set[str]] = defaultdict(set)
+
+    for row in rows:
+        simulator = row.get("simulator", "")
+        benchmark = row.get("benchmark", "")
+        policy = row.get("policy_label", "")
+        if simulator not in SIMULATORS:
+            errors.append(f"unexpected simulator={simulator!r}")
+            continue
+        if benchmark not in BENCHMARKS:
+            errors.append(f"unexpected benchmark={benchmark!r}")
+            continue
+        if policy not in POLICIES:
+            errors.append(f"unexpected policy={policy!r}")
+            continue
+        grouped[(simulator, benchmark)].add(policy)
+        if row.get("final_graph") != "kron_s12_k4":
+            errors.append(
+                f"{simulator}/{benchmark}/{policy}: unexpected graph="
+                f"{row.get('final_graph')!r}")
+        for field in ("l3_size", "l3_ways", "timing_model"):
+            if not row.get(field):
+                errors.append(
+                    f"{simulator}/{benchmark}/{policy}: missing {field}")
+        if row.get("status") != "ok":
+            errors.append(
+                f"{simulator}/{benchmark}/{policy}: status={row.get('status')}")
+        if row.get("final_output_status", "ok") != "ok":
+            errors.append(
+                f"{simulator}/{benchmark}/{policy}: "
+                f"final_output_status={row.get('final_output_status')}")
+        if str(row.get("l3_exercised", "")).lower() not in ("1", "true"):
+            errors.append(f"{simulator}/{benchmark}/{policy}: L3 not exercised")
+        require_number(errors, row, "l3_misses", positive=True)
+        require_number(errors, row, "l3_miss_rate")
+        require_number(errors, row, "timing_valid_for_speedup")
+
+        if simulator == "cache_sim":
+            require_number(errors, row, "total_accesses", positive=True)
+            require_number(
+                errors, row, "total_memory_traffic_with_overhead",
+                positive=True)
+            require_number(errors, row, "l3_hits")
+            require_number(errors, row, "l3_prop_misses")
+        elif simulator == "gem5":
+            require_number(errors, row, "l3_accesses", positive=True)
+            require_number(errors, row, "dram_read_bytes", positive=True)
+            require_number(errors, row, "dram_write_bytes")
+            require_number(errors, row, "sim_ticks", positive=True)
+            require_number(errors, row, "ipc")
+        else:
+            require_number(errors, row, "l3_accesses", positive=True)
+            require_number(errors, row, "instructions", positive=True)
+            require_number(errors, row, "sim_ticks", positive=True)
+            require_number(errors, row, "ipc")
+            for field in (
+                    "sniper_cpi_base", "sniper_cpi_data_cache",
+                    "sniper_cpi_data_llc", "sniper_cpi_data_dram"):
+                require_number(errors, row, field)
+
+        if policy in K2_POLICIES:
+            if number(row, "ecg_schedule_k") != 2:
+                errors.append(
+                    f"{simulator}/{benchmark}/{policy}: schedule_k != 2")
+            if number(row, "ecg_epochs_effective") != 32768:
+                errors.append(
+                    f"{simulator}/{benchmark}/{policy}: effective epochs != 32768")
+            if simulator == "gem5":
+                expected = (
+                    "ecg.stream.load2" if policy in SS_POLICIES
+                    else "ecg.load2")
+                if row.get("gem5_ecg_delivery") != expected:
+                    errors.append(
+                        f"gem5/{benchmark}/{policy}: delivery="
+                        f"{row.get('gem5_ecg_delivery')!r}, expected={expected!r}")
+                if (policy in SS_POLICIES and
+                        not (number(
+                            row, "gem5_stream_bypass_trace_events") or 0) > 0):
+                    errors.append(
+                        f"gem5/{benchmark}/{policy}: bypass trace missing")
+            if simulator == "sniper":
+                if row.get("sniper_ecg_delivery") != "fused-k2-model":
+                    errors.append(
+                        f"sniper/{benchmark}/{policy}: fused delivery missing")
+                require_number(
+                    errors, row, "sniper_fused_k2_receipts", positive=True)
+                bad_receipts = number(row, "sniper_fused_k2_bad_receipts")
+                if bad_receipts is None:
+                    errors.append(
+                        f"sniper/{benchmark}/{policy}: "
+                        "missing sniper_fused_k2_bad_receipts")
+                elif bad_receipts != 0:
+                    errors.append(
+                        f"sniper/{benchmark}/{policy}: "
+                        f"bad fused receipts={bad_receipts:g}")
+                if policy in SS_POLICIES:
+                    require_number(
+                        errors, row, "sniper_stream_bypass_reads",
+                        positive=True)
+                    require_number(
+                        errors, row, "sniper_stream_bypass_writes",
+                        positive=True)
+
+    if len(rows) != 120:
+        errors.append(f"expected 120 rows, found {len(rows)}")
+    if set(grouped) != expected_cells:
+        errors.append(
+            f"expected 15 simulator/benchmark cells, found {len(grouped)}")
+    for cell in sorted(expected_cells):
+        actual = grouped.get(cell, set())
+        if actual != set(POLICIES):
+            errors.append(
+                f"{cell[0]}/{cell[1]} policy set mismatch: "
+                f"missing={sorted(set(POLICIES) - actual)} "
+                f"extra={sorted(actual - set(POLICIES))}")
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Validate final ECG 3-sim/all-alg smoke coverage.")
+    parser.add_argument("--csv", required=True)
+    args = parser.parse_args()
+    path = Path(args.csv)
+    with path.open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    errors = validate(rows)
+    counts = Counter(row.get("simulator", "") for row in rows)
+    print(
+        f"[smoke-coverage] rows={len(rows)} "
+        f"cache_sim={counts['cache_sim']} gem5={counts['gem5']} "
+        f"sniper={counts['sniper']}")
+    if errors:
+        for error in errors:
+            print(f"[FAIL] {error}")
+        return 1
+    print("[smoke-coverage] PASS: all 120 required rows and metrics are present")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -59,12 +59,38 @@ make sniper-sg_kernel
 ## Final run order
 
 1. Run the three correctness gates.
-2. Run `ecg_replacement_baseline`.
-3. Run `ecg_cache_sim_factorial`.
-4. Run `ecg_streamshield_generality` as the placement ablation.
-5. Run gem5 and Sniper mechanism profiles.
-6. Aggregate only complete, hash-consistent runs.
-7. Run the blocked Sniper headline profile only after prefetch calibration.
+2. Run and validate `ecg_3sim_allalg_smoke`.
+3. Run `ecg_replacement_baseline`.
+4. Run `ecg_cache_sim_factorial`.
+5. Run `ecg_streamshield_generality` as the placement ablation.
+6. Run gem5 and Sniper mechanism profiles.
+7. Aggregate only complete, hash-consistent runs.
+8. Run the blocked Sniper headline profile only after prefetch calibration.
+
+## Full 3-simulator/all-algorithm smoke
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_allalg_smoke \
+  --run-tag ecg_3sim_smoke \
+  --out results/ecg_experiments/slurm/ecg_3sim_smoke.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_3sim_smoke.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 8 --cache-sim-jobs 5 --gem5-jobs 1 --sniper-jobs 1
+
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-glob \
+    "results/ecg_experiments/final_paper_runs/local/ecg_3sim_smoke/*" \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_3sim_smoke
+
+python3 scripts/experiments/ecg/verify/smoke_coverage.py \
+  --csv results/ecg_experiments/paper_pipeline/ecg_3sim_smoke/aggregate/roi_matrix_all.csv
+```
+
+Acceptance is exactly 120 valid rows: 3 simulators x 5 algorithms x 8 policies.
 
 ## Inspect the blocked headline job
 

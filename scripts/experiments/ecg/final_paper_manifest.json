@@ -26,6 +26,7 @@
   },
   "profiles": {
     "ecg_smoke": "Fast cache_sim smoke for the complete ECG policy set.",
+    "ecg_3sim_allalg_smoke": "Bounded 3-simulator x 5-algorithm x 8-policy smoke matrix for final row/metric coverage.",
     "ecg_preliminary_5alg_3sim": "Bounded five-algorithm, six-policy diagnostic matrix on a common synthetic graph across cache_sim, gem5, and Sniper.",
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
     "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
@@ -39,6 +40,13 @@
   "benchmark_options": {
     "synthetic_pr": {
       "pr": "-g 12 -k 16 -o 5 -n 1 -i 1"
+    },
+    "synthetic_kron12_all": {
+      "pr": "-g 12 -k 4 -o 5 -n 1 -i 1",
+      "bfs": "-g 12 -k 4 -o 5 -n 1 -r 0",
+      "sssp": "-g 12 -k 4 -o 5 -n 1 -r 0",
+      "bc": "-g 12 -k 4 -o 5 -n 1 -i 1",
+      "cc": "-g 12 -k 4 -o 5 -n 1"
     },
     "synthetic_kron4_pr": {
       "pr": "-g 16 -k 4 -o 5 -n 1 -i 1"
@@ -74,6 +82,17 @@
         "l3_ways": "4",
         "l3_sizes": ["4kB"],
         "structure_prefetch_degree": 8
+      }
+    ],
+    "synthetic_kron12_all": [
+      {
+        "name": "kron_s12_k4",
+        "options_key": "synthetic_kron12_all",
+        "l1d_size": "4kB",
+        "l2_size": "8kB",
+        "l3_ways": "8",
+        "l3_sizes": ["32kB"],
+        "structure_prefetch_degree": 0
       }
     ],
     "synthetic_kron4": [
@@ -169,6 +188,79 @@
       "prefetcher": "STRIDE",
       "out_subdir": "01_ecg_cache_sim_smoke",
       "timeout_cache": 600
+    },
+    {
+      "name": "02_cache_sim_3sim_allalg_smoke",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_3sim_allalg_smoke"],
+      "suite": "cache-sim",
+      "graph_set": "synthetic_kron12_all",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "02_cache_sim_3sim_allalg_smoke",
+      "timeout_cache": 1200
+    },
+    {
+      "name": "03_gem5_3sim_allalg_smoke",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_3sim_allalg_smoke"],
+      "suite": "gem5",
+      "graph_set": "synthetic_kron12_all",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "03_gem5_3sim_allalg_smoke",
+      "timeout_gem5": 3600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_STREAM_BYPASS_TRACE": "8"
+      }
+    },
+    {
+      "name": "04_sniper_3sim_allalg_smoke",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_3sim_allalg_smoke"],
+      "suite": "sniper",
+      "graph_set": "synthetic_kron12_all",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_require_fused_receipts": true,
+      "sniper_cores": 1,
+      "out_subdir": "04_sniper_3sim_allalg_smoke",
+      "timeout_sniper": 3600,
+      "env": {
+        "ECG_STREAM_BYPASS_TRACE": "8"
+      }
     },
     {
       "name": "10_cache_sim_preliminary_5alg",

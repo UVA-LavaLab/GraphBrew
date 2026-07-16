@@ -229,6 +229,7 @@ Canonical profiles:
 | Profile | Purpose |
 |---|---|
 | `ecg_smoke` | Fast cache_sim check including online K2 |
+| `ecg_3sim_allalg_smoke` | 3 simulators x 5 algorithms x 8 final policies |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
@@ -279,6 +280,47 @@ remain pending the complete Sniper matrix and a bounded prefetch configuration.
   broadcast in headline rows.
 
 ## Reproduce
+
+### Full 3-simulator smoke
+
+This is the final data-shape gate:
+
+```text
+3 simulators x 5 algorithms x 8 policies = 120 rows
+```
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_allalg_smoke \
+  --run-tag ecg_3sim_smoke \
+  --out results/ecg_experiments/slurm/ecg_3sim_smoke.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_3sim_smoke.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 8 --cache-sim-jobs 5 --gem5-jobs 1 --sniper-jobs 1
+
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-glob \
+    "results/ecg_experiments/final_paper_runs/local/ecg_3sim_smoke/*" \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_3sim_smoke
+
+python3 scripts/experiments/ecg/verify/smoke_coverage.py \
+  --csv results/ecg_experiments/paper_pipeline/ecg_3sim_smoke/aggregate/roi_matrix_all.csv
+```
+
+Expected coverage:
+
+| Backend | Required data |
+|---|---|
+| all | status, policy, L3 misses/rate, timing-valid flag, exercised L3 |
+| cache_sim | property misses/hits and total memory traffic |
+| gem5 | L3 accesses, DRAM read/write bytes, ticks, IPC, load2/stream.load2 mode |
+| Sniper | L3 accesses, instructions, ticks, IPC, CPI components, fused receipts |
+
+On a larger host, increase `--gem5-jobs` and `--sniper-jobs`; each shard has
+isolated sidebands and locks.
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \

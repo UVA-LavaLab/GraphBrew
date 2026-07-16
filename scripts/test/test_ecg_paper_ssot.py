@@ -3,6 +3,7 @@ import csv
 import hashlib
 import importlib.util
 import json
+import os
 import pytest
 import subprocess
 import sys
@@ -81,6 +82,15 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
         paper_env, module.ecg_transport_for(k2, "pr"))
     assert "ECG_K2_DELIVERY_TRACE" not in paper_env
     assert paper_env["ECG_EDGE_MASKS"] == "1"
+    monkeypatch.setenv(
+        "GRAPHBREW_EXPLICIT_CELL_ENV",
+        json.dumps({"ECG_STREAM_BYPASS_TRACE": "8"}))
+    traced_env = dict(os.environ)
+    module.scrub_cell_mechanism_env(traced_env)
+    module.apply_explicit_cell_mechanism_env(traced_env, streamshield)
+    module.apply_ecg_transport_env(
+        traced_env, module.ecg_transport_for(streamshield, "pr"))
+    assert traced_env["ECG_STREAM_BYPASS_TRACE"] == "8"
     online_env = {}
     module.apply_ecg_transport_env(online_env, online_transport)
     assert online_env["ECG_SET_DUELING"] == "1"
@@ -160,6 +170,7 @@ def test_streamshield_manifest_is_complete():
         (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
     assert "streamshield_sniper_realgraph" in manifest["profiles"]
     assert "ecg_cache_sim_factorial" in manifest["profiles"]
+    assert "ecg_3sim_allalg_smoke" in manifest["profiles"]
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
     assert "ecg_preliminary_5alg_stride" in manifest["profiles"]
@@ -216,6 +227,18 @@ def test_streamshield_manifest_is_complete():
     assert manifest["defaults"]["ecg_epoch_pack_bits"] == 64
     assert manifest["defaults"]["require_cache_sim_aslr_disable"] is True
     assert replacement["policies"][-1] == "ECG:K2_ONLINE"
+    smoke_stages = [
+        stage for stage in manifest["stages"]
+        if "ecg_3sim_allalg_smoke" in stage.get("profiles", [])]
+    assert {stage["suite"] for stage in smoke_stages} == {
+        "cache-sim", "gem5", "sniper"}
+    assert all(
+        stage["benchmarks"] == ["pr", "bfs", "sssp", "bc", "cc"]
+        for stage in smoke_stages)
+    assert all(len(stage["policies"]) == 8 for stage in smoke_stages)
+    smoke_options = manifest["benchmark_options"]["synthetic_kron12_all"]
+    assert smoke_options["bfs"].endswith("-r 0")
+    assert smoke_options["sssp"].endswith("-r 0")
     preliminary = [
         stage for stage in manifest["stages"]
         if stage["name"] in {
@@ -435,6 +458,7 @@ def test_final_design_docs_and_run_flow_are_consistent():
     assert "ECG:K2_ONLINE_STREAMSHIELD" in readme
     assert "Static StreamShield beats normal LLC allocation on all 15" in readme
     for profile in (
+            "ecg_3sim_allalg_smoke",
             "ecg_replacement_baseline",
             "ecg_cache_sim_factorial",
             "ecg_streamshield_generality"):
@@ -443,6 +467,9 @@ def test_final_design_docs_and_run_flow_are_consistent():
     assert "--list --dry-run --no-build" in readme
 
     assert "## Method guide" in wiki
+    assert "### Full 3-simulator smoke" in wiki
+    assert "3 simulators x 5 algorithms x 8 policies = 120 rows" in wiki
+    assert "smoke_coverage.py" in wiki
     for method in (
             "LRU", "SRRIP", "GRASP", "P-OPT", "K1",
             "K2 static", "K2 online", "K2 online+SS", "Adaptive SS"):
@@ -450,6 +477,8 @@ def test_final_design_docs_and_run_flow_are_consistent():
     assert "**final design**" in wiki
 
     assert "## Final run order" in runbook
+    assert "## Full 3-simulator/all-algorithm smoke" in runbook
+    assert "Acceptance is exactly 120 valid rows" in runbook
     assert "## Full-iteration headline matrix (blocked)" in runbook
     assert "Do not launch this profile" in runbook
     assert "--input-run-dirs" in runbook

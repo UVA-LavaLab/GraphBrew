@@ -135,7 +135,32 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --schedule-k 2 --stream-bypass
 ```
 
-### 4. Run cache_sim authority profiles
+### 4. Run the full 3-simulator smoke
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_allalg_smoke \
+  --run-tag ecg_3sim_smoke \
+  --out results/ecg_experiments/slurm/ecg_3sim_smoke.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_3sim_smoke.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 8 --cache-sim-jobs 5 --gem5-jobs 1 --sniper-jobs 1
+
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-glob \
+    "results/ecg_experiments/final_paper_runs/local/ecg_3sim_smoke/*" \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_3sim_smoke
+
+python3 scripts/experiments/ecg/verify/smoke_coverage.py \
+  --csv results/ecg_experiments/paper_pipeline/ecg_3sim_smoke/aggregate/roi_matrix_all.csv
+```
+
+The gate requires exactly 120 valid rows.
+
+### 5. Run cache_sim authority profiles
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
@@ -154,7 +179,7 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --no-build
 ```
 
-### 5. Run detailed-simulator mechanism cells
+### 6. Run detailed-simulator mechanism cells
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
@@ -168,7 +193,7 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --no-build
 ```
 
-### 6. Aggregate
+### 7. Aggregate
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_pipeline.py \
@@ -180,7 +205,7 @@ python3 scripts/experiments/ecg/flows/paper_pipeline.py \
   --run-root results/ecg_experiments/paper_pipeline/ecg_final
 ```
 
-### 7. Run independent shards in parallel
+### 8. Run other independent shards in parallel
 
 Prebuild first; shards never build or share output directories.
 
@@ -206,7 +231,7 @@ Each shard has a unique run directory, lock, and hashed gem5/Sniper sideband
 directory. Increase `--gem5-jobs` or `--sniper-jobs` only when host memory and
 CPU capacity are known.
 
-### 8. Headline matrix status
+### 9. Headline matrix status
 
 `streamshield_sniper_realgraph` is blocked until a bounded Sniper prefetch
 configuration replaces the rejected generic STRIDE8 setting. Inspect it only:
@@ -236,6 +261,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | Profile | Purpose |
 |---|---|
 | `ecg_smoke` | Fast cache_sim check including online K2 |
+| `ecg_3sim_allalg_smoke` | 120-row final data-shape smoke |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |

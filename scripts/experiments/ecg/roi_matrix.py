@@ -887,6 +887,8 @@ def ecg_transport_for(spec: PolicySpec, benchmark: str) -> EcgTransport:
 
 def apply_ecg_transport_env(
         env: dict[str, str], transport: EcgTransport) -> None:
+    explicit_k2_trace = env.get("ECG_K2_DELIVERY_TRACE")
+    explicit_bypass_trace = env.get("ECG_STREAM_BYPASS_TRACE")
     for key in (
         "ECG_EDGE_MASK_SCHED",
         "ECG_EDGE_MASKS",
@@ -901,18 +903,20 @@ def apply_ecg_transport_env(
         env["ECG_EDGE_MASKS"] = "1"
     if transport.schedule_k:
         env["ECG_EDGE_MASK_SCHED"] = str(transport.schedule_k)
-        if (transport.trace_enabled and
-                os.environ.get("ECG_K2_DELIVERY_TRACE")):
-            env["ECG_K2_DELIVERY_TRACE"] = os.environ[
-                "ECG_K2_DELIVERY_TRACE"]
+        trace = explicit_k2_trace
+        if trace is None and transport.trace_enabled:
+            trace = os.environ.get("ECG_K2_DELIVERY_TRACE")
+        if trace:
+            env["ECG_K2_DELIVERY_TRACE"] = trace
     if transport.stream_bypass:
         env["ECG_STREAM_BYPASS"] = "1"
         if transport.stream_adaptive:
             env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
-        if (transport.trace_enabled and
-                os.environ.get("ECG_STREAM_BYPASS_TRACE")):
-            env["ECG_STREAM_BYPASS_TRACE"] = os.environ[
-                "ECG_STREAM_BYPASS_TRACE"]
+        trace = explicit_bypass_trace
+        if trace is None and transport.trace_enabled:
+            trace = os.environ.get("ECG_STREAM_BYPASS_TRACE")
+        if trace:
+            env["ECG_STREAM_BYPASS_TRACE"] = trace
     if transport.set_dueling:
         env["ECG_SET_DUELING"] = "1"
 
