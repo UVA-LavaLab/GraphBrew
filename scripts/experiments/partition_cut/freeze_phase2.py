@@ -295,6 +295,97 @@ def _freeze_records(
     return frozen
 
 
+def freeze_preparation(
+    graph: dict[str, Any],
+) -> dict[str, Any]:
+    graph_path = Path(str(graph["path"]))
+    if not graph_path.is_absolute():
+        graph_path = PROJECT_ROOT / graph_path
+    manifest_path = graph_path.parent / "phase2_prepare.json"
+    if not manifest_path.is_file():
+        raise RuntimeError(
+            f"missing graph preparation manifest: {manifest_path}"
+        )
+    preparation = json.loads(manifest_path.read_text())
+    output = preparation.get("output")
+    if not isinstance(output, dict):
+        raise RuntimeError(
+            f"invalid graph preparation manifest: {manifest_path}"
+        )
+    identity = graph["graph_identity"]
+    if (
+        output.get("sha256") != identity.get("sha256")
+        or int(output.get("size", -1)) != int(identity.get("size", -2))
+    ):
+        raise RuntimeError(
+            f"graph preparation/output identity mismatch: {manifest_path}"
+        )
+    inputs = preparation.get("inputs")
+    if (
+        not isinstance(inputs, dict)
+        or inputs.get("schema") !=
+            "graphbrew.partition_cut.prepare.v1"
+    ):
+        raise RuntimeError(
+            f"unknown graph preparation schema: {manifest_path}"
+        )
+    arguments = inputs.get("arguments")
+    if (
+        not isinstance(arguments, list)
+        or not arguments
+        or any(
+            not isinstance(argument, str) or not argument
+            for argument in arguments
+        )
+    ):
+        raise RuntimeError(
+            f"invalid graph preparation arguments: {manifest_path}"
+        )
+    for field in ("source", "converter"):
+        artifact = inputs.get(field)
+        if (
+            not isinstance(artifact, dict)
+            or not isinstance(artifact.get("sha256"), str)
+            or len(artifact["sha256"]) != 64
+            or int(artifact.get("size", -1)) < 0
+        ):
+            raise RuntimeError(
+                f"invalid graph preparation {field}: {manifest_path}"
+            )
+    source = inputs["source"]
+    if (
+        not isinstance(source.get("relative_path"), str)
+        or not source["relative_path"]
+    ):
+        raise RuntimeError(
+            f"invalid graph preparation source path: {manifest_path}"
+        )
+    converter = inputs["converter"]
+    if (
+        not isinstance(converter.get("path"), str)
+        or not converter["path"]
+    ):
+        raise RuntimeError(
+            f"invalid graph preparation converter path: {manifest_path}"
+        )
+    prepared_graph = inputs.get("graph")
+    if (
+        not isinstance(prepared_graph, dict)
+        or prepared_graph.get("name") != graph["graph"]
+        or prepared_graph.get("category") != graph["category"]
+        or prepared_graph.get("size_tier") != graph["size_tier"]
+    ):
+        raise RuntimeError(
+            f"graph preparation metadata mismatch: {manifest_path}"
+        )
+    return {
+        "manifest_path": manifest_path.resolve().relative_to(
+            PROJECT_ROOT).as_posix(),
+        "manifest_sha256": sha256_file(manifest_path),
+        "record": normalize_paths(preparation),
+    }
+
+
 def freeze_matrix(label: str, path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise RuntimeError(
@@ -370,6 +461,7 @@ def freeze_matrix(label: str, path: Path) -> dict[str, Any]:
                 "size_tier": graph["size_tier"],
                 "graph_identity": normalize_paths(
                     graph["graph_identity"]),
+                "preparation": freeze_preparation(graph),
                 "summaries": normalize_paths(graph["summaries"]),
             }
             for graph in validated_graphs
