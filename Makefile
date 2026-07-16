@@ -97,7 +97,7 @@ endif
 KERNELS = bc bfs bfs_p cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
-UNIT_TESTS = test_graph_partition test_shard_manifest test_shard_stream
+UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest test_shard_stream
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
@@ -106,6 +106,8 @@ all: $(SUITE)
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
 	@for test in $(UNIT_TESTS_BIN); do $$test; done
+	$(PYTHON) scripts/test/check_partition_runtime_traffic.py \
+		--bfs $(BIN_DIR)/bfs_p
 	@for partitions in 1 2 4 16; do \
 		output="$$(OMP_NUM_THREADS=4 $(BIN_DIR)/bfs_p -g 10 -n 1 -r 0 -v -P $$partitions -B total)"; \
 		if ! echo "$$output" | grep -q "Verification: *PASS"; then \

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import json
 import unittest
 
 from scripts.experiments.partition_cut.phase1 import (
@@ -18,13 +19,17 @@ from scripts.experiments.partition_cut.phase2 import (
     graph_needs_download,
     parse_runtime_config,
     selected_graphs,
+    summarize_graph_records,
     summarize_corpus,
     summarize_phase2_policy,
     validate_record_matrix,
     validate_runtime_config,
+    validate_runtime_traffic,
 )
 from scripts.experiments.vldb.config import COMPOSE_VARIANTS
 from scripts.experiments.partition_cut.freeze_phase2 import (
+    compact_runtime_traffic,
+    freeze_matrix,
     normalize_paths,
 )
 
@@ -61,7 +66,76 @@ def record(policy: str, suffix: str = "a", threads: int = 1) -> dict:
         "source_id": 0,
         "depth_fingerprint": "depth",
         "reachable_vertices": 5,
-        "max_depth": 3,
+        "max_depth": 1,
+        "runtime_config": {},
+        "run_metadata": {
+            "bfs_binary": "bench/bin/bfs_p",
+        },
+        "runtime_traffic": {
+            "schema": "graphbrew.partition_runtime_traffic.v1",
+            "ghost_slots": 10,
+            "graphblox_projection": {
+                "bfs_bytes_per_superstep": 80,
+                "pr_bytes_per_iteration": 40,
+                "cc_bytes_per_iteration": 40,
+                "spmv_initial_bytes": 40,
+                "shards": [
+                    {
+                        "shard_id": 0,
+                        "ghost_slots": 10,
+                        "bfs_bytes_per_superstep": 80,
+                        "pr_bytes_per_iteration": 40,
+                        "cc_bytes_per_iteration": 40,
+                        "spmv_initial_bytes": 40,
+                    },
+                ],
+            },
+            "bfs": {
+                "supersteps": 2,
+                "cpu_ghost_sync_values": 10,
+                "cpu_ghost_sync_bytes": 10,
+                "remote_parent_messages": 5,
+                "remote_parent_bytes": 20,
+                "graphblox_halo_values": 40,
+                "graphblox_halo_bytes": 160,
+                "steps": [
+                    {
+                        "step": 0,
+                        "phase": "p-bsp-td",
+                        "cpu_ghost_sync_bytes": 0,
+                        "remote_parent_messages": 5,
+                        "remote_parent_bytes": 20,
+                        "graphblox_halo_bytes": 80,
+                        "shards": [
+                            {
+                                "shard_id": 0,
+                                "cpu_ghost_sync_bytes": 0,
+                                "remote_parent_messages": 5,
+                                "remote_parent_bytes": 20,
+                                "graphblox_halo_bytes": 80,
+                            },
+                        ],
+                    },
+                    {
+                        "step": 1,
+                        "phase": "p-bsp-bu",
+                        "cpu_ghost_sync_bytes": 10,
+                        "remote_parent_messages": 0,
+                        "remote_parent_bytes": 0,
+                        "graphblox_halo_bytes": 80,
+                        "shards": [
+                            {
+                                "shard_id": 0,
+                                "cpu_ghost_sync_bytes": 10,
+                                "remote_parent_messages": 0,
+                                "remote_parent_bytes": 0,
+                                "graphblox_halo_bytes": 80,
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
     }
 
 
@@ -191,6 +265,13 @@ class TestPartitionCutPhase2(unittest.TestCase):
         baseline = summarize_policy([record("original")])
         baseline["remote_reduction"] = 1.0
         baseline["ghost_reduction"] = 1.0
+        baseline["bfs_halo_reduction"] = 1.0
+        baseline["bfs_cpu_ghost_sync_reduction"] = 1.0
+        baseline["bfs_remote_parent_reduction"] = 1.0
+        baseline["bfs_cpu_total_reduction"] = 1.0
+        baseline["pr_halo_reduction"] = 1.0
+        baseline["cc_halo_reduction"] = 1.0
+        baseline["spmv_halo_reduction"] = 1.0
         baseline["max_shard_ratio"] = 1.0
         baseline["preprocess_ratio"] = 1.0
         candidate_a = dict(baseline)
@@ -198,6 +279,13 @@ class TestPartitionCutPhase2(unittest.TestCase):
             "policy": "candidate",
             "remote_reduction": 2.0,
             "ghost_reduction": 2.0,
+            "bfs_halo_reduction": 2.0,
+            "bfs_cpu_ghost_sync_reduction": 2.0,
+            "bfs_remote_parent_reduction": 2.0,
+            "bfs_cpu_total_reduction": 2.0,
+            "pr_halo_reduction": 2.0,
+            "cc_halo_reduction": 2.0,
+            "spmv_halo_reduction": 2.0,
             "max_shard_ratio": 1.05,
             "balance_imbalance": 1.02,
             "storage_imbalance": 1.02,
@@ -211,6 +299,13 @@ class TestPartitionCutPhase2(unittest.TestCase):
         candidate_b.update({
             "remote_reduction": 1.5,
             "ghost_reduction": 1.6,
+            "bfs_halo_reduction": 1.5,
+            "bfs_cpu_ghost_sync_reduction": 1.5,
+            "bfs_remote_parent_reduction": 1.5,
+            "bfs_cpu_total_reduction": 1.5,
+            "pr_halo_reduction": 1.5,
+            "cc_halo_reduction": 1.5,
+            "spmv_halo_reduction": 1.5,
         })
         graph_results = [
             {
@@ -244,6 +339,197 @@ class TestPartitionCutPhase2(unittest.TestCase):
         self.assertTrue(
             candidate["passes_universal_default_gate"]
         )
+
+    def test_runtime_traffic_rejects_negative_and_inconsistent_values(self):
+        valid = record("original")
+        validate_runtime_traffic(valid)
+
+        negative = record("original")
+        negative["runtime_traffic"]["bfs"][
+            "remote_parent_bytes"
+        ] = -1
+        with self.assertRaisesRegex(
+            RuntimeError, "nonnegative integer"
+        ):
+            validate_runtime_traffic(negative)
+
+        inconsistent = record("original")
+        inconsistent["runtime_traffic"]["bfs"][
+            "graphblox_halo_bytes"
+        ] = 80
+        with self.assertRaisesRegex(RuntimeError, "mismatch"):
+            validate_runtime_traffic(inconsistent)
+
+        bottom_up_remote = record("original")
+        bottom_up_remote["runtime_traffic"]["bfs"]["steps"][1][
+            "remote_parent_messages"
+        ] = 1
+        bottom_up_remote["runtime_traffic"]["bfs"]["steps"][1][
+            "remote_parent_bytes"
+        ] = 4
+        bottom_up_remote["runtime_traffic"]["bfs"]["steps"][1][
+            "shards"
+        ][0]["remote_parent_messages"] = 1
+        bottom_up_remote["runtime_traffic"]["bfs"]["steps"][1][
+            "shards"
+        ][0]["remote_parent_bytes"] = 4
+        bottom_up_remote["runtime_traffic"]["bfs"][
+            "remote_parent_messages"
+        ] = 6
+        bottom_up_remote["runtime_traffic"]["bfs"][
+            "remote_parent_bytes"
+        ] = 24
+        with self.assertRaisesRegex(
+            RuntimeError, "bottom-up remote-parent"
+        ):
+            validate_runtime_traffic(bottom_up_remote)
+
+        wrong_depth = record("original")
+        wrong_depth["max_depth"] = 2
+        with self.assertRaisesRegex(RuntimeError, "supersteps"):
+            validate_runtime_traffic(wrong_depth)
+
+        too_large = record("original")
+        too_large["runtime_traffic"]["ghost_slots"] = 1 << 64
+        with self.assertRaisesRegex(
+            RuntimeError, "nonnegative integer"
+        ):
+            validate_runtime_traffic(too_large)
+
+    def test_zero_candidate_traffic_uses_json_safe_encoding(self):
+        from scripts.experiments.partition_cut.phase2 import (
+            add_runtime_relative_metrics,
+        )
+
+        baseline = summarize_phase2_policy([record("original")])
+        candidate = dict(baseline)
+        candidate["policy"] = "candidate"
+        for field in (
+            "bfs_cpu_ghost_sync_bytes",
+            "bfs_remote_parent_bytes",
+            "bfs_cpu_total_bytes",
+            "bfs_graphblox_halo_bytes",
+            "pr_halo_bytes_per_iteration",
+            "cc_halo_bytes_per_iteration",
+            "spmv_initial_halo_bytes",
+        ):
+            candidate[field] = 0
+        add_runtime_relative_metrics([baseline, candidate])
+        self.assertIsNone(candidate["bfs_cpu_total_reduction"])
+        json.dumps(candidate, allow_nan=False)
+
+    def test_runtime_traffic_changes_for_identical_fingerprints_fail(self):
+        first = record("original")
+        second = record("original", threads=32)
+        second["runtime_traffic"]["bfs"]["steps"][0][
+            "remote_parent_messages"
+        ] = 4
+        second["runtime_traffic"]["bfs"]["steps"][0][
+            "remote_parent_bytes"
+        ] = 16
+        second["runtime_traffic"]["bfs"]["steps"][0]["shards"][0][
+            "remote_parent_messages"
+        ] = 4
+        second["runtime_traffic"]["bfs"]["steps"][0]["shards"][0][
+            "remote_parent_bytes"
+        ] = 16
+        second["runtime_traffic"]["bfs"][
+            "remote_parent_messages"
+        ] = 4
+        second["runtime_traffic"]["bfs"][
+            "remote_parent_bytes"
+        ] = 16
+        with self.assertRaisesRegex(
+            RuntimeError, "changed for identical"
+        ):
+            summarize_phase2_policy([first, second])
+
+    def test_frozen_runtime_traffic_is_compact_and_auditable(self):
+        compact = compact_runtime_traffic(
+            record("original")["runtime_traffic"])
+        self.assertNotIn("steps", compact["bfs"])
+        self.assertEqual(
+            compact["bfs"]["phase_totals"]["p-bsp-td"]
+            ["remote_parent_messages"],
+            5,
+        )
+        self.assertEqual(
+            compact["bfs"]["shards"][0]
+            ["cpu_ghost_sync_bytes"],
+            10,
+        )
+        self.assertEqual(
+            len(compact["bfs"]["steps_sha256"]), 64)
+
+    def test_freezer_rejects_stale_runtime_summaries(self):
+        import tempfile
+
+        project_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory(
+            dir=project_root / "results"
+        ) as raw_temp:
+            root = Path(raw_temp)
+            records = []
+            for threads in (1, 32):
+                for repeat in (0, 1):
+                    item = record("original", threads=threads)
+                    item["repeat"] = repeat
+                    records.append(item)
+                    run_dir = (
+                        root
+                        / "tiny"
+                        / f"original-t{threads}-r{repeat}"
+                    )
+                    run_dir.mkdir(parents=True)
+                    (run_dir / "stdout.log").write_text("ok\n")
+                    (run_dir / "stderr.log").write_text("")
+                    (run_dir / "benchmarks.json").write_text("[]\n")
+            policies = [PHASE2_POLICIES["original"]]
+            summaries = summarize_graph_records(
+                records, policies, DEFAULT_MAX_SHARD_BYTES)
+            graph_result = {
+                "graph": "tiny",
+                "category": "road",
+                "size_tier": "smoke",
+                "path": "tiny.sg",
+                "graph_identity": {},
+                "summaries": summaries,
+                "summaries_by_policy": {
+                    "original": summaries[0],
+                },
+                "records": records,
+            }
+            aggregate = summarize_corpus(
+                [graph_result], ["original"])
+            summary = {
+                "correct": True,
+                "determinism_complete": True,
+                "schema": "graphbrew.partition_cut.phase2.v1",
+                "preset": "smoke",
+                "graphs": [{"name": "tiny"}],
+                "partitions": 1,
+                "balance": "total",
+                "source": 0,
+                "threads": [1, 32],
+                "repeats": 2,
+                "policies": [{"name": "original"}],
+                "max_shard_bytes": DEFAULT_MAX_SHARD_BYTES,
+                "valid": True,
+                "determinism_passed": True,
+                "graph_results": [graph_result],
+                "aggregates": aggregate,
+            }
+            path = root / "phase2_summary.json"
+            path.write_text(json.dumps(summary))
+            freeze_matrix("test", path)
+            summary["graph_results"][0]["summaries"][0][
+                "bfs_cpu_total_bytes"
+            ] += 1
+            path.write_text(json.dumps(summary))
+            with self.assertRaisesRegex(
+                RuntimeError, "stale policy summaries"
+            ):
+                freeze_matrix("test", path)
 
     def test_determinism_classifies_thread_and_repeat_variation(self):
         deterministic = [

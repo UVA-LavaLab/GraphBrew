@@ -530,10 +530,12 @@ def prepare_graphs(
 
 
 def geometric_mean(values: list[float]) -> float:
-    if not values or any(value <= 0 for value in values):
+    if not values or any(value < 0 for value in values):
         raise ValueError(
-            "geometric mean requires positive values"
+            "geometric mean requires nonnegative values"
         )
+    if any(value == 0 for value in values):
+        return 0.0
     if any(math.isinf(value) for value in values):
         return float("inf")
     return math.exp(
@@ -611,9 +613,431 @@ def _range(values: list[float]) -> dict[str, float]:
     }
 
 
+RUNTIME_TRAFFIC_SCHEMA = "graphbrew.partition_runtime_traffic.v1"
+UINT64_MAX = (1 << 64) - 1
+
+
+def _traffic_dict(
+    value: Any,
+    path: str,
+) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise RuntimeError(
+            f"Phase 2 runtime traffic {path} is not an object"
+        )
+    return value
+
+
+def _traffic_list(
+    value: Any,
+    path: str,
+) -> list[Any]:
+    if not isinstance(value, list):
+        raise RuntimeError(
+            f"Phase 2 runtime traffic {path} is not an array"
+        )
+    return value
+
+
+def _traffic_uint(
+    value: Any,
+    path: str,
+) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value < 0
+        or value > UINT64_MAX
+    ):
+        raise RuntimeError(
+            f"Phase 2 runtime traffic {path} "
+            "must be a nonnegative integer"
+        )
+    return value
+
+
+def _traffic_product(
+    lhs: int,
+    rhs: int,
+    path: str,
+) -> int:
+    result = lhs * rhs
+    if result > UINT64_MAX:
+        raise RuntimeError(
+            f"Phase 2 runtime traffic {path} overflows uint64"
+        )
+    return result
+
+
+def _traffic_add(
+    lhs: int,
+    rhs: int,
+    path: str,
+) -> int:
+    result = lhs + rhs
+    if result > UINT64_MAX:
+        raise RuntimeError(
+            f"Phase 2 runtime traffic {path} overflows uint64"
+        )
+    return result
+
+
+def _require_traffic_equal(
+    actual: int,
+    expected: int,
+    path: str,
+) -> None:
+    if actual != expected:
+        raise RuntimeError(
+            f"Phase 2 runtime traffic {path} mismatch: "
+            f"{actual} != {expected}"
+        )
+
+
+def validate_runtime_traffic(
+    record: dict[str, Any],
+) -> dict[str, Any]:
+    traffic = record.get("runtime_traffic")
+    if not isinstance(traffic, dict):
+        raise RuntimeError(
+            "Phase 2 record lacks runtime traffic"
+        )
+    if traffic.get("schema") != RUNTIME_TRAFFIC_SCHEMA:
+        raise RuntimeError(
+            "Phase 2 record has unknown runtime traffic schema"
+        )
+    ghost_slots = _traffic_uint(
+        traffic.get("ghost_slots"), "ghost_slots")
+    if "ghost_count" in record:
+        _require_traffic_equal(
+            ghost_slots,
+            _traffic_uint(record["ghost_count"], "record.ghost_count"),
+            "ghost_slots",
+        )
+
+    projection = _traffic_dict(
+        traffic.get("graphblox_projection"),
+        "graphblox_projection",
+    )
+    projection_fields = {
+        "bfs_bytes_per_superstep": _traffic_product(
+            ghost_slots, 8, "graphblox_projection"),
+        "pr_bytes_per_iteration": _traffic_product(
+            ghost_slots, 4, "graphblox_projection"),
+        "cc_bytes_per_iteration": _traffic_product(
+            ghost_slots, 4, "graphblox_projection"),
+        "spmv_initial_bytes": _traffic_product(
+            ghost_slots, 4, "graphblox_projection"),
+    }
+    for field, expected in projection_fields.items():
+        _require_traffic_equal(
+            _traffic_uint(
+                projection.get(field),
+                f"graphblox_projection.{field}",
+            ),
+            expected,
+            f"graphblox_projection.{field}",
+        )
+
+    projection_shards = _traffic_list(
+        projection.get("shards"),
+        "graphblox_projection.shards",
+    )
+    if not projection_shards:
+        raise RuntimeError(
+            "Phase 2 runtime traffic has no shard projections"
+        )
+    projection_by_shard: dict[int, dict[str, int]] = {}
+    projection_sums = {
+        "ghost_slots": 0,
+        **{field: 0 for field in projection_fields},
+    }
+    for raw_shard in projection_shards:
+        shard = _traffic_dict(
+            raw_shard, "graphblox_projection.shards[]")
+        shard_id = _traffic_uint(
+            shard.get("shard_id"),
+            "graphblox_projection.shards[].shard_id",
+        )
+        if shard_id in projection_by_shard:
+            raise RuntimeError(
+                "Phase 2 runtime traffic has duplicate shard projections"
+            )
+        shard_ghosts = _traffic_uint(
+            shard.get("ghost_slots"),
+            f"graphblox_projection.shards[{shard_id}].ghost_slots",
+        )
+        expected_shard = {
+            "ghost_slots": shard_ghosts,
+            "bfs_bytes_per_superstep": _traffic_product(
+                shard_ghosts, 8, "shard projection"),
+            "pr_bytes_per_iteration": _traffic_product(
+                shard_ghosts, 4, "shard projection"),
+            "cc_bytes_per_iteration": _traffic_product(
+                shard_ghosts, 4, "shard projection"),
+            "spmv_initial_bytes": _traffic_product(
+                shard_ghosts, 4, "shard projection"),
+        }
+        for field, expected in expected_shard.items():
+            actual = _traffic_uint(
+                shard.get(field),
+                (
+                    "graphblox_projection."
+                    f"shards[{shard_id}].{field}"
+                ),
+            )
+            _require_traffic_equal(
+                actual,
+                expected,
+                (
+                    "graphblox_projection."
+                    f"shards[{shard_id}].{field}"
+                ),
+            )
+            projection_sums[field] = _traffic_add(
+                projection_sums[field],
+                actual,
+                f"graphblox_projection.shards.{field}",
+            )
+        projection_by_shard[shard_id] = expected_shard
+    if sorted(projection_by_shard) != \
+            list(range(len(projection_by_shard))):
+        raise RuntimeError(
+            "Phase 2 runtime traffic shard IDs are not contiguous"
+        )
+    _require_traffic_equal(
+        projection_sums["ghost_slots"],
+        ghost_slots,
+        "graphblox_projection.shards.ghost_slots",
+    )
+    for field, expected in projection_fields.items():
+        _require_traffic_equal(
+            projection_sums[field],
+            expected,
+            f"graphblox_projection.shards.{field}",
+        )
+
+    bfs = _traffic_dict(traffic.get("bfs"), "bfs")
+    steps = _traffic_list(bfs.get("steps"), "bfs.steps")
+    supersteps = _traffic_uint(
+        bfs.get("supersteps"), "bfs.supersteps")
+    _require_traffic_equal(
+        supersteps, len(steps), "bfs.supersteps")
+    if "max_depth" in record:
+        _require_traffic_equal(
+            supersteps,
+            _traffic_add(
+                _traffic_uint(
+                    record["max_depth"], "record.max_depth"),
+                1,
+                "record.max_depth",
+            ),
+            "bfs.supersteps",
+        )
+    aggregate = {
+        "cpu_ghost_sync_bytes": 0,
+        "remote_parent_messages": 0,
+        "remote_parent_bytes": 0,
+        "graphblox_halo_bytes": 0,
+    }
+    for expected_step, raw_step in enumerate(steps):
+        step = _traffic_dict(raw_step, f"bfs.steps[{expected_step}]")
+        _require_traffic_equal(
+            _traffic_uint(
+                step.get("step"),
+                f"bfs.steps[{expected_step}].step",
+            ),
+            expected_step,
+            f"bfs.steps[{expected_step}].step",
+        )
+        phase = step.get("phase")
+        if phase not in {"p-bsp-td", "p-bsp-bu"}:
+            raise RuntimeError(
+                f"Phase 2 runtime traffic has invalid BFS phase {phase!r}"
+            )
+        step_shards = _traffic_list(
+            step.get("shards"),
+            f"bfs.steps[{expected_step}].shards",
+        )
+        if len(step_shards) != len(projection_by_shard):
+            raise RuntimeError(
+                "Phase 2 runtime traffic BFS shard count mismatch"
+            )
+        step_totals = {
+            "cpu_ghost_sync_bytes": 0,
+            "remote_parent_messages": 0,
+            "remote_parent_bytes": 0,
+            "graphblox_halo_bytes": 0,
+        }
+        seen_shards: set[int] = set()
+        for raw_shard in step_shards:
+            shard = _traffic_dict(
+                raw_shard,
+                f"bfs.steps[{expected_step}].shards[]",
+            )
+            shard_id = _traffic_uint(
+                shard.get("shard_id"),
+                f"bfs.steps[{expected_step}].shards[].shard_id",
+            )
+            if (
+                shard_id not in projection_by_shard
+                or shard_id in seen_shards
+            ):
+                raise RuntimeError(
+                    "Phase 2 runtime traffic has invalid BFS shard IDs"
+                )
+            seen_shards.add(shard_id)
+            halo = projection_by_shard[shard_id]
+            expected_sync = (
+                halo["ghost_slots"]
+                if phase == "p-bsp-bu"
+                else 0
+            )
+            shard_values = {
+                "cpu_ghost_sync_bytes": _traffic_uint(
+                    shard.get("cpu_ghost_sync_bytes"),
+                    (
+                        f"bfs.steps[{expected_step}]."
+                        f"shards[{shard_id}].cpu_ghost_sync_bytes"
+                    ),
+                ),
+                "remote_parent_messages": _traffic_uint(
+                    shard.get("remote_parent_messages"),
+                    (
+                        f"bfs.steps[{expected_step}]."
+                        f"shards[{shard_id}].remote_parent_messages"
+                    ),
+                ),
+                "remote_parent_bytes": _traffic_uint(
+                    shard.get("remote_parent_bytes"),
+                    (
+                        f"bfs.steps[{expected_step}]."
+                        f"shards[{shard_id}].remote_parent_bytes"
+                    ),
+                ),
+                "graphblox_halo_bytes": _traffic_uint(
+                    shard.get("graphblox_halo_bytes"),
+                    (
+                        f"bfs.steps[{expected_step}]."
+                        f"shards[{shard_id}].graphblox_halo_bytes"
+                    ),
+                ),
+            }
+            _require_traffic_equal(
+                shard_values["cpu_ghost_sync_bytes"],
+                expected_sync,
+                "BFS per-shard ghost synchronization",
+            )
+            _require_traffic_equal(
+                shard_values["remote_parent_bytes"],
+                _traffic_product(
+                    shard_values["remote_parent_messages"],
+                    4,
+                    "BFS per-shard remote-parent bytes",
+                ),
+                "BFS per-shard remote-parent bytes",
+            )
+            if phase == "p-bsp-bu":
+                _require_traffic_equal(
+                    shard_values["remote_parent_messages"],
+                    0,
+                    "BFS bottom-up remote-parent messages",
+                )
+            _require_traffic_equal(
+                shard_values["graphblox_halo_bytes"],
+                halo["bfs_bytes_per_superstep"],
+                "BFS per-shard GraphBlox halo bytes",
+            )
+            for field, value in shard_values.items():
+                step_totals[field] = _traffic_add(
+                    step_totals[field],
+                    value,
+                    f"bfs.steps[{expected_step}].{field}",
+                )
+        for field, expected in step_totals.items():
+            actual = _traffic_uint(
+                step.get(field),
+                f"bfs.steps[{expected_step}].{field}",
+            )
+            _require_traffic_equal(
+                actual,
+                expected,
+                f"bfs.steps[{expected_step}].{field}",
+            )
+            aggregate[field] = _traffic_add(
+                aggregate[field],
+                actual,
+                f"bfs.{field}",
+            )
+    for field, expected in aggregate.items():
+        _require_traffic_equal(
+            _traffic_uint(bfs.get(field), f"bfs.{field}"),
+            expected,
+            f"bfs.{field}",
+        )
+    _require_traffic_equal(
+        _traffic_uint(
+            bfs.get("cpu_ghost_sync_values"),
+            "bfs.cpu_ghost_sync_values",
+        ),
+        aggregate["cpu_ghost_sync_bytes"],
+        "bfs.cpu_ghost_sync_values",
+    )
+    _require_traffic_equal(
+        _traffic_product(
+            _traffic_uint(
+                bfs.get("graphblox_halo_values"),
+                "bfs.graphblox_halo_values",
+            ),
+            4,
+            "bfs.graphblox_halo_values",
+        ),
+        aggregate["graphblox_halo_bytes"],
+        "bfs.graphblox_halo_values",
+    )
+    _require_traffic_equal(
+        aggregate["graphblox_halo_bytes"],
+        _traffic_product(
+            projection_fields["bfs_bytes_per_superstep"],
+            supersteps,
+            "bfs.graphblox_halo_bytes",
+        ),
+        "bfs.graphblox_halo_bytes",
+    )
+    return traffic
+
+
+def runtime_traffic(record: dict[str, Any]) -> dict[str, Any]:
+    return validate_runtime_traffic(record)
+
+
+def validate_runtime_traffic_consistency(
+    records: list[dict[str, Any]],
+) -> None:
+    by_fingerprint: dict[
+        tuple[str, str, str, str],
+        dict[str, Any],
+    ] = {}
+    for record in records:
+        key = (
+            str(record["mapping_fingerprint"]),
+            str(record["shard_fingerprint"]),
+            str(record["ghost_fingerprint"]),
+            str(record["depth_fingerprint"]),
+        )
+        traffic = runtime_traffic(record)
+        previous = by_fingerprint.setdefault(key, traffic)
+        if traffic != previous:
+            raise RuntimeError(
+                "Phase 2 runtime traffic changed for identical "
+                "partition and BFS fingerprints"
+            )
+
+
 def summarize_phase2_policy(
     records: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    validate_runtime_traffic_consistency(records)
     summary = summarize_policy(records)
     quality_by_threads: dict[str, dict[str, dict[str, float]]] = {}
     for threads in sorted({int(record["threads"]) for record in records}):
@@ -649,6 +1073,13 @@ def summarize_phase2_policy(
                 )
                 for record in selected
             ]),
+            "bfs_graphblox_halo_bytes": _range([
+                float(
+                    runtime_traffic(record)["bfs"]
+                    ["graphblox_halo_bytes"]
+                )
+                for record in selected
+            ]),
         }
     primary_threads = int(summary["primary_threads"])
     primary = [
@@ -657,6 +1088,9 @@ def summarize_phase2_policy(
         if int(record["threads"]) == primary_threads
     ]
     first = primary[0]
+    primary_traffic = [
+        runtime_traffic(record) for record in primary
+    ]
     summary.update({
         "quality_by_threads": quality_by_threads,
         "quality_aggregation": "worst_repeat_at_primary_threads",
@@ -700,6 +1134,59 @@ def summarize_phase2_policy(
             )
             for record in records
         ),
+        "ghost_slots": max(
+            int(traffic["ghost_slots"])
+            for traffic in primary_traffic
+        ),
+        "bfs_supersteps": max(
+            int(traffic["bfs"]["supersteps"])
+            for traffic in primary_traffic
+        ),
+        "bfs_cpu_ghost_sync_bytes": max(
+            int(traffic["bfs"]["cpu_ghost_sync_bytes"])
+            for traffic in primary_traffic
+        ),
+        "bfs_remote_parent_bytes": max(
+            int(traffic["bfs"]["remote_parent_bytes"])
+            for traffic in primary_traffic
+        ),
+        "bfs_cpu_total_bytes": max(
+            int(traffic["bfs"]["cpu_ghost_sync_bytes"])
+            + int(traffic["bfs"]["remote_parent_bytes"])
+            for traffic in primary_traffic
+        ),
+        "bfs_graphblox_halo_bytes": max(
+            int(traffic["bfs"]["graphblox_halo_bytes"])
+            for traffic in primary_traffic
+        ),
+        "bfs_halo_bytes_per_superstep": max(
+            int(
+                traffic["graphblox_projection"]
+                ["bfs_bytes_per_superstep"]
+            )
+            for traffic in primary_traffic
+        ),
+        "pr_halo_bytes_per_iteration": max(
+            int(
+                traffic["graphblox_projection"]
+                ["pr_bytes_per_iteration"]
+            )
+            for traffic in primary_traffic
+        ),
+        "cc_halo_bytes_per_iteration": max(
+            int(
+                traffic["graphblox_projection"]
+                ["cc_bytes_per_iteration"]
+            )
+            for traffic in primary_traffic
+        ),
+        "spmv_initial_halo_bytes": max(
+            int(
+                traffic["graphblox_projection"]
+                ["spmv_initial_bytes"]
+            )
+            for traffic in primary_traffic
+        ),
         "mapping_fingerprint": first["mapping_fingerprint"],
         "source_topology_fingerprint":
             first["source_topology_fingerprint"],
@@ -708,6 +1195,149 @@ def summarize_phase2_policy(
         "depth_fingerprint": first["depth_fingerprint"],
     })
     return summary
+
+
+def add_runtime_relative_metrics(
+    summaries: list[dict[str, Any]],
+) -> None:
+    baseline = next(
+        summary
+        for summary in summaries
+        if summary["policy"] == "original"
+    )
+    fields = {
+        "bfs_cpu_ghost_sync_reduction":
+            "bfs_cpu_ghost_sync_bytes",
+        "bfs_remote_parent_reduction":
+            "bfs_remote_parent_bytes",
+        "bfs_cpu_total_reduction":
+            "bfs_cpu_total_bytes",
+        "bfs_halo_reduction":
+            "bfs_graphblox_halo_bytes",
+        "pr_halo_reduction":
+            "pr_halo_bytes_per_iteration",
+        "cc_halo_reduction":
+            "cc_halo_bytes_per_iteration",
+        "spmv_halo_reduction":
+            "spmv_initial_halo_bytes",
+    }
+
+    def reduction(
+        baseline_value: int,
+        value: int,
+    ) -> float | None:
+        if value > 0:
+            return baseline_value / value
+        return None if baseline_value > 0 else 1.0
+
+    for summary in summaries:
+        summary["runtime_reduction_encoding"] = (
+            "null means positive baseline traffic was eliminated"
+        )
+        for output_field, input_field in fields.items():
+            summary[output_field] = reduction(
+                int(baseline[input_field]),
+                int(summary[input_field]),
+            )
+
+
+def _runtime_reduction_value(value: Any) -> float:
+    return float("inf") if value is None else float(value)
+
+
+def _json_reduction(value: float) -> float | None:
+    return None if math.isinf(value) else value
+
+
+def summarize_graph_records(
+    records: list[dict[str, Any]],
+    policies: list[Policy],
+    max_shard_bytes: int,
+) -> list[dict[str, Any]]:
+    if not records:
+        raise RuntimeError("Phase 2 graph has no records")
+    policy_by_name = {policy.name: policy for policy in policies}
+    for record in records:
+        policy_name = str(record["policy"])
+        if policy_name not in policy_by_name:
+            raise RuntimeError(
+                f"unknown Phase 2 policy record {policy_name}"
+            )
+        validate_runtime_config(
+            policy_by_name[policy_name],
+            record.get("runtime_config", {}),
+        )
+    validate_cross_policy(records)
+    summaries = [
+        summarize_phase2_policy([
+            record
+            for record in records
+            if record["policy"] == policy.name
+        ])
+        for policy in policies
+    ]
+    add_relative_metrics(summaries)
+    add_runtime_relative_metrics(summaries)
+    for summary in summaries:
+        summary["absolute_capacity_limit"] = max_shard_bytes or None
+        summary["passes_absolute_capacity_gate"] = (
+            max_shard_bytes > 0
+            and int(summary["max_shard_bytes"]) <= max_shard_bytes
+        )
+        summary["passes_storage_balance_gate"] = (
+            float(summary["storage_imbalance"]) <= 1.10
+        )
+        summary["passes_direction_balance_gate"] = (
+            float(summary["max_edge_imbalance"]) <= 1.10
+        )
+        summary["passes_capacity_gate"] = (
+            bool(summary["passes_capacity_gate"])
+            and summary["passes_absolute_capacity_gate"]
+        )
+        policy_records = [
+            record
+            for record in records
+            if record["policy"] == summary["policy"]
+        ]
+        determinism = classify_determinism(policy_records)
+        summary.update({
+            "determinism_class": determinism["classification"],
+            "repeat_stable": determinism["repeat_stable"],
+            "cross_thread_stable":
+                determinism["cross_thread_stable"],
+            "determinism_evidence_complete":
+                determinism["evidence_complete"],
+            "repeat_stable_by_threads":
+                determinism["repeat_stable_by_threads"],
+        })
+        runtime_configs = [
+            record.get("runtime_config", {})
+            for record in policy_records
+        ]
+        fallback_runs = sum(
+            bool(config.get("cut_min_fallback"))
+            for config in runtime_configs
+        )
+        community_counts = [
+            int(config["communities"])
+            for config in runtime_configs
+            if "communities" in config
+        ]
+        summary.update({
+            "runtime_fallback_runs": fallback_runs,
+            "runtime_fallback_fraction":
+                fallback_runs / len(runtime_configs),
+            "runtime_policy_exact": fallback_runs == 0,
+            "community_count_range": (
+                {
+                    "min": min(community_counts),
+                    "max": max(community_counts),
+                }
+                if community_counts
+                else None
+            ),
+        })
+    return summaries
 
 
 def summarize_corpus(
@@ -726,6 +1356,50 @@ def summarize_corpus(
                 float(summary["ghost_reduction"]),
             )
             for summary in summaries
+        ]
+        bfs_halo_reductions = [
+            _runtime_reduction_value(
+                summary["bfs_halo_reduction"])
+            for summary in summaries
+        ]
+        bfs_cpu_reductions = [
+            _runtime_reduction_value(
+                summary["bfs_cpu_total_reduction"])
+            for summary in summaries
+        ]
+        bfs_ghost_sync_reductions = [
+            _runtime_reduction_value(
+                summary["bfs_cpu_ghost_sync_reduction"])
+            for summary in summaries
+        ]
+        bfs_remote_parent_reductions = [
+            _runtime_reduction_value(
+                summary["bfs_remote_parent_reduction"])
+            for summary in summaries
+        ]
+        pr_halo_reductions = [
+            _runtime_reduction_value(
+                summary["pr_halo_reduction"])
+            for summary in summaries
+        ]
+        cc_halo_reductions = [
+            _runtime_reduction_value(
+                summary["cc_halo_reduction"])
+            for summary in summaries
+        ]
+        spmv_halo_reductions = [
+            _runtime_reduction_value(
+                summary["spmv_halo_reduction"])
+            for summary in summaries
+        ]
+        runtime_reductions = [
+            *bfs_halo_reductions,
+            *bfs_cpu_reductions,
+            *bfs_ghost_sync_reductions,
+            *bfs_remote_parent_reductions,
+            *pr_halo_reductions,
+            *cc_halo_reductions,
+            *spmv_halo_reductions,
         ]
         preprocess_ratios = [
             float(summary["preprocess_ratio"])
@@ -760,6 +1434,38 @@ def summarize_corpus(
             "geomean_combined_reduction": geometric_mean(
                 combined_reductions
             ),
+            "runtime_reduction_encoding":
+                "null means positive baseline traffic was eliminated",
+            "geomean_bfs_halo_reduction": _json_reduction(
+                geometric_mean(bfs_halo_reductions)),
+            "geomean_bfs_cpu_total_reduction": _json_reduction(
+                geometric_mean(bfs_cpu_reductions)),
+            "geomean_bfs_cpu_ghost_sync_reduction": _json_reduction(
+                geometric_mean(bfs_ghost_sync_reductions)),
+            "geomean_bfs_remote_parent_reduction": _json_reduction(
+                geometric_mean(bfs_remote_parent_reductions)),
+            "geomean_pr_halo_reduction": _json_reduction(
+                geometric_mean(pr_halo_reductions)),
+            "geomean_cc_halo_reduction": _json_reduction(
+                geometric_mean(cc_halo_reductions)),
+            "geomean_spmv_halo_reduction": _json_reduction(
+                geometric_mean(spmv_halo_reductions)),
+            "worst_bfs_halo_reduction": _json_reduction(
+                min(bfs_halo_reductions)),
+            "worst_bfs_cpu_total_reduction": _json_reduction(
+                min(bfs_cpu_reductions)),
+            "worst_bfs_cpu_ghost_sync_reduction": _json_reduction(
+                min(bfs_ghost_sync_reductions)),
+            "worst_bfs_remote_parent_reduction": _json_reduction(
+                min(bfs_remote_parent_reductions)),
+            "worst_pr_halo_reduction": _json_reduction(
+                min(pr_halo_reductions)),
+            "worst_cc_halo_reduction": _json_reduction(
+                min(cc_halo_reductions)),
+            "worst_spmv_halo_reduction": _json_reduction(
+                min(spmv_halo_reductions)),
+            "worst_runtime_traffic_reduction": _json_reduction(
+                min(runtime_reductions)),
             "worst_combined_reduction": min(
                 combined_reductions
             ),
@@ -806,6 +1512,9 @@ def summarize_corpus(
             aggregate["stable_on_all_graphs"]
             and aggregate["geomean_combined_reduction"] >= 1.5
             and aggregate["worst_combined_reduction"] >= (1.0 / 1.10)
+            and _runtime_reduction_value(
+                aggregate["worst_runtime_traffic_reduction"]) >=
+                (1.0 / 1.10)
             and aggregate["max_shard_ratio"] <= 1.10
             and aggregate["max_balance_imbalance"] <= 1.05
             and aggregate["max_storage_imbalance"] <= 1.10
@@ -821,9 +1530,13 @@ def summarize_corpus(
 def _print_corpus_summary(
     aggregates: list[dict[str, Any]],
 ) -> None:
+    def runtime_value(value: Any, width: int) -> str:
+        text = "elim" if value is None else f"{float(value):.2f}"
+        return f"{text:<{width}}"
+
     print(
-        "policy          stable geo_cut geo_ghost worst_cut "
-        "max_shard storage max_work max_prep exact universal"
+        "policy          stable geo_cut geo_ghost bfs_cpu bfs_halo "
+        "worst_rt max_shard storage max_work max_prep exact universal"
     )
     for summary in aggregates:
         print(
@@ -831,7 +1544,9 @@ def _print_corpus_summary(
             f"{str(summary['stable_on_all_graphs']):<6} "
             f"{summary['geomean_remote_reduction']:<7.2f} "
             f"{summary['geomean_ghost_reduction']:<9.2f} "
-            f"{summary['worst_combined_reduction']:<9.2f} "
+            f"{runtime_value(summary['geomean_bfs_cpu_total_reduction'], 7)} "
+            f"{runtime_value(summary['geomean_bfs_halo_reduction'], 8)} "
+            f"{runtime_value(summary['worst_runtime_traffic_reduction'], 8)} "
             f"{summary['max_shard_ratio']:<9.3f} "
             f"{summary['max_storage_imbalance']:<7.3f} "
             f"{summary['max_balance_imbalance']:<8.3f} "
@@ -1050,94 +1765,12 @@ def main() -> int:
         }
         records = validate_record_matrix(
             records, expected_metadata)
-        policy_by_name = {
-            policy.name: policy
-            for policy in selected_policies
-        }
-        for record in records:
-            policy_name = str(record["policy"])
-            validate_runtime_config(
-                policy_by_name[policy_name],
-                record.get("runtime_config", {}),
-            )
-        validate_cross_policy(records)
-        summaries = [
-            summarize_phase2_policy([
-                record
-                for record in records
-                if record["policy"] == policy.name
-            ])
-            for policy in selected_policies
-        ]
-        add_relative_metrics(summaries)
+        summaries = summarize_graph_records(
+            records,
+            selected_policies,
+            args.max_shard_bytes,
+        )
         for summary in summaries:
-            summary["absolute_capacity_limit"] = (
-                args.max_shard_bytes or None
-            )
-            summary["passes_absolute_capacity_gate"] = (
-                args.max_shard_bytes > 0
-                and int(summary["max_shard_bytes"])
-                <= args.max_shard_bytes
-            )
-            summary["passes_storage_balance_gate"] = (
-                float(summary["storage_imbalance"]) <= 1.10
-            )
-            summary["passes_direction_balance_gate"] = (
-                float(summary["max_edge_imbalance"]) <= 1.10
-            )
-            summary["passes_capacity_gate"] = (
-                bool(summary["passes_capacity_gate"])
-                and summary["passes_absolute_capacity_gate"]
-            )
-            policy_records = [
-                record
-                for record in records
-                if record["policy"] == summary["policy"]
-            ]
-            determinism = classify_determinism(
-                policy_records
-            )
-            summary["determinism_class"] = determinism[
-                "classification"
-            ]
-            summary["repeat_stable"] = determinism[
-                "repeat_stable"
-            ]
-            summary["cross_thread_stable"] = determinism[
-                "cross_thread_stable"
-            ]
-            summary["determinism_evidence_complete"] = determinism[
-                "evidence_complete"
-            ]
-            summary["repeat_stable_by_threads"] = determinism[
-                "repeat_stable_by_threads"
-            ]
-            runtime_configs = [
-                record.get("runtime_config", {})
-                for record in policy_records
-            ]
-            fallback_runs = sum(
-                bool(config.get("cut_min_fallback"))
-                for config in runtime_configs
-            )
-            community_counts = [
-                int(config["communities"])
-                for config in runtime_configs
-                if "communities" in config
-            ]
-            summary["runtime_fallback_runs"] = fallback_runs
-            summary["runtime_fallback_fraction"] = (
-                fallback_runs / len(runtime_configs)
-            )
-            summary["runtime_policy_exact"] = fallback_runs == 0
-            summary["community_count_range"] = (
-                {
-                    "min": min(community_counts),
-                    "max": max(community_counts),
-                }
-                if community_counts
-                else None
-            )
             if not summary["determinism_evidence_complete"]:
                 determinism_incomplete.append(
                     f"{graph.name}:{summary['policy']}"
@@ -1171,6 +1804,7 @@ def main() -> int:
                 graph_result,
                 indent=2,
                 sort_keys=True,
+                allow_nan=False,
             )
             + "\n"
         )
@@ -1210,7 +1844,13 @@ def main() -> int:
     }
     result_path = output_root / "phase2_summary.json"
     result_path.write_text(
-        json.dumps(result, indent=2, sort_keys=True) + "\n"
+        json.dumps(
+            result,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        )
+        + "\n"
     )
     _print_corpus_summary(aggregates)
     print(f"[partition-cut-p2] wrote {result_path}")

@@ -106,6 +106,7 @@ def _extract_record(
         "out_edge_imbalance": partition["out_edge_imbalance"],
         "in_edge_imbalance": partition["in_edge_imbalance"],
         "storage_imbalance": partition["storage_imbalance"],
+        "runtime_traffic": partition.get("runtime_traffic"),
         "mapping_fingerprint": partition["mapping_fingerprint"],
         "source_topology_fingerprint": partition["source_topology_fingerprint"],
         "shard_fingerprint": partition["shard_fingerprint"],
