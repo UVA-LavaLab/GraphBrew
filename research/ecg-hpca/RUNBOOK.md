@@ -92,6 +92,51 @@ python3 scripts/experiments/ecg/verify/smoke_coverage.py \
 
 Acceptance is exactly 120 valid rows: 3 simulators x 5 algorithms x 8 policies.
 
+## Three-real-graph cross-simulator matrix
+
+This no-prefetch comparison runs web-Google, soc-pokec, and cit-Patents across
+cache_sim, gem5, and Sniper for PR/BFS/SSSP/BC/CC and the eight final policies.
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_realgraph_allalg \
+  --run-tag ecg_3sim_realgraph_allalg \
+  --out results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg.tsv
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_3sim_realgraph_allalg \
+  --only 24_sniper --benchmark pr --policy LRU \
+  --run-dir results/ecg_experiments/final_paper_runs/sniper_realgraph_calibration \
+  --no-build
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 9 --cache-sim-jobs 4 --gem5-jobs 4 --sniper-jobs 1
+
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-glob \
+    "results/ecg_experiments/final_paper_runs/local/ecg_3sim_realgraph_allalg/*" \
+  --run-root results/ecg_experiments/paper_pipeline/ecg_3sim_realgraph_allalg
+
+python3 scripts/experiments/ecg/verify/smoke_coverage.py \
+  --csv \
+    results/ecg_experiments/paper_pipeline/ecg_3sim_realgraph_allalg/aggregate/roi_matrix_all.csv \
+  --graph web-Google soc-pokec cit-Patents
+```
+
+Acceptance is exactly 360 valid rows. Use
+`aggregate/roi_relative_metrics.csv` for within-simulator LRU-normalized
+miss/timing comparisons; do not compare absolute miss rates across simulators.
+
+The calibration command must complete three rows before the full launch. The
+single-node defaults above are for this 32-core/62-GiB host: four gem5 jobs are
+safe because every shard has isolated sidebands, while Sniper remains at one
+job under its 20-GiB address-space cap. Reduce concurrency if memory pressure
+appears. BC K2 covers the forward Brandes traversal only; CC retains the
+artifact's undirected/symmetric graph contract.
+
 ## Inspect the blocked headline job
 
 ```bash

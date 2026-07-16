@@ -171,6 +171,7 @@ def test_streamshield_manifest_is_complete():
     assert "streamshield_sniper_realgraph" in manifest["profiles"]
     assert "ecg_cache_sim_factorial" in manifest["profiles"]
     assert "ecg_3sim_allalg_smoke" in manifest["profiles"]
+    assert "ecg_3sim_realgraph_allalg" in manifest["profiles"]
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
     assert "ecg_preliminary_5alg_stride" in manifest["profiles"]
@@ -239,6 +240,18 @@ def test_streamshield_manifest_is_complete():
     smoke_options = manifest["benchmark_options"]["synthetic_kron12_all"]
     assert smoke_options["bfs"].endswith("-r 0")
     assert smoke_options["sssp"].endswith("-r 0")
+    realgraph_stages = [
+        stage for stage in manifest["stages"]
+        if "ecg_3sim_realgraph_allalg" in stage.get("profiles", [])]
+    assert {stage["suite"] for stage in realgraph_stages} == {
+        "cache-sim", "gem5", "sniper"}
+    assert all(stage["graph_set"] == "factorial_graphs"
+               for stage in realgraph_stages)
+    assert all(
+        stage["benchmarks"] == ["pr", "bfs", "sssp", "bc", "cc"]
+        for stage in realgraph_stages)
+    assert all(len(stage["policies"]) == 8 for stage in realgraph_stages)
+    assert all(stage["prefetcher"] == "none" for stage in realgraph_stages)
     preliminary = [
         stage for stage in manifest["stages"]
         if stage["name"] in {
@@ -459,6 +472,7 @@ def test_final_design_docs_and_run_flow_are_consistent():
     assert "Static StreamShield beats normal LLC allocation on all 15" in readme
     for profile in (
             "ecg_3sim_allalg_smoke",
+            "ecg_3sim_realgraph_allalg",
             "ecg_replacement_baseline",
             "ecg_cache_sim_factorial",
             "ecg_streamshield_generality"):
@@ -468,6 +482,7 @@ def test_final_design_docs_and_run_flow_are_consistent():
 
     assert "## Method guide" in wiki
     assert "### Full 3-simulator smoke" in wiki
+    assert "### Three-real-graph cross-simulator matrix" in wiki
     assert "3 simulators x 5 algorithms x 8 policies = 120 rows" in wiki
     assert "smoke_coverage.py" in wiki
     for method in (
@@ -478,6 +493,8 @@ def test_final_design_docs_and_run_flow_are_consistent():
 
     assert "## Final run order" in runbook
     assert "## Full 3-simulator/all-algorithm smoke" in runbook
+    assert "## Three-real-graph cross-simulator matrix" in runbook
+    assert "Acceptance is exactly 360 valid rows" in runbook
     assert "Acceptance is exactly 120 valid rows" in runbook
     assert "## Full-iteration headline matrix (blocked)" in runbook
     assert "Do not launch this profile" in runbook

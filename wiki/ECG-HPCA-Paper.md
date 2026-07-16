@@ -230,6 +230,7 @@ Canonical profiles:
 |---|---|
 | `ecg_smoke` | Fast cache_sim check including online K2 |
 | `ecg_3sim_allalg_smoke` | 3 simulators x 5 algorithms x 8 final policies |
+| `ecg_3sim_realgraph_allalg` | 3 simulators x 3 real graphs x 5 algorithms x 8 policies |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
@@ -321,6 +322,39 @@ Expected coverage:
 
 On a larger host, increase `--gem5-jobs` and `--sniper-jobs`; each shard has
 isolated sidebands and locks.
+
+### Three-real-graph cross-simulator matrix
+
+The real-graph comparison expands to 360 rows:
+
+```text
+3 simulators x 3 graphs x 5 algorithms x 8 policies
+```
+
+Use profile `ecg_3sim_realgraph_allalg` with the shard flow above. The graphs
+are web-Google, soc-pokec, and cit-Patents; prefetching is disabled so the
+comparison isolates replacement and StreamShield.
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_realgraph_allalg \
+  --run-tag ecg_3sim_realgraph_allalg \
+  --out results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 9 --cache-sim-jobs 4 --gem5-jobs 4 --sniper-jobs 1
+```
+
+Calibrate Sniper LRU/PR on all three graphs before the full launch. Per-shard
+sidebands make bounded gem5 parallelism safe; Sniper remains serialized under
+its 20-GiB cap. Interpret `roi_relative_metrics.csv` within each simulator
+relative to LRU; absolute cache_sim, gem5, and Sniper miss rates are not
+directly comparable. BC K2 covers the forward Brandes traversal; CC retains
+the undirected/symmetric graph contract.
+
+### Other profiles
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \

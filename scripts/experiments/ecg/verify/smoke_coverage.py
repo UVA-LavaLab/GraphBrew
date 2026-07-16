@@ -12,6 +12,7 @@ from pathlib import Path
 
 SIMULATORS = ("cache_sim", "gem5", "sniper")
 BENCHMARKS = ("pr", "bfs", "sssp", "bc", "cc")
+DEFAULT_GRAPHS = ("kron_s12_k4",)
 POLICIES = (
     "LRU", "SRRIP", "GRASP", "POPT",
     "ECG_K2", "ECG_K2_ONLINE",
@@ -19,6 +20,12 @@ POLICIES = (
 )
 K2_POLICIES = set(POLICIES[4:])
 SS_POLICIES = {"ECG_K2_STREAMSHIELD", "ECG_K2_ONLINE_STREAMSHIELD"}
+
+
+def row_name(row: dict[str, str]) -> str:
+    return (
+        f"{row.get('simulator')}/{row.get('final_graph')}/"
+        f"{row.get('benchmark')}/{row.get('policy_label')}")
 
 
 def number(row: dict[str, str], field: str) -> float | None:
@@ -35,21 +42,24 @@ def require_number(
         *, positive: bool = False) -> None:
     value = number(row, field)
     if value is None or (positive and value <= 0):
-        errors.append(
-            f"{row.get('simulator')}/{row.get('benchmark')}/"
-            f"{row.get('policy_label')}: missing {field}")
+        errors.append(f"{row_name(row)}: missing {field}")
 
 
-def validate(rows: list[dict[str, str]]) -> list[str]:
+def validate(
+        rows: list[dict[str, str]],
+        graphs: tuple[str, ...] = DEFAULT_GRAPHS) -> list[str]:
     errors: list[str] = []
     expected_cells = {
-        (simulator, benchmark)
-        for simulator in SIMULATORS for benchmark in BENCHMARKS
+        (simulator, graph, benchmark)
+        for simulator in SIMULATORS
+        for graph in graphs
+        for benchmark in BENCHMARKS
     }
-    grouped: dict[tuple[str, str], set[str]] = defaultdict(set)
+    grouped: dict[tuple[str, str, str], set[str]] = defaultdict(set)
 
     for row in rows:
         simulator = row.get("simulator", "")
+        graph = row.get("final_graph", "")
         benchmark = row.get("benchmark", "")
         policy = row.get("policy_label", "")
         if simulator not in SIMULATORS:
@@ -61,24 +71,20 @@ def validate(rows: list[dict[str, str]]) -> list[str]:
         if policy not in POLICIES:
             errors.append(f"unexpected policy={policy!r}")
             continue
-        grouped[(simulator, benchmark)].add(policy)
-        if row.get("final_graph") != "kron_s12_k4":
-            errors.append(
-                f"{simulator}/{benchmark}/{policy}: unexpected graph="
-                f"{row.get('final_graph')!r}")
+        if graph not in graphs:
+            errors.append(f"{row_name(row)}: unexpected graph={graph!r}")
+        grouped[(simulator, graph, benchmark)].add(policy)
         for field in ("l3_size", "l3_ways", "timing_model"):
             if not row.get(field):
-                errors.append(
-                    f"{simulator}/{benchmark}/{policy}: missing {field}")
+                errors.append(f"{row_name(row)}: missing {field}")
         if row.get("status") != "ok":
-            errors.append(
-                f"{simulator}/{benchmark}/{policy}: status={row.get('status')}")
+            errors.append(f"{row_name(row)}: status={row.get('status')}")
         if row.get("final_output_status", "ok") != "ok":
             errors.append(
-                f"{simulator}/{benchmark}/{policy}: "
+                f"{row_name(row)}: "
                 f"final_output_status={row.get('final_output_status')}")
         if str(row.get("l3_exercised", "")).lower() not in ("1", "true"):
-            errors.append(f"{simulator}/{benchmark}/{policy}: L3 not exercised")
+            errors.append(f"{row_name(row)}: L3 not exercised")
         require_number(errors, row, "l3_misses", positive=True)
         require_number(errors, row, "l3_miss_rate")
         require_number(errors, row, "timing_valid_for_speedup")
@@ -108,38 +114,35 @@ def validate(rows: list[dict[str, str]]) -> list[str]:
 
         if policy in K2_POLICIES:
             if number(row, "ecg_schedule_k") != 2:
-                errors.append(
-                    f"{simulator}/{benchmark}/{policy}: schedule_k != 2")
+                errors.append(f"{row_name(row)}: schedule_k != 2")
             if number(row, "ecg_epochs_effective") != 32768:
-                errors.append(
-                    f"{simulator}/{benchmark}/{policy}: effective epochs != 32768")
+                errors.append(f"{row_name(row)}: effective epochs != 32768")
             if simulator == "gem5":
                 expected = (
                     "ecg.stream.load2" if policy in SS_POLICIES
                     else "ecg.load2")
                 if row.get("gem5_ecg_delivery") != expected:
                     errors.append(
-                        f"gem5/{benchmark}/{policy}: delivery="
+                        f"{row_name(row)}: delivery="
                         f"{row.get('gem5_ecg_delivery')!r}, expected={expected!r}")
                 if (policy in SS_POLICIES and
                         not (number(
                             row, "gem5_stream_bypass_trace_events") or 0) > 0):
                     errors.append(
-                        f"gem5/{benchmark}/{policy}: bypass trace missing")
+                        f"{row_name(row)}: bypass trace missing")
             if simulator == "sniper":
                 if row.get("sniper_ecg_delivery") != "fused-k2-model":
-                    errors.append(
-                        f"sniper/{benchmark}/{policy}: fused delivery missing")
+                    errors.append(f"{row_name(row)}: fused delivery missing")
                 require_number(
                     errors, row, "sniper_fused_k2_receipts", positive=True)
                 bad_receipts = number(row, "sniper_fused_k2_bad_receipts")
                 if bad_receipts is None:
                     errors.append(
-                        f"sniper/{benchmark}/{policy}: "
+                        f"{row_name(row)}: "
                         "missing sniper_fused_k2_bad_receipts")
                 elif bad_receipts != 0:
                     errors.append(
-                        f"sniper/{benchmark}/{policy}: "
+                        f"{row_name(row)}: "
                         f"bad fused receipts={bad_receipts:g}")
                 if policy in SS_POLICIES:
                     require_number(
@@ -149,16 +152,19 @@ def validate(rows: list[dict[str, str]]) -> list[str]:
                         errors, row, "sniper_stream_bypass_writes",
                         positive=True)
 
-    if len(rows) != 120:
-        errors.append(f"expected 120 rows, found {len(rows)}")
+    expected_rows = (
+        len(SIMULATORS) * len(graphs) * len(BENCHMARKS) * len(POLICIES))
+    if len(rows) != expected_rows:
+        errors.append(f"expected {expected_rows} rows, found {len(rows)}")
     if set(grouped) != expected_cells:
         errors.append(
-            f"expected 15 simulator/benchmark cells, found {len(grouped)}")
+            f"expected {len(expected_cells)} simulator/graph/benchmark cells, "
+            f"found {len(grouped)}")
     for cell in sorted(expected_cells):
         actual = grouped.get(cell, set())
         if actual != set(POLICIES):
             errors.append(
-                f"{cell[0]}/{cell[1]} policy set mismatch: "
+                f"{cell[0]}/{cell[1]}/{cell[2]} policy set mismatch: "
                 f"missing={sorted(set(POLICIES) - actual)} "
                 f"extra={sorted(actual - set(POLICIES))}")
     return errors
@@ -168,21 +174,27 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Validate final ECG 3-sim/all-alg smoke coverage.")
     parser.add_argument("--csv", required=True)
+    parser.add_argument(
+        "--graph", nargs="+", default=list(DEFAULT_GRAPHS),
+        help="Expected graph names. Defaults to the bounded smoke graph.")
     args = parser.parse_args()
     path = Path(args.csv)
     with path.open(newline="") as handle:
         rows = list(csv.DictReader(handle))
-    errors = validate(rows)
+    graphs = tuple(dict.fromkeys(args.graph))
+    errors = validate(rows, graphs)
     counts = Counter(row.get("simulator", "") for row in rows)
     print(
         f"[smoke-coverage] rows={len(rows)} "
         f"cache_sim={counts['cache_sim']} gem5={counts['gem5']} "
-        f"sniper={counts['sniper']}")
+        f"sniper={counts['sniper']} graphs={','.join(graphs)}")
     if errors:
         for error in errors:
             print(f"[FAIL] {error}")
         return 1
-    print("[smoke-coverage] PASS: all 120 required rows and metrics are present")
+    print(
+        f"[smoke-coverage] PASS: all {len(rows)} required rows and metrics "
+        "are present")
     return 0
 
 
