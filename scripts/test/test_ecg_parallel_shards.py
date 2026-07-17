@@ -145,6 +145,19 @@ def test_sampled_3sim_realgraph_expands_to_360_shards(tmp_path):
 
 def test_sniper_600m_expands_to_120_shards(tmp_path):
     shards = tmp_path / "sniper_600m.tsv"
+    blocked = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/slurm/make_slurm_shards.py",
+            "--profile", "ecg_sniper_realgraph_600m",
+            "--run-tag", "sniper_600m",
+            "--out", str(shards),
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, check=False)
+    assert blocked.returncode != 0
+    assert "is blocked" in blocked.stderr
+
     generated = subprocess.run(
         [
             sys.executable,
@@ -153,6 +166,7 @@ def test_sniper_600m_expands_to_120_shards(tmp_path):
             "--run-tag", "sniper_600m",
             "--out", str(shards),
             "--allow-missing-graphs",
+            "--allow-blocked",
         ],
         cwd=ROOT, capture_output=True, text=True, check=False)
     assert generated.returncode == 0, generated.stdout + generated.stderr

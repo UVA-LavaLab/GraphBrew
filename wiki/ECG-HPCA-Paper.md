@@ -233,7 +233,7 @@ Canonical profiles:
 | `ecg_3sim_realgraph_allalg` | 3 simulators x 3 real graphs x 5 algorithms x 8 policies |
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction detailed-simulator diagnostic |
 | `ecg_3sim_sampled_allalg` | Full-work matrix on deterministic real-graph samples |
-| `ecg_sniper_realgraph_600m` | Full-real-graph Sniper with a DROPLET-style 600M ROI |
+| `ecg_sniper_realgraph_600m` | Blocked DROPLET-style 600M full-graph plan |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
@@ -381,6 +381,8 @@ execution. Because K2 changes the instruction stream, these capped rows support
 cache/direction claims rather than speedup; sampled full-completion rows provide
 the equal-work timing comparison. The strict smoke gate validates fused
 transport separately so the 600M profile retains Sniper's normal cache warming.
+The profile is blocked because the pinned Sniper fork disables its original Pin
+frontend and warm SIFT K2 aborts in `queue_model_history`.
 
 ### Other profiles
 

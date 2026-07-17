@@ -58,7 +58,8 @@
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
 - Detailed-simulator confirmation of the real-graph online-selector result.
-- Completion of the paper-faithful full-graph Sniper 600M bounded-ROI matrix.
+- Port/build of Sniper's disabled original Pin frontend, or a fix for warm SIFT
+  K2's `queue_model_history` abort, before the full-graph 600M matrix can run.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.
 
 ## Prohibited until the pending gate passes

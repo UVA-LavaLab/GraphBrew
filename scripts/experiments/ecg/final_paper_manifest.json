@@ -744,6 +744,7 @@
       "name": "32_sniper_realgraph_600m",
       "kind": "roi_matrix",
       "profiles": ["ecg_sniper_realgraph_600m"],
+      "blocked_reason": "The pinned Sniper tree disables its original Pin frontend, so requested live runs silently use SIFT. Warm SIFT K2 aborts in queue_model_history on web-Google before ROI statistics. Port/build the Pin frontend or repair warm SIFT queueing before launching.",
       "suite": "sniper",
       "graph_set": "factorial_graphs",
       "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],

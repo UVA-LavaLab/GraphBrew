@@ -285,6 +285,7 @@ def test_streamshield_manifest_is_complete():
     assert sniper_600m["sniper_roi_icount"] == 600_000_000
     assert sniper_600m["sniper_frontend"] == "live"
     assert "sniper_require_fused_receipts" not in sniper_600m
+    assert "disables its original Pin frontend" in sniper_600m["blocked_reason"]
     preliminary = [
         stage for stage in manifest["stages"]
         if stage["name"] in {
@@ -445,6 +446,7 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
             "--run-tag", "ecg_successor_test",
             "--out", str(shards),
             "--allow-missing-graphs",
+            "--allow-blocked",
         ],
         cwd=ROOT,
         capture_output=True,

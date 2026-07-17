@@ -204,18 +204,23 @@ python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --out results/ecg_experiments/slurm/ecg_3sim_sampled_allalg.tsv
 ```
 
-The paper-faithful full-graph detailed profile is
+The planned paper-faithful full-graph detailed profile is
 `ecg_sniper_realgraph_600m`: live Sniper execution with graph loading outside
 the detailed ROI and 600 million detailed instructions, matching DROPLET's
 bounded methodology. Because K2 executes a different instruction stream than
 the baselines, capped rows are cache/direction diagnostics, not speedup claims.
+It is currently blocked: the pinned Sniper fork disables its original Pin
+frontend, while warm SIFT K2 aborts in `queue_model_history`.
 
 ```bash
 python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --profile ecg_sniper_realgraph_600m \
   --run-tag ecg_sniper_realgraph_600m \
-  --out results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv
+  --out results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv \
+  --allow-blocked
 ```
+
+This command is inspection-only while the manifest blocker remains.
 
 ### 6. Run cache_sim authority profiles
 
@@ -322,7 +327,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_3sim_realgraph_allalg` | 360-row three-simulator real-graph comparison |
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction gem5/Sniper diagnostic |
 | `ecg_3sim_sampled_allalg` | Full-work 3-simulator matrix on deterministic real-graph samples |
-| `ecg_sniper_realgraph_600m` | Full-real-graph Sniper with a 600M detailed ROI |
+| `ecg_sniper_realgraph_600m` | Blocked full-real-graph Sniper 600M ROI plan |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |

@@ -31,6 +31,11 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
             if args.only and not any(
                     token in str(stage["name"]) for token in args.only):
                 continue
+            settings = paper_run.merged_defaults(manifest, stage)
+            blocked_reason = str(settings.get("blocked_reason", ""))
+            if blocked_reason and not args.allow_blocked:
+                raise SystemExit(
+                    f"stage {stage['name']} is blocked: {blocked_reason}")
 
             graph_set_name = str(stage["graph_set"])
             if graph_set_name not in graph_sets:
@@ -84,6 +89,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=f"ecg_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     parser.add_argument("--out", required=True)
     parser.add_argument("--allow-missing-graphs", action="store_true")
+    parser.add_argument(
+        "--allow-blocked", action="store_true",
+        help="Generate inspection-only rows for a manifest-blocked stage.")
     parser.add_argument("--smoke", action="store_true")
     return parser.parse_args(argv)
 

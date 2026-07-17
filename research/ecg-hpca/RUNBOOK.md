@@ -227,26 +227,25 @@ GRASP simulated one representative high-activity iteration, and P-OPT used one
 PageRank iteration or sampled pull iterations. GraphBrew follows that precedent
 with full graphs and a bounded detailed ROI:
 
+**Blocked:** do not launch this profile. The pinned Sniper tree explicitly
+disables the original Pin frontend, so `run-sniper` defaults to SIFT even when
+the runner requests `live`. Warm SIFT LRU completes, but warm SIFT K2 aborts in
+`queue_model_history` on web-Google before ROI statistics. Unblock by porting
+and building the Pin frontend or repairing the warm SIFT queue model.
+
 ```bash
 python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --profile ecg_sniper_realgraph_600m \
   --run-tag ecg_sniper_realgraph_600m \
-  --out results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv
-
-python3 scripts/experiments/ecg/flows/run_local_shards.py \
-  --shards results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv \
-  --run-root results/ecg_experiments/final_paper_runs/local \
-  --jobs 4 --sniper-jobs 4
-
-python3 scripts/experiments/ecg/verify/smoke_coverage.py \
-  --csv results/ecg_experiments/paper_pipeline/ecg_sniper_realgraph_600m/aggregate/roi_matrix_all.csv \
-  --graph web-Google soc-pokec cit-Patents \
-  --simulator sniper --instruction-cap 600000000 \
-  --allow-unvalidated-fused-receipts
+  --out results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv \
+  --allow-blocked
 ```
 
-The profile uses the live frontend rather than SIFT trace generation. Pre-ROI
-execution is not part of the 600M detailed budget. Explicit property replay
+The generated TSV is inspection-only. Do not pass it to local or Slurm runners
+until the manifest blocker is removed.
+
+The planned profile uses the live frontend rather than SIFT trace generation.
+Pre-ROI execution is not part of the 600M detailed budget. Explicit property replay
 immediately before ROI supplements Sniper's normal cache-warming pass. Fused
 transport is validated separately by the strict 120-row smoke gate, avoiding a
 cold-start mechanism-proof mode in the performance profile. Capped rows set
@@ -425,7 +424,8 @@ mkdir -p results/slurm_logs results/ecg_experiments/slurm
 python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --profile streamshield_sniper_realgraph \
   --run-tag ecg_successor_webgoogle \
-  --out results/ecg_experiments/slurm/ecg_successor_webgoogle.tsv
+  --out results/ecg_experiments/slurm/ecg_successor_webgoogle.tsv \
+  --allow-blocked
 ```
 
 Submit on a configured cluster:
