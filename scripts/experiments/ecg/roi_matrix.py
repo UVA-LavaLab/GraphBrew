@@ -1839,12 +1839,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         log_path, sidebands)
     row["sniper_fused_k2_receipts"] = fused_count
     row["sniper_fused_k2_bad_receipts"] = fused_bad
-    if fused_k2 and (fused_count == 0 or fused_bad != 0):
+    if fused_validation and (fused_count == 0 or fused_bad != 0):
         row["timing_valid_for_speedup"] = "0"
         row["timing_caveat"] = (
-            "Fused K2 timing is not comparable with LRU: this row lacks "
-            "validated fused receipts and uses a different packed-record "
-            "software path.")
+            row.get("timing_caveat", "") +
+            " Fused K2 receipt validation failed.")
     if fused_validation and (fused_count == 0 or fused_bad != 0):
         row["status"] = "error"
         row["error"] = (

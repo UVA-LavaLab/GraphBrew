@@ -233,6 +233,7 @@ Canonical profiles:
 | `ecg_3sim_realgraph_allalg` | 3 simulators x 3 real graphs x 5 algorithms x 8 policies |
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction detailed-simulator diagnostic |
 | `ecg_3sim_sampled_allalg` | Full-work matrix on deterministic real-graph samples |
+| `ecg_sniper_realgraph_600m` | Full-real-graph Sniper with a DROPLET-style 600M ROI |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
@@ -367,6 +368,15 @@ cit-Patents. It preserves all five algorithms and eight final policies and is
 the fast cross-simulator comparison; full-graph cache_sim remains the authority.
 The Pokec sample has a larger LLC-per-vertex ratio than the full graph, so its
 sampled cache pressure is lower. Cit-Patents is symmetrized after sampling.
+
+Profile `ecg_sniper_realgraph_600m` is the paper-faithful full-graph detailed
+path: live Sniper execution, graph loading outside the detailed region, and a
+600M-instruction ROI. This follows DROPLET's bounded ROI precedent; GRASP and
+P-OPT similarly simulated representative iterations rather than full detailed
+execution. Because K2 changes the instruction stream, these capped rows support
+cache/direction claims rather than speedup; sampled full-completion rows provide
+the equal-work timing comparison. The strict smoke gate validates fused
+transport separately so the 600M profile retains Sniper's normal cache warming.
 
 ### Other profiles
 

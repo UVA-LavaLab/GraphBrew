@@ -174,6 +174,7 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_3sim_realgraph_allalg" in manifest["profiles"]
     assert "ecg_3sim_realgraph_allalg_1b" in manifest["profiles"]
     assert "ecg_3sim_sampled_allalg" in manifest["profiles"]
+    assert "ecg_sniper_realgraph_600m" in manifest["profiles"]
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
     assert "ecg_preliminary_5alg_stride" in manifest["profiles"]
@@ -277,6 +278,13 @@ def test_streamshield_manifest_is_complete():
     sampled_options = manifest["benchmark_options"]["file_all_kernels_root0"]
     assert sampled_options["bfs"].endswith("-r 0")
     assert sampled_options["sssp"].endswith("-r 0")
+    sniper_600m = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "32_sniper_realgraph_600m")
+    assert sniper_600m["graph_set"] == "factorial_graphs"
+    assert sniper_600m["sniper_roi_icount"] == 600_000_000
+    assert sniper_600m["sniper_frontend"] == "live"
+    assert "sniper_require_fused_receipts" not in sniper_600m
     preliminary = [
         stage for stage in manifest["stages"]
         if stage["name"] in {
@@ -520,6 +528,7 @@ def test_final_design_docs_and_run_flow_are_consistent():
             "ecg_3sim_realgraph_allalg",
             "ecg_3sim_realgraph_allalg_1b",
             "ecg_3sim_sampled_allalg",
+            "ecg_sniper_realgraph_600m",
             "ecg_replacement_baseline",
             "ecg_cache_sim_factorial",
             "ecg_streamshield_generality"):
@@ -802,12 +811,12 @@ def test_preliminary_policy_ranks_use_overhead_aware_misses():
     assert len(module.preliminary_policy_ranks(rows + stride_rows)) == 6
 
 
-def test_unvalidated_fused_k2_timing_is_not_speedup_valid():
+def test_requested_fused_receipt_validation_is_fail_closed():
     runner = (
         ROOT / "scripts/experiments/ecg/roi_matrix.py"
     ).read_text()
-    assert "if fused_k2 and (fused_count == 0 or fused_bad != 0)" in runner
-    assert "Fused K2 timing is not comparable with LRU" in runner
+    assert "if fused_validation and (fused_count == 0 or fused_bad != 0)" in runner
+    assert "Fused K2 receipt validation failed." in runner
 
 
 def test_all_five_kernels_use_fused_k2_delivery():

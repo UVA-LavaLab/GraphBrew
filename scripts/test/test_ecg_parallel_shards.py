@@ -143,6 +143,28 @@ def test_sampled_3sim_realgraph_expands_to_360_shards(tmp_path):
         "web-Google-n16", "soc-pokec-n16", "cit-Patents-n18-sym"}
 
 
+def test_sniper_600m_expands_to_120_shards(tmp_path):
+    shards = tmp_path / "sniper_600m.tsv"
+    generated = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/slurm/make_slurm_shards.py",
+            "--profile", "ecg_sniper_realgraph_600m",
+            "--run-tag", "sniper_600m",
+            "--out", str(shards),
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, check=False)
+    assert generated.returncode == 0, generated.stdout + generated.stderr
+    rows = [line.split("\t") for line in shards.read_text().splitlines()]
+    assert len(rows) == 120
+    assert {row[1] for row in rows} == {"32_sniper_realgraph_600m"}
+    assert {row[2] for row in rows} == {
+        "web-Google", "soc-pokec", "cit-Patents"}
+    assert {row[3] for row in rows} == {"pr", "bfs", "sssp", "bc", "cc"}
+    assert len({row[4] for row in rows}) == 8
+
+
 def test_slurm_shards_use_per_run_lock():
     source = (
         ROOT / "scripts/experiments/ecg/slurm/slurm_final_shard.sbatch"

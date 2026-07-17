@@ -220,6 +220,43 @@ The soc-pokec sample has 2.0 LLC bytes/vertex versus 1.28 for the full graph,
 so its sampled cache pressure is lower. Sample metadata counts pre-converter
 directed arcs; the symmetrized cit-Patents `.sg` contains both directions.
 
+### Paper-faithful full-graph Sniper ROI
+
+DROPLET warmed graph loading and collected 600 million ROI instructions.
+GRASP simulated one representative high-activity iteration, and P-OPT used one
+PageRank iteration or sampled pull iterations. GraphBrew follows that precedent
+with full graphs and a bounded detailed ROI:
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_sniper_realgraph_600m \
+  --run-tag ecg_sniper_realgraph_600m \
+  --out results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 4 --sniper-jobs 4
+
+python3 scripts/experiments/ecg/verify/smoke_coverage.py \
+  --csv results/ecg_experiments/paper_pipeline/ecg_sniper_realgraph_600m/aggregate/roi_matrix_all.csv \
+  --graph web-Google soc-pokec cit-Patents \
+  --simulator sniper --instruction-cap 600000000 \
+  --allow-unvalidated-fused-receipts
+```
+
+The profile uses the live frontend rather than SIFT trace generation. Pre-ROI
+execution is not part of the 600M detailed budget. Explicit property replay
+immediately before ROI supplements Sniper's normal cache-warming pass. Fused
+transport is validated separately by the strict 120-row smoke gate, avoiding a
+cold-start mechanism-proof mode in the performance profile. Capped rows set
+`timing_valid_for_speedup=0` because K2 and the baselines do not execute
+identical instruction streams; use miss, traffic, and direction metrics only.
+The sampled full-completion profile remains the equal-work detailed timing
+comparison. Existing calibration shows 600M instructions cover about 18% of
+one web-Google PR iteration and 9% of one soc-pokec PR iteration; report this
+bounded-window scope explicitly.
+
 ## Inspect the blocked headline job
 
 ```bash

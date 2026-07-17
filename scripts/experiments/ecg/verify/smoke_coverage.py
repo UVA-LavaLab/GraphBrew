@@ -48,11 +48,13 @@ def require_number(
 def validate(
         rows: list[dict[str, str]],
         graphs: tuple[str, ...] = DEFAULT_GRAPHS,
-        instruction_cap: int = 0) -> list[str]:
+        instruction_cap: int = 0,
+        simulators: tuple[str, ...] = SIMULATORS,
+        require_fused_receipts: bool = True) -> list[str]:
     errors: list[str] = []
     expected_cells = {
         (simulator, graph, benchmark)
-        for simulator in SIMULATORS
+        for simulator in simulators
         for graph in graphs
         for benchmark in BENCHMARKS
     }
@@ -63,7 +65,7 @@ def validate(
         graph = row.get("final_graph", "")
         benchmark = row.get("benchmark", "")
         policy = row.get("policy_label", "")
-        if simulator not in SIMULATORS:
+        if simulator not in simulators:
             errors.append(f"unexpected simulator={simulator!r}")
             continue
         if benchmark not in BENCHMARKS:
@@ -146,14 +148,15 @@ def validate(
             if simulator == "sniper":
                 if row.get("sniper_ecg_delivery") != "fused-k2-model":
                     errors.append(f"{row_name(row)}: fused delivery missing")
-                require_number(
-                    errors, row, "sniper_fused_k2_receipts", positive=True)
                 bad_receipts = number(row, "sniper_fused_k2_bad_receipts")
-                if bad_receipts is None:
-                    errors.append(
-                        f"{row_name(row)}: "
-                        "missing sniper_fused_k2_bad_receipts")
-                elif bad_receipts != 0:
+                if require_fused_receipts:
+                    require_number(
+                        errors, row, "sniper_fused_k2_receipts", positive=True)
+                    if bad_receipts is None:
+                        errors.append(
+                            f"{row_name(row)}: "
+                            "missing sniper_fused_k2_bad_receipts")
+                if bad_receipts not in (None, 0):
                     errors.append(
                         f"{row_name(row)}: "
                         f"bad fused receipts={bad_receipts:g}")
@@ -166,7 +169,7 @@ def validate(
                         positive=True)
 
     expected_rows = (
-        len(SIMULATORS) * len(graphs) * len(BENCHMARKS) * len(POLICIES))
+        len(simulators) * len(graphs) * len(BENCHMARKS) * len(POLICIES))
     if len(rows) != expected_rows:
         errors.append(f"expected {expected_rows} rows, found {len(rows)}")
     if set(grouped) != expected_cells:
@@ -193,12 +196,23 @@ def main() -> int:
     parser.add_argument(
         "--instruction-cap", type=int, default=0,
         help="Expected gem5/Sniper detailed-ROI instruction cap; 0 means full work.")
+    parser.add_argument(
+        "--simulator", nargs="+", choices=SIMULATORS,
+        default=list(SIMULATORS),
+        help="Expected simulator set. Defaults to all three backends.")
+    parser.add_argument(
+        "--allow-unvalidated-fused-receipts", action="store_true",
+        help="Accept fused K2 rows without per-row receipt traces when a "
+             "separate mechanism gate validates the transport.")
     args = parser.parse_args()
     path = Path(args.csv)
     with path.open(newline="") as handle:
         rows = list(csv.DictReader(handle))
     graphs = tuple(dict.fromkeys(args.graph))
-    errors = validate(rows, graphs, args.instruction_cap)
+    simulators = tuple(dict.fromkeys(args.simulator))
+    errors = validate(
+        rows, graphs, args.instruction_cap, simulators,
+        not args.allow_unvalidated_fused_receipts)
     counts = Counter(row.get("simulator", "") for row in rows)
     print(
         f"[smoke-coverage] rows={len(rows)} "

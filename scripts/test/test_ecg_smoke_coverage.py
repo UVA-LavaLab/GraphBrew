@@ -123,6 +123,36 @@ def test_smoke_coverage_accepts_three_graph_capped_matrix():
     assert module.validate(rows, graphs, cap) == []
 
 
+def test_smoke_coverage_accepts_sniper_only_matrix():
+    module = load_module(
+        "smoke_coverage_sniper_only",
+        ROOT / "scripts/experiments/ecg/verify/smoke_coverage.py")
+    graphs = ("web-Google", "soc-pokec", "cit-Patents")
+    rows = [
+        row for row in make_rows(module, graphs, 600_000_000)
+        if row["simulator"] == "sniper"
+    ]
+    assert len(rows) == 120
+    assert module.validate(
+        rows, graphs, 600_000_000, ("sniper",)) == []
+
+
+def test_smoke_coverage_accepts_separately_validated_fused_transport():
+    module = load_module(
+        "smoke_coverage_separate_fused_gate",
+        ROOT / "scripts/experiments/ecg/verify/smoke_coverage.py")
+    graphs = ("web-Google", "soc-pokec", "cit-Patents")
+    rows = [
+        row for row in make_rows(module, graphs, 600_000_000)
+        if row["simulator"] == "sniper"
+    ]
+    for row in rows:
+        if row["policy_label"] in module.K2_POLICIES:
+            row["sniper_fused_k2_receipts"] = "0"
+    assert module.validate(
+        rows, graphs, 600_000_000, ("sniper",), False) == []
+
+
 def test_smoke_coverage_rejects_missing_backend_metric():
     module = load_module(
         "smoke_coverage_missing",
