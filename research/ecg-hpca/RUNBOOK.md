@@ -163,6 +163,63 @@ does not consume the one-billion-instruction budget. Capped rows set
 `timing_valid_for_speedup=0`; compare cache metrics only and label every table
 as instruction-capped diagnostic evidence.
 
+### Fast full-work sampled matrix
+
+The reproducible sample sizes are web-Google 65,536 vertices/502,529 edges,
+soc-pokec 65,536/1,089,520, and symmetrized cit-Patents
+262,144/340,054 undirected edges. Generate samples with
+`flows/sample_realgraph.py`, serialize them with `bench/bin/converter` (`-s`
+for cit-Patents), then run:
+
+```bash
+python3 scripts/experiments/ecg/flows/sample_realgraph.py \
+  --input results/graphs/web-Google/web-Google.el \
+  --output results/graphs/web-Google-n16/web-Google-n16.el \
+  --vertices results/graphs/web-Google-n16/web-Google-n16.vertices.tsv \
+  --metadata results/graphs/web-Google-n16/web-Google-n16.sample.json \
+  --target-vertices 65536
+
+python3 scripts/experiments/ecg/flows/sample_realgraph.py \
+  --input results/graphs/soc-pokec/soc-pokec.el \
+  --output results/graphs/soc-pokec-n16/soc-pokec-n16.el \
+  --vertices results/graphs/soc-pokec-n16/soc-pokec-n16.vertices.tsv \
+  --metadata results/graphs/soc-pokec-n16/soc-pokec-n16.sample.json \
+  --target-vertices 65536
+
+python3 scripts/experiments/ecg/flows/sample_realgraph.py \
+  --input results/graphs/cit-Patents/cit-Patents.mtx \
+  --output results/graphs/cit-Patents-n18/cit-Patents-n18.el \
+  --vertices results/graphs/cit-Patents-n18/cit-Patents-n18.vertices.tsv \
+  --metadata results/graphs/cit-Patents-n18/cit-Patents-n18.sample.json \
+  --target-vertices 262144
+
+bench/bin/converter \
+  -f results/graphs/web-Google-n16/web-Google-n16.el \
+  -b results/graphs/web-Google-n16/web-Google-n16.sg
+bench/bin/converter \
+  -f results/graphs/soc-pokec-n16/soc-pokec-n16.el \
+  -b results/graphs/soc-pokec-n16/soc-pokec-n16.sg
+bench/bin/converter -s \
+  -f results/graphs/cit-Patents-n18/cit-Patents-n18.el \
+  -b results/graphs/cit-Patents-n18/cit-Patents-n18-sym.sg
+
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_sampled_allalg \
+  --run-tag ecg_3sim_sampled_allalg \
+  --out results/ecg_experiments/slurm/ecg_3sim_sampled_allalg.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_3sim_sampled_allalg.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 12 --cache-sim-jobs 4 --gem5-jobs 4 --sniper-jobs 4
+```
+
+All rows run to semantic completion. The samples are deterministic diagnostic
+proxies for the named real graphs, not replacements for full-graph authority.
+The soc-pokec sample has 2.0 LLC bytes/vertex versus 1.28 for the full graph,
+so its sampled cache pressure is lower. Sample metadata counts pre-converter
+directed arcs; the symmetrized cit-Patents `.sg` contains both directions.
+
 ## Inspect the blocked headline job
 
 ```bash

@@ -123,6 +123,26 @@ def test_capped_3sim_realgraph_expands_to_360_shards(tmp_path):
     assert {row[1].split("_", 1)[0] for row in rows} == {"22", "25", "26"}
 
 
+def test_sampled_3sim_realgraph_expands_to_360_shards(tmp_path):
+    shards = tmp_path / "three_sim_sampled.tsv"
+    generated = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/slurm/make_slurm_shards.py",
+            "--profile", "ecg_3sim_sampled_allalg",
+            "--run-tag", "three_sim_sampled",
+            "--out", str(shards),
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, check=False)
+    assert generated.returncode == 0, generated.stdout + generated.stderr
+    rows = [line.split("\t") for line in shards.read_text().splitlines()]
+    assert len(rows) == 360
+    assert {row[1].split("_", 1)[0] for row in rows} == {"27", "28", "29"}
+    assert {row[2] for row in rows} == {
+        "web-Google-n16", "soc-pokec-n16", "cit-Patents-n18-sym"}
+
+
 def test_slurm_shards_use_per_run_lock():
     source = (
         ROOT / "scripts/experiments/ecg/slurm/slurm_final_shard.sbatch"

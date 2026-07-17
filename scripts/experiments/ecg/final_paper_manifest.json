@@ -29,6 +29,7 @@
     "ecg_3sim_allalg_smoke": "Bounded 3-simulator x 5-algorithm x 8-policy smoke matrix for final row/metric coverage.",
     "ecg_3sim_realgraph_allalg": "Three-simulator x three-real-graph x five-algorithm x eight-policy no-prefetch comparison.",
     "ecg_3sim_realgraph_allalg_1b": "Full-work cache_sim plus 1-billion-instruction detailed-ROI gem5/Sniper diagnostic on three real graphs.",
+    "ecg_3sim_sampled_allalg": "Full-work three-simulator comparison on deterministic topology-derived samples of the three real graphs.",
     "ecg_preliminary_5alg_3sim": "Bounded five-algorithm, six-policy diagnostic matrix on a common synthetic graph across cache_sim, gem5, and Sniper.",
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
     "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
@@ -70,6 +71,13 @@
       "pr": "-f {graph_path} -o 5 -n 1 -i 1",
       "bfs": "-f {graph_path} -o 5 -n 1 -r 212",
       "sssp": "-f {graph_path} -o 5 -n 1 -r 212",
+      "bc": "-f {graph_path} -o 5 -n 1 -i 1",
+      "cc": "-f {graph_path} -o 5 -n 1"
+    },
+    "file_all_kernels_root0": {
+      "pr": "-f {graph_path} -o 5 -n 1 -i 1",
+      "bfs": "-f {graph_path} -o 5 -n 1 -r 0",
+      "sssp": "-f {graph_path} -o 5 -n 1 -r 0",
       "bc": "-f {graph_path} -o 5 -n 1 -i 1",
       "cc": "-f {graph_path} -o 5 -n 1"
     }
@@ -174,6 +182,38 @@
         "options_key": "file_all_kernels_dbg",
         "l3_sizes": ["8MB"],
         "structure_prefetch_degree": 8
+      }
+    ],
+    "realgraph_samples": [
+      {
+        "name": "web-Google-n16",
+        "path": "results/graphs/web-Google-n16/web-Google-n16.sg",
+        "options_key": "file_all_kernels_root0",
+        "l1d_size": "16kB",
+        "l2_size": "64kB",
+        "l3_ways": "16",
+        "l3_sizes": ["128kB"],
+        "structure_prefetch_degree": 0
+      },
+      {
+        "name": "soc-pokec-n16",
+        "path": "results/graphs/soc-pokec-n16/soc-pokec-n16.sg",
+        "options_key": "file_all_kernels_root0",
+        "l1d_size": "16kB",
+        "l2_size": "64kB",
+        "l3_ways": "16",
+        "l3_sizes": ["128kB"],
+        "structure_prefetch_degree": 0
+      },
+      {
+        "name": "cit-Patents-n18-sym",
+        "path": "results/graphs/cit-Patents-n18/cit-Patents-n18-sym.sg",
+        "options_key": "file_all_kernels_root0",
+        "l1d_size": "32kB",
+        "l2_size": "128kB",
+        "l3_ways": "16",
+        "l3_sizes": ["512kB"],
+        "structure_prefetch_degree": 0
       }
     ]
   },
@@ -584,6 +624,79 @@
       "sniper_cores": 1,
       "out_subdir": "26_sniper_3sim_realgraph_allalg_1b",
       "timeout_sniper": 43200,
+      "env": {
+        "ECG_STREAM_BYPASS_TRACE": "8"
+      }
+    },
+    {
+      "name": "27_cache_sim_3sim_sampled_allalg",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_3sim_sampled_allalg"],
+      "suite": "cache-sim",
+      "graph_set": "realgraph_samples",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "27_cache_sim_3sim_sampled_allalg",
+      "timeout_cache": 7200
+    },
+    {
+      "name": "28_gem5_3sim_sampled_allalg",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_3sim_sampled_allalg"],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "28_gem5_3sim_sampled_allalg",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_STREAM_BYPASS_TRACE": "8"
+      }
+    },
+    {
+      "name": "29_sniper_3sim_sampled_allalg",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_3sim_sampled_allalg"],
+      "suite": "sniper",
+      "graph_set": "realgraph_samples",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU", "SRRIP", "GRASP", "POPT",
+        "ECG:K2", "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_require_fused_receipts": true,
+      "sniper_cores": 1,
+      "out_subdir": "29_sniper_3sim_sampled_allalg",
+      "timeout_sniper": 21600,
       "env": {
         "ECG_STREAM_BYPASS_TRACE": "8"
       }

@@ -193,6 +193,17 @@ python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --out results/ecg_experiments/slurm/ecg_3sim_realgraph_allalg_1b.tsv
 ```
 
+For the fast full-work comparison, use `ecg_3sim_sampled_allalg`. It runs
+deterministic samples of web-Google, soc-pokec, and cit-Patents to completion
+in all three simulators while retaining the five algorithms and eight policies.
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_3sim_sampled_allalg \
+  --run-tag ecg_3sim_sampled_allalg \
+  --out results/ecg_experiments/slurm/ecg_3sim_sampled_allalg.tsv
+```
+
 ### 6. Run cache_sim authority profiles
 
 ```bash
@@ -297,6 +308,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_3sim_allalg_smoke` | 120-row final data-shape smoke |
 | `ecg_3sim_realgraph_allalg` | 360-row three-simulator real-graph comparison |
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction gem5/Sniper diagnostic |
+| `ecg_3sim_sampled_allalg` | Full-work 3-simulator matrix on deterministic real-graph samples |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |

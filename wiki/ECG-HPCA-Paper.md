@@ -232,6 +232,7 @@ Canonical profiles:
 | `ecg_3sim_allalg_smoke` | 3 simulators x 5 algorithms x 8 final policies |
 | `ecg_3sim_realgraph_allalg` | 3 simulators x 3 real graphs x 5 algorithms x 8 policies |
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction detailed-simulator diagnostic |
+| `ecg_3sim_sampled_allalg` | Full-work matrix on deterministic real-graph samples |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
@@ -359,6 +360,13 @@ For faster diagnostic results, profile `ecg_3sim_realgraph_allalg_1b` keeps
 cache_sim at full workload completion and caps gem5/Sniper at one billion
 committed detailed-ROI instructions. Gem5 starts its budget at the compute
 work-begin marker. These rows are not speedup or equal-graph-work evidence.
+
+Profile `ecg_3sim_sampled_allalg` instead runs all three simulators to semantic
+completion on deterministic compact samples of web-Google, soc-pokec, and
+cit-Patents. It preserves all five algorithms and eight final policies and is
+the fast cross-simulator comparison; full-graph cache_sim remains the authority.
+The Pokec sample has a larger LLC-per-vertex ratio than the full graph, so its
+sampled cache pressure is lower. Cit-Patents is symmetrized after sampling.
 
 ### Other profiles
 
