@@ -161,6 +161,53 @@ rows contribute only transport-inclusive cache diagnostics; their
 packed-record instruction count is not an apples-to-apples replacement-only
 comparison.
 
+## Sampled three-simulator full-work matrix
+
+The completed `ecg_3sim_sampled_allalg` matrix contains 360 valid rows:
+cache_sim/gem5/Sniper x web-Google-n16/soc-pokec-n16/
+cit-Patents-n18-sym x PR/BFS/SSSP/BC/CC x eight policies. Every row runs to
+semantic completion; the strict graph/backend/metric/transport gate passes.
+
+Geomean effective LLC-miss reduction versus each simulator's own LRU baseline
+(positive is better):
+
+| Policy | cache_sim | gem5 | Sniper |
+|---|---:|---:|---:|
+| SRRIP | 5.85% | 3.65% | 3.68% |
+| GRASP | 12.32% | 12.55% | 13.81% |
+| charged P-OPT | -22.20% | -20.90% | -27.65% |
+| K2 | -5.58% | -9.37% | -4.27% |
+| K2-online | -5.40% | -4.68% | -4.02% |
+| K2+StreamShield | -4.46% | -5.73% | -2.98% |
+| K2-online+StreamShield | -2.97% | -3.18% | -1.17% |
+
+“Effective” includes charged matrix-stream overhead for P-OPT; it is not the
+raw demand-miss column.
+
+The bounded samples therefore do **not** validate a K2 performance win. Their
+small working sets make fixed record delivery and P-OPT matrix capacity a
+dominant cost. They are useful for backend corroboration of mature policies:
+SRRIP has the same direction in 14/15 cells, GRASP in 11/15, and the mean
+per-cell eight-policy Spearman rank correlation is 0.84 for gem5/Sniper.
+Cache_sim-to-detailed correlation is lower (0.50-0.54), so absolute ranks remain
+substrate-sensitive.
+
+Against full-graph cache_sim `ecg_streamshield_generality`, sampled
+K2-online+StreamShield agrees in direction on 14/15 charged cells and sampled
+K2-online on 12/15. Against the uncharged replacement authority
+`ecg_replacement_baseline`, K2-online agrees on only 6/15 cells. Thus the
+samples reproduce the **charged-overhead regime**, not the underlying
+uncharged K2 replacement benefit. Use them only as bounded cross-simulator
+diagnostics. Full-graph cache_sim remains the scale/replacement authority, and
+the live 600M Sniper profile provides paper-precedent full-graph bounded-ROI
+evidence.
+
+Aggregate: `results/ecg_experiments/paper_pipeline/`
+`ecg_3sim_sampled_allalg_final_20260717_v2/aggregate/`.
+The rank statistic is frozen in
+`sampled_crosssim_rank_correlation.csv` using mean per-cell Spearman over all
+eight policies and effective LLC misses.
+
 ### Preliminary STRIDE8 sensitivity (synthetic diagnostic)
 
 K2 change from no prefetch to matched STRIDE8 on `kron_s15_k4`:

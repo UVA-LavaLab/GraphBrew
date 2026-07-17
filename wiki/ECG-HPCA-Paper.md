@@ -263,6 +263,10 @@ Canonical profiles:
   StreamShield; the five-kernel three-simulator mechanism gate passes, while
   the all-kernel matrix shows 0.95% geomean regret versus static StreamShield.
   It remains a default-off ablation.
+- The 360-row sampled full-work matrix passes its strict gate. SRRIP and GRASP
+  show strong cross-backend agreement, but K2's fixed record cost dominates at
+  this scale and all K2 variants increase geomean misses versus LRU. These rows
+  are bounded backend diagnostics, not headline K2 performance evidence.
 - The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
   prefetcher: every policy overprefetches, and K2 LLC read traffic rises
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do

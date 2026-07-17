@@ -56,6 +56,8 @@ columns, not a reduced headline baseline set.
 | `ecg_preliminary_5alg_stride` | Does predictable structure prefetching hide K2 record latency without hiding its bandwidth cost? | matched STRIDE8 for every policy; report demand misses and total traffic separately |
 | `ecg_replacement_baseline` | Which static K2 arm is best across PR/BFS/SSSP/BC/CC, and how much regret does online dueling incur? | no prefetch; ECG delivery uncharged |
 | `ecg_cache_sim_factorial` | What do K2 and StreamShield contribute under hardware-faithful traffic? | STRIDE8 for all; ECG record traffic charged |
+| `ecg_3sim_sampled_allalg` | Do all three backends show coherent bounded-workload behavior across all five kernels? | no prefetch; deterministic compact samples; full semantic completion |
+| `ecg_sniper_realgraph_600m` | What cache direction appears on full graphs under a prior-paper-style detailed ROI? | live Sniper; normal cache warming; 600M detailed instructions; timing invalid |
 | `streamshield_sniper_realgraph` | Does the complete mechanism improve detailed-simulator time and traffic? | bounded, full six-policy matrix |
 
 `ecg_charged=1` preserves each backend's executable transport rather than
@@ -102,6 +104,15 @@ synthetic Sniper mechanism profile is the exception: it disables warming and
 requires live fused-K2 receipts so the transport proof cannot become vacuous.
 Sniper graph-policy rows also require the context-ready acknowledgement; P-OPT
 rows additionally require `reref=1` before results are accepted.
+
+The sampled matrix is a backend-corroboration diagnostic, not scale authority.
+Its edge-prefix/induced samples, high-degree root remapping, smaller
+graph sizes, altered LLC-to-working-set ratios, and symmetrized citation graph can alter policy
+ranking. Full-graph cache_sim results remain authoritative for replacement
+quality. The 600M Sniper profile follows DROPLET's bounded-ROI precedent, while
+GRASP and P-OPT similarly used representative-iteration sampling. Because K2
+changes the executed instruction stream, capped rows support cache/direction
+claims only and are marked `timing_valid_for_speedup=0`.
 
 ## Headline real-graph cell
 
