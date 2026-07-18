@@ -41,6 +41,32 @@ def test_sniper_harness_defines_ecg_pfx_hint_surface() -> None:
     assert "SNIPER_ECG_PFX_TARGET" in text
 
 
+def test_sniper_harness_caches_hot_path_environment_controls() -> None:
+    text = read("bench/include/sniper_sim/sniper_harness.h")
+    for function_name in (
+        "hints_enabled",
+        "ecg_pfx_hints_enabled",
+        "ecg_extract_enabled",
+    ):
+        body = text.split(f"inline bool {function_name}()", 1)[1].split(
+            "\n}", 1)[0]
+        assert "static const bool enabled" in body
+    pfx_filter = text.split(
+        "inline bool should_emit_ecg_pfx_hint", 1)[1].split("\n}", 1)[0]
+    assert "static const int capacity" in pfx_filter
+    assert "static const uint64_t vertices_per_line" in pfx_filter
+
+
+def test_sniper_fused_k2_skips_software_only_delivery() -> None:
+    text = read("bench/src_sniper/sg_kernel.cc")
+    assert text.count("const bool software_k2_delivery =") == 5
+    assert text.count("const bool ecg_pfx_hints_on =") == 3
+    assert text.count("if (software_k2_delivery) {") == 6
+    assert text.count("if (!fused_k2_model) {") >= 6
+    assert "if (delivered_k2 && !fused_k2_model)" in text
+    assert "!graphbrew_sniper::ecg_pfx_hints_enabled()" not in text
+
+
 def test_sniper_ecg_pfx_prefetcher_overlay_exists() -> None:
     header = read("bench/include/sniper_sim/overlays/common/core/memory_subsystem/parametric_dram_directory_msi/ecg_pfx_prefetcher.h")
     source = read("bench/include/sniper_sim/overlays/common/core/memory_subsystem/parametric_dram_directory_msi/ecg_pfx_prefetcher.cc")

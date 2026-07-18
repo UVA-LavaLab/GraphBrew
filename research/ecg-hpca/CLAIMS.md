@@ -49,6 +49,13 @@
   geomean demand-miss reduction and 3.23% traffic reduction beyond online K2;
   full ECG beats charged P-OPT demand misses by 31.48% but uses 5.28% more
   traffic.
+- In the corrected nine-row sampled PageRank Sniper profile, fused
+  K2-online+StreamShield reaches 1.207x geomean speedup over GRASP and 1.150x
+  over capacity-charged P-OPT. The packed traversal executes 4.8% fewer
+  instructions; ticks-per-instruction still improve 1.149x and 1.094x.
+  Total LLC misses rise 8.50% versus GRASP and 14.03% versus P-OPT after its
+  matrix-stream charge, while non-record misses fall 35.92% and 32.65%.
+  This is bounded sampled-PR evidence only.
 
 ## Pending
 
@@ -64,7 +71,7 @@
 
 ## Prohibited until the pending gate passes
 
-- “The ECG successor beats P-OPT in gem5 and Sniper.”
+- “The ECG successor generally beats P-OPT on full graphs in gem5 and Sniper.”
 - “The synthetic kron mechanism cell ranks the policies.”
 - Comparing absolute gem5 and Sniper miss rates.
 - Treating cache_sim timing as a paper performance result.

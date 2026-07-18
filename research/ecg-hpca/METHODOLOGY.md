@@ -57,6 +57,7 @@ columns, not a reduced headline baseline set.
 | `ecg_replacement_baseline` | Which static K2 arm is best across PR/BFS/SSSP/BC/CC, and how much regret does online dueling incur? | no prefetch; ECG delivery uncharged |
 | `ecg_cache_sim_factorial` | What do K2 and StreamShield contribute under hardware-faithful traffic? | STRIDE8 for all; ECG record traffic charged |
 | `ecg_3sim_sampled_allalg` | Do all three backends show coherent bounded-workload behavior across all five kernels? | no prefetch; deterministic compact samples; full semantic completion |
+| `ecg_sniper_sampled_pr_streamengine` | Can fused K2 delivery tolerate its record bandwidth on equal-work sampled PageRank? | no prefetch; GRASP/charged P-OPT/K2-online+SS; record misses remain in Sniper LLC accounting |
 | `ecg_sniper_realgraph_600m` | What cache direction appears on full graphs under a prior-paper-style detailed ROI? | live Sniper; normal cache warming; 600M detailed instructions; timing invalid |
 | `streamshield_sniper_realgraph` | Does the complete mechanism improve detailed-simulator time and traffic? | bounded, full six-policy matrix |
 
@@ -67,6 +68,12 @@ explicit record-delivery accesses that appear in their LLC accounting. The
 preliminary ranks are consequently interpreted within each simulator; the
 cache_sim column is a fused replacement diagnostic and the detailed-simulator
 columns are transport-inclusive.
+
+The Sniper fused model registers the packed K2 record range and treats the
+64-bit record load as the delivery event. Non-tracing runs execute no
+software-only `extract2`/trace delivery call. Environment-controlled hint paths
+are resolved once before the ROI so disabled instrumentation does not distort
+cross-policy instruction counts.
 
 For matched STRIDE sensitivity, cache_sim and gem5 expose demand LLC misses
 separately from prefetch traffic. Sniper's current NUCA statistics combine
@@ -113,6 +120,13 @@ quality. The 600M Sniper profile follows DROPLET's bounded-ROI precedent, while
 GRASP and P-OPT similarly used representative-iteration sampling. Because K2
 changes the executed instruction stream, capped rows support cache/direction
 claims only and are marked `timing_valid_for_speedup=0`.
+
+The original 360-row sampled matrix remains valid for cache metrics, but its
+cross-policy Sniper timing predates removal of disabled hot-path instrumentation
+and is not timing evidence. `ecg_sniper_sampled_pr_streamengine` is the bounded
+equal-work timing profile. Its P-OPT row charges reserved LLC capacity, while
+matrix-stream latency remains outside Sniper target time and is reported
+separately.
 
 ## Headline real-graph cell
 

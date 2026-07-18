@@ -183,10 +183,12 @@ Geomean effective LLC-miss reduction versus each simulator's own LRU baseline
 
 “Effective” includes charged matrix-stream overhead for P-OPT; it is not the
 raw demand-miss column.
+Before that analytical stream charge, sampled P-OPT reduces raw L3 misses by
+18.51% in cache_sim, 15.31% in gem5, and 8.40% in Sniper.
 
-The bounded samples therefore do **not** validate a K2 performance win. Their
-small working sets make fixed record delivery and P-OPT matrix capacity a
-dominant cost. They are useful for backend corroboration of mature policies:
+The all-kernel miss aggregate therefore does **not** validate a generic K2
+replacement win. Its small working sets make fixed record delivery a dominant
+cost. The rows remain useful for backend corroboration of mature policies:
 SRRIP has the same direction in 14/15 cells, GRASP in 11/15, and the mean
 per-cell eight-policy Spearman rank correlation is 0.84 for gem5/Sniper.
 Cache_sim-to-detailed correlation is lower (0.50-0.54), so absolute ranks remain
@@ -207,6 +209,40 @@ Aggregate: `results/ecg_experiments/paper_pipeline/`
 The rank statistic is frozen in
 `sampled_crosssim_rank_correlation.csv` using mean per-cell Spearman over all
 eight policies and effective LLC misses.
+
+### Fused sampled PageRank timing
+
+The dedicated `ecg_sniper_sampled_pr_streamengine` profile contains nine
+equal-work rows: three deterministic graph samples x GRASP/charged P-OPT/
+K2-online+StreamShield. The Sniper fused path treats the packed 64-bit record
+load as the delivery event. Disabled hint checks are hoisted before the ROI and
+non-tracing runs execute no software-only delivery call.
+
+Geomean K2-online+StreamShield ratios:
+
+| Baseline | Simulated time | Total speedup | Ticks/instruction speedup | Instructions | L3 accesses | Total L3 misses | Non-record miss reduction |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| GRASP | 0.828x | 1.207x | 1.149x | 0.952x | 1.159x | 1.085x | 35.92% |
+| charged P-OPT | 0.870x | 1.150x | 1.094x | 0.952x | 1.155x | 1.333x | 21.27% |
+
+`sniper_stream_bypass_reads` counts bypassed record LLC misses, so
+`l3_misses - sniper_stream_bypass_reads` isolates the non-record miss stream.
+The packed-record loop executes 4.8% fewer instructions than the baseline CSR
+iterator, so total speedup is reported alongside ticks-per-instruction. Even
+after this decomposition, K2 improves TPI by 1.149x versus GRASP and 1.094x
+versus P-OPT.
+
+The result confirms the intended tradeoff on sampled PageRank. LLC lookup
+pressure rises about 16%, while total LLC misses rise 8.50% versus GRASP.
+Against P-OPT, K2 has 33.29% more raw LLC misses; after adding P-OPT's modeled
+matrix-stream lines, the overhead is 14.03% and K2's non-record miss reduction
+is 32.65%. P-OPT's simulated time remains favorable because matrix-stream
+latency is not added to Sniper target time. Sniper assigns the full CPI stack to
+`unknown`, so the TPI improvement cannot be decomposed further. This is bounded
+sampled-PR evidence, not a full-graph or all-kernel timing claim.
+
+Aggregate: `results/ecg_experiments/paper_pipeline/`
+`ecg_sniper_sampled_pr_streamengine_final_v2_20260717/aggregate/`.
 
 ### Preliminary STRIDE8 sensitivity (synthetic diagnostic)
 

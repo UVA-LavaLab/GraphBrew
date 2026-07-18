@@ -87,6 +87,13 @@ demand/traffic improvement over online K2, while the full mechanism still uses
 more total traffic than P-OPT. This bounds the detailed-simulator claim before
 timing runs.
 
+The corrected sampled PageRank Sniper profile confirms the fused-stream
+tradeoff: K2-online+StreamShield is 1.207x faster than GRASP and 1.150x faster
+than capacity-charged P-OPT. The packed traversal contributes 4.8% fewer
+instructions; instruction-normalized TPI still improves 1.149x and 1.094x.
+Total LLC misses rise 8.50% versus GRASP and 14.03% versus overhead-charged
+P-OPT. This remains a bounded sampled result.
+
 The real-graph Sniper matrix remains a gate before claiming overall
 detailed-simulator superiority over P-OPT. Its current generic STRIDE8
 configuration is rejected by the bounded diagnostic and must be replaced by a

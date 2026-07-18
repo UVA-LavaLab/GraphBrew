@@ -174,6 +174,7 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_3sim_realgraph_allalg" in manifest["profiles"]
     assert "ecg_3sim_realgraph_allalg_1b" in manifest["profiles"]
     assert "ecg_3sim_sampled_allalg" in manifest["profiles"]
+    assert "ecg_sniper_sampled_pr_streamengine" in manifest["profiles"]
     assert "ecg_sniper_realgraph_600m" in manifest["profiles"]
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
@@ -273,6 +274,16 @@ def test_streamshield_manifest_is_complete():
         "cache-sim", "gem5", "sniper"}
     assert all(stage["graph_set"] == "realgraph_samples"
                for stage in sampled_stages)
+    sampled_timing = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "33_sniper_sampled_pr_streamengine")
+    assert sampled_timing["suite"] == "sniper"
+    assert sampled_timing["graph_set"] == "realgraph_samples"
+    assert sampled_timing["benchmarks"] == ["pr"]
+    assert sampled_timing["policies"] == [
+        "GRASP", "POPT", "ECG:K2_ONLINE_STREAMSHIELD"]
+    assert sampled_timing["prefetcher"] == "none"
+    assert sampled_timing["sniper_require_fused_receipts"] is True
     assert all("gem5_max_insts" not in stage for stage in sampled_stages)
     assert all("sniper_roi_icount" not in stage for stage in sampled_stages)
     sampled_options = manifest["benchmark_options"]["file_all_kernels_root0"]
@@ -530,6 +541,7 @@ def test_final_design_docs_and_run_flow_are_consistent():
             "ecg_3sim_realgraph_allalg",
             "ecg_3sim_realgraph_allalg_1b",
             "ecg_3sim_sampled_allalg",
+            "ecg_sniper_sampled_pr_streamengine",
             "ecg_sniper_realgraph_600m",
             "ecg_replacement_baseline",
             "ecg_cache_sim_factorial",

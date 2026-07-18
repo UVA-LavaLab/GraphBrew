@@ -204,6 +204,18 @@ python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --out results/ecg_experiments/slurm/ecg_3sim_sampled_allalg.tsv
 ```
 
+For equal-work Sniper timing of the fused record stream on sampled PageRank,
+use `ecg_sniper_sampled_pr_streamengine`. It compares GRASP, capacity-charged
+P-OPT, and K2-online+StreamShield while retaining K2 record misses in LLC
+accounting.
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_sniper_sampled_pr_streamengine \
+  --run-tag ecg_sniper_sampled_pr_streamengine \
+  --out results/ecg_experiments/slurm/ecg_sniper_sampled_pr_streamengine.tsv
+```
+
 The planned paper-faithful full-graph detailed profile is
 `ecg_sniper_realgraph_600m`: live Sniper execution with graph loading outside
 the detailed ROI and 600 million detailed instructions, matching DROPLET's
@@ -327,6 +339,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_3sim_realgraph_allalg` | 360-row three-simulator real-graph comparison |
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction gem5/Sniper diagnostic |
 | `ecg_3sim_sampled_allalg` | Full-work 3-simulator matrix on deterministic real-graph samples |
+| `ecg_sniper_sampled_pr_streamengine` | Equal-work sampled PR timing for fused K2 bandwidth |
 | `ecg_sniper_realgraph_600m` | Blocked full-real-graph Sniper 600M ROI plan |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |

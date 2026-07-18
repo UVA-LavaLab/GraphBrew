@@ -114,34 +114,46 @@ inline void notify_context_ready() {
 }
 
 inline bool hints_enabled() {
-    const char* value = std::getenv("SNIPER_ENABLE_VERTEX_HINTS");
-    return value && value[0] && std::string(value) != "0";
+    static const bool enabled = []() {
+        const char* value = std::getenv("SNIPER_ENABLE_VERTEX_HINTS");
+        return value && value[0] && std::string(value) != "0";
+    }();
+    return enabled;
 }
 
 inline bool ecg_pfx_hints_enabled() {
-    const char* value = std::getenv("SNIPER_ENABLE_ECG_PFX_HINTS");
-    if (!value) {
-        value = std::getenv("ECG_PREFETCH");
-    }
-    return value && value[0] && std::string(value) != "0";
+    static const bool enabled = []() {
+        const char* value = std::getenv("SNIPER_ENABLE_ECG_PFX_HINTS");
+        if (!value) {
+            value = std::getenv("ECG_PREFETCH");
+        }
+        return value && value[0] && std::string(value) != "0";
+    }();
+    return enabled;
 }
 
 inline bool ecg_extract_enabled() {
-    const char* value = std::getenv("SNIPER_ENABLE_ECG_EXTRACT");
-    return value && value[0] && std::string(value) != "0";
+    static const bool enabled = []() {
+        const char* value = std::getenv("SNIPER_ENABLE_ECG_EXTRACT");
+        return value && value[0] && std::string(value) != "0";
+    }();
+    return enabled;
 }
 
 inline bool should_emit_ecg_pfx_hint(uint64_t vertex_id) {
-    int capacity = env_int_clamped("SNIPER_ECG_PFX_HINT_FILTER", 16, 0, 64);
+    static const int capacity =
+        env_int_clamped("SNIPER_ECG_PFX_HINT_FILTER", 16, 0, 64);
     if (capacity == 0) {
         return true;
     }
-    int elem_size = env_int_clamped("SNIPER_ECG_PFX_FILTER_ELEM_SIZE", 4, 1, 64);
-    int line_size = env_int_clamped("SNIPER_ECG_PFX_FILTER_LINE_SIZE", 64, 1, 4096);
-    uint64_t vertices_per_line = static_cast<uint64_t>(line_size / elem_size);
-    if (vertices_per_line == 0) {
-        vertices_per_line = 1;
-    }
+    static const uint64_t vertices_per_line = []() {
+        const int elem_size =
+            env_int_clamped("SNIPER_ECG_PFX_FILTER_ELEM_SIZE", 4, 1, 64);
+        const int line_size =
+            env_int_clamped("SNIPER_ECG_PFX_FILTER_LINE_SIZE", 64, 1, 4096);
+        const uint64_t value = static_cast<uint64_t>(line_size / elem_size);
+        return value == 0 ? 1 : value;
+    }();
     uint64_t filter_key = vertex_id / vertices_per_line;
     thread_local uint64_t recent[64] = {};
     thread_local int count = 0;

@@ -30,6 +30,7 @@
     "ecg_3sim_realgraph_allalg": "Three-simulator x three-real-graph x five-algorithm x eight-policy no-prefetch comparison.",
     "ecg_3sim_realgraph_allalg_1b": "Full-work cache_sim plus 1-billion-instruction detailed-ROI gem5/Sniper diagnostic on three real graphs.",
     "ecg_3sim_sampled_allalg": "Full-work three-simulator comparison on deterministic topology-derived samples of the three real graphs.",
+    "ecg_sniper_sampled_pr_streamengine": "Equal-work sampled PageRank timing for GRASP, charged P-OPT, and K2-online+StreamShield with fused Sniper record delivery.",
     "ecg_sniper_realgraph_600m": "Paper-faithful full-real-graph Sniper matrix with a 600-million-instruction detailed ROI.",
     "ecg_preliminary_5alg_3sim": "Bounded five-algorithm, six-policy diagnostic matrix on a common synthetic graph across cache_sim, gem5, and Sniper.",
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
@@ -767,6 +768,36 @@
       "sniper_cores": 1,
       "out_subdir": "32_sniper_realgraph_600m",
       "timeout_sniper": 43200,
+      "env": {
+        "ECG_STREAM_BYPASS_TRACE": "8"
+      }
+    },
+    {
+      "name": "33_sniper_sampled_pr_streamengine",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_sniper_sampled_pr_streamengine"],
+      "suite": "sniper",
+      "graph_set": "realgraph_samples",
+      "benchmarks": ["pr"],
+      "policies": [
+        "GRASP",
+        "POPT",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_require_fused_receipts": true,
+      "sniper_cores": 1,
+      "out_subdir": "33_sniper_sampled_pr_streamengine",
+      "timeout_sniper": 21600,
       "env": {
         "ECG_STREAM_BYPASS_TRACE": "8"
       }

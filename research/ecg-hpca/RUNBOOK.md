@@ -220,6 +220,38 @@ The soc-pokec sample has 2.0 LLC bytes/vertex versus 1.28 for the full graph,
 so its sampled cache pressure is lower. Sample metadata counts pre-converter
 directed arcs; the symmetrized cit-Patents `.sg` contains both directions.
 
+### Confirm fused record bandwidth on sampled PageRank
+
+This profile compares equal-work GRASP, charged P-OPT, and
+K2-online+StreamShield after removing software-only Sniper delivery and disabled
+hint instrumentation from the ROI:
+
+```bash
+python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
+  --profile ecg_sniper_sampled_pr_streamengine \
+  --run-tag ecg_sniper_sampled_pr_streamengine \
+  --out results/ecg_experiments/slurm/ecg_sniper_sampled_pr_streamengine.tsv
+
+python3 scripts/experiments/ecg/flows/run_local_shards.py \
+  --shards results/ecg_experiments/slurm/ecg_sniper_sampled_pr_streamengine.tsv \
+  --run-root results/ecg_experiments/final_paper_runs/local \
+  --jobs 3 --sniper-jobs 3
+
+python3 scripts/experiments/ecg/flows/paper_pipeline.py \
+  --skip-run \
+  --input-run-glob \
+    'results/ecg_experiments/final_paper_runs/local/ecg_sniper_sampled_pr_streamengine/*' \
+  --run-root \
+    results/ecg_experiments/paper_pipeline/ecg_sniper_sampled_pr_streamengine
+```
+
+Require all nine rows, valid fused receipts, and comparable instruction counts.
+`l3_misses - sniper_stream_bypass_reads` separates non-record demand misses
+because `stream-bypass-reads` increments only on a bypassed LLC miss. Keep total
+LLC accesses/misses and instructions beside simulated time. Report
+ticks-per-instruction so packed-record traversal savings are separated from the
+cache/memory effect.
+
 ### Paper-faithful full-graph Sniper ROI
 
 DROPLET warmed graph loading and collected 600 million ROI instructions.

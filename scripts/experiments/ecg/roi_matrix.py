@@ -1755,8 +1755,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             row["timing_model"] = "fused_record_load_sideband_model"
             row["timing_valid_for_speedup"] = "1"
             row["timing_caveat"] = (
-                "Sniper models the RISC-V fused record-load sideband without "
-                "per-edge SimMagic instruction overhead.")
+                "The packed record load is the Sniper fused-delivery event; "
+                "non-tracing runs execute no per-edge SimMagic or software-only "
+                "delivery call.")
         elif schedule_k == 2:
             row["timing_model"] = "prototype_explicit_magic_delivery"
             row["timing_valid_for_speedup"] = "0"

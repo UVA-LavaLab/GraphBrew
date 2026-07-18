@@ -233,6 +233,7 @@ Canonical profiles:
 | `ecg_3sim_realgraph_allalg` | 3 simulators x 3 real graphs x 5 algorithms x 8 policies |
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction detailed-simulator diagnostic |
 | `ecg_3sim_sampled_allalg` | Full-work matrix on deterministic real-graph samples |
+| `ecg_sniper_sampled_pr_streamengine` | Equal-work sampled PR timing for fused K2 bandwidth |
 | `ecg_sniper_realgraph_600m` | Blocked DROPLET-style 600M full-graph plan |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
@@ -267,6 +268,13 @@ Canonical profiles:
   show strong cross-backend agreement, but K2's fixed record cost dominates at
   this scale and all K2 variants increase geomean misses versus LRU. These rows
   are bounded backend diagnostics, not headline K2 performance evidence.
+- A corrected nine-row sampled PageRank Sniper timing profile removes
+  software-only delivery and disabled-hint overhead. Fused K2-online+StreamShield
+  reaches 1.207x geomean speedup over GRASP and 1.150x over capacity-charged
+  P-OPT. The packed traversal executes 4.8% fewer instructions, while
+  ticks-per-instruction still improve 1.149x and 1.094x. Total LLC misses rise
+  8.50% versus GRASP and 14.03% versus overhead-charged P-OPT. This confirms
+  the fused-stream tradeoff for sampled PR only.
 - The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
   prefetcher: every policy overprefetches, and K2 LLC read traffic rises
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do
