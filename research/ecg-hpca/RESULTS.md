@@ -244,6 +244,30 @@ sampled-PR evidence, not a full-graph or all-kernel timing claim.
 Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_sniper_sampled_pr_streamengine_final_v2_20260717/aggregate/`.
 
+### Full-graph warm Sniper gate
+
+The queue blocker was caused by CACHE_ONLY warmup accumulating timing in
+`history_list` and `ShmemPerfModel` even though the interval core clock was not
+advancing. The reproducible setup patch leaves those timing structures untouched
+until DETAILED mode while preserving cache-state updates.
+
+Full web-Google, 2MB/16-way LLC, normal warming, and a 100K detailed ROI:
+
+| Policy | Status | Context loaded | L3 accesses | L3 misses |
+|---|---|---:|---:|---:|
+| LRU | pass | n/a | 39,102 | 26,146 |
+| K2 | pass | 1 | 37,881 | 27,486 |
+
+These capped rows prove warm full-graph ROI entry only; they are not speedup or
+equal-instruction evidence.
+
+The post-fix `ecg_sniper_realgraph_600m` web-Google PR K2 cell also passes with
+normal warming and valid context. It reaches semantic completion before the
+cap at 179,432,203 reported instructions, with 7,892,046 L3 accesses,
+2,153,699 misses, and miss rate 0.2729. The row remains
+`timing_valid_for_speedup=0`; do not compare its time directly with a baseline
+that reaches the 600M cap.
+
 ### Preliminary STRIDE8 sensitivity (synthetic diagnostic)
 
 K2 change from no prefetch to matched STRIDE8 on `kron_s15_k4`:

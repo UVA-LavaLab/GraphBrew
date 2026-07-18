@@ -401,6 +401,14 @@ def test_streamshield_setup_migrates_and_rebuilds():
     assert "base_stream_bypass_request_flag.patch" in gem5_setup
     assert "prefetch_stream_bypass.patch" in gem5_setup
     assert "def migrate_if_present" in sniper_setup
+    assert "def patch_cache_only_history_queue" in sniper_setup
+    assert "def patch_cache_only_shmem_timing" in sniper_setup
+    assert "CACHE_ONLY warming updates cache state" in sniper_setup
+    assert "patch_cache_only_history_queue(args)" in sniper_setup
+    assert "patch_cache_only_shmem_timing(args)" in sniper_setup
+    assert '"common/performance_model/queue_model_history_list.cc"' in sniper_setup
+    assert '"common/performance_model/shmem_perf_model.cc"' in sniper_setup
+    assert '"cache_only_warmup_timing"' in sniper_setup
     assert 'SNIPER_DEFAULT_REF = "56505e42fd98bca863fac181e769bd3c98d2bb33"' in sniper_setup
     main_block = sniper_setup.split("def main(argv:", 1)[1]
     assert main_block.index("OVERLAY_STATUS_FILE.unlink(missing_ok=True)") < \
@@ -408,6 +416,81 @@ def test_streamshield_setup_migrates_and_rebuilds():
     assert main_block.index("graphbrew_smoke_test(args)") < \
         main_block.index("write_overlay_status(copied_files)")
     assert "migrate_if_present(\n        magic_server, old_decode, new_decode" in sniper_setup
+
+
+def test_sniper_cache_only_history_queue_patch_is_idempotent(tmp_path):
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location(
+        "setup_sniper_queue_patch_test", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    module.SNIPER_DIR = tmp_path / "snipersim"
+    queue_source = (
+        module.SNIPER_DIR / "common" / "performance_model" /
+        "queue_model_history_list.cc"
+    )
+    queue_source.parent.mkdir(parents=True)
+    queue_source.write_text(
+        "QueueModelHistoryList::computeQueueDelay("
+        "SubsecondTime pkt_time, SubsecondTime processing_time, "
+        "core_id_t requester)\n"
+        "{\n"
+        "   LOG_ASSERT_ERROR(m_free_interval_list.size() >= 1,\n"
+        "         \"Free Interval list size < 1\");\n"
+        "}\n"
+    )
+
+    args = argparse.Namespace(dry_run=False)
+    module.patch_cache_only_history_queue(args)
+    module.patch_cache_only_history_queue(args)
+    text = queue_source.read_text()
+    assert text.count("CACHE_ONLY warming updates cache state") == 1
+    assert "Sim()->getInstrumentationMode() == InstMode::CACHE_ONLY" in text
+    assert "return SubsecondTime::Zero();" in text
+
+
+def test_sniper_cache_only_shmem_timing_patch_is_idempotent(tmp_path):
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location(
+        "setup_sniper_shmem_patch_test", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    module.SNIPER_DIR = tmp_path / "snipersim"
+    shmem_source = (
+        module.SNIPER_DIR / "common" / "performance_model" /
+        "shmem_perf_model.cc"
+    )
+    shmem_source.parent.mkdir(parents=True)
+    shmem_source.write_text(
+        "void\n"
+        "ShmemPerfModel::updateElapsedTime("
+        "SubsecondTime time, Thread_t thread_num)\n"
+        "{\n"
+        "   LOG_PRINT(\"updateElapsedTime: time(%s)\", "
+        "itostr(time).c_str());\n"
+        "}\n\n"
+        "void\n"
+        "ShmemPerfModel::incrElapsedTime("
+        "SubsecondTime time, Thread_t thread_num)\n"
+        "{\n"
+        "   LOG_PRINT(\"incrElapsedTime: time(%s)\", "
+        "itostr(time).c_str());\n"
+        "}\n"
+    )
+
+    args = argparse.Namespace(dry_run=False)
+    module.patch_cache_only_shmem_timing(args)
+    module.patch_cache_only_shmem_timing(args)
+    text = shmem_source.read_text()
+    assert text.count(
+        "Sim()->getInstrumentationMode() == InstMode::CACHE_ONLY") == 2
+    assert text.count("CACHE_ONLY warms cache contents") == 1
 
 
 def test_schedule_bits_are_charged_in_record_width():

@@ -56,6 +56,12 @@
   Total LLC misses rise 8.50% versus GRASP and 14.03% versus P-OPT after its
   matrix-stream charge, while non-record misses fall 35.92% and 32.65%.
   This is bounded sampled-PR evidence only.
+- Full web-Google warm-SIFT LRU and K2 both reach and complete a 100K detailed
+  ROI after CACHE_ONLY queue/shared-memory timing is suppressed. Cache warming
+  remains enabled and K2 context delivery is active.
+- The post-fix 600M-capped web-Google PR K2 cell completes successfully with
+  normal warming and context delivery. It finishes the full iteration before
+  the cap at 179.4M reported instructions; the row is cache evidence only.
 
 ## Pending
 
@@ -65,8 +71,7 @@
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
 - Detailed-simulator confirmation of the real-graph online-selector result.
-- Port/build of Sniper's disabled original Pin frontend, or a fix for warm SIFT
-  K2's `queue_model_history` abort, before the full-graph 600M matrix can run.
+- Completion and aggregation of the now-runnable full-graph 600M SIFT matrix.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.
 
 ## Prohibited until the pending gate passes

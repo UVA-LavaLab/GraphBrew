@@ -257,36 +257,46 @@ cache/memory effect.
 DROPLET warmed graph loading and collected 600 million ROI instructions.
 GRASP simulated one representative high-activity iteration, and P-OPT used one
 PageRank iteration or sampled pull iterations. GraphBrew follows that precedent
-with full graphs and a bounded detailed ROI:
+with full graphs and a detailed ROI capped at 600M instructions:
 
-**Blocked:** do not launch this profile. The pinned Sniper tree explicitly
-disables the original Pin frontend, so `run-sniper` defaults to SIFT even when
-the runner requests `live`. Warm SIFT LRU completes, but warm SIFT K2 aborts in
-`queue_model_history` on web-Google before ROI statistics. Unblock by porting
-and building the Pin frontend or repairing the warm SIFT queue model.
+Run the warm full-graph gate first:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_sniper_realgraph_warm_probe \
+  --run-dir \
+    results/ecg_experiments/final_paper_runs/ecg_sniper_realgraph_warm_probe \
+  --no-build
+```
+
+Acceptance requires both LRU and K2 to report `status=ok`,
+`sniper_cache_warming=1`, positive L3 metrics, and K2 context loading. The
+CACHE_ONLY setup patch suppresses queue/shared-memory timing only during
+warming; cache contents continue to update.
 
 ```bash
 python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --profile ecg_sniper_realgraph_600m \
   --run-tag ecg_sniper_realgraph_600m \
-  --out results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv \
-  --allow-blocked
+  --out results/ecg_experiments/slurm/ecg_sniper_realgraph_600m.tsv
 ```
 
-The generated TSV is inspection-only. Do not pass it to local or Slurm runners
-until the manifest blocker is removed.
-
-The planned profile uses the live frontend rather than SIFT trace generation.
+The profile uses the explicit SIFT frontend because the pinned build disables
+its original Pin frontend.
 Pre-ROI execution is not part of the 600M detailed budget. Explicit property replay
 immediately before ROI supplements Sniper's normal cache-warming pass. Fused
 transport is validated separately by the strict 120-row smoke gate, avoiding a
 cold-start mechanism-proof mode in the performance profile. Capped rows set
 `timing_valid_for_speedup=0` because K2 and the baselines do not execute
 identical instruction streams; use miss, traffic, and direction metrics only.
+Rows may reach semantic completion before the cap. The post-fix web-Google K2
+PR cell completes at 179.4M reported instructions; it must not be treated as
+equal-instruction timing against a baseline that reaches 600M.
 The sampled full-completion profile remains the equal-work detailed timing
-comparison. Existing calibration shows 600M instructions cover about 18% of
-one web-Google PR iteration and 9% of one soc-pokec PR iteration; report this
-bounded-window scope explicitly.
+comparison. Under the baseline LRU instruction stream, existing calibration
+shows 600M instructions cover about 18% of one web-Google PR iteration and 9%
+of one soc-pokec PR iteration. K2's fused packed path is shorter and may finish
+the iteration before the cap; report each row's executed scope explicitly.
 
 ## Inspect the blocked headline job
 

@@ -234,7 +234,8 @@ Canonical profiles:
 | `ecg_3sim_realgraph_allalg_1b` | Full cache_sim plus 1B-instruction detailed-simulator diagnostic |
 | `ecg_3sim_sampled_allalg` | Full-work matrix on deterministic real-graph samples |
 | `ecg_sniper_sampled_pr_streamengine` | Equal-work sampled PR timing for fused K2 bandwidth |
-| `ecg_sniper_realgraph_600m` | Blocked DROPLET-style 600M full-graph plan |
+| `ecg_sniper_realgraph_warm_probe` | Full web-Google warm-SIFT LRU/K2 100K gate |
+| `ecg_sniper_realgraph_600m` | DROPLET-style 600M-capped full-graph plan |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_online_dueling` | Alias for the online-regret stage |
 | `ecg_cache_sim_factorial` | K1/K2 x StreamShield attribution on real graphs |
@@ -382,15 +383,18 @@ The Pokec sample has a larger LLC-per-vertex ratio than the full graph, so its
 sampled cache pressure is lower. Cit-Patents is symmetrized after sampling.
 
 Profile `ecg_sniper_realgraph_600m` is the paper-faithful full-graph detailed
-path: live Sniper execution, graph loading outside the detailed region, and a
-600M-instruction ROI. This follows DROPLET's bounded ROI precedent; GRASP and
+path: explicit SIFT execution, graph loading outside the detailed region, and a
+600M-instruction cap. This follows DROPLET's bounded ROI precedent; GRASP and
 P-OPT similarly simulated representative iterations rather than full detailed
 execution. Because K2 changes the instruction stream, these capped rows support
 cache/direction claims rather than speedup; sampled full-completion rows provide
 the equal-work timing comparison. The strict smoke gate validates fused
 transport separately so the 600M profile retains Sniper's normal cache warming.
-The profile is blocked because the pinned Sniper fork disables its original Pin
-frontend and warm SIFT K2 aborts in `queue_model_history`.
+The warm queue blocker is resolved: full web-Google LRU and K2 both complete a
+100K detailed ROI with cache warming enabled. CACHE_ONLY warming updates cache
+state without accumulating queue/shared-memory timing. The first post-fix
+web-Google K2 capped cell also completes successfully, finishing its full PR
+iteration at 179.4M reported instructions before the 600M cap.
 
 ### Other profiles
 

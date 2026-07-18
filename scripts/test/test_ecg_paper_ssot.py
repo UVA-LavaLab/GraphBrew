@@ -175,6 +175,7 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_3sim_realgraph_allalg_1b" in manifest["profiles"]
     assert "ecg_3sim_sampled_allalg" in manifest["profiles"]
     assert "ecg_sniper_sampled_pr_streamengine" in manifest["profiles"]
+    assert "ecg_sniper_realgraph_warm_probe" in manifest["profiles"]
     assert "ecg_sniper_realgraph_600m" in manifest["profiles"]
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
@@ -294,9 +295,20 @@ def test_streamshield_manifest_is_complete():
         if stage["name"] == "32_sniper_realgraph_600m")
     assert sniper_600m["graph_set"] == "factorial_graphs"
     assert sniper_600m["sniper_roi_icount"] == 600_000_000
-    assert sniper_600m["sniper_frontend"] == "live"
+    assert sniper_600m["sniper_frontend"] == "sift"
     assert "sniper_require_fused_receipts" not in sniper_600m
-    assert "disables its original Pin frontend" in sniper_600m["blocked_reason"]
+    assert "blocked_reason" not in sniper_600m
+    assert sniper_600m["prerequisite_profile"] == \
+        "ecg_sniper_realgraph_warm_probe"
+    warm_probe = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "34_sniper_realgraph_warm_probe")
+    assert warm_probe["graph_set"] == "web_google_streamshield"
+    assert warm_probe["benchmarks"] == ["pr"]
+    assert warm_probe["policies"] == ["LRU", "ECG:K2"]
+    assert warm_probe["sniper_roi_icount"] == 100_000
+    assert warm_probe["sniper_frontend"] == "sift"
+    assert "sniper_require_fused_receipts" not in warm_probe
     preliminary = [
         stage for stage in manifest["stages"]
         if stage["name"] in {
@@ -542,6 +554,7 @@ def test_final_design_docs_and_run_flow_are_consistent():
             "ecg_3sim_realgraph_allalg_1b",
             "ecg_3sim_sampled_allalg",
             "ecg_sniper_sampled_pr_streamengine",
+            "ecg_sniper_realgraph_warm_probe",
             "ecg_sniper_realgraph_600m",
             "ecg_replacement_baseline",
             "ecg_cache_sim_factorial",

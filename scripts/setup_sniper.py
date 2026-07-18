@@ -333,6 +333,8 @@ def write_overlay_status(copied_files: list[str]) -> None:
         "common/core/memory_subsystem/parametric_dram_directory_msi/nuca_cache.cc",
         "common/core/memory_subsystem/parametric_dram_directory_msi/prefetcher.cc",
         "common/core/memory_subsystem/pr_l1_pr_l2_dram_directory_msi/dram_directory_cntlr.cc",
+        "common/performance_model/queue_model_history_list.cc",
+        "common/performance_model/shmem_perf_model.cc",
         "common/system/magic_server.cc",
         "include/sim_api.h",
     ]
@@ -367,6 +369,7 @@ def write_overlay_status(copied_files: list[str]) -> None:
             "cache_base_replacement_policy_grasp",
             "cache_set_factory_grasp_popt_ecg",
             "cache_insert_prepare_insertion",
+            "cache_only_warmup_timing",
             "prefetcher_factory_droplet",
             "magic_user_graphbrew_hints",
         ],
@@ -1416,6 +1419,73 @@ def patch_ecg_pfx_prefetcher_overlay(args: argparse.Namespace) -> None:
     )
 
 
+def patch_cache_only_history_queue(args: argparse.Namespace) -> None:
+    queue_source = (
+        SNIPER_DIR / "common" / "performance_model" /
+        "queue_model_history_list.cc"
+    )
+    replace_once(
+        queue_source,
+        """QueueModelHistoryList::computeQueueDelay(SubsecondTime pkt_time, SubsecondTime processing_time, core_id_t requester)
+{
+   LOG_ASSERT_ERROR(m_free_interval_list.size() >= 1,
+""",
+        """QueueModelHistoryList::computeQueueDelay(SubsecondTime pkt_time, SubsecondTime processing_time, core_id_t requester)
+{
+   // CACHE_ONLY warming updates cache state without advancing the interval-core
+   // clock. Exact-time history queues therefore receive non-monotonic packet
+   // timestamps and can exhaust their free-interval list. Queue latency is not
+   // consumed in this mode, so leave the detailed-ROI queue state untouched.
+   if (Sim()->getInstrumentationMode() == InstMode::CACHE_ONLY)
+      return SubsecondTime::Zero();
+
+   LOG_ASSERT_ERROR(m_free_interval_list.size() >= 1,
+""",
+        args.dry_run,
+        ["CACHE_ONLY warming updates cache state"],
+    )
+
+
+def patch_cache_only_shmem_timing(args: argparse.Namespace) -> None:
+    shmem_source = (
+        SNIPER_DIR / "common" / "performance_model" / "shmem_perf_model.cc"
+    )
+    replace_once(
+        shmem_source,
+        """ShmemPerfModel::updateElapsedTime(SubsecondTime time, Thread_t thread_num)
+{
+   LOG_PRINT("updateElapsedTime: time(%s)", itostr(time).c_str());
+""",
+        """ShmemPerfModel::updateElapsedTime(SubsecondTime time, Thread_t thread_num)
+{
+   // CACHE_ONLY leaves shared-memory elapsed time unchanged.
+   if (Sim()->getInstrumentationMode() == InstMode::CACHE_ONLY)
+      return;
+
+   LOG_PRINT("updateElapsedTime: time(%s)", itostr(time).c_str());
+""",
+        args.dry_run,
+        ["CACHE_ONLY leaves shared-memory elapsed time unchanged"],
+    )
+    replace_once(
+        shmem_source,
+        """ShmemPerfModel::incrElapsedTime(SubsecondTime time, Thread_t thread_num)
+{
+   LOG_PRINT("incrElapsedTime: time(%s)", itostr(time).c_str());
+""",
+        """ShmemPerfModel::incrElapsedTime(SubsecondTime time, Thread_t thread_num)
+{
+   // CACHE_ONLY warms cache contents but intentionally does not model time.
+   if (Sim()->getInstrumentationMode() == InstMode::CACHE_ONLY)
+      return;
+
+   LOG_PRINT("incrElapsedTime: time(%s)", itostr(time).c_str());
+""",
+        args.dry_run,
+        ["CACHE_ONLY warms cache contents"],
+    )
+
+
 def apply_overlays(args: argparse.Namespace) -> list[str]:
     if not args.apply_overlays:
         return []
@@ -1429,6 +1499,8 @@ def apply_overlays(args: argparse.Namespace) -> list[str]:
     patch_droplet_overlay(args)
     patch_graphbrew_simuser_overlay(args)
     patch_ecg_pfx_prefetcher_overlay(args)
+    patch_cache_only_history_queue(args)
+    patch_cache_only_shmem_timing(args)
     if args.dry_run:
         log.info("Overlay application dry-run completed.")
     else:

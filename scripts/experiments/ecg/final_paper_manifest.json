@@ -31,7 +31,8 @@
     "ecg_3sim_realgraph_allalg_1b": "Full-work cache_sim plus 1-billion-instruction detailed-ROI gem5/Sniper diagnostic on three real graphs.",
     "ecg_3sim_sampled_allalg": "Full-work three-simulator comparison on deterministic topology-derived samples of the three real graphs.",
     "ecg_sniper_sampled_pr_streamengine": "Equal-work sampled PageRank timing for GRASP, charged P-OPT, and K2-online+StreamShield with fused Sniper record delivery.",
-    "ecg_sniper_realgraph_600m": "Paper-faithful full-real-graph Sniper matrix with a 600-million-instruction detailed ROI.",
+    "ecg_sniper_realgraph_warm_probe": "Full web-Google warm-SIFT LRU/K2 probe with a 100-thousand-instruction detailed ROI.",
+    "ecg_sniper_realgraph_600m": "Paper-faithful full-real-graph Sniper matrix with a detailed ROI capped at 600 million instructions.",
     "ecg_preliminary_5alg_3sim": "Bounded five-algorithm, six-policy diagnostic matrix on a common synthetic graph across cache_sim, gem5, and Sniper.",
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
     "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
@@ -745,7 +746,7 @@
       "name": "32_sniper_realgraph_600m",
       "kind": "roi_matrix",
       "profiles": ["ecg_sniper_realgraph_600m"],
-      "blocked_reason": "The pinned Sniper tree disables its original Pin frontend, so requested live runs silently use SIFT. Warm SIFT K2 aborts in queue_model_history on web-Google before ROI statistics. Port/build the Pin frontend or repair warm SIFT queueing before launching.",
+      "prerequisite_profile": "ecg_sniper_realgraph_warm_probe",
       "suite": "sniper",
       "graph_set": "factorial_graphs",
       "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
@@ -760,14 +761,14 @@
       "ecg_epochs": 65535,
       "sniper_roi_icount": 600000000,
       "sniper_workload": "sg_kernel",
-      "sniper_frontend": "live",
+      "sniper_frontend": "sift",
       "allow_sniper_sg_kernel_workload": true,
       "sniper_memory_limit_gb": 20,
       "sniper_address_domain": "virtual",
       "require_sniper_aslr_disable": true,
       "sniper_cores": 1,
       "out_subdir": "32_sniper_realgraph_600m",
-      "timeout_sniper": 43200,
+      "timeout_sniper": 86400,
       "env": {
         "ECG_STREAM_BYPASS_TRACE": "8"
       }
@@ -801,6 +802,29 @@
       "env": {
         "ECG_STREAM_BYPASS_TRACE": "8"
       }
+    },
+    {
+      "name": "34_sniper_realgraph_warm_probe",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_sniper_realgraph_warm_probe"],
+      "suite": "sniper",
+      "graph_set": "web_google_streamshield",
+      "benchmarks": ["pr"],
+      "policies": ["LRU", "ECG:K2"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "sniper_roi_icount": 100000,
+      "sniper_workload": "sg_kernel",
+      "sniper_frontend": "sift",
+      "allow_sniper_sg_kernel_workload": true,
+      "sniper_memory_limit_gb": 20,
+      "sniper_address_domain": "virtual",
+      "require_sniper_aslr_disable": true,
+      "sniper_cores": 1,
+      "out_subdir": "34_sniper_realgraph_warm_probe",
+      "timeout_sniper": 21600
     },
     {
       "name": "40_sniper_streamshield_realgraph",

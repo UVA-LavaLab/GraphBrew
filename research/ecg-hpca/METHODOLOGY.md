@@ -58,7 +58,8 @@ columns, not a reduced headline baseline set.
 | `ecg_cache_sim_factorial` | What do K2 and StreamShield contribute under hardware-faithful traffic? | STRIDE8 for all; ECG record traffic charged |
 | `ecg_3sim_sampled_allalg` | Do all three backends show coherent bounded-workload behavior across all five kernels? | no prefetch; deterministic compact samples; full semantic completion |
 | `ecg_sniper_sampled_pr_streamengine` | Can fused K2 delivery tolerate its record bandwidth on equal-work sampled PageRank? | no prefetch; GRASP/charged P-OPT/K2-online+SS; record misses remain in Sniper LLC accounting |
-| `ecg_sniper_realgraph_600m` | What cache direction appears on full graphs under a prior-paper-style detailed ROI? | live Sniper; normal cache warming; 600M detailed instructions; timing invalid |
+| `ecg_sniper_realgraph_warm_probe` | Do full web-Google warm LRU and K2 reach a detailed ROI? | explicit SIFT; normal cache warming; 100K detailed instructions |
+| `ecg_sniper_realgraph_600m` | What cache direction appears on full graphs under a prior-paper-style detailed ROI? | explicit SIFT; normal cache warming; detailed ROI capped at 600M instructions; timing invalid |
 | `streamshield_sniper_realgraph` | Does the complete mechanism improve detailed-simulator time and traffic? | bounded, full six-policy matrix |
 
 `ecg_charged=1` preserves each backend's executable transport rather than
@@ -127,6 +128,12 @@ and is not timing evidence. `ecg_sniper_sampled_pr_streamengine` is the bounded
 equal-work timing profile. Its P-OPT row charges reserved LLC capacity, while
 matrix-stream latency remains outside Sniper target time and is reported
 separately.
+
+Sniper CACHE_ONLY warming updates cache contents but intentionally does not
+model time. The installed GraphBrew patch therefore leaves exact queue state
+untouched and suppresses shared-memory elapsed-time accumulation until DETAILED
+mode. Full web-Google warm LRU and K2 100K probes both reach ROI with this
+configuration.
 
 ## Headline real-graph cell
 

@@ -94,7 +94,10 @@ instructions; instruction-normalized TPI still improves 1.149x and 1.094x.
 Total LLC misses rise 8.50% versus GRASP and 14.03% versus overhead-charged
 P-OPT. This remains a bounded sampled result.
 
-The real-graph Sniper matrix remains a gate before claiming overall
-detailed-simulator superiority over P-OPT. Its current generic STRIDE8
+The full-graph warm-SIFT queue blocker is resolved: matched web-Google LRU and
+K2 100K probes reach ROI with normal cache warming. The 600M matrix remains a
+data-collection gate before claiming overall detailed-simulator superiority
+over P-OPT. The first post-fix K2 cell completes a full PR iteration before the
+600M cap. Its current generic STRIDE8
 configuration is rejected by the bounded diagnostic and must be replaced by a
 traffic-bounded setting before the headline run.
