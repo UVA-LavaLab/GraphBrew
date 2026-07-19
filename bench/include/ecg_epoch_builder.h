@@ -385,6 +385,32 @@ void buildInEdgeEpochPairRecords(
     }
 }
 
+template <typename GraphT, typename OffsetContainer, typename RecordContainer>
+bool validateWeightedEpochPairRecords(
+        const GraphT& g, const OffsetContainer& record_off,
+        const RecordContainer& records) {
+    const uint32_t n = static_cast<uint32_t>(g.num_nodes());
+    if (record_off.size() != static_cast<size_t>(n) + 1 ||
+        record_off.empty() || record_off.front() != 0 ||
+        record_off.back() != records.size()) {
+        return false;
+    }
+    for (uint32_t src = 0; src < n; ++src) {
+        uint64_t pos = record_off[src];
+        const uint64_t end = record_off[src + 1];
+        for (const auto edge : g.out_neigh(src)) {
+            if (pos >= end || pos >= records.size() ||
+                extractEpochPairDest(records[pos]) !=
+                    static_cast<uint32_t>(edge.v)) {
+                return false;
+            }
+            ++pos;
+        }
+        if (pos != end) return false;
+    }
+    return true;
+}
+
 } // namespace ecg_epoch
 
 #endif // ECG_EPOCH_BUILDER_H

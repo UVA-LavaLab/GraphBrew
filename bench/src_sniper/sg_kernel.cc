@@ -161,6 +161,17 @@ bool stream_bypass_enabled() {
     return value && value[0] && std::string(value) != "0";
 }
 
+bool k2_record_validation_enabled() {
+    const char* value = std::getenv("ECG_K2_VALIDATE");
+    return value && value[0] && std::string(value) != "0";
+}
+
+inline uint64_t consume_fused_k2_record(const uint64_t* record_ptr) {
+    const uint64_t record = *record_ptr;
+    asm volatile("" : : "r"(record) : "memory");
+    return record;
+}
+
 void deliver_k2_record(uint64_t record, bool fused_k2_model) {
     const uint32_t dest = ecg_epoch::extractEpochPairDest(record);
     const uint8_t tier = ecg_epoch::extractEpochPairTier(record);
@@ -930,6 +941,12 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             /*push_out_edges=*/true);
         pair_ok = true;
     }
+    if (pair_ok && k2_record_validation_enabled() &&
+        !ecg_epoch::validateWeightedEpochPairRecords(
+            graph, pair_off, pair_flat)) {
+        std::fprintf(stderr, "Sniper SSSP K2 record validation failed\n");
+        std::abort();
+    }
     if (!sniper_export_context(
             regions, 1, graph, nullptr, edge_regions, num_edge_regions,
             stream_bypass_on && pair_ok
@@ -954,6 +971,25 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
     std::queue<NodeID> frontier;
     frontier.push(source);
     in_queue[source] = 1;
+    auto relax_edges = [&](
+            NodeID node, auto&& before_property_load,
+            auto&& after_property_load) {
+        size_t edge_pos = 0;
+        for (WNode edge : graph.out_neigh(node)) {
+            before_property_load(edge, edge_pos);
+            const WeightT candidate = dist[node] + edge.w;
+            const WeightT old_dist = dist[edge.v];
+            after_property_load(edge, edge_pos);
+            if (candidate < old_dist) {
+                dist[edge.v] = candidate;
+                if (!in_queue[edge.v]) {
+                    frontier.push(edge.v);
+                    in_queue[edge.v] = 1;
+                }
+            }
+            ++edge_pos;
+        }
+    };
     while (!frontier.empty()) {
         NodeID node = frontier.front();
         frontier.pop();
@@ -964,53 +1000,62 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         if (ecg_pfx_hints_on && !frontier.empty()) {
             SNIPER_ECG_PFX_TARGET(frontier.front());
         }
-        const std::vector<uint16_t>* eps =
-            (ecg_extract_on && static_cast<size_t>(node) < out_edge_epochs.size())
-                ? &out_edge_epochs[node] : nullptr;
-        size_t edge_pos = 0;
-        for (WNode edge : graph.out_neigh(node)) {
+        if (fused_k2_model && pair_ok) {
+            uint64_t pair_pos = pair_off[node];
+            if (software_k2_delivery) {
+                relax_edges(
+                    node,
+                    [&](WNode, size_t) {
+                    const uint64_t record =
+                        consume_fused_k2_record(&pair_flat[pair_pos++]);
+                    deliver_k2_record(record, fused_k2_model);
+                    },
+                    [](WNode, size_t) {});
+            } else {
+                relax_edges(
+                    node,
+                    [&](WNode, size_t) {
+                    (void)consume_fused_k2_record(&pair_flat[pair_pos++]);
+                    },
+                    [](WNode, size_t) {});
+            }
+        } else if (
+                pair_ok ||
+                (ecg_extract_on &&
+                 static_cast<size_t>(node) < out_edge_epochs.size())) {
+            const std::vector<uint16_t>* eps =
+                (ecg_extract_on &&
+                 static_cast<size_t>(node) < out_edge_epochs.size())
+                    ? &out_edge_epochs[node] : nullptr;
             uint64_t delivered_k2_record = 0;
             bool delivered_k2 = false;
-            // Deliver edge.v's epoch BEFORE reading dist[edge.v] so cache_set_ecg stamps
-            // the property line on fill.
-            if (pair_ok && static_cast<size_t>(node + 1) < pair_off.size()) {
-                const uint64_t pos = pair_off[node] + edge_pos;
-                if (pos >= pair_off[node + 1] || pos >= pair_flat.size()) {
-                    std::fprintf(stderr,
-                        "Sniper SSSP K2 pair index out of range: u=%d edge=%zu\n",
-                        static_cast<int>(node), edge_pos);
-                    std::abort();
+            relax_edges(
+                node,
+                [&](WNode edge, size_t edge_pos) {
+                if (pair_ok &&
+                    static_cast<size_t>(node + 1) < pair_off.size()) {
+                    delivered_k2_record =
+                        pair_flat[pair_off[node] + edge_pos];
+                    if (software_k2_delivery) {
+                        deliver_k2_record(
+                            delivered_k2_record, fused_k2_model);
+                    }
+                    delivered_k2 = true;
+                } else if (eps) {
+                    const uint16_t ep =
+                        (edge_pos < eps->size()) ? (*eps)[edge_pos]
+                        : static_cast<uint16_t>(ecg_epoch_count - 1);
+                    SNIPER_ECG_EXTRACT(edge.v, ep);
                 }
-                delivered_k2_record = pair_flat[pos];
-                if (ecg_epoch::extractEpochPairDest(delivered_k2_record) !=
-                    static_cast<uint32_t>(edge.v)) {
-                    std::fprintf(stderr,
-                        "Sniper SSSP K2 destination mismatch: expected=%u got=%u\n",
-                        static_cast<unsigned>(edge.v),
-                        ecg_epoch::extractEpochPairDest(delivered_k2_record));
-                    std::abort();
-                }
-                if (software_k2_delivery) {
-                    deliver_k2_record(delivered_k2_record, fused_k2_model);
-                }
-                delivered_k2 = true;
-            } else if (eps) {
-                uint16_t ep = (edge_pos < eps->size()) ? (*eps)[edge_pos]
-                    : static_cast<uint16_t>(ecg_epoch_count - 1);
-                SNIPER_ECG_EXTRACT(edge.v, ep);
-            }
-            ++edge_pos;
-            WeightT candidate = dist[node] + edge.w;
-            const WeightT old_dist = dist[edge.v];
-            if (delivered_k2 && !fused_k2_model)
-                clear_k2_record(delivered_k2_record, fused_k2_model);
-            if (candidate < old_dist) {
-                dist[edge.v] = candidate;
-                if (!in_queue[edge.v]) {
-                    frontier.push(edge.v);
-                    in_queue[edge.v] = 1;
-                }
-            }
+                },
+                [&](WNode, size_t) {
+                if (delivered_k2 && !fused_k2_model)
+                    clear_k2_record(delivered_k2_record, fused_k2_model);
+                delivered_k2 = false;
+                });
+        } else {
+            relax_edges(
+                node, [](WNode, size_t) {}, [](WNode, size_t) {});
         }
     }
     SNIPER_ROI_END();

@@ -68,12 +68,6 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
         if (pair_off && pair_flat &&
             static_cast<size_t>(u + 1) < pair_off->size()) {
             const uint64_t pos = (*pair_off)[u] + edge_pos;
-            if (pos >= (*pair_off)[u + 1] || pos >= pair_flat->size()) {
-                std::fprintf(stderr,
-                    "SSSP K2 pair index out of range: u=%d edge=%zu\n",
-                    static_cast<int>(u), edge_pos);
-                std::abort();
-            }
             // FUSED ecg.load2: one custom-0 I-type op replaces demand-load + ecg.extract2
             // for the Schedule-2 packed K2 record (mirrors gem5 PR pr.cc). The weighted
             // edge (wn.w) stays a separate, ordinary CSR read below — only the K2 record
@@ -85,14 +79,6 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                 : ecg_load2_on
                     ? gem5_ecg_load2_instruction(&(*pair_flat)[pos])
                     : (*pair_flat)[pos];
-            if (ecg_epoch::extractEpochPairDest(record) !=
-                static_cast<uint32_t>(wn.v)) {
-                std::fprintf(stderr,
-                    "SSSP K2 destination mismatch: expected=%u got=%u\n",
-                    static_cast<unsigned>(wn.v),
-                    ecg_epoch::extractEpochPairDest(record));
-                std::abort();
-            }
             if (!ecg_stream_load2_on && !ecg_load2_on)
                 GEM5_ECG_EXTRACT2(record);
             old_dist = dist[wn.v];
@@ -194,6 +180,14 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
             pair_records.size(), uint64_t(0), 4096);
         std::copy(pair_records.begin(), pair_records.end(), pair_flat.begin());
         pair_ok = true;
+    }
+    const char* k2_validate_env = std::getenv("ECG_K2_VALIDATE");
+    if (pair_ok && k2_validate_env && k2_validate_env[0] &&
+        std::strcmp(k2_validate_env, "0") != 0 &&
+        !ecg_epoch::validateWeightedEpochPairRecords(
+            g, pair_off, pair_flat)) {
+        std::fprintf(stderr, "gem5 SSSP K2 record validation failed\n");
+        std::abort();
     }
     gem5_export_context(regions, 1, g, GEM5_SIDEBAND_PATH,
                         edge_regions, num_edge_regions, edge_epoch_count);

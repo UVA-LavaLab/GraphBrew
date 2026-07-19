@@ -61,7 +61,7 @@ def test_sniper_fused_k2_skips_software_only_delivery() -> None:
     text = read("bench/src_sniper/sg_kernel.cc")
     assert text.count("const bool software_k2_delivery =") == 5
     assert text.count("const bool ecg_pfx_hints_on =") == 3
-    assert text.count("if (software_k2_delivery) {") == 6
+    assert text.count("if (software_k2_delivery) {") == 7
     assert text.count("if (!fused_k2_model) {") >= 6
     assert "if (delivered_k2 && !fused_k2_model)" in text
     assert "!graphbrew_sniper::ecg_pfx_hints_enabled()" not in text
