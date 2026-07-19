@@ -62,6 +62,13 @@
 - The post-fix 600M-capped web-Google PR K2 cell completes successfully with
   normal warming and context delivery. It finishes the full iteration before
   the cap at 179.4M reported instructions; the row is cache evidence only.
+- The corrected 120-row sampled Sniper timing matrix passes strict coverage.
+  K2-online+StreamShield reaches 1.357x on PR and 1.334x on BFS versus LRU, but
+  falls to 0.642x on weighted SSSP. GRASP remains the strongest generic policy
+  at 1.100x geomean across all 15 cells.
+- The current runtime scope is PR/BFS, with near-neutral BC and modest CC
+  benefit. The BFS aggregate is sample-sensitive and Sniper's CPI components
+  remain unavailable beyond total ticks per instruction.
 
 ## Pending
 
@@ -72,6 +79,8 @@
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
 - Detailed-simulator confirmation of the real-graph online-selector result.
 - Completion and aggregation of the now-runnable full-graph 600M SIFT matrix.
+- A weighted-SSSP transport fallback or wider fused record before claiming K2
+  as a generic all-kernel runtime mechanism.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.
 
 ## Prohibited until the pending gate passes

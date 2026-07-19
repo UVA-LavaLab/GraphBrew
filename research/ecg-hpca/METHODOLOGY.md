@@ -129,6 +129,18 @@ equal-work timing profile. Its P-OPT row charges reserved LLC capacity, while
 matrix-stream latency remains outside Sniper target time and is reported
 separately.
 
+The 120-row corrected Sniper rerun at
+`ecg_sniper_sampled_allalg_corrected_final_20260719` is the sampled all-kernel
+timing authority. It preserves the same graph/kernel/policy cells while using
+the corrected fused-delivery path. Weighted SSSP remains 16 bytes per relaxed
+edge (8-byte weighted edge plus 8-byte K2 metadata), so its instruction and
+traffic overhead is reported rather than hidden.
+
+All aggregate ratios use the geometric mean across the applicable graph/kernel
+cells. P-OPT and K2 overheads appear in different columns by construction:
+P-OPT matrix streaming is added to effective LLC misses/traffic, while K2 record
+delivery primarily changes executed instructions and explicit record accesses.
+
 Sniper CACHE_ONLY warming updates cache contents but intentionally does not
 model time. The installed GraphBrew patch therefore leaves exact queue state
 untouched and suppresses shared-memory elapsed-time accumulation until DETAILED

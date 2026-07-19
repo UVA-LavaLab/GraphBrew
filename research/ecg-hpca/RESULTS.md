@@ -210,6 +210,59 @@ The rank statistic is frozen in
 `sampled_crosssim_rank_correlation.csv` using mean per-cell Spearman over all
 eight policies and effective LLC misses.
 
+### Corrected sampled Sniper all-kernel timing
+
+The corrected Sniper-only rerun contains 120 valid rows: three deterministic
+samples x PR/BFS/SSSP/BC/CC x eight policies. The strict coverage gate passes
+and every graph/kernel group is hash-consistent.
+
+Geomean across all 15 graph/kernel cells versus LRU:
+
+| Policy | Speedup | TPI speedup | Instruction ratio | Effective L3-miss reduction |
+|---|---:|---:|---:|---:|
+| SRRIP | 1.025x | 1.025x | 1.000x | 3.50% |
+| GRASP | **1.100x** | 1.100x | 1.000x | **15.20%** |
+| charged P-OPT | 1.078x | 1.078x | 1.000x | -19.29% |
+| K2 | 1.064x | **1.258x** | 1.182x | -0.34% |
+| K2-online | 1.065x | **1.259x** | 1.182x | -0.99% |
+| K2+StreamShield | 1.049x | 1.240x | 1.182x | 0.19% |
+| K2-online+StreamShield | 1.052x | 1.244x | 1.182x | 0.00% |
+
+K2-online+StreamShield kernel geomean:
+
+| Kernel | Speedup vs LRU | vs GRASP | vs charged P-OPT | Effective miss reduction vs LRU |
+|---|---:|---:|---:|---:|
+| PR | **1.357x** | 1.209x | 1.155x | 16.54% |
+| BFS | **1.334x** | 1.210x | 1.239x | 4.43% |
+| SSSP | **0.642x** | 0.579x | 0.571x | -29.20% |
+| BC | 1.007x | 0.992x | 1.013x | 5.34% |
+| CC | 1.101x | 0.953x | 1.073x | -2.53% |
+
+GRASP wins 7/15 timing cells, the four K2 variants collectively win 6/15,
+and P-OPT wins 2/15. The corrected result supports K2's fused-stream benefit
+for PR and BFS, but not a generic all-kernel superiority claim. Weighted SSSP
+is the clear failure: its faithful path retains the 8-byte weighted edge and
+adds an 8-byte K2 record, producing a 1.975x instruction ratio. TPI still
+improves 1.268x, but cannot recover the doubled transport work.
+
+The BFS geomean is sensitive to the tiny web-Google-n16 cell: K2-online+
+StreamShield is 1.877x there, while cit-Patents and soc-pokec are 0.968x and
+1.306x; excluding web-Google gives 1.124x. Sniper assigns the full CPI stack to
+`unknown`, so the TPI gains cannot be decomposed into LLC, DRAM, or pipeline
+components.
+
+The effective-miss column charges P-OPT's matrix stream as additional cache-line
+fills, which dominates small working sets. K2's main overhead instead appears
+as the 1.182x instruction ratio. StreamShield also trades timing for placement
+in BC: adding it to online K2 reduces BC speedup by about 6% even though the
+cache_sim placement study favors static shielding.
+
+The supported scope is therefore PR/BFS, with near-neutral BC and modest CC
+benefit, pending a weighted-edge transport solution for SSSP.
+
+Aggregate: `results/ecg_experiments/paper_pipeline/`
+`ecg_sniper_sampled_allalg_corrected_final_20260719/aggregate/`.
+
 ### Fused sampled PageRank timing
 
 The dedicated `ecg_sniper_sampled_pr_streamengine` profile contains nine

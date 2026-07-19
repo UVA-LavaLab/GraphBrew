@@ -94,6 +94,14 @@ instructions; instruction-normalized TPI still improves 1.149x and 1.094x.
 Total LLC misses rise 8.50% versus GRASP and 14.03% versus overhead-charged
 P-OPT. This remains a bounded sampled result.
 
+The corrected 120-row sampled Sniper timing matrix broadens that result. The
+complete mechanism reaches 1.357x on PR and 1.334x on BFS versus LRU, is near
+neutral on BC, and reaches 1.101x on CC, but weighted SSSP falls to 0.642x
+because its current path reads both the original weighted edge and a separate
+K2 record. The BFS result is sensitive to the smallest sample and the CPI stack
+cannot be decomposed beyond total ticks per instruction. GRASP remains the
+strongest generic policy across all 15 cells.
+
 The full-graph warm-SIFT queue blocker is resolved: matched web-Google LRU and
 K2 100K probes reach ROI with normal cache warming. The 600M matrix remains a
 data-collection gate before claiming overall detailed-simulator superiority

@@ -276,6 +276,12 @@ Canonical profiles:
   ticks-per-instruction still improve 1.149x and 1.094x. Total LLC misses rise
   8.50% versus GRASP and 14.03% versus overhead-charged P-OPT. This confirms
   the fused-stream tradeoff for sampled PR only.
+- The corrected 120-row sampled Sniper all-kernel matrix passes. Final
+  K2-online+StreamShield reaches 1.357x on PR and 1.334x on BFS versus LRU,
+  approximately breaks even on BC, and reaches 1.101x on CC, but weighted SSSP
+  falls to 0.642x because it reads the weighted edge plus a separate K2 record.
+  The BFS result is sensitive to the smallest sample. GRASP remains the best
+  generic policy at 1.100x geomean.
 - The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
   prefetcher: every policy overprefetches, and K2 LLC read traffic rises
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do
