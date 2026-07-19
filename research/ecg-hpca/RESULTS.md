@@ -220,13 +220,13 @@ Geomean across all 15 graph/kernel cells versus LRU:
 
 | Policy | Speedup | TPI speedup | Instruction ratio | Effective L3-miss reduction |
 |---|---:|---:|---:|---:|
-| SRRIP | 1.025x | 1.025x | 1.000x | 3.50% |
-| GRASP | **1.100x** | 1.100x | 1.000x | **15.20%** |
-| charged P-OPT | 1.078x | 1.078x | 1.000x | -19.29% |
-| K2 | 1.064x | **1.258x** | 1.182x | -0.34% |
-| K2-online | 1.065x | **1.259x** | 1.182x | -0.99% |
-| K2+StreamShield | 1.049x | 1.240x | 1.182x | 0.19% |
-| K2-online+StreamShield | 1.052x | 1.244x | 1.182x | 0.00% |
+| SRRIP | 1.025x | 1.025x | 1.000x | 3.44% |
+| GRASP | 1.099x | 1.099x | 1.000x | **15.19%** |
+| charged P-OPT | 1.075x | 1.075x | 1.000x | -19.26% |
+| K2 | **1.154x** | **1.258x** | 1.090x | 1.31% |
+| K2-online | **1.154x** | **1.258x** | 1.090x | 0.62% |
+| K2+StreamShield | 1.137x | 1.239x | 1.090x | 1.81% |
+| K2-online+StreamShield | 1.143x | 1.246x | 1.090x | 1.59% |
 
 K2-online+StreamShield kernel geomean:
 
@@ -234,34 +234,43 @@ K2-online+StreamShield kernel geomean:
 |---|---:|---:|---:|---:|
 | PR | **1.357x** | 1.209x | 1.155x | 16.54% |
 | BFS | **1.334x** | 1.210x | 1.239x | 4.43% |
-| SSSP | **0.642x** | 0.579x | 0.571x | -29.20% |
+| SSSP | **0.973x** | 0.881x | 0.873x | -19.25% |
 | BC | 1.007x | 0.992x | 1.013x | 5.34% |
 | CC | 1.101x | 0.953x | 1.073x | -2.53% |
 
-GRASP wins 7/15 timing cells, the four K2 variants collectively win 6/15,
-and P-OPT wins 2/15. The corrected result supports K2's fused-stream benefit
-for PR and BFS, but not a generic all-kernel superiority claim. Weighted SSSP
-is the clear failure: its faithful path retains the 8-byte weighted edge and
-adds an 8-byte K2 record, producing a 1.975x instruction ratio. TPI still
-improves 1.268x, but cannot recover the doubled transport work.
+GRASP wins 7/15 timing cells, the four K2 variants collectively win 7/15,
+and P-OPT wins 1/15. The 4-byte weighted sidecar raises final K2-online+
+StreamShield from 1.052x to 1.143x overall and reduces its instruction ratio
+from 1.182x to 1.090x. It now beats GRASP and charged P-OPT in overall sampled
+geomean, but still does not dominate every kernel.
+
+Weighted SSSP improves from 0.642x to 0.973x versus LRU. Its 12-byte path
+(8-byte weighted edge + 4-byte sidecar) still carries a 1.314x SSSP instruction
+ratio; a 1.278x per-instruction TPI improvement nearly repays that cost. It
+remains slower than GRASP and P-OPT, so a zero-record GRASP transport arm is
+still required for per-kernel no-regret behavior.
 
 The BFS geomean is sensitive to the tiny web-Google-n16 cell: K2-online+
 StreamShield is 1.877x there, while cit-Patents and soc-pokec are 0.968x and
-1.306x; excluding web-Google gives 1.124x. Sniper assigns the full CPI stack to
+1.306x; excluding web-Google gives 1.124x for BFS. Excluding that single
+200K-instruction graph/kernel cell from the overall aggregate leaves
+K2-online+StreamShield at 1.103x and GRASP at 1.106x, so their overall ordering
+is not robust to the shortest workload. Sniper assigns the full CPI stack to
 `unknown`, so the TPI gains cannot be decomposed into LLC, DRAM, or pipeline
 components.
 
 The effective-miss column charges P-OPT's matrix stream as additional cache-line
 fills, which dominates small working sets. K2's main overhead instead appears
-as the 1.182x instruction ratio. StreamShield also trades timing for placement
+as the 1.090x instruction ratio. StreamShield also trades timing for placement
 in BC: adding it to online K2 reduces BC speedup by about 6% even though the
 cache_sim placement study favors static shielding.
 
-The supported scope is therefore PR/BFS, with near-neutral BC and modest CC
-benefit, pending a weighted-edge transport solution for SSSP.
+The supported scope is therefore strong PR/BFS and positive sampled overall
+geomean, with near-neutral BC/SSSP and modest CC benefit. Per-kernel no-regret
+still requires a true zero-record baseline arm.
 
 Aggregate: `results/ecg_experiments/paper_pipeline/`
-`ecg_sniper_sampled_allalg_corrected_final_20260719/aggregate/`.
+`ecg_sniper_sampled_allalg_weighted_sidecar_final_20260719/aggregate/`.
 
 ### Fused sampled PageRank timing
 

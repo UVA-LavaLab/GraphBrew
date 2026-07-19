@@ -64,11 +64,13 @@
   the cap at 179.4M reported instructions; the row is cache evidence only.
 - The corrected 120-row sampled Sniper timing matrix passes strict coverage.
   K2-online+StreamShield reaches 1.357x on PR and 1.334x on BFS versus LRU, but
-  falls to 0.642x on weighted SSSP. GRASP remains the strongest generic policy
-  at 1.100x geomean across all 15 cells.
-- The current runtime scope is PR/BFS, with near-neutral BC and modest CC
-  benefit. The BFS aggregate is sample-sensitive and Sniper's CPI components
-  remain unavailable beyond total ticks per instruction.
+  reaches 0.973x on weighted SSSP with the 4-byte sidecar. Final sampled
+  geomean is 1.143x versus LRU, ahead of GRASP's 1.099x.
+- The current runtime scope is strong PR/BFS with positive sampled overall
+  geomean and near-neutral BC/SSSP. The K2-vs-GRASP overall ordering is
+  sample-sensitive: removing the shortest web-Google BFS cell gives 1.103x for
+  K2-online+StreamShield versus 1.106x for GRASP. Sniper's CPI components remain
+  unavailable beyond total ticks per instruction.
 
 ## Pending
 
@@ -79,8 +81,8 @@
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
 - Detailed-simulator confirmation of the real-graph online-selector result.
 - Completion and aggregation of the now-runnable full-graph 600M SIFT matrix.
-- A weighted-SSSP transport fallback or wider fused record before claiming K2
-  as a generic all-kernel runtime mechanism.
+- A zero-record GRASP transport arm before claiming per-kernel no-regret
+  behavior; weighted SSSP still trails GRASP despite the 4-byte sidecar.
 - Request-bound K2 pair delivery before gem5 O3 is enabled.
 
 ## Prohibited until the pending gate passes

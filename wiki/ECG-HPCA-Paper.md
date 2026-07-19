@@ -278,10 +278,11 @@ Canonical profiles:
   the fused-stream tradeoff for sampled PR only.
 - The corrected 120-row sampled Sniper all-kernel matrix passes. Final
   K2-online+StreamShield reaches 1.357x on PR and 1.334x on BFS versus LRU,
-  approximately breaks even on BC, and reaches 1.101x on CC, but weighted SSSP
-  falls to 0.642x because it reads the weighted edge plus a separate K2 record.
-  The BFS result is sensitive to the smallest sample. GRASP remains the best
-  generic policy at 1.100x geomean.
+  approximately breaks even on BC, and reaches 1.101x on CC. The 4-byte weighted
+  sidecar improves SSSP from 0.642x to 0.973x. Overall sampled geomean is
+  1.143x versus LRU, ahead of GRASP's 1.099x, although SSSP still trails GRASP.
+  The overall ordering is sensitive to the shortest BFS cell: excluding it gives
+  1.103x for K2-online+StreamShield versus 1.106x for GRASP.
 - The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
   prefetcher: every policy overprefetches, and K2 LLC read traffic rises
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do

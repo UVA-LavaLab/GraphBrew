@@ -129,12 +129,11 @@ equal-work timing profile. Its P-OPT row charges reserved LLC capacity, while
 matrix-stream latency remains outside Sniper target time and is reported
 separately.
 
-The pre-sidecar 120-row corrected Sniper rerun at
-`ecg_sniper_sampled_allalg_corrected_final_20260719` is the sampled all-kernel
-timing authority. It preserves the same graph/kernel/policy cells while using
-the corrected fused-delivery path. Its SSSP rows retain historical 8-byte K2
-record accounting; the weighted-sidecar SSSP slice must be rerun before updated
-runtime claims are frozen.
+The 120-row corrected Sniper rerun at
+`ecg_sniper_sampled_allalg_weighted_sidecar_final_20260719` is the sampled
+all-kernel timing authority. It preserves the same graph/kernel/policy cells
+while replacing historical weighted-SSSP rows with the canonical 4-byte
+sidecar path.
 
 All aggregate ratios use the geometric mean across the applicable graph/kernel
 cells. P-OPT and K2 overheads appear in different columns by construction:

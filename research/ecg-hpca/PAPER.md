@@ -96,11 +96,13 @@ P-OPT. This remains a bounded sampled result.
 
 The corrected 120-row sampled Sniper timing matrix broadens that result. The
 complete mechanism reaches 1.357x on PR and 1.334x on BFS versus LRU, is near
-neutral on BC, and reaches 1.101x on CC, but weighted SSSP falls to 0.642x
-because its current path reads both the original weighted edge and a separate
-K2 record. The BFS result is sensitive to the smallest sample and the CPI stack
-cannot be decomposed beyond total ticks per instruction. GRASP remains the
-strongest generic policy across all 15 cells.
+neutral on BC, and reaches 1.101x on CC. The 4-byte weighted sidecar improves
+SSSP from 0.642x to 0.973x. Final sampled geomean is 1.143x versus LRU, ahead of
+GRASP's 1.099x, but SSSP still trails GRASP and P-OPT. The BFS result is
+sensitive to the smallest sample: excluding the 200K-instruction web-Google BFS
+cell gives 1.103x for K2-online+StreamShield and 1.106x for GRASP, reversing
+their overall order. The CPI stack cannot be decomposed beyond total ticks per
+instruction.
 
 The full-graph warm-SIFT queue blocker is resolved: matched web-Google LRU and
 K2 100K probes reach ROI with normal cache warming. The 600M matrix remains a

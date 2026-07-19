@@ -146,7 +146,9 @@ def validate(
                     errors.append(
                         f"{row_name(row)}: bypass trace missing")
             if simulator == "sniper":
-                if row.get("sniper_ecg_delivery") != "fused-k2-model":
+                if row.get("sniper_ecg_delivery") not in {
+                        "fused-k2-model",
+                        "fused-k2-weighted32-model"}:
                     errors.append(f"{row_name(row)}: fused delivery missing")
                 bad_receipts = number(row, "sniper_fused_k2_bad_receipts")
                 if require_fused_receipts:
