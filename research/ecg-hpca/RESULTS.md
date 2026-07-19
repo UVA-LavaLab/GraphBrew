@@ -268,6 +268,22 @@ cap at 179,432,203 reported instructions, with 7,892,046 L3 accesses,
 `timing_valid_for_speedup=0`; do not compare its time directly with a baseline
 that reaches the 600M cap.
 
+### Sniper P-OPT host-emulation acceleration
+
+Sniper now computes each P-OPT candidate distance once per eviction and replaces
+repeated RRIP aging scans with an equivalent delta update. The optimized path is
+the default; `SNIPER_POPT_FAST=0` retains the legacy implementation.
+
+Fresh same-binary web-Google-n16 PR A/B rows are bit-identical in instructions,
+simulated ticks, L3 accesses/misses/rate, reserved ways, and matrix-stream
+charge. Profiling reduces `findNextRef` calls by 7.96x and P-OPT victim-selection
+host time by 2.48x. On the previously impractical cit-Patents cells, optimized
+BC and SSSP complete in 191 seconds and 130 seconds, respectively; the legacy
+versions remained unfinished after more than 11.5 hours.
+
+This is a simulator-throughput optimization only. It does not alter P-OPT
+victims, target timing, LLC capacity, or traffic accounting.
+
 ### Preliminary STRIDE8 sensitivity (synthetic diagnostic)
 
 K2 change from no prefetch to matched STRIDE8 on `kron_s15_k4`:

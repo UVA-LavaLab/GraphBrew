@@ -1644,6 +1644,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     transport = ecg_transport_for(spec, args.benchmark)
     apply_ecg_transport_env(env, transport)
     is_k2_ecg = policy_name == "ecg" and spec.ecg_mode == "ECG_GRASP_POPT"
+    if policy_name == "popt":
+        popt_fast = (
+            "0" if os.environ.get("SNIPER_POPT_FAST") == "0" else "1")
+        env["SNIPER_POPT_FAST"] = popt_fast
+        row["sniper_popt_fast"] = int(popt_fast == "1")
     env["OMP_NUM_THREADS"] = str(args.sniper_cores)
     # Multi-core OpenMP under Sniper deadlocks with PASSIVE waits: idle threads
     # call futex_wait with no timeout, so when every core is sleeping at a barrier

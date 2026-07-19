@@ -252,6 +252,10 @@ LLC accesses/misses and instructions beside simulated time. Report
 ticks-per-instruction so packed-record traversal savings are separated from the
 cache/memory effect.
 
+Sniper P-OPT uses the exact optimized host consultation path by default. Set
+`SNIPER_POPT_FAST=0` only for legacy A/B equivalence checks; paper rows record
+`sniper_popt_fast=1`.
+
 ### Paper-faithful full-graph Sniper ROI
 
 DROPLET warmed graph loading and collected 600 million ROI instructions.

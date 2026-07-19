@@ -135,6 +135,12 @@ untouched and suppresses shared-memory elapsed-time accumulation until DETAILED
 mode. Full web-Google warm LRU and K2 100K probes both reach ROI with this
 configuration.
 
+Sniper's P-OPT host emulator computes each candidate's dynamic rereference
+distance once per eviction and applies an equivalent closed-form RRIP aging
+step. `SNIPER_POPT_FAST=0` retains the legacy repeated-consultation path for
+equivalence checks. This changes host simulation cost only; victim decisions,
+target timing, reserved capacity, and matrix-stream accounting remain unchanged.
+
 ## Headline real-graph cell
 
 - Graph/kernel: web-Google PageRank, one iteration, DBG order

@@ -188,6 +188,8 @@ struct GraphCacheContext {
                            uint16_t& first, uint16_t& second) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;
+    uint32_t findNextRefAtVertex(
+        uint64_t addr, uint32_t current_vertex) const;
     uint32_t findNextRef(uint64_t addr, uint32_t core_id) const;
     uint32_t classifyGRASP(uint64_t addr, uint64_t llc_size) const;
     uint8_t getInsertRRPV(uint64_t addr) const;

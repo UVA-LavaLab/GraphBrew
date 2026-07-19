@@ -2,9 +2,13 @@
 
 #include "config.hpp"
 #include "log.h"
+#include "popt_fast_select.h"
 #include "simulator.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 
 namespace {
@@ -13,6 +17,134 @@ const char* envOrDefault(const char* name, const char* fallback)
 {
    const char* value = std::getenv(name);
    return value && value[0] ? value : fallback;
+}
+
+bool poptProfileEnabled()
+{
+   static const bool enabled = []() {
+      const char* value = std::getenv("SNIPER_POPT_PROFILE");
+      return value && value[0] && std::string(value) != "0";
+   }();
+   return enabled;
+}
+
+bool poptFastEnabled()
+{
+   static const bool enabled = []() {
+      const char* value = std::getenv("SNIPER_POPT_FAST");
+      return !value || !value[0] || std::string(value) != "0";
+   }();
+   return enabled;
+}
+
+struct PoptHostProfile
+{
+   std::atomic<uint64_t> replacement_calls{0};
+   std::atomic<uint64_t> find_next_ref_calls{0};
+   std::atomic<uint64_t> property_checks{0};
+   std::atomic<uint64_t> rrip_age_rounds{0};
+   std::atomic<uint64_t> elapsed_ns{0};
+};
+
+PoptHostProfile& poptHostProfile()
+{
+   static PoptHostProfile profile;
+   return profile;
+}
+
+void dumpPoptHostProfile()
+{
+   const auto& profile = poptHostProfile();
+   std::fprintf(
+      stderr,
+      "[POPT-HOST-PROFILE replacement_calls=%llu find_next_ref_calls=%llu "
+      "property_checks=%llu rrip_age_rounds=%llu elapsed_ns=%llu]\n",
+      static_cast<unsigned long long>(
+         profile.replacement_calls.load(std::memory_order_relaxed)),
+      static_cast<unsigned long long>(
+         profile.find_next_ref_calls.load(std::memory_order_relaxed)),
+      static_cast<unsigned long long>(
+         profile.property_checks.load(std::memory_order_relaxed)),
+      static_cast<unsigned long long>(
+         profile.rrip_age_rounds.load(std::memory_order_relaxed)),
+      static_cast<unsigned long long>(
+         profile.elapsed_ns.load(std::memory_order_relaxed)));
+}
+
+void ensurePoptProfileRegistered()
+{
+   static const bool registered = []() {
+      (void)poptHostProfile();
+      std::atexit(dumpPoptHostProfile);
+      return true;
+   }();
+   (void)registered;
+}
+
+class PoptProfileScope
+{
+   public:
+      PoptProfileScope()
+         : m_enabled(poptProfileEnabled())
+      {
+         if (m_enabled) {
+            ensurePoptProfileRegistered();
+            m_start = std::chrono::steady_clock::now();
+         }
+      }
+
+      ~PoptProfileScope()
+      {
+         if (!m_enabled) return;
+         const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now() - m_start).count();
+         auto& profile = poptHostProfile();
+         profile.replacement_calls.fetch_add(1, std::memory_order_relaxed);
+         profile.elapsed_ns.fetch_add(
+            static_cast<uint64_t>(elapsed), std::memory_order_relaxed);
+      }
+
+   private:
+      bool m_enabled;
+      std::chrono::steady_clock::time_point m_start;
+};
+
+uint32_t profiledFindNextRef(
+      graphbrew::sniper::GraphCacheContext& context,
+      uint64_t addr, uint32_t requester_core)
+{
+   if (poptProfileEnabled()) {
+      poptHostProfile().find_next_ref_calls.fetch_add(
+         1, std::memory_order_relaxed);
+   }
+   return context.findNextRef(addr, requester_core);
+}
+
+uint32_t profiledFindNextRefAtVertex(
+      graphbrew::sniper::GraphCacheContext& context,
+      uint64_t addr, uint32_t current_vertex)
+{
+   if (poptProfileEnabled()) {
+      poptHostProfile().find_next_ref_calls.fetch_add(
+         1, std::memory_order_relaxed);
+   }
+   return context.findNextRefAtVertex(addr, current_vertex);
+}
+
+void profilePropertyCheck()
+{
+   if (poptProfileEnabled()) {
+      poptHostProfile().property_checks.fetch_add(
+         1, std::memory_order_relaxed);
+   }
+}
+
+void profileRripAgeRound()
+{
+   if (poptProfileEnabled()) {
+      poptHostProfile().rrip_age_rounds.fetch_add(
+         1, std::memory_order_relaxed);
+   }
 }
 
 }  // namespace
@@ -39,10 +171,12 @@ CacheSetPOPT::CacheSetPOPT(
    , m_popt_matrix_path(envOrDefault("SNIPER_POPT_MATRIX", "/tmp/sniper_popt_matrix.bin"))
 {
    m_rrip_bits = new UInt8[m_associativity];
+   m_way_distances = new UInt8[m_associativity];
    m_line_addrs = new IntPtr[m_associativity];
    m_property_lines = new bool[m_associativity];
    for (UInt32 way = 0; way < m_associativity; way++) {
       m_rrip_bits[way] = m_rrip_insert;
+      m_way_distances[way] = 0;
       m_line_addrs[way] = 0;
       m_property_lines[way] = false;
    }
@@ -51,6 +185,7 @@ CacheSetPOPT::CacheSetPOPT(
 CacheSetPOPT::~CacheSetPOPT()
 {
    delete [] m_rrip_bits;
+   delete [] m_way_distances;
    delete [] m_line_addrs;
    delete [] m_property_lines;
 }
@@ -147,6 +282,8 @@ CacheSetPOPT::findSRRIPVictim(CacheCntlr *cntlr)
 UInt32
 CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
 {
+   PoptProfileScope profile_scope;
+
    for (UInt32 way = 0; way < m_associativity; way++) {
       if (!m_cache_block_info_array[way]->isValid()) {
          applyPendingInsertion(way);
@@ -168,6 +305,7 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
 
    UInt32 property_count = 0;
    for (UInt32 way = 0; way < m_associativity; way++) {
+      profilePropertyCheck();
       m_property_lines[way] = context.isPropertyData(static_cast<uint64_t>(m_line_addrs[way]));
       if (m_property_lines[way]) property_count++;
    }
@@ -199,16 +337,41 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
    // (l3_exercised=False, "[warn] L3 inert"). With this L3 exercised (e.g.
    // cit-Patents PR, ~16M L3 accesses) standalone Sniper POPT beats LRU by 3-15pp,
    // matching cache_sim direction.
+   if (poptFastEnabled()) {
+      const uint32_t current_vertex =
+         context.currentVertexForPopt(requester_core);
+      for (UInt32 way = 0; way < m_associativity; way++) {
+         m_way_distances[way] = static_cast<UInt8>(std::min(
+            profiledFindNextRefAtVertex(
+               context, static_cast<uint64_t>(m_line_addrs[way]),
+               current_vertex),
+            uint32_t(127)));
+      }
+
+      const UInt32 victim = graphbrew::sniper::selectAndAgePoptVictim(
+         m_rrip_bits, m_way_distances, m_associativity, m_rrip_max);
+      LOG_ASSERT_ERROR(
+         victim < m_associativity,
+         "POPT fast path failed to select a replacement candidate");
+      applyPendingInsertion(victim);
+      LOG_ASSERT_ERROR(
+         isValidReplacement(victim),
+         "POPT selected an invalid replacement candidate");
+      return victim;
+   }
+
    UInt32 max_distance = 0;
    for (UInt32 way = 0; way < m_associativity; way++) {
-      UInt32 distance = context.findNextRef(
+      UInt32 distance = profiledFindNextRef(
+            context,
             static_cast<uint64_t>(m_line_addrs[way]), requester_core);
       max_distance = std::max(max_distance, std::min(distance, uint32_t(127)));
    }
 
    while (true) {
       for (UInt32 way = 0; way < m_associativity; way++) {
-         UInt32 distance = context.findNextRef(
+         UInt32 distance = profiledFindNextRef(
+               context,
                static_cast<uint64_t>(m_line_addrs[way]), requester_core);
          if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] >= m_rrip_max) {
             applyPendingInsertion(way);
@@ -216,8 +379,10 @@ CacheSetPOPT::getReplacementIndex(CacheCntlr *cntlr)
             return way;
          }
       }
+      profileRripAgeRound();
       for (UInt32 way = 0; way < m_associativity; way++) {
-         UInt32 distance = context.findNextRef(
+         UInt32 distance = profiledFindNextRef(
+               context,
                static_cast<uint64_t>(m_line_addrs[way]), requester_core);
          if (std::min(distance, uint32_t(127)) == max_distance && m_rrip_bits[way] < m_rrip_max) {
             m_rrip_bits[way]++;

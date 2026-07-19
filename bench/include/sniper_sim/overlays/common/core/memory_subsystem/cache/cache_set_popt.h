@@ -33,6 +33,7 @@ class CacheSetPOPT : public CacheSet
       const UInt8 m_rrip_insert;
       const UInt8 m_num_attempts;
       UInt8* m_rrip_bits;
+      UInt8* m_way_distances;
       IntPtr* m_line_addrs;
       bool* m_property_lines;
       UInt8 m_replacement_pointer;

@@ -969,7 +969,22 @@ uint32_t GraphCacheContext::findNextRef(uint64_t addr, uint32_t core_id) const
         if (regions[i].contains(addr)) {
             uint32_t cline_id = static_cast<uint32_t>(
                 (addr - regions[i].base_address) / rereference.cache_line_size);
-            return rereference.findNextRef(cline_id, currentVertexForPopt(core_id));
+            return rereference.findNextRef(
+                cline_id, currentVertexForPopt(core_id));
+        }
+    }
+    return 127;
+}
+
+uint32_t GraphCacheContext::findNextRefAtVertex(
+        uint64_t addr, uint32_t current_vertex) const
+{
+    if (!rereference.enabled) return 127;
+    for (uint32_t i = 0; i < num_regions; ++i) {
+        if (regions[i].contains(addr)) {
+            uint32_t cline_id = static_cast<uint32_t>(
+                (addr - regions[i].base_address) / rereference.cache_line_size);
+            return rereference.findNextRef(cline_id, current_vertex);
         }
     }
     return 127;
