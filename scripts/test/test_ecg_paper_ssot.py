@@ -287,6 +287,9 @@ def test_streamshield_manifest_is_complete():
     assert sampled_timing["sniper_require_fused_receipts"] is True
     assert all("gem5_max_insts" not in stage for stage in sampled_stages)
     assert all("sniper_roi_icount" not in stage for stage in sampled_stages)
+    sampled_sniper = next(
+        stage for stage in sampled_stages if stage["suite"] == "sniper")
+    assert sampled_sniper["timeout_sniper"] == 43_200
     sampled_options = manifest["benchmark_options"]["file_all_kernels_root0"]
     assert sampled_options["bfs"].endswith("-r 0")
     assert sampled_options["sssp"].endswith("-r 0")

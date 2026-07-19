@@ -699,7 +699,7 @@
       "sniper_require_fused_receipts": true,
       "sniper_cores": 1,
       "out_subdir": "29_sniper_3sim_sampled_allalg",
-      "timeout_sniper": 21600,
+      "timeout_sniper": 43200,
       "env": {
         "ECG_STREAM_BYPASS_TRACE": "8"
       }
