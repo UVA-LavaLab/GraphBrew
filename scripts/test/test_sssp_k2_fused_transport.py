@@ -10,13 +10,26 @@ def test_weighted_sssp_fused_path_moves_validation_before_roi():
     gem5 = (ROOT / "bench/src_gem5/sssp.cc").read_text()
 
     assert "validateWeightedEpochPairRecords" in builder
-    assert "consume_fused_k2_record" in sniper
+    assert "consume_fused_k2_sidecar" in sniper
+    assert "packWeightedEpochPairSidecar" in builder
+    assert "pair_sidecars.size() * sizeof(uint32_t)" in sniper
+    assert "pair_flat.size() * sizeof(uint64_t)" in sniper
+    assert "static_cast<uint32_t>(edge.v)" in sniper
     assert "deliver_k2_record(record, fused_k2_model);" in sniper
     assert "} else if (\n                pair_ok ||" in sniper
     assert "auto relax_edges = [&](" in sniper
     assert sniper.count("relax_edges(") == 4
     assert 'std::getenv("ECG_K2_VALIDATE")' in sniper
     assert 'std::getenv("ECG_K2_VALIDATE")' in gem5
+    assert "gem5_ecg_stream_weighted_load2_instruction" in gem5
+    assert "gem5_ecg_weighted_load2_instruction" in gem5
+
+    decoder = (
+        ROOT
+        / "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa"
+    ).read_text()
+    assert decoder.count("uint64_t dest_dependency = Rs2;") == 2
 
     sniper_roi = sniper.split("int run_sssp(", 1)[1].split(
         "SNIPER_ROI_BEGIN();", 1)[1].split("SNIPER_ROI_END();", 1)[0]
@@ -27,3 +40,8 @@ def test_weighted_sssp_fused_path_moves_validation_before_roi():
         "int main(", 1)[0]
     assert "SSSP K2 pair index out of range" not in gem5_relax
     assert "SSSP K2 destination mismatch" not in gem5_relax
+
+    runner = (ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
+    assert '4 if transport.schedule_k == 2 and args.benchmark == "sssp"' in runner
+    assert '"edge_stream_bytes_per_edge"' in runner
+    assert '"ecg_record_replaces_edge"' in runner

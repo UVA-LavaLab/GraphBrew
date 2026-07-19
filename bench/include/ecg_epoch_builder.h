@@ -53,6 +53,25 @@ inline uint16_t extractEpochPairSecond(uint64_t record) {
     return static_cast<uint16_t>((record >> 49) & kK2EpochMask);
 }
 
+inline uint32_t packWeightedEpochPairSidecar(
+        uint8_t tier, uint16_t first, uint16_t second) {
+    return static_cast<uint32_t>(tier & 0x3u) |
+           (static_cast<uint32_t>(first & kK2EpochMask) << 2) |
+           (static_cast<uint32_t>(second & kK2EpochMask) << 17);
+}
+
+inline uint8_t extractWeightedEpochPairTier(uint32_t sidecar) {
+    return static_cast<uint8_t>(sidecar & 0x3u);
+}
+
+inline uint16_t extractWeightedEpochPairFirst(uint32_t sidecar) {
+    return static_cast<uint16_t>((sidecar >> 2) & kK2EpochMask);
+}
+
+inline uint16_t extractWeightedEpochPairSecond(uint32_t sidecar) {
+    return static_cast<uint16_t>((sidecar >> 17) & kK2EpochMask);
+}
+
 inline uint32_t normalizeK2EpochCount(uint32_t count) {
     if (count < 2) return 2;
     return std::min(count, kK2MaxEpochCount);
@@ -407,6 +426,26 @@ bool validateWeightedEpochPairRecords(
             ++pos;
         }
         if (pos != end) return false;
+    }
+    return true;
+}
+
+template <typename OffsetContainer, typename RecordContainer,
+          typename SidecarContainer>
+bool validateWeightedEpochPairSidecars(
+        const OffsetContainer& record_off, const RecordContainer& records,
+        const SidecarContainer& sidecars) {
+    if (records.size() != sidecars.size() || record_off.empty() ||
+        record_off.back() != records.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < records.size(); ++i) {
+        if (sidecars[i] != packWeightedEpochPairSidecar(
+                extractEpochPairTier(records[i]),
+                extractEpochPairFirst(records[i]),
+                extractEpochPairSecond(records[i]))) {
+            return false;
+        }
     }
     return true;
 }

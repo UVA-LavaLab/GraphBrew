@@ -382,6 +382,52 @@ inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
     return packed;
 }
 
+inline uint32_t gem5_ecg_stream_weighted_load2_instruction(
+        const void* sidecar_ptr, uint32_t dest) {
+    uint64_t sidecar = 0;
+#if defined(__riscv)
+    asm volatile (".insn r 0x0b, 0x5, 0x00, %0, %1, %2"
+                  : "=r"(sidecar)
+                  : "r"(sidecar_ptr), "r"(static_cast<uint64_t>(dest))
+                  : "memory");
+#else
+    if (sidecar_ptr)
+        sidecar = *static_cast<const uint32_t*>(sidecar_ptr);
+#endif
+    gem5_trace_ecg_k2_expect(ecg_epoch::packEpochPairRecord(
+        dest,
+        ecg_epoch::extractWeightedEpochPairTier(
+            static_cast<uint32_t>(sidecar)),
+        ecg_epoch::extractWeightedEpochPairFirst(
+            static_cast<uint32_t>(sidecar)),
+        ecg_epoch::extractWeightedEpochPairSecond(
+            static_cast<uint32_t>(sidecar))));
+    return static_cast<uint32_t>(sidecar);
+}
+
+inline uint32_t gem5_ecg_weighted_load2_instruction(
+        const void* sidecar_ptr, uint32_t dest) {
+    uint64_t sidecar = 0;
+#if defined(__riscv)
+    asm volatile (".insn r 0x0b, 0x6, 0x00, %0, %1, %2"
+                  : "=r"(sidecar)
+                  : "r"(sidecar_ptr), "r"(static_cast<uint64_t>(dest))
+                  : "memory");
+#else
+    if (sidecar_ptr)
+        sidecar = *static_cast<const uint32_t*>(sidecar_ptr);
+#endif
+    gem5_trace_ecg_k2_expect(ecg_epoch::packEpochPairRecord(
+        dest,
+        ecg_epoch::extractWeightedEpochPairTier(
+            static_cast<uint32_t>(sidecar)),
+        ecg_epoch::extractWeightedEpochPairFirst(
+            static_cast<uint32_t>(sidecar)),
+        ecg_epoch::extractWeightedEpochPairSecond(
+            static_cast<uint32_t>(sidecar))));
+    return static_cast<uint32_t>(sidecar);
+}
+
 inline void gem5_ecg_clear_extract2_hint() {
 #if defined(__riscv)
     uint64_t ignored = 0;
@@ -477,6 +523,14 @@ inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
 }
 inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
     return record_ptr ? *static_cast<const uint64_t*>(record_ptr) : 0;
+}
+inline uint32_t gem5_ecg_stream_weighted_load2_instruction(
+        const void* sidecar_ptr, uint32_t) {
+    return sidecar_ptr ? *static_cast<const uint32_t*>(sidecar_ptr) : 0;
+}
+inline uint32_t gem5_ecg_weighted_load2_instruction(
+        const void* sidecar_ptr, uint32_t) {
+    return sidecar_ptr ? *static_cast<const uint32_t*>(sidecar_ptr) : 0;
 }
 #if defined(__riscv)
 inline bool gem5_ecg_pfx_hints_enabled() {

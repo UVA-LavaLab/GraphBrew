@@ -91,10 +91,10 @@ Charged K1 uses an 8-byte edge record whenever destination, tier, and epoch no
 longer fit in the original 32-bit edge word; uncharged replacement studies keep
 the original 4-byte edge stream and deliver metadata out of band.
 For unweighted PR/BFS/BC/CC, the 8-byte K2 record replaces the 4-byte vertex-ID
-edge word. Weighted SSSP must also retain its weight, so the current faithful
-path reads the existing 8-byte weighted edge plus the 8-byte K2 metadata record
-(16 bytes total per relaxed edge). BC's runtime successor-DAG backward phase has
-no static K2 record; CC remains scoped to symmetric/undirected graphs.
+edge word. Weighted SSSP retains its 8-byte `dest32|weight32` edge and reads a
+parallel 4-byte `tier2|epoch1_15|epoch2_15` sidecar (12 bytes total per relaxed
+edge). BC's runtime successor-DAG backward phase has no static K2 record; CC
+remains scoped to symmetric/undirected graphs.
 
 The static adaptive mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
 BC/CC=`rrip_first`. `ECG:K2_ONLINE` remains kernel-name agnostic.
@@ -129,12 +129,12 @@ equal-work timing profile. Its P-OPT row charges reserved LLC capacity, while
 matrix-stream latency remains outside Sniper target time and is reported
 separately.
 
-The 120-row corrected Sniper rerun at
+The pre-sidecar 120-row corrected Sniper rerun at
 `ecg_sniper_sampled_allalg_corrected_final_20260719` is the sampled all-kernel
 timing authority. It preserves the same graph/kernel/policy cells while using
-the corrected fused-delivery path. Weighted SSSP remains 16 bytes per relaxed
-edge (8-byte weighted edge plus 8-byte K2 metadata), so its instruction and
-traffic overhead is reported rather than hidden.
+the corrected fused-delivery path. Its SSSP rows retain historical 8-byte K2
+record accounting; the weighted-sidecar SSSP slice must be rerun before updated
+runtime claims are frozen.
 
 All aggregate ratios use the geometric mean across the applicable graph/kernel
 cells. P-OPT and K2 overheads appear in different columns by construction:
@@ -165,7 +165,10 @@ target timing, reserved capacity, and matrix-stream accounting remain unchanged.
 
 ## Hardware accounting
 
-- K2 record: 8 bytes (`dest32 | tier2 | epoch1_15 | epoch2_15`).
+- Unweighted K2 record: 8 bytes
+  (`dest32 | tier2 | epoch1_15 | epoch2_15`).
+- Weighted SSSP sidecar: 4 bytes
+  (`tier2 | epoch1_15 | epoch2_15`) plus the existing 8-byte weighted edge.
 - The ECG successor reserves no LLC way.
 - P-OPT is charged its rereference-matrix capacity.
 - StreamShield is one request flag propagated through derived prefetches.

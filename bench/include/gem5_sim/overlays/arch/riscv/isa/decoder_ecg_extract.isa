@@ -122,6 +122,42 @@
                         dest_id, tier, epoch1, epoch2);
                     Rd = packed;
                 }});
+                0x5: ecg_stream_weighted_load2({{
+                    uint32_t sidecar = Mem_uw;
+                    uint32_t dest_id = static_cast<uint32_t>(Rs2);
+                    uint8_t tier = static_cast<uint8_t>(sidecar & 0x3U);
+                    uint16_t epoch1 = static_cast<uint16_t>(
+                        (sidecar >> 2) & 0x7FFFU);
+                    uint16_t epoch2 = static_cast<uint16_t>(
+                        (sidecar >> 17) & 0x7FFFU);
+                    gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                        dest_id, tier, 0, epoch1);
+                    gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
+                        dest_id, tier, epoch1, epoch2);
+                    Rd = sidecar;
+                }}, ea_code={{
+                    uint64_t dest_dependency = Rs2;
+                    (void)dest_dependency;
+                    EA = rvZext(Rs1);
+                }}, mem_flags=[ECG_STREAM_BYPASS]);
+                0x6: ecg_weighted_load2({{
+                    uint32_t sidecar = Mem_uw;
+                    uint32_t dest_id = static_cast<uint32_t>(Rs2);
+                    uint8_t tier = static_cast<uint8_t>(sidecar & 0x3U);
+                    uint16_t epoch1 = static_cast<uint16_t>(
+                        (sidecar >> 2) & 0x7FFFU);
+                    uint16_t epoch2 = static_cast<uint16_t>(
+                        (sidecar >> 17) & 0x7FFFU);
+                    gem5::replacement_policy::graph::storeEcgMetadataByVertex(
+                        dest_id, tier, 0, epoch1);
+                    gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
+                        dest_id, tier, epoch1, epoch2);
+                    Rd = sidecar;
+                }}, ea_code={{
+                    uint64_t dest_dependency = Rs2;
+                    (void)dest_dependency;
+                    EA = rvZext(Rs1);
+                }});
             }
             // GraphBrew FUSED ecg.load (custom-0, FUNCT3=0x2, R-type): indexed-
             // property load + metadata delivery in ONE op. rs1 = property base, rs2 =

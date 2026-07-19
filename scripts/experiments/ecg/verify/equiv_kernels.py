@@ -333,12 +333,19 @@ def main(argv=None):
             if SCHEDULE_K == 2:
                 text, ran_ok = result
                 if sim == "gem5":
-                    fused_marker = (
-                        f"[ECG_STREAM_LOAD2] {kernel.upper()} "
-                        "request-bound StreamShield+K2 ACTIVE"
-                        if STREAM_BYPASS else
-                        f"[ECG_LOAD2] {kernel.upper()} "
-                        "fused K2 record load ACTIVE")
+                    if kernel == "sssp":
+                        fused_marker = (
+                            "[ECG_STREAM_WLOAD2] SSSP "
+                            "request-bound 4B sidecar ACTIVE"
+                            if STREAM_BYPASS else
+                            "[ECG_WLOAD2] SSSP fused 4B sidecar ACTIVE")
+                    else:
+                        fused_marker = (
+                            f"[ECG_STREAM_LOAD2] {kernel.upper()} "
+                            "request-bound StreamShield+K2 ACTIVE"
+                            if STREAM_BYPASS else
+                            f"[ECG_LOAD2] {kernel.upper()} "
+                            "fused K2 record load ACTIVE")
                     fused_ok = fused_marker in text
                     fused_path_ok = ran_ok and fused_ok
                     print(f"      fused "

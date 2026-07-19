@@ -1230,12 +1230,16 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 env["GEM5_FORCE_ECG_STREAM_LOAD2"] = "1"
                 env["GEM5_ECG_STREAM_REQUEST_BOUND"] = "1"
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
-                gem5_ecg_delivery = "ecg.stream.load2"
+                gem5_ecg_delivery = (
+                    "ecg.stream.wload2" if args.benchmark == "sssp"
+                    else "ecg.stream.load2")
             elif riscv_delivery:
                 env["GEM5_FORCE_ECG_LOAD2"] = "1"
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
                 env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
-                gem5_ecg_delivery = "ecg.load2"
+                gem5_ecg_delivery = (
+                    "ecg.wload2" if args.benchmark == "sssp"
+                    else "ecg.load2")
             else:
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
@@ -1753,7 +1757,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             if fused_validation:
                 env["SNIPER_ECG_FUSED_VALIDATE"] = "1"
         row["sniper_ecg_delivery"] = (
-            "fused-k2-model" if fused_k2
+            "fused-k2-weighted32-model"
+            if fused_k2 and args.benchmark == "sssp"
+            else "fused-k2-model" if fused_k2
             else "per-edge-extract2-k2" if schedule_k == 2
             else "per-edge-extract")
         if fused_k2:
@@ -2050,6 +2056,11 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
 
     effective_ecg_epochs = effective_ecg_epoch_count(
         args.ecg_epochs, transport.schedule_k)
+    edge_bytes = 8 if args.benchmark == "sssp" else 4
+    ecg_record_bytes = (
+        4 if transport.schedule_k == 2 and args.benchmark == "sssp"
+        else 8 if transport.schedule_k == 2
+        else 0)
     row = {
         "simulator": simulator,
         "benchmark": args.benchmark,
@@ -2078,6 +2089,18 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "ecg_epochs_effective": effective_ecg_epochs,
         "ecg_charged": args.ecg_charged,
         "ecg_schedule_k": transport.schedule_k,
+        "graph_edge_bytes": edge_bytes,
+        "ecg_record_bytes": ecg_record_bytes,
+        "edge_stream_bytes_per_edge": (
+            edge_bytes + ecg_record_bytes
+            if args.ecg_charged and ecg_record_bytes and
+               args.benchmark == "sssp"
+            else ecg_record_bytes
+            if args.ecg_charged and ecg_record_bytes
+            else edge_bytes),
+        "ecg_record_replaces_edge": int(
+            bool(args.ecg_charged and ecg_record_bytes and
+                 args.benchmark != "sssp")),
         "ecg_stream_bypass": int(transport.stream_bypass),
         "ecg_stream_adaptive": int(transport.stream_adaptive),
         "popt_reserve_model": args.popt_reserve_model,

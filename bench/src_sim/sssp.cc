@@ -203,7 +203,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
            (uint32_t(1) << epoch_bits) < edge_epochs) {
         ++epoch_bits;
     }
-    const int record_bytes = GraphSimEcgRecordBytes(
+    const int record_bytes = GraphSimEcgWeightedSidecarBytes(
         static_cast<uint64_t>(g.num_nodes()), epoch_bits);
     WNode* out_edge_base = g.num_nodes() > 0
         ? g.out_neigh(0).begin() : nullptr;

@@ -38,6 +38,7 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                             const vector<vector<uint16_t>>* out_edge_epochs,
                             const vector<uint64_t>* pair_off,
                             const pvector<uint64_t>* pair_flat,
+                            const pvector<uint32_t>* pair_sidecars,
                             bool ecg_load_evict_on, int ecg_evict_wc,
                             uint32_t edge_epoch_count, bool ecg_load2_on,
                             bool ecg_stream_load2_on) {
@@ -65,7 +66,7 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
         // line with wn.v's next-ref epoch (push_out_edges=true transpose matches the out-edge
         // relax) in one custom-0 op, so ECG_GRASP_POPT ranks dist[] by next-reference.
         WeightT old_dist;
-        if (pair_off && pair_flat &&
+        if (pair_off && pair_flat && pair_sidecars &&
             static_cast<size_t>(u + 1) < pair_off->size()) {
             const uint64_t pos = (*pair_off)[u] + edge_pos;
             // FUSED ecg.load2: one custom-0 I-type op replaces demand-load + ecg.extract2
@@ -74,13 +75,21 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
             // carrying dest+tier+epochs is fused. ecg.stream.load2 is the request-bound
             // StreamShield variant of the same fused load (a static no-allocate primitive,
             // not an adaptive policy), selected ahead of the plain load2.
-            const uint64_t record = ecg_stream_load2_on
-                ? gem5_ecg_stream_load2_instruction(&(*pair_flat)[pos])
+            const uint32_t sidecar = ecg_stream_load2_on
+                ? gem5_ecg_stream_weighted_load2_instruction(
+                    &(*pair_sidecars)[pos], static_cast<uint32_t>(wn.v))
                 : ecg_load2_on
-                    ? gem5_ecg_load2_instruction(&(*pair_flat)[pos])
-                    : (*pair_flat)[pos];
-            if (!ecg_stream_load2_on && !ecg_load2_on)
+                    ? gem5_ecg_weighted_load2_instruction(
+                        &(*pair_sidecars)[pos], static_cast<uint32_t>(wn.v))
+                    : (*pair_sidecars)[pos];
+            if (!ecg_stream_load2_on && !ecg_load2_on) {
+                const uint64_t record = ecg_epoch::packEpochPairRecord(
+                    static_cast<uint32_t>(wn.v),
+                    ecg_epoch::extractWeightedEpochPairTier(sidecar),
+                    ecg_epoch::extractWeightedEpochPairFirst(sidecar),
+                    ecg_epoch::extractWeightedEpochPairSecond(sidecar));
                 GEM5_ECG_EXTRACT2(record);
+            }
             old_dist = dist[wn.v];
             GEM5_ECG_CLEAR_EXTRACT2_HINT();
         } else if (ecg_load_evict_on && u_epochs) {
@@ -169,6 +178,7 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     }
     std::vector<uint64_t> pair_off;
     pvector<uint64_t> pair_flat;
+    pvector<uint32_t> pair_sidecars;
     bool pair_ok = false;
     if (ecg_extract_on && ecg_sched_k == 2) {
         std::vector<uint64_t> pair_records;
@@ -179,13 +189,23 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
         pair_flat = pvector<uint64_t>(
             pair_records.size(), uint64_t(0), 4096);
         std::copy(pair_records.begin(), pair_records.end(), pair_flat.begin());
+        pair_sidecars = pvector<uint32_t>(
+            pair_records.size(), uint32_t(0), 4096);
+        for (size_t i = 0; i < pair_records.size(); ++i) {
+            pair_sidecars[i] = ecg_epoch::packWeightedEpochPairSidecar(
+                ecg_epoch::extractEpochPairTier(pair_records[i]),
+                ecg_epoch::extractEpochPairFirst(pair_records[i]),
+                ecg_epoch::extractEpochPairSecond(pair_records[i]));
+        }
         pair_ok = true;
     }
     const char* k2_validate_env = std::getenv("ECG_K2_VALIDATE");
     if (pair_ok && k2_validate_env && k2_validate_env[0] &&
         std::strcmp(k2_validate_env, "0") != 0 &&
-        !ecg_epoch::validateWeightedEpochPairRecords(
-            g, pair_off, pair_flat)) {
+        (!ecg_epoch::validateWeightedEpochPairRecords(
+             g, pair_off, pair_flat) ||
+         !ecg_epoch::validateWeightedEpochPairSidecars(
+             pair_off, pair_flat, pair_sidecars))) {
         std::fprintf(stderr, "gem5 SSSP K2 record validation failed\n");
         std::abort();
     }
@@ -201,9 +221,9 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     if (pair_ok) {
         fprintf(stderr,
                 ecg_stream_load2_on
-                    ? "[ECG_STREAM_LOAD2] SSSP request-bound StreamShield+K2 ACTIVE\n"
+                    ? "[ECG_STREAM_WLOAD2] SSSP request-bound 4B sidecar ACTIVE\n"
                     : ecg_load2_on
-                        ? "[ECG_LOAD2] SSSP fused K2 record load ACTIVE\n"
+                        ? "[ECG_WLOAD2] SSSP fused 4B sidecar ACTIVE\n"
                         : "[ECG_PACKED8_K2] SSSP Schedule-2 packed record path ACTIVE\n");
     }
 
@@ -246,6 +266,7 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                     RelaxEdges_Gem5(g, u, delta, dist, local_bins, &out_edge_epochs,
                                     pair_ok ? &pair_off : nullptr,
                                     pair_ok ? &pair_flat : nullptr,
+                                    pair_ok ? &pair_sidecars : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count,
                                     ecg_load2_on, ecg_stream_load2_on);
             }
@@ -259,6 +280,7 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                     RelaxEdges_Gem5(g, u, delta, dist, local_bins, &out_edge_epochs,
                                     pair_ok ? &pair_off : nullptr,
                                     pair_ok ? &pair_flat : nullptr,
+                                    pair_ok ? &pair_sidecars : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count,
                                     ecg_load2_on, ecg_stream_load2_on);
             }

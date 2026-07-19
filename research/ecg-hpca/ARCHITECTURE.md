@@ -248,7 +248,8 @@ and without StreamShield.
 
 ## Hardware cost model
 
-- K2 record: 8 bytes per edge record.
+- Unweighted K2 record: 8 bytes per edge record.
+- Weighted SSSP: existing 8-byte weighted edge plus a 4-byte K2 sidecar.
 - ECG-reserved LLC ways: 0.
 - StreamShield state: one request flag propagated through the hierarchy.
 - Per-line ECG metadata: two 15-bit epochs, 2-bit carried tier, valid/count

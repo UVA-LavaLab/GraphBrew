@@ -82,6 +82,20 @@ int main() {
                ok ? "OK" : "FAIL");
         if (!ok) g_fail++;
     }
+    {
+        const uint32_t dest = 7654321u;
+        const uint32_t sidecar =
+            ecg_epoch::packWeightedEpochPairSidecar(1u, 321u, 654u);
+        const uint32_t rd_stream =
+            gem5_ecg_stream_weighted_load2_instruction(&sidecar, dest);
+        const uint32_t rd =
+            gem5_ecg_weighted_load2_instruction(&sidecar, dest);
+        const bool ok = rd == sidecar && rd_stream == sidecar;
+        printf("[test_ecg_load_modes] WLOAD2/K2 sidecar=%#x rd=%#x "
+               "stream=%#x [%s]\n",
+               sidecar, rd, rd_stream, ok ? "OK" : "FAIL");
+        if (!ok) g_fail++;
+    }
 
     printf("[test_ecg_load_modes] RESULT: %s (%d fail)\n",
            g_fail ? "FAIL" : "PASS", g_fail);

@@ -293,7 +293,8 @@ remain pending the complete Sniper matrix and a bounded prefetch configuration.
 
 ## Hardware accounting
 
-- 8-byte K2 edge record.
+- 8-byte K2 edge record for unweighted kernels.
+- Weighted SSSP uses its existing 8-byte edge plus a 4-byte K2 sidecar.
 - Zero ECG-reserved LLC ways.
 - One request-bound StreamShield bit.
 - Two 15-bit epochs, a 2-bit carried tier, and valid/count state per governed line.

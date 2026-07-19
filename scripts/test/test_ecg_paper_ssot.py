@@ -855,14 +855,21 @@ def test_all_five_kernels_use_fused_k2_delivery():
             ROOT / f"bench/src_gem5/{kernel}.cc"
         ).read_text()
         assert "gem5_ecg_load2_enabled()" in source, kernel
-        assert "gem5_ecg_load2_instruction" in source, kernel
-        assert f"[ECG_LOAD2] {kernel.upper()}" in source, kernel
+        expected_load = (
+            "gem5_ecg_weighted_load2_instruction"
+            if kernel == "sssp" else "gem5_ecg_load2_instruction")
+        assert expected_load in source, kernel
+        expected_marker = (
+            "[ECG_WLOAD2] SSSP"
+            if kernel == "sssp" else f"[ECG_LOAD2] {kernel.upper()}")
+        assert expected_marker in source, kernel
 
     sniper = (
         ROOT / "bench/src_sniper/sg_kernel.cc"
     ).read_text()
-    for kernel in ("BFS", "SSSP", "BC", "CC"):
+    for kernel in ("BFS", "BC", "CC"):
         assert f"[ECG_FUSED_K2] {kernel}" in sniper
+    assert "[ECG_FUSED_K2_WEIGHTED32] SSSP" in sniper
     assert sniper.count("const bool fused_k2_model =") == 5
     assert sniper.count('"SNIPER_ECG_VERTICES_PER_LINE"') >= 5
 

@@ -62,6 +62,7 @@ inline int GraphSimEcgRecordBytes(uint64_t num_vertices, int epoch_bits) {
            (uint64_t(1) << id_bits) < num_vertices) {
         ++id_bits;
     }
+
     int tier_bits = GraphSimEnvIntClamped(
         "ECG_RECORD_TIER_BITS", 2, 0, 8);
     int popt_bits = GraphSimEnvIntClamped(
@@ -77,6 +78,13 @@ inline int GraphSimEcgRecordBytes(uint64_t num_vertices, int epoch_bits) {
     if (needed <= 32) return 4;
     if (needed <= 64) return 8;
     return 16;
+}
+
+inline int GraphSimEcgWeightedSidecarBytes(
+        uint64_t num_vertices, int epoch_bits) {
+    if (GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4) == 2)
+        return 4;
+    return GraphSimEcgRecordBytes(num_vertices, epoch_bits);
 }
 
 // ============================================================================

@@ -372,8 +372,15 @@ def test_streamshield_is_generic_across_k2_kernels():
         gem5 = read(f"bench/src_gem5/{kernel}.cc")
         assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in cache_sim, kernel
         assert "gem5_ecg_stream_load2_enabled()" in gem5, kernel
-        assert "gem5_ecg_stream_load2_instruction" in gem5, kernel
-        assert f"[ECG_STREAM_LOAD2] {kernel.upper()}" in gem5, kernel
+        expected_load = (
+            "gem5_ecg_stream_weighted_load2_instruction"
+            if kernel == "sssp" else "gem5_ecg_stream_load2_instruction")
+        assert expected_load in gem5, kernel
+        expected_marker = (
+            "[ECG_STREAM_WLOAD2] SSSP"
+            if kernel == "sssp"
+            else f"[ECG_STREAM_LOAD2] {kernel.upper()}")
+        assert expected_marker in gem5, kernel
 
     sniper = read("bench/src_sniper/sg_kernel.cc")
     for start, end in (
