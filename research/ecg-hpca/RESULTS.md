@@ -132,6 +132,28 @@ access. Tiny O3 PR and weighted SSSP runs each deliver 8/8 traced K2 request
 extensions to the correct property line. This is mechanism/spec evidence, not a
 frozen real-graph performance ranking.
 
+### Masked-load target-instruction correction
+
+Replacement-only authority already showed the forced K2 `grasp_only` arm
+beating standalone GRASP on 15/15 real graph/kernel cells, with a 0.9899
+geomean miss ratio. The initial masked-load gem5 timing path nevertheless
+charged software scaffolding inside every edge iteration.
+
+On web-Google-n16 PR, successive corrections give:
+
+| Path | ROI instruction ratio vs LRU | Speedup vs LRU |
+|---|---:|---:|
+| separate clear + guest EXPECT trace | 1.888x | 0.796x |
+| clear folded into masked load | 1.470x | 0.877x |
+| EXPECT trace moved into gem5 | 1.098x | 1.049x |
+| common binary with loop-invariant modes unswitched | **0.977x** | **1.080x** |
+
+The final matched cell is 1.005x faster than GRASP while retaining a lower L3
+miss rate (0.432 versus 0.506). P-OPT remains 1.078x faster on this PR cell
+because its live matrix reaches a 0.369 miss rate. This is one bounded
+diagnostic, not the final all-kernel result; the clean masked-load gem5 matrix
+must be rerun.
+
 The no-prefetch `kron_s15_k4` preliminary matrix is complete:
 
 | Kernel | cache_sim fused K2 rank | gem5 explicit K2 rank | Sniper instrumented K2 rank | Robust read |

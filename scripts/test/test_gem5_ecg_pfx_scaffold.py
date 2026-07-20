@@ -150,6 +150,8 @@ def test_gem5_schedule2_delivery_is_pair_aware():
     assert "isa_dbg >= 1 && isa_dbg <= 3" in policy
     assert "epochPairDistance(" in policy
     assert policy.count("readEcgEpochPair(") >= 2
+    assert policy.count(
+        "!got && !requestBoundEcgProducerEnabled()") >= 2
     assert "GRAPHBREW_ECG_EXTRACT2_WORK_ID" in setup
 
     request_ext = read(
@@ -297,6 +299,40 @@ def test_epoch_extract_is_not_gated_by_prefetch_enable():
     assert harness.count(good) == 2
     assert bad not in harness
     assert "GEM5_WORK_ECG_EXTRACT_MASK" in harness
+
+
+def test_k2_property_load_clears_mailbox_without_extra_instruction():
+    decoder = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa")
+    k2_load = decoder.split("0x03: ecg_load_k2", 1)[1].split(
+        "}}, ea_code={{", 1)[0]
+    assert "Rd = Mem_uw;" in k2_load
+    assert "clearDecodedEcgExtractHint();" in k2_load
+    assert "traceExpectedEcgExtractHint2(packed);" in decoder
+
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    helper = harness.split("inline uint32_t gem5_ecg_load_k2", 1)[1].split(
+        "inline uint32_t gem5_ecg_extract2_instruction", 1)[0]
+    assert "gem5_trace_ecg_k2_expect" not in helper
+
+    for kernel in ("bfs", "sssp", "bc", "cc"):
+        source = read(f"bench/src_gem5/{kernel}.cc")
+        for block in source.split("if (ecg_k2_pload_on) {")[1:]:
+            canonical = block.split("} else {", 1)[0]
+            assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" not in canonical, kernel
+
+    pr = read("bench/src_gem5/pr.cc")
+    canonical_pr = pr.split("if (ecg_k2_pload_on) {", 1)[1].split(
+        "continue;", 1)[0]
+    assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" not in canonical_pr
+    assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" in pr
+
+
+def test_riscv_gem5_build_unswitches_runtime_policy_loops():
+    makefile = read("Makefile")
+    flags = makefile.split("CXXFLAGS_GEM5_RISCV :=", 1)[1].splitlines()[0]
+    assert "-funswitch-loops" in flags
 
 
 def test_setup_gem5_uses_dedicated_x86_extract_work_id():

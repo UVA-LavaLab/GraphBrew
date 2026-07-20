@@ -22,6 +22,14 @@ namespace gem5 {
 namespace replacement_policy {
 
 namespace {
+inline bool requestBoundEcgProducerEnabled() {
+    static const bool enabled = []() {
+        const char* value = std::getenv("GEM5_ECG_PRODUCER");
+        return value && value[0] && std::string(value) != "0";
+    }();
+    return enabled;
+}
+
 // ECG GRASP-tier SOURCE (ECG_GRASP_SRC), mirrors cache_sim's two variants:
 //   mask (0, our ECG): DELIVERED per-vertex graspTierByIndex keyed by the INSERTED
 //     LINE's own vertex (graph::addressToVertex) — identical across simulators.
@@ -159,7 +167,7 @@ GraphEcgRP::touch(
                         ~uint64_t(63);
                     if (dest_line != (addr & ~uint64_t(63))) got = false;
                 }
-                if (!got) {
+                if (!got && !requestBoundEcgProducerEnabled()) {
                     got = graph::lookupDecodedEcgHint2(
                         vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
                 }
@@ -318,7 +326,7 @@ GraphEcgRP::reset(
                         (reg_base + static_cast<uint64_t>(isa_dest) * reg_elem) & ~uint64_t(63);
                     if (dest_line != (addr & ~uint64_t(63))) got = false;
                 }
-                if (!got) {
+                if (!got && !requestBoundEcgProducerEnabled()) {
                     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
                         got = graph::lookupDecodedEcgHint2(
                             vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);

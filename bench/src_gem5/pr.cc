@@ -403,7 +403,6 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                         ScoreT delivered;
                         std::memcpy(&delivered, &bits, sizeof(ScoreT));
                         incoming_total += delivered;
-                        GEM5_ECG_CLEAR_EXTRACT2_HINT();
                         continue;
                     }
                     if (!ecg_load2_on)

@@ -200,8 +200,8 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                         if (!ecg_load2_on)
                             GEM5_ECG_EXTRACT2(record);
                         dv = depth[v];
+                        GEM5_ECG_CLEAR_EXTRACT2_HINT();
                     }
-                    GEM5_ECG_CLEAR_EXTRACT2_HINT();
                     process_neighbor(v, dv);
                 }
             } else {

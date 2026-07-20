@@ -155,6 +155,13 @@ target timing, reserved capacity, and matrix-stream accounting remain unchanged.
 gem5 already memoizes one distance per candidate before its RRIP tie loop, so it
 does not require the Sniper-specific fast-path repair.
 
+RISC-V guest kernels use `-funswitch-loops` in addition to the common `-O1`
+build. Every policy runs in the same binary; the flag hoists environment-selected
+delivery modes out of edge loops instead of charging K2 repeated mode checks.
+TimingSimpleCPU uses the serialized mailbox fallback; when the O3 request-bound
+producer is enabled, the LLC accepts only per-Request K2 metadata and disables
+mailbox fallback for plain loads.
+
 ## Headline real-graph cell
 
 - Graph/kernel: web-Google PageRank, one iteration, DBG order

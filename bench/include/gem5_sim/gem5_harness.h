@@ -319,7 +319,6 @@ inline void gem5_trace_ecg_k2_expect(uint64_t packed) {
 }
 
 inline uint32_t gem5_ecg_load_k2(const void* prop_base, uint64_t packed_record) {
-    gem5_trace_ecg_k2_expect(packed_record);
 #if defined(__riscv)
     uint64_t val = 0;
     asm volatile (".insn r 0x0b, 0x2, 0x0c, %0, %1, %2"

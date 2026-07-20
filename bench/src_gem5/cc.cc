@@ -194,8 +194,8 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
                     if (!ecg_load2_on)
                         GEM5_ECG_EXTRACT2(record);
                     delivered_comp = comp[v];
+                    GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 }
-                GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 LinkLoaded(u, v, delivered_comp, comp);
             } else if (!pair_ok) {
                 auto it = g.out_neigh(u).begin();
@@ -244,8 +244,8 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
                     if (!ecg_load2_on)
                         GEM5_ECG_EXTRACT2(record);
                     delivered_comp = comp[v];
+                    GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 }
-                GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 LinkLoaded(u, v, delivered_comp, comp);
             }
         } else {

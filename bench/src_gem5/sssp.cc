@@ -87,7 +87,6 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
             if (ecg_k2_pload_on) {
                 const uint32_t bits = gem5_ecg_load_k2(dist.data(), record);
                 std::memcpy(&old_dist, &bits, sizeof(WeightT));
-                GEM5_ECG_CLEAR_EXTRACT2_HINT();
             } else {
                 if (!ecg_load2_on)
                     GEM5_ECG_EXTRACT2(record);

@@ -231,8 +231,8 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
                     if (!ecg_load2_on)
                         GEM5_ECG_EXTRACT2(rec);
                     pv = parent[v];
+                    GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 }
-                GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 if (pv == -1) {
                     parent[v] = u;
                     frontier.push(v);

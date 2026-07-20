@@ -96,7 +96,7 @@ RISCV_CROSS_COMPILE ?= riscv64-linux-gnu-
 CXXFLAGS_GEM5 := -std=c++17 -O1 -Wall -g -DNDEBUG -DNO_M5OPS -fopenmp
 CXXFLAGS_GEM5_M5OPS := $(filter-out -DNO_M5OPS,$(CXXFLAGS_GEM5)) \
 	-I$(GEM5_DIR)/include
-CXXFLAGS_GEM5_RISCV := $(CXXFLAGS_GEM5_M5OPS) -static -mno-relax
+CXXFLAGS_GEM5_RISCV := $(CXXFLAGS_GEM5_M5OPS) -funswitch-loops -static -mno-relax
 
 $(BIN_GEM5_DIR)/%: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
 	$(DEP_GRAPH) $(DEP_EXTERNAL) | $(BIN_GEM5_DIR)
