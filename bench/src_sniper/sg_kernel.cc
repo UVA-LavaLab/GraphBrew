@@ -487,16 +487,23 @@ int run_pr(const Graph& graph, int max_iters) {
                 static_cast<size_t>(node + 1) < epoch_pair_off.size()) {
                 const uint64_t begin = epoch_pair_off[node];
                 const uint64_t end = epoch_pair_off[node + 1];
-                for (uint64_t pos = begin; pos < end; ++pos) {
-                    const uint64_t rec = epoch_pair_flat[pos];
-                    const NodeID neighbor =
-                        static_cast<NodeID>(ecg_epoch::extractEpochPairDest(rec));
-                    if (software_k2_delivery) {
-                        deliver_k2_record(rec, fused_k2_model);
+                if (!software_k2_delivery) {
+                    for (uint64_t pos = begin; pos < end; ++pos) {
+                        const uint64_t rec = epoch_pair_flat[pos];
+                        const NodeID neighbor = static_cast<NodeID>(
+                            ecg_epoch::extractEpochPairDest(rec));
+                        incoming_total += contrib[neighbor];
                     }
-                    incoming_total += contrib[neighbor];
-                    if (!fused_k2_model) {
-                        clear_k2_record(rec, fused_k2_model);
+                } else {
+                    for (uint64_t pos = begin; pos < end; ++pos) {
+                        const uint64_t rec = epoch_pair_flat[pos];
+                        const NodeID neighbor = static_cast<NodeID>(
+                            ecg_epoch::extractEpochPairDest(rec));
+                        deliver_k2_record(rec, fused_k2_model);
+                        incoming_total += contrib[neighbor];
+                        if (!fused_k2_model) {
+                            clear_k2_record(rec, fused_k2_model);
+                        }
                     }
                 }
                 scores[node] = base_score + kDamp * incoming_total;
@@ -820,20 +827,31 @@ int run_bfs(const Graph& graph, NodeID source) {
             static_cast<size_t>(node + 1) < bfs_pair_off.size()) {
             const uint64_t begin = bfs_pair_off[node];
             const uint64_t end = bfs_pair_off[node + 1];
-            for (uint64_t pos = begin; pos < end; ++pos) {
-                const uint64_t rec = bfs_pair_flat[pos];
-                const NodeID neighbor =
-                    static_cast<NodeID>(ecg_epoch::extractEpochPairDest(rec));
-                if (software_k2_delivery) {
+            if (!software_k2_delivery) {
+                for (uint64_t pos = begin; pos < end; ++pos) {
+                    const uint64_t rec = bfs_pair_flat[pos];
+                    const NodeID neighbor = static_cast<NodeID>(
+                        ecg_epoch::extractEpochPairDest(rec));
+                    const NodeID parent_value = parent[neighbor];
+                    if (parent_value == -1) {
+                        parent[neighbor] = node;
+                        frontier.push(neighbor);
+                    }
+                }
+            } else {
+                for (uint64_t pos = begin; pos < end; ++pos) {
+                    const uint64_t rec = bfs_pair_flat[pos];
+                    const NodeID neighbor = static_cast<NodeID>(
+                        ecg_epoch::extractEpochPairDest(rec));
                     deliver_k2_record(rec, fused_k2_model);
-                }
-                const NodeID parent_value = parent[neighbor];
-                if (!fused_k2_model) {
-                    clear_k2_record(rec, fused_k2_model);
-                }
-                if (parent_value == -1) {
-                    parent[neighbor] = node;
-                    frontier.push(neighbor);
+                    const NodeID parent_value = parent[neighbor];
+                    if (!fused_k2_model) {
+                        clear_k2_record(rec, fused_k2_model);
+                    }
+                    if (parent_value == -1) {
+                        parent[neighbor] = node;
+                        frontier.push(neighbor);
+                    }
                 }
             }
             continue;
@@ -1262,19 +1280,28 @@ int run_bc(const Graph& graph, int num_iters) {
                 };
                 if (pair_ok &&
                     static_cast<size_t>(u + 1) < pair_off.size()) {
-                    for (uint64_t pos = pair_off[u];
-                         pos < pair_off[u + 1]; ++pos) {
-                        const uint64_t record = pair_flat[pos];
-                        const NodeID v = static_cast<NodeID>(
-                            ecg_epoch::extractEpochPairDest(record));
-                        if (software_k2_delivery) {
+                    if (!software_k2_delivery) {
+                        for (uint64_t pos = pair_off[u];
+                             pos < pair_off[u + 1]; ++pos) {
+                            const uint64_t record = pair_flat[pos];
+                            const NodeID v = static_cast<NodeID>(
+                                ecg_epoch::extractEpochPairDest(record));
+                            const int32_t depth_v = depth[v];
+                            visit(v, depth_v);
+                        }
+                    } else {
+                        for (uint64_t pos = pair_off[u];
+                             pos < pair_off[u + 1]; ++pos) {
+                            const uint64_t record = pair_flat[pos];
+                            const NodeID v = static_cast<NodeID>(
+                                ecg_epoch::extractEpochPairDest(record));
                             deliver_k2_record(record, fused_k2_model);
+                            const int32_t depth_v = depth[v];
+                            if (!fused_k2_model) {
+                                clear_k2_record(record, fused_k2_model);
+                            }
+                            visit(v, depth_v);
                         }
-                        const int32_t depth_v = depth[v];
-                        if (!fused_k2_model) {
-                            clear_k2_record(record, fused_k2_model);
-                        }
-                        visit(v, depth_v);
                     }
                 } else {
                     size_t edge_pos = 0;
@@ -1413,14 +1440,17 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
                     pair_flat[pair_off[u] + static_cast<uint64_t>(r)];
                 const NodeID v = static_cast<NodeID>(
                     ecg_epoch::extractEpochPairDest(record));
-                if (software_k2_delivery) {
+                if (!software_k2_delivery) {
+                    const NodeID delivered_comp = comp[v];
+                    cc_link_loaded(u, v, delivered_comp, comp);
+                } else {
                     deliver_k2_record(record, fused_k2_model);
+                    const NodeID delivered_comp = comp[v];
+                    if (!fused_k2_model) {
+                        clear_k2_record(record, fused_k2_model);
+                    }
+                    cc_link_loaded(u, v, delivered_comp, comp);
                 }
-                const NodeID delivered_comp = comp[v];
-                if (!fused_k2_model) {
-                    clear_k2_record(record, fused_k2_model);
-                }
-                cc_link_loaded(u, v, delivered_comp, comp);
             } else if (!pair_ok) {
                 auto out_neigh = graph.out_neigh(u);
                 auto it = out_neigh.begin();
@@ -1448,18 +1478,26 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
         if (comp[u] == largest) continue;
         SNIPER_SET_VERTEX(u);
         if (pair_ok && static_cast<size_t>(u + 1) < pair_off.size()) {
-            for (uint64_t pos = pair_off[u]; pos < pair_off[u + 1]; ++pos) {
-                const uint64_t record = pair_flat[pos];
-                const NodeID v = static_cast<NodeID>(
-                    ecg_epoch::extractEpochPairDest(record));
-                if (software_k2_delivery) {
+            if (!software_k2_delivery) {
+                for (uint64_t pos = pair_off[u]; pos < pair_off[u + 1]; ++pos) {
+                    const uint64_t record = pair_flat[pos];
+                    const NodeID v = static_cast<NodeID>(
+                        ecg_epoch::extractEpochPairDest(record));
+                    const NodeID delivered_comp = comp[v];
+                    cc_link_loaded(u, v, delivered_comp, comp);
+                }
+            } else {
+                for (uint64_t pos = pair_off[u]; pos < pair_off[u + 1]; ++pos) {
+                    const uint64_t record = pair_flat[pos];
+                    const NodeID v = static_cast<NodeID>(
+                        ecg_epoch::extractEpochPairDest(record));
                     deliver_k2_record(record, fused_k2_model);
+                    const NodeID delivered_comp = comp[v];
+                    if (!fused_k2_model) {
+                        clear_k2_record(record, fused_k2_model);
+                    }
+                    cc_link_loaded(u, v, delivered_comp, comp);
                 }
-                const NodeID delivered_comp = comp[v];
-                if (!fused_k2_model) {
-                    clear_k2_record(record, fused_k2_model);
-                }
-                cc_link_loaded(u, v, delivered_comp, comp);
             }
         } else {
             size_t edge_pos = 0;

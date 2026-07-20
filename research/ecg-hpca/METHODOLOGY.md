@@ -76,6 +76,9 @@ The Sniper fused model registers the packed K2 record range and treats the
 software-only `extract2`/trace delivery call. Environment-controlled hint paths
 are resolved once before the ROI so disabled instrumentation does not distort
 cross-policy instruction counts.
+Canonical fused PR/BFS/BC/CC loops are explicitly split into no-trace and
+legacy/traced forms so the no-trace path executes no per-edge delivery or clear
+condition. Weighted SSSP already uses an outer fused-path split.
 
 For matched STRIDE sensitivity, cache_sim and gem5 expose demand LLC misses
 separately from prefetch traffic. Sniper's current NUCA statistics combine

@@ -154,6 +154,15 @@ because its live matrix reaches a 0.369 miss rate. This is one bounded
 diagnostic, not the final all-kernel result; the clean masked-load gem5 matrix
 must be rerun.
 
+Sniper did not contain gem5's architectural clear/trace instructions, but its
+fused PR/BFS/BC/CC loops still tested disabled software-delivery and legacy-clear
+conditions on every edge. A global compiler unswitch was rejected because it
+changed LRU by 16.6% and reduced the soc-pokec BFS K2 speedup. Surgically
+splitting only the fused K2 loop preserves LRU while changing that BFS cell from
+1.127x to 0.806x LRU instructions and from 1.306x to 1.705x speedup; its L3 miss
+rate remains approximately 0.532. Frozen Sniper timing must be rerun before
+these diagnostics replace the current 120-row table.
+
 The no-prefetch `kron_s15_k4` preliminary matrix is complete:
 
 | Kernel | cache_sim fused K2 rank | gem5 explicit K2 rank | Sniper instrumented K2 rank | Robust read |

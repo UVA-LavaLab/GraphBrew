@@ -265,6 +265,10 @@ current Makefile with `-funswitch-loops`. Reject rows from the stopped
 `ecg_gem5_sampled_allalg_masked_load_20260719` run: they still contain
 per-edge clear/trace scaffolding and are not timing authority.
 
+Canonical Sniper fused timing requires the current `sg_kernel` with surgically
+split no-trace K2 loops. The global `-funswitch-loops` Sniper probe is rejected,
+and the pre-split 120-row timing matrix remains historical until rerun.
+
 Weighted SSSP rows must report `graph_edge_bytes=8`, `ecg_record_bytes=4`, and
 `edge_stream_bytes_per_edge=12`. gem5 loads the sidecar normally or with
 `ecg.stream.wload2`, then carries the reconstructed K2 mask on the property
