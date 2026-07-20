@@ -14,7 +14,9 @@
   PR/BFS/SSSP/BC/CC.
 - All five kernels use the real RISC-V masked K2 property load in gem5; Sniper
   uses the fused record sideband immediately before the property access, and
-  cache_sim remains the functional reference.
+  cache_sim remains the functional reference. The post-correction 15-cell gate
+  passes with 32/32 detailed-simulator deliveries and zero K2 distance mismatches
+  per kernel.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.

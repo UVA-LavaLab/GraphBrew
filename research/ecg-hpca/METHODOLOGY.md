@@ -152,6 +152,8 @@ distance once per eviction and applies an equivalent closed-form RRIP aging
 step. `SNIPER_POPT_FAST=0` retains the legacy repeated-consultation path for
 equivalence checks. This changes host simulation cost only; victim decisions,
 target timing, reserved capacity, and matrix-stream accounting remain unchanged.
+gem5 already memoizes one distance per candidate before its RRIP tie loop, so it
+does not require the Sniper-specific fast-path repair.
 
 ## Headline real-graph cell
 

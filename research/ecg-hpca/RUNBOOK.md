@@ -256,6 +256,10 @@ Sniper P-OPT uses the exact optimized host consultation path by default. Set
 `SNIPER_POPT_FAST=0` only for legacy A/B equivalence checks; paper rows record
 `sniper_popt_fast=1`.
 
+gem5 P-OPT already performs one matrix lookup per candidate and caches those
+distances through RRIP tie aging. Do not attribute gem5's cycle-accurate wall
+time to the repeated-consultation issue that affected legacy Sniper.
+
 Weighted SSSP rows must report `graph_edge_bytes=8`, `ecg_record_bytes=4`, and
 `edge_stream_bytes_per_edge=12`. gem5 loads the sidecar normally or with
 `ecg.stream.wload2`, then carries the reconstructed K2 mask on the property

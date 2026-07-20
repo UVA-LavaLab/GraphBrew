@@ -123,12 +123,14 @@ Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_replacement_baseline_final_20260714/aggregate/`
 `online_dueling_regret.csv`.
 
-The current five-algorithm Schedule-2 gate passes in cache_sim, gem5, and Sniper
-with zero K2 distance mismatches. gem5 executes the real RISC-V masked property
-load for every kernel; Sniper validates exact fused sideband receipts immediately
-before the governed access. Tiny O3 PR and weighted SSSP runs each deliver 8/8
-traced K2 request extensions to the correct property line. This is mechanism/spec
-evidence, not a frozen real-graph performance ranking.
+The post-`8ef03d28` 15-cell Schedule-2 gate passes for
+cache_sim/gem5/Sniper x PR/BFS/SSSP/BC/CC. Every detailed-simulator kernel
+matches 32/32 expected K2 deliveries with zero distance mismatches and obeys the
+shared victim specification. gem5 executes the real RISC-V masked property load;
+Sniper validates the equivalent fused sideband immediately before the governed
+access. Tiny O3 PR and weighted SSSP runs each deliver 8/8 traced K2 request
+extensions to the correct property line. This is mechanism/spec evidence, not a
+frozen real-graph performance ranking.
 
 The no-prefetch `kron_s15_k4` preliminary matrix is complete:
 
@@ -347,6 +349,13 @@ versions remained unfinished after more than 11.5 hours.
 
 This is a simulator-throughput optimization only. It does not alter P-OPT
 victims, target timing, LLC capacity, or traffic accounting.
+
+gem5 does not contain the legacy Sniper pathology. Its P-OPT adapter computes
+`findNextRef` once per candidate, stores the result in `wayDists`, and performs
+RRIP tie aging without further matrix consultations. Across the 15 sampled
+gem5 graph/kernel cells, P-OPT host wall time is 1.008x LRU in geomean and
+1.029x at worst. gem5's long wall time is therefore the detailed CPU/memory
+simulation cost, not repeated P-OPT consultation.
 
 ### Preliminary STRIDE8 sensitivity (synthetic diagnostic)
 
