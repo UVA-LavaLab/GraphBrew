@@ -926,6 +926,7 @@ def scrub_cell_mechanism_env(env: dict[str, str]) -> None:
         "ECG_DEBUG",
         "ECG_EVICT_TRACE",
         "ECG_EVICT_TRACE_ROI",
+        "GEM5_ECG_EXT_TRACE",
     }
     diagnostics = {
         key: os.environ[key]
@@ -1217,22 +1218,37 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         force_delivery = os.environ.get("ECG_FORCE_DELIVERY") == "1"
         if schedule_k == 2 and args.benchmark in (
                 "pr", "bfs", "sssp", "bc", "cc"):
-            if args.gem5_cpu_type == "O3":
+            k2_masked_pload = (
+                riscv_delivery and
+                args.benchmark in ("pr", "bfs", "sssp", "bc", "cc"))
+            if args.gem5_cpu_type == "O3" and not k2_masked_pload:
                 raise RuntimeError(
-                    "Schedule-2 gem5 delivery is in-order only: ecg.load2 "
-                    "uses the serialized pair mailbox. O3 requires a "
-                    "request-bound epoch-pair extension, which is not "
-                    "implemented.")
+                    "Schedule-2 O3 requires the RISC-V masked property-load "
+                    "path with its request-bound epoch-pair producer.")
             env.pop("GEM5_FORCE_ECG_LOAD", None)
-            env.pop("GEM5_FORCE_ECG_PLOAD", None)
+            if k2_masked_pload:
+                env["GEM5_FORCE_ECG_PLOAD"] = "1"
+                if args.gem5_cpu_type == "O3":
+                    env["GEM5_ECG_PRODUCER"] = "1"
+            else:
+                env.pop("GEM5_FORCE_ECG_PLOAD", None)
             if (riscv_delivery and
                     env.get("ECG_STREAM_BYPASS") == "1"):
                 env["GEM5_FORCE_ECG_STREAM_LOAD2"] = "1"
                 env["GEM5_ECG_STREAM_REQUEST_BOUND"] = "1"
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
                 gem5_ecg_delivery = (
-                    "ecg.stream.wload2" if args.benchmark == "sssp"
+                    "ecg.stream.wload2+ecg.k2.pload"
+                    if k2_masked_pload and args.benchmark == "sssp"
+                    else "ecg.stream.load2+ecg.k2.pload"
+                    if k2_masked_pload
+                    else "ecg.stream.wload2" if args.benchmark == "sssp"
                     else "ecg.stream.load2")
+            elif k2_masked_pload:
+                env.pop("GEM5_FORCE_ECG_LOAD2", None)
+                env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
+                env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
+                gem5_ecg_delivery = "ecg.k2.pload"
             elif riscv_delivery:
                 env["GEM5_FORCE_ECG_LOAD2"] = "1"
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)

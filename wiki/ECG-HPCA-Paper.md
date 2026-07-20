@@ -26,12 +26,12 @@ flowchart LR
     A[Offline graph pass] --> B[Compute next two property rereferences]
     B --> C[Pack destination + line tier + epoch1 + epoch2]
     C --> D{Record load}
-    D -->|ecg.load2| E[Cached record request]
-    D -->|ecg.stream.load2| F[Record request + LLC no-allocate flag]
-    E --> G[Decode tier + K2 pair]
-    F --> G
-    G --> H[In-order delivery adapter]
-    H --> I[Subsequent property request/fill]
+    D -->|normal| E[Mask in register]
+    D -->|StreamShield| F[Record request + LLC no-allocate flag]
+    F --> E
+    E --> G[ecg.k2.load property + mask]
+    G --> H[Mask on exact property Request]
+    H --> I[Property lookup/fill]
     I --> J[Stamp property-line K2 metadata]
     J --> K[Adaptive ECG victim selector]
     F --> L[Suppress returning LLC miss insertion]
@@ -165,21 +165,21 @@ It suppresses only LLC allocation after a flagged miss.
 
 ## ISA
 
-| Instruction | RISC-V custom-0 FUNCT3 | Meaning |
+| Instruction | RISC-V custom-0 encoding | Meaning |
 |---|---:|---|
-| `ecg.load2 rd, 0(rs1)` | `0x4` | all five kernels: load K2 record and deliver tier plus both epochs |
-| `ecg.stream.load2 rd, 0(rs1)` | `0x3` | all five kernels: same plus request-bound LLC no-allocation |
+| `ecg.k2.load rd, rs1, rs2` | FUNCT3 `0x2`, mode `0x03` | load the governed property and carry tier plus both epochs on that exact request |
+| `ecg.stream.load2 rd, 0(rs1)` | FUNCT3 `0x3` | optional StreamShield load for an unweighted K2 record |
+| `ecg.stream.wload2 rd, rs1, rs2` | FUNCT3 `0x5` | optional StreamShield load for the weighted 4-byte sidecar |
 
-The full 64-bit record is returned in `rd`. The fused path avoids per-edge
-SimMagic or a load/repack/extract instruction sequence.
+The graph stream supplies the mask. The property-load instruction carries that
+mask as request metadata, so the cache knows the policy before the property data
+returns. Weighted SSSP combines its destination and 32-bit sidecar into the same
+canonical 64-bit K2 register layout.
 
-StreamShield is request-bound. Current gem5 K2 delivery uses a serialized
-in-order mailbox between the record load and subsequent property fill; a
-request-bound pair extension is required before O3.
-
-All five gem5 kernels use fused `ecg.load2`; all five Sniper kernels use the
-fused record-sideband model. gem5 O3 still requires request-bound pair
-attachment.
+StreamShield is independently request-bound to the record/sidecar load. All five
+gem5 kernels use the masked K2 property load. Tiny PR and weighted SSSP O3 runs
+prove that the pair reaches the correct property request; Sniper uses the
+equivalent fused sideband immediately before the property access.
 
 ## Comparison with prior policies
 
@@ -202,7 +202,7 @@ without StreamShield.
 |---|---|---|---|
 | K2 builder | shared | shared | shared |
 | Victim decision | shared selector | shared selector | shared selector |
-| Metadata delivery | instrumented record load | all five fused `ecg.load2`; in-order pair mailbox | all five fused record sideband |
+| Metadata delivery | masked property access | all five request-bound masked property loads | fused record sideband before property access |
 | StreamShield | preserve LLC hits, suppress miss insertion | clear LLC `allocOnFill` | preserve NUCA hits, suppress miss insertion |
 | Paper role | functional authority | cycle-accurate ISA proof | real-graph scale/timing |
 
@@ -300,7 +300,8 @@ remain pending the complete Sniper matrix and a bounded prefetch configuration.
 - One request-bound StreamShield bit.
 - Two 15-bit epochs, a 2-bit carried tier, and valid/count state per governed line.
 - Charged P-OPT matrix capacity in every reported baseline.
-- Request-bound K2 pair propagation remains required before gem5 O3 evaluation.
+- Request-bound K2 pair propagation is implemented; gem5 O3 is limited to tiny
+  instruction-correctness cells.
 - No hidden matrix, zero-latency bypass, or aggressive per-access LLC metadata
   broadcast in headline rows.
 

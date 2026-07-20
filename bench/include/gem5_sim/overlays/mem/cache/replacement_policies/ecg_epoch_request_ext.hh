@@ -1,18 +1,18 @@
-// GraphBrew ECG epoch REQUEST SIDEBAND (the OoO / multicore-general delivery).
+// GraphBrew ECG mask REQUEST SIDEBAND (the OoO / multicore-general delivery).
 //
 // The single-slot ecg.extract mailbox (setDecodedEcgExtractHint) and the per-vertex
 // table (storeEcgMetadataByVertex) are both compromises: the mailbox races under an
-// out-of-order CPU (a later ecg.load's epoch can overwrite an earlier one before its
+// out-of-order CPU (a later ecg.load's mask can overwrite an earlier one before its
 // fill stamps the line), and the table is O(num_vertices) (the very cost ECG avoids).
 //
 // The race-free AND HW-realizable delivery is a per-REQUEST sideband: the ecg.load AGU
-// tags the demand Request with {dest, epoch} (a few tag bits riding the in-flight load),
-// and the LLC reads it on the fill. Because the epoch travels WITH the specific request,
+// tags the demand Request with its destination and graph mask, and the LLC reads it on
+// hits and fills. Because the mask travels WITH the specific request,
 // there is no shared structure to race and no per-vertex storage. gem5's Request is
 // Extensible<Request>, so this is a first-class Request::Extension.
 //
 // In-order TimingSimpleCPU case study: loads are serialized, so the single-slot mailbox
-// holds exactly the demanded vertex's epoch when its fill reaches the LLC -> the mailbox
+// holds exactly the demanded vertex's mask when its access reaches the LLC -> the mailbox
 // is mathematically equivalent to this sideband (no race possible). The replacement
 // policy is therefore validated in-order via the mailbox; this extension is the same
 // information delivered race-free for the O3CPU / multicore form. The read hook below is
@@ -31,14 +31,21 @@ namespace gem5 {
 namespace replacement_policy {
 namespace graph {
 
-// Per-request ECG metadata sideband. Carries the next-reference epoch (the eviction
-// signal) plus the optional GRASP/POPT tiers, attached to the ecg.load demand Request.
+// Per-request ECG metadata sideband. Carries the graph mask attached to the
+// governed property-load Request. Schedule-1 uses one epoch; Schedule-2 carries
+// the GRASP tier and both K2 epochs.
 class EcgEpochExtension
     : public gem5::Extension<gem5::Request, EcgEpochExtension> {
   public:
     EcgEpochExtension(uint32_t dest, uint16_t epoch,
                       uint8_t dbg = 0, uint8_t popt = 0)
-        : dest_(dest), epoch_(epoch), dbg_(dbg), popt_(popt) {}
+        : dest_(dest), epoch_(epoch), epoch2_(epoch), dbg_(dbg),
+          popt_(popt), epoch_count_(1) {}
+
+    EcgEpochExtension(uint32_t dest, uint8_t tier,
+                      uint16_t epoch1, uint16_t epoch2)
+        : dest_(dest), epoch_(epoch1), epoch2_(epoch2), dbg_(tier),
+          popt_(0), epoch_count_(2) {}
 
     std::unique_ptr<gem5::ExtensionBase> clone() const override {
         return std::make_unique<EcgEpochExtension>(*this);
@@ -46,14 +53,18 @@ class EcgEpochExtension
 
     uint32_t dest()  const { return dest_; }
     uint16_t epoch() const { return epoch_; }
+    uint16_t epoch2() const { return epoch2_; }
     uint8_t  dbg()   const { return dbg_; }
     uint8_t  popt()  const { return popt_; }
+    uint8_t  epochCount() const { return epoch_count_; }
 
   private:
     uint32_t dest_;
     uint16_t epoch_;
+    uint16_t epoch2_;
     uint8_t  dbg_;
     uint8_t  popt_;
+    uint8_t  epoch_count_;
 };
 
 // O3/OoO ATTACH (the ecg.load AGU side): tag the demand request with its epoch sideband.
@@ -64,6 +75,15 @@ inline void attachEcgEpoch(const gem5::RequestPtr& req, uint32_t dest, uint16_t 
     if (req) {
         req->setExtension(
             std::make_shared<EcgEpochExtension>(dest, epoch, dbg, popt));
+    }
+}
+
+inline void attachEcgEpochPair(const gem5::RequestPtr& req, uint32_t dest,
+                               uint8_t tier,
+                               uint16_t epoch1, uint16_t epoch2) {
+    if (req) {
+        req->setExtension(std::make_shared<EcgEpochExtension>(
+            dest, tier, epoch1, epoch2));
     }
 }
 
@@ -91,6 +111,23 @@ inline bool readEcgEpoch(const gem5::RequestPtr& req, uint16_t& epoch_out,
     epoch_out = ext->epoch();
     dbg_out = ext->dbg();
     popt_out = ext->popt();
+    dest_out = ext->dest();
+    return true;
+}
+
+inline bool readEcgEpochPair(const gem5::RequestPtr& req,
+                             uint16_t& epoch1_out, uint16_t& epoch2_out,
+                             uint8_t& dbg_out, uint8_t& popt_out,
+                             uint8_t& count_out,
+                             uint32_t& dest_out) {
+    if (!req) return false;
+    auto ext = req->getExtension<EcgEpochExtension>();
+    if (!ext) return false;
+    epoch1_out = ext->epoch();
+    epoch2_out = ext->epoch2();
+    dbg_out = ext->dbg();
+    popt_out = ext->popt();
+    count_out = ext->epochCount();
     dest_out = ext->dest();
     return true;
 }

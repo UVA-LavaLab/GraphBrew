@@ -15,9 +15,9 @@ The design targets four invariants:
 - order-independent degree guidance carried with the edge;
 - request-bound StreamShield placement.
 
-Current gem5 K2 pair delivery is validated only on the in-order CPU: the record
-load deposits the pair in a serialized mailbox and the subsequent property fill
-consumes it. A request-bound K2 pair extension is required before O3 is enabled.
+Current gem5 K2 pair delivery is request-bound to the masked property load.
+Tiny unweighted PR and weighted SSSP O3 cells prove the pair reaches the correct
+property line; TimingSimpleCPU remains the scale-evaluation model.
 
 ## K2 record
 
@@ -65,12 +65,12 @@ flowchart LR
     A[Graph preprocessing] --> B[Build destination + line tier + next two epochs]
     B --> C[64-bit K2 edge record]
     C --> D{Record load}
-    D -->|ecg.load2| E[Cached record request]
-    D -->|ecg.stream.load2| F[Record request carries LLC no-allocate flag]
-    E --> G[Decode tier + K2 pair]
-    F --> G
-    G --> H[In-order pair-delivery adapter]
-    H --> I[Subsequent property request/fill]
+    D -->|normal| E[Mask in register]
+    D -->|StreamShield| F[Record request carries LLC no-allocate flag]
+    F --> E
+    E --> G[ecg.k2.load property address + mask]
+    G --> H[Mask attached to exact property Request]
+    H --> I[Property lookup and fill]
     I --> J[Property-line tier + epoch metadata]
     J --> K[Shared ECG victim selector]
     F --> L{Record miss?}
@@ -78,9 +78,10 @@ flowchart LR
     L -->|StreamShield| N[Return data without LLC allocation]
 ```
 
-The property access and record access remain ordinary memory requests.
-StreamShield rides its record request; current gem5 K2 epochs are serialized
-between the record load and the following property access.
+The graph stream supplies the mask and the masked property load carries it on
+the governed demand Request. StreamShield remains on the record/sidecar request;
+it never bypasses the property request. The request extension carries the tier
+and both epochs through O3 without a shared mailbox race.
 
 ## Replacement policy
 
@@ -187,22 +188,26 @@ prefetches inherit the same request flag.
 
 ## ISA
 
-The fused Schedule-2 path uses RISC-V custom-0 I-type encodings:
+The canonical Schedule-2 path uses a mode-controlled RISC-V custom-0 property
+load plus an optional StreamShield record load:
 
-| Instruction | FUNCT3 | Effect |
+| Instruction | Encoding | Effect |
 |---|---:|---|
-| `ecg.load2 rd, 0(rs1)` | `0x4` | PR/BFS/SSSP/BC/CC: load the K2 record and deliver tier plus both epochs |
-| `ecg.stream.load2 rd, 0(rs1)` | `0x3` | PR/BFS/SSSP/BC/CC: same, plus request-bound LLC no-allocation |
+| `ecg.k2.load rd, rs1, rs2` | custom-0, FUNCT3 `0x2`, mode `0x03` | load `property[dest]`; attach `tier|epoch1|epoch2` from `rs2` to that exact demand Request |
+| `ecg.stream.load2 rd, 0(rs1)` | custom-0, FUNCT3 `0x3` | load an unweighted K2 record while suppressing only its LLC miss allocation |
+| `ecg.stream.wload2 rd, rs1, rs2` | custom-0, FUNCT3 `0x5` | load the weighted 4-byte sidecar with the same record-only StreamShield behavior |
 
-The complete packed record is returned in `rd`; no extra register repacking or
-per-edge SimMagic instruction is required. StreamShield is request-bound. K2
-pair delivery remains in-order-only until its request extension is implemented.
+For unweighted kernels, `rs1` is the property base and `rs2` is the canonical
+64-bit K2 record. Weighted SSSP combines its edge destination with the 32-bit
+sidecar in a register; the result is the same canonical K2 layout. The O3
+producer stores the mask on the dynamic instruction and the LSQ attaches it to
+the property Request. Legacy record-delivery opcodes remain compatibility paths,
+not the paper abstraction.
 
-All five gem5 kernels execute `ecg.load2`; all five Sniper kernels use the
-equivalent fused record sideband model without per-edge SimMagic. The full
-15-cell gate requires exact K2 delivery and victim compliance in cache_sim,
-gem5, and Sniper. gem5 remains in-order-only until the pair is attached to the
-specific O3 request.
+All five gem5 kernels execute the masked K2 property load. Tiny unweighted PR
+and weighted SSSP O3 proofs show the full pair arriving on the correct property
+line. Sniper uses the equivalent fused record sideband model immediately before
+the governed property access.
 
 ## Worked K2 example
 
@@ -239,9 +244,9 @@ and without StreamShield.
 |---|---|---|---|
 | K2 construction | shared builder | shared builder | shared builder |
 | K2 distance | shared selector | shared selector | shared selector |
-| Tier delivery | instrumented record | fused `ecg.load2` | fused record sideband |
+| Tier delivery | masked property access | request-bound masked property load | fused record sideband before property access |
 | Online selection | exact set index | gem5 replaceable-entry set | Sniper cache-set index |
-| Epoch delivery | instrumented edge load | all five: fused `ecg.load2`; serialized in-order pair mailbox | all five: fused record sideband model |
+| Epoch delivery | masked property access | all five: K2 pair on the exact property Request | all five: fused record sideband model |
 | StreamShield | preserve LLC hits, suppress miss insertion | request flag clears LLC `allocOnFill` | preserve NUCA hit path, suppress miss insertion |
 | Address stability | aligned properties + fixed indexed record streams | aligned properties/records | aligned properties/records |
 | Purpose | functional authority | cycle-accurate ISA confirmation | scale/timing confirmation |
@@ -258,7 +263,8 @@ and without StreamShield.
   per-line selector state.
 - Adaptive StreamShield: two disjoint placement leaders, two miss counters, and
   one winner bit; no per-line state.
-- gem5 O3 requires the planned request-bound K2 pair extension.
+- gem5 O3 uses the implemented request-bound K2 pair extension; only tiny
+  instruction-correctness cells are in scope because O3 scale is prohibitively slow.
 - P-OPT comparison: charged for its active rereference-matrix capacity.
 
 The artifact rejects hidden matrices, zero-latency bypass, and aggressive

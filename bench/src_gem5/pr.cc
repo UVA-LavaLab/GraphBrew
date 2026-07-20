@@ -199,10 +199,12 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     const bool ecg_stream_load2_on =
         gem5_ecg_stream_load2_enabled();
     const bool ecg_load2_on = gem5_ecg_load2_enabled();
-    if (ecg_stream_load2_on || ecg_load2_on)
+    const bool ecg_k2_pload_on =
+        gem5_ecg_pload_enabled() && ecg_sched_k == 2;
+    if (ecg_stream_load2_on || ecg_load2_on || ecg_k2_pload_on)
         ecg_extract_enabled = true;
-    // FUSED ecg.load: one custom-0 I-type op replaces demand-load + repack +
-    // ecg.extract. Implies the extract delivery (so the mode-6 masks are built).
+    // The masked property-load family implies metadata construction. Schedule-2
+    // uses the request-bound K2 mode; legacy record-load delivery remains available.
     bool ecg_load_enabled = gem5_ecg_load_enabled();
     if (ecg_load_enabled) ecg_extract_enabled = true;
     if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6) {
@@ -356,15 +358,20 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     const bool pair_extract_only =
         ecg_extract_enabled && !ecg_prefetch_enabled &&
         ecg_pfx_mode == 6 && pair_ok &&
-        !ecg_load_enabled && !gem5_ecg_pload_enabled() &&
+        !ecg_load_enabled &&
         packed_stream_compatible;
     if (pair_extract_only) {
         fprintf(stderr,
             ecg_stream_load2_on
-                ? "[ECG_STREAM_LOAD2] PR request-bound StreamShield+K2 ACTIVE\n"
-                : ecg_load2_on
-                    ? "[ECG_LOAD2] PR fused K2 record load ACTIVE\n"
-                    : "[ECG_PACKED8_K2] PR Schedule-2 packed record path ACTIVE\n");
+            ? (ecg_k2_pload_on
+                ? "[ECG_K2_PLOAD] PR request-bound masked property load "
+                  "+ StreamShield record load ACTIVE\n"
+                : "[ECG_STREAM_LOAD2] PR request-bound StreamShield+K2 ACTIVE\n")
+            : ecg_k2_pload_on
+                ? "[ECG_K2_PLOAD] PR request-bound masked property load ACTIVE\n"
+            : ecg_load2_on
+                ? "[ECG_LOAD2] PR fused K2 record load ACTIVE\n"
+                : "[ECG_PACKED8_K2] PR Schedule-2 packed record path ACTIVE\n");
     } else if (packed_extract_only) {
         fprintf(stderr,
                 "[ECG_PACKED4] PR eviction-only packed record fast path ACTIVE\n");
@@ -390,7 +397,16 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                             : in_edge_pair_flat[pos];
                     const NodeID v =
                         static_cast<NodeID>(rec & 0xFFFFFFFFULL);
-                    if (!ecg_stream_load2_on && !ecg_load2_on)
+                    if (ecg_k2_pload_on) {
+                        const uint32_t bits = gem5_ecg_load_k2(
+                            outgoing_contrib.data(), rec);
+                        ScoreT delivered;
+                        std::memcpy(&delivered, &bits, sizeof(ScoreT));
+                        incoming_total += delivered;
+                        GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                        continue;
+                    }
+                    if (!ecg_load2_on)
                         GEM5_ECG_EXTRACT2(rec);
                     incoming_total += outgoing_contrib[v];
                     GEM5_ECG_CLEAR_EXTRACT2_HINT();

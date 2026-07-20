@@ -68,15 +68,14 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     // direction as cache_sim's buildOutEdgeMasks). Without this, gem5 BFS delivered NO
     // epoch and ECG_GRASP_POPT degenerated to recency (rubber-duck rd-phase-a / A5).
     bool ecg_extract_on = gem5_ecg_extract_enabled();
-    // FUSED ecg.load2: one custom-0 I-type op replaces demand-load + ecg.extract2 for the
-    // Schedule-2 packed K2 record (mirrors gem5 PR pr.cc). Implies the extract delivery so
-    // the K2 records get built below even if GEM5_ENABLE_ECG_EXTRACT was left unset.
-    // ecg.stream.load2 is the request-bound StreamShield variant of the same fused load
-    // (no-allocate LLC hint); it is a static primitive selected ahead of the plain load2,
-    // not an adaptive policy.
+    // Schedule-2 loads the packed record, then carries its K2 mask on the exact
+    // parent[dest] request. StreamShield remains on the record request.
     const bool ecg_load2_on = gem5_ecg_load2_enabled();
     const bool ecg_stream_load2_on = gem5_ecg_stream_load2_enabled();
-    if (ecg_load2_on || ecg_stream_load2_on) ecg_extract_on = true;
+    const bool ecg_k2_pload_on =
+        gem5_ecg_pload_enabled() && ecg_sched_k == 2;
+    if (ecg_load2_on || ecg_stream_load2_on || ecg_k2_pload_on)
+        ecg_extract_on = true;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
     if (ecg_extract_on) {
         if (ecg_sched_k != 2) {
@@ -180,12 +179,18 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     // line for ECG_GRASP_POPT next-reference eviction — exactly as gem5 PR delivers contrib[v]
     // (pr.cc gem5_ecg_load_evict). Gated on GEM5_ENABLE_ECG_PLOAD; X86 falls back to a plain
     // indexed load (no delivery -> cache_sim is authoritative there).
-    const bool ecg_load_evict_on = gem5_ecg_pload_enabled() && ecg_extract_on;
+    const bool ecg_load_evict_on =
+        gem5_ecg_pload_enabled() && ecg_extract_on && ecg_sched_k != 2;
     const int  ecg_evict_wc = ecg_mode6::ecgEvictWidthClass(g.num_nodes());
     if (pair_extract_only) {
         fprintf(stderr,
-                ecg_stream_load2_on
-                    ? "[ECG_STREAM_LOAD2] BFS request-bound StreamShield+K2 ACTIVE\n"
+                ecg_stream_load2_on && ecg_k2_pload_on
+                    ? "[ECG_K2_PLOAD] BFS request-bound masked property load "
+                      "+ StreamShield record load ACTIVE\n"
+                    : ecg_k2_pload_on
+                        ? "[ECG_K2_PLOAD] BFS request-bound masked property load ACTIVE\n"
+                    : ecg_stream_load2_on
+                        ? "[ECG_STREAM_LOAD2] BFS request-bound StreamShield+K2 ACTIVE\n"
                     : ecg_load2_on
                         ? "[ECG_LOAD2] BFS fused K2 record load ACTIVE\n"
                         : "[ECG_PACKED8_K2] BFS Schedule-2 packed record path ACTIVE\n");
@@ -217,9 +222,16 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
                         : pair_flat[pos];
                 const NodeID v =
                     static_cast<NodeID>(rec & 0xFFFFFFFFULL);
-                if (!ecg_stream_load2_on && !ecg_load2_on)
-                    GEM5_ECG_EXTRACT2(rec);
-                const NodeID pv = parent[v];
+                NodeID pv;
+                if (ecg_k2_pload_on) {
+                    const uint32_t bits =
+                        gem5_ecg_load_k2(parent.data(), rec);
+                    std::memcpy(&pv, &bits, sizeof(NodeID));
+                } else {
+                    if (!ecg_load2_on)
+                        GEM5_ECG_EXTRACT2(rec);
+                    pv = parent[v];
+                }
                 GEM5_ECG_CLEAR_EXTRACT2_HINT();
                 if (pv == -1) {
                     parent[v] = u;

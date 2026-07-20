@@ -83,18 +83,33 @@ int main() {
         if (!ok) g_fail++;
     }
     {
-        const uint32_t dest = 7654321u;
+        const uint32_t dest = 0x003ABCDEu;
+        const uint64_t record = ecg_epoch::packEpochPairRecord(
+            dest, 2, 0x2468u, 0x6CE0u);
+        prop[dest] = dest;
+        check("K2-PLOAD", 32, dest, gem5_ecg_load_k2(prop, record));
+    }
+    {
+        const uint32_t dest = 0x00300001u;
         const uint32_t sidecar =
             ecg_epoch::packWeightedEpochPairSidecar(1u, 321u, 654u);
         const uint32_t rd_stream =
-            gem5_ecg_stream_weighted_load2_instruction(&sidecar, dest);
+            gem5_ecg_stream_weighted_load2_instruction(&sidecar);
         const uint32_t rd =
             gem5_ecg_weighted_load2_instruction(&sidecar, dest);
-        const bool ok = rd == sidecar && rd_stream == sidecar;
+        const uint64_t combined =
+            ecg_epoch::combineWeightedEpochPairRecord(dest, sidecar);
+        const uint64_t canonical = ecg_epoch::packEpochPairRecord(
+            dest, 1u, 321u, 654u);
+        const bool ok =
+            rd == sidecar && rd_stream == sidecar && combined == canonical;
         printf("[test_ecg_load_modes] WLOAD2/K2 sidecar=%#x rd=%#x "
                "stream=%#x [%s]\n",
                sidecar, rd, rd_stream, ok ? "OK" : "FAIL");
         if (!ok) g_fail++;
+        prop[dest] = dest;
+        check("K2-WPLOAD", 32, dest, gem5_ecg_load_k2(
+            prop, ecg_epoch::combineWeightedEpochPairRecord(dest, sidecar)));
     }
 
     printf("[test_ecg_load_modes] RESULT: %s (%d fail)\n",

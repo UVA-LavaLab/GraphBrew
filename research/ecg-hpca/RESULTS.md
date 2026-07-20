@@ -123,10 +123,12 @@ Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_replacement_baseline_final_20260714/aggregate/`
 `online_dueling_regret.csv`.
 
-The current five-algorithm fused Schedule-2 gate passes in cache_sim, gem5, and
-Sniper with zero K2 distance mismatches: gem5 executes real RISC-V `ecg.load2`
-for every kernel and Sniper validates exact fused sideband receipts. This is
-mechanism/spec evidence, not a frozen real-graph performance ranking.
+The current five-algorithm Schedule-2 gate passes in cache_sim, gem5, and Sniper
+with zero K2 distance mismatches. gem5 executes the real RISC-V masked property
+load for every kernel; Sniper validates exact fused sideband receipts immediately
+before the governed access. Tiny O3 PR and weighted SSSP runs each deliver 8/8
+traced K2 request extensions to the correct property line. This is mechanism/spec
+evidence, not a frozen real-graph performance ranking.
 
 The no-prefetch `kron_s15_k4` preliminary matrix is complete:
 

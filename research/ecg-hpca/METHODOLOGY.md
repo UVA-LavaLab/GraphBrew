@@ -8,17 +8,18 @@ Architecture definitions and diagrams are centralized in
 | Simulator | Role |
 |---|---|
 | cache_sim | Fast functional authority, real-graph factorials, bug finding |
-| gem5 | Cycle-accurate record-load ISA and request-bound StreamShield confirmation |
+| gem5 | Cycle-accurate masked property-load ISA and request-bound StreamShield confirmation |
 | Sniper | Real-graph scale and paper timing matrix |
 
 Absolute gem5 and Sniper miss rates are not compared because their inclusion,
 frontend, and accounting models differ. Cross-simulator evidence is interpreted
 as mechanism agreement and direction relative to each simulator's LRU.
-PR/BFS/SSSP/BC/CC use gem5 `ecg.load2` and the equivalent Sniper fused record
-sideband, eliminating explicit per-edge `extract2` from canonical Schedule-2
-runs. Timing remains in-order-only in gem5; O3 is disabled until the epoch pair
-is attached to its exact request. Historical preliminary rows generated before
-the fused all-kernel port remain cache-metric evidence only.
+PR/BFS/SSSP/BC/CC use a gem5 masked property load carrying the K2 tier and epoch
+pair on the exact demand Request. Sniper uses the equivalent fused sideband
+immediately before the property access. Tiny PR and weighted SSSP O3 runs prove
+request-local pair delivery; scale runs remain on TimingSimpleCPU. Historical
+gem5 rows labeled `ecg.load2`/`ecg.wload2` predate this correction and are not
+reinterpreted without rerunning.
 Even PR fused timing is accepted only when live fused receipts validate against
 the exported K2 sideband. Without receipts, the row remains cache-metric-only;
 its packed-record software path can execute a different instruction stream than

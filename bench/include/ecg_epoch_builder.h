@@ -60,6 +60,12 @@ inline uint32_t packWeightedEpochPairSidecar(
            (static_cast<uint32_t>(second & kK2EpochMask) << 17);
 }
 
+inline uint64_t combineWeightedEpochPairRecord(
+        uint32_t dest, uint32_t sidecar) {
+    return static_cast<uint64_t>(dest) |
+           (static_cast<uint64_t>(sidecar) << 32);
+}
+
 inline uint8_t extractWeightedEpochPairTier(uint32_t sidecar) {
     return static_cast<uint8_t>(sidecar & 0x3u);
 }

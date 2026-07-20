@@ -21,7 +21,7 @@ evaluation:
 
 1. two-future-reference K2 records rather than the workshop's single mask;
 2. StreamShield request-bound LLC placement/bypass;
-3. executable `ecg.load2` and `ecg.stream.load2` ISA paths;
+3. an executable masked property-load ISA plus request-bound StreamShield;
 4. adaptive policies for iterative and traversal kernels;
 5. implementations and exact equivalence gates across cache_sim, gem5, and Sniper;
 6. real-graph timing, traffic, capacity, and instruction-count accounting against

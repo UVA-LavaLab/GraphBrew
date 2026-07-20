@@ -101,9 +101,9 @@ def benchmark_environment(args):
         # Fused ecg.load prototype: host GEM5_FORCE_ECG_LOAD=1 selects the single
         # custom-0 load-and-deliver instruction instead of demand-load + ecg.extract.
         f"GEM5_ENABLE_ECG_LOAD={1 if os.environ.get('GEM5_FORCE_ECG_LOAD') == '1' else 0}",
-        # Fused indexed-property load prototype: host GEM5_FORCE_ECG_PLOAD=1 selects
-        # the single custom-0 R-type op that loads property[base+index*4] AND delivers
-        # the index's epoch, replacing unpack+ecg.extract+property-load.
+        # Masked indexed-property load: host GEM5_FORCE_ECG_PLOAD=1 selects the
+        # custom-0 R-type family that loads the governed property and carries its
+        # graph mask on the same request.
         f"GEM5_ENABLE_ECG_PLOAD={1 if os.environ.get('GEM5_FORCE_ECG_PLOAD') == '1' else 0}",
         f"GEM5_ENABLE_ECG_STREAM_LOAD2={1 if os.environ.get('GEM5_FORCE_ECG_STREAM_LOAD2') == '1' else 0}",
         f"GEM5_ENABLE_ECG_LOAD2={1 if os.environ.get('GEM5_FORCE_ECG_LOAD2') == '1' else 0}",
@@ -212,10 +212,14 @@ def create_system(args):
     """Create the full gem5 system for graph benchmark simulation."""
 
     if os.environ.get("ECG_EDGE_MASK_SCHED", "0") == "2":
-        if args.cpu_type == "O3":
+        request_bound_k2 = (
+            os.environ.get("GEM5_FORCE_ECG_PLOAD") == "1" and
+            os.environ.get("GEM5_ECG_PRODUCER") == "1"
+        )
+        if args.cpu_type == "O3" and not request_bound_k2:
             raise RuntimeError(
-                "Schedule-2 ecg.extract2 uses the in-order mailbox; O3 "
-                "requires a request-bound epoch-pair extension.")
+                "Schedule-2 O3 requires the masked property-load path and "
+                "request-bound epoch-pair producer.")
         if args.prefetcher not in ("none", "STRIDE"):
             raise RuntimeError(
                 "Schedule-2 is implemented only with prefetcher none or STRIDE.")

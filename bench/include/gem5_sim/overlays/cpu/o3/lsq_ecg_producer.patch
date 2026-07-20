@@ -18,22 +18,33 @@ index d30a399..540d088 100644
  #include "debug/Fetch.hh"
  #include "debug/HtmCpu.hh"
  #include "debug/LSQ.hh"
-@@ -1112,6 +1114,22 @@ LSQ::LSQRequest::addReq(Addr addr, unsigned size,
+@@ -1112,6 +1114,33 @@ LSQ::LSQRequest::addReq(Addr addr, unsigned size,
                  std::move(_amo_op));
          req->setByteEnable(byte_enable);
  
 +        // GraphBrew ECG producer (env GEM5_ECG_PRODUCER=1): bind the ecg.load's per-dynamic
-+        // {dest,epoch} to its OWN demand Request as an EcgEpochExtension — the race-free
++        // graph mask to its OWN demand Request as an EcgEpochExtension — the race-free
 +        // O3/multicore delivery that replaces the single-slot mailbox. Gated so the SAME
 +        // binary A/Bs mailbox-only (off) vs extension (on).
 +        {
 +            static const bool ecg_producer =
 +                (std::getenv("GEM5_ECG_PRODUCER") != nullptr);
 +            if (ecg_producer && _inst && _inst->isLoad()) {
-+                uint32_t ecg_dest; uint16_t ecg_epoch;
-+                if (_inst->ecgLoadHint(ecg_dest, ecg_epoch)) {
-+                    gem5::replacement_policy::graph::attachEcgEpoch(
-+                        req, ecg_dest, ecg_epoch);
++                uint32_t ecg_dest;
++                uint8_t ecg_tier;
++                uint16_t ecg_epoch1, ecg_epoch2;
++                uint8_t ecg_epoch_count;
++                if (_inst->ecgLoadHint2(
++                        ecg_dest, ecg_tier,
++                        ecg_epoch1, ecg_epoch2, ecg_epoch_count)) {
++                    if (ecg_epoch_count == 2) {
++                        gem5::replacement_policy::graph::attachEcgEpochPair(
++                            req, ecg_dest, ecg_tier,
++                            ecg_epoch1, ecg_epoch2);
++                    } else {
++                        gem5::replacement_policy::graph::attachEcgEpoch(
++                            req, ecg_dest, ecg_epoch1, ecg_tier);
++                    }
 +                }
 +            }
 +        }

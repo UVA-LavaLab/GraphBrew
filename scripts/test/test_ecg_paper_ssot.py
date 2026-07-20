@@ -850,19 +850,12 @@ def test_requested_fused_receipt_validation_is_fail_closed():
 
 
 def test_all_five_kernels_use_fused_k2_delivery():
-    for kernel in ("bfs", "sssp", "bc", "cc"):
+    for kernel in ("pr", "bfs", "sssp", "bc", "cc"):
         source = (
             ROOT / f"bench/src_gem5/{kernel}.cc"
         ).read_text()
-        assert "gem5_ecg_load2_enabled()" in source, kernel
-        expected_load = (
-            "gem5_ecg_weighted_load2_instruction"
-            if kernel == "sssp" else "gem5_ecg_load2_instruction")
-        assert expected_load in source, kernel
-        expected_marker = (
-            "[ECG_WLOAD2] SSSP"
-            if kernel == "sssp" else f"[ECG_LOAD2] {kernel.upper()}")
-        assert expected_marker in source, kernel
+        assert "gem5_ecg_load_k2" in source, kernel
+        assert f"[ECG_K2_PLOAD] {kernel.upper()}" in source, kernel
 
     sniper = (
         ROOT / "bench/src_sniper/sg_kernel.cc"
@@ -883,7 +876,7 @@ def test_all_five_kernels_use_fused_k2_delivery():
     verifier = (
         ROOT / "scripts/experiments/ecg/verify/equiv_kernels.py"
     ).read_text()
-    assert "fused ecg.load2" in verifier
+    assert "masked K2 property load" in verifier
     assert "fused K2 sideband" in verifier
 
 

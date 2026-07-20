@@ -12,9 +12,9 @@
 - Tiered K2 construction, delivery, line metadata, effective distance, and
   victim decisions agree across cache_sim, gem5, and Sniper for
   PR/BFS/SSSP/BC/CC.
-- All five kernels pass the fused three-simulator gate: gem5 uses real RISC-V
-  `ecg.load2`, Sniper uses the fused record sideband model, and cache_sim remains
-  the functional reference.
+- All five kernels use the real RISC-V masked K2 property load in gem5; Sniper
+  uses the fused record sideband immediately before the property access, and
+  cache_sim remains the functional reference.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.
@@ -81,9 +81,9 @@
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
 - Detailed-simulator confirmation of the real-graph online-selector result.
 - Completion and aggregation of the now-runnable full-graph 600M SIFT matrix.
-- A zero-record GRASP transport arm before claiming per-kernel no-regret
-  behavior; weighted SSSP still trails GRASP despite the 4-byte sidecar.
-- Request-bound K2 pair delivery before gem5 O3 is enabled.
+- An optional zero-record GRASP ablation to isolate mask-stream cost; it is not
+  required for masked-load correctness. Weighted SSSP still trails GRASP despite
+  the 4-byte sidecar.
 
 ## Prohibited until the pending gate passes
 

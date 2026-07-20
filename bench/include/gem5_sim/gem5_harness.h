@@ -82,9 +82,9 @@ inline uint32_t gem5_ecg_load_instruction(const void* record_ptr) {
 #endif
 }
 
-// GEM5_ENABLE_ECG_PLOAD=1 selects the FUSED INDEXED-PROPERTY load `ecg.pload`: ONE
-// custom-0 R-type op that loads property[base + index*4] AND delivers index's epoch
-// to the LLC, replacing (unpack index + unpack epoch + ecg.extract + load property).
+// GEM5_ENABLE_ECG_PLOAD=1 selects the masked indexed-property load family:
+// one custom-0 R-type op loads property[base + index*4] and carries the graph
+// mask on that exact demand request.
 inline bool gem5_ecg_pload_enabled() {
     static int enabled = []() {
         const char* value = std::getenv("GEM5_ENABLE_ECG_PLOAD");
@@ -318,6 +318,22 @@ inline void gem5_trace_ecg_k2_expect(uint64_t packed) {
     }
 }
 
+inline uint32_t gem5_ecg_load_k2(const void* prop_base, uint64_t packed_record) {
+    gem5_trace_ecg_k2_expect(packed_record);
+#if defined(__riscv)
+    uint64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x0c, %0, %1, %2"
+                  : "=r"(val)
+                  : "r"(prop_base), "r"(packed_record)
+                  : "memory");
+    return static_cast<uint32_t>(val);
+#else
+    const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    const uint32_t dest = ecg_epoch::extractEpochPairDest(packed_record);
+    return base ? base[dest] : 0;
+#endif
+}
+
 inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
     gem5_trace_ecg_k2_expect(packed);
 #if defined(__riscv)
@@ -352,8 +368,8 @@ inline bool gem5_ecg_load2_enabled() {
 }
 
 // ecg.stream.load2 rd, 0(rs1): load one packed K2 record with a request-bound
-// LLC no-allocate flag. rd returns the full record; the decoder also delivers
-// the carried tier and both epochs to ECG replacement metadata.
+// LLC no-allocate flag. The returned record feeds gem5_ecg_load_k2, which owns
+// canonical metadata delivery on the subsequent property request.
 inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
     uint64_t packed = 0;
 #if defined(__riscv)
@@ -364,7 +380,6 @@ inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
 #else
     if (record_ptr) packed = *static_cast<const uint64_t*>(record_ptr);
 #endif
-    gem5_trace_ecg_k2_expect(packed);
     return packed;
 }
 
@@ -383,25 +398,17 @@ inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
 }
 
 inline uint32_t gem5_ecg_stream_weighted_load2_instruction(
-        const void* sidecar_ptr, uint32_t dest) {
+        const void* sidecar_ptr) {
     uint64_t sidecar = 0;
 #if defined(__riscv)
-    asm volatile (".insn r 0x0b, 0x5, 0x00, %0, %1, %2"
+    asm volatile (".insn r 0x0b, 0x5, 0x00, %0, %1, x0"
                   : "=r"(sidecar)
-                  : "r"(sidecar_ptr), "r"(static_cast<uint64_t>(dest))
+                  : "r"(sidecar_ptr)
                   : "memory");
 #else
     if (sidecar_ptr)
         sidecar = *static_cast<const uint32_t*>(sidecar_ptr);
 #endif
-    gem5_trace_ecg_k2_expect(ecg_epoch::packEpochPairRecord(
-        dest,
-        ecg_epoch::extractWeightedEpochPairTier(
-            static_cast<uint32_t>(sidecar)),
-        ecg_epoch::extractWeightedEpochPairFirst(
-            static_cast<uint32_t>(sidecar)),
-        ecg_epoch::extractWeightedEpochPairSecond(
-            static_cast<uint32_t>(sidecar))));
     return static_cast<uint32_t>(sidecar);
 }
 
@@ -525,12 +532,18 @@ inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
     return record_ptr ? *static_cast<const uint64_t*>(record_ptr) : 0;
 }
 inline uint32_t gem5_ecg_stream_weighted_load2_instruction(
-        const void* sidecar_ptr, uint32_t) {
+        const void* sidecar_ptr) {
     return sidecar_ptr ? *static_cast<const uint32_t*>(sidecar_ptr) : 0;
 }
 inline uint32_t gem5_ecg_weighted_load2_instruction(
         const void* sidecar_ptr, uint32_t) {
     return sidecar_ptr ? *static_cast<const uint32_t*>(sidecar_ptr) : 0;
+}
+inline uint32_t gem5_ecg_load_k2(
+        const void* prop_base, uint64_t packed_record) {
+    const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    const uint32_t dest = ecg_epoch::extractEpochPairDest(packed_record);
+    return base ? base[dest] : 0;
 }
 #if defined(__riscv)
 inline bool gem5_ecg_pfx_hints_enabled() {

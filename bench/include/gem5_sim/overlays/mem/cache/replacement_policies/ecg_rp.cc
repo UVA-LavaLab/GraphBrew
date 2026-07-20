@@ -130,11 +130,15 @@ GraphEcgRP::touch(
         if (ctx.loaded && ctx.isPropertyData(addr)) {
             data->is_property_data = true;
             uint32_t vertex = UINT32_MAX;
+            uint64_t reg_base = 0;
+            uint32_t reg_elem = 0;
             for (uint32_t ri = 0; ri < ctx.num_regions; ++ri) {
                 const auto& reg = ctx.regions[ri];
                 if (addr >= reg.base_address && addr < reg.upper_bound) {
                     vertex = graph::addressToVertex(addr, reg.base_address,
                                  reg.upper_bound, reg.elem_size);
+                    reg_base = reg.base_address;
+                    reg_elem = reg.elem_size;
                     break;
                 }
             }
@@ -145,8 +149,21 @@ GraphEcgRP::touch(
                 uint16_t isa_epoch = data->ecg_epoch;
                 uint16_t isa_epoch2 = data->ecg_epoch2;
                 uint8_t isa_count = data->ecg_epoch_count;
-                if (graph::lookupDecodedEcgHint2(
-                        vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count)) {
+                uint32_t isa_dest = 0;
+                bool got = pkt && pkt->req && graph::readEcgEpochPair(
+                    pkt->req, isa_epoch, isa_epoch2, isa_dbg, isa_popt,
+                    isa_count, isa_dest);
+                if (got && reg_elem > 0) {
+                    const uint64_t dest_line =
+                        (reg_base + static_cast<uint64_t>(isa_dest) * reg_elem) &
+                        ~uint64_t(63);
+                    if (dest_line != (addr & ~uint64_t(63))) got = false;
+                }
+                if (!got) {
+                    got = graph::lookupDecodedEcgHint2(
+                        vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
+                }
+                if (got) {
                     if (isa_dbg >= 1 && isa_dbg <= 3)
                         data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;
@@ -267,13 +284,30 @@ GraphEcgRP::reset(
                 uint8_t isa_count = 0;
                 uint32_t isa_dest = 0;
                 // OoO request-sideband FIRST (race-free; an O3 ecg.load attaches the
-                // epoch to the demand request). Falls back to the in-order single-slot
-                // mailbox / per-vertex table, which is equivalent for serialized loads.
-                bool got = graph::readEcgEpoch(pkt->req, isa_epoch, isa_dbg,
-                                               isa_popt, isa_dest);
-                if (got) {
-                    isa_epoch2 = isa_epoch;
-                    isa_count = 1;
+                // graph mask to the governed property request). Falls back to the
+                // in-order mailbox/table, which is equivalent for serialized loads.
+                bool got = graph::readEcgEpochPair(
+                    pkt->req, isa_epoch, isa_epoch2, isa_dbg, isa_popt,
+                    isa_count, isa_dest);
+                static const uint64_t ext_trace_limit = []() {
+                    const char* value = std::getenv("GEM5_ECG_EXT_TRACE");
+                    return value
+                        ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10))
+                        : 0;
+                }();
+                static std::atomic<uint64_t> ext_trace_sequence{0};
+                if (got && isa_count == 2 && ext_trace_limit > 0) {
+                    const uint64_t sequence =
+                        ext_trace_sequence.fetch_add(1, std::memory_order_relaxed);
+                    if (sequence < ext_trace_limit) {
+                        std::cerr
+                            << "[ECG-K2-EXT-RECV sim=gem5 seq=" << sequence
+                            << " dest=" << isa_dest
+                            << " tier=" << static_cast<unsigned>(isa_dbg)
+                            << " epoch1=" << isa_epoch
+                            << " epoch2=" << isa_epoch2
+                            << " fill_vertex=" << vertex << "]\n";
+                    }
                 }
                 if (got && reg_elem > 0) {
                     // Dest-guard: accept the sideband epoch only if the ecg.load's dest

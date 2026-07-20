@@ -23,13 +23,22 @@ def test_weighted_sssp_fused_path_moves_validation_before_roi():
     assert 'std::getenv("ECG_K2_VALIDATE")' in gem5
     assert "gem5_ecg_stream_weighted_load2_instruction" in gem5
     assert "gem5_ecg_weighted_load2_instruction" in gem5
+    assert "combineWeightedEpochPairRecord" in builder
+    assert "gem5_ecg_load_k2(dist.data(), record)" in gem5
 
     decoder = (
         ROOT
         / "bench/include/gem5_sim/overlays/arch/riscv/isa/"
         "decoder_ecg_extract.isa"
     ).read_text()
-    assert decoder.count("uint64_t dest_dependency = Rs2;") == 2
+    assert decoder.count("uint64_t dest_dependency = Rs2;") == 1
+    stream_block = decoder.split("0x3: ecg_stream_load2", 1)[1].split(
+        "0x4: ecg_load2", 1)[0]
+    weighted_stream_block = decoder.split(
+        "0x5: ecg_stream_weighted_load2", 1)[1].split(
+            "0x6: ecg_weighted_load2", 1)[0]
+    assert "setDecodedEcgExtractHint2" not in stream_block
+    assert "setDecodedEcgExtractHint2" not in weighted_stream_block
 
     sniper_roi = sniper.split("int run_sssp(", 1)[1].split(
         "SNIPER_ROI_BEGIN();", 1)[1].split("SNIPER_ROI_END();", 1)[0]

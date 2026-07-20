@@ -106,11 +106,12 @@ UNIFIED_DIFF_PATCHES = [
     # front-of-queue prefetch's tick is in the future, preserving the
     # prefetcher's latency contract for cycle-accurate parity.
     ("mem/cache/prefetch/queued_cc_latency.patch", "."),
-    # ECG ecg.load OoO producer: bind the per-dynamic {dest,epoch} to the
-    # ecg.load's own demand Request (EcgEpochExtension) so the epoch reaches
-    # the LLC race-free on DerivO3CPU (the single-slot mailbox is overwritten
+    # ECG masked-load OoO producer: bind the per-dynamic graph mask
+    # ({dest,tier,epoch1,epoch2} for K2) to the property load's own demand
+    # Request so it reaches the LLC race-free on DerivO3CPU. The mailbox is
+    # overwritten
     # ~100% of the time under OoO — see research/ecg-hpca/evidence/ooo_ecg_load_propagation_
-    # and_design.md). exec_context.hh adds a default-noop setEcgLoadHint hook;
+    # and_design.md). exec_context.hh adds default-noop hint hooks;
     # o3/dyn_inst.hh overrides it with per-dynamic state; o3/lsq.cc attaches the
     # extension in LSQRequest::addReq (gated on env GEM5_ECG_PRODUCER). The
     # ea_code caller lives in the decoder_ecg_extract.isa snippet.

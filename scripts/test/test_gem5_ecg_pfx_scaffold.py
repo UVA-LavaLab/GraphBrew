@@ -132,6 +132,8 @@ def test_gem5_schedule2_delivery_is_pair_aware():
     assert "(packed >> 34) & 0x7FFF" in decoder
     assert "(packed >> 49) & 0x7FFF" in decoder
     assert "setDecodedEcgExtractHint2" in decoder
+    assert "0x03: ecg_load_k2" in decoder
+    assert "xc->setEcgLoadHint2(" in decoder
     assert "lookupDecodedEcgHint2" in context
     assert "isEcgEpochData" in context
     assert "ecg_epoch2" in policy
@@ -147,7 +149,26 @@ def test_gem5_schedule2_delivery_is_pair_aware():
     assert "ctx.classifyGRASP(addr, llcSize, ghf)" in policy
     assert "isa_dbg >= 1 && isa_dbg <= 3" in policy
     assert "epochPairDistance(" in policy
+    assert policy.count("readEcgEpochPair(") >= 2
     assert "GRAPHBREW_ECG_EXTRACT2_WORK_ID" in setup
+
+    request_ext = read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "ecg_epoch_request_ext.hh")
+    assert "attachEcgEpochPair" in request_ext
+    assert "readEcgEpochPair" in request_ext
+    assert "epoch2_" in request_ext
+    assert "epoch_count_" in request_ext
+
+    exec_patch = read(
+        "bench/include/gem5_sim/overlays/cpu/exec_context_ecg_producer.patch")
+    dyn_patch = read(
+        "bench/include/gem5_sim/overlays/cpu/o3/dyn_inst_ecg_producer.patch")
+    lsq_patch = read(
+        "bench/include/gem5_sim/overlays/cpu/o3/lsq_ecg_producer.patch")
+    assert "setEcgLoadHint2" in exec_patch
+    assert "setEcgLoadHint2" in dyn_patch
+    assert "attachEcgEpochPair" in lsq_patch
     assert 'schedule_k == "2"' in graph_se
     assert '"GRASP_HOT_FRACTION"' in graph_se
 
@@ -172,9 +193,10 @@ def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):
 
     runner = read("scripts/experiments/ecg/roi_matrix.py")
     graph_se = read("bench/include/gem5_sim/configs/graphbrew/graph_se.py")
-    assert "Schedule-2 gem5 delivery is in-order only" in runner
+    assert "Schedule-2 O3 requires the RISC-V masked property-load" in runner
     assert 'args.gem5_cpu_type == "O3"' in runner
-    assert "Schedule-2 ecg.extract2 uses the in-order mailbox" in graph_se
+    assert "request_bound_k2" in graph_se
+    assert "Schedule-2 O3 requires the masked property-load path" in graph_se
     assert "prefetcher none or STRIDE" in runner
     assert "GEM5_ECG_EPOCH_REGION_INDEX" in graph_se
     verifier = read("scripts/experiments/ecg/verify/ecg.py")

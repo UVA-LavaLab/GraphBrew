@@ -10,7 +10,7 @@ The new architecture adds:
 - order-independent carried GRASP tiers;
 - static and online set-dueling graph-cache replacement;
 - **StreamShield** request-bound LLC placement control;
-- RISC-V `ecg.load2` and `ecg.stream.load2` for PR/BFS/SSSP/BC/CC;
+- a RISC-V masked property load carrying K2 metadata on the demand request;
 - cache_sim, gem5, and Sniper implementations with exact equivalence gates.
 
 The public HPCA paper name remains open. Implementation names remain `ECG_*`.
@@ -20,12 +20,12 @@ The public HPCA paper name remains open. Implementation names remain `ECG_*`.
 ```mermaid
 flowchart LR
     A[Graph edge] --> B[dest + tier + epoch1 + epoch2]
-    B --> C{Record instruction}
-    C -->|ecg.load2| D[K2 replacement metadata]
-    C -->|ecg.stream.load2| E[K2 metadata + LLC no-allocate]
-    D --> F[Adaptive ECG victim selector]
+    B --> C{Record or sidecar load}
+    C -->|normal| D[Mask in register]
+    C -->|StreamShield| E[Mask in register + record no-allocate]
+    D --> F[ecg.k2.load property with mask]
     E --> F
-    E --> G[Private-cache fill, LLC miss bypass]
+    F --> G[Adaptive ECG victim selector]
 ```
 
 K2 uses one 64-bit record:
@@ -43,8 +43,9 @@ LRU arms at runtime.
 StreamShield preserves private-cache fills and LLC hits while suppressing only
 LLC allocation after a record miss.
 
-StreamShield is request-bound. Current gem5 K2 pair delivery uses the validated
-in-order mailbox path; a request-bound pair extension is required before O3.
+StreamShield is request-bound to the graph record. The K2 pair rides the exact
+property Request; tiny PR and weighted SSSP O3 proofs validate the request
+extension, while scale runs remain on TimingSimpleCPU.
 
 Full architecture diagrams and a worked example are in
 [`research/ecg-hpca/ARCHITECTURE.md`](research/ecg-hpca/ARCHITECTURE.md).

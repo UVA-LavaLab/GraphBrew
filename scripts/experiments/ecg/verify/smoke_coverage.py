@@ -134,8 +134,12 @@ def validate(
                 errors.append(f"{row_name(row)}: effective epochs != 32768")
             if simulator == "gem5":
                 expected = (
-                    "ecg.stream.load2" if policy in SS_POLICIES
-                    else "ecg.load2")
+                    "ecg.stream.wload2+ecg.k2.pload"
+                    if policy in SS_POLICIES and
+                    row.get("benchmark") == "sssp"
+                    else "ecg.stream.load2+ecg.k2.pload"
+                    if policy in SS_POLICIES
+                    else "ecg.k2.pload")
                 if row.get("gem5_ecg_delivery") != expected:
                     errors.append(
                         f"{row_name(row)}: delivery="

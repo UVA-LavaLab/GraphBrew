@@ -162,9 +162,8 @@ def _roi_log(out):
 
 def run_gem5(kernel):
     """gem5 <kernel> with ECG_GRASP_POPT + coverage geometry. Schedule-2 runs
-    all five kernels on RISC-V through the fused ecg.load2 record instruction;
-    the in-order mailbox remains the delivery model until the O3 request-bound
-    pair extension is implemented."""
+    all five kernels on RISC-V through the request-bound K2 property load. The
+    record/sidecar stream remains separate and may carry StreamShield."""
     out = Path("/tmp") / f"equivk_gem5_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
     if kernel in GEM5_RISCV_KERNELS:
@@ -333,23 +332,22 @@ def main(argv=None):
             if SCHEDULE_K == 2:
                 text, ran_ok = result
                 if sim == "gem5":
-                    if kernel == "sssp":
+                    if STREAM_BYPASS:
+                        stream_name = (
+                            "StreamShield 4B sidecar"
+                            if kernel == "sssp"
+                            else "StreamShield record load")
                         fused_marker = (
-                            "[ECG_STREAM_WLOAD2] SSSP "
-                            "request-bound 4B sidecar ACTIVE"
-                            if STREAM_BYPASS else
-                            "[ECG_WLOAD2] SSSP fused 4B sidecar ACTIVE")
+                            f"[ECG_K2_PLOAD] {kernel.upper()} "
+                            "request-bound masked property load + "
+                            f"{stream_name} ACTIVE")
                     else:
                         fused_marker = (
-                            f"[ECG_STREAM_LOAD2] {kernel.upper()} "
-                            "request-bound StreamShield+K2 ACTIVE"
-                            if STREAM_BYPASS else
-                            f"[ECG_LOAD2] {kernel.upper()} "
-                            "fused K2 record load ACTIVE")
+                            f"[ECG_K2_PLOAD] {kernel.upper()} "
+                            "request-bound masked property load ACTIVE")
                     fused_ok = fused_marker in text
                     fused_path_ok = ran_ok and fused_ok
-                    print(f"      fused "
-                          f"{'ecg.stream.load2' if STREAM_BYPASS else 'ecg.load2'}: "
+                    print("      masked K2 property load: "
                           f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
                     spec_ok &= ran_ok and fused_ok
                 elif sim == "sniper":

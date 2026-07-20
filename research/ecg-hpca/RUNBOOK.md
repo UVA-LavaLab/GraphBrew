@@ -257,8 +257,9 @@ Sniper P-OPT uses the exact optimized host consultation path by default. Set
 `sniper_popt_fast=1`.
 
 Weighted SSSP rows must report `graph_edge_bytes=8`, `ecg_record_bytes=4`, and
-`edge_stream_bytes_per_edge=12`. gem5 uses `ecg.wload2` or
-`ecg.stream.wload2`; Sniper reports `fused-k2-weighted32-model`.
+`edge_stream_bytes_per_edge=12`. gem5 loads the sidecar normally or with
+`ecg.stream.wload2`, then carries the reconstructed K2 mask on the property
+load. Sniper reports `fused-k2-weighted32-model`.
 
 ### Paper-faithful full-graph Sniper ROI
 
@@ -337,8 +338,8 @@ This runs LRU, SRRIP, GRASP, charged P-OPT, static K2, and online K2 for
 PR/BFS/SSSP/BC/CC on the common `kron_s15_k4` cell in cache_sim, gem5, and
 Sniper. Compare policy direction and rank **within** each simulator. Do not
 compare absolute gem5 and Sniper miss rates. Canonical Schedule-2 reruns use
-fused delivery for all five kernels; gem5 O3 remains prohibited until the
-request-bound pair extension is complete.
+the masked property-load delivery for all five kernels. Use gem5 O3 only for
+tiny instruction-correctness cells; scale runs remain on TimingSimpleCPU.
 
 Then run the matched structure-prefetch sensitivity:
 

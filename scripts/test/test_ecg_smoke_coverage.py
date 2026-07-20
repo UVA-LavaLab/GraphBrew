@@ -75,9 +75,12 @@ def make_rows(module, graphs=None, instruction_cap=0):
                         })
                         if simulator == "gem5":
                             row["gem5_ecg_delivery"] = (
-                                "ecg.stream.load2"
+                                "ecg.stream.wload2+ecg.k2.pload"
+                                if policy in module.SS_POLICIES and
+                                benchmark == "sssp"
+                                else "ecg.stream.load2+ecg.k2.pload"
                                 if policy in module.SS_POLICIES
-                                else "ecg.load2")
+                                else "ecg.k2.pload")
                             if policy in module.SS_POLICIES:
                                 row["gem5_stream_bypass_trace_events"] = "1"
                         if simulator == "sniper":
@@ -184,7 +187,9 @@ def test_smoke_coverage_rejects_wrong_gem5_delivery():
         row["policy_label"] == "ECG_K2_STREAMSHIELD")
     row["gem5_ecg_delivery"] = "ecg.load2"
     errors = module.validate(rows)
-    assert any("expected='ecg.stream.load2'" in error for error in errors)
+    assert any(
+        "expected='ecg.stream.load2+ecg.k2.pload'" in error
+        for error in errors)
 
 
 def test_smoke_coverage_rejects_missing_bad_receipt_count():
