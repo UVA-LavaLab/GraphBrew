@@ -255,61 +255,58 @@ Geomean across all 15 graph/kernel cells versus LRU:
 
 | Policy | Speedup | TPI speedup | Instruction ratio | Effective L3-miss reduction |
 |---|---:|---:|---:|---:|
-| SRRIP | 1.025x | 1.025x | 1.000x | 3.44% |
-| GRASP | 1.099x | 1.099x | 1.000x | **15.19%** |
-| charged P-OPT | 1.075x | 1.075x | 1.000x | -19.26% |
-| K2 | **1.154x** | **1.258x** | 1.090x | 1.31% |
-| K2-online | **1.154x** | **1.258x** | 1.090x | 0.62% |
-| K2+StreamShield | 1.137x | 1.239x | 1.090x | 1.81% |
-| K2-online+StreamShield | 1.143x | 1.246x | 1.090x | 1.59% |
+| SRRIP | 1.029x | 1.029x | 1.000x | 3.51% |
+| GRASP | 1.100x | 1.100x | 1.000x | **15.19%** |
+| charged P-OPT | 1.080x | 1.080x | 1.000x | -19.18% |
+| K2 | 1.279x | 1.187x | 0.928x | 1.31% |
+| K2-online | 1.281x | 1.189x | 0.928x | 0.61% |
+| K2+StreamShield | **1.288x** | **1.195x** | 0.928x | 1.85% |
+| K2-online+StreamShield | 1.282x | 1.190x | 0.928x | 1.80% |
 
 K2-online+StreamShield kernel geomean:
 
 | Kernel | Speedup vs LRU | vs GRASP | vs charged P-OPT | Effective miss reduction vs LRU |
 |---|---:|---:|---:|---:|
-| PR | **1.357x** | 1.209x | 1.155x | 16.54% |
-| BFS | **1.334x** | 1.210x | 1.239x | 4.43% |
-| SSSP | **0.973x** | 0.881x | 0.873x | -19.25% |
-| BC | 1.007x | 0.992x | 1.013x | 5.34% |
-| CC | 1.101x | 0.953x | 1.073x | -2.53% |
+| PR | **1.790x** | 1.592x | 1.519x | 17.18% |
+| BFS | **1.667x** | 1.512x | 1.533x | 4.66% |
+| SSSP | **0.966x** | 0.872x | 0.866x | -18.68% |
+| BC | **1.074x** | 1.057x | 1.078x | 5.13% |
+| CC | 1.120x | 0.969x | 1.089x | -2.73% |
 
-GRASP wins 7/15 timing cells, the four K2 variants collectively win 7/15,
-and P-OPT wins 1/15. The 4-byte weighted sidecar raises final K2-online+
-StreamShield from 1.052x to 1.143x overall and reduces its instruction ratio
-from 1.182x to 1.090x. It now beats GRASP and charged P-OPT in overall sampled
-geomean, but still does not dominate every kernel.
+The four K2 variants collectively win 9/15 timing cells, GRASP wins 4/15, and
+SRRIP/P-OPT win one each. The K2 wins split across static K2+StreamShield (5),
+online K2+StreamShield (3), and online K2 (1). Surgically removing disabled fused-delivery branches
+raises K2-online+StreamShield from 1.143x to 1.282x overall and reduces its
+instruction ratio from 1.090x to 0.928x. Static K2+StreamShield is the best
+overall variant at 1.288x.
 
-Weighted SSSP improves from 0.642x to 0.973x versus LRU. Its 12-byte path
+Weighted SSSP remains improved from the pre-sidecar 0.642x to 0.966x versus LRU.
+Its 12-byte path
 (8-byte weighted edge + 4-byte sidecar) still carries a 1.314x SSSP instruction
-ratio; a 1.278x per-instruction TPI improvement nearly repays that cost. It
-remains slower than GRASP and P-OPT, so a zero-record GRASP transport arm is
-still required for per-kernel no-regret behavior.
+ratio; a 1.270x per-instruction TPI improvement nearly repays that cost. It
+regresses on all three SSSP samples and remains slower than GRASP and P-OPT;
+this is the remaining systematic transport gap.
 
-The BFS geomean is sensitive to the tiny web-Google-n16 cell: K2-online+
-StreamShield is 1.877x there, while cit-Patents and soc-pokec are 0.968x and
-1.306x; excluding web-Google gives 1.124x for BFS. Excluding that single
-200K-instruction graph/kernel cell from the overall aggregate leaves
-K2-online+StreamShield at 1.103x and GRASP at 1.106x, so their overall ordering
-is not robust to the shortest workload. Sniper assigns the full CPI stack to
-`unknown`, so the TPI gains cannot be decomposed into LLC, DRAM, or pipeline
-components.
+The shortest web-Google BFS cell remains unusually strong at 2.315x, versus
+1.173x on cit-Patents and 1.705x on soc-pokec. However, excluding that cell
+leaves K2-online+StreamShield at 1.229x overall versus GRASP at 1.108x, so the
+new overall ordering survives this single-cell exclusion. Sniper assigns the full CPI stack to `unknown`,
+so the TPI gains cannot be decomposed into LLC, DRAM, or pipeline components.
 
 The effective-miss column charges P-OPT's matrix stream as additional cache-line
-fills, which dominates small working sets. K2's main overhead instead appears
-as the 1.090x instruction ratio. StreamShield also trades timing for placement
-in BC: adding it to online K2 reduces BC speedup by about 6% even though the
-cache_sim placement study favors static shielding.
+fills, which dominates small working sets. K2 now executes fewer instructions
+than LRU overall; weighted SSSP is the sole large instruction-overhead kernel.
 
-The supported scope is therefore strong PR/BFS and positive sampled overall
-geomean, with near-neutral BC/SSSP and modest CC benefit. Per-kernel no-regret
-still requires a true zero-record baseline arm.
+The supported scope is therefore strong PR/BFS, positive BC, and a robust
+sampled overall win. CC beats LRU and P-OPT but remains slightly behind GRASP;
+weighted SSSP remains the only broad regression.
 
 Aggregate: `results/ecg_experiments/paper_pipeline/`
-`ecg_sniper_sampled_allalg_weighted_sidecar_final_20260719/aggregate/`.
+`ecg_sniper_sampled_allalg_surgical_final_20260720/aggregate/`.
 
 ### Fused sampled PageRank timing
 
-The dedicated `ecg_sniper_sampled_pr_streamengine` profile contains nine
+The historical `ecg_sniper_sampled_pr_streamengine` profile contains nine
 equal-work rows: three deterministic graph samples x GRASP/charged P-OPT/
 K2-online+StreamShield. The Sniper fused path treats the packed 64-bit record
 load as the delivery event. Disabled hint checks are hoisted before the ROI and
@@ -335,8 +332,9 @@ Against P-OPT, K2 has 33.29% more raw LLC misses; after adding P-OPT's modeled
 matrix-stream lines, the overhead is 14.03% and K2's non-record miss reduction
 is 32.65%. P-OPT's simulated time remains favorable because matrix-stream
 latency is not added to Sniper target time. Sniper assigns the full CPI stack to
-`unknown`, so the TPI improvement cannot be decomposed further. This is bounded
-sampled-PR evidence, not a full-graph or all-kernel timing claim.
+`unknown`, so the TPI improvement cannot be decomposed further. This
+pre-surgical profile is retained for attribution only; its timing is superseded
+by the current all-kernel matrix above.
 
 Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_sniper_sampled_pr_streamengine_final_v2_20260717/aggregate/`.

@@ -128,21 +128,23 @@ claims only and are marked `timing_valid_for_speedup=0`.
 
 The original 360-row sampled matrix remains valid for cache metrics, but its
 cross-policy Sniper timing predates removal of disabled hot-path instrumentation
-and is not timing evidence. `ecg_sniper_sampled_pr_streamengine` is the bounded
-equal-work timing profile. Its P-OPT row charges reserved LLC capacity, while
-matrix-stream latency remains outside Sniper target time and is reported
-separately.
+and is not timing evidence. The historical
+`ecg_sniper_sampled_pr_streamengine` profile remains an attribution diagnostic.
+Its P-OPT row charges reserved LLC capacity, while matrix-stream latency remains
+outside Sniper target time and is reported separately.
 
-The 120-row corrected Sniper rerun at
-`ecg_sniper_sampled_allalg_weighted_sidecar_final_20260719` is the sampled
-all-kernel timing authority. It preserves the same graph/kernel/policy cells
-while replacing historical weighted-SSSP rows with the canonical 4-byte
-sidecar path.
+The 120-row surgical Sniper rerun at
+`ecg_sniper_sampled_allalg_surgical_final_20260720` is the sampled all-kernel
+timing authority. It preserves the same graph/kernel/policy cells, uses the
+canonical 4-byte weighted sidecar, and removes disabled fused-delivery branches
+from no-trace PR/BFS/BC/CC loops.
 
 All aggregate ratios use the geometric mean across the applicable graph/kernel
 cells. P-OPT and K2 overheads appear in different columns by construction:
 P-OPT matrix streaming is added to effective LLC misses/traffic, while K2 record
 delivery primarily changes executed instructions and explicit record accesses.
+K2 reserves no LLC way, but its 8-byte records and weighted 4-byte sidecars are
+fully charged; P-OPT instead pays reserved capacity plus modeled matrix traffic.
 
 Sniper CACHE_ONLY warming updates cache contents but intentionally does not
 model time. The installed GraphBrew patch therefore leaves exact queue state

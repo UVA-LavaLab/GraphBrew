@@ -88,22 +88,17 @@ demand/traffic improvement over online K2, while the full mechanism still uses
 more total traffic than P-OPT. This bounds the detailed-simulator claim before
 timing runs.
 
-The corrected sampled PageRank Sniper profile confirms the fused-stream
-tradeoff: K2-online+StreamShield is 1.207x faster than GRASP and 1.150x faster
-than capacity-charged P-OPT. The packed traversal contributes 4.8% fewer
-instructions; instruction-normalized TPI still improves 1.149x and 1.094x.
-Total LLC misses rise 8.50% versus GRASP and 14.03% versus overhead-charged
-P-OPT. This remains a bounded sampled result.
+The earlier sampled PageRank profile isolates the fused-stream tradeoff, but its
+pre-surgical timing is superseded by the current all-kernel matrix.
 
 The corrected 120-row sampled Sniper timing matrix broadens that result. The
-complete mechanism reaches 1.357x on PR and 1.334x on BFS versus LRU, is near
-neutral on BC, and reaches 1.101x on CC. The 4-byte weighted sidecar improves
-SSSP from 0.642x to 0.973x. Final sampled geomean is 1.143x versus LRU, ahead of
-GRASP's 1.099x, but SSSP still trails GRASP and P-OPT. The BFS result is
-sensitive to the smallest sample: excluding the 200K-instruction web-Google BFS
-cell gives 1.103x for K2-online+StreamShield and 1.106x for GRASP, reversing
-their overall order. The CPI stack cannot be decomposed beyond total ticks per
-instruction.
+complete mechanism reaches 1.790x on PR, 1.667x on BFS, 1.074x on BC, and
+1.120x on CC versus LRU. The 4-byte weighted sidecar leaves SSSP near neutral at
+0.966x. K2-online+StreamShield reaches 1.282x overall and static
+K2+StreamShield reaches 1.288x, versus GRASP at 1.100x. The ordering remains
+after excluding the shortest BFS cell (1.229x versus 1.108x). Weighted SSSP
+regresses on all three samples and still trails GRASP and P-OPT; the CPI stack
+cannot be decomposed beyond total ticks per instruction.
 
 The full-graph warm-SIFT queue blocker is resolved: matched web-Google LRU and
 K2 100K probes reach ROI with normal cache warming. The 600M matrix remains a

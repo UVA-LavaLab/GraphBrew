@@ -269,20 +269,15 @@ Canonical profiles:
   show strong cross-backend agreement, but K2's fixed record cost dominates at
   this scale and all K2 variants increase geomean misses versus LRU. These rows
   are bounded backend diagnostics, not headline K2 performance evidence.
-- A corrected nine-row sampled PageRank Sniper timing profile removes
-  software-only delivery and disabled-hint overhead. Fused K2-online+StreamShield
-  reaches 1.207x geomean speedup over GRASP and 1.150x over capacity-charged
-  P-OPT. The packed traversal executes 4.8% fewer instructions, while
-  ticks-per-instruction still improve 1.149x and 1.094x. Total LLC misses rise
-  8.50% versus GRASP and 14.03% versus overhead-charged P-OPT. This confirms
-  the fused-stream tradeoff for sampled PR only.
+- The earlier nine-row sampled PageRank profile remains an attribution
+  diagnostic; its pre-surgical timing is superseded by the current all-kernel
+  matrix.
 - The corrected 120-row sampled Sniper all-kernel matrix passes. Final
-  K2-online+StreamShield reaches 1.357x on PR and 1.334x on BFS versus LRU,
-  approximately breaks even on BC, and reaches 1.101x on CC. The 4-byte weighted
-  sidecar improves SSSP from 0.642x to 0.973x. Overall sampled geomean is
-  1.143x versus LRU, ahead of GRASP's 1.099x, although SSSP still trails GRASP.
-  The overall ordering is sensitive to the shortest BFS cell: excluding it gives
-  1.103x for K2-online+StreamShield versus 1.106x for GRASP.
+  K2-online+StreamShield reaches 1.790x on PR, 1.667x on BFS, 1.074x on BC,
+  and 1.120x on CC versus LRU. Weighted SSSP is near neutral at 0.966x. Overall
+  sampled geomean is 1.282x versus LRU, ahead of GRASP's 1.100x; static
+  K2+StreamShield reaches 1.288x. Excluding the shortest BFS cell still leaves
+  K2-online+StreamShield at 1.229x versus GRASP at 1.108x.
 - The bounded matched-STRIDE diagnostic rejects Sniper's current generic simple
   prefetcher: every policy overprefetches, and K2 LLC read traffic rises
   93x--596x. Sniper demand misses are not inferred because NUCA statistics do

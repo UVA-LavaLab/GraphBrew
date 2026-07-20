@@ -57,7 +57,8 @@
   instructions; ticks-per-instruction still improve 1.149x and 1.094x.
   Total LLC misses rise 8.50% versus GRASP and 14.03% versus P-OPT after its
   matrix-stream charge, while non-record misses fall 35.92% and 32.65%.
-  This is bounded sampled-PR evidence only.
+  This pre-surgical attribution profile is superseded for timing by the current
+  all-kernel matrix.
 - Full web-Google warm-SIFT LRU and K2 both reach and complete a 100K detailed
   ROI after CACHE_ONLY queue/shared-memory timing is suppressed. Cache warming
   remains enabled and K2 context delivery is active.
@@ -65,14 +66,14 @@
   normal warming and context delivery. It finishes the full iteration before
   the cap at 179.4M reported instructions; the row is cache evidence only.
 - The corrected 120-row sampled Sniper timing matrix passes strict coverage.
-  K2-online+StreamShield reaches 1.357x on PR and 1.334x on BFS versus LRU, but
-  reaches 0.973x on weighted SSSP with the 4-byte sidecar. Final sampled
-  geomean is 1.143x versus LRU, ahead of GRASP's 1.099x.
-- The current runtime scope is strong PR/BFS with positive sampled overall
-  geomean and near-neutral BC/SSSP. The K2-vs-GRASP overall ordering is
-  sample-sensitive: removing the shortest web-Google BFS cell gives 1.103x for
-  K2-online+StreamShield versus 1.106x for GRASP. Sniper's CPI components remain
-  unavailable beyond total ticks per instruction.
+  K2-online+StreamShield reaches 1.790x on PR, 1.667x on BFS, 1.074x on BC,
+  and 1.120x on CC versus LRU; weighted SSSP reaches 0.966x. Final sampled
+  geomean is 1.282x versus LRU, ahead of GRASP's 1.100x.
+- The current runtime scope is strong PR/BFS, positive BC, and a sampled
+  overall win that survives removal of the shortest BFS cell. That exclusion leaves 1.229x for
+  K2-online+StreamShield versus 1.108x for GRASP. Weighted SSSP remains the only
+  broad regression across all three samples, and CC remains slightly behind GRASP. Sniper's CPI
+  components remain unavailable beyond total ticks per instruction.
 
 ## Pending
 
