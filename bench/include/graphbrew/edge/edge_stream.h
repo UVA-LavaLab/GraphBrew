@@ -36,6 +36,37 @@ struct NeighborTraits<Neighbor, Node, true> {
 };
 
 template <typename GraphT>
+auto FlattenOutgoing(const GraphT &graph) {
+  using Node = std::remove_cv_t<std::remove_pointer_t<
+      decltype(graph.get_org_ids())>>;
+  using Neighbor = std::decay_t<
+      decltype(*graph.out_neigh(Node{}).begin())>;
+  using Traits = NeighborTraits<Neighbor, Node>;
+  using Weight = typename Traits::Weight;
+
+  CSRGraphFlat<Node, Weight, Node> flat(
+      graph.num_nodes(), graph.num_edges_directed());
+  for (Node vertex = 0; vertex < graph.num_nodes(); ++vertex) {
+    flat.degrees_.data[vertex] =
+        static_cast<Node>(graph.out_degree(vertex));
+    flat.offsets_.data[vertex + 1] =
+        flat.offsets_.data[vertex] + flat.degrees_.data[vertex];
+  }
+
+#pragma omp parallel for schedule(static)
+  for (Node source = 0; source < graph.num_nodes(); ++source) {
+    std::size_t edge = static_cast<std::size_t>(
+        flat.offsets_.data[source]);
+    for (const Neighbor &neighbor : graph.out_neigh(source)) {
+      flat.neighbors_.data[edge] = Traits::Vertex(neighbor);
+      flat.weights_.data[edge] = Traits::EdgeWeight(neighbor);
+      ++edge;
+    }
+  }
+  return flat;
+}
+
+template <typename GraphT>
 auto FlattenIncoming(const GraphT &graph) {
   using Node = std::remove_cv_t<std::remove_pointer_t<
       decltype(graph.get_org_ids())>>;

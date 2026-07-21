@@ -14,10 +14,12 @@
     "tc"
   ],
   "implemented_edge_variants": [
+    "bfs",
     "cc",
     "cc_sv",
     "pr",
-    "pr_spmv"
+    "pr_spmv",
+    "sssp"
   ],
   "gas_variants": [
     "cc",
@@ -61,6 +63,8 @@
     {
       "name": "bfs",
       "source": "bench/src/bfs.cc",
+      "edge_binary": "bfs_edge",
+      "edge_source": "bench/src/bfs_edge.cc",
       "simulator_source": "bench/src_sim/bfs.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -238,6 +242,8 @@
     {
       "name": "sssp",
       "source": "bench/src/sssp.cc",
+      "edge_binary": "sssp_edge",
+      "edge_source": "bench/src/sssp_edge.cc",
       "simulator_source": "bench/src_sim/sssp.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "WGraph",

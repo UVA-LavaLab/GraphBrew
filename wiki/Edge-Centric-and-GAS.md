@@ -120,6 +120,29 @@ make check-edge-dense
 The matrix gates verifier-defined output. It does not require equal PageRank
 iterations or bit-identical asynchronous scores.
 
+## Frontier and weighted edge baselines
+
+- `bfs_edge` keeps one sparse-plus-bitmap frontier. Sparse phases push outgoing
+  edges with CAS parent claims; dense phases own destinations and pull from the
+  incoming flat view, so directed traversal uses true predecessors. The
+  canonical alpha/beta switching and scout/awake work metrics are preserved.
+- `sssp_edge` retains Delta-Stepping rather than scanning every edge. One
+  persistent OpenMP team processes the shared current bin, relaxes only active
+  vertices' weighted outgoing ranges, fuses small same-bin thread-local work,
+  and selects the globally smallest remaining bin.
+- weighted outgoing flattening preserves `(source, destination, weight)` and is
+  built before timed trials.
+
+Both kernel and verifier use separately constructed, identically seeded
+`SourcePicker` instances. Run all registered graph/thread profiles plus paired
+multi-trial source checks with:
+
+```bash
+make check-edge-frontier
+```
+
+The current matrix passes 36/36 verifier-backed edge trials at OMP 1/2/4/8.
+
 ## Literature
 
 - PowerGraph/GAS:

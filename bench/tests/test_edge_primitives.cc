@@ -270,10 +270,23 @@ void TestEmptyAndIsolatedRows() {
 
 void TestWeightedIncoming() {
   WGraph graph = MakeWeightedGraph();
+  auto outgoing = graphbrew::edge::FlattenOutgoing(graph);
   auto incoming = graphbrew::edge::FlattenIncoming(graph);
+  EdgeStream<decltype(outgoing)> out_stream(
+      outgoing,
+      graphbrew::edge::EdgeStorageOrder::kSourceMajor);
   EdgeStream<decltype(incoming)> stream(
       incoming,
       graphbrew::edge::EdgeStorageOrder::kDestinationMajor);
+  std::vector<std::tuple<NodeID, NodeID, WeightT>> out_edges;
+  out_stream.ForEachDirected([&](const auto &edge) {
+    out_edges.emplace_back(
+        edge.source, edge.destination, edge.weight);
+  });
+  Require(
+      out_edges == std::vector<std::tuple<NodeID, NodeID, WeightT>>{
+          {0, 1, 2}, {0, 2, 5}, {1, 2, 3}, {2, 3, 7}},
+      "weighted outgoing edge stream differs");
   std::vector<std::tuple<NodeID, NodeID, WeightT>> edges;
   stream.ForEachDirected([&](const auto &edge) {
     edges.emplace_back(edge.source, edge.destination, edge.weight);
