@@ -15,6 +15,14 @@
 
 namespace graphbrew::edge {
 
+inline std::size_t EdgeWorkerCount() {
+#ifdef _OPENMP
+  return static_cast<std::size_t>(omp_get_max_threads());
+#else
+  return 1;
+#endif
+}
+
 struct SegmentPartition {
   std::size_t begin_vertex = 0;
   std::size_t end_vertex = 0;
@@ -116,11 +124,8 @@ void ParallelForEachSegment(
     Function &&function) {
   using Node = std::remove_cv_t<std::remove_pointer_t<
       decltype(graph.offsets_.data)>>;
-  std::size_t workers = 1;
-#ifdef _OPENMP
-  workers = static_cast<std::size_t>(omp_get_max_threads());
-#endif
-  const auto partitions = PartitionSegments(graph, workers);
+  const auto partitions =
+      PartitionSegments(graph, EdgeWorkerCount());
 #pragma omp parallel for schedule(static)
   for (std::size_t partition = 0; partition < partitions.size();
        ++partition) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run paired canonical and dense edge verifier profiles."""
+"""Run paired canonical and frontier edge verifier profiles."""
 
 from __future__ import annotations
 
@@ -14,9 +14,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT = ROOT / "bench" / "contracts" / "edge_gas_algorithms.json"
 VERIFICATION_PASS = re.compile(r"Verification:\s+PASS")
-COMPONENT_COUNT = re.compile(r"There are\s+(\d+)\s+components")
-TOTAL_ERROR = re.compile(r"Total Error:\s+([0-9.eE+-]+)")
-DENSE_ALGORITHMS = {"cc", "cc_sv", "pr", "pr_spmv"}
+FRONTIER_ALGORITHMS = {"bfs", "sssp"}
 
 
 def require(condition: bool, message: str) -> None:
@@ -37,20 +35,18 @@ def graph_args(profile: dict) -> list[str]:
 def run(
     binary: Path,
     profile: dict,
-    algorithm: dict,
-    profile_name: str,
+    extra_args: list[str],
+    trials: int,
     threads: int,
 ) -> str:
     command = [
         str(binary.resolve()),
         *graph_args(profile),
         "-n",
-        "1",
+        str(trials),
         "-v",
-        *algorithm.get("profile_args", {}).get(profile_name, []),
+        *extra_args,
     ]
-    if algorithm["name"] in {"cc", "cc_sv"}:
-        command.append("-a")
     environment = dict(os.environ)
     environment["OMP_NUM_THREADS"] = str(threads)
     completed = subprocess.run(
@@ -63,14 +59,13 @@ def run(
     )
     require(
         completed.returncode == 0,
-        f"{binary.name}@{profile_name}/OMP={threads}: "
-        f"exit {completed.returncode}\n"
+        f"{binary.name}/OMP={threads}: exit {completed.returncode}\n"
         f"{completed.stdout}\n{completed.stderr}",
     )
     require(
-        VERIFICATION_PASS.search(completed.stdout) is not None,
-        f"{binary.name}@{profile_name}/OMP={threads}: "
-        f"verifier did not pass\n{completed.stdout}\n{completed.stderr}",
+        len(VERIFICATION_PASS.findall(completed.stdout)) == trials,
+        f"{binary.name}/OMP={threads}: expected {trials} verifier passes\n"
+        f"{completed.stdout}\n{completed.stderr}",
     )
     return completed.stdout
 
@@ -99,11 +94,11 @@ def main() -> int:
     algorithms = {
         item["name"]: item
         for item in contract["algorithms"]
-        if item["name"] in DENSE_ALGORITHMS
+        if item["name"] in FRONTIER_ALGORITHMS
     }
     require(
-        set(algorithms) == DENSE_ALGORITHMS,
-        "dense edge algorithm metadata differs",
+        set(algorithms) == FRONTIER_ALGORITHMS,
+        "frontier edge algorithm metadata differs",
     )
 
     cells = 0
@@ -115,52 +110,34 @@ def main() -> int:
         require(edge.is_file(), f"missing edge binary {edge}")
         for profile_name in algorithm["profiles"]:
             profile = profiles[profile_name]
-            canonical_output = run(
-                canonical, profile, algorithm, profile_name, 4)
-            canonical_components = None
-            if name in {"cc", "cc_sv"}:
-                match = COMPONENT_COUNT.search(canonical_output)
-                require(
-                    match is not None,
-                    f"{name}@{profile_name}: canonical component count missing",
-                )
-                canonical_components = int(match.group(1))
-            else:
-                require(
-                    TOTAL_ERROR.search(canonical_output) is not None,
-                    f"{name}@{profile_name}: canonical residual missing",
-                )
-
+            profile_args = algorithm.get("profile_args", {}).get(
+                profile_name, [])
+            run(canonical, profile, profile_args, 1, 4)
             for threads in args.threads:
-                edge_output = run(
-                    edge, profile, algorithm, profile_name, threads)
-                if canonical_components is not None:
-                    match = COMPONENT_COUNT.search(edge_output)
-                    require(
-                        match is not None,
-                        f"{edge.name}@{profile_name}: "
-                        "component count missing",
-                    )
-                    require(
-                        int(match.group(1)) == canonical_components,
-                        f"{edge.name}@{profile_name}/OMP={threads}: "
-                        "component count differs",
-                    )
-                else:
-                    require(
-                        TOTAL_ERROR.search(edge_output) is not None,
-                        f"{edge.name}@{profile_name}/OMP={threads}: "
-                        "residual missing",
-                    )
+                run(edge, profile, profile_args, 1, threads)
                 cells += 1
             print(
                 f"PASS {name} canonical+edge @ {profile_name} "
                 f"(OMP={','.join(map(str, args.threads))})"
             )
 
+        pair_profile = profiles[algorithm["source_pair_profile"]]
+        pair_trials = algorithm["source_pair_trials"]
+        pair_args = algorithm.get("source_pair_args", [])
+        run(canonical, pair_profile, pair_args, pair_trials, 4)
+        for threads in args.threads:
+            run(edge, pair_profile, pair_args, pair_trials, threads)
+            cells += pair_trials
+        print(
+            f"PASS {name} paired sources "
+            f"({pair_trials} trials; "
+            f"OMP={','.join(map(str, args.threads))})"
+        )
+
     print(
-        "edge-dense-profiles: PASS "
-        f"({cells} edge cells; {len(algorithms)} algorithms)"
+        "edge-frontier-profiles: PASS "
+        f"({cells} verified edge trials; "
+        f"{len(algorithms)} algorithms)"
     )
     return 0
 
