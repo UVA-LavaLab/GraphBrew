@@ -139,6 +139,10 @@ timing authority. It preserves the same graph/kernel/policy cells, uses the
 canonical 4-byte weighted sidecar, and removes disabled fused-delivery branches
 from no-trace PR/BFS/BC/CC loops.
 
+Subsequent BC path-count, SSSP source-load, and CC phase-clear corrections are
+mechanism-validated but postdate that matrix. Their focused timing probes remain
+diagnostic until the compact weighted transport and full matrix rerun complete.
+
 All aggregate ratios use the geometric mean across the applicable graph/kernel
 cells. P-OPT and K2 overheads appear in different columns by construction:
 P-OPT matrix streaming is added to effective LLC misses/traffic, while K2 record

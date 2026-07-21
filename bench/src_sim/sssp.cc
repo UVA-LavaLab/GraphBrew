@@ -31,6 +31,7 @@ const size_t kBinSizeThreshold = 1000;
 
 template<typename CacheType>
 inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
+                           WeightT source_dist,
                            pvector<WeightT> &dist,
                            vector<vector<NodeID>> &local_bins,
                            CacheType &cache, GraphCacheContext &graph_ctx,
@@ -115,7 +116,7 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
             }
         }
         WeightT old_dist = dist[wn.v];
-        WeightT new_dist = dist[u] + wn.w;
+        WeightT new_dist = source_dist + wn.w;
         // Per-edge OUT mask (+ epoch hint) or per-vertex fallback. Re-resolved at the
         // retry read below (same dest -> same mask + epoch). SSOT helper.
         uint32_t edge_mask_val = graph_ctx.resolveEdgeMaskAndEpoch(
@@ -236,8 +237,9 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                 SIM_SET_VERTEX(cache, u);
                 graph_ctx.clearEdgeEpoch();  // dist[u] is a SEQUENTIAL source read, not a per-edge delivery
                 SIM_CACHE_READ(cache, dist.data(), u);
-                if (dist[u] >= delta * static_cast<WeightT>(curr_bin_index))
-                    RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
+                const WeightT source_dist = dist[u];
+                if (source_dist >= delta * static_cast<WeightT>(curr_bin_index))
+                    RelaxEdges_Sim(g, u, delta, source_dist, dist, local_bins, cache,
                                    graph_ctx, vertex_masks, pfx_lookahead,
                                    pfx_top_k, record_charged, stream_bypass,
                                    record_bytes,
@@ -253,7 +255,8 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                     SIM_SET_VERTEX(cache, u);
                     graph_ctx.clearEdgeEpoch();  // dist[u] is a SEQUENTIAL source read, not a per-edge delivery
                     SIM_CACHE_READ(cache, dist.data(), u);
-                    RelaxEdges_Sim(g, u, delta, dist, local_bins, cache,
+                    const WeightT source_dist = dist[u];
+                    RelaxEdges_Sim(g, u, delta, source_dist, dist, local_bins, cache,
                                    graph_ctx, vertex_masks, pfx_lookahead,
                                    pfx_top_k, record_charged, stream_bypass,
                                    record_bytes,

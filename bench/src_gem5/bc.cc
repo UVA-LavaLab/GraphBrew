@@ -165,19 +165,28 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
         q.push(source);
         while (!q.empty()) {
             NodeID u = q.front(); q.pop();
+            const int32_t current_depth = depth[u];
+            const int64_t source_paths = path_counts[u];
             GEM5_SET_VERTEX(u);
             order.push(u);
             const std::vector<uint16_t>* u_epochs =
                 (ecg_load_evict_on && static_cast<size_t>(u) < out_edge_epochs.size())
                     ? &out_edge_epochs[u] : nullptr;
-            auto process_neighbor = [&](NodeID v, int32_t dv) {
+            auto process_neighbor = [&](
+                    NodeID v, int32_t dv,
+                    uint64_t record, bool masked_path_count) {
                 if (dv == -1) {
-                    depth[v] = depth[u] + 1;
+                    depth[v] = current_depth + 1;
                     q.push(v);
-                    dv = depth[u] + 1;
+                    dv = current_depth + 1;
                 }
-                if (dv == depth[u] + 1)
-                    path_counts[v] += path_counts[u];
+                if (dv == current_depth + 1) {
+                    const int64_t old_paths = masked_path_count
+                        ? static_cast<int64_t>(
+                            gem5_ecg_load_k2_u64(path_counts.data(), record))
+                        : path_counts[v];
+                    path_counts[v] = old_paths + source_paths;
+                }
             };
             if (pair_ok &&
                 static_cast<size_t>(u + 1) < pair_off.size()) {
@@ -202,7 +211,8 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                         dv = depth[v];
                         GEM5_ECG_CLEAR_EXTRACT2_HINT();
                     }
-                    process_neighbor(v, dv);
+                    process_neighbor(
+                        v, dv, record, ecg_k2_pload_on);
                 }
             } else {
                 size_t edge_pos = 0;
@@ -220,7 +230,7 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                         dv = depth[v];
                     }
                     ++edge_pos;
-                    process_neighbor(v, dv);
+                    process_neighbor(v, dv, 0, false);
                 }
             }
         }

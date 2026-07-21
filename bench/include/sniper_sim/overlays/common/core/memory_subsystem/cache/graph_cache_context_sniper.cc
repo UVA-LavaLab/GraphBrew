@@ -634,58 +634,75 @@ bool GraphCacheContext::loadFromSideband(const std::string& path)
     k2_line_ids.clear();
     k2_line_records.clear();
     k2_line_indices.clear();
+    k2_line8_offsets.clear();
+    k2_line8_ids.clear();
+    k2_line8_records.clear();
+    k2_line8_indices.clear();
     if (fused_k2_enabled) {
         struct IndexedK2Record {
             uint32_t line_id;
             uint64_t record;
             uint64_t raw_index;
         };
-        const uint32_t vertices_per_line = ecgVerticesPerLine();
-        k2_line_offsets.assign(
-            static_cast<size_t>(topology.num_vertices) + 1, 0);
-        std::vector<IndexedK2Record> source_lines;
-        for (uint32_t src = 0; src < topology.num_vertices; ++src) {
-            const uint64_t begin = k2_offsets[src];
-            const uint64_t end = k2_offsets[src + 1];
-            source_lines.clear();
-            source_lines.reserve(static_cast<size_t>(end - begin));
-            for (uint64_t index = begin; index < end; ++index) {
-                const uint64_t record = raw_k2_records[index];
-                if (((record >> 32) & 0x3ULL) == 0) {
-                    continue;
+        auto build_line_index = [&](
+                uint32_t vertices_per_line,
+                std::vector<uint64_t>& offsets,
+                std::vector<uint32_t>& ids,
+                std::vector<uint64_t>& records,
+                std::vector<uint64_t>& indices) {
+            offsets.assign(
+                static_cast<size_t>(topology.num_vertices) + 1, 0);
+            std::vector<IndexedK2Record> source_lines;
+            for (uint32_t src = 0; src < topology.num_vertices; ++src) {
+                const uint64_t begin = k2_offsets[src];
+                const uint64_t end = k2_offsets[src + 1];
+                source_lines.clear();
+                source_lines.reserve(static_cast<size_t>(end - begin));
+                for (uint64_t index = begin; index < end; ++index) {
+                    const uint64_t record = raw_k2_records[index];
+                    if (((record >> 32) & 0x3ULL) == 0) continue;
+                    source_lines.push_back({
+                        static_cast<uint32_t>(record) / vertices_per_line,
+                        record,
+                        index,
+                    });
                 }
-                source_lines.push_back({
-                    static_cast<uint32_t>(record) / vertices_per_line,
-                    record,
-                    index,
-                });
-            }
-            std::stable_sort(
-                source_lines.begin(), source_lines.end(),
-                [](const IndexedK2Record& left,
-                   const IndexedK2Record& right) {
-                    return left.line_id < right.line_id;
-                });
-            uint32_t previous_line = UINT32_MAX;
-            for (const IndexedK2Record& indexed : source_lines) {
-                if (indexed.line_id == previous_line) {
-                    if ((indexed.record >> 32) !=
-                        (k2_line_records.back() >> 32)) {
-                        std::fprintf(
-                            stderr,
-                            "[FATAL] Sniper fused K2 line has inconsistent "
-                            "tier/epoch hints (src=%u line=%u)\n",
-                            src, indexed.line_id);
-                        std::abort();
+                std::stable_sort(
+                    source_lines.begin(), source_lines.end(),
+                    [](const IndexedK2Record& left,
+                       const IndexedK2Record& right) {
+                        return left.line_id < right.line_id;
+                    });
+                uint32_t previous_line = UINT32_MAX;
+                for (const IndexedK2Record& indexed : source_lines) {
+                    if (indexed.line_id == previous_line) {
+                        if ((indexed.record >> 32) !=
+                            (records.back() >> 32)) {
+                            std::fprintf(
+                                stderr,
+                                "[FATAL] Sniper fused K2 line has inconsistent "
+                                "tier/epoch hints (src=%u line=%u vpl=%u)\n",
+                                src, indexed.line_id, vertices_per_line);
+                            std::abort();
+                        }
+                        continue;
                     }
-                    continue;
+                    ids.push_back(indexed.line_id);
+                    records.push_back(indexed.record);
+                    indices.push_back(indexed.raw_index);
+                    previous_line = indexed.line_id;
                 }
-                k2_line_ids.push_back(indexed.line_id);
-                k2_line_records.push_back(indexed.record);
-                k2_line_indices.push_back(indexed.raw_index);
-                previous_line = indexed.line_id;
+                offsets[src + 1] = records.size();
             }
-            k2_line_offsets[src + 1] = k2_line_records.size();
+        };
+        const uint32_t primary_vpl = ecgVerticesPerLine();
+        build_line_index(
+            primary_vpl, k2_line_offsets, k2_line_ids,
+            k2_line_records, k2_line_indices);
+        if (primary_vpl != 8) {
+            build_line_index(
+                8, k2_line8_offsets, k2_line8_ids,
+                k2_line8_records, k2_line8_indices);
         }
     }
     topology.max_degree = static_cast<uint32_t>(parseJsonUint(content, "\"max_degree\""));
@@ -860,12 +877,12 @@ bool GraphCacheContext::isEcgEpochData(uint64_t addr) const
     }
     if (num_regions == 1) return regions[0].contains(addr);
     static const char* defaults[] = {
-        "contrib", "parent", "dist", "depth", "comp"
+        "contrib", "parent", "dist", "depth", "path_counts", "comp"
     };
     for (const char* name : defaults) {
         for (uint32_t i = 0; i < num_regions; ++i) {
-            if (regions[i].name == name)
-                return regions[i].contains(addr);
+            if (regions[i].name == name && regions[i].contains(addr))
+                return true;
         }
     }
     return false;
@@ -881,29 +898,42 @@ bool GraphCacheContext::lookupFusedK2Pair(
         uint64_t line_addr, uint32_t core_id,
         uint8_t& tier, uint16_t& first, uint16_t& second) const
 {
-    if (k2_offsets.empty() || k2_line_offsets.empty() ||
-        k2_line_ids.empty() || k2_line_records.empty() ||
-        k2_line_indices.empty())
+    if (k2_offsets.empty())
         return false;
     const uint32_t src = currentVertexForPopt(core_id);
-    if (static_cast<size_t>(src + 1) >= k2_line_offsets.size()) return false;
     const uint32_t line_vertex = vertexForAddress(line_addr);
     if (line_vertex == UINT32_MAX) return false;
-    const uint32_t vertices_per_line = ecgVerticesPerLine();
+    const uint32_t elem_size = propertyElemSizeForAddress(line_addr);
+    const uint32_t vertices_per_line =
+        elem_size > 0 ? std::max<uint32_t>(1, 64 / elem_size)
+                      : ecgVerticesPerLine();
+    const bool use_line8 =
+        vertices_per_line == 8 && !k2_line8_offsets.empty();
+    const auto& line_offsets =
+        use_line8 ? k2_line8_offsets : k2_line_offsets;
+    const auto& line_ids = use_line8 ? k2_line8_ids : k2_line_ids;
+    const auto& line_records =
+        use_line8 ? k2_line8_records : k2_line_records;
+    const auto& line_indices =
+        use_line8 ? k2_line8_indices : k2_line_indices;
+    if (line_offsets.empty() || line_ids.empty() ||
+        line_records.empty() || line_indices.empty() ||
+        static_cast<size_t>(src + 1) >= line_offsets.size())
+        return false;
     const uint32_t line_id = line_vertex / vertices_per_line;
-    const uint64_t indexed_begin = k2_line_offsets[src];
+    const uint64_t indexed_begin = line_offsets[src];
     const uint64_t indexed_end = std::min<uint64_t>(
-        k2_line_offsets[src + 1], k2_line_records.size());
+        line_offsets[src + 1], line_records.size());
     const auto found = std::lower_bound(
-        k2_line_ids.begin() + indexed_begin,
-        k2_line_ids.begin() + indexed_end,
+        line_ids.begin() + indexed_begin,
+        line_ids.begin() + indexed_end,
         line_id);
-    if (found == k2_line_ids.begin() + indexed_end || *found != line_id)
+    if (found == line_ids.begin() + indexed_end || *found != line_id)
         return false;
     const uint64_t indexed_position =
-        static_cast<uint64_t>(found - k2_line_ids.begin());
-    const uint64_t record = k2_line_records[indexed_position];
-    const uint64_t raw_index = k2_line_indices[indexed_position];
+        static_cast<uint64_t>(found - line_ids.begin());
+    const uint64_t record = line_records[indexed_position];
+    const uint64_t raw_index = line_indices[indexed_position];
     const uint64_t raw_begin = k2_offsets[src];
     const uint64_t raw_end = k2_offsets[src + 1];
     const uint32_t dest = static_cast<uint32_t>(record);

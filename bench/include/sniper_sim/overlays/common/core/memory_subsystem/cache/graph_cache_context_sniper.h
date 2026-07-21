@@ -155,6 +155,10 @@ struct GraphCacheContext {
     std::vector<uint32_t> k2_line_ids;
     std::vector<uint64_t> k2_line_records;
     std::vector<uint64_t> k2_line_indices;
+    std::vector<uint64_t> k2_line8_offsets;
+    std::vector<uint32_t> k2_line8_ids;
+    std::vector<uint64_t> k2_line8_records;
+    std::vector<uint64_t> k2_line8_indices;
 
     GraphTopology topology;
     MaskConfig mask_config;

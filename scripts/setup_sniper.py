@@ -1387,6 +1387,17 @@ args.dry_run,
         ["GRAPHBREW_CONTEXT_READY_WORK_ID"],
     )
     normalize_context_ready_handler(magic_server, args.dry_run)
+    migrate_if_present(
+        magic_server,
+        """            graphbrew::sniper::setCurrentVertexHint(static_cast<uint32_t>(core_id), arg1);
+""",
+        """            if (arg1 == ~uint64_t(0))
+               graphbrew::sniper::clearCurrentVertexHint(static_cast<uint32_t>(core_id));
+            else
+               graphbrew::sniper::setCurrentVertexHint(static_cast<uint32_t>(core_id), arg1);
+""",
+        args.dry_run,
+    )
 
 
 def patch_ecg_pfx_prefetcher_overlay(args: argparse.Namespace) -> None:

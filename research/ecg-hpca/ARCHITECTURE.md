@@ -114,8 +114,13 @@ future-reuse ordering appropriate to each kernel:
 - BC K2 delivery covers the forward Brandes BFS. Its runtime successor-DAG
   backward phase has no stable static edge-record position and intentionally
   remains ordinary RRIP/recency behavior.
+- The forward `path_counts[dest]` load reuses the edge's `depth[dest]` K2 mask.
+  This avoids a second record stream; it is shared guidance, not an independent
+  path-count reuse forecast.
 - CC K2 delivery follows its OUT-edge records and is certified only for the
-  algorithm's existing undirected/symmetric-graph contract.
+  algorithm's existing undirected/symmetric-graph contract. Dynamic union-find
+  pointer chasing and compression clear the source hint and use GRASP/address
+  fallback rather than stale edge epochs.
 
 ### Online set dueling
 

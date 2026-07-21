@@ -90,6 +90,19 @@ int main() {
         check("K2-PLOAD", 32, dest, gem5_ecg_load_k2(prop, record));
     }
     {
+        uint64_t prop64[1024] = {};
+        const uint32_t dest = 777u;
+        const uint64_t value = 0x123456789ABCDEF0ULL;
+        const uint64_t record = ecg_epoch::packEpochPairRecord(
+            dest, 2, 0x1357u, 0x2468u);
+        prop64[dest] = value;
+        const uint64_t rd = gem5_ecg_load_k2_u64(prop64, record);
+        const bool ok = rd == value;
+        printf("[test_ecg_load_modes] K2-PLOAD64 dest=%u rd=%#llx [%s]\n",
+               dest, (unsigned long long)rd, ok ? "OK" : "FAIL");
+        if (!ok) g_fail++;
+    }
+    {
         const uint32_t dest = 0x00300001u;
         const uint32_t sidecar =
             ecg_epoch::packWeightedEpochPairSidecar(1u, 321u, 654u);

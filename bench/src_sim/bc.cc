@@ -152,6 +152,9 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             SIM_SET_VERTEX(cache, u);
             // Track depth read
             SIM_CACHE_READ(cache, depths.data(), u);
+            SIM_CACHE_READ(cache, path_counts.data(), u);
+            const int32_t current_depth = depths[u];
+            const int64_t source_paths = path_counts[u];
 
             // ECG_EDGE_MASKS: consume the OUT-edge per-edge masks (transpose-correct —
             // epoch = next in-neighbour of dest > u = next reader of depths[dest]/
@@ -181,18 +184,20 @@ void BCBFS_Sim(const Graph &g, NodeID source,
                 SIM_CACHE_READ_MASKED(cache, depths.data(), v, graph_ctx, edge_mask_val);
                 SIM_CACHE_READ_MASKED(cache, path_counts.data(), v, graph_ctx, edge_mask_val);
                 
-                if (depths[v] == -1 && 
-                    compare_and_swap(depths[v], static_cast<int32_t>(-1), depth)) {
+                if (depths[v] == -1 &&
+                    compare_and_swap(
+                        depths[v], static_cast<int32_t>(-1),
+                        current_depth + 1)) {
                     SIM_CACHE_WRITE(cache, depths.data(), v);
                     queue.push_back(v);
                 }
                 
-                if (depths[v] == depth) {
+                if (depths[v] == current_depth + 1) {
                     #pragma omp critical
                     {
                         succ.push_back(v);
                         fetch_and_add(succ_start[u + 1], 1);
-                        fetch_and_add(path_counts[v], path_counts[u]);
+                        fetch_and_add(path_counts[v], source_paths);
                         SIM_CACHE_WRITE(cache, path_counts.data(), v);
                     }
                 }

@@ -190,6 +190,13 @@ inline void set_vertex(uint64_t vertex_id) {
     notify_user(GRAPHBREW_SNIPER_USER_SET_VERTEX, vertex_id);
 }
 
+inline void clear_vertex() {
+    if (!hints_enabled()) {
+        return;
+    }
+    notify_user(GRAPHBREW_SNIPER_USER_SET_VERTEX, ~uint64_t(0));
+}
+
 inline void set_prefetch_target(uint64_t vertex_id) {
     if (!ecg_pfx_hints_enabled()) {
         return;
@@ -580,6 +587,7 @@ inline bool sniper_export_popt_matrix(
 #define SNIPER_ROI_BEGIN() ::graphbrew_sniper::roi_begin()
 #define SNIPER_ROI_END() ::graphbrew_sniper::roi_end()
 #define SNIPER_SET_VERTEX(vertex_id) ::graphbrew_sniper::set_vertex(static_cast<uint64_t>(vertex_id))
+#define SNIPER_CLEAR_VERTEX() ::graphbrew_sniper::clear_vertex()
 #define SNIPER_ECG_PFX_TARGET(vertex_id) ::graphbrew_sniper::set_prefetch_target(static_cast<uint64_t>(vertex_id))
 #define SNIPER_ECG_EXTRACT(vertex_id, epoch) ::graphbrew_sniper::ecg_extract(static_cast<uint64_t>(vertex_id), static_cast<uint16_t>(epoch))
 #define SNIPER_ECG_EXTRACT2(vertex_id, tier, epoch1, epoch2) ::graphbrew_sniper::ecg_extract2(static_cast<uint32_t>(vertex_id), static_cast<uint8_t>(tier), static_cast<uint16_t>(epoch1), static_cast<uint16_t>(epoch2))

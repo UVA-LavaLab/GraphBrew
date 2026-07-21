@@ -168,7 +168,9 @@ bool k2_record_validation_enabled() {
 
 inline uint32_t consume_fused_k2_sidecar(const uint32_t* sidecar_ptr) {
     const uint32_t sidecar = *sidecar_ptr;
-    asm volatile("" : : "r"(sidecar) : "memory");
+    // Keep the real 4-byte load, but allow it to overlap the weighted-edge
+    // stream instead of imposing a software-only full memory barrier.
+    asm volatile("" : : "r"(sidecar));
     return sidecar;
 }
 
@@ -1005,12 +1007,13 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
     frontier.push(source);
     in_queue[source] = 1;
     auto relax_edges = [&](
-            NodeID node, auto&& before_property_load,
+            NodeID node, WeightT source_dist,
+            auto&& before_property_load,
             auto&& after_property_load) {
         size_t edge_pos = 0;
         for (WNode edge : graph.out_neigh(node)) {
             before_property_load(edge, edge_pos);
-            const WeightT candidate = dist[node] + edge.w;
+            const WeightT candidate = source_dist + edge.w;
             const WeightT old_dist = dist[edge.v];
             after_property_load(edge, edge_pos);
             if (candidate < old_dist) {
@@ -1027,6 +1030,7 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         NodeID node = frontier.front();
         frontier.pop();
         in_queue[node] = 0;
+        const WeightT source_dist = dist[node];
         SNIPER_SET_VERTEX(node);
         // ECG_PFX hint: emit the head of the frontier (next node to expand) so the
         // prefetcher can warm dist[next]. Env-gated.
@@ -1037,7 +1041,7 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             uint64_t pair_pos = pair_off[node];
             if (software_k2_delivery) {
                 relax_edges(
-                    node,
+                    node, source_dist,
                     [&](WNode edge, size_t) {
                     const uint32_t sidecar =
                         consume_fused_k2_sidecar(
@@ -1053,7 +1057,7 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
                     [](WNode, size_t) {});
             } else {
                 relax_edges(
-                    node,
+                    node, source_dist,
                     [&](WNode, size_t) {
                     (void)consume_fused_k2_sidecar(
                         &pair_sidecars[pair_pos++]);
@@ -1071,7 +1075,7 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             uint64_t delivered_k2_record = 0;
             bool delivered_k2 = false;
             relax_edges(
-                node,
+                node, source_dist,
                 [&](WNode edge, size_t edge_pos) {
                 if (pair_ok &&
                     static_cast<size_t>(node + 1) < pair_off.size()) {
@@ -1096,7 +1100,8 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
                 });
         } else {
             relax_edges(
-                node, [](WNode, size_t) {}, [](WNode, size_t) {});
+                node, source_dist,
+                [](WNode, size_t) {}, [](WNode, size_t) {});
         }
     }
     SNIPER_ROI_END();
@@ -1268,6 +1273,7 @@ int run_bc(const Graph& graph, int num_iters) {
         while (!levels[cur_level].empty()) {
             std::vector<NodeID> next_level;
             for (NodeID u : levels[cur_level]) {
+                const int64_t source_paths = path_counts[u];
                 SNIPER_SET_VERTEX(u);
                 auto visit = [&](NodeID v, int32_t depth_v) {
                     if (depth_v == -1) {
@@ -1276,7 +1282,7 @@ int run_bc(const Graph& graph, int num_iters) {
                         next_level.push_back(v);
                     }
                     if (depth_v == cur_level + 1)
-                        path_counts[v] += path_counts[u];
+                        path_counts[v] += source_paths;
                 };
                 if (pair_ok &&
                     static_cast<size_t>(u + 1) < pair_off.size()) {
@@ -1318,6 +1324,7 @@ int run_bc(const Graph& graph, int num_iters) {
         }
 
         // Backward dependency accumulation, deepest level first.
+        SNIPER_CLEAR_VERTEX();
         for (int d = static_cast<int>(levels.size()) - 1; d > 0; d--) {
             for (NodeID w : levels[d]) {
                 ScoreT delta_w = 0;
@@ -1461,6 +1468,7 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
                 }
             }
         }
+        SNIPER_CLEAR_VERTEX();
         cc_compress(graph, comp);
     }
 
@@ -1508,6 +1516,7 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
             }
         }
     }
+    SNIPER_CLEAR_VERTEX();
     cc_compress(graph, comp);
     SNIPER_ROI_END();
 

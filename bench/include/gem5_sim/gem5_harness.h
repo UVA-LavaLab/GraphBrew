@@ -333,6 +333,22 @@ inline uint32_t gem5_ecg_load_k2(const void* prop_base, uint64_t packed_record) 
 #endif
 }
 
+inline uint64_t gem5_ecg_load_k2_u64(
+        const void* prop_base, uint64_t packed_record) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x10, %0, %1, %2"
+                  : "=r"(val)
+                  : "r"(prop_base), "r"(packed_record)
+                  : "memory");
+    return val;
+#else
+    const uint64_t* base = static_cast<const uint64_t*>(prop_base);
+    const uint32_t dest = ecg_epoch::extractEpochPairDest(packed_record);
+    return base ? base[dest] : 0;
+#endif
+}
+
 inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
     gem5_trace_ecg_k2_expect(packed);
 #if defined(__riscv)
@@ -541,6 +557,12 @@ inline uint32_t gem5_ecg_weighted_load2_instruction(
 inline uint32_t gem5_ecg_load_k2(
         const void* prop_base, uint64_t packed_record) {
     const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    const uint32_t dest = ecg_epoch::extractEpochPairDest(packed_record);
+    return base ? base[dest] : 0;
+}
+inline uint64_t gem5_ecg_load_k2_u64(
+        const void* prop_base, uint64_t packed_record) {
+    const uint64_t* base = static_cast<const uint64_t*>(prop_base);
     const uint32_t dest = ecg_epoch::extractEpochPairDest(packed_record);
     return base ? base[dest] : 0;
 }

@@ -43,6 +43,7 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                             uint32_t edge_epoch_count, bool ecg_load2_on,
                             bool ecg_stream_load2_on,
                             bool ecg_k2_pload_on) {
+    const WeightT source_dist = dist[u];
     GEM5_SET_VERTEX(u);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
     const vector<uint16_t>* u_epochs =
@@ -104,7 +105,7 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
         } else {
             old_dist = dist[wn.v];
         }
-        WeightT new_dist = dist[u] + wn.w;
+        WeightT new_dist = source_dist + wn.w;
         while (new_dist < old_dist) {
             if (compare_and_swap(dist[wn.v], old_dist, new_dist)) {
                 size_t dest_bin = new_dist / delta;
@@ -113,6 +114,8 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                 local_bins[dest_bin].push_back(wn.v);
                 break;
             }
+            // The paper configuration is single-threaded, so this retry read is
+            // contention-free and intentionally remains a plain reload.
             old_dist = dist[wn.v];
         }
     }
