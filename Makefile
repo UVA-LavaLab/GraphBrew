@@ -100,18 +100,21 @@ DENSE_EDGE_KERNELS = cc_edge cc_sv_edge pr_edge pr_spmv_edge
 DENSE_EDGE_KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(DENSE_EDGE_KERNELS))
 FRONTIER_EDGE_KERNELS = bfs_edge sssp_edge
 FRONTIER_EDGE_KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(FRONTIER_EDGE_KERNELS))
-SUITE = $(KERNELS_BIN) $(DENSE_EDGE_KERNELS_BIN) $(FRONTIER_EDGE_KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export \
+IRREGULAR_EDGE_KERNELS = bc_edge tc_edge
+IRREGULAR_EDGE_KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(IRREGULAR_EDGE_KERNELS))
+SUITE = $(KERNELS_BIN) $(DENSE_EDGE_KERNELS_BIN) $(FRONTIER_EDGE_KERNELS_BIN) $(IRREGULAR_EDGE_KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export \
 	$(BIN_DIR)/ownership_analysis $(BIN_DIR)/edge_view_benchmark
 UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
 	test_shard_stream test_ownership_analysis test_edge_primitives
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) converter edge_view_benchmark edge-dense edge-frontier all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) converter edge_view_benchmark edge-dense edge-frontier edge-irregular all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 ownership_analysis: $(BIN_DIR)/ownership_analysis
 edge_view_benchmark: $(BIN_DIR)/edge_view_benchmark
 edge-dense: $(DENSE_EDGE_KERNELS_BIN)
 edge-frontier: $(FRONTIER_EDGE_KERNELS_BIN)
+edge-irregular: $(IRREGULAR_EDGE_KERNELS_BIN)
 all: $(SUITE)
 
 check-edge-contracts:
@@ -131,6 +134,9 @@ check-edge-dense: $(DENSE_EDGE_KERNELS_BIN) $(addprefix $(BIN_DIR)/,cc cc_sv pr 
 
 check-edge-frontier: $(FRONTIER_EDGE_KERNELS_BIN) $(addprefix $(BIN_DIR)/,bfs sssp)
 	$(PYTHON) scripts/test/run_edge_frontier_profiles.py
+
+check-edge-irregular: $(IRREGULAR_EDGE_KERNELS_BIN) $(addprefix $(BIN_DIR)/,bc tc)
+	$(PYTHON) scripts/test/run_edge_irregular_profiles.py
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
 	@for test in $(UNIT_TESTS_BIN); do $$test; done

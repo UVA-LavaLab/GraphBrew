@@ -143,6 +143,26 @@ make check-edge-frontier
 
 The current matrix passes 36/36 verifier-backed edge trials at OMP 1/2/4/8.
 
+## Irregular multi-phase edge baselines
+
+- `bc_edge` runs sampled-source Brandes with level-synchronous outgoing edge
+  push, CAS depth discovery, and atomic double path counts. Backward dependency
+  gathers run deepest-to-source and preserve each vertex's stored outgoing CSR
+  order so the existing float-epsilon verifier remains authoritative.
+- `tc_edge` optionally applies the canonical degree-relabel heuristic before
+  timing, then processes one oriented undirected edge and intersects the two
+  sorted adjacency prefixes below its middle vertex. Each triangle is counted
+  exactly once; TC is not represented as scalar GAS.
+
+Run the canonical/edge matrix, paired BC sources, and triangle/no-triangle
+profiles with:
+
+```bash
+make check-edge-irregular
+```
+
+The current matrix passes 32/32 verifier-backed edge trials at OMP 1/2/4/8.
+
 ## Literature
 
 - PowerGraph/GAS:
