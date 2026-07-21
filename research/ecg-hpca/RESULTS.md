@@ -301,8 +301,36 @@ The supported scope is therefore strong PR/BFS, positive sampled SSSP/BC, and
 a robust overall win. CC beats LRU and P-OPT but remains slightly behind
 GRASP; cit-Patents SSSP remains the principal negative cell.
 
+The cit-Patents loss does **not** extrapolate as a size-only failure. The
+`n18-sym` sample retains 262,144 vertices but only 340,054 undirected edges; it
+has reported average degree 2.96, average path length 11.69, diameter 14, and
+near-zero neighbor overlap. The full graph has 3,774,768 vertices and
+16,518,947 undirected edges, with reported average degree 11.47, average path
+length 3.60, diameter 4, and 35x higher neighbor overlap. The induced sample is
+therefore much thinner and less locally reusable than the full topology.
+
+A focused full-graph cache_sim SSSP gate with the current compact record confirms
+the distinction:
+
+| Policy | L3 miss rate | Effective L3 misses |
+|---|---:|---:|
+| LRU | 0.5630 | 18.237M |
+| GRASP | 0.4192 | 13.579M |
+| charged P-OPT | 0.4330 | 14.967M |
+| K2 | 0.4137 | 13.401M |
+| K2-online+StreamShield | **0.3943** | **12.770M** |
+
+Thus compact K2-online+StreamShield reduces full-graph effective misses 30.0%
+versus LRU, 6.0% versus GRASP, and 14.7% versus charged P-OPT. This rejects the
+hypothesis that larger cit-Patents necessarily breaks K2; a bounded full-graph
+Sniper timing probe is still required before making the same timing claim.
+
 Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_sniper_sampled_allalg_compact_scope_final_20260721/aggregate/`.
+
+Full citation risk gate:
+`results/ecg_experiments/final_paper_runs/`
+`ecg_cache_sim_citpatents_sssp_compact_full_20260721/roi_matrix.csv`.
 
 ### Fused sampled PageRank timing
 

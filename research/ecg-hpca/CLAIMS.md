@@ -75,6 +75,11 @@
   Cit-Patents SSSP remains the principal negative cell, and CC remains slightly
   behind GRASP. Sniper's CPI components remain unavailable beyond total ticks
   per instruction.
+- Full-graph cache_sim evidence argues against a size-only cit-Patents
+  replacement failure: compact K2-online+StreamShield reaches 0.3943 L3 miss
+  rate versus 0.5630 LRU, 0.4192 GRASP, and 0.4330 charged P-OPT. The sparse
+  n18 sample's longer paths and near-zero neighbor overlap are a plausible
+  explanation; full-graph Sniper timing remains unmeasured.
 
 ## Pending
 

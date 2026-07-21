@@ -288,6 +288,14 @@ The completed sampled Sniper authority is
 `ecg_sniper_sampled_allalg_compact_scope_final_20260721/aggregate/`
 with 120/120 valid rows.
 
+The full cit-Patents compact SSSP risk gate is
+`results/ecg_experiments/final_paper_runs/`
+`ecg_cache_sim_citpatents_sssp_compact_full_20260721/roi_matrix.csv`.
+Use it as cache-level evidence against a size-only failure, not as a causal
+topology/scale decomposition or a Sniper timing result. The full-graph
+K2-online+StreamShield row must retain `ecg_record_replaces_edge=1` and an
+8-byte total edge stream.
+
 General-fallback weighted SSSP rows must report `graph_edge_bytes=8`,
 `ecg_record_bytes=4`, and `edge_stream_bytes_per_edge=12`. gem5 loads the
 sidecar normally or with `ecg.stream.wload2`, then carries the reconstructed K2
