@@ -30,6 +30,28 @@ inline bool requestBoundEcgProducerEnabled() {
     return enabled;
 }
 
+inline void traceAcceptedK2(
+        uint32_t dest, uint8_t tier, uint16_t first, uint16_t second,
+        uint32_t width_bytes) {
+    static const uint64_t trace_limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value
+            ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10))
+            : 0;
+    }();
+    if (trace_limit == 0) return;
+    static std::atomic<uint64_t> sequence{0};
+    const uint64_t index = sequence.fetch_add(1, std::memory_order_relaxed);
+    if (index >= trace_limit) return;
+    std::fprintf(
+        stderr,
+        "[ECG-K2-ACCEPT sim=gem5 seq=%llu dest=%u tier=%u "
+        "epoch1=%u epoch2=%u width=%u]\n",
+        (unsigned long long)index, dest, static_cast<unsigned>(tier),
+        static_cast<unsigned>(first), static_cast<unsigned>(second),
+        static_cast<unsigned>(width_bytes));
+}
+
 // ECG GRASP-tier SOURCE (ECG_GRASP_SRC), mirrors cache_sim's two variants:
 //   mask (0, our ECG): DELIVERED per-vertex graspTierByIndex keyed by the INSERTED
 //     LINE's own vertex (graph::addressToVertex) — identical across simulators.
@@ -172,6 +194,12 @@ GraphEcgRP::touch(
                         vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
                 }
                 if (got) {
+                    if (ecgMode == graph::ECGMode::ECG_GRASP_POPT &&
+                        isa_count == 2) {
+                        traceAcceptedK2(
+                            isa_dest, isa_dbg, isa_epoch, isa_epoch2,
+                            reg_elem);
+                    }
                     if (isa_dbg >= 1 && isa_dbg <= 3)
                         data->ecg_dbg_tier = isa_dbg;
                     data->ecg_popt_hint = isa_popt;
@@ -340,6 +368,12 @@ GraphEcgRP::reset(
                     }
                 }
                 if (got) {
+                    if (ecgMode == graph::ECGMode::ECG_GRASP_POPT &&
+                        isa_count == 2) {
+                        traceAcceptedK2(
+                            isa_dest, isa_dbg, isa_epoch, isa_epoch2,
+                            reg_elem);
+                    }
                     // Use ISA-delivered metadata directly.
                     const bool valid_dbg =
                         ecgMode == graph::ECGMode::ECG_GRASP_POPT

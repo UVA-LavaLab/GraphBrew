@@ -173,3 +173,36 @@ def test_multi_property_grasp_region_consistent(src_file: Path) -> None:
         f"or all false. Mixed configuration caused the BC multi-property "
         f"GRASP bug (see research/ecg-hpca/evidence/baseline_faithfulness_audit_v1.md)."
     )
+
+
+def test_popt_uses_all_registered_property_regions() -> None:
+    paths = [
+        REPO_ROOT / "bench/include/cache_sim/cache_sim.h",
+        REPO_ROOT / (
+            "bench/include/gem5_sim/overlays/mem/cache/"
+            "replacement_policies/popt_rp.cc"),
+        REPO_ROOT / (
+            "bench/include/sniper_sim/overlays/common/core/"
+            "memory_subsystem/cache/cache_set_popt.cc"),
+    ]
+    for path in paths:
+        text = path.read_text()
+        if path.name == "cache_sim.h":
+            text = text.split("size_t findVictimPOPT", 1)[1].split(
+                "size_t findVictimECG", 1)[0]
+        assert "isPropertyData" in text
+        assert "isEcgEpochData" not in text
+
+
+def test_bc_registers_the_same_four_property_arrays_in_all_backends() -> None:
+    expected = {"scores", "depth", "path_counts", "deltas"}
+    for path in [
+        REPO_ROOT / "bench/src_gem5/bc.cc",
+        REPO_ROOT / "bench/src_sniper/sg_kernel.cc",
+    ]:
+        text = path.read_text()
+        assert all(f'"{name}"' in text for name in expected)
+
+    cache_sim = (REPO_ROOT / "bench/src_sim/bc.cc").read_text()
+    assert all(f"registerPropertyArray({name}" in cache_sim for name in [
+        "scores.data()", "depths.data()", "path_counts.data()", "deltas.data()"])

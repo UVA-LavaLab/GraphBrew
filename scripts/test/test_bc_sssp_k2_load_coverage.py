@@ -38,12 +38,34 @@ def test_bc_masks_depth_and_path_counts():
     sniper_context = read(
         "bench/include/sniper_sim/overlays/common/core/memory_subsystem/"
         "cache/graph_cache_context_sniper.cc")
+    gem5_policy = read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "ecg_rp.cc")
 
     assert "SIM_CACHE_READ_MASKED(cache, depths.data(), v" in cache_sim
-    assert "SIM_CACHE_READ_MASKED(cache, path_counts.data(), v" in cache_sim
+    path_count_read = cache_sim.index("cache, path_counts.data(), v,")
+    successor_test = cache_sim.index(
+        "if (depths[v] == current_depth + 1)")
+    assert path_count_read > successor_test
     assert "gem5_ecg_load_k2_u64(path_counts.data(), record)" in gem5
     assert "0x04: ecg_load_k2_u64" in decoder
+    k2_u64 = decoder.split("0x04: ecg_load_k2_u64", 1)[1].split(
+        "// 0x05 compact weighted K2", 1)[0]
+    assert "traceExpectedEcgExtractHint2(packed, 8)" in k2_u64
+    assert "dest_id, tier, epoch1, epoch2, 8" in k2_u64
+    assert "setDecodedEcgExtractHint2Silent" not in k2_u64
+    assert "[ECG-K2-ACCEPT sim=gem5" in gem5_policy
+    assert "traceAcceptedK2(" in gem5_policy
     assert '"path_counts"' in sniper_context
     assert "k2_line8_offsets" in sniper_context
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    assert '"bc": "depth,path_counts"' in runner
+    assert '"bc": "1,2"' in runner
+    assert '"bc": "0,1"' in runner
+    assert '"bc": "scores,depth,path_counts,deltas"' in runner
+    assert '"property_regions": property_regions(args.benchmark)' in runner
+    assert '"ecg_epoch_regions": ecg_epoch_region(args.benchmark)' in runner
+    verifier = read("scripts/experiments/ecg/verify/ecg.py")
+    assert "expected_widths == received_widths" in verifier
     assert "const int64_t source_paths = path_counts[u];\n                SNIPER_SET_VERTEX(u);" in sniper
     assert "SNIPER_CLEAR_VERTEX();" in sniper

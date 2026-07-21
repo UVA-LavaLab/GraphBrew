@@ -245,6 +245,8 @@
                             clearDecodedEcgExtractHint();
                     }}, ea_code={{
                         uint64_t packed = Rs2;
+                        gem5::replacement_policy::graph::
+                            traceExpectedEcgExtractHint2(packed, 8);
                         uint32_t dest_id = static_cast<uint32_t>(
                             packed & 0xFFFFFFFFULL);
                         uint8_t tier = static_cast<uint8_t>(
@@ -255,9 +257,8 @@
                             (packed >> 49) & 0x7FFFULL);
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
-                        gem5::replacement_policy::graph::
-                            setDecodedEcgExtractHint2Silent(
-                                dest_id, tier, epoch1, epoch2);
+                        gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
+                            dest_id, tier, epoch1, epoch2, 8);
                         xc->setEcgLoadHint2(
                             dest_id, tier, epoch1, epoch2);
                         EA = rvZext(

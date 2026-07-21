@@ -182,8 +182,7 @@ void BCBFS_Sim(const Graph &g, NodeID source,
                 const uint32_t edge_mask_val = graph_ctx.resolveEdgeMaskAndEpoch(
                     EdgeMaskDir::OUT, (uint32_t)u, u_outdeg, edge_pos, vertex_masks[v]);
                 SIM_CACHE_READ_MASKED(cache, depths.data(), v, graph_ctx, edge_mask_val);
-                SIM_CACHE_READ_MASKED(cache, path_counts.data(), v, graph_ctx, edge_mask_val);
-                
+
                 if (depths[v] == -1 &&
                     compare_and_swap(
                         depths[v], static_cast<int32_t>(-1),
@@ -191,10 +190,13 @@ void BCBFS_Sim(const Graph &g, NodeID source,
                     SIM_CACHE_WRITE(cache, depths.data(), v);
                     queue.push_back(v);
                 }
-                
+
                 if (depths[v] == current_depth + 1) {
                     #pragma omp critical
                     {
+                        SIM_CACHE_READ_MASKED(
+                            cache, path_counts.data(), v,
+                            graph_ctx, edge_mask_val);
                         succ.push_back(v);
                         fetch_and_add(succ_start[u + 1], 1);
                         fetch_and_add(path_counts[v], source_paths);

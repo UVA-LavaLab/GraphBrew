@@ -347,7 +347,7 @@ def test_streamshield_is_policy_isolated_and_verified():
     assert "stream-bypass-reads" in verifier
     assert "stream-bypass-writes" in verifier
     assert "dest // vpl == line_id" in ecg_verifier
-    assert "cache_sim_ecg_epoch_region_index" in runner
+    assert "cache_sim_ecg_epoch_region_indices" in runner
     assert "Sniper StreamShield requires --sniper-workload sg_kernel" in runner
     assert 'env.get("ECG_STREAM_BYPASS") == "1"' in runner
     assert "--stream-bypass requires --schedule-k 2" in verifier

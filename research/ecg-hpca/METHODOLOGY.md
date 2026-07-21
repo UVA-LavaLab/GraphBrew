@@ -109,6 +109,26 @@ charges wide records against fixed synthetic IN/OUT stream bases indexed by the
 global CSR edge position, avoiding allocator fragmentation and ASLR-dependent
 set placement. Canonical cache_sim runs additionally use `setarch -R`.
 
+### Property-array scope
+
+GRASP and P-OPT classify every registered vertex-property array in all three
+simulators. K2 retains that GRASP insertion fallback, but request-bound epochs
+apply only to loads with a valid static edge record:
+
+| Kernel | GRASP/P-OPT registered arrays | K2 epoch-governed loads |
+|---|---|---|
+| PR | `scores`, `contrib` | `contrib` |
+| BFS | `parent` | `parent` |
+| SSSP | `dist` | `dist` |
+| BC | `scores`, `depth`, `path_counts`, `deltas` | forward `depth`, `path_counts` |
+| CC | `comp` | edge-governed `comp[dest]` |
+
+BC's backward successor-DAG accesses and CC's union-find pointer chasing deliver
+no new K2 epoch because a static edge record would be invalid there. Epochs are
+line-resident metadata, so a plain access does not eagerly erase a stamp from an
+earlier governed load. The runner records both `property_regions` and
+`ecg_epoch_regions` in every row.
+
 All three simulators retain policy-aware pre-ROI cache warming and reset only
 statistics at the ROI boundary; Sniper therefore runs with cache warming
 enabled rather than the cold `--no-cache-warming` fast-forward mode. The

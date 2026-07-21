@@ -264,7 +264,7 @@ inline void setDecodedEcgExtractHint(uint32_t real_vertex,
 
 inline void setDecodedEcgExtractHint2(
         uint32_t real_vertex, uint8_t tier,
-        uint16_t first, uint16_t second) {
+        uint16_t first, uint16_t second, uint8_t width_bytes = 4) {
     if (tier == 0) {
         clearDecodedEcgExtractHint();
         return;
@@ -279,10 +279,11 @@ inline void setDecodedEcgExtractHint2(
     if (sequence < trace_limit) {
         std::fprintf(stderr,
             "[ECG-K2-RECV sim=gem5 seq=%llu dest=%u tier=%u "
-            "epoch1=%u epoch2=%u]\n",
+            "epoch1=%u epoch2=%u width=%u]\n",
             (unsigned long long)sequence, real_vertex,
             static_cast<unsigned>(tier),
-            static_cast<unsigned>(first), static_cast<unsigned>(second));
+            static_cast<unsigned>(first), static_cast<unsigned>(second),
+            static_cast<unsigned>(width_bytes));
     }
     decodedEcgEpochStorage().store(first, std::memory_order_release);
     decodedEcgEpoch2Storage().store(second, std::memory_order_release);
@@ -307,7 +308,8 @@ inline void setDecodedEcgExtractHint2Silent(
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
 }
 
-inline void traceExpectedEcgExtractHint2(uint64_t packed) {
+inline void traceExpectedEcgExtractHint2(
+        uint64_t packed, uint8_t width_bytes = 4) {
     static const uint64_t trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
         return value
@@ -323,12 +325,13 @@ inline void traceExpectedEcgExtractHint2(uint64_t packed) {
 
     std::fprintf(stderr,
         "[ECG-K2-EXPECT sim=gem5 seq=%llu dest=%u tier=%u "
-        "epoch1=%u epoch2=%u]\n",
+        "epoch1=%u epoch2=%u width=%u]\n",
         (unsigned long long)sequence,
         static_cast<uint32_t>(packed),
         static_cast<unsigned>((packed >> 32) & 0x3ULL),
         static_cast<unsigned>((packed >> 34) & 0x7FFFULL),
-        static_cast<unsigned>((packed >> 49) & 0x7FFFULL));
+        static_cast<unsigned>((packed >> 49) & 0x7FFFULL),
+        static_cast<unsigned>(width_bytes));
 }
 
 inline void traceExpectedCompactWeightedEcgHint2(uint64_t packed) {
@@ -731,6 +734,23 @@ struct GraphCacheContext {
     }
 
     bool isEcgEpochData(uint64_t addr) const {
+        const char* values =
+            std::getenv("GEM5_ECG_EPOCH_REGION_INDICES");
+        if (values && values[0]) {
+            const char* cursor = values;
+            while (*cursor) {
+                char* end = nullptr;
+                long index = std::strtol(cursor, &end, 10);
+                if (end == cursor) break;
+                if (index >= 0 &&
+                    static_cast<unsigned long>(index) < num_regions &&
+                    regions[index].contains(addr)) {
+                    return true;
+                }
+                cursor = (*end == ',') ? end + 1 : end;
+            }
+            return false;
+        }
         const char* requested = std::getenv("GEM5_ECG_EPOCH_REGION_INDEX");
         if (requested && requested[0]) {
             int index = std::atoi(requested);

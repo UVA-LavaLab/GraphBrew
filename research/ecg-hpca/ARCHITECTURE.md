@@ -110,17 +110,23 @@ future-reuse ordering appropriate to each kernel:
 - BFS and SSSP frontier order is data-dependent, so degree is the stable first
   signal and K2 is a tie-break.
 - BC and CC use `rrip_first`: their backward or pointer-chasing phases are not
-  a monotonic edge sweep, so K2 refines only the delivered forward-edge reads.
+  a monotonic edge sweep, so only forward edge-governed loads deliver or refresh
+  K2 metadata.
 - BC K2 delivery covers the forward Brandes BFS. Its runtime successor-DAG
-  backward phase has no stable static edge-record position and intentionally
-  remains ordinary RRIP/recency behavior.
+  backward phase has no stable static edge-record position and delivers no new
+  K2 epoch.
 - The forward `path_counts[dest]` load reuses the edge's `depth[dest]` K2 mask.
   This avoids a second record stream; it is shared guidance, not an independent
   path-count reuse forecast.
 - CC K2 delivery follows its OUT-edge records and is certified only for the
   algorithm's existing undirected/symmetric-graph contract. Dynamic union-find
-  pointer chasing and compression clear the source hint and use GRASP/address
-  fallback rather than stale edge epochs.
+  pointer chasing and compression deliver no new edge epoch.
+
+K2 scope is request-bound at delivery, but the resulting epoch is line-resident
+replacement metadata. A later plain access does not eagerly scrub a previously
+stamped resident line; the stamp remains until replacement or a later governed
+load updates it. The artifact therefore claims exact governed-load delivery,
+not per-access erasure of all prior line metadata.
 
 ### Online set dueling
 

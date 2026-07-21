@@ -800,8 +800,8 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
         # nondeterministic interleaved order, so >1 thread yields
         # non-reproducible, thread-count-dependent miss counts.
         "OMP_NUM_THREADS": str(args.cache_sim_omp_threads),
-        "CACHE_ECG_EPOCH_REGION_INDEX": str(
-            cache_sim_ecg_epoch_region_index(args.benchmark)),
+        "CACHE_ECG_EPOCH_REGION_INDICES":
+            cache_sim_ecg_epoch_region_indices(args.benchmark),
     })
     env.update(ecg_pfx_env(args))
     if spec.ecg_mode:
@@ -977,16 +977,32 @@ def apply_explicit_cell_mechanism_env(
 def ecg_epoch_region(benchmark: str) -> str:
     return {
         "pr": "contrib", "bfs": "parent", "sssp": "dist",
-        "bc": "depth", "cc": "comp",
+        "bc": "depth,path_counts", "cc": "comp",
     }.get(benchmark, "")
 
 
-def gem5_ecg_epoch_region_index(benchmark: str) -> int:
-    return 1 if benchmark in ("pr", "bc") else 0
+def property_regions(benchmark: str) -> str:
+    return {
+        "pr": "scores,contrib",
+        "bfs": "parent",
+        "sssp": "dist",
+        "bc": "scores,depth,path_counts,deltas",
+        "cc": "comp",
+    }.get(benchmark, "")
 
 
-def cache_sim_ecg_epoch_region_index(benchmark: str) -> int:
-    return 1 if benchmark == "pr" else 0
+def gem5_ecg_epoch_region_indices(benchmark: str) -> str:
+    return {
+        "pr": "1",
+        "bc": "1,2",
+    }.get(benchmark, "0")
+
+
+def cache_sim_ecg_epoch_region_indices(benchmark: str) -> str:
+    return {
+        "pr": "1",
+        "bc": "0,1",
+    }.get(benchmark, "0")
 
 
 def effective_ecg_variant(
@@ -1193,8 +1209,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     env["GEM5_GRAPHBREW_IN_EDGES"] = str(sidebands["in_edges"])
     epoch_region = ecg_epoch_region(args.benchmark)
     if epoch_region:
-        env["GEM5_ECG_EPOCH_REGION_INDEX"] = str(
-            gem5_ecg_epoch_region_index(args.benchmark))
+        env["GEM5_ECG_EPOCH_REGION_INDICES"] = (
+            gem5_ecg_epoch_region_indices(args.benchmark))
     if spec.ecg_mode == "ECG_GRASP_POPT":
         env.update({
             "GEM5_ECG_PFX_MODE": "6",
@@ -2134,6 +2150,8 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "ecg_epochs": effective_ecg_epochs,
         "ecg_epochs_requested": args.ecg_epochs,
         "ecg_epochs_effective": effective_ecg_epochs,
+        "property_regions": property_regions(args.benchmark),
+        "ecg_epoch_regions": ecg_epoch_region(args.benchmark),
         "ecg_charged": args.ecg_charged,
         "ecg_schedule_k": transport.schedule_k,
         "graph_edge_bytes": edge_bytes,

@@ -89,10 +89,8 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
         }
     }
 
-    // A5: deliver depth[dest]'s next-ref epoch for ECG_GRASP_POPT via the fused ecg.load EVICT
-    // (RISC-V); gated on GEM5_ENABLE_ECG_PLOAD. X86 falls back to a plain indexed load (no
-    // delivery -> cache_sim authoritative). depth is the irregular property read in the
-    // forward BFS; the other BC arrays are read sequentially or are 8-byte (path_counts).
+    // Deliver one edge mask on both irregular forward-BFS loads: depth[dest]
+    // and path_counts[dest]. The backward successor-DAG phase remains plain.
     bool ecg_extract_on = gem5_ecg_extract_enabled();
     // Schedule-2 loads the packed record, then carries its K2 mask on the exact
     // depth[dest] request. StreamShield remains on the record request.

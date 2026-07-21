@@ -26,6 +26,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ecg  # noqa: E402  (reuse verify_trace, BASE_ENV, ECG_ENV, COV_ENV, GRAPH, GEM5_OPT, ROI_MATRIX, ROOT)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from roi_matrix import cache_sim_ecg_epoch_region_indices  # noqa: E402
 
 BANNER_RE = re.compile(r"\[ECG-CONFIG[^\]]*\]")
 # kernel -> simulators that can run it on the UNWEIGHTED eval graph (available binaries).
@@ -58,7 +60,7 @@ GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
 # (GEM5_FORCE_ECG_PLOAD). All ship a *_riscv_m5ops binary with real epoch delivery
-# (pr: contrib; bfs: parent; bc: depth; cc: comp; sssp: dist), so no equiv cell depends on the
+# (pr: contrib; bfs: parent; bc: depth+path_counts; cc: comp; sssp: dist), so no equiv cell depends on the
 # X86 fat-mask (BFS/SSSP/BC/CC have no X86 epoch delivery).
 GEM5_RISCV_KERNELS = {"pr", "bfs", "bc", "cc", "sssp"}
 
@@ -116,7 +118,8 @@ def run_cache(kernel):
         sys.stderr.write(stale)
     env = {**os.environ, **ecg.BASE_ENV, **ecg.ECG_ENV, **ecg.COV_ENV,
            "ECG_VARIANT": effective_variant(kernel), "ECG_DEBUG": "1"}
-    env["CACHE_ECG_EPOCH_REGION_INDEX"] = "1" if kernel == "pr" else "0"
+    env["CACHE_ECG_EPOCH_REGION_INDICES"] = (
+        cache_sim_ecg_epoch_region_indices(kernel))
     if SCHEDULE_K:
         env["ECG_EDGE_MASK_SCHED"] = str(SCHEDULE_K)
         env["ECG_K2_DELIVERY_TRACE"] = "32"
@@ -326,6 +329,21 @@ def main(argv=None):
                     f"{sim}/{kernel}", result,
                     ne=32768 if SCHEDULE_K == 2 else 65535,
                     coverage=cov)
+                bc_dual_load_ok = True
+                if kernel == "bc" and sim == "gem5":
+                    bc_dual_load_ok = (
+                        {4, 8}.issubset(set(
+                            cov.get("k2_accept_widths", []))) and
+                        cov.get("k2_accept_valid", False))
+                elif kernel == "bc" and sim == "sniper":
+                    bc_dual_load_ok = (
+                        {8, 16}.issubset(set(
+                            cov.get("k2_fused_vertices_per_line", []))))
+                if kernel == "bc" and sim in ("gem5", "sniper"):
+                    print(
+                        "      BC depth/path_counts delivery: "
+                        f"{'[OK]' if bc_dual_load_ok else '[FAIL]'}")
+                spec_ok = spec_ok and bc_dual_load_ok
             else:
                 spec_ok = ecg.verify_trace(
                     f"{sim}/{kernel}", result, coverage=cov)

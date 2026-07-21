@@ -200,6 +200,7 @@ def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):
     assert "request_bound_k2" in graph_se
     assert "Schedule-2 O3 requires the masked property-load path" in graph_se
     assert "prefetcher none or STRIDE" in runner
+    assert "GEM5_ECG_EPOCH_REGION_INDICES" in graph_se
     assert "GEM5_ECG_EPOCH_REGION_INDEX" in graph_se
     verifier = read("scripts/experiments/ecg/verify/ecg.py")
     assert "required = set(range(32))" in verifier

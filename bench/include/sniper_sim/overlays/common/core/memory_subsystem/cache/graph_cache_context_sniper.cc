@@ -869,9 +869,19 @@ bool GraphCacheContext::isEcgEpochData(uint64_t addr) const
 {
     const char* requested = std::getenv("SNIPER_ECG_EPOCH_REGION");
     if (requested && requested[0]) {
-        for (uint32_t i = 0; i < num_regions; ++i) {
-            if (regions[i].name == requested)
-                return regions[i].contains(addr);
+        std::string names(requested);
+        size_t begin = 0;
+        while (begin <= names.size()) {
+            const size_t end = names.find(',', begin);
+            const std::string name = names.substr(
+                begin, end == std::string::npos
+                    ? std::string::npos : end - begin);
+            for (uint32_t i = 0; i < num_regions; ++i) {
+                if (regions[i].name == name && regions[i].contains(addr))
+                    return true;
+            }
+            if (end == std::string::npos) break;
+            begin = end + 1;
         }
         return false;
     }

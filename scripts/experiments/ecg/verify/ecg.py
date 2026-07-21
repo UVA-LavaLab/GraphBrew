@@ -70,7 +70,11 @@ HDR_RE = re.compile(r"\[EVICT L3 pol=(\S+)")
 K2_HDR_RE = re.compile(r"\[EVICT L3 .*curEpoch=(\d+)")
 K2_DELIVERY_RE = re.compile(
     r"\[ECG-K2-(EXPECT|RECV|SIDEBAND) sim=(\w+) seq=(\d+) "
-    r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+    r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+)"
+    r"(?: width=(\d+))?\]")
+K2_ACCEPT_RE = re.compile(
+    r"\[ECG-K2-ACCEPT sim=gem5 seq=(\d+) "
+    r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+) width=(\d+)\]")
 K2_FUSED_RECV_RE = re.compile(
     r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
     r"line=(\d+) vpl=(\d+) index=(\d+) begin=(\d+) end=(\d+) "
@@ -481,10 +485,17 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
     pairs = distinct = bad = 0
     expected = {}
     received = {}
+    expected_widths = {}
+    received_widths = {}
+    accepted = []
     sideband = {}
     fused_receipts = []
     fused_validation = None
     for line in text.splitlines():
+        accepted_match = K2_ACCEPT_RE.search(line)
+        if accepted_match:
+            accepted.append(tuple(map(int, accepted_match.groups())))
+            continue
         validated = K2_FUSED_VALID_RE.search(line)
         if validated:
             fused_validation = tuple(map(int, validated.groups()))
@@ -495,14 +506,20 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
             continue
         delivery = K2_DELIVERY_RE.search(line)
         if delivery:
-            kind, _sim, seq, dest, tier, first, second = delivery.groups()
+            kind, _sim, seq, dest, tier, first, second, width = (
+                delivery.groups())
+            sequence = int(seq)
             target = (
                 expected if kind == "EXPECT"
                 else sideband if kind == "SIDEBAND"
                 else received
             )
-            target[int(seq)] = (
+            target[sequence] = (
                 int(dest), int(tier), int(first), int(second))
+            if kind == "EXPECT":
+                expected_widths[sequence] = int(width or 4)
+            elif kind == "RECV":
+                received_widths[sequence] = int(width or 4)
             continue
         h = K2_HDR_RE.search(line)
         if h:
@@ -585,7 +602,9 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         delivery_ok = (
             set(expected) == required and
             set(received) == required and
-            expected == received and tier_valid
+            expected == received and
+            expected_widths == received_widths and
+            tier_valid
         )
     live = pair_live or (delivery_ok and len(expected) == 32)
     if coverage is not None:
@@ -594,7 +613,24 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         coverage["k2_distance_mismatches"] = bad
         coverage["k2_delivery_records"] = len(expected)
         coverage["k2_delivery_match"] = delivery_ok
+        coverage["k2_delivery_widths"] = sorted(set(expected_widths.values()))
+        coverage["k2_received_widths"] = sorted(set(received_widths.values()))
+        coverage["k2_delivery_width_match"] = (
+            expected_widths == received_widths)
+        coverage["k2_accept_widths"] = sorted({
+            item[5] for item in accepted
+        })
+        coverage["k2_accept_valid"] = bool(accepted) and all(
+            0 <= item[1] <= 0xFFFFFFFF and
+            1 <= item[2] <= 3 and
+            0 <= item[3] <= 0x7FFF and
+            0 <= item[4] <= 0x7FFF and
+            item[5] in (4, 8)
+            for item in accepted)
         coverage["k2_fused_receipts"] = len(fused_receipts)
+        coverage["k2_fused_vertices_per_line"] = sorted({
+            receipt[3] for receipt in fused_receipts
+        })
     if bad or not live or not delivery_ok:
         ok = False
     print(f"  {prefix}{name:14s}: K2 ways={pairs} distinct={distinct} "
