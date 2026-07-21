@@ -28,6 +28,11 @@
     "pr",
     "sssp"
   ],
+  "implemented_gas_variants": [
+    "cc",
+    "pr",
+    "sssp"
+  ],
   "test_profiles": {
     "directed_tiny": {
       "path": "scripts/test/data/tiny.el",
@@ -132,6 +137,8 @@
       "source": "bench/src/cc.cc",
       "edge_binary": "cc_edge",
       "edge_source": "bench/src/cc_edge.cc",
+      "gas_binary": "cc_gas",
+      "gas_source": "bench/src/cc_gas.cc",
       "simulator_source": "bench/src_sim/cc.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -145,6 +152,8 @@
       "convergence": "afforest_sampling_link_and_compress",
       "edge_schedule": "sampled_union_find_edge_link",
       "gas": "natural_optional",
+      "gas_convergence": "active_frontier_empty",
+      "gas_schedule": "weak_neighbor_min_label_gather_apply_activate",
       "smoke_profile": "disconnected_tiny",
       "profiles": [
         "undirected_tiny",
@@ -184,6 +193,8 @@
       "source": "bench/src/pr.cc",
       "edge_binary": "pr_edge",
       "edge_source": "bench/src/pr_edge.cc",
+      "gas_binary": "pr_gas",
+      "gas_source": "bench/src/pr_gas.cc",
       "simulator_source": "bench/src_sim/pr.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -197,6 +208,8 @@
       "convergence": "l1_error_below_tolerance_or_max_iters",
       "edge_schedule": "incoming_edge_gather_with_explicit_sync_policy",
       "gas": "natural",
+      "gas_convergence": "l1_error_below_tolerance_or_max_iters",
+      "gas_schedule": "dense_synchronous_incoming_gather_apply_residual_scatter",
       "smoke_profile": "directed_tiny",
       "profiles": [
         "directed_tiny",
@@ -248,6 +261,8 @@
       "source": "bench/src/sssp.cc",
       "edge_binary": "sssp_edge",
       "edge_source": "bench/src/sssp_edge.cc",
+      "gas_binary": "sssp_gas",
+      "gas_source": "bench/src/sssp_gas.cc",
       "simulator_source": "bench/src_sim/sssp.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "WGraph",
@@ -261,6 +276,8 @@
       "convergence": "delta_bucket_exhaustion",
       "edge_schedule": "delta_stepping_active_bucket_relax",
       "gas": "natural_but_not_optimized",
+      "gas_convergence": "active_frontier_empty",
+      "gas_schedule": "active_bellman_ford_min_gather_apply_activate",
       "smoke_profile": "weighted_tiny",
       "profiles": [
         "weighted_tiny",

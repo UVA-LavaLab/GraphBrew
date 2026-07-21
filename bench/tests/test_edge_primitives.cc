@@ -122,6 +122,7 @@ Graph MakeGraphWithLeadingIsolates() {
 
 void TestDirectedAndIncomingStreams() {
   Graph graph = MakeDirectedGraph();
+  auto weak = graphbrew::edge::FlattenWeaklyConnected(graph);
   FlatGraph outgoing = graph.flattenGraphOut();
   FlatGraph incoming = graphbrew::edge::FlattenIncoming(graph);
   EdgeStream<FlatGraph> out_stream(
@@ -174,6 +175,22 @@ void TestDirectedAndIncomingStreams() {
   Require(
       segment_sizes == std::vector<std::size_t>{0, 1, 2, 2, 1},
       "incoming segment sizes differ");
+
+  EdgeStream<decltype(weak)> weak_stream(
+      weak, graphbrew::edge::EdgeStorageOrder::kSourceMajor);
+  std::vector<std::pair<NodeID, NodeID>> weak_edges;
+  weak_stream.ForEachDirected([&](const auto &edge) {
+    weak_edges.emplace_back(edge.source, edge.destination);
+  });
+  std::sort(weak_edges.begin(), weak_edges.end());
+  Require(
+      weak_edges == std::vector<std::pair<NodeID, NodeID>>{
+          {0, 1}, {0, 2},
+          {1, 0}, {1, 2}, {1, 3},
+          {2, 0}, {2, 1}, {2, 3},
+          {3, 1}, {3, 2}, {3, 4},
+          {4, 3}},
+      "weak-connectivity edge view differs");
 
   for (std::size_t workers : {1u, 2u, 4u, 8u}) {
     const auto partitions =

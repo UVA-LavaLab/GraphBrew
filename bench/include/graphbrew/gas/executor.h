@@ -130,6 +130,7 @@ class Executor {
         ApplyVertex(vertices[index], state);
       }
     }
+    access_policy_.OnBarrier(0);
 
     std::size_t applied_vertices = 0;
     std::size_t changed_vertices = 0;
@@ -169,6 +170,7 @@ class Executor {
     }
 
     auto next_active = active_builder_.Finish();
+    access_policy_.OnBarrier(1);
     if (schedule == GatherSchedule::kDense) {
       state.swap(next_state_);
     } else {
@@ -192,6 +194,8 @@ class Executor {
   void ApplyVertex(
       const NodeID destination,
       const pvector<State> &state) {
+    access_policy_.OnVertex(
+        destination, edge::AccessKind::kVertexRead);
     Gather aggregate = program_.GatherIdentity(destination);
     const std::size_t begin = static_cast<std::size_t>(
         incoming_.offsets_.data[destination]);
@@ -205,6 +209,8 @@ class Executor {
           incoming_.weights_.data[ordinal],
           ordinal};
       access_policy_.OnEdge(record);
+      access_policy_.OnVertex(
+          source, edge::AccessKind::kVertexRead);
       aggregate = program_.GatherCombine(
           std::move(aggregate),
           program_.GatherEdge(
@@ -214,6 +220,8 @@ class Executor {
     const Apply result =
         program_.Apply(destination, state[destination], aggregate);
     next_state_[destination] = result.state;
+    access_policy_.OnVertex(
+        destination, edge::AccessKind::kVertexWrite);
     convergence_[destination] = result.convergence;
     changed_[destination] = result.changed ? 1 : 0;
     applied_[destination] = 1;
@@ -224,6 +232,8 @@ class Executor {
       const pvector<State> &old_state) {
     if (changed_[source] == 0)
       return;
+    access_policy_.OnVertex(
+        source, edge::AccessKind::kVertexRead);
     const std::size_t begin = static_cast<std::size_t>(
         outgoing_.offsets_.data[source]);
     const std::size_t end = begin + static_cast<std::size_t>(
@@ -237,6 +247,8 @@ class Executor {
           outgoing_.weights_.data[ordinal],
           ordinal};
       access_policy_.OnEdge(record);
+      access_policy_.OnVertex(
+          destination, edge::AccessKind::kVertexRead);
       if (program_.Scatter(
               record,
               old_state[source],
