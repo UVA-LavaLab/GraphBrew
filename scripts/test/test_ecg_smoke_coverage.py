@@ -75,11 +75,13 @@ def make_rows(module, graphs=None, instruction_cap=0):
                         })
                         if simulator == "gem5":
                             row["gem5_ecg_delivery"] = (
-                                "ecg.stream.wload2+ecg.k2.pload"
+                                "ecg.stream.weighted64+ecg.k2.pload"
                                 if policy in module.SS_POLICIES and
                                 benchmark == "sssp"
                                 else "ecg.stream.load2+ecg.k2.pload"
                                 if policy in module.SS_POLICIES
+                                else "ecg.weighted64+ecg.k2.pload"
+                                if benchmark == "sssp"
                                 else "ecg.k2.pload")
                             if policy in module.SS_POLICIES:
                                 row["gem5_stream_bypass_trace_events"] = "1"

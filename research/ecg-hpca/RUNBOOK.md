@@ -270,9 +270,12 @@ split no-trace K2 loops. The global `-funswitch-loops` Sniper probe is rejected,
 and the pre-split 120-row timing matrix remains historical until rerun.
 
 The post-`e1ce2a8e` load-coverage binary additionally masks BC `path_counts`,
-isolates the SSSP source load, and clears CC hints before compression. Do not
-merge its focused probes into the frozen matrix; rerun all 120 rows after the
-weighted compact/fused transport decision.
+isolates the SSSP source load, clears CC hints before compression, and uses the
+compact weighted record when eligible. Compact SSSP rows must report
+`graph_edge_bytes=8`, `ecg_record_bytes=8`,
+`edge_stream_bytes_per_edge=8`, and `ecg_record_replaces_edge=1`. General
+fallback rows retain the 8+4=12-byte provenance. Do not merge focused probes
+into the frozen matrix; rerun all 120 rows.
 
 Weighted SSSP rows must report `graph_edge_bytes=8`, `ecg_record_bytes=4`, and
 `edge_stream_bytes_per_edge=12`. gem5 loads the sidecar normally or with

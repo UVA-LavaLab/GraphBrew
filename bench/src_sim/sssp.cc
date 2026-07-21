@@ -38,6 +38,7 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                            const vector<uint32_t> &vertex_masks,
                            int pfx_lookahead, int pfx_top_k,
                            bool record_charged, bool stream_bypass,
+                           bool compact_weighted,
                            int record_bytes,
                            WNode* out_edge_base) {
     auto out_neigh = g.out_neigh(u);
@@ -51,12 +52,22 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
         // The weighted CSR record remains an 8-byte baseline demand. Charged
         // ECG additionally reads its packed metadata record; uncharged ISA
         // delivery leaves the baseline stream unchanged.
-        SIM_CACHE_READ_EDGE(cache, it);
-        if (record_charged && stream_bypass) {
+        if (record_charged && compact_weighted && stream_bypass) {
             SIM_CACHE_READ_EDGE_RECORD_BYPASS(
                 cache, it, out_edge_base,
                 GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-        } else if (record_charged) {
+        } else if (record_charged && compact_weighted) {
+            SIM_CACHE_READ_EDGE_RECORD(
+                cache, it, out_edge_base,
+                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+        } else {
+            SIM_CACHE_READ_EDGE(cache, it);
+        }
+        if (record_charged && !compact_weighted && stream_bypass) {
+            SIM_CACHE_READ_EDGE_RECORD_BYPASS(
+                cache, it, out_edge_base,
+                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+        } else if (record_charged && !compact_weighted) {
             SIM_CACHE_READ_EDGE_RECORD(
                 cache, it, out_edge_base,
                 GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
@@ -204,8 +215,29 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
            (uint32_t(1) << epoch_bits) < edge_epochs) {
         ++epoch_bits;
     }
-    const int record_bytes = GraphSimEcgWeightedSidecarBytes(
-        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    bool compact_weighted =
+        GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4) == 2 &&
+        static_cast<uint64_t>(g.num_nodes()) <=
+            ecg_epoch::kCompactWeightedMaxVertices;
+    for (NodeID u = 0; compact_weighted && u < g.num_nodes(); ++u) {
+        for (WNode edge : g.out_neigh(u)) {
+            if (!ecg_epoch::canPackCompactWeightedEdge(
+                    g.num_nodes(), static_cast<uint32_t>(edge.v),
+                    static_cast<int64_t>(edge.w))) {
+                compact_weighted = false;
+                break;
+            }
+        }
+    }
+    const int record_bytes = compact_weighted
+        ? 8
+        : GraphSimEcgWeightedSidecarBytes(
+            static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    if (compact_weighted) {
+        std::fprintf(
+            stderr,
+            "[ECG_COMPACT_K2_WEIGHTED64] SSSP 8B replacement record ACTIVE\n");
+    }
     WNode* out_edge_base = g.num_nodes() > 0
         ? g.out_neigh(0).begin() : nullptr;
     int pfx_lookahead = GraphSimEnvIntClamped("ECG_PREFETCH_LOOKAHEAD", 0, 0, 64);
@@ -242,6 +274,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                     RelaxEdges_Sim(g, u, delta, source_dist, dist, local_bins, cache,
                                    graph_ctx, vertex_masks, pfx_lookahead,
                                    pfx_top_k, record_charged, stream_bypass,
+                                   compact_weighted,
                                    record_bytes,
                                    out_edge_base);
             }
@@ -259,6 +292,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                     RelaxEdges_Sim(g, u, delta, source_dist, dist, local_bins, cache,
                                    graph_ctx, vertex_masks, pfx_lookahead,
                                    pfx_top_k, record_charged, stream_bypass,
+                                   compact_weighted,
                                    record_bytes,
                                    out_edge_base);
                 }

@@ -331,6 +331,30 @@ inline void traceExpectedEcgExtractHint2(uint64_t packed) {
         static_cast<unsigned>((packed >> 49) & 0x7FFFULL));
 }
 
+inline void traceExpectedCompactWeightedEcgHint2(uint64_t packed) {
+    static const uint64_t trace_limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value
+            ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10))
+            : 0;
+    }();
+    if (trace_limit == 0) return;
+
+    static std::atomic<uint64_t> trace_sequence{0};
+    const uint64_t sequence =
+        trace_sequence.fetch_add(1, std::memory_order_relaxed);
+    if (sequence >= trace_limit) return;
+
+    std::fprintf(stderr,
+        "[ECG-K2-EXPECT sim=gem5 seq=%llu dest=%u tier=%u "
+        "epoch1=%u epoch2=%u]\n",
+        (unsigned long long)sequence,
+        static_cast<uint32_t>(packed) & 0x00FFFFFFu,
+        static_cast<unsigned>((packed >> 32) & 0x3ULL),
+        static_cast<unsigned>((packed >> 34) & 0x7FFFULL),
+        static_cast<unsigned>((packed >> 49) & 0x7FFFULL));
+}
+
 // Single-slot mailbox lookup for ECG_GRASP_POPT. Unlike the per-vertex table
 // (which is fixed-size and collides badly past its capacity, corrupting the
 // EXACT epoch ECG_GRASP_POPT depends on), this reads the LAST ecg.extract's

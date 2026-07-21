@@ -1091,8 +1091,15 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
             row[f"{prefix}_prop_miss_rate"] = None
             row[f"{prefix}_struct_misses"] = None
     transport = ecg_transport_for(spec, args.benchmark)
+    log_text = log_path.read_text(errors="ignore")
+    if "[ECG_COMPACT_K2_WEIGHTED64]" in log_text:
+        row.update({
+            "graph_edge_bytes": 8,
+            "ecg_record_bytes": 8,
+            "edge_stream_bytes_per_edge": 8,
+            "ecg_record_replaces_edge": 1,
+        })
     if transport.stream_bypass:
-        log_text = log_path.read_text(errors="ignore")
         expected = (
             "[ECG-STREAM-BYPASS sim=cache_sim active=1 adaptive=1]"
             if transport.stream_adaptive else
@@ -1320,6 +1327,19 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     })
     if log_path.exists():
         log_text = log_path.read_text(errors="ignore")
+        for benchmark_log in gem5_out.rglob("benchmark_stderr.txt"):
+            log_text += "\n" + benchmark_log.read_text(errors="ignore")
+        if "[ECG_K2_WEIGHTED64]" in log_text:
+            base.update({
+                "gem5_ecg_delivery": (
+                    "ecg.stream.weighted64+ecg.k2.pload"
+                    if transport.stream_bypass
+                    else "ecg.weighted64+ecg.k2.pload"),
+                "graph_edge_bytes": 8,
+                "ecg_record_bytes": 8,
+                "edge_stream_bytes_per_edge": 8,
+                "ecg_record_replaces_edge": 1,
+            })
         base["gem5_stream_bypass_trace_events"] = log_text.count(
             "[ECG-STREAM-BYPASS sim=gem5")
         base["gem5_stream_adaptive_active"] = int(
@@ -1803,6 +1823,17 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row.update({"status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
         return [row]
     log_text = log_path.read_text(errors="ignore")
+    if fused_k2 and args.benchmark == "sssp":
+        if "[ECG_FUSED_K2_WEIGHTED64]" in log_text:
+            row.update({
+                "sniper_ecg_delivery": "fused-k2-weighted64-model",
+                "graph_edge_bytes": 8,
+                "ecg_record_bytes": 8,
+                "edge_stream_bytes_per_edge": 8,
+                "ecg_record_replaces_edge": 1,
+            })
+        elif "[ECG_FUSED_K2_WEIGHTED32]" in log_text:
+            row["sniper_ecg_delivery"] = "fused-k2-weighted32-model"
     if policy_name in ("grasp", "popt", "ecg"):
         context_marker = re.search(
             r"\[ECG-CONTEXT-READY sim=sniper loaded=1 "

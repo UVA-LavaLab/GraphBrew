@@ -103,6 +103,25 @@ int main() {
         if (!ok) g_fail++;
     }
     {
+        uint32_t dist[1024] = {};
+        const uint32_t dest = 511u;
+        const uint32_t value = 0x76543210u;
+        const uint64_t record =
+            ecg_epoch::packCompactWeightedEpochPairRecord(
+                dest, 255u, 2u, 0x1234u, 0x5678u);
+        dist[dest] = value;
+        const uint32_t rd =
+            gem5_ecg_load_k2_weighted64(dist, record);
+        const bool ok =
+            rd == value &&
+            ecg_epoch::extractCompactWeightedWeight(record) == 255;
+        printf("[test_ecg_load_modes] K2-WEIGHTED64 dest=%u weight=%d "
+               "rd=%#x [%s]\n",
+               dest, ecg_epoch::extractCompactWeightedWeight(record),
+               rd, ok ? "OK" : "FAIL");
+        if (!ok) g_fail++;
+    }
+    {
         const uint32_t dest = 0x00300001u;
         const uint32_t sidecar =
             ecg_epoch::packWeightedEpochPairSidecar(1u, 321u, 654u);

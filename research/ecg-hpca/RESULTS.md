@@ -301,6 +301,13 @@ The supported scope is therefore strong PR/BFS, positive BC, and a robust
 sampled overall win. CC beats LRU and P-OPT but remains slightly behind GRASP;
 weighted SSSP remains the only broad regression.
 
+Post-authority load-coverage diagnostics replace eligible weighted SSSP edges
+(`N <= 2^24`, weights in `[1,255]`) with one compact 8-byte K2 record. Static
+K2+StreamShield across the three SSSP samples reaches 1.166x versus LRU, 1.051x
+versus GRASP, and 1.028x versus charged P-OPT, with a 1.015x instruction ratio.
+Per graph it wins on web-Google/soc-pokec and loses cit-Patents; a full matrix
+rerun remains required before replacing the table above.
+
 Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_sniper_sampled_allalg_surgical_final_20260720/aggregate/`.
 

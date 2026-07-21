@@ -18,6 +18,9 @@ namespace ecg_epoch {
 
 static constexpr uint16_t kK2EpochMask = 0x7FFFu;
 static constexpr uint32_t kK2MaxEpochCount = 1u << 15;
+static constexpr uint32_t kCompactWeightedDestMask = 0x00FFFFFFu;
+static constexpr uint32_t kCompactWeightedMaxVertices = 1u << 24;
+static constexpr uint32_t kCompactWeightedMaxWeight = 0xFFu;
 
 struct EpochPair {
     uint16_t first = 0;
@@ -76,6 +79,45 @@ inline uint16_t extractWeightedEpochPairFirst(uint32_t sidecar) {
 
 inline uint16_t extractWeightedEpochPairSecond(uint32_t sidecar) {
     return static_cast<uint16_t>((sidecar >> 17) & kK2EpochMask);
+}
+
+inline bool canPackCompactWeightedEdge(
+        uint64_t num_vertices, uint32_t dest, int64_t weight) {
+    return num_vertices <= kCompactWeightedMaxVertices &&
+           dest <= kCompactWeightedDestMask &&
+           weight >= 1 &&
+           weight <= static_cast<int64_t>(kCompactWeightedMaxWeight);
+}
+
+inline uint64_t packCompactWeightedEpochPairRecord(
+        uint32_t dest, uint32_t weight, uint8_t tier,
+        uint16_t first, uint16_t second) {
+    return static_cast<uint64_t>(dest & kCompactWeightedDestMask) |
+           (static_cast<uint64_t>(weight & 0xFFu) << 24) |
+           (static_cast<uint64_t>(tier & 0x3u) << 32) |
+           (static_cast<uint64_t>(first & kK2EpochMask) << 34) |
+           (static_cast<uint64_t>(second & kK2EpochMask) << 49);
+}
+
+inline uint32_t extractCompactWeightedDest(uint64_t record) {
+    return static_cast<uint32_t>(record) & kCompactWeightedDestMask;
+}
+
+inline int32_t extractCompactWeightedWeight(uint64_t record) {
+    return static_cast<int32_t>(
+        static_cast<uint8_t>((record >> 24) & 0xFFu));
+}
+
+inline uint8_t extractCompactWeightedTier(uint64_t record) {
+    return static_cast<uint8_t>((record >> 32) & 0x3u);
+}
+
+inline uint16_t extractCompactWeightedFirst(uint64_t record) {
+    return static_cast<uint16_t>((record >> 34) & kK2EpochMask);
+}
+
+inline uint16_t extractCompactWeightedSecond(uint64_t record) {
+    return static_cast<uint16_t>((record >> 49) & kK2EpochMask);
 }
 
 inline uint32_t normalizeK2EpochCount(uint32_t count) {
@@ -452,6 +494,46 @@ bool validateWeightedEpochPairSidecars(
                 extractEpochPairSecond(records[i]))) {
             return false;
         }
+    }
+    return true;
+}
+
+template <typename GraphT, typename OffsetContainer,
+          typename PairContainer, typename CompactContainer>
+bool validateCompactWeightedEpochPairRecords(
+        const GraphT& g, const OffsetContainer& record_off,
+        const PairContainer& pairs, const CompactContainer& compact) {
+    const uint32_t n = static_cast<uint32_t>(g.num_nodes());
+    if (n > kCompactWeightedMaxVertices ||
+        pairs.size() != compact.size() ||
+        record_off.size() != static_cast<size_t>(n) + 1 ||
+        record_off.empty() || record_off.front() != 0 ||
+        record_off.back() != compact.size()) {
+        return false;
+    }
+    for (uint32_t src = 0; src < n; ++src) {
+        uint64_t pos = record_off[src];
+        const uint64_t end = record_off[src + 1];
+        for (const auto edge : g.out_neigh(src)) {
+            if (pos >= end || pos >= compact.size() ||
+                !canPackCompactWeightedEdge(
+                    n, static_cast<uint32_t>(edge.v),
+                    static_cast<int64_t>(edge.w)) ||
+                extractCompactWeightedDest(compact[pos]) !=
+                    static_cast<uint32_t>(edge.v) ||
+                extractCompactWeightedWeight(compact[pos]) !=
+                    static_cast<int32_t>(edge.w) ||
+                extractCompactWeightedTier(compact[pos]) !=
+                    extractEpochPairTier(pairs[pos]) ||
+                extractCompactWeightedFirst(compact[pos]) !=
+                    extractEpochPairFirst(pairs[pos]) ||
+                extractCompactWeightedSecond(compact[pos]) !=
+                    extractEpochPairSecond(pairs[pos])) {
+                return false;
+            }
+            ++pos;
+        }
+        if (pos != end) return false;
     }
     return true;
 }

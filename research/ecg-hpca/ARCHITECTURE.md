@@ -199,12 +199,15 @@ load plus an optional StreamShield record load:
 | Instruction | Encoding | Effect |
 |---|---:|---|
 | `ecg.k2.load rd, rs1, rs2` | custom-0, FUNCT3 `0x2`, mode `0x03` | load `property[dest]`; attach `tier|epoch1|epoch2` from `rs2` to that exact demand Request |
+| `ecg.k2.wload rd, rs1, rs2` | custom-0, FUNCT3 `0x2`, mode `0x05` | load a 4-byte weighted property using compact `dest24|weight8|tier|epoch1|epoch2` metadata |
 | `ecg.stream.load2 rd, 0(rs1)` | custom-0, FUNCT3 `0x3` | load an unweighted K2 record while suppressing only its LLC miss allocation |
 | `ecg.stream.wload2 rd, rs1, rs2` | custom-0, FUNCT3 `0x5` | load the weighted 4-byte sidecar with the same record-only StreamShield behavior |
 
 For unweighted kernels, `rs1` is the property base and `rs2` is the canonical
-64-bit K2 record. Weighted SSSP combines its edge destination with the 32-bit
-sidecar in a register; the result is the same canonical K2 layout. The O3
+64-bit K2 record. Weighted SSSP uses one 8-byte
+`dest24|weight8|tier2|epoch1_15|epoch2_15` record when the graph has at most
+2^24 vertices and all weights are in `[1,255]`. Larger IDs or weights fail
+closed to the general 8-byte edge plus 4-byte sidecar path. The O3
 producer stores the mask on the dynamic instruction and the LSQ attaches it to
 the property Request. Legacy record-delivery opcodes remain compatibility paths,
 not the paper abstraction.
@@ -259,7 +262,8 @@ and without StreamShield.
 ## Hardware cost model
 
 - Unweighted K2 record: 8 bytes per edge record.
-- Weighted SSSP: existing 8-byte weighted edge plus a 4-byte K2 sidecar.
+- Weighted SSSP: compact 8-byte replacement record when eligible; otherwise the
+  existing 8-byte weighted edge plus a 4-byte K2 sidecar.
 - ECG-reserved LLC ways: 0.
 - StreamShield state: one request flag propagated through the hierarchy.
 - Per-line ECG metadata: two 15-bit epochs, 2-bit carried tier, valid/count

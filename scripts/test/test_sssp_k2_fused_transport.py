@@ -18,7 +18,7 @@ def test_weighted_sssp_fused_path_moves_validation_before_roi():
     assert "deliver_k2_record(record, fused_k2_model);" in sniper
     assert "} else if (\n                pair_ok ||" in sniper
     assert "auto relax_edges = [&](" in sniper
-    assert sniper.count("relax_edges(") == 4
+    assert sniper.count("relax_edges(") == 6
     assert 'std::getenv("ECG_K2_VALIDATE")' in sniper
     assert 'std::getenv("ECG_K2_VALIDATE")' in gem5
     assert "gem5_ecg_stream_weighted_load2_instruction" in gem5

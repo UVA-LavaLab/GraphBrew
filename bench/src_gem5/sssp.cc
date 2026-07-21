@@ -39,16 +39,47 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                             const vector<uint64_t>* pair_off,
                             const pvector<uint64_t>* pair_flat,
                             const pvector<uint32_t>* pair_sidecars,
+                            const pvector<uint64_t>* pair_compact,
                             bool ecg_load_evict_on, int ecg_evict_wc,
                             uint32_t edge_epoch_count, bool ecg_load2_on,
                             bool ecg_stream_load2_on,
-                            bool ecg_k2_pload_on) {
+                            bool ecg_k2_pload_on,
+                            bool compact_pair_ok) {
     const WeightT source_dist = dist[u];
     GEM5_SET_VERTEX(u);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
     const vector<uint16_t>* u_epochs =
         (out_edge_epochs && static_cast<size_t>(u) < out_edge_epochs->size())
             ? &(*out_edge_epochs)[u] : nullptr;
+    if (compact_pair_ok && ecg_k2_pload_on && pair_off && pair_compact &&
+        static_cast<size_t>(u + 1) < pair_off->size() &&
+        pfx_lookahead == 0) {
+        for (uint64_t pos = (*pair_off)[u]; pos < (*pair_off)[u + 1]; ++pos) {
+            const uint64_t record = ecg_stream_load2_on
+                ? gem5_ecg_stream_load2_instruction(&(*pair_compact)[pos])
+                : (*pair_compact)[pos];
+            const NodeID dest = static_cast<NodeID>(
+                ecg_epoch::extractCompactWeightedDest(record));
+            const WeightT weight = static_cast<WeightT>(
+                ecg_epoch::extractCompactWeightedWeight(record));
+            const uint32_t bits =
+                gem5_ecg_load_k2_weighted64(dist.data(), record);
+            WeightT old_dist;
+            std::memcpy(&old_dist, &bits, sizeof(WeightT));
+            const WeightT new_dist = source_dist + weight;
+            while (new_dist < old_dist) {
+                if (compare_and_swap(dist[dest], old_dist, new_dist)) {
+                    size_t dest_bin = new_dist / delta;
+                    if (dest_bin >= local_bins.size())
+                        local_bins.resize(dest_bin + 1);
+                    local_bins[dest_bin].push_back(dest);
+                    break;
+                }
+                old_dist = dist[dest];
+            }
+        }
+        return;
+    }
     auto out_neigh = g.out_neigh(u);
     size_t edge_pos = 0;
     for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
@@ -186,7 +217,9 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     std::vector<uint64_t> pair_off;
     pvector<uint64_t> pair_flat;
     pvector<uint32_t> pair_sidecars;
+    pvector<uint64_t> pair_compact;
     bool pair_ok = false;
+    bool compact_pair_ok = false;
     if (ecg_extract_on && ecg_sched_k == 2) {
         std::vector<uint64_t> pair_records;
         ecg_epoch::buildInEdgeEpochPairRecords(
@@ -204,6 +237,32 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                 ecg_epoch::extractEpochPairFirst(pair_records[i]),
                 ecg_epoch::extractEpochPairSecond(pair_records[i]));
         }
+        pair_compact = pvector<uint64_t>(
+            pair_records.size(), uint64_t(0), 4096);
+        compact_pair_ok =
+            static_cast<uint64_t>(g.num_nodes()) <=
+                ecg_epoch::kCompactWeightedMaxVertices;
+        for (NodeID src = 0; compact_pair_ok && src < g.num_nodes(); ++src) {
+            uint64_t pos = pair_off[src];
+            for (WNode edge : g.out_neigh(src)) {
+                if (!ecg_epoch::canPackCompactWeightedEdge(
+                        g.num_nodes(), static_cast<uint32_t>(edge.v),
+                        static_cast<int64_t>(edge.w))) {
+                    compact_pair_ok = false;
+                    break;
+                }
+                const uint64_t pair = pair_flat[pos];
+                pair_compact[pos] =
+                    ecg_epoch::packCompactWeightedEpochPairRecord(
+                        static_cast<uint32_t>(edge.v),
+                        static_cast<uint32_t>(edge.w),
+                        ecg_epoch::extractEpochPairTier(pair),
+                        ecg_epoch::extractEpochPairFirst(pair),
+                        ecg_epoch::extractEpochPairSecond(pair));
+                ++pos;
+            }
+        }
+        if (!compact_pair_ok) pair_compact.clear();
         pair_ok = true;
     }
     const char* k2_validate_env = std::getenv("ECG_K2_VALIDATE");
@@ -212,7 +271,10 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
         (!ecg_epoch::validateWeightedEpochPairRecords(
              g, pair_off, pair_flat) ||
          !ecg_epoch::validateWeightedEpochPairSidecars(
-             pair_off, pair_flat, pair_sidecars))) {
+             pair_off, pair_flat, pair_sidecars) ||
+         (compact_pair_ok &&
+          !ecg_epoch::validateCompactWeightedEpochPairRecords(
+              g, pair_off, pair_flat, pair_compact)))) {
         std::fprintf(stderr, "gem5 SSSP K2 record validation failed\n");
         std::abort();
     }
@@ -227,7 +289,9 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
         fprintf(stderr, "[ECG_PLOAD] SSSP fused ecg.load EVICT delivery ACTIVE\n");
     if (pair_ok) {
         fprintf(stderr,
-                ecg_stream_load2_on && ecg_k2_pload_on
+                compact_pair_ok && ecg_k2_pload_on
+                    ? "[ECG_K2_WEIGHTED64] SSSP compact 8B masked edge ACTIVE\n"
+                    : ecg_stream_load2_on && ecg_k2_pload_on
                     ? "[ECG_K2_PLOAD] SSSP request-bound masked property load "
                       "+ StreamShield 4B sidecar ACTIVE\n"
                     : ecg_k2_pload_on
@@ -279,9 +343,10 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                                     pair_ok ? &pair_off : nullptr,
                                     pair_ok ? &pair_flat : nullptr,
                                     pair_ok ? &pair_sidecars : nullptr,
+                                    compact_pair_ok ? &pair_compact : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count,
                                     ecg_load2_on, ecg_stream_load2_on,
-                                    ecg_k2_pload_on);
+                                    ecg_k2_pload_on, compact_pair_ok);
             }
 
             while (curr_bin_index < local_bins.size() &&
@@ -294,9 +359,10 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
                                     pair_ok ? &pair_off : nullptr,
                                     pair_ok ? &pair_flat : nullptr,
                                     pair_ok ? &pair_sidecars : nullptr,
+                                    compact_pair_ok ? &pair_compact : nullptr,
                                     ecg_load_evict_on, ecg_evict_wc, edge_epoch_count,
                                     ecg_load2_on, ecg_stream_load2_on,
-                                    ecg_k2_pload_on);
+                                    ecg_k2_pload_on, compact_pair_ok);
             }
 
             for (size_t i = curr_bin_index; i < local_bins.size(); i++) {

@@ -332,7 +332,11 @@ def main(argv=None):
             if SCHEDULE_K == 2:
                 text, ran_ok = result
                 if sim == "gem5":
-                    if STREAM_BYPASS:
+                    if kernel == "sssp":
+                        fused_marker = (
+                            "[ECG_K2_WEIGHTED64] SSSP compact 8B "
+                            "masked edge ACTIVE")
+                    elif STREAM_BYPASS:
                         stream_name = (
                             "StreamShield 4B sidecar"
                             if kernel == "sssp"

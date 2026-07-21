@@ -24,6 +24,8 @@ def test_sssp_hoists_source_distance_before_k2_delivery():
             "\n}", 1)[0]
     assert 'asm volatile("" : : "r"(sidecar));' in sidecar
     assert '"memory"' not in sidecar
+    assert "packCompactWeightedEpochPairRecord" in sniper
+    assert "[ECG_FUSED_K2_WEIGHTED64]" in sniper
 
 
 def test_bc_masks_depth_and_path_counts():

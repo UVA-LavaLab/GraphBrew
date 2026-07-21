@@ -954,7 +954,9 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
     std::vector<uint64_t> pair_off;
     std::vector<uint64_t> pair_flat;
     pvector<uint32_t> pair_sidecars;
+    pvector<uint64_t> pair_compact;
     bool pair_ok = false;
+    bool compact_pair_ok = false;
     if (ecg_extract_on && ecg_sched_k == 2) {
         ecg_epoch::buildInEdgeEpochPairRecords(
             graph, kNumVtxPerLine, ecg_epoch_count,
@@ -968,13 +970,42 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
                 ecg_epoch::extractEpochPairFirst(pair_flat[i]),
                 ecg_epoch::extractEpochPairSecond(pair_flat[i]));
         }
+        pair_compact = pvector<uint64_t>(
+            pair_flat.size(), uint64_t(0), kPropAlign);
+        compact_pair_ok =
+            static_cast<uint64_t>(graph.num_nodes()) <=
+                ecg_epoch::kCompactWeightedMaxVertices;
+        for (NodeID src = 0; compact_pair_ok && src < graph.num_nodes(); ++src) {
+            uint64_t pos = pair_off[src];
+            for (WNode edge : graph.out_neigh(src)) {
+                if (!ecg_epoch::canPackCompactWeightedEdge(
+                        graph.num_nodes(), static_cast<uint32_t>(edge.v),
+                        static_cast<int64_t>(edge.w))) {
+                    compact_pair_ok = false;
+                    break;
+                }
+                const uint64_t pair = pair_flat[pos];
+                pair_compact[pos] =
+                    ecg_epoch::packCompactWeightedEpochPairRecord(
+                        static_cast<uint32_t>(edge.v),
+                        static_cast<uint32_t>(edge.w),
+                        ecg_epoch::extractEpochPairTier(pair),
+                        ecg_epoch::extractEpochPairFirst(pair),
+                        ecg_epoch::extractEpochPairSecond(pair));
+                ++pos;
+            }
+        }
+        if (!compact_pair_ok) pair_compact.clear();
         pair_ok = true;
     }
     if (pair_ok && k2_record_validation_enabled() &&
         (!ecg_epoch::validateWeightedEpochPairRecords(
              graph, pair_off, pair_flat) ||
          !ecg_epoch::validateWeightedEpochPairSidecars(
-             pair_off, pair_flat, pair_sidecars))) {
+             pair_off, pair_flat, pair_sidecars) ||
+         (compact_pair_ok &&
+          !ecg_epoch::validateCompactWeightedEpochPairRecords(
+              graph, pair_off, pair_flat, pair_compact)))) {
         std::fprintf(stderr, "Sniper SSSP K2 record validation failed\n");
         std::abort();
     }
@@ -982,11 +1013,19 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             regions, 1, graph, nullptr, edge_regions, num_edge_regions,
             stream_bypass_on && pair_ok
                 ? (fused_k2_model
-                    ? reinterpret_cast<uint64_t>(pair_sidecars.data())
+                    ? reinterpret_cast<uint64_t>(
+                        compact_pair_ok
+                            ? static_cast<const void*>(
+                                graph.num_nodes() > 0
+                                    ? graph.out_neigh(0).begin()
+                                    : nullptr)
+                            : static_cast<const void*>(pair_sidecars.data()))
                     : reinterpret_cast<uint64_t>(pair_flat.data())) : 0,
             stream_bypass_on && pair_ok
                 ? (fused_k2_model
-                    ? pair_sidecars.size() * sizeof(uint32_t)
+                    ? (compact_pair_ok
+                        ? pair_compact.size() * sizeof(uint64_t)
+                        : pair_sidecars.size() * sizeof(uint32_t))
                     : pair_flat.size() * sizeof(uint64_t)) : 0,
             fused_k2_model && pair_ok ? pair_off.data() : nullptr,
             fused_k2_model && pair_ok ? pair_off.size() : 0,
@@ -998,7 +1037,9 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
     if (pair_ok)
         std::fprintf(
             stderr,
-            fused_k2_model
+            fused_k2_model && compact_pair_ok
+                ? "[ECG_FUSED_K2_WEIGHTED64] SSSP compact 8B record ACTIVE\n"
+                : fused_k2_model
                 ? "[ECG_FUSED_K2_WEIGHTED32] SSSP 4B sidecar ACTIVE\n"
                 : "[ECG_PACKED8_K2] SSSP Schedule-2 packed record path ACTIVE\n");
 
@@ -1037,7 +1078,23 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         if (ecg_pfx_hints_on && !frontier.empty()) {
             SNIPER_ECG_PFX_TARGET(frontier.front());
         }
-        if (fused_k2_model && pair_ok) {
+        if (fused_k2_model && pair_ok && compact_pair_ok) {
+            uint64_t pair_pos = pair_off[node];
+            if (software_k2_delivery) {
+                relax_edges(
+                    node, source_dist,
+                    [&](WNode, size_t) {
+                        deliver_k2_record(
+                            pair_flat[pair_pos++], fused_k2_model);
+                    },
+                    [](WNode, size_t) {});
+            } else {
+                relax_edges(
+                    node, source_dist,
+                    [](WNode, size_t) {},
+                    [](WNode, size_t) {});
+            }
+        } else if (fused_k2_model && pair_ok) {
             uint64_t pair_pos = pair_off[node];
             if (software_k2_delivery) {
                 relax_edges(

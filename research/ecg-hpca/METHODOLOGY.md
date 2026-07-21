@@ -141,7 +141,9 @@ from no-trace PR/BFS/BC/CC loops.
 
 Subsequent BC path-count, SSSP source-load, and CC phase-clear corrections are
 mechanism-validated but postdate that matrix. Their focused timing probes remain
-diagnostic until the compact weighted transport and full matrix rerun complete.
+diagnostic until the full matrix rerun completes. The compact weighted SSSP
+format replaces eligible 8-byte weighted edges rather than adding a sidecar;
+the 12-byte general fallback remains available and validated.
 
 All aggregate ratios use the geometric mean across the applicable graph/kernel
 cells. P-OPT and K2 overheads appear in different columns by construction:

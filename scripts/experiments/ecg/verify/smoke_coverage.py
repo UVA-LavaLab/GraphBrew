@@ -134,11 +134,13 @@ def validate(
                 errors.append(f"{row_name(row)}: effective epochs != 32768")
             if simulator == "gem5":
                 expected = (
-                    "ecg.stream.wload2+ecg.k2.pload"
+                    "ecg.stream.weighted64+ecg.k2.pload"
                     if policy in SS_POLICIES and
                     row.get("benchmark") == "sssp"
                     else "ecg.stream.load2+ecg.k2.pload"
                     if policy in SS_POLICIES
+                    else "ecg.weighted64+ecg.k2.pload"
+                    if row.get("benchmark") == "sssp"
                     else "ecg.k2.pload")
                 if row.get("gem5_ecg_delivery") != expected:
                     errors.append(
@@ -152,6 +154,7 @@ def validate(
             if simulator == "sniper":
                 if row.get("sniper_ecg_delivery") not in {
                         "fused-k2-model",
+                        "fused-k2-weighted64-model",
                         "fused-k2-weighted32-model"}:
                     errors.append(f"{row_name(row)}: fused delivery missing")
                 bad_receipts = number(row, "sniper_fused_k2_bad_receipts")
