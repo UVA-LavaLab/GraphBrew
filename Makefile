@@ -105,11 +105,12 @@ IRREGULAR_EDGE_KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(IRREGULAR_EDGE_KERNELS))
 SUITE = $(KERNELS_BIN) $(DENSE_EDGE_KERNELS_BIN) $(FRONTIER_EDGE_KERNELS_BIN) $(IRREGULAR_EDGE_KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export \
 	$(BIN_DIR)/ownership_analysis $(BIN_DIR)/edge_view_benchmark
 UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
-	test_shard_stream test_ownership_analysis test_edge_primitives
+	test_shard_stream test_ownership_analysis test_edge_primitives \
+	test_gas_executor
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) converter edge_view_benchmark edge-dense edge-frontier edge-irregular all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) $(DENSE_EDGE_KERNELS) $(FRONTIER_EDGE_KERNELS) $(IRREGULAR_EDGE_KERNELS) converter edge_view_benchmark edge-dense edge-frontier edge-irregular all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives check-edge-dense check-edge-frontier check-edge-irregular check-gas-runtime run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 ownership_analysis: $(BIN_DIR)/ownership_analysis
 edge_view_benchmark: $(BIN_DIR)/edge_view_benchmark
 edge-dense: $(DENSE_EDGE_KERNELS_BIN)
@@ -137,6 +138,11 @@ check-edge-frontier: $(FRONTIER_EDGE_KERNELS_BIN) $(addprefix $(BIN_DIR)/,bfs ss
 
 check-edge-irregular: $(IRREGULAR_EDGE_KERNELS_BIN) $(addprefix $(BIN_DIR)/,bc tc)
 	$(PYTHON) scripts/test/run_edge_irregular_profiles.py
+
+check-gas-runtime: $(TEST_BIN_DIR)/test_gas_executor
+	@for threads in 1 2 4 8; do \
+		OMP_NUM_THREADS=$$threads $(TEST_BIN_DIR)/test_gas_executor; \
+	done
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
 	@for test in $(UNIT_TESTS_BIN); do $$test; done
