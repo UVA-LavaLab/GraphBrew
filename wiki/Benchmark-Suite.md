@@ -5,6 +5,9 @@ experiments across multiple graphs, algorithms, and benchmarks.
 
 ## Overview
 
+For the edge-centric and Gather-Apply-Scatter CPU baseline roadmap, verifier
+contracts, and literature basis, see [[Edge-Centric-and-GAS]].
+
 ```
 scripts/
 ├── graphbrew_experiment.py     # One-click unified pipeline
