@@ -215,6 +215,35 @@ There is no separate GAS binary for BFS (first-parent GAS is artificial), BC
 Gather/Apply core), TC (requires sorted two-list intersection), or `MEMCPY`
 (not a graph algorithm).
 
+## CPU qualification gate
+
+Build every implementation with:
+
+```bash
+make edge-all gas-all
+```
+
+Run the complete contract, primitive, canonical-control, edge, GAS, source-pair,
+thread-count, topology, and repeatability qualification with:
+
+```bash
+make check-edge-gas
+```
+
+The gate covers directed asymmetric, undirected isolated, path, star,
+disconnected, weighted isolated/path/star, synthetic power-law-like,
+triangle, no-triangle, and dangling-vertex cases. It currently passes:
+
+- 112 dense-edge verifier cells;
+- 60 frontier-edge verifier trials;
+- 56 irregular-edge verifier trials;
+- 84 GAS verifier trials;
+- 22 two-trial repeatability checks across all 11 edge/GAS binaries;
+- canonical smoke/source controls plus primitive and GAS-runtime tests.
+
+Only verifier-defined semantic output is gated. Iteration counts, active work,
+and examined-edge counters remain informational because legal schedules differ.
+
 ## Literature
 
 - PowerGraph/GAS:
