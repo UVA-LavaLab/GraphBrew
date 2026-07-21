@@ -33,7 +33,7 @@ INCLUDE_CACHE     = $(INC_DIR)/cache_sim
 INCLUDE_BOOST  = /opt/boost_1_58_0/include  
 # =========================================================
 DEP_GAPBS     = $(wildcard $(INCLUDE_GAPBS)/*.h)
-DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h)
+DEP_GRAPHBREW = $(wildcard $(INCLUDE_GRAPHBREW)/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/edge/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/gas/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/reorder/*.h) $(wildcard $(INCLUDE_GRAPHBREW)/partition/*.h)
 DEP_RABBIT = $(wildcard $(INCLUDE_EXTERNAL)/rabbit/*.hpp)
 DEP_GORDER = $(wildcard $(INCLUDE_EXTERNAL)/gorder/*.h)
 DEP_CORDER = $(wildcard $(INCLUDE_EXTERNAL)/corder/*.h)
@@ -97,14 +97,15 @@ endif
 KERNELS = bc bfs bfs_p cc cc_sv pr pr_spmv sssp tc tc_p
 KERNELS_BIN = $(addprefix $(BIN_DIR)/,$(KERNELS))
 SUITE = $(KERNELS_BIN) $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export \
-	$(BIN_DIR)/ownership_analysis
+	$(BIN_DIR)/ownership_analysis $(BIN_DIR)/edge_view_benchmark
 UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
-	test_shard_stream test_ownership_analysis
+	test_shard_stream test_ownership_analysis test_edge_primitives
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) converter all check-partition check-edge-contracts check-edge-contract-profiles run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) converter edge_view_benchmark all check-partition check-edge-contracts check-edge-contract-profiles check-edge-primitives run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 ownership_analysis: $(BIN_DIR)/ownership_analysis
+edge_view_benchmark: $(BIN_DIR)/edge_view_benchmark
 all: $(SUITE)
 
 check-edge-contracts:
@@ -112,6 +113,12 @@ check-edge-contracts:
 
 check-edge-contract-profiles: $(addprefix $(BIN_DIR)/,$(filter-out bfs_p tc_p,$(KERNELS)))
 	$(PYTHON) scripts/test/run_edge_gas_contract_profiles.py
+
+check-edge-primitives: $(TEST_BIN_DIR)/test_edge_primitives $(BIN_DIR)/edge_view_benchmark
+	@for threads in 1 2 4 8; do \
+		OMP_NUM_THREADS=$$threads $(TEST_BIN_DIR)/test_edge_primitives; \
+	done
+	@OMP_NUM_THREADS=4 $(BIN_DIR)/edge_view_benchmark -g 8 >/dev/null
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
 	@for test in $(UNIT_TESTS_BIN); do $$test; done

@@ -62,6 +62,34 @@ kernels through access hooks instead of copying algorithm bodies.
 - Work counters are informational; verifier-defined output is the cross-thread
   correctness gate.
 
+## Shared edge primitives
+
+`bench/include/graphbrew/edge/` provides the common CPU schedule layer:
+
+- source-major and destination-major flat views preserve logical
+  `(source, destination)` edge identity;
+- non-owning `EdgeStream` views reject temporary flat graphs at compile time;
+- ordinal partitions cover every directed entry exactly once, while oriented
+  undirected iteration retains only `source < destination`;
+- `Frontier` combines sorted sparse IDs with a dense bit map;
+  `FrontierBuilder` atomically deduplicates parallel producers into
+  thread-local queues;
+- integer min/max/CAS helpers report whether an update won;
+- edge-map access policies are invoked concurrently and must be thread-safe.
+
+Run the primitive and thread-count checks with:
+
+```bash
+make check-edge-primitives
+```
+
+View construction is intentionally measured separately from algorithm trials:
+
+```bash
+make edge_view_benchmark
+OMP_NUM_THREADS=4 bench/bin/edge_view_benchmark -g 18
+```
+
 ## Literature
 
 - PowerGraph/GAS:
