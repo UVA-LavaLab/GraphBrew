@@ -52,8 +52,35 @@
       "graph_kind": "undirected_unweighted",
       "symmetrize": true
     },
+    "undirected_isolated": {
+      "path": "scripts/test/data/isolated.el",
+      "graph_kind": "undirected_unweighted",
+      "symmetrize": true
+    },
+    "undirected_path": {
+      "path": "scripts/test/data/path.el",
+      "graph_kind": "undirected_unweighted",
+      "symmetrize": true
+    },
+    "undirected_star": {
+      "path": "scripts/test/data/star.el",
+      "graph_kind": "undirected_unweighted",
+      "symmetrize": true
+    },
     "weighted_tiny": {
       "path": "scripts/test/data/weighted.wel",
+      "graph_kind": "directed_weighted"
+    },
+    "weighted_isolated": {
+      "path": "scripts/test/data/weighted_isolated.wel",
+      "graph_kind": "directed_weighted"
+    },
+    "weighted_path": {
+      "path": "scripts/test/data/weighted_path.wel",
+      "graph_kind": "directed_weighted"
+    },
+    "weighted_star": {
+      "path": "scripts/test/data/weighted_star.wel",
       "graph_kind": "directed_weighted"
     },
     "synthetic_undirected_scale8": {
@@ -89,11 +116,17 @@
       "profiles": [
         "directed_tiny",
         "undirected_tiny",
+        "undirected_isolated",
+        "undirected_path",
+        "undirected_star",
         "synthetic_undirected_scale8"
       ],
       "profile_args": {
         "directed_tiny": ["-r", "0"],
         "undirected_tiny": ["-r", "0"],
+        "undirected_isolated": ["-r", "0"],
+        "undirected_path": ["-r", "0"],
+        "undirected_star": ["-r", "0"],
         "synthetic_undirected_scale8": ["-r", "0"]
       },
       "source_pair_profile": "directed_tiny",
@@ -121,11 +154,17 @@
       "profiles": [
         "directed_tiny",
         "undirected_tiny",
+        "undirected_isolated",
+        "undirected_path",
+        "undirected_star",
         "synthetic_undirected_scale8"
       ],
       "profile_args": {
         "directed_tiny": ["-r", "0", "-i", "1"],
         "undirected_tiny": ["-r", "0", "-i", "1"],
+        "undirected_isolated": ["-r", "0", "-i", "1"],
+        "undirected_path": ["-r", "0", "-i", "1"],
+        "undirected_star": ["-r", "0", "-i", "1"],
         "synthetic_undirected_scale8": ["-r", "0", "-i", "1"]
       },
       "source_pair_profile": "directed_tiny",
@@ -158,6 +197,9 @@
       "profiles": [
         "undirected_tiny",
         "disconnected_tiny",
+        "undirected_isolated",
+        "undirected_path",
+        "undirected_star",
         "directed_tiny",
         "synthetic_undirected_scale8"
       ]
@@ -184,6 +226,9 @@
       "profiles": [
         "undirected_tiny",
         "disconnected_tiny",
+        "undirected_isolated",
+        "undirected_path",
+        "undirected_star",
         "directed_tiny",
         "synthetic_undirected_scale8"
       ]
@@ -215,12 +260,18 @@
         "directed_tiny",
         "directed_dangling",
         "undirected_tiny",
+        "undirected_isolated",
+        "undirected_path",
+        "undirected_star",
         "synthetic_undirected_scale8"
       ],
       "profile_args": {
         "directed_tiny": ["-i", "50"],
         "directed_dangling": ["-i", "50"],
         "undirected_tiny": ["-i", "50"],
+        "undirected_isolated": ["-i", "100"],
+        "undirected_path": ["-i", "50"],
+        "undirected_star": ["-i", "100"],
         "synthetic_undirected_scale8": ["-i", "50"]
       }
     },
@@ -247,12 +298,18 @@
         "directed_tiny",
         "directed_dangling",
         "undirected_tiny",
+        "undirected_isolated",
+        "undirected_path",
+        "undirected_star",
         "synthetic_undirected_scale8"
       ],
       "profile_args": {
         "directed_tiny": ["-i", "50"],
         "directed_dangling": ["-i", "50"],
         "undirected_tiny": ["-i", "50"],
+        "undirected_isolated": ["-i", "100"],
+        "undirected_path": ["-i", "50"],
+        "undirected_star": ["-i", "100"],
         "synthetic_undirected_scale8": ["-i", "50"]
       }
     },
@@ -281,10 +338,16 @@
       "smoke_profile": "weighted_tiny",
       "profiles": [
         "weighted_tiny",
+        "weighted_isolated",
+        "weighted_path",
+        "weighted_star",
         "synthetic_weighted_scale8"
       ],
       "profile_args": {
         "weighted_tiny": ["-r", "0", "-d", "2"],
+        "weighted_isolated": ["-r", "0", "-d", "2"],
+        "weighted_path": ["-r", "0", "-d", "2"],
+        "weighted_star": ["-r", "0", "-d", "2"],
         "synthetic_weighted_scale8": ["-r", "0", "-d", "2"]
       },
       "source_pair_profile": "weighted_tiny",
@@ -313,6 +376,9 @@
       "profiles": [
         "undirected_tiny",
         "disconnected_tiny",
+        "undirected_isolated",
+        "undirected_path",
+        "undirected_star",
         "synthetic_undirected_scale8"
       ]
     }
