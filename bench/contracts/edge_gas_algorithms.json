@@ -1,0 +1,282 @@
+{
+  "schema": "graphbrew.edge-gas-algorithms",
+  "canonical_source_root": "bench/src",
+  "simulator_source_root": "bench/src_sim",
+  "simulator_policy": "legacy_instrumented_forks_pending_shared_kernel_hooks",
+  "edge_variants": [
+    "bfs",
+    "bc",
+    "cc",
+    "cc_sv",
+    "pr",
+    "pr_spmv",
+    "sssp",
+    "tc"
+  ],
+  "gas_variants": [
+    "cc",
+    "pr",
+    "sssp"
+  ],
+  "test_profiles": {
+    "directed_tiny": {
+      "path": "scripts/test/data/tiny.el",
+      "graph_kind": "directed_unweighted"
+    },
+    "undirected_tiny": {
+      "path": "scripts/test/data/tiny.el",
+      "graph_kind": "undirected_unweighted",
+      "symmetrize": true
+    },
+    "disconnected_tiny": {
+      "path": "scripts/test/data/disconnected.el",
+      "graph_kind": "undirected_unweighted",
+      "symmetrize": true
+    },
+    "weighted_tiny": {
+      "path": "scripts/test/data/weighted.wel",
+      "graph_kind": "directed_weighted"
+    },
+    "synthetic_undirected_scale8": {
+      "generator_scale": 8,
+      "graph_kind": "undirected_unweighted",
+      "symmetrize": true
+    },
+    "synthetic_weighted_scale8": {
+      "generator_scale": 8,
+      "graph_kind": "undirected_weighted"
+    }
+  },
+  "algorithms": [
+    {
+      "name": "bfs",
+      "source": "bench/src/bfs.cc",
+      "simulator_source": "bench/src_sim/bfs.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "Graph",
+      "verifier": "BFSVerifier",
+      "verifier_binding": "bound",
+      "source_picker_pair": true,
+      "direction": "directed",
+      "weighting": "unweighted",
+      "output": "parent_vector",
+      "equivalence": "valid_shortest_parent_tree",
+      "convergence": "frontier_empty",
+      "edge_schedule": "direction_optimized_sparse_push_dense_pull",
+      "gas": "not_natural",
+      "smoke_profile": "directed_tiny",
+      "profiles": [
+        "directed_tiny",
+        "undirected_tiny",
+        "synthetic_undirected_scale8"
+      ],
+      "profile_args": {
+        "directed_tiny": ["-r", "0"],
+        "undirected_tiny": ["-r", "0"],
+        "synthetic_undirected_scale8": ["-r", "0"]
+      },
+      "source_pair_profile": "directed_tiny",
+      "source_pair_trials": 2
+    },
+    {
+      "name": "bc",
+      "source": "bench/src/bc.cc",
+      "simulator_source": "bench/src_sim/bc.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "Graph",
+      "verifier": "BCVerifier",
+      "verifier_binding": "bound",
+      "source_picker_pair": true,
+      "direction": "directed",
+      "weighting": "unweighted",
+      "output": "normalized_score_vector",
+      "equivalence": "serial_brandes_float_epsilon",
+      "convergence": "forward_bfs_then_reverse_depth_pass",
+      "edge_schedule": "frontier_forward_ordered_successor_gather_backward",
+      "gas": "not_natural",
+      "smoke_profile": "directed_tiny",
+      "profiles": [
+        "directed_tiny",
+        "undirected_tiny",
+        "synthetic_undirected_scale8"
+      ],
+      "profile_args": {
+        "directed_tiny": ["-r", "0", "-i", "1"],
+        "undirected_tiny": ["-r", "0", "-i", "1"],
+        "synthetic_undirected_scale8": ["-r", "0", "-i", "1"]
+      },
+      "source_pair_profile": "directed_tiny",
+      "source_pair_trials": 2,
+      "source_pair_args": ["-i", "1"]
+    },
+    {
+      "name": "cc",
+      "source": "bench/src/cc.cc",
+      "simulator_source": "bench/src_sim/cc.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "Graph",
+      "verifier": "CCVerifier",
+      "verifier_binding": "direct",
+      "source_picker_pair": false,
+      "direction": "weakly_connected",
+      "weighting": "unweighted",
+      "output": "component_label_vector",
+      "equivalence": "partition_equivalent",
+      "convergence": "afforest_sampling_link_and_compress",
+      "edge_schedule": "sampled_union_find_edge_link",
+      "gas": "natural_optional",
+      "smoke_profile": "disconnected_tiny",
+      "profiles": [
+        "undirected_tiny",
+        "disconnected_tiny",
+        "directed_tiny",
+        "synthetic_undirected_scale8"
+      ]
+    },
+    {
+      "name": "cc_sv",
+      "source": "bench/src/cc_sv.cc",
+      "simulator_source": "bench/src_sim/cc_sv.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "Graph",
+      "verifier": "CCVerifier",
+      "verifier_binding": "direct",
+      "source_picker_pair": false,
+      "direction": "weakly_connected",
+      "weighting": "unweighted",
+      "output": "component_label_vector",
+      "equivalence": "partition_equivalent",
+      "convergence": "no_hook_change_after_pointer_jumping",
+      "edge_schedule": "atomic_monotone_hook_then_vertex_shortcut",
+      "gas": "covered_by_cc_gas",
+      "smoke_profile": "disconnected_tiny",
+      "profiles": [
+        "undirected_tiny",
+        "disconnected_tiny",
+        "directed_tiny",
+        "synthetic_undirected_scale8"
+      ]
+    },
+    {
+      "name": "pr",
+      "source": "bench/src/pr.cc",
+      "simulator_source": "bench/src_sim/pr.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "Graph",
+      "verifier": "PRVerifier",
+      "verifier_binding": "bound",
+      "source_picker_pair": false,
+      "direction": "incoming_pull",
+      "weighting": "unweighted",
+      "output": "pagerank_score_vector",
+      "equivalence": "residual_below_cli_tolerance",
+      "convergence": "l1_error_below_tolerance_or_max_iters",
+      "edge_schedule": "incoming_edge_gather_with_explicit_sync_policy",
+      "gas": "natural",
+      "smoke_profile": "directed_tiny",
+      "profiles": [
+        "directed_tiny",
+        "undirected_tiny",
+        "synthetic_undirected_scale8"
+      ],
+      "profile_args": {
+        "directed_tiny": ["-i", "50"],
+        "undirected_tiny": ["-i", "50"],
+        "synthetic_undirected_scale8": ["-i", "50"]
+      }
+    },
+    {
+      "name": "pr_spmv",
+      "source": "bench/src/pr_spmv.cc",
+      "simulator_source": "bench/src_sim/pr_spmv.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "Graph",
+      "verifier": "PRVerifier",
+      "verifier_binding": "bound",
+      "source_picker_pair": false,
+      "direction": "incoming_pull",
+      "weighting": "unweighted",
+      "output": "pagerank_score_vector",
+      "equivalence": "residual_below_cli_tolerance",
+      "convergence": "jacobi_l1_error_below_tolerance_or_max_iters",
+      "edge_schedule": "deterministic_incoming_segmented_gather",
+      "gas": "degenerate_no_separate_binary",
+      "smoke_profile": "directed_tiny",
+      "profiles": [
+        "directed_tiny",
+        "undirected_tiny",
+        "synthetic_undirected_scale8"
+      ],
+      "profile_args": {
+        "directed_tiny": ["-i", "50"],
+        "undirected_tiny": ["-i", "50"],
+        "synthetic_undirected_scale8": ["-i", "50"]
+      }
+    },
+    {
+      "name": "sssp",
+      "source": "bench/src/sssp.cc",
+      "simulator_source": "bench/src_sim/sssp.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "WGraph",
+      "verifier": "SSSPVerifier",
+      "verifier_binding": "bound",
+      "source_picker_pair": true,
+      "direction": "directed",
+      "weighting": "edge_weighted",
+      "output": "distance_vector",
+      "equivalence": "exact_distances",
+      "convergence": "delta_bucket_exhaustion",
+      "edge_schedule": "delta_stepping_active_bucket_relax",
+      "gas": "natural_but_not_optimized",
+      "smoke_profile": "weighted_tiny",
+      "profiles": [
+        "weighted_tiny",
+        "synthetic_weighted_scale8"
+      ],
+      "profile_args": {
+        "weighted_tiny": ["-r", "0", "-d", "2"],
+        "synthetic_weighted_scale8": ["-r", "0", "-d", "2"]
+      },
+      "source_pair_profile": "weighted_tiny",
+      "source_pair_trials": 2,
+      "source_pair_args": ["-d", "2"]
+    },
+    {
+      "name": "tc",
+      "source": "bench/src/tc.cc",
+      "simulator_source": "bench/src_sim/tc.cc",
+      "simulator_status": "not_contract_authority",
+      "graph_type": "Graph",
+      "verifier": "TCVerifier",
+      "verifier_binding": "direct",
+      "source_picker_pair": false,
+      "direction": "undirected_only",
+      "weighting": "unweighted",
+      "output": "triangle_count",
+      "equivalence": "exact_scalar",
+      "convergence": "one_shot",
+      "edge_schedule": "oriented_edge_sorted_adjacency_intersection",
+      "gas": "not_expressible_as_scalar_gas",
+      "smoke_profile": "undirected_tiny",
+      "profiles": [
+        "undirected_tiny",
+        "synthetic_undirected_scale8"
+      ]
+    }
+  ],
+  "specialized_consumers": [
+    {
+      "name": "bfs_p",
+      "source": "bench/src/bfs_p.cc",
+      "canonical_semantics": "bfs",
+      "role": "partitioned_consumer"
+    },
+    {
+      "name": "tc_p",
+      "source": "bench/src/tc_p.cc",
+      "canonical_semantics": "tc",
+      "role": "experimental_partitioned_consumer"
+    }
+  ]
+}

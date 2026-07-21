@@ -103,9 +103,15 @@ UNIT_TESTS = test_graph_partition test_partition_traffic test_shard_manifest \
 UNIT_TESTS_BIN = $(addprefix $(TEST_BIN_DIR)/,$(UNIT_TESTS))
 # =========================================================
 
-.PHONY: $(KERNELS) converter all check-partition run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
+.PHONY: $(KERNELS) converter all check-partition check-edge-contracts check-edge-contract-profiles run-% exp-% graph-% help-% install-py-deps help clean clean-all clean-results run-%-gdb run-%-sweep $(BIN_DIR)/% scrub-all
 ownership_analysis: $(BIN_DIR)/ownership_analysis
 all: $(SUITE)
+
+check-edge-contracts:
+	$(PYTHON) scripts/test/check_edge_gas_contracts.py
+
+check-edge-contract-profiles: $(addprefix $(BIN_DIR)/,$(filter-out bfs_p tc_p,$(KERNELS)))
+	$(PYTHON) scripts/test/run_edge_gas_contract_profiles.py
 
 check-partition: $(UNIT_TESTS_BIN) $(BIN_DIR)/bfs_p $(BIN_DIR)/converter $(BIN_DIR)/graph_shard_export
 	@for test in $(UNIT_TESTS_BIN); do $$test; done
