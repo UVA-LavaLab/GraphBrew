@@ -187,6 +187,34 @@ and validation tests with:
 make check-gas-runtime
 ```
 
+## Natural GAS baselines
+
+- `pr_gas` runs dense synchronous incoming Gather, damp/base Apply, and
+  residual Scatter activation. Dense scheduling remains authoritative, so the
+  Scatter pass is intentionally measured even though its frontier is
+  informational.
+- `cc_gas` performs active minimum-label propagation over a symmetric
+  weak-neighbor view. Directed graphs include both outgoing and incoming
+  neighbors; changed labels activate adjacent vertices.
+- `sssp_gas` is explicitly an active-set Bellman-Ford-class reference:
+  destinations gather `dist[source] + weight`, Apply min, and changed vertices
+  activate outgoing neighbors. Delta-Stepping remains the optimized edge
+  baseline; the accepted `-d` option is CLI compatibility and is not hidden
+  inside GAS.
+
+Run canonical/GAS verifier profiles and paired SSSP sources with:
+
+```bash
+make check-gas
+```
+
+The current matrix passes 48/48 GAS trials at OMP 1/2/4/8.
+
+There is no separate GAS binary for BFS (first-parent GAS is artificial), BC
+(forward and reverse phases differ), PR-SPMV (already the useful synchronous
+Gather/Apply core), TC (requires sorted two-list intersection), or `MEMCPY`
+(not a graph algorithm).
+
 ## Literature
 
 - PowerGraph/GAS:

@@ -36,6 +36,51 @@ struct NeighborTraits<Neighbor, Node, true> {
 };
 
 template <typename GraphT>
+auto FlattenWeaklyConnected(const GraphT &graph) {
+  using Node = std::remove_cv_t<std::remove_pointer_t<
+      decltype(graph.get_org_ids())>>;
+  const int64_t edge_count = graph.directed()
+      ? graph.num_edges_directed() * 2
+      : graph.num_edges_directed();
+  CSRGraphFlat<Node, Node, Node> flat(
+      graph.num_nodes(), edge_count);
+  for (Node vertex = 0; vertex < graph.num_nodes(); ++vertex) {
+    const Node degree = graph.directed()
+        ? static_cast<Node>(
+              graph.out_degree(vertex) + graph.in_degree(vertex))
+        : static_cast<Node>(graph.out_degree(vertex));
+    flat.degrees_.data[vertex] = degree;
+    flat.offsets_.data[vertex + 1] =
+        flat.offsets_.data[vertex] + degree;
+  }
+
+#pragma omp parallel for schedule(static)
+  for (Node vertex = 0; vertex < graph.num_nodes(); ++vertex) {
+    std::size_t edge = static_cast<std::size_t>(
+        flat.offsets_.data[vertex]);
+    for (const auto &neighbor : graph.out_neigh(vertex)) {
+      flat.neighbors_.data[edge] =
+          NeighborTraits<
+              std::decay_t<decltype(neighbor)>,
+              Node>::Vertex(neighbor);
+      flat.weights_.data[edge] = 1;
+      ++edge;
+    }
+    if (graph.directed()) {
+      for (const auto &neighbor : graph.in_neigh(vertex)) {
+        flat.neighbors_.data[edge] =
+            NeighborTraits<
+                std::decay_t<decltype(neighbor)>,
+                Node>::Vertex(neighbor);
+        flat.weights_.data[edge] = 1;
+        ++edge;
+      }
+    }
+  }
+  return flat;
+}
+
+template <typename GraphT>
 auto FlattenOutgoing(const GraphT &graph) {
   using Node = std::remove_cv_t<std::remove_pointer_t<
       decltype(graph.get_org_ids())>>;

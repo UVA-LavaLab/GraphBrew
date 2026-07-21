@@ -76,6 +76,10 @@ def main() -> int:
         "GAS variant set differs",
     )
     require(
+        set(contract.get("implemented_gas_variants", [])) == GAS,
+        "implemented GAS variant set differs",
+    )
+    require(
         contract.get("simulator_policy") ==
         "legacy_instrumented_forks_pending_shared_kernel_hooks",
         "simulator policy differs",
@@ -120,6 +124,8 @@ def main() -> int:
         )
         edge_binary = item.get("edge_binary")
         edge_source = item.get("edge_source")
+        gas_binary = item.get("gas_binary")
+        gas_source = item.get("gas_source")
         if name in IMPLEMENTED_EDGE:
             require(
                 edge_binary == f"{name}_edge",
@@ -134,6 +140,36 @@ def main() -> int:
             require(
                 edge_binary is None and edge_source is None,
                 f"{name}: unexpected implemented edge variant",
+            )
+        if name in GAS:
+            require(
+                gas_binary == f"{name}_gas",
+                f"{name}: GAS binary differs",
+            )
+            require(
+                isinstance(gas_source, str)
+                and (ROOT / gas_source).is_file(),
+                f"{name}: GAS source missing",
+            )
+            require(
+                isinstance(item.get("gas_convergence"), str)
+                and item["gas_convergence"],
+                f"{name}: GAS convergence missing",
+            )
+            require(
+                isinstance(item.get("gas_schedule"), str)
+                and item["gas_schedule"],
+                f"{name}: GAS schedule missing",
+            )
+        else:
+            require(
+                gas_binary is None and gas_source is None,
+                f"{name}: unexpected implemented GAS variant",
+            )
+            require(
+                item.get("gas_convergence") is None
+                and item.get("gas_schedule") is None,
+                f"{name}: unexpected GAS execution contract",
             )
         require(
             item.get("direction") in GRAPH_DIRECTIONS,
@@ -318,6 +354,11 @@ def main() -> int:
         {f"{name}_edge" for name in IRREGULAR_EDGE} ==
         make_words("IRREGULAR_EDGE_KERNELS", makefile),
         "Makefile irregular edge kernels differ",
+    )
+    require(
+        {f"{name}_gas" for name in GAS} ==
+        make_words("GAS_KERNELS", makefile),
+        "Makefile GAS kernels differ",
     )
     require(
         CANONICAL == make_words("KERNELS_SIM", makefile),

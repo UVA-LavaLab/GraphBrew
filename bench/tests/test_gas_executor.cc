@@ -65,10 +65,21 @@ Graph MakeRingGraph(const NodeID vertices) {
 
 struct CountingAccessPolicy {
   std::atomic<std::size_t> edges{0};
+  std::atomic<std::size_t> vertices{0};
+  std::atomic<std::size_t> barriers{0};
 
   template <typename EdgeT>
   void OnEdge(const EdgeT &) {
     edges.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  template <typename Node>
+  void OnVertex(Node, graphbrew::edge::AccessKind) {
+    vertices.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  void OnBarrier(std::size_t) {
+    barriers.fetch_add(1, std::memory_order_relaxed);
   }
 };
 
@@ -235,6 +246,12 @@ void TestDenseAndActiveSchedules() {
   Require(
       access.edges.load(std::memory_order_relaxed) == 12,
       "dense GAS hook count differs");
+  Require(
+      access.vertices.load(std::memory_order_relaxed) == 27,
+      "dense GAS vertex hook count differs");
+  Require(
+      access.barriers.load(std::memory_order_relaxed) == 2,
+      "dense GAS barrier hook count differs");
 
   for (std::size_t index = 0; index < state.size(); ++index)
     state[index] = initial[index];
@@ -259,6 +276,12 @@ void TestDenseAndActiveSchedules() {
   Require(
       access.edges.load(std::memory_order_relaxed) == 15,
       "active GAS hook count differs");
+  Require(
+      access.vertices.load(std::memory_order_relaxed) == 33,
+      "active GAS vertex hook count differs");
+  Require(
+      access.barriers.load(std::memory_order_relaxed) == 4,
+      "active GAS barrier hook count differs");
 }
 
 void TestStoredGatherOrder() {
