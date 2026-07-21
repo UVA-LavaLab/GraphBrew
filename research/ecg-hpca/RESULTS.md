@@ -245,71 +245,64 @@ The rank statistic is frozen in
 `sampled_crosssim_rank_correlation.csv` using mean per-cell Spearman over all
 eight policies and effective LLC misses.
 
-### Corrected sampled Sniper all-kernel timing
+### Final compact sampled Sniper all-kernel timing
 
-The corrected Sniper-only rerun contains 120 valid rows: three deterministic
-samples x PR/BFS/SSSP/BC/CC x eight policies. The strict coverage gate passes
-and every graph/kernel group is hash-consistent.
+The post-scope Sniper-only rerun contains 120 valid rows: three deterministic
+samples x PR/BFS/SSSP/BC/CC x eight policies. Strict invariants pass: every
+group is hash-consistent, every LLC is exercised, BC records
+`depth,path_counts`, and compact weighted SSSP replaces the original edge with
+one 8-byte K2 record.
 
 Geomean across all 15 graph/kernel cells versus LRU:
 
 | Policy | Speedup | TPI speedup | Instruction ratio | Effective L3-miss reduction |
 |---|---:|---:|---:|---:|
-| SRRIP | 1.029x | 1.029x | 1.000x | 3.51% |
-| GRASP | 1.100x | 1.100x | 1.000x | **15.19%** |
-| charged P-OPT | 1.080x | 1.080x | 1.000x | -19.18% |
-| K2 | 1.279x | 1.187x | 0.928x | 1.31% |
-| K2-online | 1.281x | 1.189x | 0.928x | 0.61% |
-| K2+StreamShield | **1.288x** | **1.195x** | 0.928x | 1.85% |
-| K2-online+StreamShield | 1.282x | 1.190x | 0.928x | 1.80% |
+| SRRIP | 1.029x | 1.029x | 1.000x | 3.46% |
+| GRASP | 1.100x | 1.100x | 1.000x | **15.05%** |
+| charged P-OPT | 1.082x | 1.082x | 1.000x | -18.55% |
+| K2 | 1.326x | 1.169x | 0.881x | 5.30% |
+| K2-online | 1.320x | 1.163x | 0.881x | 3.74% |
+| K2+StreamShield | 1.327x | 1.169x | 0.881x | **5.89%** |
+| K2-online+StreamShield | **1.329x** | **1.171x** | 0.881x | 4.72% |
 
 K2-online+StreamShield kernel geomean:
 
 | Kernel | Speedup vs LRU | vs GRASP | vs charged P-OPT | Effective miss reduction vs LRU |
 |---|---:|---:|---:|---:|
-| PR | **1.790x** | 1.592x | 1.519x | 17.18% |
-| BFS | **1.667x** | 1.512x | 1.533x | 4.66% |
-| SSSP | **0.966x** | 0.872x | 0.866x | -18.68% |
-| BC | **1.074x** | 1.057x | 1.078x | 5.13% |
-| CC | 1.120x | 0.969x | 1.089x | -2.73% |
+| PR | **1.792x** | 1.600x | 1.526x | 16.51% |
+| BFS | **1.675x** | 1.523x | 1.546x | 4.07% |
+| SSSP | **1.145x** | 1.034x | 1.024x | 3.30% |
+| BC | **1.082x** | 1.058x | 1.065x | 4.64% |
+| CC | 1.115x | 0.968x | 1.089x | -6.31% |
 
 The four K2 variants collectively win 9/15 timing cells, GRASP wins 4/15, and
-SRRIP/P-OPT win one each. The K2 wins split across static K2+StreamShield (5),
-online K2+StreamShield (3), and online K2 (1). Surgically removing disabled fused-delivery branches
-raises K2-online+StreamShield from 1.143x to 1.282x overall and reduces its
-instruction ratio from 1.090x to 0.928x. Static K2+StreamShield is the best
-overall variant at 1.288x.
+SRRIP/P-OPT win one each. The K2 wins split across online K2+StreamShield (5),
+static K2+StreamShield (3), and online K2 (1). Relative to the surgical
+sidecar matrix, compact delivery raises K2-online+StreamShield from 1.282x to
+1.329x overall, reduces its instruction ratio from 0.928x to 0.881x, raises
+SSSP from 0.966x to 1.145x, and raises BC from 1.074x to 1.082x.
 
-Weighted SSSP remains improved from the pre-sidecar 0.642x to 0.966x versus LRU.
-Its 12-byte path
-(8-byte weighted edge + 4-byte sidecar) still carries a 1.314x SSSP instruction
-ratio; a 1.270x per-instruction TPI improvement nearly repays that cost. It
-regresses on all three SSSP samples and remains slower than GRASP and P-OPT;
-this is the remaining systematic transport gap.
+Compact weighted SSSP now has a 1.015x instruction ratio and wins in geomean:
+1.145x versus LRU, 1.034x versus GRASP, and 1.024x versus charged P-OPT. The
+result remains heterogeneous: web-Google wins strongly, soc-pokec beats LRU
+but narrowly trails GRASP/P-OPT, and cit-Patents remains a substantial loss.
 
-The shortest web-Google BFS cell remains unusually strong at 2.315x, versus
-1.173x on cit-Patents and 1.705x on soc-pokec. However, excluding that cell
-leaves K2-online+StreamShield at 1.229x overall versus GRASP at 1.108x, so the
+The shortest web-Google BFS cell remains unusually strong at 2.361x, versus
+1.163x on cit-Patents and 1.713x on soc-pokec. However, excluding that cell
+leaves K2-online+StreamShield at 1.276x overall versus GRASP at 1.107x, so the
 new overall ordering survives this single-cell exclusion. Sniper assigns the full CPI stack to `unknown`,
 so the TPI gains cannot be decomposed into LLC, DRAM, or pipeline components.
 
 The effective-miss column charges P-OPT's matrix stream as additional cache-line
 fills, which dominates small working sets. K2 now executes fewer instructions
-than LRU overall; weighted SSSP is the sole large instruction-overhead kernel.
+than LRU overall; compact weighted SSSP is near baseline instruction count.
 
-The supported scope is therefore strong PR/BFS, positive BC, and a robust
-sampled overall win. CC beats LRU and P-OPT but remains slightly behind GRASP;
-weighted SSSP remains the only broad regression.
-
-Post-authority load-coverage diagnostics replace eligible weighted SSSP edges
-(`N <= 2^24`, weights in `[1,255]`) with one compact 8-byte K2 record. Static
-K2+StreamShield across the three SSSP samples reaches 1.166x versus LRU, 1.051x
-versus GRASP, and 1.028x versus charged P-OPT, with a 1.015x instruction ratio.
-Per graph it wins on web-Google/soc-pokec and loses cit-Patents; a full matrix
-rerun remains required before replacing the table above.
+The supported scope is therefore strong PR/BFS, positive sampled SSSP/BC, and
+a robust overall win. CC beats LRU and P-OPT but remains slightly behind
+GRASP; cit-Patents SSSP remains the principal negative cell.
 
 Aggregate: `results/ecg_experiments/paper_pipeline/`
-`ecg_sniper_sampled_allalg_surgical_final_20260720/aggregate/`.
+`ecg_sniper_sampled_allalg_compact_scope_final_20260721/aggregate/`.
 
 ### Fused sampled PageRank timing
 

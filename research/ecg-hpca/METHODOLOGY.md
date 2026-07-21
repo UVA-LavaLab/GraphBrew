@@ -153,17 +153,14 @@ and is not timing evidence. The historical
 Its P-OPT row charges reserved LLC capacity, while matrix-stream latency remains
 outside Sniper target time and is reported separately.
 
-The 120-row surgical Sniper rerun at
-`ecg_sniper_sampled_allalg_surgical_final_20260720` is the sampled all-kernel
-timing authority. It preserves the same graph/kernel/policy cells, uses the
-canonical 4-byte weighted sidecar, and removes disabled fused-delivery branches
-from no-trace PR/BFS/BC/CC loops.
-
-Subsequent BC path-count, SSSP source-load, and CC phase-clear corrections are
-mechanism-validated but postdate that matrix. Their focused timing probes remain
-diagnostic until the full matrix rerun completes. The compact weighted SSSP
-format replaces eligible 8-byte weighted edges rather than adding a sidecar;
-the 12-byte general fallback remains available and validated.
+The 120-row post-scope Sniper rerun at
+`ecg_sniper_sampled_allalg_compact_scope_final_20260721` is the sampled
+all-kernel timing authority. It combines the surgical no-trace loops, BC
+`depth,path_counts` scope, SSSP source-load isolation, CC phase clears, and the
+compact weighted SSSP record. Every BC row records the corrected governed
+regions, and every eligible SSSP K2 row reports one 8-byte replacement record.
+The 12-byte general weighted fallback remains available and validated. The
+earlier surgical matrix is historical attribution evidence.
 
 All aggregate ratios use the geometric mean across the applicable graph/kernel
 cells. P-OPT and K2 overheads appear in different columns by construction:

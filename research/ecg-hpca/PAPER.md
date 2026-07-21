@@ -92,13 +92,13 @@ The earlier sampled PageRank profile isolates the fused-stream tradeoff, but its
 pre-surgical timing is superseded by the current all-kernel matrix.
 
 The corrected 120-row sampled Sniper timing matrix broadens that result. The
-complete mechanism reaches 1.790x on PR, 1.667x on BFS, 1.074x on BC, and
-1.120x on CC versus LRU. The 4-byte weighted sidecar leaves SSSP near neutral at
-0.966x. K2-online+StreamShield reaches 1.282x overall and static
-K2+StreamShield reaches 1.288x, versus GRASP at 1.100x. The ordering remains
-after excluding the shortest BFS cell (1.229x versus 1.108x). Weighted SSSP
-regresses on all three samples and still trails GRASP and P-OPT; the CPI stack
-cannot be decomposed beyond total ticks per instruction.
+complete mechanism reaches 1.792x on PR, 1.675x on BFS, 1.145x on SSSP,
+1.082x on BC, and 1.115x on CC versus LRU. K2-online+StreamShield reaches
+1.329x overall, versus GRASP at 1.100x and charged P-OPT at 1.082x. The
+ordering remains after excluding the shortest BFS cell (1.276x versus 1.107x).
+Compact SSSP wins in geomean but remains graph-sensitive: cit-Patents still
+loses substantially. The CPI stack cannot be decomposed beyond total ticks per
+instruction.
 
 The full-graph warm-SIFT queue blocker is resolved: matched web-Google LRU and
 K2 100K probes reach ROI with normal cache warming. The 600M matrix remains a

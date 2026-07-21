@@ -275,7 +275,7 @@ compact weighted record when eligible. Compact SSSP rows must report
 `graph_edge_bytes=8`, `ecg_record_bytes=8`,
 `edge_stream_bytes_per_edge=8`, and `ecg_record_replaces_edge=1`. General
 fallback rows retain the 8+4=12-byte provenance. Do not merge focused probes
-into the frozen matrix; rerun all 120 rows.
+into historical matrices.
 
 Canonical BC rows must additionally report
 `property_regions=scores,depth,path_counts,deltas` and
@@ -283,10 +283,15 @@ Canonical BC rows must additionally report
 `ecg_{sniper,gem5}_sampled_allalg_compact_final_20260721` partial runs: their
 completed rows predate the multi-region runner fix and govern only `depth`.
 
-Weighted SSSP rows must report `graph_edge_bytes=8`, `ecg_record_bytes=4`, and
-`edge_stream_bytes_per_edge=12`. gem5 loads the sidecar normally or with
-`ecg.stream.wload2`, then carries the reconstructed K2 mask on the property
-load. Sniper reports `fused-k2-weighted32-model`.
+The completed sampled Sniper authority is
+`results/ecg_experiments/paper_pipeline/`
+`ecg_sniper_sampled_allalg_compact_scope_final_20260721/aggregate/`
+with 120/120 valid rows.
+
+General-fallback weighted SSSP rows must report `graph_edge_bytes=8`,
+`ecg_record_bytes=4`, and `edge_stream_bytes_per_edge=12`. gem5 loads the
+sidecar normally or with `ecg.stream.wload2`, then carries the reconstructed K2
+mask on the property load. Sniper reports `fused-k2-weighted32-model`.
 
 ### Paper-faithful full-graph Sniper ROI
 

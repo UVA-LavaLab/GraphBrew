@@ -66,14 +66,15 @@
   normal warming and context delivery. It finishes the full iteration before
   the cap at 179.4M reported instructions; the row is cache evidence only.
 - The corrected 120-row sampled Sniper timing matrix passes strict coverage.
-  K2-online+StreamShield reaches 1.790x on PR, 1.667x on BFS, 1.074x on BC,
-  and 1.120x on CC versus LRU; weighted SSSP reaches 0.966x. Final sampled
-  geomean is 1.282x versus LRU, ahead of GRASP's 1.100x.
-- The current runtime scope is strong PR/BFS, positive BC, and a sampled
-  overall win that survives removal of the shortest BFS cell. That exclusion leaves 1.229x for
-  K2-online+StreamShield versus 1.108x for GRASP. Weighted SSSP remains the only
-  broad regression across all three samples, and CC remains slightly behind GRASP. Sniper's CPI
-  components remain unavailable beyond total ticks per instruction.
+  K2-online+StreamShield reaches 1.792x on PR, 1.675x on BFS, 1.145x on SSSP,
+  1.082x on BC, and 1.115x on CC versus LRU. Final sampled geomean is 1.329x,
+  ahead of GRASP's 1.100x and charged P-OPT's 1.082x.
+- The current runtime scope is strong PR/BFS, positive sampled SSSP/BC, and a
+  sampled overall win that survives removal of the shortest BFS cell. That
+  exclusion leaves 1.276x for K2-online+StreamShield versus 1.107x for GRASP.
+  Cit-Patents SSSP remains the principal negative cell, and CC remains slightly
+  behind GRASP. Sniper's CPI components remain unavailable beyond total ticks
+  per instruction.
 
 ## Pending
 
@@ -85,8 +86,8 @@
 - Detailed-simulator confirmation of the real-graph online-selector result.
 - Completion and aggregation of the now-runnable full-graph 600M SIFT matrix.
 - An optional zero-record GRASP ablation to isolate mask-stream cost; it is not
-  required for masked-load correctness. Weighted SSSP still trails GRASP despite
-  the 4-byte sidecar.
+  required for masked-load correctness. Cit-Patents SSSP still trails GRASP
+  despite the compact replacement record.
 
 ## Prohibited until the pending gate passes
 
