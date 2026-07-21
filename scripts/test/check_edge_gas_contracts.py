@@ -16,6 +16,7 @@ CANONICAL = {
     "bfs", "bc", "cc", "cc_sv", "pr", "pr_spmv", "sssp", "tc",
 }
 GAS = {"cc", "pr", "sssp"}
+IMPLEMENTED_EDGE = {"cc", "cc_sv", "pr", "pr_spmv"}
 SPECIALIZED = {"bfs_p", "tc_p"}
 GRAPH_DIRECTIONS = {
     "directed", "incoming_pull", "weakly_connected", "undirected_only",
@@ -61,6 +62,11 @@ def main() -> int:
     require(
         set(contract.get("edge_variants", [])) == CANONICAL,
         "edge variant set differs",
+    )
+    require(
+        set(contract.get("implemented_edge_variants", [])) ==
+        IMPLEMENTED_EDGE,
+        "implemented edge variant set differs",
     )
     require(
         set(contract.get("gas_variants", [])) == GAS,
@@ -109,6 +115,23 @@ def main() -> int:
             item.get("simulator_status") == "not_contract_authority",
             f"{name}: simulator status differs",
         )
+        edge_binary = item.get("edge_binary")
+        edge_source = item.get("edge_source")
+        if name in IMPLEMENTED_EDGE:
+            require(
+                edge_binary == f"{name}_edge",
+                f"{name}: edge binary differs",
+            )
+            require(
+                isinstance(edge_source, str)
+                and (ROOT / edge_source).is_file(),
+                f"{name}: edge source missing",
+            )
+        else:
+            require(
+                edge_binary is None and edge_source is None,
+                f"{name}: unexpected implemented edge variant",
+            )
         require(
             item.get("direction") in GRAPH_DIRECTIONS,
             f"{name}: invalid direction contract",
@@ -279,6 +302,11 @@ def main() -> int:
         "Makefile KERNELS omits canonical or specialized algorithms",
     )
     require(
+        {f"{name}_edge" for name in IMPLEMENTED_EDGE} ==
+        make_words("DENSE_EDGE_KERNELS", makefile),
+        "Makefile dense edge kernels differ",
+    )
+    require(
         CANONICAL == make_words("KERNELS_SIM", makefile),
         "Makefile KERNELS_SIM must match canonical algorithms",
     )
@@ -293,7 +321,8 @@ def main() -> int:
 
     print(
         "edge-gas-contract-check: PASS "
-        "(8 edge algorithms; 3 natural GAS algorithms; "
+        "(8 planned edge algorithms; 4 implemented edge algorithms; "
+        "3 natural GAS algorithms; "
         "2 specialized consumers)"
     )
     return 0

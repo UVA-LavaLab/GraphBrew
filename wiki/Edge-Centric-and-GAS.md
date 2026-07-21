@@ -90,6 +90,36 @@ make edge_view_benchmark
 OMP_NUM_THREADS=4 bench/bin/edge_view_benchmark -g 18
 ```
 
+## Dense iterative edge baselines
+
+The first four edge binaries share algorithm headers under
+`bench/include/graphbrew/algorithms/`:
+
+- `pr_spmv_edge` is synchronous Jacobi PageRank. Each iteration freezes
+  outgoing contributions, then performs destination-owned incoming gathers in
+  stored edge order.
+- `pr_edge` is an explicitly asynchronous destination-owned PageRank schedule.
+  Cross-owner contributions use atomic floats, so immediate visibility is
+  data-race-free. Iteration counts may differ by thread count; the existing
+  residual verifier is the semantic gate.
+- `cc_edge` preserves Afforest neighbor sampling, skips proven sampled prefixes,
+  then performs edge-balanced atomic union. Directed edges connect endpoints
+  for weak connectivity; symmetric graphs use one oriented edge.
+- `cc_sv_edge` performs CAS-safe monotone root hooking followed by atomic
+  shortcutting.
+
+All flat views are built before `BenchmarkKernel`, so trial timing excludes
+representation conversion. The paired matrix runs every declared profile,
+including directed, disconnected, synthetic, and dangling-vertex cases,
+against the canonical binary and the edge binary at OMP 1/2/4/8:
+
+```bash
+make check-edge-dense
+```
+
+The matrix gates verifier-defined output. It does not require equal PageRank
+iterations or bit-identical asynchronous scores.
+
 ## Literature
 
 - PowerGraph/GAS:
