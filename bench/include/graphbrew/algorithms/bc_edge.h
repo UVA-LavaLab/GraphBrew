@@ -44,6 +44,7 @@ void BCForwardEdge(
   levels.push_back(frontier.sparse());
   NodeID next_depth = 1;
   while (!frontier.empty()) {
+    builder.PrepareForParallel();
     const auto &active = frontier.sparse();
 #pragma omp parallel for schedule(dynamic, 64)
     for (std::size_t index = 0; index < active.size(); ++index) {

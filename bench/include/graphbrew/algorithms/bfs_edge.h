@@ -25,6 +25,7 @@ std::pair<int64_t, edge::Frontier<NodeID>> BFSSparsePush(
     pvector<NodeID> &parent,
     edge::FrontierBuilder<NodeID> &builder,
     AccessPolicy &access_policy) {
+  builder.PrepareForParallel();
   int64_t scout_count = 0;
   const auto &active = frontier.sparse();
 #pragma omp parallel for schedule(dynamic, 64) reduction(+ : scout_count)
@@ -58,6 +59,7 @@ std::pair<int64_t, edge::Frontier<NodeID>> BFSDensePull(
     pvector<NodeID> &parent,
     edge::FrontierBuilder<NodeID> &builder,
     AccessPolicy &access_policy) {
+  builder.PrepareForParallel();
   const auto partitions = edge::PartitionSegments(
       incoming, edge::EdgeWorkerCount());
   int64_t awake_count = 0;

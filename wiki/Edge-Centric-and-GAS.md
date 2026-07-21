@@ -163,6 +163,30 @@ make check-edge-irregular
 
 The current matrix passes 32/32 verifier-backed edge trials at OMP 1/2/4/8.
 
+## Reusable GAS executor
+
+`bench/include/graphbrew/gas/executor.h` defines synchronous supersteps over
+destination-major Gather and source-major Scatter views:
+
+- Gather programs provide an identity, associative combine, and per-edge
+  contribution.
+- Apply returns the new state, changed flag, and convergence contribution.
+- Scatter cannot mutate graph/state; it only requests destination activation.
+- Dense mode applies every vertex and swaps a reusable next-state buffer.
+- Active mode touches only sorted active vertices and incident edges, scatters
+  before committing updates, and preserves inactive state in place.
+- Convergence combines in deterministic node/active order.
+- Program methods are const and must be reentrant because Gather/Apply/Scatter
+  execute concurrently.
+
+Frontier builders adapt if the OpenMP team grows between supersteps and retain a
+safe overflow path. Run synchronous, active-only, mixed-schedule, thread-growth,
+and validation tests with:
+
+```bash
+make check-gas-runtime
+```
+
 ## Literature
 
 - PowerGraph/GAS:

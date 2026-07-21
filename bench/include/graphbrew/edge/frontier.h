@@ -101,6 +101,19 @@ class FrontierBuilder {
         seen_((vertices + kBitsPerWord - 1) / kBitsPerWord, 0),
         local_(ThreadCount()) {}
 
+  void PrepareForParallel() {
+    if (!overflow_.empty() ||
+        std::any_of(
+            local_.begin(), local_.end(),
+            [](const auto &items) { return !items.empty(); })) {
+      throw std::logic_error(
+          "frontier builder has unfinished parallel output");
+    }
+    const std::size_t threads = ThreadCount();
+    if (threads > local_.size())
+      local_.resize(threads);
+  }
+
   bool Push(const Node vertex) {
     Check(vertex);
     const std::size_t index = static_cast<std::size_t>(vertex);
@@ -116,7 +129,15 @@ class FrontierBuilder {
 #endif
     if ((previous & mask) != 0)
       return false;
-    local_[ThreadId()].push_back(vertex);
+    const std::size_t thread = ThreadId();
+    if (thread < local_.size()) {
+      local_[thread].push_back(vertex);
+    } else {
+#ifdef _OPENMP
+#pragma omp critical(graphbrew_frontier_builder_overflow)
+#endif
+      overflow_.push_back(vertex);
+    }
     return true;
   }
 
@@ -125,9 +146,12 @@ class FrontierBuilder {
     std::size_t total = 0;
     for (const auto &items : local_)
       total += items.size();
+    total += overflow_.size();
     merged.reserve(total);
     for (const auto &items : local_)
       merged.insert(merged.end(), items.begin(), items.end());
+    merged.insert(
+        merged.end(), overflow_.begin(), overflow_.end());
 
     std::size_t log_active = 1;
     for (std::size_t value = total; value > 1; value >>= 1)
@@ -154,6 +178,7 @@ class FrontierBuilder {
     }
     for (auto &items : local_)
       items.clear();
+    overflow_.clear();
     return frontier;
   }
 
@@ -173,13 +198,9 @@ class FrontierBuilder {
 #endif
   }
 
-  std::size_t ThreadId() const {
+  static std::size_t ThreadId() {
 #ifdef _OPENMP
-    const std::size_t thread =
-        static_cast<std::size_t>(omp_get_thread_num());
-    if (thread >= local_.size())
-      throw std::out_of_range("frontier thread index out of range");
-    return thread;
+    return static_cast<std::size_t>(omp_get_thread_num());
 #else
     return 0;
 #endif
@@ -189,6 +210,7 @@ class FrontierBuilder {
   std::size_t vertices_;
   std::vector<std::uint64_t> seen_;
   std::vector<std::vector<Node>> local_;
+  std::vector<Node> overflow_;
 };
 
 }  // namespace graphbrew::edge
