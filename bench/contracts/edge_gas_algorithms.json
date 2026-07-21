@@ -13,6 +13,12 @@
     "sssp",
     "tc"
   ],
+  "implemented_edge_variants": [
+    "cc",
+    "cc_sv",
+    "pr",
+    "pr_spmv"
+  ],
   "gas_variants": [
     "cc",
     "pr",
@@ -21,6 +27,10 @@
   "test_profiles": {
     "directed_tiny": {
       "path": "scripts/test/data/tiny.el",
+      "graph_kind": "directed_unweighted"
+    },
+    "directed_dangling": {
+      "path": "scripts/test/data/dangling.el",
       "graph_kind": "directed_unweighted"
     },
     "undirected_tiny": {
@@ -112,6 +122,8 @@
     {
       "name": "cc",
       "source": "bench/src/cc.cc",
+      "edge_binary": "cc_edge",
+      "edge_source": "bench/src/cc_edge.cc",
       "simulator_source": "bench/src_sim/cc.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -136,6 +148,8 @@
     {
       "name": "cc_sv",
       "source": "bench/src/cc_sv.cc",
+      "edge_binary": "cc_sv_edge",
+      "edge_source": "bench/src/cc_sv_edge.cc",
       "simulator_source": "bench/src_sim/cc_sv.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -160,6 +174,8 @@
     {
       "name": "pr",
       "source": "bench/src/pr.cc",
+      "edge_binary": "pr_edge",
+      "edge_source": "bench/src/pr_edge.cc",
       "simulator_source": "bench/src_sim/pr.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -176,11 +192,13 @@
       "smoke_profile": "directed_tiny",
       "profiles": [
         "directed_tiny",
+        "directed_dangling",
         "undirected_tiny",
         "synthetic_undirected_scale8"
       ],
       "profile_args": {
         "directed_tiny": ["-i", "50"],
+        "directed_dangling": ["-i", "50"],
         "undirected_tiny": ["-i", "50"],
         "synthetic_undirected_scale8": ["-i", "50"]
       }
@@ -188,6 +206,8 @@
     {
       "name": "pr_spmv",
       "source": "bench/src/pr_spmv.cc",
+      "edge_binary": "pr_spmv_edge",
+      "edge_source": "bench/src/pr_spmv_edge.cc",
       "simulator_source": "bench/src_sim/pr_spmv.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -204,11 +224,13 @@
       "smoke_profile": "directed_tiny",
       "profiles": [
         "directed_tiny",
+        "directed_dangling",
         "undirected_tiny",
         "synthetic_undirected_scale8"
       ],
       "profile_args": {
         "directed_tiny": ["-i", "50"],
+        "directed_dangling": ["-i", "50"],
         "undirected_tiny": ["-i", "50"],
         "synthetic_undirected_scale8": ["-i", "50"]
       }

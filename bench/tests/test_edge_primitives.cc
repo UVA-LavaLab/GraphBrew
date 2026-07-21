@@ -174,6 +174,38 @@ void TestDirectedAndIncomingStreams() {
   Require(
       segment_sizes == std::vector<std::size_t>{0, 1, 2, 2, 1},
       "incoming segment sizes differ");
+
+  for (std::size_t workers : {1u, 2u, 4u, 8u}) {
+    const auto partitions =
+        graphbrew::edge::PartitionSegments(incoming, workers);
+    std::vector<int> vertex_visits(graph.num_nodes(), 0);
+    std::size_t covered_edges = 0;
+    for (const auto &partition : partitions) {
+      Require(
+          partition.begin_edge ==
+              static_cast<std::size_t>(
+                  incoming.offsets_.data[partition.begin_vertex]),
+          "segment partition begin edge differs");
+      Require(
+          partition.end_edge ==
+              static_cast<std::size_t>(
+                  incoming.offsets_.data[partition.end_vertex]),
+          "segment partition end edge differs");
+      covered_edges += partition.end_edge - partition.begin_edge;
+      for (std::size_t vertex = partition.begin_vertex;
+           vertex < partition.end_vertex; ++vertex) {
+        ++vertex_visits[vertex];
+      }
+    }
+    Require(
+        covered_edges == in_stream.num_edges(),
+        "segment partitions miss edges");
+    Require(
+        std::all_of(
+            vertex_visits.begin(), vertex_visits.end(),
+            [](int count) { return count == 1; }),
+        "segment partitions miss or duplicate vertices");
+  }
 }
 
 void TestOrientedAndParallelStreams() {
@@ -294,6 +326,10 @@ void TestFrontierAndAtomics() {
   Require(
       graphbrew::edge::AtomicAssignIfEqual(value, 7, 9) && value == 9,
       "AtomicAssignIfEqual differs");
+  graphbrew::edge::AtomicStore(value, 11);
+  Require(
+      graphbrew::edge::AtomicLoad(value) == 11,
+      "AtomicStore differs");
 
   int maximum = -1;
   int claimed = -1;

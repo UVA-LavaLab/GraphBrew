@@ -27,6 +27,8 @@ docs/agent_*
 # Graph data files (edge lists, weighted edge lists, serialized graphs)
 *.el
 *.wel
+!scripts/test/data/*.el
+!scripts/test/data/*.wel
 *.sg
 *.mtx
 .wiki_publish
