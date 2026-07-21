@@ -18,7 +18,8 @@ CANONICAL = {
 GAS = {"cc", "pr", "sssp"}
 DENSE_EDGE = {"cc", "cc_sv", "pr", "pr_spmv"}
 FRONTIER_EDGE = {"bfs", "sssp"}
-IMPLEMENTED_EDGE = DENSE_EDGE | FRONTIER_EDGE
+IRREGULAR_EDGE = {"bc", "tc"}
+IMPLEMENTED_EDGE = DENSE_EDGE | FRONTIER_EDGE | IRREGULAR_EDGE
 SPECIALIZED = {"bfs_p", "tc_p"}
 GRAPH_DIRECTIONS = {
     "directed", "incoming_pull", "weakly_connected", "undirected_only",
@@ -314,6 +315,11 @@ def main() -> int:
         "Makefile frontier edge kernels differ",
     )
     require(
+        {f"{name}_edge" for name in IRREGULAR_EDGE} ==
+        make_words("IRREGULAR_EDGE_KERNELS", makefile),
+        "Makefile irregular edge kernels differ",
+    )
+    require(
         CANONICAL == make_words("KERNELS_SIM", makefile),
         "Makefile KERNELS_SIM must match canonical algorithms",
     )
@@ -328,7 +334,7 @@ def main() -> int:
 
     print(
         "edge-gas-contract-check: PASS "
-        "(8 planned edge algorithms; 6 implemented edge algorithms; "
+        "(8 planned edge algorithms; 8 implemented edge algorithms; "
         "3 natural GAS algorithms; "
         "2 specialized consumers)"
     )

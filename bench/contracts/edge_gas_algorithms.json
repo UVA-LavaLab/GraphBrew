@@ -14,12 +14,14 @@
     "tc"
   ],
   "implemented_edge_variants": [
+    "bc",
     "bfs",
     "cc",
     "cc_sv",
     "pr",
     "pr_spmv",
-    "sssp"
+    "sssp",
+    "tc"
   ],
   "gas_variants": [
     "cc",
@@ -95,6 +97,8 @@
     {
       "name": "bc",
       "source": "bench/src/bc.cc",
+      "edge_binary": "bc_edge",
+      "edge_source": "bench/src/bc_edge.cc",
       "simulator_source": "bench/src_sim/bc.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -273,6 +277,8 @@
     {
       "name": "tc",
       "source": "bench/src/tc.cc",
+      "edge_binary": "tc_edge",
+      "edge_source": "bench/src/tc_edge.cc",
       "simulator_source": "bench/src_sim/tc.cc",
       "simulator_status": "not_contract_authority",
       "graph_type": "Graph",
@@ -289,6 +295,7 @@
       "smoke_profile": "undirected_tiny",
       "profiles": [
         "undirected_tiny",
+        "disconnected_tiny",
         "synthetic_undirected_scale8"
       ]
     }
