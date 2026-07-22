@@ -537,6 +537,8 @@ def make_roi_job(
         "--ecg-epochs", str(settings.get("ecg_epochs", 65535)),
         "--ecg-epoch-pack-bits",
         str(settings.get("ecg_epoch_pack_bits", 64)),
+        "--ecg-isa-variant",
+        str(settings.get("ecg_isa_variant", "indexed")),
         "--cache-sim-omp-threads",
         str(settings.get("cache_sim_omp_threads", 1)),
     ]

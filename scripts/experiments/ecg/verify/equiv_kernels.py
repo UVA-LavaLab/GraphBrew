@@ -17,6 +17,7 @@ Usage:
   python3 scripts/experiments/ecg/verify/equiv_kernels.py --gem5 --sniper # full 3-sim (slow)
 """
 import argparse
+import csv
 import os
 import re
 import shutil
@@ -75,6 +76,7 @@ STREAM_PF_DEGREE = 0
 SCHEDULE_K = 0
 STREAM_BYPASS = False
 ADAPTIVE_STREAM_BYPASS = False
+GEM5_ISA_VARIANT = "indexed"
 
 
 def effective_variant(kernel):
@@ -167,7 +169,7 @@ def run_gem5(kernel):
     """gem5 <kernel> with ECG_GRASP_POPT + coverage geometry. Schedule-2 runs
     all five kernels on RISC-V through the request-bound K2 property load. The
     record/sidecar stream remains separate and may carry StreamShield."""
-    out = Path("/tmp") / f"equivk_gem5_{kernel}"
+    out = Path("/tmp") / f"equivk_gem5_{GEM5_ISA_VARIANT}_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
     if kernel in GEM5_RISCV_KERNELS:
         env = {**os.environ, "GEM5_OPT": str(GEM5_RISCV), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
@@ -192,6 +194,7 @@ def run_gem5(kernel):
             env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
+           "--ecg-isa-variant", GEM5_ISA_VARIANT,
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", "4kB", "--l3-ways", "8",
            "--l1d-size", "1kB", "--l2-size", "2kB", "--out-dir", str(out)]
     if STREAM_PF_DEGREE > 0:
@@ -256,18 +259,29 @@ def main(argv=None):
     ap.add_argument("--adaptive-stream-bypass", action="store_true",
                     help="duel LLC allocation versus StreamShield for eligible "
                          "K2 records (requires --stream-bypass).")
+    ap.add_argument(
+        "--gem5-isa-variant", choices=["indexed", "mask"], default="indexed",
+        help="gem5 K2 ISA variant; mask validates computed-address K2-M.")
     args = ap.parse_args(argv)
 
     global STREAM_PF_DEGREE, SCHEDULE_K, STREAM_BYPASS
-    global ADAPTIVE_STREAM_BYPASS
+    global ADAPTIVE_STREAM_BYPASS, GEM5_ISA_VARIANT
     STREAM_PF_DEGREE = args.stream_prefetch_degree
     SCHEDULE_K = args.schedule_k
     STREAM_BYPASS = args.stream_bypass
     ADAPTIVE_STREAM_BYPASS = args.adaptive_stream_bypass
+    GEM5_ISA_VARIANT = args.gem5_isa_variant
+    if args.sniper and GEM5_ISA_VARIANT == "mask":
+        ap.error("--gem5-isa-variant mask cannot be combined with --sniper; "
+                 "matched Sniper K2-M is not implemented")
     if STREAM_BYPASS and SCHEDULE_K != 2:
         ap.error("--stream-bypass requires --schedule-k 2")
     if ADAPTIVE_STREAM_BYPASS and not STREAM_BYPASS:
         ap.error("--adaptive-stream-bypass requires --stream-bypass")
+    if GEM5_ISA_VARIANT == "mask" and not args.gem5:
+        ap.error("--gem5-isa-variant mask requires --gem5")
+    if GEM5_ISA_VARIANT == "mask" and SCHEDULE_K != 2:
+        ap.error("--gem5-isa-variant mask requires --schedule-k 2")
 
     required = [ecg.GRAPH]
     required.extend(
@@ -350,28 +364,44 @@ def main(argv=None):
             if SCHEDULE_K == 2:
                 text, ran_ok = result
                 if sim == "gem5":
-                    if kernel == "sssp":
+                    if GEM5_ISA_VARIANT == "mask":
                         fused_marker = (
-                            "[ECG_K2_WEIGHTED64] SSSP compact 8B "
-                            "masked edge ACTIVE")
-                    elif STREAM_BYPASS:
-                        stream_name = (
-                            "StreamShield 4B sidecar"
+                            "[ECG_K2_MLOAD_CW24]"
                             if kernel == "sssp"
-                            else "StreamShield record load")
-                        fused_marker = (
-                            f"[ECG_K2_PLOAD] {kernel.upper()} "
-                            "request-bound masked property load + "
-                            f"{stream_name} ACTIVE")
+                            else "[ECG_K2_MLOAD]")
+                        fused_label = "computed-address K2-M property load"
+                    elif kernel == "sssp":
+                        fused_marker = "[ECG_K2_ILOAD_CW24]"
+                        fused_label = "indexed K2-I property load"
+                    elif STREAM_BYPASS:
+                        fused_marker = "[ECG_K2_ILOAD]"
+                        fused_label = "indexed K2-I property load"
                     else:
-                        fused_marker = (
-                            f"[ECG_K2_PLOAD] {kernel.upper()} "
-                            "request-bound masked property load ACTIVE")
+                        fused_marker = "[ECG_K2_ILOAD]"
+                        fused_label = "indexed K2-I property load"
                     fused_ok = fused_marker in text
                     fused_path_ok = ran_ok and fused_ok
-                    print("      masked K2 property load: "
+                    print(f"      {fused_label}: "
                           f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
                     spec_ok &= ran_ok and fused_ok
+                    if (kernel == "sssp" and
+                            GEM5_ISA_VARIANT == "mask"):
+                        rows_path = (
+                            Path("/tmp") /
+                            f"equivk_gem5_{GEM5_ISA_VARIANT}_{kernel}" /
+                            "roi_matrix.csv")
+                        provenance_ok = False
+                        if rows_path.exists():
+                            rows = list(csv.DictReader(rows_path.open()))
+                            provenance_ok = len(rows) == 1 and all((
+                                rows[0].get("ecg_isa_variant") == "mask",
+                                rows[0].get("ecg_record_bytes") == "8",
+                                rows[0].get("edge_stream_bytes_per_edge") == "8",
+                                rows[0].get("ecg_record_replaces_edge") == "1",
+                            ))
+                        print("      compact K2-M provenance: "
+                              f"{'[OK]' if provenance_ok else '[FAIL]'}")
+                        spec_ok &= provenance_ok
                 elif sim == "sniper":
                     valid = ecg.K2_FUSED_VALID_RE.search(text)
                     fused_ok = (

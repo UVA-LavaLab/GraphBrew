@@ -98,6 +98,8 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     const bool ecg_stream_load2_on = gem5_ecg_stream_load2_enabled();
     const bool ecg_k2_pload_on =
         gem5_ecg_pload_enabled() && ecg_sched_k == 2;
+    const bool ecg_k2_mask_only_on =
+        ecg_k2_pload_on && gem5_ecg_k2_mask_only_enabled();
     if (ecg_load2_on || ecg_stream_load2_on || ecg_k2_pload_on)
         ecg_extract_on = true;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
@@ -130,10 +132,15 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     if (pair_ok) {
         fprintf(stderr,
                 ecg_stream_load2_on && ecg_k2_pload_on
-                    ? "[ECG_K2_PLOAD] BC request-bound masked property load "
-                      "+ StreamShield record load ACTIVE\n"
+                    ? (ecg_k2_mask_only_on
+                        ? "[ECG_K2_MLOAD] BC computed-address masked loads "
+                          "+ StreamShield record load ACTIVE\n"
+                        : "[ECG_K2_ILOAD] BC fused indexed masked loads "
+                          "+ StreamShield record load ACTIVE\n")
                     : ecg_k2_pload_on
-                        ? "[ECG_K2_PLOAD] BC request-bound masked property load ACTIVE\n"
+                        ? (ecg_k2_mask_only_on
+                            ? "[ECG_K2_MLOAD] BC computed-address masked loads ACTIVE\n"
+                            : "[ECG_K2_ILOAD] BC fused indexed masked loads ACTIVE\n")
                     : ecg_stream_load2_on
                         ? "[ECG_STREAM_LOAD2] BC request-bound StreamShield+K2 ACTIVE\n"
                     : ecg_load2_on
@@ -180,8 +187,11 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                 }
                 if (dv == current_depth + 1) {
                     const int64_t old_paths = masked_path_count
-                        ? static_cast<int64_t>(
-                            gem5_ecg_load_k2_u64(path_counts.data(), record))
+                        ? static_cast<int64_t>(ecg_k2_mask_only_on
+                            ? gem5_ecg_mload_k2_u64(
+                                &path_counts[v], record)
+                            : gem5_ecg_load_k2_u64(
+                                path_counts.data(), record))
                         : path_counts[v];
                     path_counts[v] = old_paths + source_paths;
                 }
@@ -200,9 +210,14 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
                         ecg_epoch::extractEpochPairDest(record));
                     int32_t dv;
                     if (ecg_k2_pload_on) {
-                        const uint32_t bits =
-                            gem5_ecg_load_k2(depth.data(), record);
-                        std::memcpy(&dv, &bits, sizeof(int32_t));
+                        if (ecg_k2_mask_only_on) {
+                            dv = gem5_ecg_mload_k2_s32(
+                                &depth[v], record);
+                        } else {
+                            const uint32_t bits =
+                                gem5_ecg_load_k2(depth.data(), record);
+                            std::memcpy(&dv, &bits, sizeof(int32_t));
+                        }
                     } else {
                         if (!ecg_load2_on)
                             GEM5_ECG_EXTRACT2(record);

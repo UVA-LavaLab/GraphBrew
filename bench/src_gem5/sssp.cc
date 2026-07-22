@@ -45,6 +45,8 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                             bool ecg_stream_load2_on,
                             bool ecg_k2_pload_on,
                             bool compact_pair_ok) {
+    const bool ecg_k2_mask_only_on =
+        ecg_k2_pload_on && gem5_ecg_k2_mask_only_enabled();
     const WeightT source_dist = dist[u];
     GEM5_SET_VERTEX(u);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
@@ -62,8 +64,9 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                 ecg_epoch::extractCompactWeightedDest(record));
             const WeightT weight = static_cast<WeightT>(
                 ecg_epoch::extractCompactWeightedWeight(record));
-            const uint32_t bits =
-                gem5_ecg_load_k2_weighted64(dist.data(), record);
+            const uint32_t bits = ecg_k2_mask_only_on
+                ? gem5_ecg_mload_k2_compact_u32(&dist[dest], record)
+                : gem5_ecg_load_k2_weighted64(dist.data(), record);
             WeightT old_dist;
             std::memcpy(&old_dist, &bits, sizeof(WeightT));
             const WeightT new_dist = source_dist + weight;
@@ -117,8 +120,14 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
                 ecg_epoch::combineWeightedEpochPairRecord(
                     static_cast<uint32_t>(wn.v), sidecar);
             if (ecg_k2_pload_on) {
-                const uint32_t bits = gem5_ecg_load_k2(dist.data(), record);
-                std::memcpy(&old_dist, &bits, sizeof(WeightT));
+                if (ecg_k2_mask_only_on) {
+                    old_dist = static_cast<WeightT>(
+                        gem5_ecg_mload_k2_s32(&dist[wn.v], record));
+                } else {
+                    const uint32_t bits =
+                        gem5_ecg_load_k2(dist.data(), record);
+                    std::memcpy(&old_dist, &bits, sizeof(WeightT));
+                }
             } else {
                 if (!ecg_load2_on)
                     GEM5_ECG_EXTRACT2(record);
@@ -205,6 +214,8 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     const bool ecg_stream_load2_on = gem5_ecg_stream_load2_enabled();
     const bool ecg_k2_pload_on =
         gem5_ecg_pload_enabled() && ecg_sched_k == 2;
+    const bool ecg_k2_mask_only_on =
+        ecg_k2_pload_on && gem5_ecg_k2_mask_only_enabled();
     const bool ecg_extract_on =
         ecg_extract_on_env || ecg_load2_on || ecg_stream_load2_on ||
         ecg_k2_pload_on;
@@ -290,12 +301,19 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     if (pair_ok) {
         fprintf(stderr,
                 compact_pair_ok && ecg_k2_pload_on
-                    ? "[ECG_K2_WEIGHTED64] SSSP compact 8B masked edge ACTIVE\n"
+                    ? (ecg_k2_mask_only_on
+                        ? "[ECG_K2_MLOAD_CW24] SSSP compact mask-only load ACTIVE\n"
+                        : "[ECG_K2_ILOAD_CW24] SSSP compact indexed load ACTIVE\n")
                     : ecg_stream_load2_on && ecg_k2_pload_on
-                    ? "[ECG_K2_PLOAD] SSSP request-bound masked property load "
-                      "+ StreamShield 4B sidecar ACTIVE\n"
+                    ? (ecg_k2_mask_only_on
+                        ? "[ECG_K2_MLOAD] SSSP computed-address masked load "
+                          "+ StreamShield 4B sidecar ACTIVE\n"
+                        : "[ECG_K2_ILOAD] SSSP fused indexed masked load "
+                          "+ StreamShield 4B sidecar ACTIVE\n")
                     : ecg_k2_pload_on
-                        ? "[ECG_K2_PLOAD] SSSP request-bound masked property load ACTIVE\n"
+                        ? (ecg_k2_mask_only_on
+                            ? "[ECG_K2_MLOAD] SSSP computed-address masked load ACTIVE\n"
+                            : "[ECG_K2_ILOAD] SSSP fused indexed masked load ACTIVE\n")
                     : ecg_stream_load2_on
                         ? "[ECG_STREAM_WLOAD2] SSSP request-bound 4B sidecar ACTIVE\n"
                     : ecg_load2_on

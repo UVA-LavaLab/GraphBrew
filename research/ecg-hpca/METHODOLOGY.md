@@ -16,9 +16,11 @@ frontend, and accounting models differ. Cross-simulator evidence is interpreted
 as mechanism agreement and direction relative to each simulator's LRU.
 PR/BFS/SSSP/BC/CC currently use the fused indexed K2-I load in gem5. The
 canonical K2-M load instead receives an already-computed address and replaces a
-normal property load one-for-one; its implementation and rerun are pending.
-Sniper's completed packed-record timing matrix is likewise a K2-I model, not
-mask-only timing. Tiny PR and weighted SSSP O3 runs prove request-local pair
+normal property load one-for-one. Typed K2-M is now implemented in gem5 and
+passes the five-kernel mechanism gate; matched performance timing remains
+pending.
+Sniper's completed packed-record timing matrix is an idealized K2-I-like model,
+not measured K2-I or mask-only timing. Tiny PR and weighted SSSP O3 runs prove request-local pair
 delivery; scale runs remain on TimingSimpleCPU. Historical
 gem5 rows labeled `ecg.load2`/`ecg.wload2` predate this correction and are not
 reinterpreted without rerunning.

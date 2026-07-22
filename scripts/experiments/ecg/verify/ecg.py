@@ -142,9 +142,12 @@ def run_gem5_isa_modes():
     weighted_load_pass = "WLOAD2/K2" in normal and "stream=" in normal
     masked_pload_pass = (
         "K2-PLOAD" in normal and "K2-WPLOAD" in normal)
+    mask_only_pass = all(marker in normal for marker in (
+        "K2-M-U32", "K2-M-U32-HIGH", "K2-M-S32", "K2-M-F32",
+        "mrd=0x123456789abcdef0", "mrd=0x76543210"))
     normal_pass = (
         "RESULT: PASS" in normal and stream_load_pass and
-        weighted_load_pass and masked_pload_pass)
+        weighted_load_pass and masked_pload_pass and mask_only_pass)
     ef = Path("/tmp") / "ecg_force_wc0.env"
     ef.write_text("ECG_TEST_FORCE_WC=0\n")
     teeth = _run(str(ef))
@@ -157,6 +160,8 @@ def run_gem5_isa_modes():
           f"{'[OK ]' if weighted_load_pass else '[FAIL]'}")
     print(f"  gem5 request-bound K2 property-load round-trip: "
           f"{'[OK ]' if masked_pload_pass else '[FAIL]'}")
+    print(f"  gem5 computed-address K2-M typed-load round-trip: "
+          f"{'[OK ]' if mask_only_pass else '[FAIL]'}")
     print(f"  gem5 ISA teeth (forced-wrong ECG_WIDTH must mis-decode -> FAIL): "
           f"{'[OK ]' if teeth_fail else '[FAIL]'}")
     return normal_pass and teeth_fail

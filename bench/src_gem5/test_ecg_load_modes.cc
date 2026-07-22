@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 static int g_fail = 0;
 alignas(64) static uint64_t g_k2_record =
@@ -88,6 +89,54 @@ int main() {
             dest, 2, 0x2468u, 0x6CE0u);
         prop[dest] = dest;
         check("K2-PLOAD", 32, dest, gem5_ecg_load_k2(prop, record));
+        check("K2-M-U32", 32, dest,
+              gem5_ecg_mload_k2_u32(&prop[dest], record));
+    }
+    {
+        uint32_t unsigned_prop[16] = {};
+        const uint32_t dest = 9u;
+        const uint32_t value = 0xF1234567u;
+        const uint64_t record = ecg_epoch::packEpochPairRecord(
+            dest, 2, 0x0102u, 0x0304u);
+        unsigned_prop[dest] = value;
+        const uint32_t rd =
+            gem5_ecg_mload_k2_u32(&unsigned_prop[dest], record);
+        const bool ok = rd == value;
+        printf("[test_ecg_load_modes] K2-M-U32-HIGH dest=%u rd=%#x [%s]\n",
+               dest, rd, ok ? "OK" : "FAIL");
+        if (!ok) g_fail++;
+    }
+    {
+        int32_t signed_prop[16] = {};
+        const uint32_t dest = 7u;
+        const int32_t value = -1234567;
+        const uint64_t record = ecg_epoch::packEpochPairRecord(
+            dest, 3, 0x1234u, 0x2345u);
+        signed_prop[dest] = value;
+        const int32_t rd =
+            gem5_ecg_mload_k2_s32(&signed_prop[dest], record);
+        const bool ok = rd == value;
+        printf("[test_ecg_load_modes] K2-M-S32 dest=%u rd=%d [%s]\n",
+               dest, rd, ok ? "OK" : "FAIL");
+        if (!ok) g_fail++;
+    }
+    {
+        float float_prop[16] = {};
+        const uint32_t dest = 5u;
+        const uint32_t value_bits = 0x7FC12345u;
+        float value;
+        std::memcpy(&value, &value_bits, sizeof(value));
+        const uint64_t record = ecg_epoch::packEpochPairRecord(
+            dest, 1, 0x1111u, 0x2222u);
+        float_prop[dest] = value;
+        const float rd =
+            gem5_ecg_mload_k2_f32(&float_prop[dest], record);
+        uint32_t rd_bits = 0;
+        std::memcpy(&rd_bits, &rd, sizeof(rd_bits));
+        const bool ok = rd_bits == value_bits;
+        printf("[test_ecg_load_modes] K2-M-F32 dest=%u bits=%#x [%s]\n",
+               dest, rd_bits, ok ? "OK" : "FAIL");
+        if (!ok) g_fail++;
     }
     {
         uint64_t prop64[1024] = {};
@@ -97,9 +146,13 @@ int main() {
             dest, 2, 0x1357u, 0x2468u);
         prop64[dest] = value;
         const uint64_t rd = gem5_ecg_load_k2_u64(prop64, record);
-        const bool ok = rd == value;
-        printf("[test_ecg_load_modes] K2-PLOAD64 dest=%u rd=%#llx [%s]\n",
-               dest, (unsigned long long)rd, ok ? "OK" : "FAIL");
+        const uint64_t mrd =
+            gem5_ecg_mload_k2_u64(&prop64[dest], record);
+        const bool ok = rd == value && mrd == value;
+        printf("[test_ecg_load_modes] K2-PLOAD64 dest=%u rd=%#llx "
+               "mrd=%#llx [%s]\n",
+               dest, (unsigned long long)rd, (unsigned long long)mrd,
+               ok ? "OK" : "FAIL");
         if (!ok) g_fail++;
     }
     {
@@ -112,13 +165,15 @@ int main() {
         dist[dest] = value;
         const uint32_t rd =
             gem5_ecg_load_k2_weighted64(dist, record);
+        const uint32_t mrd =
+            gem5_ecg_mload_k2_compact_u32(&dist[dest], record);
         const bool ok =
-            rd == value &&
+            rd == value && mrd == value &&
             ecg_epoch::extractCompactWeightedWeight(record) == 255;
         printf("[test_ecg_load_modes] K2-WEIGHTED64 dest=%u weight=%d "
-               "rd=%#x [%s]\n",
+               "rd=%#x mrd=%#x [%s]\n",
                dest, ecg_epoch::extractCompactWeightedWeight(record),
-               rd, ok ? "OK" : "FAIL");
+               rd, mrd, ok ? "OK" : "FAIL");
         if (!ok) g_fail++;
     }
     {

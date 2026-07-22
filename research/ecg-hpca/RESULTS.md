@@ -132,6 +132,14 @@ before the governed access. Tiny O3 PR and weighted SSSP runs each deliver 8/8 t
 extensions to the correct property line. This is mechanism/spec evidence, not a
 frozen real-graph performance ranking.
 
+The v2 computed-address K2-M load is now separately implemented. Real decoder
+tests pass U32/S32/U64/F32 and compact-weighted forms. Tiny O3 PR and compact
+SSSP each deliver 8/8 traced masks to post-filter consumer accepts on the exact
+property Requests. A clean five-kernel cache_sim+gem5 gate passes with zero K2
+distance mismatches; BFS/SSSP/BC have decisive epoch victims and BC proves both
+4-byte depth and 8-byte path-count delivery. This is ISA/mechanism evidence,
+not a K2-M timing result. The epoch CSR remains pending.
+
 ### K2-I target-instruction correction
 
 Replacement-only authority already showed the forced K2 `grasp_only` arm

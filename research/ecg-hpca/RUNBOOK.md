@@ -283,6 +283,20 @@ gem5 K2-I additionally credits destination/address fusion. Sniper's model is
 not measured K2-I ISA timing. Each result row must gain an `ecg_isa_variant`
 field before the next timing matrix.
 
+K2-M mechanism validation:
+
+```bash
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --kernels pr bfs sssp bc cc \
+  --schedule-k 2 --gem5-isa-variant mask
+```
+
+Acceptance requires all five gem5 cells to report
+`computed-address K2-M property load: [OK]`, zero distance mismatches, and BC
+dual-load coverage. Compact SSSP must report `ecg_isa_variant=mask`,
+`ecg_record_bytes=8`, `edge_stream_bytes_per_edge=8`, and
+`ecg_record_replaces_edge=1`.
+
 ### Equal-area acceptance gate
 
 Before any hardware-efficiency headline:

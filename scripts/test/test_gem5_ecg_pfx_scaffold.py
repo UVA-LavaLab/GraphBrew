@@ -133,6 +133,11 @@ def test_gem5_schedule2_delivery_is_pair_aware():
     assert "(packed >> 49) & 0x7FFF" in decoder
     assert "setDecodedEcgExtractHint2" in decoder
     assert "0x03: ecg_load_k2" in decoder
+    assert "0x06: ecg_mload_k2_u32" in decoder
+    assert "0x07: ecg_mload_k2_s32" in decoder
+    assert "0x08: ecg_mload_k2_u64" in decoder
+    assert "0x09: ecg_mload_k2_compact_u32" in decoder
+    assert "0x0A: ecg_mload_k2_f32" in decoder
     assert "xc->setEcgLoadHint2(" in decoder
     assert "lookupDecodedEcgHint2" in context
     assert "isEcgEpochData" in context
@@ -202,6 +207,7 @@ def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):
     assert "prefetcher none or STRIDE" in runner
     assert "GEM5_ECG_EPOCH_REGION_INDICES" in graph_se
     assert "GEM5_ECG_EPOCH_REGION_INDEX" in graph_se
+    assert "GEM5_ECG_ISA_VARIANT" in graph_se
     verifier = read("scripts/experiments/ecg/verify/ecg.py")
     assert "required = set(range(32))" in verifier
 
@@ -328,6 +334,71 @@ def test_k2_property_load_clears_mailbox_without_extra_instruction():
         "continue;", 1)[0]
     assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" not in canonical_pr
     assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" in pr
+
+
+def test_k2_mask_only_variant_is_distinct_from_indexed_load():
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    decoder = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa")
+    assert "GEM5_ECG_ISA_VARIANT" in harness
+    assert '"ecg_isa_variant"' in runner
+    assert 'env["GEM5_ECG_ISA_VARIANT"] = args.ecg_isa_variant' in runner
+    assert "Sniper K2-M timing is not implemented" in runner
+    assert '"prototype_mask_only_load"' in runner
+    assert "prototype current-vertex channel" in runner
+    assert "transport.schedule_k == 2" in runner
+    assert 'std::strcmp(value, "mask") == 0' in harness
+    assert '".insn r 0x0b, 0x2, 0x18' in harness
+    assert '".insn r 0x0b, 0x2, 0x1c' in harness
+    assert '".insn r 0x0b, 0x2, 0x20' in harness
+    assert '".insn r 0x0b, 0x2, 0x24' in harness
+    assert '".insn r 0x0b, 0x2, 0x28' in harness
+
+    u32 = decoder.split("0x06: ecg_mload_k2_u32", 1)[1].split(
+        "// 0x07 K2-M S32.D32", 1)[0]
+    s32 = decoder.split("0x07: ecg_mload_k2_s32", 1)[1].split(
+        "// 0x08 K2-M U64.D32", 1)[0]
+    u64 = decoder.split("0x08: ecg_mload_k2_u64", 1)[1].split(
+        "// 0x09 K2-M U32.CW24", 1)[0]
+    compact = decoder.split(
+        "0x09: ecg_mload_k2_compact_u32", 1)[1].split(
+            "// 0x0A K2-M F32.D32", 1)[0]
+    f32 = decoder.split("0x0A: ecg_mload_k2_f32", 1)[1].split(
+        "\n                }", 1)[0]
+    for block in (u32, s32, u64, compact, f32):
+        assert "EA = rvZext(Rs1);" in block
+        assert "Rs1 +" not in block
+        assert "xc->setEcgLoadHint2(" in block
+    assert "Rd = Mem_uw;" in u32
+    assert "Rd_sd = Mem_sw;" in s32
+    assert "Rd = Mem_ud;" in u64
+    assert "packed & 0x00FFFFFFULL" in compact
+    assert "Fd_bits = fd.v;" in f32
+    assert "FloatMemReadOp" in f32
+    assert "Rd =" not in f32
+
+    expected_helpers = {
+        "pr": ("gem5_ecg_mload_k2_f32",),
+        "bfs": ("gem5_ecg_mload_k2_s32",),
+        "sssp": (
+            "gem5_ecg_mload_k2_s32",
+            "gem5_ecg_mload_k2_compact_u32",
+        ),
+        "bc": (
+            "gem5_ecg_mload_k2_s32",
+            "gem5_ecg_mload_k2_u64",
+        ),
+        "cc": ("gem5_ecg_mload_k2_s32",),
+    }
+    for kernel, helpers in expected_helpers.items():
+        source = read(f"bench/src_gem5/{kernel}.cc")
+        assert "gem5_ecg_k2_mask_only_enabled()" in source
+        for helper in helpers:
+            assert helper in source
+        assert "ECG_K2_MLOAD" in source
+        assert "ECG_K2_ILOAD" in source
 
 
 def test_riscv_gem5_build_unswitches_runtime_policy_loops():

@@ -201,6 +201,8 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     const bool ecg_load2_on = gem5_ecg_load2_enabled();
     const bool ecg_k2_pload_on =
         gem5_ecg_pload_enabled() && ecg_sched_k == 2;
+    const bool ecg_k2_mask_only_on =
+        ecg_k2_pload_on && gem5_ecg_k2_mask_only_enabled();
     if (ecg_stream_load2_on || ecg_load2_on || ecg_k2_pload_on)
         ecg_extract_enabled = true;
     // The masked property-load family implies metadata construction. Schedule-2
@@ -364,11 +366,16 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         fprintf(stderr,
             ecg_stream_load2_on
             ? (ecg_k2_pload_on
-                ? "[ECG_K2_PLOAD] PR request-bound masked property load "
-                  "+ StreamShield record load ACTIVE\n"
+                ? (ecg_k2_mask_only_on
+                    ? "[ECG_K2_MLOAD] PR computed-address masked load "
+                      "+ StreamShield record load ACTIVE\n"
+                    : "[ECG_K2_ILOAD] PR fused indexed masked load "
+                      "+ StreamShield record load ACTIVE\n")
                 : "[ECG_STREAM_LOAD2] PR request-bound StreamShield+K2 ACTIVE\n")
             : ecg_k2_pload_on
-                ? "[ECG_K2_PLOAD] PR request-bound masked property load ACTIVE\n"
+                ? (ecg_k2_mask_only_on
+                    ? "[ECG_K2_MLOAD] PR computed-address masked load ACTIVE\n"
+                    : "[ECG_K2_ILOAD] PR fused indexed masked load ACTIVE\n")
             : ecg_load2_on
                 ? "[ECG_LOAD2] PR fused K2 record load ACTIVE\n"
                 : "[ECG_PACKED8_K2] PR Schedule-2 packed record path ACTIVE\n");
@@ -398,10 +405,15 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     const NodeID v =
                         static_cast<NodeID>(rec & 0xFFFFFFFFULL);
                     if (ecg_k2_pload_on) {
-                        const uint32_t bits = gem5_ecg_load_k2(
-                            outgoing_contrib.data(), rec);
                         ScoreT delivered;
-                        std::memcpy(&delivered, &bits, sizeof(ScoreT));
+                        if (ecg_k2_mask_only_on) {
+                            delivered = gem5_ecg_mload_k2_f32(
+                                &outgoing_contrib[v], rec);
+                        } else {
+                            const uint32_t bits = gem5_ecg_load_k2(
+                                outgoing_contrib.data(), rec);
+                            std::memcpy(&delivered, &bits, sizeof(ScoreT));
+                        }
                         incoming_total += delivered;
                         continue;
                     }

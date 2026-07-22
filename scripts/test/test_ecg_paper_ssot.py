@@ -408,7 +408,7 @@ def test_canonical_isa_story_separates_mask_and_indexed_loads():
     assert "No K2-M timing claim is frozen yet." in " ".join(results.split())
     assert "not measured K2-I ISA timing" in " ".join(results.split())
     assert "zero K2 hardware overhead" not in architecture
-    assert "exact Request only in O3 proof cells" in architecture
+    assert "K2-M exact Request proven for PR and compact SSSP O3" in architecture
     assert "{ASID/VMID, graph_generation}" in architecture
     assert "16-bit context ID" in architecture
     assert "program-order K2 sequence number" in architecture
@@ -488,6 +488,7 @@ def test_streamshield_profile_and_slurm_shards(tmp_path):
         assert policy in listed.stdout
     assert "--sniper-roi-icount" not in listed.stdout
     assert "--structure-prefetch-degree 8" in listed.stdout
+    assert "--ecg-isa-variant indexed" in listed.stdout
     assert "--popt-reserve-model size_correct" in listed.stdout
     assert "--require-sniper-aslr-disable" in listed.stdout
 
@@ -893,13 +894,14 @@ def test_requested_fused_receipt_validation_is_fail_closed():
     assert "Fused K2 receipt validation failed." in runner
 
 
-def test_all_five_kernels_use_fused_k2_delivery():
+def test_all_five_kernels_expose_indexed_and_mask_only_delivery():
     for kernel in ("pr", "bfs", "sssp", "bc", "cc"):
         source = (
             ROOT / f"bench/src_gem5/{kernel}.cc"
         ).read_text()
         assert "gem5_ecg_load_k2" in source, kernel
-        assert f"[ECG_K2_PLOAD] {kernel.upper()}" in source, kernel
+        assert f"[ECG_K2_MLOAD" in source, kernel
+        assert f"[ECG_K2_ILOAD" in source, kernel
 
     sniper = (
         ROOT / "bench/src_sniper/sg_kernel.cc"
@@ -921,7 +923,8 @@ def test_all_five_kernels_use_fused_k2_delivery():
     verifier = (
         ROOT / "scripts/experiments/ecg/verify/equiv_kernels.py"
     ).read_text()
-    assert "masked K2 property load" in verifier
+    assert "computed-address K2-M property load" in verifier
+    assert "indexed K2-I property load" in verifier
     assert "fused K2 sideband" in verifier
 
 

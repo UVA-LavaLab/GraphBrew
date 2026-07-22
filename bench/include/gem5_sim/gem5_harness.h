@@ -93,6 +93,14 @@ inline bool gem5_ecg_pload_enabled() {
     return enabled != 0;
 }
 
+inline bool gem5_ecg_k2_mask_only_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ECG_ISA_VARIANT");
+        return (value && std::strcmp(value, "mask") == 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
 // Emit `ecg.load rd, rs1, rs2` (custom-0 0x0b, FUNCT3=0x2, R-type): an indexed-property
 // cache-control load. rs1 = property base; rs2 = fat edge record. EA = rs1 + dest*4; loads
 // the 4-byte property word, side-delivers the caching metadata BEFORE the fill (so the line
@@ -366,6 +374,76 @@ inline uint32_t gem5_ecg_load_k2_weighted64(
 #endif
 }
 
+inline uint32_t gem5_ecg_mload_k2_u32(
+        const void* prop_addr, uint64_t packed_record) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x18, %0, %1, %2"
+                  : "=r"(val)
+                  : "r"(prop_addr), "r"(packed_record)
+                  : "memory");
+    return static_cast<uint32_t>(val);
+#else
+    return prop_addr ? *static_cast<const uint32_t*>(prop_addr) : 0;
+#endif
+}
+
+inline int32_t gem5_ecg_mload_k2_s32(
+        const void* prop_addr, uint64_t packed_record) {
+#if defined(__riscv)
+    int64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x1c, %0, %1, %2"
+                  : "=r"(val)
+                  : "r"(prop_addr), "r"(packed_record)
+                  : "memory");
+    return static_cast<int32_t>(val);
+#else
+    return prop_addr ? *static_cast<const int32_t*>(prop_addr) : 0;
+#endif
+}
+
+inline uint64_t gem5_ecg_mload_k2_u64(
+        const void* prop_addr, uint64_t packed_record) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x20, %0, %1, %2"
+                  : "=r"(val)
+                  : "r"(prop_addr), "r"(packed_record)
+                  : "memory");
+    return val;
+#else
+    return prop_addr ? *static_cast<const uint64_t*>(prop_addr) : 0;
+#endif
+}
+
+inline uint32_t gem5_ecg_mload_k2_compact_u32(
+        const void* prop_addr, uint64_t packed_record) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x24, %0, %1, %2"
+                  : "=r"(val)
+                  : "r"(prop_addr), "r"(packed_record)
+                  : "memory");
+    return static_cast<uint32_t>(val);
+#else
+    return prop_addr ? *static_cast<const uint32_t*>(prop_addr) : 0;
+#endif
+}
+
+inline float gem5_ecg_mload_k2_f32(
+        const void* prop_addr, uint64_t packed_record) {
+#if defined(__riscv)
+    float val = 0.0f;
+    asm volatile (".insn r 0x0b, 0x2, 0x28, %0, %1, %2"
+                  : "=f"(val)
+                  : "r"(prop_addr), "r"(packed_record)
+                  : "memory");
+    return val;
+#else
+    return prop_addr ? *static_cast<const float*>(prop_addr) : 0.0f;
+#endif
+}
+
 inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
     gem5_trace_ecg_k2_expect(packed);
 #if defined(__riscv)
@@ -589,6 +667,26 @@ inline uint32_t gem5_ecg_load_k2_weighted64(
     const uint32_t dest =
         ecg_epoch::extractCompactWeightedDest(packed_record);
     return base ? base[dest] : 0;
+}
+inline uint32_t gem5_ecg_mload_k2_u32(
+        const void* prop_addr, uint64_t) {
+    return prop_addr ? *static_cast<const uint32_t*>(prop_addr) : 0;
+}
+inline int32_t gem5_ecg_mload_k2_s32(
+        const void* prop_addr, uint64_t) {
+    return prop_addr ? *static_cast<const int32_t*>(prop_addr) : 0;
+}
+inline uint64_t gem5_ecg_mload_k2_u64(
+        const void* prop_addr, uint64_t) {
+    return prop_addr ? *static_cast<const uint64_t*>(prop_addr) : 0;
+}
+inline uint32_t gem5_ecg_mload_k2_compact_u32(
+        const void* prop_addr, uint64_t) {
+    return prop_addr ? *static_cast<const uint32_t*>(prop_addr) : 0;
+}
+inline float gem5_ecg_mload_k2_f32(
+        const void* prop_addr, uint64_t) {
+    return prop_addr ? *static_cast<const float*>(prop_addr) : 0.0f;
 }
 #if defined(__riscv)
 inline bool gem5_ecg_pfx_hints_enabled() {

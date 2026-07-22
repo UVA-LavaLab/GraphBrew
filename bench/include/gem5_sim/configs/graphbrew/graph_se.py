@@ -98,6 +98,7 @@ def benchmark_environment(args):
         f"ECG_STREAM_BYPASS_TRACE={os.environ.get('ECG_STREAM_BYPASS_TRACE', '0')}",
         f"GEM5_ECG_EPOCH_REGION_INDICES={os.environ.get('GEM5_ECG_EPOCH_REGION_INDICES', '')}",
         f"GEM5_ECG_EPOCH_REGION_INDEX={os.environ.get('GEM5_ECG_EPOCH_REGION_INDEX', '')}",
+        f"GEM5_ECG_ISA_VARIANT={os.environ.get('GEM5_ECG_ISA_VARIANT', 'indexed')}",
         f"GEM5_ENABLE_ECG_EXTRACT={1 if ecg_epoch_delivery or (ecg_pfx_enabled and args.ecg_pfx_delivery == 'instruction') or os.environ.get('GEM5_FORCE_ECG_EXTRACT') == '1' else 0}",
         # Fused ecg.load prototype: host GEM5_FORCE_ECG_LOAD=1 selects the single
         # custom-0 load-and-deliver instruction instead of demand-load + ecg.extract.

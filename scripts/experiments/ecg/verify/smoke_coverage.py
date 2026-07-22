@@ -133,15 +133,19 @@ def validate(
             if number(row, "ecg_epochs_effective") != 32768:
                 errors.append(f"{row_name(row)}: effective epochs != 32768")
             if simulator == "gem5":
+                isa_name = (
+                    "mload"
+                    if row.get("ecg_isa_variant") == "mask"
+                    else "iload")
                 expected = (
-                    "ecg.stream.weighted64+ecg.k2.pload"
+                    f"ecg.stream.weighted64+ecg.k2.{isa_name}.cw24"
                     if policy in SS_POLICIES and
                     row.get("benchmark") == "sssp"
-                    else "ecg.stream.load2+ecg.k2.pload"
+                    else f"ecg.stream.load2+ecg.k2.{isa_name}"
                     if policy in SS_POLICIES
-                    else "ecg.weighted64+ecg.k2.pload"
+                    else f"ecg.weighted64+ecg.k2.{isa_name}.cw24"
                     if row.get("benchmark") == "sssp"
-                    else "ecg.k2.pload")
+                    else f"ecg.k2.{isa_name}")
                 if row.get("gem5_ecg_delivery") != expected:
                     errors.append(
                         f"{row_name(row)}: delivery="

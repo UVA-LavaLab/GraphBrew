@@ -74,15 +74,16 @@ def make_rows(module, graphs=None, instruction_cap=0):
                             "ecg_epochs_effective": "32768",
                         })
                         if simulator == "gem5":
+                            row["ecg_isa_variant"] = "indexed"
                             row["gem5_ecg_delivery"] = (
-                                "ecg.stream.weighted64+ecg.k2.pload"
+                                "ecg.stream.weighted64+ecg.k2.iload.cw24"
                                 if policy in module.SS_POLICIES and
                                 benchmark == "sssp"
-                                else "ecg.stream.load2+ecg.k2.pload"
+                                else "ecg.stream.load2+ecg.k2.iload"
                                 if policy in module.SS_POLICIES
-                                else "ecg.weighted64+ecg.k2.pload"
+                                else "ecg.weighted64+ecg.k2.iload.cw24"
                                 if benchmark == "sssp"
-                                else "ecg.k2.pload")
+                                else "ecg.k2.iload")
                             if policy in module.SS_POLICIES:
                                 row["gem5_stream_bypass_trace_events"] = "1"
                         if simulator == "sniper":
@@ -190,7 +191,7 @@ def test_smoke_coverage_rejects_wrong_gem5_delivery():
     row["gem5_ecg_delivery"] = "ecg.load2"
     errors = module.validate(rows)
     assert any(
-        "expected='ecg.stream.load2+ecg.k2.pload'" in error
+        "expected='ecg.stream.load2+ecg.k2.iload'" in error
         for error in errors)
 
 

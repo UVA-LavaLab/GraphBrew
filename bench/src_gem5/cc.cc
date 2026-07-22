@@ -107,6 +107,8 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
     const bool ecg_stream_load2_on = gem5_ecg_stream_load2_enabled();
     const bool ecg_k2_pload_on =
         gem5_ecg_pload_enabled() && ecg_sched_k == 2;
+    const bool ecg_k2_mask_only_on =
+        ecg_k2_pload_on && gem5_ecg_k2_mask_only_enabled();
     if (ecg_load2_on || ecg_stream_load2_on || ecg_k2_pload_on)
         ecg_extract_on = true;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
@@ -156,10 +158,15 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
     if (pair_ok) {
         fprintf(stderr,
                 ecg_stream_load2_on && ecg_k2_pload_on
-                    ? "[ECG_K2_PLOAD] CC request-bound masked property load "
-                      "+ StreamShield record load ACTIVE\n"
+                    ? (ecg_k2_mask_only_on
+                        ? "[ECG_K2_MLOAD] CC computed-address masked load "
+                          "+ StreamShield record load ACTIVE\n"
+                        : "[ECG_K2_ILOAD] CC fused indexed masked load "
+                          "+ StreamShield record load ACTIVE\n")
                     : ecg_k2_pload_on
-                        ? "[ECG_K2_PLOAD] CC request-bound masked property load ACTIVE\n"
+                        ? (ecg_k2_mask_only_on
+                            ? "[ECG_K2_MLOAD] CC computed-address masked load ACTIVE\n"
+                            : "[ECG_K2_ILOAD] CC fused indexed masked load ACTIVE\n")
                     : ecg_stream_load2_on
                         ? "[ECG_STREAM_LOAD2] CC request-bound StreamShield+K2 ACTIVE\n"
                     : ecg_load2_on
@@ -187,9 +194,15 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
                     ecg_epoch::extractEpochPairDest(record));
                 NodeID delivered_comp;
                 if (ecg_k2_pload_on) {
-                    const uint32_t bits =
-                        gem5_ecg_load_k2(comp.data(), record);
-                    std::memcpy(&delivered_comp, &bits, sizeof(NodeID));
+                    if (ecg_k2_mask_only_on) {
+                        delivered_comp = static_cast<NodeID>(
+                            gem5_ecg_mload_k2_s32(&comp[v], record));
+                    } else {
+                        const uint32_t bits =
+                            gem5_ecg_load_k2(comp.data(), record);
+                        std::memcpy(
+                            &delivered_comp, &bits, sizeof(NodeID));
+                    }
                 } else {
                     if (!ecg_load2_on)
                         GEM5_ECG_EXTRACT2(record);
@@ -237,9 +250,15 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
                     ecg_epoch::extractEpochPairDest(record));
                 NodeID delivered_comp;
                 if (ecg_k2_pload_on) {
-                    const uint32_t bits =
-                        gem5_ecg_load_k2(comp.data(), record);
-                    std::memcpy(&delivered_comp, &bits, sizeof(NodeID));
+                    if (ecg_k2_mask_only_on) {
+                        delivered_comp = static_cast<NodeID>(
+                            gem5_ecg_mload_k2_s32(&comp[v], record));
+                    } else {
+                        const uint32_t bits =
+                            gem5_ecg_load_k2(comp.data(), record);
+                        std::memcpy(
+                            &delivered_comp, &bits, sizeof(NodeID));
+                    }
                 } else {
                     if (!ecg_load2_on)
                         GEM5_ECG_EXTRACT2(record);

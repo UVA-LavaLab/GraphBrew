@@ -376,7 +376,8 @@ def test_streamshield_is_generic_across_k2_kernels():
             "gem5_ecg_stream_weighted_load2_instruction"
             if kernel == "sssp" else "gem5_ecg_stream_load2_instruction")
         assert expected_load in gem5, kernel
-        assert f"[ECG_K2_PLOAD] {kernel.upper()}" in gem5, kernel
+        assert "[ECG_K2_MLOAD" in gem5, kernel
+        assert "[ECG_K2_ILOAD" in gem5, kernel
         expected_stream = (
             "StreamShield 4B sidecar"
             if kernel == "sssp" else "StreamShield record load")

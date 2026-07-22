@@ -18,6 +18,11 @@
   cells. Sniper uses the idealized packed sideband model, and cache_sim remains
   the functional reference. The post-correction 15-cell gate passes with 32/32
   detailed-simulator deliveries and zero K2 distance mismatches per kernel.
+- Typed computed-address K2-M modes are implemented in gem5 for U32, S32, U64,
+  compact weighted U32, and FP32. PR and compact SSSP pass exact O3
+  producer/consumer request-binding proofs; PR/BFS/SSSP/BC/CC pass the complete
+  cache_sim+gem5 K2-M delivery/victim gate. The current-epoch CSR remains
+  pending, so these runs still use the prototype vertex channel.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.
@@ -89,10 +94,10 @@
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   static/online K2, and both StreamShield variants.
-- A computed-address K2-M gem5 implementation and matched Sniper timing matrix.
+- A matched Sniper K2-M timing matrix.
 - An explicit current-epoch CSR/request channel replacing prototype magic.
 - Equal-area K2 metadata, logic, energy, and replacement-latency accounting.
-- Typed FP/integer K2-M destination semantics and disassembly validation.
+- K2-M versus K2-I disassembly and retired-instruction categorization.
 - A bounded Sniper structure-prefetch configuration that does not reproduce the
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.

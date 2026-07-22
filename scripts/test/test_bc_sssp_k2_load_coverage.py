@@ -47,8 +47,12 @@ def test_bc_masks_depth_and_path_counts():
     successor_test = cache_sim.index(
         "if (depths[v] == current_depth + 1)")
     assert path_count_read > successor_test
-    assert "gem5_ecg_load_k2_u64(path_counts.data(), record)" in gem5
+    assert "gem5_ecg_load_k2_u64(" in gem5
+    assert "path_counts.data(), record" in gem5
+    assert "gem5_ecg_mload_k2_u64(" in gem5
+    assert "&path_counts[v], record" in gem5
     assert "0x04: ecg_load_k2_u64" in decoder
+    assert "0x08: ecg_mload_k2_u64" in decoder
     k2_u64 = decoder.split("0x04: ecg_load_k2_u64", 1)[1].split(
         "// 0x05 compact weighted K2", 1)[0]
     assert "traceExpectedEcgExtractHint2(packed, 8)" in k2_u64
@@ -65,6 +69,9 @@ def test_bc_masks_depth_and_path_counts():
     assert '"bc": "scores,depth,path_counts,deltas"' in runner
     assert '"property_regions": property_regions(args.benchmark)' in runner
     assert '"ecg_epoch_regions": ecg_epoch_region(args.benchmark)' in runner
+    assert '"[ECG_K2_MLOAD_CW24]"' in runner
+    assert '"[ECG_K2_ILOAD_CW24]"' in runner
+    assert '"ecg_record_replaces_edge": 1' in runner
     verifier = read("scripts/experiments/ecg/verify/ecg.py")
     assert "expected_widths == received_widths" in verifier
     assert "const int64_t source_paths = path_counts[u];\n                SNIPER_SET_VERTEX(u);" in sniper

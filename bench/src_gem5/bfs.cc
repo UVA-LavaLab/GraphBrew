@@ -74,6 +74,8 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     const bool ecg_stream_load2_on = gem5_ecg_stream_load2_enabled();
     const bool ecg_k2_pload_on =
         gem5_ecg_pload_enabled() && ecg_sched_k == 2;
+    const bool ecg_k2_mask_only_on =
+        ecg_k2_pload_on && gem5_ecg_k2_mask_only_enabled();
     if (ecg_load2_on || ecg_stream_load2_on || ecg_k2_pload_on)
         ecg_extract_on = true;
     std::vector<std::vector<uint16_t>> out_edge_epochs;
@@ -185,10 +187,15 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     if (pair_extract_only) {
         fprintf(stderr,
                 ecg_stream_load2_on && ecg_k2_pload_on
-                    ? "[ECG_K2_PLOAD] BFS request-bound masked property load "
-                      "+ StreamShield record load ACTIVE\n"
+                    ? (ecg_k2_mask_only_on
+                        ? "[ECG_K2_MLOAD] BFS computed-address masked load "
+                          "+ StreamShield record load ACTIVE\n"
+                        : "[ECG_K2_ILOAD] BFS fused indexed masked load "
+                          "+ StreamShield record load ACTIVE\n")
                     : ecg_k2_pload_on
-                        ? "[ECG_K2_PLOAD] BFS request-bound masked property load ACTIVE\n"
+                        ? (ecg_k2_mask_only_on
+                            ? "[ECG_K2_MLOAD] BFS computed-address masked load ACTIVE\n"
+                            : "[ECG_K2_ILOAD] BFS fused indexed masked load ACTIVE\n")
                     : ecg_stream_load2_on
                         ? "[ECG_STREAM_LOAD2] BFS request-bound StreamShield+K2 ACTIVE\n"
                     : ecg_load2_on
@@ -224,9 +231,14 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
                     static_cast<NodeID>(rec & 0xFFFFFFFFULL);
                 NodeID pv;
                 if (ecg_k2_pload_on) {
-                    const uint32_t bits =
-                        gem5_ecg_load_k2(parent.data(), rec);
-                    std::memcpy(&pv, &bits, sizeof(NodeID));
+                    if (ecg_k2_mask_only_on) {
+                        pv = static_cast<NodeID>(
+                            gem5_ecg_mload_k2_s32(&parent[v], rec));
+                    } else {
+                        const uint32_t bits =
+                            gem5_ecg_load_k2(parent.data(), rec);
+                        std::memcpy(&pv, &bits, sizeof(NodeID));
+                    }
                 } else {
                     if (!ecg_load2_on)
                         GEM5_ECG_EXTRACT2(rec);

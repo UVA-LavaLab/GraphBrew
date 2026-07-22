@@ -1196,7 +1196,14 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     apply_explicit_cell_mechanism_env(env, spec)
     transport = ecg_transport_for(spec, args.benchmark)
     apply_ecg_transport_env(env, transport)
-    is_k2_ecg = spec.policy == "ECG" and spec.ecg_mode == "ECG_GRASP_POPT"
+    is_k2_ecg = (
+        spec.policy == "ECG" and
+        spec.ecg_mode == "ECG_GRASP_POPT" and
+        transport.schedule_k == 2)
+    k2_isa_name = (
+        "mload" if args.ecg_isa_variant == "mask" else "iload")
+    if is_k2_ecg:
+        env["GEM5_ECG_ISA_VARIANT"] = args.ecg_isa_variant
     requested_ecg_load = os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"
     env.pop("GEM5_FORCE_ECG_LOAD", None)
     env.pop("GEM5_FORCE_ECG_PLOAD", None)
@@ -1224,6 +1231,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "RISCV" in str(GEM5_OPT).upper()
             or "_riscv" in str(GEM5_KERNEL_SUFFIX).lower()
         )
+        if is_k2_ecg and args.ecg_isa_variant == "mask" and not riscv_delivery:
+            raise RuntimeError(
+                "gem5 K2-M requires the RISC-V custom load path; "
+                "X86 packed/extract fallback cannot be labeled mask-only.")
         ecg_variant = effective_ecg_variant(
             args, transport.schedule_k, spec)
         env["ECG_VARIANT"] = ecg_variant
@@ -1261,9 +1272,9 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 env["GEM5_ECG_STREAM_REQUEST_BOUND"] = "1"
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
                 gem5_ecg_delivery = (
-                    "ecg.stream.wload2+ecg.k2.pload"
+                    f"ecg.stream.wload2+ecg.k2.{k2_isa_name}"
                     if k2_masked_pload and args.benchmark == "sssp"
-                    else "ecg.stream.load2+ecg.k2.pload"
+                    else f"ecg.stream.load2+ecg.k2.{k2_isa_name}"
                     if k2_masked_pload
                     else "ecg.stream.wload2" if args.benchmark == "sssp"
                     else "ecg.stream.load2")
@@ -1271,7 +1282,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
                 env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
-                gem5_ecg_delivery = "ecg.k2.pload"
+                gem5_ecg_delivery = f"ecg.k2.{k2_isa_name}"
             elif riscv_delivery:
                 env["GEM5_FORCE_ECG_LOAD2"] = "1"
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
@@ -1345,17 +1356,28 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         log_text = log_path.read_text(errors="ignore")
         for benchmark_log in gem5_out.rglob("benchmark_stderr.txt"):
             log_text += "\n" + benchmark_log.read_text(errors="ignore")
-        if "[ECG_K2_WEIGHTED64]" in log_text:
+        compact_weighted_markers = (
+            "[ECG_K2_WEIGHTED64]",
+            "[ECG_K2_MLOAD_CW24]",
+            "[ECG_K2_ILOAD_CW24]",
+        )
+        if any(marker in log_text for marker in compact_weighted_markers):
+            compact_isa_name = (
+                "mload" if "[ECG_K2_MLOAD_CW24]" in log_text else "iload")
             base.update({
                 "gem5_ecg_delivery": (
-                    "ecg.stream.weighted64+ecg.k2.pload"
+                    f"ecg.stream.weighted64+ecg.k2.{compact_isa_name}.cw24"
                     if transport.stream_bypass
-                    else "ecg.weighted64+ecg.k2.pload"),
+                    else f"ecg.weighted64+ecg.k2.{compact_isa_name}.cw24"),
                 "graph_edge_bytes": 8,
                 "ecg_record_bytes": 8,
                 "edge_stream_bytes_per_edge": 8,
                 "ecg_record_replaces_edge": 1,
             })
+        if "[ECG_K2_MLOAD" in log_text:
+            base["ecg_isa_variant"] = "mask"
+        elif "[ECG_K2_ILOAD" in log_text:
+            base["ecg_isa_variant"] = "indexed"
         base["gem5_stream_bypass_trace_events"] = log_text.count(
             "[ECG-STREAM-BYPASS sim=gem5")
         base["gem5_stream_adaptive_active"] = int(
@@ -1700,6 +1722,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     transport = ecg_transport_for(spec, args.benchmark)
     apply_ecg_transport_env(env, transport)
     is_k2_ecg = policy_name == "ecg" and spec.ecg_mode == "ECG_GRASP_POPT"
+    if (is_k2_ecg and transport.schedule_k == 2 and
+            args.ecg_isa_variant == "mask"):
+        raise RuntimeError(
+            "Sniper K2-M timing is not implemented; use "
+            "--ecg-isa-variant indexed only for the packed K2-I-like model.")
     if policy_name == "popt":
         popt_fast = (
             "0" if os.environ.get("SNIPER_POPT_FAST") == "0" else "1")
@@ -2117,6 +2144,18 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
     elif simulator == "cache-sim":
         timing_model = "cache_mechanism_model"
 
+    is_k2 = (
+        spec.policy == "ECG" and
+        spec.ecg_mode == "ECG_GRASP_POPT" and
+        transport.schedule_k == 2)
+    if (is_k2 and args.ecg_isa_variant == "mask" and
+            simulator in ("gem5", "sniper")):
+        timing_model = "prototype_mask_only_load"
+        timing_valid_for_speedup = "0"
+        timing_caveat = (
+            "K2-M uses the prototype current-vertex channel; report mechanism "
+            "and cache metrics only until the architectural epoch CSR lands.")
+
     effective_ecg_epochs = effective_ecg_epoch_count(
         args.ecg_epochs, transport.schedule_k)
     edge_bytes = 8 if args.benchmark == "sssp" else 4
@@ -2152,6 +2191,12 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "ecg_epochs_effective": effective_ecg_epochs,
         "property_regions": property_regions(args.benchmark),
         "ecg_epoch_regions": ecg_epoch_region(args.benchmark),
+        "ecg_isa_variant": (
+            args.ecg_isa_variant
+            if is_k2
+            else "baseline"),
+        "ecg_isa_variant_requested": (
+            args.ecg_isa_variant if is_k2 else "baseline"),
         "ecg_charged": args.ecg_charged,
         "ecg_schedule_k": transport.schedule_k,
         "graph_edge_bytes": edge_bytes,
@@ -2470,6 +2515,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "scale (committed reproductions unchanged). 64 = ISA-faithful 64-bit "
                              "packed record: full epoch resolution at any scale; the wider (8B) "
                              "record stream is honestly charged by ecgRecordBytes under CHARGED=1.")
+    parser.add_argument(
+        "--ecg-isa-variant",
+        choices=["indexed", "mask"],
+        default="indexed",
+        help="K2 detailed-simulator ISA: indexed = fused base+record K2-I; "
+             "mask = computed-address K2-M. Sniper mask timing is not yet implemented.")
     parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=0,
                         help="ECG_STORED_REFRESH: re-stamp a resident LLC line's next-ref "
                              "epoch from the per-edge hint on EVERY access, INCLUDING L1/L2 "
