@@ -299,6 +299,19 @@ Before any hardware-efficiency headline:
 6. reject “lower hardware overhead than P-OPT” unless K2 retains its direction
    after the equal-area gate.
 
+Generate the analytical floor with:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.k2_area \
+  --cache-bytes 8388608 --line-bytes 64 --ways 16
+```
+
+The default v2 contract reports a 49-bit line payload before ECC, 1.531
+baseline-way equivalents, 14.602 self-consistent fractional ways, 15 ways as
+an intentionally undercharged first sensitivity, 14 ways as the maximum
+integral equal-area point, and a 95-bit logical request payload. These are
+bit-level lower bounds, not CACTI/synthesized physical costs.
+
 Canonical K2-I timing requires RISC-V guest binaries rebuilt from the
 current Makefile with `-funswitch-loops`. Reject rows from the stopped
 `ecg_gem5_sampled_allalg_masked_load_20260719` run: they still contain

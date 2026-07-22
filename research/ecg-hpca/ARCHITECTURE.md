@@ -246,16 +246,21 @@ For compact weighted SSSP, one 8-byte
 
 Absolute future epochs require a current epoch. The architectural contract uses
 a per-hart `ecg.cur_epoch` CSR updated once per outer source/frontier vertex and
-a per-hart graph-generation CSR set at graph/phase boundaries. The architectural
-context tuple is `{ASID/VMID, graph_generation}`. A K2-M or K2-I load snapshots
-the context, current epoch, and a per-hart program-order K2 sequence number onto
-its exact Request. The LLC uses this state only for that governed request; an
-ordinary or invalid-context allocation falls back to degree/RRIP behavior.
+a per-hart context CSR set at graph/phase boundaries. The runtime maps
+`{ASID/VMID, graph_generation}` to a 16-bit context ID that is unique among
+active contexts; an ID may be reused only after its resident metadata is
+invalidated. A K2-M or K2-I load snapshots the context ID, current epoch, and a
+per-hart program-order K2 sequence number onto its exact Request. The LLC uses
+this state only for that governed request; an ordinary or invalid-context
+allocation falls back to degree/RRIP behavior.
 
 The CSR write is architecturally ordered before subsequent K2 loads, saved and
 restored on a context switch, and charged in the instruction stream. The line
-stores the context tuple so stale metadata fails closed after a graph or phase
-change. Generation wrap requires explicit context invalidation. Request
+stores the context ID so stale metadata fails closed after a graph or phase
+change. ID reuse requires draining in-flight K2 requests and an explicit
+metadata invalidation/LLC-flush operation; its latency is charged. The 32-bit
+per-hart sequence does not wrap within a context. A runtime approaching wrap
+must drain and allocate a fresh context ID. Request
 queues/MSHRs preserve hart identity, sequence, epoch, and context. The prototype
 `GEM5_SET_VERTEX`/Sniper magic channel is not the final ISA.
 
@@ -334,8 +339,18 @@ K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
 - Minimum K2 per-line metadata: two 15-bit epochs, 2-bit tier, and one valid bit
   = 33 bits/line. This is 6.45% of 64-byte data-array bits, approximately one
   data way in a 16-way cache. Context/generation state and ECC increase it.
+- With the specified 16-bit context ID, K2 stores 49 bits/line before ECC:
+  9.57% of data bits or 1.531 baseline-way equivalents. For an 8 MiB LLC,
+  802,816 bytes is only the bit-packed metadata payload lower bound; physical
+  SRAM additionally pays ECC, banking, ports, periphery, and logic.
+- The self-consistent equal-area capacity is 14.602 fractional ways. A 15-way
+  first sensitivity exceeds the simple bit budget by 2.72%; 14 integral ways
+  use 95.87% of that budget.
 - Transient request state additionally carries the current epoch and context
-  generation through the LSU, queues, MSHRs, and cache hierarchy.
+  ID plus sequence through the LSU, queues, MSHRs, and cache hierarchy. The v2
+  logical payload is 95 bits per request instance before valid bits, hart/routing
+  identity, ECC, and replication across pipeline/queue/interconnect structures.
+  Per-hart persistent state additionally includes a 32-bit sequence counter.
 - Online selector: five sampled leader classes plus small miss counters; no
   per-line selector state.
 - Adaptive StreamShield: two disjoint placement leaders, two miss counters, and

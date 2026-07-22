@@ -397,6 +397,11 @@ def test_canonical_isa_story_separates_mask_and_indexed_loads():
     assert "`EA = rs1`" in architecture
     assert "per-hart `ecg.cur_epoch` CSR" in architecture
     assert "33 bits/line" in architecture
+    assert "49 bits/line before ECC" in architecture
+    assert "1.531 baseline-way equivalents" in architecture
+    assert "14.602 fractional ways" in architecture
+    assert "bit-packed metadata payload lower bound" in architecture
+    assert "95 bits" in architecture
     assert "idealized packed-record K2-I-like model" in methodology
     assert "Presenting the 1.329x packed K2-I-like model result" in claims
     assert "Presenting the 1.171x model TPI as a K2-M estimate." in claims
@@ -405,6 +410,7 @@ def test_canonical_isa_story_separates_mask_and_indexed_loads():
     assert "zero K2 hardware overhead" not in architecture
     assert "exact Request only in O3 proof cells" in architecture
     assert "{ASID/VMID, graph_generation}" in architecture
+    assert "16-bit context ID" in architecture
     assert "program-order K2 sequence number" in architecture
     assert "irrevocable conflict" in architecture
     assert "no later target may restore metadata" in architecture
