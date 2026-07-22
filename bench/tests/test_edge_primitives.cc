@@ -360,6 +360,10 @@ void TestFrontierAndAtomics() {
   Require(
       graphbrew::edge::AtomicLoad(value) == 11,
       "AtomicStore differs");
+  Require(
+      graphbrew::edge::AtomicAssignIfEqualRelaxed(value, 11, 13),
+      "relaxed AtomicAssignIfEqual failed");
+  Require(value == 13, "relaxed AtomicAssignIfEqual value differs");
 
   int maximum = -1;
   int claimed = -1;

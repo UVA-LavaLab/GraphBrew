@@ -282,28 +282,42 @@ work.
 
 ### Current performance assessment
 
-The 2026-07-21 four-thread audit used repeated median verified trials. This is a
-shared host, so near-parity variants remain inconclusive; only stable directional
-regressions are classified:
+The 2026-07-21 four-thread audit used repeated interleaved median trials. This is
+a shared host, so unmodified near-parity variants remain inconclusive. The
+research-aligned optimization pass brought three previously stable regressions
+to parity:
 
 | Variant | Canonical-relative speed | Assessment |
 |---|---:|---|
+| `bfs_edge` | 1.08x | parity / slight win |
+| `cc_edge` | 0.94x | near parity |
+| `tc_edge` | 1.01x | parity |
+| `cc_sv_edge` | 0.58-0.63x | vertex baseline wins |
 | `bc_edge` | 0.61-1.37x | inconclusive |
 | `sssp_edge` | 0.48-1.56x | inconclusive |
 | `pr_spmv_edge` | 0.80-1.44x | inconclusive |
 | `pr_edge` | 0.41-1.91x | inconclusive |
-| `cc_sv_edge` | 0.25-0.57x | optimize |
-| `tc_edge` | 0.39-0.58x | optimize |
-| `bfs_edge` | 0.19-0.37x | optimize |
-| `cc_edge` | 0.19-0.69x | optimize |
 | GAS variants | below 0.27x | reference-only |
 
-The next structural targets are: remove redundant deterministic frontier
-dedup/sorting in BFS after successful parent claims; restore Afforest's
-whole-row frequent-component skip; reduce CC-SV atomic serialization; reduce
-TC's static raw-edge partitions with dynamic or
-intersection-work-weighted scheduling. BC, PR, PR-SPMV, and SSSP require a
-quiescent/dedicated-host rerun before any performance verdict or tuning.
+The successful changes match the cited research: Beamer/GAPBS queue+bitmap DOBFS,
+Afforest's whole-row giant-component skip, and dynamic forward triangle
+intersection scheduling. CC-SV now uses direct CSR rows and has near-parity
+single-thread cost, but parallel root-hook contention remains; the canonical
+implementation uses racy plain writes while the edge version preserves atomic
+root hooking. BC, PR, PR-SPMV, and SSSP still require a quiescent/dedicated-host
+rerun before any performance verdict or tuning.
+
+### Implications for `.blox` acceleration
+
+- **BFS:** sparse queue production, bitmap materialization, dynamic incoming
+  pull, and sparse/dense switching are schedule primitives; sorting is not.
+- **Afforest CC:** fixed neighbor sampling and row-level skip of the sampled
+  giant component are the critical flow controls, not a full oriented-edge scan.
+- **TC:** sorted `SET_OPS` intersection is already the right compute primitive;
+  the missing gain is work-aware scheduling across oriented source rows.
+- **CC-SV:** atomic root CAS/min plus pointer jumping is the remaining hot path
+  and directly matches the D2 atomic-RMW blocker. This is the strongest
+  edge-centric hardware acceleration candidate.
 
 ## Literature
 
