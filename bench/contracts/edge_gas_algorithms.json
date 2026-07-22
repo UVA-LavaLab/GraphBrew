@@ -33,6 +33,51 @@
     "pr",
     "sssp"
   ],
+  "performance_contract": {
+    "bfs": {
+      "edge_work": "direction_optimized_O(V+E)",
+      "edge_balance": "sparse_frontier_push_and_edge_balanced_destination_pull",
+      "ownership": "CAS_push_destination_owned_pull"
+    },
+    "bc": {
+      "edge_work": "sampled_brandes_O(k*(V+E))",
+      "edge_balance": "frontier_push_and_depth_owned_backward_gather",
+      "ownership": "atomic_path_counts_vertex_owned_dependencies"
+    },
+    "cc": {
+      "edge_work": "afforest_sample_then_near_linear_union",
+      "edge_balance": "edge_ordinal_final_link",
+      "ownership": "atomic_union_find",
+      "gas_work": "active_weak_neighbor_edges"
+    },
+    "cc_sv": {
+      "edge_work": "iterative_hook_and_shortcut",
+      "edge_balance": "oriented_or_directed_edge_ordinal",
+      "ownership": "CAS_root_hook_vertex_shortcut"
+    },
+    "pr": {
+      "edge_work": "O(iterations*(V+E))",
+      "edge_balance": "edge_balanced_destination_segments",
+      "ownership": "destination_owned_atomic_contribution_reads",
+      "gas_work": "dense_gather_apply_scatter"
+    },
+    "pr_spmv": {
+      "edge_work": "O(iterations*(V+E))",
+      "edge_balance": "edge_balanced_destination_segments",
+      "ownership": "destination_owned_jacobi_gather"
+    },
+    "sssp": {
+      "edge_work": "delta_stepping_active_bucket_relaxations",
+      "edge_balance": "dynamic_active_frontier_with_thread_local_bins",
+      "ownership": "atomic_min_distance",
+      "gas_work": "active_bellman_ford_edges"
+    },
+    "tc": {
+      "edge_work": "sum_oriented_sorted_prefix_intersections",
+      "edge_balance": "oriented_edge_ordinal",
+      "ownership": "thread_local_count_reduction"
+    }
+  },
   "test_profiles": {
     "directed_tiny": {
       "path": "scripts/test/data/tiny.el",

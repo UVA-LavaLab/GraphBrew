@@ -84,6 +84,24 @@ def main() -> int:
         "legacy_instrumented_forks_pending_shared_kernel_hooks",
         "simulator policy differs",
     )
+    performance = contract.get("performance_contract")
+    require(
+        isinstance(performance, dict)
+        and set(performance) == CANONICAL,
+        "performance contract algorithm set differs",
+    )
+    for name, item in performance.items():
+        for field in {"edge_work", "edge_balance", "ownership"}:
+            require(
+                isinstance(item.get(field), str) and item[field],
+                f"{name}: performance {field} missing",
+            )
+        require(
+            (isinstance(item.get("gas_work"), str) and item["gas_work"])
+            if name in GAS
+            else item.get("gas_work") is None,
+            f"{name}: GAS work contract differs",
+        )
 
     profiles = contract.get("test_profiles")
     require(isinstance(profiles, dict) and profiles, "test profiles missing")

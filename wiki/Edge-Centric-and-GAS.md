@@ -244,6 +244,39 @@ triangle, no-triangle, and dangling-vertex cases. It currently passes:
 Only verifier-defined semantic output is gated. Iteration counts, active work,
 and examined-edge counters remain informational because legal schedules differ.
 
+## Structural performance qualification
+
+The contract records each algorithm's work class, balance policy, ownership,
+and GAS work class where applicable. Validate those claims against the source
+with:
+
+```bash
+make check-edge-structure
+```
+
+The audit binds direction-optimized BFS, active Delta-Stepping bins and fusion,
+sampled Brandes, oriented TC intersection, destination-segment PageRank,
+Afforest/SV, and dense/active GAS schedules to their implementations. It also
+checks conversion/relabel placement before `BenchmarkKernel` and rejects
+unapproved critical sections; only the guarded FrontierBuilder overflow path is
+allowed.
+
+Generate an on-demand verified comparison report with:
+
+```bash
+make report-edge-gas-performance
+# or customize:
+python3 scripts/experiments/edge_gas_report.py \
+  --threads 8 --trials 5 --synthetic-scale 14
+```
+
+The JSON reports local average time, nominal input-edge rate, canonical-relative
+speedup, and the structural work/balance/ownership contract. It explicitly has
+`hard_speed_gate=false`; nominal input-edge rate is not actual examined-edge
+work. A representative scale-12 session showed edge PR/PR-SPMV wins, SSSP near
+parity, and overheads for several edge variants plus dense/active GAS—evidence
+that the report exposes losses rather than selecting only winners.
+
 ## Literature
 
 - PowerGraph/GAS:
