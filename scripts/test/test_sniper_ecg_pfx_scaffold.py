@@ -61,7 +61,8 @@ def test_sniper_fused_k2_skips_software_only_delivery() -> None:
     text = read("bench/src_sniper/sg_kernel.cc")
     assert text.count("const bool software_k2_delivery =") == 5
     assert text.count("const bool ecg_pfx_hints_on =") == 3
-    assert text.count("if (!software_k2_delivery)") == 5
+    assert text.count("const bool no_delivery_pair_loop =") == 4
+    assert text.count("if (no_delivery_pair_loop)") == 5
     assert text.count("if (software_k2_delivery) {") == 3
     assert text.count("if (!fused_k2_model) {") >= 6
     assert "if (delivered_k2 && !fused_k2_model)" in text
@@ -207,3 +208,19 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
     assert "requires --sniper-workload sg_kernel" in runner
     assert 'os.environ.get("ECG_FORCE_DELIVERY") == "1"' in runner
     assert "ws[w].recency = m_last_touch[w];" in cache
+
+
+def test_sniper_mask_only_uses_transport_matched_loops():
+    source = read("bench/src_sniper/sg_kernel.cc")
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+
+    assert "bool k2_transport_matched_enabled()" in source
+    assert source.count(
+        "const bool k2_transport_matched = "
+        "k2_transport_matched_enabled();") == 5
+    assert source.count("[K2_TRANSPORT_MATCHED]") == 6
+    assert "k2_transport_matched && !k2_trace_on" in source
+    assert 'env["SNIPER_K2_TRANSPORT_MATCHED"] = "1"' in runner
+    assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
+    assert '"sniper_transport_record_bytes"] = 8' in runner
+    assert '"matched_mask_only_sideband_model"' in runner

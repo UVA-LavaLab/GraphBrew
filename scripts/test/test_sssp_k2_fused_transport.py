@@ -25,7 +25,9 @@ def test_weighted_sssp_fused_path_moves_validation_before_roi():
     assert "gem5_ecg_weighted_load2_instruction" in gem5
     assert "combineWeightedEpochPairRecord" in builder
     assert "gem5_ecg_load_k2(dist.data(), record)" in gem5
-    assert sniper.count("if (!software_k2_delivery)") == 5
+    assert sniper.count("if (no_delivery_pair_loop)") == 5
+    assert "[K2_TRANSPORT_MATCHED] SSSP compact 8B" in sniper
+    assert "[K2_TRANSPORT_MATCHED] SSSP general 12B" in sniper
 
     decoder = (
         ROOT

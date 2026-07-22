@@ -1520,7 +1520,14 @@ def sniper_binary_and_options(args: argparse.Namespace) -> tuple[Path, list[str]
             raise SystemExit(
                 "--suite sniper --sniper-workload sg_kernel requires "
                 "--options with -f graph.sg or -g scale")
-        return PROJECT_ROOT / "bench" / "bin_sniper" / "sg_kernel", ["--benchmark", args.benchmark, *options]
+        sg_binary_override = getattr(args, "sniper_sg_binary", "")
+        binary = (
+            Path(sg_binary_override)
+            if sg_binary_override
+            else PROJECT_ROOT / "bench" / "bin_sniper" / "sg_kernel")
+        if not binary.is_absolute():
+            binary = PROJECT_ROOT / binary
+        return binary, ["--benchmark", args.benchmark, *options]
     return PROJECT_ROOT / "bench" / "bin_sniper" / args.benchmark, shlex.split(args.options)
 
 
@@ -1536,6 +1543,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     sniper_root = sniper_root_path(args)
     sniper_runner = sniper_runner_path(args)
     unsafe_sniper_workload = args.sniper_workload in ("benchmark", "sg_kernel")
+    binary, binary_options = sniper_binary_and_options(args)
     row.update({
         "section": 0,
         "log_path": str(log_path),
@@ -1548,6 +1556,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         "sniper_out_edges_path": str(sidebands["out_edges"]),
         "sniper_in_edges_path": str(sidebands["in_edges"]),
         "sniper_workload": args.sniper_workload,
+        "sniper_workload_binary": str(binary),
+        "sniper_workload_sha256": hashlib.sha256(
+            binary.read_bytes()).hexdigest() if binary.exists() else "",
         "sniper_cores": args.sniper_cores,
         "sniper_frontend": args.sniper_frontend,
         "sniper_omp_wait_policy": args.sniper_omp_wait_policy,
@@ -1606,7 +1617,6 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         })
         return [row]
 
-    binary, binary_options = sniper_binary_and_options(args)
     if not args.dry_run:
         if not sniper_runner.exists():
             row.update({"status": "error", "error": f"missing run-sniper: {sniper_runner}"})
@@ -1719,14 +1729,24 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     apply_explicit_cell_mechanism_env(env, spec)
     env.pop("SNIPER_ECG_FUSED_K2", None)
     env.pop("SNIPER_ECG_FUSED_VALIDATE", None)
+    env.pop("SNIPER_K2_TRANSPORT_MATCHED", None)
     transport = ecg_transport_for(spec, args.benchmark)
     apply_ecg_transport_env(env, transport)
     is_k2_ecg = policy_name == "ecg" and spec.ecg_mode == "ECG_GRASP_POPT"
-    if (is_k2_ecg and transport.schedule_k == 2 and
-            args.ecg_isa_variant == "mask"):
-        raise RuntimeError(
-            "Sniper K2-M timing is not implemented; use "
-            "--ecg-isa-variant indexed only for the packed K2-I-like model.")
+    if args.ecg_isa_variant == "mask":
+        env["SNIPER_K2_TRANSPORT_MATCHED"] = "1"
+        env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
+        env["SNIPER_ECG_FUSED_K2"] = "1"
+        env["ECG_EDGE_MASK_SCHED"] = "2"
+        env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
+        env["ECG_K2_VALIDATE"] = "1"
+        row["sniper_transport_matched"] = 1
+        row["sniper_transport_record_bytes"] = 8
+        row["timing_model"] = "transport_matched_diagnostic"
+        row["timing_valid_for_speedup"] = "0"
+        row["timing_caveat"] = (
+            "Transport-matched K2-M certification row; timing remains "
+            "diagnostic until exact request binding and the epoch CSR land.")
     if policy_name == "popt":
         popt_fast = (
             "0" if os.environ.get("SNIPER_POPT_FAST") == "0" else "1")
@@ -1786,6 +1806,14 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     ecg_variant = effective_ecg_variant(
         args, transport.schedule_k, spec)
     env["ECG_VARIANT"] = ecg_variant
+    if args.ecg_isa_variant == "mask":
+        env["SNIPER_ECG_MODE"] = "ECG_GRASP_POPT"
+        env["ECG_MODE"] = "ECG_GRASP_POPT"
+        env["ECG_VARIANT"] = effective_ecg_variant(
+            args, schedule_k=2, spec=parse_policy_spec("ECG:K2"))
+        env["ECG_EDGE_MASKS"] = "1"
+        env["SNIPER_POPT_FAST"] = "1"
+        env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"
     schedule_k = transport.schedule_k if is_k2_ecg else 0
     if schedule_k not in (0, 2):
         raise RuntimeError(
@@ -1836,25 +1864,36 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             if fused_validation:
                 env["SNIPER_ECG_FUSED_VALIDATE"] = "1"
         row["sniper_ecg_delivery"] = (
-            "fused-k2-weighted32-model"
+            "matched-k2m-sideband-model"
+            if fused_k2 and args.ecg_isa_variant == "mask"
+            else "fused-k2-weighted32-model"
             if fused_k2 and args.benchmark == "sssp"
             else "fused-k2-model" if fused_k2
             else "per-edge-extract2-k2" if schedule_k == 2
             else "per-edge-extract")
         if fused_k2:
-            row["timing_model"] = "fused_record_load_sideband_model"
-            row["timing_valid_for_speedup"] = "1"
-            row["timing_caveat"] = (
-                "The packed record load is the Sniper fused-delivery event; "
-                "non-tracing runs execute no per-edge SimMagic or software-only "
-                "delivery call.")
+            if args.ecg_isa_variant == "mask":
+                row["timing_model"] = "matched_mask_only_sideband_model"
+                row["timing_valid_for_speedup"] = "0"
+                row["timing_caveat"] = (
+                    "All policies use transport-matched 8-byte record loops, "
+                    "but the epoch CSR and exact Sniper request binding remain "
+                    "modeled; use this row for instruction-parity validation "
+                    "until the matched timing gate passes.")
+            else:
+                row["timing_model"] = "fused_record_load_sideband_model"
+                row["timing_valid_for_speedup"] = "1"
+                row["timing_caveat"] = (
+                    "The packed record load is the Sniper fused-delivery event; "
+                    "non-tracing runs execute no per-edge SimMagic or software-only "
+                    "delivery call.")
         elif schedule_k == 2:
             row["timing_model"] = "prototype_explicit_magic_delivery"
             row["timing_valid_for_speedup"] = "0"
             row["timing_caveat"] = (
                 "This kernel still emits per-edge SimMagic for K2 delivery; "
                 "use cache metrics, not speedup.")
-    else:
+    elif args.ecg_isa_variant != "mask":
         env.pop("SNIPER_ENABLE_ECG_EXTRACT", None)
     apply_instruction_cap_provenance(row, "sniper", args)
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_sniper, log_path, args.dry_run)
@@ -1866,6 +1905,24 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row.update({"status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
         return [row]
     log_text = log_path.read_text(errors="ignore")
+    semantic_patterns = {
+        "pr": r"GraphBrew Sniper SG PR checksum:\s*(.+)",
+        "bfs": r"GraphBrew Sniper SG BFS reached:\s*(.+)",
+        "sssp": r"GraphBrew Sniper SG SSSP reached/checksum:\s*(.+)",
+        "bc": r"GraphBrew Sniper SG BC checksum:\s*(.+)",
+        "cc": r"GraphBrew Sniper SG CC components:\s*(.+)",
+    }
+    semantic_match = re.search(
+        semantic_patterns.get(args.benchmark, r"$^"), log_text)
+    row["sniper_semantic_result"] = (
+        semantic_match.group(1).strip() if semantic_match else "")
+    if args.ecg_isa_variant == "mask":
+        if "[K2_TRANSPORT_MATCHED] SSSP general 12B" in log_text:
+            row["sniper_transport_record_bytes"] = 12
+            row["sniper_transport_bytes_per_edge"] = 12
+        else:
+            row["sniper_transport_record_bytes"] = 8
+            row["sniper_transport_bytes_per_edge"] = 8
     if fused_k2 and args.benchmark == "sssp":
         if "[ECG_FUSED_K2_WEIGHTED64]" in log_text:
             row.update({
@@ -2304,6 +2361,13 @@ def standalone_matrix_config_hash(
             else "pr_kernel_smoke" if workload == "pr_kernel_smoke"
             else f"{args.benchmark}_kernel_smoke"
             if workload == "kernel_smoke" else args.benchmark)
+        sg_binary_override = getattr(args, "sniper_sg_binary", "")
+        benchmark_binary = (
+            Path(sg_binary_override)
+            if workload == "sg_kernel" and sg_binary_override
+            else PROJECT_ROOT / "bench" / "bin_sniper" / binary_name)
+        if not benchmark_binary.is_absolute():
+            benchmark_binary = PROJECT_ROOT / benchmark_binary
         paths.update({
             "sniper_runner": root / "run-sniper",
             "sniper_record_trace": root / "record-trace",
@@ -2314,8 +2378,7 @@ def standalone_matrix_config_hash(
             "sniper_sde": root / "sde_kit" / "sde64",
             "sniper_sift_recorder": root / "sift" / "recorder" /
             "obj-intel64" / "sde_sift_recorder.so",
-            "benchmark_binary": PROJECT_ROOT / "bench" /
-            "bin_sniper" / binary_name,
+            "benchmark_binary": benchmark_binary,
         })
         setarch = shutil.which("setarch")
         paths["setarch"] = (
@@ -2546,6 +2609,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="Run experimental gem5 ECG_PFX timing path. Requires rebuilt gem5 overlays; default is an explicit unsupported row.")
     parser.add_argument("--sniper-workload", choices=["pr_kernel_smoke", "kernel_smoke", "sg_kernel", "benchmark"], default="pr_kernel_smoke",
                         help="Use a fast fixed kernel smoke, file-backed .sg kernel, or the full bench/bin_sniper/<benchmark> wrapper.")
+    parser.add_argument(
+        "--sniper-sg-binary", default="",
+        help="Optional sg_kernel binary override for isolated validation without "
+             "replacing the canonical bench/bin_sniper/sg_kernel.")
     parser.add_argument("--allow-sniper-benchmark-workload", action="store_true",
                         help="Allow full bench/bin_sniper/<benchmark> under Sniper. Unsafe until SDE/SIFT run mode is fixed; guarded by --sniper-memory-limit-gb.")
     parser.add_argument("--allow-sniper-sg-kernel-workload", action="store_true",

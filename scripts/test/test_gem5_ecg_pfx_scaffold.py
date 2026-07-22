@@ -345,7 +345,8 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
     assert "GEM5_ECG_ISA_VARIANT" in harness
     assert '"ecg_isa_variant"' in runner
     assert 'env["GEM5_ECG_ISA_VARIANT"] = args.ecg_isa_variant' in runner
-    assert "Sniper K2-M timing is not implemented" in runner
+    assert "SNIPER_K2_TRANSPORT_MATCHED" in runner
+    assert "matched-k2m-sideband-model" in runner
     assert '"prototype_mask_only_load"' in runner
     assert "prototype current-vertex channel" in runner
     assert "transport.schedule_k == 2" in runner

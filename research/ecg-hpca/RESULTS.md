@@ -140,6 +140,25 @@ distance mismatches; BFS/SSSP/BC have decisive epoch victims and BC proves both
 4-byte depth and 8-byte path-count delivery. This is ISA/mechanism evidence,
 not a K2-M timing result. The epoch CSR remains pending.
 
+The transport-matched Sniper model also passes its five-kernel mechanism gate.
+LRU and K2-M execute identical dynamic instruction counts in every cell:
+
+| Kernel | K2-M speedup vs LRU | L3 miss ratio | Instruction ratio |
+|---|---:|---:|---:|
+| PR | 1.018x | 0.959x | 1.000x |
+| BFS | 1.034x | 0.968x | 1.000x |
+| SSSP | 1.009x | 0.972x | 1.000x |
+| BC | 0.991x | 0.895x | 1.000x |
+| CC | 0.977x | 0.990x | 1.000x |
+| Geomean | **1.006x** | **0.957x** | **1.000x** |
+
+The gate uses the same 8-byte record loops, exact semantic-result equality,
+uncapped ROIs, hashed binaries/output markers, and a 0.25% instruction
+tolerance. PR and compact SSSP cold proofs each report one validated receipt and
+zero bad records. This establishes instruction parity and mechanism direction,
+not real-graph K2-M performance; the epoch CSR and exact Sniper request binding
+remain modeled.
+
 ### K2-I target-instruction correction
 
 Replacement-only authority already showed the forced K2 `grasp_only` arm

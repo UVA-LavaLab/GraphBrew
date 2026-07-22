@@ -23,6 +23,11 @@
   producer/consumer request-binding proofs; PR/BFS/SSSP/BC/CC pass the complete
   cache_sim+gem5 K2-M delivery/victim gate. The current-epoch CSR remains
   pending, so these runs still use the prototype vertex channel.
+- The transport-matched Sniper K2-M model passes exact instruction parity on
+  PR/BFS/SSSP/BC/CC. On the email mechanism cells, K2/LRU instruction ratio is
+  1.000x, geomean speedup is 1.006x, and geomean L3-miss reduction is 4.35%.
+  PR/BFS/SSSP improve; BC/CC remain near neutral. PR and compact SSSP receipt
+  proofs report zero bad records. These are mechanism cells, not headline timing.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.
@@ -94,7 +99,7 @@
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   static/online K2, and both StreamShield variants.
-- A matched Sniper K2-M timing matrix.
+- A full sampled/real-graph matched Sniper K2-M timing matrix.
 - An explicit current-epoch CSR/request channel replacing prototype magic.
 - Equal-area K2 metadata, logic, energy, and replacement-latency accounting.
 - K2-M versus K2-I disassembly and retired-instruction categorization.

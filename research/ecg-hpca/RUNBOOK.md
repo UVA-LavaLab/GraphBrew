@@ -297,6 +297,19 @@ dual-load coverage. Compact SSSP must report `ecg_isa_variant=mask`,
 `ecg_record_bytes=8`, `edge_stream_bytes_per_edge=8`, and
 `ecg_record_replaces_edge=1`.
 
+Matched Sniper K2-M certification:
+
+```bash
+python3 scripts/experiments/ecg/verify/matched_k2m.py \
+  --root /tmp/ecg_sniper_k2m_allkernel_final
+```
+
+Each kernel directory must contain exactly one LRU and one K2 row from the same
+uncapped `sg_kernel` binary/configuration. Completion hashes, transport markers,
+semantic outputs, diagnostic-only timing, and workload hashes must match.
+Instruction ratio must remain within 0.25%; the current five-kernel gate is
+exactly 1.000x.
+
 ### Equal-area acceptance gate
 
 Before any hardware-efficiency headline:

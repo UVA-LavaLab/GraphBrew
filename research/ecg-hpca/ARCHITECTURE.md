@@ -325,9 +325,9 @@ K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
 |---|---|---|---|
 | K2 construction | shared builder | shared builder | shared builder |
 | K2 distance | shared selector | shared selector | shared selector |
-| Tier delivery | masked property access | K2-M and K2-I implemented; O3 Request binding; serialized scale fallback | idealized packed K2-I-like model; matched K2-M pending |
+| Tier delivery | masked property access | K2-M and K2-I implemented; O3 Request binding; serialized scale fallback | transport-matched K2-M sideband model implemented; exact request binding pending |
 | Online selection | exact set index | gem5 replaceable-entry set | Sniper cache-set index |
-| Epoch delivery | masked property access | K2-M exact Request proven for PR and compact SSSP O3; all five pass serialized scale gate | source+line inferred sideband model |
+| Epoch delivery | masked property access | K2-M exact Request proven for PR and compact SSSP O3; all five pass serialized scale gate | source+line inferred sideband model with exact guest instruction parity |
 | StreamShield | preserve LLC hits, suppress miss insertion | request flag clears LLC `allocOnFill` | preserve NUCA hit path, suppress miss insertion |
 | Address stability | aligned properties + fixed indexed record streams | aligned properties/records | aligned properties/records |
 | Purpose | functional authority | cycle-accurate ISA confirmation | scale/timing confirmation |

@@ -421,6 +421,9 @@ def test_canonical_isa_story_separates_mask_and_indexed_loads():
     assert "does not extend the cache critical path" in runbook
     assert "lower hardware overhead than P-OPT" in runbook
     assert "Renaming the current packed model is insufficient." in runbook
+    assert "exactly 1.000x instruction ratio" in methodology
+    assert "transport-matched Sniper K2-M model" in claims
+    assert "matched_k2m.py" in runbook
     assert "exact per-Request O3 binding is proven only" in claims
     assert "request-bound fused indexed K2-I property load" not in claims
     assert "Canonical Sniper K2-I timing" not in runbook
