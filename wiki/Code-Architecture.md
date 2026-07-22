@@ -21,7 +21,9 @@ GraphBrew/
 │   │   │   ├── corder/       # COrder
 │   │   │   └── leiden/       # GVE-Leiden
 │   │   └── cache_sim/        # Cache simulation headers
-│   ├── src/                  # Benchmark source files
+│   ├── src/                  # Canonical benchmark baselines
+│   ├── src_edge/             # Edge-centric benchmark drivers
+│   ├── src_gas/              # Natural GAS benchmark drivers
 │   └── src_sim/              # Cache simulation sources
 │
 ├── scripts/                  # Python tools

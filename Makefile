@@ -18,6 +18,8 @@ BENCH_DIR   = bench
 BIN_DIR = $(BENCH_DIR)/bin
 LIB_DIR = $(BENCH_DIR)/lib
 SRC_DIR = $(BENCH_DIR)/src
+SRC_EDGE_DIR = $(BENCH_DIR)/src_edge
+SRC_GAS_DIR = $(BENCH_DIR)/src_gas
 INC_DIR = $(BENCH_DIR)/include
 OBJ_DIR = $(BENCH_DIR)/obj
 TEST_SRC_DIR = $(BENCH_DIR)/tests
@@ -299,6 +301,12 @@ install-py-deps: ./$(SCRIPT_DIR)/requirements.txt
 # Compilation Rules
 # =========================================================
 $(BIN_DIR)/%: $(SRC_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+
+$(EDGE_KERNELS_BIN): $(BIN_DIR)/%: $(SRC_EDGE_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
+
+$(GAS_KERNELS_BIN): $(BIN_DIR)/%: $(SRC_GAS_DIR)/%.cc $(DEP_GAPBS) $(DEP_GRAPHBREW) $(DEP_RABBIT) $(DEP_GORDER) $(DEP_CORDER) $(DEP_LEIDEN) | $(BIN_DIR)
 	@$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@ $(EXIT_STATUS)
 
 # The streaming exporter only depends on the gapbs reader and the graphbrew

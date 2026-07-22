@@ -182,7 +182,9 @@ Use `RABBIT_ENABLE=0 make all` to build without these dependencies.
 
 ```
 bench/
-├── src/          # Benchmark source files (bc.cc, bfs.cc, pr.cc, ...)
+├── src/          # Canonical baseline sources (bc.cc, bfs.cc, pr.cc, ...)
+├── src_edge/     # Edge-centric variants
+├── src_gas/      # Natural GAS variants
 ├── src_sim/      # Cache simulation variants
 ├── bin/          # Compiled binaries
 └── include/

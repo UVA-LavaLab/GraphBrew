@@ -32,10 +32,13 @@ make check-edge-contract-profiles
 | TC | yes | no | oriented edges plus sorted adjacency intersection |
 
 `bfs_p` and `tc_p` are specialized consumers, not separate semantic
-algorithms. Existing `src_sim` files are legacy instrumented forks and are not
-the semantic contract authority; some have already drifted from canonical
-source/verifier behavior. New cache-simulation binaries must instantiate shared
-kernels through access hooks instead of copying algorithm bodies.
+algorithms. Canonical baselines remain isolated in `bench/src/`; edge drivers
+live in `bench/src_edge/`, GAS drivers in `bench/src_gas/`, and simulation
+drivers in `bench/src_sim/`. Existing `src_sim` files are legacy instrumented
+forks and are not the semantic contract authority; some have already drifted
+from canonical source/verifier behavior. New cache-simulation binaries must
+instantiate shared kernels through access hooks instead of copying algorithm
+bodies.
 
 ## Correctness rules
 

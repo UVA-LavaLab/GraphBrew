@@ -129,6 +129,11 @@ with its own `main()` under `bench/src/`. The build system already
 knows how to compile any new `.cc` file in `bench/src/` against the
 GraphBrew headers.
 
+Keep `bench/src/` canonical and stable. Add edge-centric variants under
+`bench/src_edge/`, natural GAS variants under `bench/src_gas/`, and cache
+simulation drivers under `bench/src_sim/`; register variant binaries in the
+corresponding Makefile list.
+
 ### 1. Create the source file
 
 ```cpp

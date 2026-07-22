@@ -54,6 +54,25 @@ def main() -> int:
         contract.get("schema") == "graphbrew.edge-gas-algorithms",
         "edge/GAS contract schema differs",
     )
+    require(
+        contract.get("canonical_source_root") == "bench/src"
+        and contract.get("edge_source_root") == "bench/src_edge"
+        and contract.get("gas_source_root") == "bench/src_gas"
+        and contract.get("simulator_source_root") == "bench/src_sim",
+        "algorithm source roots differ",
+    )
+    canonical_root = ROOT / contract["canonical_source_root"]
+    edge_root = ROOT / contract["edge_source_root"]
+    gas_root = ROOT / contract["gas_source_root"]
+    require(
+        canonical_root.is_dir() and edge_root.is_dir() and gas_root.is_dir(),
+        "algorithm source root missing",
+    )
+    require(
+        not list(canonical_root.glob("*_edge.cc"))
+        and not list(canonical_root.glob("*_gas.cc")),
+        "canonical source root contains edge/GAS variants",
+    )
     algorithms = contract.get("algorithms")
     require(isinstance(algorithms, list), "algorithms must be a list")
     by_name = {item.get("name"): item for item in algorithms}
@@ -154,6 +173,10 @@ def main() -> int:
                 and (ROOT / edge_source).is_file(),
                 f"{name}: edge source missing",
             )
+            require(
+                (ROOT / edge_source).parent == edge_root,
+                f"{name}: edge source is outside edge_source_root",
+            )
         else:
             require(
                 edge_binary is None and edge_source is None,
@@ -168,6 +191,10 @@ def main() -> int:
                 isinstance(gas_source, str)
                 and (ROOT / gas_source).is_file(),
                 f"{name}: GAS source missing",
+            )
+            require(
+                (ROOT / gas_source).parent == gas_root,
+                f"{name}: GAS source is outside gas_source_root",
             )
             require(
                 isinstance(item.get("gas_convergence"), str)
