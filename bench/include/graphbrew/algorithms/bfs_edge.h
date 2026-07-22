@@ -7,90 +7,109 @@
 #include <utility>
 
 #include "benchmark.h"
+#include "bitmap.h"
 #include "graphbrew/bfs_common.h"
 #include "graphbrew/edge/algorithm_access_policy.h"
 #include "graphbrew/edge/atomics.h"
 #include "graphbrew/edge/edge_map.h"
 #include "graphbrew/edge/edge_stream.h"
-#include "graphbrew/edge/frontier.h"
 #include "pvector.h"
+#include "sliding_queue.h"
 #include "timer.h"
 
 namespace graphbrew::algorithms {
 
 template <typename FlatGraphT, typename AccessPolicy>
-std::pair<int64_t, edge::Frontier<NodeID>> BFSSparsePush(
+int64_t BFSSparsePush(
     const FlatGraphT &outgoing,
-    const edge::Frontier<NodeID> &frontier,
     pvector<NodeID> &parent,
-    edge::FrontierBuilder<NodeID> &builder,
+    SlidingQueue<NodeID> &queue,
     AccessPolicy &access_policy) {
-  builder.PrepareForParallel();
   int64_t scout_count = 0;
-  const auto &active = frontier.sparse();
-#pragma omp parallel for schedule(dynamic, 64) reduction(+ : scout_count)
-  for (std::size_t index = 0; index < active.size(); ++index) {
-    const NodeID source = active[index];
-    const std::size_t begin = static_cast<std::size_t>(
-        outgoing.offsets_.data[source]);
-    const std::size_t end = begin + static_cast<std::size_t>(
-        outgoing.degrees_.data[source]);
-    for (std::size_t ordinal = begin; ordinal < end; ++ordinal) {
-      const NodeID destination =
-          outgoing.neighbors_.data[ordinal];
-      access_policy.OnEdge(edge::EdgeRecord<NodeID, NodeID>{
-          source, destination, 1, ordinal});
-      const NodeID observed = edge::AtomicLoad(parent[destination]);
-      if (observed < 0 &&
-          edge::AtomicAssignIfEqual(
-              parent[destination], observed, source)) {
-        builder.Push(destination);
-        scout_count += -static_cast<int64_t>(observed);
-      }
-    }
-  }
-  return {scout_count, builder.Finish()};
-}
-
-template <typename FlatGraphT, typename AccessPolicy>
-std::pair<int64_t, edge::Frontier<NodeID>> BFSDensePull(
-    const FlatGraphT &incoming,
-    const edge::Frontier<NodeID> &frontier,
-    pvector<NodeID> &parent,
-    edge::FrontierBuilder<NodeID> &builder,
-    AccessPolicy &access_policy) {
-  builder.PrepareForParallel();
-  const auto partitions = edge::PartitionSegments(
-      incoming, edge::EdgeWorkerCount());
-  int64_t awake_count = 0;
-#pragma omp parallel for schedule(static) reduction(+ : awake_count)
-  for (std::size_t partition = 0;
-       partition < partitions.size(); ++partition) {
-    for (std::size_t destination =
-             partitions[partition].begin_vertex;
-         destination < partitions[partition].end_vertex;
-         ++destination) {
-      const NodeID node = static_cast<NodeID>(destination);
-      if (edge::AtomicLoad(parent[node]) >= 0)
-        continue;
+#pragma omp parallel
+  {
+    QueueBuffer<NodeID> local_queue(queue);
+#pragma omp for reduction(+ : scout_count) nowait
+    for (auto cursor = queue.begin(); cursor < queue.end(); ++cursor) {
+      const NodeID source = *cursor;
       const std::size_t begin = static_cast<std::size_t>(
-          incoming.offsets_.data[destination]);
+          outgoing.offsets_.data[source]);
       const std::size_t end = begin + static_cast<std::size_t>(
-          incoming.degrees_.data[destination]);
+          outgoing.degrees_.data[source]);
       for (std::size_t ordinal = begin; ordinal < end; ++ordinal) {
-        const NodeID source = incoming.neighbors_.data[ordinal];
+        const NodeID destination =
+            outgoing.neighbors_.data[ordinal];
         access_policy.OnEdge(edge::EdgeRecord<NodeID, NodeID>{
-            source, node, 1, ordinal});
-        if (frontier.Contains(source)) {
-          edge::AtomicStore(parent[node], source);
-          builder.Push(node);
-          ++awake_count;
-          break;
+            source, destination, 1, ordinal});
+        const NodeID observed = edge::AtomicLoad(parent[destination]);
+        if (observed < 0 &&
+            edge::AtomicAssignIfEqual(
+                parent[destination], observed, source)) {
+          local_queue.push_back(destination);
+          scout_count += -static_cast<int64_t>(observed);
         }
       }
     }
+    local_queue.flush();
   }
-  return {awake_count, builder.Finish()};
+  return scout_count;
+}
+
+template <typename FlatGraphT, typename AccessPolicy>
+int64_t BFSDensePull(
+    const FlatGraphT &incoming,
+    pvector<NodeID> &parent,
+    const Bitmap &frontier,
+    Bitmap &next,
+    AccessPolicy &access_policy) {
+  int64_t awake_count = 0;
+  next.reset();
+#pragma omp parallel for schedule(dynamic, 1024) reduction(+ : awake_count)
+  for (NodeID node = 0; node < incoming.num_nodes(); ++node) {
+    if (parent[node] >= 0)
+      continue;
+    const std::size_t begin = static_cast<std::size_t>(
+        incoming.offsets_.data[node]);
+    const std::size_t end = begin + static_cast<std::size_t>(
+        incoming.degrees_.data[node]);
+    for (std::size_t ordinal = begin; ordinal < end; ++ordinal) {
+      const NodeID source = incoming.neighbors_.data[ordinal];
+      access_policy.OnEdge(edge::EdgeRecord<NodeID, NodeID>{
+          source, node, 1, ordinal});
+      if (frontier.get_bit(source)) {
+        parent[node] = source;
+        next.set_bit(node);
+        ++awake_count;
+        break;
+      }
+    }
+  }
+  return awake_count;
+}
+
+inline void BFSQueueToBitmap(
+    const SlidingQueue<NodeID> &queue,
+    Bitmap &bitmap) {
+#pragma omp parallel for
+  for (auto cursor = queue.begin(); cursor < queue.end(); ++cursor)
+    bitmap.set_bit_atomic(*cursor);
+}
+
+inline void BFSBitmapToQueue(
+    const Bitmap &bitmap,
+    SlidingQueue<NodeID> &queue,
+    const NodeID num_nodes) {
+#pragma omp parallel
+  {
+    QueueBuffer<NodeID> local_queue(queue);
+#pragma omp for nowait
+    for (NodeID node = 0; node < num_nodes; ++node) {
+      if (bitmap.get_bit(node))
+        local_queue.push_back(node);
+    }
+    local_queue.flush();
+  }
+  queue.slide_window();
 }
 
 template <typename OutFlatGraphT, typename InFlatGraphT,
@@ -122,31 +141,42 @@ pvector<NodeID> DirectionOptimizingBFSEdge(
   if (logging_enabled)
     PrintStep("Source", static_cast<int64_t>(source));
   parent[source] = source;
-  edge::Frontier<NodeID> frontier(graph.num_nodes());
-  frontier.AssignSingleton(source);
-  edge::FrontierBuilder<NodeID> builder(graph.num_nodes());
+  SlidingQueue<NodeID> queue(graph.num_nodes());
+  queue.push_back(source);
+  queue.slide_window();
+  Bitmap current(graph.num_nodes());
+  current.reset();
+  Bitmap frontier(graph.num_nodes());
+  frontier.reset();
   int64_t edges_to_check = graph.num_edges_directed();
   int64_t scout_count = graph.out_degree(source);
   int step = 0;
   Timer timer;
 
-  while (!frontier.empty()) {
+  while (!queue.empty()) {
     if (scout_count > edges_to_check / alpha) {
+      timer.Start();
+      BFSQueueToBitmap(queue, frontier);
+      timer.Stop();
+      graphbrew::database::AppendBenchmarkIterationEntry(
+          {{"step", step++},
+           {"phase", "frontier_to_bitmap"},
+           {"time_s", timer.Seconds()}});
       int64_t awake_count =
-          static_cast<int64_t>(frontier.size());
+          static_cast<int64_t>(queue.size());
       int64_t old_awake_count = 0;
+      queue.slide_window();
       do {
         old_awake_count = awake_count;
         timer.Start();
-        auto next = BFSDensePull(
+        awake_count = BFSDensePull(
             incoming,
-            frontier,
             parent,
-            builder,
+            frontier,
+            current,
             access_policy);
         timer.Stop();
-        awake_count = next.first;
-        frontier = std::move(next.second);
+        frontier.swap(current);
         if (logging_enabled)
           PrintStep("bu", timer.Seconds(), awake_count);
         graphbrew::database::AppendBenchmarkIterationEntry(
@@ -157,30 +187,35 @@ pvector<NodeID> DirectionOptimizingBFSEdge(
       } while (
           awake_count >= old_awake_count ||
           awake_count > graph.num_nodes() / beta);
+      timer.Start();
+      BFSBitmapToQueue(frontier, queue, graph.num_nodes());
+      timer.Stop();
+      graphbrew::database::AppendBenchmarkIterationEntry(
+          {{"step", step++},
+           {"phase", "bitmap_to_frontier"},
+           {"time_s", timer.Seconds()}});
       scout_count = 1;
     } else {
       edges_to_check -= scout_count;
       timer.Start();
-      auto next = BFSSparsePush(
+      scout_count = BFSSparsePush(
           outgoing,
-          frontier,
           parent,
-          builder,
+          queue,
           access_policy);
+      queue.slide_window();
       timer.Stop();
-      scout_count = next.first;
-      frontier = std::move(next.second);
       if (logging_enabled)
         PrintStep(
           "td", timer.Seconds(),
-          static_cast<int64_t>(frontier.size()));
+          static_cast<int64_t>(queue.size()));
       graphbrew::database::AppendBenchmarkIterationEntry(
           {{"step", step++},
            {"phase", "td"},
            {"time_s", timer.Seconds()},
            {"scout_count", scout_count},
            {"queue_size",
-            static_cast<int64_t>(frontier.size())}});
+            static_cast<int64_t>(queue.size())}});
     }
   }
 

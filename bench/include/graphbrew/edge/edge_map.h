@@ -96,28 +96,6 @@ void ParallelForEachDirected(
       stream, std::forward<Function>(function), access_policy);
 }
 
-template <typename StreamT, typename Function, typename AccessPolicy>
-void ParallelForEachOrientedUndirected(
-    const StreamT &stream,
-    Function &&function,
-    AccessPolicy &access_policy) {
-  stream.ParallelForEachDirected([&](const auto &edge) {
-    if (edge.source < edge.destination) {
-      access_policy.OnEdge(edge);
-      function(edge);
-    }
-  });
-}
-
-template <typename StreamT, typename Function>
-void ParallelForEachOrientedUndirected(
-    const StreamT &stream,
-    Function &&function) {
-  NoOpAccessPolicy access_policy;
-  ParallelForEachOrientedUndirected(
-      stream, std::forward<Function>(function), access_policy);
-}
-
 template <typename FlatGraphT, typename Function>
 void ParallelForEachSegment(
     const FlatGraphT &graph,

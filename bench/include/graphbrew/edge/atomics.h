@@ -57,6 +57,27 @@ bool AtomicAssignIfEqual(T &target, const T expected, const T value) {
   return compare_and_swap(target, expected, value);
 }
 
+template <typename T>
+bool AtomicAssignIfEqualRelaxed(
+    T &target, const T expected, const T value) {
+  static_assert(std::is_integral<T>::value);
+#ifdef _OPENMP
+  T observed = expected;
+  return __atomic_compare_exchange_n(
+      &target,
+      &observed,
+      value,
+      false,
+      __ATOMIC_RELAXED,
+      __ATOMIC_RELAXED);
+#else
+  if (target != expected)
+    return false;
+  target = value;
+  return true;
+#endif
+}
+
 }  // namespace graphbrew::edge
 
 #endif  // GRAPHBREW_EDGE_ATOMICS_H_

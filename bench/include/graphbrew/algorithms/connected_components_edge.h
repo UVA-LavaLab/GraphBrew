@@ -40,7 +40,7 @@ inline void LinkComponents(
     if (high_parent == low)
       return;
     if (high_parent == high &&
-        edge::AtomicAssignIfEqual(labels[high], high, low)) {
+        edge::AtomicAssignIfEqualRelaxed(labels[high], high, low)) {
       return;
     }
     const NodeID next_high = edge::AtomicLoad(labels[high]);
@@ -134,36 +134,55 @@ ConnectedComponentsResult AfforestEdge(
 
   const NodeID frequent =
       SampleFrequentComponent(labels, logging_enabled);
-  edge::EdgeStream<FlatGraphT> stream(
-      outgoing, edge::EdgeStorageOrder::kSourceMajor);
-  auto link_if_needed = [&](const auto &record) {
-    const std::size_t sampled_end =
-        static_cast<std::size_t>(
-            outgoing.offsets_.data[record.source]) +
-        std::min<std::size_t>(
-            static_cast<std::size_t>(
-                std::max<int32_t>(neighbor_rounds, 0)),
-            static_cast<std::size_t>(
-                outgoing.degrees_.data[record.source]));
-    if (record.ordinal < sampled_end)
-      return;
-    const NodeID source_label =
-        edge::AtomicLoad(labels[record.source]);
-    const NodeID destination_label =
-        edge::AtomicLoad(labels[record.destination]);
-    if (source_label == frequent &&
-        destination_label == frequent) {
-      return;
+  if (!graph.directed()) {
+#pragma omp parallel for schedule(dynamic, 16384)
+    for (NodeID source = 0; source < graph.num_nodes(); ++source) {
+      if (edge::AtomicLoad(labels[source]) == frequent)
+        continue;
+      const std::size_t degree = static_cast<std::size_t>(
+          outgoing.degrees_.data[source]);
+      const std::size_t sampled = std::min<std::size_t>(
+          static_cast<std::size_t>(
+              std::max<int32_t>(neighbor_rounds, 0)),
+          degree);
+      const std::size_t begin = static_cast<std::size_t>(
+          outgoing.offsets_.data[source]) + sampled;
+      const std::size_t end = begin + degree - sampled;
+      for (std::size_t ordinal = begin; ordinal < end; ++ordinal) {
+        const NodeID destination =
+            outgoing.neighbors_.data[ordinal];
+        const edge::EdgeRecord<NodeID, NodeID> record{
+            source, destination, 1, ordinal};
+        access_policy.OnEdge(record);
+        LinkComponents(source, destination, labels);
+      }
     }
-    LinkComponents(
-        record.source, record.destination, labels);
-  };
-
-  if (graph.directed()) {
-    edge::ParallelForEachDirected(
-        stream, link_if_needed, access_policy);
   } else {
-    edge::ParallelForEachOrientedUndirected(
+    edge::EdgeStream<FlatGraphT> stream(
+        outgoing, edge::EdgeStorageOrder::kSourceMajor);
+    auto link_if_needed = [&](const auto &record) {
+      const std::size_t sampled_end =
+          static_cast<std::size_t>(
+              outgoing.offsets_.data[record.source]) +
+          std::min<std::size_t>(
+              static_cast<std::size_t>(
+                  std::max<int32_t>(neighbor_rounds, 0)),
+              static_cast<std::size_t>(
+                  outgoing.degrees_.data[record.source]));
+      if (record.ordinal < sampled_end)
+        return;
+      const NodeID source_label =
+          edge::AtomicLoad(labels[record.source]);
+      const NodeID destination_label =
+          edge::AtomicLoad(labels[record.destination]);
+      if (source_label == frequent &&
+          destination_label == frequent) {
+        return;
+      }
+      LinkComponents(
+          record.source, record.destination, labels);
+    };
+    edge::ParallelForEachDirected(
         stream, link_if_needed, access_policy);
   }
 
@@ -184,39 +203,63 @@ ConnectedComponentsResult ShiloachVishkinEdge(
   for (NodeID node = 0; node < graph.num_nodes(); ++node)
     labels[node] = node;
 
-  edge::EdgeStream<FlatGraphT> stream(
-      outgoing, edge::EdgeStorageOrder::kSourceMajor);
+  struct alignas(64) HookFlag {
+    bool changed = false;
+  };
+  std::vector<HookFlag> hook_changed(edge::EdgeWorkerCount());
+  std::atomic<bool> overflow_changed{false};
   bool changed = true;
   int iterations = 0;
   while (changed) {
-    std::atomic<bool> hook_changed{false};
+    for (auto &flag : hook_changed)
+      flag.changed = false;
+    overflow_changed.store(false, std::memory_order_relaxed);
     ++iterations;
-    auto hook = [&](const auto &record) {
-      const NodeID source_label =
-          edge::AtomicLoad(labels[record.source]);
-      const NodeID destination_label =
-          edge::AtomicLoad(labels[record.destination]);
-      if (source_label == destination_label)
-        return;
-      const NodeID high =
-          std::max(source_label, destination_label);
-      const NodeID low =
-          std::min(source_label, destination_label);
-      if (edge::AtomicAssignIfEqual(
-              labels[high], high, low)) {
-        hook_changed.store(true, std::memory_order_relaxed);
+#pragma omp parallel for schedule(static)
+    for (NodeID source = 0; source < graph.num_nodes(); ++source) {
+      const std::size_t begin = static_cast<std::size_t>(
+          outgoing.offsets_.data[source]);
+      const std::size_t end = begin + static_cast<std::size_t>(
+          outgoing.degrees_.data[source]);
+      for (std::size_t ordinal = begin; ordinal < end; ++ordinal) {
+        const NodeID destination =
+            outgoing.neighbors_.data[ordinal];
+        if (!graph.directed() && source >= destination)
+          continue;
+        const edge::EdgeRecord<NodeID, NodeID> record{
+            source, destination, 1, ordinal};
+        access_policy.OnEdge(record);
+        const NodeID source_label =
+            edge::AtomicLoad(labels[source]);
+        const NodeID destination_label =
+            edge::AtomicLoad(labels[destination]);
+        if (source_label == destination_label)
+          continue;
+        const NodeID high =
+            std::max(source_label, destination_label);
+        const NodeID low =
+            std::min(source_label, destination_label);
+        if (!edge::AtomicAssignIfEqualRelaxed(
+                labels[high], high, low)) {
+          continue;
+        }
+        std::size_t thread = 0;
+#ifdef _OPENMP
+        thread = static_cast<std::size_t>(omp_get_thread_num());
+#endif
+        if (thread < hook_changed.size()) {
+          hook_changed[thread].changed = true;
+        } else {
+          overflow_changed.store(true, std::memory_order_relaxed);
+        }
       }
-    };
-
-    if (graph.directed()) {
-      edge::ParallelForEachDirected(
-          stream, hook, access_policy);
-    } else {
-      edge::ParallelForEachOrientedUndirected(
-          stream, hook, access_policy);
     }
     CompressComponents(labels);
-    changed = hook_changed.load(std::memory_order_relaxed);
+    changed = overflow_changed.load(std::memory_order_relaxed) ||
+        std::any_of(
+        hook_changed.begin(),
+        hook_changed.end(),
+        [](const HookFlag &flag) { return flag.changed; });
   }
 
   std::cout << "Shiloach-Vishkin took "

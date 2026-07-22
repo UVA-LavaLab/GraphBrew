@@ -12,7 +12,7 @@ CONTRACT = ROOT / "bench" / "contracts" / "edge_gas_algorithms.json"
 EDGE_STRUCTURE = {
     "bfs": (
         "bench/include/graphbrew/algorithms/bfs_edge.h",
-        ["BFSSparsePush", "BFSDensePull", "PartitionSegments"],
+        ["BFSSparsePush", "BFSDensePull", "schedule(dynamic, 1024)"],
         "direction_optimized",
     ),
     "bc": (
@@ -22,12 +22,14 @@ EDGE_STRUCTURE = {
     ),
     "cc": (
         "bench/include/graphbrew/algorithms/connected_components_edge.h",
-        ["AfforestEdge", "ParallelForEachDirected"],
+        ["AfforestEdge", "edge::AtomicLoad(labels[source]) == frequent",
+         "const std::size_t sampled"],
         "afforest",
     ),
     "cc_sv": (
         "bench/include/graphbrew/algorithms/connected_components_edge.h",
-        ["ShiloachVishkinEdge", "AtomicAssignIfEqual"],
+        ["ShiloachVishkinEdge", "AtomicAssignIfEqualRelaxed",
+         "source >= destination"],
         "hook_and_shortcut",
     ),
     "pr": (
@@ -47,7 +49,8 @@ EDGE_STRUCTURE = {
     ),
     "tc": (
         "bench/include/graphbrew/algorithms/tc_edge.h",
-        ["CountTriangleIntersection", "record.source >= record.destination"],
+        ["CountTriangleIntersection", "schedule(dynamic, 64)",
+         "source >= destination"],
         "intersections",
     ),
 }

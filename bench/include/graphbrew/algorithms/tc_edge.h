@@ -88,27 +88,24 @@ template <typename FlatGraphT, typename AccessPolicy>
 std::size_t TriangleCountEdge(
     const FlatGraphT &outgoing,
     AccessPolicy &access_policy) {
-  edge::EdgeStream<FlatGraphT> stream(
-      outgoing, edge::EdgeStorageOrder::kSourceMajor);
   std::size_t total = 0;
-#pragma omp parallel reduction(+ : total)
-  {
-    std::size_t worker = 0;
-    std::size_t workers = 1;
-#ifdef _OPENMP
-    worker = static_cast<std::size_t>(omp_get_thread_num());
-    workers = static_cast<std::size_t>(omp_get_num_threads());
-#endif
-    stream.ForEachPartition(
-        worker, workers, [&](const auto &record) {
-          if (record.source >= record.destination)
-            return;
-          access_policy.OnEdge(record);
-          total += CountTriangleIntersection(
-              outgoing,
-              record.destination,
-              record.source);
-        });
+#pragma omp parallel for schedule(dynamic, 64) reduction(+ : total)
+  for (NodeID source = 0; source < outgoing.num_nodes(); ++source) {
+    const std::size_t begin = static_cast<std::size_t>(
+        outgoing.offsets_.data[source]);
+    const std::size_t end = begin + static_cast<std::size_t>(
+        outgoing.degrees_.data[source]);
+    for (std::size_t ordinal = begin; ordinal < end; ++ordinal) {
+      const NodeID destination =
+          outgoing.neighbors_.data[ordinal];
+      if (source >= destination)
+        continue;
+      const edge::EdgeRecord<NodeID, NodeID> record{
+          source, destination, 1, ordinal};
+      access_policy.OnEdge(record);
+      total += CountTriangleIntersection(
+          outgoing, destination, source);
+    }
   }
   return total;
 }

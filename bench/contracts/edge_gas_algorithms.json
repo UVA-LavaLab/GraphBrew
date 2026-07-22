@@ -38,7 +38,7 @@
   "performance_contract": {
     "bfs": {
       "edge_work": "direction_optimized_O(V+E)",
-      "edge_balance": "sparse_frontier_push_and_edge_balanced_destination_pull",
+      "edge_balance": "thread_local_unique_frontier_push_and_dynamic_destination_pull",
       "ownership": "CAS_push_destination_owned_pull"
     },
     "bc": {
@@ -48,13 +48,13 @@
     },
     "cc": {
       "edge_work": "afforest_sample_then_near_linear_union",
-      "edge_balance": "edge_ordinal_final_link",
+      "edge_balance": "dynamic_source_rows_with_frequent_component_skip",
       "ownership": "atomic_union_find",
       "gas_work": "active_weak_neighbor_edges"
     },
     "cc_sv": {
       "edge_work": "iterative_hook_and_shortcut",
-      "edge_balance": "oriented_or_directed_edge_ordinal",
+      "edge_balance": "direct_source_rows_with_oriented_filter",
       "ownership": "CAS_root_hook_vertex_shortcut"
     },
     "pr": {
@@ -76,7 +76,7 @@
     },
     "tc": {
       "edge_work": "sum_oriented_sorted_prefix_intersections",
-      "edge_balance": "oriented_edge_ordinal",
+      "edge_balance": "dynamic_source_rows_with_oriented_edges",
       "ownership": "thread_local_count_reduction"
     }
   },
