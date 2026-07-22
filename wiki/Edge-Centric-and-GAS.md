@@ -274,11 +274,36 @@ python3 scripts/experiments/edge_gas_report.py \
 ```
 
 The JSON reports local average time, nominal input-edge rate, canonical-relative
-speedup, and the structural work/balance/ownership contract. It explicitly has
+speedup, per-trial and median time, and the structural work/balance/ownership
+contract. Source-driven algorithms use the same deterministic `SourcePicker`
+sequence instead of a potentially degenerate fixed source. It explicitly has
 `hard_speed_gate=false`; nominal input-edge rate is not actual examined-edge
-work. A representative scale-12 session showed edge PR/PR-SPMV wins, SSSP near
-parity, and overheads for several edge variants plus dense/active GAS—evidence
-that the report exposes losses rather than selecting only winners.
+work.
+
+### Current performance assessment
+
+The 2026-07-21 four-thread audit used repeated median verified trials. This is a
+shared host, so near-parity variants remain inconclusive; only stable directional
+regressions are classified:
+
+| Variant | Canonical-relative speed | Assessment |
+|---|---:|---|
+| `bc_edge` | 0.61-1.37x | inconclusive |
+| `sssp_edge` | 0.48-1.56x | inconclusive |
+| `pr_spmv_edge` | 0.80-1.44x | inconclusive |
+| `pr_edge` | 0.41-1.91x | inconclusive |
+| `cc_sv_edge` | 0.25-0.57x | optimize |
+| `tc_edge` | 0.39-0.58x | optimize |
+| `bfs_edge` | 0.19-0.37x | optimize |
+| `cc_edge` | 0.19-0.69x | optimize |
+| GAS variants | below 0.27x | reference-only |
+
+The next structural targets are: remove redundant deterministic frontier
+dedup/sorting in BFS after successful parent claims; restore Afforest's
+whole-row frequent-component skip; reduce CC-SV atomic serialization; reduce
+TC's static raw-edge partitions with dynamic or
+intersection-work-weighted scheduling. BC, PR, PR-SPMV, and SSSP require a
+quiescent/dedicated-host rerun before any performance verdict or tuning.
 
 ## Literature
 
