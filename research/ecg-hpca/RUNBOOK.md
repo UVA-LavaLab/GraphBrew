@@ -260,14 +260,55 @@ gem5 P-OPT already performs one matrix lookup per candidate and caches those
 distances through RRIP tie aging. Do not attribute gem5's cycle-accurate wall
 time to the repeated-consultation issue that affected legacy Sniper.
 
-Canonical masked-load timing requires RISC-V guest binaries rebuilt from the
+### K2-M versus K2-I
+
+The canonical paper load is K2-M:
+
+```text
+record = load K2 edge record
+dest   = extract destination
+addr   = property_base + dest * element_size
+value  = ecg.k2.mload(addr, record)
+```
+
+The existing gem5 path is K2-I; Sniper is only a K2-I-like packed-loop model:
+
+```text
+record = load K2 edge record
+value  = ecg.k2.iload(property_base, record)
+```
+
+Never merge their timing rows. K2-M isolates request-bound cache metadata;
+gem5 K2-I additionally credits destination/address fusion. Sniper's model is
+not measured K2-I ISA timing. Each result row must gain an `ecg_isa_variant`
+field before the next timing matrix.
+
+### Equal-area acceptance gate
+
+Before any hardware-efficiency headline:
+
+1. enumerate line metadata, context tags, CSR state, request/queue/MSHR bits,
+   comparator logic, and ECC;
+2. report SRAM area and access energy plus replacement-selection logic area,
+   energy, and delay;
+3. run both equal-data-capacity and equal-silicon-area results;
+4. use a conservative 15-way K2 LLC versus a 16-way baseline as the first
+   one-way-equivalent sensitivity for the minimum 33-bit line state;
+5. verify metadata lookup runs parallel to tag/data access and that victim
+   selection does not extend the cache critical path;
+6. reject “lower hardware overhead than P-OPT” unless K2 retains its direction
+   after the equal-area gate.
+
+Canonical K2-I timing requires RISC-V guest binaries rebuilt from the
 current Makefile with `-funswitch-loops`. Reject rows from the stopped
 `ecg_gem5_sampled_allalg_masked_load_20260719` run: they still contain
 per-edge clear/trace scaffolding and are not timing authority.
 
-Canonical Sniper fused timing requires the current `sg_kernel` with surgically
-split no-trace K2 loops. The global `-funswitch-loops` Sniper probe is rejected,
-and the pre-split 120-row timing matrix remains historical until rerun.
+Canonical Sniper packed K2-I-like model timing requires the current `sg_kernel`
+with surgically split no-trace loops. It is not measured K2-I ISA timing and
+cannot be reused as K2-M timing. The global
+`-funswitch-loops` Sniper probe is rejected, and the pre-split 120-row timing
+matrix remains historical.
 
 The post-`e1ce2a8e` load-coverage binary additionally masks BC `path_counts`,
 isolates the SSSP source load, clears CC hints before compression, and uses the
@@ -349,6 +390,11 @@ the iteration before the cap; report each row's executed scope explicitly.
 
 ## Inspect the blocked headline job
 
+This profile remains blocked until a matched Sniper K2-M implementation exists,
+the runner emits `ecg_isa_variant`, and the policy set uses explicit variant
+labels. Renaming the current packed model is insufficient. Until then, the
+legacy labels below denote the packed K2-I-like extension model only.
+
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile streamshield_sniper_realgraph \
@@ -374,7 +420,8 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --no-build
 ```
 
-This runs LRU, SRRIP, GRASP, charged P-OPT, static K2, and online K2 for
+This historical profile runs LRU, SRRIP, GRASP, charged P-OPT, static packed
+K2-I-like, and online packed K2-I-like for
 PR/BFS/SSSP/BC/CC on the common `kron_s15_k4` cell in cache_sim, gem5, and
 Sniper. Compare policy direction and rank **within** each simulator. Do not
 compare absolute gem5 and Sniper miss rates. Canonical Schedule-2 reruns use

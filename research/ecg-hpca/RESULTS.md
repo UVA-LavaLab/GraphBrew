@@ -126,13 +126,13 @@ Aggregate: `results/ecg_experiments/paper_pipeline/`
 The post-`8ef03d28` 15-cell Schedule-2 gate passes for
 cache_sim/gem5/Sniper x PR/BFS/SSSP/BC/CC. Every detailed-simulator kernel
 matches 32/32 expected K2 deliveries with zero distance mismatches and obeys the
-shared victim specification. gem5 executes the real RISC-V masked property load;
-Sniper validates the equivalent fused sideband immediately before the governed
-access. Tiny O3 PR and weighted SSSP runs each deliver 8/8 traced K2 request
+shared victim specification. gem5 executes the real RISC-V fused indexed K2-I
+load; Sniper validates its idealized packed-record sideband model immediately
+before the governed access. Tiny O3 PR and weighted SSSP runs each deliver 8/8 traced K2 request
 extensions to the correct property line. This is mechanism/spec evidence, not a
 frozen real-graph performance ranking.
 
-### Masked-load target-instruction correction
+### K2-I target-instruction correction
 
 Replacement-only authority already showed the forced K2 `grasp_only` arm
 beating standalone GRASP on 15/15 real graph/kernel cells, with a 0.9899
@@ -151,7 +151,7 @@ On web-Google-n16 PR, successive corrections give:
 The final matched cell is 1.005x faster than GRASP while retaining a lower L3
 miss rate (0.432 versus 0.506). P-OPT remains 1.078x faster on this PR cell
 because its live matrix reaches a 0.369 miss rate. This is one bounded
-diagnostic, not the final all-kernel result; the clean masked-load gem5 matrix
+diagnostic, not the final all-kernel result; the clean K2-I gem5 matrix
 must be rerun.
 
 Sniper did not contain gem5's architectural clear/trace instructions, but its
@@ -245,13 +245,17 @@ The rank statistic is frozen in
 `sampled_crosssim_rank_correlation.csv` using mean per-cell Spearman over all
 eight policies and effective LLC misses.
 
-### Final compact sampled Sniper all-kernel timing
+### Final compact sampled Sniper packed-record extension model
 
 The post-scope Sniper-only rerun contains 120 valid rows: three deterministic
 samples x PR/BFS/SSSP/BC/CC x eight policies. Strict invariants pass: every
 group is hash-consistent, every LLC is exercised, BC records
 `depth,path_counts`, and compact weighted SSSP replaces the original edge with
-one 8-byte K2 record.
+one 8-byte K2 record. This matrix is an idealized K2-I-like packed-loop model:
+Sniper executes x86 destination extraction/indexed loads and infers metadata
+from source plus property line rather than executing a K2-I instruction. Its
+speedup, instruction reduction, and TPI are not attributable to K2-M. It is not
+measured K2-I ISA timing.
 
 Geomean across all 15 graph/kernel cells versus LRU:
 
@@ -260,12 +264,12 @@ Geomean across all 15 graph/kernel cells versus LRU:
 | SRRIP | 1.029x | 1.029x | 1.000x | 3.46% |
 | GRASP | 1.100x | 1.100x | 1.000x | **15.05%** |
 | charged P-OPT | 1.082x | 1.082x | 1.000x | -18.55% |
-| K2 | 1.326x | 1.169x | 0.881x | 5.30% |
-| K2-online | 1.320x | 1.163x | 0.881x | 3.74% |
-| K2+StreamShield | 1.327x | 1.169x | 0.881x | **5.89%** |
-| K2-online+StreamShield | **1.329x** | **1.171x** | 0.881x | 4.72% |
+| packed K2-I-like | 1.326x | 1.169x | 0.881x | 5.30% |
+| packed K2-I-like online | 1.320x | 1.163x | 0.881x | 3.74% |
+| packed K2-I-like+StreamShield | 1.327x | 1.169x | 0.881x | **5.89%** |
+| packed K2-I-like online+StreamShield | **1.329x** | **1.171x** | 0.881x | 4.72% |
 
-K2-online+StreamShield kernel geomean:
+Packed K2-I-like online+StreamShield kernel geomean:
 
 | Kernel | Speedup vs LRU | vs GRASP | vs charged P-OPT | Effective miss reduction vs LRU |
 |---|---:|---:|---:|---:|
@@ -275,12 +279,15 @@ K2-online+StreamShield kernel geomean:
 | BC | **1.082x** | 1.058x | 1.065x | 4.64% |
 | CC | 1.115x | 0.968x | 1.089x | -6.31% |
 
-The four K2 variants collectively win 9/15 timing cells, GRASP wins 4/15, and
+The four packed extension-model variants collectively win 9/15 timing cells,
+GRASP wins 4/15, and
 SRRIP/P-OPT win one each. The K2 wins split across online K2+StreamShield (5),
 static K2+StreamShield (3), and online K2 (1). Relative to the surgical
 sidecar matrix, compact delivery raises K2-online+StreamShield from 1.282x to
 1.329x overall, reduces its instruction ratio from 0.928x to 0.881x, raises
-SSSP from 0.966x to 1.145x, and raises BC from 1.074x to 1.082x.
+SSSP from 0.966x to 1.145x, and raises BC from 1.074x to 1.082x. These are
+extension-model results. The 1.171x TPI uses a different instruction mix and
+must not be interpreted as a K2-M estimate.
 
 Compact weighted SSSP now has a 1.015x instruction ratio and wins in geomean:
 1.145x versus LRU, 1.034x versus GRASP, and 1.024x versus charged P-OPT. The
@@ -294,12 +301,14 @@ new overall ordering survives this single-cell exclusion. Sniper assigns the ful
 so the TPI gains cannot be decomposed into LLC, DRAM, or pipeline components.
 
 The effective-miss column charges P-OPT's matrix stream as additional cache-line
-fills, which dominates small working sets. K2 now executes fewer instructions
-than LRU overall; compact weighted SSSP is near baseline instruction count.
+fills, which dominates small working sets. The packed extension model executes
+fewer instructions than LRU overall; compact weighted SSSP is near baseline
+instruction count.
 
-The supported scope is therefore strong PR/BFS, positive sampled SSSP/BC, and
-a robust overall win. CC beats LRU and P-OPT but remains slightly behind
-GRASP; cit-Patents SSSP remains the principal negative cell.
+The packed extension model is strong on PR/BFS and positive on sampled
+SSSP/BC. CC beats LRU and P-OPT but remains slightly
+behind GRASP; cit-Patents SSSP remains the principal negative cell. No K2-M
+timing claim is frozen yet.
 
 The cit-Patents loss does **not** extrapolate as a size-only failure. The
 `n18-sym` sample retains 262,144 vertices but only 340,054 undirected edges; it

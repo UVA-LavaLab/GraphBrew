@@ -382,6 +382,44 @@ def test_sniper_sg_kernel_supports_synthetic_profiles():
     assert "-g" in options
 
 
+def test_canonical_isa_story_separates_mask_and_indexed_loads():
+    architecture = (
+        ROOT / "research/ecg-hpca/ARCHITECTURE.md").read_text()
+    methodology = (
+        ROOT / "research/ecg-hpca/METHODOLOGY.md").read_text()
+    claims = (ROOT / "research/ecg-hpca/CLAIMS.md").read_text()
+    results = (ROOT / "research/ecg-hpca/RESULTS.md").read_text()
+    runbook = (ROOT / "research/ecg-hpca/RUNBOOK.md").read_text()
+
+    assert "ecg.k2.mload.u32" in architecture
+    assert "ecg.k2.mload.f32" in architecture
+    assert "ecg.k2.iload.u32" in architecture
+    assert "`EA = rs1`" in architecture
+    assert "per-hart `ecg.cur_epoch` CSR" in architecture
+    assert "33 bits/line" in architecture
+    assert "idealized packed-record K2-I-like model" in methodology
+    assert "Presenting the 1.329x packed K2-I-like model result" in claims
+    assert "Presenting the 1.171x model TPI as a K2-M estimate." in claims
+    assert "No K2-M timing claim is frozen yet." in " ".join(results.split())
+    assert "not measured K2-I ISA timing" in " ".join(results.split())
+    assert "zero K2 hardware overhead" not in architecture
+    assert "exact Request only in O3 proof cells" in architecture
+    assert "{ASID/VMID, graph_generation}" in architecture
+    assert "program-order K2 sequence number" in architecture
+    assert "irrevocable conflict" in architecture
+    assert "no later target may restore metadata" in architecture
+    assert "Weighted SSSP: one replacing 8-byte compact record" in methodology
+    assert "equal-silicon-area results" in runbook
+    assert "15-way K2 LLC versus a 16-way baseline" in runbook
+    assert "SRAM area and access energy" in runbook
+    assert "does not extend the cache critical path" in runbook
+    assert "lower hardware overhead than P-OPT" in runbook
+    assert "Renaming the current packed model is insufficient." in runbook
+    assert "exact per-Request O3 binding is proven only" in claims
+    assert "request-bound fused indexed K2-I property load" not in claims
+    assert "Canonical Sniper K2-I timing" not in runbook
+
+
 def test_k2_cache_sim_paths_do_not_build_popt_matrix():
     helper = (
         ROOT / "bench/include/cache_sim/graph_sim.h"

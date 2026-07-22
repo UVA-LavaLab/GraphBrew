@@ -10,14 +10,15 @@ kernel already streams. The same in-band information controls:
 
 The design targets four invariants:
 
-- zero ECG-reserved LLC ways;
+- zero ECG-reserved LLC data ways, with metadata area charged separately;
 - no hidden live rereference matrix;
 - order-independent degree guidance carried with the edge;
 - request-bound StreamShield placement.
 
-Current gem5 K2 pair delivery is request-bound to the masked property load.
-Tiny unweighted PR and weighted SSSP O3 cells prove the pair reaches the correct
-property line; TimingSimpleCPU remains the scale-evaluation model.
+Current gem5 K2-I pair delivery is request-bound to the fused indexed property
+load only in O3. Tiny unweighted PR and weighted SSSP O3 cells prove the pair
+reaches the correct property line; TimingSimpleCPU scale runs use serialized
+mailbox equivalence rather than a Request extension.
 
 ## K2 record
 
@@ -68,7 +69,7 @@ flowchart LR
     D -->|normal| E[Mask in register]
     D -->|StreamShield| F[Record request carries LLC no-allocate flag]
     F --> E
-    E --> G[ecg.k2.load property address + mask]
+    E --> G[ecg.k2.mload computed address + mask]
     G --> H[Mask attached to exact property Request]
     H --> I[Property lookup and fill]
     I --> J[Property-line tier + epoch metadata]
@@ -197,31 +198,89 @@ StreamShield therefore preserves:
 It suppresses only the returning LLC miss insertion. Derived gem5 stride
 prefetches inherit the same request flag.
 
-## ISA
+## ISA contract
 
-The canonical Schedule-2 path uses a mode-controlled RISC-V custom-0 property
-load plus an optional StreamShield record load:
+The v2 contract separates the cache novelty from indexed-address fusion.
 
-| Instruction | Encoding | Effect |
-|---|---:|---|
-| `ecg.k2.load rd, rs1, rs2` | custom-0, FUNCT3 `0x2`, mode `0x03` | load `property[dest]`; attach `tier|epoch1|epoch2` from `rs2` to that exact demand Request |
-| `ecg.k2.wload rd, rs1, rs2` | custom-0, FUNCT3 `0x2`, mode `0x05` | load a 4-byte weighted property using compact `dest24|weight8|tier|epoch1|epoch2` metadata |
-| `ecg.stream.load2 rd, 0(rs1)` | custom-0, FUNCT3 `0x3` | load an unweighted K2 record while suppressing only its LLC miss allocation |
-| `ecg.stream.wload2 rd, rs1, rs2` | custom-0, FUNCT3 `0x5` | load the weighted 4-byte sidecar with the same record-only StreamShield behavior |
+### Canonical core: computed-address masked load
 
-For unweighted kernels, `rs1` is the property base and `rs2` is the canonical
-64-bit K2 record. Weighted SSSP uses one 8-byte
-`dest24|weight8|tier2|epoch1_15|epoch2_15` record when the graph has at most
-2^24 vertices and all weights are in `[1,255]`. Larger IDs or weights fail
-closed to the general 8-byte edge plus 4-byte sidecar path. The O3
-producer stores the mask on the dynamic instruction and the LSQ attaches it to
-the property Request. Legacy record-delivery opcodes remain compatibility paths,
-not the paper abstraction.
+| Instruction | Operands | Effect |
+|---|---|---|
+| `ecg.k2.mload.u32 rd, (rs1), rs2` | computed address + mask | zero-extending 32-bit integer load with K2 request metadata |
+| `ecg.k2.mload.s32 rd, (rs1), rs2` | computed address + mask | sign-extending 32-bit integer load with K2 request metadata |
+| `ecg.k2.mload.u64 rd, (rs1), rs2` | computed address + mask | 64-bit integer load with K2 request metadata |
+| `ecg.k2.mload.f32 fd, (rs1), rs2` | computed address + mask | bit-preserving 32-bit floating-point load into the FP register file |
 
-All five gem5 kernels execute the masked K2 property load. Tiny unweighted PR
-and weighted SSSP O3 proofs show the full pair arriving on the correct property
-line. Sniper uses the equivalent fused record sideband model immediately before
-the governed property access.
+`EA = rs1`: K2-M does not decode `dest` or remove address-generation work. It
+replaces the ordinary property load one-for-one. Record width, destination
+extraction, address generation, and the current-epoch update remain charged.
+This request-bound metadata interface is the core paper contribution.
+
+### Optional extension: fused indexed masked load
+
+| Instruction | Operands | Effect |
+|---|---|---|
+| `ecg.k2.iload.u32.d32 rd, rs1, rs2` | property base + `dest32|tier|epochs` record | indexed zero-extending 32-bit integer load |
+| `ecg.k2.iload.u64.d32 rd, rs1, rs2` | same D32 layout | indexed 64-bit integer load |
+| `ecg.k2.iload.u32.cw24 rd, rs1, rs2` | property base + compact `dest24|weight8|tier|epochs` record | indexed compact-weighted 32-bit property load |
+
+K2-I may remove destination extraction/address-generation instructions. It is
+an optional ISA/layout optimization and must be reported separately from K2-M.
+Existing gem5 modes implement only the listed prototype subset: `0x03` =
+U32.D32, `0x04` = U64.D32, and `0x05` = U32.CW24. They do not yet implement
+signed or FP destinations. K2-M is added under distinct modes.
+
+StreamShield remains orthogonal:
+
+| Instruction | Effect |
+|---|---|
+| `ecg.stream.load2 rd, 0(rs1)` | load an unweighted K2 record; suppress only its LLC miss allocation |
+| `ecg.stream.wload2 rd, rs1, rs2` | load the weighted sidecar with the same record-only placement hint |
+
+For compact weighted SSSP, one 8-byte
+`dest24|weight8|tier2|epoch1_15|epoch2_15` record replaces the original
+8-byte weighted edge. Larger IDs or weights fail closed to the 8-byte edge plus
+4-byte sidecar path.
+
+### Current-epoch channel
+
+Absolute future epochs require a current epoch. The architectural contract uses
+a per-hart `ecg.cur_epoch` CSR updated once per outer source/frontier vertex and
+a per-hart graph-generation CSR set at graph/phase boundaries. The architectural
+context tuple is `{ASID/VMID, graph_generation}`. A K2-M or K2-I load snapshots
+the context, current epoch, and a per-hart program-order K2 sequence number onto
+its exact Request. The LLC uses this state only for that governed request; an
+ordinary or invalid-context allocation falls back to degree/RRIP behavior.
+
+The CSR write is architecturally ordered before subsequent K2 loads, saved and
+restored on a context switch, and charged in the instruction stream. The line
+stores the context tuple so stale metadata fails closed after a graph or phase
+change. Generation wrap requires explicit context invalidation. Request
+queues/MSHRs preserve hart identity, sequence, epoch, and context. The prototype
+`GEM5_SET_VERTEX`/Sniper magic channel is not the final ISA.
+
+All participating harts in one graph context use the same global vertex/epoch
+domain and runtime-assigned generation. A completed same-context LLC access from
+any hart may therefore replace resident metadata in cache service order, and
+any hart in that context may consume it using its own request-carried current
+epoch. Only simultaneously coalesced cross-hart requests are unordered.
+
+### MSHR, replay, and fault semantics
+
+- A successful K2 access may update line metadata; a faulting access may not.
+- Same-hart, same-context requests coalesced in one MSHR keep the greatest
+  program-order K2 sequence number assigned before execution.
+- Cross-hart requests are incomparable; a merge sets an irrevocable conflict
+  bit for that MSHR.
+- A different-context merge also sets the conflict bit.
+- Once conflicted, no later target may restore metadata before MSHR retirement;
+  the fill is unstamped and uses degree/RRIP.
+- Replays of the same request ID are idempotent. Squashed speculative loads
+  follow ordinary cache side-effect semantics: an already-issued successful
+  fill is not rolled back.
+- Split accesses carry metadata independently per touched line.
+
+These rules must be mutation-tested in gem5 before OoO correctness is claimed.
 
 ## Worked K2 example
 
@@ -239,18 +298,18 @@ placement/recency rule rather than pretending its epoch is meaningful.
 
 ## Comparison with prior policies
 
-| Policy | Main signal | Extra structure | Reserved LLC capacity | Placement control |
+| Policy | Main signal | Extra structure | Reserved LLC data ways | Placement control |
 |---|---|---|---:|---|
 | LRU | recency | none | 0 | no |
 | SRRIP | predicted interval from generic insertion/aging | per-line RRPV | 0 | no |
 | GRASP | degree/address hotness + RRIP | reordered hot/moderate regions | 0 | no |
 | P-OPT | live next-reference distance | rereference matrix | charged ways | no |
-| ECG K2 | carried line tier + RRIP + two future epochs | 8-byte edge record | 0 | no |
-| ECG K2 online | sampled best of five victim rules | same record + counters | 0 | no |
-| ECG K2+StreamShield | same as K2 | 8-byte edge record + request bit | 0 | LLC no-allocate |
+| ECG K2-M | carried line tier + RRIP + two future epochs | 8-byte edge record + at least 33 metadata bits/line | 0 | no |
+| ECG K2-M online | sampled best of five victim rules | same record/line state + counters | 0 | no |
+| ECG K2-M+StreamShield | same as K2-M | same state + request bit | 0 | LLC no-allocate |
 
-The headline comparison reports all four baselines plus static/online K2 with
-and without StreamShield.
+The future headline comparison reports all four baselines plus static/online
+K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
 
 ## Simulator realization
 
@@ -258,9 +317,9 @@ and without StreamShield.
 |---|---|---|---|
 | K2 construction | shared builder | shared builder | shared builder |
 | K2 distance | shared selector | shared selector | shared selector |
-| Tier delivery | masked property access | request-bound masked property load | fused record sideband before property access |
+| Tier delivery | masked property access | K2-I O3 Request binding; serialized scale fallback; K2-M pending | idealized packed K2-I-like model; matched K2-M pending |
 | Online selection | exact set index | gem5 replaceable-entry set | Sniper cache-set index |
-| Epoch delivery | masked property access | all five: K2 pair on the exact property Request | all five: fused record sideband model |
+| Epoch delivery | masked property access | exact Request only in O3 proof cells | source+line inferred sideband model |
 | StreamShield | preserve LLC hits, suppress miss insertion | request flag clears LLC `allocOnFill` | preserve NUCA hit path, suppress miss insertion |
 | Address stability | aligned properties + fixed indexed record streams | aligned properties/records | aligned properties/records |
 | Purpose | functional authority | cycle-accurate ISA confirmation | scale/timing confirmation |
@@ -270,10 +329,13 @@ and without StreamShield.
 - Unweighted K2 record: 8 bytes per edge record.
 - Weighted SSSP: compact 8-byte replacement record when eligible; otherwise the
   existing 8-byte weighted edge plus a 4-byte K2 sidecar.
-- ECG-reserved LLC ways: 0.
+- ECG-reserved LLC data ways: 0; this is not zero hardware overhead.
 - StreamShield state: one request flag propagated through the hierarchy.
-- Per-line ECG metadata: two 15-bit epochs, 2-bit carried tier, valid/count
-  state, and existing RRPV/recency state.
+- Minimum K2 per-line metadata: two 15-bit epochs, 2-bit tier, and one valid bit
+  = 33 bits/line. This is 6.45% of 64-byte data-array bits, approximately one
+  data way in a 16-way cache. Context/generation state and ECC increase it.
+- Transient request state additionally carries the current epoch and context
+  generation through the LSU, queues, MSHRs, and cache hierarchy.
 - Online selector: five sampled leader classes plus small miss counters; no
   per-line selector state.
 - Adaptive StreamShield: two disjoint placement leaders, two miss counters, and
@@ -281,6 +343,9 @@ and without StreamShield.
 - gem5 O3 uses the implemented request-bound K2 pair extension; only tiny
   instruction-correctness cells are in scope because O3 scale is prohibitively slow.
 - P-OPT comparison: charged for its active rereference-matrix capacity.
+- Headline comparison requires SRAM/logic energy and replacement-latency
+  estimates plus an equal-silicon-area sensitivity; “no reserved data way”
+  cannot be presented as “lower total hardware cost” until that gate passes.
 
 The artifact rejects hidden matrices, zero-latency bypass, and aggressive
 per-access LLC metadata broadcasts in headline rows.

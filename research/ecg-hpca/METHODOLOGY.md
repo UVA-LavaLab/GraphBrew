@@ -14,13 +14,15 @@ Architecture definitions and diagrams are centralized in
 Absolute gem5 and Sniper miss rates are not compared because their inclusion,
 frontend, and accounting models differ. Cross-simulator evidence is interpreted
 as mechanism agreement and direction relative to each simulator's LRU.
-PR/BFS/SSSP/BC/CC use a gem5 masked property load carrying the K2 tier and epoch
-pair on the exact demand Request. Sniper uses the equivalent fused sideband
-immediately before the property access. Tiny PR and weighted SSSP O3 runs prove
-request-local pair delivery; scale runs remain on TimingSimpleCPU. Historical
+PR/BFS/SSSP/BC/CC currently use the fused indexed K2-I load in gem5. The
+canonical K2-M load instead receives an already-computed address and replaces a
+normal property load one-for-one; its implementation and rerun are pending.
+Sniper's completed packed-record timing matrix is likewise a K2-I model, not
+mask-only timing. Tiny PR and weighted SSSP O3 runs prove request-local pair
+delivery; scale runs remain on TimingSimpleCPU. Historical
 gem5 rows labeled `ecg.load2`/`ecg.wload2` predate this correction and are not
 reinterpreted without rerunning.
-Even PR fused timing is accepted only when live fused receipts validate against
+Even K2-I fused timing is accepted only when live fused receipts validate against
 the exported K2 sideband. Without receipts, the row remains cache-metric-only;
 its packed-record software path can execute a different instruction stream than
 the baseline and must not be described as a pure replacement-policy speedup.
@@ -28,21 +30,23 @@ gem5 analysis keeps only the benchmark-emitted ROI statistics block. Its later
 automatic exit dump contains post-ROI teardown activity and is not a second
 measurement.
 
-## Required policy set
+## Future K2-M headline policy set
 
-Every reported comparison includes:
+The next headline comparison, after K2-M implementation, must include:
 
 1. LRU
 2. SRRIP
 3. GRASP
 4. charged P-OPT
-5. K2
-6. online K2
-7. K2+StreamShield
-8. online K2+StreamShield
+5. K2-M
+6. online K2-M
+7. K2-M+StreamShield
+8. online K2-M+StreamShield
 
-The canonical runner labels are `ECG:K2`, `ECG:K2_ONLINE`,
-`ECG:K2_STREAMSHIELD`, and `ECG:K2_ONLINE_STREAMSHIELD`.
+New runner labels must distinguish `K2-M` from `K2-I`. Existing labels
+`ECG:K2`, `ECG:K2_ONLINE`, `ECG:K2_STREAMSHIELD`, and
+`ECG:K2_ONLINE_STREAMSHIELD` denote historical/prototype K2-I timing until the
+runner split lands.
 `ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD` is retained only as a placement ablation.
 
 The replacement-quality profile additionally includes uncharged P-OPT,
@@ -95,10 +99,11 @@ Charged K1 uses an 8-byte edge record whenever destination, tier, and epoch no
 longer fit in the original 32-bit edge word; uncharged replacement studies keep
 the original 4-byte edge stream and deliver metadata out of band.
 For unweighted PR/BFS/BC/CC, the 8-byte K2 record replaces the 4-byte vertex-ID
-edge word. Weighted SSSP retains its 8-byte `dest32|weight32` edge and reads a
-parallel 4-byte `tier2|epoch1_15|epoch2_15` sidecar (12 bytes total per relaxed
-edge). BC's runtime successor-DAG backward phase has no static K2 record; CC
-remains scoped to symmetric/undirected graphs.
+edge word. Eligible weighted SSSP (`N <= 2^24`, weights in `[1,255]`) replaces
+its original 8-byte edge with one compact 8-byte K2 record. Other weighted
+graphs retain the 8-byte `dest32|weight32` edge plus a parallel 4-byte sidecar
+(12 bytes total). BC's runtime successor-DAG backward phase has no static K2
+record; CC remains scoped to symmetric/undirected graphs.
 
 The static adaptive mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
 BC/CC=`rrip_first`. `ECG:K2_ONLINE` remains kernel-name agnostic.
@@ -155,19 +160,24 @@ outside Sniper target time and is reported separately.
 
 The 120-row post-scope Sniper rerun at
 `ecg_sniper_sampled_allalg_compact_scope_final_20260721` is the sampled
-all-kernel timing authority. It combines the surgical no-trace loops, BC
+all-kernel **idealized packed-record K2-I-like model** authority, not measured
+K2-I ISA timing and not the core K2-M timing result.
+It combines the surgical no-trace loops, BC
 `depth,path_counts` scope, SSSP source-load isolation, CC phase clears, and the
 compact weighted SSSP record. Every BC row records the corrected governed
 regions, and every eligible SSSP K2 row reports one 8-byte replacement record.
-The 12-byte general weighted fallback remains available and validated. The
+The Sniper frontend still executes x86 extraction/indexed loads and infers
+metadata from source plus property line, so neither total speedup nor TPI
+isolates K2-M. The 12-byte general weighted fallback remains validated. The
 earlier surgical matrix is historical attribution evidence.
 
 All aggregate ratios use the geometric mean across the applicable graph/kernel
 cells. P-OPT and K2 overheads appear in different columns by construction:
 P-OPT matrix streaming is added to effective LLC misses/traffic, while K2 record
 delivery primarily changes executed instructions and explicit record accesses.
-K2 reserves no LLC way, but its 8-byte records and weighted 4-byte sidecars are
-fully charged; P-OPT instead pays reserved capacity plus modeled matrix traffic.
+K2 reserves no LLC data way, but its line metadata, current-epoch channel,
+8-byte records, and weighted sidecars must all be charged. P-OPT instead pays
+reserved capacity plus modeled matrix traffic. Equal-area results are pending.
 
 Sniper CACHE_ONLY warming updates cache contents but intentionally does not
 model time. The installed GraphBrew patch therefore leaves exact queue state
@@ -204,9 +214,9 @@ mailbox fallback for plain loads.
 
 - Unweighted K2 record: 8 bytes
   (`dest32 | tier2 | epoch1_15 | epoch2_15`).
-- Weighted SSSP sidecar: 4 bytes
-  (`tier2 | epoch1_15 | epoch2_15`) plus the existing 8-byte weighted edge.
-- The ECG successor reserves no LLC way.
+- Weighted SSSP: one replacing 8-byte compact record when eligible; otherwise a
+  4-byte sidecar plus the existing 8-byte weighted edge.
+- The ECG successor reserves no LLC data way; metadata area remains charged.
 - P-OPT is charged its rereference-matrix capacity.
 - StreamShield is one request flag propagated through derived prefetches.
 - No hidden matrix, per-access LLC metadata broadcast, or zero-latency bypass is

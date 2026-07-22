@@ -41,9 +41,9 @@ must be materially different.
 ## Thesis
 
 Graph analytics already stream an edge record before accessing irregular vertex
-properties. The ECG successor carries compact future-reuse information in that record,
-allowing the cache hierarchy to make graph-aware replacement and placement
-decisions without P-OPT's reserved LLC ways or a separate metadata lookup.
+properties. K2 carries a compact future-reuse contract from that edge onto the
+exact property Request, exposing graph semantics unavailable to PC/address
+predictors without an eviction-time rereference-matrix lookup.
 
 ## Mechanism
 
@@ -60,21 +60,22 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
   degree-, and LRU-first arms without using the graph or kernel name.
 - **StreamShield:** one-touch packed records fill private caches, retain LLC-hit
   behavior, and do not allocate after an LLC miss.
-- **ISA:** PR/BFS/SSSP/BC/CC use a masked property load carrying K2 metadata on
-  the exact demand Request. StreamShield independently marks the graph
-  record/sidecar request as LLC-no-allocate. Tiny PR and weighted SSSP O3 proofs
-  validate request-local pair delivery.
+- **ISA:** K2-M is a computed-address masked property load and the canonical
+  contribution. K2-I optionally folds destination decoding/address generation
+  into the load. StreamShield independently marks the record request.
 
 ## Contributions
 
-1. Edge-carried degree and two-epoch reuse guidance with zero reserved LLC ways.
-2. Request-bound cache-placement control that separates private-cache streaming
-   from shared-LLC residency.
+1. Edge-carried degree and two-epoch reuse guidance bound to the exact property
+   Request, with no LLC data-way reservation.
+2. A typed computed-address semantic load plus an explicit request-carried
+   current-epoch/context channel;
+   indexed fusion is a separate extension.
 3. Online set-dueling that selects among graph-aware victim rules at runtime.
 4. A shared eviction decision and exact delivery/decision gates across cache_sim,
    gem5, and Sniper.
-5. Full accounting of record bytes, P-OPT reserved capacity, demand misses,
-   total traffic, simulated time, and instruction count.
+5. A validation framework that separates cache, transport, and optional indexed
+   fusion; equal-area/energy accounting remains a submission gate.
 
 ## Evaluation structure
 
@@ -91,10 +92,14 @@ timing runs.
 The earlier sampled PageRank profile isolates the fused-stream tradeoff, but its
 pre-surgical timing is superseded by the current all-kernel matrix.
 
-The corrected 120-row sampled Sniper timing matrix broadens that result. The
-complete mechanism reaches 1.792x on PR, 1.675x on BFS, 1.145x on SSSP,
+The corrected 120-row sampled Sniper matrix is an idealized packed-record
+K2-I-like model, not measured K2-I ISA timing and not the core mask-only load.
+The model reaches 1.792x on PR, 1.675x on BFS, 1.145x on SSSP,
 1.082x on BC, and 1.115x on CC versus LRU. K2-online+StreamShield reaches
-1.329x overall, versus GRASP at 1.100x and charged P-OPT at 1.082x. The
+1.329x overall, versus GRASP at 1.100x and charged P-OPT at 1.082x. Because its
+0.881x instruction ratio includes indexed/packed-loop savings, this number is
+an extension-model result and cannot headline K2-M; its TPI also comes from a
+different instruction mix and is not a K2-M estimate. The
 ordering remains after excluding the shortest BFS cell (1.276x versus 1.107x).
 Compact SSSP wins in geomean but remains graph-sensitive: cit-Patents still
 loses substantially. The CPI stack cannot be decomposed beyond total ticks per

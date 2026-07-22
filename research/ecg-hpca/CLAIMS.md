@@ -12,11 +12,12 @@
 - Tiered K2 construction, delivery, line metadata, effective distance, and
   victim decisions agree across cache_sim, gem5, and Sniper for
   PR/BFS/SSSP/BC/CC.
-- All five kernels use the real RISC-V masked K2 property load in gem5; Sniper
-  uses the fused record sideband immediately before the property access, and
-  cache_sim remains the functional reference. The post-correction 15-cell gate
-  passes with 32/32 detailed-simulator deliveries and zero K2 distance mismatches
-  per kernel.
+- All five kernels execute the fused indexed K2-I instruction in gem5.
+  TimingSimpleCPU provides serialized semantic delivery for the scale cells;
+  exact per-Request O3 binding is proven only by tiny PR and weighted SSSP
+  cells. Sniper uses the idealized packed sideband model, and cache_sim remains
+  the functional reference. The post-correction 15-cell gate passes with 32/32
+  detailed-simulator deliveries and zero K2 distance mismatches per kernel.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.
@@ -65,12 +66,15 @@
 - The post-fix 600M-capped web-Google PR K2 cell completes successfully with
   normal warming and context delivery. It finishes the full iteration before
   the cap at 179.4M reported instructions; the row is cache evidence only.
-- The corrected 120-row sampled Sniper timing matrix passes strict coverage.
+- The corrected 120-row sampled Sniper idealized packed-record K2-I-like model
+  matrix passes strict coverage.
   K2-online+StreamShield reaches 1.792x on PR, 1.675x on BFS, 1.145x on SSSP,
   1.082x on BC, and 1.115x on CC versus LRU. Final sampled geomean is 1.329x,
-  ahead of GRASP's 1.100x and charged P-OPT's 1.082x.
-- The current runtime scope is strong PR/BFS, positive sampled SSSP/BC, and a
-  sampled overall win that survives removal of the shortest BFS cell. That
+  ahead of GRASP's 1.100x and charged P-OPT's 1.082x. Its 0.881x instruction
+  ratio includes indexed/packed-loop savings and is not measured K2-I ISA
+  timing or a core K2-M result. Its TPI does not isolate K2-M.
+- The current packed K2-I-like extension model is strong on PR/BFS and positive
+  on sampled SSSP/BC. Its model result survives removal of the shortest BFS cell. That
   exclusion leaves 1.276x for K2-online+StreamShield versus 1.107x for GRASP.
   Cit-Patents SSSP remains the principal negative cell, and CC remains slightly
   behind GRASP. Sniper's CPI components remain unavailable beyond total ticks
@@ -85,6 +89,10 @@
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   static/online K2, and both StreamShield variants.
+- A computed-address K2-M gem5 implementation and matched Sniper timing matrix.
+- An explicit current-epoch CSR/request channel replacing prototype magic.
+- Equal-area K2 metadata, logic, energy, and replacement-latency accounting.
+- Typed FP/integer K2-M destination semantics and disassembly validation.
 - A bounded Sniper structure-prefetch configuration that does not reproduce the
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
@@ -101,3 +109,6 @@
 - Comparing absolute gem5 and Sniper miss rates.
 - Treating cache_sim timing as a paper performance result.
 - Presenting aggressive per-access stored refresh as hardware-free.
+- Presenting the 1.329x packed K2-I-like model result as measured K2-I or K2-M speedup.
+- Presenting the 1.171x model TPI as a K2-M estimate.
+- Claiming zero K2 hardware overhead from zero reserved data ways.
