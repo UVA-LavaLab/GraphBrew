@@ -28,6 +28,14 @@
   1.000x, geomean speedup is 1.006x, and geomean L3-miss reduction is 4.35%.
   PR/BFS/SSSP improve; BC/CC remain near neutral. PR and compact SSSP receipt
   proofs report zero bad records. These are mechanism cells, not headline timing.
+- The K2 architecture requires no live P-OPT rereference matrix. Its primary
+  implementation retains the configured LLC data ways and accepts separately
+  reported line/request metadata overhead; reduced-way rows are equal-area
+  sensitivities only.
+- The corrected Sniper mask runner constructs and loads the rereference matrix
+  only for P-OPT. A focused compact-SSSP smoke reports
+  `sniper_popt_matrix_required=0` and `sniper_rereference_loaded=0` for K2-M,
+  versus `1/1` for P-OPT.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.

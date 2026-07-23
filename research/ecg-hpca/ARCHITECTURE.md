@@ -15,6 +15,12 @@ The design targets four invariants:
 - order-independent degree guidance carried with the edge;
 - request-bound StreamShield placement.
 
+The target implementation keeps the full configured LLC data capacity and
+accepts a modest, separately reported metadata-area overhead. The 14/15-way
+configurations are equal-silicon evaluation sensitivities, not reserved K2
+data ways. K2 consumes its edge-carried records and never requires the live
+P-OPT rereference matrix.
+
 Current gem5 K2-I pair delivery is request-bound to the fused indexed property
 load only in O3. Tiny unweighted PR and weighted SSSP O3 cells prove the pair
 reaches the correct property line; TimingSimpleCPU scale runs use serialized
@@ -338,6 +344,8 @@ K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
 - Weighted SSSP: compact 8-byte replacement record when eligible; otherwise the
   existing 8-byte weighted edge plus a 4-byte K2 sidecar.
 - ECG-reserved LLC data ways: 0; this is not zero hardware overhead.
+- The primary equal-data-capacity design retains all 16 data ways and reports
+  metadata SRAM/logic area, energy, and delay separately.
 - StreamShield state: one request flag propagated through the hierarchy.
 - Minimum K2 per-line metadata: two 15-bit epochs, 2-bit tier, and one valid bit
   = 33 bits/line. This is 6.45% of 64-byte data-array bits, approximately one
@@ -348,7 +356,8 @@ K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
   SRAM additionally pays ECC, banking, ports, periphery, and logic.
 - The self-consistent equal-area capacity is 14.602 fractional ways. A 15-way
   first sensitivity exceeds the simple bit budget by 2.72%; 14 integral ways
-  use 95.87% of that budget.
+  use 95.87% of that budget. These are robustness sensitivities rather than a
+  requirement to implement K2 by removing data ways.
 - Transient request state additionally carries the current epoch and context
   ID plus sequence through the LSU, queues, MSHRs, and cache hierarchy. The v2
   logical payload is 95 bits per request instance before valid bits, hart/routing
@@ -360,7 +369,8 @@ K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
   one winner bit; no per-line state.
 - gem5 O3 uses the implemented request-bound K2 pair extension; only tiny
   instruction-correctness cells are in scope because O3 scale is prohibitively slow.
-- P-OPT comparison: charged for its active rereference-matrix capacity.
+- P-OPT comparison: charged for its active rereference-matrix capacity and
+  matrix traffic. K2 performs no runtime lookup of that structure.
 - Headline comparison requires SRAM/logic energy and replacement-latency
   estimates plus an equal-silicon-area sensitivity; “no reserved data way”
   cannot be presented as “lower total hardware cost” until that gate passes.

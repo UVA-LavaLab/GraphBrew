@@ -14,11 +14,11 @@ Architecture definitions and diagrams are centralized in
 Absolute gem5 and Sniper miss rates are not compared because their inclusion,
 frontend, and accounting models differ. Cross-simulator evidence is interpreted
 as mechanism agreement and direction relative to each simulator's LRU.
-PR/BFS/SSSP/BC/CC currently use the fused indexed K2-I load in gem5. The
-canonical K2-M load instead receives an already-computed address and replaces a
-normal property load one-for-one. Typed K2-M is now implemented in gem5 and
-passes the five-kernel mechanism gate; matched performance timing remains
-pending.
+PR/BFS/SSSP/BC/CC retain the fused indexed K2-I path as the default gem5
+variant, and all five also implement the canonical K2-M path selected with
+`GEM5_ECG_ISA_VARIANT=mask`. K2-M receives an already-computed address and
+replaces a normal property load one-for-one. It passes the five-kernel mechanism
+gate; matched performance timing remains pending.
 Sniper's completed packed-record timing matrix is an idealized K2-I-like model,
 not measured K2-I or mask-only timing. Tiny PR and weighted SSSP O3 runs prove request-local pair
 delivery; scale runs remain on TimingSimpleCPU. Historical
@@ -226,7 +226,14 @@ mailbox fallback for plain loads.
 - Weighted SSSP: one replacing 8-byte compact record when eligible; otherwise a
   4-byte sidecar plus the existing 8-byte weighted edge.
 - The ECG successor reserves no LLC data way; metadata area remains charged.
+- Primary equal-data-capacity rows retain the full 16-way LLC and disclose the
+  added metadata SRAM/logic cost.
+- Separate 15-way and 14-way K2 rows are equal-silicon sensitivities, not the
+  physical mechanism used to store K2 metadata.
 - P-OPT is charged its rereference-matrix capacity.
+- Non-P-OPT K2-M rows must neither construct nor load the P-OPT rereference
+  matrix. Their future-reuse state comes only from the streamed K2 records and
+  resident line metadata.
 - StreamShield is one request flag propagated through derived prefetches.
 - No hidden matrix, per-access LLC metadata broadcast, or zero-latency bypass is
   permitted in a headline row.

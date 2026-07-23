@@ -60,12 +60,15 @@ make sniper-sg_kernel
 
 1. Run the three correctness gates.
 2. Run and validate `ecg_3sim_allalg_smoke`.
-3. Run `ecg_replacement_baseline`.
-4. Run `ecg_cache_sim_factorial`.
-5. Run `ecg_streamshield_generality` as the placement ablation.
-6. Run gem5 and Sniper mechanism profiles.
-7. Aggregate only complete, hash-consistent runs.
-8. Run the blocked Sniper headline profile only after prefetch calibration.
+3. Close the current-epoch/context and MSHR correctness gates.
+4. Quantify the full 16-way metadata overhead and run 15/14-way equal-area
+   sensitivities.
+5. Add the learned replacement baseline before freezing policy rankings.
+6. Run `ecg_replacement_baseline`, `ecg_cache_sim_factorial`, and
+   `ecg_streamshield_generality`.
+7. Run gem5 and Sniper mechanism profiles.
+8. Aggregate only complete, hash-consistent runs.
+9. Run one bounded matched Sniper pair before expanding to a headline matrix.
 
 ## Full 3-simulator/all-algorithm smoke
 
@@ -327,13 +330,20 @@ Before any hardware-efficiency headline:
    comparator logic, and ECC;
 2. report SRAM area and access energy plus replacement-selection logic area,
    energy, and delay;
-3. run both equal-data-capacity and equal-silicon-area results;
-4. use a conservative 15-way K2 LLC versus a 16-way baseline as the first
-   one-way-equivalent sensitivity for the minimum 33-bit line state;
+3. report the primary full 16-way equal-data-capacity design with its added
+   silicon overhead;
+4. run equal-silicon-area results for a 15-way K2 LLC versus a 16-way baseline
+   and for the conservative 14-way integral sensitivity; 15 ways is
+   intentionally undercharged for the contextual 49-bit state;
 5. verify metadata lookup runs parallel to tag/data access and that victim
    selection does not extend the cache critical path;
 6. reject “lower hardware overhead than P-OPT” unless K2 retains its direction
    after the equal-area gate.
+
+For Sniper mask-mode rows, only P-OPT may set
+`sniper_popt_matrix_required=1` or report `sniper_rereference_loaded=1`.
+K2-M, LRU, SRRIP, and GRASP use the matched K2 record transport without
+constructing or loading the P-OPT matrix.
 
 Generate the analytical floor with:
 

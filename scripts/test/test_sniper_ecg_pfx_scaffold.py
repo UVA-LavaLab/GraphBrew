@@ -224,6 +224,9 @@ def test_sniper_mask_only_uses_transport_matched_loops():
     assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
     assert '"sniper_transport_record_bytes"] = 8' in runner
     assert '"matched_mask_only_sideband_model"' in runner
+    assert runner.count('env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"') == 1
+    assert '"sniper_popt_matrix_required"] = int(requires_popt_matrix)' in runner
+    assert "Matrix-free K2-M row unexpectedly loaded" in runner
 
 
 def test_sniper_ecg_host_profile_covers_cache_callbacks():

@@ -182,6 +182,17 @@ with bit-identical target statistics. An isolated `-O3` Sniper build improved a
 trace replay also does not preserve the warmed-ROI contract: replaying only the
 ROI starts cold, while replaying the full cache-warm prefix costs about as much
 as the direct run.
+
+The mask-mode runner audit then found a separate pre-ROI confound:
+`SNIPER_REQUIRE_POPT_MATRIX=1` was being forced for every transport-matched
+policy. K2-M and its matched LRU rows therefore constructed and exported the
+P-OPT matrix even though neither policy consulted it. The runner now restricts
+that structure to P-OPT and fails closed if a non-P-OPT mask row reports a
+loaded rereference matrix. A focused compact-SSSP smoke reports
+`required=0,reref=0` for K2-M with no matrix export and `required=1,reref=1`
+for P-OPT. The reboot-interrupted 100M calibration predates this correction and
+is discarded.
+
 Future full-graph runs therefore use the exact-instruction/memory-reference
 K2-M model rather than a speculative host memoization.
 

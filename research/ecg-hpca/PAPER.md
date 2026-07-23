@@ -43,7 +43,9 @@ must be materially different.
 Graph analytics already stream an edge record before accessing irregular vertex
 properties. K2 carries a compact future-reuse contract from that edge onto the
 exact property Request, exposing graph semantics unavailable to PC/address
-predictors without an eviction-time rereference-matrix lookup.
+predictors without an eviction-time rereference-matrix lookup. The design keeps
+the configured LLC data ways, accepts a disclosed side-metadata silicon
+overhead, and requires no live P-OPT matrix.
 
 ## Mechanism
 
@@ -67,7 +69,7 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
 ## Contributions
 
 1. Edge-carried degree and two-epoch reuse guidance bound to the exact property
-   Request, with no LLC data-way reservation.
+   Request, with no LLC data-way reservation or live rereference matrix.
 2. A typed computed-address semantic load plus an explicit request-carried
    current-epoch/context channel;
    indexed fusion is a separate extension.
@@ -75,7 +77,8 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
 4. A shared eviction decision and exact delivery/decision gates across cache_sim,
    gem5, and Sniper.
 5. A validation framework that separates cache, transport, and optional indexed
-   fusion; equal-area/energy accounting remains a submission gate.
+   fusion; the primary 16-way design reports its added silicon cost, while
+   equal-area/energy sensitivity remains a submission gate.
 
 ## Evaluation structure
 

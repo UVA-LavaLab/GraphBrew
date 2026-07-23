@@ -1774,7 +1774,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env.pop("OMP_WAIT_POLICY", None)
     env["SNIPER_GRAPHBREW_CTX"] = str(sidebands["context"])
     env["SNIPER_POPT_MATRIX"] = str(sidebands["popt_matrix"])
-    if policy_name == "popt":
+    requires_popt_matrix = policy_name == "popt"
+    row["sniper_popt_matrix_required"] = int(requires_popt_matrix)
+    if requires_popt_matrix:
         env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"
     else:
         env.pop("SNIPER_REQUIRE_POPT_MATRIX", None)
@@ -1813,7 +1815,6 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             args, schedule_k=2, spec=parse_policy_spec("ECG:K2"))
         env["ECG_EDGE_MASKS"] = "1"
         env["SNIPER_POPT_FAST"] = "1"
-        env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"
     schedule_k = transport.schedule_k if is_k2_ecg else 0
     if schedule_k not in (0, 2):
         raise RuntimeError(
@@ -1956,6 +1957,16 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
             row.update({
                 "status": "error",
                 "error": "Sniper P-OPT completed without a loaded rereference matrix",
+            })
+            return [row]
+        if (args.ecg_isa_variant == "mask" and policy_name != "popt"
+                and reref_loaded != 0):
+            clear_sniper_k2_sidebands(sidebands)
+            row.update({
+                "status": "error",
+                "error": (
+                    "Matrix-free K2-M row unexpectedly loaded the P-OPT "
+                    "rereference matrix"),
             })
             return [row]
 
@@ -2583,7 +2594,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         choices=["indexed", "mask"],
         default="indexed",
         help="K2 detailed-simulator ISA: indexed = fused base+record K2-I; "
-             "mask = computed-address K2-M. Sniper mask timing is not yet implemented.")
+             "mask = computed-address K2-M. Sniper uses a transport-matched "
+             "diagnostic model until exact request binding lands.")
     parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=0,
                         help="ECG_STORED_REFRESH: re-stamp a resident LLC line's next-ref "
                              "epoch from the per-edge hint on EVERY access, INCLUDING L1/L2 "
