@@ -6,6 +6,8 @@
 #include "simulator.h"
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
@@ -13,6 +15,113 @@
 #include <string>
 
 namespace {
+
+bool ecgHostProfileEnabled()
+{
+   static const bool enabled = []() {
+      const char* value = std::getenv("SNIPER_ECG_HOST_PROFILE");
+      return value && value[0] && std::string(value) != "0";
+   }();
+   return enabled;
+}
+
+struct EcgHostProfile
+{
+   std::atomic<uint64_t> replacement_calls{0};
+   std::atomic<uint64_t> replacement_ns{0};
+   std::atomic<uint64_t> update_calls{0};
+   std::atomic<uint64_t> update_ns{0};
+   std::atomic<uint64_t> prepare_calls{0};
+   std::atomic<uint64_t> prepare_ns{0};
+};
+
+EcgHostProfile& ecgHostProfile()
+{
+   static EcgHostProfile profile;
+   return profile;
+}
+
+void dumpEcgHostProfile()
+{
+   const auto& profile = ecgHostProfile();
+   std::fprintf(
+      stderr,
+      "[ECG-HOST-PROFILE replacement_calls=%llu replacement_ns=%llu "
+      "update_calls=%llu update_ns=%llu prepare_calls=%llu prepare_ns=%llu]\n",
+      (unsigned long long)profile.replacement_calls.load(
+         std::memory_order_relaxed),
+      (unsigned long long)profile.replacement_ns.load(
+         std::memory_order_relaxed),
+      (unsigned long long)profile.update_calls.load(
+         std::memory_order_relaxed),
+      (unsigned long long)profile.update_ns.load(
+         std::memory_order_relaxed),
+      (unsigned long long)profile.prepare_calls.load(
+         std::memory_order_relaxed),
+      (unsigned long long)profile.prepare_ns.load(
+         std::memory_order_relaxed));
+}
+
+void ensureEcgHostProfileRegistered()
+{
+   static const bool registered = []() {
+      (void)ecgHostProfile();
+      std::atexit(dumpEcgHostProfile);
+      return true;
+   }();
+   (void)registered;
+}
+
+class EcgHostProfileScope
+{
+   public:
+      enum class Kind { Replacement, Update, Prepare };
+
+      explicit EcgHostProfileScope(Kind kind)
+         : m_kind(kind)
+         , m_enabled(ecgHostProfileEnabled())
+      {
+         if (m_enabled) {
+            ensureEcgHostProfileRegistered();
+            m_start = std::chrono::steady_clock::now();
+         }
+      }
+
+      ~EcgHostProfileScope()
+      {
+         if (!m_enabled) return;
+         const auto elapsed =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::steady_clock::now() - m_start).count();
+         auto& profile = ecgHostProfile();
+         switch (m_kind) {
+            case Kind::Replacement:
+               profile.replacement_calls.fetch_add(
+                  1, std::memory_order_relaxed);
+               profile.replacement_ns.fetch_add(
+                  static_cast<uint64_t>(elapsed),
+                  std::memory_order_relaxed);
+               break;
+            case Kind::Update:
+               profile.update_calls.fetch_add(1, std::memory_order_relaxed);
+               profile.update_ns.fetch_add(
+                  static_cast<uint64_t>(elapsed),
+                  std::memory_order_relaxed);
+               break;
+            case Kind::Prepare:
+               profile.prepare_calls.fetch_add(1, std::memory_order_relaxed);
+               profile.prepare_ns.fetch_add(
+                  static_cast<uint64_t>(elapsed),
+                  std::memory_order_relaxed);
+               break;
+         }
+      }
+
+   private:
+      Kind m_kind;
+      bool m_enabled;
+      std::chrono::steady_clock::time_point m_start;
+};
 
 // ECG GRASP-tier SOURCE (ECG_GRASP_SRC), mirrors cache_sim/gem5 two variants:
 //   mask (0, our ECG): DELIVERED per-vertex graspTierByIndex keyed by the INSERTED
@@ -171,6 +280,7 @@ CacheSetECG::tryLoadContext()
 void
 CacheSetECG::prepareInsertion(IntPtr addr, UInt32 set_index)
 {
+   EcgHostProfileScope profile(EcgHostProfileScope::Kind::Prepare);
    tryLoadContext();
    m_pending_insert_addr = addr & ~(IntPtr(m_blocksize) - 1);
    m_set_index = set_index;
@@ -666,6 +776,7 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
 UInt32
 CacheSetECG::getReplacementIndex(CacheCntlr *cntlr)
 {
+   EcgHostProfileScope profile(EcgHostProfileScope::Kind::Replacement);
    for (UInt32 way = 0; way < m_associativity; way++) {
       if (!m_cache_block_info_array[way]->isValid()) {
          applyPendingInsertion(way);
@@ -689,6 +800,7 @@ CacheSetECG::getReplacementIndex(CacheCntlr *cntlr)
 void
 CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
 {
+   EcgHostProfileScope profile(EcgHostProfileScope::Kind::Update);
    m_set_info->increment(accessed_index);
    m_last_touch[accessed_index] = ++m_access_tick;
    if (m_cache_block_info_array[accessed_index]->isPageTableBlock() && m_srrip_tlb_enabled) {

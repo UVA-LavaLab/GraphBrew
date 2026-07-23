@@ -159,6 +159,32 @@ zero bad records. This establishes instruction parity and mechanism direction,
 not real-graph K2-M performance; the epoch CSR and exact Sniper request binding
 remain modeled.
 
+### Sniper host-cost audit
+
+The abandoned full cit-Patents K2-I-like run was progressing, but its 14-hour
+wall time did not come from the indexed K2 metadata lookup or victim selector.
+Internal timers on an SSSP mechanism cell measure:
+
+- fused K2 lookup: 7,865 calls, 1.42 ms total, 181 ns/call;
+- all ECG replacement calls: 136 ms total;
+- all ECG hit updates: 68 ms total;
+- all ECG insertion preparation: 33 ms total;
+- complete host run: 129 s.
+
+A 256-entry per-core lookup memo produced only 41 hits in 698,800 calls
+(0.0059%), preserved target statistics exactly, and regressed host wall time
+from 1,724 s to 1,852 s. It was rejected. The dominant cost is SIFT
+trace/detailed simulation; the old K2-I-like guest executed more instructions
+and memory references and ran concurrently with other CPU-intensive jobs.
+Controlled live and explicit-SIFT frontend cells took 236.469 s and 237.510 s
+with bit-identical target statistics. An isolated `-O3` Sniper build improved a
+70.17 s cell to only 69.17 s, within run noise, and was not adopted. Persistent
+trace replay also does not preserve the warmed-ROI contract: replaying only the
+ROI starts cold, while replaying the full cache-warm prefix costs about as much
+as the direct run.
+Future full-graph runs therefore use the exact-instruction/memory-reference
+K2-M model rather than a speculative host memoization.
+
 ### K2-I target-instruction correction
 
 Replacement-only authority already showed the forced K2 `grasp_only` arm

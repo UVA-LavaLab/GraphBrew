@@ -159,6 +159,11 @@ struct GraphCacheContext {
     std::vector<uint32_t> k2_line8_ids;
     std::vector<uint64_t> k2_line8_records;
     std::vector<uint64_t> k2_line8_indices;
+    mutable std::atomic<uint64_t> k2_profile_calls{0};
+    mutable std::atomic<uint64_t> k2_profile_found{0};
+    mutable std::atomic<uint64_t> k2_profile_total_ns{0};
+    mutable std::atomic<uint64_t> k2_profile_classify_ns{0};
+    mutable std::atomic<uint64_t> k2_profile_search_ns{0};
 
     GraphTopology topology;
     MaskConfig mask_config;
@@ -174,6 +179,7 @@ struct GraphCacheContext {
     // match the kernel's ECG_EDGE_MASK_EPOCHS packing. Set at context load.
     uint32_t edge_epoch_count = 256;
 
+    ~GraphCacheContext();
     bool loadFromSideband(const std::string& path);
     bool loadRereferenceMatrix(const std::string& path);
     void setCacheLineSize(uint64_t line_size);

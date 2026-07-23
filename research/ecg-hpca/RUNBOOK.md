@@ -310,6 +310,15 @@ semantic outputs, diagnostic-only timing, and workload hashes must match.
 Instruction ratio must remain within 0.25%; the current five-kernel gate is
 exactly 1.000x.
 
+For host-cost diagnosis, use `SNIPER_K2_LOOKUP_PROFILE=1` and explicit
+`SNIPER_ECG_HOST_PROFILE=1`. Do not reintroduce the rejected direct-mapped K2
+lookup memo: its measured hit rate was 0.0059% and it slowed the A/B run 7.4%
+with bit-identical target statistics. Live versus explicit-SIFT frontend
+selection and a global `-O3` simulator build were also neutral. Do not replace
+the warm run with standalone ROI-only trace replay; it starts with cold caches,
+while replaying the complete warm prefix retains essentially the direct-run
+cost.
+
 ### Equal-area acceptance gate
 
 Before any hardware-efficiency headline:

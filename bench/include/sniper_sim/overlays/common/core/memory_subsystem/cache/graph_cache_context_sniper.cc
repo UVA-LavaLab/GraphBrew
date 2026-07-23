@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -25,6 +26,15 @@ bool graphCtxRegistrationLogEnabled()
         const char* value = std::getenv("GRAPHBREW_SIDEBAND_LOG");
         if (!value || !value[0]) return 1;
         return (std::strcmp(value, "0") == 0) ? 0 : 1;
+    }();
+    return enabled != 0;
+}
+
+bool k2LookupProfileEnabled()
+{
+    static int enabled = []() {
+        const char* value = std::getenv("SNIPER_K2_LOOKUP_PROFILE");
+        return value && value[0] && std::strcmp(value, "0") != 0 ? 1 : 0;
     }();
     return enabled != 0;
 }
@@ -581,6 +591,31 @@ uint8_t MaskConfig::dbgTierToRRPV(uint8_t dbg_tier) const
     return result;
 }
 
+GraphCacheContext::~GraphCacheContext()
+{
+    if (!k2LookupProfileEnabled()) return;
+    const uint64_t calls =
+        k2_profile_calls.load(std::memory_order_relaxed);
+    const uint64_t found =
+        k2_profile_found.load(std::memory_order_relaxed);
+    const uint64_t total =
+        k2_profile_total_ns.load(std::memory_order_relaxed);
+    const uint64_t classify =
+        k2_profile_classify_ns.load(std::memory_order_relaxed);
+    const uint64_t search =
+        k2_profile_search_ns.load(std::memory_order_relaxed);
+    std::fprintf(
+        stderr,
+        "[K2-LOOKUP-PROFILE calls=%llu found=%llu total_ns=%llu "
+        "classify_ns=%llu search_ns=%llu avg_ns=%.3f]\n",
+        (unsigned long long)calls,
+        (unsigned long long)found,
+        (unsigned long long)total,
+        (unsigned long long)classify,
+        (unsigned long long)search,
+        calls ? static_cast<double>(total) / static_cast<double>(calls) : 0.0);
+}
+
 bool GraphCacheContext::loadFromSideband(const std::string& path)
 {
     std::ifstream file(path);
@@ -908,8 +943,26 @@ bool GraphCacheContext::lookupFusedK2Pair(
         uint64_t line_addr, uint32_t core_id,
         uint8_t& tier, uint16_t& first, uint16_t& second) const
 {
+    using Clock = std::chrono::steady_clock;
+    const bool profile = k2LookupProfileEnabled();
+    const auto total_start = profile ? Clock::now() : Clock::time_point{};
+    struct TotalTimer {
+        const GraphCacheContext* context;
+        bool enabled;
+        Clock::time_point start;
+        ~TotalTimer() {
+            if (!enabled) return;
+            const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                Clock::now() - start).count();
+            context->k2_profile_total_ns.fetch_add(
+                static_cast<uint64_t>(ns), std::memory_order_relaxed);
+        }
+    } total_timer{this, profile, total_start};
+    if (profile)
+        k2_profile_calls.fetch_add(1, std::memory_order_relaxed);
     if (k2_offsets.empty())
         return false;
+    const auto classify_start = profile ? Clock::now() : Clock::time_point{};
     const uint32_t src = currentVertexForPopt(core_id);
     const uint32_t line_vertex = vertexForAddress(line_addr);
     if (line_vertex == UINT32_MAX) return false;
@@ -931,15 +984,30 @@ bool GraphCacheContext::lookupFusedK2Pair(
         static_cast<size_t>(src + 1) >= line_offsets.size())
         return false;
     const uint32_t line_id = line_vertex / vertices_per_line;
+    if (profile) {
+        const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            Clock::now() - classify_start).count();
+        k2_profile_classify_ns.fetch_add(
+            static_cast<uint64_t>(ns), std::memory_order_relaxed);
+    }
     const uint64_t indexed_begin = line_offsets[src];
     const uint64_t indexed_end = std::min<uint64_t>(
         line_offsets[src + 1], line_records.size());
+    const auto search_start = profile ? Clock::now() : Clock::time_point{};
     const auto found = std::lower_bound(
         line_ids.begin() + indexed_begin,
         line_ids.begin() + indexed_end,
         line_id);
+    if (profile) {
+        const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            Clock::now() - search_start).count();
+        k2_profile_search_ns.fetch_add(
+            static_cast<uint64_t>(ns), std::memory_order_relaxed);
+    }
     if (found == line_ids.begin() + indexed_end || *found != line_id)
         return false;
+    if (profile)
+        k2_profile_found.fetch_add(1, std::memory_order_relaxed);
     const uint64_t indexed_position =
         static_cast<uint64_t>(found - line_ids.begin());
     const uint64_t record = line_records[indexed_position];

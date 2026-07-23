@@ -224,3 +224,23 @@ def test_sniper_mask_only_uses_transport_matched_loops():
     assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
     assert '"sniper_transport_record_bytes"] = 8' in runner
     assert '"matched_mask_only_sideband_model"' in runner
+
+
+def test_sniper_ecg_host_profile_covers_cache_callbacks():
+    cache = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "cache_set_ecg.cc")
+    context = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "graph_cache_context_sniper.cc")
+
+    assert 'std::getenv("SNIPER_ECG_HOST_PROFILE")' in cache
+    assert "[ECG-HOST-PROFILE" in cache
+    assert "(void)ecgHostProfile();" in cache
+    assert "Kind::Replacement" in cache
+    assert "Kind::Update" in cache
+    assert "Kind::Prepare" in cache
+    assert 'std::getenv("SNIPER_K2_LOOKUP_PROFILE")' in context
+    assert "[K2-LOOKUP-PROFILE" in context
+    assert "k2_profile_classify_ns" in context
+    assert "k2_profile_search_ns" in context
