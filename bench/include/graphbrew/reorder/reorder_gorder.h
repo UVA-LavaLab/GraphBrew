@@ -883,7 +883,8 @@ void GenerateGOrderCSRMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     // The original GOrder paper (Wei et al., 2016) uses w=5 as its default.
     Timer tm;
     if (g.num_nodes() > static_cast<int64_t>(std::numeric_limits<int>::max())) {
-        std::cerr << "GOrder: graph has " << g.num_nodes()
+        std::cerr << "GOrder: graph has "
+                  << static_cast<long long>(g.num_nodes())
                   << " nodes, exceeding int32 limit. Falling back to identity.\n";
         new_ids.resize(g.num_nodes());
         #pragma omp parallel for
@@ -960,7 +961,8 @@ void GenerateGOrderFastMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
                                const std::string& /*filename*/) {
     Timer tm;
     if (g.num_nodes() > static_cast<int64_t>(std::numeric_limits<int>::max())) {
-        std::cerr << "GOrder_fast: graph has " << g.num_nodes()
+        std::cerr << "GOrder_fast: graph has "
+                  << static_cast<long long>(g.num_nodes())
                   << " nodes, exceeding int32 limit. Falling back to identity.\n";
         new_ids.resize(g.num_nodes());
         #pragma omp parallel for
