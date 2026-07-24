@@ -20,10 +20,13 @@ variant, and all five also implement the canonical K2-M path selected with
 replaces a normal property load one-for-one. It passes the five-kernel mechanism
 gate; matched performance timing remains pending.
 gem5 additionally implements the architectural current-epoch/context CSRs and
-snapshots them onto request-bound K2 loads. The current single-process harness
-uses context ID 1 and charges the context/current-epoch writes in the ROI.
-General context-ID allocation/reuse and integrated OoO MSHR stress remain
-pending, so no new performance claim follows from this implementation alone.
+snapshots them onto request-bound K2 loads. The harness allocates monotonic
+nonzero context IDs, charges begin/end and current-epoch writes in the ROI, and
+fails closed rather than reusing an ID. Integrated OoO stress and any future
+drain/invalidation protocol for intentional ID reuse remain pending, so no new
+performance claim follows from this implementation alone.
+The serialized X86/Timing hint is cleared at the ordered context end; any late
+prefetch fill fails closed rather than inheriting a later context.
 Sniper's completed packed-record timing matrix is an idealized K2-I-like model,
 not measured K2-I or mask-only timing. Tiny PR and weighted SSSP O3 runs prove request-local pair
 delivery; scale runs remain on TimingSimpleCPU. Historical

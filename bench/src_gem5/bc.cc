@@ -264,6 +264,7 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
         }
     }
 
+    GEM5_ECG_END_CONTEXT();
     GEM5_WORK_END(GEM5_WORK_COMPUTE);
     GEM5_DUMP_STATS();
     return scores;

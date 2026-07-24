@@ -333,6 +333,7 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
         }
     }
 
+    GEM5_ECG_END_CONTEXT();
     GEM5_WORK_END(GEM5_WORK_COMPUTE);
     GEM5_DUMP_STATS();
     return parent;

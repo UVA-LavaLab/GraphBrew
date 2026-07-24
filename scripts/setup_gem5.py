@@ -580,6 +580,13 @@ def apply_current_vertex_pseudo_inst_patch():
             legacy_k2_wrapped, tiered_k2_wrapped, 1)
 
     hint_blocks = []
+    if "GRAPHBREW_SET_CONTEXT_WORK_ID" not in content:
+        hint_blocks.append(
+            "    if (workid == replacement_policy::graph::GRAPHBREW_SET_CONTEXT_WORK_ID) {\n"
+            "        replacement_policy::graph::setCurrentContextHint(threadid);\n"
+            "        return;\n"
+            "    }\n\n"
+        )
     if "GRAPHBREW_SET_VERTEX_WORK_ID" not in content:
         hint_blocks.append(
             "    if (workid == replacement_policy::graph::GRAPHBREW_SET_VERTEX_WORK_ID) {\n"
@@ -711,6 +718,7 @@ def verify_installation_postconditions():
             "attachEcgEpoch",
         ],
         GEM5_DIR / "src/sim/pseudo_inst.cc": [
+            "GRAPHBREW_SET_CONTEXT_WORK_ID",
             "GRAPHBREW_SET_VERTEX_WORK_ID",
             "GRAPHBREW_ECG_EXTRACT2_WORK_ID",
         ],

@@ -209,9 +209,10 @@ Classic-cache MSHRs keep the greatest same-hart/same-context sequence and set a
 sticky conflict for cross-hart, cross-context, invalid-context, or mixed
 ordinary/K2 targets; conflicted fills remain unstamped. A standalone mutation
 test covers those transitions and replay idempotence. The current benchmark
-harness uses context ID 1 for its single active graph. Runtime context
-allocation/reuse, integrated OoO stress, and exact Sniper request binding remain
-open, so this milestone adds no performance result.
+harness allocates monotonic nonzero IDs, clears the CSRs at context end, and
+fails closed instead of reusing IDs. Integrated OoO stress, any optional
+drain/invalidation protocol for intentional reuse, and exact Sniper request
+binding remain open, so this milestone adds no performance result.
 
 ### K2-I target-instruction correction
 

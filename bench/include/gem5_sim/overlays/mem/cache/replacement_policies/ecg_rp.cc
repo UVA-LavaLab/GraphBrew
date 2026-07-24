@@ -156,6 +156,8 @@ GraphEcgRP::legacyRequestState(
     uint32_t& sequence) const
 {
     if (!ctx.loaded || !graph::hasCurrentVertexHint()) return false;
+    const uint16_t active_context = graph::getCurrentContextHint();
+    if (active_context == 0) return false;
     const uint32_t n = std::max<uint32_t>(1u, ctx.topology.num_vertices);
     const uint32_t ne =
         std::max<uint32_t>(2u, ctx.topology.edge_epoch_count);
@@ -163,7 +165,7 @@ GraphEcgRP::legacyRequestState(
         (static_cast<uint64_t>(ctx.currentVertexForPopt()) * ne) / n);
     if (epoch >= ne) epoch = ne - 1;
     current_epoch = static_cast<uint16_t>(epoch);
-    context_id = 1;
+    context_id = active_context;
     sequence = 0;
     return true;
 }
@@ -464,9 +466,11 @@ GraphEcgRP::reset(
                     // in-flight buffer; keep the degree-derived DBG tier.
                     uint16_t pf_epoch = 0;
                     uint16_t pf_context = 0;
+                    const uint16_t active_context =
+                        graph::getCurrentContextHint();
                     if (graph::consumePendingPrefetchEpoch(
-                            vertex, pf_epoch, pf_context) &&
-                        pf_context != 0) {
+                            vertex, active_context,
+                            pf_epoch, pf_context)) {
                         data->ecg_epoch = pf_epoch;
                         data->ecg_epoch2 = pf_epoch;
                         data->ecg_context_id = pf_context;

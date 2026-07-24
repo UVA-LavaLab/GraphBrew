@@ -681,6 +681,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         if (error < epsilon) break;
     }
 
+    GEM5_ECG_END_CONTEXT();
     GEM5_WORK_END(GEM5_WORK_COMPUTE);
     GEM5_DUMP_STATS();
     return scores;

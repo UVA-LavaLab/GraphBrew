@@ -275,13 +275,16 @@ queues/MSHRs preserve hart identity, sequence, epoch, and context. The prototype
 
 gem5 now implements `ecg.cur_epoch` and `ecg.context` as user-level custom
 RISC-V CSRs `0x800` and `0x801`. Each K2 load snapshots both registers plus the
-O3 dynamic instruction sequence onto its Request. The benchmark writes the
-context CSR once inside the ROI and the quantized current epoch once per outer
-vertex/frontier item. The current artifact uses context ID 1 because every
-validated process has one active graph; a general runtime allocator, explicit
-ID-reuse invalidation, and the exact Sniper channel remain pending. Serialized
-X86/Timing compatibility retains the old vertex hint under synthetic context 1
-and is not the multicore architectural authority.
+O3 dynamic instruction sequence onto its Request. The benchmark allocates a
+monotonic nonzero context ID, writes it once inside the ROI, and writes the
+quantized current epoch once per outer vertex/frontier item. It clears both CSRs
+at context end and refuses ID reuse; exhaustion fails closed rather than
+aliasing stale resident metadata. Explicit drain/invalidation for systems that
+choose to reuse IDs and the exact Sniper channel remain pending. Serialized
+X86/Timing compatibility publishes the same monotonic ID through its m5 hint
+channel and clears it at the ordered context end. Older demand loads have
+completed; any late prefetch fill fails closed on context mismatch. This
+compatibility path is not the multicore architectural authority.
 
 All participating harts in one graph context use the same global vertex/epoch
 domain and runtime-assigned generation. A completed same-context LLC access from

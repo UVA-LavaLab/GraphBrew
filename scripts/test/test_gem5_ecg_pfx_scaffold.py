@@ -216,23 +216,37 @@ def test_gem5_k2_uses_architectural_epoch_context_csrs():
     assert 'asm volatile ("csrw 0x800, %0"' in harness
     assert 'asm volatile ("csrw 0x801, %0"' in harness
     assert "GEM5_SET_VERTEX_EPOCH" in harness
+    assert "gem5_ecg_allocate_context_id" in harness
+    assert "GEM5_ECG_END_CONTEXT" in harness
+    assert "ID reuse requires" in harness
+    assert "GEM5_WORK_SET_CONTEXT" in harness
     assert 'env["GEM5_ECG_EPOCH_CSR"] = "1"' in runner
-    assert 'env["GEM5_ECG_CONTEXT_ID"] = "1"' in runner
+    assert '"runtime-monotonic"' in runner
     assert "GEM5_ECG_EPOCH_CSR=" in graph_se
-    assert "GEM5_ECG_CONTEXT_ID=" in graph_se
+    assert "GEM5_ECG_CONTEXT_ID=" not in graph_se
     assert "setVictimRequest" in victim_patch
     assert "applyEcgMetadata" in mshr_patch
     assert "data->ecg_context_id == victimContextId" in policy
     assert "data->ecg_context_id = pf_context" in policy
     assert "recordPendingPrefetchEpoch(" in setup
     assert "pfxa_context" in setup
+    context = read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "graph_cache_context_gem5.hh")
+    assert "previous_context != context_id" in context
+    assert "s.drops.fetch_add" in context
+    assert "context_id != expected_context" in context
+    assert "getCurrentContextHint" in policy
     assert "legacyRequestState" in policy
+    assert "getCurrentContextHint" in policy
+    assert "GRAPHBREW_SET_CONTEXT_WORK_ID" in setup
     assert "ctx.currentVertexForPopt()" not in policy.split(
         "GraphEcgRP::getVictim", 1)[1]
 
     for kernel in ("pr", "bfs", "sssp", "bc", "cc"):
         source = read(f"bench/src_gem5/{kernel}.cc")
         assert "GEM5_ECG_BEGIN_CONTEXT();" in source
+        assert "GEM5_ECG_END_CONTEXT();" in source
         assert "GEM5_SET_VERTEX_EPOCH(" in source
 
 

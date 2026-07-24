@@ -1205,9 +1205,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     if is_k2_ecg:
         env["GEM5_ECG_ISA_VARIANT"] = args.ecg_isa_variant
         env["GEM5_ECG_EPOCH_CSR"] = "1"
-        env["GEM5_ECG_CONTEXT_ID"] = "1"
         row["gem5_ecg_epoch_channel"] = "csr"
-        row["gem5_ecg_context_id"] = 1
+        row["gem5_ecg_context_id"] = "runtime-monotonic"
     requested_ecg_load = os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"
     env.pop("GEM5_FORCE_ECG_LOAD", None)
     env.pop("GEM5_FORCE_ECG_PLOAD", None)
@@ -1309,7 +1308,6 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                     env["GEM5_FORCE_ECG_PLOAD"] = "1"
                     env["GEM5_ECG_PRODUCER"] = "1"
                     env["GEM5_ECG_EPOCH_CSR"] = "1"
-                    env["GEM5_ECG_CONTEXT_ID"] = "1"
                     gem5_ecg_delivery = "ecg.pload-request-bound"
                 elif requested_ecg_load:
                     gem5_ecg_delivery = "ecg.load"

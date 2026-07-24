@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <atomic>
 
 #include "ecg_epoch_builder.h"
 #include <string>
@@ -46,6 +47,7 @@
 #define GEM5_WORK_INIT    0
 #define GEM5_WORK_COMPUTE 1
 #define GEM5_WORK_SET_VERTEX 0x47525654ULL  // GraphBrew current vertex hint
+#define GEM5_WORK_SET_CONTEXT 0x47435458ULL // GraphBrew graph-generation context
 #define GEM5_WORK_ECG_PFX_TARGET 0x47504658ULL  // GraphBrew ECG PFX target hint
 #define GEM5_WORK_ECG_PFX_TARGET_EPOCH 0x47504659ULL  // Path A: target|epoch<<32
 #define GEM5_WORK_ECG_EXTRACT_MASK 0x4745584DULL  // "GEXM": full dest+epoch mask
@@ -812,15 +814,27 @@ inline bool gem5_ecg_epoch_csr_enabled() {
     return enabled != 0;
 }
 
-inline uint16_t gem5_ecg_context_id() {
-    static uint16_t context = []() {
-        const char* value = std::getenv("GEM5_ECG_CONTEXT_ID");
-        unsigned long parsed = value ? std::strtoul(value, nullptr, 10) : 1;
-        if (parsed == 0) parsed = 1;
-        if (parsed > UINT16_MAX) parsed = UINT16_MAX;
-        return static_cast<uint16_t>(parsed);
-    }();
+inline uint16_t& gem5_ecg_active_context_id() {
+    static uint16_t context = 0;
     return context;
+}
+
+inline uint16_t gem5_ecg_allocate_context_id() {
+    static std::atomic<uint32_t> next_context{1};
+    const uint32_t context =
+        next_context.fetch_add(1, std::memory_order_relaxed);
+    if (context == 0 || context > UINT16_MAX) {
+        std::fprintf(
+            stderr,
+            "[FATAL] ECG context ID space exhausted; ID reuse requires "
+            "an explicit drain and metadata invalidation\n");
+        std::abort();
+    }
+    return static_cast<uint16_t>(context);
+}
+
+inline uint16_t gem5_ecg_context_id() {
+    return gem5_ecg_active_context_id();
 }
 
 inline uint16_t gem5_ecg_quantize_current_epoch(
@@ -850,12 +864,34 @@ inline void gem5_ecg_write_current_epoch_csr(uint16_t epoch) {
 #endif
 }
 
+inline void gem5_ecg_publish_legacy_context(uint16_t context) {
+#ifndef NO_M5OPS
+    m5_work_begin(
+        GEM5_WORK_SET_CONTEXT, static_cast<uint64_t>(context));
+#else
+    (void)context;
+#endif
+}
+
 #define GEM5_ECG_BEGIN_CONTEXT() \
     do { \
+        if (gem5_ecg_active_context_id() != 0) std::abort(); \
+        gem5_ecg_active_context_id() = gem5_ecg_allocate_context_id(); \
+        gem5_ecg_publish_legacy_context(gem5_ecg_context_id()); \
         if (gem5_ecg_epoch_csr_enabled()) { \
             gem5_ecg_write_context_csr(gem5_ecg_context_id()); \
             gem5_ecg_write_current_epoch_csr(0); \
         } \
+    } while (0)
+
+#define GEM5_ECG_END_CONTEXT() \
+    do { \
+        if (gem5_ecg_epoch_csr_enabled()) { \
+            gem5_ecg_write_current_epoch_csr(0); \
+            gem5_ecg_write_context_csr(0); \
+        } \
+        gem5_ecg_publish_legacy_context(0); \
+        gem5_ecg_active_context_id() = 0; \
     } while (0)
 
 #define GEM5_SET_VERTEX_EPOCH(vertex_id, num_vertices, num_epochs) \

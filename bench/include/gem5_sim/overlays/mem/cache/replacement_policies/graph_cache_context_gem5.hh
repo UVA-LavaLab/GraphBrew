@@ -74,6 +74,7 @@ inline void logGraphCtxRegistration(const char* source,
 static constexpr uint32_t MAX_REGION_BUCKETS = 16;
 static constexpr uint32_t MAX_PROPERTY_REGIONS = 8;
 static constexpr uint64_t GRAPHBREW_SET_VERTEX_WORK_ID = 0x47525654ULL;
+static constexpr uint64_t GRAPHBREW_SET_CONTEXT_WORK_ID = 0x47435458ULL;
 static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
 static constexpr uint64_t GRAPHBREW_ECG_EXTRACT_MASK_WORK_ID = 0x4745584DULL;
 static constexpr uint64_t GRAPHBREW_ECG_EXTRACT2_WORK_ID = 0x47455832ULL;
@@ -105,6 +106,20 @@ inline bool hasCurrentVertexHint() {
 
 inline uint32_t getCurrentVertexHint() {
     return currentVertexHintStorage().load(std::memory_order_acquire);
+}
+
+inline std::atomic<uint16_t>& currentContextHintStorage() {
+    static std::atomic<uint16_t> context{0};
+    return context;
+}
+
+inline void setCurrentContextHint(uint64_t context) {
+    currentContextHintStorage().store(
+        static_cast<uint16_t>(context), std::memory_order_release);
+}
+
+inline uint16_t getCurrentContextHint() {
+    return currentContextHintStorage().load(std::memory_order_acquire);
 }
 
 // === Prefetch-target hint queue (sprint 6f-6 ring-buffer fix) ===
@@ -172,7 +187,10 @@ inline bool consumePrefetchTargetHint(uint32_t& vertex) {
 // it with the request": a small bounded buffer (direct-mapped by vertex, sized
 // like an MSHR / prefetch-metadata array — NOT an O(V) table) holds (vertex ->
 // {epoch, context}) from hint delivery until the fill consumes it. Collisions
-// just drop pending metadata (the line stays unstamped, re-stamped on demand);
+// drop new pending metadata on collisions or context transitions (the line
+// stays unstamped, re-stamped on demand). A repeated hint for the same vertex
+// in the same context refreshes the epoch, matching latest-sequence merge
+// semantics without allowing cross-context aliasing.
 // a drop counter makes that observable.
 inline constexpr std::size_t kPendingPfxEpochSize = 256;
 
@@ -197,8 +215,14 @@ inline void recordPendingPrefetchEpoch(
     auto& s = pendingPfxEpoch();
     std::size_t i = vtx % kPendingPfxEpochSize;
     uint32_t prev = s.vertex[i].load(std::memory_order_relaxed);
-    if (prev != UINT32_MAX && prev != vtx)
-        s.drops.fetch_add(1, std::memory_order_relaxed);
+    if (prev != UINT32_MAX) {
+        const uint16_t previous_context =
+            s.context[i].load(std::memory_order_relaxed);
+        if (prev != vtx || previous_context != context_id) {
+            s.drops.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+    }
     s.epoch[i].store(ep, std::memory_order_relaxed);
     s.context[i].store(context_id, std::memory_order_relaxed);
     s.vertex[i].store(vtx, std::memory_order_release);
@@ -206,12 +230,17 @@ inline void recordPendingPrefetchEpoch(
 
 // One-shot lookup: returns pending metadata for vtx and clears the slot.
 inline bool consumePendingPrefetchEpoch(
-        uint32_t vtx, uint16_t& ep, uint16_t& context_id) {
+        uint32_t vtx, uint16_t expected_context,
+        uint16_t& ep, uint16_t& context_id) {
     auto& s = pendingPfxEpoch();
     std::size_t i = vtx % kPendingPfxEpochSize;
     if (s.vertex[i].load(std::memory_order_acquire) != vtx) return false;
-    ep = s.epoch[i].load(std::memory_order_relaxed);
     context_id = s.context[i].load(std::memory_order_relaxed);
+    if (context_id == 0 || context_id != expected_context) {
+        s.vertex[i].store(UINT32_MAX, std::memory_order_release);
+        return false;
+    }
+    ep = s.epoch[i].load(std::memory_order_relaxed);
     s.vertex[i].store(UINT32_MAX, std::memory_order_release);
     return true;
 }
