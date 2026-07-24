@@ -257,16 +257,27 @@ implemented. The module includes 128-quantum OPTgen, 64 sampled cache sets,
 training on friendly-line eviction, and Hawkeye's 3-bit RRPV rules. cache_sim
 uses compile-time static graph-access-site IDs because it has no instruction
 PC; rows are labeled `HAWKEYE_PROXY` and
-`proxy_not_real_instruction_pc`. No Hawkeye result has been run or frozen.
-The faithful paper baseline was therefore gated on a gem5 real-PC port.
+`proxy_not_real_instruction_pc`. They remain development diagnostics.
 
 The gem5 real-PC port is now implemented as `GraphHawkeyeRP`. It uses the same
 clean-room core, obtains signatures from `Request::getPC()`, keeps demand and
 prefetch training separate, ignores incoming writeback training while retaining
 victim-side learning, and defers all predictor/OPTgen mutation until the fill
 actually commits. Both gem5 ISAs build and the SimObject instantiates. The
-dedicated `ecg_gem5_hawkeye_gate` profile is dry-run only; there is still no
-Hawkeye performance result.
+dedicated `ecg_gem5_hawkeye_gate` now passes 30/30 rows:
+
+| Kernel | Hawkeye/LRU L3 misses | Hawkeye speedup vs LRU |
+|---|---:|---:|
+| PR | 1.098x | 0.985x |
+| BFS | 1.216x | 0.971x |
+| SSSP | 1.182x | 0.986x |
+| BC | 1.162x | 0.960x |
+| CC | 1.144x | 0.981x |
+| Geomean | **1.160x** | **0.977x** |
+
+Every Hawkeye row uses the real request instruction PC. Hawkeye is worse than
+LRU in every synthetic cell, so this is an implementation/execution gate, not
+the general learned-policy result required for a paper ranking.
 
 ### Physical-characterization harness
 

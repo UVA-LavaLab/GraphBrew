@@ -127,10 +127,21 @@
       ]
     },
     {
+      "id": "hawkeye_real_pc_synthetic",
+      "status": "passed",
+      "evidence": [
+        "4693439f",
+        "research/ecg-hpca/evidence/hawkeye_real_pc_20260724.md",
+        "results/ecg_experiments/final_paper_runs/ecg_gem5_hawkeye_gate_20260724/combined_roi_matrix.csv",
+        "results/ecg_experiments/final_paper_runs/ecg_gem5_hawkeye_gate_20260724/hawkeye_certification.json"
+      ]
+    },
+    {
       "id": "hawkeye_results",
       "status": "pending",
       "evidence": [
-        "4693439f"
+        "4693439f",
+        "research/ecg-hpca/evidence/hawkeye_real_pc_20260724.md"
       ]
     },
     {
@@ -218,6 +229,15 @@
       "decision": "allowed",
       "required_gates": [
         "semantic_work_infrastructure"
+      ]
+    },
+    {
+      "id": "hawkeye_real_pc_gate_result",
+      "text": "Faithful request-PC Hawkeye completes all five synthetic gem5 kernels and is worse than LRU in every evaluated cell.",
+      "scope": "Synthetic real-PC implementation gate only; no general learned-policy ranking",
+      "decision": "allowed",
+      "required_gates": [
+        "hawkeye_real_pc_synthetic"
       ]
     },
     {

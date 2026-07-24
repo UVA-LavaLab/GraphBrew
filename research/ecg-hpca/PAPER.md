@@ -114,7 +114,8 @@ SRAM, and P-OPT reserved data capacity so unlike costs are not conflated.
 
 The learned-policy baseline is Hawkeye. cache_sim's static-site proxy is used
 only for development. gem5's real instruction-PC implementation is present;
-the submission table still requires its completed comparison.
+the synthetic execution gate is complete and negative versus LRU, while the
+submission table still requires a real-graph comparison.
 
 The corrected cache_sim factorial is complete: StreamShield is an incremental
 demand/traffic improvement over online K2, while the full mechanism still uses

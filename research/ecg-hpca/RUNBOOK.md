@@ -421,18 +421,22 @@ diagnostic and require `hawkeye_pc_source=static_access_site_proxy` plus
 `hawkeye_faithfulness=proxy_not_real_instruction_pc`. Do not promote it to the
 headline Hawkeye baseline; that requires the gem5 real-PC implementation.
 
-Inspect the faithful real-PC gem5 gate without running it:
+Run the faithful real-PC gem5 gate:
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile ecg_gem5_hawkeye_gate \
   --run-dir /tmp/ecg-gem5-hawkeye \
-  --list --dry-run --no-build
+  --no-build
 ```
 
 Its Hawkeye rows must report
 `hawkeye_pc_source=request_instruction_pc` and
 `hawkeye_faithfulness=faithful_real_instruction_pc`.
+The accepted 2026-07-24 run passes 30/30 rows at
+`results/ecg_experiments/final_paper_runs/ecg_gem5_hawkeye_gate_20260724`.
+It is a synthetic implementation gate; Hawkeye is worse than LRU in all five
+cells and real-graph authority remains pending.
 
 The default v2 contract reports a 49-bit line payload before ECC, 1.531
 baseline-way equivalents, 14.602 self-consistent fractional ways, 15 ways as

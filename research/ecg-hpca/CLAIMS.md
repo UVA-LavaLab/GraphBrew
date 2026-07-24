@@ -87,6 +87,9 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 - gem5 `GraphHawkeyeRP` uses the real request instruction PC, preserves demand/
   prefetch predictor typing, and commits OPTgen/predictor mutation only after a
   fill is confirmed. X86/RISC-V builds and SimObject instantiation pass.
+- The faithful gem5 real-PC Hawkeye gate passes 30/30 synthetic rows. Hawkeye
+  has 1.160x geomean L3 misses and 0.977x speedup versus LRU and is worse in
+  every cell. This proves execution/provenance, not general policy ranking.
 - The production-encoding-anchored RV64 U32.D32 decomposition shows
   baseline=6, K2-M=6, and K2-I=2 body instructions. K2-M is one-for-one metadata
   carriage; the four-instruction reduction belongs only to optional K2-I.
@@ -183,8 +186,8 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 - A bounded Sniper structure-prefetch configuration that does not reproduce the
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
-- A completed faithful gem5 Hawkeye comparison; the real-PC implementation is
-  present, but no evaluation rows are frozen.
+- A faithful real-graph Hawkeye comparison. The synthetic real-PC gate is
+  complete but cannot authorize a general learned-policy ranking.
 - Detailed-simulator confirmation of the real-graph online-selector result.
 - Completion and aggregation of the now-runnable full-graph 600M SIFT matrix.
 - An optional zero-record GRASP ablation to isolate mask-stream cost; it is not

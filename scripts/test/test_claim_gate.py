@@ -33,6 +33,8 @@ def test_current_claim_gate_is_consistent():
     assert "policy-independent static graph-edge visits" in text
     gates = {gate["id"]: gate for gate in data["gates"]}
     assert gates["matched_sniper_post_binding"]["status"] == "passed"
+    assert gates["hawkeye_real_pc_synthetic"]["status"] == "passed"
+    assert gates["hawkeye_results"]["status"] == "pending"
     claims = {claim["id"]: claim for claim in resolved_claims(data)}
     speedup = claims["k2m_general_speedup"]
     assert speedup["decision"] == "prohibited"
