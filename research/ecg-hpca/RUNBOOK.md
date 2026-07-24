@@ -70,6 +70,15 @@ make sniper-sg_kernel
 8. Aggregate only complete, hash-consistent runs.
 9. Run one bounded matched Sniper pair before expanding to a headline matrix.
 
+Before editing the abstract, contributions, or conclusions, run:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.claim_gate
+```
+
+Do not promote a prohibited claim by prose alone. Update a gate to `passed`
+only when its evidence commit/path exists and the underlying result is frozen.
+
 ## Full 3-simulator/all-algorithm smoke
 
 ```bash

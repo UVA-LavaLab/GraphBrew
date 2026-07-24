@@ -7,6 +7,16 @@
 - PC-chair guidance is required before abstract registration.
 - A new name improves differentiation but does not replace disclosure.
 
+The machine-readable authority is
+[`claim_gate.json`](claim_gate.json). Validate it with:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.claim_gate
+```
+
+An `allowed` claim fails validation if any required gate is not passed.
+Passed-gate evidence must resolve to a reachable commit or existing file.
+
 ## Proven
 
 - Tiered K2 construction, delivery, line metadata, effective distance, and
@@ -162,3 +172,7 @@
 - Presenting the 1.329x packed K2-I-like model result as measured K2-I or K2-M speedup.
 - Presenting the 1.171x model TPI as a K2-M estimate.
 - Claiming zero K2 hardware overhead from zero reserved data ways.
+
+The executable ledger additionally pins all of these prohibitions, including
+the 1.329x packed K2-I-like result, its 1.171x TPI, absolute cross-simulator
+rates, synthetic-cell rankings, and hardware-free stored refresh.

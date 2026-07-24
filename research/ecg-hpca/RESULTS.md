@@ -267,6 +267,15 @@ The default 2/8 MiB table reproduces the runner's capacity charge: P-OPT needs
 1/1 ways on web-Google, 2/1 on soc-pokec, and 4/1 on cit-Patents. These are
 analytical accounting rows, not performance results.
 
+### Executable HPCA claim gate
+
+`claim_gate.json` now links contribution deltas and headline claims to explicit
+evidence gates. The validator checks commit reachability/file existence and
+rejects any `allowed` claim whose dependencies are pending. It machine-pins the
+major prohibitions, including treating the 1.329x packed K2-I-like model or
+1.171x TPI as K2-M evidence, comparing absolute gem5/Sniper rates, claiming
+zero hardware overhead, and ranking policies from the bounded synthetic cell.
+
 ### Exact Sniper governed-load association
 
 The transport-matched Sniper K2-M workload now executes identical bind/clear

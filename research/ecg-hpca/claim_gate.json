@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "contribution_delta": [
+    {
+      "prior": "Single metadata-mask concept",
+      "successor": "K2 edge record with tier and two future epochs",
+      "gate": "k2m_request_correctness"
+    },
+    {
+      "prior": "Conceptual graph instruction",
+      "successor": "Typed computed-address K2-M load with request-carried epoch/context",
+      "gate": "k2m_request_correctness"
+    },
+    {
+      "prior": "PageRank-focused prototype",
+      "successor": "PR/BFS/SSSP/BC/CC governed-load semantics and online selection",
+      "gate": "five_kernel_mechanism"
+    },
+    {
+      "prior": "Preliminary replacement and prefetch study",
+      "successor": "Adaptive replacement plus request-bound StreamShield placement",
+      "gate": "streamshield_mechanism"
+    },
+    {
+      "prior": "No complete overhead attribution",
+      "successor": "Transport, metadata, equal-area, P-OPT capacity, and physical-cost accounting workflow",
+      "gate": "physical_cost_results"
+    }
+  ],
+  "gates": [
+    {
+      "id": "chair_guidance",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "k2m_request_correctness",
+      "status": "passed",
+      "evidence": [
+        "ecddb738",
+        "research/ecg-hpca/ARCHITECTURE.md"
+      ]
+    },
+    {
+      "id": "five_kernel_mechanism",
+      "status": "passed",
+      "evidence": [
+        "5c1c487a",
+        "6ad37c60",
+        "dba0afc8"
+      ]
+    },
+    {
+      "id": "matrix_free_runtime",
+      "status": "passed",
+      "evidence": [
+        "40dadc3f"
+      ]
+    },
+    {
+      "id": "streamshield_mechanism",
+      "status": "passed",
+      "evidence": [
+        "df7191dd",
+        "8bc7ca04"
+      ]
+    },
+    {
+      "id": "full_graph_cache_sim",
+      "status": "passed",
+      "evidence": [
+        "cc61c7a2",
+        "results/ecg_experiments/final_paper_runs/ecg_cache_sim_citpatents_sssp_compact_full_20260721/roi_matrix.csv"
+      ]
+    },
+    {
+      "id": "matched_sniper_post_binding",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "full_graph_detailed_results",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "equal_area_results",
+      "status": "pending",
+      "evidence": [
+        "c01d189a"
+      ]
+    },
+    {
+      "id": "physical_cost_results",
+      "status": "pending",
+      "evidence": [
+        "8f491834"
+      ]
+    },
+    {
+      "id": "hawkeye_results",
+      "status": "pending",
+      "evidence": [
+        "4693439f"
+      ]
+    },
+    {
+      "id": "measured_k2i_isa_timing",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "cross_sim_absolute_comparability",
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "hardware_feasible_refresh",
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "zero_hardware_overhead",
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "synthetic_rank_authority",
+      "status": "blocked",
+      "evidence": []
+    },
+    {
+      "id": "k2i_tpi_isolation",
+      "status": "blocked",
+      "evidence": []
+    }
+  ],
+  "claims": [
+    {
+      "id": "matrix_free_k2",
+      "text": "K2 requires no live P-OPT rereference matrix at runtime.",
+      "scope": "Architecture and implementation",
+      "decision": "allowed",
+      "required_gates": [
+        "matrix_free_runtime"
+      ]
+    },
+    {
+      "id": "request_bound_mechanism",
+      "text": "K2-M exact O3 request binding is proven for PR and compact SSSP; all five kernels pass functional delivery/victim parity.",
+      "scope": "Mechanism correctness with explicit O3 coverage boundary",
+      "decision": "allowed",
+      "required_gates": [
+        "k2m_request_correctness",
+        "five_kernel_mechanism"
+      ]
+    },
+    {
+      "id": "cache_sim_direction",
+      "text": "Full-graph cache_sim establishes K2 replacement direction on the evaluated cit-Patents SSSP cell.",
+      "scope": "One full-graph cache_sim cache-metric cell",
+      "decision": "allowed",
+      "required_gates": [
+        "full_graph_cache_sim"
+      ]
+    },
+    {
+      "id": "k2m_general_speedup",
+      "text": "K2-M generally speeds up full-graph workloads.",
+      "scope": "Detailed-simulator performance",
+      "decision": "prohibited",
+      "required_gates": [
+        "matched_sniper_post_binding",
+        "full_graph_detailed_results"
+      ]
+    },
+    {
+      "id": "k2_beats_popt",
+      "text": "K2 generally outperforms P-OPT.",
+      "scope": "Performance and cache efficiency",
+      "decision": "prohibited",
+      "required_gates": [
+        "equal_area_results",
+        "full_graph_detailed_results"
+      ]
+    },
+    {
+      "id": "k2_beats_learned_policy",
+      "text": "K2 is competitive with or superior to Hawkeye.",
+      "scope": "Replacement quality",
+      "decision": "prohibited",
+      "required_gates": [
+        "hawkeye_results",
+        "equal_area_results"
+      ]
+    },
+    {
+      "id": "lower_hardware_cost",
+      "text": "K2 has lower total hardware cost than P-OPT.",
+      "scope": "Physical area, energy, and delay",
+      "decision": "prohibited",
+      "required_gates": [
+        "physical_cost_results"
+      ]
+    },
+    {
+      "id": "hpca_submission_eligible",
+      "text": "The successor contribution is eligible as a distinct HPCA submission.",
+      "scope": "Submission eligibility",
+      "decision": "prohibited",
+      "required_gates": [
+        "chair_guidance"
+      ]
+    },
+    {
+      "id": "packed_model_as_measured_k2",
+      "text": "The 1.329x packed K2-I-like model result is measured K2-I or K2-M speedup.",
+      "scope": "ISA performance",
+      "decision": "prohibited",
+      "required_gates": [
+        "measured_k2i_isa_timing"
+      ]
+    },
+    {
+      "id": "model_tpi_as_k2m",
+      "text": "The packed model's 1.171x TPI is a K2-M estimate.",
+      "scope": "K2-M performance",
+      "decision": "prohibited",
+      "required_gates": [
+        "k2i_tpi_isolation"
+      ]
+    },
+    {
+      "id": "absolute_cross_sim_rates",
+      "text": "Absolute gem5 and Sniper miss rates are directly comparable.",
+      "scope": "Cross-simulator metrics",
+      "decision": "prohibited",
+      "required_gates": [
+        "cross_sim_absolute_comparability"
+      ]
+    },
+    {
+      "id": "stored_refresh_free",
+      "text": "Aggressive per-access stored refresh is hardware-free.",
+      "scope": "Hardware feasibility",
+      "decision": "prohibited",
+      "required_gates": [
+        "hardware_feasible_refresh"
+      ]
+    },
+    {
+      "id": "zero_k2_overhead",
+      "text": "Zero reserved data ways means zero K2 hardware overhead.",
+      "scope": "Hardware cost",
+      "decision": "prohibited",
+      "required_gates": [
+        "zero_hardware_overhead"
+      ]
+    },
+    {
+      "id": "synthetic_cell_ranking",
+      "text": "The bounded synthetic mechanism cell establishes policy ranking.",
+      "scope": "Performance ranking",
+      "decision": "prohibited",
+      "required_gates": [
+        "synthetic_rank_authority"
+      ]
+    }
+  ]
+}
