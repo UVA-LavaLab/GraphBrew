@@ -1734,17 +1734,20 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     env.pop("SNIPER_ECG_FUSED_K2", None)
     env.pop("SNIPER_ECG_FUSED_VALIDATE", None)
     env.pop("SNIPER_K2_TRANSPORT_MATCHED", None)
+    env.pop("SNIPER_K2_EXACT_BIND", None)
     transport = ecg_transport_for(spec, args.benchmark)
     apply_ecg_transport_env(env, transport)
     is_k2_ecg = policy_name == "ecg" and spec.ecg_mode == "ECG_GRASP_POPT"
     if args.ecg_isa_variant == "mask":
         env["SNIPER_K2_TRANSPORT_MATCHED"] = "1"
+        env["SNIPER_K2_EXACT_BIND"] = "1"
         env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
         env["SNIPER_ECG_FUSED_K2"] = "1"
         env["ECG_EDGE_MASK_SCHED"] = "2"
         env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
         env["ECG_K2_VALIDATE"] = "1"
         row["sniper_transport_matched"] = 1
+        row["sniper_k2_exact_bind"] = 1
         row["sniper_transport_record_bytes"] = 8
         row["timing_model"] = "transport_matched_diagnostic"
         row["timing_valid_for_speedup"] = "0"

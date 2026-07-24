@@ -63,6 +63,10 @@ class CacheSetECG : public CacheSet
       bool m_context_load_attempted;
       bool m_has_pending_insert;
       IntPtr m_pending_insert_addr;
+      bool m_pending_exact_k2_valid;
+      UInt8 m_pending_exact_k2_tier;
+      UInt16 m_pending_exact_k2_first;
+      UInt16 m_pending_exact_k2_second;
       UInt32 m_set_index;
       UInt64 m_llc_size_bytes;
       std::string m_sideband_path;

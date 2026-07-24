@@ -156,8 +156,9 @@ The gate uses the same 8-byte record loops, exact semantic-result equality,
 uncapped ROIs, hashed binaries/output markers, and a 0.25% instruction
 tolerance. PR and compact SSSP cold proofs each report one validated receipt and
 zero bad records. This establishes instruction parity and mechanism direction,
-not real-graph K2-M performance; the epoch CSR and exact Sniper request binding
-remain modeled.
+not real-graph K2-M performance. Those frozen rows predate both gem5's epoch
+CSR and Sniper's explicit governed-load marker, so both mechanisms were modeled
+in that dataset.
 
 ### Sniper host-cost audit
 
@@ -213,6 +214,23 @@ harness allocates monotonic nonzero IDs, clears the CSRs at context end, and
 fails closed instead of reusing IDs. Integrated OoO stress, any optional
 drain/invalidation protocol for intentional reuse, and exact Sniper request
 binding remain open, so this milestone adds no performance result.
+
+### Exact Sniper governed-load association
+
+The transport-matched Sniper K2-M workload now executes identical bind/clear
+magic markers for every policy immediately around each edge-governed
+destination-property load. The marker carries the exact virtual address; the
+LLC consumes it on the matching hit or miss and then obtains the line-min K2
+payload from the existing sideband. PR binds `contrib[neighbor]`, BFS
+`parent[dest]`, SSSP `dist[dest]`, BC forward `depth[dest]` and
+`path_counts[dest]`, and CC edge-phase `comp[dest]`. Source loads, BC backward
+work, and CC pointer chasing/compression remain deliberately unmarked.
+
+This closes source-plus-line association in the implementation without adding
+policy-specific instructions or memory references. Existing frozen mechanism
+rows predate the marker and are not relabeled; a future focused certification
+must regenerate them. The Sniper current epoch is still modeled through the
+outer-vertex channel, so this milestone alone adds no timing claim.
 
 ### K2-I target-instruction correction
 

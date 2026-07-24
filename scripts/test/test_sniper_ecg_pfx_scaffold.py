@@ -30,6 +30,50 @@ def test_context_handler_normalizes_fresh_indent(tmp_path) -> None:
     assert "        if (arg0 == graphbrew::sniper::GRAPHBREW_CONTEXT_READY_WORK_ID)" in text
 
 
+def test_k2_bind_handler_upgrades_existing_user_case(tmp_path) -> None:
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location(
+        "setup_sniper_k2_bind_test", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    target = tmp_path / "magic_server.cc"
+    target.write_text(
+        "      case SIM_CMD_MARKER:\n"
+        "      {\n"
+        "         MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };\n"
+        "         return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_MARKER, (UInt64)&args, true /* expect return value */);\n"
+        "      }\n"
+        "      case SIM_CMD_USER:\n"
+        "      {\n"
+        "         if (arg0 == graphbrew::sniper::GRAPHBREW_ECG_EXTRACT2_WORK_ID) return 0;\n"
+        "         MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };\n"
+        "         return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_USER, (UInt64)&args, true /* expect return value */);\n"
+        "      }\n"
+    )
+    module.ensure_k2_bind_magic_handler(target, False)
+    module.ensure_k2_bind_magic_handler(target, False)
+    text = target.read_text()
+    marker_case, user_case = text.split("case SIM_CMD_USER:", 1)
+    assert "GRAPHBREW_K2_BIND_WORK_ID" not in marker_case
+    assert user_case.count("GRAPHBREW_K2_BIND_WORK_ID") == 1
+    assert user_case.count("GRAPHBREW_K2_CLEAR_WORK_ID") == 1
+
+    partial = tmp_path / "magic_server_partial.cc"
+    partial.write_text(
+        "      case SIM_CMD_USER:\n"
+        "      {\n"
+        "         if (arg0 == graphbrew::sniper::GRAPHBREW_K2_BIND_WORK_ID) return 0;\n"
+        "         MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };\n"
+        "         return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_USER, (UInt64)&args, true /* expect return value */);\n"
+        "      }\n"
+    )
+    module.ensure_k2_bind_magic_handler(partial, False)
+    partial_text = partial.read_text()
+    assert partial_text.count("GRAPHBREW_K2_BIND_WORK_ID") == 1
+    assert partial_text.count("GRAPHBREW_K2_CLEAR_WORK_ID") == 1
+
+
 def test_sniper_harness_defines_ecg_pfx_hint_surface() -> None:
     text = read("bench/include/sniper_sim/sniper_harness.h")
     assert "GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET" in text
@@ -212,7 +256,18 @@ def test_sniper_ecg_extract_payload_and_runner_are_faithful() -> None:
 
 def test_sniper_mask_only_uses_transport_matched_loops():
     source = read("bench/src_sniper/sg_kernel.cc")
+    harness = read("bench/include/sniper_sim/sniper_harness.h")
     runner = read("scripts/experiments/ecg/roi_matrix.py")
+    setup = read("scripts/setup_sniper.py")
+    context_h = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "graph_cache_context_sniper.h")
+    context_cc = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "graph_cache_context_sniper.cc")
+    cache = read(
+        "bench/include/sniper_sim/overlays/common/core/memory_subsystem/cache/"
+        "cache_set_ecg.cc")
 
     assert "bool k2_transport_matched_enabled()" in source
     assert source.count(
@@ -224,6 +279,26 @@ def test_sniper_mask_only_uses_transport_matched_loops():
     assert 'env["SNIPER_ENABLE_ECG_EXTRACT"] = "1"' in runner
     assert '"sniper_transport_record_bytes"] = 8' in runner
     assert '"matched_mask_only_sideband_model"' in runner
+    assert 'env["SNIPER_K2_EXACT_BIND"] = "1"' in runner
+    assert '"sniper_k2_exact_bind"] = 1' in runner
+    assert "GRAPHBREW_SNIPER_USER_K2_BIND" in harness
+    assert "k2_bound_load" in harness
+    assert source.count("[K2_EXACT_BIND]") == 5
+    assert "const WeightT source_dist = dist[node];" in source
+    assert "const int64_t source_paths = path_counts[u];" in source
+    assert "edge-governed dist[dest]" in source
+    assert "edge-governed depth/path_counts[dest]" in source
+    assert "recordBoundK2Load" in context_h
+    assert "consumeBoundK2Load" in context_cc
+    assert "GRAPHBREW_K2_BIND_WORK_ID" in setup
+    user_case = setup.split('"""      case SIM_CMD_USER:', 2)[2].split(
+        '"""', 1)[0]
+    assert "GRAPHBREW_K2_BIND_WORK_ID" in user_case
+    assert "recordBoundK2Load" in user_case
+    assert "def ensure_k2_bind_magic_handler" in setup
+    assert "HOOK_MAGIC_USER" in setup
+    assert "sniperK2ExactBindEnabled" in cache
+    assert "m_pending_exact_k2_valid" in cache
     assert runner.count('env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"') == 1
     assert '"sniper_popt_matrix_required"] = int(requires_popt_matrix)' in runner
     assert "Matrix-free K2-M row unexpectedly loaded" in runner

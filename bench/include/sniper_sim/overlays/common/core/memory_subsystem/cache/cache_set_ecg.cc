@@ -168,6 +168,15 @@ bool sniperEcgExtractEnabled()
    return enabled;
 }
 
+bool sniperK2ExactBindEnabled()
+{
+   static const bool enabled = []() {
+      const char* value = std::getenv("SNIPER_K2_EXACT_BIND");
+      return value && value[0] && std::string(value) != "0";
+   }();
+   return enabled;
+}
+
 uint32_t requesterCoreOr(core_id_t fallback)
 {
    uint32_t requester = graphbrew::sniper::currentNucaRequesterCore();
@@ -197,6 +206,10 @@ CacheSetECG::CacheSetECG(
    , m_context_load_attempted(false)
    , m_has_pending_insert(false)
    , m_pending_insert_addr(0)
+   , m_pending_exact_k2_valid(false)
+   , m_pending_exact_k2_tier(0)
+   , m_pending_exact_k2_first(0)
+   , m_pending_exact_k2_second(0)
    , m_set_index(0)
    , m_llc_size_bytes(0)
    , m_sideband_path(envOrDefault("SNIPER_GRAPHBREW_CTX", "/tmp/sniper_graphbrew_ctx.json"))
@@ -283,6 +296,25 @@ CacheSetECG::prepareInsertion(IntPtr addr, UInt32 set_index)
    EcgHostProfileScope profile(EcgHostProfileScope::Kind::Prepare);
    tryLoadContext();
    m_pending_insert_addr = addr & ~(IntPtr(m_blocksize) - 1);
+   m_pending_exact_k2_valid = false;
+   if (sniperK2ExactBindEnabled()) {
+      const uint32_t requester_core = requesterCoreOr(m_core_id);
+      if (graphbrew::sniper::consumeBoundK2Load(
+              requester_core,
+              static_cast<uint64_t>(m_pending_insert_addr),
+              m_blocksize)) {
+         UInt8 tier = 0;
+         UInt16 first = 0, second = 0;
+         if (graphbrew::sniper::globalContext().lookupFusedK2Pair(
+                 static_cast<uint64_t>(m_pending_insert_addr),
+                 requester_core, tier, first, second)) {
+            m_pending_exact_k2_valid = true;
+            m_pending_exact_k2_tier = tier;
+            m_pending_exact_k2_first = first;
+            m_pending_exact_k2_second = second;
+         }
+      }
+   }
    m_set_index = set_index;
    static const bool set_dueling = []() {
       const char* value = std::getenv("ECG_SET_DUELING");
@@ -344,6 +376,20 @@ CacheSetECG::lookupLineEcgEpochPair(
       return false;
    uint32_t requester_core = requesterCoreOr(m_core_id);
    if (requester_core >= graphbrew::sniper::MAX_TRACKED_CORES) return false;
+   if (sniperK2ExactBindEnabled()) {
+      if (!graphbrew::sniper::consumeBoundK2Load(
+              requester_core, static_cast<uint64_t>(line_addr),
+              m_blocksize)) {
+         return false;
+      }
+      if (context.lookupFusedK2Pair(
+              static_cast<uint64_t>(line_addr), requester_core,
+              tier, first, second)) {
+         count = 2;
+         return true;
+      }
+      return false;
+   }
    const char* fused = std::getenv("SNIPER_ECG_FUSED_K2");
    if (fused && fused[0] && std::strcmp(fused, "0") != 0 &&
        context.lookupFusedK2Pair(
@@ -389,8 +435,19 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
          UInt8 tier = 0;
          UInt16 first = 0, second = 0;
          UInt8 count = 0;
-         if (lookupLineEcgEpochPair(
-                 m_pending_insert_addr, tier, first, second, count)) {
+         const bool got_exact =
+            sniperK2ExactBindEnabled() && m_pending_exact_k2_valid;
+         const bool got_epoch = got_exact ||
+            (!sniperK2ExactBindEnabled() &&
+             lookupLineEcgEpochPair(
+                m_pending_insert_addr, tier, first, second, count));
+         if (got_exact) {
+            tier = m_pending_exact_k2_tier;
+            first = m_pending_exact_k2_first;
+            second = m_pending_exact_k2_second;
+            count = 2;
+         }
+         if (got_epoch) {
             if (tier != 0) m_dbg_tiers[way] = tier;
             m_ecg_epoch[way] = first;
             m_ecg_epoch2[way] = second;
@@ -417,6 +474,7 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       }
       m_last_touch[way] = ++m_access_tick;
       m_has_pending_insert = false;
+      m_pending_exact_k2_valid = false;
       return;
    }
 

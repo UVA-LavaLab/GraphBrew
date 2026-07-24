@@ -28,6 +28,8 @@ static constexpr uint64_t GRAPHBREW_ECG_PFX_TARGET_WORK_ID = 0x47504658ULL;
 // host-side findNextRef matrix, matching gem5/cache_sim.
 static constexpr uint64_t GRAPHBREW_ECG_EXTRACT_WORK_ID = 0x47464C44ULL;  // ECG epoch-extract delivery
 static constexpr uint64_t GRAPHBREW_ECG_EXTRACT2_WORK_ID = 0x47464C45ULL;
+static constexpr uint64_t GRAPHBREW_K2_BIND_WORK_ID = 0x4B32424EULL;
+static constexpr uint64_t GRAPHBREW_K2_CLEAR_WORK_ID = 0x4B324243ULL;
 
 void setCurrentVertexHint(uint32_t core_id, uint64_t vertex);
 bool hasCurrentVertexHint(uint32_t core_id);
@@ -55,6 +57,10 @@ bool lookupEcgEpoch(uint32_t core_id, uint32_t vertex,
 bool lookupEcgEpochPair(uint32_t core_id, uint32_t vertex,
                         uint8_t& tier, uint16_t& first, uint16_t& second,
                         uint8_t& count, uint64_t& sequence);
+void recordBoundK2Load(uint32_t core_id, uint64_t address);
+void clearBoundK2Load(uint32_t core_id);
+bool consumeBoundK2Load(
+    uint32_t core_id, uint64_t line_addr, uint64_t line_size);
 
 enum class ECGMode : uint8_t {
     DBG_PRIMARY,

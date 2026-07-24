@@ -312,6 +312,10 @@ uncapped `sg_kernel` binary/configuration. Completion hashes, transport markers,
 semantic outputs, diagnostic-only timing, and workload hashes must match.
 Instruction ratio must remain within 0.25%; the current five-kernel gate is
 exactly 1.000x.
+New certifications additionally require `sniper_k2_exact_bind=1` in both rows
+and `[K2_EXACT_BIND]` in both logs. The marker must cover only edge-governed
+destination loads; SSSP source distance, BC source path count/backward work, and
+CC pointer chasing/compression remain unmarked.
 
 gem5 architectural epoch/context validation:
 

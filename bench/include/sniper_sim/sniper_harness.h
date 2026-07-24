@@ -37,6 +37,8 @@ constexpr uint64_t GRAPHBREW_SNIPER_USER_POPT_READY = 0x47504f50ULL;  // "GPOP"
 constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET = 0x47504658ULL;  // "GPFX"
 constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_EXTRACT = 0x47464C44ULL;  // ECG epoch-extract delivery
 constexpr uint64_t GRAPHBREW_SNIPER_USER_ECG_EXTRACT2 = 0x47464C45ULL; // dest + two epochs
+constexpr uint64_t GRAPHBREW_SNIPER_USER_K2_BIND = 0x4B32424EULL;  // "K2BN"
+constexpr uint64_t GRAPHBREW_SNIPER_USER_K2_CLEAR = 0x4B324243ULL; // "K2BC"
 
 inline const char* env_or_default(const char* name, const char* fallback) {
     const char* value = std::getenv(name);
@@ -104,6 +106,29 @@ inline void notify_user(uint64_t command, uint64_t argument) {
     (void)command;
     (void)argument;
 #endif
+}
+
+inline bool k2_exact_bind_enabled() {
+    static const bool enabled = []() {
+        const char* value = std::getenv("SNIPER_K2_EXACT_BIND");
+        return value && value[0] && std::string(value) != "0";
+    }();
+    return enabled;
+}
+
+template <typename T>
+inline T k2_bound_load(const T* address) {
+    if (!k2_exact_bind_enabled()) return *address;
+    asm volatile("" ::: "memory");
+    notify_user(
+        GRAPHBREW_SNIPER_USER_K2_BIND,
+        reinterpret_cast<uint64_t>(address));
+    asm volatile("" ::: "memory");
+    const T value = *address;
+    asm volatile("" ::: "memory");
+    notify_user(GRAPHBREW_SNIPER_USER_K2_CLEAR, 0);
+    asm volatile("" ::: "memory");
+    return value;
 }
 
 inline void notify_context_ready() {

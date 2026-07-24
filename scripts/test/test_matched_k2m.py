@@ -15,7 +15,8 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = [
         "policy_label", "status", "instructions",
-        "sniper_transport_matched", "ecg_isa_variant", "sniper_workload",
+        "sniper_transport_matched", "sniper_k2_exact_bind",
+        "ecg_isa_variant", "sniper_workload",
         "sniper_roi_icount", "timing_valid_for_speedup",
         "sniper_workload_sha256", "benchmark", "options", "prefetcher",
         "l1d_size", "l2_size", "l3_size", "l3_ways", "threads",
@@ -30,6 +31,7 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
             "status": "ok",
             "instructions": "100000",
             "sniper_transport_matched": "1",
+            "sniper_k2_exact_bind": "1",
             "ecg_isa_variant": "baseline",
             "sniper_workload": "sg_kernel",
             "sniper_roi_icount": "0",
@@ -54,6 +56,7 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
             "status": "ok",
             "instructions": str(round(100000 * ratio)),
             "sniper_transport_matched": "1",
+            "sniper_k2_exact_bind": "1",
             "ecg_isa_variant": "mask",
             "sniper_workload": "sg_kernel",
             "sniper_roi_icount": "0",
@@ -73,8 +76,10 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
             "sniper_semantic_result": "same",
             "log_path": str(path.parent / "k2.log"),
         })
-    (path.parent / "lru.log").write_text("[K2_TRANSPORT_MATCHED]\n")
-    (path.parent / "k2.log").write_text("[K2_TRANSPORT_MATCHED]\n")
+    (path.parent / "lru.log").write_text(
+        "[K2_TRANSPORT_MATCHED]\n[K2_EXACT_BIND]\n")
+    (path.parent / "k2.log").write_text(
+        "[K2_TRANSPORT_MATCHED]\n[K2_EXACT_BIND]\n")
     json_path = path.parent / "roi_matrix.json"
     json_rows = list(csv.DictReader(path.open()))
     json_path.write_text(json.dumps(json_rows))

@@ -389,6 +389,10 @@ int run_pr(const Graph& graph, int max_iters) {
     if (epoch_pair_ok && k2_transport_matched)
         std::fprintf(stderr,
                      "[K2_TRANSPORT_MATCHED] PR 8B record loop ACTIVE\n");
+    if (epoch_pair_ok && k2_transport_matched &&
+        graphbrew_sniper::k2_exact_bind_enabled())
+        std::fprintf(stderr,
+                     "[K2_EXACT_BIND] PR contrib load binding ACTIVE\n");
     volatile ScoreT* warm_scores = scores.data();
     volatile ScoreT* warm_contrib = contrib.data();
     for (NodeID node = 0; node < graph.num_nodes(); ++node) {
@@ -513,7 +517,9 @@ int run_pr(const Graph& graph, int max_iters) {
                         const uint64_t rec = epoch_pair_flat[pos];
                         const NodeID neighbor = static_cast<NodeID>(
                             ecg_epoch::extractEpochPairDest(rec));
-                        incoming_total += contrib[neighbor];
+                        incoming_total +=
+                            graphbrew_sniper::k2_bound_load(
+                                &contrib[neighbor]);
                     }
                 } else {
                     for (uint64_t pos = begin; pos < end; ++pos) {
@@ -521,7 +527,9 @@ int run_pr(const Graph& graph, int max_iters) {
                         const NodeID neighbor = static_cast<NodeID>(
                             ecg_epoch::extractEpochPairDest(rec));
                         deliver_k2_record(rec, fused_k2_model);
-                        incoming_total += contrib[neighbor];
+                        incoming_total +=
+                            graphbrew_sniper::k2_bound_load(
+                                &contrib[neighbor]);
                         if (!fused_k2_model) {
                             clear_k2_record(rec, fused_k2_model);
                         }
@@ -835,6 +843,10 @@ int run_bfs(const Graph& graph, NodeID source) {
     if (bfs_pair_ok && k2_transport_matched)
         std::fprintf(stderr,
                      "[K2_TRANSPORT_MATCHED] BFS 8B record loop ACTIVE\n");
+    if (bfs_pair_ok && k2_transport_matched &&
+        graphbrew_sniper::k2_exact_bind_enabled())
+        std::fprintf(stderr,
+                     "[K2_EXACT_BIND] BFS parent load binding ACTIVE\n");
     volatile NodeID* warm_parent = parent.data();
     for (NodeID node = 0; node < graph.num_nodes(); ++node)
         warm_parent[node] = node == source ? source : -1;
@@ -861,7 +873,9 @@ int run_bfs(const Graph& graph, NodeID source) {
                     const uint64_t rec = bfs_pair_flat[pos];
                     const NodeID neighbor = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(rec));
-                    const NodeID parent_value = parent[neighbor];
+                    const NodeID parent_value =
+                        graphbrew_sniper::k2_bound_load(
+                            &parent[neighbor]);
                     if (parent_value == -1) {
                         parent[neighbor] = node;
                         frontier.push(neighbor);
@@ -873,7 +887,9 @@ int run_bfs(const Graph& graph, NodeID source) {
                     const NodeID neighbor = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(rec));
                     deliver_k2_record(rec, fused_k2_model);
-                    const NodeID parent_value = parent[neighbor];
+                    const NodeID parent_value =
+                        graphbrew_sniper::k2_bound_load(
+                            &parent[neighbor]);
                     if (!fused_k2_model) {
                         clear_k2_record(rec, fused_k2_model);
                     }
@@ -1078,6 +1094,10 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             compact_pair_ok
                 ? "[K2_TRANSPORT_MATCHED] SSSP compact 8B record loop ACTIVE\n"
                 : "[K2_TRANSPORT_MATCHED] SSSP general 12B edge+sidecar loop ACTIVE\n");
+    if (pair_ok && k2_transport_matched &&
+        graphbrew_sniper::k2_exact_bind_enabled())
+        std::fprintf(stderr,
+                     "[K2_EXACT_BIND] SSSP edge-governed dist[dest] binding ACTIVE\n");
 
     SNIPER_ROI_BEGIN();
     std::queue<NodeID> frontier;
@@ -1091,7 +1111,8 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         for (WNode edge : graph.out_neigh(node)) {
             before_property_load(edge, edge_pos);
             const WeightT candidate = source_dist + edge.w;
-            const WeightT old_dist = dist[edge.v];
+            const WeightT old_dist =
+                graphbrew_sniper::k2_bound_load(&dist[edge.v]);
             after_property_load(edge, edge_pos);
             if (candidate < old_dist) {
                 dist[edge.v] = candidate;
@@ -1356,6 +1377,10 @@ int run_bc(const Graph& graph, int num_iters) {
     if (pair_ok && k2_transport_matched)
         std::fprintf(stderr,
                      "[K2_TRANSPORT_MATCHED] BC 8B record loop ACTIVE\n");
+    if (pair_ok && k2_transport_matched &&
+        graphbrew_sniper::k2_exact_bind_enabled())
+        std::fprintf(stderr,
+                     "[K2_EXACT_BIND] BC edge-governed depth/path_counts[dest] binding ACTIVE\n");
 
     if (num_iters < 1) num_iters = 1;
     SNIPER_ROI_BEGIN();
@@ -1393,8 +1418,19 @@ int run_bc(const Graph& graph, int num_iters) {
                             const uint64_t record = pair_flat[pos];
                             const NodeID v = static_cast<NodeID>(
                                 ecg_epoch::extractEpochPairDest(record));
-                            const int32_t depth_v = depth[v];
-                            visit(v, depth_v);
+                            int32_t depth_v =
+                                graphbrew_sniper::k2_bound_load(&depth[v]);
+                            if (depth_v == -1) {
+                                depth[v] = cur_level + 1;
+                                depth_v = cur_level + 1;
+                                next_level.push_back(v);
+                            }
+                            if (depth_v == cur_level + 1) {
+                                const int64_t old_paths =
+                                    graphbrew_sniper::k2_bound_load(
+                                        &path_counts[v]);
+                                path_counts[v] = old_paths + source_paths;
+                            }
                         }
                     } else {
                         for (uint64_t pos = pair_off[u];
@@ -1403,11 +1439,22 @@ int run_bc(const Graph& graph, int num_iters) {
                             const NodeID v = static_cast<NodeID>(
                                 ecg_epoch::extractEpochPairDest(record));
                             deliver_k2_record(record, fused_k2_model);
-                            const int32_t depth_v = depth[v];
+                            int32_t depth_v =
+                                graphbrew_sniper::k2_bound_load(&depth[v]);
+                            if (depth_v == -1) {
+                                depth[v] = cur_level + 1;
+                                depth_v = cur_level + 1;
+                                next_level.push_back(v);
+                            }
+                            if (depth_v == cur_level + 1) {
+                                const int64_t old_paths =
+                                    graphbrew_sniper::k2_bound_load(
+                                        &path_counts[v]);
+                                path_counts[v] = old_paths + source_paths;
+                            }
                             if (!fused_k2_model) {
                                 clear_k2_record(record, fused_k2_model);
                             }
-                            visit(v, depth_v);
                         }
                     }
                 } else {
@@ -1543,6 +1590,10 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
     if (pair_ok && k2_transport_matched)
         std::fprintf(stderr,
                      "[K2_TRANSPORT_MATCHED] CC 8B record loop ACTIVE\n");
+    if (pair_ok && k2_transport_matched &&
+        graphbrew_sniper::k2_exact_bind_enabled())
+        std::fprintf(stderr,
+                     "[K2_EXACT_BIND] CC comp[dest] binding ACTIVE\n");
 
     SNIPER_ROI_BEGIN();
     // Phase 1: sample the r-th out-neighbour of each vertex, compress.
@@ -1557,11 +1608,13 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
                 const NodeID v = static_cast<NodeID>(
                     ecg_epoch::extractEpochPairDest(record));
                 if (no_delivery_pair_loop) {
-                    const NodeID delivered_comp = comp[v];
+                    const NodeID delivered_comp =
+                        graphbrew_sniper::k2_bound_load(&comp[v]);
                     cc_link_loaded(u, v, delivered_comp, comp);
                 } else {
                     deliver_k2_record(record, fused_k2_model);
-                    const NodeID delivered_comp = comp[v];
+                    const NodeID delivered_comp =
+                        graphbrew_sniper::k2_bound_load(&comp[v]);
                     if (!fused_k2_model) {
                         clear_k2_record(record, fused_k2_model);
                     }
@@ -1600,7 +1653,8 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
                     const uint64_t record = pair_flat[pos];
                     const NodeID v = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(record));
-                    const NodeID delivered_comp = comp[v];
+                    const NodeID delivered_comp =
+                        graphbrew_sniper::k2_bound_load(&comp[v]);
                     cc_link_loaded(u, v, delivered_comp, comp);
                 }
             } else {
@@ -1609,7 +1663,8 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
                     const NodeID v = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(record));
                     deliver_k2_record(record, fused_k2_model);
-                    const NodeID delivered_comp = comp[v];
+                    const NodeID delivered_comp =
+                        graphbrew_sniper::k2_bound_load(&comp[v]);
                     if (!fused_k2_model) {
                         clear_k2_record(record, fused_k2_model);
                     }

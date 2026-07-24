@@ -272,6 +272,39 @@ def normalize_context_ready_handler(path: Path, dry_run: bool) -> None:
     _write_overlay_text(path, text, dry_run)
 
 
+def ensure_k2_bind_magic_handler(path: Path, dry_run: bool) -> None:
+    text = _overlay_text(path, dry_run)
+    need_bind = "GRAPHBREW_K2_BIND_WORK_ID" not in text
+    need_clear = "GRAPHBREW_K2_CLEAR_WORK_ID" not in text
+    if not need_bind and not need_clear:
+        return
+    old = """         MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };
+         return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_USER, (UInt64)&args, true /* expect return value */);
+"""
+    blocks = ""
+    if need_bind:
+        blocks += """         if (arg0 == graphbrew::sniper::GRAPHBREW_K2_BIND_WORK_ID)
+         {
+            graphbrew::sniper::recordBoundK2Load(
+               static_cast<uint32_t>(core_id), arg1);
+            return 0;
+         }
+"""
+    if need_clear:
+        blocks += """         if (arg0 == graphbrew::sniper::GRAPHBREW_K2_CLEAR_WORK_ID)
+         {
+            graphbrew::sniper::clearBoundK2Load(
+               static_cast<uint32_t>(core_id));
+            return 0;
+         }
+"""
+    new = blocks + old
+    if old not in text:
+        raise RuntimeError(
+            f"Cannot locate SIM_CMD_USER hook tail in {path}")
+    _write_overlay_text(path, text.replace(old, new, 1), dry_run)
+
+
 def overlay_source_files() -> list[Path]:
     if not SNIPER_OVERLAY_DIR.exists():
         raise SystemExit(f"Sniper overlay directory missing: {SNIPER_OVERLAY_DIR}")
@@ -1311,6 +1344,18 @@ def patch_graphbrew_simuser_overlay(args: argparse.Namespace) -> None:
                fl_epoch1, fl_epoch2);
             return 0;
          }
+         if (arg0 == graphbrew::sniper::GRAPHBREW_K2_BIND_WORK_ID)
+         {
+            graphbrew::sniper::recordBoundK2Load(
+               static_cast<uint32_t>(core_id), arg1);
+            return 0;
+         }
+         if (arg0 == graphbrew::sniper::GRAPHBREW_K2_CLEAR_WORK_ID)
+         {
+            graphbrew::sniper::clearBoundK2Load(
+               static_cast<uint32_t>(core_id));
+            return 0;
+         }
          MagicMarkerType args = { thread_id: thread_id, core_id: core_id, arg0: arg0, arg1: arg1, str: NULL };
          return Sim()->getHooksManager()->callHooks(HookType::HOOK_MAGIC_USER, (UInt64)&args, true /* expect return value */);
       }
@@ -1345,10 +1390,23 @@ magic_server,
                fl_epoch1, fl_epoch2);
             return 0;
   }
+  if (arg0 == graphbrew::sniper::GRAPHBREW_K2_BIND_WORK_ID)
+  {
+            graphbrew::sniper::recordBoundK2Load(
+               static_cast<uint32_t>(core_id), arg1);
+            return 0;
+  }
+  if (arg0 == graphbrew::sniper::GRAPHBREW_K2_CLEAR_WORK_ID)
+  {
+            graphbrew::sniper::clearBoundK2Load(
+               static_cast<uint32_t>(core_id));
+            return 0;
+  }
 """,
 args.dry_run,
-["GRAPHBREW_ECG_EXTRACT2_WORK_ID"],
+["GRAPHBREW_ECG_EXTRACT2_WORK_ID", "GRAPHBREW_K2_BIND_WORK_ID"],
     )
+    ensure_k2_bind_magic_handler(magic_server, args.dry_run)
     replace_once(
         magic_server,
         """         if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)

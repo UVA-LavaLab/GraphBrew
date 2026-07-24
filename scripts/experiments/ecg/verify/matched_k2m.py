@@ -40,6 +40,10 @@ def validate(
             errors.append(f"{kernel}: LRU transport not matched")
         if k2.get("sniper_transport_matched") != "1":
             errors.append(f"{kernel}: K2 transport not matched")
+        if lru.get("sniper_k2_exact_bind") != "1":
+            errors.append(f"{kernel}: LRU exact binding is not enabled")
+        if k2.get("sniper_k2_exact_bind") != "1":
+            errors.append(f"{kernel}: K2 exact binding is not enabled")
         if k2.get("ecg_isa_variant") != "mask":
             errors.append(f"{kernel}: K2 ISA variant is not mask")
         if lru.get("sniper_workload") != "sg_kernel":
@@ -77,6 +81,9 @@ def validate(
             if "[K2_TRANSPORT_MATCHED]" not in text:
                 errors.append(
                     f"{kernel}/{row.get('policy_label')}: transport marker missing")
+            if "[K2_EXACT_BIND]" not in text:
+                errors.append(
+                    f"{kernel}/{row.get('policy_label')}: exact-bind marker missing")
 
         marker_path = root / kernel / "roi_matrix.complete.json"
         json_path = root / kernel / "roi_matrix.json"

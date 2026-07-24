@@ -40,6 +40,10 @@
   only for P-OPT. A focused compact-SSSP smoke reports
   `sniper_popt_matrix_required=0` and `sniper_rereference_loaded=0` for K2-M,
   versus `1/1` for P-OPT.
+- The transport-matched Sniper workload now emits identical bind/clear markers
+  around only the edge-governed destination loads for every policy. The cache
+  consumes the marker on the corresponding L3 hit or miss and fails closed for
+  unmarked source, pointer-chasing, compression, and backward-phase accesses.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.
@@ -113,8 +117,8 @@
   static/online K2, and both StreamShield variants.
 - A full sampled/real-graph matched Sniper K2-M timing matrix.
 - An optional drain/invalidation protocol for intentional context-ID reuse and
-  exact Sniper current-epoch binding; gem5's no-reuse CSR/request lifecycle is
-  implemented.
+  an architectural Sniper current-epoch channel; gem5's no-reuse CSR/request
+  lifecycle and Sniper's exact governed-load association are implemented.
 - Equal-area K2 metadata, logic, energy, and replacement-latency accounting.
 - K2-M versus K2-I disassembly and retired-instruction categorization.
 - A bounded Sniper structure-prefetch configuration that does not reproduce the

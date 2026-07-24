@@ -1133,6 +1133,48 @@ GraphCacheContext& globalContext()
     return context;
 }
 
+namespace {
+struct BoundK2LoadState {
+    std::array<std::atomic<uint64_t>, MAX_TRACKED_CORES> address{};
+    std::array<std::atomic<bool>, MAX_TRACKED_CORES> valid{};
+};
+
+BoundK2LoadState& boundK2LoadState()
+{
+    static BoundK2LoadState state;
+    return state;
+}
+}
+
+void recordBoundK2Load(uint32_t core_id, uint64_t address)
+{
+    if (core_id >= MAX_TRACKED_CORES) return;
+    auto& state = boundK2LoadState();
+    state.address[core_id].store(address, std::memory_order_relaxed);
+    state.valid[core_id].store(true, std::memory_order_release);
+}
+
+void clearBoundK2Load(uint32_t core_id)
+{
+    if (core_id >= MAX_TRACKED_CORES) return;
+    boundK2LoadState().valid[core_id].store(
+        false, std::memory_order_release);
+}
+
+bool consumeBoundK2Load(
+        uint32_t core_id, uint64_t line_addr, uint64_t line_size)
+{
+    if (core_id >= MAX_TRACKED_CORES || line_size == 0) return false;
+    auto& state = boundK2LoadState();
+    if (!state.valid[core_id].load(std::memory_order_acquire)) return false;
+    const uint64_t address =
+        state.address[core_id].load(std::memory_order_relaxed);
+    const uint64_t bound_line = address & ~(line_size - 1);
+    if (bound_line != line_addr) return false;
+    return state.valid[core_id].exchange(
+        false, std::memory_order_acq_rel);
+}
+
 bool isEcgStreamBypassAddress(uint64_t addr)
 {
     const char* enabled = std::getenv("ECG_STREAM_BYPASS");
