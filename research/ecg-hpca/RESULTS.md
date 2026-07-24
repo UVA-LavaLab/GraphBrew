@@ -233,7 +233,15 @@ training on friendly-line eviction, and Hawkeye's 3-bit RRPV rules. cache_sim
 uses compile-time static graph-access-site IDs because it has no instruction
 PC; rows are labeled `HAWKEYE_PROXY` and
 `proxy_not_real_instruction_pc`. No Hawkeye result has been run or frozen.
-The faithful paper baseline remains the future gem5 real-PC port.
+The faithful paper baseline was therefore gated on a gem5 real-PC port.
+
+The gem5 real-PC port is now implemented as `GraphHawkeyeRP`. It uses the same
+clean-room core, obtains signatures from `Request::getPC()`, keeps demand and
+prefetch training separate, ignores incoming writeback training while retaining
+victim-side learning, and defers all predictor/OPTgen mutation until the fill
+actually commits. Both gem5 ISAs build and the SimObject instantiates. The
+dedicated `ecg_gem5_hawkeye_gate` profile is dry-run only; there is still no
+Hawkeye performance result.
 
 ### Exact Sniper governed-load association
 

@@ -150,7 +150,8 @@ def parse_args():
 
     # Cache policy
     parser.add_argument("--policy", default="LRU",
-        choices=["LRU", "FIFO", "SRRIP", "RANDOM", "GRASP", "POPT", "ECG"],
+        choices=["LRU", "FIFO", "SRRIP", "RANDOM", "HAWKEYE",
+                 "GRASP", "POPT", "ECG"],
         help="Cache replacement policy for L3 (default: LRU)")
     parser.add_argument("--ecg-mode", default="DBG_PRIMARY",
         choices=["DBG_PRIMARY", "POPT_PRIMARY", "ECG_GRASP_POPT", "DBG_ONLY",

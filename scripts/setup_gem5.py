@@ -49,7 +49,13 @@ VALID_BUILD_TYPES = ("opt", "debug", "fast")
 
 # Overlay mappings: source (relative to overlays/) -> destination (relative to gem5/src/)
 OVERLAY_FILE_MAP = {
+    "../../hawkeye_policy.h":
+        "mem/cache/replacement_policies/hawkeye_policy.h",
     # Replacement policies
+    "mem/cache/replacement_policies/hawkeye_rp.hh":
+        "mem/cache/replacement_policies/hawkeye_rp.hh",
+    "mem/cache/replacement_policies/hawkeye_rp.cc":
+        "mem/cache/replacement_policies/hawkeye_rp.cc",
     "mem/cache/replacement_policies/grasp_rp.hh":
         "mem/cache/replacement_policies/grasp_rp.hh",
     "mem/cache/replacement_policies/grasp_rp.cc":
@@ -361,6 +367,19 @@ def apply_patches():
         # Read patch content (simple append-style patches)
         patch_content = patch_file.read_text()
         current_content = target_sconscript.read_text()
+
+        if patch_rel == "mem/cache/replacement_policies/SConscript.patch":
+            old_simobject = (
+                "SimObject('GraphReplacementPolicies.py', sim_objects=[\n"
+                "    'GraphGraspRP', 'GraphPoptRP', 'GraphEcgRP'])")
+            new_simobject = (
+                "SimObject('GraphReplacementPolicies.py', sim_objects=[\n"
+                "    'GraphHawkeyeRP', 'GraphGraspRP', 'GraphPoptRP', "
+                "'GraphEcgRP'])")
+            if old_simobject in current_content and new_simobject not in current_content:
+                current_content = current_content.replace(
+                    old_simobject, new_simobject)
+                target_sconscript.write_text(current_content)
 
         if patch_rel == "mem/cache/prefetch/SConscript.patch":
             old_simobject = "SimObject('GraphPrefetchers.py', sim_objects=['GraphDropletPrefetcher'])"
@@ -727,9 +746,13 @@ def verify_installation_postconditions():
             "ecg_load2",
         ],
         GEM5_DIR / "src/mem/cache/replacement_policies/SConscript": [
+            "hawkeye_rp.cc",
             "grasp_rp.cc",
             "popt_rp.cc",
             "ecg_rp.cc",
+        ],
+        GEM5_DIR / "src/mem/cache/replacement_policies/GraphReplacementPolicies.py": [
+            "GraphHawkeyeRP",
         ],
         GEM5_DIR / "src/mem/cache/prefetch/SConscript": [
             "droplet.cc",

@@ -356,6 +356,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_equal_area_15` | 15-way K2 versus 16-way baseline sensitivity |
 | `ecg_equal_area_14` | Conservative integral 14-way K2 versus 16-way baselines |
+| `ecg_gem5_hawkeye_gate` | Real-PC gem5 Hawkeye baseline implementation gate |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |
 | `ecg_streamshield_generality` | All-kernel allocate-vs-shield comparison |

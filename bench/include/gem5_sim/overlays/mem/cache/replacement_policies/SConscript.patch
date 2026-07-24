@@ -2,7 +2,8 @@
 # Registers GraphBrew graph-aware replacement policy SimObjects
 
 SimObject('GraphReplacementPolicies.py', sim_objects=[
-    'GraphGraspRP', 'GraphPoptRP', 'GraphEcgRP'])
+    'GraphHawkeyeRP', 'GraphGraspRP', 'GraphPoptRP', 'GraphEcgRP'])
+Source('hawkeye_rp.cc')
 Source('grasp_rp.cc')
 Source('popt_rp.cc')
 Source('ecg_rp.cc')

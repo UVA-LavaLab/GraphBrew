@@ -35,6 +35,7 @@
     "ecg_sniper_realgraph_600m": "Paper-faithful full-real-graph Sniper matrix with a detailed ROI capped at 600 million instructions.",
     "ecg_preliminary_5alg_3sim": "Bounded five-algorithm, six-policy diagnostic matrix on a common synthetic graph across cache_sim, gem5, and Sniper.",
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
+    "ecg_gem5_hawkeye_gate": "Five-algorithm gem5 real-instruction-PC Hawkeye comparison against the conventional baselines and K2.",
     "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
     "ecg_equal_area_15": "Full-graph 15-way K2 sensitivity against 16-way baselines; intentionally undercharges the contextual metadata bit budget.",
     "ecg_equal_area_14": "Full-graph conservative integral equal-silicon sensitivity with 14-way K2 against 16-way baselines.",
@@ -337,6 +338,25 @@
       "ecg_charged": 1,
       "ecg_epochs": 65535,
       "out_subdir": "11_gem5_preliminary_5alg",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
+    },
+    {
+      "name": "11b_gem5_hawkeye_gate",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_gem5_hawkeye_gate"],
+      "suite": "gem5",
+      "graph_set": "synthetic_kron12_all",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": ["LRU", "SRRIP", "GRASP", "HAWKEYE", "POPT", "ECG:K2"],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "11b_gem5_hawkeye_gate",
       "timeout_gem5": 21600,
       "env": {
         "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",

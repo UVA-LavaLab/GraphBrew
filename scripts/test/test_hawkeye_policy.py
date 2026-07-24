@@ -11,6 +11,9 @@ def test_hawkeye_proxy_policy_label_is_explicit():
     spec = parse_policy_spec("HAWKEYE:PROXY")
     assert spec.policy == "HAWKEYE"
     assert spec.label == "HAWKEYE_PROXY"
+    faithful = parse_policy_spec("HAWKEYE")
+    assert faithful.policy == "HAWKEYE"
+    assert faithful.label == "HAWKEYE"
 
 
 def test_hawkeye_policy_clean_room_core(tmp_path: Path):
@@ -157,3 +160,44 @@ int main()
         cwd=ROOT,
     )
     subprocess.run([str(binary)], check=True, cwd=ROOT)
+
+
+def test_gem5_hawkeye_real_pc_surface():
+    header = (
+        ROOT / "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/hawkeye_rp.hh").read_text()
+    source = (
+        ROOT / "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/hawkeye_rp.cc").read_text()
+    policies = (
+        ROOT / "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/GraphReplacementPolicies.py").read_text()
+    config = (
+        ROOT / "bench/include/gem5_sim/configs/graphbrew/"
+        "graph_cache_config.py").read_text()
+    graph_se = (
+        ROOT / "bench/include/gem5_sim/configs/graphbrew/"
+        "graph_se.py").read_text()
+    setup = (ROOT / "scripts/setup_gem5.py").read_text()
+
+    assert "class GraphHawkeyeRP" in header
+    assert "pkt->req->hasPC()" in source
+    assert "pkt->req->getPC()" in source
+    assert "pkt->cmd.isPrefetch()" in source
+    assert "pkt->isWriteback()" in source
+    assert "class GraphHawkeyeRP" in policies
+    assert 'upper == "HAWKEYE"' in config
+    assert "Hawkeye is an LLC-only replacement policy" in config
+    assert '"HAWKEYE"' in graph_se
+    assert '"../../hawkeye_policy.h"' in setup
+    assert '"hawkeye_rp.cc"' in setup
+
+    import json
+    manifest = json.loads(
+        (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+    stage = next(
+        stage for stage in manifest["stages"]
+        if "ecg_gem5_hawkeye_gate" in stage.get("profiles", []))
+    assert stage["suite"] == "gem5"
+    assert "HAWKEYE" in stage["policies"]
+    assert "HAWKEYE:PROXY" not in stage["policies"]

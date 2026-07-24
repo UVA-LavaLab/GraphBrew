@@ -2,8 +2,8 @@
 # gem5 SimObject definitions for GraphBrew graph-aware replacement policies
 # ============================================================================
 #
-# Defines the Python-side SimObject classes that expose GRASP, P-OPT, and
-# ECG replacement policies to gem5's configuration system.
+# Defines the Python-side SimObject classes that expose Hawkeye, GRASP, P-OPT,
+# and ECG replacement policies to gem5's configuration system.
 #
 # Usage in gem5 Python config:
 #   from m5.objects import GraphGraspRP, GraphPoptRP, GraphEcgRP
@@ -17,6 +17,20 @@ from m5.params import *
 from m5.proxy import *
 from m5.SimObject import SimObject
 from m5.objects.ReplacementPolicies import BaseReplacementPolicy
+
+
+class GraphHawkeyeRP(BaseReplacementPolicy):
+    """Hawkeye: OPTgen-trained instruction-PC replacement (ISCA 2016).
+
+    Artifact scope is a conventional uncompressed set-associative LLC.
+    """
+    type = 'GraphHawkeyeRP'
+    cxx_header = "mem/cache/replacement_policies/hawkeye_rp.hh"
+    cxx_class = 'gem5::replacement_policy::GraphHawkeyeRP'
+
+    num_sets = Param.Unsigned(8192, "Number of LLC sets.")
+    num_ways = Param.Unsigned(16, "LLC associativity.")
+    line_size = Param.Unsigned(64, "Cache line size in bytes.")
 
 
 class GraphGraspRP(BaseReplacementPolicy):

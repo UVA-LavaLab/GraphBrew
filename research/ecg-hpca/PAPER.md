@@ -93,8 +93,8 @@ the primary implementation remains the full-capacity 16-way design with
 disclosed metadata overhead.
 
 The learned-policy baseline is Hawkeye. cache_sim's static-site proxy is used
-only for development; the submission table requires gem5's real instruction-PC
-implementation.
+only for development. gem5's real instruction-PC implementation is present;
+the submission table still requires its completed comparison.
 
 The corrected cache_sim factorial is complete: StreamShield is an incremental
 demand/traffic improvement over online K2, while the full mechanism still uses

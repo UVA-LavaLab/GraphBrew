@@ -82,7 +82,13 @@ def make_replacement_policy(name, **kwargs):
     if upper in POLICY_MAP:
         return POLICY_MAP[upper]()
 
-    if upper == "GRASP":
+    if upper == "HAWKEYE":
+        return GraphHawkeyeRP(
+            num_sets=kwargs.get("num_sets", 8192),
+            num_ways=kwargs.get("num_ways", 16),
+            line_size=kwargs.get("line_size", 64),
+        )
+    elif upper == "GRASP":
         return GraphGraspRP(
             max_rrpv=kwargs.get("max_rrpv", 7),
             num_buckets=kwargs.get("num_buckets", 11),
@@ -116,6 +122,8 @@ def make_replacement_policy(name, **kwargs):
 def make_l1d_cache(policy="LRU", size=DEFAULTS["l1d_size"],
                    assoc=DEFAULTS["l1d_assoc"], **policy_kwargs):
     """Create L1 data cache matching ECG defaults."""
+    if str(policy).upper() == "HAWKEYE":
+        raise ValueError("Hawkeye is an LLC-only replacement policy")
     return Cache(
         size=size,
         assoc=assoc,
@@ -131,6 +139,8 @@ def make_l1d_cache(policy="LRU", size=DEFAULTS["l1d_size"],
 def make_l1i_cache(policy="LRU", size=DEFAULTS["l1i_size"],
                    assoc=DEFAULTS["l1i_assoc"], **policy_kwargs):
     """Create L1 instruction cache."""
+    if str(policy).upper() == "HAWKEYE":
+        raise ValueError("Hawkeye is an LLC-only replacement policy")
     return Cache(
         size=size,
         assoc=assoc,
@@ -146,6 +156,8 @@ def make_l1i_cache(policy="LRU", size=DEFAULTS["l1i_size"],
 def make_l2_cache(policy="LRU", size=DEFAULTS["l2_size"],
                   assoc=DEFAULTS["l2_assoc"], **policy_kwargs):
     """Create L2 private cache matching ECG defaults."""
+    if str(policy).upper() == "HAWKEYE":
+        raise ValueError("Hawkeye is an LLC-only replacement policy")
     return Cache(
         size=size,
         assoc=assoc,
@@ -162,6 +174,10 @@ def make_l3_cache(policy="LRU", size=DEFAULTS["l3_size"],
                   assoc=DEFAULTS["l3_assoc"], **policy_kwargs):
     """Create L3 shared cache matching ECG defaults (8MB, 16-way)."""
     policy_kwargs.setdefault("llc_size_bytes", size_to_bytes(size))
+    policy_kwargs.setdefault("num_ways", int(assoc))
+    policy_kwargs.setdefault(
+        "num_sets", max(size_to_bytes(size) // (int(assoc) * 64), 1))
+    policy_kwargs.setdefault("line_size", 64)
     # Diagnostic: gem5 L3 defaults to mostly_incl (inclusive -> back-invalidates
     # L1/L2 on L3 eviction). cache_sim has no back-invalidation, so this is a
     # candidate source of gem5-vs-cache_sim divergence for ECG. Allow override.

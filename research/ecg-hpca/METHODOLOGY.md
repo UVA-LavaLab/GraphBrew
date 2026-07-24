@@ -81,7 +81,10 @@ columns, not a reduced headline baseline set.
 a compile-time static graph-access-site ID, retains faithful OPTgen/sampler/
 predictor/RRIP mechanics, and is labeled `proxy_not_real_instruction_pc` in
 every row. It is a fast diagnostic, not the headline Hawkeye result. gem5 must
-supply the faithful real-PC comparison.
+supply the faithful real-PC comparison; that adapter is implemented, but no
+result is frozen yet.
+The gem5 Hawkeye adapter is scoped to the artifact's conventional uncompressed
+set-associative LLC; compressed-block move semantics are not claimed.
 
 ## Separated experiment questions
 

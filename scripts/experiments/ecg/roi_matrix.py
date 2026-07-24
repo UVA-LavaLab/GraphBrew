@@ -1072,6 +1072,10 @@ def effective_ecg_variant(
 
 
 def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size: str) -> list[dict[str, Any]]:
+    if spec.policy == "HAWKEYE" and spec.label != "HAWKEYE_PROXY":
+        raise RuntimeError(
+            "cache_sim has no instruction PC; use HAWKEYE:PROXY or run "
+            "the faithful HAWKEYE policy in gem5.")
     binary = PROJECT_ROOT / "bench" / "bin_sim" / args.benchmark
     label = f"cache_sim_{args.benchmark}_{spec.safe_label}_L3{sanitize(l3_size)}"
     json_path = out_dir / "cache_sim" / f"{label}.json"
@@ -2362,9 +2366,14 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
     if charge:
         row.update(charge)
     if spec.policy == "HAWKEYE":
+        proxy = spec.label == "HAWKEYE_PROXY"
         row.update({
-            "hawkeye_pc_source": "static_access_site_proxy",
-            "hawkeye_faithfulness": "proxy_not_real_instruction_pc",
+            "hawkeye_pc_source": (
+                "static_access_site_proxy" if proxy
+                else "request_instruction_pc"),
+            "hawkeye_faithfulness": (
+                "proxy_not_real_instruction_pc" if proxy
+                else "faithful_real_instruction_pc"),
             "hawkeye_optgen_quanta": 128,
             "hawkeye_sampled_sets": 64,
         })
