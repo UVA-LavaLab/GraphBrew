@@ -17,6 +17,11 @@
       "gate": "five_kernel_mechanism"
     },
     {
+      "prior": "Instruction-capped detailed simulation with unequal graph progress",
+      "successor": "Policy-independent static-edge work caps with local and shard-merge certification",
+      "gate": "semantic_work_infrastructure"
+    },
+    {
       "prior": "Preliminary replacement and prefetch study",
       "successor": "Adaptive replacement plus request-bound StreamShield placement",
       "gate": "streamshield_mechanism"
@@ -77,6 +82,14 @@
       "id": "matched_sniper_post_binding",
       "status": "pending",
       "evidence": []
+    },
+    {
+      "id": "semantic_work_infrastructure",
+      "status": "passed",
+      "evidence": [
+        "eeae43fc",
+        "research/ecg-hpca/METHODOLOGY.md"
+      ]
     },
     {
       "id": "full_graph_detailed_results",
@@ -179,6 +192,15 @@
       "decision": "allowed",
       "required_gates": [
         "static_isa_decomposition"
+      ]
+    },
+    {
+      "id": "semantic_work_gate_available",
+      "text": "The artifact can bound Sniper PR/BFS/SSSP/BC/CC by policy-independent static graph-edge visits and fails closed unless policy rows match.",
+      "scope": "Evaluation infrastructure only; no performance result",
+      "decision": "allowed",
+      "required_gates": [
+        "semantic_work_infrastructure"
       ]
     },
     {

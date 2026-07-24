@@ -27,6 +27,8 @@ def test_current_claim_gate_is_consistent():
     assert "K2 requires no live P-OPT rereference matrix" in text
     assert "1.329x packed K2-I-like model" in text
     assert "Zero reserved data ways means zero K2 hardware overhead" in text
+    assert "`semantic_work_infrastructure`" in text
+    assert "policy-independent static graph-edge visits" in text
 
 
 def test_allowed_claim_fails_when_dependency_is_pending():

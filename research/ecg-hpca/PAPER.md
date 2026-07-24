@@ -37,11 +37,13 @@ must be materially different.
 | conceptual graph instruction | executable record-load ISA plus request-bound StreamShield placement |
 | no complete overhead attribution | K2-vs-bypass factorial, traffic, capacity, timing, and instruction accounting |
 | PageRank-focused | First-class PR/BFS/SSSP/BC/CC K2 delivery and online selection |
+| instruction-capped detailed simulation | policy-independent static-edge work caps with fail-closed matrix certification |
 
 The authoritative status of each delta and headline claim is generated from
 `research/ecg-hpca/claim_gate.json`. Submission text may use only claims marked
 `allowed`; currently those are matrix-free operation, scoped mechanism
-correctness, and the single full-graph cache_sim direction cell.
+correctness, the single full-graph cache_sim direction cell, static ISA
+decomposition, and semantic-work evaluation infrastructure.
 
 ## Thesis
 
