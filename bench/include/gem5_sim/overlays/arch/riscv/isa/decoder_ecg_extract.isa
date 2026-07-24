@@ -19,6 +19,10 @@
                         uint8_t  popt_quant  = 0;
                         uint16_t epoch       = static_cast<uint16_t>((fat_mask >> 24) & 0xFFFFULL);
                         uint32_t pfx_target  = static_cast<uint32_t>((fat_mask >> 40) & 0xFFFFFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         // Populate per-vertex metadata table so ECG_RP can
                         // consume ISA-delivered epoch for paper-faithful
                         // CHARGED=0 replacement (dbg/popt default to degree-based).
@@ -27,7 +31,8 @@
                         // Legacy storage (single-slot mailbox; kept for
                         // back-compat with non-ECG_RP consumers).
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint(
-                            dest_id, dbg_tier, popt_quant, 0, epoch);
+                            dest_id, dbg_tier, popt_quant, 0, epoch,
+                            current_epoch, context_id);
                         // Queue the prefetch hint (or fall back to demand
                         // vertex if no prefetch encoded).
                         // S69PRE-M4-NO-FALLBACK: only emit a prefetch hint when
@@ -53,10 +58,15 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2, 4,
+                            current_epoch, context_id);
                         Rd = rvZext(dest_id);
                     }});
                 }
@@ -76,10 +86,15 @@
                     uint8_t  popt_quant  = 0;
                     uint16_t epoch       = static_cast<uint16_t>((fat_mask >> 24) & 0xFFFFULL);
                     uint32_t pfx_target  = static_cast<uint32_t>((fat_mask >> 40) & 0xFFFFFFULL);
+                    uint16_t current_epoch = static_cast<uint16_t>(
+                        xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                    uint16_t context_id = static_cast<uint16_t>(
+                        xc->readMiscReg(MISCREG_ECG_CONTEXT));
                     gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                         dest_id, dbg_tier, popt_quant, epoch);
                     gem5::replacement_policy::graph::setDecodedEcgExtractHint(
-                        dest_id, dbg_tier, popt_quant, 0, epoch);
+                        dest_id, dbg_tier, popt_quant, 0, epoch,
+                        current_epoch, context_id);
                     if (pfx_target != 0) {
                         gem5::replacement_policy::graph::setPrefetchTargetHint(pfx_target);
                     }
@@ -103,10 +118,15 @@
                         (packed >> 34) & 0x7FFFULL);
                     uint16_t epoch2 = static_cast<uint16_t>(
                         (packed >> 49) & 0x7FFFULL);
+                    uint16_t current_epoch = static_cast<uint16_t>(
+                        xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                    uint16_t context_id = static_cast<uint16_t>(
+                        xc->readMiscReg(MISCREG_ECG_CONTEXT));
                     gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                         dest_id, tier, 0, epoch1);
                     gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                        dest_id, tier, epoch1, epoch2);
+                        dest_id, tier, epoch1, epoch2, 4,
+                        current_epoch, context_id);
                     Rd = packed;
                 }});
                 0x5: ecg_stream_weighted_load2({{
@@ -122,10 +142,15 @@
                         (sidecar >> 2) & 0x7FFFU);
                     uint16_t epoch2 = static_cast<uint16_t>(
                         (sidecar >> 17) & 0x7FFFU);
+                    uint16_t current_epoch = static_cast<uint16_t>(
+                        xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                    uint16_t context_id = static_cast<uint16_t>(
+                        xc->readMiscReg(MISCREG_ECG_CONTEXT));
                     gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                         dest_id, tier, 0, epoch1);
                     gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                        dest_id, tier, epoch1, epoch2);
+                        dest_id, tier, epoch1, epoch2, 4,
+                        current_epoch, context_id);
                     Rd = sidecar;
                 }}, ea_code={{
                     uint64_t dest_dependency = Rs2;
@@ -152,17 +177,24 @@
                         uint64_t dmask = (W >= 32) ? 0xFFFFFFFFULL : ((1ULL << W) - 1);
                         uint32_t dest_id = static_cast<uint32_t>(fat & dmask);
                         uint16_t epoch   = static_cast<uint16_t>((fat >> W) & 0xFFFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, 0, 0, epoch);
                         // Also populate the single-slot mailbox: ECG_GRASP_POPT stamps
                         // property fills from lookupDecodedEcgHint (ecg_rp.cc), NOT the
                         // per-vertex table — without this the epoch never reaches the line.
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint(
-                            dest_id, 0, 0, 0, epoch);
+                            dest_id, 0, 0, 0, epoch,
+                            current_epoch, context_id);
                         // GraphBrew ECG producer: stash {dest,epoch} on THIS dynamic inst so
                         // the LSQ binds it to this ecg.load's own demand Request (race-free
                         // O3 delivery). No-op on in-order CPUs (default ExecContext hook).
-                        xc->setEcgLoadHint(dest_id, epoch);
+                        xc->setEcgLoadHint(
+                            dest_id, epoch, 0, 0,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
                     // 0x01 EVICT+PFX (WIDE, configurable): dest[0:W] | epoch[W:W+16] | pfx[W+16:64].
@@ -175,15 +207,22 @@
                         uint32_t dest_id = static_cast<uint32_t>(fat & dmask);
                         uint16_t epoch   = static_cast<uint16_t>((fat >> W) & 0xFFFFULL);
                         uint32_t pfx     = static_cast<uint32_t>((fat >> (W + 16)) & 0xFFFFFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, 0, 0, epoch);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint(
-                            dest_id, 0, 0, 0, epoch);
+                            dest_id, 0, 0, 0, epoch,
+                            current_epoch, context_id);
                         if (pfx != 0) {
                             gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
                         }
                         // GraphBrew ECG producer (see ecg_load_evict): race-free O3 delivery.
-                        xc->setEcgLoadHint(dest_id, epoch);
+                        xc->setEcgLoadHint(
+                            dest_id, epoch, 0, 0,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
                     // 0x02 EMBEDDED (NARROW packMaskEpoch, fixed 24-bit dest, dbg-carrying):
@@ -197,15 +236,22 @@
                         uint8_t  popt    = static_cast<uint8_t> ((fat >> 26) & 0x7FULL);
                         uint16_t epoch   = static_cast<uint16_t>((fat >> 33) & 0xFFFFULL);
                         uint32_t pfx     = static_cast<uint32_t>((fat >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, dbg, popt, epoch);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint(
-                            dest_id, dbg, popt, 0, epoch);
+                            dest_id, dbg, popt, 0, epoch,
+                            current_epoch, context_id);
                         if (pfx != 0) {
                             gem5::replacement_policy::graph::setPrefetchTargetHint(pfx);
                         }
                         // GraphBrew ECG producer (see ecg_load_evict): race-free O3 delivery.
-                        xc->setEcgLoadHint(dest_id, epoch);
+                        xc->setEcgLoadHint(
+                            dest_id, epoch, dbg, popt,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
                     // 0x03 K2: dest32 | tier2 | epoch1_15 | epoch2_15.
@@ -229,12 +275,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2, 4,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(
                             Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
@@ -255,12 +307,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2, 8);
+                            dest_id, tier, epoch1, epoch2, 8,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(
                             Rs1 + static_cast<uint64_t>(dest_id) * 8);
                     }});
@@ -282,12 +340,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2, 4,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(
                             Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
@@ -308,12 +372,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2, 4,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1);
                     }});
                     // 0x07 K2-M S32.D32.
@@ -332,12 +402,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2, 4,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1);
                     }});
                     // 0x08 K2-M U64.D32.
@@ -356,12 +432,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2, 8);
+                            dest_id, tier, epoch1, epoch2, 8,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1);
                     }});
                     // 0x09 K2-M U32.CW24: compact weighted record.
@@ -381,12 +463,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2, 4,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1);
                     }});
                     // 0x0A K2-M F32.D32: bit-preserving FP property load.
@@ -412,12 +500,18 @@
                             (packed >> 34) & 0x7FFFULL);
                         uint16_t epoch2 = static_cast<uint16_t>(
                             (packed >> 49) & 0x7FFFULL);
+                        uint16_t current_epoch = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CUR_EPOCH));
+                        uint16_t context_id = static_cast<uint16_t>(
+                            xc->readMiscReg(MISCREG_ECG_CONTEXT));
                         gem5::replacement_policy::graph::storeEcgMetadataByVertex(
                             dest_id, tier, 0, epoch1);
                         gem5::replacement_policy::graph::setDecodedEcgExtractHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2, 4,
+                            current_epoch, context_id);
                         xc->setEcgLoadHint2(
-                            dest_id, tier, epoch1, epoch2);
+                            dest_id, tier, epoch1, epoch2,
+                            current_epoch, context_id);
                         EA = rvZext(Rs1);
                     }}, inst_flags=FloatMemReadOp);
                 }

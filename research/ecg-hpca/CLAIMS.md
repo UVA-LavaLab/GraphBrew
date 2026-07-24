@@ -21,8 +21,12 @@
 - Typed computed-address K2-M modes are implemented in gem5 for U32, S32, U64,
   compact weighted U32, and FP32. PR and compact SSSP pass exact O3
   producer/consumer request-binding proofs; PR/BFS/SSSP/BC/CC pass the complete
-  cache_sim+gem5 K2-M delivery/victim gate. The current-epoch CSR remains
-  pending, so these runs still use the prototype vertex channel.
+  cache_sim+gem5 K2-M delivery/victim gate.
+- gem5 implements user-level `ecg.cur_epoch`/`ecg.context` CSRs, snapshots them
+  plus O3 program order on K2 Requests, stores context on resident lines, and
+  applies sticky MSHR conflict semantics. The single-process harness currently
+  uses context ID 1; runtime ID allocation/reuse and integrated OoO stress are
+  still pending.
 - The transport-matched Sniper K2-M model passes exact instruction parity on
   PR/BFS/SSSP/BC/CC. On the email mechanism cells, K2/LRU instruction ratio is
   1.000x, geomean speedup is 1.006x, and geomean L3-miss reduction is 4.35%.
@@ -108,7 +112,8 @@
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   static/online K2, and both StreamShield variants.
 - A full sampled/real-graph matched Sniper K2-M timing matrix.
-- An explicit current-epoch CSR/request channel replacing prototype magic.
+- General context-ID allocation/reuse and exact Sniper current-epoch binding;
+  gem5's CSR/request channel is implemented.
 - Equal-area K2 metadata, logic, energy, and replacement-latency accounting.
 - K2-M versus K2-I disassembly and retired-instruction categorization.
 - A bounded Sniper structure-prefetch configuration that does not reproduce the

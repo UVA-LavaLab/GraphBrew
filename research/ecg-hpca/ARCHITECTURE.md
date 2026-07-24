@@ -273,6 +273,16 @@ must drain and allocate a fresh context ID. Request
 queues/MSHRs preserve hart identity, sequence, epoch, and context. The prototype
 `GEM5_SET_VERTEX`/Sniper magic channel is not the final ISA.
 
+gem5 now implements `ecg.cur_epoch` and `ecg.context` as user-level custom
+RISC-V CSRs `0x800` and `0x801`. Each K2 load snapshots both registers plus the
+O3 dynamic instruction sequence onto its Request. The benchmark writes the
+context CSR once inside the ROI and the quantized current epoch once per outer
+vertex/frontier item. The current artifact uses context ID 1 because every
+validated process has one active graph; a general runtime allocator, explicit
+ID-reuse invalidation, and the exact Sniper channel remain pending. Serialized
+X86/Timing compatibility retains the old vertex hint under synthetic context 1
+and is not the multicore architectural authority.
+
 All participating harts in one graph context use the same global vertex/epoch
 domain and runtime-assigned generation. A completed same-context LLC access from
 any hart may therefore replace resident metadata in cache service order, and
@@ -295,6 +305,10 @@ epoch. Only simultaneously coalesced cross-hart requests are unordered.
 - Split accesses carry metadata independently per touched line.
 
 These rules must be mutation-tested in gem5 before OoO correctness is claimed.
+The classic-cache implementation now aggregates K2 targets in each MSHR and a
+standalone mutation test covers latest-sequence selection, replay idempotence,
+cross-hart/context conflicts, invalid context, and ordinary-request conflicts.
+Integrated OoO stress remains a gate before the multicore claim.
 
 ## Worked K2 example
 

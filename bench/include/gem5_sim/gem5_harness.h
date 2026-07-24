@@ -614,7 +614,8 @@ inline void gem5_ecg_clear_extract2_hint() {
 #endif
 
 // Path A (epoch-filtered DROPLET lookahead) hint: deliver (target, epoch) via a
-// dedicated work-id so the prefetched line recovers its candidate epoch at fill.
+// dedicated work-id so the prefetched line recovers its candidate epoch/context
+// at fill.
 // No gem5_should_emit_ecg_pfx_hint dedup — Path A emits every epoch-filter
 // survivor, matching cache_sim. m5op channel (works on both ISAs; needs m5ops).
 #define GEM5_ECG_PFX_TARGET_EPOCH(target_id, epoch_id) \
@@ -622,7 +623,9 @@ inline void gem5_ecg_clear_extract2_hint() {
         if (gem5_ecg_pfx_hints_enabled()) { \
             uint64_t _pfxa_t = static_cast<uint64_t>(static_cast<uint32_t>(target_id)); \
             uint64_t _pfxa_e = static_cast<uint64_t>(static_cast<uint16_t>(epoch_id)); \
-            m5_work_begin(GEM5_WORK_ECG_PFX_TARGET_EPOCH, _pfxa_t | (_pfxa_e << 32)); \
+            uint64_t _pfxa_c = static_cast<uint64_t>(gem5_ecg_context_id()); \
+            m5_work_begin(GEM5_WORK_ECG_PFX_TARGET_EPOCH, \
+                          _pfxa_t | (_pfxa_e << 32) | (_pfxa_c << 48)); \
         } \
     } while (0)
 #else
@@ -796,6 +799,77 @@ inline bool gem5_ecg_extract_enabled() { return false; }
 #define GEM5_ECG_PFX_TARGET_EPOCH(target_id, epoch_id) do {} while(0)
 #endif
 #endif
+
+inline bool gem5_ecg_epoch_csr_enabled() {
+    static int enabled = []() {
+#if defined(__riscv)
+        const char* value = std::getenv("GEM5_ECG_EPOCH_CSR");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+#else
+        return 0;
+#endif
+    }();
+    return enabled != 0;
+}
+
+inline uint16_t gem5_ecg_context_id() {
+    static uint16_t context = []() {
+        const char* value = std::getenv("GEM5_ECG_CONTEXT_ID");
+        unsigned long parsed = value ? std::strtoul(value, nullptr, 10) : 1;
+        if (parsed == 0) parsed = 1;
+        if (parsed > UINT16_MAX) parsed = UINT16_MAX;
+        return static_cast<uint16_t>(parsed);
+    }();
+    return context;
+}
+
+inline uint16_t gem5_ecg_quantize_current_epoch(
+        uint64_t vertex, uint64_t num_vertices, uint32_t num_epochs) {
+    const uint64_t n = num_vertices > 0 ? num_vertices : 1;
+    const uint32_t ne = num_epochs > 1 ? num_epochs : 2;
+    uint64_t epoch = (vertex * ne) / n;
+    if (epoch >= ne) epoch = ne - 1;
+    return static_cast<uint16_t>(epoch);
+}
+
+inline void gem5_ecg_write_context_csr(uint16_t context) {
+#if defined(__riscv)
+    uintptr_t value = context;
+    asm volatile ("csrw 0x801, %0" :: "r"(value) : "memory");
+#else
+    (void)context;
+#endif
+}
+
+inline void gem5_ecg_write_current_epoch_csr(uint16_t epoch) {
+#if defined(__riscv)
+    uintptr_t value = epoch;
+    asm volatile ("csrw 0x800, %0" :: "r"(value) : "memory");
+#else
+    (void)epoch;
+#endif
+}
+
+#define GEM5_ECG_BEGIN_CONTEXT() \
+    do { \
+        if (gem5_ecg_epoch_csr_enabled()) { \
+            gem5_ecg_write_context_csr(gem5_ecg_context_id()); \
+            gem5_ecg_write_current_epoch_csr(0); \
+        } \
+    } while (0)
+
+#define GEM5_SET_VERTEX_EPOCH(vertex_id, num_vertices, num_epochs) \
+    do { \
+        if (gem5_ecg_epoch_csr_enabled()) { \
+            gem5_ecg_write_current_epoch_csr( \
+                gem5_ecg_quantize_current_epoch( \
+                    static_cast<uint64_t>(vertex_id), \
+                    static_cast<uint64_t>(num_vertices), \
+                    static_cast<uint32_t>(num_epochs))); \
+        } else { \
+            GEM5_SET_VERTEX(vertex_id); \
+        } \
+    } while (0)
 
 inline const char* gem5_env_or_default(const char* name, const char* fallback) {
     const char* value = std::getenv(name);

@@ -171,14 +171,15 @@ inline bool consumePrefetchTargetHint(uint32_t& vertex) {
 // reality of "the prefetch engine read the epoch from the edge word and carries
 // it with the request": a small bounded buffer (direct-mapped by vertex, sized
 // like an MSHR / prefetch-metadata array — NOT an O(V) table) holds (vertex ->
-// epoch) from hint delivery until the fill consumes it. Collisions just drop a
-// pending epoch (the line stays unstamped, re-stamped on its eventual demand);
+// {epoch, context}) from hint delivery until the fill consumes it. Collisions
+// just drop pending metadata (the line stays unstamped, re-stamped on demand);
 // a drop counter makes that observable.
 inline constexpr std::size_t kPendingPfxEpochSize = 256;
 
 struct PendingPfxEpochState {
     std::atomic<uint32_t> vertex[kPendingPfxEpochSize];  // UINT32_MAX = empty
     std::atomic<uint16_t> epoch[kPendingPfxEpochSize];
+    std::atomic<uint16_t> context[kPendingPfxEpochSize];
     std::atomic<uint64_t> drops{0};
     PendingPfxEpochState() {
         for (std::size_t i = 0; i < kPendingPfxEpochSize; ++i)
@@ -191,22 +192,26 @@ inline PendingPfxEpochState& pendingPfxEpoch() {
     return s;
 }
 
-inline void recordPendingPrefetchEpoch(uint32_t vtx, uint16_t ep) {
+inline void recordPendingPrefetchEpoch(
+        uint32_t vtx, uint16_t ep, uint16_t context_id) {
     auto& s = pendingPfxEpoch();
     std::size_t i = vtx % kPendingPfxEpochSize;
     uint32_t prev = s.vertex[i].load(std::memory_order_relaxed);
     if (prev != UINT32_MAX && prev != vtx)
         s.drops.fetch_add(1, std::memory_order_relaxed);
     s.epoch[i].store(ep, std::memory_order_relaxed);
+    s.context[i].store(context_id, std::memory_order_relaxed);
     s.vertex[i].store(vtx, std::memory_order_release);
 }
 
-// One-shot lookup: returns the pending epoch for vtx and clears the slot.
-inline bool consumePendingPrefetchEpoch(uint32_t vtx, uint16_t& ep) {
+// One-shot lookup: returns pending metadata for vtx and clears the slot.
+inline bool consumePendingPrefetchEpoch(
+        uint32_t vtx, uint16_t& ep, uint16_t& context_id) {
     auto& s = pendingPfxEpoch();
     std::size_t i = vtx % kPendingPfxEpochSize;
     if (s.vertex[i].load(std::memory_order_acquire) != vtx) return false;
     ep = s.epoch[i].load(std::memory_order_relaxed);
+    context_id = s.context[i].load(std::memory_order_relaxed);
     s.vertex[i].store(UINT32_MAX, std::memory_order_release);
     return true;
 }
@@ -241,6 +246,26 @@ inline std::atomic<uint8_t>& decodedEcgEpochCountStorage() {
     return count;
 }
 
+inline std::atomic<uint16_t>& decodedEcgCurrentEpochStorage() {
+    static std::atomic<uint16_t> epoch{0};
+    return epoch;
+}
+
+inline std::atomic<uint16_t>& decodedEcgContextStorage() {
+    static std::atomic<uint16_t> context{0};
+    return context;
+}
+
+inline std::atomic<uint32_t>& decodedEcgSequenceStorage() {
+    static std::atomic<uint32_t> sequence{0};
+    return sequence;
+}
+
+inline std::atomic<uint32_t>& decodedEcgSequenceCounter() {
+    static std::atomic<uint32_t> sequence{0};
+    return sequence;
+}
+
 inline void clearDecodedEcgExtractHint() {
     decodedEcgEpochCountStorage().store(0, std::memory_order_release);
     decodedEcgHintValidStorage().store(false, std::memory_order_release);
@@ -250,13 +275,22 @@ inline void setDecodedEcgExtractHint(uint32_t real_vertex,
                                      uint8_t dbg_hint,
                                      uint8_t popt_hint,
                                      uint16_t pfx_hint,
-                                     uint16_t epoch_hint = 0) {
+                                     uint16_t epoch_hint = 0,
+                                     uint16_t current_epoch = 0,
+                                     uint16_t context_id = 0) {
     uint32_t metadata = static_cast<uint32_t>(dbg_hint)
         | (static_cast<uint32_t>(popt_hint) << 8)
         | (static_cast<uint32_t>(pfx_hint) << 16);
     decodedEcgEpochStorage().store(epoch_hint, std::memory_order_release);
     decodedEcgEpoch2Storage().store(epoch_hint, std::memory_order_release);
     decodedEcgEpochCountStorage().store(1, std::memory_order_release);
+    decodedEcgCurrentEpochStorage().store(
+        current_epoch, std::memory_order_release);
+    decodedEcgContextStorage().store(context_id, std::memory_order_release);
+    decodedEcgSequenceStorage().store(
+        decodedEcgSequenceCounter().fetch_add(
+            1, std::memory_order_relaxed),
+        std::memory_order_release);
     decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
     decodedEcgMetadataStorage().store(metadata, std::memory_order_release);
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
@@ -264,7 +298,8 @@ inline void setDecodedEcgExtractHint(uint32_t real_vertex,
 
 inline void setDecodedEcgExtractHint2(
         uint32_t real_vertex, uint8_t tier,
-        uint16_t first, uint16_t second, uint8_t width_bytes = 4) {
+        uint16_t first, uint16_t second, uint8_t width_bytes = 4,
+        uint16_t current_epoch = 0, uint16_t context_id = 0) {
     if (tier == 0) {
         clearDecodedEcgExtractHint();
         return;
@@ -288,6 +323,13 @@ inline void setDecodedEcgExtractHint2(
     decodedEcgEpochStorage().store(first, std::memory_order_release);
     decodedEcgEpoch2Storage().store(second, std::memory_order_release);
     decodedEcgEpochCountStorage().store(2, std::memory_order_release);
+    decodedEcgCurrentEpochStorage().store(
+        current_epoch, std::memory_order_release);
+    decodedEcgContextStorage().store(context_id, std::memory_order_release);
+    decodedEcgSequenceStorage().store(
+        decodedEcgSequenceCounter().fetch_add(
+            1, std::memory_order_relaxed),
+        std::memory_order_release);
     decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
     decodedEcgMetadataStorage().store(tier, std::memory_order_release);
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
@@ -295,7 +337,8 @@ inline void setDecodedEcgExtractHint2(
 
 inline void setDecodedEcgExtractHint2Silent(
         uint32_t real_vertex, uint8_t tier,
-        uint16_t first, uint16_t second) {
+        uint16_t first, uint16_t second,
+        uint16_t current_epoch = 0, uint16_t context_id = 0) {
     if (tier == 0) {
         clearDecodedEcgExtractHint();
         return;
@@ -303,6 +346,13 @@ inline void setDecodedEcgExtractHint2Silent(
     decodedEcgEpochStorage().store(first, std::memory_order_release);
     decodedEcgEpoch2Storage().store(second, std::memory_order_release);
     decodedEcgEpochCountStorage().store(2, std::memory_order_release);
+    decodedEcgCurrentEpochStorage().store(
+        current_epoch, std::memory_order_release);
+    decodedEcgContextStorage().store(context_id, std::memory_order_release);
+    decodedEcgSequenceStorage().store(
+        decodedEcgSequenceCounter().fetch_add(
+            1, std::memory_order_relaxed),
+        std::memory_order_release);
     decodedEcgRealVertexStorage().store(real_vertex, std::memory_order_release);
     decodedEcgMetadataStorage().store(tier, std::memory_order_release);
     decodedEcgHintValidStorage().store(true, std::memory_order_release);
@@ -397,6 +447,17 @@ inline bool lookupDecodedEcgHint2(
     if (valid)
         clearDecodedEcgExtractHint();
     return valid;
+}
+
+inline bool lookupDecodedEcgRequestState(
+        uint16_t& current_epoch, uint16_t& context_id, uint32_t& sequence) {
+    if (!decodedEcgHintValidStorage().load(std::memory_order_acquire))
+        return false;
+    current_epoch = decodedEcgCurrentEpochStorage().load(
+        std::memory_order_acquire);
+    context_id = decodedEcgContextStorage().load(std::memory_order_acquire);
+    sequence = decodedEcgSequenceStorage().load(std::memory_order_acquire);
+    return context_id != 0;
 }
 
 // === S69PRE-M1-MASK: Per-vertex ECG metadata table ===

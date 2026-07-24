@@ -150,6 +150,7 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
+    GEM5_ECG_BEGIN_CONTEXT();
 
     // Pick sources round-robin
     for (int iter = 0; iter < num_iters; iter++) {
@@ -172,7 +173,8 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
             NodeID u = q.front(); q.pop();
             const int32_t current_depth = depth[u];
             const int64_t source_paths = path_counts[u];
-            GEM5_SET_VERTEX(u);
+            GEM5_SET_VERTEX_EPOCH(
+                u, g.num_nodes(), edge_epoch_count);
             order.push(u);
             const std::vector<uint16_t>* u_epochs =
                 (ecg_load_evict_on && static_cast<size_t>(u) < out_edge_epochs.size())

@@ -196,6 +196,23 @@ is discarded.
 Future full-graph runs therefore use the exact-instruction/memory-reference
 K2-M model rather than a speculative host memoization.
 
+### Architectural epoch/context channel
+
+gem5 now exposes user-level `ecg.cur_epoch` (`0x800`) and `ecg.context`
+(`0x801`) CSRs. K2-M/K2-I and the request-bound single-epoch load snapshot the
+current epoch, context ID, and O3 program-order sequence onto the governed
+Request. Resident K2 metadata stores its context ID, and victim selection uses
+the allocating request's current epoch rather than the global vertex-magic
+clock.
+
+Classic-cache MSHRs keep the greatest same-hart/same-context sequence and set a
+sticky conflict for cross-hart, cross-context, invalid-context, or mixed
+ordinary/K2 targets; conflicted fills remain unstamped. A standalone mutation
+test covers those transitions and replay idempotence. The current benchmark
+harness uses context ID 1 for its single active graph. Runtime context
+allocation/reuse, integrated OoO stress, and exact Sniper request binding remain
+open, so this milestone adds no performance result.
+
 ### K2-I target-instruction correction
 
 Replacement-only authority already showed the forced K2 `grasp_only` arm

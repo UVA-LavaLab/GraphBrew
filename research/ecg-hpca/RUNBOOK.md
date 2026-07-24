@@ -313,6 +313,22 @@ semantic outputs, diagnostic-only timing, and workload hashes must match.
 Instruction ratio must remain within 0.25%; the current five-kernel gate is
 exactly 1.000x.
 
+gem5 architectural epoch/context validation:
+
+```bash
+python3 -m pytest \
+  scripts/test/test_k2_mshr_state.py \
+  scripts/test/test_gem5_ecg_pfx_scaffold.py -q
+python3 scripts/setup_gem5.py --isa X86 RISCV --jobs 16 --rebuild
+make -j12 gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs \
+  gem5-riscv-m5ops-sssp gem5-riscv-m5ops-bc gem5-riscv-m5ops-cc
+```
+
+Acceptance requires CSR addresses `0x800/0x801`, all K2 decoder forms to
+snapshot both registers, request-bound O3 sequence propagation, context-tagged
+line metadata, and passing MSHR merge mutations. These are implementation gates,
+not performance experiments.
+
 For host-cost diagnosis, use `SNIPER_K2_LOOKUP_PROFILE=1` and explicit
 `SNIPER_ECG_HOST_PROFILE=1`. Do not reintroduce the rejected direct-mapped K2
 lookup memo: its measured hit rate was 0.0059% and it slowed the A/B run 7.4%

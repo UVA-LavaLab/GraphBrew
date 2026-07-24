@@ -125,6 +125,50 @@ GraphEcgRP::tryLoadContext() const
 }
 
 void
+GraphEcgRP::setVictimRequest(const PacketPtr pkt)
+{
+    tryLoadContext();
+    victimRequestValid = false;
+    victimCurrentEpoch = 0;
+    victimContextId = 0;
+    if (!pkt || !pkt->req) return;
+
+    uint16_t epoch1 = 0, epoch2 = 0;
+    uint8_t dbg = 0, popt = 0, count = 0;
+    uint32_t dest = 0, sequence = 0;
+    bool got = graph::readEcgEpochPair(
+        pkt->req, epoch1, epoch2, dbg, popt, count, dest,
+        victimCurrentEpoch, victimContextId, sequence);
+    if (!got && !requestBoundEcgProducerEnabled()) {
+        got = graph::lookupDecodedEcgRequestState(
+            victimCurrentEpoch, victimContextId, sequence);
+        if (!got) {
+            got = legacyRequestState(
+                victimCurrentEpoch, victimContextId, sequence);
+        }
+    }
+    victimRequestValid = got && victimContextId != 0;
+}
+
+bool
+GraphEcgRP::legacyRequestState(
+    uint16_t& current_epoch, uint16_t& context_id,
+    uint32_t& sequence) const
+{
+    if (!ctx.loaded || !graph::hasCurrentVertexHint()) return false;
+    const uint32_t n = std::max<uint32_t>(1u, ctx.topology.num_vertices);
+    const uint32_t ne =
+        std::max<uint32_t>(2u, ctx.topology.edge_epoch_count);
+    uint32_t epoch = static_cast<uint32_t>(
+        (static_cast<uint64_t>(ctx.currentVertexForPopt()) * ne) / n);
+    if (epoch >= ne) epoch = ne - 1;
+    current_epoch = static_cast<uint16_t>(epoch);
+    context_id = 1;
+    sequence = 0;
+    return true;
+}
+
+void
 GraphEcgRP::invalidate(
     const std::shared_ptr<ReplacementData>& replacement_data)
 {
@@ -134,6 +178,7 @@ GraphEcgRP::invalidate(
     data->ecg_popt_hint = 0;
     data->ecg_epoch = 0;
     data->ecg_epoch2 = 0;
+    data->ecg_context_id = 0;
     data->ecg_epoch_count = 0;
     data->ecg_epoch_valid = false;
     data->valid = false;
@@ -180,9 +225,13 @@ GraphEcgRP::touch(
                 uint16_t isa_epoch2 = data->ecg_epoch2;
                 uint8_t isa_count = data->ecg_epoch_count;
                 uint32_t isa_dest = 0;
+                uint16_t isa_current_epoch = 0;
+                uint16_t isa_context_id = 0;
+                uint32_t isa_sequence = 0;
                 bool got = pkt && pkt->req && graph::readEcgEpochPair(
                     pkt->req, isa_epoch, isa_epoch2, isa_dbg, isa_popt,
-                    isa_count, isa_dest);
+                    isa_count, isa_dest, isa_current_epoch,
+                    isa_context_id, isa_sequence);
                 if (got && reg_elem > 0) {
                     const uint64_t dest_line =
                         (reg_base + static_cast<uint64_t>(isa_dest) * reg_elem) &
@@ -190,7 +239,12 @@ GraphEcgRP::touch(
                     if (dest_line != (addr & ~uint64_t(63))) got = false;
                 }
                 if (!got && !requestBoundEcgProducerEnabled()) {
-                    got = graph::lookupDecodedEcgHint2(
+                    const bool got_state =
+                        graph::lookupDecodedEcgRequestState(
+                            isa_current_epoch, isa_context_id, isa_sequence);
+                    const bool got_legacy = got_state || legacyRequestState(
+                        isa_current_epoch, isa_context_id, isa_sequence);
+                    got = got_legacy && graph::lookupDecodedEcgHint2(
                         vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
                 }
                 if (got) {
@@ -205,6 +259,7 @@ GraphEcgRP::touch(
                     data->ecg_popt_hint = isa_popt;
                     data->ecg_epoch = isa_epoch;
                     data->ecg_epoch2 = isa_epoch2;
+                    data->ecg_context_id = isa_context_id;
                     data->ecg_epoch_count = isa_count;
                     data->ecg_epoch_valid = true;
                 }
@@ -283,6 +338,7 @@ GraphEcgRP::reset(
         data->ecg_popt_hint = 0;
         data->ecg_epoch = 0;
         data->ecg_epoch2 = 0;
+        data->ecg_context_id = 0;
         data->ecg_epoch_count = 0;
         data->ecg_epoch_valid = false;
             if (data->is_property_data && ctx.rereference.enabled &&
@@ -319,12 +375,16 @@ GraphEcgRP::reset(
                 uint16_t isa_epoch2 = 0;
                 uint8_t isa_count = 0;
                 uint32_t isa_dest = 0;
+                uint16_t isa_current_epoch = 0;
+                uint16_t isa_context_id = 0;
+                uint32_t isa_sequence = 0;
                 // OoO request-sideband FIRST (race-free; an O3 ecg.load attaches the
                 // graph mask to the governed property request). Falls back to the
                 // in-order mailbox/table, which is equivalent for serialized loads.
                 bool got = graph::readEcgEpochPair(
                     pkt->req, isa_epoch, isa_epoch2, isa_dbg, isa_popt,
-                    isa_count, isa_dest);
+                    isa_count, isa_dest, isa_current_epoch,
+                    isa_context_id, isa_sequence);
                 static const uint64_t ext_trace_limit = []() {
                     const char* value = std::getenv("GEM5_ECG_EXT_TRACE");
                     return value
@@ -356,7 +416,15 @@ GraphEcgRP::reset(
                 }
                 if (!got && !requestBoundEcgProducerEnabled()) {
                     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
-                        got = graph::lookupDecodedEcgHint2(
+                        const bool got_state =
+                            graph::lookupDecodedEcgRequestState(
+                                isa_current_epoch, isa_context_id,
+                                isa_sequence);
+                        const bool got_legacy =
+                            got_state || legacyRequestState(
+                                isa_current_epoch, isa_context_id,
+                                isa_sequence);
+                        got = got_legacy && graph::lookupDecodedEcgHint2(
                             vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
                     } else {
                         got = graph::lookupEcgMetadataByVertex(
@@ -386,6 +454,7 @@ GraphEcgRP::reset(
                     data->ecg_popt_hint = isa_popt;  // 7-bit POPT quant
                     data->ecg_epoch = isa_epoch;
                     data->ecg_epoch2 = isa_epoch2;
+                    data->ecg_context_id = isa_context_id;
                     data->ecg_epoch_count = isa_count;
                     data->ecg_epoch_valid = true;
                 } else if (ecgMode == graph::ECGMode::ECG_GRASP_POPT) {
@@ -394,9 +463,13 @@ GraphEcgRP::reset(
                     // candidate epoch the prefetch carried, from the bounded
                     // in-flight buffer; keep the degree-derived DBG tier.
                     uint16_t pf_epoch = 0;
-                    if (graph::consumePendingPrefetchEpoch(vertex, pf_epoch)) {
+                    uint16_t pf_context = 0;
+                    if (graph::consumePendingPrefetchEpoch(
+                            vertex, pf_epoch, pf_context) &&
+                        pf_context != 0) {
                         data->ecg_epoch = pf_epoch;
                         data->ecg_epoch2 = pf_epoch;
+                        data->ecg_context_id = pf_context;
                         data->ecg_epoch_count = 1;
                         data->ecg_epoch_valid = true;
                     }
@@ -458,6 +531,7 @@ GraphEcgRP::reset(
         data->ecg_popt_hint = 0;
         data->ecg_epoch = 0;
         data->ecg_epoch2 = 0;
+        data->ecg_context_id = 0;
         data->ecg_epoch_count = 0;
         data->ecg_epoch_valid = false;
             data->is_property_data = false;
@@ -476,6 +550,7 @@ GraphEcgRP::reset(
     data->ecg_popt_hint = 0;
     data->ecg_epoch = 0;
     data->ecg_epoch2 = 0;
+    data->ecg_context_id = 0;
     data->ecg_epoch_count = 0;
     data->ecg_epoch_valid = false;
 }
@@ -493,7 +568,7 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         return value && value[0] && std::string(value) != "0";
     }();
     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT &&
-        setDueling && graph::hasCurrentVertexHint() &&
+        setDueling && victimRequestValid &&
         !candidates.empty()) {
         duelingSelector.recordMiss(candidates.front()->getSet());
     }
@@ -541,10 +616,8 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
             const size_t setIndex = candidates.front()->getSet();
             variant = duelingSelector.variantForSet(setIndex);
         }
-        const uint32_t n = std::max<uint32_t>(1u, ctx.topology.num_vertices);
         const uint32_t ne = std::max<uint32_t>(2u, ctx.topology.edge_epoch_count);
-        uint32_t curEpoch = static_cast<uint32_t>(
-            (static_cast<uint64_t>(ctx.currentVertexForPopt()) * ne) / n);
+        uint32_t curEpoch = victimRequestValid ? victimCurrentEpoch : 0;
         if (curEpoch >= ne) curEpoch = ne - 1;
         auto isProp = [&](ReplaceableEntry* c) {
             return ctx.isEcgEpochData(getData(c)->line_addr);
@@ -555,7 +628,12 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
                 data->ecg_epoch, data->ecg_epoch2,
                 data->ecg_epoch_count, curEpoch, ne);
         };
-        auto stamped = [&](ReplaceableEntry* c){ return isProp(c) && getData(c)->ecg_epoch_valid; };
+        auto stamped = [&](ReplaceableEntry* c){
+            auto data = getData(c);
+            return victimRequestValid && isProp(c) &&
+                   data->ecg_epoch_valid &&
+                   data->ecg_context_id == victimContextId;
+        };
         // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
         // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
         // obeys the variant spec (one checker across all three simulators).
@@ -568,7 +646,7 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         static bool ecgEvRoi = std::getenv("ECG_EVICT_TRACE_ROI") != nullptr;
         const char* epol = (variant==1) ? "ECG:epoch_first" : "ECG:epoch_only";
         auto traced = [&](ReplaceableEntry* victimEntry, const char* pol, const char* reason)->ReplaceableEntry* {
-            if (ecgEvTrace > 0 && (!ecgEvRoi || graph::hasCurrentVertexHint())) {
+            if (ecgEvTrace > 0 && (!ecgEvRoi || victimRequestValid)) {
                 --ecgEvTrace;
                 int vidx = -1;
                 for (size_t i=0;i<candidates.size();++i) if (candidates[i]==victimEntry){ vidx=(int)i; break; }

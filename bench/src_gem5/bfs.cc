@@ -166,6 +166,7 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
+    GEM5_ECG_BEGIN_CONTEXT();
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
     const char* configured_prefetcher = std::getenv("GRAPHBREW_PREFETCHER");
     const bool packed_stream_compatible =
@@ -212,7 +213,8 @@ pvector<NodeID> BFS_Gem5(const Graph &g, NodeID source) {
     while (!frontier.empty()) {
         NodeID u = frontier.front();
         frontier.pop();
-        GEM5_SET_VERTEX(u);
+        GEM5_SET_VERTEX_EPOCH(
+            u, g.num_nodes(), edge_epoch_count);
         auto out_neigh = g.out_neigh(u);
         const std::vector<uint16_t>* u_epochs =
             (ecg_extract_on && static_cast<size_t>(u) < out_edge_epochs.size())

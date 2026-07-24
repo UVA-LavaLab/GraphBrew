@@ -176,11 +176,13 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
+    GEM5_ECG_BEGIN_CONTEXT();
 
     // Phase 1: sparse sampling
     for (int32_t r = 0; r < neighbor_rounds; r++) {
         for (NodeID u = 0; u < g.num_nodes(); u++) {
-            GEM5_SET_VERTEX(u);
+            GEM5_SET_VERTEX_EPOCH(
+                u, g.num_nodes(), edge_epoch_count);
             if (pair_ok &&
                 static_cast<size_t>(u + 1) < pair_off.size() &&
                 pair_off[u] + static_cast<uint64_t>(r) < pair_off[u + 1]) {
@@ -237,7 +239,8 @@ pvector<NodeID> Afforest_Gem5(const Graph &g, int32_t neighbor_rounds = 2) {
 
     // Phase 2: full edge traversal skipping largest
     for (NodeID u = 0; u < g.num_nodes(); u++) {
-        GEM5_SET_VERTEX(u);
+        GEM5_SET_VERTEX_EPOCH(
+            u, g.num_nodes(), edge_epoch_count);
         if (comp[u] == largest) continue;
         if (pair_ok && static_cast<size_t>(u + 1) < pair_off.size()) {
             for (uint64_t pos = pair_off[u]; pos < pair_off[u + 1]; ++pos) {

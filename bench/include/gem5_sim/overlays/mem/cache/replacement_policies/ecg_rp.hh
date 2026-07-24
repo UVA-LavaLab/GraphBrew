@@ -32,6 +32,7 @@ class GraphEcgRP : public Base
         uint8_t ecg_popt_hint;
         uint16_t ecg_epoch;
         uint16_t ecg_epoch2;
+        uint16_t ecg_context_id;
         uint8_t ecg_epoch_count;
         bool ecg_epoch_valid;  // a per-edge epoch was DELIVERED (vs epoch==0 ambiguity);
                                // mirrors cache_sim/Sniper so `stamped` is identical
@@ -42,8 +43,8 @@ class GraphEcgRP : public Base
 
         EcgReplData(uint8_t max_rrpv)
             : rrpv(max_rrpv), ecg_dbg_tier(0), ecg_popt_hint(0),
-              ecg_epoch(0), ecg_epoch2(0), ecg_epoch_count(0),
-              ecg_epoch_valid(false), valid(false),
+              ecg_epoch(0), ecg_epoch2(0), ecg_context_id(0),
+              ecg_epoch_count(0), ecg_epoch_valid(false), valid(false),
               is_property_data(false), line_addr(0),
               lastTouchTick(0) {}
     };
@@ -58,11 +59,15 @@ class GraphEcgRP : public Base
     void reset(const std::shared_ptr<ReplacementData>& replacement_data,
                const PacketPtr pkt) override;
     void reset(const std::shared_ptr<ReplacementData>& replacement_data) const override;
+    void setVictimRequest(const PacketPtr pkt) override;
     ReplaceableEntry* getVictim(const ReplacementCandidates& candidates) const override;
     std::shared_ptr<ReplacementData> instantiateEntry() override;
 
   private:
     void tryLoadContext() const;
+    bool legacyRequestState(
+        uint16_t& current_epoch, uint16_t& context_id,
+        uint32_t& sequence) const;
 
     const uint8_t rrpvMax;
     const uint8_t numBuckets;
@@ -75,6 +80,9 @@ class GraphEcgRP : public Base
     mutable bool loadAttempted = false;
     mutable uint64_t loadAttemptCount = 0;
     mutable ecg_policy::OnlineDuelingSelector duelingSelector;
+    mutable bool victimRequestValid = false;
+    mutable uint16_t victimCurrentEpoch = 0;
+    mutable uint16_t victimContextId = 0;
 };
 
 } // namespace replacement_policy

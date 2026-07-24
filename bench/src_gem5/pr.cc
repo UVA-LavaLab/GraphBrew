@@ -343,6 +343,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
+    GEM5_ECG_BEGIN_CONTEXT();
 
     // Prefetch dedup window — tracks recently prefetched hub indices
     vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
@@ -387,7 +388,8 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;
         for (NodeID u = 0; u < g.num_nodes(); u++) {
-            GEM5_SET_VERTEX(u);
+            GEM5_SET_VERTEX_EPOCH(
+                u, g.num_nodes(), edge_epoch_count);
             ScoreT incoming_total = 0;
 
             if (pair_extract_only &&

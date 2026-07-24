@@ -48,7 +48,8 @@ inline void RelaxEdges_Gem5(const WGraph &g, NodeID u, WeightT delta,
     const bool ecg_k2_mask_only_on =
         ecg_k2_pload_on && gem5_ecg_k2_mask_only_enabled();
     const WeightT source_dist = dist[u];
-    GEM5_SET_VERTEX(u);
+    GEM5_SET_VERTEX_EPOCH(
+        u, g.num_nodes(), edge_epoch_count);
     int pfx_lookahead = gem5_env_int_clamped("GEM5_ECG_PFX_LOOKAHEAD", 4, 0, 64);
     const vector<uint16_t>* u_epochs =
         (out_edge_epochs && static_cast<size_t>(u) < out_edge_epochs->size())
@@ -337,6 +338,7 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
 
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
+    GEM5_ECG_BEGIN_CONTEXT();
 
     pvector<NodeID> frontier(g.num_edges_directed());
     size_t shared_indexes[2] = {0, kMaxBin};

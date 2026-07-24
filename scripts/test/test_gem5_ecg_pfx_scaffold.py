@@ -149,7 +149,7 @@ def test_gem5_schedule2_delivery_is_pair_aware():
     )
     assert "if (!getData(candidate)->valid) return candidate;" in policy
     assert "ctx.isEcgEpochData(getData(c)->line_addr)" in policy
-    assert "setDueling && graph::hasCurrentVertexHint()" in policy
+    assert "setDueling && victimRequestValid" in policy
     assert "dd->ecg_dbg_tier < 1 || dd->ecg_dbg_tier > 3" in policy
     assert "ctx.classifyGRASP(addr, llcSize, ghf)" in policy
     assert "isa_dbg >= 1 && isa_dbg <= 3" in policy
@@ -166,6 +166,10 @@ def test_gem5_schedule2_delivery_is_pair_aware():
     assert "readEcgEpochPair" in request_ext
     assert "epoch2_" in request_ext
     assert "epoch_count_" in request_ext
+    assert "current_epoch_" in request_ext
+    assert "context_id_" in request_ext
+    assert "sequence_" in request_ext
+    assert "class EcgMshrState" in request_ext
 
     exec_patch = read(
         "bench/include/gem5_sim/overlays/cpu/exec_context_ecg_producer.patch")
@@ -176,8 +180,60 @@ def test_gem5_schedule2_delivery_is_pair_aware():
     assert "setEcgLoadHint2" in exec_patch
     assert "setEcgLoadHint2" in dyn_patch
     assert "attachEcgEpochPair" in lsq_patch
+    assert "ecg_current_epoch" in lsq_patch
+    assert "ecg_context_id" in lsq_patch
+    assert "ecg_sequence" in lsq_patch
     assert 'schedule_k == "2"' in graph_se
     assert '"GRASP_HOT_FRACTION"' in graph_se
+
+
+def test_gem5_k2_uses_architectural_epoch_context_csrs():
+    csr_patch = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/ecg_csr.patch")
+    decoder = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa")
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    graph_se = read(
+        "bench/include/gem5_sim/configs/graphbrew/graph_se.py")
+    setup = read("scripts/setup_gem5.py")
+    policy = read(
+        "bench/include/gem5_sim/overlays/mem/cache/replacement_policies/"
+        "ecg_rp.cc")
+    victim_patch = read(
+        "bench/include/gem5_sim/overlays/mem/cache/"
+        "ecg_victim_request.patch")
+    mshr_patch = read(
+        "bench/include/gem5_sim/overlays/mem/cache/mshr_ecg_merge.patch")
+
+    assert "CSR_ECG_CUR_EPOCH = 0x800" in csr_patch
+    assert "CSR_ECG_CONTEXT = 0x801" in csr_patch
+    assert "MISCREG_ECG_CUR_EPOCH" in decoder
+    assert "MISCREG_ECG_CONTEXT" in decoder
+    assert decoder.count("MISCREG_ECG_CUR_EPOCH") == 16
+    assert decoder.count("MISCREG_ECG_CONTEXT") == 16
+    assert 'asm volatile ("csrw 0x800, %0"' in harness
+    assert 'asm volatile ("csrw 0x801, %0"' in harness
+    assert "GEM5_SET_VERTEX_EPOCH" in harness
+    assert 'env["GEM5_ECG_EPOCH_CSR"] = "1"' in runner
+    assert 'env["GEM5_ECG_CONTEXT_ID"] = "1"' in runner
+    assert "GEM5_ECG_EPOCH_CSR=" in graph_se
+    assert "GEM5_ECG_CONTEXT_ID=" in graph_se
+    assert "setVictimRequest" in victim_patch
+    assert "applyEcgMetadata" in mshr_patch
+    assert "data->ecg_context_id == victimContextId" in policy
+    assert "data->ecg_context_id = pf_context" in policy
+    assert "recordPendingPrefetchEpoch(" in setup
+    assert "pfxa_context" in setup
+    assert "legacyRequestState" in policy
+    assert "ctx.currentVertexForPopt()" not in policy.split(
+        "GraphEcgRP::getVictim", 1)[1]
+
+    for kernel in ("pr", "bfs", "sssp", "bc", "cc"):
+        source = read(f"bench/src_gem5/{kernel}.cc")
+        assert "GEM5_ECG_BEGIN_CONTEXT();" in source
+        assert "GEM5_SET_VERTEX_EPOCH(" in source
 
 
 def test_schedule2_runner_selects_adaptive_variants_and_rejects_o3(monkeypatch):

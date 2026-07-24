@@ -97,6 +97,10 @@ PATCH_FILES = [
 # These are tracked as patches (not full file copies) so upstream gem5
 # changes are easier to merge.
 UNIFIED_DIFF_PATCHES = [
+    # Architectural K2 state: user-level custom CSRs 0x800/0x801 backed by
+    # per-hart RISC-V MiscReg storage. This state is automatically copied and
+    # checkpointed by gem5's ISA machinery.
+    ("arch/riscv/ecg_csr.patch", "."),
     # S68 queue-servicing fix: nextPrefetchReadyTime returns curTick()
     # when pfqMissingTranslation has entries even if pfq is empty.
     # Required for prefetchers like ECG_PFX that emit only cross-page
@@ -118,6 +122,12 @@ UNIFIED_DIFF_PATCHES = [
     ("cpu/exec_context_ecg_producer.patch", "."),
     ("cpu/o3/dyn_inst_ecg_producer.patch", "."),
     ("cpu/o3/lsq_ecg_producer.patch", "."),
+    # Pass the allocating Request to replacement victim selection so K2 uses
+    # the request-carried current epoch/context rather than global magic state.
+    ("mem/cache/ecg_victim_request.patch", "."),
+    # Coalesced K2 requests retain the latest same-hart/context sequence and
+    # fail closed on cross-hart/context or ordinary-request conflicts.
+    ("mem/cache/mshr_ecg_merge.patch", "."),
     # StreamShield: packed ECG record misses retain normal L1/L2 fills but
     # suppress shared-L3 allocation through the MSHR allocOnFill bit.
     ("mem/request_stream_bypass.patch", "."),
@@ -406,6 +416,10 @@ def apply_unified_diff_patches():
                 f"{overlay_rel}. Run setup_gem5.py --clean and reinstall.")
 
         marker_targets = {
+            "arch/riscv/ecg_csr.patch": (
+                target / "src/arch/riscv/regs/misc.hh",
+                "CSR_ECG_CUR_EPOCH",
+            ),
             "mem/cache/prefetch/queued_hh.patch": (
                 target / "src/mem/cache/prefetch/queued.hh",
                 "S68-QUEUE-SERVICING-PATCH",
@@ -425,6 +439,14 @@ def apply_unified_diff_patches():
             "cpu/o3/lsq_ecg_producer.patch": (
                 target / "src/cpu/o3/lsq.cc",
                 "attachEcgEpoch",
+            ),
+            "mem/cache/ecg_victim_request.patch": (
+                target / "src/mem/cache/replacement_policies/base.hh",
+                "setVictimRequest",
+            ),
+            "mem/cache/mshr_ecg_merge.patch": (
+                target / "src/mem/cache/mshr.hh",
+                "EcgMshrState",
             ),
             "mem/request_stream_bypass.patch": (
                 target / "src/mem/request.hh",
@@ -597,7 +619,7 @@ def apply_current_vertex_pseudo_inst_patch():
             "    }\n\n"
         )
     if "GRAPHBREW_ECG_PFX_TARGET_EPOCH_WORK_ID" not in content:
-        # Path A (epoch-filtered DROPLET lookahead): threadid = target | epoch<<32.
+        # Path A: threadid = target | epoch<<32 | context<<48.
         # Record the candidate epoch in the bounded in-flight buffer (so the
         # prefetched line is stamped at fill) and push the bare target. No
         # single-slot touch (no demand-epoch corruption), no 24-bit truncation.
@@ -605,7 +627,9 @@ def apply_current_vertex_pseudo_inst_patch():
             "    if (workid == replacement_policy::graph::GRAPHBREW_ECG_PFX_TARGET_EPOCH_WORK_ID) {\n"
             "        uint32_t pfxa_target = static_cast<uint32_t>(threadid & 0xFFFFFFFFULL);\n"
             "        uint16_t pfxa_epoch = static_cast<uint16_t>((threadid >> 32) & 0xFFFFULL);\n"
-            "        replacement_policy::graph::recordPendingPrefetchEpoch(pfxa_target, pfxa_epoch);\n"
+            "        uint16_t pfxa_context = static_cast<uint16_t>((threadid >> 48) & 0xFFFFULL);\n"
+            "        replacement_policy::graph::recordPendingPrefetchEpoch(\n"
+            "            pfxa_target, pfxa_epoch, pfxa_context);\n"
             "        replacement_policy::graph::setPrefetchTargetHint(pfxa_target);\n"
             "        return;\n"
             "    }\n\n"
