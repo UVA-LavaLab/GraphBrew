@@ -244,6 +244,9 @@ mailbox fallback for plain loads.
   added metadata SRAM/logic cost.
 - Separate 15-way and 14-way K2 rows are equal-silicon sensitivities, not the
   physical mechanism used to store K2 metadata.
+- The runner applies `--k2-l3-ways` only to Schedule-2 K2 policies and records
+  both baseline and effective geometry. Conventional baselines remain 16-way;
+  charged P-OPT independently retains its matrix-capacity charge.
 - P-OPT is charged its rereference-matrix capacity.
 - Non-P-OPT K2-M rows must neither construct nor load the P-OPT rereference
   matrix. Their future-reuse state comes only from the streamed K2 records and

@@ -373,6 +373,23 @@ python3 -m scripts.experiments.ecg.analysis.k2_area \
   --cache-bytes 8388608 --line-bytes 64 --ways 16
 ```
 
+Inspect the two no-build sensitivity profiles with:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_equal_area_15 \
+  --run-dir /tmp/ecg-equal-area-15 \
+  --list --dry-run --no-build
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_equal_area_14 \
+  --run-dir /tmp/ecg-equal-area-14 \
+  --list --dry-run --no-build
+```
+
+Rows must report baseline `l3_ways=16`, the actually configured
+`l3_effective_ways`, `k2_area_mode`, and `k2_l3_ways_requested`. Only
+Schedule-2 K2 policies receive the override.
+
 The default v2 contract reports a 49-bit line payload before ECC, 1.531
 baseline-way equivalents, 14.602 self-consistent fractional ways, 15 ways as
 an intentionally undercharged first sensitivity, 14 ways as the maximum

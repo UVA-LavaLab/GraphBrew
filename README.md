@@ -119,6 +119,11 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --profile ecg_cache_sim_factorial \
   --run-dir /tmp/ecg-factorial-dry \
   --list --dry-run --no-build
+
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_equal_area_14 \
+  --run-dir /tmp/ecg-equal-area-dry \
+  --list --dry-run --no-build
 ```
 
 Use a new run directory for filtered or simulator-only shards.
@@ -349,6 +354,8 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_sniper_realgraph_warm_probe` | Full web-Google warm-SIFT LRU/K2 100K gate |
 | `ecg_sniper_realgraph_600m` | Full-real-graph Sniper 600M-capped ROI plan |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
+| `ecg_equal_area_15` | 15-way K2 versus 16-way baseline sensitivity |
+| `ecg_equal_area_14` | Conservative integral 14-way K2 versus 16-way baselines |
 | `ecg_online_dueling` | Alias for the online-regret replacement stage |
 | `ecg_cache_sim_factorial` | Real-graph K1/K2 x StreamShield attribution |
 | `ecg_streamshield_generality` | All-kernel allocate-vs-shield comparison |

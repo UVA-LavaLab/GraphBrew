@@ -87,6 +87,11 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
 3. Scale and timing confirmation in Sniper using the full policy set.
 4. Hardware/storage accounting and sensitivity analysis.
 
+The artifact exposes separate 15-way and conservative 14-way K2 profiles
+against unchanged 16-way baselines. These are equal-silicon sensitivities;
+the primary implementation remains the full-capacity 16-way design with
+disclosed metadata overhead.
+
 The corrected cache_sim factorial is complete: StreamShield is an incremental
 demand/traffic improvement over online K2, while the full mechanism still uses
 more total traffic than P-OPT. This bounds the detailed-simulator claim before

@@ -215,6 +215,15 @@ fails closed instead of reusing IDs. Integrated OoO stress, any optional
 drain/invalidation protocol for intentional reuse, and exact Sniper request
 binding remain open, so this milestone adds no performance result.
 
+### Equal-area runner gate
+
+The runner and paper manifest now provide separate `ecg_equal_area_15` and
+`ecg_equal_area_14` full-graph cache_sim profiles. Conventional baselines retain
+the 16-way geometry; only Schedule-2 K2 policies receive the requested override.
+Each row records baseline and effective size/associativity, area mode, requested
+K2 ways, and the 49-bit line-metadata premise. No sensitivity rows have been run
+or frozen yet.
+
 ### Exact Sniper governed-load association
 
 The transport-matched Sniper K2-M workload now executes identical bind/clear

@@ -178,6 +178,8 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_sniper_realgraph_warm_probe" in manifest["profiles"]
     assert "ecg_sniper_realgraph_600m" in manifest["profiles"]
     assert "ecg_replacement_baseline" in manifest["profiles"]
+    assert "ecg_equal_area_15" in manifest["profiles"]
+    assert "ecg_equal_area_14" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]
     assert "ecg_preliminary_5alg_stride" in manifest["profiles"]
     assert "ecg_online_dueling" in manifest["profiles"]

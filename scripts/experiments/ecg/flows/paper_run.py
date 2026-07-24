@@ -542,6 +542,10 @@ def make_roi_job(
         "--cache-sim-omp-threads",
         str(settings.get("cache_sim_omp_threads", 1)),
     ]
+    if int(settings.get("k2_l3_ways", 0)) > 0:
+        command.extend([
+            "--k2-l3-ways", str(settings["k2_l3_ways"]),
+        ])
     if (settings.get("require_cache_sim_aslr_disable") and
             str(settings.get("suite")) in ("cache-sim", "both")):
         command.append("--require-cache-sim-aslr-disable")

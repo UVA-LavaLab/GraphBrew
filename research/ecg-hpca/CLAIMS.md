@@ -40,6 +40,9 @@
   only for P-OPT. A focused compact-SSSP smoke reports
   `sniper_popt_matrix_required=0` and `sniper_rereference_loaded=0` for K2-M,
   versus `1/1` for P-OPT.
+- Equal-area orchestration is first-class: `--k2-l3-ways` changes only
+  Schedule-2 K2 geometry, retains 16-way conventional baselines, and records
+  baseline/effective associativity plus the 49-bit metadata premise.
 - The transport-matched Sniper workload now emits identical bind/clear markers
   around only the edge-governed destination loads for every policy. The cache
   consumes the marker on the corresponding L3 hit or miss and fails closed for

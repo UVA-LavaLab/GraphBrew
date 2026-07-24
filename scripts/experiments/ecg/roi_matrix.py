@@ -511,6 +511,50 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
     return metadata
 
 
+def policy_cache_geometry(
+        args: argparse.Namespace, spec: PolicySpec,
+        l3_size: str) -> dict[str, Any]:
+    metadata = popt_charge_metadata(args, spec, l3_size)
+    baseline_ways = max(int(args.l3_ways), 1)
+    override_ways = max(int(getattr(args, "k2_l3_ways", 0)), 0)
+    metadata.update({
+        "k2_l3_ways_requested": override_ways,
+        "k2_baseline_l3_ways": baseline_ways,
+        "k2_effective_l3_ways": metadata["popt_effective_l3_ways"],
+        "k2_area_mode": (
+            "equal_capacity" if override_ways == 0
+            else "baseline_equal_silicon_reference"),
+    })
+    if override_ways == 0:
+        return metadata
+    if override_ways > baseline_ways:
+        raise ValueError(
+            f"K2 L3 ways ({override_ways}) cannot exceed baseline "
+            f"ways ({baseline_ways})")
+
+    transport = ecg_transport_for(spec, args.benchmark)
+    is_k2 = (
+        spec.policy == "ECG" and
+        spec.ecg_mode == "ECG_GRASP_POPT" and
+        transport.schedule_k == 2)
+    if not is_k2:
+        return metadata
+
+    line_size = parse_size_bytes(args.line_size)
+    requested_bytes = parse_size_bytes(l3_size)
+    sets = max(requested_bytes // (baseline_ways * line_size), 1)
+    effective_bytes = sets * override_ways * line_size
+    metadata.update({
+        "popt_effective_l3_size": format_size_bytes(effective_bytes),
+        "popt_effective_l3_ways": str(override_ways),
+        "k2_effective_l3_ways": str(override_ways),
+        "k2_effective_l3_size": format_size_bytes(effective_bytes),
+        "k2_area_mode": "equal_silicon_sensitivity",
+        "k2_metadata_bits_per_line": 49,
+    })
+    return metadata
+
+
 def now_tag() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -1040,7 +1084,7 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
     elif args.require_cache_sim_aslr_disable:
         raise RuntimeError(
             "Paper cache_sim runs require setarch -R, but setarch is unavailable.")
-    charge = popt_charge_metadata(args, spec, l3_size)
+    charge = policy_cache_geometry(args, spec, l3_size)
     effective_l3_size = str(charge["popt_effective_l3_size"])
     effective_l3_ways = str(charge["popt_effective_l3_ways"])
     env = cache_sim_env(args, spec, effective_l3_size, effective_l3_ways, json_path)
@@ -1139,7 +1183,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     gem5_out = out_dir / "gem5" / label
     log_path = out_dir / "logs" / f"{label}.log"
     sidebands = gem5_sideband_paths(gem5_out)
-    charge = popt_charge_metadata(args, spec, l3_size)
+    charge = policy_cache_geometry(args, spec, l3_size)
     if args.prefetcher == "ECG_PFX" and not args.allow_gem5_ecg_pfx:
         row = base_row("gem5", args, spec, l3_size, charge)
         row.update({
@@ -1542,7 +1586,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     sniper_out = out_dir / "sniper" / label
     log_path = out_dir / "logs" / f"{label}.log"
     sidebands = sniper_sideband_paths(sniper_out)
-    charge = popt_charge_metadata(args, spec, l3_size)
+    charge = policy_cache_geometry(args, spec, l3_size)
     row = base_row("sniper", args, spec, l3_size, charge)
     sniper_root = sniper_root_path(args)
     sniper_runner = sniper_runner_path(args)
@@ -2307,6 +2351,12 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "l2_size": args.l2_size,
         "l3_size": l3_size,
         "l3_ways": args.l3_ways,
+        "l3_effective_size": (
+            charge.get("popt_effective_l3_size", l3_size)
+            if charge else l3_size),
+        "l3_effective_ways": (
+            charge.get("popt_effective_l3_ways", args.l3_ways)
+            if charge else args.l3_ways),
         "l1_l2_policy": "LRU",
     }
     if charge:
@@ -2553,6 +2603,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "interleaved order, so >1 thread gives non-reproducible, "
                              "thread-count-dependent miss counts.")
     parser.add_argument("--l3-ways", default="16")
+    parser.add_argument(
+        "--k2-l3-ways", type=int, default=0,
+        help="Optional Schedule-2 K2-only LLC associativity override for "
+             "equal-silicon sensitivity. Baselines retain --l3-ways; "
+             "0 keeps equal data capacity.")
     parser.add_argument("--line-size", default="64")
     parser.add_argument("--cache-stream-prefetch-degree", type=int, default=0,
                         help="Uniform structure-stream (next-line) prefetcher degree for the "
