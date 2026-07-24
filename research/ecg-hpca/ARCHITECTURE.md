@@ -421,6 +421,12 @@ K2-I remains a separate ISA ablation.
   synthesized logic components alongside SECDED. Replacement selection is not
   added to the LLC hit critical path; request-to-data and eviction-selection
   delays are reported separately at the same technology node.
+- The checked-in victim RTL covers all seven `ecg_policy::Variant` orders. For
+  RRIP-gated variants, uniform aging is synthesized as selection from the
+  current maximum RRPV plus the equivalent updated RRPVs. The 4-bit recency
+  input is assumed to be baseline-provided age rank for 16 ways; if the target
+  LLC lacks it, its maintenance/storage must be charged. Epoch/context/property
+  qualification and online selection remain outside this ranking subcomponent.
 
 The artifact rejects hidden matrices, zero-latency bypass, and aggressive
 per-access LLC metadata broadcasts in headline rows.

@@ -454,6 +454,22 @@ row for victim selection. Standard CACTI rejects 14/15-way associativity, so
 those simulator profiles remain capacity sensitivities rather than measured
 CACTI points.
 
+Emit and validate the replacement/ECC RTL inputs:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.k2_rtl_packet \
+  --out-dir /tmp/k2-rtl-packet
+python3 -m scripts.experiments.ecg.analysis.k2_rtl_verify
+```
+
+`k2_victim_select` covers all seven SSOT ranking variants and collapses uniform
+RRIP aging to the equivalent current-max-RRPV candidate set. It is not the
+final replacement component: distance/context/property qualification, online
+selection, and non-baseline rank maintenance must be added before physical
+measurement. The SECDED area top contains 16 encoders and 16 decoders; one
+decoder supplies read delay. Request/CSR/queue/MSHR registered synthesis input
+is still pending.
+
 After external CACTI and synthesis runs, create and fill the measured physical
 input schema:
 

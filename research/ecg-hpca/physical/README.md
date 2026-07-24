@@ -45,10 +45,25 @@ fail-closed physical schema. Report node, capacity, banks, associativity, and
 output width must match the selected profile. Final JSON artifacts are
 published atomically and stale results are invalidated before a rerun.
 Synthesis fields intentionally remain empty.
-These measurements still do not satisfy the physical gate until replacement
-ECC, replacement, and request-path logic are synthesized with a pinned 32 nm
+These measurements still do not satisfy the physical gate until ECC,
+replacement, and request-path logic are synthesized with a pinned 32 nm
 technology library. The 1,024-bit row is a conservative full-set read/write
 model; per-way write masking is not modeled.
 The SECDED synthesis component represents 16 parallel per-way codecs: its
 latency is one decoder, while its total area scales with LLC ways in the linear
 equal-area sensitivity.
+
+Emit the hashed replacement/ECC RTL manifest with:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.k2_rtl_packet \
+  --out-dir /tmp/k2-rtl-packet
+```
+
+The checked-in RTL and functional test cover all seven C++ victim-ranking
+variants, equivalent collapsed RRIP aging, and 49-bit SECDED. The selector is
+not a complete replacement-path top: epoch/context/property qualification,
+online selection, and any non-baseline recency-rank maintenance remain to be
+wrapped and charged. Technology synthesis is not performed by this command.
+Request-state storage/merge RTL also remains required before the physical gate
+can pass.

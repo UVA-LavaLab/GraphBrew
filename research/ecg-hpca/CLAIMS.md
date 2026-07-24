@@ -60,6 +60,10 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
   mandatory source/config/report/RTL/library hashes and reports separate
   lookup, request, and eviction delays plus linear equal-area sensitivities.
   CACTI and synthesis nodes must match; it supplies no default physical numbers.
+- Hashed synthesizable inputs now cover all seven K2 victim-ranking variants
+  and 16 parallel 49-bit SECDED encoders/decoders. The ranking RTL is explicitly
+  not the complete replacement path. Functional and generic synthesis checks
+  pass; no technology area/power/timing value is claimed.
 - The reviewer three-cost table is generated from serialized graph headers and
   runner-identical formulas: extra bytes per active edge stream, 33/49 K2
   metadata bits per line, and size-correct P-OPT reserved data ways.

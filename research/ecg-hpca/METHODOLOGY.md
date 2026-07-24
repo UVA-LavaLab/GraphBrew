@@ -284,6 +284,8 @@ mailbox fallback for plain loads.
 - Physical logic accounting includes SECDED, replacement selection, and the
   transient request/CSR/queue/MSHR path as separate synthesis components at the
   same technology node as CACTI.
+- Replacement and SECDED synthesis inputs are checked in and hashable; their
+  functional/generic synthesis tests do not constitute technology measurements.
 - No hidden matrix, per-access LLC metadata broadcast, or zero-latency bypass is
   permitted in a headline row.
 

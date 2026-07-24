@@ -109,6 +109,9 @@
       "evidence": [
         "8f491834",
         "scripts/experiments/ecg/analysis/k2_cacti_packet.py",
+        "scripts/experiments/ecg/analysis/k2_rtl_packet.py",
+        "bench/src_rtl/k2_victim_select.sv",
+        "bench/src_rtl/k2_secded_49.sv",
         "research/ecg-hpca/physical/README.md"
       ]
     },

@@ -261,6 +261,15 @@ bits to 64 bits, then exposes all 16 ways as an 8,192-row x 1,024-bit array.
 It also parses isolated `out.csv` reports and hashes every config/report and the
 executed CACTI binary.
 
+`analysis/k2_rtl_packet.py` emits hashed synthesis inputs for the exact
+seven-variant victim-ranking core and 16-way 49-bit SECDED codecs. Verilator
+functional checks cover all variant dispatch, selector ordering, collapsed
+RRIP aging, and single/double-error behavior; Yosys elaboration passes. The
+ranking core still needs a wrapper for distance/context/property qualification,
+online selection, and any non-baseline rank maintenance. These are RTL inputs,
+not technology measurements. Registered request-state storage/merge RTL remains
+pending.
+
 `analysis/k2_physical.py` validates explicit baseline-cache, metadata-SRAM,
 SECDED, replacement-logic, and request-path measurements plus mandatory source,
 config, report, RTL, library, and synthesis hashes. Hit lookup, request path,
