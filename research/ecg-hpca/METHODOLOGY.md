@@ -265,8 +265,14 @@ mailbox fallback for plain loads.
 - The ECG successor reserves no LLC data way; metadata area remains charged.
 - Primary equal-data-capacity rows retain the full 16-way LLC and disclose the
   added metadata SRAM/logic cost.
+- The physical packet models the 49-bit line state as 49 data plus seven SECDED
+  bits rounded to a 64-bit per-way field. One 1,024-bit row holds all 16 ways
+  for parallel victim inspection. It emits 1RW and 1R1W CACTI inputs from the
+  vendored 6.5 template; no measured value is embedded.
 - Separate 15-way and 14-way K2 rows are equal-silicon sensitivities, not the
   physical mechanism used to store K2 metadata.
+- CACTI 6.5 requires power-of-two associativity, so 14/15-way rows cannot be
+  presented as direct CACTI measurements.
 - The runner applies `--k2-l3-ways` only to Schedule-2 K2 policies and records
   both baseline and effective geometry. Conventional baselines remain 16-way;
   charged P-OPT independently retains its matrix-capacity charge.
@@ -275,6 +281,9 @@ mailbox fallback for plain loads.
   matrix. Their future-reuse state comes only from the streamed K2 records and
   resident line metadata.
 - StreamShield is one request flag propagated through derived prefetches.
+- Physical logic accounting includes SECDED, replacement selection, and the
+  transient request/CSR/queue/MSHR path as separate synthesis components at the
+  same technology node as CACTI.
 - No hidden matrix, per-access LLC metadata broadcast, or zero-latency bypass is
   permitted in a headline row.
 

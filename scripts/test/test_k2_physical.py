@@ -13,10 +13,14 @@ ROOT = Path(__file__).resolve().parents[2]
 def measured_input():
     data = template()
     data.update({
-        "technology_nm": 7,
+        "technology_nm": 32,
+        "synthesis_technology_nm": 32,
         "cache_bytes": 8 * 1024 * 1024,
         "baseline_ways": 16,
+        "metadata_port_model": "1rw",
         "metadata_access_fraction": 1.0,
+        "replacement_access_fraction": 1.0,
+        "request_path_access_fraction": 1.0,
     })
     data["baseline_cache"] = {
         "area_mm2": 4.0,
@@ -32,6 +36,13 @@ def measured_input():
         "leakage_mw": 2.0,
         "delay_ns": 1.0,
     }
+    data["k2_ecc_logic"] = {
+        "area_mm2": 0.005,
+        "read_energy_nj": 0.002,
+        "write_energy_nj": 0.003,
+        "leakage_mw": 0.02,
+        "delay_ns": 0.02,
+    }
     data["k2_replacement_logic"] = {
         "area_mm2": 0.04,
         "read_energy_nj": 0.02,
@@ -39,25 +50,49 @@ def measured_input():
         "leakage_mw": 0.2,
         "delay_ns": 0.1,
     }
+    data["k2_request_path_logic"] = {
+        "area_mm2": 0.01,
+        "read_energy_nj": 0.005,
+        "write_energy_nj": 0.006,
+        "leakage_mw": 0.05,
+        "delay_ns": 0.05,
+    }
     data["provenance"] = {
         "cacti_version": "test-cacti",
+        "cacti_source_sha256": "a" * 64,
+        "cacti_binary_sha256": "b" * 64,
+        "cacti_packet_manifest_sha256": "c" * 64,
         "synthesis_tool": "test-synth",
         "technology_library": "test-lib",
-        "baseline_config_sha256": "a" * 64,
-        "metadata_config_sha256": "b" * 64,
-        "logic_report_sha256": "c" * 64,
+        "technology_library_sha256": "d" * 64,
+        "baseline_config_sha256": "e" * 64,
+        "baseline_report_sha256": "f" * 64,
+        "metadata_config_sha256": "1" * 64,
+        "metadata_report_sha256": "2" * 64,
+        "ecc_logic_input_sha256": "3" * 64,
+        "ecc_logic_report_sha256": "4" * 64,
+        "replacement_logic_input_sha256": "5" * 64,
+        "replacement_logic_report_sha256": "6" * 64,
+        "request_path_logic_input_sha256": "7" * 64,
+        "request_path_logic_report_sha256": "8" * 64,
     }
     return data
 
 
 def test_characterize_measured_physical_inputs():
     result = characterize(measured_input())
-    assert result["k2_total_area_mm2"] == pytest.approx(4.44)
-    assert result["k2_area_overhead_percent"] == pytest.approx(11.0)
-    assert result["k2_read_energy_nj"] == pytest.approx(1.12)
-    assert result["parallel_lookup_delay_ns"] == pytest.approx(2.1)
-    assert result["serialized_lookup_delay_ns"] == pytest.approx(3.1)
-    assert result["linear_equal_area_fractional_ways"] == pytest.approx(14.4)
+    assert result["k2_total_area_mm2"] == pytest.approx(4.455)
+    assert result["k2_area_overhead_percent"] == pytest.approx(11.375)
+    assert result["k2_read_energy_nj"] == pytest.approx(1.127)
+    assert result["parallel_lookup_delay_ns"] == pytest.approx(2.0)
+    assert result["request_to_data_parallel_delay_ns"] == pytest.approx(2.05)
+    assert result["metadata_read_with_ecc_delay_ns"] == pytest.approx(1.02)
+    assert result["eviction_selection_delay_ns"] == pytest.approx(1.12)
+    assert result["serialized_request_to_data_delay_ns"] == pytest.approx(3.07)
+    assert result["serialized_all_components_upper_bound_ns"] == pytest.approx(
+        3.17)
+    assert result["linear_equal_area_fractional_ways"] == pytest.approx(
+        14.3473325766)
     assert result["linear_equal_area_integral_ways"] == 14
     assert result["linear_equal_area_integral_effective_bytes"] == 7340032
 
@@ -76,6 +111,14 @@ def test_characterize_rejects_missing_or_placeholder_values():
     data = measured_input()
     data["provenance"]["cacti_version"] = None
     with pytest.raises(ValueError, match="provenance.cacti_version"):
+        characterize(data)
+    data = measured_input()
+    data["provenance"]["baseline_config_sha256"] = "not-a-hash"
+    with pytest.raises(ValueError, match="lowercase SHA-256"):
+        characterize(data)
+    data = measured_input()
+    data["synthesis_technology_nm"] = 45
+    with pytest.raises(ValueError, match="must match technology_nm"):
         characterize(data)
 
 

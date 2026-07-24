@@ -254,11 +254,21 @@ Hawkeye performance result.
 
 ### Physical-characterization harness
 
-`analysis/k2_physical.py` now validates explicit baseline-cache, metadata-SRAM,
-and replacement-logic measurements plus mandatory CACTI/synthesis provenance.
-It derives area/energy/leakage/delay overhead and a clearly labeled linear
-equal-area sensitivity. The harness rejects missing or placeholder values and
-contains no default physical estimates. No CACTI or synthesis result has been
+`analysis/k2_cacti_packet.py` now emits hashed configs from the vendored CACTI
+6.5 template for the 8 MiB/16-way LLC, a 1RW metadata SRAM, and a 1R1W port
+sensitivity. The metadata input rounds each way's 49 logical plus seven SECDED
+bits to 64 bits, then exposes all 16 ways as an 8,192-row x 1,024-bit array.
+It also parses isolated `out.csv` reports and hashes every config/report and the
+executed CACTI binary.
+
+`analysis/k2_physical.py` validates explicit baseline-cache, metadata-SRAM,
+SECDED, replacement-logic, and request-path measurements plus mandatory source,
+config, report, RTL, library, and synthesis hashes. Hit lookup, request path,
+and eviction selection delays are reported separately, and CACTI/synthesis
+technology nodes must match. The harness rejects
+missing or placeholder values and contains no default physical estimates.
+CACTI 6.5 cannot represent 14/15-way associativity, so the existing reduced-way
+rows remain simulation sensitivities. No CACTI or synthesis result has been
 supplied or frozen.
 
 ### Three-cost accounting table

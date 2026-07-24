@@ -53,10 +53,13 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 - Equal-area orchestration is first-class: `--k2-l3-ways` changes only
   Schedule-2 K2 geometry, retains 16-way conventional baselines, and records
   baseline/effective associativity plus the 49-bit metadata premise.
-- A fail-closed physical-characterization harness ingests explicit CACTI and
-  synthesis values with mandatory tool/config hashes and reports area, energy,
-  leakage, parallel/serialized delay, and clearly labeled linear equal-area
-  sensitivities. It supplies no default physical numbers.
+- A reproducible CACTI packet emits hashed 8 MiB/16-way baseline and 1,024-bit
+  all-way set-row K2 metadata inputs from the vendored 6.5 template. The
+  fail-closed physical harness ingests baseline, metadata, SECDED, replacement,
+  and request-path values with
+  mandatory source/config/report/RTL/library hashes and reports separate
+  lookup, request, and eviction delays plus linear equal-area sensitivities.
+  CACTI and synthesis nodes must match; it supplies no default physical numbers.
 - The reviewer three-cost table is generated from serialized graph headers and
   runner-identical formulas: extra bytes per active edge stream, 33/49 K2
   metadata bits per line, and size-correct P-OPT reserved data ways.

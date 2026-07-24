@@ -105,6 +105,10 @@ the primary implementation remains the full-capacity 16-way design with
 disclosed metadata overhead.
 Physical overhead values are accepted only from hashed CACTI/synthesis reports;
 the artifact does not substitute analytical defaults for those measurements.
+The checked-in packet generates a 16-way LLC input and 1RW/1R1W metadata SRAM
+inputs with explicit ECC/macro rounding and all 16 ways in each set row.
+Standard CACTI cannot represent the
+14/15-way associativities, so those remain simulator capacity sensitivities.
 The analytical table separately reports edge-stream bytes, added line-metadata
 SRAM, and P-OPT reserved data capacity so unlike costs are not conflated.
 

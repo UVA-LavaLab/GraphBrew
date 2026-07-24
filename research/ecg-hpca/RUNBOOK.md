@@ -440,18 +440,38 @@ an intentionally undercharged first sensitivity, 14 ways as the maximum
 integral equal-area point, and a 95-bit logical request payload. These are
 bit-level lower bounds, not CACTI/synthesized physical costs.
 
-Create and fill the measured physical-input schema:
+Emit the pinned CACTI 6.5 input packet without running it:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.k2_cacti_packet \
+  --out-dir /tmp/k2-cacti-packet
+```
+
+The packet hashes the vendored source/template and emits the 8 MiB/16-way LLC,
+a 1 MiB 1RW K2 metadata SRAM, and a 1R1W metadata port sensitivity. Each of
+8,192 rows contains all 16 rounded 64-bit way fields, exposing a 1,024-bit set
+row for victim selection. Standard CACTI rejects 14/15-way associativity, so
+those simulator profiles remain capacity sensitivities rather than measured
+CACTI points.
+
+After external CACTI and synthesis runs, create and fill the measured physical
+input schema:
 
 ```bash
 python3 -m scripts.experiments.ecg.analysis.k2_physical \
   --template > /tmp/k2-physical-input.json
-# Fill every metric and provenance hash from CACTI/synthesis reports.
+# Fill baseline/metadata SRAM, SECDED, replacement logic, request-path logic,
+# activation fractions, and every report/input/library hash.
 python3 -m scripts.experiments.ecg.analysis.k2_physical \
   --input /tmp/k2-physical-input.json \
   > /tmp/k2-physical-result.json
 ```
 
-The command fails on missing metrics or provenance. Fields named
+The command fails on missing components, malformed SHA-256 provenance, or
+placeholder values. CACTI and synthesis technology nodes must match. The
+parallel lookup delay includes metadata SECDED decode but excludes replacement selection;
+the output reports request-to-data and eviction-selection delays separately.
+Fields named
 `linear_equal_area_*` are interpolation sensitivities, not measured 14/15-way
 CACTI points.
 

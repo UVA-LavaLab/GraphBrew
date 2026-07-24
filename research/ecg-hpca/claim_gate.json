@@ -107,7 +107,9 @@
       "id": "physical_cost_results",
       "status": "pending",
       "evidence": [
-        "8f491834"
+        "8f491834",
+        "scripts/experiments/ecg/analysis/k2_cacti_packet.py",
+        "research/ecg-hpca/physical/README.md"
       ]
     },
     {

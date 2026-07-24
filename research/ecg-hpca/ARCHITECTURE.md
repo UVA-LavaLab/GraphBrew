@@ -409,7 +409,18 @@ K2-I remains a separate ISA ablation.
   cannot be presented as “lower total hardware cost” until that gate passes.
 - The artifact's physical harness accepts measured CACTI/synthesis components
   only. Its reduced-way calculation is explicitly labeled a linear sensitivity;
-  measured 14/15-way CACTI points remain preferable.
+  vendored CACTI 6.5 rejects non-power-of-two 14/15-way associativity, so those
+  simulator rows are not relabeled as measured CACTI points.
+- The physical metadata input stores 49 logical bits plus seven SECDED bits in
+  a rounded 64-bit per-way field. All 16 candidates occupy one 1,024-bit set
+  row, yielding 8,192 rows and 1 MiB for an 8 MiB/64-byte LLC. A 1RW macro is
+  primary and 1R1W is reported as a port sensitivity. CACTI's ECC flag is
+  disabled to avoid double charging the explicitly included check bits; the
+  SECDED codec is synthesized separately.
+- Request/CSR/queue/MSHR carriage and replacement selection are separate
+  synthesized logic components alongside SECDED. Replacement selection is not
+  added to the LLC hit critical path; request-to-data and eviction-selection
+  delays are reported separately at the same technology node.
 
 The artifact rejects hidden matrices, zero-latency bypass, and aggressive
 per-access LLC metadata broadcasts in headline rows.

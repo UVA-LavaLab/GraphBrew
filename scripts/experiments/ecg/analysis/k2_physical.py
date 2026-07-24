@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,7 @@ REQUIRED_METRICS = (
     "leakage_mw",
     "delay_ns",
 )
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def template() -> dict[str, Any]:
@@ -28,17 +30,34 @@ def template() -> dict[str, Any]:
         "technology_nm": None,
         "cache_bytes": 8 * 1024 * 1024,
         "baseline_ways": 16,
+        "synthesis_technology_nm": None,
+        "metadata_port_model": None,
         "metadata_access_fraction": 1.0,
+        "replacement_access_fraction": 1.0,
+        "request_path_access_fraction": 1.0,
         "baseline_cache": {key: None for key in REQUIRED_METRICS},
         "k2_metadata_sram": {key: None for key in REQUIRED_METRICS},
+        "k2_ecc_logic": {key: None for key in REQUIRED_METRICS},
         "k2_replacement_logic": {key: None for key in REQUIRED_METRICS},
+        "k2_request_path_logic": {key: None for key in REQUIRED_METRICS},
         "provenance": {
             "cacti_version": None,
+            "cacti_source_sha256": None,
+            "cacti_binary_sha256": None,
+            "cacti_packet_manifest_sha256": None,
             "synthesis_tool": None,
             "technology_library": None,
+            "technology_library_sha256": None,
             "baseline_config_sha256": None,
+            "baseline_report_sha256": None,
             "metadata_config_sha256": None,
-            "logic_report_sha256": None,
+            "metadata_report_sha256": None,
+            "ecc_logic_input_sha256": None,
+            "ecc_logic_report_sha256": None,
+            "replacement_logic_input_sha256": None,
+            "replacement_logic_report_sha256": None,
+            "request_path_logic_input_sha256": None,
+            "request_path_logic_report_sha256": None,
         },
     }
 
@@ -68,18 +87,33 @@ def _provenance(data: dict[str, Any]) -> dict[str, str]:
         raise ValueError("missing provenance")
     required = (
         "cacti_version",
+        "cacti_source_sha256",
+        "cacti_binary_sha256",
+        "cacti_packet_manifest_sha256",
         "synthesis_tool",
         "technology_library",
+        "technology_library_sha256",
         "baseline_config_sha256",
+        "baseline_report_sha256",
         "metadata_config_sha256",
-        "logic_report_sha256",
+        "metadata_report_sha256",
+        "ecc_logic_input_sha256",
+        "ecc_logic_report_sha256",
+        "replacement_logic_input_sha256",
+        "replacement_logic_report_sha256",
+        "request_path_logic_input_sha256",
+        "request_path_logic_report_sha256",
     )
     result: dict[str, str] = {}
     for key in required:
         entry = value.get(key)
         if not isinstance(entry, str) or not entry.strip():
             raise ValueError(f"provenance.{key} must be a non-empty string")
-        result[key] = entry.strip()
+        normalized = entry.strip()
+        if key.endswith("_sha256") and not SHA256_RE.fullmatch(normalized):
+            raise ValueError(
+                f"provenance.{key} must be a lowercase SHA-256 digest")
+        result[key] = normalized
     return result
 
 
@@ -98,47 +132,85 @@ def _component(data: dict[str, Any], name: str) -> dict[str, float]:
 def characterize(data: dict[str, Any]) -> dict[str, Any]:
     technology_nm = _positive_number(
         data.get("technology_nm"), "technology_nm")
+    synthesis_technology_nm = _positive_number(
+        data.get("synthesis_technology_nm"), "synthesis_technology_nm")
+    if synthesis_technology_nm != technology_nm:
+        raise ValueError(
+            "synthesis_technology_nm must match technology_nm")
+    metadata_port_model = data.get("metadata_port_model")
+    if metadata_port_model not in {"1rw", "1r1w"}:
+        raise ValueError("metadata_port_model must be 1rw or 1r1w")
     cache_bytes = _positive_int(data.get("cache_bytes"), "cache_bytes")
     baseline_ways = _positive_int(
         data.get("baseline_ways"), "baseline_ways")
-    metadata_fraction = _positive_number(
-        data.get("metadata_access_fraction", 1.0),
-        "metadata_access_fraction", allow_zero=True)
-    if metadata_fraction > 1:
-        raise ValueError("metadata_access_fraction must be <= 1")
+    fractions = {}
+    for field in (
+            "metadata_access_fraction", "replacement_access_fraction",
+            "request_path_access_fraction"):
+        fraction = _positive_number(
+            data.get(field, 1.0), field, allow_zero=True)
+        if fraction > 1:
+            raise ValueError(f"{field} must be <= 1")
+        fractions[field] = fraction
 
     baseline = _component(data, "baseline_cache")
     metadata = _component(data, "k2_metadata_sram")
+    ecc_logic = _component(data, "k2_ecc_logic")
     logic = _component(data, "k2_replacement_logic")
+    request_logic = _component(data, "k2_request_path_logic")
     provenance = _provenance(data)
 
     k2_area = (
-        baseline["area_mm2"] + metadata["area_mm2"] + logic["area_mm2"])
+        baseline["area_mm2"] + metadata["area_mm2"] +
+        ecc_logic["area_mm2"] + logic["area_mm2"] +
+        request_logic["area_mm2"])
     area_overhead = k2_area / baseline["area_mm2"] - 1.0
     k2_read_energy = (
         baseline["read_energy_nj"] +
-        metadata_fraction * metadata["read_energy_nj"] +
-        logic["read_energy_nj"])
+        fractions["metadata_access_fraction"] *
+        metadata["read_energy_nj"] +
+        fractions["metadata_access_fraction"] *
+        ecc_logic["read_energy_nj"] +
+        fractions["replacement_access_fraction"] *
+        logic["read_energy_nj"] +
+        fractions["request_path_access_fraction"] *
+        request_logic["read_energy_nj"])
     k2_write_energy = (
         baseline["write_energy_nj"] +
-        metadata_fraction * metadata["write_energy_nj"] +
-        logic["write_energy_nj"])
+        fractions["metadata_access_fraction"] *
+        metadata["write_energy_nj"] +
+        fractions["metadata_access_fraction"] *
+        ecc_logic["write_energy_nj"] +
+        fractions["replacement_access_fraction"] *
+        logic["write_energy_nj"] +
+        fractions["request_path_access_fraction"] *
+        request_logic["write_energy_nj"])
     k2_leakage = (
         baseline["leakage_mw"] +
         metadata["leakage_mw"] +
-        logic["leakage_mw"])
+        ecc_logic["leakage_mw"] +
+        logic["leakage_mw"] +
+        request_logic["leakage_mw"])
 
-    parallel_delay = max(
-        baseline["delay_ns"], metadata["delay_ns"]) + logic["delay_ns"]
-    serialized_delay = (
-        baseline["delay_ns"] + metadata["delay_ns"] + logic["delay_ns"])
+    metadata_read_delay = metadata["delay_ns"] + ecc_logic["delay_ns"]
+    parallel_delay = max(baseline["delay_ns"], metadata_read_delay)
+    request_to_data_delay = request_logic["delay_ns"] + parallel_delay
+    eviction_selection_delay = metadata_read_delay + logic["delay_ns"]
+    serialized_request_to_data_delay = (
+        request_logic["delay_ns"] + baseline["delay_ns"] +
+        metadata_read_delay)
+    all_components_upper_bound = (
+        serialized_request_to_data_delay + logic["delay_ns"])
 
-    # Linearized sensitivity: data/tag and line metadata scale with ways;
-    # replacement logic is fixed. Reported explicitly as an approximation.
-    available_scaling_area = baseline["area_mm2"] - logic["area_mm2"]
+    # Linearized sensitivity: data/tag, line metadata, and parallel per-way
+    # SECDED logic scale with ways; replacement/request logic remains fixed.
+    way_scaled_logic_area = ecc_logic["area_mm2"]
+    fixed_logic_area = logic["area_mm2"] + request_logic["area_mm2"]
+    available_scaling_area = baseline["area_mm2"] - fixed_logic_area
     physical_fractional_ways = (
         baseline_ways * max(available_scaling_area, 0.0) /
-        (baseline["area_mm2"] + metadata["area_mm2"]))
+        (baseline["area_mm2"] + metadata["area_mm2"] +
+         way_scaled_logic_area))
     physical_integral_ways = math.floor(physical_fractional_ways)
     fractional_effective_bytes = math.floor(
         cache_bytes * physical_fractional_ways / baseline_ways)
@@ -147,12 +219,18 @@ def characterize(data: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "technology_nm": technology_nm,
+        "synthesis_technology_nm": synthesis_technology_nm,
         "cache_bytes": cache_bytes,
         "baseline_ways": baseline_ways,
-        "metadata_access_fraction": metadata_fraction,
+        "metadata_port_model": metadata_port_model,
+        **fractions,
         "baseline_cache": baseline,
         "k2_metadata_sram": metadata,
+        "k2_ecc_logic": ecc_logic,
         "k2_replacement_logic": logic,
+        "k2_request_path_logic": request_logic,
+        "k2_way_scaled_logic_area_mm2": way_scaled_logic_area,
+        "k2_fixed_logic_area_mm2": fixed_logic_area,
         "k2_total_area_mm2": k2_area,
         "k2_area_overhead_ratio": area_overhead,
         "k2_area_overhead_percent": 100.0 * area_overhead,
@@ -169,7 +247,13 @@ def characterize(data: dict[str, Any]) -> dict[str, Any]:
         "parallel_lookup_delay_ns": parallel_delay,
         "parallel_lookup_delay_overhead_ratio":
             parallel_delay / baseline["delay_ns"] - 1.0,
-        "serialized_lookup_delay_ns": serialized_delay,
+        "metadata_read_with_ecc_delay_ns": metadata_read_delay,
+        "request_to_data_parallel_delay_ns": request_to_data_delay,
+        "eviction_selection_delay_ns": eviction_selection_delay,
+        "serialized_request_to_data_delay_ns":
+            serialized_request_to_data_delay,
+        "serialized_all_components_upper_bound_ns":
+            all_components_upper_bound,
         "linear_equal_area_fractional_ways": physical_fractional_ways,
         "linear_equal_area_integral_ways": physical_integral_ways,
         "linear_equal_area_fractional_effective_bytes":
@@ -177,7 +261,8 @@ def characterize(data: dict[str, Any]) -> dict[str, Any]:
         "linear_equal_area_integral_effective_bytes":
             integral_effective_bytes,
         "linear_equal_area_model":
-            "linear data+metadata scaling with fixed replacement logic",
+            "linear data+metadata+parallel-ECC scaling with fixed "
+            "replacement/request logic",
         "provenance": provenance,
     }
 
