@@ -91,6 +91,8 @@ The artifact exposes separate 15-way and conservative 14-way K2 profiles
 against unchanged 16-way baselines. These are equal-silicon sensitivities;
 the primary implementation remains the full-capacity 16-way design with
 disclosed metadata overhead.
+Physical overhead values are accepted only from hashed CACTI/synthesis reports;
+the artifact does not substitute analytical defaults for those measurements.
 
 The learned-policy baseline is Hawkeye. cache_sim's static-site proxy is used
 only for development. gem5's real instruction-PC implementation is present;

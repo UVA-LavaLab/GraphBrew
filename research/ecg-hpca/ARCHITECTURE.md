@@ -397,6 +397,9 @@ K2-I remains a separate ISA ablation.
 - Headline comparison requires SRAM/logic energy and replacement-latency
   estimates plus an equal-silicon-area sensitivity; “no reserved data way”
   cannot be presented as “lower total hardware cost” until that gate passes.
+- The artifact's physical harness accepts measured CACTI/synthesis components
+  only. Its reduced-way calculation is explicitly labeled a linear sensitivity;
+  measured 14/15-way CACTI points remain preferable.
 
 The artifact rejects hidden matrices, zero-latency bypass, and aggressive
 per-access LLC metadata broadcasts in headline rows.

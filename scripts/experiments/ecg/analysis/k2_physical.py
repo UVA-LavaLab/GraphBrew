@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""Combine external CACTI/synthesis measurements for K2.
+
+This module does not estimate physical values. It validates explicit tool
+outputs and derives reproducible overhead/equal-area ratios from them.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from pathlib import Path
+from typing import Any
+
+
+REQUIRED_METRICS = (
+    "area_mm2",
+    "read_energy_nj",
+    "write_energy_nj",
+    "leakage_mw",
+    "delay_ns",
+)
+
+
+def template() -> dict[str, Any]:
+    return {
+        "technology_nm": None,
+        "cache_bytes": 8 * 1024 * 1024,
+        "baseline_ways": 16,
+        "metadata_access_fraction": 1.0,
+        "baseline_cache": {key: None for key in REQUIRED_METRICS},
+        "k2_metadata_sram": {key: None for key in REQUIRED_METRICS},
+        "k2_replacement_logic": {key: None for key in REQUIRED_METRICS},
+        "provenance": {
+            "cacti_version": None,
+            "synthesis_tool": None,
+            "technology_library": None,
+            "baseline_config_sha256": None,
+            "metadata_config_sha256": None,
+            "logic_report_sha256": None,
+        },
+    }
+
+
+def _positive_number(value: Any, field: str, *, allow_zero: bool = False) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field} must be a number")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{field} must be finite")
+    if number < 0 or (number == 0 and not allow_zero):
+        comparator = "non-negative" if allow_zero else "positive"
+        raise ValueError(f"{field} must be {comparator}")
+    return number
+
+
+def _positive_int(value: Any, field: str) -> int:
+    number = _positive_number(value, field)
+    if not float(number).is_integer():
+        raise ValueError(f"{field} must be an integer")
+    return int(number)
+
+
+def _provenance(data: dict[str, Any]) -> dict[str, str]:
+    value = data.get("provenance")
+    if not isinstance(value, dict):
+        raise ValueError("missing provenance")
+    required = (
+        "cacti_version",
+        "synthesis_tool",
+        "technology_library",
+        "baseline_config_sha256",
+        "metadata_config_sha256",
+        "logic_report_sha256",
+    )
+    result: dict[str, str] = {}
+    for key in required:
+        entry = value.get(key)
+        if not isinstance(entry, str) or not entry.strip():
+            raise ValueError(f"provenance.{key} must be a non-empty string")
+        result[key] = entry.strip()
+    return result
+
+
+def _component(data: dict[str, Any], name: str) -> dict[str, float]:
+    value = data.get(name)
+    if not isinstance(value, dict):
+        raise ValueError(f"missing component: {name}")
+    return {
+        key: _positive_number(
+            value.get(key), f"{name}.{key}",
+            allow_zero=key in ("leakage_mw",))
+        for key in REQUIRED_METRICS
+    }
+
+
+def characterize(data: dict[str, Any]) -> dict[str, Any]:
+    technology_nm = _positive_number(
+        data.get("technology_nm"), "technology_nm")
+    cache_bytes = _positive_int(data.get("cache_bytes"), "cache_bytes")
+    baseline_ways = _positive_int(
+        data.get("baseline_ways"), "baseline_ways")
+    metadata_fraction = _positive_number(
+        data.get("metadata_access_fraction", 1.0),
+        "metadata_access_fraction", allow_zero=True)
+    if metadata_fraction > 1:
+        raise ValueError("metadata_access_fraction must be <= 1")
+
+    baseline = _component(data, "baseline_cache")
+    metadata = _component(data, "k2_metadata_sram")
+    logic = _component(data, "k2_replacement_logic")
+    provenance = _provenance(data)
+
+    k2_area = (
+        baseline["area_mm2"] + metadata["area_mm2"] + logic["area_mm2"])
+    area_overhead = k2_area / baseline["area_mm2"] - 1.0
+    k2_read_energy = (
+        baseline["read_energy_nj"] +
+        metadata_fraction * metadata["read_energy_nj"] +
+        logic["read_energy_nj"])
+    k2_write_energy = (
+        baseline["write_energy_nj"] +
+        metadata_fraction * metadata["write_energy_nj"] +
+        logic["write_energy_nj"])
+    k2_leakage = (
+        baseline["leakage_mw"] +
+        metadata["leakage_mw"] +
+        logic["leakage_mw"])
+
+    parallel_delay = max(
+        baseline["delay_ns"], metadata["delay_ns"]) + logic["delay_ns"]
+    serialized_delay = (
+        baseline["delay_ns"] + metadata["delay_ns"] + logic["delay_ns"])
+
+    # Linearized sensitivity: data/tag and line metadata scale with ways;
+    # replacement logic is fixed. Reported explicitly as an approximation.
+    available_scaling_area = baseline["area_mm2"] - logic["area_mm2"]
+    physical_fractional_ways = (
+        baseline_ways * max(available_scaling_area, 0.0) /
+        (baseline["area_mm2"] + metadata["area_mm2"]))
+    physical_integral_ways = math.floor(physical_fractional_ways)
+    fractional_effective_bytes = math.floor(
+        cache_bytes * physical_fractional_ways / baseline_ways)
+    integral_effective_bytes = (
+        cache_bytes * physical_integral_ways // baseline_ways)
+
+    return {
+        "technology_nm": technology_nm,
+        "cache_bytes": cache_bytes,
+        "baseline_ways": baseline_ways,
+        "metadata_access_fraction": metadata_fraction,
+        "baseline_cache": baseline,
+        "k2_metadata_sram": metadata,
+        "k2_replacement_logic": logic,
+        "k2_total_area_mm2": k2_area,
+        "k2_area_overhead_ratio": area_overhead,
+        "k2_area_overhead_percent": 100.0 * area_overhead,
+        "k2_read_energy_nj": k2_read_energy,
+        "k2_read_energy_overhead_ratio":
+            k2_read_energy / baseline["read_energy_nj"] - 1.0,
+        "k2_write_energy_nj": k2_write_energy,
+        "k2_write_energy_overhead_ratio":
+            k2_write_energy / baseline["write_energy_nj"] - 1.0,
+        "k2_total_leakage_mw": k2_leakage,
+        "k2_leakage_overhead_ratio":
+            k2_leakage / baseline["leakage_mw"] - 1.0
+            if baseline["leakage_mw"] > 0 else None,
+        "parallel_lookup_delay_ns": parallel_delay,
+        "parallel_lookup_delay_overhead_ratio":
+            parallel_delay / baseline["delay_ns"] - 1.0,
+        "serialized_lookup_delay_ns": serialized_delay,
+        "linear_equal_area_fractional_ways": physical_fractional_ways,
+        "linear_equal_area_integral_ways": physical_integral_ways,
+        "linear_equal_area_fractional_effective_bytes":
+            fractional_effective_bytes,
+        "linear_equal_area_integral_effective_bytes":
+            integral_effective_bytes,
+        "linear_equal_area_model":
+            "linear data+metadata scaling with fixed replacement logic",
+        "provenance": provenance,
+    }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Combine measured CACTI/synthesis values for K2.")
+    parser.add_argument("--input", type=Path)
+    parser.add_argument("--template", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if args.template:
+        print(json.dumps(template(), indent=2, sort_keys=True))
+        return 0
+    if args.input is None:
+        raise SystemExit("--input is required unless --template is used")
+    result = characterize(json.loads(args.input.read_text()))
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -414,6 +414,21 @@ an intentionally undercharged first sensitivity, 14 ways as the maximum
 integral equal-area point, and a 95-bit logical request payload. These are
 bit-level lower bounds, not CACTI/synthesized physical costs.
 
+Create and fill the measured physical-input schema:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.k2_physical \
+  --template > /tmp/k2-physical-input.json
+# Fill every metric and provenance hash from CACTI/synthesis reports.
+python3 -m scripts.experiments.ecg.analysis.k2_physical \
+  --input /tmp/k2-physical-input.json \
+  > /tmp/k2-physical-result.json
+```
+
+The command fails on missing metrics or provenance. Fields named
+`linear_equal_area_*` are interpolation sensitivities, not measured 14/15-way
+CACTI points.
+
 Canonical K2-I timing requires RISC-V guest binaries rebuilt from the
 current Makefile with `-funswitch-loops`. Reject rows from the stopped
 `ecg_gem5_sampled_allalg_masked_load_20260719` run: they still contain

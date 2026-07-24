@@ -43,6 +43,10 @@
 - Equal-area orchestration is first-class: `--k2-l3-ways` changes only
   Schedule-2 K2 geometry, retains 16-way conventional baselines, and records
   baseline/effective associativity plus the 49-bit metadata premise.
+- A fail-closed physical-characterization harness ingests explicit CACTI and
+  synthesis values with mandatory tool/config hashes and reports area, energy,
+  leakage, parallel/serialized delay, and clearly labeled linear equal-area
+  sensitivities. It supplies no default physical numbers.
 - A clean-room Hawkeye core and LLC-only cache_sim adapter are implemented with
   OPTgen, 64 sampled sets, 350x8 history, separate demand/prefetch predictors,
   and Hawkeye RRIP rules. cache_sim rows are explicitly `HAWKEYE_PROXY` because

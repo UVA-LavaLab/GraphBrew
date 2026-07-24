@@ -243,6 +243,15 @@ actually commits. Both gem5 ISAs build and the SimObject instantiates. The
 dedicated `ecg_gem5_hawkeye_gate` profile is dry-run only; there is still no
 Hawkeye performance result.
 
+### Physical-characterization harness
+
+`analysis/k2_physical.py` now validates explicit baseline-cache, metadata-SRAM,
+and replacement-logic measurements plus mandatory CACTI/synthesis provenance.
+It derives area/energy/leakage/delay overhead and a clearly labeled linear
+equal-area sensitivity. The harness rejects missing or placeholder values and
+contains no default physical estimates. No CACTI or synthesis result has been
+supplied or frozen.
+
 ### Exact Sniper governed-load association
 
 The transport-matched Sniper K2-M workload now executes identical bind/clear
