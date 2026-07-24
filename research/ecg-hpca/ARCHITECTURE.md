@@ -394,6 +394,9 @@ K2-I remains a separate ISA ablation.
   instruction-correctness cells are in scope because O3 scale is prohibitively slow.
 - P-OPT comparison: charged for its active rereference-matrix capacity and
   matrix traffic. K2 performs no runtime lookup of that structure.
+- Reviewer accounting separates unlike resources: K2's line state is added
+  SRAM area expressed as a baseline-way equivalent, while P-OPT's matrix is
+  charged as reserved LLC data ways that reduce usable capacity.
 - Headline comparison requires SRAM/logic energy and replacement-latency
   estimates plus an equal-silicon-area sensitivity; “no reserved data way”
   cannot be presented as “lower total hardware cost” until that gate passes.

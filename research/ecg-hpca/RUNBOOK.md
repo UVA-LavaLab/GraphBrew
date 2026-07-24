@@ -429,6 +429,19 @@ The command fails on missing metrics or provenance. Fields named
 `linear_equal_area_*` are interpolation sensitivities, not measured 14/15-way
 CACTI points.
 
+Generate the three-cost reviewer table:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.three_costs \
+  --cache-sizes 2MB 8MB \
+  --out-json /tmp/k2-three-costs.json \
+  --out-csv /tmp/k2-three-costs.csv
+```
+
+`Added SRAM way-eq` and `Reserved data ways` are deliberately different units:
+K2 adds side metadata without removing data capacity; P-OPT reserves existing
+LLC ways. Edge bytes cover one active traversal-direction stream.
+
 Canonical K2-I timing requires RISC-V guest binaries rebuilt from the
 current Makefile with `-funswitch-loops`. Reject rows from the stopped
 `ecg_gem5_sampled_allalg_masked_load_20260719` run: they still contain

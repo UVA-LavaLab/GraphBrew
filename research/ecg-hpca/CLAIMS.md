@@ -47,6 +47,9 @@
   synthesis values with mandatory tool/config hashes and reports area, energy,
   leakage, parallel/serialized delay, and clearly labeled linear equal-area
   sensitivities. It supplies no default physical numbers.
+- The reviewer three-cost table is generated from serialized graph headers and
+  runner-identical formulas: extra bytes per active edge stream, 33/49 K2
+  metadata bits per line, and size-correct P-OPT reserved data ways.
 - A clean-room Hawkeye core and LLC-only cache_sim adapter are implemented with
   OPTgen, 64 sampled sets, 350x8 history, separate demand/prefetch predictors,
   and Hawkeye RRIP rules. cache_sim rows are explicitly `HAWKEYE_PROXY` because

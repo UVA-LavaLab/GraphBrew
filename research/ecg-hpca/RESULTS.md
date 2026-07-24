@@ -252,6 +252,21 @@ equal-area sensitivity. The harness rejects missing or placeholder values and
 contains no default physical estimates. No CACTI or synthesis result has been
 supplied or frozen.
 
+### Three-cost accounting table
+
+`analysis/three_costs.py` now generates the reviewer-facing accounting table
+for web-Google, soc-pokec, and cit-Patents at configurable LLC sizes. It
+separates:
+
+1. K2 extra bytes per edge and total bytes for one active traversal stream;
+2. K2's 33-bit minimum and 49-bit contextual metadata per line, expressed as
+   added SRAM way-equivalents;
+3. P-OPT's size-correct matrix bytes and reserved LLC data ways.
+
+The default 2/8 MiB table reproduces the runner's capacity charge: P-OPT needs
+1/1 ways on web-Google, 2/1 on soc-pokec, and 4/1 on cit-Patents. These are
+analytical accounting rows, not performance results.
+
 ### Exact Sniper governed-load association
 
 The transport-matched Sniper K2-M workload now executes identical bind/clear
