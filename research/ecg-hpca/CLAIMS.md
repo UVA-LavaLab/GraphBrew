@@ -67,6 +67,9 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 - gem5 `GraphHawkeyeRP` uses the real request instruction PC, preserves demand/
   prefetch predictor typing, and commits OPTgen/predictor mutation only after a
   fill is confirmed. X86/RISC-V builds and SimObject instantiation pass.
+- The production-encoding-anchored RV64 U32.D32 decomposition shows
+  baseline=6, K2-M=6, and K2-I=2 body instructions. K2-M is one-for-one metadata
+  carriage; the four-instruction reduction belongs only to optional K2-I.
 - The transport-matched Sniper workload now emits identical bind/clear markers
   around only the edge-governed destination loads for every policy. The cache
   consumes the marker on the corresponding L3 hit or miss and fails closed for

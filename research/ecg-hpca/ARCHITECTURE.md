@@ -236,6 +236,13 @@ Existing gem5 modes implement only the listed prototype subset: `0x03` =
 U32.D32, `0x04` = U64.D32, and `0x05` = U32.CW24. They do not yet implement
 signed or FP destinations. K2-M is added under distinct modes.
 
+The canonical RV64 U32.D32 decomposition contains six body instructions for
+both baseline and K2-M: record load, two destination-extraction shifts, two
+address-generation instructions, and one property load. K2-M replaces only the
+ordinary `lw` with `ecg.k2.mload`. K2-I uses two body instructions (record load
+plus indexed K2 load), removing four extraction/address-generation operations.
+This is a static sequence fact, not a speedup estimate.
+
 The implemented K2-M prototype modes are `0x06` U32.D32, `0x07` S32.D32,
 `0x08` U64.D32, `0x09` U32.CW24, and `0x0A` F32.D32. All use `EA=rs1`.
 

@@ -133,6 +133,14 @@
       "id": "k2i_tpi_isolation",
       "status": "blocked",
       "evidence": []
+    },
+    {
+      "id": "static_isa_decomposition",
+      "status": "passed",
+      "evidence": [
+        "bench/src_gem5/k2_isa_decomposition.S",
+        "scripts/experiments/ecg/analysis/k2_isa_decomposition.py"
+      ]
     }
   ],
   "claims": [
@@ -162,6 +170,15 @@
       "decision": "allowed",
       "required_gates": [
         "full_graph_cache_sim"
+      ]
+    },
+    {
+      "id": "static_k2m_k2i_instruction_scope",
+      "text": "In the canonical U32.D32 sequence, K2-M is instruction-count neutral versus a normal load, while optional K2-I removes four destination/address-generation instructions.",
+      "scope": "Static RV64 instruction decomposition only; no timing claim",
+      "decision": "allowed",
+      "required_gates": [
+        "static_isa_decomposition"
       ]
     },
     {

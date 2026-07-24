@@ -276,6 +276,20 @@ major prohibitions, including treating the 1.329x packed K2-I-like model or
 1.171x TPI as K2-M evidence, comparing absolute gem5/Sniper rates, claiming
 zero hardware overhead, and ranking policies from the bounded synthetic cell.
 
+### Static K2-M versus K2-I decomposition
+
+The canonical RV64 U32.D32 assembly, anchored to production funct7 encodings,
+reports:
+
+| Sequence | Body instructions | Destination extraction | Address generation | Property load |
+|---|---:|---:|---:|---|
+| Baseline | 6 | 2 | 2 | ordinary `lw` |
+| K2-M | 6 | 2 | 2 | `ecg.k2.mload` |
+| K2-I | 2 | 0 | 0 | indexed `ecg.k2.iload` |
+
+Thus K2-M does not claim an instruction reduction; K2-I removes four canonical
+instructions. This is static decomposition only and does not imply timing.
+
 ### Exact Sniper governed-load association
 
 The transport-matched Sniper K2-M workload now executes identical bind/clear

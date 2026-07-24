@@ -71,6 +71,11 @@ replacement logic, worked K2 example, ISA table, and baseline comparison.
   contribution. K2-I optionally folds destination decoding/address generation
   into the load. StreamShield independently marks the record request.
 
+In the canonical U32.D32 sequence, baseline and K2-M each execute six body
+instructions; K2-M replaces the ordinary load one-for-one. K2-I executes two
+and removes four extraction/address-generation instructions. Only K2-I may
+claim that static instruction reduction.
+
 ## Contributions
 
 1. Edge-carried degree and two-epoch reuse guidance bound to the exact property

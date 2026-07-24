@@ -79,6 +79,16 @@ python3 -m scripts.experiments.ecg.analysis.claim_gate
 Do not promote a prohibited claim by prose alone. Update a gate to `passed`
 only when its evidence commit/path exists and the underlying result is frozen.
 
+Render the canonical ISA decomposition:
+
+```bash
+python3 -m scripts.experiments.ecg.analysis.k2_isa_decomposition
+```
+
+Acceptance is baseline=6, K2-M=6, K2-I=2 body instructions for U32.D32, with
+raw encodings matching `gem5_harness.h`. Never translate the K2-I `-4` static
+delta into a K2-M speedup estimate.
+
 ## Full 3-simulator/all-algorithm smoke
 
 ```bash
