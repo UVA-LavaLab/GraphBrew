@@ -229,8 +229,14 @@ work, and CC pointer chasing/compression remain deliberately unmarked.
 This closes source-plus-line association in the implementation without adding
 policy-specific instructions or memory references. Existing frozen mechanism
 rows predate the marker and are not relabeled; a future focused certification
-must regenerate them. The Sniper current epoch is still modeled through the
-outer-vertex channel, so this milestone alone adds no timing claim.
+must regenerate them.
+
+The bind latch now also snapshots the per-core quantized current epoch and a
+monotonic ROI context. Miss victim selection consumes the allocating request's
+snapshot; L3 hits refresh the resident line with the same context, and stale or
+unmarked requests cannot use K2 epochs. This removes eviction-time rereading of
+the mutable outer-vertex clock, but remains a Sniper model rather than execution
+of the RISC-V CSR ISA, so this milestone alone adds no timing claim.
 
 ### K2-I target-instruction correction
 

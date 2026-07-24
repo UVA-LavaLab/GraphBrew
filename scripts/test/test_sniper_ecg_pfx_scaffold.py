@@ -74,6 +74,29 @@ def test_k2_bind_handler_upgrades_existing_user_case(tmp_path) -> None:
     assert partial_text.count("GRAPHBREW_K2_CLEAR_WORK_ID") == 1
 
 
+def test_sniper_context_lifecycle_hooks_are_idempotent(tmp_path) -> None:
+    path = ROOT / "scripts/setup_sniper.py"
+    spec = importlib.util.spec_from_file_location(
+        "setup_sniper_context_lifecycle_test", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    target = tmp_path / "magic_server.cc"
+    target.write_text(
+        "      case SIM_CMD_ROI_START:\n"
+        "         Sim()->getHooksManager()->callHooks(HookType::HOOK_APPLICATION_ROI_BEGIN, 0);\n"
+        "         return 0;\n"
+        "      case SIM_CMD_ROI_END:\n"
+        "         Sim()->getHooksManager()->callHooks(HookType::HOOK_APPLICATION_ROI_END, 0);\n"
+        "         return 0;\n"
+    )
+    module.ensure_ecg_context_lifecycle_hooks(target, False)
+    module.ensure_ecg_context_lifecycle_hooks(target, False)
+    text = target.read_text()
+    assert text.count("beginEcgContext();") == 1
+    assert text.count("endEcgContext();") == 1
+
+
 def test_sniper_harness_defines_ecg_pfx_hint_surface() -> None:
     text = read("bench/include/sniper_sim/sniper_harness.h")
     assert "GRAPHBREW_SNIPER_USER_ECG_PFX_TARGET" in text
@@ -281,6 +304,7 @@ def test_sniper_mask_only_uses_transport_matched_loops():
     assert '"matched_mask_only_sideband_model"' in runner
     assert 'env["SNIPER_K2_EXACT_BIND"] = "1"' in runner
     assert '"sniper_k2_exact_bind"] = 1' in runner
+    assert '"sniper_k2_epoch_context_bound"] = 1' in runner
     assert "GRAPHBREW_SNIPER_USER_K2_BIND" in harness
     assert "k2_bound_load" in harness
     assert source.count("[K2_EXACT_BIND]") == 5
@@ -299,6 +323,11 @@ def test_sniper_mask_only_uses_transport_matched_loops():
     assert "HOOK_MAGIC_USER" in setup
     assert "sniperK2ExactBindEnabled" in cache
     assert "m_pending_exact_k2_valid" in cache
+    assert "m_pending_request_current_epoch" in cache
+    assert "m_ecg_context_id" in cache
+    assert "beginEcgContext" in context_cc
+    assert "currentEcgEpoch" in context_cc
+    assert "ensure_ecg_context_lifecycle_hooks" in setup
     assert runner.count('env["SNIPER_REQUIRE_POPT_MATRIX"] = "1"') == 1
     assert '"sniper_popt_matrix_required"] = int(requires_popt_matrix)' in runner
     assert "Matrix-free K2-M row unexpectedly loaded" in runner

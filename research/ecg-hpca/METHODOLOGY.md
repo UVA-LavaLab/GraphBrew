@@ -41,7 +41,10 @@ Current mechanism cells achieve exactly 1.000x instruction ratio. Timing remains
 diagnostic because the current epoch remains modeled. The current Sniper
 implementation binds sideband K2 metadata to an explicit identical marker
 around the exact edge-governed destination load for every policy; source
-property loads and BC/CC non-edge phases remain unmarked.
+property loads and BC/CC non-edge phases remain unmarked. The marker snapshots
+the per-core quantized current epoch and a monotonic ROI context, so victim
+selection no longer rereads a mutable outer-vertex clock. It remains a Sniper
+model rather than execution of the RISC-V CSR ISA.
 Even K2-I fused timing is accepted only when live fused receipts validate against
 the exported K2 sideband. Without receipts, the row remains cache-metric-only;
 its packed-record software path can execute a different instruction stream than

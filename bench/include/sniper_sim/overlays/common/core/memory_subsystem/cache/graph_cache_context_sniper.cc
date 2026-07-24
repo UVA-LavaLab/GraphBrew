@@ -861,6 +861,16 @@ uint32_t GraphCacheContext::currentVertexForPopt(uint32_t core_id) const
     return current_dst_vertex;
 }
 
+uint16_t GraphCacheContext::currentEcgEpoch(uint32_t core_id) const
+{
+    const uint32_t n = std::max<uint32_t>(1u, topology.num_vertices);
+    const uint32_t ne = std::max<uint32_t>(2u, edge_epoch_count);
+    uint32_t epoch = static_cast<uint32_t>(
+        (static_cast<uint64_t>(currentVertexForPopt(core_id)) * ne) / n);
+    if (epoch >= ne) epoch = ne - 1;
+    return static_cast<uint16_t>(epoch);
+}
+
 void GraphCacheContext::updateVertexFromAddr(uint64_t addr, uint32_t core_id) const
 {
     if (num_regions == 0 || !regions[0].contains(addr) || regions[0].elem_size == 0) return;
@@ -1136,6 +1146,8 @@ GraphCacheContext& globalContext()
 namespace {
 struct BoundK2LoadState {
     std::array<std::atomic<uint64_t>, MAX_TRACKED_CORES> address{};
+    std::array<std::atomic<uint16_t>, MAX_TRACKED_CORES> current_epoch{};
+    std::array<std::atomic<uint16_t>, MAX_TRACKED_CORES> context_id{};
     std::array<std::atomic<bool>, MAX_TRACKED_CORES> valid{};
 };
 
@@ -1144,6 +1156,42 @@ BoundK2LoadState& boundK2LoadState()
     static BoundK2LoadState state;
     return state;
 }
+
+std::atomic<uint32_t>& nextEcgContextId()
+{
+    static std::atomic<uint32_t> next{1};
+    return next;
+}
+
+std::atomic<uint16_t>& activeEcgContextId()
+{
+    static std::atomic<uint16_t> active{0};
+    return active;
+}
+}
+
+void beginEcgContext()
+{
+    const uint32_t context =
+        nextEcgContextId().fetch_add(1, std::memory_order_relaxed);
+    if (context == 0 || context > UINT16_MAX) {
+        std::fprintf(
+            stderr,
+            "[FATAL] Sniper ECG context ID space exhausted; reuse is disabled\n");
+        std::abort();
+    }
+    activeEcgContextId().store(
+        static_cast<uint16_t>(context), std::memory_order_release);
+}
+
+void endEcgContext()
+{
+    activeEcgContextId().store(0, std::memory_order_release);
+}
+
+uint16_t currentEcgContextId()
+{
+    return activeEcgContextId().load(std::memory_order_acquire);
 }
 
 void recordBoundK2Load(uint32_t core_id, uint64_t address)
@@ -1151,6 +1199,11 @@ void recordBoundK2Load(uint32_t core_id, uint64_t address)
     if (core_id >= MAX_TRACKED_CORES) return;
     auto& state = boundK2LoadState();
     state.address[core_id].store(address, std::memory_order_relaxed);
+    state.current_epoch[core_id].store(
+        globalContext().currentEcgEpoch(core_id),
+        std::memory_order_relaxed);
+    state.context_id[core_id].store(
+        currentEcgContextId(), std::memory_order_relaxed);
     state.valid[core_id].store(true, std::memory_order_release);
 }
 
@@ -1162,7 +1215,8 @@ void clearBoundK2Load(uint32_t core_id)
 }
 
 bool consumeBoundK2Load(
-        uint32_t core_id, uint64_t line_addr, uint64_t line_size)
+        uint32_t core_id, uint64_t line_addr, uint64_t line_size,
+        uint16_t* current_epoch, uint16_t* context_id)
 {
     if (core_id >= MAX_TRACKED_CORES || line_size == 0) return false;
     auto& state = boundK2LoadState();
@@ -1171,8 +1225,19 @@ bool consumeBoundK2Load(
         state.address[core_id].load(std::memory_order_relaxed);
     const uint64_t bound_line = address & ~(line_size - 1);
     if (bound_line != line_addr) return false;
-    return state.valid[core_id].exchange(
-        false, std::memory_order_acq_rel);
+    if (!state.valid[core_id].exchange(
+            false, std::memory_order_acq_rel)) {
+        return false;
+    }
+    if (current_epoch) {
+        *current_epoch = state.current_epoch[core_id].load(
+            std::memory_order_relaxed);
+    }
+    if (context_id) {
+        *context_id = state.context_id[core_id].load(
+            std::memory_order_relaxed);
+    }
+    return context_id == nullptr || *context_id != 0;
 }
 
 bool isEcgStreamBypassAddress(uint64_t addr)

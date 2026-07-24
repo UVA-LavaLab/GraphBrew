@@ -16,6 +16,7 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
     fields = [
         "policy_label", "status", "instructions",
         "sniper_transport_matched", "sniper_k2_exact_bind",
+        "sniper_k2_epoch_context_bound",
         "ecg_isa_variant", "sniper_workload",
         "sniper_roi_icount", "timing_valid_for_speedup",
         "sniper_workload_sha256", "benchmark", "options", "prefetcher",
@@ -32,6 +33,7 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
             "instructions": "100000",
             "sniper_transport_matched": "1",
             "sniper_k2_exact_bind": "1",
+            "sniper_k2_epoch_context_bound": "1",
             "ecg_isa_variant": "baseline",
             "sniper_workload": "sg_kernel",
             "sniper_roi_icount": "0",
@@ -57,6 +59,7 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
             "instructions": str(round(100000 * ratio)),
             "sniper_transport_matched": "1",
             "sniper_k2_exact_bind": "1",
+            "sniper_k2_epoch_context_bound": "1",
             "ecg_isa_variant": "mask",
             "sniper_workload": "sg_kernel",
             "sniper_roi_icount": "0",

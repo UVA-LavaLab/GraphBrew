@@ -1748,6 +1748,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         env["ECG_K2_VALIDATE"] = "1"
         row["sniper_transport_matched"] = 1
         row["sniper_k2_exact_bind"] = 1
+        row["sniper_k2_epoch_context_bound"] = 1
         row["sniper_transport_record_bytes"] = 8
         row["timing_model"] = "transport_matched_diagnostic"
         row["timing_valid_for_speedup"] = "0"

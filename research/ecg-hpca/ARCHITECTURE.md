@@ -280,7 +280,9 @@ monotonic nonzero context ID, writes it once inside the ROI, and writes the
 quantized current epoch once per outer vertex/frontier item. It clears both CSRs
 at context end and refuses ID reuse; exhaustion fails closed rather than
 aliasing stale resident metadata. Explicit drain/invalidation for systems that
-choose to reuse IDs and the architectural Sniper epoch channel remain pending. Serialized
+choose to reuse IDs remain pending. Sniper does not execute the RISC-V CSRs,
+but its transport-matched model now snapshots a per-core current epoch and
+monotonic ROI context on the exact governed-load marker. Serialized
 X86/Timing compatibility publishes the same monotonic ID through its m5 hint
 channel and clears it at the ordered context end. Older demand loads have
 completed; any late prefetch fill fails closed on context mismatch. This
@@ -350,7 +352,7 @@ K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
 | K2 distance | shared selector | shared selector | shared selector |
 | Tier delivery | masked property access | K2-M and K2-I implemented; O3 Request binding; serialized scale fallback | transport-matched K2-M with an identical explicit marker around each edge-governed destination load |
 | Online selection | exact set index | gem5 replaceable-entry set | Sniper cache-set index |
-| Epoch delivery | masked property access | K2-M exact Request proven for PR and compact SSSP O3; all five pass serialized scale gate | exact governed-load association; sideband supplies the line-min K2 payload, while the current epoch remains the modeled outer-vertex channel |
+| Epoch delivery | masked property access | K2-M exact Request proven for PR and compact SSSP O3; all five pass serialized scale gate | exact governed-load association with bind-time current-epoch/context snapshot; sideband supplies the line-min K2 payload |
 | StreamShield | preserve LLC hits, suppress miss insertion | request flag clears LLC `allocOnFill` | preserve NUCA hit path, suppress miss insertion |
 | Address stability | aligned properties + fixed indexed record streams | aligned properties/records | aligned properties/records |
 | Purpose | functional authority | cycle-accurate ISA confirmation | scale/timing confirmation |

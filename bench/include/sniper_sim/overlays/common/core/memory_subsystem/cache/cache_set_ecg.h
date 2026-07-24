@@ -37,7 +37,8 @@ class CacheSetECG : public CacheSet
       // the line's vertices for a delivered epoch (linemin => all agree).
       bool lookupLineEcgEpochPair(IntPtr line_addr,
             UInt8& tier, UInt16& first, UInt16& second,
-            UInt8& count) const;
+            UInt8& count, UInt16& current_epoch,
+            UInt16& context_id) const;
 
       const String m_cfgname;
       const core_id_t m_core_id;
@@ -55,6 +56,7 @@ class CacheSetECG : public CacheSet
       UInt16* m_ecg_epoch2;       // Schedule-2 second next-ref epoch
       UInt8* m_ecg_epoch_count;   // 0=unstamped, 1=single, 2=pair
       bool* m_ecg_epoch_valid;    // epoch delivered for this line (0 is valid)
+      UInt16* m_ecg_context_id;   // graph-generation context for the stamp
       UInt64* m_last_touch;        // true recency, smaller == older (cache_sim/gem5 parity)
       UInt64 m_access_tick;
       UInt8 m_replacement_pointer;
@@ -67,6 +69,8 @@ class CacheSetECG : public CacheSet
       UInt8 m_pending_exact_k2_tier;
       UInt16 m_pending_exact_k2_first;
       UInt16 m_pending_exact_k2_second;
+      UInt16 m_pending_request_current_epoch;
+      UInt16 m_pending_request_context_id;
       UInt32 m_set_index;
       UInt64 m_llc_size_bytes;
       std::string m_sideband_path;

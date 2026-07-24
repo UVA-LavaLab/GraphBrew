@@ -60,7 +60,11 @@ bool lookupEcgEpochPair(uint32_t core_id, uint32_t vertex,
 void recordBoundK2Load(uint32_t core_id, uint64_t address);
 void clearBoundK2Load(uint32_t core_id);
 bool consumeBoundK2Load(
-    uint32_t core_id, uint64_t line_addr, uint64_t line_size);
+    uint32_t core_id, uint64_t line_addr, uint64_t line_size,
+    uint16_t* current_epoch = nullptr, uint16_t* context_id = nullptr);
+void beginEcgContext();
+void endEcgContext();
+uint16_t currentEcgContextId();
 
 enum class ECGMode : uint8_t {
     DBG_PRIMARY,
@@ -191,6 +195,7 @@ struct GraphCacheContext {
     void setCacheLineSize(uint64_t line_size);
 
     uint32_t currentVertexForPopt(uint32_t core_id) const;
+    uint16_t currentEcgEpoch(uint32_t core_id) const;
     void updateVertexFromAddr(uint64_t addr, uint32_t core_id) const;
     // Vertex owning a property-region address (UINT32_MAX if not property data).
     uint32_t vertexForAddress(uint64_t addr) const;

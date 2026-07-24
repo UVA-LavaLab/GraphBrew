@@ -210,6 +210,8 @@ CacheSetECG::CacheSetECG(
    , m_pending_exact_k2_tier(0)
    , m_pending_exact_k2_first(0)
    , m_pending_exact_k2_second(0)
+   , m_pending_request_current_epoch(0)
+   , m_pending_request_context_id(0)
    , m_set_index(0)
    , m_llc_size_bytes(0)
    , m_sideband_path(envOrDefault("SNIPER_GRAPHBREW_CTX", "/tmp/sniper_graphbrew_ctx.json"))
@@ -224,6 +226,7 @@ CacheSetECG::CacheSetECG(
    m_ecg_epoch2 = new UInt16[m_associativity];
    m_ecg_epoch_count = new UInt8[m_associativity];
    m_ecg_epoch_valid = new bool[m_associativity];
+   m_ecg_context_id = new UInt16[m_associativity];
    m_last_touch = new UInt64[m_associativity];
    for (UInt32 way = 0; way < m_associativity; way++) {
       m_rrip_bits[way] = m_rrip_insert;
@@ -235,6 +238,7 @@ CacheSetECG::CacheSetECG(
       m_ecg_epoch2[way] = 0;
       m_ecg_epoch_count[way] = 0;
       m_ecg_epoch_valid[way] = false;
+      m_ecg_context_id[way] = 0;
       m_last_touch[way] = 0;
    }
    if (Sim()->getCfg()->hasKey(cfgname + "/cache_size", core_id)) {
@@ -266,6 +270,7 @@ CacheSetECG::~CacheSetECG()
    delete [] m_ecg_epoch2;
    delete [] m_ecg_epoch_count;
    delete [] m_ecg_epoch_valid;
+   delete [] m_ecg_context_id;
    delete [] m_last_touch;
 }
 
@@ -297,21 +302,27 @@ CacheSetECG::prepareInsertion(IntPtr addr, UInt32 set_index)
    tryLoadContext();
    m_pending_insert_addr = addr & ~(IntPtr(m_blocksize) - 1);
    m_pending_exact_k2_valid = false;
+   m_pending_request_current_epoch = 0;
+   m_pending_request_context_id = 0;
    if (sniperK2ExactBindEnabled()) {
       const uint32_t requester_core = requesterCoreOr(m_core_id);
+      UInt16 current_epoch = 0, context_id = 0;
       if (graphbrew::sniper::consumeBoundK2Load(
               requester_core,
               static_cast<uint64_t>(m_pending_insert_addr),
-              m_blocksize)) {
+              m_blocksize, &current_epoch, &context_id)) {
          UInt8 tier = 0;
          UInt16 first = 0, second = 0;
-         if (graphbrew::sniper::globalContext().lookupFusedK2Pair(
+         if (context_id != 0 &&
+             graphbrew::sniper::globalContext().lookupFusedK2Pair(
                  static_cast<uint64_t>(m_pending_insert_addr),
                  requester_core, tier, first, second)) {
             m_pending_exact_k2_valid = true;
             m_pending_exact_k2_tier = tier;
             m_pending_exact_k2_first = first;
             m_pending_exact_k2_second = second;
+            m_pending_request_current_epoch = current_epoch;
+            m_pending_request_context_id = context_id;
          }
       }
    }
@@ -320,8 +331,9 @@ CacheSetECG::prepareInsertion(IntPtr addr, UInt32 set_index)
       const char* value = std::getenv("ECG_SET_DUELING");
       return value && value[0] && std::string(value) != "0";
    }();
-   if (set_dueling && graphbrew::sniper::hasCurrentVertexHint(
-         requesterCoreOr(m_core_id)))
+   if (set_dueling &&
+       (!sniperK2ExactBindEnabled() || m_pending_exact_k2_valid) &&
+       graphbrew::sniper::hasCurrentVertexHint(requesterCoreOr(m_core_id)))
       ecg_policy::globalOnlineDuelingSelector().recordMiss(set_index);
    m_has_pending_insert = true;
    graphbrew::sniper::globalContext().updateVertexFromAddr(
@@ -369,8 +381,11 @@ CacheSetECG::poptHint(IntPtr addr) const
 bool
 CacheSetECG::lookupLineEcgEpochPair(
       IntPtr line_addr, UInt8& tier,
-      UInt16& first, UInt16& second, UInt8& count) const
+      UInt16& first, UInt16& second, UInt8& count,
+      UInt16& current_epoch, UInt16& context_id) const
 {
+   current_epoch = 0;
+   context_id = 0;
    const auto& context = graphbrew::sniper::globalContext();
    if (!context.isEcgEpochData(static_cast<uint64_t>(line_addr)))
       return false;
@@ -379,10 +394,10 @@ CacheSetECG::lookupLineEcgEpochPair(
    if (sniperK2ExactBindEnabled()) {
       if (!graphbrew::sniper::consumeBoundK2Load(
               requester_core, static_cast<uint64_t>(line_addr),
-              m_blocksize)) {
+              m_blocksize, &current_epoch, &context_id)) {
          return false;
       }
-      if (context.lookupFusedK2Pair(
+      if (context_id != 0 && context.lookupFusedK2Pair(
               static_cast<uint64_t>(line_addr), requester_core,
               tier, first, second)) {
          count = 2;
@@ -400,6 +415,7 @@ CacheSetECG::lookupLineEcgEpochPair(
    }
    uint32_t v0 = context.vertexForAddress(static_cast<uint64_t>(line_addr));
    if (v0 == UINT32_MAX) return false;
+   current_epoch = context.currentEcgEpoch(requester_core);
    uint64_t sequence = 0;
    return graphbrew::sniper::lookupEcgEpochPair(
        requester_core, v0, tier, first, second, count, sequence);
@@ -429,23 +445,28 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       m_ecg_epoch2[way] = 0;
       m_ecg_epoch_count[way] = 0;
       m_ecg_epoch_valid[way] = false;
+      m_ecg_context_id[way] = 0;
       const uint32_t requester_core = requesterCoreOr(m_core_id);
       if (m_property_lines[way] &&
           graphbrew::sniper::hasCurrentVertexHint(requester_core)) {
          UInt8 tier = 0;
          UInt16 first = 0, second = 0;
          UInt8 count = 0;
+         UInt16 current_epoch = 0, context_id = 0;
          const bool got_exact =
             sniperK2ExactBindEnabled() && m_pending_exact_k2_valid;
          const bool got_epoch = got_exact ||
             (!sniperK2ExactBindEnabled() &&
              lookupLineEcgEpochPair(
-                m_pending_insert_addr, tier, first, second, count));
+                m_pending_insert_addr, tier, first, second, count,
+                current_epoch, context_id));
          if (got_exact) {
             tier = m_pending_exact_k2_tier;
             first = m_pending_exact_k2_first;
             second = m_pending_exact_k2_second;
             count = 2;
+            current_epoch = m_pending_request_current_epoch;
+            context_id = m_pending_request_context_id;
          }
          if (got_epoch) {
             if (tier != 0) m_dbg_tiers[way] = tier;
@@ -453,6 +474,7 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
             m_ecg_epoch2[way] = second;
             m_ecg_epoch_count[way] = count;
             m_ecg_epoch_valid[way] = true;
+            m_ecg_context_id[way] = context_id;
          }
       }
 
@@ -475,6 +497,8 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
       m_last_touch[way] = ++m_access_tick;
       m_has_pending_insert = false;
       m_pending_exact_k2_valid = false;
+      m_pending_request_current_epoch = 0;
+      m_pending_request_context_id = 0;
       return;
    }
 
@@ -487,6 +511,7 @@ CacheSetECG::applyPendingInsertion(UInt32 way)
    m_ecg_epoch2[way] = 0;
    m_ecg_epoch_count[way] = 0;
    m_ecg_epoch_valid[way] = false;
+   m_ecg_context_id[way] = 0;
    m_last_touch[way] = ++m_access_tick;
 }
 
@@ -723,11 +748,14 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       return findSRRIPVictim(cntlr);
 
    const uint32_t ne = context.edge_epoch_count ? context.edge_epoch_count : 256u;
-   const uint32_t N = context.topology.num_vertices;
    uint32_t requester_core = requesterCoreOr(m_core_id);
-   const uint32_t srcv = context.currentVertexForPopt(requester_core);
-   const uint32_t cur_ep = (N > 0)
-      ? static_cast<uint32_t>((static_cast<uint64_t>(srcv) * ne) / N) : 0u;
+   const bool exact_mode = sniperK2ExactBindEnabled();
+   const bool request_bound =
+      exact_mode && m_pending_exact_k2_valid &&
+      m_pending_request_context_id != 0;
+   const uint32_t cur_ep = request_bound
+      ? std::min<uint32_t>(m_pending_request_current_epoch, ne - 1)
+      : context.currentEcgEpoch(requester_core);
 
    bool epoch_property[64] = {};
    for (UInt32 way = 0; way < m_associativity; way++) {
@@ -745,7 +773,12 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
                           static_cast<uint64_t>(m_line_addrs[w]), requester_core),
                       uint32_t(127));
    };
-   auto stamped = [&](UInt32 w) { return isProp(w) && (!fatLoad || m_ecg_epoch_valid[w]); };
+   auto stamped = [&](UInt32 w) {
+      if (!isProp(w) || (fatLoad && !m_ecg_epoch_valid[w])) return false;
+      if (!exact_mode) return true;
+      return request_bound &&
+         m_ecg_context_id[w] == m_pending_request_context_id;
+   };
    // ECG_EVICT_TRACE=N: emit the first N L3 evictions in cache_sim's
    // [EVICT L3 ...] format so scripts/.../verify_ecg.py asserts each victim
    // obeys the variant spec. The faithful path prints the real stored epoch,
@@ -892,13 +925,16 @@ CacheSetECG::updateReplacementIndex(UInt32 accessed_index)
       UInt8 tier = 0;
       UInt16 first = 0, second = 0;
       UInt8 count = 0;
+      UInt16 current_epoch = 0, context_id = 0;
       if (lookupLineEcgEpochPair(
-             m_line_addrs[accessed_index], tier, first, second, count)) {
+             m_line_addrs[accessed_index], tier, first, second, count,
+             current_epoch, context_id)) {
          if (tier != 0) m_dbg_tiers[accessed_index] = tier;
          m_ecg_epoch[accessed_index] = first;
          m_ecg_epoch2[accessed_index] = second;
          m_ecg_epoch_count[accessed_index] = count;
          m_ecg_epoch_valid[accessed_index] = true;
+         m_ecg_context_id[accessed_index] = context_id;
       }
    }
    if (m_property_lines[accessed_index] && context.loaded) {

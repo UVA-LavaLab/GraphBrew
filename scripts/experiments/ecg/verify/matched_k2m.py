@@ -44,6 +44,10 @@ def validate(
             errors.append(f"{kernel}: LRU exact binding is not enabled")
         if k2.get("sniper_k2_exact_bind") != "1":
             errors.append(f"{kernel}: K2 exact binding is not enabled")
+        if lru.get("sniper_k2_epoch_context_bound") != "1":
+            errors.append(f"{kernel}: LRU epoch/context binding is not enabled")
+        if k2.get("sniper_k2_epoch_context_bound") != "1":
+            errors.append(f"{kernel}: K2 epoch/context binding is not enabled")
         if k2.get("ecg_isa_variant") != "mask":
             errors.append(f"{kernel}: K2 ISA variant is not mask")
         if lru.get("sniper_workload") != "sg_kernel":

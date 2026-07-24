@@ -305,6 +305,33 @@ def ensure_k2_bind_magic_handler(path: Path, dry_run: bool) -> None:
     _write_overlay_text(path, text.replace(old, new, 1), dry_run)
 
 
+def ensure_ecg_context_lifecycle_hooks(path: Path, dry_run: bool) -> None:
+    text = _overlay_text(path, dry_run)
+    if "beginEcgContext();" not in text:
+        old = """      case SIM_CMD_ROI_START:
+         Sim()->getHooksManager()->callHooks(HookType::HOOK_APPLICATION_ROI_BEGIN, 0);
+"""
+        new = """      case SIM_CMD_ROI_START:
+         graphbrew::sniper::beginEcgContext();
+         Sim()->getHooksManager()->callHooks(HookType::HOOK_APPLICATION_ROI_BEGIN, 0);
+"""
+        if old not in text:
+            raise RuntimeError(f"Cannot locate ROI-start hook in {path}")
+        text = text.replace(old, new, 1)
+    if "endEcgContext();" not in text:
+        old = """      case SIM_CMD_ROI_END:
+         Sim()->getHooksManager()->callHooks(HookType::HOOK_APPLICATION_ROI_END, 0);
+"""
+        new = """      case SIM_CMD_ROI_END:
+         Sim()->getHooksManager()->callHooks(HookType::HOOK_APPLICATION_ROI_END, 0);
+         graphbrew::sniper::endEcgContext();
+"""
+        if old not in text:
+            raise RuntimeError(f"Cannot locate ROI-end hook in {path}")
+        text = text.replace(old, new, 1)
+    _write_overlay_text(path, text, dry_run)
+
+
 def overlay_source_files() -> list[Path]:
     if not SNIPER_OVERLAY_DIR.exists():
         raise SystemExit(f"Sniper overlay directory missing: {SNIPER_OVERLAY_DIR}")
@@ -1407,6 +1434,7 @@ args.dry_run,
 ["GRAPHBREW_ECG_EXTRACT2_WORK_ID", "GRAPHBREW_K2_BIND_WORK_ID"],
     )
     ensure_k2_bind_magic_handler(magic_server, args.dry_run)
+    ensure_ecg_context_lifecycle_hooks(magic_server, args.dry_run)
     replace_once(
         magic_server,
         """         if (arg0 == graphbrew::sniper::GRAPHBREW_SET_VERTEX_WORK_ID)
