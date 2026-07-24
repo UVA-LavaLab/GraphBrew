@@ -480,6 +480,8 @@ The physical JSON must provide each unit's instance count,
 `activations_per_access`, fixed/way-scaled classification, and an integrated
 request-path critical delay. Missing counts or activation counts greater than
 instances fail validation.
+Do not freeze 1-core or 8-core totals yet; machine-wide counts remain
+parameterized until the target hardware is explicitly defined.
 
 After external CACTI and synthesis runs, create and fill the measured physical
 input schema:

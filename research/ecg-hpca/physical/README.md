@@ -76,5 +76,7 @@ optional registered recency rank state. Final characterization must scale them
 using the target machine's actual counts. `k2_physical.py` requires those
 instance counts, per-access activations, and the integrated request-path
 critical delay; a single per-unit value cannot pass as machine-wide cost.
+Machine-wide counts intentionally remain parameterized until a concrete target
+microarchitecture is defined.
 Existing MSHR address matching, allocation/arbitration, and queue control are
 baseline resources and are not recharged to K2.

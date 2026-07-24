@@ -104,6 +104,7 @@ def manifest() -> dict[str, Any]:
             },
         },
         "request_path_units": {
+            "machine_wide_counts_status": "parameterized_unfrozen",
             "sources": [
                 source_entry(REQUEST_RTL),
                 source_entry(RECENCY_RTL),

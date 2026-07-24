@@ -70,7 +70,7 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
   allocation, and optional registered recency ranks. Total request-path cost
   requires explicit machine counts, per-access activations, an integrated
   critical delay, and measured 32 nm reports; the schema rejects count-free
-  per-unit inputs.
+  per-unit inputs. Machine-wide counts are intentionally not frozen yet.
 - The reviewer three-cost table is generated from serialized graph headers and
   runner-identical formulas: extra bytes per active edge stream, 33/49 K2
   metadata bits per line, and size-correct P-OPT reserved data ways.

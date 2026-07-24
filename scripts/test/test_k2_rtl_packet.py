@@ -20,6 +20,8 @@ def test_rtl_packet_hashes_synthesis_inputs(tmp_path: Path):
     assert payload["replacement_path"]["top"] == "k2_replacement_path"
     assert payload["replacement_path"]["parameters"]["EPOCH_BITS"] == 15
     assert payload["request_path_units"]["payload_bits"] == 95
+    assert payload["request_path_units"]["machine_wide_counts_status"] == (
+        "parameterized_unfrozen")
     assert payload["request_path_units"]["tops"]["mshr_slot"] == (
         "k2_request_state_slot")
     assert payload["ecc"]["area_instances"] == {
