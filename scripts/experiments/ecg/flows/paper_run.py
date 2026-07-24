@@ -584,6 +584,11 @@ def make_roi_job(
         command.extend(["--sniper-omp-wait-policy", str(settings.get("sniper_omp_wait_policy", "passive"))])
         if settings.get("sniper_roi_icount"):
             command.extend(["--sniper-roi-icount", str(settings.get("sniper_roi_icount"))])
+        if settings.get("sniper_semantic_edge_limit"):
+            command.extend([
+                "--sniper-semantic-edge-limit",
+                str(settings.get("sniper_semantic_edge_limit")),
+            ])
         command.extend(["--sniper-base-config", str(settings.get("sniper_base_config", "graphbrew/graph_sniper"))])
         command.extend(["--sniper-address-domain", str(settings.get("sniper_address_domain", "virtual"))])
         if settings.get("require_sniper_aslr_disable"):

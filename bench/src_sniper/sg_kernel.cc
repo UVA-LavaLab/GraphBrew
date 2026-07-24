@@ -1,8 +1,10 @@
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
 #include <cstdint>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <queue>
@@ -32,6 +34,80 @@
 // fixed; roi_matrix.py keeps it guarded by default.
 
 namespace {
+
+struct SemanticEdgeLimitReached {};
+
+class SemanticEdgeBudget {
+  public:
+    SemanticEdgeBudget()
+    {
+        const char* value = std::getenv("SNIPER_SEMANTIC_EDGE_LIMIT");
+        if (!value) return;
+        if (*value == '\0') {
+            std::fprintf(stderr,
+                         "[FATAL] empty SNIPER_SEMANTIC_EDGE_LIMIT\n");
+            std::abort();
+        }
+        for (const char* digit = value; *digit != '\0'; ++digit) {
+            if (*digit < '0' || *digit > '9') {
+                std::fprintf(
+                    stderr,
+                    "[FATAL] invalid SNIPER_SEMANTIC_EDGE_LIMIT=%s\n",
+                    value);
+                std::abort();
+            }
+        }
+        char* end = nullptr;
+        errno = 0;
+        const unsigned long long parsed = std::strtoull(value, &end, 10);
+        if (errno != 0 || end == value || *end != '\0') {
+            std::fprintf(stderr,
+                         "[FATAL] invalid SNIPER_SEMANTIC_EDGE_LIMIT=%s\n",
+                         value);
+            std::abort();
+        }
+        limit_ = parsed;
+    }
+
+    void consume()
+    {
+        if (limit_ == 0) return;
+        if (visits_ >= limit_) {
+            truncated_ = true;
+            finish_roi();
+            throw SemanticEdgeLimitReached{};
+        }
+        ++visits_;
+    }
+
+    void finish_roi()
+    {
+        if (limit_ == 0 || roi_finished_) return;
+        SNIPER_ROI_END();
+        roi_finished_ = true;
+    }
+
+    bool enabled() const { return limit_ != 0; }
+
+    void report(const char* benchmark) const
+    {
+        if (limit_ == 0) return;
+        std::fprintf(
+            stderr,
+            "[SEMANTIC-ROI benchmark=%s edge_visits=%llu limit=%llu "
+            "truncated=%d]\n",
+            benchmark,
+            static_cast<unsigned long long>(visits_),
+            static_cast<unsigned long long>(limit_),
+            truncated_ ? 1 : 0);
+    }
+
+  private:
+    uint64_t limit_ = 0;
+    uint64_t visits_ = 0;
+    bool truncated_ = false;
+    bool roi_finished_ = false;
+};
 
 using ScoreT = float;
 constexpr float kDamp = 0.85f;
@@ -501,8 +577,8 @@ int run_pr(const Graph& graph, int max_iters) {
     uint64_t kernel_dedup_count = 0;
     uint64_t emit_since_clear = 0;
 
-    SNIPER_ROI_BEGIN();
-
+    SemanticEdgeBudget semantic_edges;
+    auto execute_roi = [&](auto&& consume_edge, auto&& finish_semantic_roi) {
     for (int iter = 0; iter < max_iters; ++iter) {
         for (NodeID node = 0; node < graph.num_nodes(); ++node) {
             SNIPER_SET_VERTEX(node);
@@ -514,6 +590,7 @@ int run_pr(const Graph& graph, int max_iters) {
                 const uint64_t end = epoch_pair_off[node + 1];
                 if (no_delivery_pair_loop) {
                     for (uint64_t pos = begin; pos < end; ++pos) {
+                        consume_edge();
                         const uint64_t rec = epoch_pair_flat[pos];
                         const NodeID neighbor = static_cast<NodeID>(
                             ecg_epoch::extractEpochPairDest(rec));
@@ -523,6 +600,7 @@ int run_pr(const Graph& graph, int max_iters) {
                     }
                 } else {
                     for (uint64_t pos = begin; pos < end; ++pos) {
+                        consume_edge();
                         const uint64_t rec = epoch_pair_flat[pos];
                         const NodeID neighbor = static_cast<NodeID>(
                             ecg_epoch::extractEpochPairDest(rec));
@@ -546,6 +624,7 @@ int run_pr(const Graph& graph, int max_iters) {
                 const uint64_t begin = epoch_packed_off[node];
                 const uint64_t end = epoch_packed_off[node + 1];
                 for (uint64_t pos = begin; pos < end; ++pos) {
+                    consume_edge();
                     const uint32_t rec = epoch_packed_flat[pos];
                     const NodeID neighbor =
                         static_cast<NodeID>(rec & epoch_pack_id_mask);
@@ -580,6 +659,7 @@ int run_pr(const Graph& graph, int max_iters) {
                 const auto& src_masks = in_edge_masks_by_src[node];
                 const size_t num_masks = src_masks.size();
                 for (size_t edge_idx = 0; edge_idx < num_masks; ++edge_idx) {
+                    consume_edge();
                     const uint64_t mask = src_masks[edge_idx];
                     NodeID neighbor = static_cast<NodeID>(ecg_mode6::extractDest(mask));
                     if (neighbor < 0 || neighbor >= graph.num_nodes()) continue;
@@ -674,7 +754,10 @@ int run_pr(const Graph& graph, int max_iters) {
                     SNIPER_ECG_PFX_TARGET(pfx_target);
                 }
                 size_t edge_pos = 0;
-                for (NodeID neighbor : graph.in_neigh(node)) {
+                auto neighbors = graph.in_neigh(node);
+                for (auto it = neighbors.begin(); it != neighbors.end(); ++it) {
+                    consume_edge();
+                    const NodeID neighbor = *it;
                     if (ecg_extract_on &&
                         static_cast<size_t>(node) < in_edge_epochs_by_src.size()) {
                         const auto& eps = in_edge_epochs_by_src[node];
@@ -692,7 +775,22 @@ int run_pr(const Graph& graph, int max_iters) {
             contrib[node] = degree > 0 ? scores[node] / degree : 0.0f;
         }
     }
-    SNIPER_ROI_END();
+    finish_semantic_roi();
+    };
+    if (semantic_edges.enabled()) {
+        SNIPER_ROI_BEGIN();
+        try {
+            execute_roi(
+                [&] { semantic_edges.consume(); },
+                [&] { semantic_edges.finish_roi(); });
+        } catch (const SemanticEdgeLimitReached&) {
+        }
+    } else {
+        SNIPER_ROI_BEGIN();
+        execute_roi([] {}, [] {});
+        SNIPER_ROI_END();
+    }
+    semantic_edges.report("pr");
 
     if (ecg_enabled && ecg_pfx_mode == 6) {
         std::printf("[sniper-sg ECG mode 6] emit=%llu kernel-dedup-skip=%llu (window=%d)\n",
@@ -851,8 +949,9 @@ int run_bfs(const Graph& graph, NodeID source) {
     for (NodeID node = 0; node < graph.num_nodes(); ++node)
         warm_parent[node] = node == source ? source : -1;
 
-    SNIPER_ROI_BEGIN();
+    SemanticEdgeBudget semantic_edges;
     std::queue<NodeID> frontier;
+    auto execute_roi = [&](auto&& consume_edge, auto&& finish_semantic_roi) {
     frontier.push(source);
     while (!frontier.empty()) {
         NodeID node = frontier.front();
@@ -870,6 +969,7 @@ int run_bfs(const Graph& graph, NodeID source) {
             const uint64_t end = bfs_pair_off[node + 1];
             if (no_delivery_pair_loop) {
                 for (uint64_t pos = begin; pos < end; ++pos) {
+                    consume_edge();
                     const uint64_t rec = bfs_pair_flat[pos];
                     const NodeID neighbor = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(rec));
@@ -883,6 +983,7 @@ int run_bfs(const Graph& graph, NodeID source) {
                 }
             } else {
                 for (uint64_t pos = begin; pos < end; ++pos) {
+                    consume_edge();
                     const uint64_t rec = bfs_pair_flat[pos];
                     const NodeID neighbor = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(rec));
@@ -907,6 +1008,7 @@ int run_bfs(const Graph& graph, NodeID source) {
             const uint64_t begin = bfs_packed_off[node];
             const uint64_t end = bfs_packed_off[node + 1];
             for (uint64_t pos = begin; pos < end; ++pos) {
+                consume_edge();
                 const uint32_t rec = bfs_packed_flat[pos];
                 const NodeID neighbor =
                     static_cast<NodeID>(rec & bfs_pack_id_mask);
@@ -924,7 +1026,10 @@ int run_bfs(const Graph& graph, NodeID source) {
             (ecg_extract_on && static_cast<size_t>(node) < out_edge_epochs.size())
                 ? &out_edge_epochs[node] : nullptr;
         size_t edge_pos = 0;
-        for (NodeID neighbor : graph.out_neigh(node)) {
+        auto neighbors = graph.out_neigh(node);
+        for (auto it = neighbors.begin(); it != neighbors.end(); ++it) {
+            consume_edge();
+            const NodeID neighbor = *it;
             // Deliver neighbor's epoch BEFORE reading parent[neighbor] so cache_set_ecg
             // stamps the property line on fill.
             if (eps) {
@@ -939,7 +1044,22 @@ int run_bfs(const Graph& graph, NodeID source) {
             }
         }
     }
-    SNIPER_ROI_END();
+    finish_semantic_roi();
+    };
+    if (semantic_edges.enabled()) {
+        SNIPER_ROI_BEGIN();
+        try {
+            execute_roi(
+                [&] { semantic_edges.consume(); },
+                [&] { semantic_edges.finish_roi(); });
+        } catch (const SemanticEdgeLimitReached&) {
+        }
+    } else {
+        SNIPER_ROI_BEGIN();
+        execute_roi([] {}, [] {});
+        SNIPER_ROI_END();
+    }
+    semantic_edges.report("bfs");
 
     int64_t reached = 0;
     for (NodeID value : parent) reached += value >= 0 ? 1 : 0;
@@ -1099,8 +1219,9 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
         std::fprintf(stderr,
                      "[K2_EXACT_BIND] SSSP edge-governed dist[dest] binding ACTIVE\n");
 
-    SNIPER_ROI_BEGIN();
+    SemanticEdgeBudget semantic_edges;
     std::queue<NodeID> frontier;
+    auto execute_roi = [&](auto&& consume_edge, auto&& finish_semantic_roi) {
     frontier.push(source);
     in_queue[source] = 1;
     auto relax_edges = [&](
@@ -1108,7 +1229,10 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             auto&& before_property_load,
             auto&& after_property_load) {
         size_t edge_pos = 0;
-        for (WNode edge : graph.out_neigh(node)) {
+        auto edges = graph.out_neigh(node);
+        for (auto it = edges.begin(); it != edges.end(); ++it) {
+            consume_edge();
+            const WNode edge = *it;
             before_property_load(edge, edge_pos);
             const WeightT candidate = source_dist + edge.w;
             const WeightT old_dist =
@@ -1218,7 +1342,22 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
                 [](WNode, size_t) {}, [](WNode, size_t) {});
         }
     }
-    SNIPER_ROI_END();
+    finish_semantic_roi();
+    };
+    if (semantic_edges.enabled()) {
+        SNIPER_ROI_BEGIN();
+        try {
+            execute_roi(
+                [&] { semantic_edges.consume(); },
+                [&] { semantic_edges.finish_roi(); });
+        } catch (const SemanticEdgeLimitReached&) {
+        }
+    } else {
+        SNIPER_ROI_BEGIN();
+        execute_roi([] {}, [] {});
+        SNIPER_ROI_END();
+    }
+    semantic_edges.report("sssp");
 
     int64_t reached = 0;
     uint64_t checksum = 0;
@@ -1383,7 +1522,8 @@ int run_bc(const Graph& graph, int num_iters) {
                      "[K2_EXACT_BIND] BC edge-governed depth/path_counts[dest] binding ACTIVE\n");
 
     if (num_iters < 1) num_iters = 1;
-    SNIPER_ROI_BEGIN();
+    SemanticEdgeBudget semantic_edges;
+    auto execute_roi = [&](auto&& consume_edge, auto&& finish_semantic_roi) {
     for (int iter = 0; iter < num_iters; iter++) {
         NodeID source = static_cast<NodeID>(iter % graph.num_nodes());
         for (NodeID n = 0; n < graph.num_nodes(); n++) {
@@ -1415,6 +1555,7 @@ int run_bc(const Graph& graph, int num_iters) {
                     if (no_delivery_pair_loop) {
                         for (uint64_t pos = pair_off[u];
                              pos < pair_off[u + 1]; ++pos) {
+                            consume_edge();
                             const uint64_t record = pair_flat[pos];
                             const NodeID v = static_cast<NodeID>(
                                 ecg_epoch::extractEpochPairDest(record));
@@ -1435,6 +1576,7 @@ int run_bc(const Graph& graph, int num_iters) {
                     } else {
                         for (uint64_t pos = pair_off[u];
                              pos < pair_off[u + 1]; ++pos) {
+                            consume_edge();
                             const uint64_t record = pair_flat[pos];
                             const NodeID v = static_cast<NodeID>(
                                 ecg_epoch::extractEpochPairDest(record));
@@ -1459,7 +1601,11 @@ int run_bc(const Graph& graph, int num_iters) {
                     }
                 } else {
                     size_t edge_pos = 0;
-                    for (NodeID v : graph.out_neigh(u)) {
+                    auto neighbors = graph.out_neigh(u);
+                    for (auto it = neighbors.begin();
+                         it != neighbors.end(); ++it) {
+                        consume_edge();
+                        const NodeID v = *it;
                         deliver(u, edge_pos, v);
                         ++edge_pos;
                         visit(v, depth[v]);
@@ -1476,7 +1622,11 @@ int run_bc(const Graph& graph, int num_iters) {
         for (int d = static_cast<int>(levels.size()) - 1; d > 0; d--) {
             for (NodeID w : levels[d]) {
                 ScoreT delta_w = 0;
-                for (NodeID v : graph.out_neigh(w)) {
+                auto neighbors = graph.out_neigh(w);
+                for (auto it = neighbors.begin();
+                     it != neighbors.end(); ++it) {
+                    consume_edge();
+                    const NodeID v = *it;
                     if (depth[v] == depth[w] + 1)
                         delta_w += static_cast<ScoreT>(path_counts[w]) /
                                    path_counts[v] * (1.0f + deltas[v]);
@@ -1486,7 +1636,22 @@ int run_bc(const Graph& graph, int num_iters) {
             }
         }
     }
-    SNIPER_ROI_END();
+    finish_semantic_roi();
+    };
+    if (semantic_edges.enabled()) {
+        SNIPER_ROI_BEGIN();
+        try {
+            execute_roi(
+                [&] { semantic_edges.consume(); },
+                [&] { semantic_edges.finish_roi(); });
+        } catch (const SemanticEdgeLimitReached&) {
+        }
+    } else {
+        SNIPER_ROI_BEGIN();
+        execute_roi([] {}, [] {});
+        SNIPER_ROI_END();
+    }
+    semantic_edges.report("bc");
 
     double checksum = 0;
     for (ScoreT s : scores) checksum += s;
@@ -1595,7 +1760,9 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
         std::fprintf(stderr,
                      "[K2_EXACT_BIND] CC comp[dest] binding ACTIVE\n");
 
-    SNIPER_ROI_BEGIN();
+    SemanticEdgeBudget semantic_edges;
+    std::unordered_map<NodeID, int64_t> count;
+    auto execute_roi = [&](auto&& consume_edge, auto&& finish_semantic_roi) {
     // Phase 1: sample the r-th out-neighbour of each vertex, compress.
     for (int r = 0; r < neighbor_rounds; r++) {
         for (NodeID u = 0; u < graph.num_nodes(); u++) {
@@ -1603,6 +1770,7 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
             if (pair_ok &&
                 static_cast<size_t>(u + 1) < pair_off.size() &&
                 pair_off[u] + static_cast<uint64_t>(r) < pair_off[u + 1]) {
+                consume_edge();
                 const uint64_t record =
                     pair_flat[pair_off[u] + static_cast<uint64_t>(r)];
                 const NodeID v = static_cast<NodeID>(
@@ -1625,6 +1793,7 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
                 auto it = out_neigh.begin();
                 for (int i = 0; i < r && it != out_neigh.end(); ++i, ++it) {}
                 if (it != out_neigh.end()) {
+                    consume_edge();
                     deliver(u, static_cast<size_t>(r), *it);
                     cc_link(u, *it, comp);
                 }
@@ -1635,7 +1804,6 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
     }
 
     // Most frequent component = the giant component skipped in phase 2.
-    std::unordered_map<NodeID, int64_t> count;
     for (NodeID n = 0; n < graph.num_nodes(); n++) count[comp[n]]++;
     NodeID largest = graph.num_nodes() > 0 ? comp[0] : 0;
     int64_t largest_count = -1;
@@ -1650,6 +1818,7 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
         if (pair_ok && static_cast<size_t>(u + 1) < pair_off.size()) {
             if (no_delivery_pair_loop) {
                 for (uint64_t pos = pair_off[u]; pos < pair_off[u + 1]; ++pos) {
+                    consume_edge();
                     const uint64_t record = pair_flat[pos];
                     const NodeID v = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(record));
@@ -1659,6 +1828,7 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
                 }
             } else {
                 for (uint64_t pos = pair_off[u]; pos < pair_off[u + 1]; ++pos) {
+                    consume_edge();
                     const uint64_t record = pair_flat[pos];
                     const NodeID v = static_cast<NodeID>(
                         ecg_epoch::extractEpochPairDest(record));
@@ -1673,7 +1843,10 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
             }
         } else {
             size_t edge_pos = 0;
-            for (NodeID v : graph.out_neigh(u)) {
+            auto neighbors = graph.out_neigh(u);
+            for (auto it = neighbors.begin(); it != neighbors.end(); ++it) {
+                consume_edge();
+                const NodeID v = *it;
                 deliver(u, edge_pos, v);
                 ++edge_pos;
                 cc_link(u, v, comp);
@@ -1682,7 +1855,22 @@ int run_cc(const Graph& graph, int neighbor_rounds) {
     }
     SNIPER_CLEAR_VERTEX();
     cc_compress(graph, comp);
-    SNIPER_ROI_END();
+    finish_semantic_roi();
+    };
+    if (semantic_edges.enabled()) {
+        SNIPER_ROI_BEGIN();
+        try {
+            execute_roi(
+                [&] { semantic_edges.consume(); },
+                [&] { semantic_edges.finish_roi(); });
+        } catch (const SemanticEdgeLimitReached&) {
+        }
+    } else {
+        SNIPER_ROI_BEGIN();
+        execute_roi([] {}, [] {});
+        SNIPER_ROI_END();
+    }
+    semantic_edges.report("cc");
 
     int64_t num_comps = 0;
     for (NodeID n = 0; n < graph.num_nodes(); n++)

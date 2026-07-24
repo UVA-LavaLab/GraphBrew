@@ -1779,6 +1779,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     env = dict(os.environ)
     scrub_cell_mechanism_env(env)
     apply_explicit_cell_mechanism_env(env, spec)
+    semantic_edge_limit = int(args.sniper_semantic_edge_limit)
+    if semantic_edge_limit > 0:
+        env["SNIPER_SEMANTIC_EDGE_LIMIT"] = str(semantic_edge_limit)
+    else:
+        env.pop("SNIPER_SEMANTIC_EDGE_LIMIT", None)
     env.pop("SNIPER_ECG_FUSED_K2", None)
     env.pop("SNIPER_ECG_FUSED_VALIDATE", None)
     env.pop("SNIPER_K2_TRANSPORT_MATCHED", None)
@@ -1953,6 +1958,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     elif args.ecg_isa_variant != "mask":
         env.pop("SNIPER_ENABLE_ECG_EXTRACT", None)
     apply_instruction_cap_provenance(row, "sniper", args)
+    apply_semantic_cap_provenance(row, "sniper", args)
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_sniper, log_path, args.dry_run)
     if args.dry_run:
         return []
@@ -1973,6 +1979,47 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         semantic_patterns.get(args.benchmark, r"$^"), log_text)
     row["sniper_semantic_result"] = (
         semantic_match.group(1).strip() if semantic_match else "")
+    semantic_limit = int(args.sniper_semantic_edge_limit)
+    if semantic_limit > 0:
+        work_matches = re.findall(
+            r"\[SEMANTIC-ROI benchmark=([a-z]+) "
+            r"edge_visits=(\d+) limit=(\d+) truncated=([01])\]",
+            log_text)
+        if not work_matches:
+            clear_sniper_k2_sidebands(sidebands)
+            row.update({
+                "status": "error",
+                "error": "Sniper semantic edge-limit marker missing",
+            })
+            return [row]
+        if len(work_matches) != 1:
+            clear_sniper_k2_sidebands(sidebands)
+            row.update({
+                "status": "error",
+                "error": (
+                    "Sniper semantic edge-limit marker must appear "
+                    "exactly once"),
+            })
+            return [row]
+        marker_benchmark, visits_text, marker_limit_text, truncated_text = (
+            work_matches[0])
+        visits = int(visits_text)
+        marker_limit = int(marker_limit_text)
+        truncated = int(truncated_text)
+        row.update({
+            "sniper_semantic_edge_visits": visits,
+            "sniper_semantic_truncated": truncated,
+        })
+        if (marker_benchmark != args.benchmark or
+                marker_limit != semantic_limit or
+                visits > semantic_limit or
+                (truncated and visits != semantic_limit)):
+            clear_sniper_k2_sidebands(sidebands)
+            row.update({
+                "status": "error",
+                "error": "Sniper semantic edge-limit marker mismatch",
+            })
+            return [row]
     if args.ecg_isa_variant == "mask":
         if "[K2_TRANSPORT_MATCHED] SSSP general 12B" in log_text:
             row["sniper_transport_record_bytes"] = 12
@@ -2248,6 +2295,102 @@ def apply_instruction_cap_provenance(
         "as an instruction-capped diagnostic.")
 
 
+def apply_semantic_cap_provenance(
+        row: dict[str, Any], simulator: str,
+        args: argparse.Namespace) -> None:
+    limit = (
+        int(args.sniper_semantic_edge_limit)
+        if simulator == "sniper" else 0)
+    row["sniper_semantic_edge_limit"] = limit
+    if limit <= 0:
+        return
+    row["semantic_work_unit"] = "static_graph_edge_visits"
+    row["semantic_work_matched"] = 0
+    row["timing_model"] = "semantic_edge_capped_diagnostic"
+    row["timing_valid_for_speedup"] = "0"
+    existing = str(row.get("timing_caveat") or "").strip()
+    caveat = (
+        f"Sniper stops after {limit} static graph edge visits, or earlier "
+        "if the semantic ROI completes. Compare rows only when reported "
+        "edge visits and truncation state match.")
+    row["timing_caveat"] = f"{existing} {caveat}".strip()
+
+
+def certify_sniper_semantic_work(
+        rows: list[dict[str, Any]], args: argparse.Namespace,
+        policies: list[PolicySpec]) -> None:
+    limit = int(args.sniper_semantic_edge_limit)
+    if args.suite != "sniper" or limit <= 0:
+        return
+
+    local_policies = {spec.label for spec in policies}
+    try:
+        expected_from_env = json.loads(os.environ.get(
+            "GRAPHBREW_EXPECTED_POLICY_LABELS", "[]"))
+    except json.JSONDecodeError:
+        expected_from_env = []
+    expected_policies = (
+        {str(label) for label in expected_from_env}
+        if isinstance(expected_from_env, list) and expected_from_env
+        else local_policies)
+    if len(expected_policies) < 2 or local_policies != expected_policies:
+        return
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for row in rows:
+        if row.get("simulator") != "sniper":
+            continue
+        row["semantic_work_matched"] = 0
+        key = (
+            row.get("benchmark"), row.get("options"), row.get("l3_size"),
+            row.get("l3_ways"), row.get("threads"),
+            row.get("sniper_cores"),
+        )
+        groups.setdefault(key, []).append(row)
+
+    for group_rows in groups.values():
+        policy_labels = {
+            str(row.get("policy_label") or row.get("policy"))
+            for row in group_rows
+        }
+        statuses_ok = all(row.get("status") == "ok" for row in group_rows)
+        work = {
+            (
+                int(row.get("sniper_semantic_edge_limit") or 0),
+                int(row.get("sniper_semantic_edge_visits") or 0),
+                int(row.get("sniper_semantic_truncated") or 0),
+            )
+            for row in group_rows
+        }
+        semantic_results = {
+            str(row.get("sniper_semantic_result") or "")
+            for row in group_rows
+        }
+        policies_match = (
+            policy_labels == expected_policies and
+            len(group_rows) == len(expected_policies))
+        work_matches = len(work) == 1 and next(iter(work))[0] == limit
+        results_match = (
+            len(semantic_results) == 1 and "" not in semantic_results)
+        matched = (
+            statuses_ok and policies_match and work_matches and results_match)
+        if matched:
+            for row in group_rows:
+                row["semantic_work_matched"] = 1
+            continue
+        if not statuses_ok:
+            error = "Sniper semantic policy group contains a failed row"
+        elif not policies_match:
+            error = "Sniper semantic policy group is incomplete"
+        elif not work_matches:
+            error = "Sniper semantic work differs across policy rows"
+        else:
+            error = "Sniper semantic result differs across policy rows"
+        for row in group_rows:
+            if row.get("status") == "ok":
+                row["status"] = "error"
+                row["error"] = error
+
+
 def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size: str,
              charge: dict[str, Any] | None = None) -> dict[str, Any]:
     transport = ecg_transport_for(spec, args.benchmark)
@@ -2277,8 +2420,10 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         timing_model = "prototype_mask_only_load"
         timing_valid_for_speedup = "0"
         timing_caveat = (
-            "K2-M uses the prototype current-vertex channel; report mechanism "
-            "and cache metrics only until the architectural epoch CSR lands.")
+            "K2-M uses Sniper's exact governed-load marker and modeled "
+            "epoch/context channel rather than executing the architectural "
+            "RISC-V CSRs; report timing as diagnostic until fresh matched rows "
+            "are certified.")
 
     effective_ecg_epochs = effective_ecg_epoch_count(
         args.ecg_epochs, transport.schedule_k)
@@ -2729,6 +2874,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                         help="Cap the Sniper DETAILED ROI at this many instructions (aggregated over cores) via '-s stop-by-icount:N'. "
                              "0 disables the cap (full ROI). Bounds simulation time on large graphs regardless of size, matching the "
                              "DROPLET paper (600000000) and P-OPT's iteration-sampling; the fast cache_sim runs the full ROI as the authority.")
+    parser.add_argument(
+        "--sniper-semantic-edge-limit", default="0",
+        help="Policy-independent cap on static graph edge visits in sg_kernel "
+             "(0 = full semantic ROI). Mutually exclusive with "
+             "--sniper-roi-icount.")
     parser.add_argument("--sniper-omp-wait-policy", choices=["passive", "active", "unset"], default="passive",
                         help="OMP_WAIT_POLICY for Sniper benchmark processes. Passive avoids SIFT/OpenMP barrier deadlocks observed with full wrappers.")
     parser.add_argument("--sniper-config", nargs="*", default=[], help="Additional Sniper -c config names after --sniper-base-config.")
@@ -2750,6 +2900,28 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    semantic_edge_limit = int(args.sniper_semantic_edge_limit)
+    if int(args.sniper_roi_icount) > 0 and semantic_edge_limit > 0:
+        raise SystemExit(
+            "--sniper-roi-icount and --sniper-semantic-edge-limit "
+            "are mutually exclusive")
+    if semantic_edge_limit > 0 and args.sniper_workload != "sg_kernel":
+        raise SystemExit(
+            "--sniper-semantic-edge-limit requires "
+            "--sniper-workload sg_kernel")
+    if semantic_edge_limit > 0 and args.ecg_isa_variant != "mask":
+        raise SystemExit(
+            "--sniper-semantic-edge-limit requires "
+            "--ecg-isa-variant mask for transport-matched execution")
+    if semantic_edge_limit > 0 and int(args.sniper_cores) != 1:
+        raise SystemExit(
+            "--sniper-semantic-edge-limit requires --sniper-cores 1 "
+            "for deterministic edge order")
+    if (semantic_edge_limit > 0 and args.threads and
+            any(int(value) != 1 for value in args.threads)):
+        raise SystemExit(
+            "--sniper-semantic-edge-limit requires every --threads value "
+            "to equal 1")
     if args.threads and args.suite != "sniper":
         raise SystemExit("--threads is currently supported only with --suite sniper")
     if args.all_policies:
@@ -2796,6 +2968,8 @@ def main(argv: list[str]) -> int:
                 args._sniper_thread_sweep = False
             if not args.dry_run:
                 write_outputs(out_dir, rows)
+
+    certify_sniper_semantic_work(rows, args, policies)
 
     inert_cells = set()
     for row in rows:

@@ -400,6 +400,12 @@ state without accumulating queue/shared-memory timing. The first post-fix
 web-Google K2 capped cell also completes successfully, finishing its full PR
 iteration at 179.4M reported instructions before the 600M cap.
 
+Profile `ecg_sniper_semantic_gate` is the equal-semantic-work alternative. It
+uses no committed-instruction cap and counts policy-independent static
+graph-edge visits in PR/BFS/SSSP/BC/CC. Rows are accepted only when the guest's
+mandatory semantic marker exactly matches the requested limit, visit count,
+benchmark, and truncation state. The profile is implemented but not yet run.
+
 ### Other profiles
 
 ```bash

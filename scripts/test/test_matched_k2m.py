@@ -23,6 +23,8 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
         "l1d_size", "l2_size", "l3_size", "l3_ways", "threads",
         "sniper_cores", "sniper_cache_warming",
         "sniper_transport_record_bytes", "sniper_semantic_result", "log_path",
+        "sniper_semantic_edge_limit", "sniper_semantic_edge_visits",
+        "sniper_semantic_truncated", "semantic_work_matched",
     ]
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -51,6 +53,10 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
             "sniper_cache_warming": "1",
             "sniper_transport_record_bytes": "8",
             "sniper_semantic_result": "same",
+            "sniper_semantic_edge_limit": "0",
+            "sniper_semantic_edge_visits": "",
+            "sniper_semantic_truncated": "",
+            "semantic_work_matched": "",
             "log_path": str(path.parent / "lru.log"),
         })
         writer.writerow({
@@ -77,6 +83,10 @@ def write_rows(path: Path, ratio: float = 1.001) -> None:
             "sniper_cache_warming": "1",
             "sniper_transport_record_bytes": "8",
             "sniper_semantic_result": "same",
+            "sniper_semantic_edge_limit": "0",
+            "sniper_semantic_edge_visits": "",
+            "sniper_semantic_truncated": "",
+            "semantic_work_matched": "",
             "log_path": str(path.parent / "k2.log"),
         })
     (path.parent / "lru.log").write_text(
@@ -114,3 +124,21 @@ def test_instruction_drift_fails(tmp_path: Path):
     errors = validate(tmp_path, ("pr",))
     assert len(errors) == 1
     assert "instruction ratio" in errors[0]
+
+
+def test_semantic_edge_mismatch_fails(tmp_path: Path):
+    path = tmp_path / "pr" / "roi_matrix.csv"
+    write_rows(path)
+    rows = list(csv.DictReader(path.open()))
+    for row in rows:
+        row["sniper_semantic_edge_limit"] = "1000"
+        row["sniper_semantic_edge_visits"] = "1000"
+        row["sniper_semantic_truncated"] = "1"
+        row["semantic_work_matched"] = "1"
+    rows[1]["sniper_semantic_edge_visits"] = "999"
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    errors = validate(tmp_path, ("pr",))
+    assert any("sniper_semantic_edge_visits" in error for error in errors)

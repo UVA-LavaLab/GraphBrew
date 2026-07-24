@@ -177,6 +177,13 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_sniper_sampled_pr_streamengine" in manifest["profiles"]
     assert "ecg_sniper_realgraph_warm_probe" in manifest["profiles"]
     assert "ecg_sniper_realgraph_600m" in manifest["profiles"]
+    assert "ecg_sniper_semantic_gate" in manifest["profiles"]
+    semantic_stage = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "12b_sniper_semantic_gate"
+    )
+    assert semantic_stage["sniper_semantic_edge_limit"] > 0
+    assert not semantic_stage.get("sniper_roi_icount")
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_equal_area_15" in manifest["profiles"]
     assert "ecg_equal_area_14" in manifest["profiles"]

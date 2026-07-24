@@ -71,10 +71,18 @@ def validate(
             "benchmark", "options", "prefetcher", "l1d_size", "l2_size",
             "l3_size", "l3_ways", "threads", "sniper_cores",
             "sniper_cache_warming", "sniper_transport_record_bytes",
+            "sniper_semantic_edge_limit", "sniper_semantic_edge_visits",
+            "sniper_semantic_truncated",
         )
         for field in matched_fields:
             if lru.get(field) != k2.get(field):
                 errors.append(f"{kernel}: configuration mismatch in {field}")
+        semantic_limit = int(lru.get("sniper_semantic_edge_limit") or 0)
+        if semantic_limit > 0:
+            if lru.get("semantic_work_matched") != "1":
+                errors.append(f"{kernel}: LRU semantic work is not certified")
+            if k2.get("semantic_work_matched") != "1":
+                errors.append(f"{kernel}: K2 semantic work is not certified")
         if (not lru.get("sniper_semantic_result") or
                 lru.get("sniper_semantic_result") !=
                 k2.get("sniper_semantic_result")):

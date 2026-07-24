@@ -327,10 +327,17 @@ python3 scripts/experiments/ecg/verify/matched_k2m.py \
 ```
 
 Each kernel directory must contain exactly one LRU and one K2 row from the same
-uncapped `sg_kernel` binary/configuration. Completion hashes, transport markers,
-semantic outputs, diagnostic-only timing, and workload hashes must match.
+`sg_kernel` binary/configuration. Rows may be uncapped or use the semantic edge
+cap, but committed-instruction-capped rows are rejected. Completion hashes,
+transport markers, semantic outputs, diagnostic-only timing, and workload hashes
+must match.
 Instruction ratio must remain within 0.25%; the current five-kernel gate is
 exactly 1.000x.
+For semantic-capped rows, `sniper_semantic_edge_limit`,
+`sniper_semantic_edge_visits`, and `sniper_semantic_truncated` must match and
+`semantic_work_matched=1` must be present in both rows.
+Policy-filtered shards remain uncertified individually; `paper_pipeline.py`
+sets the field only after the complete policy group passes the same checks.
 New certifications additionally require `sniper_k2_exact_bind=1` in both rows
 and `[K2_EXACT_BIND]` in both logs, plus
 `sniper_k2_epoch_context_bound=1`. The marker must cover only edge-governed
@@ -505,6 +512,25 @@ sidecar normally or with `ecg.stream.wload2`, then carries the reconstructed K2
 mask on the property load. Sniper reports `fused-k2-weighted32-model`.
 
 ### Paper-faithful full-graph Sniper ROI
+
+Before another long detailed run, dry-run the policy-independent semantic-work
+gate:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_sniper_semantic_gate \
+  --run-dir \
+    results/ecg_experiments/final_paper_runs/ecg_sniper_semantic_gate \
+  --no-build --dry-run
+```
+
+The profile covers PR/BFS/SSSP/BC/CC and counts static graph-edge visits in the
+single-core transport-matched mask guest kernel. Every completed row must contain exactly one
+`[SEMANTIC-ROI benchmark=... edge_visits=... limit=... truncated=...]` marker.
+The runner fails on a missing marker, wrong benchmark, wrong visit count, or
+unexpected truncation state. This profile is implemented but has not been run.
+For truncated rows, matching semantic outputs certify the same deterministic
+edge prefix only; they do not replace the uncapped algorithm-correctness gate.
 
 DROPLET warmed graph loading and collected 600 million ROI instructions.
 GRASP simulated one representative high-activity iteration, and P-OPT used one

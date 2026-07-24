@@ -138,7 +138,8 @@ SSSP each deliver 8/8 traced masks to post-filter consumer accepts on the exact
 property Requests. A clean five-kernel cache_sim+gem5 gate passes with zero K2
 distance mismatches; BFS/SSSP/BC have decisive epoch victims and BC proves both
 4-byte depth and 8-byte path-count delivery. This is ISA/mechanism evidence,
-not a K2-M timing result. The epoch CSR remains pending.
+not a K2-M timing result. The epoch/context CSRs were implemented afterward;
+these frozen rows have not been relabeled.
 
 The transport-matched Sniper model also passes its five-kernel mechanism gate.
 LRU and K2-M execute identical dynamic instruction counts in every cell:
@@ -159,6 +160,14 @@ zero bad records. This establishes instruction parity and mechanism direction,
 not real-graph K2-M performance. Those frozen rows predate both gem5's epoch
 CSR and Sniper's explicit governed-load marker, so both mechanisms were modeled
 in that dataset.
+
+The next Sniper certification can now use a policy-independent semantic edge
+budget instead of an instruction cap. PR/BFS/SSSP/BC/CC count static graph-edge
+visits before policy-specific work, emit a mandatory marker, and stop only
+before the next edge. The runner records and verifies limit, visits, and
+truncation, and the matched verifier accepts such rows only when those fields
+are equal. This infrastructure is implemented; no semantic-capped performance
+row has been collected.
 
 ### Sniper host-cost audit
 

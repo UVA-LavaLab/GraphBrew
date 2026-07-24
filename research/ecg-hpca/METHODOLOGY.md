@@ -38,13 +38,25 @@ loads the same 8-byte records for unweighted kernels, while SSSP uses the same
 native 8-byte weighted edge or general 12-byte fallback. A five-kernel gate
 requires exact semantic results and at most 0.25% instruction divergence.
 Current mechanism cells achieve exactly 1.000x instruction ratio. Timing remains
-diagnostic because the current epoch remains modeled. The current Sniper
+diagnostic pending fresh post-binding, equal-semantic-work rows. The current Sniper
 implementation binds sideband K2 metadata to an explicit identical marker
 around the exact edge-governed destination load for every policy; source
 property loads and BC/CC non-edge phases remain unmarked. The marker snapshots
 the per-core quantized current epoch and a monotonic ROI context, so victim
 selection no longer rereads a mutable outer-vertex clock. It remains a Sniper
 model rather than execution of the RISC-V CSR ISA.
+For bounded transport-matched K2-M comparisons,
+`--sniper-semantic-edge-limit` counts the same static graph-edge visit before
+every policy branch and stops only before the next edge.
+It requires `sg_kernel`, one core, and `ecg_isa_variant=mask`. The mandatory
+`[SEMANTIC-ROI ...]` marker records the requested limit, actual
+visits, and whether execution was truncated. This cap is mutually exclusive with
+the committed-instruction cap. Semantic-capped rows may be paired only when all
+three marker fields match; instruction-capped rows remain cache-direction evidence
+only because policies can execute different amounts of graph work.
+When truncation occurs, the semantic checksum certifies equality of the same
+deterministic execution prefix, not completion of the full graph algorithm.
+Full-result correctness remains a separate uncapped gate.
 Even K2-I fused timing is accepted only when live fused receipts validate against
 the exported K2 sideband. Without receipts, the row remains cache-metric-only;
 its packed-record software path can execute a different instruction stream than
@@ -98,6 +110,7 @@ set-associative LLC; compressed-block move semantics are not claimed.
 | `ecg_sniper_sampled_pr_streamengine` | Can fused K2 delivery tolerate its record bandwidth on equal-work sampled PageRank? | no prefetch; GRASP/charged P-OPT/K2-online+SS; record misses remain in Sniper LLC accounting |
 | `ecg_sniper_realgraph_warm_probe` | Do full web-Google warm LRU and K2 reach a detailed ROI? | explicit SIFT; normal cache warming; 100K detailed instructions |
 | `ecg_sniper_realgraph_600m` | What cache direction appears on full graphs under a prior-paper-style detailed ROI? | explicit SIFT; normal cache warming; detailed ROI capped at 600M instructions; timing invalid |
+| `ecg_sniper_semantic_gate` | Can all five kernels compare policies after exactly the same number of static edge visits? | no prefetch; exact semantic marker required; no instruction cap |
 | `streamshield_sniper_realgraph` | Does the complete mechanism improve detailed-simulator time and traffic? | bounded, full six-policy matrix |
 
 `ecg_charged=1` preserves each backend's executable transport rather than

@@ -461,6 +461,35 @@ def parse_expected_policy_labels(row: dict[str, Any]) -> set[str]:
     return {str(value) for value in parsed}
 
 
+def semantic_work_group_matches(group_rows: list[dict[str, Any]]) -> bool:
+    limits = {
+        int(row.get("sniper_semantic_edge_limit") or 0)
+        for row in group_rows
+    }
+    if limits == {0}:
+        return True
+    if len(limits) != 1 or 0 in limits:
+        return False
+    work = {
+        (
+            int(row.get("sniper_semantic_edge_visits") or 0),
+            int(row.get("sniper_semantic_truncated") or 0),
+        )
+        for row in group_rows
+    }
+    semantic_results = {
+        str(row.get("sniper_semantic_result") or "")
+        for row in group_rows
+    }
+    matched = (
+        len(work) == 1 and len(semantic_results) == 1 and
+        "" not in semantic_results)
+    if matched:
+        for row in group_rows:
+            row["semantic_work_matched"] = "1"
+    return matched
+
+
 def complete_matrix_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -480,12 +509,14 @@ def complete_matrix_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if row.get("status") == "ok" and
             row.get("final_output_status", "ok") == "ok"
         }
+        semantic_work_ok = semantic_work_group_matches(group_rows)
         if (config_hashes == {""} or len(config_hashes) != 1 or
-                not expected or actual != expected):
+                not expected or actual != expected or not semantic_work_ok):
             print(
                 f"[skip] incomplete policy group={group_key} "
                 f"hashes={sorted(config_hashes)} "
-                f"expected={sorted(expected)} actual={sorted(actual)}")
+                f"expected={sorted(expected)} actual={sorted(actual)} "
+                f"semantic_work_ok={semantic_work_ok}")
             continue
         complete.extend(group_rows)
     return complete

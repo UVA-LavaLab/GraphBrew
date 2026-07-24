@@ -238,6 +238,11 @@ bounded methodology. CACHE_ONLY warmup updates cache state without accumulating
 queue/shared-memory timing. Because K2 executes a different instruction stream,
 capped rows are cache/direction diagnostics, not speedup claims.
 
+For policy-independent bounded work, `ecg_sniper_semantic_gate` instead stops
+each PR/BFS/SSSP/BC/CC row after the same number of static graph-edge visits.
+It uses no instruction cap and fails unless the guest reports an exact
+`[SEMANTIC-ROI ...]` marker.
+
 ```bash
 python3 scripts/experiments/ecg/slurm/make_slurm_shards.py \
   --profile ecg_sniper_realgraph_600m \
@@ -353,6 +358,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_sniper_sampled_pr_streamengine` | Equal-work sampled PR timing for fused K2 bandwidth |
 | `ecg_sniper_realgraph_warm_probe` | Full web-Google warm-SIFT LRU/K2 100K gate |
 | `ecg_sniper_realgraph_600m` | Full-real-graph Sniper 600M-capped ROI plan |
+| `ecg_sniper_semantic_gate` | Five-kernel equal-semantic-edge Sniper gate |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
 | `ecg_equal_area_15` | 15-way K2 versus 16-way baseline sensitivity |
 | `ecg_equal_area_14` | Conservative integral 14-way K2 versus 16-way baselines |

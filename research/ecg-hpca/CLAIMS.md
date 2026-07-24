@@ -77,6 +77,10 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 - Sniper's bind marker snapshots the per-core quantized current epoch and a
   monotonic ROI context. Resident stamps carry that context; unmarked or stale
   requests fall back without consuming K2 epochs.
+- Sniper now supports a policy-independent semantic edge-work cap across
+  PR/BFS/SSSP/BC/CC. The runner requires an exact marker and records limit,
+  visits, truncation, work unit, and certification. Instruction and semantic
+  caps are mutually exclusive; no performance row has been collected yet.
 - The algorithm mapping is PR=`epoch_first`, BFS/SSSP=`degree_first`, and
   BC/CC=`rrip_first`. BC covers its forward static-edge phase; CC is
   undirected/symmetric only.
@@ -148,6 +152,9 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   static/online K2, and both StreamShield variants.
+- Fresh post-binding matched Sniper rows using either uncapped completion or the
+  equal-semantic-edge gate; legacy instruction-capped rows cannot certify
+  equal graph work.
 - A full sampled/real-graph matched Sniper K2-M timing matrix.
 - An optional drain/invalidation protocol for intentional context-ID reuse.
   gem5's no-reuse CSR/request lifecycle and Sniper's exact governed-load
