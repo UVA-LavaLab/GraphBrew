@@ -1239,6 +1239,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         clear_sideband_files(sidebands)
 
     gem5_ecg_delivery = ""
+    gem5_ecg_epoch_channel = ""
+    gem5_ecg_context_id = ""
     env = dict(os.environ)
     scrub_cell_mechanism_env(env)
     apply_explicit_cell_mechanism_env(env, spec)
@@ -1253,8 +1255,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     if is_k2_ecg:
         env["GEM5_ECG_ISA_VARIANT"] = args.ecg_isa_variant
         env["GEM5_ECG_EPOCH_CSR"] = "1"
-        row["gem5_ecg_epoch_channel"] = "csr"
-        row["gem5_ecg_context_id"] = "runtime-monotonic"
+        gem5_ecg_epoch_channel = "csr"
+        gem5_ecg_context_id = "runtime-monotonic"
     requested_ecg_load = os.environ.get("GEM5_FORCE_ECG_LOAD") == "1"
     env.pop("GEM5_FORCE_ECG_LOAD", None)
     env.pop("GEM5_FORCE_ECG_PLOAD", None)
@@ -1384,6 +1386,9 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         return []
 
     base = base_row("gem5", args, spec, l3_size, charge)
+    if gem5_ecg_epoch_channel:
+        base["gem5_ecg_epoch_channel"] = gem5_ecg_epoch_channel
+        base["gem5_ecg_context_id"] = gem5_ecg_context_id
     if gem5_ecg_delivery:
         base["gem5_ecg_delivery"] = gem5_ecg_delivery
     if gem5_ecg_delivery == "packed8+k2+ecg.extract2":

@@ -105,6 +105,13 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
     module.apply_ecg_transport_env(adaptive_env, adaptive_transport)
     assert adaptive_env["ECG_STREAM_BYPASS"] == "1"
     assert adaptive_env["ECG_STREAM_BYPASS_ADAPTIVE"] == "1"
+    static_adaptive_ss = module.parse_policy_spec(
+        "ECG:K2_ADAPTIVE_STREAMSHIELD")
+    static_adaptive_transport = module.ecg_transport_for(
+        static_adaptive_ss, "sssp")
+    assert static_adaptive_ss.label == "ECG_K2_ADAPTIVE_STREAMSHIELD"
+    assert static_adaptive_transport.stream_adaptive
+    assert not static_adaptive_transport.set_dueling
 
     monkeypatch.setenv("ECG_STREAM_BYPASS", "1")
     monkeypatch.setenv("ECG_STREAM_BYPASS_ADAPTIVE", "1")
@@ -936,6 +943,9 @@ def test_all_five_kernels_expose_indexed_and_mask_only_delivery():
         ROOT / "scripts/experiments/ecg/verify/equiv_kernels.py"
     ).read_text()
     assert "computed-address K2-M property load" in verifier
+    assert "matched Sniper K2-M is not implemented" not in verifier
+    assert "computed-address K2-M load binding" in verifier
+    assert '"sniper_k2_exact_bind") == "1"' in verifier
     assert "indexed K2-I property load" in verifier
     assert "fused K2 sideband" in verifier
 

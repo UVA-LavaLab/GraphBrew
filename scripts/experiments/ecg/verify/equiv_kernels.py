@@ -18,6 +18,7 @@ Usage:
 """
 import argparse
 import csv
+import json
 import os
 import re
 import shutil
@@ -87,6 +88,20 @@ def effective_variant(kernel):
             return "degree_first"
         return "rrip_first"
     return "rrip_first"
+
+
+def sniper_policy():
+    if SCHEDULE_K == 2 and ADAPTIVE_STREAM_BYPASS:
+        return "ECG:K2_ADAPTIVE_STREAMSHIELD"
+    if SCHEDULE_K == 2 and STREAM_BYPASS:
+        return "ECG:K2_STREAMSHIELD"
+    if SCHEDULE_K == 2:
+        return "ECG:K2"
+    return "ECG:ECG_GRASP_POPT"
+
+
+def sniper_policy_label():
+    return sniper_policy().replace(":", "_")
 
 
 def _banner(text):
@@ -192,6 +207,11 @@ def run_gem5(kernel):
         env["ECG_STREAM_BYPASS_TRACE"] = "8"
         if ADAPTIVE_STREAM_BYPASS:
             env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
+    explicit = {"ECG_K2_DELIVERY_TRACE": "32"}
+    if STREAM_BYPASS:
+        explicit["ECG_STREAM_BYPASS_TRACE"] = "8"
+    env["GRAPHBREW_EXPLICIT_CELL_ENV"] = json.dumps(
+        explicit, sort_keys=True, separators=(",", ":"))
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "gem5", "--no-build",
            "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
            "--ecg-isa-variant", GEM5_ISA_VARIANT,
@@ -207,7 +227,7 @@ def run_gem5(kernel):
 
 def run_sniper(kernel):
     """Sniper sg_kernel --benchmark <kernel> with ECG_GRASP_POPT (memory-capped, guarded)."""
-    out = Path("/tmp") / f"equivk_sniper_{kernel}"
+    out = Path("/tmp") / f"equivk_sniper_{GEM5_ISA_VARIANT}_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
     env = {**os.environ, "SNIPER_ECG_MODE": "ECG_GRASP_POPT",
            "ECG_VARIANT": effective_variant(kernel),
@@ -220,6 +240,11 @@ def run_sniper(kernel):
         env["ECG_STREAM_BYPASS_TRACE"] = "8"
         if ADAPTIVE_STREAM_BYPASS:
             env["ECG_STREAM_BYPASS_ADAPTIVE"] = "1"
+    explicit = {"ECG_K2_DELIVERY_TRACE": "32"}
+    if STREAM_BYPASS:
+        explicit["ECG_STREAM_BYPASS_TRACE"] = "8"
+    env["GRAPHBREW_EXPLICIT_CELL_ENV"] = json.dumps(
+        explicit, sort_keys=True, separators=(",", ":"))
     # Per-kernel geometry: cc's comp[] (~4KB) and sssp's dist[] fit Sniper's inner
     # caches, and the L3 is NON-INCLUSIVE (sees only L2 evictions), so at the default
     # 2kB/4kB/16kB the property never reaches the L3 -> no epoch is stamped (vacuous).
@@ -230,10 +255,12 @@ def run_sniper(kernel):
         l1d, l2, l3 = "1kB", "1kB", "2kB"
     else:
         l1d, l2, l3 = "2kB", "4kB", "16kB"
+    policy = sniper_policy()
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "sniper",
            "--sniper-workload", "sg_kernel", "--allow-sniper-sg-kernel-workload",
            "--sniper-memory-limit-gb", "20", "--sniper-enable-graph-policies", "--no-build",
-           "--benchmark", kernel, "--policies", "ECG:ECG_GRASP_POPT",
+           "--benchmark", kernel, "--policies", policy,
+           "--ecg-isa-variant", GEM5_ISA_VARIANT,
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", l3, "--l3-ways", "8",
            "--l1d-size", l1d, "--l2-size", l2, "--timeout-sniper", "540", "--out-dir", str(out)]
     subprocess.run(cmd, env=env, cwd=str(ecg.ROOT), stdout=subprocess.DEVNULL,
@@ -261,7 +288,8 @@ def main(argv=None):
                          "K2 records (requires --stream-bypass).")
     ap.add_argument(
         "--gem5-isa-variant", choices=["indexed", "mask"], default="indexed",
-        help="gem5 K2 ISA variant; mask validates computed-address K2-M.")
+        help="K2 ISA/model variant for gem5 and Sniper; mask validates "
+             "computed-address K2-M.")
     args = ap.parse_args(argv)
 
     global STREAM_PF_DEGREE, SCHEDULE_K, STREAM_BYPASS
@@ -271,15 +299,13 @@ def main(argv=None):
     STREAM_BYPASS = args.stream_bypass
     ADAPTIVE_STREAM_BYPASS = args.adaptive_stream_bypass
     GEM5_ISA_VARIANT = args.gem5_isa_variant
-    if args.sniper and GEM5_ISA_VARIANT == "mask":
-        ap.error("--gem5-isa-variant mask cannot be combined with --sniper; "
-                 "matched Sniper K2-M is not implemented")
     if STREAM_BYPASS and SCHEDULE_K != 2:
         ap.error("--stream-bypass requires --schedule-k 2")
     if ADAPTIVE_STREAM_BYPASS and not STREAM_BYPASS:
         ap.error("--adaptive-stream-bypass requires --stream-bypass")
-    if GEM5_ISA_VARIANT == "mask" and not args.gem5:
-        ap.error("--gem5-isa-variant mask requires --gem5")
+    if (GEM5_ISA_VARIANT == "mask" and
+            not (args.gem5 or args.sniper)):
+        ap.error("--gem5-isa-variant mask requires --gem5 or --sniper")
     if GEM5_ISA_VARIANT == "mask" and SCHEDULE_K != 2:
         ap.error("--gem5-isa-variant mask requires --schedule-k 2")
 
@@ -403,12 +429,52 @@ def main(argv=None):
                               f"{'[OK]' if provenance_ok else '[FAIL]'}")
                         spec_ok &= provenance_ok
                 elif sim == "sniper":
-                    valid = ecg.K2_FUSED_VALID_RE.search(text)
-                    fused_ok = (
-                        valid is not None and
-                        int(valid.group(1)) > 0 and int(valid.group(2)) == 0)
+                    if GEM5_ISA_VARIANT == "mask":
+                        rows_path = (
+                            Path("/tmp") /
+                            f"equivk_sniper_{GEM5_ISA_VARIANT}_{kernel}" /
+                            "roi_matrix.csv")
+                        provenance_ok = False
+                        if rows_path.exists():
+                            rows = list(csv.DictReader(rows_path.open()))
+                            marker_path = rows_path.with_name(
+                                "roi_matrix.complete.json")
+                            marker_ok = False
+                            if marker_path.exists():
+                                marker = json.loads(marker_path.read_text())
+                                marker_ok = (
+                                    marker.get("complete") is True and
+                                    marker.get("all_rows_ok") is True)
+                            provenance_ok = len(rows) == 1 and all((
+                                rows[0].get("status") == "ok",
+                                rows[0].get("ecg_isa_variant") == "mask",
+                                rows[0].get(
+                                    "policy_label") == sniper_policy_label(),
+                                rows[0].get("sniper_transport_matched") == "1",
+                                rows[0].get("sniper_k2_exact_bind") == "1",
+                                rows[0].get(
+                                    "sniper_k2_epoch_context_bound") == "1",
+                                rows[0].get("sniper_context_loaded") == "1",
+                                rows[0].get(
+                                    "sniper_popt_matrix_required") == "0",
+                                rows[0].get(
+                                    "sniper_rereference_loaded") == "0",
+                                marker_ok,
+                            ))
+                        fused_ok = (
+                            provenance_ok and
+                            "[K2_TRANSPORT_MATCHED]" in text and
+                            "[K2_EXACT_BIND]" in text)
+                        fused_label = "computed-address K2-M load binding"
+                    else:
+                        valid = ecg.K2_FUSED_VALID_RE.search(text)
+                        fused_ok = (
+                            valid is not None and
+                            int(valid.group(1)) > 0 and
+                            int(valid.group(2)) == 0)
+                        fused_label = "fused K2 sideband"
                     fused_path_ok = ran_ok and fused_ok
-                    print(f"      fused K2 sideband: "
+                    print(f"      {fused_label}: "
                           f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
                     spec_ok &= ran_ok and fused_ok
             streamshield_ok = None

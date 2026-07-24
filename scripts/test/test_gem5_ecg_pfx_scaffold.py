@@ -420,6 +420,8 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
     assert '"prototype_mask_only_load"' in runner
     assert "exact governed-load marker and modeled" in runner
     assert "epoch/context channel rather than executing" in runner
+    assert 'row["gem5_ecg_epoch_channel"]' not in runner
+    assert 'base["gem5_ecg_epoch_channel"]' in runner
     assert "transport.schedule_k == 2" in runner
     assert 'std::strcmp(value, "mask") == 0' in harness
     assert '".insn r 0x0b, 0x2, 0x18' in harness

@@ -116,6 +116,21 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_set_dueling=True,
         )
     if upper in (
+        "ECG:K2_ADAPTIVE_STREAMSHIELD",
+        "ECG_K2_ADAPTIVE_STREAMSHIELD",
+        "ECG:K2_ADAPTIVE_SS",
+        "ECG_K2_ADAPTIVE_SS",
+    ):
+        return PolicySpec(
+            label="ECG_K2_ADAPTIVE_STREAMSHIELD",
+            policy="ECG",
+            ecg_mode="ECG_GRASP_POPT",
+            ecg_schedule_k=2,
+            ecg_stream_bypass=True,
+            ecg_stream_adaptive=True,
+            ecg_transport_pinned=True,
+        )
+    if upper in (
         "ECG:K2_ONLINE_ADAPTIVE_STREAMSHIELD",
         "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
         "ECG:K2_ONLINE_ADAPTIVE_SS",
