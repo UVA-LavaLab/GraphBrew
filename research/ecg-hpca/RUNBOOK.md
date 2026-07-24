@@ -390,6 +390,11 @@ Rows must report baseline `l3_ways=16`, the actually configured
 `l3_effective_ways`, `k2_area_mode`, and `k2_l3_ways_requested`. Only
 Schedule-2 K2 policies receive the override.
 
+The equal-area profiles include `HAWKEYE:PROXY`. Accept it only as a cache_sim
+diagnostic and require `hawkeye_pc_source=static_access_site_proxy` plus
+`hawkeye_faithfulness=proxy_not_real_instruction_pc`. Do not promote it to the
+headline Hawkeye baseline; that requires the gem5 real-PC implementation.
+
 The default v2 contract reports a 49-bit line payload before ECC, 1.531
 baseline-way equivalents, 14.602 self-consistent fractional ways, 15 ways as
 an intentionally undercharged first sensitivity, 14 ways as the maximum

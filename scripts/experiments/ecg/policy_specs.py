@@ -180,6 +180,12 @@ def parse_policy_spec(text: str) -> PolicySpec:
             policy="POPT",
             charge_popt_overhead=charge_popt,
         )
+    if upper in ("HAWKEYE", "HAWKEYE_PROXY", "HAWKEYE:PROXY"):
+        return PolicySpec(
+            label="HAWKEYE_PROXY",
+            policy="HAWKEYE",
+            charge_popt_overhead=False,
+        )
     return PolicySpec(
         label=upper,
         policy=upper,

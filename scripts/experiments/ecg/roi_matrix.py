@@ -2361,6 +2361,13 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
     }
     if charge:
         row.update(charge)
+    if spec.policy == "HAWKEYE":
+        row.update({
+            "hawkeye_pc_source": "static_access_site_proxy",
+            "hawkeye_faithfulness": "proxy_not_real_instruction_pc",
+            "hawkeye_optgen_quanta": 128,
+            "hawkeye_sampled_sets": 64,
+        })
     return row
 
 

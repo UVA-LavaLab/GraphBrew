@@ -43,6 +43,10 @@
 - Equal-area orchestration is first-class: `--k2-l3-ways` changes only
   Schedule-2 K2 geometry, retains 16-way conventional baselines, and records
   baseline/effective associativity plus the 49-bit metadata premise.
+- A clean-room Hawkeye core and LLC-only cache_sim adapter are implemented with
+  OPTgen, 64 sampled sets, 350x8 history, separate demand/prefetch predictors,
+  and Hawkeye RRIP rules. cache_sim rows are explicitly `HAWKEYE_PROXY` because
+  static access-site IDs substitute for unavailable instruction PCs.
 - The transport-matched Sniper workload now emits identical bind/clear markers
   around only the edge-governed destination loads for every policy. The cache
   consumes the marker on the corresponding L3 hit or miss and fails closed for
@@ -130,6 +134,8 @@
 - A bounded Sniper structure-prefetch configuration that does not reproduce the
   generic simple prefetcher's 9x--596x LLC-read traffic expansion.
 - Final normalized performance, LLC, traffic, and hardware-overhead paper tables.
+- A faithful gem5 Hawkeye baseline driven by the real request PC; cache_sim's
+  site-ID proxy cannot satisfy this headline gate.
 - Detailed-simulator confirmation of the real-graph online-selector result.
 - Completion and aggregation of the now-runnable full-graph 600M SIFT matrix.
 - An optional zero-record GRASP ablation to isolate mask-stream cost; it is not

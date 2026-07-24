@@ -224,6 +224,17 @@ Each row records baseline and effective size/associativity, area mode, requested
 K2 ways, and the 49-bit line-metadata premise. No sensitivity rows have been run
 or frozen yet.
 
+### Hawkeye baseline scaffold
+
+A clean-room Hawkeye policy module and LLC-only cache_sim adapter are now
+implemented. The module includes 128-quantum OPTgen, 64 sampled cache sets,
+350x8 sampler history, separate 3-bit demand/prefetch predictors, negative
+training on friendly-line eviction, and Hawkeye's 3-bit RRPV rules. cache_sim
+uses compile-time static graph-access-site IDs because it has no instruction
+PC; rows are labeled `HAWKEYE_PROXY` and
+`proxy_not_real_instruction_pc`. No Hawkeye result has been run or frozen.
+The faithful paper baseline remains the future gem5 real-PC port.
+
 ### Exact Sniper governed-load association
 
 The transport-matched Sniper K2-M workload now executes identical bind/clear

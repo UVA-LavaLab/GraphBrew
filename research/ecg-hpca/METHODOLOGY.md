@@ -61,10 +61,11 @@ The next headline comparison, after K2-M implementation, must include:
 2. SRRIP
 3. GRASP
 4. charged P-OPT
-5. K2-M
-6. online K2-M
-7. K2-M+StreamShield
-8. online K2-M+StreamShield
+5. Hawkeye
+6. K2-M
+7. online K2-M
+8. K2-M+StreamShield
+9. online K2-M+StreamShield
 
 New runner labels must distinguish `K2-M` from `K2-I`. Existing labels
 `ECG:K2`, `ECG:K2_ONLINE`, `ECG:K2_STREAMSHIELD`, and
@@ -75,6 +76,12 @@ runner split lands.
 The replacement-quality profile additionally includes uncharged P-OPT,
 `ECG:K1`, every static K2 arm, and `ECG:K2_ONLINE`. These are diagnostic
 columns, not a reduced headline baseline set.
+
+`cache_sim` has no instruction-PC input. Its `HAWKEYE_PROXY` arm therefore uses
+a compile-time static graph-access-site ID, retains faithful OPTgen/sampler/
+predictor/RRIP mechanics, and is labeled `proxy_not_real_instruction_pc` in
+every row. It is a fast diagnostic, not the headline Hawkeye result. gem5 must
+supply the faithful real-PC comparison.
 
 ## Separated experiment questions
 

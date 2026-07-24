@@ -335,14 +335,18 @@ placement/recency rule rather than pretending its epoch is meaningful.
 |---|---|---|---:|---|
 | LRU | recency | none | 0 | no |
 | SRRIP | predicted interval from generic insertion/aging | per-line RRPV | 0 | no |
+| Hawkeye | OPTgen-trained instruction-PC friendliness | sampled sets + PC predictor + per-line RRPV | 0 | no |
 | GRASP | degree/address hotness + RRIP | reordered hot/moderate regions | 0 | no |
 | P-OPT | live next-reference distance | rereference matrix | charged ways | no |
 | ECG K2-M | carried line tier + RRIP + two future epochs | 8-byte edge record + at least 33 metadata bits/line | 0 | no |
 | ECG K2-M online | sampled best of five victim rules | same record/line state + counters | 0 | no |
 | ECG K2-M+StreamShield | same as K2-M | same state + request bit | 0 | LLC no-allocate |
 
-The future headline comparison reports all four baselines plus static/online
-K2-M with and without StreamShield. K2-I remains a separate ISA ablation.
+The future headline comparison reports all five baselines plus static/online
+K2-M with and without StreamShield. A cache_sim `HAWKEYE_PROXY` uses static
+graph-access-site IDs because the functional model has no instruction PC; it is
+diagnostic only. The faithful Hawkeye row must come from gem5's real request PC.
+K2-I remains a separate ISA ablation.
 
 ## Simulator realization
 

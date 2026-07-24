@@ -21,6 +21,7 @@
 #include <string>
 #include <mutex>
 #include <memory>
+#include <stdexcept>
 #include <atomic>
 #include <omp.h>
 #include <chrono>
@@ -28,8 +29,33 @@
 
 #include "graph_cache_context.h"
 #include "../ecg_victim_policy.h"
+#include "../hawkeye_policy.h"
 
 namespace cache_sim {
+
+inline thread_local uint64_t current_hawkeye_site_id = 0;
+
+class HawkeyeSiteScope {
+  public:
+    explicit HawkeyeSiteScope(uint64_t site)
+        : previous(current_hawkeye_site_id)
+    {
+        current_hawkeye_site_id = site;
+    }
+
+    ~HawkeyeSiteScope()
+    {
+        current_hawkeye_site_id = previous;
+    }
+
+  private:
+    uint64_t previous;
+};
+
+inline uint64_t currentHawkeyeSite()
+{
+    return current_hawkeye_site_id;
+}
 
 // ============================================================================
 // T-OPT: trace-based TRUE Belady oracle (T_OPT=1). Records the actual L3 input
@@ -282,6 +308,7 @@ enum class EvictionPolicy {
     LFU,      // Least Frequently Used
     PLRU,     // Pseudo-LRU (tree-based)
     SRRIP,    // Static Re-Reference Interval Prediction
+    HAWKEYE,  // Hawkeye-style OPTgen + static-access-site predictor
     PIN,      // LRU-with-pinning of high-reuse graph regions (Faldu et al., HPCA 2020 baseline)
     GRASP,    // Graph-aware cache Replacement with Software Prefetching (Faldu et al., HPCA 2020)
     POPT,     // Practical Optimal cache replacement for Graph Analytics (Balaji et al., HPCA 2021)
@@ -296,6 +323,7 @@ inline std::string PolicyToString(EvictionPolicy policy) {
         case EvictionPolicy::LFU:    return "LFU";
         case EvictionPolicy::PLRU:   return "PLRU";
         case EvictionPolicy::SRRIP:  return "SRRIP";
+        case EvictionPolicy::HAWKEYE:return "HAWKEYE";
         case EvictionPolicy::PIN:    return "PIN";
         case EvictionPolicy::GRASP:  return "GRASP";
         case EvictionPolicy::POPT:   return "POPT";
@@ -311,6 +339,7 @@ inline EvictionPolicy StringToPolicy(const std::string& s) {
     if (s == "LFU" || s == "lfu") return EvictionPolicy::LFU;
     if (s == "PLRU" || s == "plru") return EvictionPolicy::PLRU;
     if (s == "SRRIP" || s == "srrip") return EvictionPolicy::SRRIP;
+    if (s == "HAWKEYE" || s == "hawkeye") return EvictionPolicy::HAWKEYE;
     if (s == "PIN" || s == "pin") return EvictionPolicy::PIN;
     if (s == "GRASP" || s == "grasp") return EvictionPolicy::GRASP;
     if (s == "POPT" || s == "popt" || s == "P-OPT" || s == "p-opt") return EvictionPolicy::POPT;
@@ -416,6 +445,8 @@ struct CacheLine {
     uint64_t insert_time = 0;    // For FIFO
     uint64_t access_count = 0;   // For LFU
     uint8_t rrpv = 3;            // For SRRIP, GRASP, P-OPT, ECG
+    uint64_t hawkeye_signature = 0;
+    bool hawkeye_prefetch = false;
     uint64_t line_addr = 0;      // Cache-line-aligned address
     uint8_t ecg_dbg_tier = 0;    // ECG: stored DBG degree tier (structural, for eviction tiebreak)
     uint8_t ecg_popt_hint = 0;   // ECG_EMBEDDED: stored P-OPT quantized rereference hint
@@ -826,6 +857,14 @@ public:
         
         // Initialize random generator for RANDOM policy
         rng_.seed(42);
+        if (policy_ == EvictionPolicy::HAWKEYE) {
+            if (name_ != "L3" && name_ != "L3-Shared") {
+                throw std::invalid_argument(
+                    "Hawkeye proxy is an LLC-only replacement policy");
+            }
+            hawkeye_state_ = std::make_unique<hawkeye_policy::State>(
+                num_sets_, static_cast<uint16_t>(associativity_));
+        }
     }
 
     // Access cache (returns true on hit, false on miss)
@@ -855,7 +894,7 @@ public:
                 // Hit!
                 stats_.hits++;
                 if (graph_ctx_ && graph_ctx_->findRegion(address)) stats_.prop_hits++;
-                updateOnHit(set, i);
+                updateOnHit(set, i, set_idx);
                 if (is_write) {
                     set[i].dirty = true;
                 }
@@ -931,8 +970,28 @@ public:
         return false;
     }
 
+    void updatePrefetchHit(uint64_t address) {
+        if (policy_ != EvictionPolicy::HAWKEYE || !hawkeye_state_) return;
+        std::lock_guard<std::mutex> lock(mutex_);
+        const uint64_t tag = getTag(address);
+        const size_t set_idx = getSetIndex(address);
+        auto& set = cache_[set_idx];
+        for (size_t way = 0; way < associativity_; ++way) {
+            if (!set[way].valid || set[way].tag != tag) continue;
+            const uint64_t signature = currentHawkeyeSite();
+            const bool friendly = hawkeye_state_->access(
+                set_idx, set[way].line_addr >> offset_bits_,
+                signature, true);
+            set[way].hawkeye_signature = signature;
+            set[way].hawkeye_prefetch = true;
+            set[way].rrpv = hawkeye_policy::insertionRrpv(friendly);
+            return;
+        }
+    }
+
     // Insert a line after a miss (called when lower level provides data)
-    void insert(uint64_t address, bool is_write) {
+    void insert(
+        uint64_t address, bool is_write, bool is_prefetch = false) {
         std::lock_guard<std::mutex> lock(mutex_);
         
         uint64_t tag = getTag(address);
@@ -966,6 +1025,34 @@ public:
         set[victim_idx].access_count = 1;
         set[victim_idx].rrpv = 2;  // For SRRIP: long re-reference (M-1 = 2, per Jaleel ISCA'10)
         set[victim_idx].line_addr = address & ~(uint64_t(line_size_ - 1));  // Store line-aligned address
+
+        if (policy_ == EvictionPolicy::HAWKEYE && hawkeye_state_) {
+            const uint64_t signature = currentHawkeyeSite();
+            const bool friendly = hawkeye_state_->access(
+                set_idx, address >> offset_bits_, signature, is_prefetch);
+            set[victim_idx].hawkeye_signature = signature;
+            set[victim_idx].hawkeye_prefetch = is_prefetch;
+            set[victim_idx].rrpv = hawkeye_policy::insertionRrpv(friendly);
+            if (friendly) {
+                bool has_six = false;
+                for (size_t way = 0; way < associativity_; ++way) {
+                    if (set[way].valid &&
+                        set[way].rrpv == hawkeye_policy::kMaxRrpv - 1) {
+                        has_six = true;
+                        break;
+                    }
+                }
+                if (!has_six) {
+                    for (size_t way = 0; way < associativity_; ++way) {
+                        if (way != victim_idx && set[way].valid &&
+                            set[way].rrpv < hawkeye_policy::kMaxRrpv - 1) {
+                            ++set[way].rrpv;
+                        }
+                    }
+                }
+                set[victim_idx].rrpv = 0;
+            }
+        }
 
         // GRASP: 3-tier RRIP insertion matching Faldu et al. HPCA 2020.
         // HIGH reuse (hubs):    RRPV = 1 (P_RRIP — protect in cache)
@@ -1241,13 +1328,24 @@ private:
         return (address >> offset_bits_) & ((1ULL << index_bits_) - 1);
     }
 
-    void updateOnHit(std::vector<CacheLine>& set, size_t idx) {
+    void updateOnHit(
+        std::vector<CacheLine>& set, size_t idx, size_t set_idx) {
         set[idx].last_access = global_time_++;
         set[idx].access_count++;
         
         // SRRIP: reset RRPV to 0 on hit
         if (policy_ == EvictionPolicy::SRRIP) {
             set[idx].rrpv = 0;
+        }
+
+        if (policy_ == EvictionPolicy::HAWKEYE && hawkeye_state_) {
+            const uint64_t signature = currentHawkeyeSite();
+            const bool friendly = hawkeye_state_->access(
+                set_idx, set[idx].line_addr >> offset_bits_,
+                signature, false);
+            set[idx].hawkeye_signature = signature;
+            set[idx].hawkeye_prefetch = false;
+            set[idx].rrpv = hawkeye_policy::insertionRrpv(friendly);
         }
 
         // GRASP: 3-tier hit promotion (Faldu et al. HPCA 2020)
@@ -1429,6 +1527,8 @@ private:
                 return findVictimPLRU(set);
             case EvictionPolicy::SRRIP:
                 return findVictimSRRIP(set);
+            case EvictionPolicy::HAWKEYE:
+                return findVictimHAWKEYE(set);
             case EvictionPolicy::PIN:
                 return findVictimPIN(set);
             case EvictionPolicy::GRASP:
@@ -1520,11 +1620,31 @@ private:
             for (size_t i = 0; i < associativity_; i++) {
                 if (set[i].rrpv == 3) return i;
             }
+
             // Increment all RRPVs
             for (size_t i = 0; i < associativity_; i++) {
                 if (set[i].rrpv < 3) set[i].rrpv++;
             }
         }
+    }
+
+    size_t findVictimHAWKEYE(std::vector<CacheLine>& set) {
+        // Faithful Hawkeye/CRC2 rule: evict the first RRPV=7 line when
+        // present; otherwise evict a current maximum-RRPV line. Unlike SRRIP,
+        // Hawkeye does not age the set until a maximum appears.
+        std::vector<uint8_t> rrpv(associativity_, 0);
+        for (size_t way = 0; way < associativity_; ++way)
+            rrpv[way] = set[way].rrpv;
+        const size_t victim =
+            hawkeye_policy::selectVictim(rrpv.data(), rrpv.size());
+        if (hawkeye_state_ && set[victim].valid &&
+            set[victim].rrpv != hawkeye_policy::kMaxRrpv) {
+            hawkeye_state_->eviction(
+                evicting_set_idx_,
+                set[victim].hawkeye_signature,
+                set[victim].hawkeye_prefetch);
+        }
+        return victim;
     }
 
     // ================================================================
@@ -2121,6 +2241,7 @@ private:
     uint64_t global_time_ = 0;
     std::mt19937 rng_;
     std::mutex mutex_;
+    std::unique_ptr<hawkeye_policy::State> hawkeye_state_;
 
     POPTState popt_state_;    // P-OPT rereference matrix state (legacy, used if no GraphCacheContext)
     GRASPState grasp_state_;  // GRASP degree-aware state (legacy, used if no GraphCacheContext)
@@ -2234,6 +2355,8 @@ public:
 
         // Try L1
         if (l1_->access(address, is_write)) {
+            // Hawkeye is LLC-only: a private-cache hit does not reach or retrain
+            // LLC replacement state, matching the hardware visibility boundary.
             if (was_prefetched) markPrefetchUseful(line_addr);
             return;  // L1 hit
         }
@@ -2332,13 +2455,14 @@ public:
         }
         if (l2_->contains(address)) {
             prefetch_cache_hits_++;
-            l1_->insert(address, false);
+            l1_->insert(address, false, true);
             return;
         }
         if (l3_->contains(address)) {
             prefetch_cache_hits_++;
-            l2_->insert(address, false);
-            l1_->insert(address, false);
+            l3_->updatePrefetchHit(address);
+            l2_->insert(address, false, true);
+            l1_->insert(address, false, true);
             return;
         }
         const size_t set_index = l3_->setIndexForAddress(address);
@@ -2349,9 +2473,9 @@ public:
             placement_selector_.shouldBypass(set_index);
         prefetch_fills_++;
         markPrefetchFill(line_addr);
-        if (!bypass) l3_->insert(address, false);
-        l2_->insert(address, false);
-        l1_->insert(address, false);
+        if (!bypass) l3_->insert(address, false, true);
+        l2_->insert(address, false, true);
+        l1_->insert(address, false, true);
     }
 
     // Prefetch: bring data into cache without counting as a demand access.
@@ -2379,13 +2503,14 @@ public:
         }
         if (l2_->contains(address)) {
             prefetch_cache_hits_++;
-            l1_->insert(address, false);
+            l1_->insert(address, false, true);
             return;
         }
         if (l3_->contains(address)) {
             prefetch_cache_hits_++;
-            l2_->insert(address, false);
-            l1_->insert(address, false);
+            l3_->updatePrefetchHit(address);
+            l2_->insert(address, false, true);
+            l1_->insert(address, false, true);
             return;
         }
         
@@ -2393,9 +2518,9 @@ public:
         // Does NOT increment demand counters
         prefetch_fills_++;
         markPrefetchFill(line_addr);
-        l3_->insert(address, false);
-        l2_->insert(address, false);
-        l1_->insert(address, false);
+        l3_->insert(address, false, true);
+        l2_->insert(address, false, true);
+        l1_->insert(address, false, true);
     }
 
     // Convenience methods for common access patterns

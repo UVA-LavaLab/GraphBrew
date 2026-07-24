@@ -79,4 +79,5 @@ def test_manifest_defines_both_equal_area_sensitivities():
         assert stage.get("l3_ways", "16") == "16"
         assert stage["suite"] == "cache-sim"
         assert "LRU" in stage["policies"]
+        assert "HAWKEYE:PROXY" in stage["policies"]
         assert "ECG:K2_ONLINE" in stage["policies"]

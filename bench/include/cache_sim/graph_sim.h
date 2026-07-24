@@ -136,17 +136,49 @@ private:
 // (Use these in simulation code that passes a specific cache object)
 // ============================================================================
 
+template <typename Cache>
+inline decltype(auto) access_with_site(
+        Cache& cache, uint64_t address, bool is_write, uint64_t site_id) {
+    HawkeyeSiteScope scope(site_id);
+    return cache.access(address, is_write);
+}
+
+template <typename Cache>
+inline decltype(auto) access_stream_with_site(
+        Cache& cache, uint64_t address, bool is_write, uint64_t site_id) {
+    HawkeyeSiteScope scope(site_id);
+    return cache.accessStream(address, is_write);
+}
+
+template <typename Cache>
+inline void prefetch_with_site(
+        Cache& cache, uint64_t address, uint64_t site_id) {
+    HawkeyeSiteScope scope(site_id);
+    cache.prefetch(address);
+}
+
+#define CACHE_SIM_HAWKEYE_SITE_ID \
+    (static_cast<uint64_t>(__COUNTER__) + 1ULL)
+// The proxy ID is binary-local, like a machine PC. Rebuilds may renumber sites;
+// completion hashes bind every result to the exact workload binary.
+
 // Track reading from array element (with explicit cache instance)
 #define SIM_CACHE_READ(cache, arr, idx) \
-    (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false)
+    ::cache_sim::access_with_site( \
+        (cache), reinterpret_cast<uint64_t>(&(arr)[idx]), false, \
+        CACHE_SIM_HAWKEYE_SITE_ID)
 
 // Track writing to array element (with explicit cache instance)
 #define SIM_CACHE_WRITE(cache, arr, idx) \
-    (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), true)
+    ::cache_sim::access_with_site( \
+        (cache), reinterpret_cast<uint64_t>(&(arr)[idx]), true, \
+        CACHE_SIM_HAWKEYE_SITE_ID)
 
 // Track reading neighbor iteration (one cache access per neighbor)
 #define SIM_CACHE_TRACK_NEIGHBOR(cache, neighbor_ptr) \
-    (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
+    ::cache_sim::access_with_site( \
+        (cache), reinterpret_cast<uint64_t>(neighbor_ptr), false, \
+        CACHE_SIM_HAWKEYE_SITE_ID)
 
 // P-OPT / GRASP: Update current destination vertex being processed.
 // Call this at the top of the outer loop (for each destination vertex)
@@ -161,7 +193,9 @@ private:
 #define SIM_CACHE_READ_MASKED(cache, arr, idx, graph_ctx, mask_val) \
     do { \
         (graph_ctx).hints_for_thread().mask = static_cast<uint32_t>(mask_val); \
-        (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false); \
+        ::cache_sim::access_with_site( \
+            (cache), reinterpret_cast<uint64_t>(&(arr)[idx]), false, \
+            CACHE_SIM_HAWKEYE_SITE_ID); \
     } while(0)
 
 // ECG: Read with mask + prefetch hint.
@@ -171,14 +205,19 @@ private:
 // as a demand access — prefetch misses don't inflate the miss rate.
 #define SIM_CACHE_READ_MASKED_PREFETCH(cache, arr, idx, graph_ctx, mask_val) \
     do { \
+        const uint64_t _hawkeye_site = CACHE_SIM_HAWKEYE_SITE_ID; \
         (graph_ctx).hints_for_thread().mask = static_cast<uint32_t>(mask_val); \
-        (cache).access(reinterpret_cast<uint64_t>(&(arr)[idx]), false); \
+        ::cache_sim::access_with_site( \
+            (cache), reinterpret_cast<uint64_t>(&(arr)[idx]), false, \
+            _hawkeye_site); \
         uint32_t _pfx_target = (graph_ctx).resolvePrefetchTarget(mask_val); \
         if (_pfx_target != UINT32_MAX) { \
             auto& _dw = (graph_ctx).dedup_for_thread(); \
             if (!_dw.contains(_pfx_target)) { \
                 _dw.push(_pfx_target); \
-                (cache).prefetch(reinterpret_cast<uint64_t>(&(arr)[_pfx_target])); \
+                ::cache_sim::prefetch_with_site( \
+                    (cache), reinterpret_cast<uint64_t>(&(arr)[_pfx_target]), \
+                    _hawkeye_site); \
                 (graph_ctx).recordPrefetchIssued(); \
             } else { \
                 (graph_ctx).recordPrefetchDuplicate(); \
@@ -193,11 +232,14 @@ private:
 // exposes a future vertex ID and the current mask target would be too late.
 #define SIM_CACHE_PREFETCH_VERTEX(cache, arr, idx, graph_ctx) \
     do { \
+        const uint64_t _hawkeye_site = CACHE_SIM_HAWKEYE_SITE_ID; \
         uint32_t _pfx_target = static_cast<uint32_t>(idx); \
         auto& _dw = (graph_ctx).dedup_for_thread(); \
         if (!_dw.contains(_pfx_target)) { \
             _dw.push(_pfx_target); \
-            (cache).prefetch(reinterpret_cast<uint64_t>(&(arr)[_pfx_target])); \
+            ::cache_sim::prefetch_with_site( \
+                (cache), reinterpret_cast<uint64_t>(&(arr)[_pfx_target]), \
+                _hawkeye_site); \
             (graph_ctx).recordPrefetchIssued(); \
         } else { \
             (graph_ctx).recordPrefetchDuplicate(); \
@@ -207,7 +249,9 @@ private:
 // Track CSR edge list traversal (reading neighbor IDs from edge array).
 // Call once per edge during neighbor iteration.
 #define SIM_CACHE_READ_EDGE(cache, neighbor_ptr) \
-    (cache).access(reinterpret_cast<uint64_t>(neighbor_ptr), false)
+    ::cache_sim::access_with_site( \
+        (cache), reinterpret_cast<uint64_t>(neighbor_ptr), false, \
+        CACHE_SIM_HAWKEYE_SITE_ID)
 
 #define SIM_CACHE_READ_EDGE_RECORD(cache, neighbor_ptr, edge_base, synthetic_base, record_bytes) \
     do { \
@@ -215,11 +259,15 @@ private:
             (neighbor_ptr) - (edge_base)); \
         const uint64_t _record_addr = (synthetic_base) + \
             _edge_index * static_cast<uint64_t>(record_bytes); \
+        const uint64_t _hawkeye_site = CACHE_SIM_HAWKEYE_SITE_ID; \
         if ((record_bytes) >= 16) { \
-            (cache).access(_record_addr, false); \
-            (cache).access(_record_addr + 8ULL, false); \
+            ::cache_sim::access_with_site( \
+                (cache), _record_addr, false, _hawkeye_site); \
+            ::cache_sim::access_with_site( \
+                (cache), _record_addr + 8ULL, false, _hawkeye_site); \
         } else { \
-            (cache).access(_record_addr, false); \
+            ::cache_sim::access_with_site( \
+                (cache), _record_addr, false, _hawkeye_site); \
         } \
     } while (0)
 
@@ -229,11 +277,15 @@ private:
             (neighbor_ptr) - (edge_base)); \
         const uint64_t _record_addr = (synthetic_base) + \
             _edge_index * static_cast<uint64_t>(record_bytes); \
+        const uint64_t _hawkeye_site = CACHE_SIM_HAWKEYE_SITE_ID; \
         if ((record_bytes) >= 16) { \
-            (cache).accessStream(_record_addr, false); \
-            (cache).accessStream(_record_addr + 8ULL, false); \
+            ::cache_sim::access_stream_with_site( \
+                (cache), _record_addr, false, _hawkeye_site); \
+            ::cache_sim::access_stream_with_site( \
+                (cache), _record_addr + 8ULL, false, _hawkeye_site); \
         } else { \
-            (cache).accessStream(_record_addr, false); \
+            ::cache_sim::access_stream_with_site( \
+                (cache), _record_addr, false, _hawkeye_site); \
         } \
     } while (0)
 
@@ -241,16 +293,25 @@ private:
 // while still filling the private caches. Only ECG's explicit stream path uses
 // this; baseline CSR accesses remain unchanged.
 #define SIM_CACHE_READ_EDGE_BYPASS(cache, neighbor_ptr) \
-    (cache).accessStream(reinterpret_cast<uint64_t>(neighbor_ptr), false)
+    ::cache_sim::access_stream_with_site( \
+        (cache), reinterpret_cast<uint64_t>(neighbor_ptr), false, \
+        CACHE_SIM_HAWKEYE_SITE_ID)
 #define SIM_CACHE_READ_STREAM_BYPASS(cache, ptr, idx) \
-    (cache).accessStream(reinterpret_cast<uint64_t>(&(ptr)[idx]), false)
+    ::cache_sim::access_stream_with_site( \
+        (cache), reinterpret_cast<uint64_t>(&(ptr)[idx]), false, \
+        CACHE_SIM_HAWKEYE_SITE_ID)
 
 // Track CSR offset array access (reading row pointer for vertex u).
 // Call once per vertex to track the offset[u] and offset[u+1] lookups.
 #define SIM_CACHE_READ_OFFSET(cache, offset_arr, u) \
     do { \
-        (cache).access(reinterpret_cast<uint64_t>(&(offset_arr)[u]), false); \
-        (cache).access(reinterpret_cast<uint64_t>(&(offset_arr)[(u)+1]), false); \
+        const uint64_t _hawkeye_site = CACHE_SIM_HAWKEYE_SITE_ID; \
+        ::cache_sim::access_with_site( \
+            (cache), reinterpret_cast<uint64_t>(&(offset_arr)[u]), false, \
+            _hawkeye_site); \
+        ::cache_sim::access_with_site( \
+            (cache), reinterpret_cast<uint64_t>(&(offset_arr)[(u)+1]), false, \
+            _hawkeye_site ^ 0x9E3779B97F4A7C15ULL); \
     } while(0)
 
 } // namespace cache_sim
