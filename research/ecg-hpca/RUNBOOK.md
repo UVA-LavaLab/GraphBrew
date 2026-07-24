@@ -577,9 +577,23 @@ The profile covers PR/BFS/SSSP/BC/CC and counts static graph-edge visits in the
 single-core transport-matched mask guest kernel. Every completed row must contain exactly one
 `[SEMANTIC-ROI benchmark=... edge_visits=... limit=... truncated=...]` marker.
 The runner fails on a missing marker, wrong benchmark, wrong visit count, or
-unexpected truncation state. This profile is implemented but has not been run.
+unexpected truncation state. The accepted 2026-07-24 run is
+`results/ecg_experiments/final_paper_runs/ecg_sniper_semantic_gate_20260724`;
+it passes 25/25 rows at 4,096 visits.
 For truncated rows, matching semantic outputs certify the same deterministic
 edge prefix only; they do not replace the uncapped algorithm-correctness gate.
+
+Fresh three-simulator K2-M mechanism evidence:
+
+```bash
+python3 scripts/experiments/ecg/verify/equiv_kernels.py \
+  --gem5 --sniper --kernels pr bfs sssp bc cc \
+  --schedule-k 2 --gem5-isa-variant mask
+```
+
+The committed `86e40765` run passes all 15 kernel x simulator cells. Frozen
+command, log, summary, hashes, and interpretation are in
+`research/ecg-hpca/evidence/k2m_equivalence_20260724.md`.
 
 DROPLET warmed graph loading and collected 600 million ROI instructions.
 GRASP simulated one representative high-activity iteration, and P-OPT used one

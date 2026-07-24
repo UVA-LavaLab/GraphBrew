@@ -161,13 +161,29 @@ not real-graph K2-M performance. Those frozen rows predate both gem5's epoch
 CSR and Sniper's explicit governed-load marker, so both mechanisms were modeled
 in that dataset.
 
-The next Sniper certification can now use a policy-independent semantic edge
-budget instead of an instruction cap. PR/BFS/SSSP/BC/CC count static graph-edge
-visits before policy-specific work, emit a mandatory marker, and stop only
-before the next edge. The runner records and verifies limit, visits, and
-truncation, and the matched verifier accepts such rows only when those fields
-are equal. This infrastructure is implemented; no semantic-capped performance
-row has been collected.
+The fresh post-binding semantic gate executes 4,096 static edge visits for
+every policy and passes 25/25 rows:
+
+| Kernel | K2-M diagnostic speedup vs LRU | K2-M L3 miss ratio | Instruction ratio |
+|---|---:|---:|---:|
+| PR | 1.041x | 0.767x | 1.000x |
+| BFS | 0.987x | 1.160x | 1.000x |
+| SSSP | 0.998x | 1.070x | 1.000x |
+| BC | 0.929x | 0.862x | 1.000x |
+| CC | 0.926x | 0.984x | 1.000x |
+| Geomean | **0.975x** | **0.958x** | **1.000x** |
+
+All rows report exact governed-load binding, epoch/context association, matched
+transport, identical semantic output, and no instruction cap. K2-M improves
+misses on PR/BC/CC and regresses BFS/SSSP. Only PR improves diagnostic time;
+BC/CC remain slower. These are truncated synthetic-prefix rows with
+`timing_valid_for_speedup=0`, not headline or full-graph timing.
+
+The committed fresh three-simulator computed-address K2-M gate separately
+passes all 15 PR/BFS/SSSP/BC/CC x cache_sim/gem5/Sniper cells. Every eviction
+obeys the shared specification, every distance mismatch count is zero, gem5
+executes K2-M in all kernels, Sniper exact binding passes, BC dual-load coverage
+passes, and compact SSSP provenance passes.
 
 ### Sniper host-cost audit
 

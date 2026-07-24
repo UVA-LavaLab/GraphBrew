@@ -6,6 +6,7 @@ from pathlib import Path
 from scripts.experiments.ecg.analysis.claim_gate import (
     DEFAULT_LEDGER,
     markdown,
+    resolved_claims,
     validate,
 )
 
@@ -23,12 +24,19 @@ def test_current_claim_gate_is_consistent():
     text = markdown(data)
     assert "K2-M generally speeds up full-graph workloads." in text
     assert "**prohibited**" in text
-    assert "`matched_sniper_post_binding`" in text
+    assert "`full_graph_detailed_results`" in text
+    assert "fresh computed-address K2-M gate passes all 15" in text
     assert "K2 requires no live P-OPT rereference matrix" in text
     assert "1.329x packed K2-I-like model" in text
     assert "Zero reserved data ways means zero K2 hardware overhead" in text
     assert "`semantic_work_infrastructure`" in text
     assert "policy-independent static graph-edge visits" in text
+    gates = {gate["id"]: gate for gate in data["gates"]}
+    assert gates["matched_sniper_post_binding"]["status"] == "passed"
+    claims = {claim["id"]: claim for claim in resolved_claims(data)}
+    speedup = claims["k2m_general_speedup"]
+    assert speedup["decision"] == "prohibited"
+    assert speedup["missing_gates"] == ["full_graph_detailed_results"]
 
 
 def test_allowed_claim_fails_when_dependency_is_pending():

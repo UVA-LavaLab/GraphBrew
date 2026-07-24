@@ -37,8 +37,9 @@ The K2-M Sniper model uses transport-matched guest execution: every policy
 loads the same 8-byte records for unweighted kernels, while SSSP uses the same
 native 8-byte weighted edge or general 12-byte fallback. A five-kernel gate
 requires exact semantic results and at most 0.25% instruction divergence.
-Current mechanism cells achieve exactly 1.000x instruction ratio. Timing remains
-diagnostic pending fresh post-binding, equal-semantic-work rows. The current Sniper
+The fresh post-binding semantic gate achieves exactly 1.000x instruction ratio
+for LRU versus K2-M across all five kernels. Timing remains diagnostic because
+the rows are a truncated synthetic prefix. The current Sniper
 implementation binds sideband K2 metadata to an explicit identical marker
 around the exact edge-governed destination load for every policy; source
 property loads and BC/CC non-edge phases remain unmarked. The marker snapshots

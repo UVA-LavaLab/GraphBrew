@@ -21,7 +21,8 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 
 - Tiered K2 construction, delivery, line metadata, effective distance, and
   victim decisions agree across cache_sim, gem5, and Sniper for
-  PR/BFS/SSSP/BC/CC.
+  PR/BFS/SSSP/BC/CC. The fresh committed computed-address K2-M gate passes all
+  15 kernel x simulator cells with zero distance mismatches.
 - All five kernels execute the fused indexed K2-I instruction in gem5.
   TimingSimpleCPU provides serialized semantic delivery for the scale cells;
   exact per-Request O3 binding is proven only by tiny PR and weighted SSSP
@@ -31,7 +32,7 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 - Typed computed-address K2-M modes are implemented in gem5 for U32, S32, U64,
   compact weighted U32, and FP32. PR and compact SSSP pass exact O3
   producer/consumer request-binding proofs; PR/BFS/SSSP/BC/CC pass the complete
-  cache_sim+gem5 K2-M delivery/victim gate.
+  cache_sim+gem5+Sniper K2-M delivery/victim gate.
 - gem5 implements user-level `ecg.cur_epoch`/`ecg.context` CSRs, snapshots them
   plus O3 program order on K2 Requests, stores context on resident lines, and
   applies sticky MSHR conflict semantics. The harness allocates monotonic
@@ -42,6 +43,11 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
   1.000x, geomean speedup is 1.006x, and geomean L3-miss reduction is 4.35%.
   PR/BFS/SSSP improve; BC/CC remain near neutral. PR and compact SSSP receipt
   proofs report zero bad records. These are mechanism cells, not headline timing.
+- The fresh post-binding semantic Sniper gate passes 25/25 rows. Every policy
+  executes the same 4,096-edge prefix; LRU/K2-M instruction ratio is 1.000x in
+  all five kernels. K2-M has 0.958x geomean L3 misses but 0.975x diagnostic
+  simulated-time speedup versus LRU. This synthetic truncated-prefix result has
+  `timing_valid_for_speedup=0` and is not a general performance claim.
 - The K2 architecture requires no live P-OPT rereference matrix. Its primary
   implementation retains the configured LLC data ways and accepts separately
   reported line/request metadata overhead; reduced-way rows are equal-area
@@ -166,10 +172,9 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 
 - A complete real-graph Sniper comparison of LRU, SRRIP, GRASP, charged P-OPT,
   static/online K2, and both StreamShield variants.
-- Fresh post-binding matched Sniper rows using either uncapped completion or the
-  equal-semantic-edge gate; legacy instruction-capped rows cannot certify
-  equal graph work.
-- A full sampled/real-graph matched Sniper K2-M timing matrix.
+- A full sampled/real-graph matched Sniper K2-M timing matrix. The synthetic
+  equal-semantic-edge certification is complete, but it is not full-graph
+  timing.
 - An optional drain/invalidation protocol for intentional context-ID reuse.
   gem5's no-reuse CSR/request lifecycle and Sniper's exact governed-load
   epoch/context model are implemented.

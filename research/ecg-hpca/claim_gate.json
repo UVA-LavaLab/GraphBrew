@@ -52,7 +52,9 @@
       "evidence": [
         "5c1c487a",
         "6ad37c60",
-        "dba0afc8"
+        "dba0afc8",
+        "86e40765",
+        "research/ecg-hpca/evidence/k2m_equivalence_20260724.md"
       ]
     },
     {
@@ -80,8 +82,13 @@
     },
     {
       "id": "matched_sniper_post_binding",
-      "status": "pending",
-      "evidence": []
+      "status": "passed",
+      "evidence": [
+        "30333aea",
+        "research/ecg-hpca/evidence/k2m_equivalence_20260724.md",
+        "results/ecg_experiments/final_paper_runs/ecg_sniper_semantic_gate_20260724/combined_roi_matrix.csv",
+        "results/ecg_experiments/final_paper_runs/ecg_sniper_semantic_gate_20260724/semantic_gate_certification.json"
+      ]
     },
     {
       "id": "semantic_work_infrastructure",
@@ -177,12 +184,13 @@
     },
     {
       "id": "request_bound_mechanism",
-      "text": "K2-M exact O3 request binding is proven for PR and compact SSSP; all five kernels pass functional delivery/victim parity.",
+      "text": "K2-M exact O3 request binding is proven for PR and compact SSSP; a fresh computed-address K2-M gate passes all 15 cache_sim/gem5/Sniper kernel cells.",
       "scope": "Mechanism correctness with explicit O3 coverage boundary",
       "decision": "allowed",
       "required_gates": [
         "k2m_request_correctness",
-        "five_kernel_mechanism"
+        "five_kernel_mechanism",
+        "matched_sniper_post_binding"
       ]
     },
     {
