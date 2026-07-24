@@ -264,11 +264,13 @@ executed CACTI binary.
 `analysis/k2_rtl_packet.py` emits hashed synthesis inputs for the exact
 seven-variant victim-ranking core and 16-way 49-bit SECDED codecs. Verilator
 functional checks cover all variant dispatch, selector ordering, collapsed
-RRIP aging, and single/double-error behavior; Yosys elaboration passes. The
-ranking core still needs a wrapper for distance/context/property qualification,
-online selection, and any non-baseline rank maintenance. These are RTL inputs,
-not technology measurements. Registered request-state storage/merge RTL remains
-pending.
+RRIP aging, property/context/two-epoch qualification, online winner updates,
+and single/double-error behavior; Yosys structural checks pass.
+`k2_replacement_path` is the complete replacement top at the fixed
+32,768-epoch physical point. Its two descriptors accept only prefiltered
+epoch-governed regions and synthesize 32 per-way range checks. Non-baseline
+recency-rank maintenance must be charged separately. These are RTL inputs, not technology measurements.
+Registered request-state storage/merge RTL remains pending.
 
 `analysis/k2_physical.py` validates explicit baseline-cache, metadata-SRAM,
 SECDED, replacement-logic, and request-path measurements plus mandatory source,

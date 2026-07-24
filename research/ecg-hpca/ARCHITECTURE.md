@@ -425,8 +425,10 @@ K2-I remains a separate ISA ablation.
   RRIP-gated variants, uniform aging is synthesized as selection from the
   current maximum RRPV plus the equivalent updated RRPVs. The 4-bit recency
   input is assumed to be baseline-provided age rank for 16 ways; if the target
-  LLC lacks it, its maintenance/storage must be charged. Epoch/context/property
-  qualification and online selection remain outside this ranking subcomponent.
+  LLC lacks it, its maintenance/storage must be charged. The complete wrapper
+  adds two prefiltered epoch-region comparisons per way, context qualification,
+  two-epoch distance at the 32,768-epoch physical point, and exact five-arm
+  online selection.
 
 The artifact rejects hidden matrices, zero-latency bypass, and aggressive
 per-access LLC metadata broadcasts in headline rows.

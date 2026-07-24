@@ -18,10 +18,13 @@ additional K2 line metadata.
 Use `k2_secded_49_parallel16`, which instantiates 16 encoders and 16 decoders,
 for total codec area. Use `k2_secded_49_decode` for one-way decode delay. Use
 `k2_victim_select` with its default 16-way parameters only for ranking-core
-area/delay. Do not use it alone as `k2_replacement_logic`: the final wrapper
-must also synthesize epoch-pair distance, context/property qualification,
-static/online variant selection, and any recency-rank maintenance not already
-present in the baseline LLC. Physical reports require a pinned 32 nm library
+area/delay. `k2_replacement_path` is the replacement-component top: it adds
+two prefiltered epoch-region descriptors, context qualification, two-epoch
+circular distance at the fixed 32,768-epoch physical point, and exact five-arm
+online dueling. With 16 ways this synthesizes 32 parallel range checks, not two
+shared comparators. Singleton records must repeat epoch1 in epoch2. Any
+recency-rank maintenance not already present in the baseline LLC must still be
+added or charged separately. Physical reports require a pinned 32 nm library
 and remain pending.
 
 `tb_k2_physical_logic.sv` checks invalid-way priority, all headline selector

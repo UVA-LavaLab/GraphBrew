@@ -17,6 +17,8 @@ def test_rtl_packet_hashes_synthesis_inputs(tmp_path: Path):
     replacement = payload["replacement_ranking_subcomponent"]
     assert replacement["parameters"]["WAYS"] == 16
     assert "Ranking and RRIP aging only" in replacement["scope"]
+    assert payload["replacement_path"]["top"] == "k2_replacement_path"
+    assert payload["replacement_path"]["parameters"]["EPOCH_BITS"] == 15
     assert payload["ecc"]["area_instances"] == {
         "encoders": 16,
         "decoders": 16,
@@ -24,8 +26,10 @@ def test_rtl_packet_hashes_synthesis_inputs(tmp_path: Path):
     for entry in (
             replacement["source"],
             replacement["policy_ssot"],
+            *payload["replacement_path"]["sources"],
             payload["ecc"]["source"],
-            payload["verification"]["testbench"]):
+            payload["verification"]["testbench"],
+            payload["verification"]["replacement_testbench"]):
         path = ROOT / entry["path"]
         assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"]
     serialized = json.loads(

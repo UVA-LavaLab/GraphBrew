@@ -18,7 +18,10 @@ from scripts.experiments.ecg.analysis.k2_cacti_packet import (
 RTL_ROOT = PROJECT_ROOT / "bench/src_rtl"
 VICTIM_RTL = RTL_ROOT / "k2_victim_select.sv"
 ECC_RTL = RTL_ROOT / "k2_secded_49.sv"
+ONLINE_RTL = RTL_ROOT / "k2_online_selector.sv"
+REPLACEMENT_RTL = RTL_ROOT / "k2_replacement_path.sv"
 TESTBENCH = RTL_ROOT / "tb_k2_physical_logic.sv"
+REPLACEMENT_TESTBENCH = RTL_ROOT / "tb_k2_replacement_path.sv"
 POLICY_SSOT = PROJECT_ROOT / "bench/include/ecg_victim_policy.h"
 
 
@@ -60,6 +63,31 @@ def manifest() -> dict[str, Any]:
                 "qualification, variant/online selection, and any non-baseline "
                 "recency-rank maintenance."),
         },
+        "replacement_path": {
+            "top": "k2_replacement_path",
+            "sources": [
+                source_entry(VICTIM_RTL),
+                source_entry(ONLINE_RTL),
+                source_entry(REPLACEMENT_RTL),
+            ],
+            "parameters": {
+                "WAYS": 16,
+                "ADDR_BITS": 48,
+                "EPOCH_REGIONS": 2,
+                "EPOCH_BITS": 15,
+                "CONTEXT_BITS": 16,
+                "RRPV_BITS": 3,
+                "RECENCY_BITS": 4,
+                "SET_INDEX_BITS": 13,
+            },
+            "scope": (
+                "Static and five-arm online replacement path including "
+                "property-region comparisons, context qualification, "
+                "two-epoch circular distance, ranking, and winner state. "
+                "The two descriptors must be prefiltered to the benchmark's "
+                "epoch-governed arrays. EPOCH_BITS=15 fixes the physical point "
+                "at 32768 epochs; singleton records repeat epoch1 in epoch2."),
+        },
         "ecc": {
             "area_top": "k2_secded_49_parallel16",
             "read_delay_top": "k2_secded_49_decode",
@@ -74,6 +102,7 @@ def manifest() -> dict[str, Any]:
         },
         "verification": {
             "testbench": source_entry(TESTBENCH),
+            "replacement_testbench": source_entry(REPLACEMENT_TESTBENCH),
             "commands": [
                 "python3 -m "
                 "scripts.experiments.ecg.analysis.k2_rtl_verify",
@@ -83,8 +112,8 @@ def manifest() -> dict[str, Any]:
             "No technology area, power, or delay result is embedded.",
             "Request/CSR/queue/MSHR storage and merge logic require a separate "
             "registered synthesis top before the physical gate can pass.",
-            "k2_victim_select is not sufficient by itself for the final "
-            "k2_replacement_logic component.",
+            "Recency-rank maintenance must be charged if the baseline LLC does "
+            "not already provide a 16-way age rank.",
             "The 4-bit recency input is baseline-provided 16-way age rank, not "
             "additional K2 line metadata.",
         ],

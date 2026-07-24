@@ -463,12 +463,14 @@ python3 -m scripts.experiments.ecg.analysis.k2_rtl_verify
 ```
 
 `k2_victim_select` covers all seven SSOT ranking variants and collapses uniform
-RRIP aging to the equivalent current-max-RRPV candidate set. It is not the
-final replacement component: distance/context/property qualification, online
-selection, and non-baseline rank maintenance must be added before physical
-measurement. The SECDED area top contains 16 encoders and 16 decoders; one
-decoder supplies read delay. Request/CSR/queue/MSHR registered synthesis input
-is still pending.
+RRIP aging to the equivalent current-max-RRPV candidate set.
+`k2_replacement_path` adds epoch-region comparison, context matching,
+two-epoch distance at 32,768 epochs, and five-arm online dueling. Its two
+region descriptors are prefiltered epoch regions, yielding 32 parallel range
+checks for 16 ways. Non-baseline rank maintenance must be added or charged
+separately. The SECDED area top
+contains 16 encoders and 16 decoders; one decoder supplies read delay.
+Request/CSR/queue/MSHR registered synthesis input is still pending.
 
 After external CACTI and synthesis runs, create and fill the measured physical
 input schema:

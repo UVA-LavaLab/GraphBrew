@@ -60,10 +60,12 @@ python3 -m scripts.experiments.ecg.analysis.k2_rtl_packet \
   --out-dir /tmp/k2-rtl-packet
 ```
 
-The checked-in RTL and functional test cover all seven C++ victim-ranking
-variants, equivalent collapsed RRIP aging, and 49-bit SECDED. The selector is
-not a complete replacement-path top: epoch/context/property qualification,
-online selection, and any non-baseline recency-rank maintenance remain to be
-wrapped and charged. Technology synthesis is not performed by this command.
-Request-state storage/merge RTL also remains required before the physical gate
-can pass.
+The checked-in RTL and functional tests cover all seven C++ victim-ranking
+variants, equivalent collapsed RRIP aging, property-region/context/two-epoch
+qualification, exact five-arm online dueling, and 49-bit SECDED.
+`k2_replacement_path` is fixed to the 32,768-epoch physical point. Any
+non-baseline recency-rank maintenance must still be charged. Technology
+synthesis is not performed by this command, and request-state storage/merge RTL
+remains required before the physical gate can pass.
+Its two region descriptors must contain only the benchmark's epoch-governed
+arrays (for example PR `contrib`, not `scores`; BC `depth,path_counts`).

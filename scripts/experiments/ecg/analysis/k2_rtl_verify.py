@@ -14,8 +14,11 @@ from typing import Any
 from scripts.experiments.ecg.analysis.k2_cacti_packet import sha256_file
 from scripts.experiments.ecg.analysis.k2_rtl_packet import (
     ECC_RTL,
+    ONLINE_RTL,
+    REPLACEMENT_RTL,
     RTL_ROOT,
     TESTBENCH,
+    REPLACEMENT_TESTBENCH,
     VICTIM_RTL,
 )
 
@@ -37,28 +40,43 @@ def verify(work_dir: Path) -> dict[str, Any]:
     verilator = required_tool("verilator")
     yosys = required_tool("yosys")
     work_dir.mkdir(parents=True, exist_ok=True)
-    obj_dir = work_dir / "verilator"
-    subprocess.run([
-        verilator,
-        "--binary",
-        "--timing",
-        "-Wall",
-        "-Wno-fatal",
-        "--top-module", "tb_k2_physical_logic",
-        "--Mdir", str(obj_dir),
-        str(VICTIM_RTL),
-        str(ECC_RTL),
-        str(TESTBENCH),
-    ], check=True, capture_output=True, text=True)
-    simulation = subprocess.run(
-        [str(obj_dir / "Vtb_k2_physical_logic")],
-        check=True, capture_output=True, text=True)
-    if "K2 physical RTL tests passed" not in simulation.stdout:
-        raise RuntimeError("K2 RTL functional test did not report success")
+    simulations = (
+        (
+            "tb_k2_physical_logic",
+            [VICTIM_RTL, ECC_RTL, TESTBENCH],
+            "K2 physical RTL tests passed",
+        ),
+        (
+            "tb_k2_replacement_path",
+            [VICTIM_RTL, ONLINE_RTL, REPLACEMENT_RTL,
+             REPLACEMENT_TESTBENCH],
+            "K2 replacement path tests passed",
+        ),
+    )
+    for top, sources, marker in simulations:
+        obj_dir = work_dir / top
+        subprocess.run([
+            verilator,
+            "--binary",
+            "--timing",
+            "-Wall",
+            "-Wno-fatal",
+            "--top-module", top,
+            "--Mdir", str(obj_dir),
+            *(str(source) for source in sources),
+        ], check=True, capture_output=True, text=True)
+        simulation = subprocess.run(
+            [str(obj_dir / f"V{top}")],
+            check=True, capture_output=True, text=True)
+        if marker not in simulation.stdout:
+            raise RuntimeError(
+                f"{top} functional test did not report success")
 
     for top, sources in (
             ("k2_victim_select", [VICTIM_RTL]),
-            ("k2_secded_49_parallel16", [ECC_RTL])):
+            ("k2_secded_49_parallel16", [ECC_RTL]),
+            ("k2_replacement_path",
+             [VICTIM_RTL, ONLINE_RTL, REPLACEMENT_RTL])):
         script = (
             "read_verilog -sv " +
             " ".join(str(source) for source in sources) +
@@ -73,7 +91,9 @@ def verify(work_dir: Path) -> dict[str, Any]:
         "yosys": tool_version(yosys),
         "inputs": {
             str(path.relative_to(RTL_ROOT.parent.parent)): sha256_file(path)
-            for path in (VICTIM_RTL, ECC_RTL, TESTBENCH)
+            for path in (
+                VICTIM_RTL, ECC_RTL, ONLINE_RTL, REPLACEMENT_RTL,
+                TESTBENCH, REPLACEMENT_TESTBENCH)
         },
     }
 
