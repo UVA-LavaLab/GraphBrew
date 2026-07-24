@@ -65,6 +65,12 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
   property/context/two-epoch qualification and exact five-arm online dueling at
   32,768 epochs. Functional and generic synthesis checks pass; no technology
   area/power/timing value is claimed.
+- Per-unit synthesis inputs cover exact sticky MSHR merge state, epoch/context
+  CSRs, 95-bit sideband pipeline storage, optional superscalar sequence
+  allocation, and optional registered recency ranks. Total request-path cost
+  requires explicit machine counts, per-access activations, an integrated
+  critical delay, and measured 32 nm reports; the schema rejects count-free
+  per-unit inputs.
 - The reviewer three-cost table is generated from serialized graph headers and
   runner-identical formulas: extra bytes per active edge stream, 33/49 K2
   metadata bits per line, and size-correct P-OPT reserved data ways.

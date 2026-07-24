@@ -286,6 +286,10 @@ mailbox fallback for plain loads.
   same technology node as CACTI.
 - Replacement and SECDED synthesis inputs are checked in and hashable; their
   functional/generic synthesis tests do not constitute technology measurements.
+- Request-path inputs are emitted per MSHR slot, hart, sideband register copy,
+  and optional recency-ranked set. Final physical input must state the scaling
+  counts, activations, and integrated critical delay; baseline CAM/allocation
+  and queue-control logic are not recharged.
 - No hidden matrix, per-access LLC metadata broadcast, or zero-latency bypass is
   permitted in a headline row.
 

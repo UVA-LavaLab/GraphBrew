@@ -40,3 +40,19 @@ python3 -m scripts.experiments.ecg.analysis.k2_rtl_verify
 
 Unlike the portable pytest wrapper, this command fails if Verilator or Yosys is
 missing and records tool versions plus input hashes.
+
+Request-path inputs are per-unit so the final packet does not invent machine
+counts:
+
+- `k2_request_state_slot`: one registered K2 extension and exact sticky MSHR
+  merge logic;
+- `k2_csr_state`: one hart's 15-bit epoch and 16-bit context CSRs;
+- `k2_sequence_allocator`: optional eight-lane 32-bit allocator when the core
+  cannot reuse existing dynamic-instruction sequence tags;
+- `k2_request_pipeline_stage`: one registered 95-bit sideband copy;
+- `k2_recency_rank_state`: one set's 16 x 4-bit rank storage and update logic,
+  needed only if the baseline LLC lacks age ranks.
+
+Scale these tops by actual harts, MSHR slots, sideband copies, and sets. The
+baseline MSHR still supplies address CAM matching, allocation/free control, and
+slot arbitration; baseline queue head/tail/occupancy control is not a K2 charge.

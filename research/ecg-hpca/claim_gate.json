@@ -113,6 +113,8 @@
         "bench/src_rtl/k2_victim_select.sv",
         "bench/src_rtl/k2_online_selector.sv",
         "bench/src_rtl/k2_replacement_path.sv",
+        "bench/src_rtl/k2_request_path.sv",
+        "bench/src_rtl/k2_recency_rank.sv",
         "bench/src_rtl/k2_secded_49.sv",
         "research/ecg-hpca/physical/README.md"
       ]

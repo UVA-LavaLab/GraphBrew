@@ -470,7 +470,16 @@ region descriptors are prefiltered epoch regions, yielding 32 parallel range
 checks for 16 ways. Non-baseline rank maintenance must be added or charged
 separately. The SECDED area top
 contains 16 encoders and 16 decoders; one decoder supplies read delay.
-Request/CSR/queue/MSHR registered synthesis input is still pending.
+Per-unit request inputs are now emitted: one MSHR extension slot, one hart's
+epoch/context CSR state, one 95-bit pipeline copy, an optional eight-lane
+sequence allocator, and optional 16-way rank state. Scale them by the target
+machine's actual slots/harts/copies/sets. The baseline supplies MSHR CAM match,
+allocation/arbitration, and queue control; do not charge those common resources
+to K2.
+The physical JSON must provide each unit's instance count,
+`activations_per_access`, fixed/way-scaled classification, and an integrated
+request-path critical delay. Missing counts or activation counts greater than
+instances fail validation.
 
 After external CACTI and synthesis runs, create and fill the measured physical
 input schema:

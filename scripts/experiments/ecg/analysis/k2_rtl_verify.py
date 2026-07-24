@@ -15,10 +15,13 @@ from scripts.experiments.ecg.analysis.k2_cacti_packet import sha256_file
 from scripts.experiments.ecg.analysis.k2_rtl_packet import (
     ECC_RTL,
     ONLINE_RTL,
+    RECENCY_RTL,
     REPLACEMENT_RTL,
+    REQUEST_RTL,
     RTL_ROOT,
     TESTBENCH,
     REPLACEMENT_TESTBENCH,
+    REQUEST_TESTBENCH,
     VICTIM_RTL,
 )
 
@@ -52,6 +55,11 @@ def verify(work_dir: Path) -> dict[str, Any]:
              REPLACEMENT_TESTBENCH],
             "K2 replacement path tests passed",
         ),
+        (
+            "tb_k2_request_path",
+            [REQUEST_RTL, RECENCY_RTL, REQUEST_TESTBENCH],
+            "K2 request path tests passed",
+        ),
     )
     for top, sources, marker in simulations:
         obj_dir = work_dir / top
@@ -76,7 +84,12 @@ def verify(work_dir: Path) -> dict[str, Any]:
             ("k2_victim_select", [VICTIM_RTL]),
             ("k2_secded_49_parallel16", [ECC_RTL]),
             ("k2_replacement_path",
-             [VICTIM_RTL, ONLINE_RTL, REPLACEMENT_RTL])):
+             [VICTIM_RTL, ONLINE_RTL, REPLACEMENT_RTL]),
+            ("k2_request_state_slot", [REQUEST_RTL]),
+            ("k2_csr_state", [REQUEST_RTL]),
+            ("k2_sequence_allocator", [REQUEST_RTL]),
+            ("k2_request_pipeline_stage", [REQUEST_RTL]),
+            ("k2_recency_rank_state", [RECENCY_RTL])):
         script = (
             "read_verilog -sv " +
             " ".join(str(source) for source in sources) +
@@ -93,7 +106,8 @@ def verify(work_dir: Path) -> dict[str, Any]:
             str(path.relative_to(RTL_ROOT.parent.parent)): sha256_file(path)
             for path in (
                 VICTIM_RTL, ECC_RTL, ONLINE_RTL, REPLACEMENT_RTL,
-                TESTBENCH, REPLACEMENT_TESTBENCH)
+                REQUEST_RTL, RECENCY_RTL, TESTBENCH,
+                REPLACEMENT_TESTBENCH, REQUEST_TESTBENCH)
         },
     }
 

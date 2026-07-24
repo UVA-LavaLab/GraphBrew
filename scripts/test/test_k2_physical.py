@@ -50,12 +50,60 @@ def measured_input():
         "leakage_mw": 0.2,
         "delay_ns": 0.1,
     }
-    data["k2_request_path_logic"] = {
-        "area_mm2": 0.01,
-        "read_energy_nj": 0.005,
-        "write_energy_nj": 0.006,
-        "leakage_mw": 0.05,
-        "delay_ns": 0.05,
+    data["k2_request_path"] = {
+        "critical_delay_ns": 0.05,
+        "units": {
+            "mshr_slot": {
+                "instances": 2,
+                "activations_per_access": 1.0,
+                "scales_with_ways": False,
+                "area_mm2": 0.002,
+                "read_energy_nj": 0.001,
+                "write_energy_nj": 0.001,
+                "leakage_mw": 0.005,
+                "delay_ns": 0.02,
+            },
+            "csr_per_hart": {
+                "instances": 1,
+                "activations_per_access": 1.0,
+                "scales_with_ways": False,
+                "area_mm2": 0.001,
+                "read_energy_nj": 0.001,
+                "write_energy_nj": 0.001,
+                "leakage_mw": 0.005,
+                "delay_ns": 0.01,
+            },
+            "sequence_allocator": {
+                "instances": 1,
+                "activations_per_access": 1.0,
+                "scales_with_ways": False,
+                "area_mm2": 0.001,
+                "read_energy_nj": 0.001,
+                "write_energy_nj": 0.001,
+                "leakage_mw": 0.005,
+                "delay_ns": 0.01,
+            },
+            "pipeline_copy": {
+                "instances": 4,
+                "activations_per_access": 2.0,
+                "scales_with_ways": False,
+                "area_mm2": 0.001,
+                "read_energy_nj": 0.001,
+                "write_energy_nj": 0.001,
+                "leakage_mw": 0.005,
+                "delay_ns": 0.01,
+            },
+            "recency_rank_per_set": {
+                "instances": 2,
+                "activations_per_access": 0.0,
+                "scales_with_ways": True,
+                "area_mm2": 0.001,
+                "read_energy_nj": 0.001,
+                "write_energy_nj": 0.001,
+                "leakage_mw": 0.005,
+                "delay_ns": 0.01,
+            },
+        },
     }
     data["provenance"] = {
         "cacti_version": "test-cacti",
@@ -81,8 +129,8 @@ def measured_input():
 
 def test_characterize_measured_physical_inputs():
     result = characterize(measured_input())
-    assert result["k2_total_area_mm2"] == pytest.approx(4.455)
-    assert result["k2_area_overhead_percent"] == pytest.approx(11.375)
+    assert result["k2_total_area_mm2"] == pytest.approx(4.457)
+    assert result["k2_area_overhead_percent"] == pytest.approx(11.425)
     assert result["k2_read_energy_nj"] == pytest.approx(1.127)
     assert result["parallel_lookup_delay_ns"] == pytest.approx(2.0)
     assert result["request_to_data_parallel_delay_ns"] == pytest.approx(2.05)
@@ -92,7 +140,7 @@ def test_characterize_measured_physical_inputs():
     assert result["serialized_all_components_upper_bound_ns"] == pytest.approx(
         3.17)
     assert result["linear_equal_area_fractional_ways"] == pytest.approx(
-        14.3473325766)
+        14.3408214205)
     assert result["linear_equal_area_integral_ways"] == 14
     assert result["linear_equal_area_integral_effective_bytes"] == 7340032
 
@@ -120,6 +168,25 @@ def test_characterize_rejects_missing_or_placeholder_values():
     data["synthesis_technology_nm"] = 45
     with pytest.raises(ValueError, match="must match technology_nm"):
         characterize(data)
+    data = measured_input()
+    data["k2_request_path"]["units"]["mshr_slot"]["instances"] = None
+    with pytest.raises(ValueError, match="mshr_slot.instances"):
+        characterize(data)
+    data = measured_input()
+    data["k2_request_path"]["units"]["pipeline_copy"][
+        "activations_per_access"] = 5
+    with pytest.raises(ValueError, match="must be <= instances"):
+        characterize(data)
+    data = measured_input()
+    data["k2_request_path"]["units"]["mshr_slot"]["instances"] = 0
+    with pytest.raises(ValueError, match="mshr_slot.instances"):
+        characterize(data)
+    data = measured_input()
+    data["k2_request_path"]["units"]["sequence_allocator"]["instances"] = 0
+    data["k2_request_path"]["units"]["sequence_allocator"][
+        "activations_per_access"] = 0
+    assert characterize(data)["k2_request_path"]["units"][
+        "sequence_allocator"]["instances"] == 0
 
 
 def test_cli_template_and_input(tmp_path: Path):

@@ -20,8 +20,11 @@ VICTIM_RTL = RTL_ROOT / "k2_victim_select.sv"
 ECC_RTL = RTL_ROOT / "k2_secded_49.sv"
 ONLINE_RTL = RTL_ROOT / "k2_online_selector.sv"
 REPLACEMENT_RTL = RTL_ROOT / "k2_replacement_path.sv"
+REQUEST_RTL = RTL_ROOT / "k2_request_path.sv"
+RECENCY_RTL = RTL_ROOT / "k2_recency_rank.sv"
 TESTBENCH = RTL_ROOT / "tb_k2_physical_logic.sv"
 REPLACEMENT_TESTBENCH = RTL_ROOT / "tb_k2_replacement_path.sv"
+REQUEST_TESTBENCH = RTL_ROOT / "tb_k2_request_path.sv"
 POLICY_SSOT = PROJECT_ROOT / "bench/include/ecg_victim_policy.h"
 
 
@@ -100,9 +103,41 @@ def manifest() -> dict[str, Any]:
                 "decoders": 16,
             },
         },
+        "request_path_units": {
+            "sources": [
+                source_entry(REQUEST_RTL),
+                source_entry(RECENCY_RTL),
+            ],
+            "tops": {
+                "mshr_slot": "k2_request_state_slot",
+                "csr_per_hart": "k2_csr_state",
+                "optional_sequence_allocator": "k2_sequence_allocator",
+                "pipeline_copy": "k2_request_pipeline_stage",
+                "optional_recency_rank_per_set": "k2_recency_rank_state",
+            },
+            "payload_bits": 95,
+            "payload_layout": {
+                "tier": "1:0",
+                "epoch1": "16:2",
+                "epoch2": "31:17",
+                "current_epoch": "46:32",
+                "context": "62:47",
+                "sequence": "94:63",
+            },
+            "scaling": (
+                "Synthesize per-unit tops, then scale by actual MSHR slots, "
+                "harts, and request-sideband copies. The baseline MSHR supplies "
+                "address match, allocation, and slot arbitration; these tops "
+                "measure only incremental K2 state/merge logic. O3 may reuse "
+                "existing dynamic-instruction sequence tags; otherwise the "
+                "8-lane 32-bit allocator is the pinned fallback. Scale "
+                "registered recency state by LLC sets only when the baseline "
+                "does not provide age rank."),
+        },
         "verification": {
             "testbench": source_entry(TESTBENCH),
             "replacement_testbench": source_entry(REPLACEMENT_TESTBENCH),
+            "request_testbench": source_entry(REQUEST_TESTBENCH),
             "commands": [
                 "python3 -m "
                 "scripts.experiments.ecg.analysis.k2_rtl_verify",
@@ -110,10 +145,10 @@ def manifest() -> dict[str, Any]:
         },
         "limitations": [
             "No technology area, power, or delay result is embedded.",
-            "Request/CSR/queue/MSHR storage and merge logic require a separate "
-            "registered synthesis top before the physical gate can pass.",
-            "Recency-rank maintenance must be charged if the baseline LLC does "
-            "not already provide a 16-way age rank.",
+            "Per-unit request-state RTL must be scaled using the target "
+            "microarchitecture's actual harts, MSHR slots, and sideband copies.",
+            "Pipeline copies include K2 payload flops only; baseline queue "
+            "head/tail/occupancy control is not charged to K2.",
             "The 4-bit recency input is baseline-provided 16-way age rank, not "
             "additional K2 line metadata.",
         ],

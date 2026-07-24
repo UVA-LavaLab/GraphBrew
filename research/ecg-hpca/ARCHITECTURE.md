@@ -429,6 +429,15 @@ K2-I remains a separate ISA ablation.
   adds two prefiltered epoch-region comparisons per way, context qualification,
   two-epoch distance at the 32,768-epoch physical point, and exact five-arm
   online selection.
+- Request-path synthesis is per-unit: a registered MSHR extension slot with
+  exact sticky merge semantics, per-hart epoch/context CSR state, one 95-bit
+  sideband register copy, an optional eight-lane 32-bit sequence allocator, and
+  optional per-set recency rank state. O3 may reuse existing dynamic-instruction
+  sequence tags. Baseline MSHR address match/allocation/arbitration and queue
+  control are not incremental K2 logic.
+- Physical aggregation requires actual MSHR-slot, hart, pipeline-copy, sequence
+  allocator, and recency-set counts plus per-access activations. Recency state
+  scales with LLC ways; the other request units are fixed-area terms.
 
 The artifact rejects hidden matrices, zero-latency bypass, and aggressive
 per-access LLC metadata broadcasts in headline rows.

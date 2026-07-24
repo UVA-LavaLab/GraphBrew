@@ -269,8 +269,15 @@ and single/double-error behavior; Yosys structural checks pass.
 `k2_replacement_path` is the complete replacement top at the fixed
 32,768-epoch physical point. Its two descriptors accept only prefiltered
 epoch-governed regions and synthesize 32 per-way range checks. Non-baseline
-recency-rank maintenance must be charged separately. These are RTL inputs, not technology measurements.
-Registered request-state storage/merge RTL remains pending.
+recency-rank maintenance must be charged separately. These are RTL inputs, not
+technology measurements.
+Per-unit request-state inputs are now implemented and verified: exact sticky
+MSHR merge, epoch/context CSR state, a 95-bit pipeline copy, an optional
+eight-lane 32-bit sequence allocator, and optional registered 16-way recency
+rank state. Final area must multiply them by disclosed target-machine counts;
+baseline MSHR CAM/allocation and queue control are excluded as common logic.
+The physical schema enforces those counts and per-access activations and keeps
+per-set recency area in the way-scaled equal-area term.
 
 `analysis/k2_physical.py` validates explicit baseline-cache, metadata-SRAM,
 SECDED, replacement-logic, and request-path measurements plus mandatory source,

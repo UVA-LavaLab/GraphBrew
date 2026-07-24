@@ -66,6 +66,15 @@ qualification, exact five-arm online dueling, and 49-bit SECDED.
 `k2_replacement_path` is fixed to the 32,768-epoch physical point. Any
 non-baseline recency-rank maintenance must still be charged. Technology
 synthesis is not performed by this command, and request-state storage/merge RTL
-remains required before the physical gate can pass.
+is emitted as per-unit tops rather than an arbitrary machine-wide count.
 Its two region descriptors must contain only the benchmark's epoch-governed
 arrays (for example PR `contrib`, not `scores`; BC `depth,path_counts`).
+
+The request packet covers one MSHR extension slot, per-hart epoch/context CSRs,
+one 95-bit pipeline copy, an optional eight-lane sequence allocator, and
+optional registered recency rank state. Final characterization must scale them
+using the target machine's actual counts. `k2_physical.py` requires those
+instance counts, per-access activations, and the integrated request-path
+critical delay; a single per-unit value cannot pass as machine-wide cost.
+Existing MSHR address matching, allocation/arbitration, and queue control are
+baseline resources and are not recharged to K2.
