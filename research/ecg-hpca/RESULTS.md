@@ -443,6 +443,54 @@ under the frozen metrics. Second, `total_memory_traffic` here is demand plus
 prefetch fills and excludes LLC writebacks. The symmetric-accounting gate stays
 open until the stream is modelled as an engine-side transfer.
 
+### CORRECTION: StreamShield was a mechanism only K2 was allowed to use
+
+K2's structural bypass (StreamShield) declines to allocate its one-touch
+per-edge records in the LLC. The same argument applies to any policy's CSR edge
+stream: it is sequential and read-once, so allocating it evicts reusable
+property lines. The runner offered the option to K2 alone, because
+`ecg_transport_for` returned a no-bypass transport for every policy that was
+not K2. Every previous K2-versus-baseline comparison therefore mixed "K2
+replaces better" with "K2 is the only policy allowed to bypass".
+
+The bypass is now available to every policy (`--structural-bypass all`), and it
+matters far more to the baselines than StreamShield does to K2.
+
+web-Google PageRank, `-i 2`, 2 MiB 16-way, no prefetcher, every metadata stream
+charged (P-OPT's matrix stream simulated, K2's 4-byte record stream charged).
+Demand misses equal traffic here because no prefetcher is active:
+
+| policy | no bypass | with bypass | bypass gain |
+|---|---:|---:|---:|
+| GRASP | 3,121,133 | **2,964,622** | -5.0% |
+| charged P-OPT | 3,182,235 | 3,128,955 | -1.7% |
+| LRU | 4,356,759 | 3,486,848 | **-20.0%** |
+| K2 | 3,608,879 | 3,522,202 (StreamShield) | -2.4% |
+
+Two conclusions, and the second is the consequential one.
+
+1. **The bypass helps the weakest policy most.** LRU gains 20.0% from it,
+   against GRASP's 5.0% and P-OPT's 1.7%. It substitutes for good replacement,
+   so granting it only to K2 flattered K2 most where K2 was weakest.
+2. **With the mechanism equalised, K2 loses to plain LRU.** K2 with
+   StreamShield (3,522,202) is worse than LRU with the same bypass
+   (3,486,848), and both are well behind GRASP with bypass (2,964,622). On this
+   cell K2 is the second-worst of the four policies however the bypass is set.
+
+The bypass is not a free win either. On a small synthetic cell it *increases*
+P-OPT traffic, because declining to allocate a stream that still has reuse
+costs more than it saves. That is a further reason it must be offered to every
+policy and reported, rather than assumed beneficial and given to one.
+
+Every row now records `structural_bypass`, so a matrix that granted the option
+unevenly is visible rather than implicit.
+
+Scope: one graph, one kernel, one cache size, no prefetcher. Under the frozen
+metrics this is a traffic result on a single cell, not a headline; the frozen
+cell set and geomean still govern any claim. It is reported because it changes
+the direction of the K2-versus-baseline comparison, which is exactly the kind
+of finding the previous accounting would have hidden.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 > **This section is withdrawn.** It is retained verbatim for audit, not as a

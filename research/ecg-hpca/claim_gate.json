@@ -215,6 +215,17 @@
         "research/ecg-hpca/METHODOLOGY.md",
         "scripts/test/test_frozen_metrics.py"
       ]
+    },
+    {
+      "id": "symmetric_mechanism_availability",
+      "status": "passed",
+      "note": "K2's structural bypass (StreamShield) was available to K2 alone; every other policy was returned a no-bypass transport. The option is now offered to every policy via --structural-bypass, and every row records which setting was used. Measured on web-Google PageRank the bypass is worth -20.0% to LRU, -5.0% to GRASP and -1.7% to P-OPT against StreamShield's -2.4% to K2, and with it equalised K2+StreamShield loses to LRU+bypass.",
+      "evidence": [
+        "bench/include/cache_sim/graph_sim.h",
+        "scripts/experiments/ecg/roi_matrix.py",
+        "scripts/test/test_structural_bypass.py",
+        "research/ecg-hpca/RESULTS.md"
+      ]
     }
   ],
   "claims": [
@@ -284,7 +295,8 @@
         "full_graph_detailed_results",
         "frozen_primary_metrics",
         "idealised_prefetch_free_evidence",
-        "prefetch_traffic_accounted"
+        "prefetch_traffic_accounted",
+        "symmetric_mechanism_availability"
       ]
     },
     {
@@ -298,7 +310,8 @@
         "frozen_primary_metrics",
         "symmetric_metadata_accounting",
         "idealised_prefetch_free_evidence",
-        "prefetch_traffic_accounted"
+        "prefetch_traffic_accounted",
+        "symmetric_mechanism_availability"
       ]
     },
     {
@@ -309,7 +322,8 @@
       "required_gates": [
         "hawkeye_results",
         "equal_area_results",
-        "frozen_primary_metrics"
+        "frozen_primary_metrics",
+        "symmetric_mechanism_availability"
       ]
     },
     {
@@ -396,7 +410,8 @@
         "prefetch_traffic_accounted",
         "full_graph_detailed_results",
         "frozen_primary_metrics",
-        "symmetric_metadata_accounting"
+        "symmetric_metadata_accounting",
+        "symmetric_mechanism_availability"
       ]
     },
     {

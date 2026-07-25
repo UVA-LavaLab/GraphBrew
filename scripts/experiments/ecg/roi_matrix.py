@@ -941,6 +941,10 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
             "1" if (spec.charge_popt_overhead and
                     getattr(args, "popt_matrix_stream", "analytic") == "simulated")
             else "0"),
+        # Structural-stream bypass, offered to every policy so K2's StreamShield
+        # is not a mechanism its competitors are denied.
+        "STRUCTURAL_BYPASS": (
+            "1" if getattr(args, "structural_bypass", "off") == "all" else "0"),
         # Structure-stream prefetcher degree, applied to ALL policies (0 = off).
         # This is the cross-sim LEVELING control: --prefetcher STRIDE is the switch
         # that turns on each simulator's native generic stream/stride prefetcher
@@ -2662,6 +2666,9 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             charge.get("popt_effective_l3_ways", args.l3_ways)
             if charge else args.l3_ways),
         "l1_l2_policy": "LRU",
+        # Recorded on every row: a comparison is only valid if all policies in
+        # the matrix had the same bypass option available.
+        "structural_bypass": getattr(args, "structural_bypass", "off"),
     }
     if charge:
         row.update(charge)
@@ -2950,6 +2957,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "HPCA'21 Sec V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
                              "ways for the resident rereference-matrix columns (scales with |V|; "
                              "marks cells popt_matrix_fits=0 when the columns cannot fit).")
+    parser.add_argument("--structural-bypass", choices=["off", "all"],
+                        default="off",
+                        help="Offer the structural-stream LLC bypass to EVERY policy, not "
+                             "just to K2 via StreamShield. The CSR edge stream is "
+                             "sequential and read-once for every policy, so allowing only "
+                             "K2 to decline to allocate it confounds 'K2 replaces better' "
+                             "with 'K2 is the only policy allowed to bypass'. Measured on "
+                             "web-Google PageRank the bypass is worth -20.0%% to LRU, "
+                             "-5.1%% to GRASP and -2.0%% to P-OPT, against StreamShield's "
+                             "-2.4%% to K2.")
     parser.add_argument("--popt-matrix-stream", choices=["analytic", "simulated"],
                         default="analytic",
                         help="How P-OPT's rereference-matrix column stream is charged. "

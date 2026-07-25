@@ -9,6 +9,7 @@
 #include "graph_cache_context.h"
 #include <graph.h>
 #include <pvector.h>
+#include <cstdlib>
 #include <string>
 
 namespace cache_sim {
@@ -157,6 +158,31 @@ inline void prefetch_with_site(
     cache.prefetch(address);
 }
 
+// Structural-stream bypass, offered to EVERY policy rather than to K2 alone.
+//
+// StreamShield lets K2 read its one-touch per-edge records without allocating
+// them in the LLC. The same argument applies to any policy's structural CSR
+// edge stream: it is sequential and read-once, so allocating it evicts reusable
+// property lines. Leaving the option available only to K2 confounds "K2's
+// replacement is better" with "K2 is the only policy allowed to bypass".
+// STRUCTURAL_BYPASS=1 applies it uniformly to the CSR edge stream of every
+// kernel and every policy, so the two effects can be separated.
+inline bool structural_bypass_enabled() {
+    static const bool enabled = [](){
+        const char* v = std::getenv("STRUCTURAL_BYPASS");
+        return v && std::atoi(v) != 0;
+    }();
+    return enabled;
+}
+
+template <typename Cache>
+inline decltype(auto) access_edge_with_site(
+        Cache& cache, uint64_t address, uint64_t site_id) {
+    HawkeyeSiteScope scope(site_id);
+    if (structural_bypass_enabled()) return cache.accessStream(address, false);
+    return cache.access(address, false);
+}
+
 #define CACHE_SIM_HAWKEYE_SITE_ID \
     (static_cast<uint64_t>(__COUNTER__) + 1ULL)
 // The proxy ID is binary-local, like a machine PC. Rebuilds may renumber sites;
@@ -247,10 +273,11 @@ inline void prefetch_with_site(
     } while(0)
 
 // Track CSR edge list traversal (reading neighbor IDs from edge array).
-// Call once per edge during neighbor iteration.
+// Call once per edge during neighbor iteration. Honours STRUCTURAL_BYPASS so
+// every policy, not only K2, can decline to allocate this one-touch stream.
 #define SIM_CACHE_READ_EDGE(cache, neighbor_ptr) \
-    ::cache_sim::access_with_site( \
-        (cache), reinterpret_cast<uint64_t>(neighbor_ptr), false, \
+    ::cache_sim::access_edge_with_site( \
+        (cache), reinterpret_cast<uint64_t>(neighbor_ptr), \
         CACHE_SIM_HAWKEYE_SITE_ID)
 
 #define SIM_CACHE_READ_EDGE_RECORD(cache, neighbor_ptr, edge_base, synthetic_base, record_bytes) \
