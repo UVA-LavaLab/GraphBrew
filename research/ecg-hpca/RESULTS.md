@@ -382,6 +382,48 @@ P-OPT raw alongside charged, and treat the no-prefetch charged comparison
 (where neither stream is prefetched, so the accounting is symmetric) as the
 defensible one.
 
+**RESOLVED: the matrix stream is now simulated, and it quantifies the flaw.**
+cache_sim issues the rereference-matrix column stream as real non-temporal
+accesses at each epoch boundary (`--popt-matrix-stream simulated`), placed
+outside every registered property region so the structure prefetcher classifies
+it as structural, exactly as it classifies K2's records. The columns do not
+allocate in the modelled cache because the reserved ways that hold them are
+already deducted from the geometry; allocating again would charge P-OPT twice
+for the same capacity.
+
+Measured, web-Google PageRank, 2 MiB 16-way, charged P-OPT:
+
+| configuration | demand misses | prefetch fills | total traffic |
+|---|---:|---:|---:|
+| no prefetch, stream not simulated | 2,724,937 | 0 | 2,724,937 |
+| no prefetch, stream simulated | 2,951,565 | 0 | 2,951,565 |
+| STRIDE8, stream not simulated | 1,647,133 | 1,089,577 | 2,736,710 |
+| STRIDE8, stream simulated | 1,646,466 | 1,320,242 | 2,966,708 |
+
+Two things follow, and they are the whole finding:
+
+1. **Without a prefetcher the two models agree.** Simulating the stream adds
+   226,628 demand misses against the flat charge's 229,108 -- a 1.1% difference
+   from lines the double-buffer serves out of L1/L2. The no-prefetch charged
+   comparison was therefore sound, as claimed above.
+2. **With a prefetcher the flat charge is simply wrong.** Simulating the stream
+   costs **zero** additional demand misses (1,646,466 against 1,647,133 without
+   it, i.e. inside noise) because the prefetcher covers the whole sequential
+   column stream. It appears instead as +230,665 prefetch fills. The flat charge
+   was adding 229,108 demand misses that real hardware removes entirely.
+
+That is the entire explanation of the implausible 2.684. It was never P-OPT.
+
+Note which metric survives this. Total traffic rises by ~230k lines in both
+models (+229,998 simulated against +229,108 analytic), because a prefetcher
+relocates work rather than removing it. The bytes were always real; only the
+demand-miss column was fictional. This is a direct vindication of the frozen
+primary metrics: traffic was correct throughout, and the metric that misled was
+the one now barred from carrying a performance argument under a prefetcher.
+
+The runner fails closed on the invalid combination: a charged P-OPT policy with
+an active prefetcher and the analytic charge is rejected rather than reported.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 > **This section is withdrawn.** It is retained verbatim for audit, not as a

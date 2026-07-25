@@ -198,9 +198,14 @@
     },
     {
       "id": "symmetric_metadata_accounting",
-      "status": "pending",
-      "note": "P-OPT's rereference-matrix stream is charged as a flat analytic penalty no prefetcher can cover, while K2's edge records are simulated accesses the prefetcher does cover. Both are sequential streams. Any K2-versus-P-OPT comparison requires both metadata streams to be priced identically: same hierarchy, same prefetch eligibility, same MSHR/queue/bandwidth treatment.",
-      "evidence": []
+      "status": "passed",
+      "note": "P-OPT's rereference-matrix column stream is now issued as real non-temporal accesses in cache_sim, outside every property region, so the structure prefetcher covers it exactly as it covers K2's per-edge records. Without a prefetcher the simulated and analytic charges agree within 1.1%; with STRIDE8 the simulated stream costs zero additional demand misses against the analytic charge's 229,108, while traffic rises identically in both. The runner rejects an analytic charge combined with an active prefetcher.",
+      "evidence": [
+        "bench/include/cache_sim/cache_sim.h",
+        "scripts/experiments/ecg/roi_matrix.py",
+        "scripts/test/test_popt_charged_policy.py",
+        "research/ecg-hpca/RESULTS.md"
+      ]
     },
     {
       "id": "frozen_primary_metrics",

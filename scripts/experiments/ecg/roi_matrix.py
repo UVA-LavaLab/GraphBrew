@@ -326,11 +326,33 @@ def miss_rate(misses: Any, accesses: Any) -> float | None:
 
 
 def apply_overhead_metrics(row: dict[str, Any]) -> None:
-    stream_lines = (
-        int(row.get("popt_matrix_stream_cache_lines") or 0)
-        if row.get("popt_overhead_charged") in (1, "1", True, "true")
-        else 0
-    )
+    """Charge P-OPT's rereference-matrix stream, once and in the right column.
+
+    Two accounting modes exist and must never both apply:
+
+    * ``simulated`` -- cache_sim issued the column stream as real accesses
+      (``POPT_MATRIX_STREAM_SIM=1``), so it is already inside ``l3_misses`` and
+      ``total_memory_traffic``. Adding the flat charge here would double-count.
+    * ``analytic`` -- the stream was not simulated, so it is added post hoc.
+
+    The analytic mode is only symmetric with K2 when no prefetcher is active.
+    K2's edge records are simulated accesses a structure prefetcher covers,
+    while a flat charge can never be covered, so under a prefetcher the analytic
+    mode penalises P-OPT with demand misses a real prefetcher removes. Measured
+    on web-Google PageRank under STRIDE8, simulating the stream costs 0 extra
+    demand misses and ~230k extra prefetch fills, against the flat charge's
+    229,108 demand misses. Traffic is materially identical either way.
+    """
+    simulated = int(row.get("popt_matrix_stream_lines_simulated") or 0)
+    charged = row.get("popt_overhead_charged") in (1, "1", True, "true")
+    if simulated > 0:
+        row["popt_matrix_stream_mode"] = "simulated"
+        stream_lines = 0
+    else:
+        row["popt_matrix_stream_mode"] = "analytic" if charged else "none"
+        stream_lines = (
+            int(row.get("popt_matrix_stream_cache_lines") or 0) if charged else 0
+        )
     l3_misses = row.get("l3_misses")
     if l3_misses not in (None, ""):
         row["l3_misses_with_overhead"] = int(l3_misses) + stream_lines
@@ -902,6 +924,13 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
         "CACHE_L3_WAYS": effective_l3_ways,
         "CACHE_LINE_SIZE": args.line_size,
         "CACHE_OUTPUT_JSON": str(json_path),
+        # Simulate P-OPT's rereference-matrix column stream as real accesses so
+        # the structure prefetcher covers it exactly as it covers K2's per-edge
+        # records. Only meaningful for policies that carry the overhead charge.
+        "POPT_MATRIX_STREAM_SIM": (
+            "1" if (spec.charge_popt_overhead and
+                    getattr(args, "popt_matrix_stream", "analytic") == "simulated")
+            else "0"),
         # Structure-stream prefetcher degree, applied to ALL policies (0 = off).
         # This is the cross-sim LEVELING control: --prefetcher STRIDE is the switch
         # that turns on each simulator's native generic stream/stride prefetcher
@@ -2626,6 +2655,8 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
     }
     if charge:
         row.update(charge)
+        row["popt_matrix_stream_requested"] = getattr(
+            args, "popt_matrix_stream", "analytic")
     if spec.policy == "HAWKEYE":
         proxy = spec.label == "HAWKEYE_PROXY"
         row.update({
@@ -2909,6 +2940,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "HPCA'21 Sec V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
                              "ways for the resident rereference-matrix columns (scales with |V|; "
                              "marks cells popt_matrix_fits=0 when the columns cannot fit).")
+    parser.add_argument("--popt-matrix-stream", choices=["analytic", "simulated"],
+                        default="analytic",
+                        help="How P-OPT's rereference-matrix column stream is charged. "
+                             "'analytic' (legacy): add a flat per-run line count to the miss "
+                             "and traffic totals after the run. 'simulated': cache_sim issues "
+                             "the column stream as real non-temporal accesses at each epoch "
+                             "boundary, so a structure prefetcher can cover it exactly as it "
+                             "covers K2's per-edge records. The analytic mode is only "
+                             "symmetric with K2 when no prefetcher is active; with a "
+                             "prefetcher it charges P-OPT demand misses that real hardware "
+                             "removes, so 'simulated' is REQUIRED for any prefetch-enabled "
+                             "K2-versus-P-OPT comparison.")
     parser.add_argument("--ecg-charged", type=int, choices=[0, 1], default=1,
                         help="ECG per-edge record DELIVERY charge. 1 (default) = software "
                              "delivery: the 8B packed record is read from memory per edge "
@@ -3040,6 +3083,27 @@ def main(argv: list[str]) -> int:
             "to equal 1")
     if args.threads and args.suite != "sniper":
         raise SystemExit("--threads is currently supported only with --suite sniper")
+    # A flat analytic matrix charge cannot be covered by a prefetcher, while
+    # K2's per-edge records are simulated accesses that can. Combining the
+    # analytic charge with an active prefetcher therefore prices the two
+    # metadata streams differently and produces an invalid comparison; the
+    # frozen metrics in research/ecg-hpca/METHODOLOGY.md forbid it.
+    prefetch_active = (
+        args.prefetcher != "none" or
+        int(getattr(args, "cache_stream_prefetch_degree", 0) or 0) > 0)
+    if (prefetch_active and
+            getattr(args, "popt_matrix_stream", "analytic") == "analytic" and
+            any(spec.charge_popt_overhead for spec in
+                [parse_policy_spec(p) for p in (
+                    args.policies or
+                    (ALL_POLICIES if args.all_policies else
+                     SNIPER_DEFAULT_POLICIES if args.suite == "sniper"
+                     else DEFAULT_POLICIES))])):
+        raise SystemExit(
+            "charged P-OPT with an active prefetcher requires "
+            "--popt-matrix-stream simulated: a flat analytic matrix charge "
+            "cannot be prefetch-covered while K2's records can, which prices "
+            "the two metadata streams differently")
     if args.all_policies:
         policy_texts = ALL_POLICIES
     elif args.policies is not None:

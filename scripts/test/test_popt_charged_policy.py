@@ -237,3 +237,83 @@ def test_gem5_sideband_paths_are_per_output_directory(tmp_path):
     # (policy-named) out-dir length, so the benchmark heap layout stays
     # policy-independent (only the hash hex differs, never the length).
     assert len(a["context"].parent.name) == len(b["context"].parent.name)
+
+# ---------------------------------------------------------------------------
+# Rereference-matrix stream accounting
+# ---------------------------------------------------------------------------
+# The 2026-07-25 review found the charged P-OPT column implausible (2.684 on
+# web-Google PageRank, worse than LRU for a near-oracle policy). The cause was
+# accounting, not P-OPT: its matrix stream was a flat analytic penalty that no
+# prefetcher can cover, while K2's per-edge records were simulated accesses the
+# prefetcher does cover. Both are sequential streams.
+
+
+def test_simulated_stream_is_not_double_charged():
+    """When cache_sim streams the columns, the flat charge must not be added."""
+    row = {
+        "popt_overhead_charged": 1,
+        "popt_matrix_stream_cache_lines": 229108,
+        "popt_matrix_stream_lines_simulated": 229120,
+        "l3_misses": 1000000,
+        "total_memory_traffic": 1000000,
+    }
+    roi_matrix.apply_overhead_metrics(row)
+    assert row["popt_matrix_stream_mode"] == "simulated"
+    # Already inside the simulated totals.
+    assert row["l3_misses_with_overhead"] == 1000000
+    assert row["total_memory_traffic_with_overhead"] == 1000000
+
+
+def test_analytic_stream_is_still_charged():
+    row = {
+        "popt_overhead_charged": 1,
+        "popt_matrix_stream_cache_lines": 229108,
+        "popt_matrix_stream_lines_simulated": 0,
+        "l3_misses": 1000000,
+        "total_memory_traffic": 1000000,
+    }
+    roi_matrix.apply_overhead_metrics(row)
+    assert row["popt_matrix_stream_mode"] == "analytic"
+    assert row["l3_misses_with_overhead"] == 1229108
+    assert row["total_memory_traffic_with_overhead"] == 1229108
+
+
+def test_uncharged_policy_pays_nothing():
+    row = {
+        "popt_overhead_charged": 0,
+        "popt_matrix_stream_cache_lines": 229108,
+        "l3_misses": 1000000,
+        "total_memory_traffic": 1000000,
+    }
+    roi_matrix.apply_overhead_metrics(row)
+    assert row["popt_matrix_stream_mode"] == "none"
+    assert row["l3_misses_with_overhead"] == 1000000
+
+
+def _run_cli(extra: list) -> tuple:
+    import subprocess
+    cmd = [
+        sys.executable, str(ROI_MATRIX_PATH), "--suite", "cache-sim",
+        "--benchmark", "pr", "--policies", "POPT", "--dry-run",
+    ] + extra
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    return proc.returncode, proc.stdout + proc.stderr
+
+
+def test_analytic_charge_with_prefetcher_is_rejected():
+    """The exact asymmetric comparison the review invalidated must fail closed."""
+    code, out = _run_cli(["--prefetcher", "STRIDE"])
+    assert code != 0
+    assert "--popt-matrix-stream simulated" in out
+
+
+def test_simulated_stream_with_prefetcher_is_allowed():
+    code, out = _run_cli(
+        ["--prefetcher", "STRIDE", "--popt-matrix-stream", "simulated"])
+    assert code == 0, out
+
+
+def test_analytic_charge_without_prefetcher_is_allowed():
+    """Without a prefetcher neither stream is covered, so accounting is symmetric."""
+    code, out = _run_cli([])
+    assert code == 0, out

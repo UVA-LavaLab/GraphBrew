@@ -2390,6 +2390,14 @@ public:
             std::cerr << "[ECG-STREAM-BYPASS sim=cache_sim active=1 adaptive="
                       << (adaptive_streamshield_ ? 1 : 0) << "]\n";
         }
+        accessNonTemporal(address, is_write);
+    }
+
+    // Shared non-temporal core. Kept separate from accessStream so P-OPT's
+    // rereference-matrix column stream can reuse the identical accounting
+    // instead of duplicating it; only the announcement differs.
+    void accessNonTemporal(uint64_t address, bool is_write = false) {
+        if (!enabled_) return;
         const uint64_t line_addr = lineAddress(address);
         const bool was_prefetched = hasPrefetchedLine(line_addr);
         static const int stream_pf_degree = [](){
@@ -2604,8 +2612,100 @@ public:
 
     // P-OPT: Update current vertex (call at each outer-loop iteration)
     void setCurrentVertex(uint32_t vertex_id) {
+        streamPoptMatrixIfEpochAdvanced(vertex_id);
         l3_->setCurrentVertex(vertex_id);
     }
+
+    // ------------------------------------------------------------------
+    // P-OPT rereference-matrix column stream
+    // ------------------------------------------------------------------
+    // Balaji & Lucia (HPCA'21) keep the current and next Rereference-Matrix
+    // columns resident in reserved LLC ways and stream in a fresh column at
+    // every epoch boundary. cache_sim consults the matrix host-side, so that
+    // stream previously existed only as a flat analytic charge added to the
+    // miss count after the run. K2's per-edge records, by contrast, are real
+    // simulated accesses, so a structure prefetcher covered K2's sequential
+    // stream while no prefetcher could ever cover P-OPT's. Both are sequential
+    // streams; pricing only one of them through the hierarchy systematically
+    // favours K2. This issues the column stream as real accesses so the two are
+    // accounted symmetrically.
+    //
+    // The stream is non-temporal because the resident columns live in the
+    // reserved ways, and those ways are already deducted from the simulated
+    // cache geometry. Allocating them again in the modelled cache would charge
+    // P-OPT for the same capacity twice.
+    //
+    // The synthetic column buffer is deliberately outside every registered
+    // property region, so findRegion() classifies it as structural and the
+    // stride prefetcher covers it exactly as it covers K2's records.
+    void initPoptMatrixStream(uint32_t column_bytes, uint32_t epoch_size,
+                              uint32_t num_epochs) {
+        if (column_bytes == 0 || epoch_size == 0 || num_epochs == 0) return;
+        popt_stream_column_bytes_ = column_bytes;
+        popt_stream_epoch_size_ = epoch_size;
+        popt_stream_num_epochs_ = num_epochs;
+        popt_stream_last_epoch_ = UINT32_MAX;
+        popt_stream_enabled_ = true;
+        std::cerr << "[POPT-MATRIX-STREAM sim=cache_sim active=1 column_bytes="
+                  << column_bytes << " epoch_size=" << epoch_size
+                  << " epochs=" << num_epochs << "]\n";
+    }
+
+    uint64_t getPoptMatrixStreamLines() const { return popt_stream_lines_; }
+
+private:
+    // Enabled by POPT_MATRIX_STREAM_SIM=1 and configured from the registered
+    // rereference matrix, so no kernel needs to know about it and all five
+    // kernels behave identically.
+    void initPoptMatrixStreamFromContext() {
+        popt_stream_checked_ = true;
+        static const bool requested = [](){
+            const char* v = std::getenv("POPT_MATRIX_STREAM_SIM");
+            return v && std::atoi(v) != 0;
+        }();
+        if (!requested || !graph_ctx_) return;
+        const auto& r = graph_ctx_->rereference;
+        if (r.matrix == nullptr || r.num_cache_lines == 0 || r.epoch_size == 0)
+            return;
+        // One matrix entry per cache line, per the paper's 1B/entry encoding.
+        initPoptMatrixStream(r.num_cache_lines, r.epoch_size, r.num_epochs);
+    }
+
+    void streamPoptMatrixIfEpochAdvanced(uint32_t vertex_id) {
+        if (!popt_stream_checked_) initPoptMatrixStreamFromContext();
+        if (!popt_stream_enabled_ || popt_stream_epoch_size_ == 0) return;
+        const uint32_t epoch = vertex_id / popt_stream_epoch_size_;
+        if (epoch == popt_stream_last_epoch_) return;
+        // Only forward progress streams a column; a kernel that revisits an
+        // earlier vertex must not re-fetch, or a frontier traversal would be
+        // charged for columns a real implementation already holds.
+        const bool first = (popt_stream_last_epoch_ == UINT32_MAX);
+        if (!first && epoch <= popt_stream_last_epoch_) return;
+        popt_stream_last_epoch_ = epoch;
+        if (epoch >= popt_stream_num_epochs_) return;
+        // Double buffer: current plus next column, matching the paper's two
+        // resident columns.
+        const uint64_t base = kPoptStreamBase +
+            static_cast<uint64_t>(epoch % 2) * popt_stream_column_bytes_;
+        for (uint64_t off = 0; off < popt_stream_column_bytes_;
+             off += line_size_) {
+            popt_stream_lines_++;
+            accessNonTemporal(base + off, false);
+        }
+    }
+
+    // Well outside any graph allocation, so it can never alias a registered
+    // property region.
+    static constexpr uint64_t kPoptStreamBase = 0x7000000000000ULL;
+    bool popt_stream_enabled_ = false;
+    bool popt_stream_checked_ = false;
+    uint32_t popt_stream_column_bytes_ = 0;
+    uint32_t popt_stream_epoch_size_ = 0;
+    uint32_t popt_stream_num_epochs_ = 0;
+    uint32_t popt_stream_last_epoch_ = UINT32_MAX;
+    uint64_t popt_stream_lines_ = 0;
+
+public:
 
     uint64_t getTotalAccesses() const { return total_accesses_; }
     uint64_t getMemoryAccesses() const { return memory_accesses_; }
@@ -2669,6 +2769,8 @@ public:
         ss << "  \"prefetch_mtlb_misses\": " << pfx_mtlb_misses_ << ",\n";
         ss << "  \"prefetch_pending\": " << getPrefetchPending() << ",\n";
         ss << "  \"total_memory_traffic\": " << getTotalMemoryTraffic() << ",\n";
+        ss << "  \"popt_matrix_stream_lines_simulated\": "
+           << popt_stream_lines_ << ",\n";
         ss << "  \"L1\": " << levelToJSON(*l1_) << ",\n";
         ss << "  \"L2\": " << levelToJSON(*l2_) << ",\n";
         ss << "  \"L3\": " << levelToJSON(*l3_) << "\n";

@@ -48,9 +48,11 @@ def test_current_claim_gate_is_consistent():
     ]
     popt = claims["k2_beats_popt"]
     assert popt["decision"] == "prohibited"
-    # K2-versus-P-OPT additionally requires the two metadata streams to be
-    # priced symmetrically before any comparison is admissible.
-    assert "symmetric_metadata_accounting" in popt["missing_gates"]
+    # K2-versus-P-OPT depends on the two metadata streams being priced
+    # symmetrically. That gate now passes (the matrix stream is simulated), so
+    # assert the dependency itself rather than its absence.
+    assert "symmetric_metadata_accounting" in popt["required_gates"]
+    assert gates["symmetric_metadata_accounting"]["status"] == "passed"
 
 
 def test_allowed_claim_fails_when_dependency_is_pending():
