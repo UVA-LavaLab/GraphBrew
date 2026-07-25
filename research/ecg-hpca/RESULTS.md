@@ -292,6 +292,43 @@ Scope: one metric (overhead-aware LLC misses) in cache_sim. It does not settle
 timing, where K2's sequential record stream and StreamShield's traffic
 reduction may behave differently; that remains the pending Sniper matrix.
 
+### KNOWN FLAW: the P-OPT matrix stream is charged but not prefetched
+
+Under STRIDE8 the charged comparison reports charged P-OPT at a median 0.926
+and, on web-Google PageRank, at **2.684** -- nearly three times worse than LRU.
+That is not credible for a near-oracle policy, and it is our accounting at
+fault, not P-OPT.
+
+On web-Google PageRank, P-OPT takes **1** actual LLC miss against LRU's 85,351:
+the oracle is essentially perfect. We then add
+`popt_matrix_stream_cache_lines = 229,108` as a flat penalty, producing 229,109
+"misses". The asymmetry is:
+
+- K2's edge records are **simulated memory accesses**, so the stride prefetcher
+  covers them and their misses collapse.
+- P-OPT's rereference-matrix stream is an **analytic post-hoc charge**, so no
+  prefetcher can ever cover it.
+
+Both are sequential streams. Letting the prefetcher hide one but not the other
+systematically favours K2. Effect on P-OPT under STRIDE8:
+
+| | median | web-Google PR |
+|---|---:|---:|
+| raw (oracle quality) | 0.491 | ~0.000 |
+| charged (flat matrix penalty) | 0.926 | 2.684 |
+
+Read raw, P-OPT is competitive with the best K2 variant (0.491 versus 0.469),
+and on PageRank -- the kernel the P-OPT paper actually claims -- it behaves as
+published. Any K2-versus-P-OPT claim taken from the charged STRIDE8 column is
+therefore overstated and must not be used.
+
+The fix is to route the matrix stream through the simulated hierarchy so the
+prefetcher can cover it exactly as it covers K2 records, or failing that to
+apply the same prefetch-coverage discount to the flat charge. Until then, quote
+P-OPT raw alongside charged, and treat the no-prefetch charged comparison
+(where neither stream is prefetched, so the accounting is symmetric) as the
+defensible one.
+
 ### Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 The cache_sim metric counts LLC misses, which implicitly prices a sequential

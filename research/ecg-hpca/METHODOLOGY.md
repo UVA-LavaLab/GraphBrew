@@ -20,6 +20,20 @@ Python decision oracle plus backend-specific delivery checks. It does not mean
 that cache metrics or victim sequences are numerically identical across
 different cache hierarchies/frontends.
 
+### What cache_sim does and does not model
+
+cache_sim is a functional cache model. It records no instruction count, no IPC
+and no cycles (`instructions`, `ipc`, `sim_ticks` are all absent from its rows).
+Every cache_sim comparison therefore assumes the K2 record load is delivered by
+a hardware instruction that costs nothing extra in instruction count, and scores
+only the memory-hierarchy effect.
+
+That assumption is optimistic and must be stated. gem5 measures the same
+workloads executing 1.42-1.50x LRU's instructions on the `ecg.load2` path,
+because the guest still constructs and delivers records in software. cache_sim
+answers "how good is the replacement decision", gem5 answers "what does it cost
+to obtain it", and neither substitutes for the other.
+
 ### Sniper frontend: SIFT/SDE, and why it is not the legacy Pin tool
 
 Sniper offers three instruction-acquisition frontends (`USE_SDE=1`, `USE_PIN=1`,
