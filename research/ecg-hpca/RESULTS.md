@@ -292,6 +292,56 @@ Scope: one metric (overhead-aware LLC misses) in cache_sim. It does not settle
 timing, where K2's sequential record stream and StreamShield's traffic
 reduction may behave differently; that remains the pending Sniper matrix.
 
+### Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
+
+The cache_sim metric counts LLC misses, which implicitly prices a sequential
+edge-stream miss the same as an irregular property miss. That understates K2,
+because K2 deliberately trades irregular misses for sequential ones. gem5 can
+arbitrate: it models MLP, DRAM row locality and prefetching, and the sampled
+full-work matrix carries `timing_valid_for_speedup=1` with no instruction cap.
+
+gem5, 15 sampled full-work cells, `ecg.load2` delivery, charged, versus LRU:
+
+| Policy | instructions | time | IPC | DRAM read bytes | LLC misses |
+|---|---:|---:|---:|---:|---:|
+| GRASP | 1.000 | 0.957 | 1.045 | 0.874 | 0.875 |
+| charged P-OPT | 1.000 | 0.955 | 1.047 | 0.847 | 0.847 |
+| K2 | 1.495 | 1.284 | **1.165** | 1.091 | 1.094 |
+| K2-online+StreamShield | 1.422 | 1.228 | **1.157** | 1.029 | 1.032 |
+
+The decisive number is IPC. K2 incurs *more* LLC misses yet sustains a **higher
+IPC than LRU** (1.157-1.165), and its DRAM read traffic rises only 3-9% against
+a 3-7% miss increase. A policy whose extra misses were stalling the pipeline
+would show IPC falling, not rising. The added traffic is the sequential edge
+record stream, and the memory system absorbs it.
+
+K2's measured slowdown is therefore **instruction-bound, not memory-bound**: it
+executes 1.42-1.50x the instructions of LRU because the guest still constructs
+and delivers K2 records in software. Dividing time by the instruction ratio
+isolates the memory-system effect:
+
+| | instr | time | instr-normalised time |
+|---|---:|---:|---:|
+| K2-online+StreamShield | 1.422 | 1.228 | **0.864** |
+
+**13 of 15 cells are faster than LRU once instruction counts are matched**
+(geomean 0.864, i.e. 13.6% faster), and IPC improves in the same 13 cells.
+
+Two honest boundaries:
+
+- The normalised figure is a **projection, not a measurement**. What is measured
+  is that IPC rises and DRAM traffic barely moves; the 0.864 assumes the
+  software delivery overhead can be removed, which is precisely what the
+  hardware K2-I instruction exists to do. It is not a claimed speedup.
+- **SSSP is the exception** (1.09 and 1.09, still slower when normalised), and
+  consistently so: SSSP already uses compact weighted records, so it carries the
+  least software overhead to remove, and what remains is genuine memory cost.
+
+This reframes the cache_sim ranking. K2's miss-count deficit does not translate
+into a proportional time deficit, so a miss-count-only comparison against GRASP
+understates it. Scope: sampled graphs at reduced cache sizes; a full-graph
+timing matrix remains pending.
+
 ### Hawkeye baseline scaffold
 
 A clean-room Hawkeye policy module and LLC-only cache_sim adapter are now
