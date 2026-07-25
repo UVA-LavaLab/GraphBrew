@@ -325,7 +325,7 @@ Matched Sniper K2-M certification:
 python3 scripts/experiments/ecg/verify/matched_k2m.py \
   --root /tmp/ecg_sniper_k2m_allkernel_final \
   --binding-proof results/ecg_experiments/final_paper_runs/\
-ecg_3sim_k2m_conformance/summary.json
+ecg_3sim_k2m_conformance_20260724/summary.json
 ```
 
 Each kernel directory must contain exactly one LRU and one K2 row from the same
@@ -610,13 +610,15 @@ python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr bfs sssp bc cc \
   --schedule-k 2 --gem5-isa-variant mask \
   --evidence-dir \
-    results/ecg_experiments/final_paper_runs/ecg_3sim_k2m_conformance
+    results/ecg_experiments/final_paper_runs/ecg_3sim_k2m_conformance_20260724
 ```
 
 The evidence directory must contain a clean-tree input manifest, graph and
 binary hashes, independent preflight results, raw per-cell traces, copied ROI
-completion markers, and structured coverage. Treat the older `86e40765`
-evidence as superseded once this hardened gate is frozen.
+completion markers, and structured coverage. The frozen `3811624b` run passes
+15/15 cells; its command, hashes, scope, and caveats are recorded in
+`research/ecg-hpca/evidence/k2m_conformance_20260724.md`, which supersedes the
+older `86e40765` evidence.
 
 DROPLET warmed graph loading and collected 600 million ROI instructions.
 GRASP simulated one representative high-activity iteration, and P-OPT used one
