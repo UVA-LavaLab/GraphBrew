@@ -248,8 +248,49 @@ The runner and paper manifest now provide separate `ecg_equal_area_15` and
 `ecg_equal_area_14` full-graph cache_sim profiles. Conventional baselines retain
 the 16-way geometry; only Schedule-2 K2 policies receive the requested override.
 Each row records baseline and effective size/associativity, area mode, requested
-K2 ways, and the 49-bit line-metadata premise. No sensitivity rows have been run
-or frozen yet.
+K2 ways, and the 49-bit line-metadata premise.
+
+### Full-graph capacity sweep (16/15/14 ways) — FROZEN
+
+Three complete cache_sim runs at paper scale: web-Google, soc-pokec and
+cit-Patents x PR/BFS/SSSP/BC/CC x nine policies, 8 MiB/16-way LLC, 135 ok rows
+each. Metric is `l3_misses_with_overhead` (K2 record traffic and P-OPT matrix
+streaming are charged), reported as a geomean ratio to LRU over all 15 cells.
+Lower is better.
+
+| Policy | 16-way equal-capacity | 15-way equal-area | 14-way equal-area |
+|---|---:|---:|---:|
+| GRASP | **0.836** | 0.836 | 0.836 |
+| HAWKEYE_PROXY | 0.898 | 0.898 | 0.898 |
+| SRRIP | 0.929 | 0.929 | 0.929 |
+| K2-online+StreamShield | 0.926 | 0.955 | 0.986 |
+| K2+StreamShield | 0.935 | 0.964 | 0.995 |
+| K2-online | 0.956 | 0.984 | 1.016 |
+| K2 | 0.960 | 0.989 | 1.020 |
+| charged P-OPT | 0.969 | 0.969 | 0.969 |
+
+Conclusions, stated against interest:
+
+- **K2 does not beat GRASP on this metric.** Even in its most favourable
+  16-way equal-capacity configuration, the best K2 variant (0.926) trails GRASP
+  (0.836), and a K2 variant is the best policy in only 3 of 15 cells. Best-K2
+  beats GRASP in 4/15 cells. Any claim that K2 outperforms all baselines,
+  including GRASP, is not supported by this evidence.
+- **K2 does beat charged P-OPT**, the closest prior art, in 9/15 cells and on
+  the geomean (0.960 versus 0.969 at 16 ways).
+- **SSSP is K2's genuine win**: K2+StreamShield is the best policy on all three
+  real graphs (cit-Patents 0.700 versus GRASP 0.745; soc-pokec 0.719 versus
+  0.734; web-Google 0.778 versus 0.848).
+- **BFS is K2's clear weakness**, landing above LRU on every graph
+  (1.27/1.40/1.26).
+- StreamShield is consistently worth ~2-3 points (0.960 to 0.935 at 16 ways).
+- The sweep quantifies the equal-area cost at roughly **3 points per way**
+  (0.960 to 0.989 to 1.020). This is why 14/15-way rows are sensitivities and
+  never the headline configuration.
+
+Scope: one metric (overhead-aware LLC misses) in cache_sim. It does not settle
+timing, where K2's sequential record stream and StreamShield's traffic
+reduction may behave differently; that remains the pending Sniper matrix.
 
 ### Hawkeye baseline scaffold
 
