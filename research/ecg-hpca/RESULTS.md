@@ -513,6 +513,65 @@ cell set and geomean still govern any claim. It is reported because it changes
 the direction of the K2-versus-baseline comparison, which is exactly the kind
 of finding the previous accounting would have hidden.
 
+### DECOMPOSITION: K2's replacement is good; the bypass is worth more
+
+"K2+StreamShield loses to LRU+bypass" is an end-to-end traffic result, but on
+its own it does not say whether K2's *replacement* is any good, because K2 also
+carries a per-edge record stream that LRU does not. Holding transport fixed and
+varying only the victim rule separates the two. `ECG_VARIANT=lru_only` runs the
+identical K2 transport with recency selection, so it is K2 with its replacement
+intelligence switched off.
+
+Same cell as above (web-Google PageRank, `-i 2`, 2 MiB 16-way, no prefetcher,
+packed 4-byte record). Total traffic:
+
+| | configuration | traffic |
+|---|---|---:|
+| A | LRU baseline | 4,356,828 |
+| B | K2, charged record, `epoch_only` | 3,607,455 |
+| C | K2, charged record, `lru_only` | 4,357,274 |
+| D | K2, free metadata, `epoch_only` | 3,606,221 |
+| E | K2, free metadata, `lru_only` | 4,356,828 |
+
+E equals A to the line, which is the harness sanity check: K2 transport with
+recency selection and free metadata is exactly plain LRU.
+
+| effect | difference | |
+|---|---:|---|
+| transport cost of K2's record stream | C - A = **+446** | 0.01% |
+| K2 replacement gain, charged | B - C = **-749,819** | -17.2% |
+| K2 replacement gain, free metadata | D - E = -750,607 | -17.2% |
+| net K2 versus LRU | B - A = -749,373 | -17.2% |
+
+Three things follow, and they revise the previous section rather than
+contradict it.
+
+1. **K2's packed transport is essentially free**, +446 lines out of 4.36M. The
+   4-byte packed record *replaces* the CSR edge read rather than adding to it,
+   so at this graph size K2 streams the same bytes per edge as any baseline.
+   The charged-versus-free columns differ by under 0.04%, so the record cost is
+   not what holds K2 back.
+2. **K2's replacement is genuinely good**: -17.2% traffic against identical
+   transport with recency selection. That is a real algorithmic result and it
+   is not an artifact of accounting.
+3. **The structural bypass is worth more than K2's entire replacement
+   advantage.** The bypass gives LRU -20.0%; K2's epoch replacement gives
+   -17.2%. Both are removing the *same* pollution -- the structural stream
+   displacing reusable property lines -- one mechanically and one
+   algorithmically. That is why they barely stack: adding StreamShield on top
+   of K2's replacement is worth only a further -2.4%, because the replacement
+   has already captured most of what the bypass captures.
+
+So the honest statement is not "K2's replacement is bad". It is that on this
+cell K2 solves, slightly less well, a problem that a one-line bypass also
+solves, while GRASP solves it better still (-28.4% versus LRU, -31.9% with the
+bypass). A policy whose advantage is substitutable by a bypass has to argue on
+cost, generality or the cases where the bypass is unavailable or harmful -- and
+the bypass is indeed harmful on at least one cell measured above.
+
+Scope: one graph, one kernel, one cache size, no prefetcher; single-cell
+traffic under the frozen metrics, not a headline.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
