@@ -474,17 +474,35 @@ StreamShield *is* K2's bypass, so the two are not two settings of one row.
 Two conclusions, and the second is the consequential one.
 
 1. **The bypass helps the weakest policy most.** LRU gains 20.0% from it,
-   against GRASP's 5.0% and P-OPT's 1.7%. It substitutes for good replacement,
-   so granting it only to K2 flattered K2 most where K2 was weakest.
+   against GRASP's 5.0% and P-OPT's 1.7%. Granting it only to K2 therefore
+   flattered K2 most where the baselines were weakest.
 2. **With the mechanism equalised, K2 loses to plain LRU.** K2 with
    StreamShield (3,522,202) is worse than LRU with the same bypass
-   (3,486,848), and both are well behind GRASP with bypass (2,964,622). On this
-   cell K2 is the second-worst of the four policies however the bypass is set.
+   (3,486,848), and both are well behind GRASP with bypass (2,964,622). K2
+   ranks third of four without any bypass and **last of four** once the
+   baselines are allowed the bypass too.
+
+Note what the two bypasses act on. StreamShield bypasses K2's per-edge *record*
+stream; `--structural-bypass all` bypasses the *CSR edge* stream that the
+baselines read. They are the same idea applied to each policy's own one-touch
+structural stream, which is the point, but they are not the same bytes, and
+`STRUCTURAL_BYPASS` deliberately does not alter charged K2 because StreamShield
+already is K2's bypass. K2 is not given two bypasses.
+
+Configuration, so the numbers can be reproduced exactly: this is a direct
+environment probe of `bench/bin_sim/pr`, not the pinned `ECG:K2` policy. It
+uses the packed 4-byte record (`[ECG RECORD] N=916428 epoch_bits=10 ->
+record_bytes=4`, i.e. 20 id + 10 epoch + 2 tier bits) with
+`ECG_VARIANT=epoch_only`. The canonical pinned `ECG:K2` policy instead uses the
+8-byte Schedule-2 record and the adaptive variant, so it will not reproduce
+these exact figures.
 
 The bypass is not a free win either. On a small synthetic cell it *increases*
 P-OPT traffic, because declining to allocate a stream that still has reuse
-costs more than it saves. That is a further reason it must be offered to every
-policy and reported, rather than assumed beneficial and given to one.
+costs more than it saves. Nor is the CSR stream one-touch in every kernel:
+PageRank rereads every edge each iteration, BFS bottom-up can rescan adjacency,
+and BC repeats traversal per source. Bypass is therefore a sensitivity to be
+reported, not an entitlement that automatically makes a comparison fair.
 
 Every row now records `structural_bypass`, so a matrix that granted the option
 unevenly is visible rather than implicit.

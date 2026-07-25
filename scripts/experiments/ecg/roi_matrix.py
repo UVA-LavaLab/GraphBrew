@@ -2667,8 +2667,13 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             if charge else args.l3_ways),
         "l1_l2_policy": "LRU",
         # Recorded on every row: a comparison is only valid if all policies in
-        # the matrix had the same bypass option available.
-        "structural_bypass": getattr(args, "structural_bypass", "off"),
+        # the matrix had the same bypass option available. Only cache_sim
+        # implements it, so other backends must say so rather than echo the
+        # request and imply an equalisation that never happened.
+        "structural_bypass": (
+            getattr(args, "structural_bypass", "off")
+            if args.suite in ("cache-sim", "both")
+            else "unsupported"),
     }
     if charge:
         row.update(charge)
@@ -3110,6 +3115,11 @@ def main(argv: list[str]) -> int:
             "to equal 1")
     if args.threads and args.suite != "sniper":
         raise SystemExit("--threads is currently supported only with --suite sniper")
+    if (getattr(args, "structural_bypass", "off") != "off" and
+            args.suite not in ("cache-sim", "both")):
+        raise SystemExit(
+            "--structural-bypass is implemented in cache_sim only; other "
+            "backends would record an equalisation that never happened")
     if (getattr(args, "popt_matrix_stream", "analytic") == "simulated" and
             args.suite not in ("cache-sim", "both")):
         raise SystemExit(
