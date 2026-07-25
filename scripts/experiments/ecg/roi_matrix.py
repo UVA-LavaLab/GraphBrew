@@ -345,6 +345,16 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
     """
     simulated = int(row.get("popt_matrix_stream_lines_simulated") or 0)
     charged = row.get("popt_overhead_charged") in (1, "1", True, "true")
+    requested = row.get("popt_matrix_stream_requested") or "analytic"
+    if charged and requested == "simulated" and simulated <= 0:
+        # Fail closed. Silently falling back to the analytic charge here would
+        # reintroduce exactly the asymmetry this mode exists to remove, and the
+        # row would look legitimate. Only cache_sim implements the stream.
+        row["status"] = "error"
+        row["error"] = (
+            "--popt-matrix-stream simulated was requested but no matrix-stream "
+            "lines were observed; the stream is implemented in cache_sim only")
+        return
     if simulated > 0:
         row["popt_matrix_stream_mode"] = "simulated"
         stream_lines = 0
@@ -3083,6 +3093,11 @@ def main(argv: list[str]) -> int:
             "to equal 1")
     if args.threads and args.suite != "sniper":
         raise SystemExit("--threads is currently supported only with --suite sniper")
+    if (getattr(args, "popt_matrix_stream", "analytic") == "simulated" and
+            args.suite not in ("cache-sim", "both")):
+        raise SystemExit(
+            "--popt-matrix-stream simulated is implemented in cache_sim only; "
+            "gem5 and Sniper would silently fall back to the analytic charge")
     # A flat analytic matrix charge cannot be covered by a prefetcher, while
     # K2's per-edge records are simulated accesses that can. Combining the
     # analytic charge with an active prefetcher therefore prices the two

@@ -198,8 +198,8 @@
     },
     {
       "id": "symmetric_metadata_accounting",
-      "status": "passed",
-      "note": "P-OPT's rereference-matrix column stream is now issued as real non-temporal accesses in cache_sim, outside every property region, so the structure prefetcher covers it exactly as it covers K2's per-edge records. Without a prefetcher the simulated and analytic charges agree within 1.1%; with STRIDE8 the simulated stream costs zero additional demand misses against the analytic charge's 229,108, while traffic rises identically in both. The runner rejects an analytic charge combined with an active prefetcher.",
+      "status": "pending",
+      "note": "cache_sim now issues P-OPT's rereference-matrix column stream as real non-temporal accesses with explicit two-column residency, so it is priced through the hierarchy rather than as a flat post-hoc charge. Measured on web-Google PageRank the flat charge erred in both directions: it added 229,108 demand misses under STRIDE8 where the true cost is 2,413, and it counted a single sweep where a two-iteration run streams 458,240 lines. The gate stays PENDING because the stream is modelled on the ordinary demand path and is therefore covered by cache_sim's prefetcher, whereas published P-OPT uses a dedicated streaming engine writing into the reserved ways and disables conventional prefetching; total_memory_traffic also excludes LLC writebacks.",
       "evidence": [
         "bench/include/cache_sim/cache_sim.h",
         "scripts/experiments/ecg/roi_matrix.py",

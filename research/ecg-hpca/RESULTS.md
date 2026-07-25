@@ -384,45 +384,64 @@ defensible one.
 
 **RESOLVED: the matrix stream is now simulated, and it quantifies the flaw.**
 cache_sim issues the rereference-matrix column stream as real non-temporal
-accesses at each epoch boundary (`--popt-matrix-stream simulated`), placed
-outside every registered property region so the structure prefetcher classifies
-it as structural, exactly as it classifies K2's records. The columns do not
-allocate in the modelled cache because the reserved ways that hold them are
-already deducted from the geometry; allocating again would charge P-OPT twice
-for the same capacity.
+accesses, tracking the paper's two resident columns explicitly: an epoch whose
+column is still resident costs nothing, and any other epoch streams a fresh
+column and evicts the older one. The columns do not allocate in the modelled
+cache because the reserved ways that hold them are already deducted from the
+geometry; allocating again would charge P-OPT twice for the same capacity.
+Capacity and bandwidth are orthogonal costs, and P-OPT pays both.
 
-Measured, web-Google PageRank, 2 MiB 16-way, charged P-OPT:
+Measured, web-Google PageRank, `-i 2`, 2 MiB 16-way, charged P-OPT:
 
 | configuration | demand misses | prefetch fills | total traffic |
 |---|---:|---:|---:|
-| no prefetch, stream not simulated | 2,724,937 | 0 | 2,724,937 |
-| no prefetch, stream simulated | 2,951,565 | 0 | 2,951,565 |
-| STRIDE8, stream not simulated | 1,647,133 | 1,089,577 | 2,736,710 |
-| STRIDE8, stream simulated | 1,646,466 | 1,320,242 | 2,966,708 |
+| no prefetch, stream not simulated | 2,724,144 | 0 | 2,724,144 |
+| no prefetch, stream simulated | 3,182,212 | 0 | 3,182,212 |
+| STRIDE8, stream not simulated | 1,645,819 | 1,089,041 | 2,734,860 |
+| STRIDE8, stream simulated | 1,648,232 | 1,551,066 | 3,199,298 |
 
-Two things follow, and they are the whole finding:
+The simulated stream issues 512 columns / 458,240 lines, exactly 256 columns
+per PageRank iteration. **The flat charge was wrong in two opposite directions
+at once:**
 
-1. **Without a prefetcher the two models agree.** Simulating the stream adds
-   226,628 demand misses against the flat charge's 229,108 -- a 1.1% difference
-   from lines the double-buffer serves out of L1/L2. The no-prefetch charged
-   comparison was therefore sound, as claimed above.
-2. **With a prefetcher the flat charge is simply wrong.** Simulating the stream
-   costs **zero** additional demand misses (1,646,466 against 1,647,133 without
-   it, i.e. inside noise) because the prefetcher covers the whole sequential
-   column stream. It appears instead as +230,665 prefetch fills. The flat charge
-   was adding 229,108 demand misses that real hardware removes entirely.
+1. **It overcharged demand misses under a prefetcher, by roughly 95x.** The
+   whole 458,240-line stream costs only 2,413 additional demand misses
+   (1,648,232 against 1,645,819) because the prefetcher covers it; it appears
+   as +462,025 prefetch fills instead. The flat charge added 229,108 demand
+   misses. That, and not P-OPT, is the entire explanation of the 2.684.
+2. **It undercharged traffic for every multi-iteration kernel.** The analytic
+   count is `num_epochs * column_bytes`, a single sweep, so it charged 229,108
+   lines while PageRank at `-i 2` truly streams 458,240. A first version of the
+   simulated model reproduced this bug by only charging forward epoch progress,
+   which made the stream cost identical at `-i 1`, `-i 2` and `-i 4`; the
+   residency model above fixes it and the counts now scale exactly.
 
-That is the entire explanation of the implausible 2.684. It was never P-OPT.
+Without a prefetcher the simulated stream costs 458,068 demand misses against
+its 458,240 lines, i.e. 99.96% of the stream misses, as a cold sequential
+stream should.
 
-Note which metric survives this. Total traffic rises by ~230k lines in both
-models (+229,998 simulated against +229,108 analytic), because a prefetcher
-relocates work rather than removing it. The bytes were always real; only the
-demand-miss column was fictional. This is a direct vindication of the frozen
-primary metrics: traffic was correct throughout, and the metric that misled was
-the one now barred from carrying a performance argument under a prefetcher.
+Note which metric survives. Traffic tracks the stream faithfully in the
+simulated model, and a prefetcher relocates that traffic rather than removing
+it (+464,438 traffic while demand misses barely move). The bytes were always
+real; the demand-miss column was fictional. This is a direct vindication of the
+frozen primary metrics: the metric that misled is the one now barred from
+carrying a performance argument under a prefetcher.
 
-The runner fails closed on the invalid combination: a charged P-OPT policy with
-an active prefetcher and the analytic charge is rejected rather than reported.
+The runner fails closed on the invalid combinations: a charged P-OPT policy
+with an active prefetcher and the analytic charge is rejected, and requesting
+the simulated stream on a backend that does not implement it is an error rather
+than a silent fallback to the analytic charge.
+
+**Scope, and why this does not yet license a K2-versus-P-OPT claim.** Two
+limitations are explicit. First, the stream is modelled on the ordinary demand
+path, so it is covered by cache_sim's stream prefetcher; published P-OPT uses a
+dedicated streaming engine that writes into the reserved ways and is evaluated
+with conventional prefetching disabled. The "prefetcher covers it" result is
+therefore a statement about our accounting, not a claim about P-OPT hardware,
+and cache_sim's prefetcher is in any case ineligible for performance claims
+under the frozen metrics. Second, `total_memory_traffic` here is demand plus
+prefetch fills and excludes LLC writebacks. The symmetric-accounting gate stays
+open until the stream is modelled as an engine-side transfer.
 
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 

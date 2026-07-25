@@ -49,10 +49,11 @@ def test_current_claim_gate_is_consistent():
     popt = claims["k2_beats_popt"]
     assert popt["decision"] == "prohibited"
     # K2-versus-P-OPT depends on the two metadata streams being priced
-    # symmetrically. That gate now passes (the matrix stream is simulated), so
-    # assert the dependency itself rather than its absence.
+    # symmetrically. cache_sim now simulates P-OPT's column stream, but it does
+    # so on the ordinary demand path rather than as a dedicated streaming
+    # engine, so the gate is still open.
     assert "symmetric_metadata_accounting" in popt["required_gates"]
-    assert gates["symmetric_metadata_accounting"]["status"] == "passed"
+    assert "symmetric_metadata_accounting" in popt["missing_gates"]
 
 
 def test_allowed_claim_fails_when_dependency_is_pending():

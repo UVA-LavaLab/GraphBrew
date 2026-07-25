@@ -2635,16 +2635,31 @@ public:
     // cache geometry. Allocating them again in the modelled cache would charge
     // P-OPT for the same capacity twice.
     //
-    // The synthetic column buffer is deliberately outside every registered
-    // property region, so findRegion() classifies it as structural and the
-    // stride prefetcher covers it exactly as it covers K2's records.
+    // The synthetic column buffer sits outside every registered property
+    // region. Note the mechanism: accessNonTemporal() issues stream prefetches
+    // unconditionally rather than consulting findRegion(), because both callers
+    // are structural streams by construction. The effect is the intended one --
+    // the column stream is prefetch-covered exactly as K2's records are -- but
+    // it is not the region classifier that makes it so.
+    //
+    // Fidelity boundary: published P-OPT streams columns with a dedicated
+    // engine that writes into the reserved ways, and is evaluated with
+    // conventional prefetching disabled. Modelling the stream on the ordinary
+    // demand path is what lets a CPU prefetcher cover it here, so results about
+    // that coverage describe our accounting, not P-OPT hardware.
     void initPoptMatrixStream(uint32_t column_bytes, uint32_t epoch_size,
                               uint32_t num_epochs) {
         if (column_bytes == 0 || epoch_size == 0 || num_epochs == 0) return;
         popt_stream_column_bytes_ = column_bytes;
+        // Round the per-epoch backing stride up to a line so distinct epochs
+        // never share a cache line.
+        popt_stream_column_stride_ =
+            ((column_bytes + line_size_ - 1) / line_size_) * line_size_;
         popt_stream_epoch_size_ = epoch_size;
         popt_stream_num_epochs_ = num_epochs;
-        popt_stream_last_epoch_ = UINT32_MAX;
+        popt_stream_resident_[0] = UINT32_MAX;
+        popt_stream_resident_[1] = UINT32_MAX;
+        popt_stream_next_slot_ = 0;
         popt_stream_enabled_ = true;
         std::cerr << "[POPT-MATRIX-STREAM sim=cache_sim active=1 column_bytes="
                   << column_bytes << " epoch_size=" << epoch_size
@@ -2675,18 +2690,23 @@ private:
         if (!popt_stream_checked_) initPoptMatrixStreamFromContext();
         if (!popt_stream_enabled_ || popt_stream_epoch_size_ == 0) return;
         const uint32_t epoch = vertex_id / popt_stream_epoch_size_;
-        if (epoch == popt_stream_last_epoch_) return;
-        // Only forward progress streams a column; a kernel that revisits an
-        // earlier vertex must not re-fetch, or a frontier traversal would be
-        // charged for columns a real implementation already holds.
-        const bool first = (popt_stream_last_epoch_ == UINT32_MAX);
-        if (!first && epoch <= popt_stream_last_epoch_) return;
-        popt_stream_last_epoch_ = epoch;
         if (epoch >= popt_stream_num_epochs_) return;
-        // Double buffer: current plus next column, matching the paper's two
-        // resident columns.
+        // Two-column residency, matching the paper's current-plus-next columns.
+        // Charging on "the epoch advanced" is wrong: a multi-iteration kernel
+        // sweeps epochs 0..N-1 once per iteration and must pay for every sweep,
+        // while a frontier kernel that oscillates across one boundary must not
+        // pay twice for a column the hardware still holds. Residency answers
+        // both. An earlier forward-progress-only rule silently charged
+        // PageRank for a single sweep no matter how many iterations it ran.
+        if (popt_stream_resident_[0] == epoch || popt_stream_resident_[1] == epoch)
+            return;
+        popt_stream_resident_[popt_stream_next_slot_] = epoch;
+        popt_stream_next_slot_ ^= 1;
+        popt_stream_columns_++;
+        // Distinct backing address per epoch, so a column can never hit on a
+        // stale line left by a different column that happened to share a slot.
         const uint64_t base = kPoptStreamBase +
-            static_cast<uint64_t>(epoch % 2) * popt_stream_column_bytes_;
+            static_cast<uint64_t>(epoch) * popt_stream_column_stride_;
         for (uint64_t off = 0; off < popt_stream_column_bytes_;
              off += line_size_) {
             popt_stream_lines_++;
@@ -2700,10 +2720,13 @@ private:
     bool popt_stream_enabled_ = false;
     bool popt_stream_checked_ = false;
     uint32_t popt_stream_column_bytes_ = 0;
+    uint64_t popt_stream_column_stride_ = 0;
     uint32_t popt_stream_epoch_size_ = 0;
     uint32_t popt_stream_num_epochs_ = 0;
-    uint32_t popt_stream_last_epoch_ = UINT32_MAX;
+    uint32_t popt_stream_resident_[2] = {UINT32_MAX, UINT32_MAX};
+    unsigned popt_stream_next_slot_ = 0;
     uint64_t popt_stream_lines_ = 0;
+    uint64_t popt_stream_columns_ = 0;
 
 public:
 
@@ -2771,6 +2794,8 @@ public:
         ss << "  \"total_memory_traffic\": " << getTotalMemoryTraffic() << ",\n";
         ss << "  \"popt_matrix_stream_lines_simulated\": "
            << popt_stream_lines_ << ",\n";
+        ss << "  \"popt_matrix_stream_columns_simulated\": "
+           << popt_stream_columns_ << ",\n";
         ss << "  \"L1\": " << levelToJSON(*l1_) << ",\n";
         ss << "  \"L2\": " << levelToJSON(*l2_) << ",\n";
         ss << "  \"L3\": " << levelToJSON(*l3_) << "\n";
