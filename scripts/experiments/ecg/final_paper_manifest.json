@@ -50,7 +50,8 @@
     "gem5_streamshield_mechanism": "Synthetic gem5 mechanism cell for fused K2 versus K2+StreamShield.",
     "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused K2 versus K2+StreamShield.",
     "streamshield_sniper_realgraph": "Pending-calibration full-iteration web-Google PR Sniper matrix; do not freeze results with the rejected generic STRIDE8 configuration.",
-    "ecg_uniform_8mb_16": "Uniform 8 MiB/16-way full-real-graph cache_sim matrix so every graph x kernel cell is directly comparable; supersedes the mixed 2 MiB/8 MiB factorial sizing."
+    "ecg_uniform_8mb_16": "Uniform 8 MiB/16-way full-real-graph cache_sim matrix so every graph x kernel cell is directly comparable; supersedes the mixed 2 MiB/8 MiB factorial sizing.",
+    "ecg_uniform_8mb_16_stride8": "Matched STRIDE8 twin of the uniform 8 MiB matrix. Every policy gets the same structure prefetcher, so demand-miss reduction (latency hiding) can be separated from total memory traffic (bandwidth), which prefetching cannot reduce."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -797,6 +798,39 @@
       "ecg_charged": 1,
       "ecg_epochs": 65535,
       "out_subdir": "19d_cache_sim_uniform_8mb_16",
+      "timeout_cache": 86400
+    },
+    {
+      "name": "19e_cache_sim_uniform_8mb_16_stride8",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_uniform_8mb_16_stride8"
+      ],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "HAWKEYE:PROXY",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "STRIDE",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "19e_cache_sim_uniform_8mb_16_stride8",
       "timeout_cache": 86400
     },
     {
