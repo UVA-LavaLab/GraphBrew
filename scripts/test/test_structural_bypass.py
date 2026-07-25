@@ -85,3 +85,39 @@ def test_bypass_is_off_by_default():
             env=env, capture_output=True, text=True, check=True, timeout=900)
         default = json.loads(out.read_text())["total_memory_traffic"]
     assert default == run("LRU", bypass=False)["total_memory_traffic"]
+
+
+# ---------------------------------------------------------------------------
+# K2 and K2+StreamShield must stay distinct rows
+# ---------------------------------------------------------------------------
+# StreamShield is K2's structural bypass, so "K2" and "K2+StreamShield" are two
+# policies, not two settings of one policy. Collapsing them lets the better
+# variant's number be quoted under the plainer name.
+
+def _policy_specs():
+    import importlib.util
+    import sys
+    path = ROOT / "scripts/experiments/ecg/roi_matrix.py"
+    spec = importlib.util.spec_from_file_location("roi_matrix_bypass", path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["roi_matrix_bypass"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_k2_variants_are_distinct_policies():
+    mod = _policy_specs()
+    names = ["ECG:K2", "ECG:K2_STREAMSHIELD",
+             "ECG:K2_ONLINE", "ECG:K2_ONLINE_STREAMSHIELD"]
+    specs = {n: mod.parse_policy_spec(n) for n in names}
+    labels = {n: s.label for n, s in specs.items()}
+    assert len(set(labels.values())) == len(names), (
+        f"K2 variants collapsed to shared labels: {labels}")
+    # StreamShield variants must actually carry the bypass, and plain K2 must not.
+    assert specs["ECG:K2"].ecg_stream_bypass is False
+    assert specs["ECG:K2_STREAMSHIELD"].ecg_stream_bypass is True
+    assert specs["ECG:K2_ONLINE"].ecg_stream_bypass is False
+    assert specs["ECG:K2_ONLINE_STREAMSHIELD"].ecg_stream_bypass is True
+    # Online selection is the other independent axis.
+    assert specs["ECG:K2"].ecg_set_dueling is False
+    assert specs["ECG:K2_ONLINE"].ecg_set_dueling is True

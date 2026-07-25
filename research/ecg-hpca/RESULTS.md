@@ -465,7 +465,11 @@ Demand misses equal traffic here because no prefetcher is active:
 | GRASP | 3,121,133 | **2,964,622** | -5.0% |
 | charged P-OPT | 3,182,235 | 3,128,955 | -1.7% |
 | LRU | 4,356,759 | 3,486,848 | **-20.0%** |
-| K2 | 3,608,879 | 3,522,202 (StreamShield) | -2.4% |
+| K2 | 3,608,879 | -- | -- |
+| K2+StreamShield | -- | 3,522,202 | -2.4% vs K2 |
+
+K2 and K2+StreamShield are separate policies and are reported as separate rows;
+StreamShield *is* K2's bypass, so the two are not two settings of one row.
 
 Two conclusions, and the second is the consequential one.
 
