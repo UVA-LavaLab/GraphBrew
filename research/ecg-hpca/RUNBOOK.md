@@ -587,6 +587,20 @@ it passes 25/25 rows at 4,096 visits.
 For truncated rows, matching semantic outputs certify the same deterministic
 edge prefix only; they do not replace the uncapped algorithm-correctness gate.
 
+Calibrate full-graph equal-work timing before scaling the matrix:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_sniper_realgraph_semantic_probe \
+  --run-dir \
+    results/ecg_experiments/final_paper_runs/ecg_sniper_realgraph_semantic_probe \
+  --no-build
+```
+
+This compares warm-SIFT web-Google PR LRU and K2-M after exactly 100,000 static
+edge visits, with no instruction cap. Both rows must report equal visits,
+truncation, semantic output, workload hash, and instruction count.
+
 Fresh three-simulator K2-M mechanism evidence:
 
 ```bash

@@ -357,6 +357,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_3sim_sampled_allalg` | Full-work 3-simulator matrix on deterministic real-graph samples |
 | `ecg_sniper_sampled_pr_streamengine` | Equal-work sampled PR timing for fused K2 bandwidth |
 | `ecg_sniper_realgraph_warm_probe` | Full web-Google warm-SIFT LRU/K2 100K gate |
+| `ecg_sniper_realgraph_semantic_probe` | Full web-Google equal-100K-edge LRU/K2-M probe |
 | `ecg_sniper_realgraph_600m` | Full-real-graph Sniper 600M-capped ROI plan |
 | `ecg_sniper_semantic_gate` | Five-kernel equal-semantic-edge Sniper gate |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |

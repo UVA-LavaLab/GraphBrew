@@ -183,6 +183,7 @@ def test_streamshield_manifest_is_complete():
     assert "ecg_3sim_sampled_allalg" in manifest["profiles"]
     assert "ecg_sniper_sampled_pr_streamengine" in manifest["profiles"]
     assert "ecg_sniper_realgraph_warm_probe" in manifest["profiles"]
+    assert "ecg_sniper_realgraph_semantic_probe" in manifest["profiles"]
     assert "ecg_sniper_realgraph_600m" in manifest["profiles"]
     assert "ecg_sniper_semantic_gate" in manifest["profiles"]
     semantic_stage = next(
@@ -196,6 +197,14 @@ def test_streamshield_manifest_is_complete():
         if stage["name"] == "19a_cache_sim_equal_capacity_16"
     )
     assert not equal_capacity.get("k2_l3_ways")
+    semantic_realgraph = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "34b_sniper_realgraph_semantic_probe"
+    )
+    assert semantic_realgraph["policies"] == ["LRU", "ECG:K2"]
+    assert semantic_realgraph["ecg_isa_variant"] == "mask"
+    assert semantic_realgraph["sniper_semantic_edge_limit"] == 100000
+    assert not semantic_realgraph.get("sniper_roi_icount")
     assert "ecg_replacement_baseline" in manifest["profiles"]
     assert "ecg_equal_capacity_16" in manifest["profiles"]
     assert "ecg_equal_area_15" in manifest["profiles"]
