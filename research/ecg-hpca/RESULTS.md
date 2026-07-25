@@ -292,6 +292,59 @@ Scope: one metric (overhead-aware LLC misses) in cache_sim. It does not settle
 timing, where K2's sequential record stream and StreamShield's traffic
 reduction may behave differently; that remains the pending Sniper matrix.
 
+### RETRACTION: three K2 conclusions withdrawn after review
+
+An adversarial review of the 2026-07-25 analysis chain invalidated three
+conclusions recorded above. They are withdrawn here rather than edited away.
+
+**1. The gem5 "instruction-bound, not memory-bound" result is not admissible.**
+It was computed from historical rows labelled `ecg.load2`, which
+`METHODOLOGY.md` already states "predate this correction and are not
+reinterpreted without rerunning". Using them violated our own rule. The result
+also used *sampled* graphs at reduced cache sizes while the surrounding
+functional study used *full* graphs at 8 MiB, so it could not have validated
+full-graph bandwidth behaviour even if the rows were current.
+
+**2. "IPC is higher" was not independent evidence.** IPC ratio is
+algebraically instructions/time: 1.422 / 1.228 = 1.158, versus the 1.157
+reported. "IPC rises" and "instruction-normalised time is 0.864" are one
+observation stated twice, not two confirmations. Dividing time by the
+instruction ratio also assumes the removed instructions consume average CPI and
+that deleting them preserves prefetch distance, MLP and dependences -- while
+those same instructions construct the records that create K2's advantage. It is
+a counterfactual, not a projection.
+
+**3. The STRIDE8 result rests on an idealised prefetcher.** cache_sim's stream
+prefetcher classifies with `graph_ctx_->findRegion(address)`, i.e. it knows
+exactly which addresses are structural and never mispredicts property; it
+issues `degree` fills unconditionally with no MSHR, queue, lateness or
+bandwidth backpressure. Its own comment states the intent is that wider 8B
+records are not "unfairly penalised". A result produced by a mechanism built to
+protect the hypothesis cannot be used to confirm it.
+
+**What the STRIDE8 miss metric concealed.** Demand misses fall, but the traffic
+does not go away:
+
+| policy | median demand misses | median total traffic | median prefetch fills |
+|---|---:|---:|---:|
+| GRASP | 0.528 | **0.879** | 1.042 |
+| K2 | 0.513 | **1.368** | 1.683 |
+| K2+StreamShield | 0.469 | **1.360** | 1.671 |
+
+K2 wins on demand misses only by converting them into ~1.36x total memory
+traffic and ~1.67x prefetch fills, which the miss metric does not price.
+
+**Process failure.** The metric changed five times -- total misses, then
+property-only, then a weighted cost, then instruction-normalised time, then
+prefetched misses -- and each change followed a result unfavourable to K2. Even
+where each step was individually defensible, the sequence is metric selection.
+Primary metrics must be frozen before the next run.
+
+**Surviving claim.** K2 substantially reduces governed irregular property
+misses by consuming an additional sequential per-edge stream, and StreamShield
+reduces that stream's LLC pollution. Total memory traffic rises materially. No
+end-to-end performance lead has been demonstrated.
+
 ### KNOWN FLAW: the P-OPT matrix stream is charged but not prefetched
 
 Under STRIDE8 the charged comparison reports charged P-OPT at a median 0.926

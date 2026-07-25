@@ -183,6 +183,18 @@
         "bench/src_gem5/k2_isa_decomposition.S",
         "scripts/experiments/ecg/analysis/k2_isa_decomposition.py"
       ]
+    },
+    {
+      "id": "idealised_prefetch_free_evidence",
+      "status": "pending",
+      "note": "cache_sim's stream prefetcher classifies via graph_ctx_->findRegion, never mispredicts property, and models no MSHR/queue/lateness/bandwidth backpressure. Results depending on it cannot establish a performance lead.",
+      "evidence": []
+    },
+    {
+      "id": "prefetch_traffic_accounted",
+      "status": "pending",
+      "note": "Under STRIDE8 K2 converts demand misses into ~1.36x total traffic and ~1.67x prefetch fills. A demand-miss metric does not price this.",
+      "evidence": []
     }
   ],
   "claims": [
@@ -342,6 +354,37 @@
       "decision": "prohibited",
       "required_gates": [
         "synthetic_rank_authority"
+      ]
+    },
+    {
+      "id": "k2_leads_under_prefetch",
+      "text": "With prefetching enabled K2 outperforms GRASP and P-OPT.",
+      "scope": "Replacement quality under a realistic prefetcher",
+      "decision": "prohibited",
+      "required_gates": [
+        "idealised_prefetch_free_evidence",
+        "prefetch_traffic_accounted",
+        "full_graph_detailed_results"
+      ]
+    },
+    {
+      "id": "k2_instruction_bound_not_memory_bound",
+      "text": "K2's slowdown is instruction-bound rather than memory-bound, so its extra traffic is free.",
+      "scope": "Timing attribution",
+      "decision": "prohibited",
+      "required_gates": [
+        "measured_k2i_isa_timing",
+        "full_graph_detailed_results"
+      ]
+    },
+    {
+      "id": "k2_instruction_normalised_speedup",
+      "text": "K2 is ~14% faster than LRU once instruction counts are matched.",
+      "scope": "Projected timing",
+      "decision": "prohibited",
+      "required_gates": [
+        "measured_k2i_isa_timing",
+        "full_graph_detailed_results"
       ]
     }
   ]
