@@ -186,9 +186,14 @@
     },
     {
       "id": "idealised_prefetch_free_evidence",
-      "status": "pending",
-      "note": "cache_sim's stream prefetcher classifies via graph_ctx_->findRegion, never mispredicts property, and models no MSHR/queue/lateness/bandwidth backpressure. Results depending on it cannot establish a performance lead.",
-      "evidence": []
+      "status": "passed",
+      "note": "cache_sim's structure-stream prefetcher now defaults to an address-only stream detector: confirmation-gated, able to train on the wrong stream, and bounded by a finite in-flight budget. The oracle model that classified via graph_ctx_->findRegion and issued without limit survives only as a labelled upper bound. Measured on web-Google PageRank with charged P-OPT, moving from oracle to honest detection raises demand misses 32.8% and cuts prefetch requests from 138,305,632 to 3,283,159, so the oracle's coverage was substantially an artifact. Rows record the model, issue, throttle and untrained counts.",
+      "evidence": [
+        "bench/include/cache_sim/cache_sim.h",
+        "scripts/experiments/ecg/roi_matrix.py",
+        "scripts/test/test_stream_prefetcher_model.py",
+        "research/ecg-hpca/RESULTS.md"
+      ]
     },
     {
       "id": "prefetch_traffic_accounted",

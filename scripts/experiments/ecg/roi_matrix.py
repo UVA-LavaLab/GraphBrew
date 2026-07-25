@@ -943,6 +943,8 @@ def cache_sim_env(args: argparse.Namespace, spec: PolicySpec, effective_l3_size:
             else "0"),
         # Structural-stream bypass, offered to every policy so K2's StreamShield
         # is not a mechanism its competitors are denied.
+        "CACHE_STREAM_PREFETCH_MODEL": getattr(
+            args, "stream_prefetch_model", "stride"),
         "STRUCTURAL_BYPASS": (
             "1" if getattr(args, "structural_bypass", "off") == "all" else "0"),
         # Structure-stream prefetcher degree, applied to ALL policies (0 = off).
@@ -2670,6 +2672,9 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         # the matrix had the same bypass option available. Only cache_sim
         # implements it, so other backends must say so rather than echo the
         # request and imply an equalisation that never happened.
+        "stream_prefetch_model": (
+            getattr(args, "stream_prefetch_model", "stride")
+            if args.suite in ("cache-sim", "both") else "n/a"),
         "structural_bypass": (
             getattr(args, "structural_bypass", "off")
             if args.suite in ("cache-sim", "both")
@@ -2962,6 +2967,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "HPCA'21 Sec V.D): reserve ceil(active_columns*numLines / bytes_per_way) "
                              "ways for the resident rereference-matrix columns (scales with |V|; "
                              "marks cells popt_matrix_fits=0 when the columns cannot fit).")
+    parser.add_argument("--stream-prefetch-model", choices=["stride", "oracle"],
+                        default="stride",
+                        help="cache_sim structure-stream prefetcher model. 'stride' "
+                             "(default) detects streams from addresses alone, requires "
+                             "confirmation, can mispredict, and is bounded by a finite "
+                             "in-flight budget. 'oracle' asks the graph context whether an "
+                             "address is property data and issues without limit; it never "
+                             "mispredicts the distinction the experiment turns on, so it is "
+                             "an UPPER BOUND and results depending on it are ineligible for "
+                             "performance claims under the frozen metrics.")
     parser.add_argument("--structural-bypass", choices=["off", "all"],
                         default="off",
                         help="Offer the structural-stream LLC bypass to EVERY policy, not "

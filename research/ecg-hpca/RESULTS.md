@@ -572,6 +572,57 @@ the bypass is indeed harmful on at least one cell measured above.
 Scope: one graph, one kernel, one cache size, no prefetcher; single-cell
 traffic under the frozen metrics, not a headline.
 
+### CORRECTION: the stream prefetcher no longer classifies by oracle
+
+The prefetcher that produced the withdrawn STRIDE8 lead decided what to
+prefetch by asking `graph_ctx_->findRegion(address)` whether an address was
+property data, and refusing if so. It therefore never mispredicted the one
+distinction the experiment turned on, and it issued unconditionally with no
+MSHR, queue, lateness or bandwidth backpressure.
+
+cache_sim now defaults to an address-only stream detector
+(`CACHE_STREAM_PREFETCH_MODEL=stride`). It sees addresses and nothing else, as
+hardware does: a stream must be confirmed by two consecutive ascending line
+accesses within a 4 KiB region before it issues, any non-sequential step breaks
+confirmation, and issue is bounded by a finite in-flight budget (32 by
+default). It trains on regular property accesses and wastes fills on irregular
+ones, which is precisely the mistake the oracle could not make. The oracle
+remains available as an explicitly labelled upper bound.
+
+web-Google PageRank, `-i 2`, 2 MiB 16-way, degree 8, charged P-OPT with its
+matrix stream simulated:
+
+| model | prefetches issued | demand misses | prefetch fills | total traffic |
+|---|---:|---:|---:|---:|
+| oracle (upper bound) | 138,305,632 | 1,647,524 | 1,551,347 | 3,198,871 |
+| stride (honest) | 3,283,159 | 2,187,006 | 1,001,928 | 3,188,934 |
+
+Two results.
+
+1. **The oracle's coverage was substantially an artifact.** Demand misses rise
+   **32.8%** when the prefetcher has to detect the stream instead of being told
+   where it is. So the Phase 1a observation that "the prefetcher covers the
+   whole matrix stream" describes the oracle, not a plausible prefetcher.
+2. **The oracle also issued 138.3 million prefetch requests**, 42x the honest
+   model, at no modelled bandwidth or queue cost. A component that can request
+   42x the traffic for free will make any policy that streams metadata look
+   cheap.
+
+For LRU on the same cell the two models nearly agree (demand 3,276,088 oracle
+against 3,316,509 stride, +1.2%), which is the expected sanity check: the CSR
+edge stream really is sequential, so an honest detector finds it. The gap opens
+specifically where the oracle's semantic knowledge was doing work.
+
+Note once more which metric is stable. Total traffic differs by 0.3% between
+the two models (3,198,871 against 3,188,934) while demand misses differ by
+32.8%. A prefetcher relocates work rather than removing it, so traffic barely
+notices which prefetcher is used, and the demand-miss column swings wildly.
+That is the third independent confirmation of the frozen primary metric.
+
+Rows record `stream_prefetch_model`, `stream_prefetch_issued`,
+`stream_prefetch_throttled` and `stream_prefetch_untrained`, so an oracle
+result cannot be mistaken for an honest one.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 > **This section is withdrawn.** It is retained verbatim for audit, not as a

@@ -2323,23 +2323,44 @@ public:
         // access = HW-free), instead of firing here on L1/L2 hits too.
         if (refresh_exact_stamp_ && !refresh_llc_only_) l3_->refreshExactStamp(address);
 
-        // Uniform structure-stream (next-line) prefetcher — faithful to the HW
-        // stride prefetchers in GRASP/P-OPT/DROPLET (cache_sim previously had none,
-        // a known audit divergence). On a demand access to a NON-property line (the
-        // sequential, read-once CSR-edge / per-edge-record / offset stream), prefetch
-        // the next `degree` lines so the streamed structure is HIDDEN as real HW
-        // would — instead of being counted as raw LLC misses that unfairly penalise
-        // wider (8B) per-edge records. Applied IDENTICALLY to every policy; never
-        // prefetches property (the irregular accesses a stride prefetcher can't
-        // predict). Gated by CACHE_STREAM_PREFETCH_DEGREE (default 0 = off).
+        // Structure-stream prefetcher.
+        //
+        // Two models, selected by CACHE_STREAM_PREFETCH_MODEL:
+        //
+        //   "stride" (default): an address-based next-line stream detector. It
+        //   sees only addresses, exactly like hardware. A stream must be
+        //   CONFIRMED by consecutive ascending line accesses within a 4 KiB
+        //   region before it issues, it can and does mispredict, and it is
+        //   bounded by a finite in-flight budget. It has no idea which
+        //   addresses are structural, so it will happily train on a regular
+        //   property access and waste fills on an irregular one.
+        //
+        //   "oracle": the legacy model, kept only as a labelled upper bound.
+        //   It asks graph_ctx_->findRegion() whether an address is property
+        //   data and refuses to prefetch it, so it never mispredicts on the
+        //   distinction that matters, and it issues unconditionally with no
+        //   MSHR, queue, lateness or bandwidth backpressure. A mechanism built
+        //   so that it cannot be wrong cannot confirm a hypothesis; the frozen
+        //   metrics in research/ecg-hpca/METHODOLOGY.md make results that
+        //   depend on it ineligible for performance claims.
+        //
+        // Both are applied identically to every policy.
         static const int stream_pf_degree = [](){
             const char* v = std::getenv("CACHE_STREAM_PREFETCH_DEGREE");
             int d = v ? std::atoi(v) : 0;
             return d < 0 ? 0 : (d > 32 ? 32 : d);
         }();
-        if (stream_pf_degree > 0 && graph_ctx_ && !graph_ctx_->findRegion(address)) {
-            for (int k = 1; k <= stream_pf_degree; k++)
-                prefetch(address + (uint64_t)k * line_size_);
+        if (stream_pf_degree > 0) {
+            if (streamPrefetchOracle()) {
+                if (graph_ctx_ && !graph_ctx_->findRegion(address)) {
+                    for (int k = 1; k <= stream_pf_degree; k++) {
+                        stride_pf_issued_++;
+                        prefetch(address + (uint64_t)k * line_size_);
+                    }
+                }
+            } else {
+                issueStridePrefetch(address, stream_pf_degree);
+            }
         }
 
         // Try L1
@@ -2668,6 +2689,93 @@ public:
 
     uint64_t getPoptMatrixStreamLines() const { return popt_stream_lines_; }
 
+    // ------------------------------------------------------------------
+    // Honest structure-stream prefetcher
+    // ------------------------------------------------------------------
+    // Address-only stream detection, so it can mispredict, plus a finite
+    // in-flight budget, so it cannot issue without limit. This replaces an
+    // oracle model that asked the graph context whether an address was
+    // property data and therefore never mispredicted the one distinction the
+    // experiment turned on.
+    static bool streamPrefetchOracle() {
+        static const bool oracle = [](){
+            const char* v = std::getenv("CACHE_STREAM_PREFETCH_MODEL");
+            return v && std::string(v) == "oracle";
+        }();
+        return oracle;
+    }
+
+    uint64_t getStreamPrefetchIssued() const { return stride_pf_issued_; }
+    uint64_t getStreamPrefetchThrottled() const { return stride_pf_throttled_; }
+    uint64_t getStreamPrefetchUntrained() const { return stride_pf_untrained_; }
+
+private:
+    // Confirmations required before a detected stream is trusted. One ascending
+    // neighbour could be coincidence; hardware stream prefetchers likewise wait.
+    static constexpr int kStreamConfirmations = 2;
+    // 4 KiB detection regions, as a hardware stream detector would use, so a
+    // stream cannot be trained across an unrelated allocation.
+    static constexpr uint64_t kStreamRegionShift = 12;
+    static constexpr size_t kStreamTableEntries = 32;
+
+    struct StreamEntry {
+        uint64_t region = UINT64_MAX;
+        uint64_t last_line = 0;
+        int confirmations = 0;
+    };
+
+    static int streamPrefetchMaxInFlight() {
+        static const int limit = [](){
+            const char* v = std::getenv("CACHE_STREAM_PREFETCH_MAX_INFLIGHT");
+            int n = v ? std::atoi(v) : 32;   // MSHR-scale default
+            return n < 1 ? 1 : n;
+        }();
+        return limit;
+    }
+
+    void issueStridePrefetch(uint64_t address, int degree) {
+        const uint64_t line = address / line_size_;
+        const uint64_t region = address >> kStreamRegionShift;
+        StreamEntry& e = stride_table_[region % kStreamTableEntries];
+        if (e.region != region) {
+            // New or evicted stream: start training, issue nothing.
+            e.region = region;
+            e.last_line = line;
+            e.confirmations = 0;
+            stride_pf_untrained_++;
+            return;
+        }
+        if (line == e.last_line) return;            // same line, no new information
+        if (line == e.last_line + 1) {
+            if (e.confirmations < kStreamConfirmations) e.confirmations++;
+        } else {
+            // Any non-sequential step breaks the stream. An irregular property
+            // access lands here, which is exactly the mispredict the oracle
+            // model could not make.
+            e.confirmations = 0;
+        }
+        e.last_line = line;
+        if (e.confirmations < kStreamConfirmations) {
+            stride_pf_untrained_++;
+            return;
+        }
+        for (int k = 1; k <= degree; k++) {
+            if (getPrefetchPending() >= (uint64_t)streamPrefetchMaxInFlight()) {
+                stride_pf_throttled_++;
+                break;
+            }
+            stride_pf_issued_++;
+            prefetch(address + (uint64_t)k * line_size_);
+        }
+    }
+
+    StreamEntry stride_table_[kStreamTableEntries];
+    uint64_t stride_pf_issued_ = 0;
+    uint64_t stride_pf_throttled_ = 0;
+    uint64_t stride_pf_untrained_ = 0;
+
+public:
+
 private:
     // Enabled by POPT_MATRIX_STREAM_SIM=1 and configured from the registered
     // rereference matrix, so no kernel needs to know about it and all five
@@ -2796,6 +2904,11 @@ public:
            << popt_stream_lines_ << ",\n";
         ss << "  \"popt_matrix_stream_columns_simulated\": "
            << popt_stream_columns_ << ",\n";
+        ss << "  \"stream_prefetch_model\": \""
+           << (streamPrefetchOracle() ? "oracle" : "stride") << "\",\n";
+        ss << "  \"stream_prefetch_issued\": " << stride_pf_issued_ << ",\n";
+        ss << "  \"stream_prefetch_throttled\": " << stride_pf_throttled_ << ",\n";
+        ss << "  \"stream_prefetch_untrained\": " << stride_pf_untrained_ << ",\n";
         ss << "  \"L1\": " << levelToJSON(*l1_) << ",\n";
         ss << "  \"L2\": " << levelToJSON(*l2_) << ",\n";
         ss << "  \"L3\": " << levelToJSON(*l3_) << "\n";
