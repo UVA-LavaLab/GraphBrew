@@ -3,6 +3,87 @@
 Architecture definitions and diagrams are centralized in
 [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
+## Frozen evaluation metrics
+
+This section is declared **before** the deciding experiments are run and is
+binding. It exists because the 2026-07-25 analysis changed its headline metric
+five times -- total misses, then property-only misses, then a weighted cost,
+then instruction-normalised time, then prefetched demand misses -- and each
+change followed a result unfavourable to K2. Individually each step was
+arguable; as a sequence it is metric selection, and it invalidated three
+conclusions (see the retraction in `RESULTS.md`).
+
+**Primary metrics.** A performance claim may be made only from:
+
+1. **execution time** (cycles) from a cycle-accurate backend, and
+2. **total off-chip traffic**, defined as memory-controller bytes read plus
+   bytes written, counting demand, prefetch, metadata and writeback traffic.
+
+Both must be reported together. Time alone hides bandwidth cost; traffic alone
+hides whether that cost is on the critical path.
+
+The traffic definition is fixed to prevent unit shopping. LLC fill and
+writeback bytes are a *separate* secondary series and may never be substituted
+for off-chip bytes in individual cells; a table mixing the two units is
+invalid. Where a backend cannot report memory-controller bytes, the cell is
+ineligible for a performance claim rather than silently downgraded to LLC
+misses.
+
+**Decision rule.** Reporting both primaries is a disclosure requirement, not a
+success criterion, so success is defined here as well:
+
+- The tie band is **+/-2%** on a per-cell ratio. Differences inside it are ties.
+- "K2 is faster than X" requires a **>=3%** aggregate runtime improvement over
+  X on the frozen cell set, and reports the worst cell.
+- "K2 is faster without increasing off-chip traffic" additionally requires the
+  aggregate traffic ratio to sit inside the tie band.
+- "K2 reduces bandwidth" is a claim about off-chip bytes alone and never
+  implies a runtime claim.
+- Every cell is reported. Win/tie/loss counts use the tie band above.
+- Comparisons are made against LRU **and** each serious baseline declared with
+  the cell set. Choosing a favourable baseline per cell is a selection effect.
+
+**Secondary metrics.** Reported for explanation, never as the headline:
+demand LLC misses, the property/structural miss split, prefetch fills,
+instructions, IPC.
+
+**Rules.**
+
+- The primary metrics may not be changed after seeing results. A new metric may
+  be *added* as secondary, but the headline comparison stays fixed. The frozen
+  cell set, baselines, policy variants, exclusions and aggregation are frozen
+  with the metrics; freezing only the metric names is not sufficient.
+- Any policy compared on a metric that prices its overhead differently from a
+  competitor's is invalid. Concretely: if one policy's metadata stream is
+  simulated through the cache hierarchy, every competitor's metadata or
+  reference-structure stream must be too, with identical prefetch eligibility
+  and identical MSHR, queue, latency and bandwidth treatment.
+- A result produced by a mechanism that cannot mispredict is an upper bound,
+  not a measurement. Any configuration using semantic address classification
+  (for example a prefetcher that consults the graph context to decide whether
+  an address is structural), unbounded issue, or no finite MSHR, queue,
+  lateness and bandwidth backpressure is a **mechanism study and is ineligible
+  for a performance claim**, whatever metric accompanies it.
+- Demand-miss counts may not be used to argue performance when a prefetcher is
+  active, because a prefetcher converts demand misses into prefetch traffic
+  rather than removing work. Report traffic alongside, always.
+- IPC and instruction-normalised time are not independent evidence. IPC ratio
+  is algebraically the instruction ratio divided by the time ratio, so quoting
+  both is quoting one number twice. This holds regardless of the label
+  attached; IPC may not be reintroduced as "supporting", "mechanistic" or
+  "corroborating" evidence for a timing claim.
+- Counterfactual normalisation (for example dividing out instructions that a
+  future hardware instruction would remove) is a sensitivity study, never a
+  measured result, and must be labelled as such.
+- Aggregation is the **geometric mean of per-cell ratios** over the frozen cell
+  set, for both primaries. Median and win counts may be shown as additional
+  summaries but never replace it. Where a denominator can be zero the metric is
+  reported as an absolute difference under a rule declared with the cell set.
+  Switching aggregation after seeing an extreme cell is a selection effect.
+- A row is admissible only if it carries `timing_valid_for_speedup=1`, an
+  approved run identifier, and an implementation commit that is not marked
+  superseded. A missing eligibility field is a rejection, not a pass.
+
 ## Simulator roles
 
 | Simulator | Role |

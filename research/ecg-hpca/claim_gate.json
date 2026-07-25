@@ -195,6 +195,21 @@
       "status": "pending",
       "note": "Under STRIDE8 K2 converts demand misses into ~1.36x total traffic and ~1.67x prefetch fills. A demand-miss metric does not price this.",
       "evidence": []
+    },
+    {
+      "id": "symmetric_metadata_accounting",
+      "status": "pending",
+      "note": "P-OPT's rereference-matrix stream is charged as a flat analytic penalty no prefetcher can cover, while K2's edge records are simulated accesses the prefetcher does cover. Both are sequential streams. Any K2-versus-P-OPT comparison requires both metadata streams to be priced identically: same hierarchy, same prefetch eligibility, same MSHR/queue/bandwidth treatment.",
+      "evidence": []
+    },
+    {
+      "id": "frozen_primary_metrics",
+      "status": "passed",
+      "note": "Primary metrics (execution time + total off-chip traffic), the decision rule, aggregation, admissibility and symmetry requirements are declared before the deciding experiments and enforced by scripts/test/test_frozen_metrics.py.",
+      "evidence": [
+        "research/ecg-hpca/METHODOLOGY.md",
+        "scripts/test/test_frozen_metrics.py"
+      ]
     }
   ],
   "claims": [
@@ -261,7 +276,10 @@
       "decision": "prohibited",
       "required_gates": [
         "matched_sniper_post_binding",
-        "full_graph_detailed_results"
+        "full_graph_detailed_results",
+        "frozen_primary_metrics",
+        "idealised_prefetch_free_evidence",
+        "prefetch_traffic_accounted"
       ]
     },
     {
@@ -271,7 +289,11 @@
       "decision": "prohibited",
       "required_gates": [
         "equal_area_results",
-        "full_graph_detailed_results"
+        "full_graph_detailed_results",
+        "frozen_primary_metrics",
+        "symmetric_metadata_accounting",
+        "idealised_prefetch_free_evidence",
+        "prefetch_traffic_accounted"
       ]
     },
     {
@@ -281,7 +303,8 @@
       "decision": "prohibited",
       "required_gates": [
         "hawkeye_results",
-        "equal_area_results"
+        "equal_area_results",
+        "frozen_primary_metrics"
       ]
     },
     {
@@ -308,7 +331,8 @@
       "scope": "ISA performance",
       "decision": "prohibited",
       "required_gates": [
-        "measured_k2i_isa_timing"
+        "measured_k2i_isa_timing",
+        "frozen_primary_metrics"
       ]
     },
     {
@@ -317,7 +341,8 @@
       "scope": "K2-M performance",
       "decision": "prohibited",
       "required_gates": [
-        "k2i_tpi_isolation"
+        "k2i_tpi_isolation",
+        "frozen_primary_metrics"
       ]
     },
     {
@@ -364,7 +389,9 @@
       "required_gates": [
         "idealised_prefetch_free_evidence",
         "prefetch_traffic_accounted",
-        "full_graph_detailed_results"
+        "full_graph_detailed_results",
+        "frozen_primary_metrics",
+        "symmetric_metadata_accounting"
       ]
     },
     {
@@ -374,7 +401,8 @@
       "decision": "prohibited",
       "required_gates": [
         "measured_k2i_isa_timing",
-        "full_graph_detailed_results"
+        "full_graph_detailed_results",
+        "frozen_primary_metrics"
       ]
     },
     {
@@ -384,7 +412,8 @@
       "decision": "prohibited",
       "required_gates": [
         "measured_k2i_isa_timing",
-        "full_graph_detailed_results"
+        "full_graph_detailed_results",
+        "frozen_primary_metrics"
       ]
     }
   ]

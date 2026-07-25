@@ -382,7 +382,15 @@ P-OPT raw alongside charged, and treat the no-prefetch charged comparison
 (where neither stream is prefetched, so the accounting is symmetric) as the
 defensible one.
 
-### Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
+### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
+
+> **This section is withdrawn.** It is retained verbatim for audit, not as a
+> result. Every number below is inadmissible under the frozen metrics: the rows
+> are `ecg.load2` rows that `METHODOLOGY.md` marks superseded, the argument
+> rests on IPC as independent evidence when IPC ratio is algebraically
+> instruction ratio over time ratio, and the 0.864 headline is a counterfactual
+> normalisation. See "RETRACTION: three K2 conclusions withdrawn after review"
+> above. Do not cite, quote or aggregate anything in this section.
 
 The cache_sim metric counts LLC misses, which implicitly prices a sequential
 edge-stream miss the same as an irregular property miss. That understates K2,

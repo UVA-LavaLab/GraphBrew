@@ -38,7 +38,19 @@ def test_current_claim_gate_is_consistent():
     claims = {claim["id"]: claim for claim in resolved_claims(data)}
     speedup = claims["k2m_general_speedup"]
     assert speedup["decision"] == "prohibited"
-    assert speedup["missing_gates"] == ["full_graph_detailed_results"]
+    # A general speedup claim is blocked by the missing full-graph evidence and
+    # by the two accounting defects the 2026-07-25 review found: an
+    # oracle-classified prefetcher and an unpriced prefetch-traffic increase.
+    assert speedup["missing_gates"] == [
+        "full_graph_detailed_results",
+        "idealised_prefetch_free_evidence",
+        "prefetch_traffic_accounted",
+    ]
+    popt = claims["k2_beats_popt"]
+    assert popt["decision"] == "prohibited"
+    # K2-versus-P-OPT additionally requires the two metadata streams to be
+    # priced symmetrically before any comparison is admissible.
+    assert "symmetric_metadata_accounting" in popt["missing_gates"]
 
 
 def test_allowed_claim_fails_when_dependency_is_pending():
