@@ -179,11 +179,13 @@ misses on PR/BC/CC and regresses BFS/SSSP. Only PR improves diagnostic time;
 BC/CC remain slower. These are truncated synthetic-prefix rows with
 `timing_valid_for_speedup=0`, not headline or full-graph timing.
 
-The committed fresh three-simulator computed-address K2-M gate separately
+The committed fresh three-simulator computed-address K2-M conformance gate
 passes all 15 PR/BFS/SSSP/BC/CC x cache_sim/gem5/Sniper cells. Every eviction
 obeys the shared specification, every distance mismatch count is zero, gem5
-executes K2-M in all kernels, Sniper exact binding passes, BC dual-load coverage
-passes, and compact SSSP provenance passes.
+executes K2-M in all kernels, Sniper exact binding passes, and BC dual-load
+coverage passes. This demonstrates one mechanism integrated into three
+dissimilar substrates; it does not claim equal cache statistics or victim
+sequences across simulators.
 
 ### Sniper host-cost audit
 

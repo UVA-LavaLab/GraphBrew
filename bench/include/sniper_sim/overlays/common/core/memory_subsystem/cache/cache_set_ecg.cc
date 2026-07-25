@@ -307,16 +307,19 @@ CacheSetECG::prepareInsertion(IntPtr addr, UInt32 set_index)
    if (sniperK2ExactBindEnabled()) {
       const uint32_t requester_core = requesterCoreOr(m_core_id);
       UInt16 current_epoch = 0, context_id = 0;
+      uint64_t bind_sequence = ~uint64_t{0};
       if (graphbrew::sniper::consumeBoundK2Load(
               requester_core,
               static_cast<uint64_t>(m_pending_insert_addr),
-              m_blocksize, &current_epoch, &context_id)) {
+              m_blocksize, &current_epoch, &context_id,
+              &bind_sequence)) {
          UInt8 tier = 0;
          UInt16 first = 0, second = 0;
          if (context_id != 0 &&
              graphbrew::sniper::globalContext().lookupFusedK2Pair(
                  static_cast<uint64_t>(m_pending_insert_addr),
-                 requester_core, tier, first, second)) {
+                 requester_core, tier, first, second,
+                 bind_sequence)) {
             m_pending_exact_k2_valid = true;
             m_pending_exact_k2_tier = tier;
             m_pending_exact_k2_first = first;
@@ -392,14 +395,16 @@ CacheSetECG::lookupLineEcgEpochPair(
    uint32_t requester_core = requesterCoreOr(m_core_id);
    if (requester_core >= graphbrew::sniper::MAX_TRACKED_CORES) return false;
    if (sniperK2ExactBindEnabled()) {
+      uint64_t bind_sequence = ~uint64_t{0};
       if (!graphbrew::sniper::consumeBoundK2Load(
               requester_core, static_cast<uint64_t>(line_addr),
-              m_blocksize, &current_epoch, &context_id)) {
+              m_blocksize, &current_epoch, &context_id,
+              &bind_sequence)) {
          return false;
       }
       if (context_id != 0 && context.lookupFusedK2Pair(
               static_cast<uint64_t>(line_addr), requester_core,
-              tier, first, second)) {
+              tier, first, second, bind_sequence)) {
          count = 2;
          return true;
       }
@@ -712,19 +717,8 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    //   rrip_first(2,default): max-rrpv set; records-first, then farthest property
    //   epoch_only(3): same eviction as epoch_first
    //   shortcircuit(4,legacy): non-property first, then farthest property
-   static const int configured_variant = [](){
-      const char* v = std::getenv("ECG_VARIANT");
-      if (!v) return 2;
-      std::string s(v);
-      if (s == "grasp_only")   return 0;
-      if (s == "epoch_first")  return 1;
-      if (s == "rrip_first")   return 2;
-      if (s == "epoch_only")   return 3;
-      if (s == "shortcircuit" || s == "legacy") return 4;
-      if (s == "degree_first" || s == "traversal") return 5;
-      if (s == "lru_only") return 6;
-      return 2;
-   }();
+   static const int configured_variant =
+      ecg_policy::parseVariant(std::getenv("ECG_VARIANT"));
    static const bool set_dueling = []() {
       const char* value = std::getenv("ECG_SET_DUELING");
       return value && value[0] && std::string(value) != "0";

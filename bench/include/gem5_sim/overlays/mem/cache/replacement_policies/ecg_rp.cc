@@ -31,7 +31,10 @@ inline bool requestBoundEcgProducerEnabled() {
 }
 
 inline void traceAcceptedK2(
-        uint32_t dest, uint8_t tier, uint16_t first, uint16_t second,
+        uint32_t request_sequence, uint32_t request_dest,
+        uint32_t fill_dest, bool request_bound,
+        uint8_t tier, uint16_t first, uint16_t second,
+        uint16_t current_epoch, uint16_t context_id,
         uint32_t width_bytes) {
     static const uint64_t trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
@@ -40,15 +43,29 @@ inline void traceAcceptedK2(
             : 0;
     }();
     if (trace_limit == 0) return;
-    static std::atomic<uint64_t> sequence{0};
-    const uint64_t index = sequence.fetch_add(1, std::memory_order_relaxed);
-    if (index >= trace_limit) return;
+    uint64_t sequence = 0;
+    if (request_bound) {
+        if (!graph::ecgK2RequestTraceIndex(request_sequence, sequence))
+            return;
+    } else {
+        // The serialized mailbox sequence is the originating decoded K2 load.
+        // Only log accepted loads that are part of the traced EXPECT/RECV prefix;
+        // inner-cache hits legitimately never reach this LLC callback.
+        sequence = request_sequence;
+    }
+    if (sequence >= trace_limit) return;
     std::fprintf(
         stderr,
-        "[ECG-K2-ACCEPT sim=gem5 seq=%llu dest=%u tier=%u "
-        "epoch1=%u epoch2=%u width=%u]\n",
-        (unsigned long long)index, dest, static_cast<unsigned>(tier),
+        "[ECG-K2-ACCEPT sim=gem5 seq=%llu request_seq=%u "
+        "request_dest=%u fill_dest=%u "
+        "source=%s tier=%u epoch1=%u epoch2=%u current=%u context=%u "
+        "width=%u]\n",
+        (unsigned long long)sequence, request_sequence,
+        request_dest, fill_dest,
+        request_bound ? "request" : "mailbox", static_cast<unsigned>(tier),
         static_cast<unsigned>(first), static_cast<unsigned>(second),
+        static_cast<unsigned>(current_epoch),
+        static_cast<unsigned>(context_id),
         static_cast<unsigned>(width_bytes));
 }
 
@@ -230,10 +247,12 @@ GraphEcgRP::touch(
                 uint16_t isa_current_epoch = 0;
                 uint16_t isa_context_id = 0;
                 uint32_t isa_sequence = 0;
-                bool got = pkt && pkt->req && graph::readEcgEpochPair(
+                const bool got_request =
+                    pkt && pkt->req && graph::readEcgEpochPair(
                     pkt->req, isa_epoch, isa_epoch2, isa_dbg, isa_popt,
                     isa_count, isa_dest, isa_current_epoch,
                     isa_context_id, isa_sequence);
+                bool got = got_request;
                 if (got && reg_elem > 0) {
                     const uint64_t dest_line =
                         (reg_base + static_cast<uint64_t>(isa_dest) * reg_elem) &
@@ -248,13 +267,15 @@ GraphEcgRP::touch(
                         isa_current_epoch, isa_context_id, isa_sequence);
                     got = got_legacy && graph::lookupDecodedEcgHint2(
                         vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
+                    if (got) isa_dest = vertex;
                 }
                 if (got) {
                     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT &&
                         isa_count == 2) {
                         traceAcceptedK2(
-                            isa_dest, isa_dbg, isa_epoch, isa_epoch2,
-                            reg_elem);
+                            isa_sequence, isa_dest, vertex, got_request, isa_dbg,
+                            isa_epoch, isa_epoch2, isa_current_epoch,
+                            isa_context_id, reg_elem);
                     }
                     if (isa_dbg >= 1 && isa_dbg <= 3)
                         data->ecg_dbg_tier = isa_dbg;
@@ -383,10 +404,11 @@ GraphEcgRP::reset(
                 // OoO request-sideband FIRST (race-free; an O3 ecg.load attaches the
                 // graph mask to the governed property request). Falls back to the
                 // in-order mailbox/table, which is equivalent for serialized loads.
-                bool got = graph::readEcgEpochPair(
+                const bool got_request = graph::readEcgEpochPair(
                     pkt->req, isa_epoch, isa_epoch2, isa_dbg, isa_popt,
                     isa_count, isa_dest, isa_current_epoch,
                     isa_context_id, isa_sequence);
+                bool got = got_request;
                 static const uint64_t ext_trace_limit = []() {
                     const char* value = std::getenv("GEM5_ECG_EXT_TRACE");
                     return value
@@ -428,6 +450,7 @@ GraphEcgRP::reset(
                                 isa_sequence);
                         got = got_legacy && graph::lookupDecodedEcgHint2(
                             vertex, isa_dbg, isa_epoch, isa_epoch2, isa_count);
+                        if (got) isa_dest = vertex;
                     } else {
                         got = graph::lookupEcgMetadataByVertex(
                             vertex, isa_dbg, isa_popt, isa_epoch);
@@ -441,8 +464,9 @@ GraphEcgRP::reset(
                     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT &&
                         isa_count == 2) {
                         traceAcceptedK2(
-                            isa_dest, isa_dbg, isa_epoch, isa_epoch2,
-                            reg_elem);
+                            isa_sequence, isa_dest, vertex, got_request, isa_dbg,
+                            isa_epoch, isa_epoch2, isa_current_epoch,
+                            isa_context_id, reg_elem);
                     }
                     // Use ISA-delivered metadata directly.
                     const bool valid_dbg =
@@ -602,19 +626,8 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         //                          then farthest-epoch property
         //   epoch_only(3): same eviction as epoch_first (insertion uniform, set in reset())
         //   shortcircuit(4,legacy): non-property first, then epoch among property
-        static const int configuredVariant = [](){
-            const char* v = std::getenv("ECG_VARIANT");
-            if (!v) return 2;
-            std::string s(v);
-            if (s=="grasp_only")  return 0;
-            if (s=="epoch_first") return 1;
-            if (s=="rrip_first")  return 2;
-            if (s=="epoch_only")  return 3;
-            if (s=="shortcircuit"||s=="legacy") return 4;
-            if (s=="degree_first"||s=="traversal") return 5;
-            if (s=="lru_only") return 6;
-            return 2;
-        }();
+        static const int configuredVariant =
+            ecg_policy::parseVariant(std::getenv("ECG_VARIANT"));
         int variant = configuredVariant;
         if (setDueling && !candidates.empty()) {
             const size_t setIndex = candidates.front()->getSet();

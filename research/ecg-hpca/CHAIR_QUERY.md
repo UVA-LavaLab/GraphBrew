@@ -23,7 +23,8 @@ evaluation:
 2. StreamShield request-bound LLC placement/bypass;
 3. an executable masked property-load ISA plus request-bound StreamShield;
 4. adaptive policies for iterative and traversal kernels;
-5. implementations and exact equivalence gates across cache_sim, gem5, and Sniper;
+5. implementations with shared-decision mechanism and delivery-conformance
+   gates across cache_sim, gem5, and Sniper;
 6. real-graph timing, traffic, capacity, and instruction-count accounting against
    LRU, SRRIP, GRASP, and charged P-OPT.
 

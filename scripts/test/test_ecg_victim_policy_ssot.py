@@ -49,6 +49,8 @@ def test_calls_present_in_each_simulator():
     for rel, token in callers.items():
         text = (ROOT / rel).read_text(errors="ignore")
         assert token in text, f"{rel} does not call the shared {token}"
+        assert "ecg_policy::parseVariant" in text, (
+            f"{rel} does not use the shared fail-closed variant parser")
 
 
 def test_grasp_insertion_classifier_is_shared():

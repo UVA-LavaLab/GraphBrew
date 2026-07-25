@@ -61,7 +61,8 @@ void recordBoundK2Load(uint32_t core_id, uint64_t address);
 void clearBoundK2Load(uint32_t core_id);
 bool consumeBoundK2Load(
     uint32_t core_id, uint64_t line_addr, uint64_t line_size,
-    uint16_t* current_epoch = nullptr, uint16_t* context_id = nullptr);
+    uint16_t* current_epoch = nullptr, uint16_t* context_id = nullptr,
+    uint64_t* trace_sequence = nullptr);
 void beginEcgContext();
 void endEcgContext();
 uint16_t currentEcgContextId();
@@ -206,7 +207,8 @@ struct GraphCacheContext {
     bool isStreamBypassData(uint64_t addr) const;
     bool lookupFusedK2Pair(uint64_t line_addr, uint32_t core_id,
                            uint8_t& tier,
-                           uint16_t& first, uint16_t& second) const;
+                           uint16_t& first, uint16_t& second,
+                           uint64_t trace_sequence = ~uint64_t{0}) const;
     bool isEdgeData(uint64_t addr) const;
     uint32_t classifyBucket(uint64_t addr) const;
     uint32_t findNextRefAtVertex(

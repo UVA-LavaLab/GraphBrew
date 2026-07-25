@@ -14,6 +14,11 @@ Architecture definitions and diagrams are centralized in
 Absolute gem5 and Sniper miss rates are not compared because their inclusion,
 frontend, and accounting models differ. Cross-simulator evidence is interpreted
 as mechanism agreement and direction relative to each simulator's LRU.
+“Three-simulator conformance” means that all backends compile the same victim
+selector, independently emit their native candidate state, and pass an exact
+Python decision oracle plus backend-specific delivery checks. It does not mean
+that cache metrics or victim sequences are numerically identical across
+different cache hierarchies/frontends.
 PR/BFS/SSSP/BC/CC retain the fused indexed K2-I path as the default gem5
 variant, and all five also implement the canonical K2-M path selected with
 `GEM5_ECG_ISA_VARIANT=mask`. K2-M receives an already-computed address and
@@ -58,6 +63,10 @@ only because policies can execute different amounts of graph work.
 When truncation occurs, the semantic checksum certifies equality of the same
 deterministic execution prefix, not completion of the full graph algorithm.
 Full-result correctness remains a separate uncapped gate.
+The small-cache conformance geometry uses `ECG_STORED_REFRESH=1` in cache_sim
+and gem5 to force decisive epoch-ranked evictions. This is a coverage device,
+not a claim that stored refresh is hardware-free; Sniper runs without it and
+reports delivery/conformance separately.
 Even K2-I fused timing is accepted only when live fused receipts validate against
 the exported K2 sideband. Without receipts, the row remains cache-metric-only;
 its packed-record software path can execute a different instruction stream than

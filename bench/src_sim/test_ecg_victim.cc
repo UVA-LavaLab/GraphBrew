@@ -104,6 +104,8 @@ int main() {
 
     const char* ve = getenv("ECG_VARIANT");
     std::string var = ve ? ve : "rrip_first";
+    if (var != "tier" && var != "dueling")
+        (void)ecg_policy::parseVariant(ve);
     printf("[test_ecg_victim] ECG_VARIANT=%s\n", var.c_str());
 
     // P=property line (addr in region), R=record line. epoch only meaningful for P.

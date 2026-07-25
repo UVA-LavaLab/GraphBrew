@@ -33,7 +33,7 @@ must be materially different.
 |---|---|
 | single metadata mask concept | K2 two-future-reference records |
 | preliminary replacement/prefetch study | adaptive replacement plus StreamShield placement |
-| basic trace-driven evaluation | cache_sim + gem5 + Sniper implementation and equivalence |
+| basic trace-driven evaluation | cache_sim + gem5 + Sniper implementation and mechanism conformance |
 | conceptual graph instruction | executable record-load ISA plus request-bound StreamShield placement |
 | no complete overhead attribution | K2-vs-bypass factorial, traffic, capacity, timing, and instruction accounting |
 | PageRank-focused | First-class PR/BFS/SSSP/BC/CC K2 delivery and online selection |
@@ -86,8 +86,8 @@ claim that static instruction reduction.
    current-epoch/context channel;
    indexed fusion is a separate extension.
 3. Online set-dueling that selects among graph-aware victim rules at runtime.
-4. A shared eviction decision and exact delivery/decision gates across cache_sim,
-   gem5, and Sniper.
+4. One shared eviction-decision SSOT plus independent per-backend delivery and
+   decision-conformance gates across cache_sim, gem5, and Sniper.
 5. A validation framework that separates cache, transport, and optional indexed
    fusion; the primary 16-way design reports its added silicon cost, while
    equal-area/energy sensitivity remains a submission gate.

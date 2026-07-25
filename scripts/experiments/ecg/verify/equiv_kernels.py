@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Multi-kernel 3-simulator equivalence + full debug.
+"""Multi-kernel 3-simulator K2 mechanism conformance + full debug.
 
 The eviction DECISION (`ecg_victim_policy.h`) is kernel-AGNOSTIC and byte-identical across
 cache_sim / gem5 / Sniper, so the ECG policy must obey the same eviction spec for EVERY
@@ -18,6 +18,8 @@ Usage:
 """
 import argparse
 import csv
+import datetime
+import hashlib
 import json
 import os
 import re
@@ -58,6 +60,13 @@ KERNEL_SIMS = {
 # consumption in the cache_sim kernel -> decisive=0 on BOTH sims (epoch delivered + policy-compliant,
 # but eff-dist ties dominate, consistent with ECG ~= GRASP on that access pattern). (Findings 22.14.)
 EXPECTED_DECISIVE = {"bfs", "bc", "sssp"}
+EXPECTED_EPOCH_REGIONS = {
+    "pr": "contrib",
+    "bfs": "parent",
+    "sssp": "dist",
+    "bc": "depth,path_counts",
+    "cc": "comp",
+}
 GEM5_X86 = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt"
 GEM5_RISCV = ecg.ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" / "gem5.opt"
 # Kernels whose gem5 leg runs on RISC-V via the validated fused ecg.load EVICT delivery
@@ -78,6 +87,7 @@ SCHEDULE_K = 0
 STREAM_BYPASS = False
 ADAPTIVE_STREAM_BYPASS = False
 GEM5_ISA_VARIANT = "indexed"
+RUN_META = {}
 
 
 def effective_variant(kernel):
@@ -88,6 +98,26 @@ def effective_variant(kernel):
             return "degree_first"
         return "rrip_first"
     return "rrip_first"
+
+
+def expected_trace_policy(kernel):
+    return f"ECG:{effective_variant(kernel)}"
+
+
+def detailed_row_provenance(sim, kernel):
+    row = RUN_META.get((sim, kernel), {}).get("row", {})
+    checks = {
+        "epoch_regions": (
+            row.get("ecg_epoch_regions") ==
+            EXPECTED_EPOCH_REGIONS[kernel]),
+        "variant": (
+            row.get("ecg_variant_effective") ==
+            effective_variant(kernel)),
+        "schedule_k": row.get("ecg_schedule_k") == str(SCHEDULE_K),
+    }
+    if GEM5_ISA_VARIANT == "mask":
+        checks["isa_variant"] = row.get("ecg_isa_variant") == "mask"
+    return all(checks.values()), checks
 
 
 def sniper_policy():
@@ -109,6 +139,206 @@ def _banner(text):
     return m.group(0) if m else "(no banner)"
 
 
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def file_record(path, relative_to=None):
+    path = Path(path)
+    resolved = path.resolve()
+    recorded_path = resolved
+    if relative_to is not None:
+        try:
+            recorded_path = resolved.relative_to(Path(relative_to).resolve())
+        except ValueError:
+            pass
+    return {
+        "path": str(recorded_path),
+        "bytes": path.stat().st_size,
+        "sha256": sha256_file(path),
+    }
+
+
+def write_json(path, payload):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n")
+    temporary.replace(path)
+
+
+def git_text(*args):
+    result = subprocess.run(
+        ["git", *args], cwd=ecg.ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"git {' '.join(args)} failed: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def decoded_timeout_output(value):
+    if value is None:
+        return ""
+    return value.decode(errors="replace") if isinstance(value, bytes) else value
+
+
+def validate_roi_output(out, expected_policy):
+    out = Path(out)
+    csv_path = out / "roi_matrix.csv"
+    json_path = out / "roi_matrix.json"
+    marker_path = out / "roi_matrix.complete.json"
+    errors = []
+    rows = []
+    if not csv_path.exists():
+        errors.append("roi_matrix.csv missing")
+    else:
+        rows = list(csv.DictReader(csv_path.open()))
+        if len(rows) != 1:
+            errors.append(f"expected one ROI row, found {len(rows)}")
+        elif rows[0].get("status") != "ok":
+            errors.append(
+                f"ROI row status is {rows[0].get('status')!r}")
+        elif rows[0].get("policy_label") != expected_policy:
+            errors.append(
+                f"policy={rows[0].get('policy_label')!r}, "
+                f"expected={expected_policy!r}")
+    if not json_path.exists():
+        errors.append("roi_matrix.json missing")
+    if not marker_path.exists():
+        errors.append("roi_matrix.complete.json missing")
+    else:
+        try:
+            marker = json.loads(marker_path.read_text())
+        except json.JSONDecodeError as exc:
+            errors.append(f"completion marker is invalid JSON: {exc}")
+        else:
+            if marker.get("complete") is not True:
+                errors.append("completion marker complete is not true")
+            if marker.get("all_rows_ok") is not True:
+                errors.append("completion marker all_rows_ok is not true")
+            outputs = marker.get("outputs", {})
+            for name, path in (
+                    ("roi_matrix.csv", csv_path),
+                    ("roi_matrix.json", json_path)):
+                descriptor = outputs.get(name, {})
+                if path.exists():
+                    if descriptor.get("sha256") != sha256_file(path):
+                        errors.append(f"{name} completion hash mismatch")
+                    expected_rows = len(
+                        rows if name.endswith(".csv")
+                        else json.loads(path.read_text()))
+                    if descriptor.get("rows") != expected_rows:
+                        errors.append(f"{name} completion row mismatch")
+    return errors, rows[0] if len(rows) == 1 else {}
+
+
+def evidence_inputs(
+        kernels, include_gem5, include_sniper, evidence_dir=None):
+    paths = {
+        "graph": ecg.GRAPH,
+        "equiv_verifier": Path(__file__).resolve(),
+        "trace_oracle": Path(ecg.__file__).resolve(),
+        "roi_matrix": ecg.ROI_MATRIX,
+        "policy_ssot": ecg.ROOT / "bench/include/ecg_victim_policy.h",
+        "epoch_builder": ecg.ROOT / "bench/include/ecg_epoch_builder.h",
+    }
+    for kernel in kernels:
+        paths[f"cache_sim_{kernel}"] = (
+            ecg.ROOT / "bench/bin_sim" / kernel)
+    if include_gem5:
+        paths["gem5_riscv"] = GEM5_RISCV
+        paths["gem5_config"] = (
+            ecg.ROOT /
+            "bench/include/gem5_sim/configs/graphbrew/graph_se.py")
+        paths["gem5_ecg_policy"] = (
+            ecg.ROOT /
+            "bench/include/gem5_sim/overlays/mem/cache/"
+            "replacement_policies/ecg_rp.cc")
+        paths["gem5_policy_ssot_copy"] = (
+            ecg.ROOT /
+            "bench/include/gem5_sim/overlays/mem/cache/"
+            "replacement_policies/ecg_victim_policy.hh")
+        paths["gem5_patch_state"] = (
+            ecg.ROOT / "bench/include/gem5_sim/.gem5_patch_state.json")
+        paths["gem5_decoder"] = (
+            ecg.ROOT /
+            "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+            "decoder_ecg_extract.isa")
+        for kernel in kernels:
+            paths[f"gem5_guest_{kernel}"] = (
+                ecg.ROOT / "bench/bin_gem5" /
+                f"{kernel}_riscv_m5ops")
+    if include_sniper:
+        paths["sniper_binary"] = (
+            ecg.ROOT / "bench/include/sniper_sim/snipersim/lib/sniper")
+        paths["sniper_workload"] = (
+            ecg.ROOT / "bench/bin_sniper/sg_kernel")
+        paths["sniper_overlay_status"] = (
+            ecg.ROOT / "bench/include/sniper_sim/.sniper_overlays.json")
+        paths["sniper_ecg_policy"] = (
+            ecg.ROOT /
+            "bench/include/sniper_sim/overlays/common/core/"
+            "memory_subsystem/cache/cache_set_ecg.cc")
+        paths["sniper_policy_ssot_copy"] = (
+            ecg.ROOT /
+            "bench/include/sniper_sim/overlays/common/core/"
+            "memory_subsystem/cache/ecg_victim_policy.h")
+    missing = [str(path) for path in paths.values() if not path.exists()]
+    if missing:
+        raise RuntimeError(
+            "evidence inputs are missing: " + ", ".join(missing))
+    records = {}
+    for name, path in sorted(paths.items()):
+        if evidence_dir is not None and name in (
+                "sniper_binary", "sniper_workload"):
+            destination = Path(evidence_dir) / "inputs" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, destination)
+            records[name] = file_record(destination, evidence_dir)
+        else:
+            records[name] = file_record(path)
+    return records
+
+
+def archive_cell(
+        evidence_dir, sim, kernel, text, banner, coverage,
+        status, expected_policy, metadata):
+    cell_dir = Path(evidence_dir) / "cells" / kernel / sim
+    cell_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = cell_dir / "raw.log"
+    raw_path.write_text(text)
+    outputs = {
+        "raw_log": file_record(raw_path, evidence_dir),
+    }
+    output_dir = metadata.get("output_dir")
+    if output_dir:
+        for name in (
+                "roi_matrix.csv", "roi_matrix.json",
+                "roi_matrix.complete.json"):
+            source = Path(output_dir) / name
+            if source.exists():
+                destination = cell_dir / name
+                shutil.copy2(source, destination)
+                outputs[name] = file_record(destination, evidence_dir)
+    record = {
+        "simulator": sim,
+        "kernel": kernel,
+        "status": status,
+        "expected_policy": expected_policy,
+        "banner": banner,
+        "coverage": coverage,
+        "runner": metadata,
+        "outputs": outputs,
+    }
+    write_json(cell_dir / "cell.json", record)
+    return record
+
+
 def _stale(binp, kernel):
     """Return a [STALE] note if bin_sim/<kernel> predates the ECG headers/policy/kernel source it
     is built from (the cc/sssp banner trap: a binary built before a header change silently runs old
@@ -125,14 +355,35 @@ def _stale(binp, kernel):
     return f"  [STALE] bin_sim/{kernel} older than {', '.join(newer)} — rebuild (make bench/bin_sim/{kernel})\n" if newer else ""
 
 
+def stale_dependencies(binary, dependencies):
+    binary = Path(binary)
+    if not binary.exists():
+        return [f"binary missing: {binary}"]
+    binary_mtime = binary.stat().st_mtime
+    return [
+        str(Path(path))
+        for path in dependencies
+        if Path(path).exists() and Path(path).stat().st_mtime > binary_mtime
+    ]
+
+
 def run_cache(kernel):
     """cache_sim <kernel> with ECG_GRASP_POPT + coverage geometry (force property eviction)."""
     binp = ecg.ROOT / "bench" / "bin_sim" / kernel
     if not binp.exists():
+        RUN_META[("cache_sim", kernel)] = {
+            "returncode": None,
+            "errors": ["binary missing"],
+        }
         return ("", False), "(binary missing)"
     stale = _stale(binp, kernel)
     if stale:
         sys.stderr.write(stale)
+        RUN_META[("cache_sim", kernel)] = {
+            "returncode": None,
+            "errors": [stale.strip()],
+        }
+        return ("", False), "(stale binary)"
     env = {**os.environ, **ecg.BASE_ENV, **ecg.ECG_ENV, **ecg.COV_ENV,
            "ECG_VARIANT": effective_variant(kernel), "ECG_DEBUG": "1"}
     env["CACHE_ECG_EPOCH_REGION_INDICES"] = (
@@ -160,8 +411,27 @@ def run_cache(kernel):
         env["CACHE_L3_SIZE"] = "2kB"
     if STREAM_PF_DEGREE > 0:
         env["CACHE_STREAM_PREFETCH_DEGREE"] = str(STREAM_PF_DEGREE)
-    p = subprocess.run([str(binp), "-f", str(ecg.GRAPH), "-o", "0", "-n", "1"],
-                       env=env, capture_output=True, text=True, timeout=300)
+    command = [
+        str(binp), "-f", str(ecg.GRAPH), "-o", "0", "-n", "1"]
+    try:
+        p = subprocess.run(
+            command, env=env, capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired as exc:
+        text = (
+            decoded_timeout_output(exc.stdout) +
+            decoded_timeout_output(exc.stderr))
+        RUN_META[("cache_sim", kernel)] = {
+            "command": command,
+            "returncode": None,
+            "errors": ["timeout after 300 seconds"],
+        }
+        return (text, False), _banner(text)
+    RUN_META[("cache_sim", kernel)] = {
+        "command": command,
+        "returncode": p.returncode,
+        "errors": [] if p.returncode == 0 else [
+            f"cache_sim exited {p.returncode}"],
+    }
     return (p.stderr, p.returncode == 0), _banner(p.stderr)
 
 
@@ -186,6 +456,35 @@ def run_gem5(kernel):
     record/sidecar stream remains separate and may carry StreamShield."""
     out = Path("/tmp") / f"equivk_gem5_{GEM5_ISA_VARIANT}_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
+    guest = (
+        ecg.ROOT / "bench/bin_gem5" / f"{kernel}_riscv_m5ops")
+    guest_stale = stale_dependencies(guest, (
+        ecg.ROOT / "bench/src_gem5" / f"{kernel}.cc",
+        ecg.ROOT / "bench/include/gem5_sim/gem5_harness.h",
+        ecg.ROOT / "bench/include/ecg_epoch_builder.h",
+    ))
+    gem5_stale = stale_dependencies(GEM5_RISCV, (
+        ecg.ROOT /
+        "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/ecg_rp.cc",
+        ecg.ROOT /
+        "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/ecg_victim_policy.hh",
+        ecg.ROOT /
+        "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/ecg_epoch_request_ext.hh",
+        ecg.ROOT /
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa",
+    ))
+    stale = guest_stale + gem5_stale
+    if stale:
+        error = "stale gem5 inputs: " + ", ".join(stale)
+        RUN_META[("gem5", kernel)] = {
+            "returncode": None,
+            "errors": [error],
+        }
+        return ("", False), "(stale binary)"
     if kernel in GEM5_RISCV_KERNELS:
         env = {**os.environ, "GEM5_OPT": str(GEM5_RISCV), "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
                "GEM5_FORCE_ECG_EXTRACT": "1",
@@ -219,16 +518,64 @@ def run_gem5(kernel):
            "--l1d-size", "1kB", "--l2-size", "2kB", "--out-dir", str(out)]
     if STREAM_PF_DEGREE > 0:
         cmd += ["--prefetcher", "STRIDE", "--structure-prefetch-degree", str(STREAM_PF_DEGREE)]
-    subprocess.run(cmd, env=env, cwd=str(ecg.ROOT), stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL, timeout=1200, check=False)
+    try:
+        process = subprocess.run(
+            cmd, env=env, cwd=str(ecg.ROOT),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=1200, check=False)
+        returncode = process.returncode
+        timeout_error = []
+    except subprocess.TimeoutExpired:
+        returncode = None
+        timeout_error = ["timeout after 1200 seconds"]
     text, ran = _roi_log(out)
-    return (text, ran), _banner(text)
+    output_errors, row = validate_roi_output(
+        out, "ECG_ECG_GRASP_POPT")
+    errors = timeout_error + (
+        [] if returncode == 0 else [f"roi_matrix exited {returncode}"]) + \
+        output_errors
+    RUN_META[("gem5", kernel)] = {
+        "command": cmd,
+        "returncode": returncode,
+        "output_dir": str(out),
+        "row": row,
+        "errors": errors,
+    }
+    return (text, ran and not errors), _banner(text)
 
 
 def run_sniper(kernel):
     """Sniper sg_kernel --benchmark <kernel> with ECG_GRASP_POPT (memory-capped, guarded)."""
     out = Path("/tmp") / f"equivk_sniper_{GEM5_ISA_VARIANT}_{kernel}"
     shutil.rmtree(out, ignore_errors=True)
+    workload = ecg.ROOT / "bench/bin_sniper/sg_kernel"
+    sniper_binary = (
+        ecg.ROOT / "bench/include/sniper_sim/snipersim/lib/sniper")
+    workload_stale = stale_dependencies(workload, (
+        ecg.ROOT / "bench/src_sniper/sg_kernel.cc",
+        ecg.ROOT / "bench/include/sniper_sim/sniper_harness.h",
+        ecg.ROOT / "bench/include/ecg_epoch_builder.h",
+        ecg.ROOT / "bench/include/ecg_victim_policy.h",
+    ))
+    sniper_stale = stale_dependencies(sniper_binary, (
+        ecg.ROOT /
+        "bench/include/sniper_sim/overlays/common/core/"
+        "memory_subsystem/cache/cache_set_ecg.cc",
+        ecg.ROOT /
+        "bench/include/sniper_sim/overlays/common/core/"
+        "memory_subsystem/cache/graph_cache_context_sniper.cc",
+        ecg.ROOT /
+        "bench/include/sniper_sim/overlays/common/core/"
+        "memory_subsystem/cache/ecg_victim_policy.h",
+    ))
+    stale = workload_stale + sniper_stale
+    if stale:
+        error = "stale Sniper inputs: " + ", ".join(stale)
+        RUN_META[("sniper", kernel)] = {
+            "returncode": None,
+            "errors": [error],
+        }
+        return ("", False), "(stale binary)"
     env = {**os.environ, "SNIPER_ECG_MODE": "ECG_GRASP_POPT",
            "ECG_VARIANT": effective_variant(kernel),
            "ECG_EVICT_TRACE": "4000", "ECG_DEBUG": "1"}
@@ -258,15 +605,35 @@ def run_sniper(kernel):
     policy = sniper_policy()
     cmd = [sys.executable, str(ecg.ROI_MATRIX), "--suite", "sniper",
            "--sniper-workload", "sg_kernel", "--allow-sniper-sg-kernel-workload",
-           "--sniper-memory-limit-gb", "20", "--sniper-enable-graph-policies", "--no-build",
+           "--sniper-memory-limit-gb", "20", "--no-build",
            "--benchmark", kernel, "--policies", policy,
            "--ecg-isa-variant", GEM5_ISA_VARIANT,
            "--options", f"-f {ecg.GRAPH} -o 5 -n 1", "--l3-sizes", l3, "--l3-ways", "8",
            "--l1d-size", l1d, "--l2-size", l2, "--timeout-sniper", "540", "--out-dir", str(out)]
-    subprocess.run(cmd, env=env, cwd=str(ecg.ROOT), stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL, timeout=900, check=False)
+    try:
+        process = subprocess.run(
+            cmd, env=env, cwd=str(ecg.ROOT),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=900, check=False)
+        returncode = process.returncode
+        timeout_error = []
+    except subprocess.TimeoutExpired:
+        returncode = None
+        timeout_error = ["timeout after 900 seconds"]
     text, ran = _roi_log(out)
-    return (text, ran), _banner(text)
+    output_errors, row = validate_roi_output(
+        out, sniper_policy_label())
+    errors = timeout_error + (
+        [] if returncode == 0 else [f"roi_matrix exited {returncode}"]) + \
+        output_errors
+    RUN_META[("sniper", kernel)] = {
+        "command": cmd,
+        "returncode": returncode,
+        "output_dir": str(out),
+        "row": row,
+        "errors": errors,
+    }
+    return (text, ran and not errors), _banner(text)
 
 
 def main(argv=None):
@@ -290,6 +657,16 @@ def main(argv=None):
         "--gem5-isa-variant", choices=["indexed", "mask"], default="indexed",
         help="K2 ISA/model variant for gem5 and Sniper; mask validates "
              "computed-address K2-M.")
+    ap.add_argument(
+        "--evidence-dir", type=Path,
+        help="Archive a paper-ready manifest, raw traces, ROI rows, and "
+             "structured per-cell coverage.")
+    ap.add_argument(
+        "--overwrite-evidence", action="store_true",
+        help="Replace an existing evidence directory.")
+    ap.add_argument(
+        "--allow-dirty", action="store_true",
+        help="Allow evidence capture from a dirty git worktree.")
     args = ap.parse_args(argv)
 
     global STREAM_PF_DEGREE, SCHEDULE_K, STREAM_BYPASS
@@ -299,6 +676,7 @@ def main(argv=None):
     STREAM_BYPASS = args.stream_bypass
     ADAPTIVE_STREAM_BYPASS = args.adaptive_stream_bypass
     GEM5_ISA_VARIANT = args.gem5_isa_variant
+    RUN_META.clear()
     if STREAM_BYPASS and SCHEDULE_K != 2:
         ap.error("--stream-bypass requires --schedule-k 2")
     if ADAPTIVE_STREAM_BYPASS and not STREAM_BYPASS:
@@ -334,6 +712,71 @@ def main(argv=None):
         print("See research/ecg-hpca/RUNBOOK.md for graph staging and build commands.")
         return 2
 
+    evidence_dir = args.evidence_dir
+    if evidence_dir:
+        evidence_dir = evidence_dir.resolve()
+        if evidence_dir.exists() and any(evidence_dir.iterdir()):
+            if not args.overwrite_evidence:
+                print(
+                    f"FAIL: evidence directory is not empty: {evidence_dir}")
+                return 2
+            shutil.rmtree(evidence_dir)
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        dirty = git_text("status", "--porcelain")
+        if dirty and not args.allow_dirty:
+            print("FAIL: evidence capture requires a clean git worktree")
+            return 2
+        manifest = {
+            "schema_version": 1,
+            "status": "running",
+            "started_at_utc": datetime.datetime.now(
+                datetime.timezone.utc).isoformat(),
+            "command": [sys.executable, str(Path(__file__).resolve()), *(
+                argv if argv is not None else sys.argv[1:])],
+            "git_head": git_text("rev-parse", "HEAD"),
+            "git_status_porcelain": dirty,
+            "configuration": {
+                "kernels": list(args.kernels),
+                "simulators": [
+                    sim for sim, enabled in (
+                        ("cache_sim", True),
+                        ("gem5", args.gem5),
+                        ("sniper", args.sniper))
+                    if enabled
+                ],
+                "schedule_k": SCHEDULE_K,
+                "isa_variant": GEM5_ISA_VARIANT,
+                "stream_prefetch_degree": STREAM_PF_DEGREE,
+                "stream_bypass": STREAM_BYPASS,
+                "adaptive_stream_bypass": ADAPTIVE_STREAM_BYPASS,
+            },
+            "inputs": evidence_inputs(
+                args.kernels, args.gem5, args.sniper, evidence_dir),
+        }
+        write_json(evidence_dir / "manifest.json", manifest)
+
+    print("== Independent mechanism preflight ==")
+    preflight = {
+        "exact_victim_unit": ecg.run_synthetic(),
+        "field_layout_parity": ecg.run_field_parity(),
+        "epoch_pair_unit": ecg.run_epoch_pair_unit(),
+        "unknown_mode_hard_fail": ecg.verify_unknown_mode_hardfails(),
+        "unknown_variant_hard_fail":
+            ecg.verify_unknown_variant_hardfails(),
+    }
+    preflight_ok = all(preflight.values())
+    if evidence_dir:
+        write_json(evidence_dir / "preflight.json", preflight)
+    if not preflight_ok:
+        print("FAIL: independent mechanism preflight")
+        if evidence_dir:
+            manifest["status"] = "failed"
+            manifest["finished_at_utc"] = datetime.datetime.now(
+                datetime.timezone.utc).isoformat()
+            write_json(evidence_dir / "manifest.json", manifest)
+        return 1
+    print()
+
     enabled = {"cache_sim"}
     if args.gem5:
         need = {(GEM5_RISCV if k in GEM5_RISCV_KERNELS else GEM5_X86) for k in args.kernels}
@@ -346,7 +789,7 @@ def main(argv=None):
     RUNNERS = {"cache_sim": run_cache, "gem5": run_gem5, "sniper": run_sniper}
     sims_order = [s for s in ("cache_sim", "gem5", "sniper") if s in enabled]
 
-    print("== Multi-kernel 3-sim ECG equivalence (eviction-spec + debug banner) ==")
+    print("== Multi-kernel 3-sim K2 mechanism conformance ==")
     variant_label = (
         "PR=epoch_first,BFS/SSSP=degree_first,BC/CC=rrip_first"
         if SCHEDULE_K else "rrip_first")
@@ -356,6 +799,7 @@ def main(argv=None):
 
     ok_all = True
     results = {}   # (sim, kernel) -> status: 'ok' / 'spec-FAIL' / 'banner-X' / 'n/a'
+    cell_records = []
     for kernel in args.kernels:
         for sim in sims_order:
             if sim not in KERNEL_SIMS[kernel]:
@@ -368,7 +812,10 @@ def main(argv=None):
                 spec_ok = ecg.verify_k2_trace(
                     f"{sim}/{kernel}", result,
                     ne=32768 if SCHEDULE_K == 2 else 65535,
-                    coverage=cov)
+                    coverage=cov,
+                    expected_policy=expected_trace_policy(kernel),
+                    require_exact_bind=(
+                        sim == "sniper" and GEM5_ISA_VARIANT == "mask"))
                 bc_dual_load_ok = True
                 if kernel == "bc" and sim == "gem5":
                     bc_dual_load_ok = (
@@ -386,7 +833,8 @@ def main(argv=None):
                 spec_ok = spec_ok and bc_dual_load_ok
             else:
                 spec_ok = ecg.verify_trace(
-                    f"{sim}/{kernel}", result, coverage=cov)
+                    f"{sim}/{kernel}", result, coverage=cov,
+                    expected_policy=expected_trace_policy(kernel))
             if SCHEDULE_K == 2:
                 text, ran_ok = result
                 if sim == "gem5":
@@ -454,6 +902,13 @@ def main(argv=None):
                                 rows[0].get("sniper_k2_exact_bind") == "1",
                                 rows[0].get(
                                     "sniper_k2_epoch_context_bound") == "1",
+                                rows[0].get(
+                                    "sniper_transport_receipts_validated") ==
+                                    "1",
+                                rows[0].get(
+                                    "sniper_k2_exact_bind_validated") == "1",
+                                rows[0].get(
+                                    "sniper_k2_epoch_context_validated") == "1",
                                 rows[0].get("sniper_context_loaded") == "1",
                                 rows[0].get(
                                     "sniper_popt_matrix_required") == "0",
@@ -477,6 +932,14 @@ def main(argv=None):
                     print(f"      {fused_label}: "
                           f"{'[OK]' if ran_ok and fused_ok else '[FAIL]'}")
                     spec_ok &= ran_ok and fused_ok
+                if sim in ("gem5", "sniper"):
+                    provenance_ok, provenance_checks = (
+                        detailed_row_provenance(sim, kernel))
+                    print(
+                        "      governed-region/variant provenance: "
+                        f"{'[OK]' if provenance_ok else '[FAIL]'} "
+                        f"{provenance_checks}")
+                    spec_ok &= provenance_ok
             streamshield_ok = None
             if STREAM_BYPASS:
                 text, ran_ok = result
@@ -569,7 +1032,12 @@ def main(argv=None):
                     label = (f"delivery+policy verified; epoch decisive {dec}x, nonzero {nz}/{ev}"
                              + ("" if decisive_ok else " (do-no-harm: tied eff-dist -> epoch seldom decisive)"))
             print(f"      epoch coverage: decisive={dec} nonzero={nz} stamped={ev} / {tv} total  [{label}]")
-            banner_ok = ("policy=ECG" in banner) and ("ECG_GRASP_POPT" in banner)
+            expected_variant = effective_variant(kernel)
+            banner_ok = all((
+                "policy=ECG" in banner,
+                "ECG_GRASP_POPT" in banner,
+                f"variant={expected_variant}" in banner,
+            ))
             print(f"      debug banner: {banner}  [{'OK' if banner_ok else 'MISSING'}]")
             if not spec_ok:
                 status = "spec-FAIL"
@@ -586,6 +1054,23 @@ def main(argv=None):
                 status = "ok"
             results[(sim, kernel)] = status
             ok_all &= (status == "ok")
+            if evidence_dir:
+                text, _ran_ok = result
+                coverage_record = {
+                    **cov,
+                    "strength": (
+                        "decisive_epoch"
+                        if dec > 0 else
+                        "delivery_and_decision_conformance"),
+                    "decisive_required": (
+                        kernel in EXPECTED_DECISIVE and sim != "sniper"),
+                    "stored_refresh_model": sim in ("cache_sim", "gem5"),
+                }
+                cell_records.append(archive_cell(
+                    evidence_dir, sim, kernel, text, banner,
+                    coverage_record, status,
+                    expected_trace_policy(kernel),
+                    RUN_META.get((sim, kernel), {})))
 
     print("\n## kernel x sim matrix (ok = spec PASS + banner + [bfs/bc/sssp on cache_sim+gem5: "
           ">=1 DECISIVE epoch victim] [cc on cache_sim/gem5: epoch DELIVERED, do-no-harm; "
@@ -597,10 +1082,54 @@ def main(argv=None):
         for sim in sims_order:
             row += results[(sim, kernel)].ljust(14)
         print(row)
-    bad = [f"{s}/{k}" for (s, k), v in results.items() if v.startswith("FAIL")]
+    bad = [
+        f"{s}/{k}" for (s, k), value in results.items()
+        if value not in ("ok", "n/a")
+    ]
     if bad:
         print(f"\nFAIL: {', '.join(sorted(bad))}")
-    print(f"\nRESULT: {'ALL (kernel x sim) PASS ✓ (all five K2 algorithms certified)' if ok_all else 'see FAIL above'}")
+    result_text = (
+        "ALL kernel x simulator cells CONFORM ✓"
+        if ok_all else "see FAIL above")
+    print(f"\nRESULT: {result_text}")
+    if evidence_dir:
+        summary = {
+            "schema_version": 1,
+            "status": "passed" if ok_all else "failed",
+            "finished_at_utc": datetime.datetime.now(
+                datetime.timezone.utc).isoformat(),
+            "preflight": preflight,
+            "git_head": manifest["git_head"],
+            "configuration": manifest["configuration"],
+            "proof_inputs": {
+                name: manifest["inputs"][name]
+                for name in ("sniper_binary", "sniper_workload")
+                if name in manifest["inputs"]
+            },
+            "matrix": {
+                kernel: {
+                    sim: results[(sim, kernel)]
+                    for sim in sims_order
+                }
+                for kernel in args.kernels
+            },
+            "cells": cell_records,
+            "cell_count": len(cell_records),
+            "passed_cells": sum(
+                record["status"] == "ok" for record in cell_records),
+            "decisive_epoch_cells": sum(
+                record["coverage"]["strength"] == "decisive_epoch"
+                for record in cell_records),
+            "required_decisive_cells": sum(
+                record["coverage"]["decisive_required"]
+                for record in cell_records),
+        }
+        write_json(evidence_dir / "summary.json", summary)
+        manifest["status"] = summary["status"]
+        manifest["finished_at_utc"] = summary["finished_at_utc"]
+        manifest["summary_sha256"] = sha256_file(
+            evidence_dir / "summary.json")
+        write_json(evidence_dir / "manifest.json", manifest)
     return 0 if ok_all else 1
 
 

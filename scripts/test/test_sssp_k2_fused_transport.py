@@ -18,7 +18,16 @@ def test_weighted_sssp_fused_path_moves_validation_before_roi():
     assert "deliver_k2_record(record, fused_k2_model);" in sniper
     assert "} else if (\n                pair_ok ||" in sniper
     assert "auto relax_edges = [&](" in sniper
-    assert sniper.count("relax_edges(") == 6
+    # The compact weighted path must relax straight out of the packed 8B
+    # pair_compact records (the transport being charged), not re-walk the
+    # ordinary CSR via relax_edges. Only the general/sidecar and no-delivery
+    # fallbacks still use relax_edges.
+    assert "auto relax_compact_edges = [&](" in sniper
+    assert "relax_compact_edges(node, source_dist);" in sniper
+    assert "const uint64_t record = pair_compact[pos];" in sniper
+    assert "ecg_epoch::extractCompactWeightedDest(record)" in sniper
+    assert "ecg_epoch::extractCompactWeightedWeight(record)" in sniper
+    assert sniper.count("relax_edges(") == 4
     assert 'std::getenv("ECG_K2_VALIDATE")' in sniper
     assert 'std::getenv("ECG_K2_VALIDATE")' in gem5
     assert "gem5_ecg_stream_weighted_load2_instruction" in gem5

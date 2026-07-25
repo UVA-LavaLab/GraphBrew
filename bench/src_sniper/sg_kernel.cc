@@ -1181,10 +1181,7 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
                 ? (fused_k2_model
                     ? reinterpret_cast<uint64_t>(
                         compact_pair_ok
-                            ? static_cast<const void*>(
-                                graph.num_nodes() > 0
-                                    ? graph.out_neigh(0).begin()
-                                    : nullptr)
+                            ? static_cast<const void*>(pair_compact.data())
                             : static_cast<const void*>(pair_sidecars.data()))
                     : reinterpret_cast<uint64_t>(pair_flat.data())) : 0,
             stream_bypass_on && pair_ok
@@ -1248,6 +1245,30 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             ++edge_pos;
         }
     };
+    auto relax_compact_edges = [&](NodeID node, WeightT source_dist) {
+        for (uint64_t pos = pair_off[node];
+             pos < pair_off[node + 1]; ++pos) {
+            consume_edge();
+            const uint64_t record = pair_compact[pos];
+            const NodeID dest = static_cast<NodeID>(
+                ecg_epoch::extractCompactWeightedDest(record));
+            const WeightT weight = static_cast<WeightT>(
+                ecg_epoch::extractCompactWeightedWeight(record));
+            if (software_k2_delivery) {
+                deliver_k2_record(pair_flat[pos], fused_k2_model);
+            }
+            const WeightT candidate = source_dist + weight;
+            const WeightT old_dist =
+                graphbrew_sniper::k2_bound_load(&dist[dest]);
+            if (candidate < old_dist) {
+                dist[dest] = candidate;
+                if (!in_queue[dest]) {
+                    frontier.push(dest);
+                    in_queue[dest] = 1;
+                }
+            }
+        }
+    };
     while (!frontier.empty()) {
         NodeID node = frontier.front();
         frontier.pop();
@@ -1260,21 +1281,7 @@ int run_sssp(const WGraph& graph, NodeID source, WeightT delta) {
             SNIPER_ECG_PFX_TARGET(frontier.front());
         }
         if (fused_k2_model && pair_ok && compact_pair_ok) {
-            uint64_t pair_pos = pair_off[node];
-            if (software_k2_delivery) {
-                relax_edges(
-                    node, source_dist,
-                    [&](WNode, size_t) {
-                        deliver_k2_record(
-                            pair_flat[pair_pos++], fused_k2_model);
-                    },
-                    [](WNode, size_t) {});
-            } else {
-                relax_edges(
-                    node, source_dist,
-                    [](WNode, size_t) {},
-                    [](WNode, size_t) {});
-            }
+            relax_compact_edges(node, source_dist);
         } else if (fused_k2_model && pair_ok) {
             uint64_t pair_pos = pair_off[node];
             if (software_k2_delivery) {

@@ -19,10 +19,11 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
 
 ## Proven
 
-- Tiered K2 construction, delivery, line metadata, effective distance, and
-  victim decisions agree across cache_sim, gem5, and Sniper for
-  PR/BFS/SSSP/BC/CC. The fresh committed computed-address K2-M gate passes all
-  15 kernel x simulator cells with zero distance mismatches.
+- Tiered K2 uses one shared eviction-decision SSOT. cache_sim, gem5, and Sniper
+  independently conform to that decision specification and pass scoped
+  delivery checks for PR/BFS/SSSP/BC/CC. The fresh computed-address K2-M gate
+  passes all 15 kernel x simulator cells with zero distance mismatches; this is
+  mechanism integration evidence, not numerical cross-simulator equivalence.
 - All five kernels execute the fused indexed K2-I instruction in gem5.
   TimingSimpleCPU provides serialized semantic delivery for the scale cells;
   exact per-Request O3 binding is proven only by tiny PR and weighted SSSP

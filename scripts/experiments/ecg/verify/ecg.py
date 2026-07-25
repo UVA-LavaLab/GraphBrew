@@ -28,6 +28,7 @@ Cross-sim equivalence argument (what guarantees cache_sim == gem5 == Sniper):
   python3 scripts/experiments/ecg/verify/ecg.py --gem5     # + gem5 adapter traces
   python3 scripts/experiments/ecg/verify/ecg.py --sniper   # + Sniper adapter traces
 """
+
 import os, re, subprocess, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -74,11 +75,23 @@ K2_DELIVERY_RE = re.compile(
     r"(?: width=(\d+))?\]")
 K2_ACCEPT_RE = re.compile(
     r"\[ECG-K2-ACCEPT sim=gem5 seq=(\d+) "
-    r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+) width=(\d+)\]")
+    r"request_seq=(\d+) request_dest=(\d+) fill_dest=(\d+) "
+    r"source=(request|mailbox) "
+    r"tier=(\d+) epoch1=(\d+) epoch2=(\d+) current=(\d+) "
+    r"context=(\d+) width=(\d+)\]")
+K2_REQUEST_RE = re.compile(
+    r"\[ECG-K2-REQUEST sim=gem5 seq=(\d+) request_seq=(\d+) "
+    r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+) "
+    r"current=(\d+) context=(\d+)\]")
 K2_FUSED_RECV_RE = re.compile(
     r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
-    r"line=(\d+) vpl=(\d+) index=(\d+) begin=(\d+) end=(\d+) "
+    r"line=(\d+) addr_line=0x([0-9a-fA-F]+) vpl=(\d+) "
+    r"index=(\d+) begin=(\d+) end=(\d+) "
     r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
+K2_BIND_CONSUME_RE = re.compile(
+    r"\[ECG-K2-BIND-CONSUME sim=sniper seq=(\d+) core=(\d+) "
+    r"bound=0x([0-9a-fA-F]+) line=0x([0-9a-fA-F]+) size=(\d+) "
+    r"current=(\d+) context=(\d+)\]")
 K2_FUSED_VALID_RE = re.compile(
     r"\[ECG-K2-FUSED-VALID count=(\d+) bad=(\d+)\]")
 VIC_RE = re.compile(r"-> victim=way(\d+)(?: reason=(.*))?")
@@ -298,76 +311,68 @@ def _epoch_decisive(ways, victim, pol):
     return _eff_d(vw) > max(_eff_d(w) for w in others)
 
 
-# rule(ways, victim) -> True if victim is EXACTLY what the policy must evict
-RULES = {
-    "LRU": lambda ways, v: ways[v]["last"] == min(w["last"] for w in ways),
-    "GRASP": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
-    "ECG:grasp_only": lambda ways, v: ways[v]["rrpv"] == max(w["rrpv"] for w in ways),
-    "ECG:lru_only": lambda ways, v: ways[v]["last"] == min(w["last"] for w in ways),
-    # shortcircuit: FIRST record by set index; else farthest EFFECTIVE-dist property
-    "ECG:shortcircuit": lambda ways, v: _shortcircuit_rule(ways, v),
-    "ECG:shortcircuit+epoch": lambda ways, v: _eff_d(ways[v]) == max(_eff_d(w) for w in ways),
-    # epoch_*: oldest record by recency; else farthest dist among STAMPED; else LRU
-    "ECG:epoch_first": lambda ways, v: _epoch_rule(ways, v),
-    "ECG:epoch_only": lambda ways, v: _epoch_rule(ways, v),
-    # rrip_first: among max-rrpv, oldest record by recency; else max effective-epoch property
-    "ECG:rrip_first": lambda ways, v: _rrip_rule(ways, v),
-    "ECG:degree_first": lambda ways, v: _degree_rule(ways, v),
-}
+def _first_by(ways, key):
+    return min(ways, key=lambda way: (*key(way), way["way"]))["way"]
 
 
-def _epoch_rule(ways, v):
+def _select_epoch(ways):
     recs = [w for w in ways if w["prop"] == 0]
-    if recs:  # oldest record by recency
-        return ways[v]["prop"] == 0 and ways[v]["last"] == min(w["last"] for w in recs)
+    if recs:
+        return _first_by(recs, lambda way: (way["last"],))
     stamped_lines = [w for w in ways if w["prop"] == 1 and w["stamped"]]
-    if stamped_lines:  # farthest next-ref among stamped property
-        return ways[v]["stamped"] and ways[v]["dist"] == max(w["dist"] for w in stamped_lines)
-    return ways[v]["last"] == min(w["last"] for w in ways)  # all unstamped -> LRU fallback
+    if stamped_lines:
+        return _first_by(stamped_lines, lambda way: (-way["dist"],))
+    return _first_by(ways, lambda way: (way["last"],))
 
 
-def _rrip_rule(ways, v):
+def _select_rrip(ways):
     mx = max(w["rrpv"] for w in ways)
-    if ways[v]["rrpv"] != mx:
-        return False  # must be at max-rrpv
-    cand = [w for w in ways if w["rrpv"] == mx]
-    recs = [w for w in cand if w["prop"] == 0]
-    if recs:  # oldest record by recency among max-rrpv
-        return ways[v]["prop"] == 0 and ways[v]["last"] == min(w["last"] for w in recs)
-    # else farthest EFFECTIVE-epoch property among max-rrpv (unstamped -> 0)
-    return ways[v]["prop"] == 1 and _eff_d(ways[v]) == max(_eff_d(w) for w in cand)
-
-
-def _degree_rule(ways, v):
-    mx = max(w["rrpv"] for w in ways)
-    if ways[v]["rrpv"] != mx:
-        return False
     cand = [w for w in ways if w["rrpv"] == mx]
     recs = [w for w in cand if w["prop"] == 0]
     if recs:
-        return (
-            ways[v]["prop"] == 0
-            and ways[v]["last"] == min(w["last"] for w in recs)
-        )
-    coldest = max(w["dbg"] for w in cand)
-    tier = [w for w in cand if w["dbg"] == coldest]
-    farthest = max(_eff_d(w) for w in tier)
-    tied = [w for w in tier if _eff_d(w) == farthest]
-    return (
-        ways[v]["dbg"] == coldest
-        and _eff_d(ways[v]) == farthest
-        and ways[v]["last"] == min(w["last"] for w in tied)
+        return _first_by(recs, lambda way: (way["last"],))
+    return _first_by(cand, lambda way: (-_eff_d(way),))
+
+
+def _select_degree(ways):
+    mx = max(w["rrpv"] for w in ways)
+    cand = [w for w in ways if w["rrpv"] == mx]
+    recs = [w for w in cand if w["prop"] == 0]
+    if recs:
+        return _first_by(recs, lambda way: (way["last"],))
+    return _first_by(
+        cand,
+        lambda way: (-way["dbg"], -_eff_d(way), way["last"]),
     )
 
 
-def _shortcircuit_rule(ways, v):
+def _select_shortcircuit(ways):
     recs = [w for w in ways if w["prop"] == 0]
-    if recs:  # FIRST record by set order (distinguishes from epoch's recency)
-        return ways[v]["prop"] == 0 and ways[v]["way"] == min(w["way"] for w in recs)
-    return _eff_d(ways[v]) == max(_eff_d(w) for w in ways)  # all property -> max effective dist
+    if recs:
+        return min(w["way"] for w in recs)
+    return _first_by(ways, lambda way: (-_eff_d(way), -way["dbg"]))
 
 
-def verify_trace(name, result, prefix="", reasons=None, coverage=None):
+SELECTORS = {
+    "LRU": lambda ways: _first_by(ways, lambda way: (way["last"],)),
+    "GRASP": lambda ways: _first_by(
+        ways, lambda way: (-way["rrpv"],)),
+    "ECG:grasp_only": lambda ways: _first_by(
+        ways, lambda way: (-way["rrpv"],)),
+    "ECG:lru_only": lambda ways: _first_by(
+        ways, lambda way: (way["last"],)),
+    "ECG:shortcircuit": _select_shortcircuit,
+    "ECG:shortcircuit+epoch": _select_shortcircuit,
+    "ECG:epoch_first": _select_epoch,
+    "ECG:epoch_only": _select_epoch,
+    "ECG:rrip_first": _select_rrip,
+    "ECG:degree_first": _select_degree,
+}
+
+
+def verify_trace(
+        name, result, prefix="", reasons=None, coverage=None,
+        expected_policy=None):
     """Assert each victim in a (text, ran_ok) result obeys its policy rule.
     Hard-fails on runner failure (no/empty trace) and on any emitted policy with
     no rule. Tallies eviction `reason=` strings into `reasons` for coverage.
@@ -383,6 +388,7 @@ def verify_trace(name, result, prefix="", reasons=None, coverage=None):
     checked = passed = 0
     ok = True
     unknown = set()
+    unexpected = set()
     stamp_violations = 0
     for pol, ways, victim, reason in parse_blocks(text):
         if reasons is not None and reason:
@@ -397,9 +403,11 @@ def verify_trace(name, result, prefix="", reasons=None, coverage=None):
                 if stamp_violations <= 3:
                     print(f"  [STAMP-INVARIANT] {prefix}{name}/{pol}: way{w['way']} is a "
                           f"record (prop=0) but stamped=1 (records must never be stamped)")
-        rule = RULES.get(pol)
-        if rule is None:
+        selector = SELECTORS.get(pol)
+        if selector is None:
             unknown.add(pol); continue
+        if expected_policy is not None and pol != expected_policy:
+            unexpected.add(pol)
         if victim is None:
             continue
         checked += 1
@@ -416,11 +424,13 @@ def verify_trace(name, result, prefix="", reasons=None, coverage=None):
                     coverage["epoch_victims_nz"] = coverage.get("epoch_victims_nz", 0) + 1
             if _epoch_decisive(ways, victim, pol):
                 coverage["epoch_decisive"] = coverage.get("epoch_decisive", 0) + 1
-        if rule(ways, victim):
+        expected_victim = selector(ways)
+        if victim == expected_victim:
             passed += 1
         else:
             ok = False
             print(f"  [VIOLATION] {prefix}{name}/{pol}: victim=way{victim} "
+                  f"expected=way{expected_victim} "
                   f"ways={[ (w['way'],w['rrpv'],w['dist'],w['prop'],w['last']) for w in ways]}")
     if stamp_violations:  # records must never be stamped -> fail loudly
         ok = False
@@ -428,6 +438,11 @@ def verify_trace(name, result, prefix="", reasons=None, coverage=None):
     if unknown:  # an emitted policy with no checker is a coverage hole -> fail loudly
         ok = False
         print(f"  [UNKNOWN POL] {prefix}{name}: {sorted(unknown)} has no RULES entry")
+    if unexpected:
+        ok = False
+        print(
+            f"  [POLICY MISMATCH] {prefix}{name}: expected "
+            f"{expected_policy}, emitted {sorted(unexpected)}")
     status = "OK " if ok and checked > 0 else ("NO-TRACE" if checked == 0 else "FAIL")
     print(f"  {prefix}{name:14s}: {passed}/{checked} evictions obey spec   [{status}]")
     return ok and checked > 0
@@ -478,12 +493,17 @@ def run_epoch_pair_unit():
     return ok
 
 
-def verify_k2_trace(name, result, ne, prefix="", coverage=None):
+def verify_k2_trace(
+        name, result, ne, prefix="", coverage=None,
+        expected_policy=None, require_exact_bind=False,
+        require_request_bound=False):
     """Verify Schedule-2 reached resident lines and each traced `dist` is
     min(distance(epoch1), distance(epoch2)). Combined with verify_trace's exact
     victim rule, this certifies the K2 adapter and eviction decision."""
     text, ran_ok = result
-    ok = verify_trace(name, result, prefix=prefix, coverage=coverage)
+    ok = verify_trace(
+        name, result, prefix=prefix, coverage=coverage,
+        expected_policy=expected_policy)
     if not ran_ok:
         return False
     current = None
@@ -492,14 +512,50 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
     received = {}
     expected_widths = {}
     received_widths = {}
-    accepted = []
+    duplicate_delivery_sequences = set()
+    accepted = {}
+    duplicate_accept_sequences = set()
+    requests = {}
+    duplicate_request_sequences = set()
     sideband = {}
     fused_receipts = []
+    bound_consumes = {}
+    duplicate_bound_sequences = set()
+    duplicate_fused_sequences = set()
     fused_validation = None
+    receipt_bind_match = False
+    accepted_ok = False
     for line in text.splitlines():
         accepted_match = K2_ACCEPT_RE.search(line)
         if accepted_match:
-            accepted.append(tuple(map(int, accepted_match.groups())))
+            groups = accepted_match.groups()
+            trace_sequence = int(groups[0])
+            if trace_sequence in accepted:
+                duplicate_accept_sequences.add(trace_sequence)
+            accepted[trace_sequence] = (
+                int(groups[1]), int(groups[2]), int(groups[3]), groups[4],
+                int(groups[5]), int(groups[6]), int(groups[7]),
+                int(groups[8]), int(groups[9]), int(groups[10]),
+            )
+            continue
+        request_match = K2_REQUEST_RE.search(line)
+        if request_match:
+            groups = request_match.groups()
+            trace_sequence = int(groups[0])
+            if trace_sequence in requests:
+                duplicate_request_sequences.add(trace_sequence)
+            requests[trace_sequence] = tuple(map(int, groups[1:]))
+            continue
+        bound_match = K2_BIND_CONSUME_RE.search(line)
+        if bound_match:
+            groups = bound_match.groups()
+            sequence = int(groups[0])
+            if sequence in bound_consumes:
+                duplicate_bound_sequences.add(sequence)
+            bound_consumes[sequence] = (
+                int(groups[1]), int(groups[2], 16), int(groups[3], 16),
+                int(groups[4]), int(groups[5]), int(groups[6]),
+            )
             continue
         validated = K2_FUSED_VALID_RE.search(line)
         if validated:
@@ -507,7 +563,14 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
             continue
         fused = K2_FUSED_RECV_RE.search(line)
         if fused:
-            fused_receipts.append(tuple(map(int, fused.groups())))
+            groups = fused.groups()
+            receipt = (
+                int(groups[0]), int(groups[1]), int(groups[2]),
+                int(groups[3], 16), *map(int, groups[4:]),
+            )
+            if receipt[0] in {item[0] for item in fused_receipts}:
+                duplicate_fused_sequences.add(receipt[0])
+            fused_receipts.append(receipt)
             continue
         delivery = K2_DELIVERY_RE.search(line)
         if delivery:
@@ -519,6 +582,8 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
                 else sideband if kind == "SIDEBAND"
                 else received
             )
+            if sequence in target:
+                duplicate_delivery_sequences.add((kind, sequence))
             target[sequence] = (
                 int(dest), int(tier), int(first), int(second))
             if kind == "EXPECT":
@@ -555,8 +620,32 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         fused_valid = all(
             begin <= index < end and vpl > 0 and dest // vpl == line_id and
             1 <= tier <= 3
-            for (_seq, _src, line_id, vpl, index, begin, end,
+            for (_seq, _src, line_id, _addr_line, vpl, index, begin, end,
                  dest, tier, _first, _second) in fused_receipts
+        )
+        receipt_by_seq = {
+            receipt[0]: receipt for receipt in fused_receipts
+        }
+        bind_valid = (
+            set(bound_consumes) == required and
+            all(
+                size > 0 and (size & (size - 1)) == 0 and
+                (bound & ~(size - 1)) == line and
+                0 <= current < ne and context > 0
+                for (_core, bound, line, size, current, context)
+                in bound_consumes.values()
+            )
+        )
+        receipt_bind_match = (
+            set(receipt_by_seq) == required and bind_valid and
+            not duplicate_bound_sequences and
+            not duplicate_fused_sequences and
+            len(fused_receipts) == len(receipt_by_seq) and
+            all(
+                receipt_by_seq[sequence][3] ==
+                bound_consumes[sequence][2]
+                for sequence in required
+            )
         )
         sideband_tier_valid = all(
             0 <= fields[1] <= 3 for fields in sideband.values()
@@ -569,9 +658,13 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         # the raw sideband sequence. validate_sniper_fused_receipts independently
         # checks every receipt's raw index and exact packed record against the
         # exported K2 files; this verifier additionally pins line/dest/tier shape.
+        exact_bind_ok = receipt_bind_match if require_exact_bind else True
         delivery_ok = (
+            set(expected) == required and
             set(sideband) == required and sideband_tier_valid and
             expected_tier_valid and fused_valid and
+            not duplicate_delivery_sequences and
+            exact_bind_ok and
             fused_validation is not None and
             fused_validation[0] > 0 and fused_validation[1] == 0
         )
@@ -580,7 +673,7 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         fused_valid = all(
             begin <= index < end and vpl > 0 and dest // vpl == line_id and
             1 <= tier <= 3
-            for (_seq, _src, line_id, vpl, index, begin, end,
+            for (_seq, _src, line_id, _addr_line, vpl, index, begin, end,
                  dest, tier, _first, _second) in fused_receipts
         )
         tier_valid = all(
@@ -593,6 +686,7 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
             set(sideband) == required and
             expected == sideband and
             tier_valid and
+            not duplicate_delivery_sequences and
             bool(fused_receipts) and fused_valid and
             fused_validation is not None and
             fused_validation[0] > 0 and fused_validation[1] == 0
@@ -604,12 +698,95 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         ) and all(
             0 <= fields[1] <= 3 for fields in received.values()
         ) and any(fields[1] > 0 for fields in received.values())
+        if requires_delivery_trace:
+            accepted_common_ok = (
+                set(expected) == required and
+                set(expected_widths) == required and
+                bool(accepted) and
+                set(accepted).issubset(required) and
+                not duplicate_accept_sequences and
+                len({item[0] for item in accepted.values()}) ==
+                len(accepted) and
+                all(
+                    request_dest == fill_dest and
+                    1 <= tier <= 3 and
+                    0 <= first < ne and
+                    0 <= second < ne and
+                    width in (4, 8) and
+                    0 <= current < ne and
+                    context > 0 and
+                    source in ("request", "mailbox")
+                    for (
+                        _request_sequence, request_dest, fill_dest, source,
+                        tier, first, second, current, context, width,
+                    ) in accepted.values()
+                )
+            )
+            accept_sources = {item[3] for item in accepted.values()}
+            mailbox_accept_ok = (
+                accept_sources == {"mailbox"} and
+                not requests and
+                all(
+                    request_sequence == sequence and
+                    request_dest == expected[sequence][0] and
+                    tier == expected[sequence][1] and
+                    first == expected[sequence][2] and
+                    second == expected[sequence][3] and
+                    width == expected_widths[sequence]
+                    for sequence, (
+                        request_sequence, request_dest, _fill_dest, _source,
+                        tier, first, second, _current, _context, width,
+                    ) in accepted.items()
+                )
+            )
+            request_records_ok = (
+                set(requests) == required and
+                not duplicate_request_sequences and
+                all(
+                    requests[sequence][1] == expected[sequence][0] and
+                    requests[sequence][2] == expected[sequence][1] and
+                    requests[sequence][3] == expected[sequence][2] and
+                    requests[sequence][4] == expected[sequence][3] and
+                    0 <= requests[sequence][5] < ne and
+                    requests[sequence][6] > 0
+                    for sequence in required
+                )
+            )
+            request_accept_ok = (
+                accept_sources == {"request"} and
+                request_records_ok and
+                all(
+                    sequence in requests and
+                    request_sequence == requests[sequence][0] and
+                    request_dest == requests[sequence][1] and
+                    request_dest == expected[sequence][0] and
+                    tier == requests[sequence][2] ==
+                    expected[sequence][1] and
+                    first == requests[sequence][3] ==
+                    expected[sequence][2] and
+                    second == requests[sequence][4] ==
+                    expected[sequence][3] and
+                    current == requests[sequence][5] and
+                    context == requests[sequence][6]
+                    for sequence, (
+                        request_sequence, request_dest, _fill_dest, _source,
+                        tier, first, second, current, context, _width,
+                    ) in accepted.items()
+                )
+            )
+            accepted_ok = (
+                accepted_common_ok and
+                (request_accept_ok if require_request_bound
+                 else request_accept_ok or mailbox_accept_ok)
+            )
+        else:
+            accepted_ok = True
         delivery_ok = (
             set(expected) == required and
             set(received) == required and
             expected == received and
             expected_widths == received_widths and
-            tier_valid
+            tier_valid and not duplicate_delivery_sequences and accepted_ok
         )
     live = pair_live or (delivery_ok and len(expected) == 32)
     if coverage is not None:
@@ -623,18 +800,31 @@ def verify_k2_trace(name, result, ne, prefix="", coverage=None):
         coverage["k2_delivery_width_match"] = (
             expected_widths == received_widths)
         coverage["k2_accept_widths"] = sorted({
-            item[5] for item in accepted
+            item[9] for item in accepted.values()
         })
-        coverage["k2_accept_valid"] = bool(accepted) and all(
-            0 <= item[1] <= 0xFFFFFFFF and
-            1 <= item[2] <= 3 and
-            0 <= item[3] <= 0x7FFF and
-            0 <= item[4] <= 0x7FFF and
-            item[5] in (4, 8)
-            for item in accepted)
+        coverage["k2_accept_sources"] = sorted({
+            item[3] for item in accepted.values()
+        })
+        coverage["k2_accept_request_sequences"] = sorted({
+            item[0] for item in accepted.values()
+        })
+        coverage["k2_request_records"] = len(requests)
+        coverage["k2_request_bound_required"] = require_request_bound
+        coverage["k2_accept_valid"] = accepted_ok
+        coverage["k2_bind_consumes"] = len(bound_consumes)
+        coverage["k2_bind_consume_valid"] = (
+            receipt_bind_match if require_exact_bind else
+            bool(bound_consumes) and all(
+                size > 0 and (size & (size - 1)) == 0 and
+                (bound & ~(size - 1)) == line and
+                0 <= current < ne and context > 0
+                for (_core, bound, line, size, current, context)
+                in bound_consumes.values()))
+        coverage["k2_bind_receipt_match"] = receipt_bind_match
+        coverage["k2_exact_bind_required"] = require_exact_bind
         coverage["k2_fused_receipts"] = len(fused_receipts)
         coverage["k2_fused_vertices_per_line"] = sorted({
-            receipt[3] for receipt in fused_receipts
+            receipt[4] for receipt in fused_receipts
         })
     if bad or not live or not delivery_ok:
         ok = False
@@ -657,6 +847,26 @@ def verify_unknown_mode_hardfails():
     hard_failed = (p.returncode != 0) and ("[FATAL]" in p.stderr) and ("BOGUS_MODE_XYZ" in p.stderr)
     print(f"  unknown ECG_MODE hard-fails (exit={p.returncode}, [FATAL] emitted): "
           f"{'[OK ]' if hard_failed else '[FAIL]'}")
+    return hard_failed
+
+
+def verify_unknown_variant_hardfails():
+    """Negative test: an unrecognized ECG_VARIANT must abort, not fall back."""
+    subprocess.run(
+        ["make", "bench/bin_sim/test_ecg_victim"], cwd=str(ROOT),
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    if not SYNTH_BIN.exists():
+        print("  unknown ECG_VARIANT hard-fail: [FAIL] binary missing")
+        return False
+    env = {**os.environ, "ECG_VARIANT": "BOGUS_VARIANT_XYZ"}
+    process = subprocess.run(
+        [str(SYNTH_BIN)], env=env, capture_output=True, text=True, timeout=60)
+    hard_failed = (
+        process.returncode != 0 and
+        "[FATAL] unknown ECG_VARIANT=BOGUS_VARIANT_XYZ" in process.stderr)
+    print(
+        "  unknown ECG_VARIANT hard-fails: "
+        f"{'[OK ]' if hard_failed else '[FAIL]'}")
     return hard_failed
 
 

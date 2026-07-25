@@ -951,7 +951,8 @@ bool GraphCacheContext::isStreamBypassData(uint64_t addr) const
 
 bool GraphCacheContext::lookupFusedK2Pair(
         uint64_t line_addr, uint32_t core_id,
-        uint8_t& tier, uint16_t& first, uint16_t& second) const
+        uint8_t& tier, uint16_t& first, uint16_t& second,
+        uint64_t trace_sequence) const
 {
     using Clock = std::chrono::steady_clock;
     const bool profile = k2LookupProfileEnabled();
@@ -1042,17 +1043,20 @@ bool GraphCacheContext::lookupFusedK2Pair(
         validate_once &&
         !validation_emitted.load(std::memory_order_relaxed) &&
         !validation_emitted.exchange(true, std::memory_order_relaxed);
-    const uint64_t receipt = fused_trace_limit > 0
-        ? fused_receipts.fetch_add(1, std::memory_order_relaxed)
-        : 0;
+    const uint64_t receipt =
+        trace_sequence != ~uint64_t{0}
+            ? trace_sequence
+            : fused_trace_limit > 0
+                ? fused_receipts.fetch_add(1, std::memory_order_relaxed)
+                : 0;
     if ((fused_trace_limit > 0 && receipt < fused_trace_limit) ||
         emit_validation) {
         std::fprintf(stderr,
             "[ECG-K2-FUSED-RECV sim=sniper seq=%llu src=%u "
-            "line=%u vpl=%u index=%llu begin=%llu end=%llu "
+            "line=%u addr_line=0x%llx vpl=%u index=%llu begin=%llu end=%llu "
             "dest=%u tier=%u epoch1=%u epoch2=%u]\n",
             (unsigned long long)receipt, src,
-            line_id, vertices_per_line,
+            line_id, (unsigned long long)line_addr, vertices_per_line,
             (unsigned long long)raw_index,
             (unsigned long long)raw_begin,
             (unsigned long long)raw_end,
@@ -1151,6 +1155,21 @@ struct BoundK2LoadState {
     std::array<std::atomic<bool>, MAX_TRACKED_CORES> valid{};
 };
 
+uint64_t boundK2TraceLimit()
+{
+    static const uint64_t limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value ? std::strtoull(value, nullptr, 10) : 0;
+    }();
+    return limit;
+}
+
+std::atomic<uint64_t>& boundK2ConsumeSequence()
+{
+    static std::atomic<uint64_t> sequence{0};
+    return sequence;
+}
+
 BoundK2LoadState& boundK2LoadState()
 {
     static BoundK2LoadState state;
@@ -1216,7 +1235,8 @@ void clearBoundK2Load(uint32_t core_id)
 
 bool consumeBoundK2Load(
         uint32_t core_id, uint64_t line_addr, uint64_t line_size,
-        uint16_t* current_epoch, uint16_t* context_id)
+        uint16_t* current_epoch, uint16_t* context_id,
+        uint64_t* trace_sequence)
 {
     if (core_id >= MAX_TRACKED_CORES || line_size == 0) return false;
     auto& state = boundK2LoadState();
@@ -1236,6 +1256,21 @@ bool consumeBoundK2Load(
     if (context_id) {
         *context_id = state.context_id[core_id].load(
             std::memory_order_relaxed);
+    }
+    const uint64_t sequence =
+        boundK2ConsumeSequence().fetch_add(1, std::memory_order_relaxed);
+    if (trace_sequence) *trace_sequence = sequence;
+    if (sequence < boundK2TraceLimit()) {
+        std::fprintf(
+            stderr,
+            "[ECG-K2-BIND-CONSUME sim=sniper seq=%llu core=%u "
+            "bound=0x%llx line=0x%llx size=%llu current=%u context=%u]\n",
+            (unsigned long long)sequence, core_id,
+            (unsigned long long)address,
+            (unsigned long long)line_addr,
+            (unsigned long long)line_size,
+            current_epoch ? static_cast<unsigned>(*current_epoch) : 0u,
+            context_id ? static_cast<unsigned>(*context_id) : 0u);
     }
     return context_id == nullptr || *context_id != 0;
 }

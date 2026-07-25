@@ -1,4 +1,8 @@
 from pathlib import Path
+
+from scripts.experiments.ecg.roi_matrix import (
+    validate_sniper_exact_bind_trace,
+)
 from types import SimpleNamespace
 import sys
 
@@ -19,7 +23,8 @@ def test_sg_kernel_counts_static_edge_visits_in_all_kernels():
         assert f'semantic_edges.report("{benchmark}")' in source
     assert source.count("SemanticEdgeBudget semantic_edges;") == 5
     assert source.count("catch (const SemanticEdgeLimitReached&)") == 5
-    assert source.count("consume_edge();") == 19
+    assert source.count("consume_edge();") == 20
+    assert "relax_compact_edges(node, source_dist);" in source
     assert source.count("execute_roi([] {}, [] {});") == 5
     assert source.count("semantic_edges.finish_roi();") == 5
 
@@ -32,7 +37,47 @@ def test_runner_exposes_semantic_edge_limit_and_marker_gate():
     assert 'env["SNIPER_SEMANTIC_EDGE_LIMIT"]' in runner
     assert "Sniper semantic edge-limit marker missing" in runner
     assert "semantic_work_matched" in runner
+    assert "sniper_k2_exact_bind_validated" in runner
+    assert "sniper_transport_receipts_validated" in runner
     assert "--sniper-semantic-edge-limit" in paper_run
+
+
+def test_exact_bind_trace_matches_receipt_line(tmp_path: Path):
+    log = tmp_path / "sniper.log"
+    log.write_text(
+        "[ECG-K2-BIND-CONSUME sim=sniper seq=0 core=0 "
+        "bound=0x1044 line=0x1040 size=64 current=17 context=3]\n"
+        "[ECG-K2-FUSED-RECV sim=sniper seq=0 src=5 line=1 "
+        "addr_line=0x1040 vpl=16 index=7 begin=2 end=9 "
+        "dest=17 tier=1 epoch1=20 epoch2=21]\n")
+    assert validate_sniper_exact_bind_trace(log) == (1, 0)
+
+    log.write_text(log.read_text().replace("addr_line=0x1040", "addr_line=0x1080"))
+    assert validate_sniper_exact_bind_trace(log) == (1, 1)
+
+
+def test_exact_bind_trace_rejects_invalid_context_and_line_size(tmp_path: Path):
+    log = tmp_path / "sniper.log"
+    log.write_text(
+        "[ECG-K2-BIND-CONSUME sim=sniper seq=0 core=0 "
+        "bound=0x1044 line=0x1040 size=63 current=17 context=0]\n"
+        "[ECG-K2-FUSED-RECV sim=sniper seq=0 src=5 line=1 "
+        "addr_line=0x1040 vpl=16 index=7 begin=2 end=9 "
+        "dest=17 tier=1 epoch1=20 epoch2=21]\n")
+    assert validate_sniper_exact_bind_trace(log) == (1, 1)
+
+
+def test_exact_bind_trace_rejects_duplicate_sequence(tmp_path: Path):
+    log = tmp_path / "sniper.log"
+    bind = (
+        "[ECG-K2-BIND-CONSUME sim=sniper seq=0 core=0 "
+        "bound=0x1044 line=0x1040 size=64 current=17 context=3]\n")
+    receipt = (
+        "[ECG-K2-FUSED-RECV sim=sniper seq=0 src=5 line=1 "
+        "addr_line=0x1040 vpl=16 index=7 begin=2 end=9 "
+        "dest=17 tier=1 epoch1=20 epoch2=21]\n")
+    log.write_text(bind + bind + receipt)
+    assert validate_sniper_exact_bind_trace(log) == (1, 1)
 
 
 def test_instruction_and_semantic_caps_are_mutually_exclusive():
@@ -158,3 +203,18 @@ def test_single_policy_shard_waits_for_aggregate_certification(monkeypatch):
     ]
     assert paper_pipeline.semantic_work_group_matches(merged)
     assert all(row["semantic_work_matched"] == "1" for row in merged)
+
+
+def test_exact_bind_trace_requires_full_trace_budget(tmp_path: Path):
+    log = tmp_path / "sniper.log"
+    log.write_text(
+        "[ECG-K2-BIND-CONSUME sim=sniper seq=0 core=0 "
+        "bound=0x1044 line=0x1040 size=64 current=17 context=3]\n"
+        "[ECG-K2-FUSED-RECV sim=sniper seq=0 src=5 line=1 "
+        "addr_line=0x1040 vpl=16 index=7 begin=2 end=9 "
+        "dest=17 tier=1 epoch1=20 epoch2=21]\n")
+    # Without a declared budget one paired transaction is internally consistent.
+    assert validate_sniper_exact_bind_trace(log) == (1, 0)
+    # A certification run asking for 32 transactions must not pass on one.
+    count, bad = validate_sniper_exact_bind_trace(log, 32)
+    assert count == 1 and bad > 0

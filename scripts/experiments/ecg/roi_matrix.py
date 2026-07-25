@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import functools
 import hashlib
 import json
 import math
@@ -65,6 +66,18 @@ GEM5_RUNTIME_SIDEBAND_FILES = (
     Path(os.environ.get("GEM5_GRAPHBREW_OUT_EDGES", "/tmp/gem5_graphbrew_out_edges.bin")),
     Path(os.environ.get("GEM5_GRAPHBREW_IN_EDGES", "/tmp/gem5_graphbrew_in_edges.bin")),
 )
+
+
+@functools.lru_cache(maxsize=None)
+def cached_file_sha256(path_text: str) -> str:
+    path = Path(path_text)
+    if not path.exists() or not path.is_file():
+        return ""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def gem5_sideband_paths(gem5_out: Path) -> dict[str, Path]:
@@ -664,7 +677,8 @@ def validate_sniper_fused_receipts(
         log_path: Path, paths: dict[str, Path]) -> tuple[int, int]:
     receipt_re = re.compile(
         r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
-        r"line=(\d+) vpl=(\d+) index=(\d+) begin=(\d+) end=(\d+) "
+        r"line=(\d+) addr_line=0x([0-9a-fA-F]+) vpl=(\d+) "
+        r"index=(\d+) begin=(\d+) end=(\d+) "
         r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+)\]")
     if not log_path.exists():
         return 0, 0
@@ -673,7 +687,11 @@ def validate_sniper_fused_receipts(
         for line in log:
             match = receipt_re.search(line)
             if match:
-                receipts.append(tuple(map(int, match.groups())))
+                groups = match.groups()
+                receipts.append((
+                    int(groups[0]), int(groups[1]), int(groups[2]),
+                    int(groups[3], 16), *map(int, groups[4:]),
+                ))
     if not receipts:
         return 0, 0
     try:
@@ -711,7 +729,7 @@ def validate_sniper_fused_receipts(
                 previous = current
             sideband_valid = sideband_valid and previous == record_count
             bad = 0 if sideband_valid else max(1, len(receipts))
-            for (_seq, src, line_id, vpl, index, begin, end,
+            for (_seq, src, line_id, _addr_line, vpl, index, begin, end,
                  dest, tier, first, second) in receipts:
                 valid = (
                     src + 1 < offset_count and
@@ -740,6 +758,63 @@ def validate_sniper_fused_receipts(
         out.write(
             f"\n[ECG-K2-FUSED-VALID count={len(receipts)} bad={bad}]\n")
     return len(receipts), bad
+
+
+def validate_sniper_exact_bind_trace(
+        log_path: Path, expected_count: int = 0) -> tuple[int, int]:
+    bind_re = re.compile(
+        r"\[ECG-K2-BIND-CONSUME sim=sniper seq=(\d+) core=(\d+) "
+        r"bound=0x([0-9a-fA-F]+) line=0x([0-9a-fA-F]+) size=(\d+) "
+        r"current=(\d+) context=(\d+)\]")
+    receipt_re = re.compile(
+        r"\[ECG-K2-FUSED-RECV sim=sniper seq=(\d+) src=(\d+) "
+        r"line=(\d+) addr_line=0x([0-9a-fA-F]+)")
+    if not log_path.exists():
+        return 0, 0
+    binds = {}
+    receipts = {}
+    duplicate_binds = set()
+    duplicate_receipts = set()
+    with log_path.open(errors="ignore") as log:
+        for line in log:
+            bind = bind_re.search(line)
+            if bind:
+                groups = bind.groups()
+                sequence = int(groups[0])
+                if sequence in binds:
+                    duplicate_binds.add(sequence)
+                binds[sequence] = (
+                    int(groups[1]), int(groups[2], 16),
+                    int(groups[3], 16), int(groups[4]),
+                    int(groups[5]), int(groups[6]),
+                )
+            receipt = receipt_re.search(line)
+            if receipt:
+                sequence = int(receipt.group(1))
+                if sequence in receipts:
+                    duplicate_receipts.add(sequence)
+                receipts[sequence] = int(receipt.group(4), 16)
+    if not binds and not receipts:
+        return 0, 0
+    bad = (
+        len(set(binds) ^ set(receipts)) +
+        len(duplicate_binds) + len(duplicate_receipts)
+    )
+    # A certification run requests a fixed trace budget; anything short of the
+    # full contiguous sequence means the proof covers fewer transactions than
+    # it claims, so one lucky pairing cannot certify the whole trace.
+    if expected_count > 0 and set(binds) != set(range(expected_count)):
+        bad += max(1, expected_count - len(set(binds) & set(receipts)))
+    for sequence in set(binds) & set(receipts):
+        _core, bound, line, size, current, context = binds[sequence]
+        valid = (
+            size > 0 and (size & (size - 1)) == 0 and
+            (bound & ~(size - 1)) == line and
+            receipts[sequence] == line and
+            0 <= current <= 0x7FFF and context > 0
+        )
+        bad += not valid
+    return len(binds), bad
 
 
 def sniper_sideband_paths(sniper_out: Path) -> dict[str, Path]:
@@ -1601,6 +1676,7 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     sniper_runner = sniper_runner_path(args)
     unsafe_sniper_workload = args.sniper_workload in ("benchmark", "sg_kernel")
     binary, binary_options = sniper_binary_and_options(args)
+    sniper_binary = sniper_root / "lib" / "sniper"
     row.update({
         "section": 0,
         "log_path": str(log_path),
@@ -1614,8 +1690,10 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         "sniper_in_edges_path": str(sidebands["in_edges"]),
         "sniper_workload": args.sniper_workload,
         "sniper_workload_binary": str(binary),
-        "sniper_workload_sha256": hashlib.sha256(
-            binary.read_bytes()).hexdigest() if binary.exists() else "",
+        "sniper_workload_sha256": cached_file_sha256(str(binary.resolve())),
+        "sniper_simulator_binary": str(sniper_binary),
+        "sniper_simulator_sha256": cached_file_sha256(
+            str(sniper_binary.resolve())),
         "sniper_cores": args.sniper_cores,
         "sniper_frontend": args.sniper_frontend,
         "sniper_omp_wait_policy": args.sniper_omp_wait_policy,
@@ -1807,12 +1885,16 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         row["sniper_transport_matched"] = 1
         row["sniper_k2_exact_bind"] = 1
         row["sniper_k2_epoch_context_bound"] = 1
+        row["sniper_transport_receipts_validated"] = 0
+        row["sniper_k2_exact_bind_validated"] = 0
+        row["sniper_k2_epoch_context_validated"] = 0
         row["sniper_transport_record_bytes"] = 8
         row["timing_model"] = "transport_matched_diagnostic"
         row["timing_valid_for_speedup"] = "0"
         row["timing_caveat"] = (
             "Transport-matched K2-M certification row; timing remains "
-            "diagnostic until exact request binding and the epoch CSR land.")
+            "diagnostic because Sniper models rather than executes the "
+            "architectural epoch/context CSR channel.")
     if policy_name == "popt":
         popt_fast = (
             "0" if os.environ.get("SNIPER_POPT_FAST") == "0" else "1")
@@ -1944,9 +2026,9 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
                 row["timing_valid_for_speedup"] = "0"
                 row["timing_caveat"] = (
                     "All policies use transport-matched 8-byte record loops, "
-                    "but the epoch CSR and exact Sniper request binding remain "
-                    "modeled; use this row for instruction-parity validation "
-                    "until the matched timing gate passes.")
+                    "and exact governed-load binding is validated; the "
+                    "architectural epoch/context CSR remains modeled, so use "
+                    "this row for instruction-parity validation.")
             else:
                 row["timing_model"] = "fused_record_load_sideband_model"
                 row["timing_valid_for_speedup"] = "1"
@@ -2113,15 +2195,44 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         "l3_policy": policy_name.upper(),
     })
     apply_overhead_metrics(row)
+    # In certification mode the runner asks for a fixed K2 delivery-trace
+    # budget; require that full budget so a single paired transaction cannot
+    # stand in for the whole trace.
+    try:
+        k2_trace_budget = int(env.get("ECG_K2_DELIVERY_TRACE", "0") or 0)
+    except ValueError:
+        k2_trace_budget = 0
     fused_count, fused_bad = validate_sniper_fused_receipts(
         log_path, sidebands)
+    bind_count, bind_bad = validate_sniper_exact_bind_trace(
+        log_path, k2_trace_budget)
+    row["sniper_k2_delivery_trace_budget"] = k2_trace_budget
     row["sniper_fused_k2_receipts"] = fused_count
     row["sniper_fused_k2_bad_receipts"] = fused_bad
+    row["sniper_k2_bind_consumes"] = bind_count
+    row["sniper_k2_bad_bind_consumes"] = bind_bad
+    if (fused_count > 0 and fused_bad == 0 and
+            fused_count >= k2_trace_budget):
+        row["sniper_transport_receipts_validated"] = 1
+    if (bind_count > 0 and bind_bad == 0 and
+            bind_count >= k2_trace_budget):
+        row["sniper_k2_exact_bind_validated"] = 1
+        row["sniper_k2_epoch_context_validated"] = 1
     if fused_validation and (fused_count == 0 or fused_bad != 0):
         row["timing_valid_for_speedup"] = "0"
         row["timing_caveat"] = (
             row.get("timing_caveat", "") +
             " Fused K2 receipt validation failed.")
+    if (fused_validation and args.ecg_isa_variant == "mask" and
+            (bind_count == 0 or bind_bad != 0)):
+        row["status"] = "error"
+        row["error"] = (
+            "exact K2 bind validation failed: "
+            f"count={bind_count} bad={bind_bad}")
+        row["timing_valid_for_speedup"] = "0"
+        row["timing_caveat"] = (
+            row.get("timing_caveat", "") +
+            " Exact K2 bind validation failed.")
     if fused_validation and (fused_count == 0 or fused_bad != 0):
         row["status"] = "error"
         row["error"] = (

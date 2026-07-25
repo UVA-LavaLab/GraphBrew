@@ -21,8 +21,13 @@
 #ifndef GRAPHBREW_ECG_EPOCH_REQUEST_EXT_HH
 #define GRAPHBREW_ECG_EPOCH_REQUEST_EXT_HH
 
+#include <atomic>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 
 #include "base/extensible.hh"
 #include "mem/request.hh"
@@ -30,6 +35,62 @@
 namespace gem5 {
 namespace replacement_policy {
 namespace graph {
+
+struct EcgK2RequestTraceState {
+    std::atomic<uint64_t> next{0};
+    std::mutex mutex;
+    std::unordered_map<uint32_t, uint64_t> sequence_to_trace;
+};
+
+inline uint64_t ecgK2RequestTraceLimit() {
+    static const uint64_t limit = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return value
+            ? static_cast<uint64_t>(std::strtoull(value, nullptr, 10))
+            : 0;
+    }();
+    return limit;
+}
+
+inline EcgK2RequestTraceState& ecgK2RequestTraceState() {
+    static EcgK2RequestTraceState state;
+    return state;
+}
+
+inline void traceEcgK2Request(
+        uint32_t request_sequence, uint32_t dest, uint8_t tier,
+        uint16_t epoch1, uint16_t epoch2,
+        uint16_t current_epoch, uint16_t context_id) {
+    const uint64_t limit = ecgK2RequestTraceLimit();
+    if (limit == 0) return;
+    auto& state = ecgK2RequestTraceState();
+    const uint64_t trace_sequence =
+        state.next.fetch_add(1, std::memory_order_relaxed);
+    if (trace_sequence >= limit) return;
+    {
+        std::lock_guard<std::mutex> lock(state.mutex);
+        state.sequence_to_trace.emplace(request_sequence, trace_sequence);
+    }
+    std::fprintf(
+        stderr,
+        "[ECG-K2-REQUEST sim=gem5 seq=%llu request_seq=%u "
+        "dest=%u tier=%u epoch1=%u epoch2=%u current=%u context=%u]\n",
+        (unsigned long long)trace_sequence, request_sequence, dest,
+        static_cast<unsigned>(tier), static_cast<unsigned>(epoch1),
+        static_cast<unsigned>(epoch2),
+        static_cast<unsigned>(current_epoch),
+        static_cast<unsigned>(context_id));
+}
+
+inline bool ecgK2RequestTraceIndex(
+        uint32_t request_sequence, uint64_t& trace_sequence) {
+    auto& state = ecgK2RequestTraceState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    const auto found = state.sequence_to_trace.find(request_sequence);
+    if (found == state.sequence_to_trace.end()) return false;
+    trace_sequence = found->second;
+    return true;
+}
 
 // Per-request ECG metadata sideband. Carries the graph mask attached to the
 // governed property-load Request. Schedule-1 uses one epoch; Schedule-2 carries
@@ -126,6 +187,9 @@ inline void attachEcgEpochPair(const gem5::RequestPtr& req, uint32_t dest,
                                uint16_t context_id = 0,
                                uint32_t sequence = 0) {
     if (req) {
+        traceEcgK2Request(
+            sequence, dest, tier, epoch1, epoch2,
+            current_epoch, context_id);
         req->setExtension(std::make_shared<EcgEpochExtension>(
             dest, tier, epoch1, epoch2,
             current_epoch, context_id, sequence));

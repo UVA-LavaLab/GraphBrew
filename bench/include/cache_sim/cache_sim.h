@@ -1938,19 +1938,8 @@ private:
             //     epoch_only(3): records-first by recency, then farthest-epoch property
             //                     (insertion uniform -> isolates the epoch vs P-OPT)
             //     shortcircuit(4,legacy): non-property first, then epoch among property
-            static const int configured_variant = [](){
-                const char* v = std::getenv("ECG_VARIANT");
-                if (!v) return 2;
-                std::string s(v);
-                if (s=="grasp_only")   return 0;
-                if (s=="epoch_first")  return 1;
-                if (s=="rrip_first")   return 2;
-                if (s=="epoch_only")   return 3;
-                if (s=="shortcircuit"||s=="legacy") return 4;
-                if (s=="degree_first"||s=="traversal") return 5;
-                if (s=="lru_only") return 6;
-                return 2;
-            }();
+            static const int configured_variant =
+                ecg_policy::parseVariant(std::getenv("ECG_VARIANT"));
             int variant = configured_variant;
             if (set_dueling_) {
                 variant = dueling_selector_.variantForSet(evicting_set_idx_);

@@ -25,7 +25,10 @@
 #include <array>
 #include <atomic>
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <cstdint>
+#include <string>
 
 namespace ecg_policy {
 
@@ -38,6 +41,22 @@ enum Variant {
     DEGREE_FIRST = 5,  // max-rrpv set; records, then coldest degree tier, then farthest epoch
     LRU_ONLY     = 6,  // oldest line regardless of metadata
 };
+
+inline int parseVariant(const char* value) {
+    if (!value || !value[0]) return RRIP_FIRST;
+    const std::string variant(value);
+    if (variant == "grasp_only") return GRASP_ONLY;
+    if (variant == "epoch_first") return EPOCH_FIRST;
+    if (variant == "rrip_first") return RRIP_FIRST;
+    if (variant == "epoch_only") return EPOCH_ONLY;
+    if (variant == "shortcircuit" || variant == "legacy")
+        return SHORTCIRCUIT;
+    if (variant == "degree_first" || variant == "traversal")
+        return DEGREE_FIRST;
+    if (variant == "lru_only") return LRU_ONLY;
+    std::fprintf(stderr, "[FATAL] unknown ECG_VARIANT=%s\n", value);
+    std::abort();
+}
 
 enum DuelingArm : uint8_t {
     DUEL_RRIP = 0,

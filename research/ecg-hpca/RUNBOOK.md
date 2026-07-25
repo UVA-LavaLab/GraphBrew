@@ -323,7 +323,9 @@ Matched Sniper K2-M certification:
 
 ```bash
 python3 scripts/experiments/ecg/verify/matched_k2m.py \
-  --root /tmp/ecg_sniper_k2m_allkernel_final
+  --root /tmp/ecg_sniper_k2m_allkernel_final \
+  --binding-proof results/ecg_experiments/final_paper_runs/\
+ecg_3sim_k2m_conformance/summary.json
 ```
 
 Each kernel directory must contain exactly one LRU and one K2 row from the same
@@ -338,9 +340,9 @@ For semantic-capped rows, `sniper_semantic_edge_limit`,
 `semantic_work_matched=1` must be present in both rows.
 Policy-filtered shards remain uncertified individually; `paper_pipeline.py`
 sets the field only after the complete policy group passes the same checks.
-New certifications additionally require `sniper_k2_exact_bind=1` in both rows
-and `[K2_EXACT_BIND]` in both logs, plus
-`sniper_k2_epoch_context_bound=1`. The marker must cover only edge-governed
+New certifications require configured exact binding in both rows and either
+row-local validated receipts or the supplied hardened conformance proof. The
+marker must cover only edge-governed
 destination loads; SSSP source distance, BC source path count/backward work,
 and CC pointer chasing/compression remain unmarked.
 
@@ -606,12 +608,15 @@ Fresh three-simulator K2-M mechanism evidence:
 ```bash
 python3 scripts/experiments/ecg/verify/equiv_kernels.py \
   --gem5 --sniper --kernels pr bfs sssp bc cc \
-  --schedule-k 2 --gem5-isa-variant mask
+  --schedule-k 2 --gem5-isa-variant mask \
+  --evidence-dir \
+    results/ecg_experiments/final_paper_runs/ecg_3sim_k2m_conformance
 ```
 
-The committed `86e40765` run passes all 15 kernel x simulator cells. Frozen
-command, log, summary, hashes, and interpretation are in
-`research/ecg-hpca/evidence/k2m_equivalence_20260724.md`.
+The evidence directory must contain a clean-tree input manifest, graph and
+binary hashes, independent preflight results, raw per-cell traces, copied ROI
+completion markers, and structured coverage. Treat the older `86e40765`
+evidence as superseded once this hardened gate is frozen.
 
 DROPLET warmed graph loading and collected 600 million ROI instructions.
 GRASP simulated one representative high-activity iteration, and P-OPT used one
