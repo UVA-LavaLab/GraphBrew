@@ -746,6 +746,64 @@ Rows record `stream_prefetch_model`, `stream_prefetch_issued`,
 `stream_prefetch_throttled` and `stream_prefetch_untrained`, so an oracle
 result cannot be mistaken for an honest one.
 
+### FINDING: the pinned K2 configuration forces an 8-byte record and loses
+
+A fast direction check across the sampled matrix (90 cells in about 90 seconds,
+`scripts/experiments/ecg/analysis/fast_policy_signal.py`) found that the epoch
+resolution in the pinned policy specs, not K2's replacement logic, decides
+whether K2 wins or loses.
+
+The per-edge record packs destination id, tier and epoch bits into one word.
+Epoch resolution sets the epoch field width, and once the total spills past 32
+bits the record doubles to 8 bytes. web-Google-n16 PageRank at 128 kB, versus
+LRU:
+
+| epochs | epoch bits | record | traffic | ratio |
+|---|---:|---|---:|---:|
+| 256 | 8 | 4 B | 92,696 | **0.719** |
+| 1,024 | 10 | 4 B | 97,306 | **0.754** |
+| 4,096 | 12 | 4 B | 98,460 | **0.763** |
+| 65,535 | 16 | **8 B** | 171,172 | **1.327** |
+
+Epoch resolution itself buys almost nothing: 256 to 4,096 epochs moves traffic
+by 6%. Spilling to 8 bytes costs 74% and flips a 28% win into a 33% loss.
+
+**`ECG:K1` and `ECG:K2` both hardcode `ECG_EDGE_MASK_EPOCHS=65535`**, the one
+setting that always spills. Every K2 number in the evaluation matrix was
+therefore produced at the worst available configuration. Correcting it moves
+K1 from 1.468 to 1.215 and K1+StreamShield from 1.361 to 1.130 on the sampled
+matrix geomean.
+
+Note K2 proper is unaffected: Schedule-2 carries *two* future epochs and needs
+8 bytes whatever the resolution. The 4-byte record is available only to the
+single-epoch variant. **The paper's headline novelty is what costs 8 bytes**,
+and on this evidence the second future reference does not pay for itself.
+
+**Per-cell, with the 4-byte record, the story is not "K2 loses" but "K2 is a
+reuse-density policy".** Traffic versus LRU:
+
+| cell | GRASP | K1+SS | K2+SS |
+|---|---:|---:|---:|
+| web-Google-n16 / pr | 0.852 | **0.613** | 0.811 |
+| soc-pokec-n16 / pr | 0.919 | **0.688** | 0.994 |
+| cit-Patents-n18 / cc | 1.060 | **0.954** | 0.960 |
+| soc-pokec-n16 / sssp | 0.755 | 1.193 | 0.722 |
+| web-Google-n16 / bfs | 0.938 | 1.144 | 1.406 |
+| web-Google-n16 / cc | 0.921 | 1.145 | 1.087 |
+| cit-Patents-n18 / pr | 0.914 | 3.485 | 3.744 |
+
+K1+StreamShield **beats every baseline including GRASP on PageRank** on both
+real sampled graphs (0.613 against 0.852; 0.688 against 0.919), and loses on
+traversal kernels and on the degree-1 cit-Patents sample. That is mechanically
+coherent: the per-edge record is amortised by property reuse, so it pays where
+a vertex property is re-read many times and cannot pay where each edge is
+touched once or where there is barely one edge per vertex.
+
+Scope: sampled graphs, cache_sim traffic, no prefetcher, direction check only.
+Three cells were excluded as carrying no policy signal, including one whose LRU
+baseline moved a single line and produced a 5.000 ratio that alone had pushed
+GRASP's geomean from a win to a loss.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
