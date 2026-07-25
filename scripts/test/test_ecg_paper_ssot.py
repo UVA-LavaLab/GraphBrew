@@ -191,7 +191,13 @@ def test_streamshield_manifest_is_complete():
     )
     assert semantic_stage["sniper_semantic_edge_limit"] > 0
     assert not semantic_stage.get("sniper_roi_icount")
+    equal_capacity = next(
+        stage for stage in manifest["stages"]
+        if stage["name"] == "19a_cache_sim_equal_capacity_16"
+    )
+    assert not equal_capacity.get("k2_l3_ways")
     assert "ecg_replacement_baseline" in manifest["profiles"]
+    assert "ecg_equal_capacity_16" in manifest["profiles"]
     assert "ecg_equal_area_15" in manifest["profiles"]
     assert "ecg_equal_area_14" in manifest["profiles"]
     assert "ecg_preliminary_5alg_3sim" in manifest["profiles"]

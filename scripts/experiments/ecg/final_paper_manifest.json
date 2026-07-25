@@ -38,6 +38,7 @@
     "ecg_preliminary_5alg_stride": "Matched STRIDE8 sensitivity for the bounded five-algorithm, six-policy three-simulator diagnostic matrix.",
     "ecg_gem5_hawkeye_gate": "Five-algorithm gem5 real-instruction-PC Hawkeye comparison against the conventional baselines and K2.",
     "ecg_replacement_baseline": "Equal-capacity PR/BFS/SSSP/BC/CC replacement study with charged and uncharged P-OPT plus every static K2 arm.",
+    "ecg_equal_capacity_16": "Fresh full-graph 16-way K2 counterpart for direct comparison against 14/15-way sensitivities.",
     "ecg_equal_area_15": "Full-graph 15-way K2 sensitivity against 16-way baselines; intentionally undercharges the contextual metadata bit budget.",
     "ecg_equal_area_14": "Full-graph conservative integral equal-silicon sensitivity with 14-way K2 against 16-way baselines.",
     "ecg_online_dueling": "Online K2 set-dueling regret study against every static K2 arm.",
@@ -492,6 +493,31 @@
       "ecg_charged": 0,
       "ecg_epochs": 65535,
       "out_subdir": "19_cache_sim_replacement_baseline",
+      "timeout_cache": 86400
+    },
+    {
+      "name": "19a_cache_sim_equal_capacity_16",
+      "kind": "roi_matrix",
+      "profiles": ["ecg_equal_capacity_16"],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs",
+      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "HAWKEYE:PROXY",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "19a_cache_sim_equal_capacity_16",
       "timeout_cache": 86400
     },
     {

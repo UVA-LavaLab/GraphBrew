@@ -360,6 +360,7 @@ factorial adds K1/K2 x StreamShield with record traffic charged.
 | `ecg_sniper_realgraph_600m` | Full-real-graph Sniper 600M-capped ROI plan |
 | `ecg_sniper_semantic_gate` | Five-kernel equal-semantic-edge Sniper gate |
 | `ecg_replacement_baseline` | Equal-capacity static-arm and online-regret study |
+| `ecg_equal_capacity_16` | Fresh 16-way K2 counterpart for equal-area sensitivities |
 | `ecg_equal_area_15` | 15-way K2 versus 16-way baseline sensitivity |
 | `ecg_equal_area_14` | Conservative integral 14-way K2 versus 16-way baselines |
 | `ecg_gem5_hawkeye_gate` | Real-PC gem5 Hawkeye baseline implementation gate |
