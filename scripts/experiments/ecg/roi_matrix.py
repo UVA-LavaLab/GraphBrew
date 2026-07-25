@@ -1244,6 +1244,16 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         "prefetch_distinct_pages_2m",
         "prefetch_mtlb_entries",
         "prefetch_mtlb_misses",
+        # Prefetcher provenance: the model actually used plus its issue,
+        # throttle and training counts, so an oracle row cannot be mistaken
+        # for an honest one and an unbounded issue rate is visible.
+        "stream_prefetch_model",
+        "stream_prefetch_issued",
+        "stream_prefetch_throttled",
+        "stream_prefetch_untrained",
+        # P-OPT matrix-stream provenance.
+        "popt_matrix_stream_lines_simulated",
+        "popt_matrix_stream_columns_simulated",
     ):
         row[key] = data.get(key)
     fills = row.get("prefetch_fills") or 0
@@ -2672,13 +2682,12 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         # the matrix had the same bypass option available. Only cache_sim
         # implements it, so other backends must say so rather than echo the
         # request and imply an equalisation that never happened.
-        "stream_prefetch_model": (
+        "stream_prefetch_model_requested": (
             getattr(args, "stream_prefetch_model", "stride")
-            if args.suite in ("cache-sim", "both") else "n/a"),
+            if simulator == "cache_sim" else "n/a"),
         "structural_bypass": (
             getattr(args, "structural_bypass", "off")
-            if args.suite in ("cache-sim", "both")
-            else "unsupported"),
+            if simulator == "cache_sim" else "unsupported"),
     }
     if charge:
         row.update(charge)

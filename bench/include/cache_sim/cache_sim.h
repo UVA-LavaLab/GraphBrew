@@ -2426,8 +2426,23 @@ public:
             int degree = value ? std::atoi(value) : 0;
             return degree < 0 ? 0 : (degree > 32 ? 32 : degree);
         }();
-        for (int k = 1; k <= stream_pf_degree; ++k)
-            prefetchStream(address + static_cast<uint64_t>(k) * line_size_);
+        // Route through the SAME detector as ordinary accesses. This path
+        // carries K2's per-edge records and P-OPT's simulated matrix columns,
+        // i.e. exactly the metadata streams the K2-versus-P-OPT comparison
+        // turns on. Leaving it on an unconditional issue loop meant the
+        // "honest prefetcher" change did not reach the streams it was written
+        // for, and both policies kept oracle-quality coverage of their
+        // metadata whatever CACHE_STREAM_PREFETCH_MODEL said.
+        if (stream_pf_degree > 0) {
+            if (streamPrefetchOracle()) {
+                for (int k = 1; k <= stream_pf_degree; ++k) {
+                    stride_pf_issued_++;
+                    prefetchStream(address + static_cast<uint64_t>(k) * line_size_);
+                }
+            } else {
+                issueStridePrefetch(address, stream_pf_degree, /*non_temporal=*/true);
+            }
+        }
 
         total_accesses_++;
         if (l1_->access(address, is_write)) {
@@ -2591,6 +2606,13 @@ public:
         pfx_mtlb_lru_.clear();
         pfx_mtlb_pos_.clear();
         pfx_mtlb_misses_ = 0;
+        // Reset alongside the demand/fill counters, or the prefetcher counts
+        // would span the pre-ROI warm replay while everything else is ROI-only.
+        stride_pf_issued_ = 0;
+        stride_pf_throttled_ = 0;
+        stride_pf_untrained_ = 0;
+        popt_stream_lines_ = 0;
+        popt_stream_columns_ = 0;
         std::lock_guard<std::mutex> lock(prefetch_mutex_);
         prefetched_lines_.clear();
     }
@@ -2733,7 +2755,8 @@ private:
         return limit;
     }
 
-    void issueStridePrefetch(uint64_t address, int degree) {
+    void issueStridePrefetch(uint64_t address, int degree,
+                             bool non_temporal = false) {
         const uint64_t line = address / line_size_;
         const uint64_t region = address >> kStreamRegionShift;
         StreamEntry& e = stride_table_[region % kStreamTableEntries];
@@ -2764,8 +2787,14 @@ private:
                 stride_pf_throttled_++;
                 break;
             }
+            const uint64_t target = address + (uint64_t)k * line_size_;
+            // Stop at the detection-region boundary. The detector cannot have
+            // trained across it, and crossing it in hardware would need a
+            // translation the model does not perform.
+            if ((target >> kStreamRegionShift) != region) break;
             stride_pf_issued_++;
-            prefetch(address + (uint64_t)k * line_size_);
+            if (non_temporal) prefetchStream(target);
+            else prefetch(target);
         }
     }
 

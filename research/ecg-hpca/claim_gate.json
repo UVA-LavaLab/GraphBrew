@@ -186,8 +186,8 @@
     },
     {
       "id": "idealised_prefetch_free_evidence",
-      "status": "passed",
-      "note": "cache_sim's structure-stream prefetcher now defaults to an address-only stream detector: confirmation-gated, able to train on the wrong stream, and bounded by a finite in-flight budget. The oracle model that classified via graph_ctx_->findRegion and issued without limit survives only as a labelled upper bound. Measured on web-Google PageRank with charged P-OPT, moving from oracle to honest detection raises demand misses 32.8% and cuts prefetch requests from 138,305,632 to 3,283,159, so the oracle's coverage was substantially an artifact. Rows record the model, issue, throttle and untrained counts.",
+      "status": "pending",
+      "note": "The semantic address oracle is gone from every prefetch path: cache_sim defaults to an address-only, confirmation-gated, region-bounded stream detector with a finite in-flight budget, and the oracle survives only as a labelled upper bound. Measured on web-Google PageRank the oracle's advantage is 19-31x more cost-free prefetch requests but only +5.1% (P-OPT) and +2.0% (LRU) demand misses. The gate stays PENDING because fills remain synchronous and free: a prefetch completes before the demand that triggered it, with no lateness, bandwidth contention or real MSHR occupancy. Timing-bearing prefetch evidence must come from gem5.",
       "evidence": [
         "bench/include/cache_sim/cache_sim.h",
         "scripts/experiments/ecg/roi_matrix.py",

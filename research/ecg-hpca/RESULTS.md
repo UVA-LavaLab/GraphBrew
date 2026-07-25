@@ -581,6 +581,129 @@ distinction the experiment turned on, and it issued unconditionally with no
 MSHR, queue, lateness or bandwidth backpressure.
 
 cache_sim now defaults to an address-only stream detector
+(`CACHE_STREAM_PREFETCH_MODEL=stride`). It sees addresses and nothing else: a
+stream must be confirmed by two consecutive ascending line accesses within a
+4 KiB region, any non-sequential step breaks confirmation, issue stops at the
+region boundary, and it is bounded by a finite in-flight budget. It trains on
+regular property accesses and wastes fills on irregular ones, which is the
+mistake the oracle could not make. The oracle survives as a labelled upper
+bound.
+
+web-Google PageRank, `-i 2`, 2 MiB 16-way, degree 8, charged P-OPT with its
+matrix stream simulated:
+
+| policy / model | prefetches issued | demand misses | prefetch fills | total traffic |
+|---|---:|---:|---:|---:|
+| P-OPT, oracle | 141,971,552 | 1,646,658 | 1,550,635 | 3,197,293 |
+| P-OPT, stride | 7,652,021 | 1,730,286 | 1,462,349 | 3,192,635 |
+| LRU, oracle | 138,305,632 | 3,276,993 | 1,080,528 | 4,357,521 |
+| LRU, stride | 4,434,985 | 3,342,925 | 1,015,250 | 4,358,175 |
+
+The honest result is narrower than a first version of this section claimed, and
+the difference is instructive.
+
+1. **The oracle's cost-free issue rate is the real defect.** It issues 19-31x
+   more prefetch requests than the honest detector (141.9M against 7.7M for
+   P-OPT) with no modelled bandwidth or queue cost. A component that can
+   request 30x the traffic for free makes any metadata-streaming policy look
+   cheap.
+2. **Its coverage advantage is modest.** Demand misses rise only 5.1% for
+   P-OPT and 2.0% for LRU when the prefetcher has to detect the stream rather
+   than be told where it is. Both metadata streams really are sequential, so an
+   honest detector does find them.
+3. **Traffic is again the stable metric**, differing by 0.1-0.2% across models
+   while the demand column moves several percent. Note this is a weak
+   confirmation rather than an independent one: a prefetcher converts demand
+   misses into fills, so the two partly cancel by construction.
+
+**A first version of this section reported +32.8% and was wrong.** That figure
+came from a bug: `accessNonTemporal()`, the path carrying K2's per-edge records
+*and* P-OPT's simulated matrix columns, still issued prefetches unconditionally
+regardless of the selected model. The "honest prefetcher" therefore never
+reached the metadata streams the comparison turns on, and the 32.8% measured
+only the loss of oracle coverage on *ordinary* accesses. Both paths now use one
+detector.
+
+Rows record `stream_prefetch_model`, `stream_prefetch_issued`,
+`stream_prefetch_throttled` and `stream_prefetch_untrained`, reset at the ROI
+boundary with every other counter.
+
+**This does not make cache_sim prefetch results admissible for performance
+claims.** Fills are still synchronous and free: a prefetch completes before the
+demand that triggered it, and there is no lateness, no bandwidth contention and
+no real MSHR occupancy model. What the detector establishes is that the
+semantic address oracle is gone from every path and that coverage no longer
+depends on knowing which addresses are property. Timing, lateness and bandwidth
+must still come from gem5.
+
+### DECOMPOSITION: K2's replacement is good; the bypass is worth more
+
+"K2+StreamShield loses to LRU+bypass" is an end-to-end traffic result, but on
+its own it does not say whether K2's *replacement* is any good, because K2 also
+carries a per-edge record stream that LRU does not. Holding transport fixed and
+varying only the victim rule separates the two. `ECG_VARIANT=lru_only` runs the
+identical K2 transport with recency selection, so it is K2 with its replacement
+intelligence switched off.
+
+Same cell as above (web-Google PageRank, `-i 2`, 2 MiB 16-way, no prefetcher,
+packed 4-byte record). Total traffic:
+
+| | configuration | traffic |
+|---|---|---:|
+| A | LRU baseline | 4,356,828 |
+| B | K2, charged record, `epoch_only` | 3,607,455 |
+| C | K2, charged record, `lru_only` | 4,357,274 |
+| D | K2, free metadata, `epoch_only` | 3,606,221 |
+| E | K2, free metadata, `lru_only` | 4,356,828 |
+
+E equals A to the line, which is the harness sanity check: K2 transport with
+recency selection and free metadata is exactly plain LRU.
+
+| effect | difference | |
+|---|---:|---|
+| transport cost of K2's record stream | C - A = **+446** | 0.01% |
+| K2 replacement gain, charged | B - C = **-749,819** | -17.2% |
+| K2 replacement gain, free metadata | D - E = -750,607 | -17.2% |
+| net K2 versus LRU | B - A = -749,373 | -17.2% |
+
+Three things follow, and they revise the previous section rather than
+contradict it.
+
+1. **K2's packed transport is essentially free**, +446 lines out of 4.36M. The
+   4-byte packed record *replaces* the CSR edge read rather than adding to it,
+   so at this graph size K2 streams the same bytes per edge as any baseline.
+   The charged-versus-free columns differ by under 0.04%, so the record cost is
+   not what holds K2 back.
+2. **K2's replacement is genuinely good**: -17.2% traffic against identical
+   transport with recency selection. That is a real algorithmic result and it
+   is not an artifact of accounting.
+3. **The structural bypass is worth more than K2's entire replacement
+   advantage.** The bypass gives LRU -20.0%; K2's epoch replacement gives
+   -17.2%. Both are removing the *same* pollution -- the structural stream
+   displacing reusable property lines -- one mechanically and one
+   algorithmically. That is why they barely stack: adding StreamShield on top
+   of K2's replacement is worth only a further -2.4%, because the replacement
+   has already captured most of what the bypass captures.
+
+So the honest statement is not "K2's replacement is bad". It is that on this
+cell K2 solves, slightly less well, a problem that a one-line bypass also
+solves, while GRASP solves it better still (-28.4% versus LRU, -31.9% with the
+bypass). A policy whose advantage is substitutable by a bypass has to argue on
+cost, generality or the cases where the bypass is unavailable or harmful -- and
+the bypass is indeed harmful on at least one cell measured above.
+
+Scope: one graph, one kernel, one cache size, no prefetcher; single-cell
+traffic under the frozen metrics, not a headline.
+
+### CORRECTION: the stream prefetcher no longer classifies by oracle
+
+The prefetcher that produced the withdrawn STRIDE8 lead decided what to
+prefetch by asking `graph_ctx_->findRegion(address)` whether an address was
+property data, and refusing if so. It therefore never mispredicted the one
+distinction the experiment turned on, and it issued unconditionally with no
+MSHR, queue, lateness or bandwidth backpressure.
+
+cache_sim now defaults to an address-only stream detector
 (`CACHE_STREAM_PREFETCH_MODEL=stride`). It sees addresses and nothing else, as
 hardware does: a stream must be confirmed by two consecutive ascending line
 accesses within a 4 KiB region before it issues, any non-sequential step breaks

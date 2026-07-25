@@ -41,11 +41,11 @@ def test_current_claim_gate_is_consistent():
     # A general speedup claim is blocked by the missing full-graph evidence and
     # by the two accounting defects the 2026-07-25 review found: an
     # oracle-classified prefetcher and an unpriced prefetch-traffic increase.
-    # idealised_prefetch_free_evidence now passes: the oracle prefetcher is no
-    # longer the default. The remaining blockers are the full-graph evidence and
-    # the unpriced prefetch-traffic increase.
+    # The oracle prefetcher is no longer the default, but cache_sim fills are
+    # still synchronous and free, so the idealised-prefetch gate stays open.
     assert speedup["missing_gates"] == [
         "full_graph_detailed_results",
+        "idealised_prefetch_free_evidence",
         "prefetch_traffic_accounted",
     ]
     popt = claims["k2_beats_popt"]

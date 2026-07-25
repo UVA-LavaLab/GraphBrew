@@ -91,3 +91,29 @@ def test_prefetcher_is_off_by_default():
     stats = run(CACHE_STREAM_PREFETCH_DEGREE="0")
     assert stats["prefetch_fills"] == 0
     assert stats["stream_prefetch_issued"] == 0
+
+
+def test_non_temporal_path_uses_the_same_detector():
+    """K2 records and P-OPT matrix columns must not keep oracle coverage.
+
+    accessNonTemporal() carries both metadata streams. It previously issued
+    prefetches unconditionally regardless of the selected model, so the honest
+    detector never reached the streams the K2-versus-P-OPT comparison turns on.
+    With a 1-entry in-flight budget the detector must throttle that path too.
+    """
+    stats = run(POPT_MATRIX_STREAM_SIM=1, CACHE_POLICY="POPT",
+                CACHE_STREAM_PREFETCH_MAX_INFLIGHT="1")
+    assert stats["popt_matrix_stream_lines_simulated"] > 0, (
+        "matrix stream did not run; this test would be vacuous")
+    assert stats["stream_prefetch_throttled"] > 0, (
+        "the matrix-stream path issued without consulting the in-flight budget, "
+        "so it is still on an unconditional issue loop")
+
+
+def test_counters_are_roi_scoped():
+    """Counters must reset with the others, not span the pre-ROI warm replay."""
+    stats = run(CACHE_STREAM_PREFETCH_DEGREE="0")
+    # With the prefetcher off inside the ROI, a nonzero count could only come
+    # from accesses outside it.
+    assert stats["stream_prefetch_issued"] == 0
+    assert stats["stream_prefetch_untrained"] == 0
