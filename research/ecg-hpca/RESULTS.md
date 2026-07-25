@@ -804,6 +804,74 @@ Three cells were excluded as carrying no policy signal, including one whose LRU
 baseline moved a single line and produced a 5.000 ratio that alone had pushed
 GRASP's geomean from a win to a loss.
 
+### SCALING: how the 4-byte record survives large graphs
+
+The compact record only pays if it stays 4 bytes, and its width is
+`id_bits + epoch_bits*max(1,K) + tier_bits`, rounded up to 4, 8 or 16. Larger
+graphs need more id bits, so the natural worry is that the 4-byte record is an
+artifact of small graphs. It is not, for three measured reasons.
+
+**1. Epoch resolution has an interior optimum, and it is cheap.**
+web-Google-n16 PageRank at 128 kB, single-epoch record with StreamShield,
+traffic versus LRU:
+
+| epoch bits | epochs | vs LRU |
+|---:|---:|---:|
+| 1 | 2 | 0.830 |
+| 2 | 4 | 0.726 |
+| 3 | 8 | 0.692 |
+| 4 | 16 | 0.677 |
+| **5** | **32** | **0.671** |
+| 6 | 64 | 0.680 |
+| 8 | 256 | 0.715 |
+| 10 | 1,024 | 0.745 |
+| 12 | 4,096 | 0.758 |
+
+The best setting is **32 epochs, five bits**. Resolution is not something the
+design wants more of: past 32 epochs the stamps become too specific and the
+result degrades monotonically. Five bits is a floor to defend, not a budget to
+grow, which is the opposite of the usual scaling problem.
+
+**2. The tier field is free to drop.** At 32 epochs, `tier_bits=2` gives 0.672
+and `tier_bits=0` gives 0.671. The two tier bits earn nothing here and can be
+spent on vertex ids at no measured cost.
+
+**3. Epoch bits trade against id bits, and the trade degrades gracefully.**
+With the tier field dropped, the 4-byte record admits `32 - epoch_bits` id bits:
+
+| epoch bits | vs LRU | max vertices at 4 B |
+|---:|---:|---:|
+| 5 | 0.671 | 134,217,728 |
+| 4 | 0.677 | 268,435,456 |
+| 3 | 0.692 | 536,870,912 |
+| 2 | 0.726 | 1,073,741,824 |
+| 1 | 0.830 | 2,147,483,648 |
+
+Every row still beats LRU. A 100M-vertex graph keeps the near-optimal five
+bits; a billion-vertex graph drops to two bits and still returns 0.726.
+Twitter-2010 (41.6M) and Friendster (65.6M), the largest graphs in common use,
+sit comfortably at five bits.
+
+**The structural argument closes it.** GAPBS `NodeID` is `int32_t`, so a CSR
+edge is exactly 4 bytes. The record replaces that edge read rather than adding
+to it, which is why its measured transport cost was +446 lines out of 4.36M.
+A 4-byte record is therefore exactly one edge width, and free by construction,
+across the entire 32-bit addressable range. Beyond it `NodeID` must become
+64-bit, the baseline edge becomes 8 bytes, and an 8-byte record is free again
+for the same reason. The record tracks the edge width at every scale.
+
+Confirmed on the largest full graph available, cit-Patents (3,774,768 vertices,
+22 id bits), PageRank at 8 MiB: with 32 epochs and no tier field the harness
+reports `record_bytes=4`, and K1+StreamShield takes 16,621,169 lines against
+LRU's 21,923,013, i.e. **0.758**. It does not beat GRASP on that cell
+(14,878,730, so 1.117), which is consistent with the reuse-density account: the
+per-edge record is amortised by property reuse, and cit-Patents is a
+low-reuse citation graph.
+
+The genuine limitation is Schedule-2. Two future epochs force 8 bytes
+regardless of graph size, so K2 proper can never be one edge wide on a 32-bit
+graph. The scaling story belongs to the single-epoch record.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
