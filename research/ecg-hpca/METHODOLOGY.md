@@ -19,6 +19,54 @@ selector, independently emit their native candidate state, and pass an exact
 Python decision oracle plus backend-specific delivery checks. It does not mean
 that cache metrics or victim sequences are numerically identical across
 different cache hierarchies/frontends.
+
+### Sniper frontend: SIFT/SDE, and why it is not the legacy Pin tool
+
+Sniper offers three instruction-acquisition frontends (`USE_SDE=1`, `USE_PIN=1`,
+`USE_PINPLAY=1`). We use the default SDE/SIFT path, and every Sniper profile
+declares `sniper_frontend: sift` explicitly rather than inheriting a default.
+
+This is worth stating because DROPLET, GRASP, and P-OPT ran on Pin-based Sniper,
+so a reader may ask whether the frontend differs materially. It does not, in the
+ways that matter:
+
+- The application is instrumented by **Pin either way**. `run-sniper --sift`
+  launches `record-trace`, which runs the workload under Intel SDE, and SDE
+  embeds Pin (the kit ships `libpin.a` and `pin.H`). The instrumentation engine
+  is the same.
+- **No trace is written to disk.** The recorder and the simulator run
+  concurrently and communicate over a named-pipe pair
+  (`run_benchmarks.app0.th0.sift` plus a response pipe), so this is streaming,
+  not record-then-replay. Measured on a full web-Google run, the simulator
+  consumed 31m22s of CPU against the recorder's 2m01s, i.e. the timing model,
+  not the frontend, is the bottleneck.
+- The timing models, cache hierarchy, and the 600M-ROI convention are unchanged.
+
+The only real difference is process topology: with the legacy `pin_sim.so` the
+timing model runs inside the Pin process, whereas with SIFT it runs as a
+separate process fed over a pipe.
+
+The legacy Pin frontend is **not available** on the pinned Sniper revision, and
+this is an upstream property rather than a local configuration choice. Upstream
+comments out the `LIB_PIN_SIM`/`LIB_FOLLOW` targets (`Makefile:123-127`, since
+the 2018 RISC-V port), and the `pin/` sources still target Pin 2.14-era APIs. We
+attempted the port against the Pin 3.31 kit that Sniper itself downloads and
+recorded three layers of incompatibility:
+
+1. Removed single APIs: `PIN_REGISTER` (removed after Pin 3.21),
+   `PIN_AddFiniUnlockedFunction` (removed after Pin 2.14). Both have documented
+   replacements and were straightforward to port.
+2. The entire `CODECACHE_*` callback family (19 functions) is absent from
+   Pin 3.31.
+3. Architectural: `pin_sim.so` links the whole simulator core into the Pin tool,
+   and that core requires facilities Pin's restricted runtime does not provide
+   (`pthread_barrier_t`, `pthread_setcancelstate`, and Boost's threading
+   helpers).
+
+Item 3 is why upstream moved to SIFT: the simulator becomes an ordinary process
+with full glibc, and only a thin recorder runs under Pin. Reaching a Pin-based
+build would require re-architecting Sniper's core, not a frontend flag, and by
+the measurement above it would not make the evaluation faster.
 PR/BFS/SSSP/BC/CC retain the fused indexed K2-I path as the default gem5
 variant, and all five also implement the canonical K2-M path selected with
 `GEM5_ECG_ISA_VARIANT=mask`. K2-M receives an already-computed address and
