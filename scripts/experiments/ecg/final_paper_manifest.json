@@ -6,7 +6,9 @@
     "l2_size": "256kB",
     "l1d_ways": "8",
     "l2_ways": "8",
-    "l3_sizes": ["2MB"],
+    "l3_sizes": [
+      "2MB"
+    ],
     "l3_ways": "16",
     "line_size": "64",
     "timeout_cache": 1800,
@@ -47,7 +49,8 @@
     "ecg_cache_sim_factorial": "Real-graph K1/K2 x StreamShield cache_sim factorial with the full baseline set.",
     "gem5_streamshield_mechanism": "Synthetic gem5 mechanism cell for fused K2 versus K2+StreamShield.",
     "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused K2 versus K2+StreamShield.",
-    "streamshield_sniper_realgraph": "Pending-calibration full-iteration web-Google PR Sniper matrix; do not freeze results with the rejected generic STRIDE8 configuration."
+    "streamshield_sniper_realgraph": "Pending-calibration full-iteration web-Google PR Sniper matrix; do not freeze results with the rejected generic STRIDE8 configuration.",
+    "ecg_uniform_8mb_16": "Uniform 8 MiB/16-way full-real-graph cache_sim matrix so every graph x kernel cell is directly comparable; supersedes the mixed 2 MiB/8 MiB factorial sizing."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -99,7 +102,9 @@
         "l1d_size": "1kB",
         "l2_size": "2kB",
         "l3_ways": "4",
-        "l3_sizes": ["4kB"],
+        "l3_sizes": [
+          "4kB"
+        ],
         "structure_prefetch_degree": 8
       }
     ],
@@ -110,7 +115,9 @@
         "l1d_size": "4kB",
         "l2_size": "8kB",
         "l3_ways": "8",
-        "l3_sizes": ["32kB"],
+        "l3_sizes": [
+          "32kB"
+        ],
         "structure_prefetch_degree": 0
       }
     ],
@@ -121,7 +128,9 @@
         "l1d_size": "16kB",
         "l2_size": "64kB",
         "l3_ways": "16",
-        "l3_sizes": ["128kB"],
+        "l3_sizes": [
+          "128kB"
+        ],
         "structure_prefetch_degree": 8
       }
     ],
@@ -132,7 +141,9 @@
         "l1d_size": "16kB",
         "l2_size": "64kB",
         "l3_ways": "16",
-        "l3_sizes": ["128kB"],
+        "l3_sizes": [
+          "128kB"
+        ],
         "structure_prefetch_degree": 8
       }
     ],
@@ -143,7 +154,9 @@
         "l1d_size": "16kB",
         "l2_size": "64kB",
         "l3_ways": "16",
-        "l3_sizes": ["128kB"],
+        "l3_sizes": [
+          "128kB"
+        ],
         "structure_prefetch_degree": 0
       }
     ],
@@ -154,7 +167,9 @@
         "l1d_size": "16kB",
         "l2_size": "64kB",
         "l3_ways": "16",
-        "l3_sizes": ["128kB"],
+        "l3_sizes": [
+          "128kB"
+        ],
         "structure_prefetch_degree": 8
       }
     ],
@@ -166,7 +181,9 @@
         "l1d_size": "32kB",
         "l2_size": "256kB",
         "l3_ways": "16",
-        "l3_sizes": ["2MB"],
+        "l3_sizes": [
+          "2MB"
+        ],
         "structure_prefetch_degree": 8
       }
     ],
@@ -175,21 +192,27 @@
         "name": "web-Google",
         "path": "results/graphs/web-Google/web-Google.sg",
         "options_key": "file_all_kernels_dbg",
-        "l3_sizes": ["2MB"],
+        "l3_sizes": [
+          "2MB"
+        ],
         "structure_prefetch_degree": 8
       },
       {
         "name": "soc-pokec",
         "path": "results/graphs/soc-pokec/soc-pokec.sg",
         "options_key": "file_all_kernels_dbg",
-        "l3_sizes": ["2MB"],
+        "l3_sizes": [
+          "2MB"
+        ],
         "structure_prefetch_degree": 8
       },
       {
         "name": "cit-Patents",
         "path": "results/graphs/cit-Patents/cit-Patents.sg",
         "options_key": "file_all_kernels_dbg",
-        "l3_sizes": ["8MB"],
+        "l3_sizes": [
+          "8MB"
+        ],
         "structure_prefetch_degree": 8
       }
     ],
@@ -201,7 +224,9 @@
         "l1d_size": "16kB",
         "l2_size": "64kB",
         "l3_ways": "16",
-        "l3_sizes": ["128kB"],
+        "l3_sizes": [
+          "128kB"
+        ],
         "structure_prefetch_degree": 0
       },
       {
@@ -211,7 +236,9 @@
         "l1d_size": "16kB",
         "l2_size": "64kB",
         "l3_ways": "16",
-        "l3_sizes": ["128kB"],
+        "l3_sizes": [
+          "128kB"
+        ],
         "structure_prefetch_degree": 0
       },
       {
@@ -221,8 +248,39 @@
         "l1d_size": "32kB",
         "l2_size": "128kB",
         "l3_ways": "16",
-        "l3_sizes": ["512kB"],
+        "l3_sizes": [
+          "512kB"
+        ],
         "structure_prefetch_degree": 0
+      }
+    ],
+    "factorial_graphs_uniform_8mb": [
+      {
+        "name": "web-Google",
+        "path": "results/graphs/web-Google/web-Google.sg",
+        "options_key": "file_all_kernels_dbg",
+        "l3_sizes": [
+          "8MB"
+        ],
+        "structure_prefetch_degree": 8
+      },
+      {
+        "name": "soc-pokec",
+        "path": "results/graphs/soc-pokec/soc-pokec.sg",
+        "options_key": "file_all_kernels_dbg",
+        "l3_sizes": [
+          "8MB"
+        ],
+        "structure_prefetch_degree": 8
+      },
+      {
+        "name": "cit-Patents",
+        "path": "results/graphs/cit-Patents/cit-Patents.sg",
+        "options_key": "file_all_kernels_dbg",
+        "l3_sizes": [
+          "8MB"
+        ],
+        "structure_prefetch_degree": 8
       }
     ]
   },
@@ -230,11 +288,23 @@
     {
       "name": "01_ecg_cache_sim_smoke",
       "kind": "roi_matrix",
-      "profiles": ["ecg_smoke"],
+      "profiles": [
+        "ecg_smoke"
+      ],
       "suite": "cache-sim",
       "graph_set": "synthetic_smoke",
-      "benchmarks": ["pr"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE", "ECG:K2_STREAMSHIELD"],
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "out_subdir": "01_ecg_cache_sim_smoke",
@@ -243,14 +313,27 @@
     {
       "name": "02_cache_sim_3sim_allalg_smoke",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_allalg_smoke"],
+      "profiles": [
+        "ecg_3sim_allalg_smoke"
+      ],
       "suite": "cache-sim",
       "graph_set": "synthetic_kron12_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -262,14 +345,27 @@
     {
       "name": "03_gem5_3sim_allalg_smoke",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_allalg_smoke"],
+      "profiles": [
+        "ecg_3sim_allalg_smoke"
+      ],
       "suite": "gem5",
       "graph_set": "synthetic_kron12_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -286,14 +382,27 @@
     {
       "name": "04_sniper_3sim_allalg_smoke",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_allalg_smoke"],
+      "profiles": [
+        "ecg_3sim_allalg_smoke"
+      ],
       "suite": "sniper",
       "graph_set": "synthetic_kron12_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -316,11 +425,26 @@
     {
       "name": "10_cache_sim_preliminary_5alg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_preliminary_5alg_3sim"],
+      "profiles": [
+        "ecg_preliminary_5alg_3sim"
+      ],
       "suite": "cache-sim",
       "graph_set": "synthetic_kron15_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -331,11 +455,26 @@
     {
       "name": "11_gem5_preliminary_5alg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_preliminary_5alg_3sim"],
+      "profiles": [
+        "ecg_preliminary_5alg_3sim"
+      ],
       "suite": "gem5",
       "graph_set": "synthetic_kron15_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -350,11 +489,26 @@
     {
       "name": "11b_gem5_hawkeye_gate",
       "kind": "roi_matrix",
-      "profiles": ["ecg_gem5_hawkeye_gate"],
+      "profiles": [
+        "ecg_gem5_hawkeye_gate"
+      ],
       "suite": "gem5",
       "graph_set": "synthetic_kron12_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "HAWKEYE", "POPT", "ECG:K2"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "HAWKEYE",
+        "POPT",
+        "ECG:K2"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -369,11 +523,26 @@
     {
       "name": "12_sniper_preliminary_5alg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_preliminary_5alg_3sim"],
+      "profiles": [
+        "ecg_preliminary_5alg_3sim"
+      ],
       "suite": "sniper",
       "graph_set": "synthetic_kron15_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -391,11 +560,25 @@
     {
       "name": "12b_sniper_semantic_gate",
       "kind": "roi_matrix",
-      "profiles": ["ecg_sniper_semantic_gate"],
+      "profiles": [
+        "ecg_sniper_semantic_gate"
+      ],
       "suite": "sniper",
       "graph_set": "synthetic_kron12_all",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -415,11 +598,26 @@
     {
       "name": "13_cache_sim_preliminary_5alg_stride",
       "kind": "roi_matrix",
-      "profiles": ["ecg_preliminary_5alg_stride"],
+      "profiles": [
+        "ecg_preliminary_5alg_stride"
+      ],
       "suite": "cache-sim",
       "graph_set": "synthetic_kron15_all_stride",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "ecg_charged": 1,
@@ -430,11 +628,26 @@
     {
       "name": "14_gem5_preliminary_5alg_stride",
       "kind": "roi_matrix",
-      "profiles": ["ecg_preliminary_5alg_stride"],
+      "profiles": [
+        "ecg_preliminary_5alg_stride"
+      ],
       "suite": "gem5",
       "graph_set": "synthetic_kron15_all_stride",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "ecg_charged": 1,
@@ -449,11 +662,26 @@
     {
       "name": "15_sniper_preliminary_5alg_stride",
       "kind": "roi_matrix",
-      "profiles": ["ecg_preliminary_5alg_stride"],
+      "profiles": [
+        "ecg_preliminary_5alg_stride"
+      ],
       "suite": "sniper",
       "graph_set": "synthetic_kron15_all_stride",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_ONLINE"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "ecg_charged": 1,
@@ -471,10 +699,19 @@
     {
       "name": "19_cache_sim_replacement_baseline",
       "kind": "roi_matrix",
-      "profiles": ["ecg_replacement_baseline", "ecg_online_dueling"],
+      "profiles": [
+        "ecg_replacement_baseline",
+        "ecg_online_dueling"
+      ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
         "LRU",
         "SRRIP",
@@ -499,10 +736,18 @@
     {
       "name": "19a_cache_sim_equal_capacity_16",
       "kind": "roi_matrix",
-      "profiles": ["ecg_equal_capacity_16"],
+      "profiles": [
+        "ecg_equal_capacity_16"
+      ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
         "LRU",
         "SRRIP",
@@ -522,12 +767,53 @@
       "timeout_cache": 86400
     },
     {
+      "name": "19d_cache_sim_uniform_8mb_16",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_uniform_8mb_16"
+      ],
+      "suite": "cache-sim",
+      "graph_set": "factorial_graphs_uniform_8mb",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "HAWKEYE:PROXY",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 65535,
+      "out_subdir": "19d_cache_sim_uniform_8mb_16",
+      "timeout_cache": 86400
+    },
+    {
       "name": "19b_cache_sim_equal_area_15",
       "kind": "roi_matrix",
-      "profiles": ["ecg_equal_area_15"],
+      "profiles": [
+        "ecg_equal_area_15"
+      ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
         "LRU",
         "SRRIP",
@@ -550,10 +836,18 @@
     {
       "name": "19c_cache_sim_equal_area_14",
       "kind": "roi_matrix",
-      "profiles": ["ecg_equal_area_14"],
+      "profiles": [
+        "ecg_equal_area_14"
+      ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
         "LRU",
         "SRRIP",
@@ -576,10 +870,14 @@
     {
       "name": "20_cache_sim_streamshield_factorial",
       "kind": "roi_matrix",
-      "profiles": ["ecg_cache_sim_factorial"],
+      "profiles": [
+        "ecg_cache_sim_factorial"
+      ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr"],
+      "benchmarks": [
+        "pr"
+      ],
       "policies": [
         "LRU",
         "SRRIP",
@@ -604,10 +902,18 @@
     {
       "name": "21_cache_sim_streamshield_generality",
       "kind": "roi_matrix",
-      "profiles": ["ecg_streamshield_generality"],
+      "profiles": [
+        "ecg_streamshield_generality"
+      ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
         "LRU",
         "SRRIP",
@@ -634,11 +940,22 @@
       ],
       "suite": "cache-sim",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -650,14 +967,27 @@
     {
       "name": "23_gem5_3sim_realgraph_allalg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_realgraph_allalg"],
+      "profiles": [
+        "ecg_3sim_realgraph_allalg"
+      ],
       "suite": "gem5",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -674,14 +1004,27 @@
     {
       "name": "24_sniper_3sim_realgraph_allalg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_realgraph_allalg"],
+      "profiles": [
+        "ecg_3sim_realgraph_allalg"
+      ],
       "suite": "sniper",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -704,14 +1047,27 @@
     {
       "name": "25_gem5_3sim_realgraph_allalg_1b",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_realgraph_allalg_1b"],
+      "profiles": [
+        "ecg_3sim_realgraph_allalg_1b"
+      ],
       "suite": "gem5",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -729,14 +1085,27 @@
     {
       "name": "26_sniper_3sim_realgraph_allalg_1b",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_realgraph_allalg_1b"],
+      "profiles": [
+        "ecg_3sim_realgraph_allalg_1b"
+      ],
       "suite": "sniper",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -760,14 +1129,27 @@
     {
       "name": "27_cache_sim_3sim_sampled_allalg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_sampled_allalg"],
+      "profiles": [
+        "ecg_3sim_sampled_allalg"
+      ],
       "suite": "cache-sim",
       "graph_set": "realgraph_samples",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -779,14 +1161,27 @@
     {
       "name": "28_gem5_3sim_sampled_allalg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_sampled_allalg"],
+      "profiles": [
+        "ecg_3sim_sampled_allalg"
+      ],
       "suite": "gem5",
       "graph_set": "realgraph_samples",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -803,14 +1198,27 @@
     {
       "name": "29_sniper_3sim_sampled_allalg",
       "kind": "roi_matrix",
-      "profiles": ["ecg_3sim_sampled_allalg"],
+      "profiles": [
+        "ecg_3sim_sampled_allalg"
+      ],
       "suite": "sniper",
       "graph_set": "realgraph_samples",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -833,11 +1241,22 @@
     {
       "name": "30_gem5_streamshield_mechanism",
       "kind": "roi_matrix",
-      "profiles": ["gem5_streamshield_mechanism"],
+      "profiles": [
+        "gem5_streamshield_mechanism"
+      ],
       "suite": "gem5",
       "graph_set": "synthetic_kron4",
-      "benchmarks": ["pr"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_STREAMSHIELD"],
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_STREAMSHIELD"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "out_subdir": "30_gem5_streamshield_mechanism",
@@ -850,11 +1269,22 @@
     {
       "name": "31_sniper_streamshield_mechanism",
       "kind": "roi_matrix",
-      "profiles": ["sniper_streamshield_mechanism"],
+      "profiles": [
+        "sniper_streamshield_mechanism"
+      ],
       "suite": "sniper",
       "graph_set": "synthetic_kron16",
-      "benchmarks": ["pr"],
-      "policies": ["LRU", "SRRIP", "GRASP", "POPT", "ECG:K2", "ECG:K2_STREAMSHIELD"],
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_STREAMSHIELD"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "STRIDE",
       "sniper_workload": "sg_kernel",
@@ -871,15 +1301,28 @@
     {
       "name": "32_sniper_realgraph_600m",
       "kind": "roi_matrix",
-      "profiles": ["ecg_sniper_realgraph_600m"],
+      "profiles": [
+        "ecg_sniper_realgraph_600m"
+      ],
       "prerequisite_profile": "ecg_sniper_realgraph_warm_probe",
       "suite": "sniper",
       "graph_set": "factorial_graphs",
-      "benchmarks": ["pr", "bfs", "sssp", "bc", "cc"],
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
       "policies": [
-        "LRU", "SRRIP", "GRASP", "POPT",
-        "ECG:K2", "ECG:K2_ONLINE",
-        "ECG:K2_STREAMSHIELD", "ECG:K2_ONLINE_STREAMSHIELD"
+        "LRU",
+        "SRRIP",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_ONLINE",
+        "ECG:K2_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -902,10 +1345,14 @@
     {
       "name": "33_sniper_sampled_pr_streamengine",
       "kind": "roi_matrix",
-      "profiles": ["ecg_sniper_sampled_pr_streamengine"],
+      "profiles": [
+        "ecg_sniper_sampled_pr_streamengine"
+      ],
       "suite": "sniper",
       "graph_set": "realgraph_samples",
-      "benchmarks": ["pr"],
+      "benchmarks": [
+        "pr"
+      ],
       "policies": [
         "GRASP",
         "POPT",
@@ -932,11 +1379,18 @@
     {
       "name": "34_sniper_realgraph_warm_probe",
       "kind": "roi_matrix",
-      "profiles": ["ecg_sniper_realgraph_warm_probe"],
+      "profiles": [
+        "ecg_sniper_realgraph_warm_probe"
+      ],
       "suite": "sniper",
       "graph_set": "web_google_streamshield",
-      "benchmarks": ["pr"],
-      "policies": ["LRU", "ECG:K2"],
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "ECG:K2"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -955,11 +1409,18 @@
     {
       "name": "34b_sniper_realgraph_semantic_probe",
       "kind": "roi_matrix",
-      "profiles": ["ecg_sniper_realgraph_semantic_probe"],
+      "profiles": [
+        "ecg_sniper_realgraph_semantic_probe"
+      ],
       "suite": "sniper",
       "graph_set": "web_google_streamshield",
-      "benchmarks": ["pr"],
-      "policies": ["LRU", "ECG:K2"],
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "ECG:K2"
+      ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
       "ecg_charged": 1,
@@ -979,11 +1440,15 @@
     {
       "name": "40_sniper_streamshield_realgraph",
       "kind": "roi_matrix",
-      "profiles": ["streamshield_sniper_realgraph"],
+      "profiles": [
+        "streamshield_sniper_realgraph"
+      ],
       "blocked_reason": "The bounded matched-STRIDE diagnostic rejects Sniper's generic simple prefetcher; calibrate a traffic-bounded configuration before launching the headline matrix.",
       "suite": "sniper",
       "graph_set": "web_google_streamshield",
-      "benchmarks": ["pr"],
+      "benchmarks": [
+        "pr"
+      ],
       "policies": [
         "LRU",
         "SRRIP",
