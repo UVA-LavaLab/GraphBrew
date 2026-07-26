@@ -17,9 +17,17 @@ def read(path: str) -> str:
 
 
 def test_streamshield_is_explicit_and_default_off():
+    # StreamShield is now read once by the metadata SSOT rather than by each
+    # kernel, so the invariant is checked there: explicit env, default off.
+    meta = read("bench/include/ecg_metadata.h")
+    assert 'envInt("ECG_STREAM_BYPASS", 0, 0, 1)' in meta
+    assert "bool bypass = false;" in meta
+    # The single cache_sim delivery site must honour it.
+    graph_sim = read("bench/include/cache_sim/graph_sim.h")
+    assert "(cfg).bypass" in graph_sim
+    assert "access_stream_with_site" in graph_sim
     pr = read("bench/src_sim/pr.cc")
-    assert 'GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1)' in pr
-    assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in pr
+    assert "SIM_ECG_EDGE" in pr
 
 
 def test_streamshield_preserves_llc_hits_and_suppresses_miss_fill():
@@ -504,23 +512,23 @@ def test_sniper_cache_only_shmem_timing_patch_is_idempotent(tmp_path):
 def test_schedule_bits_are_charged_in_record_width():
     pr = read("bench/src_sim/pr.cc")
     graph_sim = read("bench/include/cache_sim/graph_sim.h")
-    assert 'GraphSimEnvIntClamped(\n        "ECG_EDGE_MASK_SCHED", 0, 0, 4)' in graph_sim
+    # Record width now lives in the metadata SSOT, shared byte-identically with
+    # gem5 and Sniper, rather than in a cache_sim-only helper.
+    meta = read("bench/include/ecg_metadata.h")
+    assert 'envInt("ECG_EDGE_MASK_SCHED", 0, 0, 4)' in meta
     # Schedule-2 still defaults to 8 bytes so committed results do not move,
-    # but that return is now conditional: ECG_RECORD_VARIABLE_WIDTH=1 computes
-    # the width from the same bit budget as every other schedule. The
-    # unconditional return was an implementation shortcut, not a cost of the
-    # second future epoch, and it doubled K2's modelled transport whenever the
-    # record would in fact have fitted in 4 bytes.
-    assert "if (schedule_k == 2 && !variable_width) return 8;" in graph_sim
-    assert 'std::getenv("ECG_RECORD_VARIABLE_WIDTH")' in graph_sim
-    # Either way the second epoch must be charged, never silently dropped.
-    assert "epoch_bits * std::max(1, schedule_k)" in graph_sim
+    # but the return is conditional: ECG_RECORD_VARIABLE_WIDTH=1 computes the
+    # width from the same bit budget as every other schedule. The unconditional
+    # return was an implementation shortcut, not a cost of the second stamp.
+    assert 'envInt("ECG_RECORD_VARIABLE_WIDTH", 0, 0, 1) == 0' in meta
+    assert "c.record_bytes = 8;" in meta
+    # Either way both stamps must be charged, never silently dropped.
+    assert "c.epoch_bits * c.stamps" in meta
     assert 'std::getenv("ECG_BFS_EDGE_MASKS")' in graph_sim
     assert 'GetEnvPolicy("CACHE_L3_POLICY", policy)' in graph_sim
-    assert "SIM_CACHE_READ_EDGE_RECORD" in graph_sim
-    assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in graph_sim
+    assert "SIM_ECG_EDGE" in graph_sim
     assert "1 <= tier <= 3" in read("scripts/experiments/ecg/roi_matrix.py")
-    assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in pr
+    assert "SIM_ECG_EDGE" in pr
     assert "reinterpret_cast<uint64_t>(src_masks.data())" not in pr
     assert "SIM_CACHE_READ_STREAM_BYPASS" not in pr
     cache_sim = read("bench/include/cache_sim/cache_sim.h")

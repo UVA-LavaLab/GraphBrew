@@ -150,7 +150,13 @@ def run_cell(rm, kernel, graph_path, l3, policy_text, args):
     if not binary.exists():
         return None, f"missing binary {binary}"
     env, json_path, spec = build_env(rm, policy_text, kernel, l3, args)
-    cmd = [str(binary), "-f", str(ROOT / graph_path), "-n", "1"]
+    # Disable ASLR, exactly as roi_matrix does. cache_sim tracks REAL pointers
+    # for the CSR and property arrays, so address-space randomisation changes
+    # cache set mapping and makes results vary run to run by ~0.07%. That is the
+    # same order as several differences reported in this study, so without this
+    # the harness cannot distinguish a small effect from placement noise.
+    cmd = ["/usr/bin/setarch", "x86_64", "-R",
+           str(binary), "-f", str(ROOT / graph_path), "-n", "1"]
     if kernel == "pr":
         cmd += ["-i", str(args.iterations)]
     if args.reorder:
