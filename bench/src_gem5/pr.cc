@@ -16,6 +16,7 @@
 #include "command_line.h"
 #include "graph.h"
 #include "pvector.h"
+#include "ecg_metadata.h"
 
 // P-OPT rereference matrix builder (same as standalone cache_sim)
 #include "graphbrew/partition/cagra/popt.h"
@@ -289,7 +290,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                                 : ((1u << pack_id_bits) - 1);
             uint32_t epoch_bits = 1;
             while ((1u << epoch_bits) < edge_epoch_count && epoch_bits < 16) epoch_bits++;
-            if (pack_id_bits + epoch_bits <= 32) {
+            // Width and structure come from the shared metadata SSOT, the same
+            // header cache_sim uses, so the three simulators cannot disagree
+            // about how wide a record is or whether it fits.
+            const auto ecg_meta = ::ecg_metadata::configure(
+                static_cast<uint64_t>(nn), edge_epoch_count);
+            ::ecg_metadata::announce(ecg_meta, "gem5-pr");
+            if (ecg_meta.packed_fits &&
+                ecg_meta.delivery == ::ecg_metadata::Delivery::PackedRecord) {
                 packed_off.assign(static_cast<size_t>(nn) + 1, 0);
                 for (uint32_t u = 0; u < nn; u++)
                     packed_off[u + 1] = packed_off[u] +
@@ -314,9 +322,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                        "id_bits=%u epoch_bits=%u (4-byte contiguous, no separate "
                        "mask array)\n", pack_id_bits, epoch_bits);
             } else {
+                // The SSOT says a packed record cannot substitute for the
+                // edge here. A contiguous narrow sidecar is the correct
+                // fallback; the historical scattered per-vertex mask array is
+                // strictly worse and is what this branch used to take.
                 printf("[gem5 ECG mode 6] packed record OFF: id_bits=%u + "
-                       "epoch_bits=%u > 32; using scattered mask fallback\n",
-                       pack_id_bits, epoch_bits);
+                       "epoch_bits=%u > 32; sidecar payload=%d bits "
+                       "(was: scattered mask fallback)\n",
+                       pack_id_bits, epoch_bits, ecg_meta.payload_bits);
             }
         }
         }

@@ -157,3 +157,58 @@ def test_every_cache_sim_kernel_uses_the_metadata_ssot():
                      "GraphSimEcgRecordBytes("):
             assert dead not in src, (
                 f"{kernel} still carries the superseded {dead}")
+
+
+def test_all_three_simulators_share_the_metadata_ssot():
+    """cache_sim, gem5 and Sniper must derive width and structure from one header.
+
+    ecg_victim_policy.h owns the eviction DECISION and is kept identical across
+    the three by copying it into each overlay and hash-checking the copies.
+    ecg_metadata.h owns TRANSPORT, and because it is consumed by the guest
+    kernels rather than by simulator internals, all three can include the
+    canonical file directly via -I bench/include. There is therefore nothing to
+    copy and nothing that can drift -- but only as long as each simulator
+    actually uses it, which is what this asserts.
+    """
+    canonical = ROOT / "bench/include/ecg_metadata.h"
+    assert canonical.is_file(), "metadata SSOT header is missing"
+
+    consumers = {
+        "cache_sim": [ROOT / f"bench/src_sim/{k}.cc"
+                      for k in ("pr", "bfs", "cc", "bc", "sssp")],
+        "gem5": [ROOT / "bench/src_gem5/pr.cc"],
+        "sniper": [ROOT / "bench/src_sniper/sg_kernel.cc"],
+    }
+    for sim, paths in consumers.items():
+        for path in paths:
+            src = path.read_text()
+            assert "ecg_metadata.h" in src or "::ecg_metadata::" in src, (
+                f"{sim} source {path.name} does not use the metadata SSOT")
+
+    # No simulator may keep a private width rule.
+    for path in [p for paths in consumers.values() for p in paths]:
+        src = path.read_text()
+        assert "GraphSimEcgRecordBytes(" not in src, (
+            f"{path.name} still computes record width locally")
+
+
+def test_metadata_ssot_has_no_simulator_dependencies():
+    """It must stay includable by guest kernels on every backend.
+
+    Checks code, not prose: the header names the simulators in its own
+    documentation, which is fine. What must not appear is an include of, or a
+    type from, any one backend.
+    """
+    lines = (ROOT / "bench/include/ecg_metadata.h").read_text().splitlines()
+    code = "\n".join(
+        l for l in lines if not l.lstrip().startswith("//"))
+    for forbidden in ("cache_sim.h", "graph_sim.h", "CacheHierarchy",
+                      "SimArray", "m5op", "sift"):
+        assert forbidden not in code, (
+            f"metadata SSOT depends on {forbidden}, so it is no longer "
+            "backend-neutral")
+    # Only standard headers.
+    includes = [l for l in lines if l.lstrip().startswith("#include")]
+    assert includes, "header includes nothing at all"
+    for inc in includes:
+        assert "<" in inc, f"non-standard include in the SSOT: {inc.strip()}"

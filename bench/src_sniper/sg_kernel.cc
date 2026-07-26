@@ -27,6 +27,7 @@
 // Shared per-edge next-ref epoch builder (SNIPER_ECG_EXTRACT delivery; same SSOT as
 // cache_sim/gem5).
 #include "ecg_epoch_builder.h"
+#include "ecg_metadata.h"
 
 // File-backed kernel diagnostic target. Native execution is intentionally kept
 // lightweight for checking .sg parameters and sideband export. Do not use this
@@ -366,8 +367,12 @@ int run_pr(const Graph& graph, int max_iters) {
         while (epoch_bits < 16 &&
                (uint32_t{1} << epoch_bits) < ecg_epoch_count)
             ++epoch_bits;
-        if (ecg_extract_on && ecg_sched_k != 2 &&
-            epoch_pack_id_bits + epoch_bits <= 32) {
+        // Width and structure come from the shared metadata SSOT, the same
+        // header cache_sim and gem5 use, so the three cannot disagree about
+        // record width or whether a packed record fits.
+        const auto ecg_meta = ::ecg_metadata::configure(nn, ecg_epoch_count);
+        ::ecg_metadata::announce(ecg_meta, "sniper-sg_kernel");
+        if (ecg_extract_on && ecg_sched_k != 2 && ecg_meta.packed_fits) {
             epoch_pack_id_mask = (uint32_t{1} << epoch_pack_id_bits) - 1;
             epoch_packed_off.assign(static_cast<size_t>(nn) + 1, 0);
             for (uint32_t u = 0; u < nn; ++u)
