@@ -2878,7 +2878,21 @@ public:
         std::lock_guard<std::mutex> lock(prefetch_mutex_);
         return prefetched_lines_.size();
     }
+    // Off-chip READ traffic only: demand fills plus prefetch fills. This
+    // deliberately excludes dirty writebacks, which are a separate direction of
+    // memory-controller traffic; see getTotalOffChipTraffic().
     uint64_t getTotalMemoryTraffic() const { return memory_accesses_ + prefetch_fills_; }
+
+    // Dirty LLC evictions written back to memory. A policy that retains dirty
+    // lines longer, or that changes which lines are resident at all, changes
+    // this independently of the read stream, so a read-only total can rank
+    // write-heavy kernels such as PageRank and CC incorrectly.
+    uint64_t getWritebackTraffic() const { return l3_->getStats().writebacks.load(); }
+
+    // The frozen primary metric: memory-controller lines in BOTH directions.
+    uint64_t getTotalOffChipTraffic() const {
+        return getTotalMemoryTraffic() + getWritebackTraffic();
+    }
 
     // Print statistics
     void printStats(std::ostream& os = std::cout) const {
@@ -2929,6 +2943,8 @@ public:
         ss << "  \"prefetch_mtlb_misses\": " << pfx_mtlb_misses_ << ",\n";
         ss << "  \"prefetch_pending\": " << getPrefetchPending() << ",\n";
         ss << "  \"total_memory_traffic\": " << getTotalMemoryTraffic() << ",\n";
+        ss << "  \"llc_writebacks\": " << getWritebackTraffic() << ",\n";
+        ss << "  \"total_offchip_traffic\": " << getTotalOffChipTraffic() << ",\n";
         ss << "  \"popt_matrix_stream_lines_simulated\": "
            << popt_stream_lines_ << ",\n";
         ss << "  \"popt_matrix_stream_columns_simulated\": "

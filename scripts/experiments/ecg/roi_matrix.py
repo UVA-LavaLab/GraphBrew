@@ -1244,6 +1244,12 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         "prefetch_distinct_pages_2m",
         "prefetch_mtlb_entries",
         "prefetch_mtlb_misses",
+        # Off-chip traffic in BOTH directions. total_memory_traffic counts
+        # reads only; a policy that changes which dirty lines are resident
+        # changes writebacks independently, which can reorder write-heavy
+        # kernels such as PageRank and CC.
+        "llc_writebacks",
+        "total_offchip_traffic",
         # Prefetcher provenance: the model actually used plus its issue,
         # throttle and training counts, so an oracle row cannot be mistaken
         # for an honest one and an unbounded issue rate is visible.
