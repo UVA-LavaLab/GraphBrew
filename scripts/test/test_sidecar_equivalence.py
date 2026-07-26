@@ -289,3 +289,47 @@ def test_cache_sim_and_gem5_derive_identical_width(stamps):
         assert sn == cs, (
             f"Sniper disagrees on record width at stamps={stamps}:\n"
             f"  cache_sim: {cs}\n  sniper   : {sn}")
+
+
+def test_declared_timing_stages_pass_overrides_through_the_sanctioned_channel():
+    """A stage cannot set ECG_* directly; roi_matrix scrubs them.
+
+    roi_matrix deliberately strips every ECG_* variable from a cell's
+    environment so the mechanism is set by the runner and never inherited from
+    ambient state. That hygiene rule is good, but it silently swallowed the
+    record-width override when it was placed in the stage env: the '4b' arm ran
+    with 8-byte records and packed_fits=1, i.e. it measured the wrong thing
+    while looking correct. The sanctioned channel is GRAPHBREW_EXPLICIT_CELL_ENV,
+    applied after the scrub on all three simulator paths.
+    """
+    manifest = json.loads(
+        (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+    stages = [s for s in manifest["stages"]
+              if str(s.get("name", "")).startswith("31_gem5_record_width_timing")]
+    assert stages, "the declared record-width timing stages are missing"
+
+    # Variables roi_matrix explicitly re-reads from os.environ survive the
+    # scrub; variables consumed only by the guest binary do not. The width
+    # controls are in the second group, which is why they must travel in the
+    # explicit channel.
+    guest_only = {"ECG_RECORD_VARIABLE_WIDTH", "ECG_EDGE_RECORD_BYTES",
+                  "ECG_SIDECAR_PAYLOAD_BITS", "ECG_RECORD_TIER_BITS",
+                  "ECG_DELIVERY", "ECG_VIRTUAL_ID_BITS"}
+    for stage in stages:
+        env = stage.get("env", {})
+        for key in env:
+            assert key not in guest_only, (
+                f"{stage['name']} sets {key} directly in its stage env, where "
+                "roi_matrix will scrub it before the guest ever sees it; "
+                "use GRAPHBREW_EXPLICIT_CELL_ENV")
+        explicit = json.loads(env.get("GRAPHBREW_EXPLICIT_CELL_ENV", "{}"))
+        assert explicit.get("ECG_RECORD_VARIABLE_WIDTH") == "1", (
+            f"{stage['name']} does not request variable width, so a two-stamp "
+            "record would be forced to 8 bytes by the Schedule-2 default")
+        if stage["name"].endswith("_8b"):
+            assert explicit.get("ECG_EDGE_RECORD_BYTES") == "8", (
+                "the 8-byte arm must force the width, or both arms measure "
+                "the same thing")
+        else:
+            assert "ECG_EDGE_RECORD_BYTES" not in explicit, (
+                f"{stage['name']} forces a width, so it is not the packed arm")
