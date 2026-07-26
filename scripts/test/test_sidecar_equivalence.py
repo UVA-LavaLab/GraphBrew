@@ -135,3 +135,25 @@ def test_sidecar_width_is_independent_of_graph_size():
     assert "id_bits" not in body, (
         "the sidecar payload includes destination id bits it does not need; "
         "the CSR edge already carries the destination")
+
+
+def test_every_cache_sim_kernel_uses_the_metadata_ssot():
+    """All five algorithms must share one delivery site, on every simulator.
+
+    The paper's foundation is a 15-cell conformance gate, so a kernel that
+    delivers metadata its own way is a correctness risk, not just untidy. These
+    checks fail if any kernel drifts back to a private chain.
+    """
+    for kernel in ("pr", "bfs", "cc", "bc", "sssp"):
+        src = (ROOT / f"bench/src_sim/{kernel}.cc").read_text()
+        assert "::ecg_metadata::configure(" in src, (
+            f"{kernel} does not configure delivery from the SSOT")
+        assert "SIM_ECG_EDGE(" in src, (
+            f"{kernel} does not use the single delivery site")
+        assert "::ecg_metadata::announce(" in src, (
+            f"{kernel} emits no configuration receipt")
+        for dead in ("SIM_CACHE_READ_EDGE_RECORD(",
+                     "SIM_CACHE_READ_EDGE_RECORD_BYPASS(",
+                     "GraphSimEcgRecordBytes("):
+            assert dead not in src, (
+                f"{kernel} still carries the superseded {dead}")

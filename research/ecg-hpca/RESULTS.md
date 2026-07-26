@@ -866,6 +866,74 @@ is a transport-cost result only and carries no claim that S2 preserves K2's
 semantics. The pressure and cache-colour sensitivity sweeps in the registered
 kill criterion are also outstanding.
 
+### BASELINE: cache_sim, all five algorithms on one metadata SSOT
+
+All five cache_sim kernels now configure delivery from `ecg_metadata.h` and
+deliver through one site, so structure, width and placement cannot differ
+between kernels. Each emits a receipt, and all five agree:
+
+    [ECG-METADATA kernel=... delivery=packed stamps=2 epoch_bits=5 tier_bits=2
+     id_bits=16 record_bytes=8 payload_bits=12 bytes_per_edge=8.000 ...
+     packed_fits=1]
+
+Note what the receipt exposes: `packed_fits=1` with `record_bytes=8`. The
+two-stamp record *does* fit in 4 bytes here and is nonetheless charged 8, by
+the Schedule-2 default. That inconsistency was invisible before the receipt
+existed, and it is the defect that drove several earlier reversals.
+
+**Semantic gate, all five kernels.** With metadata uncharged, the packed record
+and the sidecar must be indistinguishable, because transport is removed and only
+the stamps remain. They are, exactly:
+
+| kernel | uncharged packed | uncharged sidecar |
+|---|---:|---:|
+| pr | 85,932 | 85,932 |
+| bfs | 156,461 | 156,461 |
+| cc | 84,333 | 84,333 |
+| bc | 1,466,547 | 1,466,547 |
+| sssp | 101,159 | 101,159 |
+
+Identical L3 misses and writebacks in every case. Since the 15-cell conformance
+gate verifies the eviction DECISION rather than how epochs were transported, a
+structure that provably delivers identical stamps preserves conformance by
+construction. That is what makes S2 admissible across three simulators.
+
+**The baseline.** web-Google-n16, 128 kB LLC, 32 kB/256 kB private, no
+prefetcher, ASLR disabled, off-chip traffic in both directions, versus LRU:
+
+| kernel | LRU (lines) | GRASP | S1 4 B | S1 8 B | S2 6 bits |
+|---|---:|---:|---:|---:|---:|
+| pr | 130,189 | 0.835 | **0.657** | 1.164 | 0.763 |
+| bfs | 149,459 | **0.829** | 1.007 | 1.538 | 1.323 |
+| cc | 102,832 | **0.790** | 0.812 | 1.112 | 0.979 |
+| bc | 1,340,196 | **0.910** | 1.092 | 1.145 | 1.204 |
+| sssp | 140,514 | 0.762 | **0.546** | 0.714 | 1.033 |
+| **geomean** | | 0.824 | **0.796** | 1.102 | 1.042 |
+
+Four readings.
+
+1. **A 4-byte packed record is the best structure overall** (0.796 against
+   GRASP's 0.824), and wins outright on PageRank (0.657) and SSSP (0.546).
+2. **GRASP wins the three traversal kernels**, so no general K2 lead exists.
+   K2's advantage is concentrated where property reuse is high.
+3. **S2 is the better fallback exactly where the packed record must widen.**
+   Where S1 spills to 8 bytes, S2 at a 6-bit payload is better on pr (0.763 vs
+   1.164), bfs (1.323 vs 1.538) and cc (0.979 vs 1.112).
+4. **SSSP inverts that, and the inversion is structural, not noise.** Its edge
+   is an 8-byte weighted node, so an 8-byte packed record still SUBSTITUTES for
+   the edge and stays free (0.714), while a sidecar adds a second stream on top
+   of it (1.033). The SSOT encodes this as a feasibility rule: a packed record
+   is only usable when it can genuinely replace the edge, and delivery
+   downgrades to a sidecar when it cannot.
+
+So the structure choice is not global but per edge format: substitute when the
+metadata fits inside the edge the kernel already reads, sidecar when it does
+not. That is a sharper design statement than "K2 wins" and it is what the three
+simulator ports must now reproduce.
+
+Scope: one graph, one LLC size, no prefetcher, cache_sim traffic only. This is
+the baseline gem5 and Sniper will be measured against, not a headline.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows

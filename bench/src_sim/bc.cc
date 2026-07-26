@@ -84,7 +84,8 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             cout << "BC: OUT-edge per-edge masks enabled (forward push/out)" << endl;
         }
     }
-    const bool record_charged = GraphSimEcgEdgeRecord() &&
+    const bool ecg_record = GraphSimEcgEdgeRecord();
+    const bool record_charged = ecg_record &&
         GraphSimEnvIntClamped("ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
     const bool stream_bypass =
         GraphSimEnvIntClamped("ECG_STREAM_BYPASS", 0, 0, 1) > 0;
@@ -95,8 +96,11 @@ void BCBFS_Sim(const Graph &g, NodeID source,
            (uint32_t(1) << epoch_bits) < edge_epochs) {
         ++epoch_bits;
     }
-    const int record_bytes = GraphSimEcgRecordBytes(
-        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    const auto ecg_meta = ::ecg_metadata::configure(
+        static_cast<uint64_t>(g.num_nodes()), edge_epochs);
+    const int record_bytes = ecg_meta.record_bytes;
+    (void)record_bytes; (void)epoch_bits;
+    ::ecg_metadata::announce(ecg_meta, "bc");
     NodeID* out_edge_base = g.num_nodes() > 0
         ? g.out_neigh(0).begin() : nullptr;
 
@@ -165,16 +169,12 @@ void BCBFS_Sim(const Graph &g, NodeID source,
             auto out_neigh = g.out_neigh(u);
             for (auto edge_it = out_neigh.begin();
                  edge_it != out_neigh.end(); ++edge_it) {
-                if (record_charged && stream_bypass) {
-                    SIM_CACHE_READ_EDGE_RECORD_BYPASS(
-                        cache, edge_it, out_edge_base,
-                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-                } else if (record_charged) {
-                    SIM_CACHE_READ_EDGE_RECORD(
-                        cache, edge_it, out_edge_base,
-                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-                } else {
+                if (!ecg_record) {
                     SIM_CACHE_READ_EDGE(cache, edge_it);
+                } else {
+                    SIM_ECG_EDGE(cache, ecg_meta, edge_it, out_edge_base,
+                                 ::ecg_metadata::kOutRecordBase,
+                                 ::ecg_metadata::kOutSidecarBase);
                 }
                 NodeID v = *edge_it;
                 // Resolve this edge's mask once (sets the epoch) and reuse for both the

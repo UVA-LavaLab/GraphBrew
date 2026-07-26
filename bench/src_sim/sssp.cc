@@ -39,8 +39,9 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
                            int pfx_lookahead, int pfx_top_k,
                            bool record_charged, bool stream_bypass,
                            bool compact_weighted,
-                           int record_bytes,
+                           const ::ecg_metadata::Config &ecg_meta,
                            WNode* out_edge_base) {
+    (void)compact_weighted; (void)stream_bypass;
     auto out_neigh = g.out_neigh(u);
     // ECG_EDGE_MASKS: consume the OUT-edge per-edge masks (transpose-correct — the
     // epoch is the next in-neighbour of dest > u, i.e. the next reader of dist[dest])
@@ -52,25 +53,17 @@ inline void RelaxEdges_Sim(const WGraph &g, NodeID u, WeightT delta,
         // The weighted CSR record remains an 8-byte baseline demand. Charged
         // ECG additionally reads its packed metadata record; uncharged ISA
         // delivery leaves the baseline stream unchanged.
-        if (record_charged && compact_weighted && stream_bypass) {
-            SIM_CACHE_READ_EDGE_RECORD_BYPASS(
-                cache, it, out_edge_base,
-                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-        } else if (record_charged && compact_weighted) {
-            SIM_CACHE_READ_EDGE_RECORD(
-                cache, it, out_edge_base,
-                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-        } else {
+        // One delivery site. When the compact weighted record is feasible it
+        // SUBSTITUTES for the 8-byte weighted edge; when it is not, the SSOT
+        // has already downgraded delivery to a sidecar, which reads the edge
+        // normally and adds a narrow entry. Previously these were two separate
+        // if/else chains that had to agree.
+        if (!record_charged) {
             SIM_CACHE_READ_EDGE(cache, it);
-        }
-        if (record_charged && !compact_weighted && stream_bypass) {
-            SIM_CACHE_READ_EDGE_RECORD_BYPASS(
-                cache, it, out_edge_base,
-                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-        } else if (record_charged && !compact_weighted) {
-            SIM_CACHE_READ_EDGE_RECORD(
-                cache, it, out_edge_base,
-                GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
+        } else {
+            SIM_ECG_EDGE(cache, ecg_meta, it, out_edge_base,
+                         ::ecg_metadata::kOutRecordBase,
+                         ::ecg_metadata::kOutSidecarBase);
         }
         WNode wn = *it;
         if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
@@ -229,10 +222,15 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
             }
         }
     }
-    const int record_bytes = compact_weighted
-        ? 8
-        : GraphSimEcgWeightedSidecarBytes(
-            static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    auto ecg_meta = ::ecg_metadata::configure(
+        static_cast<uint64_t>(g.num_nodes()), edge_epochs);
+    // The compact weighted record must actually pack dest+weight+stamps; when
+    // it cannot, the SSOT downgrades delivery to a sidecar rather than dropping
+    // the metadata.
+    ::ecg_metadata::requirePackedFeasible(ecg_meta, compact_weighted);
+    ::ecg_metadata::announce(ecg_meta, "sssp");
+    const int record_bytes = ecg_meta.record_bytes;
+    (void)record_bytes; (void)epoch_bits;
     if (compact_weighted) {
         std::fprintf(
             stderr,
@@ -275,7 +273,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                                    graph_ctx, vertex_masks, pfx_lookahead,
                                    pfx_top_k, record_charged, stream_bypass,
                                    compact_weighted,
-                                   record_bytes,
+                                   ecg_meta,
                                    out_edge_base);
             }
 
@@ -293,7 +291,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
                                    graph_ctx, vertex_masks, pfx_lookahead,
                                    pfx_top_k, record_charged, stream_bypass,
                                    compact_weighted,
-                                   record_bytes,
+                                   ecg_meta,
                                    out_edge_base);
                 }
             }

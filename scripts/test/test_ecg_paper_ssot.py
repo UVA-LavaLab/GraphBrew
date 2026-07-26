@@ -472,9 +472,10 @@ def test_k2_cache_sim_paths_do_not_build_popt_matrix():
         source = (ROOT / relative).read_text()
         assert "GraphSimMatrixFreeK2" in source, relative
     bfs = (ROOT / "bench/src_sim/bfs.cc").read_text()
-    assert bfs.count("SIM_CACHE_READ_EDGE_RECORD(") == 2
-    assert bfs.count("SIM_CACHE_READ_EDGE_RECORD_BYPASS(") == 2
-    assert bfs.count("GraphSimEcgRecordBytes") == 2
+    # One delivery site per direction (top-down and bottom-up), both routed
+    # through the metadata SSOT rather than each spelling out its own chain.
+    assert bfs.count("SIM_ECG_EDGE(") == 2
+    assert bfs.count("::ecg_metadata::configure(") == 2
     assert bfs.index("cache.resetStats();") < bfs.index(
         "SlidingQueue<NodeID> queue")
     pr = (ROOT / "bench/src_sim/pr.cc").read_text()

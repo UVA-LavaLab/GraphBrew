@@ -272,8 +272,8 @@ def test_k2_transport_supports_full_algorithm_suite():
     cache_sssp = read("bench/src_sim/sssp.cc")
     cache_bc = read("bench/src_sim/bc.cc")
     cache_cc = read("bench/src_sim/cc.cc")
-    assert "SIM_CACHE_READ_EDGE_RECORD" in cache_sssp
-    assert "SIM_CACHE_READ_EDGE_RECORD" in cache_bc
+    assert "SIM_ECG_EDGE" in cache_sssp
+    assert "SIM_ECG_EDGE" in cache_bc
     assert "buildOutEdgeMasks(g)" in cache_cc
     assert "resolveEdgeMaskAndEpoch(" in cache_cc
 
@@ -378,7 +378,10 @@ def test_streamshield_is_generic_across_k2_kernels():
     for kernel in ("bfs", "sssp", "bc", "cc"):
         cache_sim = read(f"bench/src_sim/{kernel}.cc")
         gem5 = read(f"bench/src_gem5/{kernel}.cc")
-        assert "SIM_CACHE_READ_EDGE_RECORD_BYPASS" in cache_sim, kernel
+        # StreamShield is now applied by the single SSOT delivery site, which
+        # reads ECG_STREAM_BYPASS once, instead of each kernel spelling out a
+        # bypass branch of its own.
+        assert "SIM_ECG_EDGE" in cache_sim, kernel
         assert "gem5_ecg_stream_load2_enabled()" in gem5, kernel
         expected_load = (
             "gem5_ecg_stream_weighted_load2_instruction"

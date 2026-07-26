@@ -36,8 +36,11 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
            (uint32_t(1) << epoch_bits) < edge_epochs) {
         ++epoch_bits;
     }
-    const int record_bytes = GraphSimEcgRecordBytes(
-        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    const auto ecg_meta = ::ecg_metadata::configure(
+        static_cast<uint64_t>(g.num_nodes()), edge_epochs);
+    const int record_bytes = ecg_meta.record_bytes;
+    (void)record_bytes; (void)epoch_bits;
+    ::ecg_metadata::announce(ecg_meta, "bfs");
     const bool record_charged = ecg_record &&
         GraphSimEnvIntClamped(
             "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
@@ -65,15 +68,10 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
                 graph_ctx.edgeMaskReady(EdgeMaskDir::IN, (uint32_t)u, (size_t)g.in_degree(u));
             size_t edge_pos = 0;
             for (auto it = in_neigh.begin(); it != in_neigh.end(); ++it, ++edge_pos) {
-                if (record_charged && stream_bypass)
-                    SIM_CACHE_READ_EDGE_RECORD_BYPASS(
-                        cache, it, in_edge_base,
-                        GRAPH_SIM_IN_RECORD_BASE, record_bytes);
-                else if (record_charged)
-                    SIM_CACHE_READ_EDGE_RECORD(
-                        cache, it, in_edge_base,
-                        GRAPH_SIM_IN_RECORD_BASE, record_bytes);
-                else SIM_CACHE_READ_EDGE(cache, it);
+                if (!ecg_record) SIM_CACHE_READ_EDGE(cache, it);
+                else SIM_ECG_EDGE(cache, ecg_meta, it, in_edge_base,
+                                  ::ecg_metadata::kInRecordBase,
+                                  ::ecg_metadata::kInSidecarBase);
                 NodeID v = *it;
                 if (use_in_edge_masks) {
                     uint32_t m = graph_ctx.resolveEdgeMaskAndEpoch(
@@ -114,8 +112,11 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
            (uint32_t(1) << epoch_bits) < edge_epochs) {
         ++epoch_bits;
     }
-    const int record_bytes = GraphSimEcgRecordBytes(
-        static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+    const auto ecg_meta = ::ecg_metadata::configure(
+        static_cast<uint64_t>(g.num_nodes()), edge_epochs);
+    const int record_bytes = ecg_meta.record_bytes;
+    (void)record_bytes; (void)epoch_bits;
+    ::ecg_metadata::announce(ecg_meta, "bfs");
     const bool record_charged = ecg_record &&
         GraphSimEnvIntClamped(
             "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
@@ -139,15 +140,10 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
             const size_t u_outdeg = (size_t)g.out_degree(u);
             size_t edge_pos = 0;
             for (auto it = out_neigh.begin(); it != out_neigh.end(); ++it, ++edge_pos) {
-                if (record_charged && stream_bypass)
-                    SIM_CACHE_READ_EDGE_RECORD_BYPASS(
-                        cache, it, out_edge_base,
-                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-                else if (record_charged)
-                    SIM_CACHE_READ_EDGE_RECORD(
-                        cache, it, out_edge_base,
-                        GRAPH_SIM_OUT_RECORD_BASE, record_bytes);
-                else SIM_CACHE_READ_EDGE(cache, it);
+                if (!ecg_record) SIM_CACHE_READ_EDGE(cache, it);
+                else SIM_ECG_EDGE(cache, ecg_meta, it, out_edge_base,
+                                  ::ecg_metadata::kOutRecordBase,
+                                  ::ecg_metadata::kOutSidecarBase);
                 NodeID v = *it;
                 if (pfx_lookahead > 0 && graph_ctx.mask_config.prefetch_mode > 0) {
                     if (graph_ctx.mask_config.prefetch_mode == 3) {

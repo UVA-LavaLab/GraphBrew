@@ -158,6 +158,15 @@ inline uint64_t sidecarAddress(
     return base + ((edge_index * static_cast<uint64_t>(c.payload_bits)) >> 3);
 }
 
+// A packed record can only SUBSTITUTE for the edge if the kernel can actually
+// pack destination, and for weighted graphs the weight, alongside the stamps.
+// SSSP checks that per graph. When it fails, the metadata cannot ride in place
+// of the edge and must travel as a sidecar; it must never silently vanish.
+inline void requirePackedFeasible(Config& c, bool feasible) {
+    if (!feasible && c.delivery == Delivery::PackedRecord)
+        c.delivery = Delivery::Sidecar;
+}
+
 inline const char* deliveryName(const Config& c) {
     switch (c.delivery) {
         case Delivery::PackedRecord: return "packed";
