@@ -991,6 +991,66 @@ Whether the hidden latency on PageRank translates into speedup is still
 unmeasured, and cache_sim cannot answer it: its fills are synchronous and free,
 with no MLP, lateness, bandwidth or MSHR model. That requires gem5.
 
+### THE TRADE: K2 converts exposed-latency misses into prefetchable traffic
+
+The traffic ratios treat every line as equal. They are not. Decomposing L3
+misses into PROPERTY (irregular, vertex-indexed) and STRUCTURAL (sequential edge
+and record stream) on web-Google-n16 PageRank shows what K2 actually does:
+
+| config | L3 misses | property | structural | property share |
+|---|---:|---:|---:|---:|
+| LRU | 128,970 | 66,152 | 62,818 | 51.3% |
+| K2 4 B | 85,082 | **22,049** | 63,033 | 25.9% |
+| K2 8 B | 150,832 | 25,041 | 125,791 | 16.6% |
+
+K2 at 4 bytes cuts property misses by **67%** while leaving the structural
+stream essentially unchanged (62,818 to 63,033), because a 4-byte record
+substitutes for the 4-byte edge. At 8 bytes the property win survives but the
+structural stream doubles, which is the entire penalty.
+
+**The two streams do not cost the same, because only one is prefetchable.**
+With the honest detector active:
+
+| config | exposed demand misses | property | structural | prefetch fills |
+|---|---:|---:|---:|---:|
+| LRU | 66,354 | 61,185 | 5,169 | 62,931 |
+| K2 4 B | **23,788** | 18,089 | 5,699 | 62,126 |
+| K2 8 B | 29,428 | 21,053 | 8,375 | 122,560 |
+
+The structural stream is about **92% prefetchable** (62,818 down to 5,169 for
+LRU); the property stream is about **8%** (66,152 down to 61,185). Latency
+exposure therefore lives almost entirely in the property stream, which is
+exactly the stream K2 shrinks.
+
+Consequently **K2 at 4 bytes exposes 64% fewer demand misses to full DRAM
+latency than LRU** (23,788 against 66,354). Even K2 at 8 bytes exposes **56%
+fewer** (29,428) *while using 17% more total bandwidth*. The bandwidth trade and
+the latency trade point in opposite directions.
+
+**So the answer to "is the trade zero-sum?" is no, and which way it resolves
+depends on whether the memory system is bandwidth-saturated.**
+
+- If **bandwidth-saturated**, traffic is the binding constraint and K2 at 8
+  bytes loses by its 17% traffic increase.
+- If **latency-bound with spare bandwidth**, the binding constraint is exposed
+  misses and K2 wins substantially, at either width, because the extra edge
+  traffic lands in the stream a prefetcher already covers.
+
+cache_sim cannot settle this: it has no time, no DRAM model and no bandwidth
+ceiling, so it cannot report utilisation. An order-of-magnitude estimate
+suggests headroom -- 130,189 lines is about 8.3 MB of traffic for the whole
+2-iteration kernel, which against a single-core achievable bandwidth of order
+10 GB/s implies utilisation of a few percent -- but that is an estimate from a
+model that does not simulate time, not a measurement, and it must not be quoted
+as one.
+
+This is the specific question the gem5 matrix now exists to answer, and it is
+pre-registered here: **measure achieved DRAM bandwidth utilisation alongside
+execution time.** If utilisation is low, the exposed-miss reduction should
+appear as speedup at both record widths. If it is high, the 8-byte width should
+lose in proportion to its traffic. Either outcome is informative, and the
+prediction is stated before the run.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows
