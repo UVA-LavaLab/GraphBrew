@@ -41,7 +41,7 @@ DEP_CACHE := $(wildcard $(INCLUDE_CACHE)/*.h) \
 	$(INC_DIR)/ecg_mode6_builder.h \
 	$(INC_DIR)/ecg_epoch_builder.h
 
-KERNELS_SIM := pr pr_spmv bfs bc cc cc_sv sssp tc ecg_preprocess
+KERNELS_SIM := pr pr_spmv bfs bc cc cc_sv sssp tc ecg_preprocess test_ecg_epoch_pair32
 KERNELS_GEM5 := pr pr_spmv bfs sssp cc cc_sv bc tc
 KERNELS_SNIPER := sg_kernel pr bfs sssp bc cc cc_sv \
 	pr_kernel_smoke bfs_kernel_smoke sssp_kernel_smoke hello_roi

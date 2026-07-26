@@ -462,3 +462,28 @@ def test_width_contrast_stages_are_scoped_to_what_gem5_implements():
         want = "8" if stage["name"].endswith("_8b") else "4"
         assert stage["env"].get("ECG_EXPECT_BYTES_PER_EDGE") == want, (
             f"{stage['name']} does not assert the width it claims")
+
+
+def test_compact_records_decode_identically_to_the_64_bit_form():
+    """Per-record proof, not an output hash.
+
+    Semantic transparency was first argued from identical top-20 PageRank
+    scores, which is weak: replacement metadata cannot change PageRank values
+    even if every epoch is wrong. This compares every compact record against the
+    64-bit record built from the same graph, field by field, across several
+    epoch counts.
+    """
+    binary = ROOT / "bench/bin_sim/test_ecg_epoch_pair32"
+    graph = ROOT / "results/graphs/web-Google-n16/web-Google-n16.sg"
+    if not (binary.exists() and graph.exists()):
+        pytest.skip("epoch-pair equivalence harness or graph fixture missing")
+    env = dict(os.environ, OMP_NUM_THREADS="4")
+    proc = subprocess.run([str(binary), "-f", str(graph)],
+                          env=env, capture_output=True, text=True, timeout=900)
+    out = proc.stdout + proc.stderr
+    assert proc.returncode == 0, f"compact/64-bit records diverge:\n{out[-2000:]}"
+    assert "ALL EQUIVALENT" in out, out[-2000:]
+    # Guard against a vacuous pass if the builder silently refused every size.
+    assert out.count("records checked") >= 3, (
+        "too few epoch counts exercised; the compact builder may be refusing "
+        f"to pack:\n{out[-1000:]}")
