@@ -276,3 +276,16 @@ def test_cache_sim_and_gem5_derive_identical_width(stamps):
     assert cs == g5, (
         f"backends disagree on record width at stamps={stamps}:\n"
         f"  cache_sim: {cs}\n  gem5     : {g5}")
+
+    # Sniper's workload is a third independent consumer of the same header.
+    sniper = ROOT / "bench/bin_sniper/sg_kernel"
+    if sniper.exists():
+        sn_env = dict(shared)
+        sn_env["SNIPER_ENABLE_ECG_EXTRACT"] = 1
+        sn = _receipt(
+            [str(sniper), "--benchmark", "pr", "-f", str(GRAPH), "-i", "1"],
+            sn_env)
+        assert sn is not None, "Sniper emitted no metadata receipt"
+        assert sn == cs, (
+            f"Sniper disagrees on record width at stamps={stamps}:\n"
+            f"  cache_sim: {cs}\n  sniper   : {sn}")
