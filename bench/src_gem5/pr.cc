@@ -192,6 +192,10 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     pvector<uint32_t> in_edge_packed_flat;
     vector<uint64_t> packed_off;
     pvector<uint64_t> in_edge_pair_flat;
+    pvector<uint32_t> in_edge_pair32_flat;
+    bool pair32_ok = false;
+    uint32_t pair32_id_bits = 1, pair32_epoch_bits = 1;
+    bool use_compact_pair = false;
     vector<uint64_t> pair_off;
     uint32_t pack_id_bits = 1, pack_id_mask = 1;
     bool packed_ok = false;
@@ -217,15 +221,49 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         {
             auto ecg_meta = ::ecg_metadata::configure(
                 static_cast<uint64_t>(g.num_nodes()), edge_epoch_count);
-            // gem5's Schedule-2 path materialises the record as
-            // pvector<uint64_t>, so it streams 8 bytes per edge whatever the
-            // bit budget computes. Declare the real container so the receipt
-            // reports what the guest actually moves.
+            // The SSOT decides the width and BOTH the budget and the container
+            // must agree: a compact record is used only when the shared rule
+            // asks for 4 bytes AND the fields actually fit. Letting gem5 decide
+            // on feasibility alone made it stream 4 bytes while cache_sim
+            // streamed 8 -- the same divergence as before, inverted.
+            use_compact_pair =
+                ecg_sched_k == 2 && ecg_meta.record_bytes == 4 &&
+                ecg_epoch::canPackEpochPair32(
+                    static_cast<uint32_t>(g.num_nodes()), edge_epoch_count);
             if (ecg_sched_k == 2)
-                ::ecg_metadata::declareContainerBytes(ecg_meta, 8);
+                ::ecg_metadata::declareContainerBytes(
+                    ecg_meta, use_compact_pair ? 4 : 8);
             ::ecg_metadata::announce(ecg_meta, "gem5-pr");
         }
         if (ecg_sched_k == 2) {
+            // Prefer the COMPACT 32-bit two-stamp record when the fields fit.
+            // The 64-bit form always costs 8 bytes per edge and so doubles the
+            // structural stream against a 4-byte CSR edge; the compact form
+            // SUBSTITUTES for that edge, which is the width cache_sim models.
+            std::vector<uint32_t> pair32;
+            if (use_compact_pair &&
+                ecg_epoch::buildInEdgeEpochPairRecords32(
+                    g, kNumVtxPerLine, edge_epoch_count, true,
+                    pair_off, pair32)) {
+                in_edge_pair32_flat = pvector<uint32_t>(
+                    pair32.size(), uint32_t(0), 4096);
+                std::copy(pair32.begin(), pair32.end(),
+                          in_edge_pair32_flat.begin());
+                pair32_ok = true;
+                pair_ok = true;
+                pair32_id_bits = ecg_epoch::epochPair32IdBits(
+                    static_cast<uint32_t>(g.num_nodes()));
+                pair32_epoch_bits =
+                    ecg_epoch::epochPair32EpochBits(edge_epoch_count);
+                printf("[gem5 ECG mode 6] Schedule-2 COMPACT record ON: "
+                       "ne=%u records=%llu id_bits=%u epoch_bits=%u "
+                       "(4-byte, substitutes for the CSR edge)\n",
+                       edge_epoch_count,
+                       (unsigned long long)in_edge_pair32_flat.size(),
+                       ecg_epoch::epochPair32IdBits(
+                           static_cast<uint32_t>(g.num_nodes())),
+                       ecg_epoch::epochPair32EpochBits(edge_epoch_count));
+            } else {
             std::vector<uint64_t> pair_records;
             ecg_epoch::buildInEdgeEpochPairRecords(
                 g, kNumVtxPerLine, edge_epoch_count, true,
@@ -241,6 +279,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                    "(8-byte dest32+tier2+epoch15+epoch15)\n",
                    edge_epoch_count,
                    (unsigned long long)in_edge_pair_flat.size());
+            }
         } else {
         vector<uint8_t> avg_reref_by_line;
         ecg_mode6::computeAvgRerefByLine(popt_matrix.data(), popt_num_cache_lines,
@@ -423,7 +462,16 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 const uint64_t begin = pair_off[u];
                 const uint64_t end = pair_off[u + 1];
                 for (uint64_t pos = begin; pos < end; ++pos) {
-                    const uint64_t rec = ecg_stream_load2_on
+                    // Compact path: ONE 4-byte load per edge, then widen in
+                    // registers to the canonical 64-bit wire format the ISA
+                    // helpers consume. The traffic is 4 bytes; the widening is
+                    // free. This is what makes the record substitute for the
+                    // CSR edge instead of doubling the structural stream.
+                    const uint64_t rec = pair32_ok
+                        ? ecg_epoch::widenEpochPair32(
+                              in_edge_pair32_flat[pos], pair32_id_bits,
+                              pair32_epoch_bits)
+                        : ecg_stream_load2_on
                         ? gem5_ecg_stream_load2_instruction(
                               &in_edge_pair_flat[pos])
                         : ecg_load2_on

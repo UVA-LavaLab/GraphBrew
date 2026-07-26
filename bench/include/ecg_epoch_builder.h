@@ -40,6 +40,88 @@ inline uint64_t packEpochPairRecord(uint32_t dest, uint8_t tier,
            (static_cast<uint64_t>(second & kK2EpochMask) << 49);
 }
 
+// COMPACT Schedule-2 wire format: the same two-stamp record in 32 bits.
+//
+// The 64-bit form above reserves a full 32-bit destination and 15-bit epochs,
+// so it always costs 8 bytes per edge and doubles the structural stream against
+// a 4-byte CSR edge. When the graph and epoch count are small enough, the same
+// information fits in one 32-bit word and the record SUBSTITUTES for the edge
+// instead of adding to it:
+//
+//     dest[id_bits] | tier[2] | first[epoch_bits] | second[epoch_bits]
+//
+// For a 65,536-vertex graph with 32 epochs that is 16 + 2 + 5 + 5 = 28 bits.
+// This is what lets gem5 and Sniper stream the width cache_sim already models;
+// without it the SSOT reports a budget width the backends cannot deliver.
+inline bool canPackEpochPair32(uint32_t num_vertices, uint32_t ne,
+                               uint32_t tier_bits = 2) {
+    uint32_t id_bits = 1;
+    while (id_bits < 32 && (uint64_t(1) << id_bits) < num_vertices) ++id_bits;
+    uint32_t epoch_bits = 1;
+    while (epoch_bits < 16 && (uint32_t(1) << epoch_bits) < ne) ++epoch_bits;
+    return id_bits + tier_bits + 2u * epoch_bits <= 32u;
+}
+
+inline uint32_t epochPair32IdBits(uint32_t num_vertices) {
+    uint32_t id_bits = 1;
+    while (id_bits < 32 && (uint64_t(1) << id_bits) < num_vertices) ++id_bits;
+    return id_bits;
+}
+
+inline uint32_t epochPair32EpochBits(uint32_t ne) {
+    uint32_t epoch_bits = 1;
+    while (epoch_bits < 16 && (uint32_t(1) << epoch_bits) < ne) ++epoch_bits;
+    return epoch_bits;
+}
+
+inline uint32_t packEpochPairRecord32(
+        uint32_t dest, uint8_t tier, uint16_t first, uint16_t second,
+        uint32_t id_bits, uint32_t epoch_bits) {
+    const uint32_t id_mask = (id_bits >= 32) ? 0xFFFFFFFFu
+                                             : ((1u << id_bits) - 1u);
+    const uint32_t ep_mask = (1u << epoch_bits) - 1u;
+    return (dest & id_mask) |
+           (static_cast<uint32_t>(tier & 0x3u) << id_bits) |
+           ((static_cast<uint32_t>(first) & ep_mask) << (id_bits + 2)) |
+           ((static_cast<uint32_t>(second) & ep_mask)
+                << (id_bits + 2 + epoch_bits));
+}
+
+inline uint32_t extractEpochPair32Dest(uint32_t record, uint32_t id_bits) {
+    const uint32_t id_mask = (id_bits >= 32) ? 0xFFFFFFFFu
+                                             : ((1u << id_bits) - 1u);
+    return record & id_mask;
+}
+
+inline uint8_t extractEpochPair32Tier(uint32_t record, uint32_t id_bits) {
+    return static_cast<uint8_t>((record >> id_bits) & 0x3u);
+}
+
+inline uint16_t extractEpochPair32First(
+        uint32_t record, uint32_t id_bits, uint32_t epoch_bits) {
+    return static_cast<uint16_t>(
+        (record >> (id_bits + 2)) & ((1u << epoch_bits) - 1u));
+}
+
+inline uint16_t extractEpochPair32Second(
+        uint32_t record, uint32_t id_bits, uint32_t epoch_bits) {
+    return static_cast<uint16_t>(
+        (record >> (id_bits + 2 + epoch_bits)) & ((1u << epoch_bits) - 1u));
+}
+
+// Widen a compact 32-bit record to the 64-bit wire format the K2 ISA helpers
+// consume. This is a register operation: the 4-byte load already happened, so
+// the memory traffic is 4 bytes per edge while the delivered value keeps the
+// canonical layout every backend already understands.
+inline uint64_t widenEpochPair32(uint32_t record, uint32_t id_bits,
+                                 uint32_t epoch_bits) {
+    return packEpochPairRecord(
+        extractEpochPair32Dest(record, id_bits),
+        extractEpochPair32Tier(record, id_bits),
+        extractEpochPair32First(record, id_bits, epoch_bits),
+        extractEpochPair32Second(record, id_bits, epoch_bits));
+}
+
 inline uint32_t extractEpochPairDest(uint64_t record) {
     return static_cast<uint32_t>(record);
 }
@@ -450,6 +532,57 @@ void buildInEdgeEpochPairRecords(
                 accessed[edge], pair.tier, pair.first, pair.second);
         }
     }
+}
+
+// Compact 32-bit twin of buildInEdgeEpochPairRecords. Identical epoch and tier
+// computation -- it calls the same nextEpochPairForLine -- so the only
+// difference is the container width. Returns false when the fields do not fit,
+// leaving the caller to use the 64-bit form.
+template <typename GraphT>
+bool buildInEdgeEpochPairRecords32(
+        const GraphT& g, uint32_t numVtxPerLine, uint32_t ne, bool linemin,
+        std::vector<uint64_t>& record_off,
+        std::vector<uint32_t>& records,
+        bool push_out_edges = false) {
+    const uint32_t n = static_cast<uint32_t>(g.num_nodes());
+    record_off.assign(static_cast<size_t>(n) + 1, 0);
+    records.clear();
+    if (n == 0) return false;
+    if (numVtxPerLine == 0) numVtxPerLine = 16;
+    ne = normalizeK2EpochCount(ne);
+    if (!canPackEpochPair32(n, ne)) return false;
+    const uint32_t id_bits = epochPair32IdBits(n);
+    const uint32_t epoch_bits = epochPair32EpochBits(ne);
+
+    std::vector<uint64_t> off;
+    std::vector<uint32_t> readers;
+    buildReaderCsr(g, push_out_edges, off, readers);
+    const std::vector<uint8_t> reuse_tiers =
+        buildReuseTiers(off, n, configuredReuseHotFraction());
+    for (uint32_t src = 0; src < n; ++src) {
+        std::vector<uint32_t> accessed;
+        accessedVertices(g, src, push_out_edges, accessed);
+        record_off[src + 1] = record_off[src] + accessed.size();
+    }
+    records.assign(record_off[n], 0u);
+
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic, 128)
+#endif
+    for (int64_t src_i = 0; src_i < static_cast<int64_t>(n); ++src_i) {
+        const uint32_t src = static_cast<uint32_t>(src_i);
+        std::vector<uint32_t> accessed;
+        accessedVertices(g, src, push_out_edges, accessed);
+        for (size_t edge = 0; edge < accessed.size(); ++edge) {
+            const EpochPair pair = nextEpochPairForLine(
+                off, readers, reuse_tiers, n, src, accessed[edge],
+                numVtxPerLine, ne, linemin);
+            records[record_off[src] + edge] = packEpochPairRecord32(
+                accessed[edge], pair.tier, pair.first, pair.second,
+                id_bits, epoch_bits);
+        }
+    }
+    return true;
 }
 
 template <typename GraphT, typename OffsetContainer, typename RecordContainer>

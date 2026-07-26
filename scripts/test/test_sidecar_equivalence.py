@@ -350,3 +350,48 @@ def test_gem5_forwards_metadata_knobs_into_the_simulated_guest():
         assert f'"{name}"' in config, (
             f"graph_se.py does not forward {name} to the simulated guest, so "
             "gem5 cells cannot honour it and will silently use the default")
+
+
+def test_compact_two_stamp_record_packs_and_round_trips():
+    """The 32-bit two-stamp format must be exact, and honest about its limits.
+
+    gem5 and Sniper previously had only a 64-bit Schedule-2 record, so they
+    streamed 8 bytes per edge and DOUBLED the structural stream against a 4-byte
+    CSR edge, while cache_sim modelled the record as substituting for that edge.
+    That produced a direction reversal between simulators: 0.557 against LRU in
+    cache_sim versus 1.189 in gem5 at identical geometry.
+
+    The compact format closes it, but only where the fields genuinely fit.
+    """
+    header = (ROOT / "bench/include/ecg_epoch_builder.h").read_text()
+    for fn in ("canPackEpochPair32", "packEpochPairRecord32",
+               "extractEpochPair32Dest", "extractEpochPair32Tier",
+               "extractEpochPair32First", "extractEpochPair32Second",
+               "widenEpochPair32", "buildInEdgeEpochPairRecords32"):
+        assert fn in header, f"compact Schedule-2 helper {fn} is missing"
+
+    # The compact builder must reuse the SAME epoch computation as the 64-bit
+    # one, or the two widths would mean different policies.
+    start = header.index("bool buildInEdgeEpochPairRecords32")
+    body = header[start:start + 3000]
+    assert "nextEpochPairForLine" in body, (
+        "the compact builder computes epochs its own way, so a width change "
+        "would silently change the policy")
+
+    # And it must refuse rather than truncate when the fields do not fit.
+    assert "if (!canPackEpochPair32(n, ne)) return false;" in body, (
+        "the compact builder does not check feasibility, so it could silently "
+        "truncate destinations or epochs")
+
+
+def test_gem5_prefers_the_compact_record_and_declares_its_width():
+    src = (ROOT / "bench/src_gem5/pr.cc").read_text()
+    assert "buildInEdgeEpochPairRecords32" in src, (
+        "gem5 does not try the compact record, so it always streams 8 bytes")
+    assert "widenEpochPair32" in src, (
+        "gem5 does not widen the compact record for the ISA helpers")
+    assert "declareContainerBytes" in src, (
+        "gem5 does not declare the container it actually streams, so its "
+        "receipt can claim a width the guest does not deliver")
+    assert "canPackEpochPair32" in src, (
+        "gem5 declares a fixed container instead of the one feasibility allows")
