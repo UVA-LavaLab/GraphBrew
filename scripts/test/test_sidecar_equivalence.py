@@ -291,44 +291,38 @@ def test_cache_sim_and_gem5_derive_identical_width(stamps):
             f"  cache_sim: {cs}\n  sniper   : {sn}")
 
 
-def test_declared_timing_stages_actually_set_the_width_they_claim():
-    """A stage that claims to test 4-byte records must really test them.
+def test_declared_gem5_timing_stages_are_honestly_scoped():
+    """gem5 streams 8 bytes for Schedule-2, so it cannot host a width contrast.
 
-    paper_run packs the ENTIRE stage env into GRAPHBREW_EXPLICIT_CELL_ENV, and
-    roi_matrix re-applies ECG_* keys after its scrub for ECG policies. So width
-    controls belong directly in the stage env; nesting them inside an inner
-    GRAPHBREW_EXPLICIT_CELL_ENV double-encodes them and they are silently lost.
+    gem5 builds pvector<uint64_t> in_edge_pair_flat, so both arms of a
+    4-versus-8-byte contrast would stream 8 bytes and the comparison would be
+    vacuous. That is why the gem5 stages are a timing and bandwidth study at the
+    width gem5 actually streams, and why the width contrast belongs to
+    cache_sim, where substitution for the CSR edge is modelled.
 
-    Both mistakes were made and both produced a matrix whose '4-byte' arm ran
-    8-byte records with packed_fits=1 -- measuring the wrong thing while looking
-    entirely correct from the outside. Only the [ECG-METADATA] receipt caught it.
+    Guards the two mistakes already made: forcing a width here (vacuous), and
+    nesting the explicit-cell channel inside itself (silently dropped, since
+    paper_run already wraps the stage env).
     """
     manifest = json.loads(
         (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
     stages = [s for s in manifest["stages"]
-              if str(s.get("name", "")).startswith("31_gem5_record_width_timing")]
-    assert stages, "the declared record-width timing stages are missing"
+              if str(s.get("name", "")).startswith("31_gem5_k2_timing")]
+    assert stages, "the declared gem5 timing stages are missing"
 
     for stage in stages:
         env = stage.get("env", {})
         assert "GRAPHBREW_EXPLICIT_CELL_ENV" not in env, (
             f"{stage['name']} nests the explicit channel inside itself; "
             "paper_run already wraps the stage env, so this double-encodes")
-        # Without variable width the Schedule-2 default forces 8 bytes, which is
-        # the very defect this matrix exists to measure.
         assert env.get("ECG_RECORD_VARIABLE_WIDTH") == "1", (
-            f"{stage['name']} does not request variable width, so its two-stamp "
-            "record is forced to 8 bytes regardless of what the name says")
-        if stage["name"].endswith("_8b"):
-            assert env.get("ECG_EDGE_RECORD_BYTES") == "8", (
-                "the 8-byte arm must force its width, or both arms measure the "
-                "same thing and the contrast is vacuous")
-        else:
-            assert "ECG_EDGE_RECORD_BYTES" not in env, (
-                f"{stage['name']} forces a width, so it is not the packed arm")
+            f"{stage['name']} must request variable width so the receipt "
+            "reports a computed width rather than a hardcoded default")
+        assert "ECG_EDGE_RECORD_BYTES" not in env, (
+            f"{stage['name']} forces a record width, but gem5 streams 8 bytes "
+            "for Schedule-2 regardless, so the contrast would be vacuous")
         assert int(stage.get("ecg_epochs", 0)) <= 4096, (
-            f"{stage['name']} uses too many epochs for the record to pack; "
-            "65535 forces 16 epoch bits and therefore 8 bytes")
+            f"{stage['name']} uses too many epochs for the record to pack")
 
 
 def test_gem5_forwards_metadata_knobs_into_the_simulated_guest():
