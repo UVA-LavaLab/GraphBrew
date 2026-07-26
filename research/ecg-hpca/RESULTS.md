@@ -1126,6 +1126,43 @@ Two things make this stronger than a repeat of the earlier freeze.
    same stamps therefore cannot change a victim choice, which is why a second
    delivery structure is admissible at all.
 
+### TIER ABLATION: the carried tier bits are genuinely free on the headline variant
+
+An earlier note claimed the record's GRASP tier bits could be dropped at no
+cost, citing 0.672 against 0.671. That was not a valid test.
+`ECG_RECORD_TIER_BITS` only fed the record-WIDTH calculation, so the record
+narrowed while the tier kept arriving and kept breaking eviction ties. The
+measurement compared two configurations with identical mechanisms.
+
+The flag now gates delivery at `has_carried_tier`, the single point every
+insertion path consults, so zero tier bits means no tier is carried. Note the
+insertion paths fall back to address-based GRASP classification, so this ablates
+the *carried* tier, not GRASP tiering as a whole.
+
+web-Google-n16 PageRank, 128 kB LLC, two-stamp record at 4 bytes, off-chip
+traffic:
+
+| victim variant | tier=2 | tier=0 | delta |
+|---|---:|---:|---:|
+| `epoch_first` (headline) | 85,539 | 85,539 | **0.00%** |
+| `shortcircuit` | 90,369 | 90,280 | -0.10% |
+| `grasp_only` | 102,252 | 103,391 | +1.11% |
+
+The `grasp_only` row is the control: it moves by 1.11%, which proves the
+ablation is now actually taking effect. Under the previous width-only flag all
+three variants were byte-identical, which is what exposed the flag as inert.
+
+**On the headline variant the carried tier contributes exactly nothing** -- not
+approximately nothing, but zero lines out of 85,539. The epoch stamp already
+determines the victim, and the degree tier never breaks a tie it has not already
+decided. `grasp_only` degrades without it precisely because there the tier is
+the whole policy.
+
+This matters for scaling rather than for performance. Two bits returned to the
+id field double the vertex count a 4-byte record can address, which moves the
+two-stamp 4-byte limit from roughly 67M vertices to roughly 134M at 2-bit
+epochs. The tier remains available for variants that use it.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows

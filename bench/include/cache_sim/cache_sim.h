@@ -33,6 +33,20 @@
 
 namespace cache_sim {
 
+// Whether the per-edge ECG record carries GRASP tier bits at all. A record
+// configured with zero tier bits cannot deliver one, so this makes
+// ECG_RECORD_TIER_BITS=0 a genuine mechanism ablation rather than a width-only
+// change. The insertion paths fall back to address-based GRASP classification,
+// so this ablates the CARRIED tier, not GRASP tiering as a whole.
+inline bool ecgTierCarried() {
+    static const bool carried = [](){
+        const char* v = std::getenv("ECG_RECORD_TIER_BITS");
+        return !v || std::atoi(v) > 0;
+    }();
+    return carried;
+}
+
+
 inline thread_local uint64_t current_hawkeye_site_id = 0;
 
 class HawkeyeSiteScope {
@@ -919,7 +933,7 @@ public:
         L.ecg_epoch_sched_n = kn;
         for (uint8_t k = 0; k < CacheLine::ECG_SCHED_KMAX; ++k)
             L.ecg_epoch_sched[k] = (k < kn) ? H.edge_epoch_sched[k] : 0;
-        if (H.edge_grasp_tier_valid)
+        if (ecgTierCarried() && H.edge_grasp_tier_valid)
             L.ecg_dbg_tier = H.edge_grasp_tier;
     }
 
@@ -1103,7 +1117,16 @@ public:
                 ? graph_ctx_->mask_config.ecg_mode : ECGMode::DBG_PRIMARY;
             const AccessHints* access_hints =
                 graph_ctx_ ? &graph_ctx_->hints_for_thread() : nullptr;
+            // A record configured with zero tier bits cannot carry a tier.
+            // Gating here, at the single point every insertion path consults,
+            // makes ECG_RECORD_TIER_BITS=0 a genuine mechanism ablation instead
+            // of a width-only change. Without it the record narrowed while the
+            // tier kept arriving and kept breaking eviction ties, so "the tier
+            // bits are free to drop" was never actually tested. Note the else
+            // branches fall back to address-based GRASP classification, so this
+            // ablates the CARRIED tier, not GRASP tiering as a whole.
             const bool has_carried_tier =
+                ecgTierCarried() &&
                 mode == ECGMode::ECG_GRASP_POPT &&
                 graph_ctx_ && access_hints &&
                 graph_ctx_->isEcgEpochData(address) &&
