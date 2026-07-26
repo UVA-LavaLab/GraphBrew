@@ -399,3 +399,21 @@ def test_gem5_prefers_the_compact_record_and_declares_its_width():
         "receipt can claim a width the guest does not deliver")
     assert "canPackEpochPair32" in src, (
         "gem5 declares a fixed container instead of the one feasibility allows")
+
+
+def test_riscv_gem5_binaries_are_not_stale_against_the_compact_record():
+    """gem5 runs the RISC-V kernels, not the native ones.
+
+    paper_run passes --no-build, so a rebuilt native binary proves nothing about
+    what gem5 executes. This was measured the hard way: the receipt from the
+    native binary read 4 bytes while the RISC-V guest still printed the 8-byte
+    banner, and the timing arm silently reproduced the 8-byte result.
+    """
+    riscv = ROOT / "bench/bin_gem5/pr_riscv_m5ops"
+    if not riscv.exists():
+        pytest.skip("RISC-V gem5 kernel not built")
+    blob = riscv.read_bytes()
+    assert b"COMPACT record ON" in blob, (
+        "the RISC-V gem5 kernel predates the compact two-stamp record, so "
+        "gem5 cells will stream 8 bytes whatever the receipt claims; rebuild "
+        "with make gem5-riscv-m5ops-pr")
