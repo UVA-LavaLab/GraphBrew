@@ -934,6 +934,63 @@ simulator ports must now reproduce.
 Scope: one graph, one LLC size, no prefetcher, cache_sim traffic only. This is
 the baseline gem5 and Sniper will be measured against, not a headline.
 
+### PREFETCHING: the metadata stream is prefetchable only in ID-order kernels
+
+Every number in the cache_sim baseline is prefetcher-off. Since the per-edge
+record is a sequential stream, the obvious objection is that a real prefetcher
+would hide it and the transport penalty would evaporate. Measured with the
+honest address-only detector (degree 8), web-Google-n16, 128 kB LLC:
+
+**PageRank**, which traverses vertices in ID order:
+
+| config | demand misses | prefetch fills | off-chip | vs LRU |
+|---|---:|---:|---:|---:|
+| LRU | 128,970 | 0 | 130,189 | 1.000 |
+| LRU + prefetch | 66,354 | 62,931 | 129,470 | 1.000 |
+| K2 4 B | 85,082 | 0 | 85,539 | 0.657 |
+| K2 4 B + prefetch | 23,788 | 62,126 | 86,033 | 0.665 |
+| K2 8 B | 150,832 | 0 | 151,485 | 1.164 |
+| K2 8 B + prefetch | 29,428 | 122,560 | 152,117 | 1.175 |
+
+**BFS**, which traverses in frontier order:
+
+| config | demand misses | prefetch fills | off-chip | vs LRU |
+|---|---:|---:|---:|---:|
+| LRU | 147,411 | 0 | 149,459 | 1.000 |
+| LRU + prefetch | 147,392 | 74 | 147,562 | 1.000 |
+| K2 8 B | 227,892 | 0 | 229,940 | 1.538 |
+| K2 8 B + prefetch | 227,706 | 35 | 227,837 | 1.544 |
+
+Three findings.
+
+1. **On PageRank the prefetcher is extremely effective at hiding the metadata
+   stream.** K2's demand misses fall 72% at 4 bytes (85,082 to 23,788) and 80%
+   at 8 bytes (150,832 to 29,428). If the workload is latency-bound, most of the
+   transport penalty could disappear in *time*.
+2. **Traffic is unchanged in every single case.** 130,189 against 129,470;
+   85,539 against 86,033; 151,485 against 152,117. A prefetcher relocates work,
+   it does not remove it, so if the workload is bandwidth-bound the penalty
+   stands in full. Every ratio versus LRU is stable to within 1%.
+3. **On BFS the prefetcher does essentially nothing**: 35 fills against 227,892
+   demand misses. The record is indexed by CSR edge position, so it is
+   contiguous only when vertices are visited in ID order. BFS visits them in
+   frontier order, so consecutive accesses jump between adjacency runs that
+   average 7.7 edges, i.e. about 31 bytes, less than a cache line. The detector
+   never confirms a stream.
+
+**So the prefetchability of K2's metadata is a property of the traversal order,
+not of the metadata.** ID-order kernels get it; frontier-order kernels cannot.
+That is a falsifiable mechanism claim, and it explains why BFS is K2's worst
+case: the transport doubles *and* cannot be hidden.
+
+It also means the baseline's ranking is prefetch-robust when read as traffic,
+and prefetch-sensitive when read as demand misses -- which is exactly why the
+frozen metrics bar demand-miss arguments under an active prefetcher.
+
+Whether the hidden latency on PageRank translates into speedup is still
+unmeasured, and cache_sim cannot answer it: its fills are synchronous and free,
+with no MLP, lateness, bandwidth or MSHR model. That requires gem5.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows
