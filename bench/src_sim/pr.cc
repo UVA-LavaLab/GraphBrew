@@ -188,12 +188,21 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                 int epoch_bits = 1; while ((1 << epoch_bits) < rec_ne && epoch_bits < 16) epoch_bits++;
                 const int record_bytes = GraphSimEcgRecordBytes(
                     static_cast<uint64_t>(g.num_nodes()), epoch_bits);
+                // S2 delivery: >0 selects the narrow sidecar instead of the
+                // packed record. Width comes from the payload only, never from
+                // id_bits, so it is independent of graph size.
+                const int ecg_sidecar_bits =
+                    GraphSimEnvIntClamped("ECG_SIDECAR", 0, 0, 1) > 0
+                        ? GraphSimEcgSidecarPayloadBits(epoch_bits) : 0;
                 static bool rec_announced = false;
                 if (!rec_announced) {
                     rec_announced = true;
                     std::cerr << "[ECG RECORD] N=" << (long long)g.num_nodes() << " epoch_bits=" << epoch_bits
                               << " prefetch=" << (lean_pfx_k > 0)
-                              << " -> record_bytes=" << record_bytes << std::endl;
+                              << " -> record_bytes=" << record_bytes
+                              << " sidecar_bits=" << ecg_sidecar_bits
+                              << " delivery=" << (ecg_sidecar_bits > 0 ? "S2_sidecar" : "S1_packed")
+                              << std::endl;
                 }
                 uint32_t id_bits = 1; while (id_bits < 31 && (1u << id_bits) < (uint32_t)g.num_nodes()) id_bits++;
                 const uint32_t id_mask = (id_bits >= 32) ? 0xFFFFFFFFu : ((1u << id_bits) - 1);
@@ -215,6 +224,14 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                         // a second 8-byte half per record (4 records/line).
                         if (!edge_mask_charged || src_masks.empty()) {
                             SIM_CACHE_READ_EDGE(cache, it);
+                        } else if (ecg_sidecar_bits > 0) {
+                            // S2: unmodified CSR edge plus a narrow bit-packed
+                            // sidecar carrying only stamps and tier, so the
+                            // metadata cost does not scale with |V|.
+                            SIM_CACHE_READ_EDGE_WITH_SIDECAR(
+                                cache, it, in_edge_base,
+                                GRAPH_SIM_IN_SIDECAR_BASE, ecg_sidecar_bits,
+                                stream_bypass);
                         } else if (stream_bypass) {
                             SIM_CACHE_READ_EDGE_RECORD_BYPASS(
                                 cache, it, in_edge_base,

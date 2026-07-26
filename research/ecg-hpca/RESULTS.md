@@ -1,3 +1,35 @@
+# Results
+
+> **HOW TO READ THIS FILE.** It is an append-only experimental record, so it
+> contains withdrawn and superseded results on purpose. Nothing is deleted;
+> mistakes are marked and kept. Before quoting anything:
+>
+> | marker in heading | status |
+> |---|---|
+> | `WITHDRAWN` / `RETRACTION` | not a result. Retained for audit. Do not cite. |
+> | `CORRECTED` / `CORRECTION` | supersedes an earlier section; read this one |
+> | `superseded` | replaced by a later section |
+> | `FROZEN` | evidence-archived, tied to a commit |
+> | anything else | live, but read the Scope line at the end of the section |
+>
+> **Current live position (2026-07-25), in reading order:**
+> 1. `ATTRIBUTION: every K2 loss measured so far is record width` -- the single
+>    most important result. K2's replacement is GRASP-equivalent or better; every
+>    measured loss is metadata transport width, not victim selection.
+> 2. `SCALING: the record fits 4 bytes at Twitter scale, at 2-bit epochs`
+> 3. `Fast signal, corrected` -- K2 wins PageRank, GRASP wins the aggregate.
+> 4. `CORRECTED: two earlier fast-signal sections were wrong, and how`
+>
+> **No performance claim in this file is admissible yet.** `claim_gate.json` is
+> authoritative; every performance claim there is currently `prohibited`. Results
+> here are cache_sim traffic on sampled graphs with no timing backend.
+>
+> **Standing caution.** This result set moved substantially five times under
+> configuration changes alone (metadata accounting, mechanism availability,
+> prefetcher model, record width, private cache sizing) with no change to any
+> policy. Configuration sensitivity has exceeded the effects being measured, so
+> any number quoted without its full configuration receipt is meaningless.
+
 # Frozen Results
 
 ## Legacy real-graph cache_sim factorial (superseded)
@@ -188,7 +220,6 @@ dissimilar substrates; it does not claim equal cache statistics or victim
 sequences across simulators.
 
 ### Sniper host-cost audit
-
 The abandoned full cit-Patents K2-I-like run was progressing, but its 14-hour
 wall time did not come from the indexed K2 metadata lookup or victim selector.
 Internal timers on an SSSP mechanism cell measure:
@@ -225,7 +256,6 @@ Future full-graph runs therefore use the exact-instruction/memory-reference
 K2-M model rather than a speculative host memoization.
 
 ### Architectural epoch/context channel
-
 gem5 now exposes user-level `ecg.cur_epoch` (`0x800`) and `ecg.context`
 (`0x801`) CSRs. K2-M/K2-I and the request-bound single-epoch load snapshot the
 current epoch, context ID, and O3 program-order sequence onto the governed
@@ -243,7 +273,6 @@ drain/invalidation protocol for intentional reuse, and exact Sniper request
 binding remain open, so this milestone adds no performance result.
 
 ### Equal-area runner gate
-
 The runner and paper manifest now provide separate `ecg_equal_area_15` and
 `ecg_equal_area_14` full-graph cache_sim profiles. Conventional baselines retain
 the 16-way geometry; only Schedule-2 K2 policies receive the requested override.
@@ -251,7 +280,6 @@ Each row records baseline and effective size/associativity, area mode, requested
 K2 ways, and the 49-bit line-metadata premise.
 
 ### Full-graph capacity sweep (16/15/14 ways) — FROZEN
-
 Three complete cache_sim runs at paper scale: web-Google, soc-pokec and
 cit-Patents x PR/BFS/SSSP/BC/CC x nine policies, 8 MiB/16-way LLC, 135 ok rows
 each. Metric is `l3_misses_with_overhead` (K2 record traffic and P-OPT matrix
@@ -293,7 +321,6 @@ timing, where K2's sequential record stream and StreamShield's traffic
 reduction may behave differently; that remains the pending Sniper matrix.
 
 ### RETRACTION: three K2 conclusions withdrawn after review
-
 An adversarial review of the 2026-07-25 analysis chain invalidated three
 conclusions recorded above. They are withdrawn here rather than edited away.
 
@@ -346,7 +373,6 @@ reduces that stream's LLC pollution. Total memory traffic rises materially. No
 end-to-end performance lead has been demonstrated.
 
 ### KNOWN FLAW: the P-OPT matrix stream is charged but not prefetched
-
 Under STRIDE8 the charged comparison reports charged P-OPT at a median 0.926
 and, on web-Google PageRank, at **2.684** -- nearly three times worse than LRU.
 That is not credible for a near-oracle policy, and it is our accounting at
@@ -444,7 +470,6 @@ prefetch fills and excludes LLC writebacks. The symmetric-accounting gate stays
 open until the stream is modelled as an engine-side transfer.
 
 ### CORRECTION: StreamShield was a mechanism only K2 was allowed to use
-
 K2's structural bypass (StreamShield) declines to allocate its one-touch
 per-edge records in the LLC. The same argument applies to any policy's CSR edge
 stream: it is sequential and read-once, so allocating it evicts reusable
@@ -514,7 +539,6 @@ the direction of the K2-versus-baseline comparison, which is exactly the kind
 of finding the previous accounting would have hidden.
 
 ### DECOMPOSITION: K2's replacement is good; the bypass is worth more
-
 "K2+StreamShield loses to LRU+bypass" is an end-to-end traffic result, but on
 its own it does not say whether K2's *replacement* is any good, because K2 also
 carries a per-edge record stream that LRU does not. Holding transport fixed and
@@ -573,7 +597,6 @@ Scope: one graph, one kernel, one cache size, no prefetcher; single-cell
 traffic under the frozen metrics, not a headline.
 
 ### CORRECTION: the stream prefetcher no longer classifies by oracle
-
 The prefetcher that produced the withdrawn STRIDE8 lead decided what to
 prefetch by asking `graph_ctx_->findRegion(address)` whether an address was
 property data, and refusing if so. It therefore never mispredicted the one
@@ -636,118 +659,7 @@ semantic address oracle is gone from every path and that coverage no longer
 depends on knowing which addresses are property. Timing, lateness and bandwidth
 must still come from gem5.
 
-### DECOMPOSITION: K2's replacement is good; the bypass is worth more
-
-"K2+StreamShield loses to LRU+bypass" is an end-to-end traffic result, but on
-its own it does not say whether K2's *replacement* is any good, because K2 also
-carries a per-edge record stream that LRU does not. Holding transport fixed and
-varying only the victim rule separates the two. `ECG_VARIANT=lru_only` runs the
-identical K2 transport with recency selection, so it is K2 with its replacement
-intelligence switched off.
-
-Same cell as above (web-Google PageRank, `-i 2`, 2 MiB 16-way, no prefetcher,
-packed 4-byte record). Total traffic:
-
-| | configuration | traffic |
-|---|---|---:|
-| A | LRU baseline | 4,356,828 |
-| B | K2, charged record, `epoch_only` | 3,607,455 |
-| C | K2, charged record, `lru_only` | 4,357,274 |
-| D | K2, free metadata, `epoch_only` | 3,606,221 |
-| E | K2, free metadata, `lru_only` | 4,356,828 |
-
-E equals A to the line, which is the harness sanity check: K2 transport with
-recency selection and free metadata is exactly plain LRU.
-
-| effect | difference | |
-|---|---:|---|
-| transport cost of K2's record stream | C - A = **+446** | 0.01% |
-| K2 replacement gain, charged | B - C = **-749,819** | -17.2% |
-| K2 replacement gain, free metadata | D - E = -750,607 | -17.2% |
-| net K2 versus LRU | B - A = -749,373 | -17.2% |
-
-Three things follow, and they revise the previous section rather than
-contradict it.
-
-1. **K2's packed transport is essentially free**, +446 lines out of 4.36M. The
-   4-byte packed record *replaces* the CSR edge read rather than adding to it,
-   so at this graph size K2 streams the same bytes per edge as any baseline.
-   The charged-versus-free columns differ by under 0.04%, so the record cost is
-   not what holds K2 back.
-2. **K2's replacement is genuinely good**: -17.2% traffic against identical
-   transport with recency selection. That is a real algorithmic result and it
-   is not an artifact of accounting.
-3. **The structural bypass is worth more than K2's entire replacement
-   advantage.** The bypass gives LRU -20.0%; K2's epoch replacement gives
-   -17.2%. Both are removing the *same* pollution -- the structural stream
-   displacing reusable property lines -- one mechanically and one
-   algorithmically. That is why they barely stack: adding StreamShield on top
-   of K2's replacement is worth only a further -2.4%, because the replacement
-   has already captured most of what the bypass captures.
-
-So the honest statement is not "K2's replacement is bad". It is that on this
-cell K2 solves, slightly less well, a problem that a one-line bypass also
-solves, while GRASP solves it better still (-28.4% versus LRU, -31.9% with the
-bypass). A policy whose advantage is substitutable by a bypass has to argue on
-cost, generality or the cases where the bypass is unavailable or harmful -- and
-the bypass is indeed harmful on at least one cell measured above.
-
-Scope: one graph, one kernel, one cache size, no prefetcher; single-cell
-traffic under the frozen metrics, not a headline.
-
-### CORRECTION: the stream prefetcher no longer classifies by oracle
-
-The prefetcher that produced the withdrawn STRIDE8 lead decided what to
-prefetch by asking `graph_ctx_->findRegion(address)` whether an address was
-property data, and refusing if so. It therefore never mispredicted the one
-distinction the experiment turned on, and it issued unconditionally with no
-MSHR, queue, lateness or bandwidth backpressure.
-
-cache_sim now defaults to an address-only stream detector
-(`CACHE_STREAM_PREFETCH_MODEL=stride`). It sees addresses and nothing else, as
-hardware does: a stream must be confirmed by two consecutive ascending line
-accesses within a 4 KiB region before it issues, any non-sequential step breaks
-confirmation, and issue is bounded by a finite in-flight budget (32 by
-default). It trains on regular property accesses and wastes fills on irregular
-ones, which is precisely the mistake the oracle could not make. The oracle
-remains available as an explicitly labelled upper bound.
-
-web-Google PageRank, `-i 2`, 2 MiB 16-way, degree 8, charged P-OPT with its
-matrix stream simulated:
-
-| model | prefetches issued | demand misses | prefetch fills | total traffic |
-|---|---:|---:|---:|---:|
-| oracle (upper bound) | 138,305,632 | 1,647,524 | 1,551,347 | 3,198,871 |
-| stride (honest) | 3,283,159 | 2,187,006 | 1,001,928 | 3,188,934 |
-
-Two results.
-
-1. **The oracle's coverage was substantially an artifact.** Demand misses rise
-   **32.8%** when the prefetcher has to detect the stream instead of being told
-   where it is. So the Phase 1a observation that "the prefetcher covers the
-   whole matrix stream" describes the oracle, not a plausible prefetcher.
-2. **The oracle also issued 138.3 million prefetch requests**, 42x the honest
-   model, at no modelled bandwidth or queue cost. A component that can request
-   42x the traffic for free will make any policy that streams metadata look
-   cheap.
-
-For LRU on the same cell the two models nearly agree (demand 3,276,088 oracle
-against 3,316,509 stride, +1.2%), which is the expected sanity check: the CSR
-edge stream really is sequential, so an honest detector finds it. The gap opens
-specifically where the oracle's semantic knowledge was doing work.
-
-Note once more which metric is stable. Total traffic differs by 0.3% between
-the two models (3,198,871 against 3,188,934) while demand misses differ by
-32.8%. A prefetcher relocates work rather than removing it, so traffic barely
-notices which prefetcher is used, and the demand-miss column swings wildly.
-That is the third independent confirmation of the frozen primary metric.
-
-Rows record `stream_prefetch_model`, `stream_prefetch_issued`,
-`stream_prefetch_throttled` and `stream_prefetch_untrained`, so an oracle
-result cannot be mistaken for an honest one.
-
 ### CORRECTED: two earlier fast-signal sections were wrong, and how
-
 Two sections previously stood here claiming that the pinned configuration
 forced an 8-byte record, that K2's second future epoch does not pay for itself,
 and that the single-epoch K1 record should be promoted over K2. Adversarial
@@ -781,7 +693,6 @@ used LRU with the structural bypass. The private cache sizes are now explicit
 in the harness.
 
 ### Fast signal, corrected: K2 wins PageRank, GRASP wins overall
-
 Sampled graphs, cache_sim traffic versus LRU, no prefetcher, 32 kB / 256 kB
 private caches, 32 epochs, variable-width record (K2 packs to 4 bytes),
 structural bypass available to every policy, P-OPT matrix stream simulated:
@@ -828,7 +739,6 @@ set must pin the private hierarchy, the record width rule and the epoch count
 explicitly before any of this is quoted.
 
 ### ATTRIBUTION: every K2 loss measured so far is record width, not replacement
-
 Five result reversals with no policy change prompted an attribution experiment
 instead of another ranking. Holding the workload and the record fixed and
 varying only the victim rule, then varying only the record, separates the two.
@@ -862,7 +772,6 @@ record stay 4 bytes at realistic scale?** Everything else measured so far is
 downstream of that single bit of configuration.
 
 ### SCALING: the record fits 4 bytes at Twitter scale, at 2-bit epochs
-
 The budget is `id_bits + epoch_bits * stamps + tier_bits <= 32`. K2 carries two
 stamps, so epoch resolution costs double. PageRank on web-Google-n16, record
 forced to 4 bytes, versus LRU 128,892 and GRASP 107,582:
@@ -897,8 +806,67 @@ sweep must be repeated at scale before this is claimed. And the tier field has
 only been removed from the *width* calculation, not from the replacement
 mechanism, so "drop the tier bits" is not yet a validated configuration.
 
-### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
+### S2: a narrow sidecar makes metadata cost independent of graph size
 
+The packed record (S1) carries destination id + tier + stamps in one word and
+SUBSTITUTES for the CSR edge, so it is free while it fits in 4 bytes and costs
+100% once id_bits force it to 8. That ties metadata cost to |V| and caps the
+4-byte record near 67M vertices.
+
+A sidecar (S2) does not need the destination id, because the unmodified CSR edge
+still carries it. K2-I would need the id in the operand to compute the property
+address, but K2-M receives an already-computed address, so for K2-M a
+stamps-only sidecar is sufficient. Its payload is
+`stamps * epoch_bits + tier_bits`, which is **independent of graph size**. The
+payload is bit-packed, so a 64-byte line holds `512 / payload_bits` entries and
+the stream costs `ceil(payload_bits * E / 8)` bytes, not one byte per edge.
+
+web-Google-n16 PageRank, 128 kB LLC, 32 kB/256 kB private, off-chip traffic in
+both directions, no prefetcher:
+
+| structure | traffic | vs LRU | vs GRASP | size limit |
+|---|---:|---:|---:|---|
+| LRU | 130,227 | 1.000 | 1.196 | -- |
+| GRASP | 108,949 | 0.837 | 1.000 | -- |
+| S1 packed, 4 B | 85,738 | **0.658** | **0.787** | ~67M vertices |
+| S1 packed, 8 B | 151,407 | 1.163 | 1.390 | unbounded |
+| S2 sidecar, 6 bits | 99,315 | **0.763** | **0.912** | **unbounded** |
+| S2 sidecar, 8 bits | 103,332 | 0.793 | 0.948 | unbounded |
+| S2 sidecar, 12 bits | 111,865 | 0.859 | 1.027 | unbounded |
+
+Three readings.
+
+1. **S1 at 4 bytes remains the best structure where it fits**, at 0.658. Nothing
+   here displaces it for graphs under about 67M vertices.
+2. **At the spill boundary S2 is decisively better than S1.** Where S1 must go
+   to 8 bytes it returns 1.163, worse than LRU; S2 at a 6-bit payload returns
+   0.763. That is a **34% reduction** against S1-8B, against a pre-registered
+   kill criterion of 2%, and it still beats GRASP by 8.8%.
+3. **The payload budget is real.** A 12-bit sidecar returns 1.027 and loses to
+   GRASP, so the structure is not free and the stamps must stay narrow. The
+   useful configuration is two stamps at 2-bit epochs plus 2 tier bits = 6 bits.
+
+**Accounting gate.** Measured sidecar cost against the exact cache-line formula
+`ceil(payload_bits * E / 8) / 64` lines per sweep, two sweeps:
+
+| payload | predicted lines | measured delta | ratio |
+|---:|---:|---:|---:|
+| 6 bits | 11,778 | 13,577 | 1.153 |
+| 8 bits | 15,706 | 17,594 | 1.120 |
+| 12 bits | 23,558 | 26,127 | 1.109 |
+
+Measured tracks the formula within 11-15%, and the ratio converges toward 1.0 as
+the payload grows, which is consistent with a fixed conflict/refetch overhead
+rather than a counting error.
+
+Scope: one graph, one kernel, one LLC size, no prefetcher, cache_sim traffic. The
+correctness gate (S1 and S2 must deliver identical destination, tier, stamps,
+property address and output checksum across all kernels) is NOT yet run, so this
+is a transport-cost result only and carries no claim that S2 preserves K2's
+semantics. The pressure and cache-colour sensitivity sweeps in the registered
+kill criterion are also outstanding.
+
+### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows
 > are `ecg.load2` rows that `METHODOLOGY.md` marks superseded, the argument
@@ -956,7 +924,6 @@ understates it. Scope: sampled graphs at reduced cache sizes; a full-graph
 timing matrix remains pending.
 
 ### Hawkeye baseline scaffold
-
 A clean-room Hawkeye policy module and LLC-only cache_sim adapter are now
 implemented. The module includes 128-quantum OPTgen, 64 sampled cache sets,
 350x8 sampler history, separate 3-bit demand/prefetch predictors, negative
@@ -986,7 +953,6 @@ LRU in every synthetic cell, so this is an implementation/execution gate, not
 the general learned-policy result required for a paper ranking.
 
 ### Physical-characterization harness
-
 `analysis/k2_cacti_packet.py` now emits hashed configs from the vendored CACTI
 6.5 template for the 8 MiB/16-way LLC, a 1RW metadata SRAM, and a 1R1W port
 sensitivity. The metadata input rounds each way's 49 logical plus seven SECDED
@@ -1023,7 +989,6 @@ rows remain simulation sensitivities. No CACTI or synthesis result has been
 supplied or frozen.
 
 ### Three-cost accounting table
-
 `analysis/three_costs.py` now generates the reviewer-facing accounting table
 for web-Google, soc-pokec, and cit-Patents at configurable LLC sizes. It
 separates:
@@ -1038,7 +1003,6 @@ The default 2/8 MiB table reproduces the runner's capacity charge: P-OPT needs
 analytical accounting rows, not performance results.
 
 ### Executable HPCA claim gate
-
 `claim_gate.json` now links contribution deltas and headline claims to explicit
 evidence gates. The validator checks commit reachability/file existence and
 rejects any `allowed` claim whose dependencies are pending. It machine-pins the
@@ -1047,7 +1011,6 @@ major prohibitions, including treating the 1.329x packed K2-I-like model or
 zero hardware overhead, and ranking policies from the bounded synthetic cell.
 
 ### Static K2-M versus K2-I decomposition
-
 The canonical RV64 U32.D32 assembly, anchored to production funct7 encodings,
 reports:
 
@@ -1061,7 +1024,6 @@ Thus K2-M does not claim an instruction reduction; K2-I removes four canonical
 instructions. This is static decomposition only and does not imply timing.
 
 ### Exact Sniper governed-load association
-
 The transport-matched Sniper K2-M workload now executes identical bind/clear
 magic markers for every policy immediately around each edge-governed
 destination-property load. The marker carries the exact virtual address; the
@@ -1084,7 +1046,6 @@ the mutable outer-vertex clock, but remains a Sniper model rather than execution
 of the RISC-V CSR ISA, so this milestone alone adds no timing claim.
 
 ### K2-I target-instruction correction
-
 Replacement-only authority already showed the forced K2 `grasp_only` arm
 beating standalone GRASP on 15/15 real graph/kernel cells, with a 0.9899
 geomean miss ratio. The initial masked-load gem5 timing path nevertheless
@@ -1197,7 +1158,6 @@ The rank statistic is frozen in
 eight policies and effective LLC misses.
 
 ### Final compact sampled Sniper packed-record extension model
-
 The post-scope Sniper-only rerun contains 120 valid rows: three deterministic
 samples x PR/BFS/SSSP/BC/CC x eight policies. Strict invariants pass: every
 group is hash-consistent, every LLC is exercised, BC records
@@ -1293,7 +1253,6 @@ Full citation risk gate:
 `ecg_cache_sim_citpatents_sssp_compact_full_20260721/roi_matrix.csv`.
 
 ### Fused sampled PageRank timing
-
 The historical `ecg_sniper_sampled_pr_streamengine` profile contains nine
 equal-work rows: three deterministic graph samples x GRASP/charged P-OPT/
 K2-online+StreamShield. The Sniper fused path treats the packed 64-bit record
@@ -1328,7 +1287,6 @@ Aggregate: `results/ecg_experiments/paper_pipeline/`
 `ecg_sniper_sampled_pr_streamengine_final_v2_20260717/aggregate/`.
 
 ### Full-graph warm Sniper gate
-
 The queue blocker was caused by CACHE_ONLY warmup accumulating timing in
 `history_list` and `ShmemPerfModel` even though the interval core clock was not
 advancing. The reproducible setup patch leaves those timing structures untouched
@@ -1352,7 +1310,6 @@ cap at 179,432,203 reported instructions, with 7,892,046 L3 accesses,
 that reaches the 600M cap.
 
 ### Sniper P-OPT host-emulation acceleration
-
 Sniper now computes each P-OPT candidate distance once per eviction and replaces
 repeated RRIP aging scans with an equivalent delta update. The optimized path is
 the default; `SNIPER_POPT_FAST=0` retains the legacy implementation.
@@ -1375,7 +1332,6 @@ gem5 graph/kernel cells, P-OPT host wall time is 1.008x LRU in geomean and
 simulation cost, not repeated P-OPT consultation.
 
 ### Preliminary STRIDE8 sensitivity (synthetic diagnostic)
-
 K2 change from no prefetch to matched STRIDE8 on `kron_s15_k4`:
 
 | Kernel | cache_sim demand | cache_sim traffic | gem5 demand | gem5 DRAM | Sniper demand | Sniper LLC-read traffic |

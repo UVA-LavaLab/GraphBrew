@@ -17,6 +17,10 @@ namespace cache_sim {
 static constexpr size_t GRAPH_SIM_PROPERTY_ALIGNMENT = 4096;
 static constexpr uint64_t GRAPH_SIM_IN_RECORD_BASE = 0x100000000000ULL;
 static constexpr uint64_t GRAPH_SIM_OUT_RECORD_BASE = 0x200000000000ULL;
+// S2 sidecar arrays. Distinct from the S1 record bases so a run can never
+// alias the two structures, and far from any property region.
+static constexpr uint64_t GRAPH_SIM_IN_SIDECAR_BASE  = 0x300000000000ULL;
+static constexpr uint64_t GRAPH_SIM_OUT_SIDECAR_BASE = 0x400000000000ULL;
 
 inline int GraphSimEnvIntClamped(const char* name, int default_value,
                                  int min_value, int max_value) {
@@ -100,6 +104,45 @@ inline int GraphSimEcgWeightedSidecarBytes(
     if (GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4) == 2)
         return 4;
     return GraphSimEcgRecordBytes(num_vertices, epoch_bits);
+}
+
+// ============================================================================
+// S2: narrow metadata sidecar, independent of graph size
+// ============================================================================
+// The packed record (S1) carries destination id + tier + epoch stamps in one
+// word and SUBSTITUTES for the CSR edge, so it is free while it fits in 4 bytes
+// and costs 100% once id_bits force it to 8. That ties metadata cost to |V|.
+//
+// A sidecar does not need the destination id, because the unmodified CSR edge
+// still carries it. K2-I would need the id in the operand to compute the
+// property address, but K2-M receives an already-computed address, so for K2-M
+// a stamps-only sidecar is sufficient. Its payload is therefore:
+//
+//     payload_bits = stamps * epoch_bits + tier_bits
+//
+// which is INDEPENDENT of graph size. Two stamps at 2-bit epochs plus 2 tier
+// bits is 6 bits per edge, so 4-byte edge + 6-bit sidecar is 4.75 bytes per
+// edge at any |V|, against S1's 4 bytes when it fits and 8 when it does not.
+//
+// The payload is bit-packed, so a 64-byte line holds 512/payload_bits entries
+// and the stream cost is ceil(payload_bits * E / 8) bytes, not one byte per
+// edge. Rounding a 6-bit payload up to a byte would overstate it by a third.
+inline int GraphSimEcgSidecarPayloadBits(int epoch_bits) {
+    const int stamps = std::max(
+        1, GraphSimEnvIntClamped("ECG_EDGE_MASK_SCHED", 0, 0, 4));
+    const int tier_bits = GraphSimEnvIntClamped(
+        "ECG_RECORD_TIER_BITS", 2, 0, 8);
+    const int forced = GraphSimEnvIntClamped(
+        "ECG_SIDECAR_PAYLOAD_BITS", 0, 0, 64);
+    if (forced > 0) return forced;
+    return epoch_bits * stamps + tier_bits;
+}
+
+// Bit offset of an edge's sidecar payload, so the caller can derive the exact
+// line it lands on. Callers must not assume byte alignment.
+inline uint64_t GraphSimEcgSidecarBitOffset(
+        uint64_t edge_index, int payload_bits) {
+    return edge_index * static_cast<uint64_t>(payload_bits);
 }
 
 // ============================================================================
@@ -327,6 +370,36 @@ inline decltype(auto) access_edge_with_site(
         } else { \
             ::cache_sim::access_stream_with_site( \
                 (cache), _record_addr, false, _hawkeye_site); \
+        } \
+    } while (0)
+
+// S2 delivery: the CSR edge is read UNMODIFIED, exactly as every baseline
+// policy reads it, and a narrow bit-packed sidecar carries the stamps and tier.
+// Both streams are charged. The sidecar address is derived from the edge index
+// and the payload width, so many edges share a sidecar line and the cost is
+// ceil(payload_bits*E/8) bytes rather than one byte per edge.
+//
+// `bypass` routes only the SIDECAR through the non-temporal path. The CSR edge
+// keeps whatever placement the surrounding policy gives every other policy's
+// edge stream, so this cannot hand K2 an edge-placement privilege the baselines
+// lack.
+#define SIM_CACHE_READ_EDGE_WITH_SIDECAR( \
+        cache, neighbor_ptr, edge_base, sidecar_base, payload_bits, bypass) \
+    do { \
+        const uint64_t _hawkeye_site = CACHE_SIM_HAWKEYE_SITE_ID; \
+        ::cache_sim::access_edge_with_site( \
+            (cache), reinterpret_cast<uint64_t>(neighbor_ptr), _hawkeye_site); \
+        const uint64_t _edge_index = static_cast<uint64_t>( \
+            (neighbor_ptr) - (edge_base)); \
+        const uint64_t _bit_off = ::cache_sim::GraphSimEcgSidecarBitOffset( \
+            _edge_index, (payload_bits)); \
+        const uint64_t _side_addr = (sidecar_base) + (_bit_off >> 3); \
+        if (bypass) { \
+            ::cache_sim::access_stream_with_site( \
+                (cache), _side_addr, false, _hawkeye_site); \
+        } else { \
+            ::cache_sim::access_with_site( \
+                (cache), _side_addr, false, _hawkeye_site); \
         } \
     } while (0)
 
