@@ -51,7 +51,8 @@
     "sniper_streamshield_mechanism": "Synthetic Sniper mechanism cell for fused K2 versus K2+StreamShield.",
     "streamshield_sniper_realgraph": "Pending-calibration full-iteration web-Google PR Sniper matrix; do not freeze results with the rejected generic STRIDE8 configuration.",
     "ecg_uniform_8mb_16": "Uniform 8 MiB/16-way full-real-graph cache_sim matrix so every graph x kernel cell is directly comparable; supersedes the mixed 2 MiB/8 MiB factorial sizing.",
-    "ecg_uniform_8mb_16_stride8": "Matched STRIDE8 twin of the uniform 8 MiB matrix. Every policy gets the same structure prefetcher, so demand-miss reduction (latency hiding) can be separated from total memory traffic (bandwidth), which prefetching cannot reduce."
+    "ecg_uniform_8mb_16_stride8": "Matched STRIDE8 twin of the uniform 8 MiB matrix. Every policy gets the same structure prefetcher, so demand-miss reduction (latency hiding) can be separated from total memory traffic (bandwidth), which prefetching cannot reduce.",
+    "ecg_record_width_timing": "Decisive record-width timing matrix: execution time, off-chip bytes and DRAM bus utilisation reported together, with the two-stamp record packed into 4 bytes versus forced to 8."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -1504,6 +1505,115 @@
       "sniper_cores": 1,
       "out_subdir": "40_sniper_streamshield_realgraph",
       "timeout_sniper": 21600
+    },
+    {
+      "name": "31_gem5_record_width_timing_4b",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_record_width_timing"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "out_subdir": "31_gem5_record_width_timing_4b",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_STREAM_BYPASS_TRACE": "8",
+        "ECG_RECORD_VARIABLE_WIDTH": "1"
+      },
+      "notes": "DECISIVE TIMING MATRIX. Declared before running, per the frozen metrics. Reports execution time AND dram_offchip_bytes AND dram_bus_util_pct together. 32 epochs with variable width lets the two-stamp record pack into 4 bytes on these samples (16 id + 2*5 epoch + 2 tier = 28 bits), which stage 28 could not do because it pins ecg_epochs=65535 and therefore always charged 8 bytes. PRE-REGISTERED PREDICTION: if DRAM bus utilisation is low, the measured reductions in exposed demand misses (-64% at 4B, -56% at 8B on cache_sim) should appear as speedup at BOTH widths; if it is high, the 8-byte width should lose in proportion to its +17% traffic."
+    },
+    {
+      "name": "31_gem5_record_width_timing_4b_stride",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_record_width_timing"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "STRIDE",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "out_subdir": "31_gem5_record_width_timing_4b_stride",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_STREAM_BYPASS_TRACE": "8",
+        "ECG_RECORD_VARIABLE_WIDTH": "1"
+      },
+      "notes": "DECISIVE TIMING MATRIX. Declared before running, per the frozen metrics. Reports execution time AND dram_offchip_bytes AND dram_bus_util_pct together. 32 epochs with variable width lets the two-stamp record pack into 4 bytes on these samples (16 id + 2*5 epoch + 2 tier = 28 bits), which stage 28 could not do because it pins ecg_epochs=65535 and therefore always charged 8 bytes. PRE-REGISTERED PREDICTION: if DRAM bus utilisation is low, the measured reductions in exposed demand misses (-64% at 4B, -56% at 8B on cache_sim) should appear as speedup at BOTH widths; if it is high, the 8-byte width should lose in proportion to its +17% traffic."
+    },
+    {
+      "name": "31_gem5_record_width_timing_8b",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_record_width_timing"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr",
+        "bfs",
+        "sssp",
+        "bc",
+        "cc"
+      ],
+      "policies": [
+        "LRU",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_STREAMSHIELD"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "out_subdir": "31_gem5_record_width_timing_8b",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_STREAM_BYPASS_TRACE": "8",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EDGE_RECORD_BYTES": "8"
+      },
+      "notes": "Matched 8-byte arm of the record-width timing matrix: identical in every respect except the record is forced wide, so the width effect is isolated from every other factor."
     }
   ]
 }
