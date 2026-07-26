@@ -1507,7 +1507,7 @@
       "timeout_sniper": 21600
     },
     {
-      "name": "31_gem5_k2_timing_noprefetch",
+      "name": "31_gem5_record_width_4b",
       "kind": "roi_matrix",
       "profiles": [
         "ecg_record_width_timing"
@@ -1532,7 +1532,7 @@
       "prefetcher": "none",
       "ecg_charged": 1,
       "ecg_epochs": 32,
-      "out_subdir": "31_gem5_k2_timing_noprefetch",
+      "out_subdir": "31_gem5_record_width_4b",
       "timeout_gem5": 21600,
       "env": {
         "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
@@ -1540,10 +1540,10 @@
         "ECG_STREAM_BYPASS_TRACE": "8",
         "ECG_RECORD_VARIABLE_WIDTH": "1"
       },
-      "notes": "gem5 TIMING and BANDWIDTH study for the two-stamp record. gem5 builds pvector<uint64_t> in_edge_pair_flat for Schedule-2, so it streams 8 bytes per edge structurally and its receipt declares that. The 4-byte versus 8-byte WIDTH contrast therefore belongs to cache_sim, where substitution for the CSR edge is modelled; running it here would compare 8 bytes against 8 bytes. What gem5 uniquely answers is whether the reduction in exposed demand misses becomes execution time, and at what DRAM bus utilisation. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together."
+      "notes": "Compact 4-byte two-stamp record: it SUBSTITUTES for the CSR edge. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic."
     },
     {
-      "name": "31_gem5_k2_timing_stride",
+      "name": "31_gem5_record_width_8b",
       "kind": "roi_matrix",
       "profiles": [
         "ecg_record_width_timing"
@@ -1565,18 +1565,19 @@
         "ECG:K2_STREAMSHIELD"
       ],
       "popt_reserve_model": "size_correct",
-      "prefetcher": "STRIDE",
+      "prefetcher": "none",
       "ecg_charged": 1,
       "ecg_epochs": 32,
-      "out_subdir": "31_gem5_k2_timing_stride",
+      "out_subdir": "31_gem5_record_width_8b",
       "timeout_gem5": 21600,
       "env": {
         "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
         "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
         "ECG_STREAM_BYPASS_TRACE": "8",
-        "ECG_RECORD_VARIABLE_WIDTH": "1"
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EDGE_RECORD_BYTES": "8"
       },
-      "notes": "gem5 TIMING and BANDWIDTH study for the two-stamp record. gem5 builds pvector<uint64_t> in_edge_pair_flat for Schedule-2, so it streams 8 bytes per edge structurally and its receipt declares that. The 4-byte versus 8-byte WIDTH contrast therefore belongs to cache_sim, where substitution for the CSR edge is modelled; running it here would compare 8 bytes against 8 bytes. What gem5 uniquely answers is whether the reduction in exposed demand misses becomes execution time, and at what DRAM bus utilisation. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together."
+      "notes": "Matched 8-byte arm: identical in every respect except the record is forced wide, so the width effect is isolated. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic."
     }
   ]
 }

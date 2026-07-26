@@ -307,7 +307,7 @@ def test_declared_gem5_timing_stages_are_honestly_scoped():
     manifest = json.loads(
         (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
     stages = [s for s in manifest["stages"]
-              if str(s.get("name", "")).startswith("31_gem5_k2_timing")]
+              if str(s.get("name", "")).startswith("31_gem5_record_width")]
     assert stages, "the declared gem5 timing stages are missing"
 
     for stage in stages:
@@ -318,9 +318,13 @@ def test_declared_gem5_timing_stages_are_honestly_scoped():
         assert env.get("ECG_RECORD_VARIABLE_WIDTH") == "1", (
             f"{stage['name']} must request variable width so the receipt "
             "reports a computed width rather than a hardcoded default")
-        assert "ECG_EDGE_RECORD_BYTES" not in env, (
-            f"{stage['name']} forces a record width, but gem5 streams 8 bytes "
-            "for Schedule-2 regardless, so the contrast would be vacuous")
+        if stage["name"].endswith("_8b"):
+            assert env.get("ECG_EDGE_RECORD_BYTES") == "8", (
+                "the 8-byte arm must force its width, or both arms measure the "
+                "same thing")
+        else:
+            assert "ECG_EDGE_RECORD_BYTES" not in env, (
+                f"{stage['name']} forces a width, so it is not the compact arm")
         assert int(stage.get("ecg_epochs", 0)) <= 4096, (
             f"{stage['name']} uses too many epochs for the record to pack")
 
