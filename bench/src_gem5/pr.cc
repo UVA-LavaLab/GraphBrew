@@ -215,8 +215,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         // schedules, so gem5 cannot disagree with cache_sim about how wide a
         // record is or whether a packed one fits.
         {
-            const auto ecg_meta = ::ecg_metadata::configure(
+            auto ecg_meta = ::ecg_metadata::configure(
                 static_cast<uint64_t>(g.num_nodes()), edge_epoch_count);
+            // gem5's Schedule-2 path materialises the record as
+            // pvector<uint64_t>, so it streams 8 bytes per edge whatever the
+            // bit budget computes. Declare the real container so the receipt
+            // reports what the guest actually moves.
+            if (ecg_sched_k == 2)
+                ::ecg_metadata::declareContainerBytes(ecg_meta, 8);
             ::ecg_metadata::announce(ecg_meta, "gem5-pr");
         }
         if (ecg_sched_k == 2) {

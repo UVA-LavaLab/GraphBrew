@@ -167,6 +167,25 @@ inline void requirePackedFeasible(Config& c, bool feasible) {
         c.delivery = Delivery::Sidecar;
 }
 
+// Declare the container a backend actually streams, when its implementation
+// fixes the width independently of the bit budget.
+//
+// The budget says what a record COULD occupy; a backend may still materialise
+// it in a wider container. gem5's Schedule-2 path builds
+// `pvector<uint64_t> in_edge_pair_flat`, so it streams 8 bytes per edge no
+// matter what the budget computes. Reporting the budget width there would make
+// the receipt claim a 4-byte record while the guest moved 8, which is exactly
+// the divergence this header exists to prevent: cache_sim measured 0.557
+// against LRU on web-Google-n16 PageRank while gem5 measured 1.189 at the same
+// geometry, purely because the two modelled different container widths.
+inline void declareContainerBytes(Config& c, int container_bytes) {
+    if (container_bytes <= 0) return;
+    c.record_bytes = container_bytes;
+    c.packed_fits = c.packed_fits &&
+        (c.id_bits + c.epoch_bits * c.stamps + c.tier_bits) <=
+            container_bytes * 8;
+}
+
 inline const char* deliveryName(const Config& c) {
     switch (c.delivery) {
         case Delivery::PackedRecord: return "packed";

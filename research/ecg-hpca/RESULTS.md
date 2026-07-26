@@ -1163,6 +1163,59 @@ id field double the vertex count a 4-byte record can address, which moves the
 two-stamp 4-byte limit from roughly 67M vertices to roughly 134M at 2-bit
 epochs. The tier remains available for variants that use it.
 
+### CROSS-SIM DIVERGENCE: gem5 cannot deliver a 4-byte two-stamp record
+
+The first gem5 timing cell disagreed with cache_sim in DIRECTION, not merely in
+magnitude. web-Google-n16 PageRank, 128 kB LLC, two-stamp record, no
+StreamShield, off-chip traffic versus LRU:
+
+| simulator | traffic vs LRU | time vs LRU |
+|---|---:|---:|
+| cache_sim, same 16 kB/64 kB/128 kB geometry | **0.557** | (no timing) |
+| gem5 | **1.189** | 1.167 |
+
+Reproduced at cache_sim with gem5's exact geometry and policy resolution
+(`ECG:K2` resolves `adaptive` to `epoch_first`, StreamShield off), so it is not
+a configuration mismatch.
+
+**Cause: the two simulators stream different container widths.** gem5's
+Schedule-2 path builds `pvector<uint64_t> in_edge_pair_flat`, so it moves 8
+bytes per edge structurally, whatever the bit budget computes. cache_sim models
+the two-stamp record as substituting for the 4-byte CSR edge. The measurement
+confirms it: gem5's K2 reads 2,675,776 more DRAM bytes than LRU, which is 1.33
+passes of a 4-byte-per-edge array, i.e. the extra 4 bytes per edge of an 8-byte
+container. DRAM *writes* are unchanged at 1.004, so this is not the array being
+built inside the ROI; it is the stream being twice as wide.
+
+The metadata SSOT reported `record_bytes=4` for that run. It was computing the
+budget, which is what the record *could* occupy, while gem5 materialised it in a
+wider container. That is precisely the divergence the header exists to prevent,
+and the receipt is what exposed it -- but only once cache_sim and gem5 were
+compared directly.
+
+`declareContainerBytes()` now lets a backend state the container it actually
+streams, and gem5's Schedule-2 declares 8. Its receipt reports
+`record_bytes=8 bytes_per_edge=8.000`, matching what the guest moves.
+
+**Consequence for the timing matrix.** The pre-registered 4-byte versus 8-byte
+contrast **cannot be run on gem5 as the code stands**, because gem5 has no
+4-byte two-stamp path: both arms would stream 8 bytes and the contrast would be
+vacuous. Two options, neither yet taken:
+
+1. Implement a 4-byte two-stamp record in gem5. The bits fit -- 16 id + 2x5
+   epoch + 2 tier = 28 -- so this is a `uint32_t` pair-record path in
+   `ecg_epoch_builder.h` plus the guest loop, not a design change.
+2. Run the width contrast on cache_sim only, where substitution is modelled,
+   and use gem5 solely for 8-byte timing and bandwidth utilisation.
+
+Until one is chosen, no width claim may cite gem5.
+
+What survives from the aborted run is the baseline behaviour, which carries no
+ECG record and is therefore unaffected: bus utilisation 1.14-1.80% across LRU,
+GRASP and P-OPT on both sampled graphs, and P-OPT converting a 38% traffic
+reduction into only a 13.5% time reduction. The low-utilisation regime and the
+sub-proportional traffic-to-time relationship both hold.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows
