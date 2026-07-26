@@ -211,6 +211,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     bool ecg_load_enabled = gem5_ecg_load_enabled();
     if (ecg_load_enabled) ecg_extract_enabled = true;
     if ((ecg_prefetch_enabled || ecg_extract_enabled) && ecg_pfx_mode == 6) {
+        // Width and structure come from the shared metadata SSOT for BOTH
+        // schedules, so gem5 cannot disagree with cache_sim about how wide a
+        // record is or whether a packed one fits.
+        {
+            const auto ecg_meta = ::ecg_metadata::configure(
+                static_cast<uint64_t>(g.num_nodes()), edge_epoch_count);
+            ::ecg_metadata::announce(ecg_meta, "gem5-pr");
+        }
         if (ecg_sched_k == 2) {
             std::vector<uint64_t> pair_records;
             ecg_epoch::buildInEdgeEpochPairRecords(
@@ -295,7 +303,6 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
             // about how wide a record is or whether it fits.
             const auto ecg_meta = ::ecg_metadata::configure(
                 static_cast<uint64_t>(nn), edge_epoch_count);
-            ::ecg_metadata::announce(ecg_meta, "gem5-pr");
             if (ecg_meta.packed_fits &&
                 ecg_meta.delivery == ::ecg_metadata::Delivery::PackedRecord) {
                 packed_off.assign(static_cast<size_t>(nn) + 1, 0);

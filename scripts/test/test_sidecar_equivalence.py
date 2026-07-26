@@ -18,6 +18,7 @@ different stamps and is therefore not a drop-in structure.
 from __future__ import annotations
 
 import json
+import re
 import os
 import subprocess
 import tempfile
@@ -212,3 +213,65 @@ def test_metadata_ssot_has_no_simulator_dependencies():
     assert includes, "header includes nothing at all"
     for inc in includes:
         assert "<" in inc, f"non-standard include in the SSOT: {inc.strip()}"
+
+
+# ---------------------------------------------------------------------------
+# Cross-simulator width agreement
+# ---------------------------------------------------------------------------
+
+GEM5_PR = ROOT / "bench/bin_gem5/pr"
+GRAPH = ROOT / "results/graphs/web-Google-n16/web-Google-n16.sg"
+
+RECEIPT = re.compile(
+    r"stamps=\d+ epoch_bits=\d+ tier_bits=\d+ id_bits=\d+ "
+    r"record_bytes=\d+ payload_bits=\d+")
+
+
+def _receipt(cmd, env):
+    e = dict(os.environ); e.update({k: str(v) for k, v in env.items()})
+    out = subprocess.run(cmd, env=e, capture_output=True, text=True,
+                         timeout=900)
+    m = RECEIPT.search(out.stdout + out.stderr)
+    return m.group(0) if m else None
+
+
+@pytest.mark.skipif(not (GEM5_PR.exists() and GRAPH.exists()),
+                    reason="gem5 pr binary or graph fixture missing")
+@pytest.mark.parametrize("stamps", [1, 2])
+def test_cache_sim_and_gem5_derive_identical_width(stamps):
+    """The whole point of the SSOT: no backend may compute its own width.
+
+    Both simulators independently call ecg_metadata::configure and print a
+    receipt. Identical configuration must produce byte-identical receipts. A
+    mismatch means one backend has drifted back to a private width rule, which
+    is exactly the defect that made K2-versus-K1 a comparison of record widths.
+    """
+    shared = {
+        "ECG_EDGE_MASK_EPOCH": 1, "ECG_EDGE_MASK_LINEMIN": 1,
+        "ECG_EDGE_MASK_EPOCHS": 32,
+    }
+    if stamps == 2:
+        shared["ECG_EDGE_MASK_SCHED"] = 2
+
+    cs_env = dict(shared)
+    cs_env.update({
+        "ECG_MODE": "ECG_GRASP_POPT", "ECG_EDGE_MASKS": 1,
+        "ECG_EDGE_MASK_LEAN": 1, "ECG_EDGE_MASK_PACK": 1,
+        "ECG_EXACT_REREF": 1, "ECG_PREFETCH_MODE": 6,
+        "OMP_NUM_THREADS": 1, "CACHE_ULTRAFAST": 0,
+        "CACHE_POLICY": "ECG", "CACHE_L3_SIZE": 131072,
+    })
+    cs = _receipt(
+        ["/usr/bin/setarch", "x86_64", "-R", str(PR),
+         "-f", str(GRAPH), "-o", "5", "-n", "1", "-i", "1"], cs_env)
+
+    g5_env = dict(shared)
+    g5_env.update({"GEM5_ENABLE_ECG_PFX_HINTS": 1, "GEM5_ECG_PFX_MODE": 6})
+    g5 = _receipt([str(GEM5_PR), "-f", str(GRAPH), "-n", "1", "-i", "1"],
+                  g5_env)
+
+    assert cs is not None, "cache_sim emitted no metadata receipt"
+    assert g5 is not None, "gem5 emitted no metadata receipt"
+    assert cs == g5, (
+        f"backends disagree on record width at stamps={stamps}:\n"
+        f"  cache_sim: {cs}\n  gem5     : {g5}")
