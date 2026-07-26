@@ -417,3 +417,48 @@ def test_riscv_gem5_binaries_are_not_stale_against_the_compact_record():
         "the RISC-V gem5 kernel predates the compact two-stamp record, so "
         "gem5 cells will stream 8 bytes whatever the receipt claims; rebuild "
         "with make gem5-riscv-m5ops-pr")
+
+
+def test_guest_enforces_the_width_the_runner_intended():
+    """Receipts must be enforced, not merely printed.
+
+    Four independent layers of env plumbing silently defeated the same setting
+    during this work, and each was invisible except in the guest's own receipt.
+    A receipt only helps if something reads it, so the guest now aborts before
+    the ROI when what it derived disagrees with ECG_EXPECT_BYTES_PER_EDGE.
+    """
+    meta = (ROOT / "bench/include/ecg_metadata.h").read_text()
+    assert "enforceExpectedBytesPerEdge" in meta
+    assert "ECG_EXPECT_BYTES_PER_EDGE" in meta
+    assert "std::abort()" in meta, (
+        "a mismatch must abort; warning is what let four separate "
+        "misconfigurations reach a result")
+
+    # Every kernel on every backend must call it, or the gap is where the next
+    # silent misconfiguration lands.
+    for rel in ([f"bench/src_sim/{k}.cc" for k in ("pr", "bfs", "cc", "bc", "sssp")] +
+                [f"bench/src_gem5/{k}.cc" for k in ("pr", "bfs", "cc", "bc", "sssp")] +
+                ["bench/src_sniper/sg_kernel.cc"]):
+        src = (ROOT / rel).read_text()
+        assert "enforceExpectedBytesPerEdge" in src, (
+            f"{rel} prints a receipt but does not enforce it")
+
+
+def test_width_contrast_stages_are_scoped_to_what_gem5_implements():
+    """Only gem5 PR has a compact record, and StreamShield is 8-byte only."""
+    manifest = json.loads(
+        (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
+    stages = [s for s in manifest["stages"]
+              if str(s.get("name", "")).startswith("31_gem5_record_width")]
+    assert stages
+    for stage in stages:
+        assert stage.get("benchmarks") == ["pr"], (
+            f"{stage['name']} includes kernels with no compact path, whose "
+            "receipts would claim a width they do not stream")
+        assert not any("STREAMSHIELD" in p.upper() for p in stage["policies"]), (
+            f"{stage['name']} includes a StreamShield policy; the stream-load "
+            "instruction is 8-byte only, so the arm would change width AND "
+            "allocation together")
+        want = "8" if stage["name"].endswith("_8b") else "4"
+        assert stage["env"].get("ECG_EXPECT_BYTES_PER_EDGE") == want, (
+            f"{stage['name']} does not assert the width it claims")

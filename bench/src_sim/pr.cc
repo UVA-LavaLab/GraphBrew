@@ -191,6 +191,7 @@ pvector<ScoreT> PageRankPullGS_Sim(const Graph &g, CacheType &cache,
                     static_cast<uint64_t>(g.num_nodes()), rec_ne);
                 const int record_bytes = ecg_meta.record_bytes;
                 ::ecg_metadata::announce(ecg_meta, "pr");
+                ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "pr");
                 uint32_t id_bits = 1; while (id_bits < 31 && (1u << id_bits) < (uint32_t)g.num_nodes()) id_bits++;
                 const uint32_t id_mask = (id_bits >= 32) ? 0xFFFFFFFFu : ((1u << id_bits) - 1);
                 size_t edge_pos = 0;

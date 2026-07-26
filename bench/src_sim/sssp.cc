@@ -229,6 +229,7 @@ pvector<WeightT> DeltaStep_Sim(const WGraph &g, NodeID source,
     // the metadata.
     ::ecg_metadata::requirePackedFeasible(ecg_meta, compact_weighted);
     ::ecg_metadata::announce(ecg_meta, "sssp");
+    ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "sssp");
     const int record_bytes = ecg_meta.record_bytes;
     (void)record_bytes; (void)epoch_bits;
     if (compact_weighted) {

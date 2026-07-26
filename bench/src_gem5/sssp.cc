@@ -237,9 +237,16 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     // header cache_sim and the other backends use, so no simulator can
     // compute a record width of its own.
     {
-        const auto ecg_meta = ::ecg_metadata::configure(
+        auto ecg_meta = ::ecg_metadata::configure(
             static_cast<uint64_t>(g.num_nodes()), edge_epoch_count);
+        // No compact path here yet: this kernel builds the 64-bit Schedule-2
+        // record, so it streams 8 bytes per edge whatever the budget computes.
+        // Declaring it keeps the receipt honest; only gem5 PR has the compact
+        // 32-bit record so far.
+        if (ecg_sched_k == 2)
+            ::ecg_metadata::declareContainerBytes(ecg_meta, 8);
         ::ecg_metadata::announce(ecg_meta, "gem5-sssp");
+        ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "gem5-sssp");
     }
     if (ecg_extract_on && ecg_sched_k == 2) {
         std::vector<uint64_t> pair_records;

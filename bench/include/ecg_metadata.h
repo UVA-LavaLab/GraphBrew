@@ -210,6 +210,33 @@ inline void announce(const Config& c, const char* kernel) {
         c.charged ? 1 : 0, c.bypass ? 1 : 0, c.packed_fits ? 1 : 0);
 }
 
+// Enforce, do not merely report.
+//
+// Four independent layers of environment plumbing silently defeated the same
+// setting during this work -- a runner scrub, a double-encoded channel, a gem5
+// SE allowlist, and a stale RISC-V binary -- and each was invisible except in
+// the guest's own receipt. Printing a receipt only helps if somebody reads it.
+//
+// ECG_EXPECT_BYTES_PER_EDGE lets the runner state what it believes the guest
+// will stream. The guest checks the value it actually derived and aborts BEFORE
+// the ROI on mismatch, so a misconfigured cell fails immediately instead of
+// producing a plausible-looking number hours later.
+inline void enforceExpectedBytesPerEdge(const Config& c, const char* kernel) {
+    const char* want = std::getenv("ECG_EXPECT_BYTES_PER_EDGE");
+    if (!want || !*want) return;
+    const double expected = std::atof(want);
+    const double actual = bytesPerEdge(c);
+    if (expected > 0.0 && (actual < expected - 1e-6 || actual > expected + 1e-6)) {
+        std::fprintf(stderr,
+            "[ECG-METADATA-FATAL kernel=%s expected_bytes_per_edge=%.3f "
+            "actual=%.3f delivery=%s record_bytes=%d] "
+            "the guest is not streaming what the runner intended; aborting "
+            "before the ROI rather than producing a misconfigured result\n",
+            kernel, expected, actual, deliveryName(c), c.record_bytes);
+        std::abort();
+    }
+}
+
 }  // namespace ecg_metadata
 
 #endif  // ECG_METADATA_H

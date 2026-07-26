@@ -226,14 +226,31 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
             // asks for 4 bytes AND the fields actually fit. Letting gem5 decide
             // on feasibility alone made it stream 4 bytes while cache_sim
             // streamed 8 -- the same divergence as before, inverted.
+            // StreamShield is delivered by a custom 8-byte stream-load
+            // instruction; there is no 32-bit variant. Taking the compact path
+            // while StreamShield is requested would silently drop the bypass,
+            // so the 4-byte and 8-byte arms would differ in BOTH width and LLC
+            // allocation and the contrast would be confounded. Prefer the
+            // requested mechanism and declare the width it forces.
+            const bool streamshield_requested =
+                gem5_ecg_stream_load2_enabled() || gem5_ecg_load2_enabled();
             use_compact_pair =
                 ecg_sched_k == 2 && ecg_meta.record_bytes == 4 &&
+                !streamshield_requested &&
                 ecg_epoch::canPackEpochPair32(
                     static_cast<uint32_t>(g.num_nodes()), edge_epoch_count);
+            if (ecg_sched_k == 2 && ecg_meta.record_bytes == 4 &&
+                streamshield_requested) {
+                fprintf(stderr,
+                    "[ECG-METADATA-NOTE] compact 4-byte record unavailable "
+                    "with StreamShield: the stream-load instruction is 8-byte "
+                    "only, so this cell streams 8 bytes\n");
+            }
             if (ecg_sched_k == 2)
                 ::ecg_metadata::declareContainerBytes(
                     ecg_meta, use_compact_pair ? 4 : 8);
             ::ecg_metadata::announce(ecg_meta, "gem5-pr");
+            ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "gem5-pr");
         }
         if (ecg_sched_k == 2) {
             // Prefer the COMPACT 32-bit two-stamp record when the fields fit.

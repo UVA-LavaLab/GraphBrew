@@ -41,6 +41,7 @@ int64_t BUStep_Sim(const Graph &g, pvector<NodeID> &parent, Bitmap &front,
     const int record_bytes = ecg_meta.record_bytes;
     (void)record_bytes; (void)epoch_bits;
     ::ecg_metadata::announce(ecg_meta, "bfs");
+    ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "bfs");
     const bool record_charged = ecg_record &&
         GraphSimEnvIntClamped(
             "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;
@@ -117,6 +118,7 @@ int64_t TDStep_Sim(const Graph &g, pvector<NodeID> &parent,
     const int record_bytes = ecg_meta.record_bytes;
     (void)record_bytes; (void)epoch_bits;
     ::ecg_metadata::announce(ecg_meta, "bfs");
+    ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "bfs");
     const bool record_charged = ecg_record &&
         GraphSimEnvIntClamped(
             "ECG_EDGE_MASK_CHARGED", 1, 0, 1) > 0;

@@ -1515,18 +1515,13 @@
       "suite": "gem5",
       "graph_set": "realgraph_samples",
       "benchmarks": [
-        "pr",
-        "bfs",
-        "sssp",
-        "bc",
-        "cc"
+        "pr"
       ],
       "policies": [
         "LRU",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_STREAMSHIELD"
+        "ECG:K2"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1538,9 +1533,10 @@
         "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
         "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
         "ECG_STREAM_BYPASS_TRACE": "8",
-        "ECG_RECORD_VARIABLE_WIDTH": "1"
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4"
       },
-      "notes": "Compact 4-byte two-stamp record: it SUBSTITUTES for the CSR edge. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic."
+      "notes": "Compact 4-byte two-stamp record: it SUBSTITUTES for the CSR edge. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic. SCOPE: gem5 PR only -- bfs/cc/bc/sssp have no compact path and declare 8 bytes. StreamShield variants are EXCLUDED because the stream-load instruction is 8-byte only, so a compact StreamShield arm would change width AND allocation together. ECG_EXPECT_BYTES_PER_EDGE makes the guest abort before the ROI if it is not streaming the width this arm claims."
     },
     {
       "name": "31_gem5_record_width_8b",
@@ -1551,18 +1547,13 @@
       "suite": "gem5",
       "graph_set": "realgraph_samples",
       "benchmarks": [
-        "pr",
-        "bfs",
-        "sssp",
-        "bc",
-        "cc"
+        "pr"
       ],
       "policies": [
         "LRU",
         "GRASP",
         "POPT",
-        "ECG:K2",
-        "ECG:K2_STREAMSHIELD"
+        "ECG:K2"
       ],
       "popt_reserve_model": "size_correct",
       "prefetcher": "none",
@@ -1575,9 +1566,10 @@
         "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
         "ECG_STREAM_BYPASS_TRACE": "8",
         "ECG_RECORD_VARIABLE_WIDTH": "1",
-        "ECG_EDGE_RECORD_BYTES": "8"
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8"
       },
-      "notes": "Matched 8-byte arm: identical in every respect except the record is forced wide, so the width effect is isolated. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic."
+      "notes": "Matched 8-byte arm: identical in every respect except the record is forced wide, so the width effect is isolated. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic. SCOPE: gem5 PR only -- bfs/cc/bc/sssp have no compact path and declare 8 bytes. StreamShield variants are EXCLUDED because the stream-load instruction is 8-byte only, so a compact StreamShield arm would change width AND allocation together. ECG_EXPECT_BYTES_PER_EDGE makes the guest abort before the ROI if it is not streaming the width this arm claims."
     }
   ]
 }

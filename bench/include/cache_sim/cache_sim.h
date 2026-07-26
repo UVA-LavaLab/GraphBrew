@@ -1425,7 +1425,8 @@ private:
                 // GRASP-faithful 3-tier for DBG modes and ECG_EMBEDDED variants
                 if (graph_ctx_) {
                     uint64_t addr = set[idx].line_addr;
-                    if (mode == ECGMode::ECG_GRASP_POPT &&
+                    if (ecgTierCarried() &&
+                        mode == ECGMode::ECG_GRASP_POPT &&
                         graph_ctx_->isEcgEpochData(addr) &&
                         graph_ctx_->hints_for_thread().edge_grasp_tier_valid) {
                         set[idx].ecg_dbg_tier =

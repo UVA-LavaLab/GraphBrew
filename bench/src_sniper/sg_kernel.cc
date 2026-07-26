@@ -372,6 +372,7 @@ int run_pr(const Graph& graph, int max_iters) {
         // record width or whether a packed record fits.
         const auto ecg_meta = ::ecg_metadata::configure(nn, ecg_epoch_count);
         ::ecg_metadata::announce(ecg_meta, "sniper-sg_kernel");
+        ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "sniper-sg_kernel");
         if (ecg_extract_on && ecg_sched_k != 2 && ecg_meta.packed_fits) {
             epoch_pack_id_mask = (uint32_t{1} << epoch_pack_id_bits) - 1;
             epoch_packed_off.assign(static_cast<size_t>(nn) + 1, 0);

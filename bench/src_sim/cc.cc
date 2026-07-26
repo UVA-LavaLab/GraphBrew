@@ -152,6 +152,7 @@ pvector<NodeID> Afforest_Sim(const Graph &g, CacheType &cache,
     const int record_bytes = ecg_meta.record_bytes;
     (void)record_bytes; (void)epoch_bits;
     ::ecg_metadata::announce(ecg_meta, "cc");
+    ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "cc");
     NodeID* out_edge_base = g.num_nodes() > 0
         ? g.out_neigh(0).begin() : nullptr;
 

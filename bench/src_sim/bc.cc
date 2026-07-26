@@ -101,6 +101,7 @@ void BCBFS_Sim(const Graph &g, NodeID source,
     const int record_bytes = ecg_meta.record_bytes;
     (void)record_bytes; (void)epoch_bits;
     ::ecg_metadata::announce(ecg_meta, "bc");
+    ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "bc");
     NodeID* out_edge_base = g.num_nodes() > 0
         ? g.out_neigh(0).begin() : nullptr;
 

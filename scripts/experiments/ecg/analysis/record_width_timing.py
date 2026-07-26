@@ -54,8 +54,8 @@ def load(run_dir: Path):
     for csv_path in run_dir.rglob("roi_matrix.csv"):
         stage = "?"
         for part in csv_path.parts:
-            if part.startswith("31_gem5_record_width_timing"):
-                stage = part.replace("31_gem5_record_width_timing_", "")
+            if part.startswith("31_gem5_record_width"):
+                stage = part.rsplit("_", 1)[-1]
         for row in csv.DictReader(csv_path.open()):
             if row.get("status") != "ok":
                 continue

@@ -1126,42 +1126,43 @@ Two things make this stronger than a repeat of the earlier freeze.
    same stamps therefore cannot change a victim choice, which is why a second
    delivery structure is admissible at all.
 
-### TIER ABLATION: the carried tier bits are genuinely free on the headline variant
+### WITHDRAWN: "the carried tier bits are genuinely free"
 
-An earlier note claimed the record's GRASP tier bits could be dropped at no
-cost, citing 0.672 against 0.671. That was not a valid test.
-`ECG_RECORD_TIER_BITS` only fed the record-WIDTH calculation, so the record
-narrowed while the tier kept arriving and kept breaking eviction ties. The
-measurement compared two configurations with identical mechanisms.
+> **This section is withdrawn.** The measurement was real but the conclusion
+> does not follow, and the arithmetic attached to it was wrong. Retained for
+> audit. Do not cite.
 
-The flag now gates delivery at `has_carried_tier`, the single point every
-insertion path consults, so zero tier bits means no tier is carried. Note the
-insertion paths fall back to address-based GRASP classification, so this ablates
-the *carried* tier, not GRASP tiering as a whole.
+The claim was that the record's GRASP tier bits cost nothing on the headline
+variant, from `epoch_first` measuring 85,539 with and without them. Adversarial
+review showed the result is tautological: `epoch_first` never reads
+`ways[i].dbg` at all (`ecg_victim_policy.h`, the EPOCH_FIRST branch selects
+records by recency, then stamped property by farthest distance, then falls back
+to recency). A variant that never consults the tier cannot be shown to be
+indifferent to it by removing it.
 
-web-Google-n16 PageRank, 128 kB LLC, two-stamp record at 4 bytes, off-chip
-traffic:
+Three further defects in the same experiment:
 
-| victim variant | tier=2 | tier=0 | delta |
-|---|---:|---:|---:|
-| `epoch_first` (headline) | 85,539 | 85,539 | **0.00%** |
-| `shortcircuit` | 90,369 | 90,280 | -0.10% |
-| `grasp_only` | 102,252 | 103,391 | +1.11% |
+1. **One delivery site was still ungated.** A hit-path assignment reloaded
+   `edge_grasp_tier` regardless of `ECG_RECORD_TIER_BITS`, so the ablation was
+   incomplete even where it did apply. Now gated; the finding is not re-derived
+   here because the variant choice invalidates it independently.
+2. **It was not tier versus no tier.** The insertion paths fall back to
+   `classifyBucket(address)`, so the comparison was *carried* global-degree tier
+   against *address-derived* GRASP tier, which is a different question.
+3. **The scaling arithmetic was wrong.** Returning two bits to the id field
+   multiplies addressable vertices by four, not two. The compact packer also
+   hardcodes two tier bits, so no reach is currently reclaimed at all.
 
-The `grasp_only` row is the control: it moves by 1.11%, which proves the
-ablation is now actually taking effect. Under the previous width-only flag all
-three variants were byte-identical, which is what exposed the flag as inert.
+What survives is only the control: `grasp_only` moved from 102,252 to 103,391
+(+1.11%) when the carried tier was withheld, which shows the gate reaches at
+least one tier-dependent path. That is a sanity check on the mechanism, not a
+result about tier cost.
 
-**On the headline variant the carried tier contributes exactly nothing** -- not
-approximately nothing, but zero lines out of 85,539. The epoch stamp already
-determines the victim, and the degree tier never breaks a tie it has not already
-decided. `grasp_only` degrades without it precisely because there the tier is
-the whole policy.
-
-This matters for scaling rather than for performance. Two bits returned to the
-id field double the vertex count a 4-byte record can address, which moves the
-two-stamp 4-byte limit from roughly 67M vertices to roughly 134M at 2-bit
-epochs. The tier remains available for variants that use it.
+A valid version of this experiment needs a variant that actually uses the tier
+(`degree_first`, or a deliberately tier-tied construction), counters proving
+zero carried-tier writes and zero tier-based victim decisions under ablation,
+and a packer that honours `ECG_RECORD_TIER_BITS` so the bits are genuinely
+reclaimed.
 
 ### CROSS-SIM DIVERGENCE: gem5 cannot deliver a 4-byte two-stamp record
 
