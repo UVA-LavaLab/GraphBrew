@@ -202,6 +202,16 @@ GEM5_STAT_KEYS = {
     "dram_avg_read_bw_mibs": "system.mem_ctrl.dram.avgRdBW",
     "dram_avg_write_bw_mibs": "system.mem_ctrl.dram.avgWrBW",
     "dram_bw_total_bytes_per_s": "system.mem_ctrl.dram.bwTotal::total",
+    # ROI-SCOPED instruction count. simInsts is NOT cleared by m5_reset_stats
+    # (it keeps counting from boot, so it includes graph loading and metadata
+    # construction), which makes it useless for attributing ROI cost -- and
+    # actively misleading, since it implies an IPC above 1 on an in-order
+    # TimingSimpleCPU. commitStats0.numInsts IS reset, so it measures the
+    # region the paper reports. Needed because a software-decoded record can
+    # cost more instructions than the memory traffic it saves.
+    "roi_insts": "system.cpu.commitStats0.numInsts",
+    "roi_cycles": "system.cpu.numCycles",
+    "roi_cpi": "system.cpu.commitStats0.cpi",
 }
 
 GEM5_PREFETCH_STAT_KEYS = {

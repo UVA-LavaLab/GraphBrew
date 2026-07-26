@@ -238,14 +238,22 @@ def _receipt(cmd, env):
 
 @pytest.mark.skipif(not (GEM5_PR.exists() and GRAPH.exists()),
                     reason="gem5 pr binary or graph fixture missing")
-@pytest.mark.parametrize("stamps", [1, 2])
-def test_cache_sim_and_gem5_derive_identical_width(stamps):
+@pytest.mark.parametrize("stamps,variable,expect_bytes",
+                         [(1, False, 4), (2, False, 8), (2, True, 4)])
+def test_cache_sim_and_gem5_derive_identical_width(stamps, variable,
+                                                   expect_bytes):
     """The whole point of the SSOT: no backend may compute its own width.
 
     Both simulators independently call ecg_metadata::configure and print a
     receipt. Identical configuration must produce byte-identical receipts. A
     mismatch means one backend has drifted back to a private width rule, which
     is exactly the defect that made K2-versus-K1 a comparison of record widths.
+
+    The variable-width Schedule-2 case is the one that matters most: the SSOT
+    computes a 4-byte BUDGET, and a backend that materialises the record wider
+    must declare the container it really streams. gem5 and Sniper both printed
+    the budget while building 64-bit arrays, so the receipt agreed while the
+    memory traffic did not.
     """
     shared = {
         "ECG_EDGE_MASK_EPOCH": 1, "ECG_EDGE_MASK_LINEMIN": 1,
@@ -253,6 +261,8 @@ def test_cache_sim_and_gem5_derive_identical_width(stamps):
     }
     if stamps == 2:
         shared["ECG_EDGE_MASK_SCHED"] = 2
+    if variable:
+        shared["ECG_RECORD_VARIABLE_WIDTH"] = 1
 
     cs_env = dict(shared)
     cs_env.update({
@@ -274,8 +284,11 @@ def test_cache_sim_and_gem5_derive_identical_width(stamps):
     assert cs is not None, "cache_sim emitted no metadata receipt"
     assert g5 is not None, "gem5 emitted no metadata receipt"
     assert cs == g5, (
-        f"backends disagree on record width at stamps={stamps}:\n"
-        f"  cache_sim: {cs}\n  gem5     : {g5}")
+        f"backends disagree on record width at stamps={stamps} "
+        f"variable={variable}:\n  cache_sim: {cs}\n  gem5     : {g5}")
+    assert f"record_bytes={expect_bytes} " in cs + " ", (
+        f"expected a {expect_bytes}-byte record at stamps={stamps} "
+        f"variable={variable}, got: {cs}")
 
     # Sniper's workload is a third independent consumer of the same header.
     sniper = ROOT / "bench/bin_sniper/sg_kernel"
@@ -287,22 +300,22 @@ def test_cache_sim_and_gem5_derive_identical_width(stamps):
             sn_env)
         assert sn is not None, "Sniper emitted no metadata receipt"
         assert sn == cs, (
-            f"Sniper disagrees on record width at stamps={stamps}:\n"
-            f"  cache_sim: {cs}\n  sniper   : {sn}")
+            f"Sniper disagrees on record width at stamps={stamps} "
+            f"variable={variable}:\n  cache_sim: {cs}\n  sniper   : {sn}")
 
 
 def test_declared_gem5_timing_stages_are_honestly_scoped():
-    """gem5 streams 8 bytes for Schedule-2, so it cannot host a width contrast.
+    """The gem5 width contrast must vary width and nothing else.
 
-    gem5 builds pvector<uint64_t> in_edge_pair_flat, so both arms of a
-    4-versus-8-byte contrast would stream 8 bytes and the comparison would be
-    vacuous. That is why the gem5 stages are a timing and bandwidth study at the
-    width gem5 actually streams, and why the width contrast belongs to
-    cache_sim, where substitution for the CSR edge is modelled.
+    gem5 once built pvector<uint64_t> unconditionally, so both arms of a
+    4-versus-8-byte contrast would have streamed 8 bytes and the comparison
+    would have been vacuous. It now has a compact 32-bit Schedule-2 record, so
+    the contrast is real -- but only if the 4-byte arm actually asks for a
+    computed width and the 8-byte arm actually forces one.
 
-    Guards the two mistakes already made: forcing a width here (vacuous), and
-    nesting the explicit-cell channel inside itself (silently dropped, since
-    paper_run already wraps the stage env).
+    Guards the two mistakes already made: forcing a width in both arms
+    (vacuous), and nesting the explicit-cell channel inside itself (silently
+    dropped, since paper_run already wraps the stage env).
     """
     manifest = json.loads(
         (ROOT / "scripts/experiments/ecg/final_paper_manifest.json").read_text())
@@ -487,3 +500,47 @@ def test_compact_records_decode_identically_to_the_64_bit_form():
     assert out.count("records checked") >= 3, (
         "too few epoch counts exercised; the compact builder may be refusing "
         f"to pack:\n{out[-1000:]}")
+
+
+@pytest.mark.skipif(not (GEM5_PR.exists() and GRAPH.exists()),
+                    reason="gem5 pr binary or graph fixture missing")
+def test_a_four_byte_receipt_means_a_four_byte_array_was_built():
+    """A receipt that agrees across backends can still be wrong in all of them.
+
+    The SSOT computes the width a record COULD occupy. gem5 and Sniper both
+    printed that budget while building 64-bit arrays, so the cross-backend
+    receipt comparison passed while the memory traffic silently doubled. Only
+    the container the backend actually allocates settles it.
+
+    Both backends announce the compact array when they build it, so a 4-byte
+    receipt without that announcement is the exact defect this guards.
+    """
+    env = {"ECG_EDGE_MASK_EPOCH": 1, "ECG_EDGE_MASK_LINEMIN": 1,
+           "ECG_EDGE_MASK_EPOCHS": 32, "ECG_EDGE_MASK_SCHED": 2,
+           "ECG_RECORD_VARIABLE_WIDTH": 1}
+
+    e = dict(os.environ)
+    e.update({k: str(v) for k, v in env.items()})
+    e.update({"GEM5_ENABLE_ECG_PFX_HINTS": "1", "GEM5_ECG_PFX_MODE": "6"})
+    g5 = subprocess.run([str(GEM5_PR), "-f", str(GRAPH), "-n", "1", "-i", "1"],
+                        env=e, capture_output=True, text=True, timeout=900)
+    g5_out = g5.stdout + g5.stderr
+    assert "record_bytes=4 " in g5_out, "gem5 did not take the 4-byte budget"
+    assert "Schedule-2 COMPACT record ON" in g5_out, (
+        "gem5 announced a 4-byte record but did not build the compact array; "
+        "it is streaming 8 bytes per edge while claiming 4")
+
+    sniper = ROOT / "bench/bin_sniper/sg_kernel"
+    if not sniper.exists():
+        pytest.skip("Sniper workload not built")
+    e = dict(os.environ)
+    e.update({k: str(v) for k, v in env.items()})
+    e["SNIPER_ENABLE_ECG_EXTRACT"] = "1"
+    sn = subprocess.run(
+        [str(sniper), "--benchmark", "pr", "-f", str(GRAPH), "-i", "1"],
+        env=e, capture_output=True, text=True, timeout=900)
+    sn_out = sn.stdout + sn.stderr
+    assert "record_bytes=4 " in sn_out, "Sniper did not take the 4-byte budget"
+    assert "ECG-PAIR32 sim=sniper" in sn_out, (
+        "Sniper announced a 4-byte record but did not build the compact array; "
+        "it is streaming 8 bytes per edge while claiming 4")

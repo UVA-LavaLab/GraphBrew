@@ -348,10 +348,14 @@ int run_pr(const Graph& graph, int max_iters) {
     std::vector<uint32_t> epoch_packed_flat;
     std::vector<uint64_t> epoch_pair_off;
     std::vector<uint64_t> epoch_pair_flat;
+    std::vector<uint32_t> epoch_pair32_flat;
     uint32_t epoch_pack_id_bits = 1;
     uint32_t epoch_pack_id_mask = 1;
+    uint32_t epoch_pair32_id_bits = 1;
+    uint32_t epoch_pair32_epoch_bits = 1;
     bool epoch_packed_ok = false;
     bool epoch_pair_ok = false;
+    bool epoch_pair32_ok = false;
     if (ecg_extract_on || k2_transport_matched) {
         if (ecg_extract_on && ecg_sched_k != 2) {
             ecg_epoch::buildInEdgeEpochs(
@@ -370,7 +374,20 @@ int run_pr(const Graph& graph, int max_iters) {
         // Width and structure come from the shared metadata SSOT, the same
         // header cache_sim and gem5 use, so the three cannot disagree about
         // record width or whether a packed record fits.
-        const auto ecg_meta = ::ecg_metadata::configure(nn, ecg_epoch_count);
+        auto ecg_meta = ::ecg_metadata::configure(nn, ecg_epoch_count);
+        // The SSOT computes the BUDGET a record could occupy; a backend that
+        // materialises it wider must say so. Sniper's Schedule-2 array used to
+        // be uint64_t unconditionally while the receipt printed the 4-byte
+        // budget -- the same lie gem5 told before the compact port. Decide the
+        // container first, declare it, and only then announce.
+        const bool sniper_pair_requested =
+            (ecg_extract_on && ecg_sched_k == 2) || k2_transport_matched;
+        const bool use_compact_pair =
+            sniper_pair_requested && ecg_meta.record_bytes == 4 &&
+            ecg_epoch::canPackEpochPair32(nn, ecg_epoch_count);
+        if (sniper_pair_requested)
+            ::ecg_metadata::declareContainerBytes(
+                ecg_meta, use_compact_pair ? 4 : 8);
         ::ecg_metadata::announce(ecg_meta, "sniper-sg_kernel");
         ::ecg_metadata::enforceExpectedBytesPerEdge(ecg_meta, "sniper-sg_kernel");
         if (ecg_extract_on && ecg_sched_k != 2 && ecg_meta.packed_fits) {
@@ -396,8 +413,29 @@ int run_pr(const Graph& graph, int max_iters) {
             }
             epoch_packed_ok = true;
         }
-        if ((ecg_extract_on && ecg_sched_k == 2) ||
-            k2_transport_matched) {
+        if (sniper_pair_requested) {
+            // Prefer the COMPACT 32-bit two-stamp record when the fields fit:
+            // it SUBSTITUTES for the 4-byte CSR edge, which is the width
+            // cache_sim models, instead of doubling the structural stream.
+            // The canonical 64-bit array is still built because the K2 sideband
+            // file is a fixed uint64 wire format read out of band by the
+            // simulator -- it carries no simulated traffic, so the ROI streams
+            // 4 bytes per edge either way.
+            if (use_compact_pair &&
+                ecg_epoch::buildInEdgeEpochPairRecords32(
+                    graph, num_vtx_per_line, ecg_epoch_count,
+                    /*linemin=*/true, epoch_pair_off, epoch_pair32_flat)) {
+                epoch_pair32_ok = true;
+                epoch_pair32_id_bits = ecg_epoch::epochPair32IdBits(nn);
+                epoch_pair32_epoch_bits =
+                    ecg_epoch::epochPair32EpochBits(ecg_epoch_count);
+                std::fprintf(stderr,
+                             "[ECG-PAIR32 sim=sniper kernel=pr records=%llu "
+                             "id_bits=%u epoch_bits=%u (4-byte, substitutes "
+                             "for the CSR edge)]\n",
+                             (unsigned long long)epoch_pair32_flat.size(),
+                             epoch_pair32_id_bits, epoch_pair32_epoch_bits);
+            }
             ecg_epoch::buildInEdgeEpochPairRecords(
                 graph, num_vtx_per_line, ecg_epoch_count,
                 /*linemin=*/true, epoch_pair_off, epoch_pair_flat);
@@ -447,17 +485,29 @@ int run_pr(const Graph& graph, int max_iters) {
                          ecg_epoch_count);
         }
     }
+    // The bypass region must describe the array the ROI actually streams. With
+    // the compact record that is the 32-bit array; the 64-bit one exists only
+    // as the sideband source and is never touched inside the ROI.
+    const uint64_t streamed_pair_base =
+        epoch_pair32_ok && !epoch_pair32_flat.empty()
+            ? reinterpret_cast<uint64_t>(epoch_pair32_flat.data())
+            : (epoch_pair_ok && !epoch_pair_flat.empty()
+                ? reinterpret_cast<uint64_t>(epoch_pair_flat.data()) : 0);
+    const uint64_t streamed_pair_size =
+        epoch_pair32_ok
+            ? epoch_pair32_flat.size() * sizeof(uint32_t)
+            : (epoch_pair_ok ? epoch_pair_flat.size() * sizeof(uint64_t) : 0);
     if (!sniper_export_context(
         regions, 2, graph, nullptr, edge_regions, num_edge_regions,
         stream_bypass_on
-            ? (epoch_pair_ok && !epoch_pair_flat.empty()
-                ? reinterpret_cast<uint64_t>(epoch_pair_flat.data())
+            ? (streamed_pair_base != 0
+                ? streamed_pair_base
                 : (epoch_packed_ok && !epoch_packed_flat.empty()
                     ? reinterpret_cast<uint64_t>(epoch_packed_flat.data()) : 0))
             : 0,
         stream_bypass_on
-            ? (epoch_pair_ok
-                ? epoch_pair_flat.size() * sizeof(uint64_t)
+            ? (streamed_pair_base != 0
+                ? streamed_pair_size
                 : (epoch_packed_ok
                     ? epoch_packed_flat.size() * sizeof(uint32_t) : 0))
             : 0,
@@ -597,7 +647,11 @@ int run_pr(const Graph& graph, int max_iters) {
                 if (no_delivery_pair_loop) {
                     for (uint64_t pos = begin; pos < end; ++pos) {
                         consume_edge();
-                        const uint64_t rec = epoch_pair_flat[pos];
+                        const uint64_t rec = epoch_pair32_ok
+                            ? ecg_epoch::widenEpochPair32(
+                                  epoch_pair32_flat[pos], epoch_pair32_id_bits,
+                                  epoch_pair32_epoch_bits)
+                            : epoch_pair_flat[pos];
                         const NodeID neighbor = static_cast<NodeID>(
                             ecg_epoch::extractEpochPairDest(rec));
                         incoming_total +=
@@ -607,7 +661,11 @@ int run_pr(const Graph& graph, int max_iters) {
                 } else {
                     for (uint64_t pos = begin; pos < end; ++pos) {
                         consume_edge();
-                        const uint64_t rec = epoch_pair_flat[pos];
+                        const uint64_t rec = epoch_pair32_ok
+                            ? ecg_epoch::widenEpochPair32(
+                                  epoch_pair32_flat[pos], epoch_pair32_id_bits,
+                                  epoch_pair32_epoch_bits)
+                            : epoch_pair_flat[pos];
                         const NodeID neighbor = static_cast<NodeID>(
                             ecg_epoch::extractEpochPairDest(rec));
                         deliver_k2_record(rec, fused_k2_model);
