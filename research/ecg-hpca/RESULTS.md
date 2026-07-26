@@ -827,6 +827,76 @@ sensitivity is larger than the differences being measured, so the frozen cell
 set must pin the private hierarchy, the record width rule and the epoch count
 explicitly before any of this is quoted.
 
+### ATTRIBUTION: every K2 loss measured so far is record width, not replacement
+
+Five result reversals with no policy change prompted an attribution experiment
+instead of another ranking. Holding the workload and the record fixed and
+varying only the victim rule, then varying only the record, separates the two.
+
+BFS, web-Google-n16, 128 kB LLC, 32 kB/256 kB private, StreamShield on:
+
+| configuration | traffic | vs LRU | vs native GRASP |
+|---|---:|---:|---:|
+| native LRU | 147,425 | 1.000 | |
+| native GRASP | 123,852 | 0.840 | 1.000 |
+| K2, arm `grasp_only`, record charged | 200,613 | 1.361 | 1.620 |
+| K2, arm `grasp_only`, **record free** | 123,867 | 0.840 | **1.000** |
+| K2, arm `grasp_only`, **forced 4 B** | 123,408 | 0.837 | **0.996** |
+| K2, arm `grasp_only`, forced 8 B | 200,698 | 1.361 | 1.620 |
+| K2 online (set dueling) | 201,408 | 1.366 | 1.626 |
+
+K2 running GRASP's own victim rule with a free record reproduces native GRASP
+to within 15 lines out of 123,852, and with a real 4-byte record it is
+marginally *better* than native GRASP. The entire 62% BFS deficit is the
+record stream widening from 4 bytes to 8. **No part of it is victim
+selection.**
+
+This also resolves the set-dueling anomaly. Dueling was suspected of failing
+because it did not rescue BFS. It did not fail: online (201,408) tracks the
+best static arm `grasp_only` (200,613) closely, so it selected correctly. It
+could not help because the loss was never in the arm it selects among. A
+selector over victim rules cannot recover a transport cost.
+
+**Consequence: the paper's entire viability reduces to one question — does the
+record stay 4 bytes at realistic scale?** Everything else measured so far is
+downstream of that single bit of configuration.
+
+### SCALING: the record fits 4 bytes at Twitter scale, at 2-bit epochs
+
+The budget is `id_bits + epoch_bits * stamps + tier_bits <= 32`. K2 carries two
+stamps, so epoch resolution costs double. PageRank on web-Google-n16, record
+forced to 4 bytes, versus LRU 128,892 and GRASP 107,582:
+
+| epoch bits | epochs | traffic | vs LRU | vs GRASP |
+|---:|---:|---:|---:|---:|
+| 2 | 4 | 93,758 | 0.727 | **0.872** |
+| 3 | 8 | 89,112 | 0.691 | 0.828 |
+| 4 | 16 | 86,543 | 0.671 | 0.804 |
+| 5 | 32 | 84,900 | 0.659 | **0.789** |
+
+K2 beats GRASP at every resolution including the cheapest. So epoch bits can be
+traded for id bits while keeping the win:
+
+| graph | vertices | id bits | K2 budget at 2-bit epochs | 4 B? |
+|---|---:|---:|---:|---|
+| web-Google | 916,428 | 20 | 20 + 4 + 2 = 26 | yes, 5-bit epochs also fit |
+| soc-pokec | 1,632,803 | 21 | 21 + 4 + 2 = 27 | yes |
+| cit-Patents | 3,774,768 | 22 | 22 + 4 + 2 = 28 | yes |
+| Twitter-2010 | 41,652,230 | 26 | 26 + 4 + 2 = **32** | **yes, exactly** |
+| Friendster | 65,608,366 | 26 | 26 + 4 + 2 = **32** | **yes, exactly** |
+| 100M synthetic | 100,000,000 | 27 | 27 + 4 + 2 = 33 | only without tier bits |
+
+Twitter and Friendster fit in exactly 32 bits at 2-bit epochs, where K2 still
+returns 0.872 against GRASP. Past roughly 67M vertices the tier field must go,
+and past ~134M the two-stamp record cannot be one edge wide on a 32-bit graph.
+
+Two honest caveats. The 2-bit result is measured on a 65K-vertex sample, and an
+epoch is `floor(current_vertex * epochs / num_vertices)`, so four epochs spans a
+very different vertex count on Twitter than on the sample; the resolution
+sweep must be repeated at scale before this is claimed. And the tier field has
+only been removed from the *width* calculation, not from the replacement
+mechanism, so "drop the tier bits" is not yet a validated configuration.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
