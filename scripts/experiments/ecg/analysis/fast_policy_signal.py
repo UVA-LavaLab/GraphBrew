@@ -105,9 +105,17 @@ def build_env(rm, policy_text: str, kernel: str, l3: str, args) -> dict:
     the paper runner and a new runner option cannot silently diverge here.
     """
     spec = rm.parse_policy_spec(policy_text)
+    # The private-cache sizes MUST be set explicitly. roi_matrix's bare defaults
+    # are 1 kB L1 and 2 kB L2, sized for smoke tests, and with a hierarchy that
+    # small almost every access reaches the LLC: web-Google-n16 PageRank LRU
+    # traffic was 297,710 against 128,970 with a realistic 32 kB / 256 kB
+    # hierarchy, a 2.3x inflation that changes what the LLC policy is even being
+    # asked to do.
     ns = rm.parse_args([
         "--suite", "cache-sim",
         "--benchmark", kernel,
+        "--l1d-size", args.l1d_size,
+        "--l2-size", args.l2_size,
         "--prefetcher", args.prefetcher,
         "--stream-prefetch-model", args.stream_prefetch_model,
         "--popt-matrix-stream", args.popt_matrix_stream,
@@ -125,6 +133,13 @@ def build_env(rm, policy_text: str, kernel: str, l3: str, args) -> dict:
     # result. The pinned specs hardcode 65535 epochs, which always spills.
     if args.ecg_epochs and "ECG_EDGE_MASK_EPOCHS" in env:
         env["ECG_EDGE_MASK_EPOCHS"] = str(args.ecg_epochs)
+    # Schedule-2 historically returned 8 bytes unconditionally instead of
+    # computing its width, which doubled K2's modelled transport whenever its
+    # fields would in fact have fitted in 4.
+    if args.variable_record_width:
+        env["ECG_RECORD_VARIABLE_WIDTH"] = "1"
+    if args.tier_bits is not None:
+        env["ECG_RECORD_TIER_BITS"] = str(args.tier_bits)
     if args.prefetch_degree:
         env["CACHE_STREAM_PREFETCH_DEGREE"] = str(args.prefetch_degree)
     return env, json_path, spec
@@ -198,6 +213,14 @@ def main(argv):
                          "The pinned specs use 65535, which forces a 16-bit "
                          "epoch field and an 8-byte record; 4096 or fewer packs "
                          "the record into 4 bytes on a 16-bit-id graph.")
+    ap.add_argument("--l1d-size", default="32kB")
+    ap.add_argument("--l2-size", default="256kB")
+    ap.add_argument("--variable-record-width", action="store_true",
+                    help="compute the Schedule-2 record width from the bit "
+                         "budget instead of returning 8 bytes unconditionally")
+    ap.add_argument("--tier-bits", type=int, default=None,
+                    help="override ECG_RECORD_TIER_BITS (transport width only; "
+                         "does NOT disable the GRASP tier mechanism)")
     ap.add_argument("--min-activity", type=int, default=10000,
                     help="minimum baseline metric value for a cell to count; "
                          "below this, ratios are noise and one cell can "

@@ -746,131 +746,86 @@ Rows record `stream_prefetch_model`, `stream_prefetch_issued`,
 `stream_prefetch_throttled` and `stream_prefetch_untrained`, so an oracle
 result cannot be mistaken for an honest one.
 
-### FINDING: the pinned K2 configuration forces an 8-byte record and loses
+### CORRECTED: two earlier fast-signal sections were wrong, and how
 
-A fast direction check across the sampled matrix (90 cells in about 90 seconds,
-`scripts/experiments/ecg/analysis/fast_policy_signal.py`) found that the epoch
-resolution in the pinned policy specs, not K2's replacement logic, decides
-whether K2 wins or loses.
+Two sections previously stood here claiming that the pinned configuration
+forced an 8-byte record, that K2's second future epoch does not pay for itself,
+and that the single-epoch K1 record should be promoted over K2. Adversarial
+review and follow-up measurement invalidated all three. They are replaced
+rather than edited, and the errors are recorded because each was a different
+kind of mistake.
 
-The per-edge record packs destination id, tier and epoch bits into one word.
-Epoch resolution sets the epoch field width, and once the total spills past 32
-bits the record doubles to 8 bytes. web-Google-n16 PageRank at 128 kB, versus
-LRU:
+**Error 1: the 8-byte record was our shortcut, not K2's cost.**
+`GraphSimEcgRecordBytes` contained `if (schedule_k == 2) return 8;`, which
+skipped the bit budget entirely. On a 65,536-vertex graph K2's two-epoch record
+needs 16 id + 2x5 epoch + 2 tier = 28 bits and fits in 4 bytes. Charging it 8
+doubled K2's modelled transport, and every K2-versus-K1 comparison was
+therefore a comparison of record widths rather than of policies. With
+`ECG_RECORD_VARIABLE_WIDTH=1`, web-Google-n16 PageRank moves from 1.171 to
+**0.660**, and K2 overtakes K1. The claim that the second epoch does not pay
+for itself was an artifact of our own accounting.
 
-| epochs | epoch bits | record | traffic | ratio |
-|---|---:|---|---:|---:|
-| 256 | 8 | 4 B | 92,696 | **0.719** |
-| 1,024 | 10 | 4 B | 97,306 | **0.754** |
-| 4,096 | 12 | 4 B | 98,460 | **0.763** |
-| 65,535 | 16 | **8 B** | 171,172 | **1.327** |
+**Error 2: "the specs hardcode 65535 epochs" was false.** 65535 is the
+runner's global `--ecg-epochs` default, not a value pinned in `ECG:K1` or
+`ECG:K2`.
 
-Epoch resolution itself buys almost nothing: 256 to 4,096 epochs moves traffic
-by 6%. Spilling to 8 bytes costs 74% and flips a 28% win into a 33% loss.
+**Error 3: the harness ran a toy private hierarchy.** The signal took
+`roi_matrix`'s bare defaults, which are **1 kB L1 and 2 kB L2**, sized for
+smoke tests. With a hierarchy that small almost every access reaches the LLC:
+web-Google-n16 PageRank LRU traffic was 297,710 against 128,970 with a
+realistic 32 kB / 256 kB hierarchy, a 2.3x inflation that changes what the LLC
+policy is being asked to do. Every number in the withdrawn sections came from
+that configuration, including the headline "K1+StreamShield beats GRASP at
+0.613 and 0.688", which additionally used a plain-LRU baseline while the matrix
+used LRU with the structural bypass. The private cache sizes are now explicit
+in the harness.
 
-**`ECG:K1` and `ECG:K2` both hardcode `ECG_EDGE_MASK_EPOCHS=65535`**, the one
-setting that always spills. Every K2 number in the evaluation matrix was
-therefore produced at the worst available configuration. Correcting it moves
-K1 from 1.468 to 1.215 and K1+StreamShield from 1.361 to 1.130 on the sampled
-matrix geomean.
+### Fast signal, corrected: K2 wins PageRank, GRASP wins overall
 
-Note K2 proper is unaffected: Schedule-2 carries *two* future epochs and needs
-8 bytes whatever the resolution. The 4-byte record is available only to the
-single-epoch variant. **The paper's headline novelty is what costs 8 bytes**,
-and on this evidence the second future reference does not pay for itself.
+Sampled graphs, cache_sim traffic versus LRU, no prefetcher, 32 kB / 256 kB
+private caches, 32 epochs, variable-width record (K2 packs to 4 bytes),
+structural bypass available to every policy, P-OPT matrix stream simulated:
 
-**Per-cell, with the 4-byte record, the story is not "K2 loses" but "K2 is a
-reuse-density policy".** Traffic versus LRU:
+| cell | GRASP | P-OPT | K2+SS | K1+SS |
+|---|---:|---:|---:|---:|
+| web-Google-n16 / pr | 1.116 | 1.505 | **0.878** | 0.896 |
+| soc-pokec-n16 / pr | 1.130 | 1.304 | **0.920** | 0.935 |
+| web-Google-n16 / bfs | 0.904 | 0.948 | 1.442 | 0.973 |
+| soc-pokec-n16 / bfs | 0.917 | 0.967 | 1.393 | 0.993 |
+| web-Google-n16 / cc | 0.873 | 0.929 | 1.217 | 0.889 |
+| soc-pokec-n16 / cc | 0.865 | 0.914 | 1.089 | 0.897 |
+| web-Google-n16 / sssp | 0.857 | 0.862 | 0.865 | 1.367 |
+| soc-pokec-n16 / sssp | 0.872 | 0.860 | 0.838 | 1.324 |
+| web-Google-n16 / bc | 0.905 | 0.911 | 1.000 | 0.955 |
+| soc-pokec-n16 / bc | 0.887 | 0.915 | 1.015 | 0.948 |
+| cit-Patents-n18 / cc | 0.822 | 0.797 | 0.956 | 0.934 |
+| cit-Patents-n18 / pr | 0.989 | 1.573 | 2.013 | 2.022 |
 
-| cell | GRASP | K1+SS | K2+SS |
-|---|---:|---:|---:|
-| web-Google-n16 / pr | 0.852 | **0.613** | 0.811 |
-| soc-pokec-n16 / pr | 0.919 | **0.688** | 0.994 |
-| cit-Patents-n18 / cc | 1.060 | **0.954** | 0.960 |
-| soc-pokec-n16 / sssp | 0.755 | 1.193 | 0.722 |
-| web-Google-n16 / bfs | 0.938 | 1.144 | 1.406 |
-| web-Google-n16 / cc | 0.921 | 1.145 | 1.087 |
-| cit-Patents-n18 / pr | 0.914 | 3.485 | 3.744 |
+Geomean over all 12 cells: GRASP 0.923, P-OPT 1.014, K1+SS 1.059, K2+SS 1.097.
+Excluding the degree-1 cit-Patents sample: GRASP 0.928, P-OPT 0.994, K1+SS
+1.006, K2+SS 1.047.
 
-K1+StreamShield **beats every baseline including GRASP on PageRank** on both
-real sampled graphs (0.613 against 0.852; 0.688 against 0.919), and loses on
-traversal kernels and on the degree-1 cit-Patents sample. That is mechanically
-coherent: the per-edge record is amortised by property reuse, so it pays where
-a vertex property is re-read many times and cannot pay where each edge is
-touched once or where there is barely one edge per vertex.
+**The specific result worth pursuing is PageRank.** On both real sampled
+graphs K2+StreamShield is the best policy *and GRASP is worse than LRU*
+(1.116 and 1.130). A degree-based static hint mispredicts on these PageRank
+cells while a per-edge next-reference epoch does not. That is a narrow,
+falsifiable, mechanism-level claim, and it is the one place where K2's design
+premise is visibly doing work.
 
-Scope: sampled graphs, cache_sim traffic, no prefetcher, direction check only.
-Three cells were excluded as carrying no policy signal, including one whose LRU
-baseline moved a single line and produced a 5.000 ratio that alone had pushed
-GRASP's geomean from a win to a loss.
+**Aggregate leadership belongs to GRASP**, which is consistent across the
+traversal kernels where K2 is weak. K2 is poor on BFS (1.39-1.44) and mixed on
+CC, and K1 is the better of the two variants on traversal while K2 is better on
+PageRank and SSSP. No general "K2 wins" claim is supported.
 
-### SCALING: how the 4-byte record survives large graphs
+Scope: sampled graphs, one metric, no prefetcher, no timing. Three cells were
+excluded as carrying no policy signal. Direction check only.
 
-The compact record only pays if it stays 4 bytes, and its width is
-`id_bits + epoch_bits*max(1,K) + tier_bits`, rounded up to 4, 8 or 16. Larger
-graphs need more id bits, so the natural worry is that the 4-byte record is an
-artifact of small graphs. It is not, for three measured reasons.
-
-**1. Epoch resolution has an interior optimum, and it is cheap.**
-web-Google-n16 PageRank at 128 kB, single-epoch record with StreamShield,
-traffic versus LRU:
-
-| epoch bits | epochs | vs LRU |
-|---:|---:|---:|
-| 1 | 2 | 0.830 |
-| 2 | 4 | 0.726 |
-| 3 | 8 | 0.692 |
-| 4 | 16 | 0.677 |
-| **5** | **32** | **0.671** |
-| 6 | 64 | 0.680 |
-| 8 | 256 | 0.715 |
-| 10 | 1,024 | 0.745 |
-| 12 | 4,096 | 0.758 |
-
-The best setting is **32 epochs, five bits**. Resolution is not something the
-design wants more of: past 32 epochs the stamps become too specific and the
-result degrades monotonically. Five bits is a floor to defend, not a budget to
-grow, which is the opposite of the usual scaling problem.
-
-**2. The tier field is free to drop.** At 32 epochs, `tier_bits=2` gives 0.672
-and `tier_bits=0` gives 0.671. The two tier bits earn nothing here and can be
-spent on vertex ids at no measured cost.
-
-**3. Epoch bits trade against id bits, and the trade degrades gracefully.**
-With the tier field dropped, the 4-byte record admits `32 - epoch_bits` id bits:
-
-| epoch bits | vs LRU | max vertices at 4 B |
-|---:|---:|---:|
-| 5 | 0.671 | 134,217,728 |
-| 4 | 0.677 | 268,435,456 |
-| 3 | 0.692 | 536,870,912 |
-| 2 | 0.726 | 1,073,741,824 |
-| 1 | 0.830 | 2,147,483,648 |
-
-Every row still beats LRU. A 100M-vertex graph keeps the near-optimal five
-bits; a billion-vertex graph drops to two bits and still returns 0.726.
-Twitter-2010 (41.6M) and Friendster (65.6M), the largest graphs in common use,
-sit comfortably at five bits.
-
-**The structural argument closes it.** GAPBS `NodeID` is `int32_t`, so a CSR
-edge is exactly 4 bytes. The record replaces that edge read rather than adding
-to it, which is why its measured transport cost was +446 lines out of 4.36M.
-A 4-byte record is therefore exactly one edge width, and free by construction,
-across the entire 32-bit addressable range. Beyond it `NodeID` must become
-64-bit, the baseline edge becomes 8 bytes, and an 8-byte record is free again
-for the same reason. The record tracks the edge width at every scale.
-
-Confirmed on the largest full graph available, cit-Patents (3,774,768 vertices,
-22 id bits), PageRank at 8 MiB: with 32 epochs and no tier field the harness
-reports `record_bytes=4`, and K1+StreamShield takes 16,621,169 lines against
-LRU's 21,923,013, i.e. **0.758**. It does not beat GRASP on that cell
-(14,878,730, so 1.117), which is consistent with the reuse-density account: the
-per-edge record is amortised by property reuse, and cit-Patents is a
-low-reuse citation graph.
-
-The genuine limitation is Schedule-2. Two future epochs force 8 bytes
-regardless of graph size, so K2 proper can never be one edge wide on a 32-bit
-graph. The scaling story belongs to the single-epoch record.
+**A standing caution.** This result set has now moved substantially three
+times, under (a) metadata-stream accounting, (b) record width, and (c) private
+cache sizing, without any change to the policies themselves. Configuration
+sensitivity is larger than the differences being measured, so the frozen cell
+set must pin the private hierarchy, the record width rule and the epoch count
+explicitly before any of this is quoted.
 
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 

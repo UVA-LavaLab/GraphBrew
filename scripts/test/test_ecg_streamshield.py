@@ -505,7 +505,15 @@ def test_schedule_bits_are_charged_in_record_width():
     pr = read("bench/src_sim/pr.cc")
     graph_sim = read("bench/include/cache_sim/graph_sim.h")
     assert 'GraphSimEnvIntClamped(\n        "ECG_EDGE_MASK_SCHED", 0, 0, 4)' in graph_sim
-    assert "if (schedule_k == 2) return 8;" in graph_sim
+    # Schedule-2 still defaults to 8 bytes so committed results do not move,
+    # but that return is now conditional: ECG_RECORD_VARIABLE_WIDTH=1 computes
+    # the width from the same bit budget as every other schedule. The
+    # unconditional return was an implementation shortcut, not a cost of the
+    # second future epoch, and it doubled K2's modelled transport whenever the
+    # record would in fact have fitted in 4 bytes.
+    assert "if (schedule_k == 2 && !variable_width) return 8;" in graph_sim
+    assert 'std::getenv("ECG_RECORD_VARIABLE_WIDTH")' in graph_sim
+    # Either way the second epoch must be charged, never silently dropped.
     assert "epoch_bits * std::max(1, schedule_k)" in graph_sim
     assert 'std::getenv("ECG_BFS_EDGE_MASKS")' in graph_sim
     assert 'GetEnvPolicy("CACHE_L3_POLICY", policy)' in graph_sim

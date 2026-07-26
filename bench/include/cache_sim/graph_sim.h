@@ -72,7 +72,21 @@ inline int GraphSimEcgRecordBytes(uint64_t num_vertices, int epoch_bits) {
         "ECG_RECORD_PREFETCH_BITS", 0, 0, 32);
     int schedule_k = GraphSimEnvIntClamped(
         "ECG_EDGE_MASK_SCHED", 0, 0, 4);
-    if (schedule_k == 2) return 8;
+    // Schedule-2 historically returned 8 bytes unconditionally, skipping the
+    // bit budget below. That is an implementation shortcut, not a cost of the
+    // second future epoch: on a 65,536-vertex graph with 5-bit epochs and 2
+    // tier bits the two-epoch record needs 16 + 2*5 + 2 = 28 bits and fits in
+    // 4 bytes. Charging it 8 doubled K2's modelled transport and made every
+    // K2-versus-K1 comparison a comparison of record widths.
+    //
+    // ECG_RECORD_VARIABLE_WIDTH=1 computes the width from the same budget as
+    // every other schedule. The default preserves the historical 8 bytes so
+    // committed results do not silently move.
+    static const bool variable_width = [](){
+        const char* v = std::getenv("ECG_RECORD_VARIABLE_WIDTH");
+        return v && std::atoi(v) != 0;
+    }();
+    if (schedule_k == 2 && !variable_width) return 8;
     int epoch_payload_bits = epoch_bits * std::max(1, schedule_k);
     int needed = id_bits + epoch_payload_bits +
                  tier_bits + popt_bits + prefetch_bits;
