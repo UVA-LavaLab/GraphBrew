@@ -1090,6 +1090,42 @@ stays low on realistic cells, the 64% and 56% reductions in exposed demand
 misses should appear as speedup at BOTH record widths; if it is high, the 8-byte
 width should lose in proportion to its 17% traffic increase.
 
+### FROZEN: three-simulator conformance re-established under the metadata SSOT
+
+Introducing a second metadata delivery structure put the paper's foundation at
+risk, because the 15-cell gate is what licenses treating the three simulators as
+one mechanism. The gate has been re-run and re-frozen with transport now driven
+by `ecg_metadata.h`:
+
+| kernel | cache_sim | gem5 | Sniper |
+|---|---|---|---|
+| pr | ok | ok | ok |
+| bfs | ok | ok | ok |
+| bc | ok | ok | ok |
+| cc | ok | ok | ok |
+| sssp | ok | ok | ok |
+
+`RESULT: ALL kernel x simulator cells CONFORM`. 15 of 15 cells pass, 13 carry a
+decisive real-epoch victim, and every eviction obeys the shared specification.
+
+Archived at `research/ecg-hpca/evidence/ecg_3sim_metadata_ssot_20260726` with 27
+hashed inputs, captured from a clean worktree at `0f8121bf`.
+
+Two things make this stronger than a repeat of the earlier freeze.
+
+1. **Transport is now provably common.** All eleven sources -- five cache_sim
+   kernels, five gem5 kernels and the Sniper workload -- derive record width and
+   delivery structure from one header, and a test asserts none of them computes
+   a width locally. Identical configuration produces byte-identical receipts on
+   all three backends, over both schedules:
+   `record_bytes=4 payload_bits=7` at Schedule-1 and `record_bytes=8
+   payload_bits=12` at Schedule-2.
+2. **Conformance is transport-independent by construction.** The gate verifies
+   the eviction DECISION, and with metadata uncharged the packed record and the
+   sidecar are byte-identical on all five kernels. A structure that delivers the
+   same stamps therefore cannot change a victim choice, which is why a second
+   delivery structure is admissible at all.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows

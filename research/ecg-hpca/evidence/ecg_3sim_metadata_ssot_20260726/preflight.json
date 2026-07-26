@@ -1,0 +1,7 @@
+{
+  "epoch_pair_unit": true,
+  "exact_victim_unit": true,
+  "field_layout_parity": true,
+  "unknown_mode_hard_fail": true,
+  "unknown_variant_hard_fail": true
+}

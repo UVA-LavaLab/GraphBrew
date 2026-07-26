@@ -1,0 +1,37 @@
+{
+  "all_rows_ok": true,
+  "benchmark": "bc",
+  "comparison_config_hash": "",
+  "complete": true,
+  "config_hash": "a718b3f2fc1f6cc1a3a5147baf907bc377f96d4caf2491d55f155785b95f6af2",
+  "expected_policy_labels": [
+    "ECG_ECG_GRASP_POPT"
+  ],
+  "l3_sizes": [
+    "16kB"
+  ],
+  "matrix_config_hash": "a718b3f2fc1f6cc1a3a5147baf907bc377f96d4caf2491d55f155785b95f6af2",
+  "matrix_id": "bc_tmpequivk_sniper_indexed_bc",
+  "outputs": {
+    "roi_matrix.csv": {
+      "rows": 1,
+      "sha256": "c24512c31962ae5fb9a264d5bb10f45f73b6a903d66b2456af5d28a55b5e4085",
+      "size": 5015
+    },
+    "roi_matrix.json": {
+      "rows": 1,
+      "sha256": "2cb32cba7f9ee70b04735c46574241cd2d30e8ea1cb5799c675868faf41da3d2",
+      "size": 6488
+    }
+  },
+  "policy_labels": [
+    "ECG_ECG_GRASP_POPT"
+  ],
+  "prefetcher": "none",
+  "rows": 1,
+  "shard_group": "tmp",
+  "structure_prefetch_degree": 0,
+  "threads": [
+    "1"
+  ]
+}

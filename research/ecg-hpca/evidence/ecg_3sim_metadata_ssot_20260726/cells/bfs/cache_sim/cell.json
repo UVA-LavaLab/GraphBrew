@@ -1,0 +1,36 @@
+{
+  "banner": "[ECG-CONFIG sim=cache_sim policy=ECG:rrip_first mode=ECG_GRASP_POPT variant=rrip_first charged=1]",
+  "coverage": {
+    "decisive_required": true,
+    "epoch_decisive": 35,
+    "epoch_victims": 233,
+    "epoch_victims_nz": 233,
+    "stored_refresh_model": true,
+    "strength": "decisive_epoch",
+    "victims": 900
+  },
+  "expected_policy": "ECG:rrip_first",
+  "kernel": "bfs",
+  "outputs": {
+    "raw_log": {
+      "bytes": 826012,
+      "path": "cells/bfs/cache_sim/raw.log",
+      "sha256": "79da1dbaa67240909e45e3968bdc80a17d9f8a86347481b755b08863bd99a132"
+    }
+  },
+  "runner": {
+    "command": [
+      "/home/ab/Documents/00_github_repos/02_GraphBrew/bench/bin_sim/bfs",
+      "-f",
+      "/home/ab/Documents/00_github_repos/02_GraphBrew/results/graphs/email-Eu-core/email-Eu-core.sg",
+      "-o",
+      "0",
+      "-n",
+      "1"
+    ],
+    "errors": [],
+    "returncode": 0
+  },
+  "simulator": "cache_sim",
+  "status": "ok"
+}

@@ -43,7 +43,8 @@
       "status": "passed",
       "evidence": [
         "ecddb738",
-        "research/ecg-hpca/ARCHITECTURE.md"
+        "research/ecg-hpca/ARCHITECTURE.md",
+        "research/ecg-hpca/evidence/ecg_3sim_metadata_ssot_20260726"
       ]
     },
     {
@@ -56,7 +57,8 @@
         "86e40765",
         "3811624b",
         "research/ecg-hpca/evidence/k2m_equivalence_20260724.md",
-        "research/ecg-hpca/evidence/k2m_conformance_20260724.md"
+        "research/ecg-hpca/evidence/k2m_conformance_20260724.md",
+        "research/ecg-hpca/evidence/ecg_3sim_metadata_ssot_20260726"
       ]
     },
     {
@@ -89,7 +91,8 @@
         "30333aea",
         "research/ecg-hpca/evidence/k2m_equivalence_20260724.md",
         "results/ecg_experiments/final_paper_runs/ecg_sniper_semantic_gate_20260724/combined_roi_matrix.csv",
-        "results/ecg_experiments/final_paper_runs/ecg_sniper_semantic_gate_20260724/semantic_gate_certification.json"
+        "results/ecg_experiments/final_paper_runs/ecg_sniper_semantic_gate_20260724/semantic_gate_certification.json",
+        "research/ecg-hpca/evidence/ecg_3sim_metadata_ssot_20260726"
       ]
     },
     {
