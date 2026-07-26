@@ -23,6 +23,7 @@
 #include "ecg_mode6_builder.h"
 
 #include "gem5_sim/gem5_harness.h"
+#include "ecg_metadata.h"
 
 using namespace std;
 
@@ -111,6 +112,14 @@ pvector<ScoreT> Brandes_Gem5(const Graph &g, int num_iters) {
     std::vector<uint64_t> pair_off;
     pvector<uint64_t> pair_flat;
     bool pair_ok = false;
+    // Width and structure come from the shared metadata SSOT, the same
+    // header cache_sim and the other backends use, so no simulator can
+    // compute a record width of its own.
+    {
+        const auto ecg_meta = ::ecg_metadata::configure(
+            static_cast<uint64_t>(g.num_nodes()), edge_epoch_count);
+        ::ecg_metadata::announce(ecg_meta, "gem5-bc");
+    }
     if (ecg_extract_on && ecg_sched_k == 2) {
         std::vector<uint64_t> pair_records;
         ecg_epoch::buildInEdgeEpochPairRecords(

@@ -25,6 +25,7 @@
 #include "ecg_mode6_builder.h"
 
 #include "gem5_sim/gem5_harness.h"
+#include "ecg_metadata.h"
 
 using namespace std;
 
@@ -232,6 +233,14 @@ pvector<WeightT> DeltaStep_Gem5(const WGraph &g, NodeID source, WeightT delta) {
     pvector<uint64_t> pair_compact;
     bool pair_ok = false;
     bool compact_pair_ok = false;
+    // Width and structure come from the shared metadata SSOT, the same
+    // header cache_sim and the other backends use, so no simulator can
+    // compute a record width of its own.
+    {
+        const auto ecg_meta = ::ecg_metadata::configure(
+            static_cast<uint64_t>(g.num_nodes()), edge_epoch_count);
+        ::ecg_metadata::announce(ecg_meta, "gem5-sssp");
+    }
     if (ecg_extract_on && ecg_sched_k == 2) {
         std::vector<uint64_t> pair_records;
         ecg_epoch::buildInEdgeEpochPairRecords(

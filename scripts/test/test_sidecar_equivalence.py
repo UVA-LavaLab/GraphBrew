@@ -177,7 +177,8 @@ def test_all_three_simulators_share_the_metadata_ssot():
     consumers = {
         "cache_sim": [ROOT / f"bench/src_sim/{k}.cc"
                       for k in ("pr", "bfs", "cc", "bc", "sssp")],
-        "gem5": [ROOT / "bench/src_gem5/pr.cc"],
+        "gem5": [ROOT / f"bench/src_gem5/{k}.cc"
+                 for k in ("pr", "bfs", "cc", "bc", "sssp")],
         "sniper": [ROOT / "bench/src_sniper/sg_kernel.cc"],
     }
     for sim, paths in consumers.items():
