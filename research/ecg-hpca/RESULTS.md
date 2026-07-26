@@ -1051,6 +1051,45 @@ appear as speedup at both record widths. If it is high, the 8-byte width should
 lose in proportion to its traffic. Either outcome is informative, and the
 prediction is stated before the run.
 
+### BANDWIDTH SATURATION: gem5 already reports it, and it is low
+
+The trade decomposition above leaves one question open: K2 can use more total
+traffic while exposing far fewer demand misses to full DRAM latency, so which
+side binds depends on whether the memory system is saturated. cache_sim cannot
+answer that at all. gem5 can, and already does -- the statistic was simply never
+captured into result rows.
+
+From an existing archived gem5 run (`ecg_3sim_smoke_gem5_probe2_20260715`,
+K2+StreamShield, PageRank, kron_s12_k4, 32 kB L3):
+
+    system.mem_ctrl.dram.busUtil     0.83   # data bus utilisation, percent
+    system.mem_ctrl.dram.peakBW  19207.00   # MiB/s
+    system.mem_ctrl.dram.avgRdBW   139.87   # MiB/s
+    system.mem_ctrl.dram.avgWrBW    19.46   # MiB/s
+
+**Data bus utilisation is 0.83% of peak.** On that configuration the memory
+system is essentially idle, which is the regime in which K2's trade is
+favourable: extra bandwidth is nearly free and exposed latency is what costs.
+
+Three reasons this is indicative and not yet the answer:
+
+1. It is a **smoke configuration** -- kron_s12_k4 is a 4,096-vertex synthetic
+   graph with a 32 kB L3, chosen to exercise mechanisms quickly, not to
+   represent a realistic working set.
+2. It is **single-core**. Utilisation is what several cores contend for, and a
+   multi-core configuration could saturate where one core does not.
+3. It is **one cell**, on the kernel most favourable to K2.
+
+`roi_matrix` now captures `busUtil`, `busUtilRead`, `busUtilWrite`, `peakBW`,
+`avgRdBW`, `avgWrBW` and `bwTotal`, plus a derived `dram_offchip_bytes` equal to
+DRAM bytes read plus written, so the frozen primary metric is directly available
+from a timing backend rather than reconstructed.
+
+The pre-registered prediction is unchanged and now measurable: if utilisation
+stays low on realistic cells, the 64% and 56% reductions in exposed demand
+misses should appear as speedup at BOTH record widths; if it is high, the 8-byte
+width should lose in proportion to its 17% traffic increase.
+
 ### WITHDRAWN: Is K2 memory-bound or instruction-bound? (gem5 full-work timing)
 > **This section is withdrawn.** It is retained verbatim for audit, not as a
 > result. Every number below is inadmissible under the frozen metrics: the rows

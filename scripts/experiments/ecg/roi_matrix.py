@@ -190,6 +190,18 @@ GEM5_STAT_KEYS = {
     "dram_write_requests": "system.mem_ctrl.dram.numWrites::total",
     "dram_prefetch_read_bytes":
         "system.mem_ctrl.dram.bytesRead::l2cache.prefetcher",
+    # Bandwidth SATURATION. K2 trades bandwidth for exposed latency: it can use
+    # more total traffic while exposing far fewer demand misses to full DRAM
+    # latency. Which side binds depends entirely on whether the memory system is
+    # saturated, so utilisation must be reported alongside execution time rather
+    # than inferred. cache_sim cannot produce these at all.
+    "dram_bus_util_pct": "system.mem_ctrl.dram.busUtil",
+    "dram_bus_util_read_pct": "system.mem_ctrl.dram.busUtilRead",
+    "dram_bus_util_write_pct": "system.mem_ctrl.dram.busUtilWrite",
+    "dram_peak_bw_mibs": "system.mem_ctrl.dram.peakBW",
+    "dram_avg_read_bw_mibs": "system.mem_ctrl.dram.avgRdBW",
+    "dram_avg_write_bw_mibs": "system.mem_ctrl.dram.avgWrBW",
+    "dram_bw_total_bytes_per_s": "system.mem_ctrl.dram.bwTotal::total",
 }
 
 GEM5_PREFETCH_STAT_KEYS = {
@@ -363,6 +375,16 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
         stream_lines = (
             int(row.get("popt_matrix_stream_cache_lines") or 0) if charged else 0
         )
+    # The frozen primary metric on a timing backend: memory-controller bytes in
+    # BOTH directions. gem5 reports reads and writes separately; combine them
+    # once here so no downstream consumer has to remember to.
+    rd = row.get("dram_read_bytes")
+    wr = row.get("dram_write_bytes")
+    if rd not in (None, "") and wr not in (None, ""):
+        try:
+            row["dram_offchip_bytes"] = int(float(rd)) + int(float(wr))
+        except (TypeError, ValueError):
+            pass
     l3_misses = row.get("l3_misses")
     if l3_misses not in (None, ""):
         row["l3_misses_with_overhead"] = int(l3_misses) + stream_lines
