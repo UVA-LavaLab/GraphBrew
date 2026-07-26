@@ -329,3 +329,30 @@ def test_declared_timing_stages_actually_set_the_width_they_claim():
         assert int(stage.get("ecg_epochs", 0)) <= 4096, (
             f"{stage['name']} uses too many epochs for the record to pack; "
             "65535 forces 16 epoch bits and therefore 8 bytes")
+
+
+def test_gem5_forwards_metadata_knobs_into_the_simulated_guest():
+    """gem5 SE mode does not inherit the host environment.
+
+    graph_se.py builds an explicit allowlist of variables to hand the simulated
+    process. The metadata SSOT knobs were absent from it, so a stage asking for
+    a 4-byte record silently got the Schedule-2 default of 8: the run looked
+    correct at every layer above, and only the guest's own receipt disagreed.
+
+    This is the third distinct layer of env plumbing between a manifest stage
+    and the guest, after roi_matrix's scrub and paper_run's explicit-cell
+    channel, and the only one that is invisible from the host side.
+    """
+    config = (ROOT / "bench/include/gem5_sim/configs/graphbrew/graph_se.py").read_text()
+    required = [
+        "ECG_RECORD_VARIABLE_WIDTH",
+        "ECG_EDGE_RECORD_BYTES",
+        "ECG_DELIVERY",
+        "ECG_SIDECAR_PAYLOAD_BITS",
+        "ECG_RECORD_TIER_BITS",
+        "ECG_VIRTUAL_ID_BITS",
+    ]
+    for name in required:
+        assert f'"{name}"' in config, (
+            f"graph_se.py does not forward {name} to the simulated guest, so "
+            "gem5 cells cannot honour it and will silently use the default")

@@ -129,6 +129,18 @@ def benchmark_environment(args):
         "ECG_EDGE_MASK_PREFETCH",
         "ECG_PREFETCH_EPOCH_FILTER",
         "ECG_PREFETCH_EPOCH_THRESH_PCT",
+        # Metadata SSOT knobs (bench/include/ecg_metadata.h). The guest derives
+        # record width and delivery structure from these, so without forwarding
+        # them a stage that asks for a 4-byte record silently gets the
+        # Schedule-2 default of 8 and measures the wrong thing while looking
+        # correct from the outside.
+        "ECG_RECORD_VARIABLE_WIDTH",
+        "ECG_EDGE_RECORD_BYTES",
+        "ECG_DELIVERY",
+        "ECG_SIDECAR_PAYLOAD_BITS",
+        "ECG_RECORD_TIER_BITS",
+        "ECG_VIRTUAL_ID_BITS",
+        "ECG_EDGE_MASK_CHARGED",
     ):
         outer = os.environ.get(pass_name)
         if outer is not None and outer != "":
