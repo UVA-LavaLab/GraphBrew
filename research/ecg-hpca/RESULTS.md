@@ -2186,3 +2186,61 @@ It also means the earlier fused-versus-non-fused comparison (the observation
 that the fused 8-byte arm executed FEWER instructions than LRU, 0.939) is a
 statement about that build only, and must be re-measured within the current one
 before it is used.
+
+### Transport, corrected: the record substitutes everywhere; the DECODE does not (2026-07-27)
+
+An earlier reading of this matrix was going to say the compact record
+"substitutes on 2 of 3 graphs and costs 13.7% on cit-Patents". That conflates
+two different things and is withdrawn before use.
+
+**The record substitutes structurally on all three graphs.** The compact loop
+reads `in_edge_pair32_flat` and returns before `g.in_neigh(u)` is ever touched
+(`bench/src_gem5/pr.cc`), and the record count equals the adjacency entry count
+on every graph (cit-Patents-n18-sym: 340,054 undirected edges, 680,108 in-edges,
+680,108 records). No graph streams both the record and the coordinate.
+
+**What differs is the end-to-end traffic**, measured within-run as ECG:K2_LRU
+against each stage's own LRU cell:
+
+| graph | compact 4B (stage 40) | wide 8B (stage 41) |
+|---|---:|---:|
+| web-Google-n16 | 1.0013 | 1.2357 |
+| soc-pokec-n16 | 0.9982 | 1.3567 |
+| cit-Patents-n18-sym | 1.1365 | 1.3074 |
+
+The wide record never substitutes -- it is twice the payload, and costs 24--36%.
+The compact record is traffic-neutral on two graphs and costs 13.7% on the
+third.
+
+**cit-Patents' cost is not the record.** Decomposing that cell, the extra
+traffic is essentially all reads (+3,148,096 of +3,161,024 bytes) and equals the
+extra LLC misses exactly (+49,189 x 64 B). Misses grow at every level but
+disproportionately at the LLC (L1 +4.8%, L2 +6.4%, LLC +15.3%).
+
+Crucially, the per-record cost of the software widen is the SAME on the graph
+that pays and the graph that does not:
+
+| graph | extra L1 accesses per record | extra instructions per record |
+|---|---:|---:|
+| web-Google-n16 | 4.86 | 29.9 |
+| cit-Patents-n18-sym | 4.61 | 31.7 |
+
+So the widen executes the same work per edge everywhere; on web-Google its
+accesses stay in cache (extra LLC misses: 269) and on cit-Patents they do not
+(49,189). Stage 40 widens the compact record in software before issuing the
+fused load, because the fused family accepts only the 64-bit record.
+
+#### PRE-REGISTERED, stated before the cell finishes
+
+Stage `43_isa_plain_4b_hardware` on cit-Patents-n18-sym has not run yet. It
+removes the software widen and changes nothing else about what is fetched.
+
+- If the widen is responsible, its ECG:K2 traffic should fall from stage 42's
+  1.1357 towards ~1.0, and its extra LLC misses should largely disappear.
+- If traffic stays near 1.13, the widen is NOT the cause and the compact record
+  genuinely fails to substitute at this geometry -- in which case the honest
+  claim is that traffic neutrality is graph-dependent and cit-Patents is a
+  standing counter-example.
+
+Either outcome is reportable; the prediction is recorded so the answer cannot be
+chosen after the fact.
