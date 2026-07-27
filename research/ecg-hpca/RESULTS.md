@@ -2278,3 +2278,41 @@ rule executed. The archived `config.ini` does prove `GraphEcgRP` and
 `ECG_GRASP_POPT`. Closing this needs an ungated one-line receipt from
 `ecg_rp.cc`, which requires a gem5 rebuild and is deferred until the running
 matrix completes.
+
+### The pre-registered test FAILED: the decode does not explain cit-Patents (2026-07-27)
+
+Stage `43_isa_plain_4b_hardware` on cit-Patents-n18-sym has now run. The
+prediction recorded above was that removing the software widen would pull
+traffic from 1.1357 towards 1.0 if the widen were responsible. It did not.
+
+| cit-Patents-n18-sym | traffic | ROI insts | LLC misses |
+|---|---:|---:|---:|
+| stage 42, software widen | 1.1357 | 1.9069 | 1.1519 |
+| stage 43, ISA decode | 1.1358 | 1.0287 | 1.1519 |
+
+Removing the widen cut instructions from 1.91x to 1.03x of LRU and moved
+traffic by 0.0001 and LLC misses by nothing at all. **The software decode is
+excluded as the cause.**
+
+This is also the cleanest available confirmation that decode changes work and
+not bytes: a 46% reduction in executed instructions on the same graph left the
+memory traffic identical to four decimal places.
+
+So the honest claim is the one pre-registered as the alternative: the compact
+record is traffic-neutral on web-Google-n16 and soc-pokec-n16 and costs 13.6% on
+cit-Patents-n18-sym, and **cit-Patents is a standing counter-example to traffic
+neutrality** rather than an artifact of the prototype delivery.
+
+**Candidate mechanism, NOT established.** cit-Patents-n18-sym is symmetrised,
+so the baseline can serve both `g.in_neigh(u)` and `g.out_degree(u)` from one
+offsets array, while the record arm must stream its own `pair_off` in addition
+to `out_index`. That predicts an extra `(|V|+1)*8/64 = 32,768` lines; the
+measured transport cost is 49,189 extra LLC misses (stage 40, ECG:K2_LRU against
+its own LRU, which isolates transport from the victim rule). The hypothesis
+therefore accounts for about two thirds of the effect and is not sufficient.
+On web-Google the same accounting predicts 8,192 extra lines and only 269 are
+observed, consistent with that directed graph already needing two offsets arrays
+in both arms.
+
+Recording this as open. The mechanism matters for the paper only insofar as the
+worst cell must be reported, and it is.
