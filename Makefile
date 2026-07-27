@@ -40,6 +40,13 @@ DEP_CACHE := $(wildcard $(INCLUDE_CACHE)/*.h) \
 	$(INC_DIR)/ecg_victim_policy.h \
 	$(INC_DIR)/ecg_mode6_builder.h \
 	$(INC_DIR)/ecg_epoch_builder.h
+# Shared ECG metadata/transport headers. These were tracked by NO build rule, so
+# editing ecg_metadata.h or gem5_harness.h left every kernel binary stale while
+# make reported success -- a trap that silently produced binaries missing the
+# change under test.
+DEP_ECG := $(wildcard $(INC_DIR)/ecg_*.h) \
+	$(wildcard $(INC_DIR)/gem5_sim/*.h) \
+	$(wildcard $(INC_DIR)/sniper_sim/*.h)
 
 KERNELS_SIM := pr pr_spmv bfs bc cc cc_sv sssp tc ecg_preprocess test_ecg_epoch_pair32
 KERNELS_GEM5 := pr pr_spmv bfs sssp cc cc_sv bc tc
@@ -76,7 +83,7 @@ $(BIN_DIR)/converter: $(BENCH_DIR)/src/converter.cc $(DEP_GAPBS) \
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $< $(LDLIBS) -o $@
 
 $(BIN_SIM_DIR)/%: $(BENCH_DIR)/src_sim/%.cc $(DEP_GAPBS) \
-	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_CACHE) | $(BIN_SIM_DIR)
+	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_CACHE) $(DEP_ECG) | $(BIN_SIM_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -I$(INCLUDE_CACHE) $< $(LDLIBS) -o $@
 
 sim-%: $(BIN_SIM_DIR)/%
@@ -99,7 +106,7 @@ CXXFLAGS_GEM5_M5OPS := $(filter-out -DNO_M5OPS,$(CXXFLAGS_GEM5)) \
 CXXFLAGS_GEM5_RISCV := $(CXXFLAGS_GEM5_M5OPS) -funswitch-loops -static -mno-relax
 
 $(BIN_GEM5_DIR)/%: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
-	$(DEP_GRAPH) $(DEP_EXTERNAL) | $(BIN_GEM5_DIR)
+	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_ECG) | $(BIN_GEM5_DIR)
 	$(CXX) $(CXXFLAGS_GEM5) $(INCLUDES) $< $(LDLIBS) -o $@
 
 $(GEM5_M5_LIB):
@@ -110,12 +117,12 @@ $(GEM5_M5_RISCV_LIB):
 		riscv.CROSS_COMPILE=$(RISCV_CROSS_COMPILE)
 
 $(BIN_GEM5_DIR)/%_m5ops: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
-	$(DEP_GRAPH) $(DEP_EXTERNAL) $(GEM5_M5_LIB) | $(BIN_GEM5_DIR)
+	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_ECG) $(GEM5_M5_LIB) | $(BIN_GEM5_DIR)
 	$(CXX) $(CXXFLAGS_GEM5_M5OPS) $(INCLUDES) $< \
 		$(GEM5_M5_LIB) $(LDLIBS) -o $@
 
 $(BIN_GEM5_DIR)/%_riscv_m5ops: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
-	$(DEP_GRAPH) $(DEP_EXTERNAL) $(GEM5_M5_RISCV_LIB) | $(BIN_GEM5_DIR)
+	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_ECG) $(GEM5_M5_RISCV_LIB) | $(BIN_GEM5_DIR)
 	$(RISCV_CXX) $(CXXFLAGS_GEM5_RISCV) $(INCLUDES) $< \
 		$(GEM5_M5_RISCV_LIB) -o $@
 
@@ -137,7 +144,7 @@ CXXFLAGS_SNIPER := -std=c++17 -O2 -Wall -g -DNDEBUG -fopenmp \
 	-I$(INC_DIR) -I$(SNIPER_INCLUDE)
 
 $(BIN_SNIPER_DIR)/%: $(BENCH_DIR)/src_sniper/%.cc $(DEP_GAPBS) \
-	$(DEP_GRAPH) $(DEP_EXTERNAL) | $(BIN_SNIPER_DIR)
+	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_ECG) | $(BIN_SNIPER_DIR)
 	$(CXX) $(CXXFLAGS_SNIPER) $(INCLUDES) $< $(LDLIBS) -o $@
 
 sniper-%: $(BIN_SNIPER_DIR)/%

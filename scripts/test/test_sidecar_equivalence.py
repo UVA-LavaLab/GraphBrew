@@ -617,3 +617,35 @@ def test_the_compact_format_has_one_definition_in_three_places():
     assert "(static_cast<uint32_t>(tier & 0x3u) << id_bits)" in builder, (
         "the packer's layout changed; the gem5 decoder still implements the "
         "old one and will deliver wrong epochs without failing")
+
+
+def test_built_kernels_are_newer_than_the_headers_they_embed():
+    """make reported success while leaving every binary stale.
+
+    The gem5/Sniper/cache_sim build rules listed gapbs, graphbrew and external
+    headers as prerequisites but not the ECG headers, so editing
+    ecg_metadata.h or gem5_harness.h did not rebuild anything and make printed
+    "Built ...". A traced run then showed the guest silently missing the change
+    under test while the simulator had it.
+
+    Timestamps are the only thing that can catch this, because the stale binary
+    is otherwise perfectly valid.
+    """
+    headers = sorted(
+        list((ROOT / "bench/include").glob("ecg_*.h"))
+        + list((ROOT / "bench/include/gem5_sim").glob("*.h")))
+    if not headers:
+        pytest.skip("ECG headers not found")
+    newest = max(h.stat().st_mtime for h in headers)
+    newest_name = max(headers, key=lambda h: h.stat().st_mtime).name
+
+    stale = []
+    for binary in (ROOT / "bench/bin_gem5" / "pr_riscv_m5ops",
+                   ROOT / "bench/bin_gem5" / "pr",
+                   ROOT / "bench/bin_sniper" / "sg_kernel"):
+        if binary.exists() and binary.stat().st_mtime < newest:
+            stale.append(binary.name)
+    assert not stale, (
+        f"{stale} predate {newest_name}; the build rules now list the ECG "
+        "headers as prerequisites, so rebuild rather than trusting a binary "
+        "that cannot contain the change being measured")

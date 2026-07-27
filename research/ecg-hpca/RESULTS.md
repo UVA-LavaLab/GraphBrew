@@ -1898,14 +1898,10 @@ Against the pre-registered predictions:
    software-widen loop -- so their instruction footprint and stack access
    pattern differ, and that is what moves 0.04% of the misses.
 
-   More importantly, the prediction asked for a MEASUREMENT of metadata
-   equality and what was produced is an argument from inspection: both paths
-   call the identical `setDecodedEcgExtractHint2(dest, tier, epoch1, epoch2,
-   4, ...)`, so they cannot disagree. That is convincing but it is not the
-   pre-registered test. The honest statement is: the compact ISA emits, by
-   construction, the same hint payload as the software widen; the 0.04% miss
-   delta is code-footprint drift, not a metadata disagreement; and this was
-   verified statically, not by trace.
+   The prediction asked for a MEASUREMENT of metadata equality, and the first
+   write-up supplied an argument from inspection instead (both paths call the
+   identical `setDecodedEcgExtractHint2`). That gap has since been closed by
+   measurement, below.
 4. **Passed.** Time falls to 0.584 of the software-decode arm and to 0.691 of
    the 8-byte arm.
 
@@ -1981,3 +1977,43 @@ that branch is skipped, recency never advances on a hit, and `lru_only`
 degenerates to FIFO. The decomposition used `ECG_GRASP_POPT`, so the arms are
 sound; but `ECG:K2_LRU` is not a general "K2 transport with LRU replacement"
 primitive and must not be reused as one.
+
+
+### Metadata equality, measured rather than argued (2026-07-26)
+
+The compact path is now wired into the existing K2 delivery trace on both
+sides: the guest emits `[ECG-K2-EXPECT ...]` for the software widen, and
+`ecg_extract2c` emits the same record from inside the gem5 decoder. The guest
+widen is computed only when `ECG_K2_DELIVERY_TRACE` is set, so it does not
+re-enter the measured arm.
+
+Running both arms on web-Google-n16 with `ECG_K2_DELIVERY_TRACE=200` and
+comparing `(seq, dest, tier, epoch1, epoch2)`:
+
+    software-widen records : 200
+    ISA-decoder records    : 200
+    compared               : 200
+    mismatches             : 0
+
+First records agree exactly: `(0, 93, 1, 0, 0)`, `(1, 196, 1, 0, 0)`,
+`(2, 290, 1, 0, 0)`. The decoder's widening therefore reproduces
+`widenEpochPair32` field for field, which -- together with the per-record proof
+that `widenEpochPair32` reproduces the 64-bit builder -- closes the chain across
+all three transcriptions of the format. Prediction 3 is now measured; the
+residual 0.04% LLC-miss delta is code-footprint drift and nothing else.
+
+### A build trap that made the first attempt at the above silently fail
+
+The first traced run produced no guest records at all. The cause was not the
+trace: `make gem5-riscv-m5ops-pr` reported success while rebuilding nothing,
+because the gem5, Sniper and cache_sim rules listed gapbs, graphbrew and
+external headers as prerequisites but NOT the ECG headers. Editing
+`ecg_metadata.h` or `gem5_harness.h` therefore left every kernel binary stale
+with make reporting "Built ...". The guest binary under test was 90 minutes
+older than the header change it was supposed to contain.
+
+This is the same failure mode as the inert enforcement knob, one layer lower,
+and it is worth stating because it silently weakens any measurement that
+follows a header-only edit. The build rules now list `DEP_ECG`, and a test
+compares binary mtimes against the ECG headers, since a stale binary is
+otherwise perfectly valid and cannot be detected any other way.
