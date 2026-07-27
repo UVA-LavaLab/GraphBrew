@@ -954,7 +954,15 @@ def test_all_five_kernels_expose_indexed_and_mask_only_delivery():
     assert (
         'schedule_k == 2 and args.sniper_workload == "sg_kernel"'
         in runner)
-    assert 'elif riscv_delivery:' in runner
+    # The RISC-V fused record load must still be the default delivery, but it
+    # has to be ablatable: every fused variant carries the canonical 64-bit
+    # record and has no 32-bit form, so a compact record cannot be studied while
+    # one is active. The condition therefore gates on an explicit switch rather
+    # than on riscv_delivery alone.
+    assert 'elif riscv_delivery and fused_record_load_allowed:' in runner
+    assert 'GRAPHBREW_K2_FUSED_LOAD' in runner, (
+        "the fused delivery family must be switchable off, or width and "
+        "software decode cannot be separated")
     verifier = (
         ROOT / "scripts/experiments/ecg/verify/equiv_kernels.py"
     ).read_text()

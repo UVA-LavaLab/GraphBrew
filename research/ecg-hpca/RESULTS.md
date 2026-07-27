@@ -1725,3 +1725,142 @@ Canonical reproduction profiles:
 The manifest profile `streamshield_sniper_realgraph` produces the complete
 web-Google Sniper matrix. Results are added here only after every required
 policy finishes the same complete PageRank iteration.
+
+## K2 on gem5, decomposed: the record is free, decoding it is not (2026-07-26)
+
+STATUS: measured, single cell, no claim promoted. `claim_gate.json` still marks
+every performance claim `prohibited`.
+
+Cell: web-Google-n16, PageRank, gem5 RISC-V, 16kB L1D / 64kB L2 / 128kB LLC
+16-way, no prefetcher, 32 epochs, Schedule-2, compact 4-byte record.
+Receipts verified `bytes_per_edge=4.000` with `Schedule-2 COMPACT record ON`,
+zero `ECG-METADATA-FATAL`. Instruction counts are
+`system.cpu.commitStats0.numInsts`, which `m5_reset_stats` DOES clear; `simInsts`
+does NOT and therefore includes graph loading and record construction.
+
+Versus LRU:
+
+| policy | time | traffic | ROI insts |
+|---|---:|---:|---:|
+| POPT | 0.870 | 0.616 | 1.000 |
+| GRASP | 0.937 | 0.822 | 1.000 |
+| LRU | 1.000 | 1.000 | 1.000 |
+| ECG:K2 | 1.230 | 0.964 | 1.726 |
+
+K2 moves less traffic than LRU and still takes 23% longer. The matched
+decomposition, using `ECG:K2_LRU` (identical transport, `lru_only` victim rule),
+separates the two causes. The arms execute **19,580,752 ROI instructions each**,
+a ratio of 1.000000, so they are matched on work by measurement rather than by
+assertion.
+
+| contrast | ROI insts | time | traffic | LLC misses |
+|---|---:|---:|---:|---:|
+| replacement rule (K2 vs K2_LRU) | 1.0000 | 0.989 | 0.963 | 0.961 |
+| transport (K2_LRU vs LRU) | 1.7263 | 1.243 | 1.0015 | 1.001 |
+
+Two findings.
+
+**The compact record is free in bytes.** Adding the record stream changes
+off-chip traffic by +0.15% and LLC misses by +0.1%, because the record
+substitutes for the CSR edge rather than adding to it. This is the first
+independent confirmation on a timing simulator of what cache_sim measured
+(+446 lines on 4.36M, +0.01%), and it settles the cross-simulator divergence
+recorded earlier: gem5 previously streamed a 64-bit container while reporting
+the 4-byte budget.
+
+**The decode is not free in time.** The same arm executes 72.6% more ROI
+instructions, about 16 extra per edge, and takes 24.3% longer.
+`widenEpochPair32` rebuilds the canonical 64-bit layout in software with
+runtime shift amounts. DRAM bus utilisation is 1.2--1.7%, so the memory system
+is ~98% idle and the instructions cost far more than the bytes they save.
+
+The replacement rule itself is worth 3.7% of traffic and 1.1% of time on this
+cell, which is real but small, and is swamped by the transport tax.
+
+Consequence for the evaluation: at low utilisation the binding resource is
+work, not bandwidth. A metadata format that must be decoded in software cannot
+win here however narrow it is, so the width contrast on its own understates the
+compact record. This is an argument for delivering the record through the ISA,
+but only measurement of the ISA path can settle it; nothing here promotes a
+claim.
+
+Evidence: `results/ecg_experiments/probes/`
+`k2_transport_decomposition_20260726_143844/`.
+
+### Asymmetry found while reading the above: gem5 P-OPT is partly idealised
+
+The same matrix reports P-OPT at 0.616--0.702 of LRU traffic and 0.870--0.909 of
+LRU time, ahead of everything else. That row is not a comparable baseline.
+
+gem5 delivers the rereference matrix through a **sideband file** read directly by
+the replacement policy, so streaming its columns costs no simulated traffic, no
+simulated latency and no instructions. What IS charged is LLC capacity: the
+`size_correct` reserve model reserves ways for the resident columns
+(1 way of 16 on web-Google-n16), which is the paper-faithful capacity charge.
+
+The runner already records the omitted stream as `popt_matrix_stream_bytes` with
+`popt_matrix_stream_mode=analytic`. Folding it back in:
+
+| graph | gem5 off-chip | + matrix stream | understated by |
+|---|---:|---:|---:|
+| web-Google-n16 | 8,756,416 | 9,804,992 | 12.0% |
+| soc-pokec-n16 | 12,100,608 | 13,149,184 | 8.7% |
+| cit-Patents-n18-sym | 16,262,080 | 20,456,384 | 25.8% |
+
+Execution time cannot be corrected this way at all: those bytes never entered
+the memory system, so none of their latency appears anywhere in the reported
+time. cache_sim does model this stream as real non-temporal accesses
+(see the P-OPT matrix-stream section above); gem5 does not.
+
+Under the frozen evaluation metrics an idealised mechanism is INELIGIBLE for a
+performance claim, so gem5 P-OPT rows are an upper bound on P-OPT and must not
+be quoted as a baseline K2 was measured against.
+`record_width_timing.py` now prints this before any ratio.
+
+### The two record widths fail for opposite reasons (2026-07-26)
+
+Matched arms, web-Google-n16 PageRank, gem5, identical in everything but the
+record container. Versus LRU:
+
+| arm | ROI insts | traffic | time |
+|---|---:|---:|---:|
+| 8-byte record | 0.933 | 1.189 | 1.065 |
+| 4-byte record | 1.726 | 0.964 | 1.230 |
+
+The 8-byte record executes FEWER instructions than the LRU baseline (0.933),
+because the record loop replaces the CSR adjacency walk and hands back the
+destination directly; but the 64-bit container doubles the structural stream,
+so it moves 18.9% more bytes. The 4-byte record fixes the stream and moves 3.6%
+FEWER bytes than LRU, but `widenEpochPair32` rebuilds the canonical layout in
+software with runtime shift amounts, costing 72.6% more instructions.
+
+Directly: widening the record multiplies traffic by 1.233 and ROI instructions
+by 0.541. Those are not the same experiment, so this contrast is width PLUS
+software decode, and neither arm isolates width.
+
+The combination that has never been measured is a narrow record with the decode
+in hardware.
+
+#### PRE-REGISTERED before running (stated here first, deliberately)
+
+`ecg_extract2c` takes the 32-bit record in rs1 and a loop-invariant format word
+(`id_bits | epoch_bits << 8`) in rs2, widens in the decoder, and returns the
+destination. It delivers metadata through the same
+`setDecodedEcgExtractHint2` path as `ecg_extract2`, so the two cannot mean
+different policies.
+
+Predictions for the compact-ISA arm versus LRU on this cell:
+
+1. ROI instructions land near the 8-byte arm's 0.933, and clearly below the
+   software-decode arm's 1.726. If they do not, the decode was not the cost.
+2. Off-chip traffic stays at the compact arm's ~0.964, unchanged, because the
+   instruction changes decode only and not what is fetched.
+3. LLC misses and off-chip bytes must match the software-decode 4-byte arm to
+   within run-to-run noise. Identical metadata must produce identical victim
+   decisions; a difference means the decoder disagrees with
+   `widenEpochPair32` and the arm is invalid regardless of its timing.
+4. Execution time falls below the software-decode arm's 1.230. Whether it falls
+   below 1.000 is NOT predicted.
+
+Failure of 3 kills the arm outright. Failure of 1 or 2 falsifies the decode
+diagnosis above.

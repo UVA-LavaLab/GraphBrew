@@ -160,6 +160,38 @@ inline uint32_t gem5_ecg_load_embedded(const void* prop_base, uint64_t fat_edge)
 #endif
 }
 
+// Compact-record twin of gem5_ecg_extract2_instruction. The 32-bit record goes
+// in rs1 and the loop-invariant format word (id_bits | epoch_bits << 8) in rs2,
+// so the decoder widens to the canonical layout instead of the guest doing it
+// with about 16 instructions of runtime shifts and masks per edge. Returns the
+// destination vertex, so the caller needs no mask either.
+inline uint32_t gem5_ecg_extract2c_instruction(uint32_t record, uint32_t fmt) {
+#if defined(__riscv)
+    uint64_t real_vertex = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x02, %0, %1, %2"
+                  : "=r"(real_vertex)
+                  : "r"((uint64_t)record), "r"((uint64_t)fmt)
+                  : "memory");
+    return static_cast<uint32_t>(real_vertex);
+#else
+    (void)fmt;
+    return record;
+#endif
+}
+
+inline uint32_t gem5_ecg_compact_format_word(uint32_t id_bits,
+                                             uint32_t epoch_bits) {
+    return (id_bits & 0x3FU) | ((epoch_bits & 0x3FU) << 8);
+}
+
+inline bool gem5_ecg_compact_isa_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ECG_COMPACT_ISA");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
 #ifndef NO_M5OPS
 inline bool gem5_vertex_hints_enabled() {
     static int enabled = []() {

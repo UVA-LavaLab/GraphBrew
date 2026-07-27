@@ -141,6 +141,18 @@ def benchmark_environment(args):
         "ECG_RECORD_TIER_BITS",
         "ECG_VIRTUAL_ID_BITS",
         "ECG_EDGE_MASK_CHARGED",
+        # The enforcement knob itself. Without it the guest cannot abort on a
+        # width mismatch, so the "enforce, don't report" guard silently reduces
+        # to "report" on the one backend where the plumbing is deepest -- which
+        # is exactly the failure it exists to prevent.
+        "ECG_EXPECT_BYTES_PER_EDGE",
+        "GEM5_ECG_COMPACT_ISA",
+        # Found by deriving this list from the SSOT rather than maintaining it
+        # by hand: these three also feed the width calculation and the receipt's
+        # bypass field, and were silently inert in the guest.
+        "ECG_RECORD_POPT_BITS",
+        "ECG_RECORD_PREFETCH_BITS",
+        "ECG_STREAM_BYPASS",
     ):
         outer = os.environ.get(pass_name)
         if outer is not None and outer != "":

@@ -445,6 +445,34 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         ecg_pfx_mode == 6 && pair_ok &&
         !ecg_load_enabled &&
         packed_stream_compatible;
+    // The compact ISA path is only meaningful when a compact record was
+    // actually built; it is opt-in so the software-decode arm stays measurable.
+    const bool compact_isa_requested = gem5_ecg_compact_isa_enabled();
+    const bool compact_isa_on =
+        compact_isa_requested && pair_extract_only && pair32_ok &&
+        !ecg_k2_pload_on && !ecg_stream_load2_on && !ecg_load2_on;
+    const uint32_t compact_fmt_word =
+        gem5_ecg_compact_format_word(pair32_id_bits, pair32_epoch_bits);
+    if (compact_isa_requested && !compact_isa_on) {
+        // Silently falling back to software decode would produce an arm that
+        // reports the compact ISA while measuring the thing it replaces, which
+        // is the exact failure mode that made four earlier width arms invalid.
+        fprintf(stderr,
+                "[ECG-METADATA-FATAL] GEM5_ECG_COMPACT_ISA=1 but the compact "
+                "decode path is unavailable (pair_extract_only=%d pair32=%d "
+                "k2_pload=%d stream_load2=%d load2=%d). The fused masked-load "
+                "deliveries carry the 64-bit record and have no 32-bit "
+                "variant, so this cell would silently measure software "
+                "decode.\n",
+                (int)pair_extract_only, (int)pair32_ok, (int)ecg_k2_pload_on,
+                (int)ecg_stream_load2_on, (int)ecg_load2_on);
+        std::abort();
+    }
+    if (compact_isa_on)
+        fprintf(stderr,
+                "[ECG_EXTRACT2C] PR compact record decoded in the ISA "
+                "(id_bits=%u epoch_bits=%u)\n",
+                pair32_id_bits, pair32_epoch_bits);
     if (pair_extract_only) {
         fprintf(stderr,
             ecg_stream_load2_on
@@ -478,6 +506,24 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 static_cast<size_t>(u + 1) < pair_off.size()) {
                 const uint64_t begin = pair_off[u];
                 const uint64_t end = pair_off[u + 1];
+                if (compact_isa_on) {
+                    // ONE 4-byte load and ONE instruction per edge: the decoder
+                    // widens the compact record and returns the destination, so
+                    // the arm differs from the 8-byte arm by width alone rather
+                    // than width plus about 16 instructions of software decode.
+                    for (uint64_t pos = begin; pos < end; ++pos) {
+                        const NodeID v = static_cast<NodeID>(
+                            gem5_ecg_extract2c_instruction(
+                                in_edge_pair32_flat[pos], compact_fmt_word));
+                        incoming_total += outgoing_contrib[v];
+                        GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                    }
+                    const ScoreT old_score = scores[u];
+                    scores[u] = base_score + kDamp * incoming_total;
+                    error += fabs(scores[u] - old_score);
+                    outgoing_contrib[u] = scores[u] / g.out_degree(u);
+                    continue;
+                }
                 for (uint64_t pos = begin; pos < end; ++pos) {
                     // Compact path: ONE 4-byte load per edge, then widen in
                     // registers to the canonical 64-bit wire format the ISA

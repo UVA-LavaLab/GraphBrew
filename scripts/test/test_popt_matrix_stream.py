@@ -92,3 +92,32 @@ def test_stream_adds_traffic_without_a_prefetcher():
     # by the private caches.
     assert added >= 0.9 * lines, (
         f"stream of {lines} lines added only {added} traffic")
+
+
+def test_gem5_popt_matrix_stream_is_disclosed_as_analytic():
+    """gem5 P-OPT does not pay for its own matrix, so it must say so.
+
+    The rereference matrix reaches the gem5 replacement policy through a
+    sideband file, so streaming columns costs no simulated traffic, no latency
+    and no instructions -- while K2 pays for its records in full. Left
+    undisclosed, that asymmetry reads as P-OPT beating everything.
+
+    The runner must record the omitted stream, and the analysis must surface it
+    before any ratio is shown.
+    """
+    runner = (ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
+    assert "popt_matrix_stream_mode" in runner
+    assert "popt_matrix_stream_bytes" in runner
+
+    analysis = (ROOT / "scripts/experiments/ecg/analysis"
+                / "record_width_timing.py").read_text()
+    assert "popt_matrix_stream_mode" in analysis, (
+        "the analysis must read the charging mode, or an idealised P-OPT row "
+        "is presented as a comparable baseline")
+    assert "INELIGIBLE" in analysis, (
+        "the frozen metrics make idealised mechanisms ineligible for a "
+        "performance claim; the report must say so where the rows are read")
+    marker = analysis.index("popt_matrix_stream_mode")
+    ratios = analysis.index("2. TIME AND TRAFFIC versus LRU")
+    assert marker < ratios, (
+        "the disclosure must come BEFORE the ratios, not after them")

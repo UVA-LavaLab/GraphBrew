@@ -137,6 +137,40 @@ def main(argv):
                        "do not generalise.")
         print(f"  verdict: {verdict}")
 
+    # ---- 1b. Which mechanisms are actually charged ---------------------
+    print()
+    print("=" * 72)
+    print("1b. MECHANISM CHARGING  (an idealised arm cannot support a claim)")
+    print("=" * 72)
+    idealised = []
+    for r in rows:
+        if r.get("policy_label") != "POPT":
+            continue
+        mode = r.get("popt_matrix_stream_mode")
+        extra = num(r.get("popt_matrix_stream_bytes")) or 0.0
+        if mode == "analytic" and extra > 0:
+            idealised.append((r["_graph"], extra,
+                              num(r.get("dram_offchip_bytes")) or 0.0))
+    if idealised:
+        print("  P-OPT: rereference-matrix stream is ANALYTIC, not simulated.")
+        print("  gem5 reads the matrix from a sideband file, so its column")
+        print("  traffic never enters the memory system: P-OPT is charged for")
+        print("  LLC CAPACITY (reserved ways) but not for the bandwidth or the")
+        print("  latency of streaming columns. K2 by contrast pays for its")
+        print("  records in full, in both bytes and instructions.")
+        print()
+        print(f"    {'graph':<24}{'offchip':>12}{'+matrix':>12}{'understated':>13}")
+        for graph, extra, base in idealised:
+            if base:
+                print(f"    {graph:<24}{base:>12,.0f}{base + extra:>12,.0f}"
+                      f"{extra / base * 100:>12.1f}%")
+        print()
+        print("  => Under the frozen metrics, an idealised mechanism is")
+        print("     INELIGIBLE for a performance claim. The P-OPT rows below")
+        print("     are an upper bound on P-OPT, not a comparable baseline.")
+    else:
+        print("  no analytic-only mechanism detected in these rows")
+
     # ---- 2. Time against traffic, per stage ----------------------------
     print()
     print("=" * 72)
@@ -184,7 +218,7 @@ def main(argv):
     # ---- 3. The width contrast, matched --------------------------------
     print()
     print("=" * 72)
-    print("3. THE WIDTH CONTRAST  (4b versus 8b, identical in all else)")
+    print("3. THE WIDTH CONTRAST  (4b versus 8b, record-carrying policies only)")
     print("=" * 72)
     paired = defaultdict(dict)
     for r in rows:
@@ -192,6 +226,11 @@ def main(argv):
         paired[key][r["_stage"]] = r
     deltas_t, deltas_b, deltas_i = [], [], []
     for (graph, kernel, policy), stages in sorted(paired.items()):
+        # Only policies that CARRY a record can show a width effect. LRU, GRASP
+        # and P-OPT are identical in both arms by construction, so including
+        # them drags every ratio towards 1.000 and hides the contrast.
+        if not policy.startswith("ECG"):
+            continue
         if "4b" in stages and "8b" in stages:
             t4, t8 = num(stages["4b"].get("sim_ticks")), num(stages["8b"].get("sim_ticks"))
             b4, b8 = (num(stages["4b"].get("dram_offchip_bytes")),

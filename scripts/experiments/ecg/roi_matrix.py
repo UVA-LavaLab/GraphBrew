@@ -1476,6 +1476,18 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             k2_masked_pload = (
                 riscv_delivery and
                 args.benchmark in ("pr", "bfs", "sssp", "bc", "cc"))
+            # Explicit ablation of the fused masked property load (K2-I). Every
+            # fused delivery -- ecg.k2.iload, ecg.load2, ecg.stream.load2 --
+            # carries the CANONICAL 64-bit record and has no 32-bit variant, so
+            # a compact record must be widened in software before it can be
+            # used. That software widen is precisely the cost under study, so
+            # isolating width from decode requires turning the whole fused
+            # family off and putting every arm on the plain
+            # packed+ecg.extract2 delivery.
+            fused_record_load_allowed = (
+                os.environ.get("GRAPHBREW_K2_FUSED_LOAD") != "0")
+            if not fused_record_load_allowed:
+                k2_masked_pload = False
             if args.gem5_cpu_type == "O3" and not k2_masked_pload:
                 raise RuntimeError(
                     "Schedule-2 O3 requires the RISC-V masked property-load "
@@ -1504,7 +1516,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
                 env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
                 gem5_ecg_delivery = f"ecg.k2.{k2_isa_name}"
-            elif riscv_delivery:
+            elif riscv_delivery and fused_record_load_allowed:
                 env["GEM5_FORCE_ECG_LOAD2"] = "1"
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
                 env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)

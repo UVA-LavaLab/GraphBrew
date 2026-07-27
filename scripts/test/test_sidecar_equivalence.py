@@ -362,11 +362,24 @@ def test_gem5_forwards_metadata_knobs_into_the_simulated_guest():
         "ECG_SIDECAR_PAYLOAD_BITS",
         "ECG_RECORD_TIER_BITS",
         "ECG_VIRTUAL_ID_BITS",
+        # The enforcement knob was omitted from this list for its entire
+        # existence, so the guest could never abort on a width mismatch and the
+        # guard silently degraded to a printed receipt on gem5.
+        "ECG_EXPECT_BYTES_PER_EDGE",
     ]
     for name in required:
         assert f'"{name}"' in config, (
             f"graph_se.py does not forward {name} to the simulated guest, so "
             "gem5 cells cannot honour it and will silently use the default")
+
+    # Every knob the metadata SSOT reads must be forwarded, or a future knob
+    # repeats the same failure. Derive the list from the SSOT itself.
+    ssot = (ROOT / "bench/include/ecg_metadata.h").read_text()
+    knobs = set(re.findall(r'"(ECG_[A-Z0-9_]+)"', ssot))
+    missing = sorted(k for k in knobs if f'"{k}"' not in config)
+    assert not missing, (
+        f"the metadata SSOT reads {missing} but graph_se.py does not forward "
+        "them into the gem5 guest, so those knobs are silently inert there")
 
 
 def test_compact_two_stamp_record_packs_and_round_trips():
@@ -430,6 +443,19 @@ def test_riscv_gem5_binaries_are_not_stale_against_the_compact_record():
         "the RISC-V gem5 kernel predates the compact two-stamp record, so "
         "gem5 cells will stream 8 bytes whatever the receipt claims; rebuild "
         "with make gem5-riscv-m5ops-pr")
+    # The compact ISA path emits an unknown opcode on a gem5 that predates it,
+    # which faults inside the guest rather than reporting a configuration
+    # error. Binary and simulator must move together.
+    guest_has_isa = b"ECG_EXTRACT2C" in blob
+    decoder = (ROOT / "bench/include/gem5_sim/gem5/src/arch/riscv/isa"
+               / "decoder.isa").read_text()
+    sim_has_isa = "ecg_extract2c" in decoder
+    assert guest_has_isa == sim_has_isa, (
+        "the compact-decode instruction is present in "
+        f"{'the guest binary' if guest_has_isa else 'the gem5 decoder'} but "
+        f"not {'the gem5 decoder' if guest_has_isa else 'the guest binary'}; "
+        "rebuild both (make gem5-riscv-m5ops-pr and the RISCV gem5 build) or "
+        "neither, otherwise GEM5_ECG_COMPACT_ISA=1 traps on an unknown opcode")
 
 
 def test_guest_enforces_the_width_the_runner_intended():
