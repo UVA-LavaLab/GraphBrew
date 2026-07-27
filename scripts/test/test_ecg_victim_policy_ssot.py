@@ -93,36 +93,46 @@ GEM5_APPLIED = ROOT / "bench/include/gem5_sim/gem5/src"
 GEM5_OVERLAY = ROOT / "bench/include/gem5_sim/overlays"
 
 
-def test_applied_gem5_tree_matches_the_tracked_overlays():
-    """Files the overlay owns must be byte-identical where the build reads them."""
+def test_applied_gem5_tree_matches_the_tracked_sources():
+    """Files the build copies in must be byte-identical where it reads them.
+
+    The pair list is derived from setup_gem5.OVERLAY_FILE_MAP rather than from a
+    directory walk, because the map is the authority on what gets copied and it
+    includes sources from OUTSIDE the overlays directory. A walk missed
+    ../../hawkeye_policy.h, leaving a BASELINE replacement policy -- one that
+    every comparison is measured against -- with no drift guard at all.
+    """
     if not GEM5_APPLIED.is_dir():
         import pytest
         pytest.skip("gem5 checkout not present")
-    checked = 0
-    missing: list[str] = []
-    for overlay in GEM5_OVERLAY.rglob("*"):
-        # Only COPIED artifacts can be compared byte-for-byte. .isa snippets are
-        # spliced into a larger file (covered by the instruction-set check
-        # below), .patch files are applied as diffs and verified by
-        # setup_gem5.py's marker checks, and .md files are documentation.
-        if not overlay.is_file() or overlay.suffix in (".isa", ".patch", ".md"):
+    import importlib.util
+    import sys
+    spec = importlib.util.spec_from_file_location(
+        "setup_gem5_for_test", ROOT / "scripts/setup_gem5.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["setup_gem5_for_test"] = mod
+    spec.loader.exec_module(mod)
+
+    checked, drifted, missing = 0, [], []
+    for src_rel, dst_rel in mod.OVERLAY_FILE_MAP.items():
+        src = (GEM5_OVERLAY / src_rel).resolve()
+        dst = (GEM5_APPLIED / dst_rel).resolve()
+        if not src.is_file():
+            missing.append(f"source {src_rel}")
             continue
-        applied = GEM5_APPLIED / overlay.relative_to(GEM5_OVERLAY)
-        if not applied.exists():
-            # Silently skipping a missing target is how an overlay that was
-            # never installed passes as "matching".
-            missing.append(str(overlay.relative_to(GEM5_OVERLAY)))
+        if not dst.is_file():
+            missing.append(f"installed {dst_rel}")
             continue
         checked += 1
-        assert _sha(applied) == _sha(overlay), (
-            f"{applied} differs from its tracked overlay {overlay}. The gem5 "
-            "checkout is generated and gitignored, so this change exists only "
-            "on this machine; move it into the overlay.")
-    assert checked > 0, "no overlay/applied pairs compared; the check is vacuous"
+        if _sha(src) != _sha(dst):
+            drifted.append(dst_rel)
+    assert checked > 0, "no copied pairs compared; the check is vacuous"
     assert not missing, (
-        f"overlay files with no counterpart in the gem5 checkout: {missing}. "
-        "Either the overlay was never installed or it is dead weight; both "
-        "are defects, and skipping them makes this check vacuous.")
+        f"copy map entries with no file on one side: {missing}")
+    assert not drifted, (
+        f"{drifted} differ from their tracked sources. The gem5 checkout is "
+        "generated and gitignored, so these edits exist only on this machine; "
+        "move them into the tracked source and re-apply.")
 
 
 def test_every_ecg_instruction_in_the_built_decoder_is_tracked():
