@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
+#include <cstdio>
 #include <iostream>
 #include <vector>
 
@@ -628,6 +629,20 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         //   shortcircuit(4,legacy): non-property first, then epoch among property
         static const int configuredVariant =
             ecg_policy::parseVariant(std::getenv("ECG_VARIANT"));
+        // Ungated receipt, printed once. The runner records the variant it
+        // REQUESTED; without this nothing in an archived run proves which rule
+        // actually executed, so a decomposition that turns on epoch_first
+        // versus lru_only rests on the request rather than on evidence.
+        static const bool variantAnnounced = [&]() {
+            const char* requested = std::getenv("ECG_VARIANT");
+            std::fprintf(stderr,
+                "[ECG-VARIANT-RECEIPT sim=gem5 requested=%s effective=%d "
+                "dueling=%d]\n",
+                requested ? requested : "(unset)", configuredVariant,
+                setDueling ? 1 : 0);
+            return true;
+        }();
+        (void)variantAnnounced;
         int variant = configuredVariant;
         if (setDueling && !candidates.empty()) {
             const size_t setIndex = candidates.front()->getSet();

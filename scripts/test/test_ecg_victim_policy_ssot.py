@@ -164,3 +164,30 @@ def test_every_ecg_instruction_in_the_built_decoder_is_tracked():
         f"{uninstalled} are tracked in the overlay but absent from the built "
         "decoder; re-apply the overlays, or the measured simulator is not the "
         "one under review")
+
+
+def test_the_executing_victim_variant_is_attested_at_runtime():
+    """The runner recorded the variant it ASKED for, not the one that ran.
+
+    Every decomposition in this work turns on epoch_first versus lru_only being
+    the only difference between two arms. gem5 emitted the executing variant
+    only through a gated trace that is off in measurement runs, so no archived
+    artifact proved which rule executed and the claim rested on the request.
+
+    An ungated one-line receipt, printed once, closes that. Verified end to end:
+    ECG_VARIANT=lru_only produces
+    "[ECG-VARIANT-RECEIPT sim=gem5 requested=lru_only effective=6 dueling=0]".
+    """
+    overlay = (ROOT / "bench/include/gem5_sim/overlays/mem/cache"
+               / "replacement_policies/ecg_rp.cc").read_text()
+    assert "ECG-VARIANT-RECEIPT" in overlay, (
+        "nothing attests the executing victim rule, so a replacement-rule "
+        "comparison cites its own configuration as evidence")
+    i = overlay.index("ECG-VARIANT-RECEIPT")
+    window = overlay[i - 800:i + 500]
+    assert "requested=" in window and "effective=" in window, (
+        "the receipt must show BOTH what was asked for and what was resolved, "
+        "or it cannot catch a silent fallback")
+    assert "dueling=" in window, (
+        "set-dueling overrides the configured variant per set; a receipt that "
+        "hides it would attest a rule that is not uniformly in force")

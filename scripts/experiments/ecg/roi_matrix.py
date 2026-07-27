@@ -1630,8 +1630,20 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         receipt = re.search(
             r"\[ECG-METADATA [^\]]*bytes_per_edge=([0-9.]+)[^\]]*\]", log_text)
         if receipt:
+            width = int(float(receipt.group(1)))
             base["ecg_receipt_bytes_per_edge"] = float(receipt.group(1))
-            base["ecg_record_bytes"] = int(float(receipt.group(1)))
+            base["ecg_record_bytes"] = width
+            # edge_stream_bytes_per_edge is DERIVED from the record width, and
+            # was computed earlier from the nominal one. Left alone it produced
+            # rows asserting ecg_record_bytes=4, ecg_record_replaces_edge=1 and
+            # edge_stream_bytes_per_edge=8 simultaneously -- a row that
+            # contradicts itself, and the field a reader would most likely trust
+            # when computing bytes per edge.
+            if int(base.get("ecg_record_replaces_edge", 0)):
+                base["edge_stream_bytes_per_edge"] = width
+            elif base.get("ecg_charged") and width:
+                base["edge_stream_bytes_per_edge"] = (
+                    int(base.get("graph_edge_bytes", 4)) + width)
         base["ecg_compact_isa_active"] = int("[ECG_EXTRACT2C]" in log_text)
         # The delivery label was hardcoded from the env, so a cell that streamed
         # a 4-byte record and decoded it in the ISA still reported

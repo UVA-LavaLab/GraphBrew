@@ -496,6 +496,9 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     : "[ECG_K2_ILOAD] PR fused indexed masked load ACTIVE\n")
             : ecg_load2_on
                 ? "[ECG_LOAD2] PR fused K2 record load ACTIVE\n"
+                : pair32_ok
+                ? "[ECG_PACKED4_K2] PR Schedule-2 compact packed record path "
+                  "ACTIVE\n"
                 : "[ECG_PACKED8_K2] PR Schedule-2 packed record path ACTIVE\n");
     } else if (packed_extract_only) {
         fprintf(stderr,

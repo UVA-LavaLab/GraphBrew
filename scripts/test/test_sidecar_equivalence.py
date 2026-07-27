@@ -654,3 +654,22 @@ def test_built_kernels_are_newer_than_the_headers_they_embed():
         f"{stale} predate {newest_name}; the build rules now list the ECG "
         "headers as prerequisites, so rebuild rather than trusting a binary "
         "that cannot contain the change being measured")
+
+
+def test_row_cannot_contradict_itself_about_stream_width():
+    """A row said 4 bytes per record and 8 bytes per edge at the same time.
+
+    edge_stream_bytes_per_edge is derived from the record width and was computed
+    from the NOMINAL width before the guest receipt corrected it, so every
+    compact K2 row asserted ecg_record_bytes=4, ecg_record_replaces_edge=1 and
+    edge_stream_bytes_per_edge=8 together. That is the field a reader is most
+    likely to trust when computing bytes per edge, so the contradiction is worse
+    than a missing column.
+    """
+    runner = (ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
+    i = runner.index('base["ecg_receipt_bytes_per_edge"]')
+    window = runner[i:i + 1400]
+    assert "edge_stream_bytes_per_edge" in window, (
+        "the derived stream width must be recomputed where the receipt "
+        "corrects the record width, or the two disagree")
+    assert "ecg_record_replaces_edge" in window
