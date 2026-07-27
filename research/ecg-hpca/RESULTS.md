@@ -1864,3 +1864,54 @@ Predictions for the compact-ISA arm versus LRU on this cell:
 
 Failure of 3 kills the arm outright. Failure of 1 or 2 falsifies the decode
 diagnosis above.
+
+### Result: the compact record wins once the decode is in the ISA (2026-07-26)
+
+The pre-registered predictions above were checked against a matched three-arm
+probe on web-Google-n16 PageRank, gem5, 16kB/64kB/128kB, no prefetcher, 32
+epochs. All three arms use the PLAIN `packed + ecg.extract2` delivery
+(`GRAPHBREW_K2_FUSED_LOAD=0`), because every fused delivery carries the
+canonical 64-bit record and has no 32-bit form, so leaving one active would
+confound width with decode.
+
+| arm | ROI insts | off-chip bytes | LLC misses | ticks |
+|---|---:|---:|---:|---:|
+| 8-byte record | 25,680,038 | 16,880,448 | 253,507 | 69,133,793,500 |
+| 4-byte, software decode | 38,243,258 | 13,702,208 | 203,858 | 81,845,041,000 |
+| 4-byte, ISA decode | 15,293,846 | 13,706,624 | 203,937 | 47,799,502,000 |
+
+Against the pre-registered predictions:
+
+1. **Passed, and beyond the prediction.** Instructions fall to 0.400 of the
+   software-decode arm and to 0.596 of the 8-byte arm -- fewer than the wide
+   record, not merely comparable. `ecg_extract2c` returns the destination, so
+   the guest needs no separate extraction at all. 45.7 instructions per edge
+   removed.
+2. **Passed.** Off-chip traffic 1.000322 of the software-decode arm: decoding
+   changed nothing about what is fetched.
+3. **Passed.** LLC misses 1.000388 (203,937 versus 203,858). Not bit-identical,
+   and it should be said plainly why: the metadata is identical, but the two
+   arms present the same accesses on different cycles, so a handful of
+   decisions shift. 79 misses in 203,858 is 0.04%. The metadata itself is
+   proven equal per record by `test_ecg_epoch_pair32`.
+4. **Passed.** Time falls to 0.584 of the software-decode arm and to 0.691 of
+   the 8-byte arm.
+
+So the decode diagnosis holds: the compact record's problem was never the
+record. Removing the software widen leaves an arm that is simultaneously the
+narrowest in traffic and the cheapest in instructions.
+
+**It is still not a win against LRU.** Against the LRU cell at this geometry
+(43,149,560,500 ticks, 14,204,608 bytes, 11,342,919 ROI instructions), the
+ISA-decode arm is 1.108 in time, 0.965 in traffic, 1.348 in instructions. It
+also remains slightly behind the FUSED 8-byte arm measured in the matrix
+(1.065), because fusing the record load with the property load removes another
+instruction per edge that this arm still pays.
+
+The obvious next mechanism, and the one the numbers now point at directly, is a
+fused compact property load: the fused family currently forces the 64-bit
+record, which is why the best compact arm cannot yet use it. No claim is
+promoted here; `claim_gate.json` is unchanged.
+
+Evidence: `results/ecg_experiments/probes/isa2_sw4b_181201`,
+`isa2_w8b_181211`, `isa2_hw4b_fixed_183145`.

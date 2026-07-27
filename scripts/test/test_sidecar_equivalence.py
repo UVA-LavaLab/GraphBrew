@@ -570,3 +570,37 @@ def test_a_four_byte_receipt_means_a_four_byte_array_was_built():
     assert "ECG-PAIR32 sim=sniper" in sn_out, (
         "Sniper announced a 4-byte record but did not build the compact array; "
         "it is streaming 8 bytes per edge while claiming 4")
+
+
+def test_the_compact_format_has_one_definition_in_three_places():
+    """dest[id_bits] | tier[2] | first[eb] | second[eb], transcribed once too often.
+
+    The compact record is now decoded by the builder's own helpers, by
+    widenEpochPair32 in the guest, and by ecg_extract2c in the gem5 decoder.
+    The first two are proven equal per record by test_ecg_epoch_pair32; the
+    decoder is a third transcription that no unit test can reach, so guard its
+    shifts against the layout they are supposed to implement.
+
+    A drifting decoder would not crash. It would deliver plausible-looking
+    epochs and quietly change every eviction decision.
+    """
+    decoder = (ROOT / "bench/include/gem5_sim/gem5/src/arch/riscv/isa"
+               / "decoder.isa").read_text()
+    start = decoder.index("0x02: ecg_extract2c")
+    body = decoder[start:start + 2600]
+    # Same field order and offsets as packEpochPairRecord32.
+    assert "record & id_mask" in body, "dest must occupy the low id_bits"
+    assert "(record >> id_bits) & 0x3U" in body, "tier sits directly above dest"
+    assert "(record >> (id_bits + 2)) & ep_mask" in body, (
+        "the first stamp sits above the 2 tier bits")
+    assert "(record >> (id_bits + 2 + epoch_bits)) & ep_mask" in body, (
+        "the second stamp sits above the first")
+    # Must deliver through the same path as the 64-bit instruction, or the two
+    # widths would mean different policies.
+    assert "setDecodedEcgExtractHint2" in body
+    assert "storeEcgMetadataByVertex" in body
+
+    builder = (ROOT / "bench/include/ecg_epoch_builder.h").read_text()
+    assert "(static_cast<uint32_t>(tier & 0x3u) << id_bits)" in builder, (
+        "the packer's layout changed; the gem5 decoder still implements the "
+        "old one and will deliver wrong epochs without failing")
