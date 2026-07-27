@@ -185,3 +185,28 @@ def test_the_tie_band_is_backed_by_a_measured_noise_floor():
     assert "NO MEASURABLE TIME EFFECT" in body, (
         "any effect inside the tie band must be demoted explicitly rather "
         "than quoted as a small win")
+
+
+def test_methodology_binds_comparison_scope_and_admissibility():
+    """Two rules learned the hard way must be binding, not just recorded.
+
+    A ratio built from a denominator in another run inherits an uncertainty
+    larger than the tie band, and a mechanism the runner marks inadmissible for
+    speedup must not contribute one however favourable its time looks. Both were
+    discovered after conclusions had already been drawn without them, so they
+    belong in the frozen section rather than only in the results narrative.
+    """
+    method = (ROOT / "research/ecg-hpca/METHODOLOGY.md").read_text()
+    assert "**Comparison scope.**" in method
+    assert "own baseline cell" in method, (
+        "the per-invocation baseline requirement is the operative part of the "
+        "rule; without it 'prefer within-run' is advice, not a method")
+    assert "**Admissibility of a mechanism.**" in method
+    assert "timing_valid_for_speedup" in method
+    assert "fail-closed" in method
+
+    # The methodology must not restate measured values; they drift.
+    frozen = method[method.index("## Frozen evaluation metrics"):]
+    assert "1.74%" not in frozen and "40,871,713,000" not in frozen, (
+        "the frozen section should point at RESULTS.md for measurements "
+        "rather than carrying its own copy of them")

@@ -29,10 +29,29 @@ invalid. Where a backend cannot report memory-controller bytes, the cell is
 ineligible for a performance claim rather than silently downgraded to LLC
 misses.
 
+**Comparison scope.** A ratio must be formed inside a single simulator
+invocation wherever the design allows it. Two cells that differ only in the
+directory they were written to have been observed to differ by more than the tie
+band, so a denominator imported from another run carries that uncertainty and a
+comparison across two runs carries it twice. Where a contrast genuinely requires
+separate invocations -- arms that differ by an environment variable, for example
+-- every invocation must contain its own baseline cell, and the resulting
+ratio-of-ratios must be reported as such rather than as an exact figure.
+
+**Admissibility of a mechanism.** A cell whose delivery mechanism the runner
+marks `timing_valid_for_speedup=0` may contribute instruction counts and traffic
+but never a speedup claim, regardless of how favourable its time is. The flag is
+fail-closed and is not to be relaxed to admit a result; it is relaxed only when
+the mechanism it describes actually changes.
+
 **Decision rule.** Reporting both primaries is a disclosure requirement, not a
 success criterion, so success is defined here as well:
 
-- The tie band is **+/-2%** on a per-cell ratio. Differences inside it are ties.
+- The tie band is **+/-2%** on a per-cell ratio. Differences inside it are ties. The band was chosen a priori and has since been
+  measured: nominally identical cells in different simulator invocations differ
+  by up to ~1.7% in execution time while an identical command reproduces to the
+  tick. Evidence and the exact cells are in `RESULTS.md`; do not restate the
+  numbers here.
 - "K2 is faster than X" requires a **>=3%** aggregate runtime improvement over
   X on the frozen cell set, and reports the worst cell.
 - "K2 is faster without increasing off-chip traffic" additionally requires the
