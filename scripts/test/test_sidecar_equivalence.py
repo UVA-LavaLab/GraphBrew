@@ -376,9 +376,18 @@ def test_gem5_forwards_metadata_knobs_into_the_simulated_guest():
     # repeats the same failure. Derive the list from the SSOT itself.
     ssot = (ROOT / "bench/include/ecg_metadata.h").read_text()
     knobs = set(re.findall(r'"(ECG_[A-Z0-9_]+)"', ssot))
-    missing = sorted(k for k in knobs if f'"{k}"' not in config)
+    # Guest-side mechanism knobs live in gem5_harness.h and are GEM5_ECG_*
+    # prefixed, so the SSOT regex alone cannot see them. They need forwarding
+    # for exactly the same reason, and were being hand-maintained.
+    harness = (ROOT / "bench/include/gem5_sim/gem5_harness.h").read_text()
+    knobs |= set(re.findall(r'getenv\("(GEM5_ECG_[A-Z0-9_]+)"\)', harness))
+    # graph_se.py forwards through TWO mechanisms: an f-string block that
+    # always emits a value, and a pass-through allowlist that forwards only when
+    # the host sets one. Requiring the quoted form would flag knobs handled by
+    # the first mechanism, so accept a mention by either.
+    missing = sorted(k for k in knobs if k not in config)
     assert not missing, (
-        f"the metadata SSOT reads {missing} but graph_se.py does not forward "
+        f"the guest reads {missing} but graph_se.py does not forward "
         "them into the gem5 guest, so those knobs are silently inert there")
 
 
@@ -447,9 +456,13 @@ def test_riscv_gem5_binaries_are_not_stale_against_the_compact_record():
     # which faults inside the guest rather than reporting a configuration
     # error. Binary and simulator must move together.
     guest_has_isa = b"ECG_EXTRACT2C" in blob
-    decoder = (ROOT / "bench/include/gem5_sim/gem5/src/arch/riscv/isa"
-               / "decoder.isa").read_text()
-    sim_has_isa = "ecg_extract2c" in decoder
+    # Compare against the BUILT simulator. Comparing against decoder.isa would
+    # pass whenever the source has been edited but gem5 not rebuilt, which is
+    # precisely the staleness this test exists to catch.
+    gem5_opt = ROOT / "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt"
+    if not gem5_opt.exists():
+        pytest.skip("RISCV gem5 not built")
+    sim_has_isa = b"ecg_extract2c" in gem5_opt.read_bytes()
     assert guest_has_isa == sim_has_isa, (
         "the compact-decode instruction is present in "
         f"{'the guest binary' if guest_has_isa else 'the gem5 decoder'} but "

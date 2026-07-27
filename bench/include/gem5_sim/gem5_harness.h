@@ -165,7 +165,23 @@ inline uint32_t gem5_ecg_load_embedded(const void* prop_base, uint64_t fat_edge)
 // so the decoder widens to the canonical layout instead of the guest doing it
 // with about 16 instructions of runtime shifts and masks per edge. Returns the
 // destination vertex, so the caller needs no mask either.
+inline void gem5_trace_ecg_k2_expect(uint64_t packed);
+
+inline bool gem5_ecg_k2_trace_enabled() {
+    static int on = []() {
+        const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
+        return (value && std::strtoull(value, nullptr, 10) > 0) ? 1 : 0;
+    }();
+    return on != 0;
+}
+
 inline uint32_t gem5_ecg_extract2c_instruction(uint32_t record, uint32_t fmt) {
+    // Guarded, because the widen is the very cost this instruction removes:
+    // evaluating it unconditionally would put it back into the measured arm.
+    if (gem5_ecg_k2_trace_enabled()) {
+        gem5_trace_ecg_k2_expect(ecg_epoch::widenEpochPair32(
+            record, fmt & 0x3FU, (fmt >> 8) & 0x3FU));
+    }
 #if defined(__riscv)
     uint64_t real_vertex = 0;
     asm volatile (".insn r 0x0b, 0x0, 0x02, %0, %1, %2"

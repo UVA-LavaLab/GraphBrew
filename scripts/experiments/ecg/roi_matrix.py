@@ -1615,6 +1615,18 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["ecg_isa_variant"] = "mask"
         elif "[ECG_K2_ILOAD" in log_text:
             base["ecg_isa_variant"] = "indexed"
+        # ecg_record_bytes above is a NOMINAL value derived from the schedule,
+        # so it read 8 for every Schedule-2 row even when the guest streamed a
+        # compact 4-byte record. Anyone re-parsing the combined CSV would have
+        # concluded both width stages streamed 8 bytes. The guest receipt is the
+        # only source of truth for what was actually streamed, so promote it.
+        receipt = re.search(
+            r"\[ECG-METADATA [^\]]*bytes_per_edge=([0-9.]+)[^\]]*\]", log_text)
+        if receipt:
+            base["ecg_receipt_bytes_per_edge"] = float(receipt.group(1))
+            base["ecg_record_bytes"] = int(float(receipt.group(1)))
+        base["ecg_compact_isa_active"] = int("[ECG_EXTRACT2C]" in log_text)
+        base["gem5_metadata_fatal"] = log_text.count("[ECG-METADATA-FATAL")
         base["gem5_stream_bypass_trace_events"] = log_text.count(
             "[ECG-STREAM-BYPASS sim=gem5")
         base["gem5_stream_adaptive_active"] = int(

@@ -1889,17 +1889,48 @@ Against the pre-registered predictions:
    removed.
 2. **Passed.** Off-chip traffic 1.000322 of the software-decode arm: decoding
    changed nothing about what is fetched.
-3. **Passed.** LLC misses 1.000388 (203,937 versus 203,858). Not bit-identical,
-   and it should be said plainly why: the metadata is identical, but the two
-   arms present the same accesses on different cycles, so a handful of
-   decisions shift. 79 misses in 203,858 is 0.04%. The metadata itself is
-   proven equal per record by `test_ecg_epoch_pair32`.
+3. **Passed only in the weak sense, and the original wording was wrong.**
+   LLC misses 1.000388 (203,937 versus 203,858). The first write-up attributed
+   the 79-miss gap to "cycle placement", which is not a real explanation: gem5
+   here is bit-deterministic (the K2 cell reproduces bit-exactly across two
+   independent runs), so a difference is a difference. The two arms run
+   different code -- the compact-ISA loop is much shorter than the
+   software-widen loop -- so their instruction footprint and stack access
+   pattern differ, and that is what moves 0.04% of the misses.
+
+   More importantly, the prediction asked for a MEASUREMENT of metadata
+   equality and what was produced is an argument from inspection: both paths
+   call the identical `setDecodedEcgExtractHint2(dest, tier, epoch1, epoch2,
+   4, ...)`, so they cannot disagree. That is convincing but it is not the
+   pre-registered test. The honest statement is: the compact ISA emits, by
+   construction, the same hint payload as the software widen; the 0.04% miss
+   delta is code-footprint drift, not a metadata disagreement; and this was
+   verified statically, not by trace.
 4. **Passed.** Time falls to 0.584 of the software-decode arm and to 0.691 of
    the 8-byte arm.
 
-So the decode diagnosis holds: the compact record's problem was never the
-record. Removing the software widen leaves an arm that is simultaneously the
-narrowest in traffic and the cheapest in instructions.
+So the decode diagnosis holds for the component it names: removing the software
+widen leaves an arm that is simultaneously the narrowest in traffic and the
+cheapest in instructions of the three.
+
+Two scoping caveats that the first write-up did not state.
+
+**These three arms are NOT on the same delivery path as the matrix.** They run
+with `GRAPHBREW_K2_FUSED_LOAD=0`, i.e. plain `packed + ecg.extract2(c)`, while
+every K2 cell in the width matrix used the fused `ecg.k2.iload`. The difference
+is large, not cosmetic: the matrix's 8-byte K2 cell executes 10,586,105 ROI
+instructions (below LRU's 11,342,919, because fusion absorbs the CSR walk),
+whereas the non-fused 8-byte arm here executes 25,680,038. The correct
+comparison is strictly within this table; none of these three arms is a
+replacement for the fused matrix row.
+
+**"The entire penalty is software decode" is true of the fused arm only.** In
+the fused decomposition the transport tax was x1.7263 instructions, about 16.4
+per edge, which is the widen budget. Here, with the widen gone, the ISA arm is
+still at x1.348 of LRU -- roughly 7.9 instructions per edge for the record
+load, the extract, the hint clear and the scalar property load. Those are costs
+that fusion absorbs and this delivery does not. Removing the decode removed the
+decode; it did not make the transport free.
 
 **It is still not a win against LRU.** Against the LRU cell at this geometry
 (43,149,560,500 ticks, 14,204,608 bytes, 11,342,919 ROI instructions), the
@@ -1915,3 +1946,38 @@ promoted here; `claim_gate.json` is unchanged.
 
 Evidence: `results/ecg_experiments/probes/isa2_sw4b_181201`,
 `isa2_w8b_181211`, `isa2_hw4b_fixed_183145`.
+
+### Provenance corrections found by adversarial review (2026-07-26)
+
+Three scoping problems in the sections above, none of which changes a number,
+all of which change what the numbers are entitled to say.
+
+**The width guard was not running for the runs it is credited to.** The commit
+that put `ECG_EXPECT_BYTES_PER_EDGE` into the gem5 guest allowlist landed at
+18:34. The record-width matrix finished at 17:49 and the transport
+decomposition at 15:06. Both therefore ran while the abort-on-mismatch guard
+was inert on gem5. Their widths are correct -- every stage's guest receipt was
+read by hand and reports `bytes_per_edge=4.000` or `8.000` as intended -- but
+they are trusted because the receipt agrees, NOT because anything enforced it.
+Only the compact-ISA probe ran with the guard live. Any rerun should be treated
+as the first enforced measurement of these cells.
+
+**The LRU denominator is imported from another run.** The transport
+decomposition contains only `ECG:K2` and `ECG:K2_LRU`; the plain-LRU figures it
+divides by (43,149,560,500 ticks, 14,204,608 bytes, 11,342,919 instructions)
+come from the width matrix. That is defensible here because gem5 is
+bit-deterministic under the fixed-length hashed sideband directory -- the K2
+cell reproduces bit-exactly across the two independent runs, including
+`simTicks`, `commitStats0.numInsts` and `dram.bytesRead::total` -- but the
+reproduction was only ever exhibited for K2, and it is the LRU denominator that
+carries the "the record is free" claim. The determinism gate should be shown
+for LRU specifically.
+
+**`ECG:K2_LRU` equals LRU only in `ECG_GRASP_POPT` mode.** The `lru_only`
+variant selects the way with the lowest `lastTouchTick`, and the ECG
+replacement policy updates that field on both touch and reset exactly as gem5's
+LRU does -- but only inside the `ECG_GRASP_POPT` branch. In any other ECG mode
+that branch is skipped, recency never advances on a hit, and `lru_only`
+degenerates to FIFO. The decomposition used `ECG_GRASP_POPT`, so the arms are
+sound; but `ECG:K2_LRU` is not a general "K2 transport with LRU replacement"
+primitive and must not be reused as one.
