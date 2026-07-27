@@ -36,8 +36,10 @@ SATURATION_HIGH = 70.0
 
 
 def newest_run() -> Path | None:
-    candidates = sorted(RUNS.glob("ecg_record_width_timing_*"),
-                        key=lambda p: p.stat().st_mtime, reverse=True)
+    candidates = sorted(
+        list(RUNS.glob("ecg_record_width_timing_*"))
+        + list(RUNS.glob("ecg_isa_decode_matrix_*")),
+        key=lambda p: p.stat().st_mtime, reverse=True)
     return candidates[0] if candidates else None
 
 
@@ -57,6 +59,8 @@ def load(run_dir: Path):
         for part in csv_path.parts:
             if part.startswith("31_gem5_record_width"):
                 stage = part.rsplit("_", 1)[-1]
+            elif re.match(r"^4\d_isa_", part):
+                stage = part
         for row in csv.DictReader(csv_path.open()):
             if row.get("status") != "ok":
                 continue
@@ -100,6 +104,100 @@ def roi_insts(row):
     return float(m.group(1)) if m else None
 
 
+
+DECODE_STAGES = {
+    "40_isa_fused_4b": "fused delivery, compact record",
+    "41_isa_fused_8b": "fused delivery, wide record",
+    "42_isa_plain_4b_software": "one instruction + software widen, compact",
+    "43_isa_plain_4b_hardware": "one instruction (ecg.extract2c), compact",
+    "44_isa_plain_8b": "one instruction (ecg.extract2), wide",
+}
+
+
+def report_decode_matrix(rows) -> bool:
+    """The decode matrix: what the record costs to MOVE versus to DECODE.
+
+    Each stage carries its own LRU cell, so every ratio is normalised inside
+    its own invocation. That matters because nominally identical cells in
+    different invocations have been measured up to 1.7% apart in time.
+    """
+    stages = sorted({r["_stage"] for r in rows} & set(DECODE_STAGES))
+    if not stages:
+        return False
+    print()
+    print("=" * 72)
+    print("DECODE MATRIX  (record width versus the cost of decoding it)")
+    print("=" * 72)
+
+    norm = {}
+    for stage in stages:
+        for graph in sorted({r["_graph"] for r in rows if r["_stage"] == stage}):
+            cell = {r.get("policy_label"): r for r in rows
+                    if r["_stage"] == stage and r["_graph"] == graph}
+            base = cell.get("LRU")
+            if not base:
+                print(f"  {stage}/{graph}: no LRU cell, cannot normalise")
+                continue
+            bt, bb = num(base.get("sim_ticks")), num(base.get("dram_offchip_bytes"))
+            bi = roi_insts(base)
+            for label, r in cell.items():
+                t, b, i = (num(r.get("sim_ticks")),
+                           num(r.get("dram_offchip_bytes")), roi_insts(r))
+                if not (bt and bb and bi and t and b and i):
+                    continue
+                norm[(stage, graph, label)] = (i / bi, b / bb, t / bt)
+
+    print(f"\n  versus each stage's OWN LRU cell")
+    print(f"    {'stage':<26}{'graph':<22}{'policy':<10}"
+          f"{'insts':>9}{'traffic':>9}{'time':>8}")
+    for (stage, graph, label), (i, b, t) in sorted(norm.items()):
+        if label == "LRU":
+            continue
+        print(f"    {stage:<26}{graph:<22}{label:<10}"
+              f"{i:>9.4f}{b:>9.4f}{t:>8.4f}")
+
+    def contrast(a, b, title, note):
+        pairs = [(g, norm[(a, g, "ECG_K2")], norm[(b, g, "ECG_K2")])
+                 for g in sorted({k[1] for k in norm})
+                 if (a, g, "ECG_K2") in norm and (b, g, "ECG_K2") in norm]
+        if not pairs:
+            return
+        print(f"\n  {title}")
+        print(f"    {note}")
+        for g, x, y in pairs:
+            print(f"      {g:<24} insts x{x[0]/y[0]:.3f}  "
+                  f"traffic x{x[1]/y[1]:.4f}  time x{x[2]/y[2]:.3f}")
+        gi = geomean([x[0] / y[0] for _, x, y in pairs])
+        gb = geomean([x[1] / y[1] for _, x, y in pairs])
+        gt = geomean([x[2] / y[2] for _, x, y in pairs])
+        if gi and gb and gt:
+            print(f"      {'geomean':<24} insts x{gi:.3f}  "
+                  f"traffic x{gb:.4f}  time x{gt:.3f}")
+
+    contrast("42_isa_plain_4b_software", "43_isa_plain_4b_hardware",
+             "DECODE: software widen versus ecg.extract2c, identical record",
+             "traffic must be ~1.0000; a pure decode difference cannot move "
+             "bytes")
+    contrast("43_isa_plain_4b_hardware", "44_isa_plain_8b",
+             "WIDTH: compact versus wide, BOTH delivered in one instruction",
+             "the only contrast here that isolates the container")
+    contrast("40_isa_fused_4b", "41_isa_fused_8b",
+             "FUSED compact versus wide -- NOT a width-only contrast",
+             "the fused load family takes only the 64-bit record, so the "
+             "compact arm still widens in software: this is width PLUS decode")
+
+    invalid = {r["_stage"] for r in rows
+               if r["_stage"] in DECODE_STAGES
+               and str(r.get("timing_valid_for_speedup", "")) == "0"}
+    if invalid:
+        print(f"\n  NOT SPEEDUP EVIDENCE: {sorted(invalid)} carry")
+        print("    timing_valid_for_speedup=0, because the property load is a "
+              "separate\n    instruction rather than a fused request-bound "
+              "one. Read the instruction\n    counts and the traffic; the "
+              "times are context, not a claim.")
+    return True
+
+
 def main(argv):
     run_dir = Path(argv[0]) if argv else newest_run()
     if not run_dir or not run_dir.exists():
@@ -110,6 +208,9 @@ def main(argv):
 
     print(f"run: {run_dir.name}")
     print(f"completed cells: {len(rows)}")
+
+    if report_decode_matrix(rows):
+        return 0
 
     # ---- 1. Saturation, read first -------------------------------------
     utils = [num(r.get("dram_bus_util_pct")) for r in rows]

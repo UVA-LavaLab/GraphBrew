@@ -121,3 +121,32 @@ def test_gem5_popt_matrix_stream_is_disclosed_as_analytic():
     ratios = analysis.index("2. TIME AND TRAFFIC versus LRU")
     assert marker < ratios, (
         "the disclosure must come BEFORE the ratios, not after them")
+
+
+def test_decode_matrix_report_refuses_to_present_times_as_speedup():
+    """The decode stages are instruction and traffic evidence, not speedup.
+
+    The runner marks the packed+ecg.extract2(c) delivery family
+    timing_valid_for_speedup=0 because the property load is still a separate
+    instruction rather than a fused request-bound one. An analysis that prints
+    times without surfacing that flag invites the reader to treat them as a
+    speedup claim, which is the failure the flag exists to prevent.
+
+    It must also refuse to call the FUSED 4b/8b pair a width contrast: the
+    fused load family takes only the 64-bit record, so its compact arm still
+    widens in software.
+    """
+    src = (ROOT / "scripts/experiments/ecg/analysis"
+           / "record_width_timing.py").read_text()
+    assert "timing_valid_for_speedup" in src, (
+        "the decode report does not read the admissibility flag, so an "
+        "inadmissible time can be printed as though it were a result")
+    assert "NOT SPEEDUP EVIDENCE" in src
+    assert "NOT a width-only contrast" in src, (
+        "the fused pair must be labelled width PLUS decode, or it reads as "
+        "the width contrast it cannot be")
+    # The width contrast must be the pair where BOTH arms decode in one
+    # instruction, not the pair that merely differs in declared bytes.
+    i_width = src.index("WIDTH: compact versus wide")
+    assert "43_isa_plain_4b_hardware" in src[i_width - 400:i_width]
+    assert "44_isa_plain_8b" in src[i_width - 400:i_width]
