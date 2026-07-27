@@ -2244,3 +2244,37 @@ removes the software widen and changes nothing else about what is fetched.
 
 Either outcome is reportable; the prediction is recorded so the answer cannot be
 chosen after the fact.
+
+### The replacement-rule figure, stated precisely (2026-07-27)
+
+K2 versus K2_LRU traffic, each against its own stage LRU: web-Google 0.9630,
+soc-pokec 0.9594, cit-Patents 0.9993.
+
+Two corrections to how this was going to be reported.
+
+**"Identical instruction counts prove the arms are matched" is circular.** The
+two arms run the same guest binary with the same input; only gem5's victim
+selection differs, and a replacement policy cannot change how many instructions
+the guest retires. Exact equality is therefore guaranteed by construction, not
+evidence of anything -- the same 1.0000 appears for GRASP and P-OPT. What the
+equality does establish is the weaker and still useful fact that no arm quietly
+took a different code path.
+
+**Name the variants, not "the replacement rule".** The contrast is
+`epoch_first` (K2's configured rule for PageRank) against `lru_only`, both
+inside `ECG_GRASP_POPT` mode, where the ECG policy's touch path updates recency
+so `lru_only` reproduces LRU. Outside that mode the touch path is skipped and
+`lru_only` would degenerate to FIFO, so this is not a general
+"transport with LRU" primitive.
+
+Honest statement: configured epoch-first replacement reduces off-chip traffic
+by 3.7% and 4.1% on web-Google and soc-pokec, and by 0.07% -- nothing -- on
+cit-Patents, relative to the configured LRU-only rule over identical transport.
+
+**Known gap: the victim variant is requested, not attested.** The runner records
+the variant it asked for; gem5 emits the variant name only through a gated trace
+that is off in these runs, so nothing in the archived artifacts proves which
+rule executed. The archived `config.ini` does prove `GraphEcgRP` and
+`ECG_GRASP_POPT`. Closing this needs an ungated one-line receipt from
+`ecg_rp.cc`, which requires a gem5 rebuild and is deferred until the running
+matrix completes.
