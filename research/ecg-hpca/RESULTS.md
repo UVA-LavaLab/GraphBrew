@@ -2316,3 +2316,47 @@ in both arms.
 
 Recording this as open. The mechanism matters for the paper only insofar as the
 worst cell must be reported, and it is.
+
+## Decode matrix, complete: 15/15 cells (2026-07-27)
+
+`ecg_isa_decode_matrix_20260727_024739`. PageRank, gem5 RISC-V, three sampled
+real graphs, one build, enforcement live (`ECG_EXPECT_BYTES_PER_EDGE` reaches
+the guest and aborts pre-ROI), every stage carrying its own LRU cell.
+
+**Decode: software widen versus `ecg.extract2c`, identical record.**
+
+| graph | ROI insts | traffic | time |
+|---|---:|---:|---:|
+| cit-Patents-n18-sym | x1.854 | x1.0000 | x1.387 |
+| soc-pokec-n16 | x2.803 | x1.0000 | x1.768 |
+| web-Google-n16 | x2.428 | x0.9999 | x1.569 |
+| **geomean (n=3)** | **x2.328** | **x1.0000** | x1.567 |
+
+Software widening costs 2.33x the ROI instructions and moves no bytes at all --
+traffic is 1.0000 on every graph. That is the sharpest result in this matrix:
+decode is pure work.
+
+**Width: compact versus wide, both delivered in ONE instruction.**
+
+| graph | ROI insts | traffic | time |
+|---|---:|---:|---:|
+| cit-Patents-n18-sym | x0.908 | x0.8694 | x0.899 |
+| soc-pokec-n16 | x0.924 | x0.7418 | x0.841 |
+| web-Google-n16 | x0.919 | x0.8114 | x0.871 |
+| **geomean (n=3)** | **x0.917** | **x0.8058** | x0.870 |
+
+This is the contrast the earlier width matrix could not make, because its
+compact arm still widened in software. With `ecg_extract2c` both records are
+delivered by a single instruction, so the arms differ in container width and
+little else. The compact record wins on every axis on every graph: 19.4% less
+off-chip traffic, 8.3% fewer instructions, 13.0% less time.
+
+**Fused compact versus wide (stages 40/41): x1.725 insts, x0.8060 traffic,
+x1.201 time.** Reported separately and NOT as a width contrast, because the
+fused property-load family accepts only the 64-bit record, so its compact arm
+still widens in software.
+
+**Admissibility.** Stages 42-44 carry `timing_valid_for_speedup=0`: the property
+load is a separate instruction rather than a fused request-bound one, so the
+times above are context. The admissible evidence is the instruction counts and
+the traffic. `claim_gate.json` is unchanged; no claim is promoted here.
