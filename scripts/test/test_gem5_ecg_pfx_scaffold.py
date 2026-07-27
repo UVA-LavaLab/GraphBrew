@@ -211,8 +211,14 @@ def test_gem5_k2_uses_architectural_epoch_context_csrs():
     assert "CSR_ECG_CONTEXT = 0x801" in csr_patch
     assert "MISCREG_ECG_CUR_EPOCH" in decoder
     assert "MISCREG_ECG_CONTEXT" in decoder
-    assert decoder.count("MISCREG_ECG_CUR_EPOCH") == 16
-    assert decoder.count("MISCREG_ECG_CONTEXT") == 16
+    # Deliberate acknowledgement tripwire, not a completeness check: every ECG
+    # instruction must read the epoch and context CSRs, so this count changes
+    # only when the instruction set does, and a human has to notice. 17 since
+    # ecg_extract2c was added. It fired correctly for that addition -- and note
+    # it reads the tracked OVERLAY, so editing the generated gem5 checkout
+    # instead had bypassed it entirely.
+    assert decoder.count("MISCREG_ECG_CUR_EPOCH") == 17
+    assert decoder.count("MISCREG_ECG_CONTEXT") == 17
     assert 'asm volatile ("csrw 0x800, %0"' in harness
     assert 'asm volatile ("csrw 0x801, %0"' in harness
     assert "GEM5_SET_VERTEX_EPOCH" in harness

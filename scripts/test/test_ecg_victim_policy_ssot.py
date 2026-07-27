@@ -81,3 +81,55 @@ def test_prefetch_target_is_shared():
         "cache_sim graph_cache_context.h must call the shared "
         "ecg_mode6::selectPrefetchTarget, not duplicate the lookahead logic"
     )
+
+
+# The overlays are the tracked home; bench/include/gem5_sim/gem5 and the Sniper
+# checkout are GENERATED and gitignored. Nothing previously noticed when a change
+# was made directly in the generated tree, which is easy to do because that is
+# where the build reads from and where a compiler error points you. Such a change
+# builds, runs, and measures correctly on this machine and does not exist at all
+# on any other -- the worst possible failure, because every local check passes.
+GEM5_APPLIED = ROOT / "bench/include/gem5_sim/gem5/src"
+GEM5_OVERLAY = ROOT / "bench/include/gem5_sim/overlays"
+
+
+def test_applied_gem5_tree_matches_the_tracked_overlays():
+    """Files the overlay owns must be byte-identical where the build reads them."""
+    if not GEM5_APPLIED.is_dir():
+        import pytest
+        pytest.skip("gem5 checkout not present")
+    checked = 0
+    for overlay in GEM5_OVERLAY.rglob("*"):
+        if not overlay.is_file() or overlay.suffix == ".isa":
+            continue  # .isa files are spliced, not copied; covered below
+        applied = GEM5_APPLIED / overlay.relative_to(GEM5_OVERLAY)
+        if not applied.exists():
+            continue
+        checked += 1
+        assert _sha(applied) == _sha(overlay), (
+            f"{applied} differs from its tracked overlay {overlay}. The gem5 "
+            "checkout is generated and gitignored, so this change exists only "
+            "on this machine; move it into the overlay.")
+    assert checked > 0, "no overlay/applied pairs compared; the check is vacuous"
+
+
+def test_every_ecg_instruction_in_the_built_decoder_is_tracked():
+    """An opcode added straight into the generated decoder would be lost.
+
+    This is not hypothetical: ecg_extract2c was added to the gem5 checkout,
+    built, and measured, while the tracked overlay knew nothing about it. A
+    fresh clone would have produced a guest that emits the instruction and a
+    simulator that cannot decode it.
+    """
+    applied = GEM5_APPLIED / "arch/riscv/isa/decoder.isa"
+    overlay = (GEM5_OVERLAY / "arch/riscv/isa/decoder_ecg_extract.isa")
+    if not applied.exists():
+        import pytest
+        pytest.skip("gem5 checkout not present")
+    import re
+    names = lambda t: set(re.findall(r"\b(ecg_[a-z0-9_]+)\(\{\{", t))
+    missing = sorted(names(applied.read_text()) - names(overlay.read_text()))
+    assert not missing, (
+        f"{missing} exist only in the generated gem5 decoder, so they are not "
+        "in version control and will vanish on a fresh checkout; add them to "
+        f"{overlay.relative_to(ROOT)}")
