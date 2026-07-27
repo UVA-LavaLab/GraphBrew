@@ -2117,3 +2117,45 @@ reported for completeness and are not a speedup claim.
 The delivery label is now derived from the guest receipt rather than hardcoded:
 a cell streaming a 4-byte record and decoding it in the ISA previously recorded
 itself as `packed8+k2+ecg.extract2`.
+
+### Decode and width, both matched, after the symmetry fix (2026-07-27)
+
+Re-measured with both arms executing the same per-edge scaffolding. Stages 42,
+43 and 44 of `ecg_isa_decode_matrix_20260727_015625`, web-Google-n16 PageRank,
+128kB LLC, non-fused `packed + ecg.extract2(c)` delivery.
+
+All three stages are independent invocations and all three produced a
+BIT-IDENTICAL LRU cell (40,871,713,000 ticks, 14,211,840 bytes, 11,280,665 ROI
+instructions), so the three-way comparison shares one denominator exactly rather
+than approximately.
+
+| arm | ROI insts | traffic | time |
+|---|---:|---:|---:|
+| LRU | 1.0000 | 1.0000 | 1.0000 |
+| 4-byte, software widen | 2.6157 | 0.9639 | 1.6140 |
+| 4-byte, ISA decode | 1.0775 | 0.9640 | 1.0286 |
+| 8-byte, wide record | 1.1730 | 1.1881 | 1.1811 |
+
+**The decode contrast (software versus ISA, identical record).** Instructions
+x2.428, traffic x0.9999, time x1.569. The software widen costs 34.5 instructions
+per edge and changes nothing whatsoever about what is fetched -- traffic agrees
+to four decimal places, which is what a pure decode difference should look like.
+
+**The width contrast (compact versus wide, both decoded in one instruction).**
+This is the comparison the earlier matrix could not make, because its compact
+arm still widened in software. With `ecg_extract2c` the compact record is
+delivered in one instruction, exactly as the 8-byte record is by `ecg_extract2`,
+so the arms differ in container width and little else: instructions x0.919,
+traffic x0.8114, time x0.871. The compact record wins on all three axes. It uses
+FEWER instructions than the wide record because `ecg_extract2c` returns the
+destination, so the guest needs no mask.
+
+Against LRU, the compact ISA arm is 1.0775 in instructions, 0.9640 in traffic
+and 1.0286 in time.
+
+**These stages are not speedup evidence and the times above are not a speedup
+claim.** The runner marks this delivery family `timing_valid_for_speedup=0`
+because the property load is still a separate instruction rather than a fused,
+request-bound one. The admissible evidence here is the instruction counts and
+the traffic; the times are reported for completeness and move in the same
+direction.
