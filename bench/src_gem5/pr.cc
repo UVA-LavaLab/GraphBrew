@@ -453,6 +453,10 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         !ecg_k2_pload_on && !ecg_stream_load2_on && !ecg_load2_on;
     const uint32_t compact_fmt_word =
         gem5_ecg_compact_format_word(pair32_id_bits, pair32_epoch_bits);
+    // Hoisted once: see gem5_ecg_extract2c_instruction_traced for why this must
+    // not be tested per edge.
+    const bool compact_isa_trace =
+        compact_isa_on && gem5_ecg_k2_trace_enabled();
     if (compact_isa_requested && !compact_isa_on) {
         // Silently falling back to software decode would produce an arm that
         // reports the compact ISA while measuring the thing it replaces, which
@@ -511,12 +515,27 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     // widens the compact record and returns the destination, so
                     // the arm differs from the 8-byte arm by width alone rather
                     // than width plus about 16 instructions of software decode.
-                    for (uint64_t pos = begin; pos < end; ++pos) {
-                        const NodeID v = static_cast<NodeID>(
-                            gem5_ecg_extract2c_instruction(
-                                in_edge_pair32_flat[pos], compact_fmt_word));
-                        incoming_total += outgoing_contrib[v];
-                        GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                    // The traced variant is selected HERE, once, not inside the
+                    // loop: a per-edge flag test costs more than the decode it
+                    // is checking for.
+                    if (compact_isa_trace) {
+                        for (uint64_t pos = begin; pos < end; ++pos) {
+                            const NodeID v = static_cast<NodeID>(
+                                gem5_ecg_extract2c_instruction_traced(
+                                    in_edge_pair32_flat[pos],
+                                    compact_fmt_word));
+                            incoming_total += outgoing_contrib[v];
+                            GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                        }
+                    } else {
+                        for (uint64_t pos = begin; pos < end; ++pos) {
+                            const NodeID v = static_cast<NodeID>(
+                                gem5_ecg_extract2c_instruction(
+                                    in_edge_pair32_flat[pos],
+                                    compact_fmt_word));
+                            incoming_total += outgoing_contrib[v];
+                            GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                        }
                     }
                     const ScoreT old_score = scores[u];
                     scores[u] = base_score + kDamp * incoming_total;

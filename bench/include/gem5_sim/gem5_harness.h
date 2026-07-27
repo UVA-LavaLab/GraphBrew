@@ -175,19 +175,13 @@ inline bool gem5_ecg_k2_trace_enabled() {
     }();
     return on != 0;
 }
+#else
+// Tracing needs the m5ops build; without it the traced path cannot exist, so
+// the selector is a compile-time false and both loops fold to one.
+inline bool gem5_ecg_k2_trace_enabled() { return false; }
 #endif
 
 inline uint32_t gem5_ecg_extract2c_instruction(uint32_t record, uint32_t fmt) {
-    // Guarded, because the widen is the very cost this instruction removes:
-    // evaluating it unconditionally would put it back into the measured arm.
-    // The trace itself only exists in m5ops builds, which is where tracing is
-    // possible at all.
-#ifndef NO_M5OPS
-    if (gem5_ecg_k2_trace_enabled()) {
-        gem5_trace_ecg_k2_expect(ecg_epoch::widenEpochPair32(
-            record, fmt & 0x3FU, (fmt >> 8) & 0x3FU));
-    }
-#endif
 #if defined(__riscv)
     uint64_t real_vertex = 0;
     asm volatile (".insn r 0x0b, 0x0, 0x02, %0, %1, %2"
@@ -199,6 +193,21 @@ inline uint32_t gem5_ecg_extract2c_instruction(uint32_t record, uint32_t fmt) {
     (void)fmt;
     return record;
 #endif
+}
+
+// Traced twin, for equivalence checking only. It is a SEPARATE function, and
+// the caller selects it outside the loop, because the obvious alternative --
+// testing a flag inside the instruction helper -- put the cost straight back
+// into the arm the instruction exists to make cheap: a function-local static
+// re-checks its initialisation guard on every call, which measured 7.3 extra
+// instructions per edge and 9.1% more time.
+inline uint32_t gem5_ecg_extract2c_instruction_traced(uint32_t record,
+                                                      uint32_t fmt) {
+#ifndef NO_M5OPS
+    gem5_trace_ecg_k2_expect(ecg_epoch::widenEpochPair32(
+        record, fmt & 0x3FU, (fmt >> 8) & 0x3FU));
+#endif
+    return gem5_ecg_extract2c_instruction(record, fmt);
 }
 
 inline uint32_t gem5_ecg_compact_format_word(uint32_t id_bits,

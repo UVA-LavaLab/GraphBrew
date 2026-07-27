@@ -52,7 +52,8 @@
     "streamshield_sniper_realgraph": "Pending-calibration full-iteration web-Google PR Sniper matrix; do not freeze results with the rejected generic STRIDE8 configuration.",
     "ecg_uniform_8mb_16": "Uniform 8 MiB/16-way full-real-graph cache_sim matrix so every graph x kernel cell is directly comparable; supersedes the mixed 2 MiB/8 MiB factorial sizing.",
     "ecg_uniform_8mb_16_stride8": "Matched STRIDE8 twin of the uniform 8 MiB matrix. Every policy gets the same structure prefetcher, so demand-miss reduction (latency hiding) can be separated from total memory traffic (bandwidth), which prefetching cannot reduce.",
-    "ecg_record_width_timing": "gem5 timing and bandwidth for the two-stamp record at the width gem5 actually streams; the width contrast itself lives in cache_sim."
+    "ecg_record_width_timing": "gem5 timing and bandwidth for the two-stamp record at the width gem5 actually streams; the width contrast itself lives in cache_sim.",
+    "ecg_isa_decode_matrix": "Decode-cost matrix. Separates record WIDTH from the cost of DECODING it, with a per-stage LRU denominator so no comparison crosses runs."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -1570,6 +1571,163 @@
         "ECG_EXPECT_BYTES_PER_EDGE": "8"
       },
       "notes": "Matched 8-byte arm: identical in every respect except the record is forced wide, so the width effect is isolated. gem5 now has a real 4-byte two-stamp path (buildInEdgeEpochPairRecords32), so this contrast is no longer vacuous. Reports execution time, dram_offchip_bytes and dram_bus_util_pct together. PRE-REGISTERED: if DRAM bus utilisation is low, the reduction in exposed demand misses should appear as speedup at BOTH widths; if high, the 8-byte arm should lose in proportion to its traffic. SCOPE: gem5 PR only -- bfs/cc/bc/sssp have no compact path and declare 8 bytes. StreamShield variants are EXCLUDED because the stream-load instruction is 8-byte only, so a compact StreamShield arm would change width AND allocation together. ECG_EXPECT_BYTES_PER_EDGE makes the guest abort before the ROI if it is not streaming the width this arm claims."
+    },
+    {
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_isa_decode_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "timeout_gem5": 21600,
+      "name": "40_isa_fused_4b",
+      "policies": [
+        "LRU",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_LRU"
+      ],
+      "out_subdir": "40_isa_fused_4b",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4"
+      },
+      "notes": "Fused K2-I delivery, compact 4-byte record. Includes ECG:K2_LRU so the replacement rule and the transport can be separated within the run. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
+    },
+    {
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_isa_decode_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "timeout_gem5": 21600,
+      "name": "41_isa_fused_8b",
+      "policies": [
+        "LRU",
+        "GRASP",
+        "POPT",
+        "ECG:K2",
+        "ECG:K2_LRU"
+      ],
+      "out_subdir": "41_isa_fused_8b",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8"
+      },
+      "notes": "Matched 8-byte arm under the same fused delivery: the width contrast. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
+    },
+    {
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_isa_decode_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "timeout_gem5": 21600,
+      "name": "42_isa_plain_4b_software",
+      "policies": [
+        "LRU",
+        "ECG:K2"
+      ],
+      "out_subdir": "42_isa_plain_4b_software",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4",
+        "GRAPHBREW_K2_FUSED_LOAD": "0"
+      },
+      "notes": "Non-fused packed+ecg.extract2 delivery, compact record widened in software. Baseline for the decode contrast. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
+    },
+    {
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_isa_decode_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "timeout_gem5": 21600,
+      "name": "43_isa_plain_4b_hardware",
+      "policies": [
+        "LRU",
+        "ECG:K2"
+      ],
+      "out_subdir": "43_isa_plain_4b_hardware",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4",
+        "GRAPHBREW_K2_FUSED_LOAD": "0",
+        "GEM5_ECG_COMPACT_ISA": "1"
+      },
+      "notes": "Same, but the record is widened by ecg_extract2c in the decoder. Differs from 42 by the decode alone. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
+    },
+    {
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_isa_decode_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "timeout_gem5": 21600,
+      "name": "44_isa_plain_8b",
+      "policies": [
+        "LRU",
+        "ECG:K2"
+      ],
+      "out_subdir": "44_isa_plain_8b",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8",
+        "GRAPHBREW_K2_FUSED_LOAD": "0"
+      },
+      "notes": "Non-fused 8-byte arm: the width reference for 42 and 43. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
     }
   ]
 }
