@@ -322,10 +322,16 @@ def test_gem5_k2_mailbox_is_cleared_after_governed_load():
         "bench/src_gem5/bc.cc",
         "bench/src_gem5/cc.cc",
     ):
-        assert "GEM5_ECG_CLEAR_EXTRACT2_HINT()" in read(path)
+        text = read(path)
+        # Either spelling clears the mailbox. PR calls the function directly
+        # because the macro re-tests gem5_ecg_extract_enabled() on every edge,
+        # which is measurable overhead in an arm priced in instructions per
+        # edge; what matters is that the clear happens, not how it is spelled.
+        assert ("GEM5_ECG_CLEAR_EXTRACT2_HINT()" in text
+                or "gem5_ecg_clear_extract2_hint()" in text), path
     runner = read("scripts/experiments/ecg/roi_matrix.py")
     assert '"prototype_instruction_delivery"' in runner
-    assert '"packed8+k2+ecg.extract2"' in runner
+    assert 'packed8+k2+ecg.extract2' in runner
 
 
 def test_gem5_exports_prefetch_and_dram_traffic_metrics():
@@ -409,7 +415,9 @@ def test_k2_property_load_clears_mailbox_without_extra_instruction():
     canonical_pr = pr.split("if (ecg_k2_pload_on) {", 1)[1].split(
         "continue;", 1)[0]
     assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" not in canonical_pr
-    assert "GEM5_ECG_CLEAR_EXTRACT2_HINT" in pr
+    assert "gem5_ecg_clear_extract2_hint" not in canonical_pr
+    assert ("GEM5_ECG_CLEAR_EXTRACT2_HINT" in pr
+            or "gem5_ecg_clear_extract2_hint()" in pr)
 
 
 def test_k2_mask_only_variant_is_distinct_from_indexed_load():

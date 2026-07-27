@@ -509,6 +509,29 @@ inline float gem5_ecg_mload_k2_f32(
 #endif
 }
 
+// Untraced form. The traced wrapper below is what most callers want, but any
+// loop whose cost is measured in single instructions per edge must call this
+// one and hoist the trace decision outside, because the trace helper's
+// function-local static re-checks its initialisation guard on EVERY call even
+// when tracing is off. That measured 7.3 instructions per edge in the compact
+// arm; the same tax was silently being paid here by the software-widen arm it
+// is compared against, which flattered the comparison.
+inline uint32_t gem5_ecg_extract2_instruction_untraced(uint64_t packed) {
+#if defined(__riscv)
+    uint64_t real_vertex = 0;
+    asm volatile (".insn r 0x0b, 0x0, 0x01, %0, %1, x0"
+                  : "=r"(real_vertex)
+                  : "r"(packed)
+                  : "memory");
+    return static_cast<uint32_t>(real_vertex);
+#elif defined(__x86_64__)
+    gem5_x86_work_begin_instruction(GEM5_WORK_ECG_EXTRACT2, packed);
+    return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
+#else
+    return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
+#endif
+}
+
 inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
     gem5_trace_ecg_k2_expect(packed);
 #if defined(__riscv)
@@ -857,6 +880,16 @@ inline uint32_t gem5_ecg_extract_mask_instruction(uint64_t fat_mask) {
 #else
 inline bool gem5_ecg_pfx_hints_enabled() { return false; }
 inline bool gem5_ecg_extract_enabled() { return false; }
+// Direct-call forms used by the measured PageRank loops, which bypass the
+// macros so no per-edge enable check or trace guard is charged. Without m5ops
+// there is no channel to deliver on, so they are no-ops.
+inline uint32_t gem5_ecg_extract2_instruction_untraced(uint64_t packed) {
+    return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
+}
+inline uint32_t gem5_ecg_extract2_instruction(uint64_t packed) {
+    return static_cast<uint32_t>(packed & 0xFFFFFFFFULL);
+}
+inline void gem5_ecg_clear_extract2_hint() {}
 #define GEM5_ECG_EXTRACT_MASK(mask_u64) do {} while(0)
 #define GEM5_ECG_EXTRACT2(packed_u64) do {} while(0)
 #define GEM5_ECG_CLEAR_EXTRACT2_HINT() do {} while(0)

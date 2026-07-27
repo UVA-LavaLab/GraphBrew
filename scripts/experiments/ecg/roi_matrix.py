@@ -1571,13 +1571,20 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         base["gem5_ecg_context_id"] = gem5_ecg_context_id
     if gem5_ecg_delivery:
         base["gem5_ecg_delivery"] = gem5_ecg_delivery
-    if gem5_ecg_delivery == "packed8+k2+ecg.extract2":
+    if str(gem5_ecg_delivery).startswith("packed8+k2+ecg.extract2"):
+        # Deliberately fail-closed and deliberately NOT relaxed for the compact
+        # ISA arm. ecg.extract2c removes the software widen, but the property
+        # load is still a separate instruction rather than a fused,
+        # request-bound one, so this delivery remains a prototype and its
+        # execution time is not speedup evidence. Its instruction counts and
+        # traffic are.
         base["timing_model"] = "prototype_instruction_delivery"
         base["timing_valid_for_speedup"] = "0"
         base["timing_caveat"] = (
-            "This kernel uses a packed record load followed by ecg.extract2; "
-            "use cache metrics, not speedup, until request-bound fused load2 "
-            "delivery is implemented.")
+            "This kernel uses a packed record load followed by "
+            "ecg.extract2/ecg.extract2c; use instruction counts and cache "
+            "metrics, not speedup, until request-bound fused delivery carries "
+            "the compact record.")
     apply_instruction_cap_provenance(base, "gem5", args)
     base.update({
         "log_path": str(log_path),
@@ -1626,6 +1633,16 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["ecg_receipt_bytes_per_edge"] = float(receipt.group(1))
             base["ecg_record_bytes"] = int(float(receipt.group(1)))
         base["ecg_compact_isa_active"] = int("[ECG_EXTRACT2C]" in log_text)
+        # The delivery label was hardcoded from the env, so a cell that streamed
+        # a 4-byte record and decoded it in the ISA still reported
+        # "packed8+k2+ecg.extract2". Derive it from what the guest reported.
+        current = str(base.get("gem5_ecg_delivery", ""))
+        if current.startswith("packed8+k2+ecg.extract2"):
+            width = base.get("ecg_receipt_bytes_per_edge")
+            stem = "packed4" if width == 4.0 else "packed8"
+            op = ("ecg.extract2c" if base.get("ecg_compact_isa_active")
+                  else "ecg.extract2")
+            base["gem5_ecg_delivery"] = f"{stem}+k2+{op}"
         base["gem5_metadata_fatal"] = log_text.count("[ECG-METADATA-FATAL")
         base["gem5_stream_bypass_trace_events"] = log_text.count(
             "[ECG-STREAM-BYPASS sim=gem5")

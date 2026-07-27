@@ -457,6 +457,9 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     // not be tested per edge.
     const bool compact_isa_trace =
         compact_isa_on && gem5_ecg_k2_trace_enabled();
+    // Same hoist for the software-widen and wide-record path, so that arm is
+    // charged the same per-edge work as the compact-ISA arm.
+    const bool pair_trace_on = gem5_ecg_k2_trace_enabled();
     if (compact_isa_requested && !compact_isa_on) {
         // Silently falling back to software decode would produce an arm that
         // reports the compact ISA while measuring the thing it replaces, which
@@ -525,7 +528,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                     in_edge_pair32_flat[pos],
                                     compact_fmt_word));
                             incoming_total += outgoing_contrib[v];
-                            GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                            gem5_ecg_clear_extract2_hint();
                         }
                     } else {
                         for (uint64_t pos = begin; pos < end; ++pos) {
@@ -534,7 +537,7 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                     in_edge_pair32_flat[pos],
                                     compact_fmt_word));
                             incoming_total += outgoing_contrib[v];
-                            GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                            gem5_ecg_clear_extract2_hint();
                         }
                     }
                     const ScoreT old_score = scores[u];
@@ -575,10 +578,20 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                         incoming_total += delivered;
                         continue;
                     }
-                    if (!ecg_load2_on)
-                        GEM5_ECG_EXTRACT2(rec);
+                    if (!ecg_load2_on) {
+                        // Direct call, not GEM5_ECG_EXTRACT2: pair_extract_only
+                        // already proves extraction is enabled, so the macro's
+                        // per-edge re-check is pure overhead, and the traced
+                        // wrapper's static guard costs more still. Both were
+                        // being charged to this arm and not to the compact-ISA
+                        // arm it is compared against.
+                        if (pair_trace_on)
+                            (void)gem5_ecg_extract2_instruction(rec);
+                        else
+                            (void)gem5_ecg_extract2_instruction_untraced(rec);
+                    }
                     incoming_total += outgoing_contrib[v];
-                    GEM5_ECG_CLEAR_EXTRACT2_HINT();
+                    gem5_ecg_clear_extract2_hint();
                 }
                 const ScoreT old_score = scores[u];
                 scores[u] = base_score + kDamp * incoming_total;

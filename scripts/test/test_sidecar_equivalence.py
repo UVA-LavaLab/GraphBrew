@@ -639,12 +639,17 @@ def test_built_kernels_are_newer_than_the_headers_they_embed():
     newest = max(h.stat().st_mtime for h in headers)
     newest_name = max(headers, key=lambda h: h.stat().st_mtime).name
 
-    stale = []
+    stale, present = [], 0
     for binary in (ROOT / "bench/bin_gem5" / "pr_riscv_m5ops",
                    ROOT / "bench/bin_gem5" / "pr",
                    ROOT / "bench/bin_sniper" / "sg_kernel"):
-        if binary.exists() and binary.stat().st_mtime < newest:
+        if not binary.exists():
+            continue
+        present += 1
+        if binary.stat().st_mtime < newest:
             stale.append(binary.name)
+    if present == 0:
+        pytest.skip("no measurement binaries built")
     assert not stale, (
         f"{stale} predate {newest_name}; the build rules now list the ECG "
         "headers as prerequisites, so rebuild rather than trusting a binary "

@@ -1882,11 +1882,25 @@ confound width with decode.
 
 Against the pre-registered predictions:
 
-1. **Passed, and beyond the prediction.** Instructions fall to 0.400 of the
-   software-decode arm and to 0.596 of the 8-byte arm -- fewer than the wide
-   record, not merely comparable. `ecg_extract2c` returns the destination, so
-   the guest needs no separate extraction at all. 45.7 instructions per edge
-   removed.
+1. **RETRACTED as stated; the comparison was not matched.** The numbers
+   (0.400 of the software-decode arm, 0.596 of the 8-byte arm, "45.7
+   instructions per edge removed") are real measurements of those two binaries,
+   but they do not isolate decode. The software-widen and 8-byte arms call
+   `gem5_ecg_extract2_instruction`, which invokes the trace helper
+   unconditionally, and the `GEM5_ECG_EXTRACT2` / `GEM5_ECG_CLEAR_EXTRACT2_HINT`
+   macros, which re-test `gem5_ecg_extract_enabled()` per edge. Each of those is
+   a function-local static whose initialisation guard executes on every call.
+   Disassembly of the built binaries puts the unintended cost at roughly 18
+   instructions per edge for the disabled trace and about 11 more for the
+   redundant enable check -- on the order of 14.6M instructions over 502,529
+   edges, all charged to the arms the compact-ISA arm was compared against and
+   none charged to it.
+
+   This is the same defect that was found and fixed inside
+   `gem5_ecg_extract2c_instruction`, left unfixed on the other side of the same
+   comparison. The arms are now symmetric (direct untraced calls, trace
+   selected outside the loop) and the contrast must be re-measured before any
+   figure from it is used.
 2. **Passed.** Off-chip traffic 1.000322 of the software-decode arm: decoding
    changed nothing about what is fetched.
 3. **Passed only in the weak sense, and the original wording was wrong.**
@@ -2036,20 +2050,30 @@ Three LRU cells, identical geometry, web-Google-n16 PageRank:
 and re-running a cell reproduces it exactly.
 
 **Nominally equivalent runs are not identical.** The matrix cell differs from the
-probe by 1.74% in time, 0.56% in instructions and 0.04% in traffic. The cause is
-visible in the guest's own output: the property arrays land one page apart
-(`scores:0x3c1000`/`contrib:0x402000` in the probe versus
-`scores:0x3c0000`/`contrib:0x401000` in the matrix). At a 16kB L1 and a 128kB
-LLC, a one-page shift in data placement is worth nearly 2% of execution time.
-The runner already fixes the sideband directory to a constant LENGTH for exactly
-this reason (`roi_matrix.py:83-101`); that mitigation is necessary but evidently
-not sufficient.
+probe by 1.74% in time, 0.56% in instructions and 0.04% in traffic. Data
+placement is part of it -- the property arrays land one page apart in that
+particular pair (`scores:0x3c1000` in the probe versus `scores:0x3c0000` in the
+matrix), and at a 16kB L1 and 128kB LLC one page is worth nearly 2% of time.
+
+But placement is NOT a sufficient explanation, and the first write-up asserted
+it as though it were. Two later LRU cells reported IDENTICAL addresses
+(`scores:0x3c1000`, `contrib:0x402000`) and still differed by 1.4% in time
+(42,400,004,000 versus 43,005,214,500 ticks). Something else varies with the
+invocation as well; it has not been identified. What is established is the
+magnitude, not the mechanism: nominally identical cells in different
+invocations differ by up to ~1.7% in time, while an identical command
+reproduces to the tick. The runner already fixes the sideband directory to a
+constant LENGTH to reduce this (`roi_matrix.py:83-101`); that mitigation is
+necessary and demonstrably not sufficient.
 
 Consequences, applied to the results above:
 
-- **Comparisons must be within-run.** The replacement-versus-transport split
-  (K2 versus K2_LRU) and the three ISA arms each come from a single invocation,
-  so they are unaffected.
+- **Comparisons must be within-run where possible.** The
+  replacement-versus-transport split (K2 versus K2_LRU) is a single invocation
+  and is unaffected. The width and decode contrasts are NOT: each arm is its own
+  invocation, so even with a per-stage LRU denominator they are ratios of
+  ratios, and the ~1.7% uncertainty enters twice. They must be reported with
+  that uncertainty rather than as exact figures.
 - **Cross-run ratios inherit ~2% in time, ~0.6% in instructions, ~0.04% in
   traffic.** Everything the write-up leans on clears that by a wide margin:
   transport time 1.243, transport instructions 1.7263, ISA-arm time 1.108. The
@@ -2061,3 +2085,35 @@ Consequences, applied to the results above:
   as a small win. Its traffic effect (0.963, 3.7%) does clear the threshold.
 - The frozen +/-2% tie band was chosen a priori. It is now empirically justified:
   the observed placement-driven spread on the primary metric is 1.74%.
+
+### What the decode contrast can and cannot show (2026-07-27)
+
+Adversarial review of the decode milestone found two comparisons that do not
+isolate what their names claim. Both are recorded here before any rerun.
+
+**The software-versus-ISA contrast was not matched on helper overhead.** See the
+retraction above. Fixed by giving the software path a direct untraced call and
+hoisting the trace selection out of the loop, so both arms now execute the same
+per-edge scaffolding and differ only in how the record is widened.
+
+**The fused 4-byte versus 8-byte contrast is width PLUS decode, not width.** The
+fused property-load family (`ecg.k2.iload`, `ecg.load2`, `ecg.stream.load2`)
+accepts only the canonical 64-bit record, so the fused compact arm still widens
+in guest software before issuing the load. The 8-byte arm does not. Stages
+`40_isa_fused_4b` and `41_isa_fused_8b` therefore compare a compact
+implementation against a wide one end to end; they do not price the container in
+isolation. A fused instruction that accepts the compact record would close this,
+and does not exist yet.
+
+**Execution time from the non-fused stages is not speedup evidence.** The runner
+marks the `packed+ecg.extract2` delivery family
+`timing_valid_for_speedup=0` with a standing caveat, and that flag is
+deliberately NOT relaxed for the compact-ISA arm: `ecg_extract2c` removes the
+software widen, but the property load remains a separate instruction rather than
+a fused request-bound one, so the delivery is still a prototype. Stages 42, 43
+and 44 are evidence about INSTRUCTION COUNTS and TRAFFIC. Their times are
+reported for completeness and are not a speedup claim.
+
+The delivery label is now derived from the guest receipt rather than hardcoded:
+a cell streaming a 4-byte record and decoding it in the ISA previously recorded
+itself as `packed8+k2+ecg.extract2`.

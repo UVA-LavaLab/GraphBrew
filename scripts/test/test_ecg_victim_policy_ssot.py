@@ -99,11 +99,19 @@ def test_applied_gem5_tree_matches_the_tracked_overlays():
         import pytest
         pytest.skip("gem5 checkout not present")
     checked = 0
+    missing: list[str] = []
     for overlay in GEM5_OVERLAY.rglob("*"):
-        if not overlay.is_file() or overlay.suffix == ".isa":
-            continue  # .isa files are spliced, not copied; covered below
+        # Only COPIED artifacts can be compared byte-for-byte. .isa snippets are
+        # spliced into a larger file (covered by the instruction-set check
+        # below), .patch files are applied as diffs and verified by
+        # setup_gem5.py's marker checks, and .md files are documentation.
+        if not overlay.is_file() or overlay.suffix in (".isa", ".patch", ".md"):
+            continue
         applied = GEM5_APPLIED / overlay.relative_to(GEM5_OVERLAY)
         if not applied.exists():
+            # Silently skipping a missing target is how an overlay that was
+            # never installed passes as "matching".
+            missing.append(str(overlay.relative_to(GEM5_OVERLAY)))
             continue
         checked += 1
         assert _sha(applied) == _sha(overlay), (
@@ -111,6 +119,10 @@ def test_applied_gem5_tree_matches_the_tracked_overlays():
             "checkout is generated and gitignored, so this change exists only "
             "on this machine; move it into the overlay.")
     assert checked > 0, "no overlay/applied pairs compared; the check is vacuous"
+    assert not missing, (
+        f"overlay files with no counterpart in the gem5 checkout: {missing}. "
+        "Either the overlay was never installed or it is dead weight; both "
+        "are defects, and skipping them makes this check vacuous.")
 
 
 def test_every_ecg_instruction_in_the_built_decoder_is_tracked():
@@ -128,8 +140,17 @@ def test_every_ecg_instruction_in_the_built_decoder_is_tracked():
         pytest.skip("gem5 checkout not present")
     import re
     names = lambda t: set(re.findall(r"\b(ecg_[a-z0-9_]+)\(\{\{", t))
-    missing = sorted(names(applied.read_text()) - names(overlay.read_text()))
-    assert not missing, (
-        f"{missing} exist only in the generated gem5 decoder, so they are not "
-        "in version control and will vanish on a fresh checkout; add them to "
-        f"{overlay.relative_to(ROOT)}")
+    built, tracked = names(applied.read_text()), names(overlay.read_text())
+    untracked = sorted(built - tracked)
+    assert not untracked, (
+        f"{untracked} exist only in the generated gem5 decoder, so they are "
+        "not in version control and will vanish on a fresh checkout; add them "
+        f"to {overlay.relative_to(ROOT)}")
+    # The other direction matters too: a tracked instruction absent from the
+    # build means the overlay was edited without reinstalling, so the simulator
+    # being measured is not the one in version control.
+    uninstalled = sorted(tracked - built)
+    assert not uninstalled, (
+        f"{uninstalled} are tracked in the overlay but absent from the built "
+        "decoder; re-apply the overlays, or the measured simulator is not the "
+        "one under review")
