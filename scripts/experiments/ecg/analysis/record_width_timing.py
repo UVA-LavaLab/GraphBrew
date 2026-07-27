@@ -114,6 +114,30 @@ DECODE_STAGES = {
 }
 
 
+def report_coverage(rows, stages) -> None:
+    """A partial matrix must announce itself.
+
+    The loader drops rows whose status is not ok, so a stage that has produced
+    only its LRU cell looks like a stage with nothing to say rather than a stage
+    still running. Printing a one-graph number under the heading "geomean" then
+    invites it to be read as a result over the graph set.
+    """
+    graphs = sorted({r["_graph"] for r in rows})
+    missing = []
+    for stage in sorted(stages):
+        for graph in graphs:
+            got = {r.get("policy_label") for r in rows
+                   if r["_stage"] == stage and r["_graph"] == graph}
+            if "LRU" not in got or "ECG_K2" not in got:
+                missing.append(f"{stage}/{graph} (have: {sorted(got) or 'none'})")
+    if missing:
+        print()
+        print("  INCOMPLETE -- these stage/graph cells lack LRU or ECG_K2:")
+        for m in missing:
+            print(f"    {m}")
+        print("  Every figure below covers only the cells that finished.")
+
+
 def report_decode_matrix(rows) -> bool:
     """The decode matrix: what the record costs to MOVE versus to DECODE.
 
@@ -128,6 +152,7 @@ def report_decode_matrix(rows) -> bool:
     print("=" * 72)
     print("DECODE MATRIX  (record width versus the cost of decoding it)")
     print("=" * 72)
+    report_coverage(rows, set(DECODE_STAGES) & {r["_stage"] for r in rows})
 
     norm = {}
     for stage in stages:
@@ -171,13 +196,18 @@ def report_decode_matrix(rows) -> bool:
         gb = geomean([x[1] / y[1] for _, x, y in pairs])
         gt = geomean([x[2] / y[2] for _, x, y in pairs])
         if gi and gb and gt:
-            print(f"      {'geomean':<24} insts x{gi:.3f}  "
+            tag = f"geomean n={len(pairs)}"
+            print(f"      {tag:<24} insts x{gi:.3f}  "
                   f"traffic x{gb:.4f}  time x{gt:.3f}")
+            if len(pairs) < 3:
+                print(f"      {'':<24} (partial: {', '.join(g for g, _, _ in pairs)})")
 
     contrast("42_isa_plain_4b_software", "43_isa_plain_4b_hardware",
              "DECODE: software widen versus ecg.extract2c, identical record",
-             "traffic must be ~1.0000; a pure decode difference cannot move "
-             "bytes")
+             "traffic near 1.0 is consistent with a decode-only difference but "
+             "does NOT prove one:\n    decode also moves instruction-fetch, "
+             "spills and memory ordering, so read the\n    instruction and L1 "
+             "access counts alongside it")
     contrast("43_isa_plain_4b_hardware", "44_isa_plain_8b",
              "WIDTH: compact versus wide, BOTH delivered in one instruction",
              "the only contrast here that isolates the container")
@@ -198,6 +228,51 @@ def report_decode_matrix(rows) -> bool:
     return True
 
 
+def report_idealised_mechanisms(rows) -> None:
+    """Print BEFORE any ratio: an idealised arm cannot support a claim.
+
+    This lived inline in main() and became unreachable the moment the
+    decode report returned early, so P-OPT rows were being displayed with
+    the caveat that makes them readable silently dropped.
+    """
+    print()
+    print("=" * 72)
+    print("1b. MECHANISM CHARGING  (an idealised arm cannot support a claim)")
+    print("=" * 72)
+    idealised = []
+    seen = set()
+    for r in rows:
+        if r.get("policy_label") != "POPT":
+            continue
+        if r["_graph"] in seen:
+            continue
+        mode = r.get("popt_matrix_stream_mode")
+        extra = num(r.get("popt_matrix_stream_bytes")) or 0.0
+        if mode == "analytic" and extra > 0:
+            seen.add(r["_graph"])
+            idealised.append((r["_graph"], extra,
+                              num(r.get("dram_offchip_bytes")) or 0.0))
+    if idealised:
+        print("  P-OPT: rereference-matrix stream is ANALYTIC, not simulated.")
+        print("  gem5 reads the matrix from a sideband file, so its column")
+        print("  traffic never enters the memory system: P-OPT is charged for")
+        print("  LLC CAPACITY (reserved ways) but not for the bandwidth or the")
+        print("  latency of streaming columns. K2 by contrast pays for its")
+        print("  records in full, in both bytes and instructions.")
+        print()
+        print(f"    {'graph':<24}{'offchip':>12}{'+matrix':>12}{'understated':>13}")
+        for graph, extra, base in idealised:
+            if base:
+                print(f"    {graph:<24}{base:>12,.0f}{base + extra:>12,.0f}"
+                      f"{extra / base * 100:>12.1f}%")
+        print()
+        print("  => Under the frozen metrics, an idealised mechanism is")
+        print("     INELIGIBLE for a performance claim. The P-OPT rows below")
+        print("     are an upper bound on P-OPT, not a comparable baseline.")
+    else:
+        print("  no analytic-only mechanism detected in these rows")
+
+
 def main(argv):
     run_dir = Path(argv[0]) if argv else newest_run()
     if not run_dir or not run_dir.exists():
@@ -209,7 +284,11 @@ def main(argv):
     print(f"run: {run_dir.name}")
     print(f"completed cells: {len(rows)}")
 
-    if report_decode_matrix(rows):
+    if {r["_stage"] for r in rows} & set(DECODE_STAGES):
+        # Charging first, then ratios: an idealised arm has to be flagged before
+        # its numbers are read, not after them.
+        report_idealised_mechanisms(rows)
+        report_decode_matrix(rows)
         return 0
 
     # ---- 1. Saturation, read first -------------------------------------
@@ -238,39 +317,7 @@ def main(argv):
                        "do not generalise.")
         print(f"  verdict: {verdict}")
 
-    # ---- 1b. Which mechanisms are actually charged ---------------------
-    print()
-    print("=" * 72)
-    print("1b. MECHANISM CHARGING  (an idealised arm cannot support a claim)")
-    print("=" * 72)
-    idealised = []
-    for r in rows:
-        if r.get("policy_label") != "POPT":
-            continue
-        mode = r.get("popt_matrix_stream_mode")
-        extra = num(r.get("popt_matrix_stream_bytes")) or 0.0
-        if mode == "analytic" and extra > 0:
-            idealised.append((r["_graph"], extra,
-                              num(r.get("dram_offchip_bytes")) or 0.0))
-    if idealised:
-        print("  P-OPT: rereference-matrix stream is ANALYTIC, not simulated.")
-        print("  gem5 reads the matrix from a sideband file, so its column")
-        print("  traffic never enters the memory system: P-OPT is charged for")
-        print("  LLC CAPACITY (reserved ways) but not for the bandwidth or the")
-        print("  latency of streaming columns. K2 by contrast pays for its")
-        print("  records in full, in both bytes and instructions.")
-        print()
-        print(f"    {'graph':<24}{'offchip':>12}{'+matrix':>12}{'understated':>13}")
-        for graph, extra, base in idealised:
-            if base:
-                print(f"    {graph:<24}{base:>12,.0f}{base + extra:>12,.0f}"
-                      f"{extra / base * 100:>12.1f}%")
-        print()
-        print("  => Under the frozen metrics, an idealised mechanism is")
-        print("     INELIGIBLE for a performance claim. The P-OPT rows below")
-        print("     are an upper bound on P-OPT, not a comparable baseline.")
-    else:
-        print("  no analytic-only mechanism detected in these rows")
+    report_idealised_mechanisms(rows)
 
     # ---- 2. Time against traffic, per stage ----------------------------
     print()

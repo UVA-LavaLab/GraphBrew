@@ -150,3 +150,50 @@ def test_decode_matrix_report_refuses_to_present_times_as_speedup():
     i_width = src.index("WIDTH: compact versus wide")
     assert "43_isa_plain_4b_hardware" in src[i_width - 400:i_width]
     assert "44_isa_plain_8b" in src[i_width - 400:i_width]
+
+
+def test_idealised_mechanism_warning_is_reachable_on_every_path():
+    """It was printed inline in main() and the decode report returned first.
+
+    So the moment a decode matrix was analysed, P-OPT rows were displayed with
+    the caveat that makes them readable silently skipped. A warning that only
+    fires on the path nobody takes is worse than no warning, because the report
+    looks complete.
+    """
+    src = (ROOT / "scripts/experiments/ecg/analysis"
+           / "record_width_timing.py").read_text()
+    assert "def report_idealised_mechanisms(" in src, (
+        "the charging disclosure must be a function, or it cannot be reached "
+        "from more than one report path")
+    # It must be invoked BEFORE the decode report, not after the numbers.
+    i_call = src.index("report_idealised_mechanisms(rows)\n        report_decode_matrix")
+    assert i_call > 0, "the disclosure must precede the decode ratios"
+
+
+def test_partial_matrix_announces_itself():
+    """A stage that has only produced its LRU cell must not look like a result.
+
+    The loader drops rows whose status is not ok, so an unfinished stage is
+    indistinguishable from a finished one with nothing to report, and a
+    single-graph number printed under "geomean" reads as a graph-set result.
+    """
+    src = (ROOT / "scripts/experiments/ecg/analysis"
+           / "record_width_timing.py").read_text()
+    assert "INCOMPLETE" in src
+    assert "def report_coverage(" in src
+    assert 'f"geomean n={len(pairs)}"' in src, (
+        "every geomean must carry the number of cells behind it")
+
+
+def test_decode_report_does_not_claim_traffic_agreement_is_proof():
+    """Decode changes instruction fetch, spills and ordering, so it CAN move bytes.
+
+    Traffic near 1.0 is consistent with a decode-only difference; it does not
+    establish one. The earlier wording asserted a pure decode difference
+    "cannot move bytes", which is false and would have survived a reviewer only
+    until they asked about instruction-cache behaviour.
+    """
+    src = (ROOT / "scripts/experiments/ecg/analysis"
+           / "record_width_timing.py").read_text()
+    assert "cannot move bytes" not in src
+    assert "does NOT prove one" in src
