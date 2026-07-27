@@ -2017,3 +2017,47 @@ and it is worth stating because it silently weakens any measurement that
 follows a header-only edit. The build rules now list `DEP_ECG`, and a test
 compares binary mtimes against the ECG headers, since a stale binary is
 otherwise perfectly valid and cannot be detected any other way.
+
+### Cross-run denominators carry ~2% uncertainty; within-run ones do not (2026-07-26)
+
+Adversarial review objected that the transport decomposition divides by an LRU
+cell taken from a different run. Checking that objection produced a result worth
+recording in its own right.
+
+Three LRU cells, identical geometry, web-Google-n16 PageRank:
+
+| run | ticks | off-chip | ROI insts |
+|---|---:|---:|---:|
+| probe A | 42,400,004,000 | 14,210,048 | 11,279,926 |
+| probe B, identical command, different out-dir | 42,400,004,000 | 14,210,048 | 11,279,926 |
+| width matrix | 43,149,560,500 | 14,204,608 | 11,342,919 |
+
+**gem5 is deterministic.** A and B agree to the tick, so nothing here is random
+and re-running a cell reproduces it exactly.
+
+**Nominally equivalent runs are not identical.** The matrix cell differs from the
+probe by 1.74% in time, 0.56% in instructions and 0.04% in traffic. The cause is
+visible in the guest's own output: the property arrays land one page apart
+(`scores:0x3c1000`/`contrib:0x402000` in the probe versus
+`scores:0x3c0000`/`contrib:0x401000` in the matrix). At a 16kB L1 and a 128kB
+LLC, a one-page shift in data placement is worth nearly 2% of execution time.
+The runner already fixes the sideband directory to a constant LENGTH for exactly
+this reason (`roi_matrix.py:83-101`); that mitigation is necessary but evidently
+not sufficient.
+
+Consequences, applied to the results above:
+
+- **Comparisons must be within-run.** The replacement-versus-transport split
+  (K2 versus K2_LRU) and the three ISA arms each come from a single invocation,
+  so they are unaffected.
+- **Cross-run ratios inherit ~2% in time, ~0.6% in instructions, ~0.04% in
+  traffic.** Everything the write-up leans on clears that by a wide margin:
+  transport time 1.243, transport instructions 1.7263, ISA-arm time 1.108. The
+  headline "the record is free in bytes" is a traffic ratio of 1.0015 against
+  0.04% noise, so it survives comfortably.
+- **One number does NOT clear it and is hereby demoted.** The replacement rule's
+  time effect of 0.989 is a 1.1% gain, inside the frozen +/-2% tie band and below
+  the 3% effect threshold. It must be reported as NO MEASURABLE TIME EFFECT, not
+  as a small win. Its traffic effect (0.963, 3.7%) does clear the threshold.
+- The frozen +/-2% tie band was chosen a priori. It is now empirically justified:
+  the observed placement-driven spread on the primary metric is 1.74%.

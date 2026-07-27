@@ -160,3 +160,28 @@ def test_withdrawn_sections_carry_an_explicit_banner():
             continue
         assert "withdrawn" in body.lower(), repr(heading) + " lacks a body banner"
         assert "do not cite" in body.lower(), repr(heading) + " lacks a do-not-cite warning"
+
+
+def test_the_tie_band_is_backed_by_a_measured_noise_floor():
+    """A tie band chosen a priori is a guess until something measures it.
+
+    Two LRU cells at identical geometry differ by 1.74% in time purely because
+    the guest's property arrays land one page apart. gem5 itself is
+    deterministic -- an identical command reproduces to the tick -- so this is
+    placement sensitivity, not randomness, and it sets the floor below which a
+    cross-run ratio means nothing.
+
+    The results file must carry that measurement, because the tie band is
+    otherwise unfalsifiable, and must state the rule it implies.
+    """
+    results = (ROOT / "research/ecg-hpca/RESULTS.md").read_text()
+    section = "Cross-run denominators carry"
+    assert section in results, (
+        "the measured noise floor is not recorded, so the tie band is still "
+        "just an assumption")
+    body = results[results.index(section):]
+    assert "Comparisons must be within-run" in body, (
+        "the rule the measurement implies must be stated where it is measured")
+    assert "NO MEASURABLE TIME EFFECT" in body, (
+        "any effect inside the tie band must be demoted explicitly rather "
+        "than quoted as a small win")
