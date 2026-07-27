@@ -223,6 +223,14 @@ inline bool gem5_ecg_compact_isa_enabled() {
     return enabled != 0;
 }
 
+inline bool gem5_ecg_compact_fused_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ECG_COMPACT_FUSED");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
 #ifndef NO_M5OPS
 inline bool gem5_vertex_hints_enabled() {
     static int enabled = []() {
@@ -404,6 +412,40 @@ inline uint32_t gem5_ecg_load_k2(const void* prop_base, uint64_t packed_record) 
     const uint32_t dest = ecg_epoch::extractEpochPairDest(packed_record);
     return base ? base[dest] : 0;
 #endif
+}
+
+// Fused compact Schedule-2 load. Rs1 is the property base and Rs2 is the
+// 32-bit record; CSR 0x802 carries the loop-invariant id/epoch field widths.
+// That leaves both source operands available for the actual memory operation
+// and keeps the hot path to one custom instruction per edge.
+inline uint32_t gem5_ecg_load_k2_compact(
+        const void* prop_base, uint32_t packed_record,
+        uint32_t id_bits, uint32_t epoch_bits) {
+#if defined(__riscv)
+    uint64_t val = 0;
+    asm volatile (".insn r 0x0b, 0x2, 0x2c, %0, %1, %2"
+                  : "=r"(val)
+                  : "r"(prop_base), "r"((uint64_t)packed_record)
+                  : "memory");
+    return static_cast<uint32_t>(val);
+#else
+    const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    const uint32_t dest = ecg_epoch::extractEpochPair32Dest(
+        packed_record, id_bits);
+    (void)epoch_bits;
+    return base ? base[dest] : 0;
+#endif
+}
+
+inline uint32_t gem5_ecg_load_k2_compact_traced(
+        const void* prop_base, uint32_t packed_record,
+        uint32_t id_bits, uint32_t epoch_bits) {
+#ifndef NO_M5OPS
+    gem5_trace_ecg_k2_expect(ecg_epoch::widenEpochPair32(
+        packed_record, id_bits, epoch_bits));
+#endif
+    return gem5_ecg_load_k2_compact(
+        prop_base, packed_record, id_bits, epoch_bits);
 }
 
 inline uint64_t gem5_ecg_load_k2_u64(
@@ -746,6 +788,21 @@ inline uint32_t gem5_ecg_load_k2(
     const uint32_t dest = ecg_epoch::extractEpochPairDest(packed_record);
     return base ? base[dest] : 0;
 }
+inline uint32_t gem5_ecg_load_k2_compact(
+        const void* prop_base, uint32_t packed_record,
+        uint32_t id_bits, uint32_t epoch_bits) {
+    const uint32_t* base = static_cast<const uint32_t*>(prop_base);
+    const uint32_t dest = ecg_epoch::extractEpochPair32Dest(
+        packed_record, id_bits);
+    (void)epoch_bits;
+    return base ? base[dest] : 0;
+}
+inline uint32_t gem5_ecg_load_k2_compact_traced(
+        const void* prop_base, uint32_t packed_record,
+        uint32_t id_bits, uint32_t epoch_bits) {
+    return gem5_ecg_load_k2_compact(
+        prop_base, packed_record, id_bits, epoch_bits);
+}
 inline uint64_t gem5_ecg_load_k2_u64(
         const void* prop_base, uint64_t packed_record) {
     const uint64_t* base = static_cast<const uint64_t*>(prop_base);
@@ -957,6 +1014,18 @@ inline void gem5_ecg_write_current_epoch_csr(uint16_t epoch) {
     asm volatile ("csrw 0x800, %0" :: "r"(value) : "memory");
 #else
     (void)epoch;
+#endif
+}
+
+inline void gem5_ecg_write_record_format_csr(
+        uint32_t id_bits, uint32_t epoch_bits) {
+#if defined(__riscv)
+    const uintptr_t value = gem5_ecg_compact_format_word(
+        id_bits, epoch_bits);
+    asm volatile ("csrw 0x802, %0" :: "r"(value) : "memory");
+#else
+    (void)id_bits;
+    (void)epoch_bits;
 #endif
 }
 

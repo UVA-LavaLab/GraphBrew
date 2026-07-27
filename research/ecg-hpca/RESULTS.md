@@ -2360,3 +2360,41 @@ still widens in software.
 load is a separate instruction rather than a fused request-bound one, so the
 times above are context. The admissible evidence is the instruction counts and
 the traffic. `claim_gate.json` is unchanged; no claim is promoted here.
+
+## Fused compact property load: correctness gate (2026-07-27)
+
+The fused family previously accepted only the canonical 64-bit record. A
+compact arm therefore had to widen in guest software before issuing
+`ecg.k2.iload`, so the fused 4-byte/8-byte comparison was width plus decode and
+could not price either mechanism cleanly.
+
+`ecg_load_k2_compact` is now a fused indexed property load whose operands are:
+
+- `rs1`: property-array base;
+- `rs2`: compact 32-bit Schedule-2 record;
+- CSR `0x802` (`ecg.record_format`): loop-invariant
+  `id_bits | epoch_bits << 8`.
+
+The format is architectural state rather than simulator-side inference: both
+source registers are already consumed by the memory operation, and the field
+widths are part of how the instruction decodes its operand. The guest writes the
+CSR once before the ROI.
+
+Fail-closed activation is mandatory. `GEM5_ECG_COMPACT_FUSED=1` aborts before
+the ROI unless the guest built a compact record and selected indexed
+request-bound K2 delivery; it may not silently widen or fall back to another
+load.
+
+Correctness probe:
+`results/ecg_experiments/probes/fused_compact_trace_20260727_162101`.
+
+- receipt: `record_bytes=4`, `bytes_per_edge=4.000`;
+- runtime banner: `[ECG_K2_ILOAD_C] ... ACTIVE`;
+- metadata fatals: zero;
+- guest expected records: 200;
+- decoder records: 200;
+- `(seq,dest,tier,epoch1,epoch2)` mismatches: **zero**.
+
+This is mechanism correctness only. Performance must be measured in a new build
+with its own LRU and wide-record controls; figures from the completed decode
+matrix cannot be imported because instruction counts are build-sensitive.

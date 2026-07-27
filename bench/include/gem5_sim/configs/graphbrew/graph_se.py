@@ -147,6 +147,7 @@ def benchmark_environment(args):
         # is exactly the failure it exists to prevent.
         "ECG_EXPECT_BYTES_PER_EDGE",
         "GEM5_ECG_COMPACT_ISA",
+        "GEM5_ECG_COMPACT_FUSED",
         # Found by deriving this list from the SSOT rather than maintaining it
         # by hand: these three also feed the width calculation and the receipt's
         # bypass field, and were silently inert in the guest.

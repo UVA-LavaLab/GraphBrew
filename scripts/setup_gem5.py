@@ -437,7 +437,7 @@ def apply_unified_diff_patches():
         marker_targets = {
             "arch/riscv/ecg_csr.patch": (
                 target / "src/arch/riscv/regs/misc.hh",
-                "CSR_ECG_CUR_EPOCH",
+                "CSR_ECG_RECORD_FORMAT",
             ),
             "mem/cache/prefetch/queued_hh.patch": (
                 target / "src/mem/cache/prefetch/queued.hh",
@@ -744,6 +744,10 @@ def verify_installation_postconditions():
         GEM5_DIR / "src/arch/riscv/isa/decoder.isa": [
             "ecg_stream_load2",
             "ecg_load2",
+            "ecg_load_k2_compact",
+        ],
+        GEM5_DIR / "src/arch/riscv/regs/misc.hh": [
+            "CSR_ECG_RECORD_FORMAT",
         ],
         GEM5_DIR / "src/mem/cache/replacement_policies/SConscript": [
             "hawkeye_rp.cc",

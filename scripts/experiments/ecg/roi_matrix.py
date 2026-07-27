@@ -1515,7 +1515,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
                 env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
-                gem5_ecg_delivery = f"ecg.k2.{k2_isa_name}"
+                gem5_ecg_delivery = (
+                    f"ecg.k2.{k2_isa_name}.compact"
+                    if env.get("GEM5_ECG_COMPACT_FUSED") == "1"
+                    else f"ecg.k2.{k2_isa_name}")
             elif riscv_delivery and fused_record_load_allowed:
                 env["GEM5_FORCE_ECG_LOAD2"] = "1"
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)

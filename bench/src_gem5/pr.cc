@@ -460,6 +460,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     // Same hoist for the software-widen and wide-record path, so that arm is
     // charged the same per-edge work as the compact-ISA arm.
     const bool pair_trace_on = gem5_ecg_k2_trace_enabled();
+    const bool compact_fused_requested =
+        gem5_ecg_compact_fused_enabled();
+    const bool compact_fused_on =
+        compact_fused_requested && pair_extract_only && pair32_ok &&
+        ecg_k2_pload_on && !ecg_k2_mask_only_on &&
+        !ecg_stream_load2_on && !ecg_load2_on;
+    const bool compact_fused_trace =
+        compact_fused_on && pair_trace_on;
     if (compact_isa_requested && !compact_isa_on) {
         // Silently falling back to software decode would produce an arm that
         // reports the compact ISA while measuring the thing it replaces, which
@@ -474,6 +482,23 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 (int)pair_extract_only, (int)pair32_ok, (int)ecg_k2_pload_on,
                 (int)ecg_stream_load2_on, (int)ecg_load2_on);
         std::abort();
+    }
+    if (compact_fused_requested && !compact_fused_on) {
+        fprintf(stderr,
+                "[ECG-METADATA-FATAL] GEM5_ECG_COMPACT_FUSED=1 but the "
+                "compact fused load is unavailable (pair_extract_only=%d "
+                "pair32=%d k2_pload=%d mask_only=%d stream_load2=%d "
+                "load2=%d). This arm requires a compact record and indexed "
+                "request-bound K2 delivery; aborting rather than silently "
+                "widening in software.\n",
+                (int)pair_extract_only, (int)pair32_ok,
+                (int)ecg_k2_pload_on, (int)ecg_k2_mask_only_on,
+                (int)ecg_stream_load2_on, (int)ecg_load2_on);
+        std::abort();
+    }
+    if (compact_fused_on) {
+        gem5_ecg_write_record_format_csr(
+            pair32_id_bits, pair32_epoch_bits);
     }
     if (compact_isa_on)
         fprintf(stderr,
@@ -491,7 +516,10 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                       "+ StreamShield record load ACTIVE\n")
                 : "[ECG_STREAM_LOAD2] PR request-bound StreamShield+K2 ACTIVE\n")
             : ecg_k2_pload_on
-                ? (ecg_k2_mask_only_on
+                ? (compact_fused_on
+                    ? "[ECG_K2_ILOAD_C] PR fused compact indexed property "
+                      "load ACTIVE\n"
+                    : ecg_k2_mask_only_on
                     ? "[ECG_K2_MLOAD] PR computed-address masked load ACTIVE\n"
                     : "[ECG_K2_ILOAD] PR fused indexed masked load ACTIVE\n")
             : ecg_load2_on
@@ -516,6 +544,39 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 static_cast<size_t>(u + 1) < pair_off.size()) {
                 const uint64_t begin = pair_off[u];
                 const uint64_t end = pair_off[u + 1];
+                if (compact_fused_on) {
+                    if (compact_fused_trace) {
+                        for (uint64_t pos = begin; pos < end; ++pos) {
+                            const uint32_t bits =
+                                gem5_ecg_load_k2_compact_traced(
+                                    outgoing_contrib.data(),
+                                    in_edge_pair32_flat[pos],
+                                    pair32_id_bits, pair32_epoch_bits);
+                            ScoreT delivered;
+                            std::memcpy(
+                                &delivered, &bits, sizeof(ScoreT));
+                            incoming_total += delivered;
+                        }
+                    } else {
+                        for (uint64_t pos = begin; pos < end; ++pos) {
+                            const uint32_t bits =
+                                gem5_ecg_load_k2_compact(
+                                    outgoing_contrib.data(),
+                                    in_edge_pair32_flat[pos],
+                                    pair32_id_bits, pair32_epoch_bits);
+                            ScoreT delivered;
+                            std::memcpy(
+                                &delivered, &bits, sizeof(ScoreT));
+                            incoming_total += delivered;
+                        }
+                    }
+                    const ScoreT old_score = scores[u];
+                    scores[u] = base_score + kDamp * incoming_total;
+                    error += fabs(scores[u] - old_score);
+                    outgoing_contrib[u] =
+                        scores[u] / g.out_degree(u);
+                    continue;
+                }
                 if (compact_isa_on) {
                     // ONE 4-byte load and ONE instruction per edge: the decoder
                     // widens the compact record and returns the destination, so

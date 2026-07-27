@@ -209,18 +209,24 @@ def test_gem5_k2_uses_architectural_epoch_context_csrs():
 
     assert "CSR_ECG_CUR_EPOCH = 0x800" in csr_patch
     assert "CSR_ECG_CONTEXT = 0x801" in csr_patch
+    assert "CSR_ECG_RECORD_FORMAT = 0x802" in csr_patch
     assert "MISCREG_ECG_CUR_EPOCH" in decoder
     assert "MISCREG_ECG_CONTEXT" in decoder
+    assert "MISCREG_ECG_RECORD_FORMAT" in decoder
     # Deliberate acknowledgement tripwire, not a completeness check: every ECG
     # instruction must read the epoch and context CSRs, so this count changes
     # only when the instruction set does, and a human has to notice. 17 since
     # ecg_extract2c was added. It fired correctly for that addition -- and note
     # it reads the tracked OVERLAY, so editing the generated gem5 checkout
     # instead had bypassed it entirely.
-    assert decoder.count("MISCREG_ECG_CUR_EPOCH") == 17
-    assert decoder.count("MISCREG_ECG_CONTEXT") == 17
+    # 18 since the fused compact load was added; that instruction also reads
+    # the record-format CSR.
+    assert decoder.count("MISCREG_ECG_CUR_EPOCH") == 18
+    assert decoder.count("MISCREG_ECG_CONTEXT") == 18
+    assert decoder.count("MISCREG_ECG_RECORD_FORMAT") == 1
     assert 'asm volatile ("csrw 0x800, %0"' in harness
     assert 'asm volatile ("csrw 0x801, %0"' in harness
+    assert 'asm volatile ("csrw 0x802, %0"' in harness
     assert "GEM5_SET_VERTEX_EPOCH" in harness
     assert "gem5_ecg_allocate_context_id" in harness
     assert "GEM5_ECG_END_CONTEXT" in harness
@@ -401,9 +407,14 @@ def test_k2_property_load_clears_mailbox_without_extra_instruction():
     assert "traceExpectedEcgExtractHint2(packed);" in decoder
 
     harness = read("bench/include/gem5_sim/gem5_harness.h")
-    helper = harness.split("inline uint32_t gem5_ecg_load_k2", 1)[1].split(
-        "inline uint32_t gem5_ecg_extract2_instruction", 1)[0]
+    helper = harness.split(
+        "inline uint32_t gem5_ecg_load_k2(", 1)[1].split(
+            "inline uint32_t gem5_ecg_load_k2_compact(", 1)[0]
     assert "gem5_trace_ecg_k2_expect" not in helper
+    compact_helper = harness.split(
+        "inline uint32_t gem5_ecg_load_k2_compact(", 1)[1].split(
+            "inline uint32_t gem5_ecg_load_k2_compact_traced(", 1)[0]
+    assert "gem5_trace_ecg_k2_expect" not in compact_helper
 
     for kernel in ("bfs", "sssp", "bc", "cc"):
         source = read(f"bench/src_gem5/{kernel}.cc")
@@ -454,7 +465,7 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
         "0x09: ecg_mload_k2_compact_u32", 1)[1].split(
             "// 0x0A K2-M F32.D32", 1)[0]
     f32 = decoder.split("0x0A: ecg_mload_k2_f32", 1)[1].split(
-        "\n                }", 1)[0]
+        "// 0x0B K2-C", 1)[0]
     for block in (u32, s32, u64, compact, f32):
         assert "EA = rvZext(Rs1);" in block
         assert "Rs1 +" not in block
@@ -466,6 +477,15 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
     assert "Fd_bits = fd.v;" in f32
     assert "FloatMemReadOp" in f32
     assert "Rd =" not in f32
+
+    fused_compact = decoder.split(
+        "0x0B: ecg_load_k2_compact", 1)[1].split(
+            "\n                }", 1)[0]
+    assert "MISCREG_ECG_RECORD_FORMAT" in fused_compact
+    assert "id_bits + 2 + 2 * epoch_bits > 32" in fused_compact
+    assert "Rs1 + static_cast<uint64_t>(dest_id) * 4" in fused_compact
+    assert "xc->setEcgLoadHint2(" in fused_compact
+    assert '".insn r 0x0b, 0x2, 0x2c' in harness
 
     expected_helpers = {
         "pr": ("gem5_ecg_mload_k2_f32",),
@@ -493,6 +513,43 @@ def test_riscv_gem5_build_unswitches_runtime_policy_loops():
     makefile = read("Makefile")
     flags = makefile.split("CXXFLAGS_GEM5_RISCV :=", 1)[1].splitlines()[0]
     assert "-funswitch-loops" in flags
+
+
+def test_fused_compact_load_is_architectural_and_fail_closed():
+    """The fused compact arm must not infer format or silently widen.
+
+    rs1 and rs2 are already occupied by the property base and compact record, so
+    the loop-invariant field widths belong in architectural state. A sideband
+    lookup would make the ISA depend on simulator-only metadata, while silently
+    falling back to the 64-bit fused load would recreate the width+decode
+    confound this instruction exists to remove.
+    """
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    guest = read("bench/src_gem5/pr.cc")
+    decoder = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa")
+    graph_se = read(
+        "bench/include/gem5_sim/configs/graphbrew/graph_se.py")
+
+    assert "CSR_ECG_RECORD_FORMAT = 0x802" in read(
+        "bench/include/gem5_sim/overlays/arch/riscv/ecg_csr.patch")
+    assert 'asm volatile ("csrw 0x802, %0"' in harness
+    assert '".insn r 0x0b, 0x2, 0x2c' in harness
+    assert "MISCREG_ECG_RECORD_FORMAT" in decoder
+    assert "ecg_load_k2_compact" in decoder
+
+    assert "GEM5_ECG_COMPACT_FUSED" in graph_se
+    assert "GEM5_ECG_COMPACT_FUSED=1 but" in guest
+    assert "std::abort()" in guest
+    assert "[ECG_K2_ILOAD_C]" in guest
+
+    # Tracing is a separate helper selected outside the loop; the untraced hot
+    # path must not pay a disabled-trace guard on every edge.
+    untraced = harness.split(
+        "inline uint32_t gem5_ecg_load_k2_compact(", 1)[1].split(
+            "inline uint32_t gem5_ecg_load_k2_compact_traced(", 1)[0]
+    assert "gem5_trace_ecg_k2_expect" not in untraced
 
 
 def test_setup_gem5_uses_dedicated_x86_extract_work_id():
