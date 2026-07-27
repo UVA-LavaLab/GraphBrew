@@ -2159,3 +2159,30 @@ because the property load is still a separate instruction rather than a fused,
 request-bound one. The admissible evidence here is the instruction counts and
 the traffic; the times are reported for completeness and move in the same
 direction.
+
+### Instruction counts are build-sensitive; only within-build comparisons hold (2026-07-27)
+
+The fused 4-byte arm on web-Google-n16 moved from 19,580,752 to 26,297,486 ROI
+instructions -- 13.4 more per edge -- between two builds, at the same geometry,
+the same delivery (`ecg.k2.iload`, receipt `bytes_per_edge=4.000`), and with the
+same LRU denominator to within 0.6%.
+
+Its source path did not change. `git diff` over `bench/src_gem5/pr.cc` between
+the two builds shows only additions OUTSIDE the fused loop: the compact-ISA
+gating, the fatal-abort branch, the hoisted trace flags, and two new loops that
+the fused configuration never enters (it `continue`s first). The remaining
+explanation is code generation: the kernel is compiled at `-O1`, and adding
+unrelated paths to the same function changes register allocation and inlining in
+the hot loop.
+
+The consequence is a rule, not a curiosity. Instruction counts from different
+builds are not comparable even when the source path under test is identical, so
+no figure from the earlier width matrix may be placed in a table beside a figure
+from the decode matrix. This is why the decode profile re-runs every arm --
+including the baselines it could have imported -- inside one build and one
+profile.
+
+It also means the earlier fused-versus-non-fused comparison (the observation
+that the fused 8-byte arm executed FEWER instructions than LRU, 0.939) is a
+statement about that build only, and must be re-measured within the current one
+before it is used.

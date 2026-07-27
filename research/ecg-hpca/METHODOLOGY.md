@@ -38,6 +38,13 @@ separate invocations -- arms that differ by an environment variable, for example
 -- every invocation must contain its own baseline cell, and the resulting
 ratio-of-ratios must be reported as such rather than as an exact figure.
 
+**Comparison must also be within-build.** Instruction counts have been observed
+to move by more than 13 per edge between builds whose source path under test was
+identical, because the kernels are compiled at `-O1` and unrelated code added to
+the same function changes register allocation in the hot loop. A table may not
+mix figures produced by different builds; an experiment that needs a baseline
+must re-run it rather than import it. Evidence is in `RESULTS.md`.
+
 **Admissibility of a mechanism.** A cell whose delivery mechanism the runner
 marks `timing_valid_for_speedup=0` may contribute instruction counts and traffic
 but never a speedup claim, regardless of how favourable its time is. The flag is

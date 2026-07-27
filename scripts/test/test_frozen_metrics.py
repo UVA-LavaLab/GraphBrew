@@ -210,3 +210,19 @@ def test_methodology_binds_comparison_scope_and_admissibility():
     assert "1.74%" not in frozen and "40,871,713,000" not in frozen, (
         "the frozen section should point at RESULTS.md for measurements "
         "rather than carrying its own copy of them")
+
+
+def test_methodology_forbids_mixing_builds_in_one_table():
+    """Two builds, identical source path under test, 13.4 instructions/edge apart.
+
+    The kernels are compiled at -O1, so adding unrelated code to the same
+    function changes register allocation in the hot loop. Any table that mixes
+    figures from different builds is therefore comparing compilers as much as
+    mechanisms, which is exactly how the earlier width matrix and the decode
+    matrix could have been spliced together into a wrong conclusion.
+    """
+    method = (ROOT / "research/ecg-hpca/METHODOLOGY.md").read_text()
+    assert "within-build" in method
+    assert "re-run it rather than import it" in method, (
+        "the operative instruction is to re-run baselines, not merely to "
+        "prefer same-build comparison")
