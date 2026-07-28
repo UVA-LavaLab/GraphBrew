@@ -111,6 +111,9 @@ DECODE_STAGES = {
     "42_isa_plain_4b_software": "one instruction + software widen, compact",
     "43_isa_plain_4b_hardware": "one instruction (ecg.extract2c), compact",
     "44_isa_plain_8b": "one instruction (ecg.extract2), wide",
+    "50_fused_compact_4b": "request-bound ecg.k2.iload.compact",
+    "51_fused_software_4b": "request-bound K2-I after software widening",
+    "52_fused_wide_8b": "request-bound K2-I, wide record",
 }
 
 
@@ -215,6 +218,14 @@ def report_decode_matrix(rows) -> bool:
              "FUSED compact versus wide -- NOT a width-only contrast",
              "the fused load family takes only the 64-bit record, so the "
              "compact arm still widens in software: this is width PLUS decode")
+    contrast("51_fused_software_4b", "50_fused_compact_4b",
+             "FUSED DECODE: software widen versus compact K2-I",
+             "same 4-byte record and request-bound property load; the compact "
+             "instruction removes only the guest widen")
+    contrast("50_fused_compact_4b", "52_fused_wide_8b",
+             "FUSED WIDTH: compact K2-I versus wide K2-I",
+             "both are request-bound fused loads in one build; this is the "
+             "admissible container-width contrast")
 
     invalid = {r["_stage"] for r in rows
                if r["_stage"] in DECODE_STAGES

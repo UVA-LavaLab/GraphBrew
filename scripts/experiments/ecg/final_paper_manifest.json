@@ -53,7 +53,8 @@
     "ecg_uniform_8mb_16": "Uniform 8 MiB/16-way full-real-graph cache_sim matrix so every graph x kernel cell is directly comparable; supersedes the mixed 2 MiB/8 MiB factorial sizing.",
     "ecg_uniform_8mb_16_stride8": "Matched STRIDE8 twin of the uniform 8 MiB matrix. Every policy gets the same structure prefetcher, so demand-miss reduction (latency hiding) can be separated from total memory traffic (bandwidth), which prefetching cannot reduce.",
     "ecg_record_width_timing": "gem5 timing and bandwidth for the two-stamp record at the width gem5 actually streams; the width contrast itself lives in cache_sim.",
-    "ecg_isa_decode_matrix": "Decode-cost matrix. Separates record WIDTH from the cost of DECODING it, with a per-stage LRU denominator so no comparison crosses runs."
+    "ecg_isa_decode_matrix": "Decode-cost matrix. Separates record WIDTH from the cost of DECODING it, with a per-stage LRU denominator so no comparison crosses runs.",
+    "ecg_fused_compact_matrix": "Request-bound fused compact K2 matrix: hardware-decoded 4B, software-widened 4B, and wide 8B controls in one build with per-stage LRU and K2-LRU."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -1728,6 +1729,98 @@
         "GRAPHBREW_K2_FUSED_LOAD": "0"
       },
       "notes": "Non-fused 8-byte arm: the width reference for 42 and 43. Every stage carries its OWN LRU cell so no ratio needs a denominator from another run: two nominally identical LRU cells were measured 1.74% apart in time purely because the guest's property arrays landed one page apart, which is the noise floor for cross-run ratios. Enforcement is live here (ECG_EXPECT_BYTES_PER_EDGE reaches the guest and aborts pre-ROI), unlike the earlier width matrix."
+    },
+    {
+      "name": "50_fused_compact_4b",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_fused_compact_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "ECG:K2",
+        "ECG:K2_LRU"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "gem5_compact_fused": true,
+      "out_subdir": "50_fused_compact_4b",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4"
+      },
+      "notes": "Admissible request-bound compact K2-I arm. Runtime activation is attested by ECG_K2_ILOAD_C; the runner fails if the guest does not emit it. Every stage carries its own LRU and K2-LRU, and all stages use one build."
+    },
+    {
+      "name": "51_fused_software_4b",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_fused_compact_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "ECG:K2",
+        "ECG:K2_LRU"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "out_subdir": "51_fused_software_4b",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4"
+      },
+      "notes": "Matched request-bound compact arm using the existing 64-bit fused K2-I load after guest software widening. Decode control for stage 50."
+    },
+    {
+      "name": "52_fused_wide_8b",
+      "kind": "roi_matrix",
+      "profiles": [
+        "ecg_fused_compact_matrix"
+      ],
+      "suite": "gem5",
+      "graph_set": "realgraph_samples",
+      "benchmarks": [
+        "pr"
+      ],
+      "policies": [
+        "LRU",
+        "ECG:K2",
+        "ECG:K2_LRU"
+      ],
+      "popt_reserve_model": "size_correct",
+      "prefetcher": "none",
+      "ecg_charged": 1,
+      "ecg_epochs": 32,
+      "out_subdir": "52_fused_wide_8b",
+      "timeout_gem5": 21600,
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8"
+      },
+      "notes": "Matched request-bound wide K2-I arm. Width control for stage 50; every stage carries its own LRU and K2-LRU and all stages use one build."
     }
   ]
 }
