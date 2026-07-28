@@ -59,7 +59,7 @@ def load(run_dir: Path):
         for part in csv_path.parts:
             if part.startswith("31_gem5_record_width"):
                 stage = part.rsplit("_", 1)[-1]
-            elif re.match(r"^4\d_isa_", part):
+            elif re.match(r"^(?:4\d_isa_|5[0-2]_fused_)", part):
                 stage = part
         for row in csv.DictReader(csv_path.open()):
             if row.get("status") != "ok":
@@ -117,7 +117,20 @@ DECODE_STAGES = {
 }
 
 
-def report_coverage(rows, stages) -> None:
+def expected_stage_graphs(run_dir: Path):
+    jobs = run_dir / "jobs.csv"
+    if not jobs.exists():
+        return set()
+    expected = set()
+    for row in csv.DictReader(jobs.open()):
+        out_dir = Path(row.get("out_dir", ""))
+        if row.get("kind") != "roi_matrix" or len(out_dir.parts) < 3:
+            continue
+        expected.add((row.get("stage", "?"), out_dir.parts[-2]))
+    return expected
+
+
+def report_coverage(rows, expected) -> None:
     """A partial matrix must announce itself.
 
     The loader drops rows whose status is not ok, so a stage that has produced
@@ -125,14 +138,12 @@ def report_coverage(rows, stages) -> None:
     still running. Printing a one-graph number under the heading "geomean" then
     invites it to be read as a result over the graph set.
     """
-    graphs = sorted({r["_graph"] for r in rows})
     missing = []
-    for stage in sorted(stages):
-        for graph in graphs:
-            got = {r.get("policy_label") for r in rows
-                   if r["_stage"] == stage and r["_graph"] == graph}
-            if "LRU" not in got or "ECG_K2" not in got:
-                missing.append(f"{stage}/{graph} (have: {sorted(got) or 'none'})")
+    for stage, graph in sorted(expected):
+        got = {r.get("policy_label") for r in rows
+               if r["_stage"] == stage and r["_graph"] == graph}
+        if "LRU" not in got or "ECG_K2" not in got:
+            missing.append(f"{stage}/{graph} (have: {sorted(got) or 'none'})")
     if missing:
         print()
         print("  INCOMPLETE -- these stage/graph cells lack LRU or ECG_K2:")
@@ -141,7 +152,7 @@ def report_coverage(rows, stages) -> None:
         print("  Every figure below covers only the cells that finished.")
 
 
-def report_decode_matrix(rows) -> bool:
+def report_decode_matrix(rows, expected=None) -> bool:
     """The decode matrix: what the record costs to MOVE versus to DECODE.
 
     Each stage carries its own LRU cell, so every ratio is normalised inside
@@ -155,7 +166,11 @@ def report_decode_matrix(rows) -> bool:
     print("=" * 72)
     print("DECODE MATRIX  (record width versus the cost of decoding it)")
     print("=" * 72)
-    report_coverage(rows, set(DECODE_STAGES) & {r["_stage"] for r in rows})
+    report_coverage(
+        rows,
+        expected or {
+            (r["_stage"], r["_graph"]) for r in rows
+            if r["_stage"] in DECODE_STAGES})
 
     norm = {}
     for stage in stages:
@@ -299,7 +314,7 @@ def main(argv):
         # Charging first, then ratios: an idealised arm has to be flagged before
         # its numbers are read, not after them.
         report_idealised_mechanisms(rows)
-        report_decode_matrix(rows)
+        report_decode_matrix(rows, expected_stage_graphs(run_dir))
         return 0
 
     # ---- 1. Saturation, read first -------------------------------------
