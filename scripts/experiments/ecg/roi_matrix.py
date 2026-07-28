@@ -1442,7 +1442,9 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "fused compact K2 is implemented only for gem5 PageRank; "
             f"benchmark={args.benchmark!r} would run a wide load while being "
             "labelled compact")
-    if is_k2_ecg and compact_fused_requested:
+    compact_fused_cell_requested = (
+        is_k2_ecg and compact_fused_requested)
+    if compact_fused_cell_requested:
         env["GEM5_ECG_COMPACT_FUSED"] = "1"
     else:
         env.pop("GEM5_ECG_COMPACT_FUSED", None)
@@ -1651,7 +1653,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         elif "[ECG_K2_ILOAD" in log_text:
             base["ecg_isa_variant"] = "indexed"
         apply_gem5_compact_fused_receipt(
-            base, log_text, compact_fused_requested)
+            base, log_text, compact_fused_cell_requested)
         # ecg_record_bytes above is a NOMINAL value derived from the schedule,
         # so it read 8 for every Schedule-2 row even when the guest streamed a
         # compact 4-byte record. Anyone re-parsing the combined CSV would have

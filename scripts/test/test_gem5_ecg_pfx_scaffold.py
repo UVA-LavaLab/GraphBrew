@@ -586,6 +586,12 @@ def test_fused_compact_row_is_attested_from_runtime_not_requested_env():
     assert missing["status"] == "error"
     assert missing["timing_valid_for_speedup"] == "0"
 
+    baseline = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_compact_fused_receipt(
+        baseline, "", requested=False)
+    assert baseline["gem5_compact_fused_active"] == 0
+    assert "error" not in baseline
+
 
 def test_setup_gem5_uses_dedicated_x86_extract_work_id():
     text = read("scripts/setup_gem5.py")
