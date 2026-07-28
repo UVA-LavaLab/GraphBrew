@@ -12,10 +12,11 @@
 > | `FROZEN` | evidence-archived, tied to a commit |
 > | anything else | live, but read the Scope line at the end of the section |
 >
-> **Current live position (2026-07-25), in reading order:**
-> 1. `ATTRIBUTION: every K2 loss measured so far is record width` -- the single
->    most important result. K2's replacement is GRASP-equivalent or better; every
->    measured loss is metadata transport width, not victim selection.
+> **Current live position (2026-07-28), in reading order:**
+> 1. `ATTRIBUTION` below is a **BFS-specific attribution cell**, not a universal
+>    explanation. It proves that cell's 62% loss was 8-byte record width rather
+>    than victim selection. Later gem5 PageRank results include a 4-byte
+>    cit-Patents transport loss, so “every K2 loss is width” is withdrawn.
 > 2. `SCALING: the record fits 4 bytes at Twitter scale, at 2-bit epochs`
 > 3. `Fast signal, corrected` -- K2 wins PageRank, GRASP wins the aggregate.
 > 4. `CORRECTED: two earlier fast-signal sections were wrong, and how`
@@ -738,7 +739,7 @@ sensitivity is larger than the differences being measured, so the frozen cell
 set must pin the private hierarchy, the record width rule and the epoch count
 explicitly before any of this is quoted.
 
-### ATTRIBUTION: every K2 loss measured so far is record width, not replacement
+### ATTRIBUTION (scoped): the measured BFS loss is record width, not replacement
 Five result reversals with no policy change prompted an attribution experiment
 instead of another ranking. Holding the workload and the record fixed and
 varying only the victim rule, then varying only the record, separates the two.
@@ -767,9 +768,10 @@ best static arm `grasp_only` (200,613) closely, so it selected correctly. It
 could not help because the loss was never in the arm it selects among. A
 selector over victim rules cannot recover a transport cost.
 
-**Consequence: the paper's entire viability reduces to one question — does the
-record stay 4 bytes at realistic scale?** Everything else measured so far is
-downstream of that single bit of configuration.
+**Scoped consequence.** For this BFS cell, viability reduces to keeping the
+record at 4 bytes. This does not generalize to every graph/kernel: later gem5
+PageRank evidence shows cit-Patents incurs a 13.6% transport penalty even with a
+4-byte record, so topology/layout remains independently load-bearing.
 
 ### SCALING: the record fits 4 bytes at Twitter scale, at 2-bit epochs
 The budget is `id_bits + epoch_bits * stamps + tier_bits <= 32`. K2 carries two

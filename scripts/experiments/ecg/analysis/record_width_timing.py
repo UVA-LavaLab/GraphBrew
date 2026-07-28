@@ -38,7 +38,8 @@ SATURATION_HIGH = 70.0
 def newest_run() -> Path | None:
     candidates = sorted(
         list(RUNS.glob("ecg_record_width_timing_*"))
-        + list(RUNS.glob("ecg_isa_decode_matrix_*")),
+        + list(RUNS.glob("ecg_isa_decode_matrix_*"))
+        + list(RUNS.glob("ecg_fused_compact_matrix_*")),
         key=lambda p: p.stat().st_mtime, reverse=True)
     return candidates[0] if candidates else None
 

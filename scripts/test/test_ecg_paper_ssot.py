@@ -8,9 +8,21 @@ import pytest
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def load_paper_run_module():
+    path = ROOT / "scripts/experiments/ecg/flows/paper_run.py"
+    spec = importlib.util.spec_from_file_location(
+        "paper_run_semantic_test", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules["paper_run_semantic_test"] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def output_descriptor(path: Path) -> dict:
@@ -24,6 +36,31 @@ def output_descriptor(path: Path) -> dict:
         "size": path.stat().st_size,
         "rows": rows,
     }
+
+
+def test_cross_stage_pr_semantic_gate_fails_on_checksum_drift(tmp_path):
+    paper_run = load_paper_run_module()
+    jobs = []
+    for stage, checksum in (
+            ("50_fused_compact_4b", "abc"),
+            ("51_fused_software_4b", "abc"),
+            ("52_fused_wide_8b", "abc")):
+        csv_path = tmp_path / f"{stage}.csv"
+        csv_path.write_text(
+            "status,pr_iterations,pr_semantic_edges,pr_score_checksum\n"
+            f"ok,1,100,{checksum}\n")
+        jobs.append(SimpleNamespace(
+            kind="roi_matrix", stage=stage, output_csv=csv_path,
+            metadata={"graph": "g"}))
+    assert paper_run.validate_cross_stage_pr_receipts(jobs) == (
+        True, "matched")
+
+    jobs[-1].output_csv.write_text(
+        "status,pr_iterations,pr_semantic_edges,pr_score_checksum\n"
+        "ok,1,100,def\n")
+    ok, detail = paper_run.validate_cross_stage_pr_receipts(jobs)
+    assert not ok
+    assert "cross-stage PR semantic mismatch" in detail
 
 
 def load_module(name: str, path: Path):

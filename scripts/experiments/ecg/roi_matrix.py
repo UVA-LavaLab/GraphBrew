@@ -1186,6 +1186,44 @@ def apply_gem5_compact_fused_receipt(
     return active
 
 
+def apply_gem5_variant_receipt(
+        row: dict[str, Any], log_text: str,
+        requested: str, required: bool) -> bool:
+    """Attest the executing ECG victim variant rather than trusting config."""
+    match = re.search(
+        r"\[ECG-VARIANT-RECEIPT sim=gem5 requested=([^ ]+) "
+        r"effective=(\d+) dueling=(\d+)\]", log_text)
+    if not match:
+        if required:
+            row["status"] = "error"
+            row["error"] = (
+                "ECG victim variant receipt missing from gem5 output")
+            row["timing_valid_for_speedup"] = "0"
+        return False
+    actual_requested = match.group(1)
+    effective = int(match.group(2))
+    dueling = int(match.group(3))
+    expected_effective = {
+        "grasp_only": 0, "epoch_first": 1, "rrip_first": 2,
+        "epoch_only": 3, "shortcircuit": 4, "legacy": 4,
+        "degree_first": 5, "traversal": 5, "lru_only": 6,
+    }.get(requested)
+    row["gem5_variant_requested_receipt"] = actual_requested
+    row["gem5_variant_effective_receipt"] = effective
+    row["gem5_variant_dueling_receipt"] = dueling
+    valid = (
+        actual_requested == requested and
+        expected_effective == effective and dueling == 0)
+    if required and not valid:
+        row["status"] = "error"
+        row["error"] = (
+            "ECG victim variant receipt mismatch: "
+            f"expected {requested}/{expected_effective}/dueling=0, got "
+            f"{actual_requested}/{effective}/dueling={dueling}")
+        row["timing_valid_for_speedup"] = "0"
+    return valid
+
+
 def ecg_epoch_region(benchmark: str) -> str:
     return {
         "pr": "contrib", "bfs": "parent", "sssp": "dist",
@@ -1654,6 +1692,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["ecg_isa_variant"] = "indexed"
         apply_gem5_compact_fused_receipt(
             base, log_text, compact_fused_cell_requested)
+        apply_gem5_variant_receipt(
+            base, log_text, ecg_variant, required=is_k2_ecg)
         # ecg_record_bytes above is a NOMINAL value derived from the schedule,
         # so it read 8 for every Schedule-2 row even when the guest streamed a
         # compact 4-byte record. Anyone re-parsing the combined CSV would have

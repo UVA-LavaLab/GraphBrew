@@ -618,6 +618,22 @@ def test_gem5_pr_semantic_receipts_fail_closed():
     assert all(row["timing_valid_for_speedup"] == "0" for row in rows)
 
 
+def test_gem5_variant_receipt_is_machine_validated():
+    good = {"timing_valid_for_speedup": "1"}
+    text = (
+        "[ECG-VARIANT-RECEIPT sim=gem5 requested=lru_only "
+        "effective=6 dueling=0]")
+    assert roi_matrix.apply_gem5_variant_receipt(
+        good, text, "lru_only", required=True)
+    assert good["gem5_variant_effective_receipt"] == 6
+
+    bad = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_variant_receipt(
+        bad, text, "epoch_first", required=True)
+    assert bad["status"] == "error"
+    assert bad["timing_valid_for_speedup"] == "0"
+
+
 def test_setup_gem5_uses_dedicated_x86_extract_work_id():
     text = read("scripts/setup_gem5.py")
     assert "legacy content-based PFX/mask multiplexing" in text

@@ -1147,8 +1147,46 @@ def write_combined_outputs(run_dir: Path, jobs: list[Job]) -> None:
         print(f"[write] {out_path}")
 
 
+def validate_cross_stage_pr_receipts(
+        jobs: list[Job]) -> tuple[bool, str]:
+    """Require fused stages 50-52 to produce one semantic PR state per graph."""
+    relevant = [
+        job for job in jobs
+        if job.kind == "roi_matrix" and
+        job.stage.startswith(("50_", "51_", "52_"))
+    ]
+    if not relevant:
+        return True, "not-applicable"
+    by_graph: dict[str, set[tuple[str, str, str]]] = {}
+    for job in relevant:
+        if not job.output_csv.exists():
+            return False, f"missing semantic output: {job.output_csv}"
+        with job.output_csv.open(newline="") as fh:
+            rows = list(csv.DictReader(fh))
+        if not rows:
+            return False, f"empty semantic output: {job.output_csv}"
+        for row in rows:
+            receipt = (
+                str(row.get("pr_iterations", "")),
+                str(row.get("pr_semantic_edges", "")),
+                str(row.get("pr_score_checksum", "")),
+            )
+            if not all(receipt):
+                return False, (
+                    f"missing PR semantic receipt in {job.output_csv}")
+            graph = str(job.metadata.get("graph", ""))
+            by_graph.setdefault(graph, set()).add(receipt)
+    mismatched = {
+        graph: sorted(receipts)
+        for graph, receipts in by_graph.items() if len(receipts) != 1
+    }
+    if mismatched:
+        return False, f"cross-stage PR semantic mismatch: {mismatched}"
+    return True, "matched"
+
+
 def write_run_completion(
-        run_dir: Path, jobs: list[Job], successful: bool) -> None:
+        run_dir: Path, jobs: list[Job], successful: bool) -> bool:
     statuses = {
         job.job_id: {
             "status": job_csv_status(job)[0],
@@ -1156,8 +1194,10 @@ def write_run_completion(
         }
         for job in jobs
     }
-    complete = successful and bool(statuses) and all(
-        value["status"] == "ok" for value in statuses.values())
+    semantic_ok, semantic_detail = validate_cross_stage_pr_receipts(jobs)
+    complete = (
+        successful and semantic_ok and bool(statuses) and
+        all(value["status"] == "ok" for value in statuses.values()))
     marker = run_dir / "run.complete.json"
     temp = run_dir / "run.complete.json.tmp"
     try:
@@ -1176,8 +1216,15 @@ def write_run_completion(
         "run_config_hash": resolved_hash,
         "jobs": statuses,
         "outputs": outputs,
+        "semantic_gate": {
+            "ok": semantic_ok,
+            "detail": semantic_detail,
+        },
     }, indent=2, sort_keys=True) + "\n")
     temp.replace(marker)
+    if not semantic_ok:
+        print(f"[error] {semantic_detail}", file=sys.stderr)
+    return complete
 
 
 def write_preflight(run_dir: Path, args: argparse.Namespace) -> None:
@@ -1435,7 +1482,10 @@ def main(argv: list[str]) -> int:
 
     write_run_manifest(run_dir, args, manifest, jobs)
     write_combined_outputs(run_dir, jobs)
-    write_run_completion(run_dir, jobs, successful=failures == 0)
+    complete = write_run_completion(
+        run_dir, jobs, successful=failures == 0)
+    if not args.dry_run and failures == 0 and not complete:
+        failures = 1
     if failures:
         print(f"[final-run] completed with {failures} failure(s)")
         return 1
