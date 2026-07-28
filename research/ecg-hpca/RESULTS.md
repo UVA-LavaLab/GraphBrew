@@ -2398,3 +2398,50 @@ Correctness probe:
 This is mechanism correctness only. Performance must be measured in a new build
 with its own LRU and wide-record controls; figures from the completed decode
 matrix cannot be imported because instruction counts are build-sensitive.
+
+### Fused compact review corrections and O3 request gate (2026-07-27)
+
+Adversarial review found that the first implementation was safe only in its
+narrow PR/TimingSimpleCPU use:
+
+- the runner could label BFS/SSSP/BC/CC compact from the requested environment
+  even though only PR implemented the instruction;
+- direct `GEM5_ECG_COMPACT_FUSED=1` was scrubbed unless hidden inside the
+  explicit-cell channel;
+- FUNCT7 values `0x2c`--`0x2f` all decoded as the same instruction because the
+  decoder ignored the width subfield;
+- the trace probe exercised mailbox delivery, not O3 request binding;
+- the archived no-baseline probe row was machine-labelled speedup-valid;
+- CSR setup occurred after the stats reset despite prose saying pre-ROI.
+
+All are corrected before performance evidence:
+
+- `--gem5-compact-fused` is an explicit CLI/manifest option and rejects every
+  benchmark except PR;
+- rows are labelled compact only after the guest emits
+  `[ECG_K2_ILOAD_C]`; a missing activation receipt makes the row an error;
+- the decoder accepts only FUNCT7 `0x2c` (`ECG_WIDTH=0`) and rejects
+  `0x2d`--`0x2f`;
+- configuration checks, context setup and CSR writes occur before
+  `m5_reset_stats`;
+- an invocation without its own LRU cell is fail-closed as
+  `timing_valid_for_speedup=0`.
+
+O3 evidence:
+`results/ecg_experiments/probes/fused_compact_o3_20260727_165949`.
+
+- 8 request records;
+- 7 LLC accepts (one request was satisfied before LLC);
+- all 7 accepts have `source=request`, width 4, and exact
+  `request_seq`, request destination, fill destination, tier, both epochs,
+  current epoch and context;
+- request/fill/payload mismatches: **zero**.
+
+O3 may execute and replay custom loads out of program order, so guest EXPECT
+sequence numbers are not a stable key. The persistent verifier now keys this
+gate by the Request's program-order sequence instead.
+
+The original TimingSimpleCPU probe row retains its archived
+`timing_valid_for_speedup=1` value because artifacts are immutable, but that
+machine label is superseded by this correction and the no-baseline rule. It is
+correctness evidence only.

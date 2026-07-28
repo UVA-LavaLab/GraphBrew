@@ -1170,6 +1170,22 @@ def apply_explicit_cell_mechanism_env(
             env[str(key)] = str(value)
 
 
+def apply_gem5_compact_fused_receipt(
+        row: dict[str, Any], log_text: str, requested: bool) -> bool:
+    """Attest fused-compact activation from the guest, never from the request."""
+    active = "[ECG_K2_ILOAD_C]" in log_text
+    row["gem5_compact_fused_active"] = int(active)
+    if active:
+        row["gem5_ecg_delivery"] = "ecg.k2.iload.compact"
+    if requested and not active:
+        row["status"] = "error"
+        row["error"] = (
+            "fused compact K2 was requested but the guest emitted no "
+            "ECG_K2_ILOAD_C activation receipt")
+        row["timing_valid_for_speedup"] = "0"
+    return active
+
+
 def ecg_epoch_region(benchmark: str) -> str:
     return {
         "pr": "contrib", "bfs": "parent", "sssp": "dist",
@@ -1418,6 +1434,18 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         spec.policy == "ECG" and
         spec.ecg_mode == "ECG_GRASP_POPT" and
         transport.schedule_k == 2)
+    compact_fused_requested = (
+        bool(args.gem5_compact_fused) or
+        env.get("GEM5_ECG_COMPACT_FUSED") == "1")
+    if compact_fused_requested and args.benchmark != "pr":
+        raise RuntimeError(
+            "fused compact K2 is implemented only for gem5 PageRank; "
+            f"benchmark={args.benchmark!r} would run a wide load while being "
+            "labelled compact")
+    if is_k2_ecg and compact_fused_requested:
+        env["GEM5_ECG_COMPACT_FUSED"] = "1"
+    else:
+        env.pop("GEM5_ECG_COMPACT_FUSED", None)
     k2_isa_name = (
         "mload" if args.ecg_isa_variant == "mask" else "iload")
     if is_k2_ecg:
@@ -1515,10 +1543,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 env.pop("GEM5_FORCE_ECG_LOAD2", None)
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
                 env.pop("GEM5_ECG_STREAM_REQUEST_BOUND", None)
-                gem5_ecg_delivery = (
-                    f"ecg.k2.{k2_isa_name}.compact"
-                    if env.get("GEM5_ECG_COMPACT_FUSED") == "1"
-                    else f"ecg.k2.{k2_isa_name}")
+                gem5_ecg_delivery = f"ecg.k2.{k2_isa_name}"
             elif riscv_delivery and fused_record_load_allowed:
                 env["GEM5_FORCE_ECG_LOAD2"] = "1"
                 env.pop("GEM5_FORCE_ECG_STREAM_LOAD2", None)
@@ -1625,6 +1650,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["ecg_isa_variant"] = "mask"
         elif "[ECG_K2_ILOAD" in log_text:
             base["ecg_isa_variant"] = "indexed"
+        apply_gem5_compact_fused_receipt(
+            base, log_text, compact_fused_requested)
         # ecg_record_bytes above is a NOMINAL value derived from the schedule,
         # so it read 8 for every Schedule-2 row even when the guest streamed a
         # compact 4-byte record. Anyone re-parsing the combined CSV would have
@@ -2676,6 +2703,14 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
     elif simulator == "cache-sim":
         timing_model = "cache_mechanism_model"
 
+    if not getattr(args, "has_lru_baseline", False):
+        timing_model = "mechanism_probe_no_baseline"
+        timing_valid_for_speedup = "0"
+        timing_caveat = (
+            "This invocation has no within-run LRU cell. Under the frozen "
+            "comparison rules it is mechanism/correctness evidence only and "
+            "cannot support a speedup claim.")
+
     is_k2 = (
         spec.policy == "ECG" and
         spec.ecg_mode == "ECG_GRASP_POPT" and
@@ -3129,6 +3164,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="K2 detailed-simulator ISA: indexed = fused base+record K2-I; "
              "mask = computed-address K2-M. Sniper uses a transport-matched "
              "diagnostic model until exact request binding lands.")
+    parser.add_argument(
+        "--gem5-compact-fused", action="store_true",
+        help="Use PR's fused compact K2-I load. Implemented only for gem5 "
+             "PageRank; unsupported kernels fail instead of falling back.")
     parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=0,
                         help="ECG_STORED_REFRESH: re-stamp a resident LLC line's next-ref "
                              "epoch from the per-edge hint on EVERY access, INCLUDING L1/L2 "
@@ -3233,6 +3272,12 @@ def main(argv: list[str]) -> int:
             "to equal 1")
     if args.threads and args.suite != "sniper":
         raise SystemExit("--threads is currently supported only with --suite sniper")
+    if args.gem5_compact_fused and args.suite not in ("gem5", "both"):
+        raise SystemExit(
+            "--gem5-compact-fused requires --suite gem5 or both")
+    if args.gem5_compact_fused and args.benchmark != "pr":
+        raise SystemExit(
+            "--gem5-compact-fused is implemented only for --benchmark pr")
     if (getattr(args, "structural_bypass", "off") != "off" and
             args.suite not in ("cache-sim", "both")):
         raise SystemExit(
@@ -3273,6 +3318,7 @@ def main(argv: list[str]) -> int:
     else:
         policy_texts = DEFAULT_POLICIES
     policies = [parse_policy_spec(p) for p in policy_texts]
+    args.has_lru_baseline = any(spec.label == "LRU" for spec in policies)
     out_dir = Path(args.out_dir) if args.out_dir else RESULTS_ROOT / now_tag()
     if not out_dir.is_absolute():
         out_dir = PROJECT_ROOT / out_dir

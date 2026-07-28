@@ -570,7 +570,8 @@
                     //   fmt[13:8]  = epoch_bits
                     // The CSR is written once before the ROI, so the hot path
                     // remains one record load plus one governed property load.
-                    0x0B: ecg_load_k2_compact({{
+                    0x0B: decode ECG_WIDTH {
+                    0x0: ecg_load_k2_compact({{
                         Rd = Mem_uw;
                         gem5::replacement_policy::graph::
                             clearDecodedEcgExtractHint();
@@ -627,6 +628,7 @@
                         EA = rvZext(
                             Rs1 + static_cast<uint64_t>(dest_id) * 4);
                     }});
+                    }
                 }
             }
         }

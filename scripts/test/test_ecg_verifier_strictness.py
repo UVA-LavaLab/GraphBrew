@@ -80,6 +80,18 @@ def test_gem5_request_acceptance_is_order_independent_but_mailbox_is_serial():
         expected_policy="ECG:rrip_first", require_request_bound=True)
 
 
+def test_o3_request_accept_verifier_uses_request_sequence_not_execute_order():
+    text = gem5_delivery(source="request", reverse_accepts=True)
+    cov = {}
+    assert ecg.verify_k2_request_accepts(
+        "gem5/o3", text, expected_width=4, coverage=cov)
+    assert cov["k2_o3_request_accept_mismatches"] == 0
+
+    wrong_fill = text.replace("fill_dest=1", "fill_dest=999", 1)
+    assert not ecg.verify_k2_request_accepts(
+        "gem5/o3", wrong_fill, expected_width=4)
+
+
 def test_gem5_accepts_only_the_traced_loads_that_reach_llc():
     lines = gem5_delivery(source="mailbox").splitlines()
     accepted_subset = "\n".join(

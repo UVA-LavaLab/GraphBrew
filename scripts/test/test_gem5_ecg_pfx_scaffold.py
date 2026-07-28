@@ -3,6 +3,7 @@
 
 import importlib.util
 from pathlib import Path
+import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -479,7 +480,7 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
     assert "Rd =" not in f32
 
     fused_compact = decoder.split(
-        "0x0B: ecg_load_k2_compact", 1)[1].split(
+        "0x0: ecg_load_k2_compact", 1)[1].split(
             "\n                }", 1)[0]
     assert "MISCREG_ECG_RECORD_FORMAT" in fused_compact
     assert "id_bits + 2 + 2 * epoch_bits > 32" in fused_compact
@@ -538,6 +539,11 @@ def test_fused_compact_load_is_architectural_and_fail_closed():
     assert '".insn r 0x0b, 0x2, 0x2c' in harness
     assert "MISCREG_ECG_RECORD_FORMAT" in decoder
     assert "ecg_load_k2_compact" in decoder
+    compact_decode = decoder.split(
+        "0x0B: decode ECG_WIDTH", 1)[1].split(
+            "\n                }", 1)[0]
+    assert "0x0: ecg_load_k2_compact" in compact_decode
+    assert "0x1:" not in compact_decode
 
     assert "GEM5_ECG_COMPACT_FUSED" in graph_se
     assert "GEM5_ECG_COMPACT_FUSED=1 but" in guest
@@ -550,6 +556,35 @@ def test_fused_compact_load_is_architectural_and_fail_closed():
         "inline uint32_t gem5_ecg_load_k2_compact(", 1)[1].split(
             "inline uint32_t gem5_ecg_load_k2_compact_traced(", 1)[0]
     assert "gem5_trace_ecg_k2_expect" not in untraced
+
+
+def test_fused_compact_cli_rejects_unsupported_kernels():
+    proc = subprocess.run(
+        [
+            sys.executable, str(ROI_MATRIX_PATH),
+            "--suite", "gem5", "--benchmark", "bfs",
+            "--gem5-compact-fused", "--dry-run",
+        ],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60)
+    assert proc.returncode != 0
+    assert "implemented only for --benchmark pr" in (
+        proc.stdout + proc.stderr)
+
+
+def test_fused_compact_row_is_attested_from_runtime_not_requested_env():
+    active = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_compact_fused_receipt(
+        active, "[ECG_K2_ILOAD_C] PR ACTIVE", requested=True)
+    assert active["gem5_compact_fused_active"] == 1
+    assert active["gem5_ecg_delivery"] == "ecg.k2.iload.compact"
+    assert "error" not in active
+
+    missing = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_compact_fused_receipt(
+        missing, "[ECG_K2_ILOAD] PR ACTIVE", requested=True)
+    assert missing["gem5_compact_fused_active"] == 0
+    assert missing["status"] == "error"
+    assert missing["timing_valid_for_speedup"] == "0"
 
 
 def test_setup_gem5_uses_dedicated_x86_extract_work_id():

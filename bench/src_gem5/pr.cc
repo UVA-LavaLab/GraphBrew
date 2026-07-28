@@ -423,10 +423,6 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         warm_contrib[n] = warm_contrib[n];
     }
 
-    GEM5_RESET_STATS();
-    GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
-    GEM5_ECG_BEGIN_CONTEXT();
-
     // Prefetch dedup window — tracks recently prefetched hub indices
     vector<NodeID> pfx_window(PREFETCH_WINDOW, -1);
     int pfx_window_pos = 0;
@@ -532,6 +528,13 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         fprintf(stderr,
                 "[ECG_PACKED4] PR eviction-only packed record fast path ACTIVE\n");
     }
+
+    // Configuration checks, context allocation and the record-format CSR are
+    // setup, not graph work. Keep them outside the measured ROI; an earlier
+    // version claimed this while resetting stats first.
+    GEM5_ECG_BEGIN_CONTEXT();
+    GEM5_RESET_STATS();
+    GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 
     for (int iter = 0; iter < max_iters; iter++) {
         double error = 0;

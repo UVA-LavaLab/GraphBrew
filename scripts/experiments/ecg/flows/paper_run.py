@@ -546,6 +546,8 @@ def make_roi_job(
         command.extend([
             "--k2-l3-ways", str(settings["k2_l3_ways"]),
         ])
+    if settings.get("gem5_compact_fused"):
+        command.append("--gem5-compact-fused")
     if (settings.get("require_cache_sim_aslr_disable") and
             str(settings.get("suite")) in ("cache-sim", "both")):
         command.append("--require-cache-sim-aslr-disable")

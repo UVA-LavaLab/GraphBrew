@@ -836,6 +836,65 @@ def verify_k2_trace(
     return ok and live and delivery_ok
 
 
+def verify_k2_request_accepts(
+        name, text, expected_width=4, coverage=None):
+    """Verify O3 request binding without assuming program-order execution.
+
+    O3 may execute and replay custom loads out of order, so guest-side EXPECT
+    sequence numbers are not a stable key. The Request sequence is: every LLC
+    accept must point at an emitted request and reproduce its destination and
+    complete K2 payload on the exact filled line.
+    """
+    requests = {}
+    accepts = []
+    duplicate_requests = set()
+    for line in text.splitlines():
+        request_match = K2_REQUEST_RE.search(line)
+        if request_match:
+            groups = request_match.groups()
+            request_sequence = int(groups[1])
+            if request_sequence in requests:
+                duplicate_requests.add(request_sequence)
+            requests[request_sequence] = tuple(map(int, groups[2:]))
+            continue
+        accept_match = K2_ACCEPT_RE.search(line)
+        if accept_match:
+            groups = accept_match.groups()
+            accepts.append((
+                int(groups[1]), int(groups[2]), int(groups[3]), groups[4],
+                int(groups[5]), int(groups[6]), int(groups[7]),
+                int(groups[8]), int(groups[9]), int(groups[10]),
+            ))
+
+    bad = 0
+    for (
+            request_sequence, request_dest, fill_dest, source,
+            tier, epoch1, epoch2, current, context, width) in accepts:
+        requested = requests.get(request_sequence)
+        observed = (
+            request_dest, tier, epoch1, epoch2, current, context)
+        if (
+                source != "request" or width != expected_width or
+                request_dest != fill_dest or requested != observed):
+            bad += 1
+
+    ok = (
+        bool(requests) and bool(accepts) and
+        not duplicate_requests and bad == 0)
+    if coverage is not None:
+        coverage.update({
+            "k2_o3_requests": len(requests),
+            "k2_o3_accepts": len(accepts),
+            "k2_o3_request_accept_mismatches": bad,
+            "k2_o3_request_width": expected_width,
+        })
+    print(
+        f"  {name}: O3 requests={len(requests)} accepts={len(accepts)} "
+        f"request/fill/payload mismatches={bad} "
+        f"{'[PASS]' if ok else '[FAIL]'}")
+    return ok
+
+
 def verify_unknown_mode_hardfails():
     """Negative test: an unrecognized ECG_MODE must HARD-FAIL (exit!=0 + [FATAL]),
     not silently fall back to DBG_PRIMARY. Silent fallback would run a different
