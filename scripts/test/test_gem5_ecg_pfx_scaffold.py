@@ -593,6 +593,31 @@ def test_fused_compact_row_is_attested_from_runtime_not_requested_env():
     assert "error" not in baseline
 
 
+def test_gem5_pr_semantic_receipts_fail_closed():
+    args = SimpleNamespace(benchmark="pr", suite="gem5")
+    rows = [
+        {
+            "simulator": "gem5", "status": "ok", "options": "-i 1",
+            "l3_size": "128kB", "l3_ways": 16, "prefetcher": "none",
+            "pr_iterations": 1, "pr_semantic_edges": 100,
+            "pr_score_checksum": "abc",
+        },
+        {
+            "simulator": "gem5", "status": "ok", "options": "-i 1",
+            "l3_size": "128kB", "l3_ways": 16, "prefetcher": "none",
+            "pr_iterations": 1, "pr_semantic_edges": 100,
+            "pr_score_checksum": "abc",
+        },
+    ]
+    roi_matrix.certify_gem5_pr_results(rows, args)
+    assert all(row["pr_result_matched"] == 1 for row in rows)
+
+    rows[1]["pr_score_checksum"] = "def"
+    roi_matrix.certify_gem5_pr_results(rows, args)
+    assert all(row["status"] == "error" for row in rows)
+    assert all(row["timing_valid_for_speedup"] == "0" for row in rows)
+
+
 def test_setup_gem5_uses_dedicated_x86_extract_work_id():
     text = read("scripts/setup_gem5.py")
     assert "legacy content-based PFX/mask multiplexing" in text

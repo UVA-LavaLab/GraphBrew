@@ -2445,3 +2445,45 @@ The original TimingSimpleCPU probe row retains its archived
 `timing_valid_for_speedup=1` value because artifacts are immutable, but that
 machine label is superseded by this correction and the no-baseline rule. It is
 correctness evidence only.
+
+### Fused compact matrix retraction before reuse (2026-07-28)
+
+The first complete fused compact matrix
+(`ecg_fused_compact_matrix_20260727_181928`) is **not valid for decode or width
+attribution**.
+
+Stage 50 used a dedicated branch-free compact loop. Stages 51 and 52 used a
+shared generic loop that reloaded invariant flags and widening parameters from
+the stack and evaluated four loop-invariant branches on every edge. Relative to
+stage 50, the wide stage executed 1.32--1.58x as many L1 accesses and incurred
+1.17--1.36x as many LLC misses. Those effects directly contaminate instructions,
+traffic and time.
+
+Therefore:
+
+- `software widen / compact K2-I = x2.434 instructions, x1.515 time` measures
+  software widening **plus generic-loop overhead**;
+- `compact / wide = x0.681 instructions, x0.8056 traffic, x0.787 time` compares
+  a dedicated compact implementation against a branch-heavy generic wide
+  implementation, not record width.
+
+Both interpretations are retracted. The controls now use dedicated loops with
+the same skeleton as stage 50; only record load/decode/opcode differ, and the
+matrix must be rerun in the new build.
+
+Three qualifications also become binding:
+
+1. Scale runs use single-core TimingSimpleCPU serialized mailbox equivalence.
+   Exact request binding is proven separately by the O3 micro-probe; scale rows
+   must not be called request-bound.
+2. The compact instruction's dynamic CSR read, masks and shifts are modeled as
+   one custom memory instruction. Timing is an idealized ISA implementation
+   point, not a hardware critical-path proof.
+3. The old matrix had no archived PageRank output checksum. New runs emit a
+   post-ROI receipt with iterations, semantic edge count and FNV checksum, and
+   the runner fails all rows if policies disagree.
+
+The stage-50 whole-system observation from that build remains descriptive:
+geomean time tied LRU, traffic was 1.6% higher, and cit-Patents was the
++3.2% time/+13.6% traffic worst cell. It cannot be mixed with the corrected
+controls because the guest build changes.

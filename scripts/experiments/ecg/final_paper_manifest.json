@@ -54,7 +54,7 @@
     "ecg_uniform_8mb_16_stride8": "Matched STRIDE8 twin of the uniform 8 MiB matrix. Every policy gets the same structure prefetcher, so demand-miss reduction (latency hiding) can be separated from total memory traffic (bandwidth), which prefetching cannot reduce.",
     "ecg_record_width_timing": "gem5 timing and bandwidth for the two-stamp record at the width gem5 actually streams; the width contrast itself lives in cache_sim.",
     "ecg_isa_decode_matrix": "Decode-cost matrix. Separates record WIDTH from the cost of DECODING it, with a per-stage LRU denominator so no comparison crosses runs.",
-    "ecg_fused_compact_matrix": "Request-bound fused compact K2 matrix: hardware-decoded 4B, software-widened 4B, and wide 8B controls in one build with per-stage LRU and K2-LRU."
+    "ecg_fused_compact_matrix": "Fused compact K2 TimingSimple matrix: hardware-decoded 4B, software-widened 4B, and wide 8B controls in one build with per-stage LRU and K2-LRU; O3 request binding is a separate mechanism gate."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -1759,7 +1759,7 @@
         "ECG_RECORD_VARIABLE_WIDTH": "1",
         "ECG_EXPECT_BYTES_PER_EDGE": "4"
       },
-      "notes": "Admissible request-bound compact K2-I arm. Runtime activation is attested by ECG_K2_ILOAD_C; the runner fails if the guest does not emit it. Every stage carries its own LRU and K2-LRU, and all stages use one build."
+      "notes": "Serialized single-core TimingSimple compact K2-I arm; exact request binding is proven separately by the O3 mechanism probe. Runtime activation is attested by ECG_K2_ILOAD_C; the runner fails if the guest does not emit it. Every stage carries its own LRU and K2-LRU, and all stages use one build."
     },
     {
       "name": "51_fused_software_4b",
@@ -1789,7 +1789,7 @@
         "ECG_RECORD_VARIABLE_WIDTH": "1",
         "ECG_EXPECT_BYTES_PER_EDGE": "4"
       },
-      "notes": "Matched request-bound compact arm using the existing 64-bit fused K2-I load after guest software widening. Decode control for stage 50."
+      "notes": "Matched serialized TimingSimple compact arm using the existing 64-bit fused K2-I load after guest software widening. Decode control for stage 50."
     },
     {
       "name": "52_fused_wide_8b",
@@ -1820,7 +1820,7 @@
         "ECG_EDGE_RECORD_BYTES": "8",
         "ECG_EXPECT_BYTES_PER_EDGE": "8"
       },
-      "notes": "Matched request-bound wide K2-I arm. Width control for stage 50; every stage carries its own LRU and K2-LRU and all stages use one build."
+      "notes": "Matched serialized TimingSimple wide K2-I arm. Implementation-width control for stage 50; every stage carries its own LRU and K2-LRU and all stages use one build."
     }
   ]
 }

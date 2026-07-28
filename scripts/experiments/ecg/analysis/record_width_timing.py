@@ -111,9 +111,9 @@ DECODE_STAGES = {
     "42_isa_plain_4b_software": "one instruction + software widen, compact",
     "43_isa_plain_4b_hardware": "one instruction (ecg.extract2c), compact",
     "44_isa_plain_8b": "one instruction (ecg.extract2), wide",
-    "50_fused_compact_4b": "request-bound ecg.k2.iload.compact",
-    "51_fused_software_4b": "request-bound K2-I after software widening",
-    "52_fused_wide_8b": "request-bound K2-I, wide record",
+    "50_fused_compact_4b": "fused compact K2-I (serialized TimingSimple)",
+    "51_fused_software_4b": "fused K2-I after software widening",
+    "52_fused_wide_8b": "fused K2-I, wide record",
 }
 
 
@@ -235,12 +235,13 @@ def report_decode_matrix(rows, expected=None) -> bool:
              "compact arm still widens in software: this is width PLUS decode")
     contrast("51_fused_software_4b", "50_fused_compact_4b",
              "FUSED DECODE: software widen versus compact K2-I",
-             "same 4-byte record and request-bound property load; the compact "
-             "instruction removes only the guest widen")
+             "same dedicated loop skeleton and 4-byte record; the compact "
+             "instruction removes the guest widen")
     contrast("50_fused_compact_4b", "52_fused_wide_8b",
-             "FUSED WIDTH: compact K2-I versus wide K2-I",
-             "both are request-bound fused loads in one build; this is the "
-             "admissible container-width contrast")
+             "FUSED IMPLEMENTATION: compact K2-I versus wide K2-I",
+             "dedicated matched loop skeletons in one build. Traffic prices "
+             "the container; time also includes two different custom-op "
+             "decoders, and compact decode is modeled as one instruction")
 
     invalid = {r["_stage"] for r in rows
                if r["_stage"] in DECODE_STAGES
@@ -251,6 +252,16 @@ def report_decode_matrix(rows, expected=None) -> bool:
               "separate\n    instruction rather than a fused request-bound "
               "one. Read the instruction\n    counts and the traffic; the "
               "times are context, not a claim.")
+    fused_stages = {
+        "50_fused_compact_4b", "51_fused_software_4b",
+        "52_fused_wide_8b"}
+    if set(stages) & fused_stages:
+        print("\n  DETAILED-SIMULATOR SCOPE:")
+        print("    Scale cells use single-core TimingSimpleCPU serialized mailbox")
+        print("    equivalence. Exact per-Request binding is proven separately by")
+        print("    the O3 micro-probe. The compact opcode's dynamic shifts/masks")
+        print("    are charged as one custom memory instruction, so its latency is")
+        print("    an idealized ISA implementation point, not a hardware timing proof.")
     return True
 
 

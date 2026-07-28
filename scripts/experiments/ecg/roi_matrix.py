@@ -1692,6 +1692,25 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "[ECG-STREAM-BYPASS sim=gem5")
         base["gem5_stream_adaptive_active"] = int(
             "[ECG-STREAM-ADAPTIVE sim=gem5 active=1]" in log_text)
+        pr_result = re.search(
+            r"\[ECG-PR-RESULT iterations=(\d+) semantic_edges=(\d+) "
+            r"score_checksum=([0-9a-fA-F]+)\]", log_text)
+        if pr_result:
+            base["pr_iterations"] = int(pr_result.group(1))
+            base["pr_semantic_edges"] = int(pr_result.group(2))
+            base["pr_score_checksum"] = pr_result.group(3).lower()
+        if is_k2_ecg:
+            base["gem5_k2_binding_model"] = (
+                "request" if args.gem5_cpu_type == "O3"
+                else "serialized_mailbox")
+            if args.gem5_cpu_type != "O3":
+                caveat = str(base.get("timing_caveat") or "").strip()
+                binding_caveat = (
+                    "TimingSimpleCPU uses serialized mailbox-equivalent K2 "
+                    "delivery; exact request binding is proven separately by "
+                    "the O3 mechanism probe.")
+                base["timing_caveat"] = " ".join(
+                    part for part in (caveat, binding_caveat) if part)
     if result is None or result.returncode != 0:
         base.update({"section": 0, "status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
         return [base]
@@ -2843,6 +2862,46 @@ def sanitize(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "", text)
 
 
+def certify_gem5_pr_results(
+        rows: list[dict[str, Any]], args: argparse.Namespace) -> None:
+    """Fail closed unless every gem5 PR policy produced the same one-sweep state."""
+    if args.benchmark != "pr" or args.suite not in ("gem5", "both"):
+        return
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for row in rows:
+        if row.get("simulator") != "gem5":
+            continue
+        key = (
+            row.get("options"), row.get("l3_size"), row.get("l3_ways"),
+            row.get("prefetcher"))
+        groups.setdefault(key, []).append(row)
+    for group_rows in groups.values():
+        ok_rows = [row for row in group_rows if row.get("status") == "ok"]
+        receipts = {
+            (
+                row.get("pr_iterations"),
+                row.get("pr_semantic_edges"),
+                row.get("pr_score_checksum"),
+            )
+            for row in ok_rows
+        }
+        receipt = next(iter(receipts), (None, None, None))
+        valid = (
+            len(ok_rows) == len(group_rows) and len(receipts) == 1 and
+            all(value is not None for value in receipt))
+        for row in group_rows:
+            row["pr_result_matched"] = int(valid)
+        if valid:
+            continue
+        detail = sorted(str(value) for value in receipts)
+        for row in group_rows:
+            row["status"] = "error"
+            row["error"] = (
+                "gem5 PageRank semantic receipt mismatch or missing: "
+                f"{detail}")
+            row["timing_valid_for_speedup"] = "0"
+
+
 def write_outputs(out_dir: Path, rows: list[dict[str, Any]]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     json_path = out_dir / "roi_matrix.json"
@@ -3358,6 +3417,7 @@ def main(argv: list[str]) -> int:
                 write_outputs(out_dir, rows)
 
     certify_sniper_semantic_work(rows, args, policies)
+    certify_gem5_pr_results(rows, args)
 
     inert_cells = set()
     for row in rows:

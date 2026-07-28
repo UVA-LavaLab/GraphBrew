@@ -464,6 +464,13 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
         !ecg_stream_load2_on && !ecg_load2_on;
     const bool compact_fused_trace =
         compact_fused_on && pair_trace_on;
+    const bool compact_software_fused_on =
+        pair_extract_only && pair32_ok && ecg_k2_pload_on &&
+        !ecg_k2_mask_only_on && !compact_fused_on &&
+        !ecg_stream_load2_on && !ecg_load2_on;
+    const bool wide_fused_on =
+        pair_extract_only && !pair32_ok && ecg_k2_pload_on &&
+        !ecg_k2_mask_only_on && !ecg_stream_load2_on && !ecg_load2_on;
     if (compact_isa_requested && !compact_isa_on) {
         // Silently falling back to software decode would produce an arm that
         // reports the compact ISA while measuring the thing it replaces, which
@@ -536,7 +543,9 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     GEM5_RESET_STATS();
     GEM5_WORK_BEGIN(GEM5_WORK_COMPUTE);
 
+    int executed_iters = 0;
     for (int iter = 0; iter < max_iters; iter++) {
+        ++executed_iters;
         double error = 0;
         for (NodeID u = 0; u < g.num_nodes(); u++) {
             GEM5_SET_VERTEX_EPOCH(
@@ -572,6 +581,42 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                                 &delivered, &bits, sizeof(ScoreT));
                             incoming_total += delivered;
                         }
+                    }
+                    const ScoreT old_score = scores[u];
+                    scores[u] = base_score + kDamp * incoming_total;
+                    error += fabs(scores[u] - old_score);
+                    outgoing_contrib[u] =
+                        scores[u] / g.out_degree(u);
+                    continue;
+                }
+                if (compact_software_fused_on) {
+                    for (uint64_t pos = begin; pos < end; ++pos) {
+                        const uint64_t rec = ecg_epoch::widenEpochPair32(
+                            in_edge_pair32_flat[pos], pair32_id_bits,
+                            pair32_epoch_bits);
+                        const uint32_t bits = gem5_ecg_load_k2(
+                            outgoing_contrib.data(), rec);
+                        ScoreT delivered;
+                        std::memcpy(
+                            &delivered, &bits, sizeof(ScoreT));
+                        incoming_total += delivered;
+                    }
+                    const ScoreT old_score = scores[u];
+                    scores[u] = base_score + kDamp * incoming_total;
+                    error += fabs(scores[u] - old_score);
+                    outgoing_contrib[u] =
+                        scores[u] / g.out_degree(u);
+                    continue;
+                }
+                if (wide_fused_on) {
+                    for (uint64_t pos = begin; pos < end; ++pos) {
+                        const uint64_t rec = in_edge_pair_flat[pos];
+                        const uint32_t bits = gem5_ecg_load_k2(
+                            outgoing_contrib.data(), rec);
+                        ScoreT delivered;
+                        std::memcpy(
+                            &delivered, &bits, sizeof(ScoreT));
+                        incoming_total += delivered;
                     }
                     const ScoreT old_score = scores[u];
                     scores[u] = base_score + kDamp * incoming_total;
@@ -920,6 +965,26 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     GEM5_ECG_END_CONTEXT();
     GEM5_WORK_END(GEM5_WORK_COMPUTE);
     GEM5_DUMP_STATS();
+
+    // Post-ROI semantic receipt. The timing matrix intentionally runs one PR
+    // sweep, not convergence, so verify that every mechanism produced the same
+    // state rather than invoking the convergence verifier. FNV over float bits
+    // is deterministic and reads no graph data inside the measured region.
+    uint64_t checksum = 1469598103934665603ULL;
+    for (ScoreT score : scores) {
+        uint32_t bits = 0;
+        std::memcpy(&bits, &score, sizeof(bits));
+        checksum ^= bits;
+        checksum *= 1099511628211ULL;
+    }
+    const uint64_t semantic_edges =
+        static_cast<uint64_t>(executed_iters) *
+        static_cast<uint64_t>(g.num_edges_directed());
+    fprintf(stderr,
+            "[ECG-PR-RESULT iterations=%d semantic_edges=%llu "
+            "score_checksum=%016llx]\n",
+            executed_iters, (unsigned long long)semantic_edges,
+            (unsigned long long)checksum);
     return scores;
 }
 
