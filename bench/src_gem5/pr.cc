@@ -557,12 +557,16 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 const uint64_t begin = pair_off[u];
                 const uint64_t end = pair_off[u + 1];
                 if (compact_fused_on) {
+                    const uint32_t* record_ptr =
+                        in_edge_pair32_flat.data() + begin;
+                    const uint32_t* const record_end =
+                        in_edge_pair32_flat.data() + end;
                     if (compact_fused_trace) {
-                        for (uint64_t pos = begin; pos < end; ++pos) {
+                        for (; record_ptr != record_end; ++record_ptr) {
                             const uint32_t bits =
                                 gem5_ecg_load_k2_compact_traced(
                                     outgoing_contrib.data(),
-                                    in_edge_pair32_flat[pos],
+                                    *record_ptr,
                                     pair32_id_bits, pair32_epoch_bits);
                             ScoreT delivered;
                             std::memcpy(
@@ -570,11 +574,11 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                             incoming_total += delivered;
                         }
                     } else {
-                        for (uint64_t pos = begin; pos < end; ++pos) {
+                        for (; record_ptr != record_end; ++record_ptr) {
                             const uint32_t bits =
                                 gem5_ecg_load_k2_compact(
                                     outgoing_contrib.data(),
-                                    in_edge_pair32_flat[pos],
+                                    *record_ptr,
                                     pair32_id_bits, pair32_epoch_bits);
                             ScoreT delivered;
                             std::memcpy(
@@ -590,9 +594,13 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     continue;
                 }
                 if (compact_software_fused_on) {
-                    for (uint64_t pos = begin; pos < end; ++pos) {
+                    const uint32_t* record_ptr =
+                        in_edge_pair32_flat.data() + begin;
+                    const uint32_t* const record_end =
+                        in_edge_pair32_flat.data() + end;
+                    for (; record_ptr != record_end; ++record_ptr) {
                         const uint64_t rec = ecg_epoch::widenEpochPair32(
-                            in_edge_pair32_flat[pos], pair32_id_bits,
+                            *record_ptr, pair32_id_bits,
                             pair32_epoch_bits);
                         const uint32_t bits = gem5_ecg_load_k2(
                             outgoing_contrib.data(), rec);
@@ -609,8 +617,12 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     continue;
                 }
                 if (wide_fused_on) {
-                    for (uint64_t pos = begin; pos < end; ++pos) {
-                        const uint64_t rec = in_edge_pair_flat[pos];
+                    const uint64_t* record_ptr =
+                        in_edge_pair_flat.data() + begin;
+                    const uint64_t* const record_end =
+                        in_edge_pair_flat.data() + end;
+                    for (; record_ptr != record_end; ++record_ptr) {
+                        const uint64_t rec = *record_ptr;
                         const uint32_t bits = gem5_ecg_load_k2(
                             outgoing_contrib.data(), rec);
                         ScoreT delivered;
