@@ -1463,6 +1463,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     gem5_ecg_delivery = ""
     gem5_ecg_epoch_channel = ""
     gem5_ecg_context_id = ""
+    ecg_variant = ""
     env = dict(os.environ)
     scrub_cell_mechanism_env(env)
     apply_explicit_cell_mechanism_env(env, spec)
