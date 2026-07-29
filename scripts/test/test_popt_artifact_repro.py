@@ -22,7 +22,7 @@ def test_parser_sums_artifact_llc_totals():
 
 def test_public_artifact_gate_does_not_claim_grasp_or_speedup():
     src = PATH.read_text()
-    assert '"popt_vs_grasp": False' in src
+    assert '"popt_vs_grasp_figure12_exact": False' in src
     assert '"execution_time": False' in src
     assert "llc_demand_misses" in src
 
@@ -48,3 +48,11 @@ def test_resume_rows_round_trip_integer_metrics(tmp_path):
     MOD.write_csv(path, rows)
     text = path.read_text()
     assert "123" in text and "lru" in text
+
+
+def test_dbg_grasp_mode_uses_official_grasp_as_reference():
+    src = PATH.read_text()
+    assert 'reference = "drrip" if public_gate else "grasp"' in src
+    assert '"popt_vs_grasp_direction": not public_gate' in src
+    assert src.index('reference = "drrip"') < src.index(
+        'if "popt-8b" in policies and reference in policies')

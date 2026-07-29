@@ -31,7 +31,9 @@ POLICIES = {
     "drrip": ("baseline", "drrip"),
     "popt-8b": ("popt", "popt-8b"),
     "opt-ideal": ("opt-ideal", "opt-ideal"),
+    "grasp": ("baseline", "grasp"),
 }
+PUBLIC_POLICIES = ("lru", "drrip", "popt-8b", "opt-ideal")
 DEFAULT_GRAPHS = (
     "uk-2002",
     "hugebubbles-00020",
@@ -109,15 +111,21 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--pin-root", type=Path)
     parser.add_argument("--tool-root", type=Path)
     parser.add_argument("--port-label", default="pin2-exact")
+    parser.add_argument(
+        "--gate", choices=("public", "dbg-grasp"), default="public")
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--graphs", nargs="+", default=list(DEFAULT_GRAPHS))
     parser.add_argument(
         "--policies", nargs="+", choices=sorted(POLICIES),
-        default=list(POLICIES))
+        default=None)
     parser.add_argument("--timeout", type=int, default=86400)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
+    if args.policies is None:
+        args.policies = list(
+            PUBLIC_POLICIES if args.gate == "public"
+            else ("lru", "grasp", "popt-8b"))
 
     root = args.artifact_root.resolve()
     pin_root = (args.pin_root or root / "pin-2.14").resolve()
@@ -136,13 +144,19 @@ def main(argv: list[str]) -> int:
     if missing:
         raise SystemExit("missing reproduction inputs:\n  " + "\n  ".join(missing))
 
+    public_gate = args.gate == "public"
     manifest = {
         "artifact_commit": head,
         "port_label": args.port_label,
-        "scope": "public-artifact PageRank LLC-miss direction",
+        "gate": args.gate,
+        "scope": (
+            "public-artifact PageRank LLC-miss direction"
+            if public_gate else
+            "deterministic DBG P-OPT-vs-GRASP direction port"),
         "claimable": {
-            "popt_vs_drrip": True,
-            "popt_vs_grasp": False,
+            "popt_vs_drrip": public_gate,
+            "popt_vs_grasp_direction": not public_gate,
+            "popt_vs_grasp_figure12_exact": False,
             "execution_time": False,
         },
         "graphs": list(args.graphs),
@@ -209,21 +223,23 @@ def main(argv: list[str]) -> int:
         set(by_graph[graph]) == set(args.policies) and
         all(row["status"] == "ok" for row in by_graph[graph].values())
         for graph in args.graphs)
+    reference = "drrip" if public_gate else "grasp"
     for graph, policies in by_graph.items():
-        if "popt-8b" in policies and "drrip" in policies:
+        if "popt-8b" in policies and reference in policies:
             direction[graph] = (
                 policies["popt-8b"]["llc_demand_misses"] <
-                policies["drrip"]["llc_demand_misses"])
-    direction_evaluated = {"popt-8b", "drrip"} <= set(args.policies)
+                policies[reference]["llc_demand_misses"])
+    direction_evaluated = {"popt-8b", reference} <= set(args.policies)
     passed = (
         complete and direction_evaluated and
         len(direction) == len(args.graphs) and all(direction.values()))
     (out_dir / "complete.json").write_text(json.dumps({
         "complete": complete,
         "direction_evaluated": direction_evaluated,
-        "passed_popt_vs_drrip_every_graph": passed,
-        "popt_better_than_drrip": direction,
-        "popt_vs_grasp_claimable": False,
+        "reference_policy": reference,
+        "passed_popt_better_than_reference_every_graph": passed,
+        "popt_better_than_reference": direction,
+        "popt_vs_grasp_figure12_exact": False,
     }, indent=2, sort_keys=True) + "\n")
     return 0 if complete and (not direction_evaluated or passed) else 1
 
