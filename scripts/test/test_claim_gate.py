@@ -35,7 +35,11 @@ def test_current_claim_gate_is_consistent():
     assert gates["matched_sniper_post_binding"]["status"] == "passed"
     assert gates["hawkeye_real_pc_synthetic"]["status"] == "passed"
     assert gates["hawkeye_results"]["status"] == "pending"
+    assert gates["external_popt_public_direction"]["status"] == "passed"
     claims = {claim["id"]: claim for claim in resolved_claims(data)}
+    popt_public = claims["popt_public_artifact_direction"]
+    assert popt_public["decision"] == "allowed"
+    assert popt_public["missing_gates"] == []
     speedup = claims["k2m_general_speedup"]
     assert speedup["decision"] == "prohibited"
     # A general speedup claim is blocked by the missing full-graph evidence and

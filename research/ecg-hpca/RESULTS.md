@@ -20,10 +20,13 @@
 > 2. `SCALING: the record fits 4 bytes at Twitter scale, at 2-bit epochs`
 > 3. `Fast signal, corrected` -- K2 wins PageRank, GRASP wins the aggregate.
 > 4. `CORRECTED: two earlier fast-signal sections were wrong, and how`
+> 5. `FROZEN: public P-OPT artifact direction` -- an external baseline
+>    validation only; it does not rank K2.
 >
-> **No performance claim in this file is admissible yet.** `claim_gate.json` is
-> authoritative; every performance claim there is currently `prohibited`. Results
-> here are cache_sim traffic on sampled graphs with no timing backend.
+> **No K2 headline performance claim in this file is admissible yet.**
+> `claim_gate.json` is authoritative. The only allowed performance-direction
+> claim is the narrowly scoped external P-OPT-over-DRRIP artifact result below;
+> it does not validate GraphBrew's P-OPT model or compare K2.
 >
 > **Standing caution.** This result set moved substantially five times under
 > configuration changes alone (metadata accounting, mechanism availability,
@@ -2489,3 +2492,42 @@ The stage-50 whole-system observation from that build remains descriptive:
 geomean time tied LRU, traffic was 1.6% higher, and cit-Patents was the
 +3.2% time/+13.6% traffic worst cell. It cannot be mixed with the corrected
 controls because the guest build changes.
+
+## FROZEN: public P-OPT artifact direction on a Pin 4.2/GCC 13 compatibility port (2026-07-28)
+
+The public P-OPT PageRank artifact was rebuilt as a provenance-bound Pin 4.2
+compatibility port and run once from a fresh, non-resumed output directory.
+The run uses one PageRank sweep, the artifact's 24 MiB/16-way LLC, no
+prefetching, disabled ASLR, and raw demand LLC misses.
+
+| graph | DRRIP misses | P-OPT misses | P-OPT reduction |
+|---|---:|---:|---:|
+| UK-02 | 62,496,506 | 56,011,879 | 10.38% |
+| HBUBL | 54,500,087 | 35,956,700 | 34.02% |
+| KRON25 | 27,829,418 | 25,206,516 | 9.42% |
+| URAND25 | 115,631,617 | 85,352,434 | 26.19% |
+
+P-OPT has fewer misses than DRRIP on all four graphs. The geometric mean of
+P-OPT/DRRIP is **0.79294**, or **20.71% fewer demand LLC misses**. All 12
+LRU/DRRIP/P-OPT rows exit normally, contain exactly one explicit ROI statistics
+block, and report matching PageRank error across policies for each graph.
+
+This confirms the **qualitative P-OPT-over-DRRIP miss direction for this
+compatibility configuration**. It is not an exact Pin 2.14/GCC 6.3
+reproduction: applications were rebuilt with GCC 13, which is recorded as a
+compatibility deviation. The magnitude is therefore not compiler-independent.
+It is also not a speedup result, P-OPT-vs-GRASP evidence, validation of
+GraphBrew's internal P-OPT model, or a K2-vs-P-OPT ranking.
+
+Any earlier **28.18%** figure from the manual early-exit port is withdrawn. That
+run was not bound to the accepted build receipt and terminated before the
+application correctness receipt; its differing binaries cannot support a
+compiler-effect claim.
+
+The machine-readable owner is
+`research/ecg-hpca/evidence/popt_public_direction_20260728.json`. The preserved
+content-addressed archives have SHA-256
+`b89caca9d4d9e8c78e1baeb1d69e040b6cfa43d4aacc33d1d0128956ee9156d9`
+(v5 build) and
+`2ce20f47ecab244400448937501451cba1fcaae4168c2db40f4c1923c22b15f3`
+(completed run).

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "claim_id": "popt_public_artifact_direction",
+  "scope": "Public P-OPT PageRank artifact direction on the provenance-bound Pin 4.2/GCC 13 compatibility port; raw demand LLC misses only.",
+  "configuration": {
+    "artifact_commit": "53b5021846690d0f3445428c6380e877ecf7a10e",
+    "runner_commit": "7e4147765da82aa5713e57c80f732e99208b3f17",
+    "pin": "4.2",
+    "application_compiler": "GCC 13.3.0 compatibility deviation from documented GCC 6.3.0",
+    "pagerank_sweeps": 1,
+    "llc_bytes": 25165824,
+    "llc_ways": 16,
+    "prefetch": "disabled",
+    "aslr": "disabled"
+  },
+  "trust": {
+    "port_build_manifest_sha256": "0f7f14a4b59067ea302aa95a311ab3c0e6701a91f4039b0d5e50247e9411fecf",
+    "graph_provenance_sha256": "bd072617ad43ea666f7f0f181dcac185851aea1f413c0e8e2053353ce7e17ec5",
+    "setarch_sha256": "9cbf126e4a5a2847313b38c766a6d52110bd31a2f90de871bc618166a046e624",
+    "setup_script_sha256": "af4abee34f7bbbc5c9284d16dd6ff5dbf0b959d352daa17eca4b3f7d9d49ec3d",
+    "run_manifest_sha256": "75031f5cfa510f17db6ba1ff72abecca55d369d01db3d4315ebbb6f38c1360f6",
+    "results_csv_sha256": "a33e24d051ab055ed4f71bc28b242fc394a53bf4db3dc0ad63bca15e1226c5ed",
+    "complete_json_sha256": "889571490011dd398bd5dbab0f93f5485c8735f6510777eb588edd074d7203b8",
+    "port_archive_sha256": "b89caca9d4d9e8c78e1baeb1d69e040b6cfa43d4aacc33d1d0128956ee9156d9",
+    "run_archive_sha256": "2ce20f47ecab244400448937501451cba1fcaae4168c2db40f4c1923c22b15f3"
+  },
+  "graphs": {
+    "uk-2002": {
+      "app_error": 1.12917,
+      "lru_misses": 68864587,
+      "drrip_misses": 62496506,
+      "popt_misses": 56011879,
+      "popt_over_drrip": 0.8962401674103189,
+      "popt_miss_reduction_pct": 10.375983258968112
+    },
+    "hugebubbles-00020": {
+      "app_error": 0.000260444,
+      "lru_misses": 55403805,
+      "drrip_misses": 54500087,
+      "popt_misses": 35956700,
+      "popt_over_drrip": 0.6597549101160151,
+      "popt_miss_reduction_pct": 34.024508988398495
+    },
+    "kron25-d4": {
+      "app_error": 0.956268,
+      "lru_misses": 31653808,
+      "drrip_misses": 27829418,
+      "popt_misses": 25206516,
+      "popt_over_drrip": 0.905750741894782,
+      "popt_miss_reduction_pct": 9.4249258105218
+    },
+    "urand25-d4": {
+      "app_error": 0.382553,
+      "lru_misses": 116682951,
+      "drrip_misses": 115631617,
+      "popt_misses": 85352434,
+      "popt_over_drrip": 0.7381409705617107,
+      "popt_miss_reduction_pct": 26.185902943828932
+    }
+  },
+  "aggregate": {
+    "graph_count": 4,
+    "popt_better_than_drrip_every_graph": true,
+    "geomean_popt_over_drrip": 0.792937142,
+    "geomean_popt_miss_reduction_pct": 20.706286
+  },
+  "allowed_claim": "This compatibility configuration confirms the qualitative P-OPT-over-DRRIP demand-LLC-miss direction on all four public artifact graphs.",
+  "prohibited_claims": [
+    "Exact Pin 2.14/GCC 6.3 artifact reproduction",
+    "Compiler-independent miss-reduction magnitude",
+    "Execution-time or speedup result",
+    "P-OPT versus GRASP direction",
+    "Validation of GraphBrew's internal P-OPT model",
+    "K2 versus P-OPT ranking"
+  ],
+  "supersedes": {
+    "invalid_geomean_miss_reduction_pct": 28.18,
+    "reason": "The earlier manual port was not bound to a trusted build receipt and terminated before the application correctness receipt."
+  }
+}

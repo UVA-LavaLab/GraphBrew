@@ -244,6 +244,25 @@ gem5 analysis keeps only the benchmark-emitted ROI statistics block. Its later
 automatic exit dump contains post-ROI teardown activity and is not a second
 measurement.
 
+## External P-OPT artifact-direction gate
+
+Validation of the published P-OPT baseline is separate from GraphBrew's
+internal charged P-OPT model. The external gate asks only whether P-OPT has
+fewer raw demand LLC misses than DRRIP on every graph in the public PageRank
+artifact. It cannot validate execution time, P-OPT versus GRASP, metadata-cost
+symmetry, or any K2 ranking.
+
+A claimable compatibility-port run must use the tracked runner's pinned build
+and graph-receipt hashes, the exact four-graph/three-policy roster, disabled
+ASLR, and a fresh output directory; `--resume` and exploratory subsets are
+non-claimable. Every row must exit normally, contain one ordered ROI
+BEGIN/END block followed by a finite application error and Pin exit receipt,
+and match PageRank error across policies. Compiler or Pin deviations remain
+part of the claim scope rather than being generalized away.
+
+The frozen receipt and allowed wording live in
+`evidence/popt_public_direction_20260728.json`.
+
 ## Future K2-M headline policy set
 
 The next headline comparison, after K2-M implementation, must include:

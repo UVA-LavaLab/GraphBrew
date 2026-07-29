@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import math
 from pathlib import Path
 import sys
 
@@ -308,3 +309,23 @@ def test_grasp_mode_is_explicitly_nonclaimable_rules_proxy():
 def test_hash_tree_rejects_missing_port_source(tmp_path):
     with pytest.raises(FileNotFoundError):
         MOD.hash_tree(tmp_path / "missing")
+
+
+def test_frozen_public_direction_receipt():
+    path = (
+        ROOT / "research/ecg-hpca/evidence/"
+        "popt_public_direction_20260728.json")
+    data = json.loads(path.read_text())
+    ratios = [
+        row["popt_misses"] / row["drrip_misses"]
+        for row in data["graphs"].values()
+    ]
+    geomean = math.prod(ratios) ** (1 / len(ratios))
+    assert data["status"] == "passed"
+    assert all(ratio < 1 for ratio in ratios)
+    assert geomean == pytest.approx(
+        data["aggregate"]["geomean_popt_over_drrip"], abs=5e-10)
+    assert (1 - geomean) * 100 == pytest.approx(
+        data["aggregate"]["geomean_popt_miss_reduction_pct"], abs=5e-7)
+    assert "Execution-time or speedup result" in data["prohibited_claims"]
+    assert "P-OPT versus GRASP direction" in data["prohibited_claims"]

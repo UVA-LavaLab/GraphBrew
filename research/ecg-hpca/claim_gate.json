@@ -216,6 +216,18 @@
       ]
     },
     {
+      "id": "external_popt_public_direction",
+      "status": "passed",
+      "note": "A fresh, non-resumed run of the provenance-bound Pin 4.2/GCC 13 compatibility port reproduces the qualitative public-artifact direction: P-OPT has fewer raw demand LLC misses than DRRIP on all four PageRank graphs. This is not an exact Pin 2.14/GCC 6.3 reproduction, speedup evidence, P-OPT-vs-GRASP evidence, validation of GraphBrew's internal P-OPT model, or a K2 ranking.",
+      "evidence": [
+        "research/ecg-hpca/evidence/popt_public_direction_20260728.json",
+        "scripts/experiments/ecg/flows/popt_artifact_repro.py",
+        "scripts/experiments/ecg/flows/setup_popt_pin4_port.py",
+        "scripts/test/test_popt_artifact_repro.py",
+        "research/ecg-hpca/RESULTS.md"
+      ]
+    },
+    {
       "id": "frozen_primary_metrics",
       "status": "passed",
       "note": "Primary metrics (execution time + total off-chip traffic), the decision rule, aggregation, admissibility and symmetry requirements are declared before the deciding experiments and enforced by scripts/test/test_frozen_metrics.py.",
@@ -291,6 +303,15 @@
       "decision": "allowed",
       "required_gates": [
         "hawkeye_real_pc_synthetic"
+      ]
+    },
+    {
+      "id": "popt_public_artifact_direction",
+      "text": "On the provenance-bound Pin 4.2/GCC 13 compatibility configuration, public-artifact P-OPT has fewer demand LLC misses than DRRIP on all four evaluated PageRank graphs.",
+      "scope": "External public P-OPT cache-miss direction only; not exact Pin2/GCC6.3, speedup, GRASP, internal-model, or K2 evidence",
+      "decision": "allowed",
+      "required_gates": [
+        "external_popt_public_direction"
       ]
     },
     {
