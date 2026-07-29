@@ -1,5 +1,6 @@
 import json
 import os
+import ast
 from pathlib import Path
 import shutil
 from contextlib import contextmanager
@@ -459,21 +460,91 @@ def test_guest_environment_bytes_and_entry_count_are_policy_invariant():
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
+    fixed = [f"FIXED_{index:02d}=1" for index in range(45)]
     baseline = module.finalize_environment([
-        "FIXED=1",
+        *fixed,
         "GRAPHBREW_ABSENT_ENV_00=0",
         "GRAPHBREW_ABSENT_ENV_01=0",
     ])
     ecg = module.finalize_environment([
-        "FIXED=1",
+        *fixed,
         "ECG_RECORD_VARIABLE_WIDTH=1",
         "ECG_EXPECT_BYTES_PER_EDGE=4",
     ])
     assert len(baseline) == len(ecg)
+    assert len(baseline) == module.TARGET_ENV_ENTRIES
     assert sum(len(item.encode()) + 1 for item in baseline) == (
         module.TARGET_ENV_BYTES)
     assert sum(len(item.encode()) + 1 for item in ecg) == (
         module.TARGET_ENV_BYTES)
+
+
+def test_actual_benchmark_environment_is_policy_invariant(
+        monkeypatch):
+    config_dir = (
+        PROJECT_ROOT /
+        "bench/include/gem5_sim/configs/graphbrew")
+    source = (config_dir / "graph_se.py").read_text()
+    tree = ast.parse(source)
+    function = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and
+        node.name == "benchmark_environment")
+    layout_spec = importlib.util.spec_from_file_location(
+        "graph_env_layout_runtime_test",
+        config_dir / "graph_env_layout.py")
+    layout = importlib.util.module_from_spec(layout_spec)
+    assert layout_spec.loader is not None
+    layout_spec.loader.exec_module(layout)
+    namespace = {
+        "os": os,
+        "finalize_environment": layout.finalize_environment,
+        "needs_vertex_hints": lambda _args: False,
+        "RUNTIME_SIDEBAND_FILES": (
+            ("GEM5_GRAPHBREW_CTX", "/tmp/context.json"),
+            ("GEM5_POPT_MATRIX", "/tmp/matrix.bin"),
+            ("GEM5_GRAPHBREW_OUT_EDGES", "/tmp/out.bin"),
+            ("GEM5_GRAPHBREW_IN_EDGES", "/tmp/in.bin"),
+        ),
+    }
+    exec(compile(
+        ast.Module(body=[function], type_ignores=[]),
+        "benchmark_environment", "exec"), namespace)
+    benchmark_environment = namespace["benchmark_environment"]
+    common = {
+        "prefetcher": "none",
+        "ecg_pfx_lookahead": 0,
+        "ecg_pfx_hint_filter": 0,
+        "ecg_pfx_delivery": "explicit-hint",
+    }
+    relevant = [
+        key for key in os.environ
+        if key.startswith(("ECG_", "GEM5_ECG_", "GEM5_FORCE_ECG_"))
+    ]
+    for key in relevant:
+        monkeypatch.delenv(key, raising=False)
+    lru = benchmark_environment(SimpleNamespace(
+        policy="LRU", ecg_mode=None, **common))
+    for key, value in {
+        "ECG_VARIANT": "epoch_first",
+        "ECG_EDGE_MASK_SCHED": "2",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4",
+        "GEM5_FORCE_ECG_PLOAD": "1",
+    }.items():
+        monkeypatch.setenv(key, value)
+    k2 = benchmark_environment(SimpleNamespace(
+        policy="ECG", ecg_mode="ECG_GRASP_POPT", **common))
+    monkeypatch.setenv("ECG_VARIANT", "lru_only")
+    k2_lru = benchmark_environment(SimpleNamespace(
+        policy="ECG", ecg_mode="ECG_GRASP_POPT", **common))
+    assert {len(lru), len(k2), len(k2_lru)} == {
+        layout.TARGET_ENV_ENTRIES}
+    totals = {
+        sum(len(item.encode()) + 1 for item in values)
+        for values in (lru, k2, k2_lru)
+    }
+    assert totals == {layout.TARGET_ENV_BYTES}
 
 
 def test_current_riscv_pr_receipt_when_binary_is_present():

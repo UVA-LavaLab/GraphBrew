@@ -1577,7 +1577,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 f"{args.benchmark}{GEM5_KERNEL_SUFFIX}")
         else:
             raise RuntimeError("gem5 guest was not validated")
-    if selected_gem5_isa() == "riscv":
+    if (selected_gem5_isa() == "riscv" and
+            not (args.dry_run and not VALIDATED_GEM5_GUEST_SHA256)):
         verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     effective_l3_size = str(charge["popt_effective_l3_size"])
     effective_l3_ways = str(charge["popt_effective_l3_ways"])
