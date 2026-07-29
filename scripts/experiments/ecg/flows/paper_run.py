@@ -194,12 +194,14 @@ def validate_marker_outputs(
 def git_state_fingerprint() -> str:
     digest = hashlib.sha256()
     for command in (
-        ["git", "rev-parse", "HEAD"],
-        ["git", "diff", "--binary", "--no-ext-diff"],
-        ["git", "diff", "--cached", "--binary", "--no-ext-diff"],
+        ["/usr/bin/git", "rev-parse", "HEAD"],
+        ["/usr/bin/git", "diff", "--binary", "--no-ext-diff"],
+        ["/usr/bin/git", "diff", "--cached", "--binary", "--no-ext-diff"],
     ):
         result = subprocess.run(
-            command, cwd=str(PROJECT_ROOT), capture_output=True, check=False)
+            command, cwd=str(PROJECT_ROOT),
+            env=clean_job_environment({}),
+            capture_output=True, check=False)
         digest.update(result.stdout)
         digest.update(result.stderr)
     return digest.hexdigest()
@@ -658,30 +660,34 @@ def make_roi_job(
     expected_gem5_opt_sha256 = ""
     expected_gem5_config_sha256 = ""
     expected_graph_sha256 = ""
-    if (str(settings.get("suite")) in ("gem5", "both") and
-            material_env.get("GEM5_KERNEL_SUFFIX") == "_riscv_m5ops"):
-        expected_gem5_guest_sha256 = str(
-            inputs.get("gem5_benchmark_binary", ""))
-        if expected_gem5_guest_sha256 in ("", "missing"):
-            raise SystemExit(
-                "paper-run RISC-V guest hash is missing")
-        command.extend([
-            "--expected-gem5-guest-sha256",
-            expected_gem5_guest_sha256,
-        ])
+    if str(settings.get("suite")) in ("gem5", "both"):
         expected_gem5_opt_sha256 = str(inputs.get("gem5_binary", ""))
         expected_gem5_config_sha256 = str(inputs.get("gem5_config", ""))
         expected_graph_sha256 = str(inputs.get("graph", ""))
         if any(value in ("", "missing") for value in (
                 expected_gem5_opt_sha256,
-                expected_gem5_config_sha256,
-                expected_graph_sha256)):
+                expected_gem5_config_sha256)):
             raise SystemExit("paper-run gem5 runtime input hash is missing")
         command.extend([
             "--expected-gem5-opt-sha256", expected_gem5_opt_sha256,
             "--expected-gem5-config-sha256", expected_gem5_config_sha256,
-            "--expected-graph-sha256", expected_graph_sha256,
         ])
+        if expected_graph_sha256 not in ("", "missing"):
+            command.extend([
+                "--expected-graph-sha256", expected_graph_sha256,
+            ])
+        else:
+            expected_graph_sha256 = ""
+        if material_env.get("GEM5_KERNEL_SUFFIX") == "_riscv_m5ops":
+            expected_gem5_guest_sha256 = str(
+                inputs.get("gem5_benchmark_binary", ""))
+            if expected_gem5_guest_sha256 in ("", "missing"):
+                raise SystemExit(
+                    "paper-run RISC-V guest hash is missing")
+            command.extend([
+                "--expected-gem5-guest-sha256",
+                expected_gem5_guest_sha256,
+            ])
     config_hash = hashlib.sha256(json.dumps(
         {"command": command, "env": material_env, "inputs": inputs},
         sort_keys=True, separators=(",", ":")).encode()).hexdigest()

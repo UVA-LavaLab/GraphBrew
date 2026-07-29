@@ -126,6 +126,8 @@ GEM5_GUEST_FUSERMOUNT_SHA256 := $(shell \
 GEM5_GUEST_PYTHON := /usr/bin/python3.12
 GEM5_GUEST_PYTHON_SHA256 := $(shell \
 	sha256sum "$(GEM5_GUEST_PYTHON)" 2>/dev/null | cut -d' ' -f1)
+GEM5_GUEST_CLEAN_ENV := env -i PATH=/usr/bin:/bin HOME=/tmp TMPDIR=/tmp \
+	LC_ALL=C LANG=C
 RISCV_CXX_RESOLVED := $(shell command -v $(RISCV_CXX) 2>/dev/null)
 RISCV_CXX_SHA256 := $(shell test -f "$(RISCV_CXX_RESOLVED)" && \
 	sha256sum "$(RISCV_CXX_RESOLVED)" | cut -d' ' -f1)
@@ -209,7 +211,8 @@ $(BIN_GEM5_DIR)/%_riscv_m5ops.build.json &: \
 	$(GEM5_GUEST_FUSERMOUNT) \
 	$(GEM5_RISCV_BUILD_CONFIG) Makefile | \
 	$(BIN_GEM5_DIR)
-	$(GEM5_GUEST_PYTHON) -I $(GEM5_GUEST_RECEIPT) build \
+	$(GEM5_GUEST_CLEAN_ENV) $(GEM5_GUEST_PYTHON) -I \
+		$(GEM5_GUEST_RECEIPT) build \
 		--receipt $(BIN_GEM5_DIR)/$*_riscv_m5ops.build.json \
 		--binary $(BIN_GEM5_DIR)/$*_riscv_m5ops \
 		--depfile $(BIN_GEM5_DIR)/$*_riscv_m5ops.d \

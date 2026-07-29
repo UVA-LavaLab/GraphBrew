@@ -13,6 +13,7 @@ import glob
 import hashlib
 import json
 import math
+import os
 import re
 import shlex
 import shutil
@@ -30,6 +31,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[4]
 ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
 FINAL_RUN = ECG_DIR / "flows" / "paper_run.py"
 PINNED_PYTHON = Path("/usr/bin/python3.12")
+
+
+def clean_profile_environment() -> dict[str, str]:
+    return {
+        "PATH": "/usr/bin:/bin",
+        "HOME": os.environ.get("HOME", "/tmp"),
+        "TMPDIR": "/tmp",
+        "LC_ALL": "C",
+        "LANG": "C",
+    }
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "paper_pipeline"
 PAPER_CHARTS_DIR = PROJECT_ROOT / "paper" / "dataCharts" / "ecg"
 
@@ -439,6 +450,7 @@ def run_profile(args: argparse.Namespace, run_root: Path, profile: str) -> Path:
         result = subprocess.run(
             command,
             cwd=str(PROJECT_ROOT),
+            env=clean_profile_environment(),
             stdout=log,
             stderr=subprocess.STDOUT,
             text=True,

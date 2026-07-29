@@ -77,13 +77,15 @@ def sha256(path: Path) -> str:
 def git_state(root: Path = PROJECT_ROOT) -> dict[str, str]:
     def output(command: list[str]) -> bytes:
         result = subprocess.run(
-            command, cwd=root, capture_output=True, check=True)
+            ["/usr/bin/git", *command], cwd=root,
+            env=execution_environment(),
+            capture_output=True, check=True)
         return result.stdout
 
-    commit = output(["git", "rev-parse", "HEAD"]).decode().strip()
-    diff = output(["git", "diff", "--binary", "--no-ext-diff"])
+    commit = output(["rev-parse", "HEAD"]).decode().strip()
+    diff = output(["diff", "--binary", "--no-ext-diff"])
     cached = output(
-        ["git", "diff", "--cached", "--binary", "--no-ext-diff"])
+        ["diff", "--cached", "--binary", "--no-ext-diff"])
     return {
         "commit": commit,
         "diff_sha256": hashlib.sha256(diff).hexdigest(),
@@ -671,7 +673,7 @@ def write_complete_depfile(
         path: Path, make_target: str,
         dependencies: Iterable[Path]) -> None:
     rows = [f"{make_target}: \\"]
-    ordered = sorted(set(item.resolve() for item in dependencies))
+    ordered = sorted(set(item.absolute() for item in dependencies))
     for index, dependency in enumerate(ordered):
         suffix = " \\" if index + 1 < len(ordered) else ""
         rows.append(f"  {make_escape(dependency)}{suffix}")
