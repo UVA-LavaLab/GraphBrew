@@ -248,6 +248,7 @@ def main(argv: list[str]) -> int:
         for graph in args.graphs
     }
     direction = {}
+    ratios = {}
     complete = all(
         set(by_graph[graph]) == set(args.policies) and
         all(row["status"] == "ok" for row in by_graph[graph].values())
@@ -255,9 +256,14 @@ def main(argv: list[str]) -> int:
     reference = "drrip" if public_gate else "grasp"
     for graph, policies in by_graph.items():
         if "popt-8b" in policies and reference in policies:
-            direction[graph] = (
-                policies["popt-8b"]["llc_demand_misses"] <
-                policies[reference]["llc_demand_misses"])
+            popt_misses = policies["popt-8b"]["llc_demand_misses"]
+            reference_misses = policies[reference]["llc_demand_misses"]
+            direction[graph] = popt_misses < reference_misses
+            ratios[graph] = {
+                "popt_over_reference": popt_misses / reference_misses,
+                "miss_reduction_pct": (
+                    1.0 - popt_misses / reference_misses) * 100.0,
+            }
     direction_evaluated = {"popt-8b", reference} <= set(args.policies)
     passed = (
         complete and direction_evaluated and
@@ -268,6 +274,7 @@ def main(argv: list[str]) -> int:
         "reference_policy": reference,
         "passed_popt_better_than_reference_every_graph": passed,
         "popt_better_than_reference": direction,
+        "popt_vs_reference": ratios,
         "popt_vs_grasp_figure12_exact": False,
     }, indent=2, sort_keys=True) + "\n")
     return 0 if complete and (not direction_evaluated or passed) else 1
