@@ -246,12 +246,14 @@ measurement.
 
 Paper no-build runs may use a prebuilt RISC-V guest only when the adjacent
 `.build.json` receipt validates. The receipt tool hashes a pre-compilation
-dependency scan, compiles into temporary outputs, rejects any input/compiler/git
-change during the build, and atomically publishes the binary, depfile, and
-receipt. It binds target and source identity, compiler command and binary,
-linked m5 library, every project dependency, and the guest hash. Independent
-source and binary hashes are insufficient: they do not prove that the binary
-was produced from that source state.
+project/system dependency scan, compiles into temporary outputs, rejects any
+input/compiler/git change during the build, and atomically publishes the
+binary, depfile, and receipt. It binds target and source identity, the
+machine-readable Make configuration, pinned cross-compiler toolchain, linked m5
+library, every dependency, and the guest hash. The runner stages a validated
+content-addressed read-only copy and checks it before and after every gem5
+invocation. Independent source and binary hashes are insufficient: they do not
+prove that the binary was produced from that source state.
 
 ## External P-OPT artifact-direction gate
 

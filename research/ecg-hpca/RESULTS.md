@@ -2550,10 +2550,17 @@ source/binary mismatch. Do not cite its 0.923 compact-K2/LRU time ratio, 0.8056
 compact/wide traffic ratio, or any three-graph aggregate.
 
 The RISC-V guest now builds under the receipt tool itself. It scans and hashes
-the dependency set before compilation, compiles into temporary outputs, checks
-that git/compiler/input state did not change, then atomically publishes the
-binary, depfile, and receipt. The receipt binds the exact target/source,
-compiler command and binary, linked m5 library, project headers (including
-`reorder_hub.h`), and guest hash. No-build gem5 runs fail closed if any identity
-or dependency check changes. All nine jobs must be rerun from one newly built
+the project and system dependency set before compilation, compiles into
+temporary outputs, checks that git/compiler/input state did not change, then
+atomically publishes the binary, depfile, and receipt. The accepted toolchain is
+the pinned RISC-V compiler and its assembler, linker, specs, CRT objects, and
+static libraries. The receipt binds the exact target/source, build config,
+compiler command, linked m5 library, headers (including `reorder_hub.h`), and
+guest hash.
+
+Before execution, `roi_matrix.py` copies the validated guest to a
+content-addressed read-only path. Every gem5 invocation verifies that staged
+hash immediately before and after execution. Missing receipts, changed
+dependencies, copied kernel receipts, inconsistent ISA overrides, or staged
+binary changes fail closed. All nine jobs must be rerun from one newly built
 guest.

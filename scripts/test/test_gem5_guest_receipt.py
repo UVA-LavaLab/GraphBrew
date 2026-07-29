@@ -10,10 +10,32 @@ import pytest
 
 from scripts.experiments.ecg.flows import paper_run
 from scripts.experiments.ecg.gem5_guest_receipt import (
+    MATERIAL_COMPILER_ENV,
+    PINNED_RISCV_CXX,
+    PINNED_RISCV_CXX_SHA256,
     PROJECT_ROOT,
     build_guest,
+    material_environment,
+    stage_validated_guest,
     validate_receipt,
+    verify_staged_guest,
 )
+
+
+def write_build_config(
+        path: Path, flags: str, includes: str,
+        compiler: str = "riscv64-linux-gnu-g++") -> None:
+    values = {
+        "RISCV_CXX": compiler,
+        "RISCV_CXX_RESOLVED": shutil.which(compiler) or "",
+        "RISCV_CXX_SHA256": PINNED_RISCV_CXX_SHA256,
+        "CXXFLAGS_GEM5_RISCV": flags,
+        "INCLUDES": includes,
+        **material_environment(),
+    }
+    assert set(MATERIAL_COMPILER_ENV) <= set(values)
+    path.write_text(
+        "".join(f"{key}={value}\n" for key, value in values.items()))
 
 
 def test_guest_build_atomically_binds_target_dependencies_and_git(tmp_path):
@@ -27,11 +49,13 @@ def test_guest_build_atomically_binds_target_dependencies_and_git(tmp_path):
     source.write_text(
         '#include "reorder_hub.h"\n'
         "int main() { return DBG_AVG_DEGREE == 2 ? 0 : 1; }\n")
-    build_config.write_text("compiler=g++\n")
+    flags = "-O0 -static"
+    includes = f"-I{tmp_path}"
+    write_build_config(build_config, flags, includes)
 
     payload = build_guest(
-        receipt, binary, depfile, "g++", "-O0",
-        f"-I{tmp_path}", source, [], build_config)
+        receipt, binary, depfile, "riscv64-linux-gnu-g++", flags,
+        includes, source, [], build_config, str(binary))
 
     assert payload["schema_version"] == 2
     assert payload["source"] == str(source)
@@ -53,10 +77,11 @@ def test_guest_receipt_cannot_be_copied_to_another_kernel(tmp_path):
     receipt = Path(str(binary) + ".build.json")
     build_config = tmp_path / ".riscv_build_config"
     source.write_text("int main() { return 0; }\n")
-    build_config.write_text("compiler=g++\n")
+    flags = "-O0 -static"
+    write_build_config(build_config, flags, "")
     build_guest(
-        receipt, binary, depfile, "g++", "-O0", "",
-        source, [], build_config)
+        receipt, binary, depfile, "riscv64-linux-gnu-g++", flags, "",
+        source, [], build_config, str(binary))
 
     other_source = tmp_path / "pr.cc"
     other_source.write_text("int main() { return 0; }\n")
@@ -73,6 +98,29 @@ def test_guest_receipt_cannot_be_copied_to_another_kernel(tmp_path):
     assert any("different kernel source" in error for error in errors)
 
 
+def test_validated_guest_is_staged_and_rechecked_per_execution(tmp_path):
+    source = tmp_path / "pr.cc"
+    binary = tmp_path / "pr_riscv_m5ops"
+    depfile = Path(str(binary) + ".d")
+    receipt = Path(str(binary) + ".build.json")
+    build_config = tmp_path / ".riscv_build_config"
+    flags = "-O0 -static"
+    source.write_text("int main() { return 0; }\n")
+    write_build_config(build_config, flags, "")
+    build_guest(
+        receipt, binary, depfile, "riscv64-linux-gnu-g++", flags, "",
+        source, [], build_config, str(binary))
+
+    staged, expected_hash = stage_validated_guest(
+        receipt, binary, source, [], build_config, tmp_path / "staged")
+    verify_staged_guest(staged, expected_hash)
+    os.chmod(staged.parent, 0o700)
+    os.chmod(staged, 0o755)
+    staged.write_bytes(b"swapped")
+    with pytest.raises(ValueError, match="staged guest changed"):
+        verify_staged_guest(staged, expected_hash)
+
+
 def test_riscv_make_rule_models_all_outputs_and_command_signature():
     makefile = (PROJECT_ROOT / "Makefile").read_text()
     assert "_riscv_m5ops.build.json &:" in makefile
@@ -81,6 +129,29 @@ def test_riscv_make_rule_models_all_outputs_and_command_signature():
     assert "--build-config $(GEM5_RISCV_BUILD_CONFIG)" in makefile
     assert "RISCV_CXX_SHA256=" in makefile
     assert ".PRECIOUS: $(RISCV_GUEST_BINARIES)" in makefile
+
+
+def test_wrapper_compiler_and_config_drift_are_rejected(tmp_path):
+    wrapper = tmp_path / "riscv64-linux-gnu-g++"
+    wrapper.write_text("#!/bin/sh\nexec /bin/true \"$@\"\n")
+    wrapper.chmod(0o755)
+    build_config = tmp_path / ".riscv_build_config"
+    write_build_config(build_config, "-O0 -static", "")
+    source = tmp_path / "pr.cc"
+    source.write_text("int main() { return 0; }\n")
+    binary = tmp_path / "pr_riscv_m5ops"
+    with pytest.raises(ValueError, match="pinned RISC-V compiler"):
+        build_guest(
+            Path(str(binary) + ".build.json"), binary,
+            Path(str(binary) + ".d"), str(wrapper), "-O0 -static", "",
+            source, [], build_config, str(binary))
+
+    write_build_config(build_config, "-O2 -static", "")
+    with pytest.raises(ValueError, match="do not match"):
+        build_guest(
+            Path(str(binary) + ".build.json"), binary,
+            Path(str(binary) + ".d"), "riscv64-linux-gnu-g++",
+            "-O0 -static", "", source, [], build_config, str(binary))
 
 
 def test_paper_run_fingerprints_both_backends_and_resolves_gem5(

@@ -49,7 +49,11 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "roi_matrix"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gem5_guest_receipt import validate_receipt as validate_gem5_guest_receipt  # noqa: E402
+from gem5_guest_receipt import (  # noqa: E402
+    stage_validated_guest,
+    validate_receipt as validate_gem5_guest_receipt,
+    verify_staged_guest,
+)
 from policy_specs import PolicySpec, parse_policy_spec  # noqa: E402
 
 _GEM5_OPT = Path(os.environ.get(
@@ -70,6 +74,8 @@ GEM5_RUNTIME_SIDEBAND_FILES = (
     Path(os.environ.get("GEM5_GRAPHBREW_OUT_EDGES", "/tmp/gem5_graphbrew_out_edges.bin")),
     Path(os.environ.get("GEM5_GRAPHBREW_IN_EDGES", "/tmp/gem5_graphbrew_in_edges.bin")),
 )
+VALIDATED_GEM5_GUEST: Path | None = None
+VALIDATED_GEM5_GUEST_SHA256 = ""
 
 
 @functools.lru_cache(maxsize=None)
@@ -964,8 +970,12 @@ def selected_gem5_guest_paths(
     return binary, receipt, source, link_inputs, build_config
 
 
-def validate_selected_gem5_guest(args: argparse.Namespace) -> None:
+def validate_selected_gem5_guest(
+        args: argparse.Namespace, out_dir: Path) -> None:
+    global VALIDATED_GEM5_GUEST, VALIDATED_GEM5_GUEST_SHA256
     if args.suite not in ("gem5", "both") or selected_gem5_isa() != "riscv":
+        VALIDATED_GEM5_GUEST = None
+        VALIDATED_GEM5_GUEST_SHA256 = ""
         return
     binary, receipt, source, link_inputs, build_config = (
         selected_gem5_guest_paths(args.benchmark))
@@ -975,6 +985,14 @@ def validate_selected_gem5_guest(args: argparse.Namespace) -> None:
         raise SystemExit(
             "prebuilt gem5 guest provenance failed:\n  " +
             "\n  ".join(receipt_errors))
+    try:
+        VALIDATED_GEM5_GUEST, VALIDATED_GEM5_GUEST_SHA256 = (
+            stage_validated_guest(
+                receipt, binary, source, link_inputs, build_config,
+                out_dir / ".validated_inputs", PROJECT_ROOT))
+    except ValueError as error:
+        raise SystemExit(
+            f"cannot stage validated gem5 guest: {error}") from error
 
 
 def cache_size_env(size: str, ways: str) -> tuple[str, str]:
@@ -1457,7 +1475,15 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
 
 
 def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size: str) -> list[dict[str, Any]]:
-    binary = PROJECT_ROOT / "bench" / "bin_gem5" / f"{args.benchmark}{GEM5_KERNEL_SUFFIX}"
+    binary = (
+        VALIDATED_GEM5_GUEST
+        if selected_gem5_isa() == "riscv"
+        else PROJECT_ROOT / "bench" / "bin_gem5" /
+        f"{args.benchmark}{GEM5_KERNEL_SUFFIX}")
+    if binary is None:
+        raise RuntimeError("RISC-V gem5 guest was not validated and staged")
+    if selected_gem5_isa() == "riscv":
+        verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     label = f"gem5_{args.benchmark}_{spec.safe_label}_L3{sanitize(l3_size)}"
     gem5_out = out_dir / "gem5" / label
     log_path = out_dir / "logs" / f"{label}.log"
@@ -1684,10 +1710,17 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         env["GEM5_ECG_PFX_LOOKAHEAD"] = effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD")
 
     result = run_command(cmd, PROJECT_ROOT, env, args.timeout_gem5, log_path, args.dry_run)
+    if selected_gem5_isa() == "riscv":
+        verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     if args.dry_run:
         return []
 
     base = base_row("gem5", args, spec, l3_size, charge)
+    if selected_gem5_isa() == "riscv":
+        base.update({
+            "gem5_guest_staged_path": str(binary),
+            "gem5_guest_staged_sha256": VALIDATED_GEM5_GUEST_SHA256,
+        })
     if gem5_ecg_epoch_channel:
         base["gem5_ecg_epoch_channel"] = gem5_ecg_epoch_channel
         base["gem5_ecg_context_id"] = gem5_ecg_context_id
@@ -3497,7 +3530,7 @@ def main(argv: list[str]) -> int:
     if not args.dry_run:
         completion_marker.unlink(missing_ok=True)
     build_targets(args)
-    validate_selected_gem5_guest(args)
+    validate_selected_gem5_guest(args, out_dir)
 
     rows: list[dict[str, Any]] = []
     for l3_size in args.l3_sizes:

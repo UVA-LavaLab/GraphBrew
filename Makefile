@@ -172,7 +172,8 @@ $(BIN_GEM5_DIR)/%_riscv_m5ops.build.json &: \
 		--compiler "$(RISCV_CXX)" --flags "$(CXXFLAGS_GEM5_RISCV)" \
 		--includes "$(INCLUDES)" --source $< \
 		--link-input $(GEM5_M5_RISCV_LIB) \
-		--build-config $(GEM5_RISCV_BUILD_CONFIG)
+		--build-config $(GEM5_RISCV_BUILD_CONFIG) \
+		--make-target $(BIN_GEM5_DIR)/$*_riscv_m5ops
 
 gem5-%: $(BIN_GEM5_DIR)/%
 	@echo "Built gem5 kernel: $<"
