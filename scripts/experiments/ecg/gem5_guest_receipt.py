@@ -53,6 +53,9 @@ PINNED_LIBFUSE_SHA256 = (
 PINNED_FUSERMOUNT = Path("/usr/bin/fusermount3")
 PINNED_FUSERMOUNT_SHA256 = (
     "d278775c1528dd32efc85c2cb322423ee93aa8dcf76aaa595f7022d427910704")
+PINNED_PYTHON = Path("/usr/bin/python3.12")
+PINNED_PYTHON_SHA256 = (
+    "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118")
 MATERIAL_COMPILER_ENV = (
     "PATH",
     "COMPILER_PATH",
@@ -110,7 +113,7 @@ def resolve_compiler(compiler_text: str) -> Path:
 def compiler_component(driver: Path, *arguments: str) -> dict[str, str]:
     output = subprocess.run(
         [str(driver), *arguments], capture_output=True, text=True,
-        check=True).stdout.strip()
+        env=execution_environment(), check=True).stdout.strip()
     path = Path(output)
     if not path.is_absolute():
         candidate = shutil.which(output)
@@ -126,10 +129,10 @@ def compiler_receipt(compiler_text: str) -> dict:
     driver = resolve_compiler(compiler_text)
     version = subprocess.run(
         [str(driver), "--version"], capture_output=True, text=True,
-        check=True).stdout.splitlines()[0]
+        env=execution_environment(), check=True).stdout.splitlines()[0]
     dumpmachine = subprocess.run(
         [str(driver), "-dumpmachine"], capture_output=True, text=True,
-        check=True).stdout.strip()
+        env=execution_environment(), check=True).stdout.strip()
     if dumpmachine != "riscv64-linux-gnu":
         raise ValueError(f"unexpected RISC-V compiler target: {dumpmachine}")
     return {
@@ -170,10 +173,10 @@ def compiler_receipt(compiler_text: str) -> dict:
             driver, "-print-file-name=libpthread.a"),
         "specs_sha256": hashlib.sha256(subprocess.run(
             [str(driver), "-dumpspecs"], capture_output=True,
-            check=True).stdout).hexdigest(),
+            env=execution_environment(), check=True).stdout).hexdigest(),
         "search_dirs_sha256": hashlib.sha256(subprocess.run(
             [str(driver), "-print-search-dirs"], capture_output=True,
-            check=True).stdout).hexdigest(),
+            env=execution_environment(), check=True).stdout).hexdigest(),
     }
 
 
@@ -230,6 +233,8 @@ def parse_build_config(path: Path) -> dict[str, str]:
         "LIBFUSE_SHA256",
         "FUSERMOUNT",
         "FUSERMOUNT_SHA256",
+        "PYTHON",
+        "PYTHON_SHA256",
         *MATERIAL_COMPILER_ENV,
     }
     if set(values) != required:
@@ -264,6 +269,8 @@ def validate_build_config(
         "LIBFUSE_SHA256": PINNED_LIBFUSE_SHA256,
         "FUSERMOUNT": str(PINNED_FUSERMOUNT),
         "FUSERMOUNT_SHA256": PINNED_FUSERMOUNT_SHA256,
+        "PYTHON": str(PINNED_PYTHON),
+        "PYTHON_SHA256": PINNED_PYTHON_SHA256,
         **material_environment(),
     }
     if normalized != expected:
@@ -328,6 +335,15 @@ def require_fuse_tools() -> None:
         if not path.is_file() or sha256(path) != digest:
             raise ValueError(
                 f"pinned immutable snapshot tool is missing or changed: {path}")
+
+
+def require_isolated_python() -> None:
+    executable = Path(sys.executable).resolve()
+    if executable != PINNED_PYTHON or \
+            sha256(executable) != PINNED_PYTHON_SHA256 or \
+            not sys.flags.isolated:
+        raise ValueError(
+            "guest evidence builds require pinned /usr/bin/python3.12 -I")
 
 
 def run_traced_command(
@@ -750,6 +766,7 @@ def build_guest(
         PINNED_FUSEPY,
         PINNED_LIBFUSE,
         PINNED_FUSERMOUNT,
+        PINNED_PYTHON,
         build_config,
         *link_inputs,
     }
@@ -770,7 +787,9 @@ def build_guest(
         scan_command = dependency_scan_command(
             driver, flags, includes, pre_depfile,
             Path(make_target), source)
-        subprocess.run(scan_command, cwd=PROJECT_ROOT, check=True)
+        subprocess.run(
+            scan_command, cwd=PROJECT_ROOT,
+            env=execution_environment(), check=True)
         pre_target_text, pre_target, pre_dependencies = parse_depfile(
             pre_depfile)
         if pre_target_text != make_target or pre_target != binary or \
@@ -868,6 +887,11 @@ def build_guest(
                 "fusepy_sha256": PINNED_FUSEPY_SHA256,
                 "libfuse_sha256": PINNED_LIBFUSE_SHA256,
                 "fusermount_sha256": PINNED_FUSERMOUNT_SHA256,
+            },
+            "builder_runtime": {
+                "python": str(PINNED_PYTHON),
+                "python_sha256": PINNED_PYTHON_SHA256,
+                "isolated": True,
             },
             "traced_inputs": sorted(
                 (
@@ -1001,6 +1025,7 @@ def validate_receipt(
         PINNED_FUSEPY,
         PINNED_LIBFUSE,
         PINNED_FUSERMOUNT,
+        PINNED_PYTHON,
         build_config,
         *link_inputs,
     }
@@ -1024,6 +1049,11 @@ def validate_receipt(
             "libfuse_sha256": PINNED_LIBFUSE_SHA256,
             "fusermount_sha256": PINNED_FUSERMOUNT_SHA256}:
         errors.append("guest snapshot runner does not match pinned proot")
+    if payload.get("builder_runtime") != {
+            "python": str(PINNED_PYTHON),
+            "python_sha256": PINNED_PYTHON_SHA256,
+            "isolated": True}:
+        errors.append("guest builder Python runtime is not pinned")
     traced_rows = payload.get("traced_inputs")
     traced_inputs = set()
     if not isinstance(traced_rows, list) or not traced_rows:
@@ -1183,6 +1213,7 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     if args.action == "build":
         try:
+            require_isolated_python()
             build_guest(
                 args.receipt, args.binary, args.depfile, args.compiler,
                 args.flags, args.includes, args.source, args.link_input,

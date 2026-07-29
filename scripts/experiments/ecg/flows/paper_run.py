@@ -46,6 +46,9 @@ PROOF_MATRIX = ECG_DIR / "flows" / "proof_matrix.py"
 DEFAULT_MANIFEST = ECG_DIR / "final_paper_manifest.json"
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "final_paper_runs"
 DEFAULT_LOCK = Path(os.environ.get("GRAPHBREW_FINAL_RUN_LOCK", "/tmp/graphbrew_final_paper_run.lock"))
+PINNED_PYTHON = Path("/usr/bin/python3.12")
+PINNED_PYTHON_SHA256 = (
+    "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118")
 ROI_RUNTIME_METADATA_ENV = frozenset({
     "GRAPHBREW_MATRIX_CONFIG_HASH",
     "GRAPHBREW_MATRIX_GROUP_HASH",
@@ -409,7 +412,7 @@ def make_proof_job(args: argparse.Namespace, run_dir: Path, settings: dict[str, 
     out_dir = run_dir / "matrices" / str(settings.get("out_subdir", settings["name"]))
     log_path = run_dir / "logs" / f"{sanitize(settings['name'])}.log"
     command = [
-        sys.executable,
+        str(PINNED_PYTHON), "-I",
         str(PROOF_MATRIX),
         "--benchmarks", *settings.get("benchmarks", ["pr", "bfs", "sssp"]),
         "--l1d-size", str(settings["l1d_size"]),
@@ -514,7 +517,7 @@ def make_roi_job(
         job_id = sanitize(f"{job_id}_{'_'.join(policies)}")
     log_path = run_dir / "logs" / f"{job_id}.log"
     command = [
-        sys.executable,
+        str(PINNED_PYTHON), "-I",
         str(ROI_MATRIX),
         "--suite", str(settings["suite"]),
         "--benchmark", benchmark,
@@ -652,6 +655,9 @@ def make_roi_job(
     inputs = roi_input_fingerprints(
         args, settings, graph_path, benchmark, material_env)
     expected_gem5_guest_sha256 = ""
+    expected_gem5_opt_sha256 = ""
+    expected_gem5_config_sha256 = ""
+    expected_graph_sha256 = ""
     if (str(settings.get("suite")) in ("gem5", "both") and
             material_env.get("GEM5_KERNEL_SUFFIX") == "_riscv_m5ops"):
         expected_gem5_guest_sha256 = str(
@@ -662,6 +668,19 @@ def make_roi_job(
         command.extend([
             "--expected-gem5-guest-sha256",
             expected_gem5_guest_sha256,
+        ])
+        expected_gem5_opt_sha256 = str(inputs.get("gem5_binary", ""))
+        expected_gem5_config_sha256 = str(inputs.get("gem5_config", ""))
+        expected_graph_sha256 = str(inputs.get("graph", ""))
+        if any(value in ("", "missing") for value in (
+                expected_gem5_opt_sha256,
+                expected_gem5_config_sha256,
+                expected_graph_sha256)):
+            raise SystemExit("paper-run gem5 runtime input hash is missing")
+        command.extend([
+            "--expected-gem5-opt-sha256", expected_gem5_opt_sha256,
+            "--expected-gem5-config-sha256", expected_gem5_config_sha256,
+            "--expected-graph-sha256", expected_graph_sha256,
         ])
     config_hash = hashlib.sha256(json.dumps(
         {"command": command, "env": material_env, "inputs": inputs},
@@ -726,6 +745,9 @@ def make_roi_job(
             "comparison_config_hash": comparison_config_hash,
             "input_fingerprints": inputs,
             "expected_gem5_guest_sha256": expected_gem5_guest_sha256,
+            "expected_gem5_opt_sha256": expected_gem5_opt_sha256,
+            "expected_gem5_config_sha256": expected_gem5_config_sha256,
+            "expected_graph_sha256": expected_graph_sha256,
             "prefetcher": settings.get("prefetcher", "none"),
             # Sprint 6f-7 / HPCA mode 6: record env knobs for reproducibility.
             # Stage env vars (e.g. ECG_EDGE_MASK_CHARGED, _AMPLIFY, _LOOKAHEAD)
@@ -941,6 +963,22 @@ def print_run_status(run_dir: Path) -> int:
 
 def command_text(command: list[str]) -> str:
     return " ".join(shlex.quote(part) for part in command)
+
+
+def clean_job_environment(extra: dict[str, str]) -> dict[str, str]:
+    safe_extra = {
+        key: value for key, value in extra.items()
+        if not key.startswith((
+            "LD_", "PROOT_", "PYTHON", "FUSE_"))
+    }
+    return {
+        "PATH": "/usr/bin:/bin",
+        "HOME": os.environ.get("HOME", "/tmp"),
+        "TMPDIR": "/tmp",
+        "LC_ALL": "C",
+        "LANG": "C",
+        **safe_extra,
+    }
 
 
 def roi_comparison_config_hash(
@@ -1218,6 +1256,7 @@ def validate_cross_job_guest_hashes(
     if len(expected) != 1:
         return False, f"multiple expected gem5 guest hashes: {sorted(expected)}"
     expected_hash = next(iter(expected))
+    gem5_rows = 0
     for job in relevant:
         if not job.output_csv.exists():
             return False, f"missing guest-hash output: {job.output_csv}"
@@ -1226,6 +1265,9 @@ def validate_cross_job_guest_hashes(
         if not rows:
             return False, f"empty guest-hash output: {job.output_csv}"
         for row in rows:
+            if str(row.get("simulator", "")) != "gem5":
+                continue
+            gem5_rows += 1
             staged = str(row.get("gem5_guest_staged_sha256", ""))
             row_expected = str(row.get("gem5_guest_expected_sha256", ""))
             if staged != expected_hash or row_expected != expected_hash:
@@ -1233,6 +1275,8 @@ def validate_cross_job_guest_hashes(
                     f"gem5 guest hash mismatch in {job.output_csv}: "
                     f"expected={expected_hash} row={row_expected} "
                     f"staged={staged}")
+    if gem5_rows == 0:
+        return False, "guest-hash jobs contain no gem5 rows"
     return True, expected_hash
 
 
@@ -1386,7 +1430,7 @@ def run_job(job: Job, run_dir: Path, args: argparse.Namespace) -> int:
         process = subprocess.Popen(
             job.command,
             cwd=str(PROJECT_ROOT),
-            env={**os.environ, **job.env} if job.env else None,
+            env=clean_job_environment(job.env),
             stdout=log,
             stderr=subprocess.STDOUT,
             text=True,
@@ -1516,6 +1560,13 @@ def main(argv: list[str]) -> int:
     if args.list:
         print_job_list(jobs)
         return 0
+
+    if not args.dry_run and (
+            Path(sys.executable).resolve() != PINNED_PYTHON or
+            path_fingerprint(str(PINNED_PYTHON)) != PINNED_PYTHON_SHA256 or
+            not sys.flags.isolated):
+        raise SystemExit(
+            "final paper runs require /usr/bin/python3.12 -I")
 
     if not args.dry_run:
         for name in (

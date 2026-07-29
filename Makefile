@@ -123,6 +123,9 @@ GEM5_GUEST_LIBFUSE_SHA256 := $(shell test -f "$(GEM5_GUEST_LIBFUSE)" && \
 GEM5_GUEST_FUSERMOUNT := /usr/bin/fusermount3
 GEM5_GUEST_FUSERMOUNT_SHA256 := $(shell \
 	sha256sum "$(GEM5_GUEST_FUSERMOUNT)" 2>/dev/null | cut -d' ' -f1)
+GEM5_GUEST_PYTHON := /usr/bin/python3.12
+GEM5_GUEST_PYTHON_SHA256 := $(shell \
+	sha256sum "$(GEM5_GUEST_PYTHON)" 2>/dev/null | cut -d' ' -f1)
 RISCV_CXX_RESOLVED := $(shell command -v $(RISCV_CXX) 2>/dev/null)
 RISCV_CXX_SHA256 := $(shell test -f "$(RISCV_CXX_RESOLVED)" && \
 	sha256sum "$(RISCV_CXX_RESOLVED)" | cut -d' ' -f1)
@@ -163,6 +166,8 @@ $(GEM5_RISCV_BUILD_CONFIG): FORCE_GEM5_RISCV_CONFIG | $(BIN_GEM5_DIR)
 		printf '%s\n' "LIBFUSE_SHA256=$(GEM5_GUEST_LIBFUSE_SHA256)"; \
 		printf '%s\n' "FUSERMOUNT=$(GEM5_GUEST_FUSERMOUNT)"; \
 		printf '%s\n' "FUSERMOUNT_SHA256=$(GEM5_GUEST_FUSERMOUNT_SHA256)"; \
+		printf '%s\n' "PYTHON=$(GEM5_GUEST_PYTHON)"; \
+		printf '%s\n' "PYTHON_SHA256=$(GEM5_GUEST_PYTHON_SHA256)"; \
 		printf '%s\n' "PATH=/usr/bin:/bin"; \
 		printf '%s\n' "COMPILER_PATH="; \
 		printf '%s\n' "GCC_EXEC_PREFIX="; \
@@ -204,7 +209,7 @@ $(BIN_GEM5_DIR)/%_riscv_m5ops.build.json &: \
 	$(GEM5_GUEST_FUSERMOUNT) \
 	$(GEM5_RISCV_BUILD_CONFIG) Makefile | \
 	$(BIN_GEM5_DIR)
-	$(PYTHON) $(GEM5_GUEST_RECEIPT) build \
+	$(GEM5_GUEST_PYTHON) -I $(GEM5_GUEST_RECEIPT) build \
 		--receipt $(BIN_GEM5_DIR)/$*_riscv_m5ops.build.json \
 		--binary $(BIN_GEM5_DIR)/$*_riscv_m5ops \
 		--depfile $(BIN_GEM5_DIR)/$*_riscv_m5ops.d \

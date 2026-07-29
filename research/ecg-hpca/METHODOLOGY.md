@@ -252,11 +252,13 @@ binary, depfile, and receipt. It binds target and source identity, the
 machine-readable Make configuration, pinned cross-compiler toolchain, linked m5
 library, every compiler/linker-opened input, and the guest hash. The final
 compiler pass runs against an in-memory read-only FUSE snapshot of the captured
-inputs. The runner then stages a validated content-addressed guest, seals it in
-an inherited memfd, and passes `/proc/self/fd/<n>` to gem5. Independent source
-and binary hashes are insufficient: they do not prove that the binary was
-produced from those bytes or that the validated pathname still names the
-executed bytes.
+inputs. PRoot/FUSE code and PRoot's dynamic runtime are hash-pinned and loaded
+from verified bytes or sealed descriptors; build and run subprocesses use an
+allowlisted environment. The runner then stages a validated content-addressed
+guest, seals it in an inherited memfd, and passes `/proc/self/fd/<n>` to gem5.
+Independent source and binary hashes are insufficient: they do not prove that
+the binary was produced from those bytes or that the validated pathname still
+names the executed bytes.
 
 ## External P-OPT artifact-direction gate
 

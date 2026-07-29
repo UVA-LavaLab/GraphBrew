@@ -29,6 +29,7 @@ from paper_run import recover_roi_comparison_config_hash  # noqa: E402
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 ECG_DIR = PROJECT_ROOT / "scripts" / "experiments" / "ecg"
 FINAL_RUN = ECG_DIR / "flows" / "paper_run.py"
+PINNED_PYTHON = Path("/usr/bin/python3.12")
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "paper_pipeline"
 PAPER_CHARTS_DIR = PROJECT_ROOT / "paper" / "dataCharts" / "ecg"
 
@@ -413,7 +414,9 @@ def compare_key(row: dict[str, Any]) -> tuple[Any, ...]:
 
 def run_profile(args: argparse.Namespace, run_root: Path, profile: str) -> Path:
     run_dir = run_root / profile
-    command = [sys.executable, str(FINAL_RUN), "--profile", profile, "--run-dir", str(run_dir)]
+    command = [
+        str(PINNED_PYTHON), "-I", str(FINAL_RUN),
+        "--profile", profile, "--run-dir", str(run_dir)]
     if args.dry_run:
         command.append("--dry-run")
     if args.no_build:

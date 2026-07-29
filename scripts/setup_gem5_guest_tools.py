@@ -47,6 +47,20 @@ PACKAGES = {
 FUSERMOUNT = Path("/usr/bin/fusermount3")
 FUSERMOUNT_SHA256 = (
     "d278775c1528dd32efc85c2cb322423ee93aa8dcf76aaa595f7022d427910704")
+HOST_FILES = {
+    Path("/usr/bin/fusermount3"):
+        FUSERMOUNT_SHA256,
+    Path("/usr/bin/strace"):
+        "28f957c227012de0b18d1bd7fff2d396cb693ea60ed8013be68de071e84b5001",
+    Path("/usr/bin/python3.12"):
+        "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+    Path("/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"):
+        "cd4df4f3c7b83673d61189bf2eaebd33ca4f2853ab9772b8a25e025ef99b1e81",
+    Path("/usr/lib/x86_64-linux-gnu/libc.so.6"):
+        "8db37cf3f2169f59a0f07ef1fea308c35656668c64c8ff294e1860f4121eb161",
+    Path("/usr/lib/x86_64-linux-gnu/libtalloc.so.2"):
+        "5e4fb8691231a2431f5126f79c884bdc0678ef08b2c3d5f9c5017365589dbf4b",
+}
 
 
 def sha256(path: Path) -> str:
@@ -65,8 +79,9 @@ def verify(out_dir: Path) -> list[str]:
             errors.append(f"{package} target is missing: {path}")
         elif sha256(path) != values["target_sha256"]:
             errors.append(f"{package} target hash mismatch: {path}")
-    if not FUSERMOUNT.is_file() or sha256(FUSERMOUNT) != FUSERMOUNT_SHA256:
-        errors.append("fusermount3 is missing or changed")
+    for path, digest in HOST_FILES.items():
+        if not path.is_file() or sha256(path) != digest:
+            errors.append(f"pinned host runtime is missing or changed: {path}")
     return errors
 
 

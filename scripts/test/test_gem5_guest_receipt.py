@@ -19,6 +19,8 @@ from scripts.experiments.ecg.gem5_guest_receipt import (
     PINNED_FUSEPY_SHA256,
     PINNED_LIBFUSE,
     PINNED_LIBFUSE_SHA256,
+    PINNED_PYTHON,
+    PINNED_PYTHON_SHA256,
     PINNED_PROOT,
     PINNED_PROOT_LIBC,
     PINNED_PROOT_LIBC_SHA256,
@@ -63,6 +65,8 @@ def write_build_config(
         "LIBFUSE_SHA256": PINNED_LIBFUSE_SHA256,
         "FUSERMOUNT": str(PINNED_FUSERMOUNT),
         "FUSERMOUNT_SHA256": PINNED_FUSERMOUNT_SHA256,
+        "PYTHON": str(PINNED_PYTHON),
+        "PYTHON_SHA256": PINNED_PYTHON_SHA256,
         **material_environment(),
     }
     assert set(MATERIAL_COMPILER_ENV) <= set(values)
@@ -349,9 +353,9 @@ def test_paper_run_requires_one_guest_hash_across_jobs(tmp_path):
         out_dir = tmp_path / f"job-{index}"
         out_dir.mkdir()
         (out_dir / "roi_matrix.csv").write_text(
-            "status,gem5_guest_expected_sha256,"
+            "status,simulator,gem5_guest_expected_sha256,"
             "gem5_guest_staged_sha256\n"
-            "ok,abc,abc\n")
+            "ok,gem5,abc,abc\n")
         jobs.append(paper_run.Job(
             job_id=f"job-{index}", stage=f"stage-{index}",
             kind="roi_matrix", command=[], out_dir=out_dir,
@@ -360,12 +364,28 @@ def test_paper_run_requires_one_guest_hash_across_jobs(tmp_path):
     assert paper_run.validate_cross_job_guest_hashes(jobs) == (
         True, "abc")
     (jobs[1].output_csv).write_text(
-        "status,gem5_guest_expected_sha256,"
+        "status,simulator,gem5_guest_expected_sha256,"
         "gem5_guest_staged_sha256\n"
-        "ok,abc,changed\n")
+        "ok,gem5,abc,changed\n")
     ok, detail = paper_run.validate_cross_job_guest_hashes(jobs)
     assert not ok
     assert "guest hash mismatch" in detail
+
+
+def test_paper_and_roi_environments_strip_code_injection():
+    clean = paper_run.clean_job_environment({
+        "LD_PRELOAD": "/bad.so",
+        "PROOT_LOADER": "/bin/false",
+        "PYTHONPATH": "/bad",
+        "FUSE_LIBRARY_PATH": "/bad.so",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+    })
+    assert "LD_PRELOAD" not in clean
+    assert "PROOT_LOADER" not in clean
+    assert "PYTHONPATH" not in clean
+    assert "FUSE_LIBRARY_PATH" not in clean
+    assert clean["GEM5_KERNEL_SUFFIX"] == "_riscv_m5ops"
+    assert clean["PATH"] == "/usr/bin:/bin"
 
 
 def test_inconsistent_gem5_isa_overrides_fail_closed():

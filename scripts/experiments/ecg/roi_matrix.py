@@ -23,6 +23,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import csv
 import functools
 import hashlib
@@ -50,6 +51,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "roi_matrix"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gem5_guest_receipt import (  # noqa: E402
+    immutable_fuse_files,
     open_sealed_guest,
     stage_validated_guest,
     validate_receipt as validate_gem5_guest_receipt,
@@ -647,6 +649,23 @@ def now_tag() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
+def sanitize_subprocess_environment(
+        env: dict[str, str] | None) -> dict[str, str]:
+    clean = dict(env or {})
+    for key in list(clean):
+        if key.startswith((
+                "LD_", "PROOT_", "PYTHON", "FUSE_")):
+            clean.pop(key, None)
+    clean.update({
+        "PATH": "/usr/bin:/bin",
+        "HOME": os.environ.get("HOME", "/tmp"),
+        "TMPDIR": "/tmp",
+        "LC_ALL": "C",
+        "LANG": "C",
+    })
+    return clean
+
+
 def run_command(
     cmd: list[str],
     cwd: Path,
@@ -671,7 +690,7 @@ def run_command(
         process = subprocess.Popen(
             cmd,
             cwd=str(cwd),
-            env=env,
+            env=sanitize_subprocess_environment(env),
             stdout=out,
             stderr=subprocess.STDOUT,
             text=True,
@@ -1001,6 +1020,37 @@ def validate_selected_gem5_guest(
         raise SystemExit(
             "validated gem5 guest does not match paper-run expected hash: "
             f"{VALIDATED_GEM5_GUEST_SHA256} != {expected}")
+
+
+def graph_path_from_options(options: str) -> Path | None:
+    parts = shlex.split(options)
+    if "-f" not in parts:
+        return None
+    index = parts.index("-f")
+    if index + 1 >= len(parts):
+        return None
+    path = Path(parts[index + 1])
+    return path if path.is_absolute() else (PROJECT_ROOT / path).resolve()
+
+
+def validate_expected_gem5_inputs(args: argparse.Namespace) -> None:
+    if args.suite not in ("gem5", "both"):
+        return
+    checks = [
+        ("gem5 executable", GEM5_OPT, args.expected_gem5_opt_sha256),
+        (
+            "gem5 config tree", GEM5_CONFIG.parent,
+            args.expected_gem5_config_sha256),
+    ]
+    graph = graph_path_from_options(args.options)
+    if graph is not None:
+        checks.append(("graph input", graph, args.expected_graph_sha256))
+    for label, path, expected in checks:
+        actual = hash_input_path(path)
+        if expected and actual != expected:
+            raise SystemExit(
+                f"{label} does not match paper-run expected hash: "
+                f"{actual} != {expected}")
 
 
 def cache_size_env(size: str, ways: str) -> tuple[str, str]:
@@ -1717,21 +1767,53 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         env["GEM5_ENABLE_ECG_PFX_HINTS"] = "1"
         env["GEM5_ECG_PFX_LOOKAHEAD"] = effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD")
 
-    guest_fd = None
-    pass_fds: tuple[int, ...] = ()
-    if selected_gem5_isa() == "riscv" and not args.dry_run:
-        verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
-        guest_fd, sealed_path = open_sealed_guest(
-            binary, VALIDATED_GEM5_GUEST_SHA256)
-        cmd[cmd.index("--binary") + 1] = sealed_path
-        pass_fds = (guest_fd,)
-    try:
+    pass_fds: list[int] = []
+    with ExitStack() as runtime:
+        if not args.dry_run:
+            gem5_hash = (
+                args.expected_gem5_opt_sha256 or hash_input_path(GEM5_OPT))
+            gem5_fd, sealed_gem5 = open_sealed_guest(GEM5_OPT, gem5_hash)
+            runtime.callback(os.close, gem5_fd)
+            pass_fds.append(gem5_fd)
+            cmd[0] = sealed_gem5
+
+            if selected_gem5_isa() == "riscv":
+                verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
+                guest_fd, sealed_guest = open_sealed_guest(
+                    binary, VALIDATED_GEM5_GUEST_SHA256)
+                runtime.callback(os.close, guest_fd)
+                pass_fds.append(guest_fd)
+                cmd[cmd.index("--binary") + 1] = sealed_guest
+
+            graph = graph_path_from_options(args.options)
+            if graph is not None:
+                graph_hash = (
+                    args.expected_graph_sha256 or hash_input_path(graph))
+                graph_fd, sealed_graph = open_sealed_guest(graph, graph_hash)
+                runtime.callback(os.close, graph_fd)
+                pass_fds.append(graph_fd)
+                options = shlex.split(args.options)
+                options[options.index("-f") + 1] = sealed_graph
+                cmd[cmd.index("--options") + 1] = shlex.join(options)
+
+            config_hash = (
+                args.expected_gem5_config_sha256 or
+                hash_input_path(GEM5_CONFIG.parent))
+            config_files = {}
+            for path in sorted(GEM5_CONFIG.parent.glob("*.py")):
+                data = path.read_bytes()
+                config_files[path.name] = (data, 0o444)
+            if hash_input_path(GEM5_CONFIG.parent) != config_hash:
+                raise RuntimeError("gem5 config changed while sealing inputs")
+            config_mount = out_dir / (
+                f".gem5-config-{config_hash}")
+            runtime.enter_context(
+                immutable_fuse_files(config_files, config_mount))
+            cmd[2] = str(config_mount / GEM5_CONFIG.name)
+
         result = run_command(
             cmd, PROJECT_ROOT, env, args.timeout_gem5, log_path,
-            args.dry_run, pass_fds)
-    finally:
-        if guest_fd is not None:
-            os.close(guest_fd)
+            args.dry_run, tuple(pass_fds))
     if selected_gem5_isa() == "riscv":
         verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     if args.dry_run:
@@ -1745,6 +1827,12 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "gem5_guest_expected_sha256":
                 str(args.expected_gem5_guest_sha256),
         })
+    base.update({
+        "gem5_opt_expected_sha256": str(args.expected_gem5_opt_sha256),
+        "gem5_config_expected_sha256":
+            str(args.expected_gem5_config_sha256),
+        "graph_expected_sha256": str(args.expected_graph_sha256),
+    })
     if gem5_ecg_epoch_channel:
         base["gem5_ecg_epoch_channel"] = gem5_ecg_epoch_channel
         base["gem5_ecg_context_id"] = gem5_ecg_context_id
@@ -3387,6 +3475,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--expected-gem5-guest-sha256", default="",
         help="Require the staged RISC-V guest to match this paper-run hash.")
+    parser.add_argument("--expected-gem5-opt-sha256", default="")
+    parser.add_argument("--expected-gem5-config-sha256", default="")
+    parser.add_argument("--expected-graph-sha256", default="")
     parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=0,
                         help="ECG_STORED_REFRESH: re-stamp a resident LLC line's next-ref "
                              "epoch from the per-edge hint on EVERY access, INCLUDING L1/L2 "
@@ -3558,6 +3649,7 @@ def main(argv: list[str]) -> int:
         completion_marker.unlink(missing_ok=True)
     build_targets(args)
     validate_selected_gem5_guest(args, out_dir)
+    validate_expected_gem5_inputs(args)
 
     rows: list[dict[str, Any]] = []
     for l3_size in args.l3_sizes:
