@@ -4,17 +4,23 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import errno
 import fcntl
 import hashlib
+import importlib.util
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Iterable
 
 
@@ -25,6 +31,18 @@ PINNED_RISCV_CXX_SHA256 = (
 PINNED_STRACE = Path("/usr/bin/strace")
 PINNED_STRACE_SHA256 = (
     "28f957c227012de0b18d1bd7fff2d396cb693ea60ed8013be68de071e84b5001")
+PINNED_PROOT = PROJECT_ROOT / "bench/include/gem5_sim/.tools/proot"
+PINNED_PROOT_SHA256 = (
+    "9f6fc9a29f9338aee2df61d16f84fb498d0c1c541c4e52bd648843108790853b")
+PINNED_FUSEPY = PROJECT_ROOT / "bench/include/gem5_sim/.tools/fusepy.py"
+PINNED_FUSEPY_SHA256 = (
+    "7a7b60998bd459d5bbe6fcd8d4886fa4d3784d58bd8209db4f83ebee7299af87")
+PINNED_LIBFUSE = PROJECT_ROOT / "bench/include/gem5_sim/.tools/libfuse.so.2"
+PINNED_LIBFUSE_SHA256 = (
+    "654ae57bdd98c3c85e7a592e4f73cc59dc19a12d545bce77a57b0c4e7af8f394")
+PINNED_FUSERMOUNT = Path("/usr/bin/fusermount3")
+PINNED_FUSERMOUNT_SHA256 = (
+    "d278775c1528dd32efc85c2cb322423ee93aa8dcf76aaa595f7022d427910704")
 MATERIAL_COMPILER_ENV = (
     "PATH",
     "COMPILER_PATH",
@@ -171,6 +189,14 @@ def parse_build_config(path: Path) -> dict[str, str]:
         "RISCV_CXX_SHA256",
         "CXXFLAGS_GEM5_RISCV",
         "INCLUDES",
+        "PROOT",
+        "PROOT_SHA256",
+        "FUSEPY",
+        "FUSEPY_SHA256",
+        "LIBFUSE",
+        "LIBFUSE_SHA256",
+        "FUSERMOUNT",
+        "FUSERMOUNT_SHA256",
         *MATERIAL_COMPILER_ENV,
     }
     if set(values) != required:
@@ -191,6 +217,14 @@ def validate_build_config(
         "RISCV_CXX_SHA256": sha256(driver),
         "CXXFLAGS_GEM5_RISCV": flags,
         "INCLUDES": includes,
+        "PROOT": str(PINNED_PROOT),
+        "PROOT_SHA256": PINNED_PROOT_SHA256,
+        "FUSEPY": str(PINNED_FUSEPY),
+        "FUSEPY_SHA256": PINNED_FUSEPY_SHA256,
+        "LIBFUSE": str(PINNED_LIBFUSE),
+        "LIBFUSE_SHA256": PINNED_LIBFUSE_SHA256,
+        "FUSERMOUNT": str(PINNED_FUSERMOUNT),
+        "FUSERMOUNT_SHA256": PINNED_FUSERMOUNT_SHA256,
         **material_environment(),
     }
     if normalized != expected:
@@ -205,6 +239,25 @@ def require_trace_tool() -> Path:
             sha256(PINNED_STRACE) != PINNED_STRACE_SHA256:
         raise ValueError("pinned strace build tracer is missing or changed")
     return PINNED_STRACE
+
+
+def require_proot() -> Path:
+    if not PINNED_PROOT.is_file() or \
+            sha256(PINNED_PROOT) != PINNED_PROOT_SHA256:
+        raise ValueError("pinned proot snapshot runner is missing or changed")
+    return PINNED_PROOT
+
+
+def require_fuse_tools() -> None:
+    expected = {
+        PINNED_FUSEPY: PINNED_FUSEPY_SHA256,
+        PINNED_LIBFUSE: PINNED_LIBFUSE_SHA256,
+        PINNED_FUSERMOUNT: PINNED_FUSERMOUNT_SHA256,
+    }
+    for path, digest in expected.items():
+        if not path.is_file() or sha256(path) != digest:
+            raise ValueError(
+                f"pinned immutable snapshot tool is missing or changed: {path}")
 
 
 def run_traced_command(
@@ -225,8 +278,8 @@ def decode_trace_path(value: str) -> str:
 
 def traced_input_paths(
         trace_path: Path, excluded_root: Path,
-        root: Path = PROJECT_ROOT) -> set[Path]:
-    paths = set()
+        root: Path = PROJECT_ROOT) -> dict[Path, Path]:
+    paths = {}
     quoted = re.compile(r'"((?:\\.|[^"\\])*)"')
     relative_at = re.compile(
         r'(?:openat|newfstatat)\([^<]*<([^>]+)>[^,]*,\s*'
@@ -244,15 +297,233 @@ def traced_input_paths(
             path = Path(decode_trace_path(match.group(1)))
             if not path.is_absolute():
                 path = root / path
-        path = path.resolve()
+        virtual_path = path.absolute()
+        source_path = virtual_path.resolve()
         try:
-            path.relative_to(excluded_root)
+            source_path.relative_to(excluded_root)
             continue
         except ValueError:
             pass
-        if path.is_file():
-            paths.add(path)
+        if source_path.is_file():
+            paths[virtual_path] = source_path
     return paths
+
+
+def executable_interpreter_path(path: Path) -> Path | None:
+    data = path.read_bytes()
+    if data.startswith(b"#!"):
+        first_line = data.splitlines()[0][2:].decode(
+            errors="ignore").strip()
+        if not first_line:
+            return None
+        return Path(shlex.split(first_line)[0])
+    if len(data) < 64 or data[:4] != b"\x7fELF":
+        return None
+    byteorder = "little" if data[5] == 1 else "big"
+    if data[4] == 2:
+        phoff = int.from_bytes(data[32:40], byteorder)
+        phentsize = int.from_bytes(data[54:56], byteorder)
+        phnum = int.from_bytes(data[56:58], byteorder)
+        offset_field, offset_size = 8, 8
+        filesz_field, filesz_size = 32, 8
+    elif data[4] == 1:
+        phoff = int.from_bytes(data[28:32], byteorder)
+        phentsize = int.from_bytes(data[42:44], byteorder)
+        phnum = int.from_bytes(data[44:46], byteorder)
+        offset_field, offset_size = 4, 4
+        filesz_field, filesz_size = 16, 4
+    else:
+        return None
+    for index in range(phnum):
+        start = phoff + index * phentsize
+        header = data[start:start + phentsize]
+        if len(header) < phentsize or \
+                int.from_bytes(header[:4], byteorder) != 3:
+            continue
+        offset = int.from_bytes(
+            header[offset_field:offset_field + offset_size], byteorder)
+        size = int.from_bytes(
+            header[filesz_field:filesz_field + filesz_size], byteorder)
+        interpreter = Path(
+            data[offset:offset + size].rstrip(b"\0").decode())
+        return interpreter
+    return None
+
+
+def expand_interpreter_inputs(
+        paths: dict[Path, Path]) -> dict[Path, Path]:
+    expanded = dict(paths)
+    for source in set(paths.values()):
+        interpreter = executable_interpreter_path(source)
+        if interpreter is not None and interpreter.is_file():
+            expanded[interpreter] = interpreter.resolve()
+    return expanded
+
+
+def snapshot_path(root: Path, virtual_path: Path) -> Path:
+    if not virtual_path.is_absolute():
+        raise ValueError(f"snapshot path must be absolute: {virtual_path}")
+    return root / virtual_path.relative_to("/")
+
+
+def add_snapshot_symlinks(
+        snapshot_root: Path, input_paths: Iterable[Path]) -> None:
+    for alias, target in (
+            (Path("/bin"), Path("/usr/bin")),
+            (Path("/sbin"), Path("/usr/sbin")),
+            (Path("/lib"), Path("/usr/lib"))):
+        destination = snapshot_path(snapshot_root, alias)
+        if not destination.exists() and not destination.is_symlink():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.symlink_to(target)
+    for executable in input_paths:
+        interpreter = executable_interpreter_path(executable)
+        if interpreter is None or not interpreter.is_absolute():
+            continue
+        resolved = interpreter.resolve()
+        if resolved == interpreter:
+            continue
+        destination = snapshot_path(snapshot_root, interpreter)
+        if destination.exists() or destination.is_symlink():
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.symlink_to(resolved)
+
+
+def serve_immutable_fuse(
+        mountpoint: str, files: dict[str, tuple[bytes, int]]) -> None:
+    os.environ["FUSE_LIBRARY_PATH"] = str(PINNED_LIBFUSE)
+    spec = importlib.util.spec_from_file_location(
+        "graphbrew_fusepy", PINNED_FUSEPY)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load pinned fusepy")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class ImmutableFiles(module.Operations):
+        def getattr(self, path, fh=None):
+            if path == "/":
+                return {
+                    "st_mode": stat.S_IFDIR | 0o555,
+                    "st_nlink": 2,
+                }
+            name = path.removeprefix("/")
+            if name not in files:
+                raise module.FuseOSError(errno.ENOENT)
+            data, mode = files[name]
+            return {
+                "st_mode": stat.S_IFREG | mode,
+                "st_nlink": 1,
+                "st_size": len(data),
+            }
+
+        def readdir(self, path, fh):
+            return [".", "..", *sorted(files)]
+
+        def open(self, path, flags):
+            if flags & (os.O_WRONLY | os.O_RDWR):
+                raise module.FuseOSError(errno.EROFS)
+            if path.removeprefix("/") not in files:
+                raise module.FuseOSError(errno.ENOENT)
+            return 0
+
+        def read(self, path, size, offset, fh):
+            data = files[path.removeprefix("/")][0]
+            return data[offset:offset + size]
+
+        def access(self, path, mode):
+            if mode & os.W_OK:
+                raise module.FuseOSError(errno.EROFS)
+            if path != "/" and path.removeprefix("/") not in files:
+                raise module.FuseOSError(errno.ENOENT)
+            return 0
+
+    module.FUSE(
+        ImmutableFiles(), mountpoint,
+        foreground=True, nothreads=True, ro=True,
+        fsname="graphbrew-immutable-build")
+
+
+@contextmanager
+def immutable_fuse_files(
+        files: dict[str, tuple[bytes, int]], mountpoint: Path):
+    require_fuse_tools()
+    mountpoint.mkdir(parents=True, exist_ok=True)
+    process = multiprocessing.get_context("fork").Process(
+        target=serve_immutable_fuse,
+        args=(str(mountpoint), files),
+        daemon=True)
+    process.start()
+    for _ in range(100):
+        if os.path.ismount(mountpoint):
+            break
+        if not process.is_alive():
+            raise ValueError("immutable FUSE snapshot process exited")
+        time.sleep(0.05)
+    else:
+        process.terminate()
+        process.join(5)
+        raise ValueError("immutable FUSE snapshot did not mount")
+    try:
+        yield
+    finally:
+        subprocess.run(
+            [str(PINNED_FUSERMOUNT), "-u", str(mountpoint)],
+            capture_output=True, check=False)
+        process.join(5)
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+
+
+def run_sealed_snapshot_compile(
+        command: list[str],
+        input_bindings: dict[Path, tuple[Path, str]],
+        snapshot_root: Path, workdir: Path,
+        output_paths: list[Path]) -> list[Path]:
+    proot = require_proot()
+    mountpoint = snapshot_root.parent / "immutable-inputs"
+    immutable_files = {}
+    bindings = []
+    for index, (virtual_path, (source, expected_hash)) in enumerate(sorted(
+            (
+                (virtual.absolute(), (source.resolve(), digest))
+                for virtual, (source, digest) in input_bindings.items()
+            ),
+            key=lambda item: str(item[0]))):
+        data = source.read_bytes()
+        if hashlib.sha256(data).hexdigest() != expected_hash or \
+                sha256(source) != expected_hash:
+            raise ValueError(
+                f"input changed while creating immutable snapshot: {source}")
+        name = f"{index:06d}"
+        mode = 0o555 if source.stat().st_mode & 0o111 else 0o444
+        immutable_files[name] = (data, mode)
+        destination = snapshot_path(snapshot_root, virtual_path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.touch()
+        bindings.extend(["-b", f"{mountpoint / name}:{virtual_path}"])
+    for output in output_paths:
+        snapshot_path(snapshot_root, output).parent.mkdir(
+            parents=True, exist_ok=True)
+    snapshot_path(snapshot_root, workdir).mkdir(
+        parents=True, exist_ok=True)
+    (snapshot_root / "tmp").mkdir(parents=True, exist_ok=True)
+    (snapshot_root / "dev").mkdir(parents=True, exist_ok=True)
+    add_snapshot_symlinks(
+        snapshot_root, (source for source, _digest in input_bindings.values()))
+    for device in ("/dev/null", "/dev/zero", "/dev/urandom"):
+        snapshot_path(snapshot_root, Path(device)).touch()
+        bindings.extend(["-b", f"{device}:{device}"])
+    with immutable_fuse_files(immutable_files, mountpoint):
+        env = dict(os.environ, TMPDIR="/tmp", HOME="/tmp", LC_ALL="C")
+        subprocess.run(
+            [
+                str(proot), "-r", str(snapshot_root), "-w", str(workdir),
+                *bindings, *command,
+            ],
+            cwd=PROJECT_ROOT, env=env, check=True)
+        return [snapshot_path(snapshot_root, path) for path in output_paths]
 
 
 def parse_depfile_text(
@@ -291,6 +562,21 @@ def dependency_key(path: Path, root: Path = PROJECT_ROOT) -> str:
         return str(path.relative_to(root))
     except ValueError:
         return str(path)
+
+
+def make_escape(path: Path) -> str:
+    return str(path).replace("\\", "\\\\").replace(" ", "\\ ")
+
+
+def write_complete_depfile(
+        path: Path, make_target: str,
+        dependencies: Iterable[Path]) -> None:
+    rows = [f"{make_target}: \\"]
+    ordered = sorted(set(item.resolve() for item in dependencies))
+    for index, dependency in enumerate(ordered):
+        suffix = " \\" if index + 1 < len(ordered) else ""
+        rows.append(f"  {make_escape(dependency)}{suffix}")
+    path.write_text("\n".join(rows) + "\n")
 
 
 def snapshot(paths: Iterable[Path]) -> dict[str, str]:
@@ -374,6 +660,10 @@ def build_guest(
         PROJECT_ROOT / "Makefile",
         Path(__file__).resolve(),
         require_trace_tool(),
+        require_proot(),
+        PINNED_FUSEPY,
+        PINNED_LIBFUSE,
+        PINNED_FUSERMOUNT,
         build_config,
         *link_inputs,
     }
@@ -387,7 +677,7 @@ def build_guest(
         discovery_trace = temp / "discovery.strace"
         temp_depfile = temp / "final.d"
         temp_binary = temp / binary.name
-        final_trace = temp / "final.strace"
+        snapshot_root = temp / "root"
         scan_command = dependency_scan_command(
             driver, flags, includes, pre_depfile,
             Path(make_target), source)
@@ -411,38 +701,47 @@ def build_guest(
         if set(pre_dependencies) != set(discovery_dependencies):
             raise ValueError(
                 "pre-scan dependency set differs from discovery build")
-        discovery_inputs = traced_input_paths(discovery_trace, temp)
+        discovery_inputs = expand_interpreter_inputs(
+            traced_input_paths(discovery_trace, temp))
         before_paths = (
-            set(discovery_dependencies) | discovery_inputs |
+            set(discovery_dependencies) | set(discovery_inputs.values()) |
             fixed_dependencies)
         before_hashes = snapshot(before_paths)
+        sealed_inputs = {
+            virtual: (
+                source,
+                before_hashes[dependency_key(source)])
+            for virtual, source in discovery_inputs.items()
+        }
+        for path in set(discovery_dependencies) | fixed_dependencies:
+            sealed_inputs.setdefault(
+                path, (path, before_hashes[dependency_key(path)]))
 
         command = compile_command(
             driver, flags, includes, temp_depfile, Path(make_target),
             source, link_inputs, temp_binary)
-        run_traced_command(command, final_trace)
+        built_binary, built_depfile = run_sealed_snapshot_compile(
+            command, sealed_inputs, snapshot_root, PROJECT_ROOT,
+            [temp_binary, temp_depfile])
         post_target_text, post_target, post_dependencies = parse_depfile(
-            temp_depfile)
+            built_depfile)
         if post_target_text != make_target or post_target != binary or \
                 source not in post_dependencies:
             raise ValueError("compile depfile does not describe requested guest")
-        final_inputs = traced_input_paths(final_trace, temp)
-        after_paths = set(post_dependencies) | final_inputs | fixed_dependencies
-        after_hashes = snapshot(after_paths)
+        after_hashes = snapshot(before_paths)
         if set(discovery_dependencies) != set(post_dependencies):
             raise ValueError("dependency set changed during guest compilation")
-        if discovery_inputs != final_inputs:
-            raise ValueError(
-                "compiler/linker input set changed during guest compilation")
         if before_hashes != after_hashes:
             raise ValueError("build input changed during guest compilation")
         if compiler_before != compiler_receipt(compiler):
             raise ValueError("compiler changed during guest compilation")
         if git_before != git_state():
             raise ValueError("git state changed during guest compilation")
-        if not temp_binary.is_file():
+        if not built_binary.is_file():
             raise ValueError("compiler produced no guest binary")
-        require_riscv_elf(temp_binary)
+        require_riscv_elf(built_binary)
+        write_complete_depfile(
+            built_depfile, make_target, before_paths)
 
         canonical_command = compile_command(
             driver, flags, includes, depfile, Path(make_target),
@@ -469,15 +768,30 @@ def build_guest(
                 "path": str(PINNED_STRACE),
                 "sha256": PINNED_STRACE_SHA256,
             },
+            "snapshot_runner": {
+                "path": str(PINNED_PROOT),
+                "sha256": PINNED_PROOT_SHA256,
+                "immutable_fuse_inputs": True,
+                "fusepy_sha256": PINNED_FUSEPY_SHA256,
+                "libfuse_sha256": PINNED_LIBFUSE_SHA256,
+                "fusermount_sha256": PINNED_FUSERMOUNT_SHA256,
+            },
             "traced_inputs": sorted(
-                dependency_key(path) for path in final_inputs),
+                (
+                    {
+                        "virtual_path": str(virtual),
+                        "source_path": dependency_key(source),
+                    }
+                    for virtual, source in discovery_inputs.items()
+                ),
+                key=lambda row: row["virtual_path"]),
             "binary": {
                 "path": dependency_key(binary),
-                "sha256": sha256(temp_binary),
+                "sha256": sha256(built_binary),
             },
             "depfile": {
                 "path": dependency_key(depfile),
-                "sha256": sha256(temp_depfile),
+                "sha256": sha256(built_depfile),
                 "target": post_target_text,
             },
             "dependencies": after_hashes,
@@ -485,8 +799,8 @@ def build_guest(
         temp_receipt = temp / receipt_path.name
         temp_receipt.write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        os.replace(temp_binary, binary)
-        os.replace(temp_depfile, depfile)
+        os.replace(built_binary, binary)
+        os.replace(built_depfile, depfile)
         os.replace(temp_receipt, receipt_path)
     return payload
 
@@ -587,6 +901,10 @@ def validate_receipt(
         root / "Makefile",
         Path(__file__).resolve(),
         PINNED_STRACE,
+        PINNED_PROOT,
+        PINNED_FUSEPY,
+        PINNED_LIBFUSE,
+        PINNED_FUSERMOUNT,
         build_config,
         *link_inputs,
     }
@@ -595,18 +913,35 @@ def validate_receipt(
             "path": str(PINNED_STRACE),
             "sha256": PINNED_STRACE_SHA256}:
         errors.append("guest trace tool does not match pinned strace")
+    snapshot_runner = payload.get("snapshot_runner", {})
+    if snapshot_runner != {
+            "path": str(PINNED_PROOT),
+            "sha256": PINNED_PROOT_SHA256,
+            "immutable_fuse_inputs": True,
+            "fusepy_sha256": PINNED_FUSEPY_SHA256,
+            "libfuse_sha256": PINNED_LIBFUSE_SHA256,
+            "fusermount_sha256": PINNED_FUSERMOUNT_SHA256}:
+        errors.append("guest snapshot runner does not match pinned proot")
     traced_rows = payload.get("traced_inputs")
     traced_inputs = set()
     if not isinstance(traced_rows, list) or not traced_rows:
         errors.append("guest receipt has no traced compiler/linker inputs")
     else:
-        for name in traced_rows:
-            path = Path(str(name))
+        for row in traced_rows:
+            if not isinstance(row, dict):
+                errors.append("invalid traced compiler input row")
+                continue
+            virtual_path = Path(str(row.get("virtual_path", "")))
+            if not virtual_path.is_absolute():
+                errors.append("traced compiler virtual path is not absolute")
+            path = Path(str(row.get("source_path", "")))
             if not path.is_absolute():
                 path = root / path
             path = path.resolve()
             if not path.is_file():
-                errors.append(f"traced compiler input is missing: {name}")
+                errors.append(
+                    f"traced compiler input is missing: "
+                    f"{row.get('source_path')}")
             else:
                 traced_inputs.add(path)
     expected_dependencies = snapshot(

@@ -11,6 +11,14 @@ import pytest
 from scripts.experiments.ecg.flows import paper_run
 from scripts.experiments.ecg.gem5_guest_receipt import (
     MATERIAL_COMPILER_ENV,
+    PINNED_FUSERMOUNT,
+    PINNED_FUSERMOUNT_SHA256,
+    PINNED_FUSEPY,
+    PINNED_FUSEPY_SHA256,
+    PINNED_LIBFUSE,
+    PINNED_LIBFUSE_SHA256,
+    PINNED_PROOT,
+    PINNED_PROOT_SHA256,
     PINNED_RISCV_CXX,
     PINNED_RISCV_CXX_SHA256,
     PROJECT_ROOT,
@@ -33,6 +41,14 @@ def write_build_config(
         "RISCV_CXX_SHA256": PINNED_RISCV_CXX_SHA256,
         "CXXFLAGS_GEM5_RISCV": flags,
         "INCLUDES": includes,
+        "PROOT": str(PINNED_PROOT),
+        "PROOT_SHA256": PINNED_PROOT_SHA256,
+        "FUSEPY": str(PINNED_FUSEPY),
+        "FUSEPY_SHA256": PINNED_FUSEPY_SHA256,
+        "LIBFUSE": str(PINNED_LIBFUSE),
+        "LIBFUSE_SHA256": PINNED_LIBFUSE_SHA256,
+        "FUSERMOUNT": str(PINNED_FUSERMOUNT),
+        "FUSERMOUNT_SHA256": PINNED_FUSERMOUNT_SHA256,
         **material_environment(),
     }
     assert set(MATERIAL_COMPILER_ENV) <= set(values)
@@ -143,6 +159,14 @@ def test_riscv_make_rule_models_all_outputs_and_command_signature():
     assert "--build-config $(GEM5_RISCV_BUILD_CONFIG)" in makefile
     assert "RISCV_CXX_SHA256=" in makefile
     assert ".PRECIOUS: $(RISCV_GUEST_BINARIES)" in makefile
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_ROOT / "scripts/setup_gem5_guest_tools.py"),
+            "--verify-only",
+        ],
+        cwd=PROJECT_ROOT)
+    assert result.returncode == 0
 
 
 def test_traced_inputs_cover_openmp_math_and_linker_plugin(tmp_path):
@@ -161,11 +185,17 @@ def test_traced_inputs_cover_openmp_math_and_linker_plugin(tmp_path):
     payload = build_guest(
         receipt, binary, depfile, "riscv64-linux-gnu-g++", flags, "",
         source, [], build_config, str(binary))
-    traced_names = {Path(name).name for name in payload["traced_inputs"]}
+    traced_names = {
+        Path(row["virtual_path"]).name
+        for row in payload["traced_inputs"]
+    }
     assert "libgomp.spec" in traced_names
     assert "libgomp.a" in traced_names
     assert "libm.a" in traced_names
     assert "liblto_plugin.so" in traced_names
+    depfile_text = depfile.read_text()
+    assert "libgomp.spec" in depfile_text
+    assert "liblto_plugin.so" in depfile_text
 
 
 def test_wrapper_compiler_and_config_drift_are_rejected(tmp_path):
@@ -213,6 +243,31 @@ def test_paper_run_fingerprints_both_backends_and_resolves_gem5(
     assert "gem5_guest_build_receipt" in inputs
     assert inputs["gem5_binary"] == str(
         (PROJECT_ROOT / relative_gem5).resolve())
+
+
+def test_paper_run_requires_one_guest_hash_across_jobs(tmp_path):
+    jobs = []
+    for index in range(2):
+        out_dir = tmp_path / f"job-{index}"
+        out_dir.mkdir()
+        (out_dir / "roi_matrix.csv").write_text(
+            "status,gem5_guest_expected_sha256,"
+            "gem5_guest_staged_sha256\n"
+            "ok,abc,abc\n")
+        jobs.append(paper_run.Job(
+            job_id=f"job-{index}", stage=f"stage-{index}",
+            kind="roi_matrix", command=[], out_dir=out_dir,
+            log_path=tmp_path / f"job-{index}.log",
+            metadata={"expected_gem5_guest_sha256": "abc"}))
+    assert paper_run.validate_cross_job_guest_hashes(jobs) == (
+        True, "abc")
+    (jobs[1].output_csv).write_text(
+        "status,gem5_guest_expected_sha256,"
+        "gem5_guest_staged_sha256\n"
+        "ok,abc,changed\n")
+    ok, detail = paper_run.validate_cross_job_guest_hashes(jobs)
+    assert not ok
+    assert "guest hash mismatch" in detail
 
 
 def test_inconsistent_gem5_isa_overrides_fail_closed():

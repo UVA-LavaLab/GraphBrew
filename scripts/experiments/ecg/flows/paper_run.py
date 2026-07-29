@@ -651,6 +651,18 @@ def make_roi_job(
     material_env.update(env)
     inputs = roi_input_fingerprints(
         args, settings, graph_path, benchmark, material_env)
+    expected_gem5_guest_sha256 = ""
+    if (str(settings.get("suite")) in ("gem5", "both") and
+            material_env.get("GEM5_KERNEL_SUFFIX") == "_riscv_m5ops"):
+        expected_gem5_guest_sha256 = str(
+            inputs.get("gem5_benchmark_binary", ""))
+        if expected_gem5_guest_sha256 in ("", "missing"):
+            raise SystemExit(
+                "paper-run RISC-V guest hash is missing")
+        command.extend([
+            "--expected-gem5-guest-sha256",
+            expected_gem5_guest_sha256,
+        ])
     config_hash = hashlib.sha256(json.dumps(
         {"command": command, "env": material_env, "inputs": inputs},
         sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -713,6 +725,7 @@ def make_roi_job(
             "matrix_config_hash": matrix_config_hash,
             "comparison_config_hash": comparison_config_hash,
             "input_fingerprints": inputs,
+            "expected_gem5_guest_sha256": expected_gem5_guest_sha256,
             "prefetcher": settings.get("prefetcher", "none"),
             # Sprint 6f-7 / HPCA mode 6: record env knobs for reproducibility.
             # Stage env vars (e.g. ECG_EDGE_MASK_CHARGED, _AMPLIFY, _LOOKAHEAD)
@@ -1189,6 +1202,40 @@ def validate_cross_stage_pr_receipts(
     return True, "matched"
 
 
+def validate_cross_job_guest_hashes(
+        jobs: list[Job]) -> tuple[bool, str]:
+    relevant = [
+        job for job in jobs
+        if job.kind == "roi_matrix" and
+        str(job.metadata.get("expected_gem5_guest_sha256", ""))
+    ]
+    if not relevant:
+        return True, "not-applicable"
+    expected = {
+        str(job.metadata["expected_gem5_guest_sha256"])
+        for job in relevant
+    }
+    if len(expected) != 1:
+        return False, f"multiple expected gem5 guest hashes: {sorted(expected)}"
+    expected_hash = next(iter(expected))
+    for job in relevant:
+        if not job.output_csv.exists():
+            return False, f"missing guest-hash output: {job.output_csv}"
+        with job.output_csv.open(newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        if not rows:
+            return False, f"empty guest-hash output: {job.output_csv}"
+        for row in rows:
+            staged = str(row.get("gem5_guest_staged_sha256", ""))
+            row_expected = str(row.get("gem5_guest_expected_sha256", ""))
+            if staged != expected_hash or row_expected != expected_hash:
+                return False, (
+                    f"gem5 guest hash mismatch in {job.output_csv}: "
+                    f"expected={expected_hash} row={row_expected} "
+                    f"staged={staged}")
+    return True, expected_hash
+
+
 def write_run_completion(
         run_dir: Path, jobs: list[Job], successful: bool) -> bool:
     statuses = {
@@ -1199,8 +1246,9 @@ def write_run_completion(
         for job in jobs
     }
     semantic_ok, semantic_detail = validate_cross_stage_pr_receipts(jobs)
+    guest_ok, guest_detail = validate_cross_job_guest_hashes(jobs)
     complete = (
-        successful and semantic_ok and bool(statuses) and
+        successful and semantic_ok and guest_ok and bool(statuses) and
         all(value["status"] == "ok" for value in statuses.values()))
     marker = run_dir / "run.complete.json"
     temp = run_dir / "run.complete.json.tmp"
@@ -1224,10 +1272,16 @@ def write_run_completion(
             "ok": semantic_ok,
             "detail": semantic_detail,
         },
+        "gem5_guest_gate": {
+            "ok": guest_ok,
+            "detail": guest_detail,
+        },
     }, indent=2, sort_keys=True) + "\n")
     temp.replace(marker)
     if not semantic_ok:
         print(f"[error] {semantic_detail}", file=sys.stderr)
+    if not guest_ok:
+        print(f"[error] {guest_detail}", file=sys.stderr)
     return complete
 
 

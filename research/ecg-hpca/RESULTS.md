@@ -2556,9 +2556,11 @@ atomically publishes the binary, depfile, and receipt. The accepted toolchain is
 the pinned RISC-V compiler and its assembler, linker, specs, CRT objects, and
 static libraries. A pinned syscall trace inventories every file opened by two
 identical compile/link passes, including indirect specs, plugins, response
-files, linker scripts, and archives. The receipt binds the exact target/source,
-build config, compiler command, linked m5 library, headers (including
-`reorder_hub.h`), and guest hash.
+files, linker scripts, and archives. The final compiler pass sees those captured
+bytes only through an in-memory read-only FUSE snapshot inside a restricted
+proot filesystem; transient changes to the original pathnames cannot alter the
+build. The receipt binds the exact target/source, build config, compiler
+command, linked m5 library, headers (including `reorder_hub.h`), and guest hash.
 
 Before execution, `roi_matrix.py` copies the validated guest to a
 content-addressed read-only path, then copies that exact content into a sealed

@@ -30,6 +30,8 @@ docs/
 plans/
 # gem5 cloned repository (large, managed by scripts/setup_gem5.py)
 bench/include/gem5_sim/gem5/
+# Pinned local proot/FUSE binaries used by provenance-bound guest builds.
+bench/include/gem5_sim/.tools/
 # accidental root-level gem5/scons build output
 build/
 # Sniper cloned repository (large, managed by scripts/setup_sniper.py)

@@ -996,6 +996,11 @@ def validate_selected_gem5_guest(
     except ValueError as error:
         raise SystemExit(
             f"cannot stage validated gem5 guest: {error}") from error
+    expected = str(args.expected_gem5_guest_sha256)
+    if expected and VALIDATED_GEM5_GUEST_SHA256 != expected:
+        raise SystemExit(
+            "validated gem5 guest does not match paper-run expected hash: "
+            f"{VALIDATED_GEM5_GUEST_SHA256} != {expected}")
 
 
 def cache_size_env(size: str, ways: str) -> tuple[str, str]:
@@ -1737,6 +1742,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         base.update({
             "gem5_guest_staged_path": str(binary),
             "gem5_guest_staged_sha256": VALIDATED_GEM5_GUEST_SHA256,
+            "gem5_guest_expected_sha256":
+                str(args.expected_gem5_guest_sha256),
         })
     if gem5_ecg_epoch_channel:
         base["gem5_ecg_epoch_channel"] = gem5_ecg_epoch_channel
@@ -3377,6 +3384,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--gem5-compact-fused", action="store_true",
         help="Use PR's fused compact K2-I load. Implemented only for gem5 "
              "PageRank; unsupported kernels fail instead of falling back.")
+    parser.add_argument(
+        "--expected-gem5-guest-sha256", default="",
+        help="Require the staged RISC-V guest to match this paper-run hash.")
     parser.add_argument("--ecg-stored-refresh", type=int, choices=[0, 1], default=0,
                         help="ECG_STORED_REFRESH: re-stamp a resident LLC line's next-ref "
                              "epoch from the per-edge hint on EVERY access, INCLUDING L1/L2 "
