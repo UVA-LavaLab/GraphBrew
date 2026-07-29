@@ -245,9 +245,11 @@ automatic exit dump contains post-ROI teardown activity and is not a second
 measurement.
 
 Paper no-build runs may use a prebuilt RISC-V guest only when the adjacent
-`.build.json` receipt validates. The receipt is generated from the compiler
-depfile and binds the compiler command and binary, git state, linked m5
-library, every project dependency, and the output guest hash. Independent
+`.build.json` receipt validates. The receipt tool hashes a pre-compilation
+dependency scan, compiles into temporary outputs, rejects any input/compiler/git
+change during the build, and atomically publishes the binary, depfile, and
+receipt. It binds target and source identity, compiler command and binary,
+linked m5 library, every project dependency, and the guest hash. Independent
 source and binary hashes are insufficient: they do not prove that the binary
 was produced from that source state.
 

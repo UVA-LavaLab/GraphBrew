@@ -244,8 +244,8 @@ def roi_input_fingerprints(
         setarch = shutil.which("setarch")
         paths["setarch"] = (
             Path(setarch) if setarch else PROJECT_ROOT / ".missing-setarch")
-    elif suite == "gem5":
-        gem5_opt = Path(source_env.get(
+    if suite in ("gem5", "both"):
+        gem5_opt = resolve_path(source_env.get(
             "GEM5_OPT",
             PROJECT_ROOT / "bench" / "include" / "gem5_sim" /
             "gem5" / "build" / "X86" / "gem5.opt"))
@@ -257,10 +257,11 @@ def roi_input_fingerprints(
             "gem5_config": PROJECT_ROOT / "bench" / "include" /
             "gem5_sim" / "configs" / "graphbrew",
             "gem5_benchmark_binary": guest_binary,
-            "gem5_guest_build_receipt": Path(
-                str(guest_binary) + ".build.json"),
         })
-    elif suite == "cache-sim":
+        if suffix == "_riscv_m5ops":
+            paths["gem5_guest_build_receipt"] = Path(
+                str(guest_binary) + ".build.json")
+    if suite in ("cache-sim", "both"):
         paths["cache_sim_benchmark_binary"] = (
             PROJECT_ROOT / "bench" / "bin_sim" / benchmark)
 

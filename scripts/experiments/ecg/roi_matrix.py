@@ -52,10 +52,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gem5_guest_receipt import validate_receipt as validate_gem5_guest_receipt  # noqa: E402
 from policy_specs import PolicySpec, parse_policy_spec  # noqa: E402
 
-GEM5_OPT = Path(os.environ.get(
+_GEM5_OPT = Path(os.environ.get(
     "GEM5_OPT",
     PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "X86" / "gem5.opt",
 ))
+GEM5_OPT = (
+    _GEM5_OPT if _GEM5_OPT.is_absolute()
+    else (PROJECT_ROOT / _GEM5_OPT).resolve())
 # S68 M5: override the kernel binary suffix to select RISCV via
 # GEM5_KERNEL_SUFFIX=_riscv_m5ops for the ISA-delivery smoke. Default
 # remains _m5ops (X86 build).
@@ -911,7 +914,10 @@ def build_targets(args: argparse.Namespace) -> None:
     if args.suite in ("cache-sim", "both"):
         targets.append(f"sim-{args.benchmark}")
     if args.suite in ("gem5", "both"):
-        targets.append(f"gem5-m5ops-{args.benchmark}")
+        target_prefix = (
+            "gem5-riscv-m5ops"
+            if selected_gem5_isa() == "riscv" else "gem5-m5ops")
+        targets.append(f"{target_prefix}-{args.benchmark}")
     if args.suite == "sniper":
         if args.sniper_workload == "pr_kernel_smoke":
             targets.append("sniper-pr_kernel_smoke")
@@ -923,6 +929,52 @@ def build_targets(args: argparse.Namespace) -> None:
     for target in targets:
         print(f"[build] make {target}")
         subprocess.run(["make", target], cwd=str(PROJECT_ROOT), check=True)
+
+
+def selected_gem5_isa() -> str:
+    suffix_isa = {
+        "_m5ops": "x86",
+        "_riscv_m5ops": "riscv",
+    }.get(GEM5_KERNEL_SUFFIX)
+    if suffix_isa is None:
+        raise SystemExit(
+            f"unsupported GEM5_KERNEL_SUFFIX={GEM5_KERNEL_SUFFIX!r}; "
+            "use _m5ops or _riscv_m5ops")
+    build_isa = "riscv" if "RISCV" in GEM5_OPT.parts else (
+        "x86" if "X86" in GEM5_OPT.parts else "")
+    if build_isa != suffix_isa:
+        raise SystemExit(
+            f"inconsistent gem5 ISA selection: GEM5_OPT={GEM5_OPT} "
+            f"but GEM5_KERNEL_SUFFIX={GEM5_KERNEL_SUFFIX}")
+    return suffix_isa
+
+
+def selected_gem5_guest_paths(
+        benchmark: str) -> tuple[Path, Path, Path, list[Path], Path]:
+    binary = PROJECT_ROOT / "bench" / "bin_gem5" / (
+        f"{benchmark}{GEM5_KERNEL_SUFFIX}")
+    receipt = Path(str(binary) + ".build.json")
+    source = PROJECT_ROOT / "bench" / "src_gem5" / f"{benchmark}.cc"
+    build_config = PROJECT_ROOT / "bench" / "bin_gem5" / (
+        ".riscv_build_config")
+    link_inputs = [
+        PROJECT_ROOT / "bench" / "include" / "gem5_sim" / "gem5" /
+        "util" / "m5" / "build" / "riscv" / "out" / "libm5.a",
+    ]
+    return binary, receipt, source, link_inputs, build_config
+
+
+def validate_selected_gem5_guest(args: argparse.Namespace) -> None:
+    if args.suite not in ("gem5", "both") or selected_gem5_isa() != "riscv":
+        return
+    binary, receipt, source, link_inputs, build_config = (
+        selected_gem5_guest_paths(args.benchmark))
+    receipt_errors = validate_gem5_guest_receipt(
+        receipt, binary, source, link_inputs, build_config, PROJECT_ROOT)
+    if receipt_errors:
+        raise SystemExit(
+            "prebuilt gem5 guest provenance failed:\n  " +
+            "\n  ".join(receipt_errors))
 
 
 def cache_size_env(size: str, ways: str) -> tuple[str, str]:
@@ -3035,9 +3087,10 @@ def standalone_matrix_config_hash(
             "gem5_binary": GEM5_OPT,
             "gem5_config": GEM5_CONFIG.parent,
             "gem5_benchmark_binary": guest_binary,
-            "gem5_guest_build_receipt": Path(
-                str(guest_binary) + ".build.json"),
         })
+        if selected_gem5_isa() == "riscv":
+            paths["gem5_guest_build_receipt"] = Path(
+                str(guest_binary) + ".build.json")
     if args.suite in ("cache-sim", "both"):
         paths["cache_sim_benchmark_binary"] = (
             PROJECT_ROOT / "bench" / "bin_sim" / args.benchmark)
@@ -3381,20 +3434,15 @@ def main(argv: list[str]) -> int:
     if args.gem5_compact_fused and args.suite not in ("gem5", "both"):
         raise SystemExit(
             "--gem5-compact-fused requires --suite gem5 or both")
+    if args.suite in ("gem5", "both"):
+        gem5_isa = selected_gem5_isa()
+    else:
+        gem5_isa = ""
     if args.gem5_compact_fused and args.benchmark != "pr":
         raise SystemExit(
             "--gem5-compact-fused is implemented only for --benchmark pr")
-    if (args.no_build and args.suite in ("gem5", "both") and
-            GEM5_KERNEL_SUFFIX.endswith("_riscv_m5ops")):
-        guest_binary = PROJECT_ROOT / "bench" / "bin_gem5" / (
-            f"{args.benchmark}{GEM5_KERNEL_SUFFIX}")
-        receipt = Path(str(guest_binary) + ".build.json")
-        receipt_errors = validate_gem5_guest_receipt(
-            receipt, guest_binary, PROJECT_ROOT)
-        if receipt_errors:
-            raise SystemExit(
-                "prebuilt gem5 guest provenance failed:\n  " +
-                "\n  ".join(receipt_errors))
+    if args.gem5_compact_fused and gem5_isa != "riscv":
+        raise SystemExit("--gem5-compact-fused requires RISC-V gem5")
     if (getattr(args, "structural_bypass", "off") != "off" and
             args.suite not in ("cache-sim", "both")):
         raise SystemExit(
@@ -3449,6 +3497,7 @@ def main(argv: list[str]) -> int:
     if not args.dry_run:
         completion_marker.unlink(missing_ok=True)
     build_targets(args)
+    validate_selected_gem5_guest(args)
 
     rows: list[dict[str, Any]] = []
     for l3_size in args.l3_sizes:

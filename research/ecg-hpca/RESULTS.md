@@ -2549,8 +2549,11 @@ and arithmetic all passed for that stale binary. They do not repair the
 source/binary mismatch. Do not cite its 0.923 compact-K2/LRU time ratio, 0.8056
 compact/wide traffic ratio, or any three-graph aggregate.
 
-The RISC-V guest build now emits a receipt from the compiler depfile. It binds
-the exact compiler command, compiler binary, git state, linked m5 library,
-project headers (including `reorder_hub.h`), and guest binary hash. No-build
-gem5 runs fail closed if the receipt is missing or any dependency has changed.
-All nine jobs must be rerun from one newly built guest.
+The RISC-V guest now builds under the receipt tool itself. It scans and hashes
+the dependency set before compilation, compiles into temporary outputs, checks
+that git/compiler/input state did not change, then atomically publishes the
+binary, depfile, and receipt. The receipt binds the exact target/source,
+compiler command and binary, linked m5 library, project headers (including
+`reorder_hub.h`), and guest hash. No-build gem5 runs fail closed if any identity
+or dependency check changes. All nine jobs must be rerun from one newly built
+guest.

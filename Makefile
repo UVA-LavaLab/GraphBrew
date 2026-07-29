@@ -100,11 +100,47 @@ GEM5_M5_RISCV_LIB := $(GEM5_M5_DIR)/build/riscv/out/libm5.a
 RISCV_CXX ?= riscv64-linux-gnu-g++
 RISCV_CROSS_COMPILE ?= riscv64-linux-gnu-
 GEM5_GUEST_RECEIPT := scripts/experiments/ecg/gem5_guest_receipt.py
+GEM5_RISCV_BUILD_CONFIG := $(BIN_GEM5_DIR)/.riscv_build_config
+RISCV_CXX_RESOLVED := $(shell command -v $(RISCV_CXX) 2>/dev/null)
+RISCV_CXX_SHA256 := $(shell test -f "$(RISCV_CXX_RESOLVED)" && \
+	sha256sum "$(RISCV_CXX_RESOLVED)" | cut -d' ' -f1)
 
 CXXFLAGS_GEM5 := -std=c++17 -O1 -Wall -g -DNDEBUG -DNO_M5OPS -fopenmp
 CXXFLAGS_GEM5_M5OPS := $(filter-out -DNO_M5OPS,$(CXXFLAGS_GEM5)) \
 	-I$(GEM5_DIR)/include
 CXXFLAGS_GEM5_RISCV := $(CXXFLAGS_GEM5_M5OPS) -funswitch-loops -static -mno-relax
+RISCV_GUEST_BINARIES := $(addsuffix _riscv_m5ops,$(addprefix \
+	$(BIN_GEM5_DIR)/,$(KERNELS_GEM5)))
+RISCV_GUEST_DEPFILES := $(addsuffix .d,$(RISCV_GUEST_BINARIES))
+RISCV_GUEST_RECEIPTS := $(addsuffix .build.json,$(RISCV_GUEST_BINARIES))
+
+.PHONY: FORCE_GEM5_RISCV_CONFIG
+.PRECIOUS: $(RISCV_GUEST_BINARIES) $(RISCV_GUEST_DEPFILES) \
+	$(RISCV_GUEST_RECEIPTS)
+
+FORCE_GEM5_RISCV_CONFIG:
+
+$(GEM5_RISCV_BUILD_CONFIG): FORCE_GEM5_RISCV_CONFIG | $(BIN_GEM5_DIR)
+	@{ \
+		printf '%s\n' "RISCV_CXX=$(RISCV_CXX)"; \
+		printf '%s\n' "RISCV_CXX_RESOLVED=$(RISCV_CXX_RESOLVED)"; \
+		printf '%s\n' "RISCV_CXX_SHA256=$(RISCV_CXX_SHA256)"; \
+		printf '%s\n' "CXXFLAGS_GEM5_RISCV=$(CXXFLAGS_GEM5_RISCV)"; \
+		printf '%s\n' "INCLUDES=$(INCLUDES)"; \
+		printf '%s\n' "PATH=$(PATH)"; \
+		printf '%s\n' "COMPILER_PATH=$(COMPILER_PATH)"; \
+		printf '%s\n' "GCC_EXEC_PREFIX=$(GCC_EXEC_PREFIX)"; \
+		printf '%s\n' "LIBRARY_PATH=$(LIBRARY_PATH)"; \
+		printf '%s\n' "CPATH=$(CPATH)"; \
+		printf '%s\n' "CPLUS_INCLUDE_PATH=$(CPLUS_INCLUDE_PATH)"; \
+	} > $@.tmp
+	@if test -f $@ && cmp -s $@.tmp $@; then \
+		rm -f $@.tmp; \
+	else \
+		mv $@.tmp $@; \
+	fi
+
+-include $(wildcard $(BIN_GEM5_DIR)/*_riscv_m5ops.d)
 
 $(BIN_GEM5_DIR)/%: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
 	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_ECG) | $(BIN_GEM5_DIR)
@@ -122,16 +158,21 @@ $(BIN_GEM5_DIR)/%_m5ops: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
 	$(CXX) $(CXXFLAGS_GEM5_M5OPS) $(INCLUDES) $< \
 		$(GEM5_M5_LIB) $(LDLIBS) -o $@
 
-$(BIN_GEM5_DIR)/%_riscv_m5ops: $(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
+$(BIN_GEM5_DIR)/%_riscv_m5ops \
+$(BIN_GEM5_DIR)/%_riscv_m5ops.d \
+$(BIN_GEM5_DIR)/%_riscv_m5ops.build.json &: \
+	$(BENCH_DIR)/src_gem5/%.cc $(DEP_GAPBS) \
 	$(DEP_GRAPH) $(DEP_EXTERNAL) $(DEP_ECG) $(GEM5_M5_RISCV_LIB) \
-	$(GEM5_GUEST_RECEIPT) | $(BIN_GEM5_DIR)
-	$(RISCV_CXX) $(CXXFLAGS_GEM5_RISCV) $(INCLUDES) -MMD -MF $@.d $< \
-		$(GEM5_M5_RISCV_LIB) -o $@
-	$(PYTHON) $(GEM5_GUEST_RECEIPT) write \
-		--receipt $@.build.json --binary $@ --depfile $@.d \
+	$(GEM5_GUEST_RECEIPT) $(GEM5_RISCV_BUILD_CONFIG) Makefile | \
+	$(BIN_GEM5_DIR)
+	$(PYTHON) $(GEM5_GUEST_RECEIPT) build \
+		--receipt $(BIN_GEM5_DIR)/$*_riscv_m5ops.build.json \
+		--binary $(BIN_GEM5_DIR)/$*_riscv_m5ops \
+		--depfile $(BIN_GEM5_DIR)/$*_riscv_m5ops.d \
 		--compiler "$(RISCV_CXX)" --flags "$(CXXFLAGS_GEM5_RISCV)" \
 		--includes "$(INCLUDES)" --source $< \
-		--link-input $(GEM5_M5_RISCV_LIB)
+		--link-input $(GEM5_M5_RISCV_LIB) \
+		--build-config $(GEM5_RISCV_BUILD_CONFIG)
 
 gem5-%: $(BIN_GEM5_DIR)/%
 	@echo "Built gem5 kernel: $<"
