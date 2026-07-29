@@ -81,6 +81,17 @@ VALIDATED_GEM5_GUEST: Path | None = None
 VALIDATED_GEM5_GUEST_SHA256 = ""
 
 
+def fixed_runtime_mount_name(
+        kind: str, pid: int | None = None,
+        timestamp_ns: int | None = None) -> str:
+    if kind not in ("runtime", "config"):
+        raise ValueError(f"unsupported mount kind: {kind}")
+    actual_pid = os.getpid() if pid is None else pid
+    actual_ns = time.time_ns() if timestamp_ns is None else timestamp_ns
+    return (
+        f".gem5-{kind}-{actual_pid:010d}-{actual_ns:019d}")
+
+
 @functools.lru_cache(maxsize=None)
 def cached_file_sha256(path_text: str) -> str:
     path = Path(path_text)
@@ -1004,6 +1015,8 @@ def validate_selected_gem5_guest(
     expected = str(args.expected_gem5_guest_sha256)
     if selected_gem5_isa() != "riscv":
         actual = hash_input_path(binary)
+        if actual == "missing":
+            raise SystemExit(f"gem5 guest binary is missing: {binary}")
         if expected and actual != expected:
             raise SystemExit(
                 "gem5 guest does not match paper-run expected hash: "
@@ -1797,8 +1810,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                     raise RuntimeError("graph changed while sealing inputs")
                 runtime_files[graph.name] = (graph_data, 0o444)
 
-            runtime_mount = out_dir / (
-                f".gem5-runtime-{label}-{os.getpid()}-{time.time_ns()}")
+            runtime_mount = out_dir / fixed_runtime_mount_name("runtime")
             runtime.enter_context(
                 immutable_fuse_files(runtime_files, runtime_mount))
             sealed_guest = runtime_mount / binary.name
@@ -1833,9 +1845,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 config_files[path.name] = (data, 0o444)
             if hash_input_path(GEM5_CONFIG.parent) != config_hash:
                 raise RuntimeError("gem5 config changed while sealing inputs")
-            config_mount = out_dir / (
-                f".gem5-config-{config_hash}-{label}-"
-                f"{os.getpid()}-{time.time_ns()}")
+            config_mount = out_dir / fixed_runtime_mount_name("config")
             runtime.enter_context(
                 immutable_fuse_files(config_files, config_mount))
             if hash_input_path(config_mount) != config_hash:

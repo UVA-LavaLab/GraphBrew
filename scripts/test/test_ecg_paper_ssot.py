@@ -1668,7 +1668,8 @@ def test_sniper_fingerprint_covers_sift_stack():
         assert key in fingerprints
 
 
-def test_proof_hash_tracks_material_environment(tmp_path, monkeypatch):
+def test_proof_hash_ignores_ambient_environment_not_passed_to_child(
+        tmp_path, monkeypatch):
     module = load_module(
         "paper_run_proof_environment",
         ROOT / "scripts/experiments/ecg/flows/paper_run.py",
@@ -1694,7 +1695,7 @@ def test_proof_hash_tracks_material_environment(tmp_path, monkeypatch):
     first = module.make_proof_job(args, tmp_path, settings)
     monkeypatch.setenv("CACHE_FAST", "1")
     second = module.make_proof_job(args, tmp_path, settings)
-    assert first.metadata["config_hash"] != second.metadata["config_hash"]
+    assert first.metadata["config_hash"] == second.metadata["config_hash"]
 
 
 def test_pipeline_dry_run_succeeds_without_rows(tmp_path):

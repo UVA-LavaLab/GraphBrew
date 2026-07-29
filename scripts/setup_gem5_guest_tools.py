@@ -119,7 +119,8 @@ def install(out_dir: Path) -> None:
             if sha256(temporary) != values["target_sha256"]:
                 temporary.unlink(missing_ok=True)
                 raise SystemExit(f"installed hash mismatch for {package}")
-            temporary.chmod(0o755 if package == "proot" else 0o644)
+            temporary.chmod(
+                0o755 if package in ("proot", "libfuse2t64") else 0o644)
             temporary.replace(target)
             archive.unlink()
     errors = verify(out_dir)

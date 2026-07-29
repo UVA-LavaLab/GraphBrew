@@ -439,11 +439,7 @@ def make_proof_job(args: argparse.Namespace, run_dir: Path, settings: dict[str, 
                 args, proof_settings, None, str(benchmark)).items():
             inputs[f"{benchmark}:{name}"] = value
     inputs["proof_matrix"] = path_fingerprint(str(PROOF_MATRIX.resolve()))
-    material_env = {
-        key: value for key, value in os.environ.items()
-        if key.startswith((
-            "CACHE_", "ECG_", "GEM5_", "SNIPER_", "OMP_"))
-    }
+    material_env = clean_job_environment({})
     config_hash = hashlib.sha256(json.dumps(
         {"command": command, "env": material_env, "inputs": inputs},
         sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -648,12 +644,7 @@ def make_roi_job(
         sort_keys=True,
         separators=(",", ":"),
     )
-    material_env = {
-        key: value for key, value in os.environ.items()
-        if key.startswith((
-            "CACHE_", "ECG_", "GEM5_", "SNIPER_", "OMP_"))
-    }
-    material_env.update(env)
+    material_env = clean_job_environment(env)
     inputs = roi_input_fingerprints(
         args, settings, graph_path, benchmark, material_env)
     expected_gem5_guest_sha256 = ""

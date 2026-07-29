@@ -93,12 +93,19 @@ def git_state(root: Path = PROJECT_ROOT) -> dict[str, str]:
     }
 
 
-def git_changed_paths(root: Path = PROJECT_ROOT) -> list[str]:
-    result = subprocess.run(
-        ["/usr/bin/git", "status", "--porcelain=v1"],
+def git_state_difference(
+        expected: dict[str, str],
+        root: Path = PROJECT_ROOT) -> str:
+    current = git_state(root)
+    fields = [
+        key for key in ("commit", "diff_sha256", "cached_diff_sha256")
+        if expected.get(key) != current.get(key)
+    ]
+    changed = subprocess.run(
+        ["/usr/bin/git", "diff", "--name-only", "HEAD"],
         cwd=root, env=execution_environment(),
-        capture_output=True, text=True, check=True)
-    return [line[3:] for line in result.stdout.splitlines() if line]
+        capture_output=True, text=True, check=True).stdout.splitlines()
+    return f"components={fields} tracked_paths={changed}"
 
 
 def resolve_compiler(compiler_text: str) -> Path:
@@ -564,33 +571,45 @@ def immutable_fuse_files(
         raise ValueError("pinned fusepy changed while loading")
     libfuse_fd, _libfuse_path = open_sealed_guest(
         PINNED_LIBFUSE, PINNED_LIBFUSE_SHA256)
-    mountpoint.mkdir(parents=True, exist_ok=True)
-    process = multiprocessing.get_context("fork").Process(
-        target=serve_immutable_fuse,
-        args=(str(mountpoint), files, fusepy_source, libfuse_fd),
-        daemon=True)
-    process.start()
-    for _ in range(100):
-        if os.path.ismount(mountpoint):
-            break
-        if not process.is_alive():
-            raise ValueError("immutable FUSE snapshot process exited")
-        time.sleep(0.05)
-    else:
-        process.terminate()
-        process.join(5)
-        raise ValueError("immutable FUSE snapshot did not mount")
+    process = None
     try:
+        mountpoint.mkdir(parents=True, exist_ok=True)
+        process = multiprocessing.get_context("fork").Process(
+            target=serve_immutable_fuse,
+            args=(str(mountpoint), files, fusepy_source, libfuse_fd),
+            daemon=True)
+        process.start()
+        for _ in range(100):
+            if os.path.ismount(mountpoint):
+                break
+            if not process.is_alive():
+                raise ValueError("immutable FUSE snapshot process exited")
+            time.sleep(0.05)
+        else:
+            raise ValueError("immutable FUSE snapshot did not mount")
         yield
     finally:
-        subprocess.run(
-            [str(PINNED_FUSERMOUNT), "-u", str(mountpoint)],
-            capture_output=True, check=False)
-        process.join(5)
-        if process.is_alive():
-            process.terminate()
+        if os.path.ismount(mountpoint):
+            subprocess.run(
+                [str(PINNED_FUSERMOUNT), "-u", str(mountpoint)],
+                capture_output=True, check=False)
+        if os.path.ismount(mountpoint):
+            subprocess.run(
+                [str(PINNED_FUSERMOUNT), "-uz", str(mountpoint)],
+                capture_output=True, check=False)
+        if process is not None:
             process.join(5)
+            if process.is_alive():
+                process.terminate()
+                process.join(5)
         os.close(libfuse_fd)
+        if os.path.ismount(mountpoint):
+            raise RuntimeError(
+                f"immutable FUSE mount did not detach: {mountpoint}")
+        try:
+            mountpoint.rmdir()
+        except OSError:
+            pass
 
 
 def run_sealed_snapshot_compile(
@@ -1011,7 +1030,7 @@ def validate_receipt(
         if payload.get("git") != git_state(root):
             errors.append(
                 "guest binary was built from a different git state; "
-                f"changed paths={git_changed_paths(root)}")
+                f"{git_state_difference(payload.get('git', {}), root)}")
     except subprocess.CalledProcessError as error:
         errors.append(f"cannot verify git state: {error}")
     try:

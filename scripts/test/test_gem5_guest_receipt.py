@@ -11,6 +11,7 @@ import pytest
 
 from scripts.experiments.ecg.flows import paper_run
 from scripts.experiments.ecg import gem5_guest_receipt as receipt_module
+from scripts.experiments.ecg import roi_matrix
 from scripts.experiments.ecg.gem5_guest_receipt import (
     MATERIAL_COMPILER_ENV,
     PINNED_FUSERMOUNT,
@@ -430,6 +431,22 @@ def test_inconsistent_gem5_isa_overrides_fail_closed():
     assert result.returncode != 0
     assert "inconsistent gem5 ISA selection" in (
         result.stdout + result.stderr)
+
+
+def test_guest_visible_runtime_mount_length_is_policy_invariant():
+    names = {
+        roi_matrix.fixed_runtime_mount_name(
+            "runtime", pid, timestamp)
+        for pid, timestamp in (
+            (1, 1),
+            (12345, 123456789),
+            (9999999999, 9999999999999999999),
+        )
+    }
+    assert len({len(name) for name in names}) == 1
+    source = (
+        PROJECT_ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
+    assert 'f".gem5-runtime-{label}' not in source
 
 
 def test_current_riscv_pr_receipt_when_binary_is_present():

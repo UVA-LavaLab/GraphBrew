@@ -255,9 +255,10 @@ compiler pass runs against an in-memory read-only FUSE snapshot of the captured
 inputs. PRoot/FUSE code and PRoot's dynamic runtime are hash-pinned and loaded
 from verified bytes or sealed descriptors; build and run subprocesses use an
 allowlisted environment. The runner then stages a validated content-addressed
-guest. The guest and graph are served under their original suffix-bearing names
-from a per-invocation read-only in-memory FUSE mount, because gem5 resolves
-`/proc/self/exe` and GAPBS dispatches its reader from the `.sg` suffix. The
+guest. The guest is served under its content-addressed staged basename at a
+real, resolvable path, while the graph retains its original `.sg` basename;
+gem5 resolves `/proc/self/exe` and GAPBS dispatches its reader from that suffix.
+The guest-visible mount path has fixed length across policies and reruns. The
 gem5 executable itself is safe to execute from a sealed inherited memfd.
 Independent source and binary hashes are insufficient: they do not prove that
 the binary was produced from those bytes or that the validated pathname still
