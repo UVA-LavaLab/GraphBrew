@@ -55,6 +55,8 @@ def sha256(path: Path) -> str:
 
 
 def hash_tree(path: Path) -> str:
+    if path.is_file():
+        return sha256(path)
     digest = hashlib.sha256()
     for child in sorted(item for item in path.rglob("*") if item.is_file()):
         digest.update(str(child.relative_to(path)).encode())
