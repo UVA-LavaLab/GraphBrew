@@ -40,6 +40,7 @@ from graph_cache_config import (
     make_stride_prefetcher, DEFAULTS,
 )
 from graph_metadata_loader import load_graph_metadata, metadata_summary
+from graph_env_layout import finalize_environment
 
 
 RUNTIME_SIDEBAND_FILES = (
@@ -113,7 +114,7 @@ def benchmark_environment(args):
     ]
     # Propagate ECG mode + per-edge-mask lookahead from the outer harness
     # env so kernel-side `ecg_pfx_mode` reads the value roi_matrix.py set.
-    for pass_name in (
+    for pass_index, pass_name in enumerate((
         "GEM5_ECG_PFX_MODE",
         "ECG_PREFETCH_MODE",
         "GEM5_ECG_EDGE_MASK_LOOKAHEAD",
@@ -153,14 +154,15 @@ def benchmark_environment(args):
         # bypass field, and were silently inert in the guest.
         "ECG_RECORD_POPT_BITS",
         "ECG_RECORD_PREFETCH_BITS",
-        "ECG_STREAM_BYPASS",
-    ):
+    )):
         outer = os.environ.get(pass_name)
         if outer is not None and outer != "":
             env.append(f"{pass_name}={outer}")
+        else:
+            env.append(f"GRAPHBREW_ABSENT_ENV_{pass_index:02d}=0")
     for env_name, default_path in RUNTIME_SIDEBAND_FILES:
         env.append(f"{env_name}={os.environ.get(env_name, default_path)}")
-    return tuple(env)
+    return finalize_environment(env)
 
 
 def parse_args():

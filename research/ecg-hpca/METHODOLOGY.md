@@ -259,7 +259,10 @@ guest. The guest is served under its content-addressed staged basename at a
 real, resolvable path, while the graph retains its original `.sg` basename;
 gem5 resolves `/proc/self/exe` and GAPBS dispatches its reader from that suffix.
 The guest-visible mount path has fixed length across policies and reruns. The
-gem5 executable itself is safe to execute from a sealed inherited memfd.
+gem5 config emits a fixed number of environment entries and pads their total
+serialized bytes to 16 KiB, so arm-specific mechanism knobs do not shift the
+guest's initial stack. The gem5 executable itself is safe to execute from a
+sealed inherited memfd.
 Independent source and binary hashes are insufficient: they do not prove that
 the binary was produced from those bytes or that the validated pathname still
 names the executed bytes.

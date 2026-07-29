@@ -2569,9 +2569,10 @@ Before execution, `roi_matrix.py` copies the validated guest to a
 content-addressed read-only path. Each invocation serves the guest and graph
 from read-only in-memory FUSE files. The guest keeps its content-addressed
 staged basename and the graph keeps its original `.sg` basename. A fixed-length
-mount path preserves comparable guest stack layout while providing a resolvable
-`/proc/self/exe` and graph suffix. The gem5 executable itself is inherited as a
-sealed memfd, while its Python config modules are served read-only. Missing
+mount path plus a fixed-count, 16 KiB-padded guest environment preserves
+comparable initial stack layout while providing a resolvable `/proc/self/exe`
+and graph suffix. The gem5 executable itself is inherited as a sealed memfd,
+while its Python config modules are served read-only. Missing
 receipts, changed dependencies, copied kernel receipts, inconsistent ISA
 overrides, or staged binary changes fail closed. All nine jobs must be rerun
 from one newly built guest.

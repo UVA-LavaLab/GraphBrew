@@ -1555,11 +1555,6 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
 
 
 def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size: str) -> list[dict[str, Any]]:
-    binary = VALIDATED_GEM5_GUEST
-    if binary is None:
-        raise RuntimeError("gem5 guest was not validated")
-    if selected_gem5_isa() == "riscv":
-        verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     label = f"gem5_{args.benchmark}_{spec.safe_label}_L3{sanitize(l3_size)}"
     gem5_out = out_dir / "gem5" / label
     log_path = out_dir / "logs" / f"{label}.log"
@@ -1575,6 +1570,15 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "error": "ECG_PFX gem5 timing path is experimental; pass --allow-gem5-ecg-pfx only after rebuilding gem5 with the ECG_PFX SimObject scaffold.",
         })
         return [row]
+    binary = VALIDATED_GEM5_GUEST
+    if binary is None:
+        if args.dry_run:
+            binary = PROJECT_ROOT / "bench" / "bin_gem5" / (
+                f"{args.benchmark}{GEM5_KERNEL_SUFFIX}")
+        else:
+            raise RuntimeError("gem5 guest was not validated")
+    if selected_gem5_isa() == "riscv":
+        verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     effective_l3_size = str(charge["popt_effective_l3_size"])
     effective_l3_ways = str(charge["popt_effective_l3_ways"])
 
@@ -1855,7 +1859,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         result = run_command(
             cmd, PROJECT_ROOT, env, args.timeout_gem5, log_path,
             args.dry_run, tuple(pass_fds))
-    if hash_input_path(binary) != VALIDATED_GEM5_GUEST_SHA256:
+    if (not args.dry_run and
+            hash_input_path(binary) != VALIDATED_GEM5_GUEST_SHA256):
         raise RuntimeError("gem5 guest changed after execution")
     if args.dry_run:
         return []

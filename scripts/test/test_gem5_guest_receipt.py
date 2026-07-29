@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import shutil
 from contextlib import contextmanager
+import importlib.util
 from types import SimpleNamespace
 import subprocess
 import sys
@@ -447,6 +448,32 @@ def test_guest_visible_runtime_mount_length_is_policy_invariant():
     source = (
         PROJECT_ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
     assert 'f".gem5-runtime-{label}' not in source
+
+
+def test_guest_environment_bytes_and_entry_count_are_policy_invariant():
+    path = (
+        PROJECT_ROOT /
+        "bench/include/gem5_sim/configs/graphbrew/graph_env_layout.py")
+    spec = importlib.util.spec_from_file_location(
+        "graph_env_layout_test", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    baseline = module.finalize_environment([
+        "FIXED=1",
+        "GRAPHBREW_ABSENT_ENV_00=0",
+        "GRAPHBREW_ABSENT_ENV_01=0",
+    ])
+    ecg = module.finalize_environment([
+        "FIXED=1",
+        "ECG_RECORD_VARIABLE_WIDTH=1",
+        "ECG_EXPECT_BYTES_PER_EDGE=4",
+    ])
+    assert len(baseline) == len(ecg)
+    assert sum(len(item.encode()) + 1 for item in baseline) == (
+        module.TARGET_ENV_BYTES)
+    assert sum(len(item.encode()) + 1 for item in ecg) == (
+        module.TARGET_ENV_BYTES)
 
 
 def test_current_riscv_pr_receipt_when_binary_is_present():
