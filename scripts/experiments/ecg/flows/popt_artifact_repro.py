@@ -26,6 +26,7 @@ from typing import Iterable
 
 
 PINNED_ARTIFACT_COMMIT = "53b5021846690d0f3445428c6380e877ecf7a10e"
+PINNED_GRASP_COMMIT = "6e3814430265fc4f2513c95ef131a6522bc9d389"
 POLICIES = {
     "lru": ("baseline", "lru"),
     "drrip": ("baseline", "drrip"),
@@ -110,6 +111,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--artifact-root", type=Path, required=True)
     parser.add_argument("--pin-root", type=Path)
     parser.add_argument("--tool-root", type=Path)
+    parser.add_argument("--grasp-source-root", type=Path)
     parser.add_argument("--port-label", default="pin2-exact")
     parser.add_argument(
         "--gate", choices=("public", "dbg-grasp"), default="public")
@@ -145,10 +147,34 @@ def main(argv: list[str]) -> int:
         raise SystemExit("missing reproduction inputs:\n  " + "\n  ".join(missing))
 
     public_gate = args.gate == "public"
+    grasp_source = (
+        args.grasp_source_root.resolve()
+        if args.grasp_source_root else None)
+    if not public_gate:
+        if grasp_source is None:
+            raise SystemExit("--gate dbg-grasp requires --grasp-source-root")
+        grasp_head = artifact_head(grasp_source)
+        if grasp_head != PINNED_GRASP_COMMIT:
+            raise SystemExit(
+                f"GRASP commit mismatch: {grasp_head} != "
+                f"{PINNED_GRASP_COMMIT}")
+        grasp_inputs = (
+            grasp_source / "trace-based-simulators/grasp.cpp",
+            grasp_source / "trace-based-simulators/common.h",
+        )
+        missing_grasp = [
+            str(path) for path in grasp_inputs if not path.is_file()]
+        if missing_grasp:
+            raise SystemExit(
+                "missing GRASP sources:\n  " + "\n  ".join(missing_grasp))
+    else:
+        grasp_head = ""
+        grasp_inputs = ()
     manifest = {
         "artifact_commit": head,
         "port_label": args.port_label,
         "gate": args.gate,
+        "grasp_source_commit": grasp_head,
         "scope": (
             "public-artifact PageRank LLC-miss direction"
             if public_gate else
@@ -161,7 +187,10 @@ def main(argv: list[str]) -> int:
         },
         "graphs": list(args.graphs),
         "policies": list(args.policies),
-        "inputs": {str(path): sha256(path) for path in inputs},
+        "inputs": {
+            str(path): sha256(path)
+            for path in (*inputs, *grasp_inputs)
+        },
     }
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n")

@@ -54,5 +54,7 @@ def test_dbg_grasp_mode_uses_official_grasp_as_reference():
     src = PATH.read_text()
     assert 'reference = "drrip" if public_gate else "grasp"' in src
     assert '"popt_vs_grasp_direction": not public_gate' in src
+    assert "PINNED_GRASP_COMMIT" in src
+    assert "--grasp-source-root" in src
     assert src.index('reference = "drrip"') < src.index(
         'if "popt-8b" in policies and reference in policies')
