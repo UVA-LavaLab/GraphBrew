@@ -331,7 +331,10 @@ void GenerateDBGMapping(const CSRGraph<NodeID_, DestID_, invert>& g,
     t.Start();
     
     const int64_t num_nodes = g.num_nodes();
-    const int64_t num_edges = g.num_edges();
+    // Official DBG uses GA.m, the number of adjacency entries. For an
+    // undirected CSR that is twice g.num_edges(); using the half-edge count
+    // halves avg_degree and changes every bucket threshold on KRON/URAND.
+    const int64_t num_edges = g.num_edges_directed();
     
     // GUARD: Empty graph - nothing to do
     if (num_nodes == 0) {
