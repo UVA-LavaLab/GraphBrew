@@ -49,6 +49,7 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "roi_matrix"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gem5_guest_receipt import validate_receipt as validate_gem5_guest_receipt  # noqa: E402
 from policy_specs import PolicySpec, parse_policy_spec  # noqa: E402
 
 GEM5_OPT = Path(os.environ.get(
@@ -3028,11 +3029,14 @@ def standalone_matrix_config_hash(
         paths["setarch"] = (
             Path(setarch) if setarch else PROJECT_ROOT / ".missing-setarch")
     if args.suite in ("gem5", "both"):
+        guest_binary = PROJECT_ROOT / "bench" / "bin_gem5" / (
+            f"{args.benchmark}{GEM5_KERNEL_SUFFIX}")
         paths.update({
             "gem5_binary": GEM5_OPT,
             "gem5_config": GEM5_CONFIG.parent,
-            "gem5_benchmark_binary": PROJECT_ROOT / "bench" /
-            "bin_gem5" / f"{args.benchmark}{GEM5_KERNEL_SUFFIX}",
+            "gem5_benchmark_binary": guest_binary,
+            "gem5_guest_build_receipt": Path(
+                str(guest_binary) + ".build.json"),
         })
     if args.suite in ("cache-sim", "both"):
         paths["cache_sim_benchmark_binary"] = (
@@ -3380,6 +3384,17 @@ def main(argv: list[str]) -> int:
     if args.gem5_compact_fused and args.benchmark != "pr":
         raise SystemExit(
             "--gem5-compact-fused is implemented only for --benchmark pr")
+    if (args.no_build and args.suite in ("gem5", "both") and
+            GEM5_KERNEL_SUFFIX.endswith("_riscv_m5ops")):
+        guest_binary = PROJECT_ROOT / "bench" / "bin_gem5" / (
+            f"{args.benchmark}{GEM5_KERNEL_SUFFIX}")
+        receipt = Path(str(guest_binary) + ".build.json")
+        receipt_errors = validate_gem5_guest_receipt(
+            receipt, guest_binary, PROJECT_ROOT)
+        if receipt_errors:
+            raise SystemExit(
+                "prebuilt gem5 guest provenance failed:\n  " +
+                "\n  ".join(receipt_errors))
     if (getattr(args, "structural_bypass", "off") != "off" and
             args.suite not in ("cache-sim", "both")):
         raise SystemExit(

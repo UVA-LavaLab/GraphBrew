@@ -2531,3 +2531,26 @@ content-addressed archives have SHA-256
 (v5 build) and
 `2ce20f47ecab244400448937501451cba1fcaae4168c2db40f4c1923c22b15f3`
 (completed run).
+
+## RETRACTION: first matched-loop fused matrix used a stale DBG guest (2026-07-29)
+
+`ecg_fused_compact_matrix_final_20260728` completed 27/27 rows and passed its
+cross-stage PageRank checksum gate, but it is **not final evidence**.
+
+Every job requested DBG ordering (`-o 5`). The tracked source had already been
+corrected to compute average degree from directed adjacency entries, while the
+prebuilt RISC-V guest still divided the undirected half-edge count by the node
+count. On `cit-Patents-n18-sym`, the guest therefore used average degree 1
+instead of 2. That can change the vertex mapping and every cache result for the
+cell that defines the aggregate worst case.
+
+The hot-loop matching, semantic receipts, variant receipts, compact activation,
+and arithmetic all passed for that stale binary. They do not repair the
+source/binary mismatch. Do not cite its 0.923 compact-K2/LRU time ratio, 0.8056
+compact/wide traffic ratio, or any three-graph aggregate.
+
+The RISC-V guest build now emits a receipt from the compiler depfile. It binds
+the exact compiler command, compiler binary, git state, linked m5 library,
+project headers (including `reorder_hub.h`), and guest binary hash. No-build
+gem5 runs fail closed if the receipt is missing or any dependency has changed.
+All nine jobs must be rerun from one newly built guest.

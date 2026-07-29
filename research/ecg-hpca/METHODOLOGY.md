@@ -244,6 +244,13 @@ gem5 analysis keeps only the benchmark-emitted ROI statistics block. Its later
 automatic exit dump contains post-ROI teardown activity and is not a second
 measurement.
 
+Paper no-build runs may use a prebuilt RISC-V guest only when the adjacent
+`.build.json` receipt validates. The receipt is generated from the compiler
+depfile and binds the compiler command and binary, git state, linked m5
+library, every project dependency, and the output guest hash. Independent
+source and binary hashes are insufficient: they do not prove that the binary
+was produced from that source state.
+
 ## External P-OPT artifact-direction gate
 
 Validation of the published P-OPT baseline is separate from GraphBrew's

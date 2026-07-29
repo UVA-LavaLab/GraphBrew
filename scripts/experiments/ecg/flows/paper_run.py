@@ -250,12 +250,15 @@ def roi_input_fingerprints(
             PROJECT_ROOT / "bench" / "include" / "gem5_sim" /
             "gem5" / "build" / "X86" / "gem5.opt"))
         suffix = source_env.get("GEM5_KERNEL_SUFFIX", "_m5ops")
+        guest_binary = PROJECT_ROOT / "bench" / "bin_gem5" / (
+            f"{benchmark}{suffix}")
         paths.update({
             "gem5_binary": gem5_opt,
             "gem5_config": PROJECT_ROOT / "bench" / "include" /
             "gem5_sim" / "configs" / "graphbrew",
-            "gem5_benchmark_binary": PROJECT_ROOT / "bench" /
-            "bin_gem5" / f"{benchmark}{suffix}",
+            "gem5_benchmark_binary": guest_binary,
+            "gem5_guest_build_receipt": Path(
+                str(guest_binary) + ".build.json"),
         })
     elif suite == "cache-sim":
         paths["cache_sim_benchmark_binary"] = (
