@@ -115,6 +115,7 @@ def main(argv: list[str]) -> int:
         "--policies", nargs="+", choices=sorted(POLICIES),
         default=list(POLICIES))
     parser.add_argument("--timeout", type=int, default=86400)
+    parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
@@ -152,9 +153,23 @@ def main(argv: list[str]) -> int:
         json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
     rows = []
+    results_path = out_dir / "results.csv"
+    if args.resume and results_path.exists():
+        with results_path.open(newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        for row in rows:
+            row["exit_code"] = int(row["exit_code"])
+            row["llc_demand_misses"] = int(row["llc_demand_misses"])
+    completed = {
+        (row["graph"], row["policy"]) for row in rows
+        if row.get("status") == "ok"
+    }
     env = dict(os.environ, OMP_NUM_THREADS="1")
     for graph in args.graphs:
         for policy in args.policies:
+            if (graph, policy) in completed:
+                print(f"[resume] {graph}/{policy}", flush=True)
+                continue
             command = build_command(
                 root, pin_root, tool_root, graph, policy)
             print("$", " ".join(command), flush=True)
@@ -178,7 +193,7 @@ def main(argv: list[str]) -> int:
                 "status": "ok" if result.returncode == 0 else "error",
             }
             rows.append(row)
-            write_csv(out_dir / "results.csv", rows)
+            write_csv(results_path, rows)
 
     if args.dry_run:
         return 0
@@ -199,15 +214,18 @@ def main(argv: list[str]) -> int:
             direction[graph] = (
                 policies["popt-8b"]["llc_demand_misses"] <
                 policies["drrip"]["llc_demand_misses"])
-    passed = complete and len(direction) == len(args.graphs) and all(
-        direction.values())
+    direction_evaluated = {"popt-8b", "drrip"} <= set(args.policies)
+    passed = (
+        complete and direction_evaluated and
+        len(direction) == len(args.graphs) and all(direction.values()))
     (out_dir / "complete.json").write_text(json.dumps({
         "complete": complete,
+        "direction_evaluated": direction_evaluated,
         "passed_popt_vs_drrip_every_graph": passed,
         "popt_better_than_drrip": direction,
         "popt_vs_grasp_claimable": False,
     }, indent=2, sort_keys=True) + "\n")
-    return 0 if passed else 1
+    return 0 if complete and (not direction_evaluated or passed) else 1
 
 
 if __name__ == "__main__":

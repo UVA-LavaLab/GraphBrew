@@ -37,3 +37,14 @@ def test_commands_pin_one_pagerank_sweep(tmp_path):
     ]
     assert str(root / "applications/popt/pr") in command
     assert str(root / "tools/popt-8b/cache_pinsim.so") in command
+
+
+def test_resume_rows_round_trip_integer_metrics(tmp_path):
+    rows = [{
+        "graph": "g", "policy": "lru", "exit_code": 0,
+        "llc_demand_misses": 123, "status": "ok",
+    }]
+    path = tmp_path / "results.csv"
+    MOD.write_csv(path, rows)
+    text = path.read_text()
+    assert "123" in text and "lru" in text
