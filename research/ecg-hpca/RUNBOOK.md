@@ -49,6 +49,7 @@ bench/bin/converter \
 
 ```bash
 make setup-gem5
+make setup-gem5-guest-tools
 make setup-sniper
 make all-sim
 make gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs \
@@ -353,6 +354,7 @@ python3 -m pytest \
   scripts/test/test_k2_mshr_state.py \
   scripts/test/test_gem5_ecg_pfx_scaffold.py -q
 python3 scripts/setup_gem5.py --isa X86 RISCV --jobs 16 --rebuild
+make setup-gem5-guest-tools
 make -j12 gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs \
   gem5-riscv-m5ops-sssp gem5-riscv-m5ops-bc gem5-riscv-m5ops-cc
 ```

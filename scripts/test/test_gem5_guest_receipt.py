@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+from contextlib import contextmanager
 from types import SimpleNamespace
 import subprocess
 import sys
@@ -9,6 +10,7 @@ import sys
 import pytest
 
 from scripts.experiments.ecg.flows import paper_run
+from scripts.experiments.ecg import gem5_guest_receipt as receipt_module
 from scripts.experiments.ecg.gem5_guest_receipt import (
     MATERIAL_COMPILER_ENV,
     PINNED_FUSERMOUNT,
@@ -18,7 +20,13 @@ from scripts.experiments.ecg.gem5_guest_receipt import (
     PINNED_LIBFUSE,
     PINNED_LIBFUSE_SHA256,
     PINNED_PROOT,
+    PINNED_PROOT_LIBC,
+    PINNED_PROOT_LIBC_SHA256,
+    PINNED_PROOT_LOADER,
+    PINNED_PROOT_LOADER_SHA256,
     PINNED_PROOT_SHA256,
+    PINNED_PROOT_TALLOC,
+    PINNED_PROOT_TALLOC_SHA256,
     PINNED_RISCV_CXX,
     PINNED_RISCV_CXX_SHA256,
     PROJECT_ROOT,
@@ -43,6 +51,12 @@ def write_build_config(
         "INCLUDES": includes,
         "PROOT": str(PINNED_PROOT),
         "PROOT_SHA256": PINNED_PROOT_SHA256,
+        "PROOT_LOADER": str(PINNED_PROOT_LOADER),
+        "PROOT_LOADER_SHA256": PINNED_PROOT_LOADER_SHA256,
+        "PROOT_LIBC": str(PINNED_PROOT_LIBC),
+        "PROOT_LIBC_SHA256": PINNED_PROOT_LIBC_SHA256,
+        "PROOT_TALLOC": str(PINNED_PROOT_TALLOC),
+        "PROOT_TALLOC_SHA256": PINNED_PROOT_TALLOC_SHA256,
         "FUSEPY": str(PINNED_FUSEPY),
         "FUSEPY_SHA256": PINNED_FUSEPY_SHA256,
         "LIBFUSE": str(PINNED_LIBFUSE),
@@ -196,6 +210,90 @@ def test_traced_inputs_cover_openmp_math_and_linker_plugin(tmp_path):
     depfile_text = depfile.read_text()
     assert "libgomp.spec" in depfile_text
     assert "liblto_plugin.so" in depfile_text
+
+
+def test_final_compile_consumes_immutable_snapshot_during_swap_restore(
+        tmp_path, monkeypatch):
+    source = tmp_path / "pr.cc"
+    binary = tmp_path / "pr_riscv_m5ops"
+    depfile = Path(str(binary) + ".d")
+    receipt = Path(str(binary) + ".build.json")
+    build_config = tmp_path / ".riscv_build_config"
+    flags = "-O0 -static"
+    original = (
+        '__attribute__((used)) const char marker[] = "ORIGINAL";\n'
+        "int main() { return marker[0] == 'O' ? 0 : 1; }\n")
+    source.write_text(original)
+    write_build_config(build_config, flags, "")
+    real_mount = receipt_module.immutable_fuse_files
+
+    @contextmanager
+    def swap_restore(files, mountpoint):
+        with real_mount(files, mountpoint):
+            source.write_text(original.replace("ORIGINAL", "MALICIOUS"))
+            try:
+                yield
+            finally:
+                source.write_text(original)
+
+    monkeypatch.setattr(
+        receipt_module, "immutable_fuse_files", swap_restore)
+    build_guest(
+        receipt, binary, depfile, "riscv64-linux-gnu-g++", flags, "",
+        source, [], build_config, str(binary))
+    strings = subprocess.run(
+        ["strings", str(binary)], capture_output=True, text=True,
+        check=True).stdout
+    assert "ORIGINAL" in strings
+    assert "MALICIOUS" not in strings
+
+
+def test_injected_loader_and_proot_environment_is_ignored(
+        tmp_path, monkeypatch):
+    source = tmp_path / "pr.cc"
+    binary = tmp_path / "pr_riscv_m5ops"
+    depfile = Path(str(binary) + ".d")
+    receipt = Path(str(binary) + ".build.json")
+    build_config = tmp_path / ".riscv_build_config"
+    flags = "-O0 -static"
+    source.write_text("int main() { return 0; }\n")
+    write_build_config(build_config, flags, "")
+    monkeypatch.setenv("LD_PRELOAD", "/does/not/exist.so")
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/does/not/exist")
+    monkeypatch.setenv("PROOT_LOADER", "/bin/false")
+    monkeypatch.setenv("PYTHONPATH", "/does/not/exist")
+    monkeypatch.setenv("FUSE_LIBRARY_PATH", "/does/not/exist.so")
+    build_guest(
+        receipt, binary, depfile, "riscv64-linux-gnu-g++", flags, "",
+        source, [], build_config, str(binary))
+    assert validate_receipt(
+        receipt, binary, source, [], build_config) == []
+
+
+def test_virtual_alias_retarget_invalidates_receipt(tmp_path):
+    first = tmp_path / "first.h"
+    second = tmp_path / "second.h"
+    alias = tmp_path / "selected.h"
+    source = tmp_path / "pr.cc"
+    binary = tmp_path / "pr_riscv_m5ops"
+    depfile = Path(str(binary) + ".d")
+    receipt = Path(str(binary) + ".build.json")
+    build_config = tmp_path / ".riscv_build_config"
+    flags = "-O0 -static"
+    first.write_text("#define VALUE 1\n")
+    second.write_text("#define VALUE 2\n")
+    alias.symlink_to(first)
+    source.write_text(
+        '#include "selected.h"\nint main() { return VALUE - 1; }\n')
+    write_build_config(build_config, flags, f"-I{tmp_path}")
+    build_guest(
+        receipt, binary, depfile, "riscv64-linux-gnu-g++", flags,
+        f"-I{tmp_path}", source, [], build_config, str(binary))
+    alias.unlink()
+    alias.symlink_to(second)
+    errors = validate_receipt(
+        receipt, binary, source, [], build_config)
+    assert any("virtual alias changed" in error for error in errors)
 
 
 def test_wrapper_compiler_and_config_drift_are_rejected(tmp_path):

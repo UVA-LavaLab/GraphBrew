@@ -105,6 +105,15 @@ GEM5_RISCV_BUILD_CONFIG := $(BIN_GEM5_DIR)/.riscv_build_config
 GEM5_GUEST_PROOT := $(INC_DIR)/gem5_sim/.tools/proot
 GEM5_GUEST_PROOT_SHA256 := $(shell test -f "$(GEM5_GUEST_PROOT)" && \
 	sha256sum "$(GEM5_GUEST_PROOT)" | cut -d' ' -f1)
+GEM5_GUEST_PROOT_LOADER := /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+GEM5_GUEST_PROOT_LOADER_SHA256 := $(shell \
+	sha256sum "$(GEM5_GUEST_PROOT_LOADER)" 2>/dev/null | cut -d' ' -f1)
+GEM5_GUEST_PROOT_LIBC := /usr/lib/x86_64-linux-gnu/libc.so.6
+GEM5_GUEST_PROOT_LIBC_SHA256 := $(shell \
+	sha256sum "$(GEM5_GUEST_PROOT_LIBC)" 2>/dev/null | cut -d' ' -f1)
+GEM5_GUEST_PROOT_TALLOC := /usr/lib/x86_64-linux-gnu/libtalloc.so.2
+GEM5_GUEST_PROOT_TALLOC_SHA256 := $(shell \
+	sha256sum "$(GEM5_GUEST_PROOT_TALLOC)" 2>/dev/null | cut -d' ' -f1)
 GEM5_GUEST_FUSEPY := $(INC_DIR)/gem5_sim/.tools/fusepy.py
 GEM5_GUEST_FUSEPY_SHA256 := $(shell test -f "$(GEM5_GUEST_FUSEPY)" && \
 	sha256sum "$(GEM5_GUEST_FUSEPY)" | cut -d' ' -f1)
@@ -142,18 +151,24 @@ $(GEM5_RISCV_BUILD_CONFIG): FORCE_GEM5_RISCV_CONFIG | $(BIN_GEM5_DIR)
 		printf '%s\n' "INCLUDES=$(INCLUDES)"; \
 		printf '%s\n' "PROOT=$(abspath $(GEM5_GUEST_PROOT))"; \
 		printf '%s\n' "PROOT_SHA256=$(GEM5_GUEST_PROOT_SHA256)"; \
+		printf '%s\n' "PROOT_LOADER=$(GEM5_GUEST_PROOT_LOADER)"; \
+		printf '%s\n' "PROOT_LOADER_SHA256=$(GEM5_GUEST_PROOT_LOADER_SHA256)"; \
+		printf '%s\n' "PROOT_LIBC=$(GEM5_GUEST_PROOT_LIBC)"; \
+		printf '%s\n' "PROOT_LIBC_SHA256=$(GEM5_GUEST_PROOT_LIBC_SHA256)"; \
+		printf '%s\n' "PROOT_TALLOC=$(GEM5_GUEST_PROOT_TALLOC)"; \
+		printf '%s\n' "PROOT_TALLOC_SHA256=$(GEM5_GUEST_PROOT_TALLOC_SHA256)"; \
 		printf '%s\n' "FUSEPY=$(abspath $(GEM5_GUEST_FUSEPY))"; \
 		printf '%s\n' "FUSEPY_SHA256=$(GEM5_GUEST_FUSEPY_SHA256)"; \
 		printf '%s\n' "LIBFUSE=$(abspath $(GEM5_GUEST_LIBFUSE))"; \
 		printf '%s\n' "LIBFUSE_SHA256=$(GEM5_GUEST_LIBFUSE_SHA256)"; \
 		printf '%s\n' "FUSERMOUNT=$(GEM5_GUEST_FUSERMOUNT)"; \
 		printf '%s\n' "FUSERMOUNT_SHA256=$(GEM5_GUEST_FUSERMOUNT_SHA256)"; \
-		printf '%s\n' "PATH=$(PATH)"; \
-		printf '%s\n' "COMPILER_PATH=$(COMPILER_PATH)"; \
-		printf '%s\n' "GCC_EXEC_PREFIX=$(GCC_EXEC_PREFIX)"; \
-		printf '%s\n' "LIBRARY_PATH=$(LIBRARY_PATH)"; \
-		printf '%s\n' "CPATH=$(CPATH)"; \
-		printf '%s\n' "CPLUS_INCLUDE_PATH=$(CPLUS_INCLUDE_PATH)"; \
+		printf '%s\n' "PATH=/usr/bin:/bin"; \
+		printf '%s\n' "COMPILER_PATH="; \
+		printf '%s\n' "GCC_EXEC_PREFIX="; \
+		printf '%s\n' "LIBRARY_PATH="; \
+		printf '%s\n' "CPATH="; \
+		printf '%s\n' "CPLUS_INCLUDE_PATH="; \
 	} > $@.tmp
 	@if test -f $@ && cmp -s $@.tmp $@; then \
 		rm -f $@.tmp; \

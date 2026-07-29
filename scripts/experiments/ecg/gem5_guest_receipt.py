@@ -34,6 +34,16 @@ PINNED_STRACE_SHA256 = (
 PINNED_PROOT = PROJECT_ROOT / "bench/include/gem5_sim/.tools/proot"
 PINNED_PROOT_SHA256 = (
     "9f6fc9a29f9338aee2df61d16f84fb498d0c1c541c4e52bd648843108790853b")
+PINNED_PROOT_LOADER = Path(
+    "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2")
+PINNED_PROOT_LOADER_SHA256 = (
+    "cd4df4f3c7b83673d61189bf2eaebd33ca4f2853ab9772b8a25e025ef99b1e81")
+PINNED_PROOT_LIBC = Path("/usr/lib/x86_64-linux-gnu/libc.so.6")
+PINNED_PROOT_LIBC_SHA256 = (
+    "8db37cf3f2169f59a0f07ef1fea308c35656668c64c8ff294e1860f4121eb161")
+PINNED_PROOT_TALLOC = Path("/usr/lib/x86_64-linux-gnu/libtalloc.so.2")
+PINNED_PROOT_TALLOC_SHA256 = (
+    "5e4fb8691231a2431f5126f79c884bdc0678ef08b2c3d5f9c5017365589dbf4b")
 PINNED_FUSEPY = PROJECT_ROOT / "bench/include/gem5_sim/.tools/fusepy.py"
 PINNED_FUSEPY_SHA256 = (
     "7a7b60998bd459d5bbe6fcd8d4886fa4d3784d58bd8209db4f83ebee7299af87")
@@ -169,8 +179,25 @@ def compiler_receipt(compiler_text: str) -> dict:
 
 def material_environment() -> dict[str, str]:
     return {
-        name: os.environ.get(name, "")
-        for name in MATERIAL_COMPILER_ENV
+        "PATH": "/usr/bin:/bin",
+        "COMPILER_PATH": "",
+        "GCC_EXEC_PREFIX": "",
+        "LIBRARY_PATH": "",
+        "CPATH": "",
+        "CPLUS_INCLUDE_PATH": "",
+    }
+
+
+def execution_environment() -> dict[str, str]:
+    return {
+        **{
+            key: value for key, value in material_environment().items()
+            if value
+        },
+        "TMPDIR": "/tmp",
+        "HOME": "/tmp",
+        "LC_ALL": "C",
+        "LANG": "C",
     }
 
 
@@ -191,6 +218,12 @@ def parse_build_config(path: Path) -> dict[str, str]:
         "INCLUDES",
         "PROOT",
         "PROOT_SHA256",
+        "PROOT_LOADER",
+        "PROOT_LOADER_SHA256",
+        "PROOT_LIBC",
+        "PROOT_LIBC_SHA256",
+        "PROOT_TALLOC",
+        "PROOT_TALLOC_SHA256",
         "FUSEPY",
         "FUSEPY_SHA256",
         "LIBFUSE",
@@ -219,6 +252,12 @@ def validate_build_config(
         "INCLUDES": includes,
         "PROOT": str(PINNED_PROOT),
         "PROOT_SHA256": PINNED_PROOT_SHA256,
+        "PROOT_LOADER": str(PINNED_PROOT_LOADER),
+        "PROOT_LOADER_SHA256": PINNED_PROOT_LOADER_SHA256,
+        "PROOT_LIBC": str(PINNED_PROOT_LIBC),
+        "PROOT_LIBC_SHA256": PINNED_PROOT_LIBC_SHA256,
+        "PROOT_TALLOC": str(PINNED_PROOT_TALLOC),
+        "PROOT_TALLOC_SHA256": PINNED_PROOT_TALLOC_SHA256,
         "FUSEPY": str(PINNED_FUSEPY),
         "FUSEPY_SHA256": PINNED_FUSEPY_SHA256,
         "LIBFUSE": str(PINNED_LIBFUSE),
@@ -242,10 +281,41 @@ def require_trace_tool() -> Path:
 
 
 def require_proot() -> Path:
-    if not PINNED_PROOT.is_file() or \
-            sha256(PINNED_PROOT) != PINNED_PROOT_SHA256:
-        raise ValueError("pinned proot snapshot runner is missing or changed")
+    expected = {
+        PINNED_PROOT: PINNED_PROOT_SHA256,
+        PINNED_PROOT_LOADER: PINNED_PROOT_LOADER_SHA256,
+        PINNED_PROOT_LIBC: PINNED_PROOT_LIBC_SHA256,
+        PINNED_PROOT_TALLOC: PINNED_PROOT_TALLOC_SHA256,
+    }
+    for path, digest in expected.items():
+        if not path.is_file() or sha256(path) != digest:
+            raise ValueError(
+                f"pinned proot runtime is missing or changed: {path}")
     return PINNED_PROOT
+
+
+@contextmanager
+def sealed_proot_command() -> tuple[list[str], tuple[int, ...]]:
+    require_proot()
+    runtime = (
+        (PINNED_PROOT_LOADER, PINNED_PROOT_LOADER_SHA256),
+        (PINNED_PROOT_LIBC, PINNED_PROOT_LIBC_SHA256),
+        (PINNED_PROOT_TALLOC, PINNED_PROOT_TALLOC_SHA256),
+        (PINNED_PROOT, PINNED_PROOT_SHA256),
+    )
+    fds = []
+    try:
+        for path, digest in runtime:
+            fd, _name = open_sealed_guest(path, digest)
+            fds.append(fd)
+        paths = [f"/proc/self/fd/{fd}" for fd in fds]
+        command = [
+            paths[0], "--preload", f"{paths[1]}:{paths[2]}", paths[3],
+        ]
+        yield command, tuple(fds)
+    finally:
+        for fd in fds:
+            os.close(fd)
 
 
 def require_fuse_tools() -> None:
@@ -269,7 +339,7 @@ def run_traced_command(
             str(tracer), "-qq", "-f", "-yy", "-e", "trace=%file",
             "-o", str(trace_path), *command,
         ],
-        cwd=cwd, check=True)
+        cwd=cwd, env=execution_environment(), check=True)
 
 
 def decode_trace_path(value: str) -> str:
@@ -391,14 +461,19 @@ def add_snapshot_symlinks(
 
 
 def serve_immutable_fuse(
-        mountpoint: str, files: dict[str, tuple[bytes, int]]) -> None:
-    os.environ["FUSE_LIBRARY_PATH"] = str(PINNED_LIBFUSE)
-    spec = importlib.util.spec_from_file_location(
-        "graphbrew_fusepy", PINNED_FUSEPY)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("cannot load pinned fusepy")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+        mountpoint: str, files: dict[str, tuple[bytes, int]],
+        fusepy_source: bytes, libfuse_fd: int) -> None:
+    os.environ.clear()
+    os.environ.update({
+        "FUSE_LIBRARY_PATH": f"/proc/self/fd/{libfuse_fd}",
+        "PATH": "/usr/bin:/bin",
+        "LC_ALL": "C",
+    })
+    module = importlib.util.module_from_spec(
+        importlib.util.spec_from_loader("graphbrew_fusepy", loader=None))
+    module.__file__ = "pinned-fusepy.py"
+    exec(compile(
+        fusepy_source, module.__file__, "exec"), module.__dict__)
 
     class ImmutableFiles(module.Operations):
         def getattr(self, path, fh=None):
@@ -448,10 +523,15 @@ def serve_immutable_fuse(
 def immutable_fuse_files(
         files: dict[str, tuple[bytes, int]], mountpoint: Path):
     require_fuse_tools()
+    fusepy_source = PINNED_FUSEPY.read_bytes()
+    if hashlib.sha256(fusepy_source).hexdigest() != PINNED_FUSEPY_SHA256:
+        raise ValueError("pinned fusepy changed while loading")
+    libfuse_fd, _libfuse_path = open_sealed_guest(
+        PINNED_LIBFUSE, PINNED_LIBFUSE_SHA256)
     mountpoint.mkdir(parents=True, exist_ok=True)
     process = multiprocessing.get_context("fork").Process(
         target=serve_immutable_fuse,
-        args=(str(mountpoint), files),
+        args=(str(mountpoint), files, fusepy_source, libfuse_fd),
         daemon=True)
     process.start()
     for _ in range(100):
@@ -474,6 +554,7 @@ def immutable_fuse_files(
         if process.is_alive():
             process.terminate()
             process.join(5)
+        os.close(libfuse_fd)
 
 
 def run_sealed_snapshot_compile(
@@ -481,7 +562,7 @@ def run_sealed_snapshot_compile(
         input_bindings: dict[Path, tuple[Path, str]],
         snapshot_root: Path, workdir: Path,
         output_paths: list[Path]) -> list[Path]:
-    proot = require_proot()
+    require_proot()
     mountpoint = snapshot_root.parent / "immutable-inputs"
     immutable_files = {}
     bindings = []
@@ -516,13 +597,15 @@ def run_sealed_snapshot_compile(
         snapshot_path(snapshot_root, Path(device)).touch()
         bindings.extend(["-b", f"{device}:{device}"])
     with immutable_fuse_files(immutable_files, mountpoint):
-        env = dict(os.environ, TMPDIR="/tmp", HOME="/tmp", LC_ALL="C")
-        subprocess.run(
-            [
-                str(proot), "-r", str(snapshot_root), "-w", str(workdir),
-                *bindings, *command,
-            ],
-            cwd=PROJECT_ROOT, env=env, check=True)
+        with sealed_proot_command() as (proot_command, proot_fds):
+            subprocess.run(
+                [
+                    *proot_command,
+                    "-r", str(snapshot_root), "-w", str(workdir),
+                    *bindings, *command,
+                ],
+                cwd=PROJECT_ROOT, env=execution_environment(),
+                pass_fds=proot_fds, check=True)
         return [snapshot_path(snapshot_root, path) for path in output_paths]
 
 
@@ -661,11 +744,17 @@ def build_guest(
         Path(__file__).resolve(),
         require_trace_tool(),
         require_proot(),
+        PINNED_PROOT_LOADER,
+        PINNED_PROOT_LIBC,
+        PINNED_PROOT_TALLOC,
         PINNED_FUSEPY,
         PINNED_LIBFUSE,
         PINNED_FUSERMOUNT,
         build_config,
         *link_inputs,
+    }
+    fixed_dependencies = {
+        path.resolve() for path in fixed_dependencies
     }
     binary.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
@@ -741,7 +830,8 @@ def build_guest(
             raise ValueError("compiler produced no guest binary")
         require_riscv_elf(built_binary)
         write_complete_depfile(
-            built_depfile, make_target, before_paths)
+            built_depfile, make_target,
+            before_paths | set(discovery_inputs.keys()))
 
         canonical_command = compile_command(
             driver, flags, includes, depfile, Path(make_target),
@@ -771,6 +861,9 @@ def build_guest(
             "snapshot_runner": {
                 "path": str(PINNED_PROOT),
                 "sha256": PINNED_PROOT_SHA256,
+                "loader_sha256": PINNED_PROOT_LOADER_SHA256,
+                "libc_sha256": PINNED_PROOT_LIBC_SHA256,
+                "talloc_sha256": PINNED_PROOT_TALLOC_SHA256,
                 "immutable_fuse_inputs": True,
                 "fusepy_sha256": PINNED_FUSEPY_SHA256,
                 "libfuse_sha256": PINNED_LIBFUSE_SHA256,
@@ -902,11 +995,17 @@ def validate_receipt(
         Path(__file__).resolve(),
         PINNED_STRACE,
         PINNED_PROOT,
+        PINNED_PROOT_LOADER,
+        PINNED_PROOT_LIBC,
+        PINNED_PROOT_TALLOC,
         PINNED_FUSEPY,
         PINNED_LIBFUSE,
         PINNED_FUSERMOUNT,
         build_config,
         *link_inputs,
+    }
+    fixed_dependencies = {
+        path.resolve() for path in fixed_dependencies
     }
     trace_tool = payload.get("trace_tool", {})
     if trace_tool != {
@@ -917,6 +1016,9 @@ def validate_receipt(
     if snapshot_runner != {
             "path": str(PINNED_PROOT),
             "sha256": PINNED_PROOT_SHA256,
+            "loader_sha256": PINNED_PROOT_LOADER_SHA256,
+            "libc_sha256": PINNED_PROOT_LIBC_SHA256,
+            "talloc_sha256": PINNED_PROOT_TALLOC_SHA256,
             "immutable_fuse_inputs": True,
             "fusepy_sha256": PINNED_FUSEPY_SHA256,
             "libfuse_sha256": PINNED_LIBFUSE_SHA256,
@@ -944,6 +1046,11 @@ def validate_receipt(
                     f"{row.get('source_path')}")
             else:
                 traced_inputs.add(path)
+                if not virtual_path.is_file() or \
+                        virtual_path.resolve() != path:
+                    errors.append(
+                        "traced compiler virtual alias changed: "
+                        f"{virtual_path}")
     expected_dependencies = snapshot(
         set(dep_dependencies) | traced_inputs | fixed_dependencies)
     if payload.get("dependencies") != expected_dependencies:
