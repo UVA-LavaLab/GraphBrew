@@ -30,7 +30,9 @@ def test_public_artifact_gate_does_not_claim_grasp_or_speedup():
 def test_commands_pin_one_pagerank_sweep(tmp_path):
     root = tmp_path / "artifact"
     command = MOD.build_command(
-        root, root / "pin", root / "tools", "uk-2002", "popt-8b")
+        root, root / "pin", root / "tools", "uk-2002", "popt-8b",
+        "/usr/bin/setarch")
+    assert command[:3] == ["/usr/bin/setarch", "x86_64", "-R"]
     assert command[-6:] == [
         "-f", str(root / "input-graphs/uk-2002.sg"),
         "-n", "1", "-i", "1",
@@ -58,3 +60,11 @@ def test_dbg_grasp_mode_uses_official_grasp_as_reference():
     assert "--grasp-source-root" in src
     assert src.index('reference = "drrip"') < src.index(
         'if "popt-8b" in policies and reference in policies')
+
+
+def test_resume_requires_execution_fingerprint():
+    src = PATH.read_text()
+    assert "execution_fingerprint" in src
+    assert "fingerprints.get" in src
+    assert "--port-source-root" in src
+    assert "--graph-provenance" in src

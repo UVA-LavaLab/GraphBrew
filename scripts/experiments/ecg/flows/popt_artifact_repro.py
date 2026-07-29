@@ -6,10 +6,11 @@ speedups or Figure 12(a)'s P-OPT-vs-GRASP result: the public artifact contains
 neither the modified Sniper model nor GRASP/DBG. It validates the public
 artifact's cache-only PageRank result on its four graphs:
 
-  LRU, DRRIP, P-OPT, T-OPT; 24 MiB/16-way LLC; no prefetch; one PR sweep.
+  LRU, DRRIP, P-OPT; 24 MiB/16-way LLC; no prefetch; one PR sweep.
 
 The exact artifact uses Pin 2.14. On hosts where that Pin cannot run, callers
 may supply a compatibility Pin/tool root, but the output is labelled as a port.
+T-OPT is optional and not part of the pass condition.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from pathlib import Path
 import subprocess
 import sys
 from typing import Iterable
+import shutil
 
 
 PINNED_ARTIFACT_COMMIT = "53b5021846690d0f3445428c6380e877ecf7a10e"
@@ -34,13 +36,14 @@ POLICIES = {
     "opt-ideal": ("opt-ideal", "opt-ideal"),
     "grasp": ("baseline", "grasp"),
 }
-PUBLIC_POLICIES = ("lru", "drrip", "popt-8b", "opt-ideal")
+PUBLIC_POLICIES = ("lru", "drrip", "popt-8b")
 DEFAULT_GRAPHS = (
     "uk-2002",
     "hugebubbles-00020",
     "kron25-d4",
     "urand25-d4",
 )
+DBG_GRAPHS = tuple(f"{graph}-dbg-direct" for graph in DEFAULT_GRAPHS)
 
 
 def sha256(path: Path) -> str:
@@ -48,6 +51,14 @@ def sha256(path: Path) -> str:
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
+    return digest.hexdigest()
+
+
+def hash_tree(path: Path) -> str:
+    digest = hashlib.sha256()
+    for child in sorted(item for item in path.rglob("*") if item.is_file()):
+        digest.update(str(child.relative_to(path)).encode())
+        digest.update(sha256(child).encode())
     return digest.hexdigest()
 
 
@@ -86,9 +97,10 @@ def expected_paths(
 
 def build_command(
         root: Path, pin_root: Path, tool_root: Path,
-        graph: str, policy: str) -> list[str]:
+        graph: str, policy: str, setarch: str) -> list[str]:
     app_version, tool_name = POLICIES[policy]
     return [
+        setarch, "x86_64", "-R",
         str(pin_root / "pin"),
         "-t", str(tool_root / tool_name / "cache_pinsim.so"),
         "--",
@@ -112,6 +124,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--pin-root", type=Path)
     parser.add_argument("--tool-root", type=Path)
     parser.add_argument("--grasp-source-root", type=Path)
+    parser.add_argument("--port-source-root", type=Path)
+    parser.add_argument("--graph-provenance", type=Path)
     parser.add_argument("--port-label", default="pin2-exact")
     parser.add_argument(
         "--gate", choices=("public", "dbg-grasp"), default="public")
@@ -122,6 +136,9 @@ def main(argv: list[str]) -> int:
         default=None)
     parser.add_argument("--timeout", type=int, default=86400)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--exploratory", action="store_true",
+        help="Allow graph/policy subsets that do not evaluate the gate.")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     if args.policies is None:
@@ -132,6 +149,10 @@ def main(argv: list[str]) -> int:
     root = args.artifact_root.resolve()
     pin_root = (args.pin_root or root / "pin-2.14").resolve()
     tool_root = (args.tool_root or root / "simulators").resolve()
+    setarch = shutil.which("setarch")
+    if not setarch:
+        raise SystemExit(
+            "setarch is required: artifact addresses are hashed into cache sets")
     out_dir = args.out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -139,6 +160,18 @@ def main(argv: list[str]) -> int:
     if head != PINNED_ARTIFACT_COMMIT:
         raise SystemExit(
             f"artifact commit mismatch: {head} != {PINNED_ARTIFACT_COMMIT}")
+    required_graphs = set(
+        DEFAULT_GRAPHS if args.gate == "public" else DBG_GRAPHS)
+    required_policies = set(
+        PUBLIC_POLICIES if args.gate == "public"
+        else ("lru", "grasp", "popt-8b"))
+    if not args.exploratory and (
+            set(args.graphs) != required_graphs or
+            set(args.policies) != required_policies):
+        raise SystemExit(
+            f"{args.gate} gate requires graphs={sorted(required_graphs)} and "
+            f"policies={sorted(required_policies)}; use --exploratory for a "
+            "non-gating subset")
 
     inputs = expected_paths(
         root, pin_root, tool_root, args.graphs, args.policies)
@@ -147,6 +180,17 @@ def main(argv: list[str]) -> int:
         raise SystemExit("missing reproduction inputs:\n  " + "\n  ".join(missing))
 
     public_gate = args.gate == "public"
+    port_source = (
+        args.port_source_root.resolve()
+        if args.port_source_root else None)
+    if args.port_label != "pin2-exact" and port_source is None:
+        raise SystemExit(
+            "compatibility ports require --port-source-root provenance")
+    graph_provenance = (
+        args.graph_provenance.resolve()
+        if args.graph_provenance else None)
+    if graph_provenance is None or not graph_provenance.is_file():
+        raise SystemExit("--graph-provenance JSON is required")
     grasp_source = (
         args.grasp_source_root.resolve()
         if args.grasp_source_root else None)
@@ -187,9 +231,13 @@ def main(argv: list[str]) -> int:
         },
         "graphs": list(args.graphs),
         "policies": list(args.policies),
+        "aslr_disabled": True,
+        "port_source_sha256": (
+            hash_tree(port_source) if port_source else ""),
+        "graph_provenance_sha256": sha256(graph_provenance),
         "inputs": {
             str(path): sha256(path)
-            for path in (*inputs, *grasp_inputs)
+            for path in (*inputs, *grasp_inputs, graph_provenance)
         },
     }
     (out_dir / "manifest.json").write_text(
@@ -203,9 +251,35 @@ def main(argv: list[str]) -> int:
         for row in rows:
             row["exit_code"] = int(row["exit_code"])
             row["llc_demand_misses"] = int(row["llc_demand_misses"])
+    runner_hash = sha256(Path(__file__).resolve())
+    fingerprints = {}
+    for graph in args.graphs:
+        for policy in args.policies:
+            command = build_command(
+                root, pin_root, tool_root, graph, policy, setarch)
+            app_version, tool_name = POLICIES[policy]
+            payload = {
+                "command": command,
+                "runner_sha256": runner_hash,
+                "pin_sha256": sha256(pin_root / "pin"),
+                "tool_sha256": sha256(
+                    tool_root / tool_name / "cache_pinsim.so"),
+                "app_sha256": sha256(
+                    root / "applications" / app_version / "pr"),
+                "graph_sha256": sha256(
+                    root / "input-graphs" / f"{graph}.sg"),
+                "port_label": args.port_label,
+                "port_source_sha256": manifest["port_source_sha256"],
+                "graph_provenance_sha256": manifest[
+                    "graph_provenance_sha256"],
+            }
+            fingerprints[(graph, policy)] = hashlib.sha256(
+                json.dumps(payload, sort_keys=True).encode()).hexdigest()
     completed = {
         (row["graph"], row["policy"]) for row in rows
-        if row.get("status") == "ok"
+        if row.get("status") == "ok" and
+        row.get("execution_fingerprint") ==
+        fingerprints.get((row["graph"], row["policy"]))
     }
     env = dict(os.environ, OMP_NUM_THREADS="1")
     for graph in args.graphs:
@@ -214,7 +288,7 @@ def main(argv: list[str]) -> int:
                 print(f"[resume] {graph}/{policy}", flush=True)
                 continue
             command = build_command(
-                root, pin_root, tool_root, graph, policy)
+                root, pin_root, tool_root, graph, policy, setarch)
             print("$", " ".join(command), flush=True)
             if args.dry_run:
                 continue
@@ -231,6 +305,7 @@ def main(argv: list[str]) -> int:
                 "policy": policy,
                 "exit_code": result.returncode,
                 "llc_demand_misses": parse_total_llc_misses(text),
+                "execution_fingerprint": fingerprints[(graph, policy)],
                 "stdout_sha256": sha256(log),
                 "stderr_sha256": sha256(err),
                 "status": "ok" if result.returncode == 0 else "error",
@@ -277,7 +352,10 @@ def main(argv: list[str]) -> int:
         "popt_vs_reference": ratios,
         "popt_vs_grasp_figure12_exact": False,
     }, indent=2, sort_keys=True) + "\n")
-    return 0 if complete and (not direction_evaluated or passed) else 1
+    return 0 if (
+        complete and
+        ((args.exploratory and not direction_evaluated) or passed)
+    ) else 1
 
 
 if __name__ == "__main__":
