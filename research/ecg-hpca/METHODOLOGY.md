@@ -250,10 +250,11 @@ project/system dependency scan, compiles into temporary outputs, rejects any
 input/compiler/git change during the build, and atomically publishes the
 binary, depfile, and receipt. It binds target and source identity, the
 machine-readable Make configuration, pinned cross-compiler toolchain, linked m5
-library, every dependency, and the guest hash. The runner stages a validated
-content-addressed read-only copy and checks it before and after every gem5
-invocation. Independent source and binary hashes are insufficient: they do not
-prove that the binary was produced from that source state.
+library, every compiler/linker-opened input, and the guest hash. The runner
+stages a validated content-addressed copy, seals it in an inherited memfd, and
+passes `/proc/self/fd/<n>` to gem5. Independent source and binary hashes are
+insufficient: they do not prove that the binary was produced from that source
+state or that the validated pathname still names the executed bytes.
 
 ## External P-OPT artifact-direction gate
 

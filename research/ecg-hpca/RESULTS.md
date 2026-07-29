@@ -2554,13 +2554,16 @@ the project and system dependency set before compilation, compiles into
 temporary outputs, checks that git/compiler/input state did not change, then
 atomically publishes the binary, depfile, and receipt. The accepted toolchain is
 the pinned RISC-V compiler and its assembler, linker, specs, CRT objects, and
-static libraries. The receipt binds the exact target/source, build config,
-compiler command, linked m5 library, headers (including `reorder_hub.h`), and
-guest hash.
+static libraries. A pinned syscall trace inventories every file opened by two
+identical compile/link passes, including indirect specs, plugins, response
+files, linker scripts, and archives. The receipt binds the exact target/source,
+build config, compiler command, linked m5 library, headers (including
+`reorder_hub.h`), and guest hash.
 
 Before execution, `roi_matrix.py` copies the validated guest to a
-content-addressed read-only path. Every gem5 invocation verifies that staged
-hash immediately before and after execution. Missing receipts, changed
+content-addressed read-only path, then copies that exact content into a sealed
+memfd inherited by gem5. The simulator opens `/proc/self/fd/<n>`, so pathname
+replacement cannot change the bytes it executes. Missing receipts, changed
 dependencies, copied kernel receipts, inconsistent ISA overrides, or staged
 binary changes fail closed. All nine jobs must be rerun from one newly built
 guest.

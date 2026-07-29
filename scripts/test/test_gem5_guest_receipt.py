@@ -16,6 +16,8 @@ from scripts.experiments.ecg.gem5_guest_receipt import (
     PROJECT_ROOT,
     build_guest,
     material_environment,
+    open_sealed_guest,
+    sha256,
     stage_validated_guest,
     validate_receipt,
     verify_staged_guest,
@@ -121,6 +123,18 @@ def test_validated_guest_is_staged_and_rechecked_per_execution(tmp_path):
         verify_staged_guest(staged, expected_hash)
 
 
+def test_sealed_memfd_executes_immutable_open_file():
+    binary = Path("/bin/true")
+    fd, path = open_sealed_guest(binary, sha256(binary))
+    try:
+        result = subprocess.run([path], pass_fds=(fd,))
+        assert result.returncode == 0
+        with pytest.raises(OSError):
+            os.write(fd, b"changed")
+    finally:
+        os.close(fd)
+
+
 def test_riscv_make_rule_models_all_outputs_and_command_signature():
     makefile = (PROJECT_ROOT / "Makefile").read_text()
     assert "_riscv_m5ops.build.json &:" in makefile
@@ -129,6 +143,29 @@ def test_riscv_make_rule_models_all_outputs_and_command_signature():
     assert "--build-config $(GEM5_RISCV_BUILD_CONFIG)" in makefile
     assert "RISCV_CXX_SHA256=" in makefile
     assert ".PRECIOUS: $(RISCV_GUEST_BINARIES)" in makefile
+
+
+def test_traced_inputs_cover_openmp_math_and_linker_plugin(tmp_path):
+    source = tmp_path / "toolchain.cc"
+    binary = tmp_path / "toolchain_riscv_m5ops"
+    depfile = Path(str(binary) + ".d")
+    receipt = Path(str(binary) + ".build.json")
+    build_config = tmp_path / ".riscv_build_config"
+    flags = "-O0 -static -fopenmp"
+    source.write_text(
+        "#include <cmath>\n#include <omp.h>\n"
+        "int main(int argc, char**) {\n"
+        "  return static_cast<int>(std::sin(argc)) + omp_get_max_threads();\n"
+        "}\n")
+    write_build_config(build_config, flags, "")
+    payload = build_guest(
+        receipt, binary, depfile, "riscv64-linux-gnu-g++", flags, "",
+        source, [], build_config, str(binary))
+    traced_names = {Path(name).name for name in payload["traced_inputs"]}
+    assert "libgomp.spec" in traced_names
+    assert "libgomp.a" in traced_names
+    assert "libm.a" in traced_names
+    assert "liblto_plugin.so" in traced_names
 
 
 def test_wrapper_compiler_and_config_drift_are_rejected(tmp_path):

@@ -50,6 +50,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_ROOT = PROJECT_ROOT / "results" / "ecg_experiments" / "roi_matrix"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gem5_guest_receipt import (  # noqa: E402
+    open_sealed_guest,
     stage_validated_guest,
     validate_receipt as validate_gem5_guest_receipt,
     verify_staged_guest,
@@ -653,6 +654,7 @@ def run_command(
     timeout: int,
     stdout_path: Path,
     dry_run: bool,
+    pass_fds: tuple[int, ...] = (),
 ) -> subprocess.CompletedProcess[str] | None:
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     command_text = " ".join(shlex.quote(part) for part in cmd)
@@ -674,6 +676,7 @@ def run_command(
             stderr=subprocess.STDOUT,
             text=True,
             start_new_session=True,
+            pass_fds=pass_fds,
         )
         try:
             process.communicate(timeout=timeout)
@@ -1709,7 +1712,21 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         env["GEM5_ENABLE_ECG_PFX_HINTS"] = "1"
         env["GEM5_ECG_PFX_LOOKAHEAD"] = effective_ecg_pfx_value(args, "ECG_PREFETCH_LOOKAHEAD")
 
-    result = run_command(cmd, PROJECT_ROOT, env, args.timeout_gem5, log_path, args.dry_run)
+    guest_fd = None
+    pass_fds: tuple[int, ...] = ()
+    if selected_gem5_isa() == "riscv" and not args.dry_run:
+        verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
+        guest_fd, sealed_path = open_sealed_guest(
+            binary, VALIDATED_GEM5_GUEST_SHA256)
+        cmd[cmd.index("--binary") + 1] = sealed_path
+        pass_fds = (guest_fd,)
+    try:
+        result = run_command(
+            cmd, PROJECT_ROOT, env, args.timeout_gem5, log_path,
+            args.dry_run, pass_fds)
+    finally:
+        if guest_fd is not None:
+            os.close(guest_fd)
     if selected_gem5_isa() == "riscv":
         verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     if args.dry_run:

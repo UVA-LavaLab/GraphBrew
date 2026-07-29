@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import shutil
 import subprocess
@@ -20,6 +22,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PINNED_RISCV_CXX = Path("/usr/bin/riscv64-linux-gnu-g++-13")
 PINNED_RISCV_CXX_SHA256 = (
     "a675774e2afe01433771f6745de50870300833dc60ed5854662b414eff5fb7b6")
+PINNED_STRACE = Path("/usr/bin/strace")
+PINNED_STRACE_SHA256 = (
+    "28f957c227012de0b18d1bd7fff2d396cb693ea60ed8013be68de071e84b5001")
 MATERIAL_COMPILER_ENV = (
     "PATH",
     "COMPILER_PATH",
@@ -195,6 +200,61 @@ def validate_build_config(
     return values
 
 
+def require_trace_tool() -> Path:
+    if not PINNED_STRACE.is_file() or \
+            sha256(PINNED_STRACE) != PINNED_STRACE_SHA256:
+        raise ValueError("pinned strace build tracer is missing or changed")
+    return PINNED_STRACE
+
+
+def run_traced_command(
+        command: list[str], trace_path: Path,
+        cwd: Path = PROJECT_ROOT) -> None:
+    tracer = require_trace_tool()
+    subprocess.run(
+        [
+            str(tracer), "-qq", "-f", "-yy", "-e", "trace=%file",
+            "-o", str(trace_path), *command,
+        ],
+        cwd=cwd, check=True)
+
+
+def decode_trace_path(value: str) -> str:
+    return json.loads(f'"{value}"')
+
+
+def traced_input_paths(
+        trace_path: Path, excluded_root: Path,
+        root: Path = PROJECT_ROOT) -> set[Path]:
+    paths = set()
+    quoted = re.compile(r'"((?:\\.|[^"\\])*)"')
+    relative_at = re.compile(
+        r'(?:openat|newfstatat)\([^<]*<([^>]+)>[^,]*,\s*'
+        r'"((?:\\.|[^"\\])*)"')
+    for line in trace_path.read_text(errors="ignore").splitlines():
+        at_match = relative_at.search(line)
+        if at_match:
+            base = Path(decode_trace_path(at_match.group(1)))
+            value = Path(decode_trace_path(at_match.group(2)))
+            path = value if value.is_absolute() else base / value
+        else:
+            match = quoted.search(line)
+            if not match:
+                continue
+            path = Path(decode_trace_path(match.group(1)))
+            if not path.is_absolute():
+                path = root / path
+        path = path.resolve()
+        try:
+            path.relative_to(excluded_root)
+            continue
+        except ValueError:
+            pass
+        if path.is_file():
+            paths.add(path)
+    return paths
+
+
 def parse_depfile_text(
         text: str, root: Path = PROJECT_ROOT) -> tuple[str, Path, list[Path]]:
     flattened = text.replace("\\\n", " ")
@@ -313,6 +373,7 @@ def build_guest(
     fixed_dependencies = {
         PROJECT_ROOT / "Makefile",
         Path(__file__).resolve(),
+        require_trace_tool(),
         build_config,
         *link_inputs,
     }
@@ -321,9 +382,12 @@ def build_guest(
             prefix=f".{binary.name}.build.", dir=binary.parent) as temp_text:
         temp = Path(temp_text)
         pre_depfile = temp / "pre.d"
-        temp_depfile = temp / binary.name.replace("/", "_")
-        temp_depfile = temp_depfile.with_suffix(".d")
+        discovery_depfile = temp / "discovery.d"
+        discovery_binary = temp / "discovery.bin"
+        discovery_trace = temp / "discovery.strace"
+        temp_depfile = temp / "final.d"
         temp_binary = temp / binary.name
+        final_trace = temp / "final.strace"
         scan_command = dependency_scan_command(
             driver, flags, includes, pre_depfile,
             Path(make_target), source)
@@ -333,22 +397,43 @@ def build_guest(
         if pre_target_text != make_target or pre_target != binary or \
                 source not in pre_dependencies:
             raise ValueError("dependency scan does not describe requested guest")
-        before_paths = set(pre_dependencies) | fixed_dependencies
+        discovery_command = compile_command(
+            driver, flags, includes, discovery_depfile, Path(make_target),
+            source, link_inputs, discovery_binary)
+        run_traced_command(discovery_command, discovery_trace)
+        discovery_target_text, discovery_target, discovery_dependencies = (
+            parse_depfile(discovery_depfile))
+        if discovery_target_text != make_target or \
+                discovery_target != binary or \
+                source not in discovery_dependencies:
+            raise ValueError(
+                "discovery depfile does not describe requested guest")
+        if set(pre_dependencies) != set(discovery_dependencies):
+            raise ValueError(
+                "pre-scan dependency set differs from discovery build")
+        discovery_inputs = traced_input_paths(discovery_trace, temp)
+        before_paths = (
+            set(discovery_dependencies) | discovery_inputs |
+            fixed_dependencies)
         before_hashes = snapshot(before_paths)
 
         command = compile_command(
             driver, flags, includes, temp_depfile, Path(make_target),
             source, link_inputs, temp_binary)
-        subprocess.run(command, cwd=PROJECT_ROOT, check=True)
+        run_traced_command(command, final_trace)
         post_target_text, post_target, post_dependencies = parse_depfile(
             temp_depfile)
         if post_target_text != make_target or post_target != binary or \
                 source not in post_dependencies:
             raise ValueError("compile depfile does not describe requested guest")
-        after_paths = set(post_dependencies) | fixed_dependencies
+        final_inputs = traced_input_paths(final_trace, temp)
+        after_paths = set(post_dependencies) | final_inputs | fixed_dependencies
         after_hashes = snapshot(after_paths)
-        if set(pre_dependencies) != set(post_dependencies):
+        if set(discovery_dependencies) != set(post_dependencies):
             raise ValueError("dependency set changed during guest compilation")
+        if discovery_inputs != final_inputs:
+            raise ValueError(
+                "compiler/linker input set changed during guest compilation")
         if before_hashes != after_hashes:
             raise ValueError("build input changed during guest compilation")
         if compiler_before != compiler_receipt(compiler):
@@ -377,8 +462,15 @@ def build_guest(
             ],
             "build_config": dependency_key(build_config),
             "dependency_scan_command": scan_command,
+            "discovery_compile_command": discovery_command,
             "compile_command": command,
             "canonical_command": canonical_command,
+            "trace_tool": {
+                "path": str(PINNED_STRACE),
+                "sha256": PINNED_STRACE_SHA256,
+            },
+            "traced_inputs": sorted(
+                dependency_key(path) for path in final_inputs),
             "binary": {
                 "path": dependency_key(binary),
                 "sha256": sha256(temp_binary),
@@ -402,7 +494,8 @@ def build_guest(
 def validate_receipt(
         receipt_path: Path, binary: Path, source: Path,
         link_inputs: list[Path], build_config: Path,
-        root: Path = PROJECT_ROOT) -> list[str]:
+        root: Path = PROJECT_ROOT,
+        payload: dict | None = None) -> list[str]:
     errors = []
     binary = binary.resolve()
     source = source.resolve()
@@ -413,12 +506,13 @@ def validate_receipt(
     make_target = dependency_key(binary, root)
     if receipt_path.resolve() != expected_receipt:
         errors.append("guest receipt path does not match requested binary")
-    if not receipt_path.is_file():
+    if payload is None and not receipt_path.is_file():
         return errors + [f"guest build receipt is missing: {receipt_path}"]
-    try:
-        payload = json.loads(receipt_path.read_text())
-    except (OSError, json.JSONDecodeError) as error:
-        return errors + [f"guest build receipt is unreadable: {error}"]
+    if payload is None:
+        try:
+            payload = json.loads(receipt_path.read_text())
+        except (OSError, json.JSONDecodeError) as error:
+            return errors + [f"guest build receipt is unreadable: {error}"]
     if payload.get("schema_version") != 2:
         errors.append("unsupported guest build receipt schema")
     target_rows = {
@@ -476,6 +570,8 @@ def validate_receipt(
             build_config, compiler_text, flags, includes)
         if payload.get("build_config_values") != current_build_values:
             errors.append("guest receipt build configuration is inconsistent")
+        if payload.get("compiler_environment") != material_environment():
+            errors.append("guest compiler environment changed")
     except (OSError, ValueError) as error:
         errors.append(f"guest build configuration cannot be verified: {error}")
         compiler_text, flags, includes = "", "", ""
@@ -490,11 +586,31 @@ def validate_receipt(
     fixed_dependencies = {
         root / "Makefile",
         Path(__file__).resolve(),
+        PINNED_STRACE,
         build_config,
         *link_inputs,
     }
+    trace_tool = payload.get("trace_tool", {})
+    if trace_tool != {
+            "path": str(PINNED_STRACE),
+            "sha256": PINNED_STRACE_SHA256}:
+        errors.append("guest trace tool does not match pinned strace")
+    traced_rows = payload.get("traced_inputs")
+    traced_inputs = set()
+    if not isinstance(traced_rows, list) or not traced_rows:
+        errors.append("guest receipt has no traced compiler/linker inputs")
+    else:
+        for name in traced_rows:
+            path = Path(str(name))
+            if not path.is_absolute():
+                path = root / path
+            path = path.resolve()
+            if not path.is_file():
+                errors.append(f"traced compiler input is missing: {name}")
+            else:
+                traced_inputs.add(path)
     expected_dependencies = snapshot(
-        set(dep_dependencies) | fixed_dependencies)
+        set(dep_dependencies) | traced_inputs | fixed_dependencies)
     if payload.get("dependencies") != expected_dependencies:
         errors.append("guest dependency hashes do not match build receipt")
     if source not in dep_dependencies:
@@ -521,11 +637,16 @@ def stage_validated_guest(
         receipt_path: Path, binary: Path, source: Path,
         link_inputs: list[Path], build_config: Path,
         staging_dir: Path, root: Path = PROJECT_ROOT) -> tuple[Path, str]:
+    try:
+        receipt_bytes = receipt_path.read_bytes()
+        payload = json.loads(receipt_bytes)
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"guest build receipt is unreadable: {error}") from error
     errors = validate_receipt(
-        receipt_path, binary, source, link_inputs, build_config, root)
+        receipt_path, binary, source, link_inputs, build_config, root,
+        payload)
     if errors:
         raise ValueError("\n".join(errors))
-    payload = json.loads(receipt_path.read_text())
     expected_hash = str(payload["binary"]["sha256"])
     if sha256(binary) != expected_hash:
         raise ValueError("guest changed after receipt validation")
@@ -555,6 +676,35 @@ def stage_validated_guest(
 def verify_staged_guest(path: Path, expected_hash: str) -> None:
     if not path.is_file() or sha256(path) != expected_hash:
         raise ValueError("validated staged guest changed before execution")
+
+
+def open_sealed_guest(path: Path, expected_hash: str) -> tuple[int, str]:
+    fd = os.memfd_create(
+        f"graphbrew-{path.name}",
+        os.MFD_CLOEXEC | os.MFD_ALLOW_SEALING)
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+                view = memoryview(chunk)
+                while view:
+                    written = os.write(fd, view)
+                    view = view[written:]
+        if digest.hexdigest() != expected_hash:
+            raise ValueError("staged guest changed while opening sealed input")
+        os.fchmod(fd, 0o555)
+        seals = (
+            fcntl.F_SEAL_SEAL |
+            fcntl.F_SEAL_SHRINK |
+            fcntl.F_SEAL_GROW |
+            fcntl.F_SEAL_WRITE)
+        fcntl.fcntl(fd, fcntl.F_ADD_SEALS, seals)
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd, f"/proc/self/fd/{fd}"
+    except Exception:
+        os.close(fd)
+        raise
 
 
 def remove_outputs(binary: Path, depfile: Path, receipt: Path) -> None:
