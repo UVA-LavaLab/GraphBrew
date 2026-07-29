@@ -65,10 +65,13 @@ def command_output(command: list[str], cwd: Path | None = None) -> str:
 
 def compiler_receipt(cxx: str) -> dict:
     def printed_file(*args: str) -> dict:
-        path = Path(command_output([cxx, *args]))
+        path = Path(command_output([cxx, *args])).resolve()
+        if not path.is_file():
+            raise SystemExit(
+                f"compiler component is not a file: {' '.join(args)} -> {path}")
         return {
             "path": str(path),
-            "sha256": sha256(path) if path.is_file() else "",
+            "sha256": sha256(path),
         }
 
     target_flags = command_output(
@@ -494,11 +497,19 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--grasp-source-root", type=Path)
     parser.add_argument("--cxx", default=shutil.which("g++") or "g++")
+    parser.add_argument(
+        "--pin-wrapper-gcc",
+        default=shutil.which(os.environ.get("PIN_WRAPPER_GCC", "gcc"))
+        or "gcc")
     args = parser.parse_args(argv)
     artifact = args.artifact_root.resolve()
     pin_root = args.pin_root.resolve()
     out = args.out_dir.resolve()
     cxx = str(Path(args.cxx).resolve())
+    pin_wrapper_gcc = str(Path(args.pin_wrapper_gcc).resolve())
+    if not Path(pin_wrapper_gcc).is_file():
+        raise SystemExit(f"Pin backend compiler not found: {pin_wrapper_gcc}")
+    pin_build_env = dict(os.environ, PIN_WRAPPER_GCC=pin_wrapper_gcc)
     popt_repo = ensure_clean_repo(artifact, POPT_COMMIT, "P-OPT")
     grasp = args.grasp_source_root.resolve() if args.grasp_source_root else None
     grasp_repo = (
@@ -549,11 +560,12 @@ def main(argv: list[str]) -> int:
         write_build_files(build, pin_root)
         subprocess.run(
             ["make", f"PIN_ROOT={pin_root}", "clean"],
-            cwd=build, stdout=subprocess.DEVNULL, check=True)
+            cwd=build, env=pin_build_env,
+            stdout=subprocess.DEVNULL, check=True)
         subprocess.run(
             ["make", f"PIN_ROOT={pin_root}",
              f"SRC_DIR={out / 'src' / policy}", "-j4"],
-            cwd=build, check=True)
+            cwd=build, env=pin_build_env, check=True)
         target = out / "bin" / policy / "cache_pinsim.so"
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(build / "obj-intel64/cache_pinsim.so", target)
@@ -567,6 +579,7 @@ def main(argv: list[str]) -> int:
             if line.startswith("model name"):
                 cpu_model = line.split(":", 1)[1].strip()
                 break
+    application_compiler = compiler_receipt(cxx)
     manifest = {
         "schema_version": 2,
         "setup_script_sha256": sha256(Path(__file__).resolve()),
@@ -581,12 +594,15 @@ def main(argv: list[str]) -> int:
                 pin_root / "source/tools/Config"),
         },
         "build_environment": {
-            "application_compiler": compiler_receipt(cxx),
+            "application_compiler": application_compiler,
             "artifact_documented_application_compiler": "g++-6.3.0",
-            "application_compiler_is_compatibility_deviation": True,
+            "application_compiler_is_compatibility_deviation": (
+                "6.3.0" not in application_compiler["version"]),
             "pin_cxx": str(pin_root / "intel64/pinrt/bin/pin-g++"),
             "pin_cxx_sha256": sha256(
                 pin_root / "intel64/pinrt/bin/pin-g++"),
+            "pin_wrapper_gcc": pin_wrapper_gcc,
+            "pin_backend_compiler": compiler_receipt(pin_wrapper_gcc),
             "make_version": command_output(["make", "--version"])
             .splitlines()[0],
             "machine": os.uname().machine,

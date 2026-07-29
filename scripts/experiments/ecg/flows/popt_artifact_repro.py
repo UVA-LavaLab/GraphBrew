@@ -47,12 +47,38 @@ DEFAULT_GRAPHS = (
 DBG_GRAPHS = tuple(f"{graph}-dbg-direct" for graph in DEFAULT_GRAPHS)
 
 
+def is_full_gate_shape(
+        public_gate: bool, graphs: Iterable[str],
+        policies: Iterable[str]) -> bool:
+    required_graphs = set(DEFAULT_GRAPHS if public_gate else DBG_GRAPHS)
+    required_policies = set(
+        PUBLIC_POLICIES if public_gate
+        else ("lru", GRASP_PROXY, "popt-8b"))
+    return (
+        set(graphs) == required_graphs and
+        set(policies) == required_policies)
+
+
+def is_canonical_exact_mode(
+        root: Path, pin_root: Path, tool_root: Path, app_root: Path,
+        port_source: Path | None, build_manifest: Path | None) -> bool:
+    return (
+        pin_root == (root / "pin-2.14").resolve() and
+        tool_root == (root / "simulators").resolve() and
+        app_root == (root / "applications").resolve() and
+        port_source is None and build_manifest is None)
+
+
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def hash_tree(path: Path) -> str:
@@ -89,20 +115,22 @@ def parse_app_error(text: str) -> float:
     return values[0]
 
 
-def validate_completed_output(text: str) -> tuple[int, float]:
-    markers = (
+def validate_completed_output(
+        text: str, require_fini_receipt: bool = True) -> tuple[int, float]:
+    markers = [
         "~~~ PINTOOL STATS BEGIN ~~~",
         "~~~ PINTOOL STATS END ~~~",
         "[APP] Error =",
-        "[PIN-FINI] App Exit Code = 0",
-    )
+    ]
+    if require_fini_receipt:
+        markers.append("[PIN-FINI] App Exit Code = 0")
     if any(marker not in text for marker in markers):
         raise ValueError("output lacks normal-completion markers")
-    if not (
-            text.index(markers[0]) < text.index(markers[1]) <
-            text.index(markers[2]) < text.index(markers[3])):
+    positions = [text.index(marker) for marker in markers]
+    if positions != sorted(positions):
         raise ValueError("normal-completion markers are out of order")
-    return parse_total_llc_misses(text), parse_app_error(text)
+    roi_stats = text[positions[0]:positions[1]]
+    return parse_total_llc_misses(roi_stats), parse_app_error(text)
 
 
 def artifact_head(root: Path) -> str:
@@ -151,9 +179,8 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 
 def verify_graph_provenance(
-        path: Path, root: Path, graphs: Iterable[str],
-        artifact_commit: str) -> dict:
-    data = json.loads(path.read_text())
+        data: dict, root: Path, graphs: Iterable[str],
+        artifact_commit: str) -> None:
     if data.get("artifact_commit") != artifact_commit:
         raise SystemExit("graph provenance artifact commit mismatch")
     graph_entries = data.get("graphs")
@@ -170,17 +197,63 @@ def verify_graph_provenance(
             raise SystemExit(
                 f"graph provenance hash mismatch for {name}: "
                 f"{declared} != {actual}")
-    return data
+
+
+def verify_smoke_evidence(data: dict, manifest_path: Path) -> None:
+    smoke = data.get("smoke", {})
+    if smoke.get("passed") is not True:
+        raise SystemExit("port build manifest lacks a passing smoke test")
+    if smoke.get("normal_application_completion") is not True:
+        raise SystemExit("port smoke did not prove normal app completion")
+    if smoke.get("semantic_error_match") is not True:
+        raise SystemExit("port smoke did not prove semantic error parity")
+    graph = manifest_path.parent / "smoke/tiny.sg"
+    if smoke.get("graph_sha256") != sha256(graph):
+        raise SystemExit("port smoke graph hash mismatch")
+    rows = smoke.get("rows")
+    if not isinstance(rows, list):
+        raise SystemExit("port smoke lacks row evidence")
+    policies = data.get("policies")
+    if not isinstance(policies, list) or len(policies) != len(set(policies)):
+        raise SystemExit("port manifest policy set is invalid")
+    by_policy = {}
+    errors = []
+    for row in rows:
+        policy = row.get("policy")
+        if policy in by_policy or policy not in policies:
+            raise SystemExit("port smoke has duplicate or unknown policy rows")
+        stdout = manifest_path.parent / "smoke" / f"{policy}.stdout"
+        stderr = manifest_path.parent / "smoke" / f"{policy}.stderr"
+        if row.get("exit_code") != 0:
+            raise SystemExit(f"port smoke exit failure for {policy}")
+        if row.get("stdout_sha256") != sha256(stdout):
+            raise SystemExit(f"port smoke stdout hash mismatch for {policy}")
+        if row.get("stderr_sha256") != sha256(stderr):
+            raise SystemExit(f"port smoke stderr hash mismatch for {policy}")
+        misses, app_error = validate_completed_output(stdout.read_text())
+        if row.get("llc_demand_misses") != misses:
+            raise SystemExit(f"port smoke miss mismatch for {policy}")
+        if not math.isclose(
+                float(row.get("app_error")), app_error,
+                rel_tol=1e-9, abs_tol=1e-12):
+            raise SystemExit(f"port smoke semantic mismatch for {policy}")
+        errors.append(app_error)
+        by_policy[policy] = row
+    if set(by_policy) != set(policies):
+        raise SystemExit("port smoke does not cover every built policy")
+    if any(not math.isclose(
+            error, errors[0], rel_tol=1e-9, abs_tol=1e-12)
+            for error in errors[1:]):
+        raise SystemExit("port smoke PageRank errors differ")
 
 
 def verify_port_build_manifest(
-        path: Path, port_source: Path, artifact_commit: str,
+        data: dict, path: Path, port_source_hash: str, artifact_commit: str,
         pin_root: Path, tool_root: Path, app_root: Path,
-        policies: Iterable[str]) -> dict:
-    data = json.loads(path.read_text())
+        policies: Iterable[str]) -> None:
     if data.get("schema_version") != 2:
         raise SystemExit("unsupported port build manifest schema")
-    if data.get("setup_script_sha256") != sha256(port_source):
+    if data.get("setup_script_sha256") != port_source_hash:
         raise SystemExit("port build manifest does not match setup script")
     if data.get("popt_repository", {}).get("commit") != artifact_commit:
         raise SystemExit("port build manifest P-OPT commit mismatch")
@@ -201,12 +274,27 @@ def verify_port_build_manifest(
     for field, actual in pin_checks.items():
         if pin.get(field) != actual:
             raise SystemExit(f"port build manifest Pin mismatch: {field}")
-    if data.get("smoke", {}).get("passed") is not True:
-        raise SystemExit("port build manifest lacks a passing smoke test")
-    if data.get("smoke", {}).get("normal_application_completion") is not True:
-        raise SystemExit("port smoke did not prove normal app completion")
-    if data.get("smoke", {}).get("semantic_error_match") is not True:
-        raise SystemExit("port smoke did not prove semantic error parity")
+    build_environment = data.get("build_environment", {})
+    backend = build_environment.get("pin_backend_compiler", {})
+    required_backend_fields = (
+        "driver_sha256", "cc1plus", "libgcc", "libstdcxx",
+        "search_dirs_sha256", "native_target_flags_sha256",
+    )
+    if any(not backend.get(field) for field in required_backend_fields):
+        raise SystemExit("port manifest lacks Pin backend compiler provenance")
+    backend_path = Path(backend.get("path", ""))
+    if not backend_path.is_file() or \
+            backend.get("driver_sha256") != sha256(backend_path):
+        raise SystemExit("Pin backend compiler driver hash mismatch")
+    if build_environment.get("pin_wrapper_gcc") != str(backend_path):
+        raise SystemExit("Pin wrapper backend path mismatch")
+    for field in ("cc1plus", "libgcc", "libstdcxx"):
+        component = backend[field]
+        component_path = Path(component.get("path", ""))
+        if not component_path.is_file() or \
+                component.get("sha256") != sha256(component_path):
+            raise SystemExit(f"Pin backend component mismatch: {field}")
+    verify_smoke_evidence(data, path)
 
     binaries = data.get("binaries", {})
     source_trees = data.get("generated_source_trees", {})
@@ -240,7 +328,48 @@ def verify_port_build_manifest(
         preserved = path.parent / "provenance" / "grasp"
         if proxy.get("preserved_source_sha256") != hash_tree(preserved):
             raise SystemExit("preserved GRASP source hash mismatch")
-    return data
+
+
+def validate_resumed_rows(
+        rows: list[dict], out_dir: Path, fingerprints: dict,
+        graphs: Iterable[str], policies: Iterable[str],
+        require_fini_receipt: bool) -> list[dict]:
+    allowed = {
+        (graph, policy) for graph in graphs for policy in policies
+    }
+    seen = set()
+    validated = []
+    for row in rows:
+        key = (row.get("graph"), row.get("policy"))
+        if key not in allowed or key in seen:
+            raise SystemExit("resume CSV has an unknown or duplicate row")
+        seen.add(key)
+        if row.get("status") != "ok":
+            raise SystemExit(f"resume row is not successful: {key}")
+        if int(row.get("exit_code", -1)) != 0:
+            raise SystemExit(f"resume row has nonzero exit: {key}")
+        if row.get("execution_fingerprint") != fingerprints[key]:
+            raise SystemExit(f"resume fingerprint mismatch: {key}")
+        stdout = out_dir / f"{key[0]}__{key[1]}.stdout"
+        stderr = out_dir / f"{key[0]}__{key[1]}.stderr"
+        if row.get("stdout_sha256") != sha256(stdout):
+            raise SystemExit(f"resume stdout hash mismatch: {key}")
+        if row.get("stderr_sha256") != sha256(stderr):
+            raise SystemExit(f"resume stderr hash mismatch: {key}")
+        misses, app_error = validate_completed_output(
+            stdout.read_text(errors="ignore"), require_fini_receipt)
+        if int(row.get("llc_demand_misses", -1)) != misses:
+            raise SystemExit(f"resume miss mismatch: {key}")
+        if not math.isclose(
+                float(row.get("app_error")), app_error,
+                rel_tol=1e-9, abs_tol=1e-12):
+            raise SystemExit(f"resume semantic mismatch: {key}")
+        row["exit_code"] = 0
+        row["llc_demand_misses"] = misses
+        row["app_error"] = app_error
+        row["normal_completion_verified"] = True
+        validated.append(row)
+    return validated
 
 
 def main(argv: list[str]) -> int:
@@ -252,7 +381,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--port-source-root", type=Path)
     parser.add_argument("--port-build-manifest", type=Path)
     parser.add_argument("--graph-provenance", type=Path)
-    parser.add_argument("--port-label", default="pin2-exact")
+    parser.add_argument("--port-label")
     parser.add_argument(
         "--gate", choices=("public", PROXY_GATE), default="public")
     parser.add_argument("--out-dir", type=Path, required=True)
@@ -292,9 +421,10 @@ def main(argv: list[str]) -> int:
     required_policies = set(
         PUBLIC_POLICIES if public_gate
         else ("lru", GRASP_PROXY, "popt-8b"))
-    if not args.exploratory and (
-            set(args.graphs) != required_graphs or
-            set(args.policies) != required_policies):
+    full_gate_shape = is_full_gate_shape(
+        public_gate, args.graphs, args.policies)
+    gating_run = full_gate_shape and not args.exploratory
+    if not args.exploratory and not full_gate_shape:
         raise SystemExit(
             f"{args.gate} requires graphs={sorted(required_graphs)} and "
             f"policies={sorted(required_policies)}; use --exploratory for a "
@@ -313,7 +443,31 @@ def main(argv: list[str]) -> int:
     build_manifest_path = (
         args.port_build_manifest.resolve()
         if args.port_build_manifest else None)
-    if args.port_label != "pin2-exact":
+    exact_mode = is_canonical_exact_mode(
+        root, pin_root, tool_root, app_root,
+        port_source, build_manifest_path)
+    port_source_bytes = b""
+    build_manifest_bytes = b""
+    build_receipt = {}
+    if exact_mode:
+        if args.port_label not in (None, "pin2-exact"):
+            raise SystemExit("canonical Pin 2.14 inputs require pin2-exact")
+        port_label = "pin2-exact"
+        pin_version_result = subprocess.run(
+            [str(pin_root / "pin"), "-version"],
+            capture_output=True, text=True, check=False)
+        pin_version = (
+            pin_version_result.stdout + pin_version_result.stderr).strip()
+        if pin_version_result.returncode != 0:
+            raise SystemExit(
+                f"canonical Pin 2.14 is not runnable: {pin_version}")
+        if "pin-2.14" not in pin_version:
+            raise SystemExit("canonical exact mode requires Pin 2.14")
+    else:
+        if args.port_label == "pin2-exact":
+            raise SystemExit(
+                "noncanonical roots cannot be labelled pin2-exact")
+        port_label = args.port_label or "compatibility-port"
         if port_source is None or not port_source.is_file():
             raise SystemExit(
                 "compatibility ports require a setup script file via "
@@ -321,35 +475,42 @@ def main(argv: list[str]) -> int:
         if build_manifest_path is None or not build_manifest_path.is_file():
             raise SystemExit(
                 "compatibility ports require --port-build-manifest")
-        build_receipt = verify_port_build_manifest(
-            build_manifest_path, port_source, head, pin_root,
+        port_source_bytes = port_source.read_bytes()
+        build_manifest_bytes = build_manifest_path.read_bytes()
+        build_receipt = json.loads(build_manifest_bytes)
+        verify_port_build_manifest(
+            build_receipt, build_manifest_path,
+            sha256_bytes(port_source_bytes), head, pin_root,
             tool_root, app_root, args.policies)
-    else:
-        if build_manifest_path is not None:
-            raise SystemExit("pin2-exact must not use a port build manifest")
-        build_receipt = {}
 
     graph_provenance = (
         args.graph_provenance.resolve()
         if args.graph_provenance else None)
     if graph_provenance is None or not graph_provenance.is_file():
         raise SystemExit("--graph-provenance JSON is required")
+    graph_provenance_bytes = graph_provenance.read_bytes()
     verify_graph_provenance(
-        graph_provenance, root, args.graphs, head)
+        json.loads(graph_provenance_bytes), root, args.graphs, head)
 
-    port_source_hash = sha256(port_source) if port_source else ""
+    port_source_hash = (
+        sha256_bytes(port_source_bytes) if port_source_bytes else "")
     build_manifest_hash = (
-        sha256(build_manifest_path) if build_manifest_path else "")
+        sha256_bytes(build_manifest_bytes) if build_manifest_bytes else "")
+    graph_provenance_hash = sha256_bytes(graph_provenance_bytes)
     manifest = {
         "artifact_commit": head,
-        "port_label": args.port_label,
+        "port_label": port_label,
         "gate": args.gate,
+        "exploratory": args.exploratory,
+        "full_gate_shape": full_gate_shape,
         "scope": (
             "public-artifact PageRank LLC-miss direction"
+            if public_gate and gating_run else
+            "non-claimable exploratory PageRank LLC-miss diagnostic"
             if public_gate else
             "non-claimable direct-DBG GRASP-rules proxy diagnostic"),
         "claimable": {
-            "popt_vs_drrip": public_gate,
+            "popt_vs_drrip": public_gate and gating_run,
             "popt_vs_grasp_direction": False,
             "popt_vs_grasp_figure12_exact": False,
             "grasp_rules_proxy_direction": False,
@@ -363,10 +524,10 @@ def main(argv: list[str]) -> int:
         "semantic_error_match_required": True,
         "port_source_sha256": port_source_hash,
         "port_build_manifest_sha256": build_manifest_hash,
-        "graph_provenance_sha256": sha256(graph_provenance),
+        "graph_provenance_sha256": graph_provenance_hash,
         "inputs": {
             str(path): sha256(path)
-            for path in (*inputs, graph_provenance)
+            for path in inputs
         },
     }
     if port_source:
@@ -379,23 +540,17 @@ def main(argv: list[str]) -> int:
             "pin_version": build_receipt["pin"]["version"],
             "smoke_passed": build_receipt["smoke"]["passed"],
         }
-        shutil.copy2(
-            build_manifest_path, out_dir / "port_build_manifest.json")
-        shutil.copy2(port_source, out_dir / "setup_popt_pin4_port.py")
-    shutil.copy2(graph_provenance, out_dir / "graph_provenance.json")
+        (out_dir / "port_build_manifest.json").write_bytes(
+            build_manifest_bytes)
+        (out_dir / "setup_popt_pin4_port.py").write_bytes(
+            port_source_bytes)
+    manifest["inputs"][str(graph_provenance)] = graph_provenance_hash
+    (out_dir / "graph_provenance.json").write_bytes(
+        graph_provenance_bytes)
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
-    rows = []
     results_path = out_dir / "results.csv"
-    if args.resume and results_path.exists():
-        with results_path.open(newline="") as handle:
-            rows = list(csv.DictReader(handle))
-        for row in rows:
-            if row.get("status") == "ok":
-                row["exit_code"] = int(row["exit_code"])
-                row["llc_demand_misses"] = int(row["llc_demand_misses"])
-                row["app_error"] = float(row["app_error"])
     runner_hash = sha256(Path(__file__).resolve())
     fingerprints = {}
     for graph in args.graphs:
@@ -414,7 +569,7 @@ def main(argv: list[str]) -> int:
                     app_root / app_version / "pr"),
                 "graph_sha256": sha256(
                     root / "input-graphs" / f"{graph}.sg"),
-                "port_label": args.port_label,
+                "port_label": port_label,
                 "port_source_sha256": port_source_hash,
                 "port_build_manifest_sha256": build_manifest_hash,
                 "graph_provenance_sha256": manifest[
@@ -422,12 +577,13 @@ def main(argv: list[str]) -> int:
             }
             fingerprints[(graph, policy)] = hashlib.sha256(
                 json.dumps(payload, sort_keys=True).encode()).hexdigest()
-    completed = {
-        (row["graph"], row["policy"]) for row in rows
-        if row.get("status") == "ok" and
-        row.get("execution_fingerprint") ==
-        fingerprints.get((row["graph"], row["policy"]))
-    }
+    rows = []
+    if args.resume and results_path.exists():
+        with results_path.open(newline="") as handle:
+            rows = validate_resumed_rows(
+                list(csv.DictReader(handle)), out_dir, fingerprints,
+                args.graphs, args.policies, not exact_mode)
+    completed = {(row["graph"], row["policy"]) for row in rows}
     env = dict(os.environ, OMP_NUM_THREADS="1")
     for graph in args.graphs:
         for policy in args.policies:
@@ -457,7 +613,8 @@ def main(argv: list[str]) -> int:
                 failure = f"nonzero exit code {result.returncode}"
             else:
                 try:
-                    misses, app_error = validate_completed_output(text)
+                    misses, app_error = validate_completed_output(
+                        text, not exact_mode)
                 except ValueError as error:
                     status = "error"
                     failure = str(error)
@@ -472,6 +629,7 @@ def main(argv: list[str]) -> int:
                 "stderr_sha256": sha256(err),
                 "status": status,
                 "failure": failure,
+                "normal_completion_verified": status == "ok",
             }
             rows.append(row)
             write_csv(results_path, rows)
@@ -484,7 +642,8 @@ def main(argv: list[str]) -> int:
     by_graph = {
         graph: {
             row["policy"]: row for row in rows
-            if row["graph"] == graph and row["status"] == "ok"
+            if row["graph"] == graph and row["status"] == "ok" and
+            row.get("normal_completion_verified") in (True, "True")
         }
         for graph in args.graphs
     }
@@ -515,22 +674,31 @@ def main(argv: list[str]) -> int:
     semantic_complete = (
         len(semantic_match) == len(args.graphs) and
         all(semantic_match.values()))
+    normal_completion = complete and all(
+        row["exit_code"] == 0 and
+        row.get("normal_completion_verified") in (True, "True")
+        for policies in by_graph.values() for row in policies.values())
     public_passed = (
-        public_gate and complete and semantic_complete and
+        public_gate and gating_run and complete and normal_completion and
+        semantic_complete and
         direction_evaluated and len(direction) == len(args.graphs) and
         all(direction.values()))
     proxy_complete = (
-        not public_gate and complete and semantic_complete and
+        not public_gate and complete and normal_completion and
+        semantic_complete and
         direction_evaluated and len(direction) == len(args.graphs))
     (out_dir / "complete.json").write_text(json.dumps({
         "complete": complete,
-        "normal_application_completion": complete,
+        "exploratory": args.exploratory,
+        "full_gate_shape": full_gate_shape,
+        "claimable_public_gate": public_gate and gating_run,
+        "normal_application_completion": normal_completion,
         "semantic_error_match": semantic_match,
         "semantic_complete": semantic_complete,
         "direction_evaluated": direction_evaluated,
         "reference_policy": reference,
         "passed_popt_better_than_reference_every_graph": (
-            public_passed if public_gate else None),
+            public_passed if public_gate and gating_run else False),
         "proxy_diagnostic_complete": proxy_complete if not public_gate else None,
         "popt_better_than_reference": direction,
         "popt_vs_reference": ratios,
@@ -538,10 +706,10 @@ def main(argv: list[str]) -> int:
         "popt_vs_grasp_figure12_exact": False,
     }, indent=2, sort_keys=True) + "\n")
     if public_gate:
-        return 0 if (
-            complete and semantic_complete and
-            ((args.exploratory and not direction_evaluated) or public_passed)
-        ) else 1
+        if args.exploratory:
+            return 0 if (
+                complete and normal_completion and semantic_complete) else 1
+        return 0 if public_passed else 1
     return 0 if proxy_complete else 1
 
 

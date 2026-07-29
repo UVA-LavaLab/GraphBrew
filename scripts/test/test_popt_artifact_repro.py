@@ -51,11 +51,10 @@ def test_graph_provenance_must_match_actual_graph(tmp_path):
     graphs.mkdir(parents=True)
     graph = graphs / "g.sg"
     graph.write_bytes(b"graph")
-    receipt = tmp_path / "graphs.json"
-    receipt.write_text(json.dumps({
+    receipt = {
         "artifact_commit": MOD.PINNED_ARTIFACT_COMMIT,
         "graphs": {"g.sg": {"sha256": MOD.sha256(graph)}},
-    }))
+    }
 
     MOD.verify_graph_provenance(
         receipt, root, ["g"], MOD.PINNED_ARTIFACT_COMMIT)
@@ -87,10 +86,25 @@ def test_port_manifest_binds_script_pin_binary_app_and_sources(tmp_path):
     app.write_text("app\n")
     (port / "app-src/baseline").mkdir(parents=True)
     (port / "app-src/baseline/pr.cc").write_text("app source\n")
+    (port / "smoke").mkdir()
+    smoke_graph = port / "smoke/tiny.sg"
+    smoke_graph.write_text("graph\n")
+    smoke_stdout = port / "smoke/lru.stdout"
+    smoke_stdout.write_text(
+        "~~~ PINTOOL STATS BEGIN ~~~\n"
+        "[LLC-STAT] Total Misses = 10\n"
+        "~~~ PINTOOL STATS END ~~~\n"
+        "[APP] Error = 0.5\n"
+        "[PIN-FINI] App Exit Code = 0\n")
+    smoke_stderr = port / "smoke/lru.stderr"
+    smoke_stderr.write_text("")
+    compiler_component = tmp_path / "compiler-component"
+    compiler_component.write_text("compiler\n")
     manifest = {
         "schema_version": 2,
         "setup_script_sha256": MOD.sha256(script),
         "popt_repository": {"commit": MOD.PINNED_ARTIFACT_COMMIT},
+        "policies": ["lru"],
         "pin": {
             "pin_sha256": MOD.sha256(pin_root / "pin"),
             "intel64_tree_sha256": MOD.hash_tree(pin_root / "intel64"),
@@ -101,6 +115,36 @@ def test_port_manifest_binds_script_pin_binary_app_and_sources(tmp_path):
             "passed": True,
             "normal_application_completion": True,
             "semantic_error_match": True,
+            "graph_sha256": MOD.sha256(smoke_graph),
+            "rows": [{
+                "policy": "lru",
+                "exit_code": 0,
+                "llc_demand_misses": 10,
+                "app_error": 0.5,
+                "stdout_sha256": MOD.sha256(smoke_stdout),
+                "stderr_sha256": MOD.sha256(smoke_stderr),
+            }],
+        },
+        "build_environment": {
+            "pin_wrapper_gcc": str(compiler_component),
+            "pin_backend_compiler": {
+                "path": str(compiler_component),
+                "driver_sha256": MOD.sha256(compiler_component),
+                "cc1plus": {
+                    "path": str(compiler_component),
+                    "sha256": MOD.sha256(compiler_component),
+                },
+                "libgcc": {
+                    "path": str(compiler_component),
+                    "sha256": MOD.sha256(compiler_component),
+                },
+                "libstdcxx": {
+                    "path": str(compiler_component),
+                    "sha256": MOD.sha256(compiler_component),
+                },
+                "search_dirs_sha256": "search",
+                "native_target_flags_sha256": "target",
+            },
         },
         "binaries": {"lru": MOD.sha256(tool)},
         "generated_source_trees": {
@@ -117,13 +161,76 @@ def test_port_manifest_binds_script_pin_binary_app_and_sources(tmp_path):
     receipt.write_text(json.dumps(manifest))
 
     MOD.verify_port_build_manifest(
-        receipt, script, MOD.PINNED_ARTIFACT_COMMIT,
+        manifest, receipt, MOD.sha256(script), MOD.PINNED_ARTIFACT_COMMIT,
         pin_root, tool_root, app_root, ["lru"])
+    smoke_stdout.write_text("forged smoke\n")
+    with pytest.raises(SystemExit):
+        MOD.verify_port_build_manifest(
+            manifest, receipt, MOD.sha256(script),
+            MOD.PINNED_ARTIFACT_COMMIT,
+            pin_root, tool_root, app_root, ["lru"])
+    smoke_stdout.write_text(
+        "~~~ PINTOOL STATS BEGIN ~~~\n"
+        "[LLC-STAT] Total Misses = 10\n"
+        "~~~ PINTOOL STATS END ~~~\n"
+        "[APP] Error = 0.5\n"
+        "[PIN-FINI] App Exit Code = 0\n")
     tool.write_text("different\n")
     with pytest.raises(SystemExit):
         MOD.verify_port_build_manifest(
-            receipt, script, MOD.PINNED_ARTIFACT_COMMIT,
+            manifest, receipt, MOD.sha256(script),
+            MOD.PINNED_ARTIFACT_COMMIT,
             pin_root, tool_root, app_root, ["lru"])
+
+
+def test_noncanonical_roots_can_never_enter_exact_mode(tmp_path):
+    root = (tmp_path / "artifact").resolve()
+    assert MOD.is_canonical_exact_mode(
+        root, (root / "pin-2.14").resolve(),
+        (root / "simulators").resolve(),
+        (root / "applications").resolve(), None, None)
+    assert not MOD.is_canonical_exact_mode(
+        root, (root / "pin-4.2").resolve(),
+        (root / "simulators").resolve(),
+        (root / "applications").resolve(), None, None)
+
+
+def test_exploratory_subset_is_not_full_public_gate():
+    assert MOD.is_full_gate_shape(
+        True, MOD.DEFAULT_GRAPHS, MOD.PUBLIC_POLICIES)
+    assert not MOD.is_full_gate_shape(
+        True, ["uk-2002"], ["drrip", "popt-8b"])
+
+
+def test_resume_revalidates_hashed_logs_and_completion(tmp_path):
+    stdout = tmp_path / "g__lru.stdout"
+    stderr = tmp_path / "g__lru.stderr"
+    stdout.write_text(
+        "~~~ PINTOOL STATS BEGIN ~~~\n"
+        "[LLC-STAT] Total Misses = 10\n"
+        "~~~ PINTOOL STATS END ~~~\n"
+        "[APP] Error = 0.5\n"
+        "[PIN-FINI] App Exit Code = 0\n")
+    stderr.write_text("")
+    fingerprints = {("g", "lru"): "fingerprint"}
+    row = {
+        "graph": "g",
+        "policy": "lru",
+        "exit_code": "0",
+        "llc_demand_misses": "10",
+        "app_error": "0.5",
+        "execution_fingerprint": "fingerprint",
+        "stdout_sha256": MOD.sha256(stdout),
+        "stderr_sha256": MOD.sha256(stderr),
+        "status": "ok",
+    }
+    validated = MOD.validate_resumed_rows(
+        [row], tmp_path, fingerprints, ["g"], ["lru"], True)
+    assert validated[0]["normal_completion_verified"] is True
+    stdout.write_text("forged\n")
+    with pytest.raises(SystemExit):
+        MOD.validate_resumed_rows(
+            [row], tmp_path, fingerprints, ["g"], ["lru"], True)
 
 
 def test_resume_rows_round_trip_integer_metrics(tmp_path):
