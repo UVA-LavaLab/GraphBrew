@@ -76,35 +76,66 @@ def test_port_manifest_binds_script_pin_binary_app_and_sources(tmp_path):
     (pin_root / "pin").write_text("pin\n")
     (pin_root / "intel64/runtime").write_text("runtime\n")
     (pin_root / "source/tools/Config/rules").write_text("rules\n")
-    (tool_root / "lru").mkdir(parents=True)
-    tool = tool_root / "lru/cache_pinsim.so"
-    tool.write_text("tool\n")
-    (port / "src/lru").mkdir(parents=True)
-    (port / "src/lru/source.cpp").write_text("source\n")
-    (app_root / "baseline").mkdir(parents=True)
-    app = app_root / "baseline/pr"
-    app.write_text("app\n")
-    (port / "app-src/baseline").mkdir(parents=True)
-    (port / "app-src/baseline/pr.cc").write_text("app source\n")
+    policies = ["lru", "drrip", "popt-8b", "opt-ideal"]
+    app_versions = {
+        "lru": "baseline",
+        "drrip": "baseline",
+        "popt-8b": "popt",
+        "opt-ideal": "opt-ideal",
+    }
+    binaries = {}
+    source_trees = {}
+    applications = {}
+    app_source_trees = {}
+    for policy in policies:
+        (tool_root / policy).mkdir(parents=True)
+        tool = tool_root / policy / "cache_pinsim.so"
+        tool.write_text(f"{policy} tool\n")
+        binaries[policy] = MOD.sha256(tool)
+        source = port / "src" / policy
+        source.mkdir(parents=True)
+        (source / "source.cpp").write_text(f"{policy} source\n")
+        source_trees[policy] = MOD.hash_tree(source)
+    for app_version in set(app_versions.values()):
+        (app_root / app_version).mkdir(parents=True)
+        app = app_root / app_version / "pr"
+        app.write_text(f"{app_version} app\n")
+        applications[app_version] = {"pr": MOD.sha256(app)}
+        source = port / "app-src" / app_version
+        source.mkdir(parents=True)
+        (source / "pr.cc").write_text(f"{app_version} app source\n")
+        app_source_trees[app_version] = MOD.hash_tree(source)
     (port / "smoke").mkdir()
     smoke_graph = port / "smoke/tiny.sg"
     smoke_graph.write_text("graph\n")
-    smoke_stdout = port / "smoke/lru.stdout"
-    smoke_stdout.write_text(
-        "~~~ PINTOOL STATS BEGIN ~~~\n"
-        "[LLC-STAT] Total Misses = 10\n"
-        "~~~ PINTOOL STATS END ~~~\n"
-        "[APP] Error = 0.5\n"
-        "[PIN-FINI] App Exit Code = 0\n")
-    smoke_stderr = port / "smoke/lru.stderr"
-    smoke_stderr.write_text("")
+    smoke_rows = []
+    smoke_outputs = {}
+    for policy in policies:
+        smoke_stdout = port / "smoke" / f"{policy}.stdout"
+        smoke_stdout.write_text(
+            "~~~ PINTOOL STATS BEGIN ~~~\n"
+            "[LLC-STAT] Total Misses = 10\n"
+            "~~~ PINTOOL STATS END ~~~\n"
+            "[APP] Error = 0.5\n"
+            "[PIN-FINI] App Exit Code = 0\n")
+        smoke_stderr = port / "smoke" / f"{policy}.stderr"
+        smoke_stderr.write_text("")
+        smoke_rows.append({
+            "policy": policy,
+            "exit_code": 0,
+            "llc_demand_misses": 10,
+            "app_error": 0.5,
+            "stdout_sha256": MOD.sha256(smoke_stdout),
+            "stderr_sha256": MOD.sha256(smoke_stderr),
+        })
+        smoke_outputs[policy] = smoke_stdout
     compiler_component = tmp_path / "compiler-component"
     compiler_component.write_text("compiler\n")
     manifest = {
         "schema_version": 2,
         "setup_script_sha256": MOD.sha256(script),
         "popt_repository": {"commit": MOD.PINNED_ARTIFACT_COMMIT},
-        "policies": ["lru"],
+        "policies": policies,
         "pin": {
             "pin_sha256": MOD.sha256(pin_root / "pin"),
             "intel64_tree_sha256": MOD.hash_tree(pin_root / "intel64"),
@@ -116,14 +147,7 @@ def test_port_manifest_binds_script_pin_binary_app_and_sources(tmp_path):
             "normal_application_completion": True,
             "semantic_error_match": True,
             "graph_sha256": MOD.sha256(smoke_graph),
-            "rows": [{
-                "policy": "lru",
-                "exit_code": 0,
-                "llc_demand_misses": 10,
-                "app_error": 0.5,
-                "stdout_sha256": MOD.sha256(smoke_stdout),
-                "stderr_sha256": MOD.sha256(smoke_stderr),
-            }],
+            "rows": smoke_rows,
         },
         "build_environment": {
             "pin_wrapper_gcc": str(compiler_component),
@@ -146,16 +170,10 @@ def test_port_manifest_binds_script_pin_binary_app_and_sources(tmp_path):
                 "native_target_flags_sha256": "target",
             },
         },
-        "binaries": {"lru": MOD.sha256(tool)},
-        "generated_source_trees": {
-            "lru": MOD.hash_tree(port / "src/lru"),
-        },
-        "applications": {
-            "baseline": {"pr": MOD.sha256(app)},
-        },
-        "application_source_trees": {
-            "baseline": MOD.hash_tree(port / "app-src/baseline"),
-        },
+        "binaries": binaries,
+        "generated_source_trees": source_trees,
+        "applications": applications,
+        "application_source_trees": app_source_trees,
     }
     receipt = port / "port_build_manifest.json"
     receipt.write_text(json.dumps(manifest))
@@ -163,19 +181,27 @@ def test_port_manifest_binds_script_pin_binary_app_and_sources(tmp_path):
     MOD.verify_port_build_manifest(
         manifest, receipt, MOD.sha256(script), MOD.PINNED_ARTIFACT_COMMIT,
         pin_root, tool_root, app_root, ["lru"])
-    smoke_stdout.write_text("forged smoke\n")
+    empty_manifest = dict(manifest)
+    empty_manifest["policies"] = []
+    empty_manifest["smoke"] = dict(manifest["smoke"], rows=[])
+    with pytest.raises(SystemExit):
+        MOD.verify_port_build_manifest(
+            empty_manifest, receipt, MOD.sha256(script),
+            MOD.PINNED_ARTIFACT_COMMIT,
+            pin_root, tool_root, app_root, ["lru"])
+    smoke_outputs["lru"].write_text("forged smoke\n")
     with pytest.raises(SystemExit):
         MOD.verify_port_build_manifest(
             manifest, receipt, MOD.sha256(script),
             MOD.PINNED_ARTIFACT_COMMIT,
             pin_root, tool_root, app_root, ["lru"])
-    smoke_stdout.write_text(
+    smoke_outputs["lru"].write_text(
         "~~~ PINTOOL STATS BEGIN ~~~\n"
         "[LLC-STAT] Total Misses = 10\n"
         "~~~ PINTOOL STATS END ~~~\n"
         "[APP] Error = 0.5\n"
         "[PIN-FINI] App Exit Code = 0\n")
-    tool.write_text("different\n")
+    (tool_root / "lru/cache_pinsim.so").write_text("different\n")
     with pytest.raises(SystemExit):
         MOD.verify_port_build_manifest(
             manifest, receipt, MOD.sha256(script),
@@ -200,6 +226,32 @@ def test_exploratory_subset_is_not_full_public_gate():
         True, MOD.DEFAULT_GRAPHS, MOD.PUBLIC_POLICIES)
     assert not MOD.is_full_gate_shape(
         True, ["uk-2002"], ["drrip", "popt-8b"])
+    assert not MOD.is_full_gate_shape(
+        True, list(MOD.DEFAULT_GRAPHS) + ["uk-2002"],
+        MOD.PUBLIC_POLICIES)
+
+
+def test_public_claim_requires_pinned_receipts_and_no_resume():
+    assert MOD.require_trusted_public_claim(
+        True, False, False, False,
+        MOD.PINNED_PUBLIC_PORT_MANIFEST_SHA256,
+        MOD.PINNED_PUBLIC_GRAPH_PROVENANCE_SHA256)
+    assert not MOD.require_trusted_public_claim(
+        False, True, True, True, "untrusted", "untrusted")
+    with pytest.raises(SystemExit):
+        MOD.require_trusted_public_claim(
+            True, False, True, False,
+            MOD.PINNED_PUBLIC_PORT_MANIFEST_SHA256,
+            MOD.PINNED_PUBLIC_GRAPH_PROVENANCE_SHA256)
+    with pytest.raises(SystemExit):
+        MOD.require_trusted_public_claim(
+            True, False, False, False,
+            "untrusted", MOD.PINNED_PUBLIC_GRAPH_PROVENANCE_SHA256)
+    with pytest.raises(SystemExit):
+        MOD.require_trusted_public_claim(
+            True, False, False, True,
+            MOD.PINNED_PUBLIC_PORT_MANIFEST_SHA256,
+            MOD.PINNED_PUBLIC_GRAPH_PROVENANCE_SHA256)
 
 
 def test_resume_revalidates_hashed_logs_and_completion(tmp_path):

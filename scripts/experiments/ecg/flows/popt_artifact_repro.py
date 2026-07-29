@@ -20,7 +20,6 @@ import json
 import math
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 from typing import Iterable
@@ -28,6 +27,13 @@ from typing import Iterable
 
 PINNED_ARTIFACT_COMMIT = "53b5021846690d0f3445428c6380e877ecf7a10e"
 PINNED_GRASP_COMMIT = "6e3814430265fc4f2513c95ef131a6522bc9d389"
+PINNED_PUBLIC_PORT_MANIFEST_SHA256 = (
+    "0f7f14a4b59067ea302aa95a311ab3c0e6701a91f4039b0d5e50247e9411fecf")
+PINNED_PUBLIC_GRAPH_PROVENANCE_SHA256 = (
+    "bd072617ad43ea666f7f0f181dcac185851aea1f413c0e8e2053353ce7e17ec5")
+PINNED_SETARCH = Path("/usr/bin/setarch")
+PINNED_SETARCH_SHA256 = (
+    "9cbf126e4a5a2847313b38c766a6d52110bd31a2f90de871bc618166a046e624")
 GRASP_PROXY = "grasp-rules-proxy"
 PROXY_GATE = "dbg-grasp-rules-proxy"
 POLICIES = {
@@ -50,13 +56,19 @@ DBG_GRAPHS = tuple(f"{graph}-dbg-direct" for graph in DEFAULT_GRAPHS)
 def is_full_gate_shape(
         public_gate: bool, graphs: Iterable[str],
         policies: Iterable[str]) -> bool:
+    graph_list = list(graphs)
+    policy_list = list(policies)
     required_graphs = set(DEFAULT_GRAPHS if public_gate else DBG_GRAPHS)
     required_policies = set(
         PUBLIC_POLICIES if public_gate
         else ("lru", GRASP_PROXY, "popt-8b"))
     return (
-        set(graphs) == required_graphs and
-        set(policies) == required_policies)
+        len(graph_list) == len(required_graphs) and
+        len(policy_list) == len(required_policies) and
+        len(set(graph_list)) == len(graph_list) and
+        len(set(policy_list)) == len(policy_list) and
+        set(graph_list) == required_graphs and
+        set(policy_list) == required_policies)
 
 
 def is_canonical_exact_mode(
@@ -67,6 +79,26 @@ def is_canonical_exact_mode(
         tool_root == (root / "simulators").resolve() and
         app_root == (root / "applications").resolve() and
         port_source is None and build_manifest is None)
+
+
+def require_trusted_public_claim(
+        full_gate_shape: bool, exploratory: bool, resume: bool,
+        exact_mode: bool, port_manifest_hash: str,
+        graph_provenance_hash: str) -> bool:
+    if not full_gate_shape or exploratory:
+        return False
+    if resume:
+        raise SystemExit(
+            "--resume is prohibited for a claimable public gate")
+    if exact_mode:
+        raise SystemExit(
+            "claimable exact Pin2 mode is disabled because the untracked "
+            "executables have no pinned receipt")
+    if port_manifest_hash != PINNED_PUBLIC_PORT_MANIFEST_SHA256:
+        raise SystemExit("untrusted public port build manifest")
+    if graph_provenance_hash != PINNED_PUBLIC_GRAPH_PROVENANCE_SHA256:
+        raise SystemExit("untrusted public graph provenance receipt")
+    return True
 
 
 def sha256(path: Path) -> str:
@@ -216,6 +248,11 @@ def verify_smoke_evidence(data: dict, manifest_path: Path) -> None:
     policies = data.get("policies")
     if not isinstance(policies, list) or len(policies) != len(set(policies)):
         raise SystemExit("port manifest policy set is invalid")
+    base_policies = {"lru", "drrip", "popt-8b", "opt-ideal"}
+    manifest_policies = set(policies)
+    if manifest_policies not in (
+            base_policies, base_policies | {GRASP_PROXY}):
+        raise SystemExit("port manifest does not contain the required policies")
     by_policy = {}
     errors = []
     for row in rows:
@@ -296,6 +333,10 @@ def verify_port_build_manifest(
             raise SystemExit(f"Pin backend component mismatch: {field}")
     verify_smoke_evidence(data, path)
 
+    manifest_policies = set(data["policies"])
+    requested_policies = set(policies)
+    if not requested_policies <= manifest_policies:
+        raise SystemExit("requested policy is absent from port manifest")
     binaries = data.get("binaries", {})
     source_trees = data.get("generated_source_trees", {})
     applications = data.get("applications", {})
@@ -317,7 +358,7 @@ def verify_port_build_manifest(
         if app_source_trees.get(app_version) != hash_tree(source):
             raise SystemExit(
                 f"manifest app-source mismatch for {app_version}")
-    if GRASP_PROXY in policies:
+    if GRASP_PROXY in manifest_policies:
         if data.get("grasp_repository", {}).get("commit") != \
                 PINNED_GRASP_COMMIT:
             raise SystemExit("GRASP proxy source commit mismatch")
@@ -406,10 +447,10 @@ def main(argv: list[str]) -> int:
     pin_root = (args.pin_root or root / "pin-2.14").resolve()
     tool_root = (args.tool_root or root / "simulators").resolve()
     app_root = (args.app_root or root / "applications").resolve()
-    setarch = shutil.which("setarch")
-    if not setarch:
-        raise SystemExit(
-            "setarch is required: artifact addresses are hashed into cache sets")
+    if not PINNED_SETARCH.is_file() or \
+            sha256(PINNED_SETARCH) != PINNED_SETARCH_SHA256:
+        raise SystemExit("trusted setarch executable is missing or changed")
+    setarch = str(PINNED_SETARCH)
     out_dir = args.out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -423,7 +464,6 @@ def main(argv: list[str]) -> int:
         else ("lru", GRASP_PROXY, "popt-8b"))
     full_gate_shape = is_full_gate_shape(
         public_gate, args.graphs, args.policies)
-    gating_run = full_gate_shape and not args.exploratory
     if not args.exploratory and not full_gate_shape:
         raise SystemExit(
             f"{args.gate} requires graphs={sorted(required_graphs)} and "
@@ -497,6 +537,9 @@ def main(argv: list[str]) -> int:
     build_manifest_hash = (
         sha256_bytes(build_manifest_bytes) if build_manifest_bytes else "")
     graph_provenance_hash = sha256_bytes(graph_provenance_bytes)
+    gating_run = public_gate and require_trusted_public_claim(
+        full_gate_shape, args.exploratory, args.resume, exact_mode,
+        build_manifest_hash, graph_provenance_hash)
     manifest = {
         "artifact_commit": head,
         "port_label": port_label,
@@ -520,6 +563,7 @@ def main(argv: list[str]) -> int:
         "graphs": list(args.graphs),
         "policies": list(args.policies),
         "aslr_disabled": True,
+        "setarch_sha256": PINNED_SETARCH_SHA256,
         "normal_application_completion_required": True,
         "semantic_error_match_required": True,
         "port_source_sha256": port_source_hash,
@@ -562,6 +606,7 @@ def main(argv: list[str]) -> int:
             payload = {
                 "command": command,
                 "runner_sha256": runner_hash,
+                "setarch_sha256": PINNED_SETARCH_SHA256,
                 "pin_sha256": sha256(pin_root / "pin"),
                 "tool_sha256": sha256(
                     tool_root / tool_name / "cache_pinsim.so"),
