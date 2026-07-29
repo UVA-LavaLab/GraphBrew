@@ -93,6 +93,14 @@ def git_state(root: Path = PROJECT_ROOT) -> dict[str, str]:
     }
 
 
+def git_changed_paths(root: Path = PROJECT_ROOT) -> list[str]:
+    result = subprocess.run(
+        ["/usr/bin/git", "status", "--porcelain=v1"],
+        cwd=root, env=execution_environment(),
+        capture_output=True, text=True, check=True)
+    return [line[3:] for line in result.stdout.splitlines() if line]
+
+
 def resolve_compiler(compiler_text: str) -> Path:
     parts = shlex.split(compiler_text)
     if len(parts) != 1:
@@ -237,6 +245,10 @@ def parse_build_config(path: Path) -> dict[str, str]:
         "FUSERMOUNT_SHA256",
         "PYTHON",
         "PYTHON_SHA256",
+        "HOME",
+        "TMPDIR",
+        "LC_ALL",
+        "LANG",
         *MATERIAL_COMPILER_ENV,
     }
     if set(values) != required:
@@ -273,6 +285,10 @@ def validate_build_config(
         "FUSERMOUNT_SHA256": PINNED_FUSERMOUNT_SHA256,
         "PYTHON": str(PINNED_PYTHON),
         "PYTHON_SHA256": PINNED_PYTHON_SHA256,
+        "HOME": "/tmp",
+        "TMPDIR": "/tmp",
+        "LC_ALL": "C",
+        "LANG": "C",
         **material_environment(),
     }
     if normalized != expected:
@@ -541,6 +557,8 @@ def serve_immutable_fuse(
 def immutable_fuse_files(
         files: dict[str, tuple[bytes, int]], mountpoint: Path):
     require_fuse_tools()
+    if os.path.ismount(mountpoint):
+        raise ValueError(f"immutable FUSE path is already mounted: {mountpoint}")
     fusepy_source = PINNED_FUSEPY.read_bytes()
     if hashlib.sha256(fusepy_source).hexdigest() != PINNED_FUSEPY_SHA256:
         raise ValueError("pinned fusepy changed while loading")
@@ -991,7 +1009,9 @@ def validate_receipt(
             dep_dependencies = []
     try:
         if payload.get("git") != git_state(root):
-            errors.append("guest binary was built from a different git state")
+            errors.append(
+                "guest binary was built from a different git state; "
+                f"changed paths={git_changed_paths(root)}")
     except subprocess.CalledProcessError as error:
         errors.append(f"cannot verify git state: {error}")
     try:

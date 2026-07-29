@@ -67,6 +67,10 @@ def write_build_config(
         "FUSERMOUNT_SHA256": PINNED_FUSERMOUNT_SHA256,
         "PYTHON": str(PINNED_PYTHON),
         "PYTHON_SHA256": PINNED_PYTHON_SHA256,
+        "HOME": "/tmp",
+        "TMPDIR": "/tmp",
+        "LC_ALL": "C",
+        "LANG": "C",
         **material_environment(),
     }
     assert set(MATERIAL_COMPILER_ENV) <= set(values)
@@ -298,6 +302,26 @@ def test_virtual_alias_retarget_invalidates_receipt(tmp_path):
     errors = validate_receipt(
         receipt, binary, source, [], build_config)
     assert any("virtual alias changed" in error for error in errors)
+
+
+def test_make_wrapper_rebuilds_missing_grouped_sibling(tmp_path):
+    makefile = tmp_path / "Makefile"
+    makefile.write_text(
+        "out/bin out/bin.d out/bin.build.json &: source\n"
+        "\t@mkdir -p out\n"
+        "\t@echo run >> runs\n"
+        "\t@touch out/bin out/bin.d out/bin.build.json\n"
+        "target: out/bin out/bin.d out/bin.build.json\n"
+        "source:\n\t@touch source\n")
+    subprocess.run(["make", "target"], cwd=tmp_path, check=True)
+    assert (tmp_path / "runs").read_text().splitlines() == ["run"]
+    (tmp_path / "out/bin.build.json").unlink()
+    subprocess.run(["make", "target"], cwd=tmp_path, check=True)
+    assert (tmp_path / "runs").read_text().splitlines() == ["run", "run"]
+    (tmp_path / "out/bin.d").unlink()
+    subprocess.run(["make", "target"], cwd=tmp_path, check=True)
+    assert (tmp_path / "runs").read_text().splitlines() == [
+        "run", "run", "run"]
 
 
 def test_wrapper_compiler_and_config_drift_are_rejected(tmp_path):

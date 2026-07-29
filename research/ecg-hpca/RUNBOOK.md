@@ -57,6 +57,11 @@ make gem5-riscv-m5ops-pr gem5-riscv-m5ops-bfs \
 make sniper-sg_kernel
 ```
 
+After building any receipt-bound RISC-V guest, do not edit tracked files until
+the associated final-paper run completes. The receipt deliberately binds the
+complete git state; an intervening source or documentation edit makes the next
+job fail closed and requires a rebuild.
+
 ## Final run order
 
 1. Run the three correctness gates.

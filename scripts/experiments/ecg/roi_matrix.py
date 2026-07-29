@@ -995,12 +995,22 @@ def selected_gem5_guest_paths(
 def validate_selected_gem5_guest(
         args: argparse.Namespace, out_dir: Path) -> None:
     global VALIDATED_GEM5_GUEST, VALIDATED_GEM5_GUEST_SHA256
-    if args.suite not in ("gem5", "both") or selected_gem5_isa() != "riscv":
+    if args.suite not in ("gem5", "both"):
         VALIDATED_GEM5_GUEST = None
         VALIDATED_GEM5_GUEST_SHA256 = ""
         return
     binary, receipt, source, link_inputs, build_config = (
         selected_gem5_guest_paths(args.benchmark))
+    expected = str(args.expected_gem5_guest_sha256)
+    if selected_gem5_isa() != "riscv":
+        actual = hash_input_path(binary)
+        if expected and actual != expected:
+            raise SystemExit(
+                "gem5 guest does not match paper-run expected hash: "
+                f"{actual} != {expected}")
+        VALIDATED_GEM5_GUEST = binary
+        VALIDATED_GEM5_GUEST_SHA256 = actual
+        return
     receipt_errors = validate_gem5_guest_receipt(
         receipt, binary, source, link_inputs, build_config, PROJECT_ROOT)
     if receipt_errors:
@@ -1015,7 +1025,6 @@ def validate_selected_gem5_guest(
     except ValueError as error:
         raise SystemExit(
             f"cannot stage validated gem5 guest: {error}") from error
-    expected = str(args.expected_gem5_guest_sha256)
     if expected and VALIDATED_GEM5_GUEST_SHA256 != expected:
         raise SystemExit(
             "validated gem5 guest does not match paper-run expected hash: "
@@ -1533,13 +1542,9 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
 
 
 def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size: str) -> list[dict[str, Any]]:
-    binary = (
-        VALIDATED_GEM5_GUEST
-        if selected_gem5_isa() == "riscv"
-        else PROJECT_ROOT / "bench" / "bin_gem5" /
-        f"{args.benchmark}{GEM5_KERNEL_SUFFIX}")
+    binary = VALIDATED_GEM5_GUEST
     if binary is None:
-        raise RuntimeError("RISC-V gem5 guest was not validated and staged")
+        raise RuntimeError("gem5 guest was not validated")
     if selected_gem5_isa() == "riscv":
         verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
     label = f"gem5_{args.benchmark}_{spec.safe_label}_L3{sanitize(l3_size)}"
@@ -1777,56 +1782,81 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             pass_fds.append(gem5_fd)
             cmd[0] = sealed_gem5
 
-            if selected_gem5_isa() == "riscv":
-                verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
-                guest_fd, sealed_guest = open_sealed_guest(
-                    binary, VALIDATED_GEM5_GUEST_SHA256)
-                runtime.callback(os.close, guest_fd)
-                pass_fds.append(guest_fd)
-                cmd[cmd.index("--binary") + 1] = sealed_guest
-
+            runtime_files = {}
+            guest_data = binary.read_bytes()
+            if hashlib.sha256(guest_data).hexdigest() != \
+                    VALIDATED_GEM5_GUEST_SHA256:
+                raise RuntimeError("gem5 guest changed while sealing inputs")
+            runtime_files[binary.name] = (guest_data, 0o555)
             graph = graph_path_from_options(args.options)
             if graph is not None:
                 graph_hash = (
                     args.expected_graph_sha256 or hash_input_path(graph))
-                graph_fd, sealed_graph = open_sealed_guest(graph, graph_hash)
-                runtime.callback(os.close, graph_fd)
-                pass_fds.append(graph_fd)
+                graph_data = graph.read_bytes()
+                if hashlib.sha256(graph_data).hexdigest() != graph_hash:
+                    raise RuntimeError("graph changed while sealing inputs")
+                runtime_files[graph.name] = (graph_data, 0o444)
+
+            runtime_mount = out_dir / (
+                f".gem5-runtime-{label}-{os.getpid()}-{time.time_ns()}")
+            runtime.enter_context(
+                immutable_fuse_files(runtime_files, runtime_mount))
+            sealed_guest = runtime_mount / binary.name
+            if hash_input_path(sealed_guest) != VALIDATED_GEM5_GUEST_SHA256:
+                raise RuntimeError("served guest hash mismatch")
+            cmd[cmd.index("--binary") + 1] = str(sealed_guest)
+            if graph is not None:
+                sealed_graph = runtime_mount / graph.name
+                if hash_input_path(sealed_graph) != graph_hash:
+                    raise RuntimeError("served graph hash mismatch")
                 options = shlex.split(args.options)
-                options[options.index("-f") + 1] = sealed_graph
+                options[options.index("-f") + 1] = str(sealed_graph)
                 cmd[cmd.index("--options") + 1] = shlex.join(options)
 
             config_hash = (
                 args.expected_gem5_config_sha256 or
                 hash_input_path(GEM5_CONFIG.parent))
             config_files = {}
-            for path in sorted(GEM5_CONFIG.parent.glob("*.py")):
+            config_paths = sorted(
+                path for path in GEM5_CONFIG.parent.rglob("*")
+                if path.is_file() and
+                "__pycache__" not in path.parts and
+                path.suffix not in {".pyc", ".log"})
+            if any(
+                    path.parent != GEM5_CONFIG.parent or path.suffix != ".py"
+                    for path in config_paths):
+                raise RuntimeError(
+                    "gem5 config sealing supports only the current flat "
+                    "Python module set")
+            for path in config_paths:
                 data = path.read_bytes()
                 config_files[path.name] = (data, 0o444)
             if hash_input_path(GEM5_CONFIG.parent) != config_hash:
                 raise RuntimeError("gem5 config changed while sealing inputs")
             config_mount = out_dir / (
-                f".gem5-config-{config_hash}")
+                f".gem5-config-{config_hash}-{label}-"
+                f"{os.getpid()}-{time.time_ns()}")
             runtime.enter_context(
                 immutable_fuse_files(config_files, config_mount))
+            if hash_input_path(config_mount) != config_hash:
+                raise RuntimeError("served gem5 config hash mismatch")
             cmd[2] = str(config_mount / GEM5_CONFIG.name)
 
         result = run_command(
             cmd, PROJECT_ROOT, env, args.timeout_gem5, log_path,
             args.dry_run, tuple(pass_fds))
-    if selected_gem5_isa() == "riscv":
-        verify_staged_guest(binary, VALIDATED_GEM5_GUEST_SHA256)
+    if hash_input_path(binary) != VALIDATED_GEM5_GUEST_SHA256:
+        raise RuntimeError("gem5 guest changed after execution")
     if args.dry_run:
         return []
 
     base = base_row("gem5", args, spec, l3_size, charge)
-    if selected_gem5_isa() == "riscv":
-        base.update({
-            "gem5_guest_staged_path": str(binary),
-            "gem5_guest_staged_sha256": VALIDATED_GEM5_GUEST_SHA256,
-            "gem5_guest_expected_sha256":
-                str(args.expected_gem5_guest_sha256),
-        })
+    base.update({
+        "gem5_guest_staged_path": str(binary),
+        "gem5_guest_staged_sha256": VALIDATED_GEM5_GUEST_SHA256,
+        "gem5_guest_expected_sha256":
+            str(args.expected_gem5_guest_sha256),
+    })
     base.update({
         "gem5_opt_expected_sha256": str(args.expected_gem5_opt_sha256),
         "gem5_config_expected_sha256":

@@ -54,6 +54,8 @@ HOST_FILES = {
         "28f957c227012de0b18d1bd7fff2d396cb693ea60ed8013be68de071e84b5001",
     Path("/usr/bin/python3.12"):
         "1643dacd9feaedc58f3cc581e4d22577dfe25c09b10282936186ccf0f2e61118",
+    Path("/usr/bin/riscv64-linux-gnu-g++-13"):
+        "a675774e2afe01433771f6745de50870300833dc60ed5854662b414eff5fb7b6",
     Path("/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"):
         "cd4df4f3c7b83673d61189bf2eaebd33ca4f2853ab9772b8a25e025ef99b1e81",
     Path("/usr/lib/x86_64-linux-gnu/libc.so.6"):
@@ -109,6 +111,9 @@ def install(out_dir: Path) -> None:
                 check=True)
             source = extracted / str(values["source"])
             target = out_dir / str(values["target"])
+            if target.is_file() and sha256(target) == values["target_sha256"]:
+                archive.unlink()
+                continue
             temporary = target.with_suffix(target.suffix + ".tmp")
             shutil.copyfile(source, temporary)
             if sha256(temporary) != values["target_sha256"]:

@@ -661,14 +661,19 @@ def make_roi_job(
     expected_gem5_config_sha256 = ""
     expected_graph_sha256 = ""
     if str(settings.get("suite")) in ("gem5", "both"):
+        expected_gem5_guest_sha256 = str(
+            inputs.get("gem5_benchmark_binary", ""))
         expected_gem5_opt_sha256 = str(inputs.get("gem5_binary", ""))
         expected_gem5_config_sha256 = str(inputs.get("gem5_config", ""))
         expected_graph_sha256 = str(inputs.get("graph", ""))
         if any(value in ("", "missing") for value in (
+                expected_gem5_guest_sha256,
                 expected_gem5_opt_sha256,
                 expected_gem5_config_sha256)):
             raise SystemExit("paper-run gem5 runtime input hash is missing")
         command.extend([
+            "--expected-gem5-guest-sha256",
+            expected_gem5_guest_sha256,
             "--expected-gem5-opt-sha256", expected_gem5_opt_sha256,
             "--expected-gem5-config-sha256", expected_gem5_config_sha256,
         ])
@@ -678,16 +683,6 @@ def make_roi_job(
             ])
         else:
             expected_graph_sha256 = ""
-        if material_env.get("GEM5_KERNEL_SUFFIX") == "_riscv_m5ops":
-            expected_gem5_guest_sha256 = str(
-                inputs.get("gem5_benchmark_binary", ""))
-            if expected_gem5_guest_sha256 in ("", "missing"):
-                raise SystemExit(
-                    "paper-run RISC-V guest hash is missing")
-            command.extend([
-                "--expected-gem5-guest-sha256",
-                expected_gem5_guest_sha256,
-            ])
     config_hash = hashlib.sha256(json.dumps(
         {"command": command, "env": material_env, "inputs": inputs},
         sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -1340,11 +1335,13 @@ def write_preflight(run_dir: Path, args: argparse.Namespace) -> None:
     preflight.mkdir(parents=True, exist_ok=True)
     (preflight / "argv.txt").write_text(command_text([sys.executable, __file__, *sys.argv[1:]]) + "\n")
     for name, cmd in {
-        "git_status.txt": ["git", "--no-pager", "status", "--short"],
-        "git_diff_stat.txt": ["git", "--no-pager", "diff", "--stat"],
-        "git_head.txt": ["git", "rev-parse", "HEAD"],
+        "git_status.txt": ["/usr/bin/git", "--no-pager", "status", "--short"],
+        "git_diff_stat.txt": ["/usr/bin/git", "--no-pager", "diff", "--stat"],
+        "git_head.txt": ["/usr/bin/git", "rev-parse", "HEAD"],
     }.items():
-        result = subprocess.run(cmd, cwd=str(PROJECT_ROOT), capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            cmd, cwd=str(PROJECT_ROOT), env=clean_job_environment({}),
+            capture_output=True, text=True, check=False)
         (preflight / name).write_text(result.stdout + result.stderr)
     (preflight / "environment.json").write_text(json.dumps({
         "created_utc": utc_now(),

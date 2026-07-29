@@ -128,7 +128,7 @@ GEM5_GUEST_PYTHON_SHA256 := $(shell \
 	sha256sum "$(GEM5_GUEST_PYTHON)" 2>/dev/null | cut -d' ' -f1)
 GEM5_GUEST_CLEAN_ENV := env -i PATH=/usr/bin:/bin HOME=/tmp TMPDIR=/tmp \
 	LC_ALL=C LANG=C
-RISCV_CXX_RESOLVED := $(shell command -v $(RISCV_CXX) 2>/dev/null)
+RISCV_CXX_RESOLVED := /usr/bin/riscv64-linux-gnu-g++-13
 RISCV_CXX_SHA256 := $(shell test -f "$(RISCV_CXX_RESOLVED)" && \
 	sha256sum "$(RISCV_CXX_RESOLVED)" | cut -d' ' -f1)
 
@@ -176,6 +176,10 @@ $(GEM5_RISCV_BUILD_CONFIG): FORCE_GEM5_RISCV_CONFIG | $(BIN_GEM5_DIR)
 		printf '%s\n' "LIBRARY_PATH="; \
 		printf '%s\n' "CPATH="; \
 		printf '%s\n' "CPLUS_INCLUDE_PATH="; \
+		printf '%s\n' "HOME=/tmp"; \
+		printf '%s\n' "TMPDIR=/tmp"; \
+		printf '%s\n' "LC_ALL=C"; \
+		printf '%s\n' "LANG=C"; \
 	} > $@.tmp
 	@if test -f $@ && cmp -s $@.tmp $@; then \
 		rm -f $@.tmp; \
@@ -228,7 +232,9 @@ gem5-%: $(BIN_GEM5_DIR)/%
 gem5-m5ops-%: $(BIN_GEM5_DIR)/%_m5ops
 	@echo "Built gem5 m5ops kernel: $<"
 
-gem5-riscv-m5ops-%: $(BIN_GEM5_DIR)/%_riscv_m5ops
+gem5-riscv-m5ops-%: $(BIN_GEM5_DIR)/%_riscv_m5ops \
+	$(BIN_GEM5_DIR)/%_riscv_m5ops.d \
+	$(BIN_GEM5_DIR)/%_riscv_m5ops.build.json
 	@echo "Built RISC-V gem5 kernel: $<"
 
 all-gem5: $(addprefix $(BIN_GEM5_DIR)/,$(KERNELS_GEM5))
