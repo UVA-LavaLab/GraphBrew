@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import ast
 from pathlib import Path
@@ -560,9 +561,87 @@ def test_current_riscv_pr_receipt_when_binary_is_present():
         PROJECT_ROOT / "bench/include/gem5_sim/gem5/util/m5/"
         "build/riscv/out/libm5.a",
     ]
-    assert validate_receipt(
-        receipt, binary, source, link_inputs, build_config) == []
+    errors = validate_receipt(
+        receipt, binary, source, link_inputs, build_config)
+    if errors and all(
+            error.startswith(
+                "guest binary was built from a different git state")
+            for error in errors):
+        payload = json.loads(receipt.read_text())
+        receipt_commit = payload["git"]["commit"]
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", receipt_commit, "HEAD"],
+            cwd=PROJECT_ROOT)
+        assert ancestor.returncode == 0
+        changed = set(subprocess.run(
+            ["git", "diff", "--name-only", receipt_commit, "HEAD"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+            check=True).stdout.splitlines())
+        changed.update(subprocess.run(
+            ["git", "diff", "--name-only"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+            check=True).stdout.splitlines())
+        changed.update(subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+            check=True).stdout.splitlines())
+        repo_dependencies = {
+            name for name in payload["dependencies"]
+            if not Path(name).is_absolute()
+        }
+        assert repo_dependencies
+        assert not (changed & repo_dependencies), (
+            "post-run edits touched a guest build dependency")
+        errors = []
+    assert errors == []
     payload = json.loads(receipt.read_text())
     assert any(
         name.endswith("graphbrew/reorder/reorder_hub.h")
         for name in payload["dependencies"])
+
+
+def test_frozen_fused_compact_receipt_scope_and_math():
+    path = (
+        PROJECT_ROOT / "research/ecg-hpca/evidence/"
+        "fused_compact_matrix_20260729.json")
+    data = json.loads(path.read_text())
+    compact = data["compact_over_wide_implementation"]
+    assert data["status"] == "passed"
+    assert data["completion"]["rows_ok"] == 27
+    assert data["completion"]["semantic_gate"] == "matched"
+    for metric in ("instructions", "traffic", "l3_misses", "modeled_time"):
+        geomean = math.prod(
+            row[metric] for row in compact["graphs"].values()) ** (1 / 3)
+        assert geomean == pytest.approx(
+            compact["geomean"][metric], abs=5e-4)
+    assert all(
+        row["traffic"] < 0.98 and row["modeled_time"] < 0.98
+        for row in compact["graphs"].values())
+    assert "Hardware-calibrated compact K2-I speedup" in (
+        data["prohibited_claims"])
+    assert "All-algorithm or three-simulator compact result" in (
+        data["prohibited_claims"])
+    for section in ("replacement_k2_over_k2_lru", "wide_k2_over_lru"):
+        rows = data[section]["graphs"]
+        metrics = ["traffic", "l3_misses", "modeled_time"]
+        if section == "wide_k2_over_lru":
+            metrics.append("instructions")
+        for metric in metrics:
+            geomean = math.prod(
+                row[metric] for row in rows.values()) ** (1 / 3)
+            assert geomean == pytest.approx(
+                data[section]["geomean"][metric], abs=5e-6)
+    for section in (
+            "fused_decode_software_over_compact",
+            "compact_k2_over_lru"):
+        rows = data[section]["graphs"]
+        for metric in (
+                "instructions", "traffic", "modeled_time",
+                *(("l3_misses",) if section == "compact_k2_over_lru" else ())):
+            geomean = math.prod(
+                row[metric] for row in rows.values()) ** (1 / 3)
+            assert geomean == pytest.approx(
+                data[section]["geomean"][metric], abs=5e-4)
+    assert "tar --sort=name" in data["trust"]["run_archive_recipe"]
+    assert "pr_riscv_m5ops.build.json" in (
+        data["trust"]["guest_archive_recipe"])

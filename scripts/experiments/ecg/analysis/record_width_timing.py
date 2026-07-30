@@ -174,6 +174,7 @@ def report_decode_matrix(rows, expected=None) -> bool:
             if r["_stage"] in DECODE_STAGES})
 
     norm = {}
+    raw = {}
     for stage in stages:
         for graph in sorted({r["_graph"] for r in rows if r["_stage"] == stage}):
             cell = {r.get("policy_label"): r for r in rows
@@ -184,11 +185,13 @@ def report_decode_matrix(rows, expected=None) -> bool:
                 continue
             bt, bb = num(base.get("sim_ticks")), num(base.get("dram_offchip_bytes"))
             bi = roi_insts(base)
+            raw[(stage, graph, "LRU")] = (bi, bb, bt)
             for label, r in cell.items():
                 t, b, i = (num(r.get("sim_ticks")),
                            num(r.get("dram_offchip_bytes")), roi_insts(r))
                 if not (bt and bb and bi and t and b and i):
                     continue
+                raw[(stage, graph, label)] = (i, b, t)
                 norm[(stage, graph, label)] = (i / bi, b / bb, t / bt)
 
     print(f"\n  versus each stage's OWN LRU cell")
@@ -208,9 +211,31 @@ def report_decode_matrix(rows, expected=None) -> bool:
             return
         print(f"\n  {title}")
         print(f"    {note}")
+        print("    estimator: (K2 / own-stage LRU)_A / "
+              "(K2 / own-stage LRU)_B")
+        drift = []
         for g, x, y in pairs:
             print(f"      {g:<24} insts x{x[0]/y[0]:.3f}  "
                   f"traffic x{x[1]/y[1]:.4f}  time x{x[2]/y[2]:.3f}")
+            direct_a = raw[(a, g, "ECG_K2")]
+            direct_b = raw[(b, g, "ECG_K2")]
+            lru_a = raw[(a, g, "LRU")]
+            lru_b = raw[(b, g, "LRU")]
+            direct = tuple(
+                direct_a[index] / direct_b[index]
+                for index in range(3))
+            lru_ratio = tuple(
+                lru_a[index] / lru_b[index]
+                for index in range(3))
+            normalized = tuple(
+                x[index] / y[index] for index in range(3))
+            drift.append(tuple(
+                abs(normalized[index] / direct[index] - 1.0)
+                for index in range(3)))
+            print(f"      {'direct audit':<24} insts x{direct[0]:.6f}  "
+                  f"traffic x{direct[1]:.6f}  time x{direct[2]:.6f}; "
+                  f"LRU A/B x{lru_ratio[0]:.6f}/"
+                  f"{lru_ratio[1]:.6f}/{lru_ratio[2]:.6f}")
         gi = geomean([x[0] / y[0] for _, x, y in pairs])
         gb = geomean([x[1] / y[1] for _, x, y in pairs])
         gt = geomean([x[2] / y[2] for _, x, y in pairs])
@@ -220,6 +245,11 @@ def report_decode_matrix(rows, expected=None) -> bool:
                   f"traffic x{gb:.4f}  time x{gt:.3f}")
             if len(pairs) < 3:
                 print(f"      {'':<24} (partial: {', '.join(g for g, _, _ in pairs)})")
+        if drift:
+            print("      max estimator drift      "
+                  f"insts {max(row[0] for row in drift) * 100:.4f}%  "
+                  f"traffic {max(row[1] for row in drift) * 100:.4f}%  "
+                  f"time {max(row[2] for row in drift) * 100:.4f}%")
 
     contrast("42_isa_plain_4b_software", "43_isa_plain_4b_hardware",
              "DECODE: software widen versus ecg.extract2c, identical record",

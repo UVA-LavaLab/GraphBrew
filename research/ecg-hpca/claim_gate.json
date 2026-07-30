@@ -228,6 +228,18 @@
       ]
     },
     {
+      "id": "fused_compact_width_model",
+      "status": "passed",
+      "note": "On three DBG-reordered, one-sweep PageRank samples, the receipt-bound 4-byte compact K2-I implementation reduces DRAM traffic and LLC misses versus the 8-byte implementation at tied instruction count. Timing is a single-core TimingSimpleCPU serialized ISA-model result with uncalibrated compact-decode latency; it is not measured hardware timing, O3 scale, an all-algorithm result, or a replacement-policy ranking.",
+      "evidence": [
+        "research/ecg-hpca/evidence/fused_compact_matrix_20260729.json",
+        "scripts/experiments/ecg/analysis/record_width_timing.py",
+        "scripts/experiments/ecg/flows/paper_run.py",
+        "scripts/experiments/ecg/roi_matrix.py",
+        "research/ecg-hpca/RESULTS.md"
+      ]
+    },
+    {
       "id": "frozen_primary_metrics",
       "status": "passed",
       "note": "Primary metrics (execution time + total off-chip traffic), the decision rule, aggregation, admissibility and symmetry requirements are declared before the deciding experiments and enforced by scripts/test/test_frozen_metrics.py.",
@@ -312,6 +324,15 @@
       "decision": "allowed",
       "required_gates": [
         "external_popt_public_direction"
+      ]
+    },
+    {
+      "id": "fused_compact_width_model_result",
+      "text": "On three DBG-reordered one-sweep PageRank samples, the 4-byte compact K2-I implementation uses less DRAM traffic and fewer LLC misses than the 8-byte implementation at a 0.980-0.990 instruction ratio, with 0.917 geomean serialized TimingSimpleCPU modeled time.",
+      "scope": "Single-core uncalibrated TimingSimpleCPU serialized ISA-model implementation contrast only; not hardware timing, O3 scale, all-algorithm, natural-order, or baseline-ranking evidence",
+      "decision": "allowed",
+      "required_gates": [
+        "fused_compact_width_model"
       ]
     },
     {

@@ -12,7 +12,7 @@
 > | `FROZEN` | evidence-archived, tied to a commit |
 > | anything else | live, but read the Scope line at the end of the section |
 >
-> **Current live position (2026-07-28), in reading order:**
+> **Current live position (2026-07-29), in reading order:**
 > 1. `ATTRIBUTION` below is a **BFS-specific attribution cell**, not a universal
 >    explanation. It proves that cell's 62% loss was 8-byte record width rather
 >    than victim selection. Later gem5 PageRank results include a 4-byte
@@ -22,11 +22,13 @@
 > 4. `CORRECTED: two earlier fast-signal sections were wrong, and how`
 > 5. `FROZEN: public P-OPT artifact direction` -- an external baseline
 >    validation only; it does not rank K2.
+> 6. `FROZEN: fused compact K2-I model` -- a one-kernel, one-sweep,
+>    DBG-reordered TimingSimple implementation comparison; not hardware timing.
 >
 > **No K2 headline performance claim in this file is admissible yet.**
-> `claim_gate.json` is authoritative. The only allowed performance-direction
-> claim is the narrowly scoped external P-OPT-over-DRRIP artifact result below;
-> it does not validate GraphBrew's P-OPT model or compare K2.
+> `claim_gate.json` is authoritative. Allowed performance statements are
+> narrowly scoped to the external P-OPT direction and the compact-vs-wide
+> serialized K2-I model below; neither is a general K2 headline.
 >
 > **Standing caution.** This result set moved substantially five times under
 > configuration changes alone (metadata accounting, mechanism availability,
@@ -2534,7 +2536,7 @@ content-addressed archives have SHA-256
 
 ## RETRACTION: first matched-loop fused matrix used a stale DBG guest (2026-07-29)
 
-`ecg_fused_compact_matrix_final_20260728` completed 27/27 rows and passed its
+`ecg_fused_compact_matrix_STALE_DBG_GUEST_INVALID_20260728` completed 27/27 rows and passed its
 cross-stage PageRank checksum gate, but it is **not final evidence**.
 
 Every job requested DBG ordering (`-o 5`). The tracked source had already been
@@ -2576,3 +2578,87 @@ while its Python config modules are served read-only. Missing
 receipts, changed dependencies, copied kernel receipts, inconsistent ISA
 overrides, or staged binary changes fail closed. All nine jobs must be rerun
 from one newly built guest.
+
+## FROZEN: fused compact K2-I implementation matrix (2026-07-29)
+
+`ecg_fused_compact_matrix_opus_final_20260729` is the clean rerun that closes
+both preceding retractions. It contains 27/27 successful rows: stages 50/51/52
+x web-Google-n16, soc-pokec-n16, and cit-Patents-n18-sym x each stage's own
+LRU/K2/K2-LRU cells. All rows use one receipt-bound guest
+(`bb40c8d33359a089...`), zero metadata fatals, matching PageRank semantics
+across stages, and policy-invariant guest stack layout.
+
+**Scope:** one PageRank sweep, DBG order (`-o 5`), n=1 per cell, no prefetch,
+single-core TimingSimpleCPU serialized-mailbox delivery. Exact O3 request
+binding is a separate micro-probe. Compact masks/shifts execute inside one
+custom memory instruction without calibrated latency, so every time below is
+an idealized ISA-model result, not a hardware critical-path measurement.
+cit-Patents uses a 512 KiB LLC while web/soc use 128 KiB; ratios are
+within-graph, but cit's divergence cannot be attributed to topology alone.
+
+### Estimator and drift audit
+
+Stages differ by environment variable, so the frozen estimator is
+`(K2 / own-stage LRU)_A / (K2 / own-stage LRU)_B`, not direct cross-stage
+K2/K2. This is the ratio-of-ratios required by `METHODOLOGY.md`. The analyzer
+also emits direct ratios for audit. The estimators differ by at most 0.0294% in
+time and 0.0036% in traffic; contrasted LRU cells agree within 0.029% time,
+0.0036% traffic, and 20 of 18.3M instructions. Across all three nominal LRU
+cells, time drift is
+within 0.031%. These differences are far
+inside the +/-2% tie band and change no decision.
+
+### Fused decode: software widen / compact K2-I
+
+| graph | instructions | traffic | modeled time |
+|---|---:|---:|---:|
+| cit-Patents-n18-sym | 1.515 | 1.0000 | 1.205 |
+| soc-pokec-n16 | 2.400 | 1.0000 | 1.371 |
+| web-Google-n16 | 1.984 | 1.0004 | 1.275 |
+| **geomean (n=3)** | **1.932** | **1.0002** | **1.282** |
+
+Folding compact decode into the custom load removes the software widening
+sequence at unchanged DRAM traffic. The software arm also incurs 5-12% more L1
+accesses, consistent with the widening sequence's extra loads/spills. The
+instruction and traffic results are direct evidence; the time magnitude is
+defined by the idealized one-instruction decode model.
+
+### Fused implementation: compact K2-I / wide K2-I
+
+| graph | instructions | traffic | modeled time |
+|---|---:|---:|---:|
+| cit-Patents-n18-sym | 0.980 | 0.8696 | 0.948 |
+| soc-pokec-n16 | 0.990 | 0.7421 | 0.887 |
+| web-Google-n16 | 0.985 | 0.8121 | 0.916 |
+| **geomean (n=3)** | **0.985** | **0.8063** | **0.917** |
+
+The instruction ratio is a tie on all three graphs. The compact implementation
+moves **19.4% less DRAM traffic**, incurs **20.2% fewer LLC misses**, and wins
+modeled time on all three cells. This is an implementation-vs-implementation
+contrast: compact and wide use different custom opcodes, and the time remains
+an ISA-model result. The traffic result prices the 4-byte container replacing
+the 4-byte CSR edge versus the 8-byte record doubling the structural stream.
+
+### Compact K2 versus its own LRU
+
+Compact K2 reaches 0.925 geomean modeled time and 0.784 instructions (two time
+wins, cit a tie). The instruction reduction includes indexed/fused address
+generation and packed-loop savings; it is not a replacement-policy effect.
+Compact K2 does **not** improve traffic or LLC misses in aggregate:
+geomeans are 1.0165 and 1.0204, with cit-Patents losing at 1.1357 traffic and
+1.1521 misses. The modeled time gain is therefore an instruction/fused-access
+result, not a memory-system win.
+
+K2 versus K2-LRU is a modeled-time tie on all graphs (geomean 0.9904). Its
+2.6% traffic reduction misses the frozen 3% aggregate threshold; no aggregate
+replacement claim is allowed from this one-sweep experiment. The 8-byte K2 arm
+is a negative result: 1.261x traffic and 1.279x misses geomean, no aggregate
+time benefit, and cit time 1.045x.
+
+The machine-readable owner is
+`research/ecg-hpca/evidence/fused_compact_matrix_20260729.json`. Preserved
+content-addressed archives have SHA-256
+`7000c14afe1a4c0dce7fe606056951f32f0316d68ac9060572d0eb98432f03a6`
+(run) and
+`64e27d77a1fbf2b1a95f728772b6a1e6ba593fc73befdf035c248759be3dc465`
+(guest/receipt).

@@ -122,8 +122,14 @@ demand/traffic improvement over online K2, while the full mechanism still uses
 more total traffic than P-OPT. This bounds the detailed-simulator claim before
 timing runs.
 
-The earlier sampled PageRank profile isolates the fused-stream tradeoff, but its
-pre-surgical timing is superseded by the current all-kernel matrix.
+The earlier pre-surgical fused PageRank profiles are withdrawn. The frozen
+receipt-bound PR-only matrix instead compares matched compact, software-widen,
+and wide fused loops. On three DBG-reordered one-sweep samples, the 4-byte
+implementation uses 0.806x the DRAM traffic and 0.798x the LLC misses of the
+8-byte implementation at tied instruction count; its 0.917x TimingSimpleCPU
+time is an idealized ISA-model point, not calibrated hardware timing. Compact
+delivery for the remaining kernels and Sniper is still pending, so this result
+does not replace the required all-kernel matrix.
 
 The corrected 120-row sampled Sniper matrix is an idealized packed-record
 K2-I-like model, not measured K2-I ISA timing and not the core mask-only load.

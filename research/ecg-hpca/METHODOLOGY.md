@@ -286,6 +286,22 @@ part of the claim scope rather than being generalized away.
 The frozen receipt and allowed wording live in
 `evidence/popt_public_direction_20260728.json`.
 
+## Fused compact K2-I model gate
+
+The fused compact gate compares stages 50/51/52 only through each stage's own
+LRU denominator. Cross-stage contrasts are reported as
+`(K2 / own-stage LRU)_A / (K2 / own-stage LRU)_B`; direct K2/K2 ratios are a
+drift audit, not the primary estimator.
+
+The gate is limited to one DBG-reordered PageRank sweep on three sampled
+graphs, one TimingSimpleCPU model run per cell, no prefetch, and equal-capacity
+LLCs within each graph's arms. It can establish the 4-byte-versus-8-byte record-footprint direction and
+static instruction counts. It cannot establish calibrated compact-op latency,
+O3 scale timing, cross-iteration replacement benefit, natural-order behavior,
+all-algorithm coverage, three-simulator equivalence, or ranking against the
+full baseline set. Its frozen receipt is
+`evidence/fused_compact_matrix_20260729.json`.
+
 ## Future K2-M headline policy set
 
 The next headline comparison, after K2-M implementation, must include:
