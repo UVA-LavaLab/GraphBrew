@@ -29,7 +29,8 @@ Cross-sim equivalence argument (what guarantees cache_sim == gem5 == Sniper):
   python3 scripts/experiments/ecg/verify/ecg.py --sniper   # + Sniper adapter traces
 """
 
-import os, re, subprocess, sys
+import hashlib, json, os, re, subprocess, sys, tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from equiv import check_insertion_rrpv_invariant, check_behavioral_equivalence  # noqa: E402
@@ -78,7 +79,7 @@ K2_ACCEPT_RE = re.compile(
     r"request_seq=(\d+) request_dest=(\d+) fill_dest=(\d+) "
     r"source=(request|mailbox) "
     r"tier=(\d+) epoch1=(\d+) epoch2=(\d+) current=(\d+) "
-    r"context=(\d+) width=(\d+)\]")
+    r"context=(\d+) (?:property_elem_bytes|width)=(\d+)\]")
 K2_REQUEST_RE = re.compile(
     r"\[ECG-K2-REQUEST sim=gem5 seq=(\d+) request_seq=(\d+) "
     r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+) "
@@ -122,7 +123,7 @@ GEM5_OPT = ROOT / "bench" / "include" / "gem5_sim" / "gem5" / "build" / "RISCV" 
 ROI_MATRIX = ROOT / "scripts" / "experiments" / "ecg" / "roi_matrix.py"
 
 
-def run_gem5_isa_modes():
+def run_gem5_isa_modes(receipt_dir=None):
     """Run EVERY consolidated ecg.load (mode x dest-width) through the REAL gem5 RISC-V
     DECODER and verify the decoded dest (rd = prop[dest], prop[i]=i). The field-parity
     test only checks a C++ MIRROR of the decoder shifts and the 3-sim verify exercises
@@ -139,19 +140,61 @@ def run_gem5_isa_modes():
     if not binp.exists():
         print("  gem5 ISA decode: [FAIL] could not build test_ecg_load_modes"); return False
 
-    def _run(env_file=None):
+    atomic_runs = []
+
+    def _run(label, env_file=None, guest_options=None):
         cmd = [str(GEM5_OPT), "--outdir=/tmp/ecg_modes_verify", str(se),
                "--cmd", str(binp), "--cpu-type=AtomicSimpleCPU"]
         if env_file:
             cmd += ["--env", env_file]
+        if guest_options:
+            cmd += ["--options", guest_options]
+        env = {
+            "PATH": "/usr/bin:/bin",
+            "HOME": "/tmp",
+            "TMPDIR": "/tmp",
+            "LC_ALL": "C",
+            "LANG": "C",
+        }
         try:
-            p = subprocess.run(cmd, cwd=str(gem5_dir), capture_output=True, text=True, timeout=300)
+            p = subprocess.run(
+                cmd, cwd=str(gem5_dir), env=env,
+                capture_output=True, text=True, timeout=300)
+            text = p.stdout + p.stderr
+            atomic_runs.append({
+                "label": label,
+                "command": cmd,
+                "environment": env,
+                "env_file": (
+                    Path(env_file).read_text(errors="ignore")
+                    if env_file else ""),
+                "guest_options": guest_options or "",
+                "exit_code": p.returncode,
+                "timed_out": False,
+            })
         except subprocess.TimeoutExpired:
-            return ""
-        return p.stdout + p.stderr
+            text = ""
+            atomic_runs.append({
+                "label": label,
+                "command": cmd,
+                "environment": env,
+                "env_file": (
+                    Path(env_file).read_text(errors="ignore")
+                    if env_file else ""),
+                "guest_options": guest_options or "",
+                "exit_code": None,
+                "timed_out": True,
+            })
+        return text
 
-    normal = _run()
+    normal = _run("atomic_normal")
+    normal_process_pass = (
+        atomic_runs[-1]["exit_code"] == 0 and
+        atomic_runs[-1]["timed_out"] is False)
     stream_load_pass = "LOAD2/K2" in normal and "stream=" in normal
+    compact_stream_k2m_pass = (
+        "K2-C-SS-MLOAD" in normal and
+        "canonical=0x3a004700000025" in normal)
     weighted_load_pass = "WLOAD2/K2" in normal and "stream=" in normal
     masked_pload_pass = (
         "K2-PLOAD" in normal and "K2-WPLOAD" in normal)
@@ -159,16 +202,140 @@ def run_gem5_isa_modes():
         "K2-M-U32", "K2-M-U32-HIGH", "K2-M-S32", "K2-M-F32",
         "mrd=0x123456789abcdef0", "mrd=0x76543210"))
     normal_pass = (
-        "RESULT: PASS" in normal and stream_load_pass and
-        weighted_load_pass and masked_pload_pass and mask_only_pass)
+        normal_process_pass and "RESULT: PASS" in normal and stream_load_pass and
+        compact_stream_k2m_pass and weighted_load_pass and
+        masked_pload_pass and mask_only_pass)
+
+    graph_se = (
+        ROOT / "bench" / "include" / "gem5_sim" / "configs" /
+        "graphbrew" / "graph_se.py")
+    if not graph_se.exists():
+        print(f"  gem5 compact proposal O3 probe: [FAIL] missing {graph_se}")
+        return False
+    with tempfile.TemporaryDirectory(
+            prefix="ecg_modes_verify_o3_") as temp_dir:
+        outdir = Path(temp_dir)
+        context = outdir / "context.json"
+        o3_env = {
+            "PATH": "/usr/bin:/bin",
+            "HOME": temp_dir,
+            "TMPDIR": temp_dir,
+            "LC_ALL": "C",
+            "LANG": "C",
+            "ECG_EDGE_MASK_SCHED": "2",
+            "ECG_VARIANT": "epoch_first",
+            "ECG_STREAM_BYPASS": "1",
+            "ECG_STREAM_BYPASS_TRACE": "8",
+            "ECG_K2_DELIVERY_TRACE": "8",
+            "GEM5_ECG_PRODUCER": "1",
+            "GEM5_ECG_STREAM_REQUEST_BOUND": "1",
+            "GEM5_FORCE_ECG_PLOAD": "1",
+            "GEM5_FORCE_ECG_STREAM_LOAD2": "1",
+            "GEM5_ECG_ISA_VARIANT": "mask",
+            "GEM5_ECG_EPOCH_REGION_INDEX": "0",
+            "GEM5_GRAPHBREW_CTX": str(context),
+        }
+        o3_cmd = [
+            str(GEM5_OPT), f"--outdir={outdir}", str(graph_se),
+            "--binary", str(binp), "--options", "proposal-only",
+            "--cpu-type", "O3", "--policy", "ECG",
+            "--ecg-mode", "ECG_GRASP_POPT", "--prefetcher", "none",
+            "--l1d-size", "4kB", "--l1i-size", "4kB",
+            "--l2-size", "8kB", "--l3-size", "16kB",
+            "--l3-ways", "8",
+        ]
+        try:
+            o3_result = subprocess.run(
+                o3_cmd, cwd=str(gem5_dir), env=o3_env,
+                capture_output=True, text=True, timeout=300)
+            o3_text = o3_result.stdout + o3_result.stderr
+            o3_exit_code = o3_result.returncode
+            o3_timed_out = False
+        except subprocess.TimeoutExpired:
+            o3_result = None
+            o3_text = ""
+            o3_exit_code = None
+            o3_timed_out = True
+        for output_name in (
+                "benchmark_stdout.txt", "benchmark_stderr.txt"):
+            output_path = outdir / output_name
+            if output_path.exists():
+                o3_text += "\n" + output_path.read_text(errors="ignore")
+
+    expected_payload = (37, 3, 17, 29, 11, 7)
+    request_by_sequence = {}
+    request_conflict = False
+    for match in K2_REQUEST_RE.finditer(o3_text):
+        values = tuple(map(int, match.groups()))
+        request_sequence = values[1]
+        payload = values[2:]
+        previous = request_by_sequence.setdefault(
+            request_sequence, payload)
+        request_conflict |= previous != payload
+    exact_request_sequences = {
+        sequence for sequence, payload in request_by_sequence.items()
+        if payload == expected_payload
+    }
+    exact_accept = False
+    for match in K2_ACCEPT_RE.finditer(o3_text):
+        values = match.groups()
+        request_sequence = int(values[1])
+        request_dest = int(values[2])
+        fill_dest = int(values[3])
+        source = values[4]
+        payload = tuple(map(int, values[5:10]))
+        property_elem_bytes = int(values[10])
+        same_line = (
+            (request_dest * property_elem_bytes) // 64 ==
+            (fill_dest * property_elem_bytes) // 64)
+        if (
+            request_sequence in exact_request_sequences and
+            request_dest == expected_payload[0] and same_line and
+            source == "request" and
+            payload == expected_payload[1:] and
+            property_elem_bytes == 4
+        ):
+            exact_accept = True
+            break
+    compact_request_bound_pass = (
+        o3_result is not None and o3_result.returncode == 0 and
+        re.search(r"K2-C-SS-MLOAD[^\n]*\[OK\]", o3_text) is not None and
+        "[test_ecg_load_modes] RESULT: PASS" in o3_text and
+        "canonical=0x3a004700000025" in o3_text and
+        not request_conflict and
+        bool(exact_request_sequences) and exact_accept)
+    compact_request_bypass_pass = bool(re.search(
+        r"\[ECG-STREAM-BYPASS sim=gem5 [^\n]*"
+        r"size=4 [^\n]*source=request-flag [^\n]*allocate=0\]",
+        o3_text))
+
     ef = Path("/tmp") / "ecg_force_wc0.env"
     ef.write_text("ECG_TEST_FORCE_WC=0\n")
-    teeth = _run(str(ef))
-    teeth_fail = "RESULT: FAIL" in teeth
+    teeth = _run("atomic_teeth", str(ef))
+    teeth_fail = (
+        atomic_runs[-1]["exit_code"] == 0 and
+        atomic_runs[-1]["timed_out"] is False and
+        "RESULT: FAIL" in teeth)
+    proposal_teeth = _run(
+        "atomic_proposal_format_teeth",
+        guest_options="proposal-wrong-format")
+    proposal_format_teeth_fail = (
+        atomic_runs[-1]["exit_code"] == 0 and
+        atomic_runs[-1]["timed_out"] is False and
+        re.search(
+            r"K2-C-SS-MLOAD[^\n]*\[FAIL\]",
+            proposal_teeth) is not None and
+        "[test_ecg_load_modes] RESULT: FAIL" in proposal_teeth)
     print(f"  gem5 ISA decode every (mode,width) via REAL decoder -> PASS: "
           f"{'[OK ]' if normal_pass else '[FAIL]'}")
     print(f"  gem5 StreamShield request-bound LOAD2/K2 round-trip: "
           f"{'[OK ]' if stream_load_pass else '[FAIL]'}")
+    print(f"  gem5 compact StreamShield decoder -> canonical K2-M mask: "
+          f"{'[OK ]' if compact_stream_k2m_pass else '[FAIL]'}")
+    print(f"  gem5 compact StreamShield request-flag bypass: "
+          f"{'[OK ]' if compact_request_bypass_pass else '[FAIL]'}")
+    print(f"  gem5 compact K2-M exact O3 Request metadata: "
+          f"{'[OK ]' if compact_request_bound_pass else '[FAIL]'}")
     print(f"  gem5 weighted 4B WLOAD2/K2 round-trip: "
           f"{'[OK ]' if weighted_load_pass else '[FAIL]'}")
     print(f"  gem5 request-bound K2 property-load round-trip: "
@@ -177,7 +344,85 @@ def run_gem5_isa_modes():
           f"{'[OK ]' if mask_only_pass else '[FAIL]'}")
     print(f"  gem5 ISA teeth (forced-wrong ECG_WIDTH must mis-decode -> FAIL): "
           f"{'[OK ]' if teeth_fail else '[FAIL]'}")
-    return normal_pass and teeth_fail
+    print(f"  gem5 compact proposal teeth (wrong record-format CSR -> FAIL): "
+          f"{'[OK ]' if proposal_format_teeth_fail else '[FAIL]'}")
+    overall_pass = (
+        normal_pass and compact_request_bound_pass and
+        compact_request_bypass_pass and teeth_fail and
+        proposal_format_teeth_fail)
+    if receipt_dir:
+        receipt_path = Path(receipt_dir)
+        receipt_path.mkdir(parents=True, exist_ok=True)
+        outputs = {
+            "atomic_normal.log": normal,
+            "atomic_teeth.log": teeth,
+            "atomic_proposal_format_teeth.log": proposal_teeth,
+            "o3_proposal.log": o3_text,
+        }
+        for name, text in outputs.items():
+            (receipt_path / name).write_text(text)
+
+        def descriptor(path):
+            data = Path(path).read_bytes()
+            return {
+                "path": str(Path(path).resolve()),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "size": len(data),
+                "rows": None,
+            }
+
+        payload = {
+            "schema": "graphbrew-ecg-k2m-decoder-probe-v1",
+            "created_utc": datetime.now(timezone.utc).isoformat(
+                timespec="seconds"),
+            "overall_pass": overall_pass,
+            "expected": {
+                "canonical": "0x3a004700000025",
+                "payload": list(expected_payload),
+                "property_value_bits": "0x41234567",
+                "record_request_bytes": 4,
+            },
+            "checks": {
+                "atomic_all_modes": normal_pass,
+                "atomic_stream_load2": stream_load_pass,
+                "atomic_compact_stream_to_k2m": compact_stream_k2m_pass,
+                "atomic_weighted_load2": weighted_load_pass,
+                "atomic_masked_property_load": masked_pload_pass,
+                "atomic_typed_k2m": mask_only_pass,
+                "atomic_wrong_width_teeth": teeth_fail,
+                "atomic_proposal_wrong_format_teeth":
+                    proposal_format_teeth_fail,
+                "o3_exact_request_binding": compact_request_bound_pass,
+                "o3_request_flag_bypass": compact_request_bypass_pass,
+            },
+            "runs": {
+                "atomic": atomic_runs,
+                "o3": {
+                    "command": o3_cmd,
+                    "environment": o3_env,
+                    "exit_code": o3_exit_code,
+                    "timed_out": o3_timed_out,
+                },
+            },
+            "inputs": {
+                "gem5_opt": descriptor(GEM5_OPT),
+                "guest": descriptor(binp),
+                "atomic_config": descriptor(se),
+                "o3_config": descriptor(graph_se),
+                "verifier": descriptor(Path(__file__)),
+                "decoder_overlay": descriptor(
+                    ROOT / "bench" / "include" / "gem5_sim" / "overlays" /
+                    "arch" / "riscv" / "isa" /
+                    "decoder_ecg_extract.isa"),
+            },
+            "outputs": {
+                name: descriptor(receipt_path / name)
+                for name in outputs
+            },
+        }
+        (receipt_path / "decoder_probe_receipt.json").write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return overall_pass
 
 
 def run_gem5(variant, cov=False):
@@ -708,7 +953,8 @@ def verify_k2_trace(
                 len({item[0] for item in accepted.values()}) ==
                 len(accepted) and
                 all(
-                    request_dest == fill_dest and
+                    (request_dest * width) // 64 ==
+                    (fill_dest * width) // 64 and
                     1 <= tier <= 3 and
                     0 <= first < ne and
                     0 <= second < ne and
@@ -837,7 +1083,8 @@ def verify_k2_trace(
 
 
 def verify_k2_request_accepts(
-        name, text, expected_width=4, coverage=None):
+        name, text, expected_width=4, expected_line_bytes=64,
+        coverage=None):
     """Verify O3 request binding without assuming program-order execution.
 
     O3 may execute and replay custom loads out of order, so guest-side EXPECT
@@ -873,9 +1120,13 @@ def verify_k2_request_accepts(
         requested = requests.get(request_sequence)
         observed = (
             request_dest, tier, epoch1, epoch2, current, context)
+        same_line = (
+            expected_width > 0 and expected_line_bytes > 0 and
+            (request_dest * expected_width) // expected_line_bytes ==
+            (fill_dest * expected_width) // expected_line_bytes)
         if (
                 source != "request" or width != expected_width or
-                request_dest != fill_dest or requested != observed):
+                not same_line or requested != observed):
             bad += 1
 
     ok = (
@@ -887,6 +1138,7 @@ def verify_k2_request_accepts(
             "k2_o3_accepts": len(accepts),
             "k2_o3_request_accept_mismatches": bad,
             "k2_o3_request_width": expected_width,
+            "k2_o3_request_line_bytes": expected_line_bytes,
         })
     print(
         f"  {name}: O3 requests={len(requests)} accepts={len(accepts)} "
@@ -1003,7 +1255,21 @@ def main(argv=None):
                     help="Also verify the gem5 ECG_GRASP_POPT variants (slower; needs gem5.opt).")
     ap.add_argument("--sniper", action="store_true",
                     help="Also verify Sniper ECG variants (guarded sg_kernel run under prlimit).")
+    ap.add_argument(
+        "--gem5-isa-only", action="store_true",
+        help="Run only the real RISC-V decoder plus O3 K2-M proposal probe.")
+    ap.add_argument(
+        "--isa-receipt-dir", default="",
+        help="Persist real-decoder commands, logs, hashes, and result JSON.")
     args = ap.parse_args(argv)
+
+    if args.gem5_isa_only:
+        if not GEM5_OPT.exists():
+            print(f"FAIL: build gem5 first: {GEM5_OPT}")
+            return 2
+        return 0 if run_gem5_isa_modes(
+            Path(args.isa_receipt_dir)
+            if args.isa_receipt_dir else None) else 1
 
     if not PR.exists():
         print(f"FAIL: build cache_sim first (make sim-pr): {PR}"); return 2
@@ -1079,7 +1345,9 @@ def main(argv=None):
         print(f"\n-- gem5 compile-once: ONE binary gem5.opt md5={gem5_md5} drives all "
               f"tie-break x cache runs below (runtime sweep, no recompile) --")
         print("\n-- gem5 ISA decode: every ecg.load (mode x dest-width) through the REAL decoder + teeth --")
-        ok_all &= run_gem5_isa_modes()
+        ok_all &= run_gem5_isa_modes(
+            Path(args.isa_receipt_dir)
+            if args.isa_receipt_dir else None)
         print(f"\n-- gem5 (ECG_GRASP_POPT variants, {GRAPH_LABEL}/-o5) --")
         for variant in ["grasp_only", "epoch_only", "rrip_first",
                         "epoch_first", "degree_first", "shortcircuit"]:

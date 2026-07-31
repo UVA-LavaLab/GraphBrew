@@ -226,25 +226,40 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
             // asks for 4 bytes AND the fields actually fit. Letting gem5 decide
             // on feasibility alone made it stream 4 bytes while cache_sim
             // streamed 8 -- the same divergence as before, inverted.
-            // StreamShield is delivered by a custom 8-byte stream-load
-            // instruction; there is no 32-bit variant. Taking the compact path
-            // while StreamShield is requested would silently drop the bypass,
-            // so the 4-byte and 8-byte arms would differ in BOTH width and LLC
-            // allocation and the contrast would be confounded. Prefer the
-            // requested mechanism and declare the width it forces.
-            const bool streamshield_requested =
-                gem5_ecg_stream_load2_enabled() || gem5_ecg_load2_enabled();
+            // Legacy stream/load2 forms are 8-byte-only. The proposal's
+            // explicit compact K2-M+StreamShield path has its own 4-byte
+            // record-load instruction and therefore remains compact.
+            const bool compact_streamshield_supported =
+                gem5_ecg_compact_k2m_streamshield_enabled();
+            const bool wide_only_transport =
+                gem5_ecg_load2_enabled() ||
+                (gem5_ecg_stream_load2_enabled() &&
+                 !compact_streamshield_supported);
+            if (compact_streamshield_supported &&
+                (ecg_meta.record_bytes != 4 ||
+                 !ecg_epoch::canPackEpochPair32(
+                     static_cast<uint32_t>(g.num_nodes()),
+                     edge_epoch_count))) {
+                fprintf(stderr,
+                    "[ECG-METADATA-FATAL] compact K2-M+StreamShield "
+                    "requested but the 32-bit record is infeasible "
+                    "(vertices=%u epochs=%u record_bytes=%u)\n",
+                    static_cast<unsigned>(g.num_nodes()),
+                    edge_epoch_count,
+                    static_cast<unsigned>(ecg_meta.record_bytes));
+                std::abort();
+            }
             use_compact_pair =
                 ecg_sched_k == 2 && ecg_meta.record_bytes == 4 &&
-                !streamshield_requested &&
+                !wide_only_transport &&
                 ecg_epoch::canPackEpochPair32(
                     static_cast<uint32_t>(g.num_nodes()), edge_epoch_count);
             if (ecg_sched_k == 2 && ecg_meta.record_bytes == 4 &&
-                streamshield_requested) {
+                wide_only_transport) {
                 fprintf(stderr,
                     "[ECG-METADATA-NOTE] compact 4-byte record unavailable "
-                    "with StreamShield: the stream-load instruction is 8-byte "
-                    "only, so this cell streams 8 bytes\n");
+                    "for the selected legacy load2 transport, so this cell "
+                    "streams 8 bytes\n");
             }
             if (ecg_sched_k == 2)
                 ::ecg_metadata::declareContainerBytes(
@@ -406,11 +421,14 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     gem5_export_context(
         regions, 2, g, GEM5_SIDEBAND_PATH,
         edge_regions, num_edge_regions, edge_epoch_count,
-        pair_ok && !in_edge_pair_flat.empty()
+        pair32_ok && !in_edge_pair32_flat.empty()
+            ? reinterpret_cast<uint64_t>(in_edge_pair32_flat.data())
+            : pair_ok && !in_edge_pair_flat.empty()
             ? reinterpret_cast<uint64_t>(in_edge_pair_flat.data())
             : (packed_ok && !in_edge_packed_flat.empty()
                 ? reinterpret_cast<uint64_t>(in_edge_packed_flat.data()) : 0),
-        pair_ok ? in_edge_pair_flat.size() * sizeof(uint64_t)
+        pair32_ok ? in_edge_pair32_flat.size() * sizeof(uint32_t)
+                : pair_ok ? in_edge_pair_flat.size() * sizeof(uint64_t)
                 : (packed_ok
                     ? in_edge_packed_flat.size() * sizeof(uint32_t) : 0));
 
@@ -458,6 +476,15 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
     const bool pair_trace_on = gem5_ecg_k2_trace_enabled();
     const bool compact_fused_requested =
         gem5_ecg_compact_fused_enabled();
+    const bool compact_k2m_streamshield_requested =
+        gem5_ecg_compact_k2m_streamshield_enabled();
+    const bool compact_k2m_streamshield_on =
+        compact_k2m_streamshield_requested && pair_extract_only &&
+        pair32_ok && ecg_stream_load2_on && ecg_k2_pload_on &&
+        ecg_k2_mask_only_on && !ecg_load2_on;
+    const bool wide_k2m_streamshield_on =
+        pair_extract_only && !pair32_ok && ecg_stream_load2_on &&
+        ecg_k2_pload_on && ecg_k2_mask_only_on && !ecg_load2_on;
     const bool compact_fused_on =
         compact_fused_requested && pair_extract_only && pair32_ok &&
         ecg_k2_pload_on && !ecg_k2_mask_only_on &&
@@ -499,13 +526,32 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 (int)ecg_stream_load2_on, (int)ecg_load2_on);
         std::abort();
     }
-    if (compact_fused_on) {
+    if (compact_k2m_streamshield_requested &&
+        !compact_k2m_streamshield_on) {
+        fprintf(stderr,
+                "[ECG-METADATA-FATAL] GEM5_ECG_COMPACT_K2M_SS=1 but the "
+                "proposal path is unavailable (pair_extract_only=%d "
+                "pair32=%d stream_load2=%d k2_pload=%d mask_only=%d "
+                "load2=%d). This path requires a 4-byte StreamShield record "
+                "load followed by a computed-address K2-M property load.\n",
+                (int)pair_extract_only, (int)pair32_ok,
+                (int)ecg_stream_load2_on, (int)ecg_k2_pload_on,
+                (int)ecg_k2_mask_only_on, (int)ecg_load2_on);
+        std::abort();
+    }
+    if (pair32_ok) {
         gem5_ecg_write_record_format_csr(
             pair32_id_bits, pair32_epoch_bits);
     }
     if (compact_isa_on)
         fprintf(stderr,
                 "[ECG_EXTRACT2C] PR compact record decoded in the ISA "
+                "(id_bits=%u epoch_bits=%u)\n",
+                pair32_id_bits, pair32_epoch_bits);
+    if (compact_k2m_streamshield_on)
+        fprintf(stderr,
+                "[ECG_K2_MLOAD_C_SS] PR compact StreamShield record load "
+                "+ computed-address masked property load ACTIVE "
                 "(id_bits=%u epoch_bits=%u)\n",
                 pair32_id_bits, pair32_epoch_bits);
     if (pair_extract_only) {
@@ -556,6 +602,48 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                 static_cast<size_t>(u + 1) < pair_off.size()) {
                 const uint64_t begin = pair_off[u];
                 const uint64_t end = pair_off[u + 1];
+                if (compact_k2m_streamshield_on) {
+                    const uint32_t* record_ptr =
+                        in_edge_pair32_flat.data() + begin;
+                    const uint32_t* const record_end =
+                        in_edge_pair32_flat.data() + end;
+                    for (; record_ptr != record_end; ++record_ptr) {
+                        const uint64_t rec =
+                            gem5_ecg_stream_load2_compact_instruction(
+                                record_ptr, pair32_id_bits,
+                                pair32_epoch_bits);
+                        const NodeID v = static_cast<NodeID>(
+                            rec & 0xFFFFFFFFULL);
+                        incoming_total += gem5_ecg_mload_k2_f32(
+                            &outgoing_contrib[v], rec);
+                    }
+                    const ScoreT old_score = scores[u];
+                    scores[u] = base_score + kDamp * incoming_total;
+                    error += fabs(scores[u] - old_score);
+                    outgoing_contrib[u] =
+                        scores[u] / g.out_degree(u);
+                    continue;
+                }
+                if (wide_k2m_streamshield_on) {
+                    const uint64_t* record_ptr =
+                        in_edge_pair_flat.data() + begin;
+                    const uint64_t* const record_end =
+                        in_edge_pair_flat.data() + end;
+                    for (; record_ptr != record_end; ++record_ptr) {
+                        const uint64_t rec =
+                            gem5_ecg_stream_load2_instruction(record_ptr);
+                        const NodeID v = static_cast<NodeID>(
+                            rec & 0xFFFFFFFFULL);
+                        incoming_total += gem5_ecg_mload_k2_f32(
+                            &outgoing_contrib[v], rec);
+                    }
+                    const ScoreT old_score = scores[u];
+                    scores[u] = base_score + kDamp * incoming_total;
+                    error += fabs(scores[u] - old_score);
+                    outgoing_contrib[u] =
+                        scores[u] / g.out_degree(u);
+                    continue;
+                }
                 if (compact_fused_on) {
                     const uint32_t* record_ptr =
                         in_edge_pair32_flat.data() + begin;
@@ -671,11 +759,9 @@ pvector<ScoreT> PageRankPullGS_Gem5(const Graph &g, int max_iters,
                     continue;
                 }
                 for (uint64_t pos = begin; pos < end; ++pos) {
-                    // Compact path: ONE 4-byte load per edge, then widen in
-                    // registers to the canonical 64-bit wire format the ISA
-                    // helpers consume. The traffic is 4 bytes; the widening is
-                    // free. This is what makes the record substitute for the
-                    // CSR edge instead of doubling the structural stream.
+                    // Non-proposal compact paths widen in software. The
+                    // proposal's compact StreamShield+K2-M path is hoisted
+                    // above so it pays no per-edge configuration branches.
                     const uint64_t rec = pair32_ok
                         ? ecg_epoch::widenEpochPair32(
                               in_edge_pair32_flat[pos], pair32_id_bits,

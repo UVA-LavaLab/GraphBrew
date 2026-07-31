@@ -1,0 +1,25 @@
+{
+  "complete": true,
+  "gem5_guest_gate": {
+    "detail": "4886bf1e6501ccfb2ab8dba8828bd7d1a9a0aff000b142154e6587a67b740f93",
+    "ok": true
+  },
+  "jobs": {
+    "60_gem5_proposal_k2m_o3_kron_s12_k4_pr": {
+      "config_hash": "cc80c44fd658436566ec78e097078614ce9b5b28bb058ec4e01b33807fb219b8",
+      "status": "ok"
+    }
+  },
+  "outputs": {
+    "combined_roi_matrix.csv": {
+      "rows": 3,
+      "sha256": "fc962775ad103e27d445386e68f0859ab4c3c287fa14ae6046983f305cbc0e5f",
+      "size": 11918
+    }
+  },
+  "run_config_hash": "456ab11c6986c038410251fe3e28e2d3650a301dbaec185073e5fbc31e2d9348",
+  "semantic_gate": {
+    "detail": "not-applicable",
+    "ok": true
+  }
+}

@@ -110,6 +110,12 @@ def test_k2_policy_aliases_are_first_class(monkeypatch):
     online_transport = module.ecg_transport_for(online, "pr")
     assert online_transport == module.EcgTransport(
         2, False, False, True, True)
+    lru_ss = module.parse_policy_spec("ECG:K2_LRU_STREAMSHIELD")
+    assert lru_ss.label == "ECG_K2_LRU_STREAMSHIELD"
+    assert lru_ss.ecg_variant == "lru_only"
+    assert module.ecg_transport_for(
+        lru_ss, "pr") == module.EcgTransport(
+            2, True, False, False, True)
     monkeypatch.setenv("ECG_VARIANT", "grasp_only")
     assert module.effective_ecg_variant(
         argparse.Namespace(benchmark="pr"), 2, k2) == "epoch_first"
@@ -804,6 +810,18 @@ def test_policy_labels_share_one_parser():
     assert module.policy_output_label("ECG:K2") == "ECG_K2"
 
 
+def test_request_bound_claim_is_sampling_scoped():
+    gate = json.loads(
+        (ROOT / "research/ecg-hpca/claim_gate.json").read_text())
+    claim = next(
+        item for item in gate["claims"]
+        if item["id"] == "request_bound_mechanism")
+    assert "accepted LLC deliveries" in claim["text"]
+    assert "first 2048 traced PR requests" in claim["text"]
+    assert "no zero-misbinding" in claim["scope"]
+    assert "request-count, timing, or SOTA coverage" in claim["scope"]
+
+
 def test_sharded_policies_share_comparison_scope():
     module = load_module(
         "paper_pipeline_shard_scope",
@@ -836,6 +854,218 @@ def test_sharded_policies_share_comparison_scope():
     assert len(relative) == 2
     k2 = next(row for row in relative if row["policy_label"] == "ECG_K2")
     assert k2["speedup_vs_lru"] == 1.25
+
+
+def test_mechanism_only_roi_summary_suppresses_timing():
+    module = load_module(
+        "paper_pipeline_mechanism_summary",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    rows = [
+        {
+            "status": "ok",
+            "simulator": "gem5",
+            "benchmark": "pr",
+            "prefetcher": "none",
+            "l3_size": "32kB",
+            "threads": "",
+            "policy_label": "ECG_K2_STREAMSHIELD",
+            "sim_ticks": "123",
+            "ipc": "1.5",
+            "l3_misses": "45",
+            "ecg_record_bytes": "4",
+            "edge_stream_bytes_per_edge": "4",
+            "timing_valid_for_speedup": "0",
+            "timing_model": "mechanism_probe_exact_request",
+            "timing_caveat": "not performance evidence",
+        },
+    ]
+    summary = module.summarize_roi(rows)
+    assert len(summary) == 1
+    assert summary[0]["timing_valid_for_speedup"] == "0"
+    assert summary[0]["timing_model"] == "mechanism_probe_exact_request"
+    assert summary[0]["timing_caveat"] == "not performance evidence"
+    assert "avg_sim_ticks" not in summary[0]
+    assert "avg_ipc" not in summary[0]
+    assert summary[0]["mechanism_only_correctness"] == "1"
+    assert "avg_l3_misses" not in summary[0]
+    assert summary[0]["avg_ecg_record_bytes"] == 4
+    assert summary[0]["avg_edge_stream_bytes_per_edge"] == 4
+
+    table_rows, columns, title = module.roi_summary_table_spec(
+        [], [], summary)
+    assert table_rows == summary
+    assert "avg_sim_ticks" not in columns
+    assert "avg_l3_misses" not in columns
+    assert "avg_ecg_record_bytes" in columns
+    assert "timing_valid_for_speedup" in columns
+    assert title == "ECG mechanism-only ROI summary"
+
+    relative_input = [
+        {
+            **rows[0],
+            "final_shard_group": "run",
+            "final_matrix_id": "proposal",
+            "final_matrix_config_hash": "same",
+            "final_expected_policy_labels": json.dumps([
+                "LRU", "ECG_K2_STREAMSHIELD"]),
+            "policy_label": "LRU",
+            "timing_model": "",
+            "timing_valid_for_speedup": "1",
+        },
+        {
+            **rows[0],
+            "final_shard_group": "run",
+            "final_matrix_id": "proposal",
+            "final_matrix_config_hash": "same",
+            "final_expected_policy_labels": json.dumps([
+                "LRU", "ECG_K2_STREAMSHIELD"]),
+        },
+    ]
+    relative_rows = module.roi_relative_metrics(relative_input)
+    assert [row["policy_label"] for row in relative_rows] == ["LRU"]
+
+
+def test_pipeline_manifest_binds_inputs_scripts_and_outputs(tmp_path):
+    module = load_module(
+        "paper_pipeline_bound_manifest",
+        ROOT / "scripts/experiments/ecg/flows/paper_pipeline.py",
+    )
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "run.complete.json").write_text(
+        '{"complete": true}\n')
+    (run_dir / "resolved_manifest.json").write_text(
+        '{"profiles": ["proposal"]}\n')
+    (run_dir / "combined_roi_matrix.csv").write_text(
+        "status,policy_label\nok,ECG_K2_STREAMSHIELD\n")
+    out_dir = tmp_path / "pipeline"
+    rows = [{
+        "status": "ok",
+        "simulator": "gem5",
+        "benchmark": "pr",
+        "prefetcher": "none",
+        "l3_size": "32kB",
+        "threads": "",
+        "policy_label": "ECG_K2_STREAMSHIELD",
+        "ecg_record_bytes": "4",
+        "edge_stream_bytes_per_edge": "4",
+        "timing_valid_for_speedup": "0",
+        "timing_model": "mechanism_probe_exact_request",
+        "timing_caveat": "not performance evidence",
+    }]
+    module.generate_outputs(
+        out_dir, rows, [], False, input_run_dirs=[run_dir])
+    manifest = json.loads(
+        (out_dir / "paper_pipeline_manifest.json").read_text())
+    assert "run_0/run.complete.json" in manifest["inputs"]
+    assert "run_0/combined_roi_matrix.csv" in manifest["inputs"]
+    assert "paper_pipeline.py" in manifest["scripts"]
+    assert "git_state" in manifest
+    assert "aggregate/roi_policy_summary.csv" in manifest["outputs"]
+    assert "tables/roi_policy_summary.tex" in manifest["outputs"]
+
+
+def test_proposal_freeze_validates_exact_rows(tmp_path):
+    module = load_module(
+        "freeze_proposal_k2m_test",
+        ROOT / "scripts/experiments/ecg/flows/freeze_proposal_k2m.py",
+    )
+    path = tmp_path / "rows.csv"
+    common = {
+        "status": "ok",
+        "pr_score_checksum": "abc",
+        "pr_iterations": "1",
+        "pr_semantic_edges": "10",
+        "timing_valid_for_speedup": "0",
+    }
+    target = {
+        **common,
+        "proposal_path_active": "1",
+        "gem5_k2_exact_request_bound": "1",
+        "gem5_k2_payload_discriminating": "1",
+        "gem5_k2_duplicate_accepts": "0",
+        "gem5_k2_request_bad_receipts": "0",
+        "gem5_k2_request_conflicts": "0",
+        "gem5_k2_duplicate_request_receipts": "0",
+        "gem5_k2_mailbox_accepts": "0",
+        "gem5_k2_delivery_trace_limit": "2048",
+        "gem5_k2_request_trace_events": "2048",
+        "gem5_k2_request_receipts": "2048",
+        "gem5_k2_request_trace_max_seq": "2047",
+        "gem5_k2_delivery_trace_saturated": "1",
+        "gem5_k2_accept_record_epoch_pairs": "2",
+        "gem5_k2_nonzero_epoch_accepts": "8",
+        "gem5_k2_coalesced_line_accepts": "1",
+        "gem5_stream_bypass_range_events": "0",
+        "gem5_stream_bypass_trace_saturated": "0",
+        "gem5_stream_bypass_request_flag_bad_size_events": "0",
+        "gem5_stream_bypass_all_events": "2",
+        "gem5_stream_bypass_request_flag_events": "2",
+        "gem5_stream_bypass_request_flag_size4_events": "2",
+        "gem5_cpu_type": "O3",
+        "ecg_record_bytes": "4",
+    }
+    rows = [
+        {
+            **common, "policy_label": "ECG_K2",
+            "ecg_record_bytes": "8",
+            "gem5_cpu_type": "O3",
+            "gem5_compact_k2m_streamshield_active": "0",
+            "proposal_path_active": "0",
+            "timing_model": "mechanism_semantic_anchor",
+        },
+        {
+            **target,
+            "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+        },
+        {
+            **target,
+            "policy_label": "ECG_K2_STREAMSHIELD",
+        },
+    ]
+    fieldnames = sorted({key for row in rows for key in row})
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    assert len(module.validate_rows(path)) == 3
+
+    rows[1]["gem5_stream_bypass_request_flag_size4_events"] = "0"
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    with pytest.raises(SystemExit, match="size-4 StreamShield"):
+        module.validate_rows(path)
+    assert module.is_inadmissible_column("l3_data_misses")
+    assert module.is_inadmissible_column("roi_insts")
+    assert module.is_inadmissible_column(
+        "gem5_k2_accepts_per_traced_request")
+    assert not module.is_inadmissible_column("l3_size")
+    assert not module.is_inadmissible_column("ecg_record_bytes")
+
+
+def test_frozen_proposal_bundle_is_hash_bound_and_claim_cited():
+    module = load_module(
+        "freeze_proposal_k2m_verify_test",
+        ROOT / "scripts/experiments/ecg/flows/freeze_proposal_k2m.py",
+    )
+    bundle = (
+        ROOT / "research/ecg-hpca/evidence/"
+        "proposal_k2m_o3_20260730")
+    module.verify_bundle(bundle)
+    gate = json.loads(
+        (ROOT / "research/ecg-hpca/claim_gate.json").read_text())
+    mechanism_gate = next(
+        item for item in gate["gates"]
+        if item["id"] == "k2m_request_correctness")
+    claim = next(
+        item for item in gate["claims"]
+        if item["id"] == "request_bound_mechanism")
+    expected = "research/ecg-hpca/evidence/proposal_k2m_o3_20260730"
+    assert expected in mechanism_gate["evidence"]
+    assert expected in claim["evidence"]
 
 
 def test_online_dueling_regret_uses_best_static_k2_arm():

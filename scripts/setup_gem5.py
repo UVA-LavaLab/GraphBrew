@@ -743,6 +743,7 @@ def verify_installation_postconditions():
         ],
         GEM5_DIR / "src/arch/riscv/isa/decoder.isa": [
             "ecg_stream_load2",
+            "ecg_stream_load2_compact",
             "ecg_load2",
             "ecg_load_k2_compact",
         ],

@@ -80,6 +80,8 @@ def test_gem5_streamshield_suppresses_only_l3_allocation():
     assert "getVaddr()" in patch
     assert "Request::ECG_STREAM_BYPASS" in flag_patch
     assert "GEM5_ECG_STREAM_REQUEST_BOUND" in flag_patch
+    assert "size=%u source=%s allocate=0" in flag_patch
+    assert "pkt->req->getSize()" in flag_patch
     assert "allocOnFill(pkt->cmd) && !stream_bypass" in patch
     assert "allow_alloc_on_fill" in patch
     assert "isEcgStreamBypassAddress" in context
@@ -90,9 +92,11 @@ def test_gem5_streamshield_suppresses_only_l3_allocation():
     assert "isStreamBypass" in prefetch_patch
     assert "req->setFlags(Request::ECG_STREAM_BYPASS)" in prefetch_patch
     assert "ecg_stream_load2" in decoder
+    assert "ecg_stream_load2_compact" in decoder
     assert "ecg_load2" in decoder
     assert "mem_flags=[ECG_STREAM_BYPASS]" in decoder
     assert ".insn i 0x0b, 0x3" in harness
+    assert ".insn i 0x0b, 0x7" in harness
     assert ".insn i 0x0b, 0x4" in harness
 
 

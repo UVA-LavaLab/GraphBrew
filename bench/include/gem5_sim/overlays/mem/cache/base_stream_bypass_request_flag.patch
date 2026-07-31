@@ -1,7 +1,7 @@
 diff --git a/src/mem/cache/base.cc b/src/mem/cache/base.cc
 --- a/src/mem/cache/base.cc
 +++ b/src/mem/cache/base.cc
-@@ -78,21 +78,51 @@
+@@ -78,21 +78,52 @@
          return false;
      const Addr stream_addr = pkt->req->hasVaddr()
          ? pkt->req->getVaddr() : pkt->getAddr();
@@ -48,11 +48,12 @@ diff --git a/src/mem/cache/base.cc b/src/mem/cache/base.cc
              std::fprintf(stderr,
                  "[ECG-STREAM-BYPASS sim=gem5 cache=%s addr=%#llx "
 -                "vaddr=%#llx allocate=0]\n",
-+                "vaddr=%#llx source=%s allocate=0]\n",
++                "vaddr=%#llx size=%u source=%s allocate=0]\n",
                  cache.name().c_str(),
                  static_cast<unsigned long long>(pkt->getAddr()),
 -                static_cast<unsigned long long>(stream_addr));
 +                static_cast<unsigned long long>(stream_addr),
++                static_cast<unsigned>(pkt->req->getSize()),
 +                flag_bypass ? "request-flag" : "range");
          }
      }

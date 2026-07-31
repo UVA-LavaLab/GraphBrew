@@ -40,10 +40,57 @@ from scripts.experiments.ecg.gem5_guest_receipt import (
     material_environment,
     open_sealed_guest,
     sha256,
+    stable_receipt_fingerprint,
+    stable_receipt_payload,
     stage_validated_guest,
     validate_receipt,
     verify_staged_guest,
 )
+
+
+def test_stable_guest_receipt_ignores_trace_churn(tmp_path):
+    base = {
+        "schema_version": 1,
+        "binary": {"path": "guest", "sha256": "abc"},
+        "canonical_command": ["c++", "source.cc"],
+        "compiler": {"driver_sha256": "def"},
+        "flags": "-O1",
+        "includes": "-Iinclude",
+        "link_inputs": [{"path": "lib.a", "sha256": "ghi"}],
+        "source": "source.cc",
+        "build_config": "config",
+        "build_config_values": {"x": 1},
+        "make_target": "guest",
+        "traced_inputs": {"volatile": "one"},
+        "dependencies": {"volatile": "two"},
+        "git": {"diff_sha256": "old"},
+    }
+    first = tmp_path / "first.json"
+    second = tmp_path / "second.json"
+    first.write_text(json.dumps(base))
+    changed = dict(base)
+    changed.update({
+        "traced_inputs": {"volatile": "changed"},
+        "dependencies": {"volatile": "changed"},
+        "git": {"diff_sha256": "new"},
+    })
+    second.write_text(json.dumps(changed))
+    assert stable_receipt_payload(base) == stable_receipt_payload(changed)
+    assert stable_receipt_fingerprint(first) == stable_receipt_fingerprint(
+        second)
+    baseline = stable_receipt_fingerprint(first)
+    for key in stable_receipt_payload(base):
+        mutated = json.loads(json.dumps(base))
+        mutated[key] = {"changed": key}
+        candidate = tmp_path / f"mutated-{key}.json"
+        candidate.write_text(json.dumps(mutated))
+        assert stable_receipt_fingerprint(candidate) != baseline
+
+        removed = json.loads(json.dumps(base))
+        removed.pop(key)
+        candidate = tmp_path / f"removed-{key}.json"
+        candidate.write_text(json.dumps(removed))
+        assert stable_receipt_fingerprint(candidate) != baseline
 
 
 def write_build_config(
@@ -461,7 +508,7 @@ def test_guest_environment_bytes_and_entry_count_are_policy_invariant():
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
-    fixed = [f"FIXED_{index:02d}=1" for index in range(45)]
+    fixed = [f"FIXED_{index:02d}=1" for index in range(46)]
     baseline = module.finalize_environment([
         *fixed,
         "GRAPHBREW_ABSENT_ENV_00=0",

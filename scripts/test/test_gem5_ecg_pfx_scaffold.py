@@ -2,10 +2,15 @@
 """Regression tests for the gem5 ECG_PFX scaffold wiring."""
 
 import importlib.util
+import json
+import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 from types import SimpleNamespace
+
+import pytest
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -214,17 +219,14 @@ def test_gem5_k2_uses_architectural_epoch_context_csrs():
     assert "MISCREG_ECG_CUR_EPOCH" in decoder
     assert "MISCREG_ECG_CONTEXT" in decoder
     assert "MISCREG_ECG_RECORD_FORMAT" in decoder
-    # Deliberate acknowledgement tripwire, not a completeness check: every ECG
-    # instruction must read the epoch and context CSRs, so this count changes
-    # only when the instruction set does, and a human has to notice. 17 since
-    # ecg_extract2c was added. It fired correctly for that addition -- and note
-    # it reads the tracked OVERLAY, so editing the generated gem5 checkout
-    # instead had bypassed it entirely.
-    # 18 since the fused compact load was added; that instruction also reads
-    # the record-format CSR.
+    # Deliberate acknowledgement tripwire, not a completeness check. Property
+    # metadata-delivery instructions read epoch/context. Placement-only record
+    # loads such as ecg_stream_load2_compact deliberately do not; K2-M owns
+    # delivery on the subsequent property Request. The format CSR count changes
+    # for compact decode instructions.
     assert decoder.count("MISCREG_ECG_CUR_EPOCH") == 18
     assert decoder.count("MISCREG_ECG_CONTEXT") == 18
-    assert decoder.count("MISCREG_ECG_RECORD_FORMAT") == 1
+    assert decoder.count("MISCREG_ECG_RECORD_FORMAT") == 2
     assert 'asm volatile ("csrw 0x800, %0"' in harness
     assert 'asm volatile ("csrw 0x801, %0"' in harness
     assert 'asm volatile ("csrw 0x802, %0"' in harness
@@ -591,6 +593,538 @@ def test_fused_compact_row_is_attested_from_runtime_not_requested_env():
         baseline, "", requested=False)
     assert baseline["gem5_compact_fused_active"] == 0
     assert "error" not in baseline
+
+
+def test_proposal_compact_k2m_streamshield_is_fail_closed():
+    harness = read("bench/include/gem5_sim/gem5_harness.h")
+    guest = read("bench/src_gem5/pr.cc")
+    decoder = read(
+        "bench/include/gem5_sim/overlays/arch/riscv/isa/"
+        "decoder_ecg_extract.isa")
+    graph_se = read(
+        "bench/include/gem5_sim/configs/graphbrew/graph_se.py")
+
+    stream_block = decoder.split(
+        "0x7: ecg_stream_load2_compact", 1)[1].split(
+            "\n            }", 1)[0]
+    assert "Mem_uw" in stream_block
+    assert "MISCREG_ECG_RECORD_FORMAT" in stream_block
+    assert "mem_flags=[ECG_STREAM_BYPASS]" in stream_block
+    assert "setDecodedEcgExtractHint" not in stream_block
+    assert '".insn i 0x0b, 0x7' in harness
+    assert "gem5_ecg_stream_load2_compact_instruction" in guest
+    assert "gem5_ecg_mload_k2_f32" in guest
+    assert "wide_k2m_streamshield_on" in guest
+    assert "in_edge_pair32_flat.data()" in guest
+    assert "in_edge_pair32_flat.size() * sizeof(uint32_t)" in guest
+    assert "GEM5_ECG_COMPACT_K2M_SS=1 but" in guest
+    assert "[ECG_K2_MLOAD_C_SS]" in guest
+    assert "GEM5_ECG_COMPACT_K2M_SS" in graph_se
+
+    active = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
+        active,
+        "[ECG_K2_MLOAD_C_SS] PR ACTIVE\n"
+        "[ECG-STREAM-BYPASS sim=gem5 cache=l3cache addr=0x40 "
+        "vaddr=0x40 size=4 source=request-flag allocate=0]",
+        requested=True)
+    assert active["proposal_path_active"] == 1
+    assert active["gem5_stream_bypass_request_flag_events"] == 1
+    assert active["gem5_stream_bypass_request_flag_size4_events"] == 1
+    assert active["gem5_stream_bypass_request_flag_bad_size_events"] == 0
+    assert active["gem5_stream_bypass_all_events"] == 1
+    assert active["gem5_stream_bypass_range_events"] == 0
+    assert active["gem5_ecg_delivery"] == (
+        "ecg.stream.load2.compact+ecg.k2.mload.f32")
+
+    missing = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
+        missing, "[ECG_K2_MLOAD] PR ACTIVE", requested=True)
+    assert missing["status"] == "error"
+    assert missing["timing_valid_for_speedup"] == "0"
+
+    no_bypass = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
+        no_bypass, "[ECG_K2_MLOAD_C_SS] PR ACTIVE", requested=True)
+    assert no_bypass["status"] == "error"
+    assert "request-flag StreamShield" in no_bypass["error"]
+
+    wrong_width = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
+        wrong_width,
+        "[ECG_K2_MLOAD_C_SS] PR ACTIVE\n"
+        "[ECG-STREAM-BYPASS sim=gem5 cache=l3cache addr=0x40 "
+        "vaddr=0x40 size=8 source=request-flag allocate=0]",
+        requested=True)
+    assert wrong_width["status"] == "error"
+    assert "4-byte request-flag record requests" in wrong_width["error"]
+
+
+def test_proposal_compact_k2m_streamshield_cli_guards():
+    wrong_kernel = subprocess.run(
+        [
+            sys.executable, str(ROI_MATRIX_PATH),
+            "--suite", "gem5", "--benchmark", "bfs",
+            "--ecg-isa-variant", "mask",
+            "--gem5-compact-k2m-streamshield", "--dry-run",
+        ],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60)
+    assert wrong_kernel.returncode != 0
+    assert "implemented only for --benchmark pr" in (
+        wrong_kernel.stdout + wrong_kernel.stderr)
+
+    wrong_isa = subprocess.run(
+        [
+            sys.executable, str(ROI_MATRIX_PATH),
+            "--suite", "gem5", "--benchmark", "pr",
+            "--ecg-isa-variant", "indexed",
+            "--gem5-compact-k2m-streamshield", "--dry-run",
+        ],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60)
+    assert wrong_isa.returncode != 0
+    assert "requires --ecg-isa-variant mask" in (
+        wrong_isa.stdout + wrong_isa.stderr)
+
+    wrong_policy = subprocess.run(
+        [
+            sys.executable, str(ROI_MATRIX_PATH),
+            "--suite", "gem5", "--benchmark", "pr",
+            "--ecg-isa-variant", "mask",
+            "--gem5-cpu-type", "O3",
+            "--policies", "ECG:K1_STREAMSHIELD",
+            "--gem5-compact-k2m-streamshield", "--dry-run",
+        ],
+        cwd=PROJECT_ROOT,
+        env={
+            **os.environ,
+            "GEM5_OPT": str(
+                PROJECT_ROOT /
+                "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt"),
+            "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+        },
+        capture_output=True, text=True, timeout=60)
+    assert wrong_policy.returncode != 0
+    assert "requires at least one Schedule-2 ECG StreamShield policy" in (
+        wrong_policy.stdout + wrong_policy.stderr)
+
+    timing_cpu = subprocess.run(
+        [
+            sys.executable, str(ROI_MATRIX_PATH),
+            "--suite", "gem5", "--benchmark", "pr",
+            "--ecg-isa-variant", "mask",
+            "--gem5-cpu-type", "timing",
+            "--gem5-compact-k2m-streamshield", "--dry-run",
+        ],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60)
+    assert timing_cpu.returncode != 0
+    assert "requires --gem5-cpu-type O3" in (
+        timing_cpu.stdout + timing_cpu.stderr)
+
+    wrong_line = subprocess.run(
+        [
+            sys.executable, str(ROI_MATRIX_PATH),
+            "--suite", "gem5", "--benchmark", "pr",
+            "--ecg-isa-variant", "mask",
+            "--gem5-cpu-type", "O3",
+            "--line-size", "128",
+            "--gem5-compact-k2m-streamshield", "--dry-run",
+        ],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=60)
+    assert wrong_line.returncode != 0
+    assert "requires --line-size 64" in (
+        wrong_line.stdout + wrong_line.stderr)
+
+
+def test_proposal_request_bound_receipt_matches_request_extension():
+    log = "\n".join([
+        "[ECG-K2-REQUEST sim=gem5 seq=0 request_seq=17 "
+        "dest=9 tier=2 epoch1=3 epoch2=7 current=1 context=4]",
+        "[ECG-K2-ACCEPT sim=gem5 seq=0 request_seq=17 "
+        "request_dest=9 fill_dest=9 source=request tier=2 "
+        "epoch1=3 epoch2=7 current=1 context=4 "
+        "property_elem_bytes=4]",
+    ])
+    row = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_request_bound_k2_receipt(
+        row, log, requested=True)
+    assert row["gem5_k2_exact_request_bound"] == 1
+    assert row["gem5_k2_request_bad_receipts"] == 0
+
+    same_line = {"timing_valid_for_speedup": "1"}
+    same_line_log = log.replace(
+        "dest=9 tier=2", "dest=11 tier=2").replace(
+        "request_dest=9 fill_dest=9",
+        "request_dest=11 fill_dest=1")
+    assert roi_matrix.apply_gem5_request_bound_k2_receipt(
+        same_line, same_line_log, requested=True, line_bytes=64)
+    assert same_line["gem5_k2_coalesced_line_accepts"] == 1
+    assert same_line["gem5_k2_exact_vertex_accepts"] == 0
+
+    bad = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_request_bound_k2_receipt(
+        bad, same_line_log.replace("fill_dest=1", "fill_dest=32"),
+        requested=True)
+    assert bad["status"] == "error"
+    assert bad["timing_valid_for_speedup"] == "0"
+
+    discriminating_log = "\n".join([
+        log,
+        "[ECG-K2-REQUEST sim=gem5 seq=1 request_seq=18 "
+        "dest=25 tier=3 epoch1=5 epoch2=9 current=2 context=4]",
+        "[ECG-K2-ACCEPT sim=gem5 seq=1 request_seq=18 "
+        "request_dest=25 fill_dest=16 source=request tier=3 "
+        "epoch1=5 epoch2=9 current=2 context=4 "
+        "property_elem_bytes=4]",
+    ])
+    discriminating = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_request_bound_k2_receipt(
+        discriminating, discriminating_log, requested=True,
+        require_discriminating=True)
+    assert discriminating["gem5_k2_payload_discriminating"] == 1
+    assert discriminating["gem5_k2_request_metadata_values"] == 2
+    assert discriminating["gem5_k2_accept_metadata_values"] == 2
+    assert discriminating["gem5_k2_request_epoch_states"] == 2
+    assert discriminating["gem5_k2_accept_epoch_states"] == 2
+    assert discriminating["gem5_k2_request_record_epoch_pairs"] == 2
+    assert discriminating["gem5_k2_accept_record_epoch_pairs"] == 2
+
+    tier_only_log = "\n".join([
+        log,
+        "[ECG-K2-REQUEST sim=gem5 seq=1 request_seq=18 "
+        "dest=25 tier=3 epoch1=3 epoch2=7 current=1 context=4]",
+        "[ECG-K2-ACCEPT sim=gem5 seq=1 request_seq=18 "
+        "request_dest=25 fill_dest=16 source=request tier=3 "
+        "epoch1=3 epoch2=7 current=1 context=4 "
+        "property_elem_bytes=4]",
+    ])
+    tier_only = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_request_bound_k2_receipt(
+        tier_only, tier_only_log, requested=True,
+        require_discriminating=True)
+    assert tier_only["gem5_k2_payload_discriminating"] == 0
+    assert tier_only["gem5_k2_accept_epoch_states"] == 1
+
+    current_only_log = "\n".join([
+        log,
+        "[ECG-K2-REQUEST sim=gem5 seq=1 request_seq=18 "
+        "dest=25 tier=2 epoch1=3 epoch2=7 current=2 context=4]",
+        "[ECG-K2-ACCEPT sim=gem5 seq=1 request_seq=18 "
+        "request_dest=25 fill_dest=16 source=request tier=2 "
+        "epoch1=3 epoch2=7 current=2 context=4 "
+        "property_elem_bytes=4]",
+    ])
+    current_only = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_request_bound_k2_receipt(
+        current_only, current_only_log, requested=True,
+        require_discriminating=True)
+    assert current_only["gem5_k2_payload_discriminating"] == 0
+    assert current_only["gem5_k2_accept_epoch_states"] == 2
+    assert current_only["gem5_k2_accept_record_epoch_pairs"] == 1
+
+    duplicate_accept = {"timing_valid_for_speedup": "1"}
+    duplicate_log = discriminating_log + "\n" + discriminating_log.splitlines()[-1]
+    assert not roi_matrix.apply_gem5_request_bound_k2_receipt(
+        duplicate_accept, duplicate_log, requested=True,
+        require_discriminating=True)
+    assert duplicate_accept["gem5_k2_duplicate_accepts"] == 1
+
+    replay_log = "\n".join([
+        log,
+        "[ECG-K2-REQUEST sim=gem5 seq=1 request_seq=17 "
+        "dest=9 tier=2 epoch1=3 epoch2=7 current=1 context=4]",
+    ])
+    replay = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_request_bound_k2_receipt(
+        replay, replay_log, requested=False, trace_limit=2)
+    assert replay["gem5_k2_request_trace_events"] == 2
+    assert replay["gem5_k2_request_receipts"] == 1
+    assert replay["gem5_k2_duplicate_request_receipts"] == 1
+    assert replay["gem5_k2_request_trace_max_seq"] == 1
+    assert replay["gem5_k2_delivery_trace_saturated"] == 1
+
+
+def test_proposal_run_gate_requires_every_requested_row():
+    args = SimpleNamespace(
+        gem5_compact_k2m_streamshield=True,
+        dry_run=False,
+        l3_sizes=["32kB"],
+        ecg_isa_variant="mask",
+        benchmark="pr",
+    )
+    policies = [
+        roi_matrix.parse_policy_spec("ECG:K2"),
+        roi_matrix.parse_policy_spec("ECG:K2_LRU_STREAMSHIELD"),
+        roi_matrix.parse_policy_spec("ECG:K2_STREAMSHIELD"),
+    ]
+    good = {
+        "gem5_compact_k2m_streamshield_requested": 1,
+        "policy_label": "ECG_K2_STREAMSHIELD",
+        "status": "ok",
+        "proposal_path_active": 1,
+        "gem5_k2_exact_request_bound": 1,
+        "gem5_k2_payload_discriminating": 1,
+        "gem5_k2_coalesced_line_accepts": 1,
+        "gem5_k2_nonzero_epoch_accepts": 8,
+        "gem5_stream_bypass_request_flag_size4_events": 2,
+        "gem5_stream_bypass_request_flag_bad_size_events": 0,
+        "gem5_stream_bypass_request_flag_events": 2,
+        "gem5_stream_bypass_all_events": 2,
+        "gem5_stream_bypass_range_events": 0,
+        "gem5_stream_bypass_trace_saturated": 0,
+    }
+    roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
+        [
+            {
+                **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                "l3_size": "32kB",
+            },
+            {**good, "l3_size": "32kB"},
+            {"gem5_compact_k2m_streamshield_requested": 0, "status": "ok"},
+        ],
+        args, policies)
+
+    with pytest.raises(SystemExit, match="proposal compact K2-M"):
+        roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
+            [
+                {
+                    **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                    "l3_size": "32kB",
+                },
+                {
+                    **good, "l3_size": "32kB",
+                    "gem5_k2_exact_request_bound": 0,
+                },
+            ],
+            args, policies)
+    with pytest.raises(SystemExit, match="proposal compact K2-M"):
+        roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
+            [
+                {
+                    **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                    "l3_size": "32kB",
+                    "gem5_k2_coalesced_line_accepts": 0,
+                },
+                {**good, "l3_size": "32kB"},
+            ],
+            args, policies)
+    with pytest.raises(SystemExit, match="observed=.*32kB"):
+        roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
+            [{**good, "l3_size": "32kB"}], args, policies)
+    with pytest.raises(SystemExit, match="proposal compact K2-M"):
+        roi_matrix.validate_gem5_compact_k2m_streamshield_rows(
+            [
+                {
+                    **good, "policy_label": "ECG_K2_LRU_STREAMSHIELD",
+                    "l3_size": "32kB",
+                    "gem5_stream_bypass_trace_saturated": 1,
+                },
+                {**good, "l3_size": "32kB"},
+            ],
+            args, policies)
+
+
+def test_real_decoder_probe_covers_compact_streamshield_k2m_request():
+    probe = read("bench/src_gem5/test_ecg_load_modes.cc")
+    verifier = read("scripts/experiments/ecg/verify/ecg.py")
+
+    assert "gem5_ecg_stream_load2_compact_instruction" in probe
+    assert "gem5_ecg_mload_k2_f32" in probe
+    assert "K2-C-SS-MLOAD" in probe
+    assert "gem5_ecg_write_record_format_csr" in probe
+    assert "g_context_retry_lines[2048 * 64]" in probe
+    assert "kProposalValueBits = 0x41234567u" in probe
+    assert "if (proposal_only || proposal_wrong_format)" in probe
+    assert "proposal-wrong-format" in probe
+    assert "wrong_record_format ? kProposalIdBits - 2" in probe
+    assert '"current=%u context=%u value_bits=%#x [%s]\\n"' in probe
+
+    assert '"--cpu-type", "O3"' in verifier
+    assert '"GEM5_ECG_PRODUCER": "1"' in verifier
+    assert '"GEM5_ECG_STREAM_REQUEST_BOUND": "1"' in verifier
+    assert 'ROOT / "bench" / "include" / "gem5_sim" / "configs"' in verifier
+    assert '"PATH": "/usr/bin:/bin"' in verifier
+    assert "expected_payload = (37, 3, 17, 29, 11, 7)" in verifier
+    assert "compact_request_bound_pass" in verifier
+    assert "compact_request_bypass_pass" in verifier
+    assert "size=4" in verifier
+    assert 'r"K2-C-SS-MLOAD[^\\n]*\\[OK\\]"' in verifier
+    assert '"[test_ecg_load_modes] RESULT: PASS" in o3_text' in verifier
+    assert "--gem5-isa-only" in verifier
+    assert "--isa-receipt-dir" in verifier
+    assert "decoder_probe_receipt.json" in verifier
+    assert '"overall_pass": overall_pass' in verifier
+    assert '"o3_proposal.log"' in verifier
+    assert "normal_process_pass" in verifier
+    assert 'atomic_runs[-1]["exit_code"] == 0' in verifier
+    assert "atomic_proposal_wrong_format_teeth" in verifier
+    assert "atomic_proposal_format_teeth.log" in verifier
+
+
+def test_proposal_o3_manifest_profile_is_exact_and_mechanism_only():
+    manifest = json.loads(read(
+        "scripts/experiments/ecg/final_paper_manifest.json"))
+    assert "ecg_proposal_k2m_o3_gate" in manifest["profiles"]
+    stage = next(
+        item for item in manifest["stages"]
+        if item["name"] == "60_gem5_proposal_k2m_o3")
+    assert stage["suite"] == "gem5"
+    assert stage["graph_set"] == "synthetic_kron12_all"
+    assert stage["benchmarks"] == ["pr"]
+    assert stage["policies"] == [
+        "ECG:K2", "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_STREAMSHIELD"]
+    assert stage["ecg_isa_variant"] == "mask"
+    assert stage["gem5_cpu_type"] == "O3"
+    assert stage["gem5_compact_k2m_streamshield"] is True
+    assert stage["ecg_epochs"] == 32
+    assert "ECG_K2_DELIVERY_TRACE" not in stage["env"]
+    assert "ECG_STREAM_BYPASS_TRACE" not in stage["env"]
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    paper_run = read("scripts/experiments/ecg/flows/paper_run.py")
+    assert 'env["ECG_K2_DELIVERY_TRACE"] = "2048"' in runner
+    assert 'env["ECG_STREAM_BYPASS_TRACE"] = "2048"' in runner
+    assert "max(k2_trace, 2048)" not in runner
+    assert "max(bypass_trace, 2048)" not in runner
+    assert '"mechanism_probe_exact_request"' in runner
+    assert 'row.setdefault("status", "ok")' in runner
+    assert "planning-missing-gem5-guest-sha256" in runner
+    assert "planning-missing-gem5-guest-sha256" in paper_run
+    assert "rather than request-count or performance coverage" in stage["notes"]
+    freeze = read(
+        "scripts/experiments/ecg/flows/freeze_proposal_k2m.py")
+    assert "graphbrew-proposal-k2m-o3-evidence-v1" in freeze
+    assert "gem5_k2_coalesced_line_accepts" in freeze
+    assert "paper_pipeline_manifest.json" in freeze
+    assert "paper pipeline input does not match proposal rows" in freeze
+    assert "probe and proposal run used different gem5 binaries" in freeze
+    assert "source/source.diff.gz" in freeze
+    assert "decoder probe expected payload is not canonical" in freeze
+    assert "raw artifact roster mismatch" in freeze
+    assert "raw receipt mismatch" in freeze
+    assert "resolved run source fingerprint mismatch" in freeze
+    assert "paper pipeline input set is not exact" in freeze
+    assert "raw/environments" in freeze
+    assert "cell environment mismatch" in freeze
+    assert 'stdout_path.suffix + ".env.json"' in runner
+
+
+def test_proposal_certification_preserves_layered_errors_and_persists_first():
+    rows = [
+        {
+            "simulator": "gem5", "status": "error",
+            "error": "proposal K2-M exact Request binding was not attested",
+            "options": "-i 1", "l3_size": "32kB", "l3_ways": 8,
+            "prefetcher": "none",
+        },
+        {
+            "simulator": "gem5", "status": "ok",
+            "options": "-i 1", "l3_size": "32kB", "l3_ways": 8,
+            "prefetcher": "none",
+            "pr_iterations": 1, "pr_semantic_edges": 10,
+            "pr_score_checksum": "abc",
+        },
+    ]
+    roi_matrix.certify_gem5_pr_results(
+        rows, SimpleNamespace(benchmark="pr", suite="gem5"))
+    assert "exact Request binding" in rows[0]["error"]
+    assert "PageRank semantic receipt mismatch" in rows[0]["error"]
+
+    runner = read("scripts/experiments/ecg/roi_matrix.py")
+    main_tail = runner.split(
+        "certify_sniper_semantic_work(rows, args, policies)", 1)[1]
+    assert main_tail.index("write_outputs(out_dir, rows)") < (
+        main_tail.index(
+            "validate_gem5_compact_k2m_streamshield_rows"))
+
+
+def test_proposal_compact_k2m_streamshield_native_path_is_reachable(
+        tmp_path):
+    binary = tmp_path / "pr"
+    compile_result = subprocess.run(
+        [
+            "g++", "-std=c++17", "-O0", "-g", "-DNDEBUG",
+            "-DNO_M5OPS", "-fopenmp",
+            "-Ibench/include/external/gapbs",
+            "-Ibench/include/graphbrew",
+            "-Ibench/include/external",
+            "-Ibench/include",
+            "bench/src_gem5/pr.cc", "-o", str(binary),
+        ],
+        cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=300)
+    assert compile_result.returncode == 0, (
+        compile_result.stdout + compile_result.stderr)
+    compact_env = {
+        "PATH": "/usr/bin:/bin",
+        "HOME": "/tmp",
+        "TMPDIR": str(tmp_path),
+        "LC_ALL": "C",
+        "LANG": "C",
+        "OMP_NUM_THREADS": "1",
+        "GRAPHBREW_PREFETCHER": "none",
+        "GEM5_ENABLE_ECG_EXTRACT": "1",
+        "GEM5_ECG_PFX_MODE": "6",
+        "ECG_PREFETCH_MODE": "6",
+        "ECG_EDGE_MASK_SCHED": "2",
+        "ECG_EDGE_MASK_EPOCH": "1",
+        "ECG_EDGE_MASK_LINEMIN": "1",
+        "ECG_EDGE_MASK_EPOCHS": "32",
+        "ECG_EDGE_MASK_PACK_BITS": "64",
+        "GEM5_ENABLE_ECG_STREAM_LOAD2": "1",
+        "GEM5_ENABLE_ECG_PLOAD": "1",
+        "GEM5_ECG_ISA_VARIANT": "mask",
+        "GEM5_ECG_COMPACT_K2M_SS": "1",
+        "ECG_STREAM_BYPASS": "1",
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+        "ECG_EXPECT_BYTES_PER_EDGE": "4",
+        "GEM5_GRAPHBREW_CTX": str(tmp_path / "compact-context.json"),
+    }
+
+    compact = subprocess.run(
+        [
+            str(binary), "-g", "8", "-k", "2", "-o", "0",
+            "-n", "1", "-i", "1",
+        ],
+        cwd=PROJECT_ROOT, env=compact_env,
+        capture_output=True, text=True,
+        timeout=60)
+    compact_text = compact.stdout + compact.stderr
+    assert compact.returncode == 0, compact_text
+    assert "[ECG_K2_MLOAD_C_SS]" in compact_text
+    assert "[ECG-METADATA-FATAL]" not in compact_text
+
+    wide_env = dict(compact_env)
+    wide_env.pop("GEM5_ECG_COMPACT_K2M_SS")
+    wide_env.update({
+        "ECG_RECORD_VARIABLE_WIDTH": "0",
+        "ECG_EDGE_RECORD_BYTES": "8",
+        "ECG_EXPECT_BYTES_PER_EDGE": "8",
+        "GEM5_GRAPHBREW_CTX": str(tmp_path / "wide-context.json"),
+    })
+    wide = subprocess.run(
+        [
+            str(binary), "-g", "8", "-k", "2", "-o", "0",
+            "-n", "1", "-i", "1",
+        ],
+        cwd=PROJECT_ROOT, env=wide_env,
+        capture_output=True, text=True,
+        timeout=60)
+    wide_text = wide.stdout + wide.stderr
+    assert wide.returncode == 0, wide_text
+    assert (
+        "[ECG_K2_MLOAD] PR computed-address masked load "
+        "+ StreamShield record load ACTIVE"
+    ) in wide_text
+    assert "[ECG_K2_MLOAD_C_SS]" not in wide_text
+    assert "[ECG-METADATA-FATAL]" not in wide_text
+
+    receipt = re.compile(
+        r"\[ECG-PR-RESULT iterations=(\d+) semantic_edges=(\d+) "
+        r"score_checksum=([0-9a-fA-F]+)\]")
+    compact_result = receipt.search(compact_text)
+    wide_result = receipt.search(wide_text)
+    assert compact_result is not None
+    assert wide_result is not None
+    assert compact_result.groups() == wide_result.groups()
 
 
 def test_gem5_pr_semantic_receipts_fail_closed():

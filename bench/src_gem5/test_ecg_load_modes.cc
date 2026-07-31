@@ -20,6 +20,34 @@ alignas(64) static uint64_t g_k2_record =
     ecg_epoch::packEpochPairRecord(
         0x12345678u, 2, 0x2468u, 0x6CE0u);
 
+static constexpr uint32_t kProposalIdBits = 7;
+static constexpr uint32_t kProposalEpochBits = 5;
+static constexpr uint32_t kProposalDest = 37;
+static constexpr uint8_t kProposalTier = 3;
+static constexpr uint16_t kProposalEpoch1 = 17;
+static constexpr uint16_t kProposalEpoch2 = 29;
+static constexpr uint16_t kProposalCurrentEpoch = 11;
+static constexpr uint16_t kProposalContext = 7;
+static constexpr uint32_t kProposalValueBits = 0x41234567u;
+static constexpr uint32_t kProposalCompactRecord =
+    kProposalDest |
+    (static_cast<uint32_t>(kProposalTier) << kProposalIdBits) |
+    (static_cast<uint32_t>(kProposalEpoch1)
+        << (kProposalIdBits + 2)) |
+    (static_cast<uint32_t>(kProposalEpoch2)
+        << (kProposalIdBits + 2 + kProposalEpochBits));
+static constexpr uint64_t kProposalCanonicalRecord =
+    static_cast<uint64_t>(kProposalDest) |
+    (static_cast<uint64_t>(kProposalTier) << 32) |
+    (static_cast<uint64_t>(kProposalEpoch1) << 34) |
+    (static_cast<uint64_t>(kProposalEpoch2) << 49);
+
+alignas(64) static const uint32_t g_proposal_compact_record =
+    kProposalCompactRecord;
+alignas(64) static float g_proposal_property[128] = {};
+alignas(64) static uint8_t g_context_retry_lines[2048 * 64] = {};
+static volatile uint64_t g_context_retry_sink = 0;
+
 // TEETH PROOF: ECG_TEST_FORCE_WC forces the EMITTED width class (FUNCT7) to a fixed value
 // while the record is still packed with the CORRECT wc. If the gem5 decoder truly reads
 // ECG_WIDTH (not a hardcoded W), a forced-wrong emit must decode a DIFFERENT dest -> the
@@ -37,7 +65,103 @@ static void check(const char* mode, int wc, uint32_t dest, uint32_t rd) {
     if (!ok) g_fail++;
 }
 
-int main() {
+static bool write_proposal_context() {
+    const char* path = gem5_context_path();
+    FILE* f = std::fopen(path, "w");
+    if (!f) {
+        std::printf(
+            "[test_ecg_load_modes] proposal context write failed: %s\n",
+            path);
+        return false;
+    }
+    std::fprintf(
+        f,
+        "{\n"
+        "  \"num_vertices\": 128,\n"
+        "  \"num_edges\": 1,\n"
+        "  \"edge_epoch_count\": 32,\n"
+        "  \"stream_bypass_base\": %llu,\n"
+        "  \"stream_bypass_size\": %zu,\n"
+        "  \"property_regions\": [\n"
+        "    {\"name\": \"proposal_property\", \"base\": %llu, "
+        "\"size\": %zu, \"count\": 128, \"elem_size\": 4, "
+        "\"grasp\": true}\n"
+        "  ]\n"
+        "}\n",
+        static_cast<unsigned long long>(
+            reinterpret_cast<uintptr_t>(&g_proposal_compact_record)),
+        sizeof(g_proposal_compact_record),
+        static_cast<unsigned long long>(
+            reinterpret_cast<uintptr_t>(g_proposal_property)),
+        sizeof(g_proposal_property));
+    std::fclose(f);
+    return true;
+}
+
+static void run_proposal_probe(
+        bool force_context_retry, bool wrong_record_format = false) {
+    float proposal_value = 0.0f;
+    std::memcpy(
+        &proposal_value, &kProposalValueBits, sizeof(proposal_value));
+    g_proposal_property[kProposalDest] = proposal_value;
+
+    if (force_context_retry) {
+        volatile uint8_t* lines = g_context_retry_lines;
+        uint64_t sink = 0;
+        for (size_t offset = 0; offset < sizeof(g_context_retry_lines);
+             offset += 64) {
+            lines[offset] = static_cast<uint8_t>(offset / 64);
+            sink += lines[offset];
+        }
+        g_context_retry_sink = sink;
+    }
+
+    gem5_ecg_write_record_format_csr(
+        wrong_record_format ? kProposalIdBits - 2 : kProposalIdBits,
+        kProposalEpochBits);
+    gem5_ecg_write_current_epoch_csr(kProposalCurrentEpoch);
+    gem5_ecg_write_context_csr(kProposalContext);
+
+    const uint64_t canonical =
+        gem5_ecg_stream_load2_compact_instruction(
+            &g_proposal_compact_record,
+            kProposalIdBits, kProposalEpochBits);
+    const float value = gem5_ecg_mload_k2_f32(
+        &g_proposal_property[kProposalDest], canonical);
+    uint32_t value_bits = 0;
+    std::memcpy(&value_bits, &value, sizeof(value_bits));
+    const bool ok =
+        canonical == kProposalCanonicalRecord &&
+        value_bits == kProposalValueBits;
+    std::printf(
+        "[test_ecg_load_modes] K2-C-SS-MLOAD compact=%#x "
+        "canonical=%#llx dest=%u tier=%u epoch1=%u epoch2=%u "
+        "current=%u context=%u value_bits=%#x [%s]\n",
+        g_proposal_compact_record,
+        static_cast<unsigned long long>(canonical),
+        kProposalDest, static_cast<unsigned>(kProposalTier),
+        static_cast<unsigned>(kProposalEpoch1),
+        static_cast<unsigned>(kProposalEpoch2),
+        static_cast<unsigned>(kProposalCurrentEpoch),
+        static_cast<unsigned>(kProposalContext),
+        value_bits, ok ? "OK" : "FAIL");
+    if (!ok) g_fail++;
+}
+
+int main(int argc, char** argv) {
+    const bool proposal_only =
+        argc > 1 && std::strcmp(argv[1], "proposal-only") == 0;
+    const bool proposal_wrong_format =
+        argc > 1 &&
+        std::strcmp(argv[1], "proposal-wrong-format") == 0;
+    if (proposal_only || proposal_wrong_format) {
+        if (!write_proposal_context()) g_fail++;
+        run_proposal_probe(true, proposal_wrong_format);
+        std::printf("[test_ecg_load_modes] RESULT: %s (%d fail)\n",
+                    g_fail ? "FAIL" : "PASS", g_fail);
+        return g_fail ? 1 : 0;
+    }
+
     // 4M-entry property array (16 MB). prop[dest] = dest, so a correctly decoded dest
     // returns rd == dest; a wrong width/mode lands on a different (unwritten => 0) index.
     const size_t N = (size_t)4u << 20;
@@ -83,6 +207,7 @@ int main() {
                ok ? "OK" : "FAIL");
         if (!ok) g_fail++;
     }
+    run_proposal_probe(false);
     {
         const uint32_t dest = 0x003ABCDEu;
         const uint64_t record = ecg_epoch::packEpochPairRecord(

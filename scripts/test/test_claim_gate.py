@@ -25,7 +25,8 @@ def test_current_claim_gate_is_consistent():
     assert "K2-M generally speeds up full-graph workloads." in text
     assert "**prohibited**" in text
     assert "`full_graph_detailed_results`" in text
-    assert "fresh computed-address K2-M gate passes all 15" in text
+    assert "accepted LLC deliveries observed within the first 2048" in text
+    assert "no zero-misbinding, request-count, timing, or SOTA coverage" in text
     assert "K2 requires no live P-OPT rereference matrix" in text
     assert "1.329x packed K2-I-like model" in text
     assert "Zero reserved data ways means zero K2 hardware overhead" in text

@@ -1,0 +1,5 @@
+[ECG-METADATA kernel=gem5-pr delivery=packed stamps=2 epoch_bits=5 tier_bits=2 id_bits=12 record_bytes=4 payload_bits=12 bytes_per_edge=4.000 charged=1 bypass=1 packed_fits=1]
+[ECG-STREAM-REGION sim=gem5 base=0x3b8000 size=114872]
+[ECG_K2_MLOAD_C_SS] PR compact StreamShield record load + computed-address masked property load ACTIVE (id_bits=12 epoch_bits=5)
+[ECG_K2_MLOAD] PR computed-address masked load + StreamShield record load ACTIVE
+[ECG-PR-RESULT iterations=1 semantic_edges=28718 score_checksum=38e72dd1fb6fd9d9]

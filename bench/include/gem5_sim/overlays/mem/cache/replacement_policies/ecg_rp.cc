@@ -36,7 +36,7 @@ inline void traceAcceptedK2(
         uint32_t fill_dest, bool request_bound,
         uint8_t tier, uint16_t first, uint16_t second,
         uint16_t current_epoch, uint16_t context_id,
-        uint32_t width_bytes) {
+        uint32_t property_elem_bytes) {
     static const uint64_t trace_limit = []() {
         const char* value = std::getenv("ECG_K2_DELIVERY_TRACE");
         return value
@@ -60,14 +60,14 @@ inline void traceAcceptedK2(
         "[ECG-K2-ACCEPT sim=gem5 seq=%llu request_seq=%u "
         "request_dest=%u fill_dest=%u "
         "source=%s tier=%u epoch1=%u epoch2=%u current=%u context=%u "
-        "width=%u]\n",
+        "property_elem_bytes=%u]\n",
         (unsigned long long)sequence, request_sequence,
         request_dest, fill_dest,
         request_bound ? "request" : "mailbox", static_cast<unsigned>(tier),
         static_cast<unsigned>(first), static_cast<unsigned>(second),
         static_cast<unsigned>(current_epoch),
         static_cast<unsigned>(context_id),
-        static_cast<unsigned>(width_bytes));
+        static_cast<unsigned>(property_elem_bytes));
 }
 
 // ECG GRASP-tier SOURCE (ECG_GRASP_SRC), mirrors cache_sim's two variants:

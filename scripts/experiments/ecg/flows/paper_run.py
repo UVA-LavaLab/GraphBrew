@@ -37,6 +37,7 @@ from typing import Any, Iterator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from policy_specs import policy_output_label  # noqa: E402
+from gem5_guest_receipt import stable_receipt_fingerprint  # noqa: E402
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -57,6 +58,8 @@ ROI_RUNTIME_METADATA_ENV = frozenset({
     "GRAPHBREW_SHARD_GROUP",
     "GRAPHBREW_EXPECTED_POLICY_LABELS",
 })
+PLANNING_MISSING_GEM5_GUEST_SHA256 = (
+    "planning-missing-gem5-guest-sha256")
 
 
 @dataclass(frozen=True)
@@ -270,13 +273,18 @@ def roi_input_fingerprints(
         paths["cache_sim_benchmark_binary"] = (
             PROJECT_ROOT / "bench" / "bin_sim" / benchmark)
 
-    return {
+    fingerprints = {
         "git_state": git_state_fingerprint(),
         **{
             name: path_fingerprint(str(path.resolve()))
             for name, path in paths.items()
         },
     }
+    guest_receipt = paths.get("gem5_guest_build_receipt")
+    if guest_receipt and guest_receipt.exists():
+        fingerprints["gem5_guest_build_receipt_stable"] = (
+            stable_receipt_fingerprint(guest_receipt))
+    return fingerprints
 
 
 def find_graph_path(graph: dict[str, Any], graph_dir: Path, allow_missing: bool) -> Path | None:
@@ -553,6 +561,12 @@ def make_roi_job(
         ])
     if settings.get("gem5_compact_fused"):
         command.append("--gem5-compact-fused")
+    if settings.get("gem5_compact_k2m_streamshield"):
+        command.append("--gem5-compact-k2m-streamshield")
+    if settings.get("gem5_cpu_type"):
+        command.extend([
+            "--gem5-cpu-type", str(settings["gem5_cpu_type"]),
+        ])
     if (settings.get("require_cache_sim_aslr_disable") and
             str(settings.get("suite")) in ("cache-sim", "both")):
         command.append("--require-cache-sim-aslr-disable")
@@ -657,17 +671,30 @@ def make_roi_job(
         expected_gem5_opt_sha256 = str(inputs.get("gem5_binary", ""))
         expected_gem5_config_sha256 = str(inputs.get("gem5_config", ""))
         expected_graph_sha256 = str(inputs.get("graph", ""))
+        planning_with_missing = (
+            args.dry_run or args.list or args.check_graphs)
         if any(value in ("", "missing") for value in (
-                expected_gem5_guest_sha256,
                 expected_gem5_opt_sha256,
                 expected_gem5_config_sha256)):
             raise SystemExit("paper-run gem5 runtime input hash is missing")
         command.extend([
-            "--expected-gem5-guest-sha256",
-            expected_gem5_guest_sha256,
             "--expected-gem5-opt-sha256", expected_gem5_opt_sha256,
             "--expected-gem5-config-sha256", expected_gem5_config_sha256,
         ])
+        if expected_gem5_guest_sha256 not in ("", "missing"):
+            command.extend([
+                "--expected-gem5-guest-sha256",
+                expected_gem5_guest_sha256,
+            ])
+        elif not planning_with_missing:
+            raise SystemExit("paper-run gem5 guest hash is missing")
+        else:
+            expected_gem5_guest_sha256 = (
+                PLANNING_MISSING_GEM5_GUEST_SHA256)
+            command.extend([
+                "--expected-gem5-guest-sha256",
+                expected_gem5_guest_sha256,
+            ])
         if expected_graph_sha256 not in ("", "missing"):
             command.extend([
                 "--expected-graph-sha256", expected_graph_sha256,

@@ -62,7 +62,7 @@ def test_gem5_acceptance_must_match_delivery():
         "gem5/test", (gem5_delivery(), True), ne=32768,
         expected_policy="ECG:rrip_first")
     assert not ecg.verify_k2_trace(
-        "gem5/test", (gem5_delivery(fill_offset=1), True), ne=32768,
+        "gem5/test", (gem5_delivery(fill_offset=16), True), ne=32768,
         expected_policy="ECG:rrip_first")
 
 

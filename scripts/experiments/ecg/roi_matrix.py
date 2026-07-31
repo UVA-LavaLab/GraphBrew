@@ -79,6 +79,8 @@ GEM5_RUNTIME_SIDEBAND_FILES = (
 )
 VALIDATED_GEM5_GUEST: Path | None = None
 VALIDATED_GEM5_GUEST_SHA256 = ""
+PLANNING_MISSING_GEM5_GUEST_SHA256 = (
+    "planning-missing-gem5-guest-sha256")
 
 
 def fixed_runtime_mount_name(
@@ -689,6 +691,14 @@ def run_command(
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     command_text = " ".join(shlex.quote(part) for part in cmd)
     stdout_path.with_suffix(stdout_path.suffix + ".cmd").write_text(command_text + "\n")
+    material_env = {
+        key: value for key, value in sanitize_subprocess_environment(
+            env).items()
+        if key.startswith(("ECG_", "GEM5_", "GRAPHBREW_", "OMP_"))
+    }
+    stdout_path.with_suffix(
+        stdout_path.suffix + ".env.json").write_text(
+            json.dumps(material_env, indent=2, sort_keys=True) + "\n")
 
     if dry_run:
         print(f"[dry-run] {command_text}")
@@ -1013,6 +1023,11 @@ def validate_selected_gem5_guest(
     binary, receipt, source, link_inputs, build_config = (
         selected_gem5_guest_paths(args.benchmark))
     expected = str(args.expected_gem5_guest_sha256)
+    if expected == PLANNING_MISSING_GEM5_GUEST_SHA256:
+        if not args.dry_run:
+            raise SystemExit(
+                "planning-only missing gem5 guest hash cannot execute")
+        expected = ""
     if selected_gem5_isa() != "riscv":
         actual = hash_input_path(binary)
         if actual == "missing":
@@ -1329,12 +1344,298 @@ def apply_gem5_compact_fused_receipt(
     if active:
         row["gem5_ecg_delivery"] = "ecg.k2.iload.compact"
     if requested and not active:
-        row["status"] = "error"
-        row["error"] = (
+        mark_row_error(row, (
             "fused compact K2 was requested but the guest emitted no "
-            "ECG_K2_ILOAD_C activation receipt")
-        row["timing_valid_for_speedup"] = "0"
+            "ECG_K2_ILOAD_C activation receipt"))
     return active
+
+
+def mark_row_error(row: dict[str, Any], message: str) -> None:
+    """Preserve every failing gate instead of replacing the first cause."""
+    existing = str(row.get("error") or "").strip()
+    if not existing:
+        row["error"] = message
+    elif message not in existing:
+        row["error"] = f"{existing} | {message}"
+    row["status"] = "error"
+    row["timing_valid_for_speedup"] = "0"
+
+
+def apply_gem5_compact_k2m_streamshield_receipt(
+        row: dict[str, Any], log_text: str, requested: bool) -> bool:
+    """Attest the proposal's two one-for-one loads from the guest receipt."""
+    active = "[ECG_K2_MLOAD_C_SS]" in log_text
+    row["gem5_compact_k2m_streamshield_active"] = int(active)
+    if active:
+        row["gem5_ecg_delivery"] = (
+            "ecg.stream.load2.compact+ecg.k2.mload.f32")
+        row["proposal_path_active"] = 1
+    else:
+        row["proposal_path_active"] = 0
+    all_bypass_lines = re.findall(
+        r"\[ECG-STREAM-BYPASS sim=gem5 [^\n]*allocate=0\]",
+        log_text)
+    range_lines = [
+        line for line in all_bypass_lines
+        if "source=range" in line
+    ]
+    request_flag_lines = re.findall(
+        r"\[ECG-STREAM-BYPASS sim=gem5 [^\n]*"
+        r"source=request-flag [^\n]*allocate=0\]",
+        log_text)
+    request_flag_sizes = []
+    for line in request_flag_lines:
+        match = re.search(r"\bsize=(\d+)\b", line)
+        request_flag_sizes.append(
+            int(match.group(1)) if match else -1)
+    request_flag_events = len(request_flag_lines)
+    size4_events = sum(size == 4 for size in request_flag_sizes)
+    bad_size_events = sum(size != 4 for size in request_flag_sizes)
+    row["gem5_stream_bypass_request_flag_events"] = request_flag_events
+    row["gem5_stream_bypass_request_flag_size4_events"] = size4_events
+    row["gem5_stream_bypass_request_flag_bad_size_events"] = bad_size_events
+    row["gem5_stream_bypass_all_events"] = len(all_bypass_lines)
+    row["gem5_stream_bypass_range_events"] = len(range_lines)
+    if requested and (
+            not active or request_flag_events == 0 or
+            size4_events == 0 or bad_size_events != 0 or
+            len(all_bypass_lines) != request_flag_events or range_lines):
+        mark_row_error(row, (
+            "proposal compact K2-M+StreamShield was requested but "
+            + ("the guest emitted no ECG_K2_MLOAD_C_SS activation receipt"
+               if not active else
+               "the LLC emitted no request-flag StreamShield receipt"
+               if request_flag_events == 0 else
+               "the request-flag StreamShield receipts did not attest "
+               "only 4-byte request-flag record requests")))
+    return active
+
+
+def apply_gem5_request_bound_k2_receipt(
+        row: dict[str, Any], log_text: str, requested: bool,
+        line_bytes: int = 64,
+        require_discriminating: bool = False,
+        trace_limit: int = 0) -> bool:
+    request_re = re.compile(
+        r"\[ECG-K2-REQUEST sim=gem5 seq=(\d+) request_seq=(\d+) "
+        r"dest=(\d+) tier=(\d+) epoch1=(\d+) epoch2=(\d+) "
+        r"current=(\d+) context=(\d+)\]")
+    accept_re = re.compile(
+        r"\[ECG-K2-ACCEPT sim=gem5 seq=(\d+) request_seq=(\d+) "
+        r"request_dest=(\d+) fill_dest=(\d+) source=(\w+) "
+        r"tier=(\d+) epoch1=(\d+) epoch2=(\d+) current=(\d+) "
+        r"context=(\d+) (?:property_elem_bytes|width)=(\d+)\]")
+    requests = {}
+    request_conflicts = 0
+    raw_request_receipts = 0
+    request_trace_max_seq = -1
+    for match in request_re.finditer(log_text):
+        groups = tuple(map(int, match.groups()))
+        raw_request_receipts += 1
+        request_trace_max_seq = max(request_trace_max_seq, groups[0])
+        request_sequence = groups[1]
+        payload = groups[2:]
+        previous = requests.setdefault(request_sequence, payload)
+        request_conflicts += previous != payload
+    accepts = []
+    accepted_metadata = set()
+    accepted_epoch_states = set()
+    accepted_record_epoch_pairs = set()
+    accept_sequences = set()
+    duplicate_accepts = 0
+    mailbox_accepts = 0
+    exact_vertex_accepts = 0
+    coalesced_line_accepts = 0
+    nonzero_epoch_accepts = 0
+    bad = 0
+    for match in accept_re.finditer(log_text):
+        groups = match.groups()
+        request_seq = int(groups[1])
+        request_dest = int(groups[2])
+        fill_dest = int(groups[3])
+        source = groups[4]
+        payload = tuple(map(int, groups[5:10]))
+        property_elem_bytes = int(groups[10])
+        expected = requests.get(request_seq)
+        same_line = (
+            property_elem_bytes > 0 and line_bytes > 0 and
+            (request_dest * property_elem_bytes) // line_bytes ==
+            (fill_dest * property_elem_bytes) // line_bytes)
+        valid = (
+            expected is not None and source == "request" and
+            request_dest == expected[0] and same_line and
+            payload == expected[1:] and property_elem_bytes == 4)
+        if valid:
+            accepted_metadata.add(payload)
+            accepted_epoch_states.add(payload[1:4])
+            accepted_record_epoch_pairs.add(payload[1:3])
+            if request_dest == fill_dest:
+                exact_vertex_accepts += 1
+            else:
+                coalesced_line_accepts += 1
+            nonzero_epoch_accepts += payload[1] != 0 or payload[2] != 0
+        mailbox_accepts += source == "mailbox"
+        bad += not valid
+        duplicate_accepts += request_seq in accept_sequences
+        accept_sequences.add(request_seq)
+        accepts.append(request_seq)
+    request_metadata = {
+        payload[1:] for payload in requests.values()
+    }
+    request_epoch_states = {
+        (payload[2], payload[3], payload[4])
+        for payload in requests.values()
+    }
+    request_record_epoch_pairs = {
+        (payload[2], payload[3])
+        for payload in requests.values()
+    }
+    payload_discriminating = (
+        len(request_epoch_states) > 1 and
+        len(accepted_epoch_states) > 1 and
+        len(request_record_epoch_pairs) > 1 and
+        len(accepted_record_epoch_pairs) > 1 and
+        any(
+            epoch1 != 0 or epoch2 != 0
+            for (epoch1, epoch2) in accepted_record_epoch_pairs
+        )
+    )
+    exact_request_bound = (
+        bool(requests) and bool(accepts) and
+        request_conflicts == 0 and duplicate_accepts == 0 and bad == 0)
+    trace_saturated = (
+        trace_limit > 0 and
+        (
+            raw_request_receipts >= trace_limit or
+            request_trace_max_seq >= trace_limit - 1
+        )
+    )
+    row.update({
+        "gem5_k2_request_receipts": len(requests),
+        "gem5_k2_request_trace_events": raw_request_receipts,
+        "gem5_k2_request_trace_max_seq": request_trace_max_seq,
+        "gem5_k2_duplicate_request_receipts": (
+            raw_request_receipts - len(requests)),
+        "gem5_k2_request_accepts": len(accepts),
+        "gem5_k2_request_bad_receipts": bad,
+        "gem5_k2_request_conflicts": request_conflicts,
+        "gem5_k2_duplicate_accepts": duplicate_accepts,
+        "gem5_k2_mailbox_accepts": mailbox_accepts,
+        "gem5_k2_exact_vertex_accepts": exact_vertex_accepts,
+        "gem5_k2_coalesced_line_accepts": coalesced_line_accepts,
+        "gem5_k2_nonzero_epoch_accepts": nonzero_epoch_accepts,
+        "gem5_k2_request_line_bytes": line_bytes,
+        "gem5_k2_request_metadata_values": len(request_metadata),
+        "gem5_k2_accept_metadata_values": len(accepted_metadata),
+        "gem5_k2_request_epoch_states": len(request_epoch_states),
+        "gem5_k2_accept_epoch_states": len(accepted_epoch_states),
+        "gem5_k2_request_record_epoch_pairs": len(
+            request_record_epoch_pairs),
+        "gem5_k2_accept_record_epoch_pairs": len(
+            accepted_record_epoch_pairs),
+        "gem5_k2_payload_discriminating": int(payload_discriminating),
+        "gem5_k2_exact_request_bound": int(exact_request_bound),
+        "gem5_k2_delivery_trace_saturated": int(trace_saturated),
+    })
+    valid = exact_request_bound and (
+        not require_discriminating or payload_discriminating)
+    if requested and not valid:
+        mark_row_error(row, (
+            "proposal K2-M exact Request binding was not attested "
+            f"(requests={len(requests)} accepts={len(accepts)} "
+            f"conflicts={request_conflicts} "
+            f"duplicate_accepts={duplicate_accepts} "
+            f"mailbox={mailbox_accepts} "
+            f"bad={bad} request_metadata={len(request_metadata)} "
+            f"accept_metadata={len(accepted_metadata)} "
+            f"request_epoch_states={len(request_epoch_states)} "
+            f"accept_epoch_states={len(accepted_epoch_states)} "
+            f"request_record_epochs={len(request_record_epoch_pairs)} "
+            f"accept_record_epochs={len(accepted_record_epoch_pairs)} "
+            f"discriminating={int(payload_discriminating)})"))
+    return valid
+
+
+def validate_gem5_compact_k2m_streamshield_rows(
+        rows: list[dict[str, Any]], args: argparse.Namespace,
+        policies: list[PolicySpec]) -> None:
+    """Require every requested proposal cell to attest the complete mechanism."""
+    if not args.gem5_compact_k2m_streamshield or args.dry_run:
+        return
+    proposal_rows = [
+        row for row in rows
+        if str(row.get(
+            "gem5_compact_k2m_streamshield_requested", "0")) == "1"
+    ]
+    target_labels = {
+        spec.label for spec in policies
+        if (
+            spec.policy == "ECG" and
+            spec.ecg_mode == "ECG_GRASP_POPT" and
+            args.ecg_isa_variant == "mask" and
+            ecg_transport_for(
+                spec, args.benchmark).schedule_k == 2 and
+            ecg_transport_for(
+                spec, args.benchmark).stream_bypass
+        )
+    }
+    expected_keys = {
+        (label, str(l3_size))
+        for label in target_labels
+        for l3_size in args.l3_sizes
+    }
+    observed_keys = {
+        (str(row.get("policy_label")), str(row.get("l3_size")))
+        for row in proposal_rows
+    }
+    failures = [
+        row for row in proposal_rows
+        if (
+            row.get("status") != "ok" or
+            str(row.get("proposal_path_active", "0")) != "1" or
+            str(row.get("gem5_k2_exact_request_bound", "0")) != "1" or
+            str(row.get("gem5_k2_payload_discriminating", "0")) != "1" or
+            int(row.get("gem5_k2_nonzero_epoch_accepts") or 0) < 8 or
+            int(row.get("gem5_k2_coalesced_line_accepts") or 0) <= 0 or
+            int(row.get(
+                "gem5_stream_bypass_request_flag_size4_events") or 0) <= 0 or
+            int(row.get(
+                "gem5_stream_bypass_request_flag_bad_size_events") or 0) != 0 or
+            int(row.get("gem5_stream_bypass_range_events") or 0) != 0 or
+            int(row.get("gem5_stream_bypass_trace_saturated") or 0) != 0 or
+            int(row.get("gem5_stream_bypass_all_events") or 0) !=
+            int(row.get("gem5_stream_bypass_request_flag_events") or 0)
+        )
+    ]
+    if (
+            observed_keys != expected_keys or
+            len(proposal_rows) != len(expected_keys) or failures):
+        details = [
+            {
+                "policy": row.get("policy_label"),
+                "l3_size": row.get("l3_size"),
+                "status": row.get("status"),
+                "active": row.get("proposal_path_active"),
+                "request_bound": row.get(
+                    "gem5_k2_exact_request_bound"),
+                "payload_discriminating": row.get(
+                    "gem5_k2_payload_discriminating"),
+                "coalesced_accepts": row.get(
+                    "gem5_k2_coalesced_line_accepts"),
+                "nonzero_epoch_accepts": row.get(
+                    "gem5_k2_nonzero_epoch_accepts"),
+                "stream_size4": row.get(
+                    "gem5_stream_bypass_request_flag_size4_events"),
+                "stream_bad_size": row.get(
+                    "gem5_stream_bypass_request_flag_bad_size_events"),
+                "error": row.get("error"),
+            }
+            for row in failures
+        ]
+        raise SystemExit(
+            "proposal compact K2-M+StreamShield gate failed: "
+            f"expected={sorted(expected_keys)} "
+            f"observed={sorted(observed_keys)} failures={details}")
 
 
 def apply_gem5_variant_receipt(
@@ -1346,10 +1647,8 @@ def apply_gem5_variant_receipt(
         r"effective=(\d+) dueling=(\d+)\]", log_text)
     if not match:
         if required:
-            row["status"] = "error"
-            row["error"] = (
-                "ECG victim variant receipt missing from gem5 output")
-            row["timing_valid_for_speedup"] = "0"
+            mark_row_error(
+                row, "ECG victim variant receipt missing from gem5 output")
         return False
     actual_requested = match.group(1)
     effective = int(match.group(2))
@@ -1366,12 +1665,10 @@ def apply_gem5_variant_receipt(
         actual_requested == requested and
         expected_effective == effective and dueling == 0)
     if required and not valid:
-        row["status"] = "error"
-        row["error"] = (
+        mark_row_error(row, (
             "ECG victim variant receipt mismatch: "
             f"expected {requested}/{expected_effective}/dueling=0, got "
-            f"{actual_requested}/{effective}/dueling={dueling}")
-        row["timing_valid_for_speedup"] = "0"
+            f"{actual_requested}/{effective}/dueling={dueling}"))
     return valid
 
 
@@ -1636,6 +1933,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     compact_fused_requested = (
         bool(args.gem5_compact_fused) or
         env.get("GEM5_ECG_COMPACT_FUSED") == "1")
+    compact_k2m_streamshield_requested = (
+        bool(args.gem5_compact_k2m_streamshield))
     if compact_fused_requested and args.benchmark != "pr":
         raise RuntimeError(
             "fused compact K2 is implemented only for gem5 PageRank; "
@@ -1647,6 +1946,19 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         env["GEM5_ECG_COMPACT_FUSED"] = "1"
     else:
         env.pop("GEM5_ECG_COMPACT_FUSED", None)
+    compact_k2m_streamshield_cell_requested = (
+        is_k2_ecg and compact_k2m_streamshield_requested and
+        transport.stream_bypass and args.ecg_isa_variant == "mask")
+    if compact_k2m_streamshield_cell_requested:
+        env.update({
+            "GEM5_ECG_COMPACT_K2M_SS": "1",
+            "ECG_RECORD_VARIABLE_WIDTH": "1",
+            "ECG_EXPECT_BYTES_PER_EDGE": "4",
+        })
+        env["ECG_STREAM_BYPASS_TRACE"] = "2048"
+        env["ECG_K2_DELIVERY_TRACE"] = "2048"
+    else:
+        env.pop("GEM5_ECG_COMPACT_K2M_SS", None)
     k2_isa_name = (
         "mload" if args.ecg_isa_variant == "mask" else "iload")
     if is_k2_ecg:
@@ -1872,6 +2184,13 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         "gem5_guest_staged_sha256": VALIDATED_GEM5_GUEST_SHA256,
         "gem5_guest_expected_sha256":
             str(args.expected_gem5_guest_sha256),
+        "gem5_compact_k2m_streamshield_requested": int(
+            compact_k2m_streamshield_cell_requested),
+        "gem5_cpu_type": args.gem5_cpu_type,
+        "gem5_k2_delivery_trace_limit": int(
+            env.get("ECG_K2_DELIVERY_TRACE", "0") or 0),
+        "gem5_stream_bypass_trace_limit": int(
+            env.get("ECG_STREAM_BYPASS_TRACE", "0") or 0),
     })
     base.update({
         "gem5_opt_expected_sha256": str(args.expected_gem5_opt_sha256),
@@ -1884,6 +2203,21 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         base["gem5_ecg_context_id"] = gem5_ecg_context_id
     if gem5_ecg_delivery:
         base["gem5_ecg_delivery"] = gem5_ecg_delivery
+    if compact_k2m_streamshield_cell_requested:
+        base["timing_model"] = "mechanism_probe_exact_request"
+        base["timing_valid_for_speedup"] = "0"
+        base["timing_caveat"] = (
+            "Synthetic compact StreamShield plus K2-M O3 correctness gate; "
+            "this row is not performance evidence.")
+    elif (
+            args.gem5_compact_k2m_streamshield and
+            is_k2_ecg and not transport.stream_bypass):
+        base["timing_model"] = "mechanism_semantic_anchor"
+        base["timing_valid_for_speedup"] = "0"
+        base["timing_caveat"] = (
+            "Non-StreamShield wide-record K2 semantic anchor; it is "
+            "width-unmatched and is not a StreamShield control or "
+            "performance evidence.")
     if str(gem5_ecg_delivery).startswith("packed8+k2+ecg.extract2"):
         # Deliberately fail-closed and deliberately NOT relaxed for the compact
         # ISA arm. ecg.extract2c removes the software widen, but the property
@@ -1937,6 +2271,44 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["ecg_isa_variant"] = "indexed"
         apply_gem5_compact_fused_receipt(
             base, log_text, compact_fused_cell_requested)
+        apply_gem5_compact_k2m_streamshield_receipt(
+            base, log_text, compact_k2m_streamshield_cell_requested)
+        apply_gem5_request_bound_k2_receipt(
+            base, log_text, compact_k2m_streamshield_cell_requested,
+            64, require_discriminating=(
+                compact_k2m_streamshield_cell_requested),
+            trace_limit=int(
+                base.get("gem5_k2_delivery_trace_limit") or 0))
+        base["gem5_stream_bypass_trace_saturated"] = int(
+            int(base.get("gem5_stream_bypass_trace_limit") or 0) > 0 and
+            int(base.get("gem5_stream_bypass_all_events") or 0) >=
+            int(base.get("gem5_stream_bypass_trace_limit") or 0))
+        if (
+                compact_k2m_streamshield_cell_requested and
+                int(base.get("gem5_k2_delivery_trace_saturated") or 0)):
+            caveat = str(base.get("timing_caveat") or "").strip()
+            trace_limit = int(
+                base.get("gem5_k2_delivery_trace_limit") or 0)
+            trace_events = int(
+                base.get("gem5_k2_request_trace_events") or 0)
+            accepts = int(base.get("gem5_k2_request_accepts") or 0)
+            exact_accepts = int(
+                base.get("gem5_k2_exact_vertex_accepts") or 0)
+            coalesced_accepts = int(
+                base.get("gem5_k2_coalesced_line_accepts") or 0)
+            base["gem5_k2_accepts_per_traced_request"] = (
+                accepts / trace_events if trace_events else 0.0)
+            trace_caveat = (
+                f"Exact binding is attested for {accepts} accepted LLC "
+                f"deliveries ({exact_accepts} exact-vertex, "
+                f"{coalesced_accepts} same-line coalesced) observed within "
+                f"the first {trace_limit} traced K2 requests; request-count "
+                "coverage is not claimed. Accept traces are emitted only "
+                "after the simulator dest-line guard; non-accepted traced "
+                "requests are unclassified (inner-cache hit or guard "
+                "rejection).")
+            base["timing_caveat"] = " ".join(
+                part for part in (caveat, trace_caveat) if part)
         apply_gem5_variant_receipt(
             base, log_text, ecg_variant, required=is_k2_ecg)
         # ecg_record_bytes above is a NOMINAL value derived from the schedule,
@@ -1997,17 +2369,22 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
                 base["timing_caveat"] = " ".join(
                     part for part in (caveat, binding_caveat) if part)
     if result is None or result.returncode != 0:
-        base.update({"section": 0, "status": "error", "error": f"exit_code={result.returncode if result else 'unknown'}"})
+        base["section"] = 0
+        mark_row_error(
+            base,
+            f"exit_code={result.returncode if result else 'unknown'}")
         return [base]
 
     stats_path = gem5_out / "stats.txt"
     if not stats_path.exists():
-        base.update({"section": 0, "status": "error", "error": "missing stats.txt"})
+        base["section"] = 0
+        mark_row_error(base, "missing stats.txt")
         return [base]
 
     sections = parse_gem5_sections(stats_path)
     if not sections:
-        base.update({"section": 0, "status": "error", "error": "no stats sections"})
+        base["section"] = 0
+        mark_row_error(base, "no stats sections")
         return [base]
 
     # The benchmark emits the first stats block at the ROI boundary. gem5 then
@@ -2016,10 +2393,10 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     row = dict(base)
     row.update({
         "section": 1,
-        "status": "ok",
         "stats_path": str(stats_path),
         "gem5_stats_sections_seen": len(sections),
     })
+    row.setdefault("status", "ok")
     row.update(sections[0])
     if spec.charge_popt_overhead:
         stream_lines = int(row.get("popt_matrix_stream_cache_lines") or 0)
@@ -2030,8 +2407,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     apply_overhead_metrics(row)
     if (transport.stream_adaptive and
             not int(row.get("gem5_stream_adaptive_active") or 0)):
-        row["status"] = "error"
-        row["error"] = "adaptive StreamShield was requested but not active"
+        mark_row_error(
+            row, "adaptive StreamShield was requested but not active")
     return [row]
 
 
@@ -3180,11 +3557,9 @@ def certify_gem5_pr_results(
             continue
         detail = sorted(str(value) for value in receipts)
         for row in group_rows:
-            row["status"] = "error"
-            row["error"] = (
+            mark_row_error(row, (
                 "gem5 PageRank semantic receipt mismatch or missing: "
-                f"{detail}")
-            row["timing_valid_for_speedup"] = "0"
+                f"{detail}"))
 
 
 def write_outputs(out_dir: Path, rows: list[dict[str, Any]]) -> None:
@@ -3519,6 +3894,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Use PR's fused compact K2-I load. Implemented only for gem5 "
              "PageRank; unsupported kernels fail instead of falling back.")
     parser.add_argument(
+        "--gem5-compact-k2m-streamshield", action="store_true",
+        help="Use PR's proposal-faithful 4-byte StreamShield record load "
+             "followed by a one-for-one computed-address K2-M property load.")
+    parser.add_argument(
         "--expected-gem5-guest-sha256", default="",
         help="Require the staged RISC-V guest to match this paper-run hash.")
     parser.add_argument("--expected-gem5-opt-sha256", default="")
@@ -3631,6 +4010,10 @@ def main(argv: list[str]) -> int:
     if args.gem5_compact_fused and args.suite not in ("gem5", "both"):
         raise SystemExit(
             "--gem5-compact-fused requires --suite gem5 or both")
+    if (args.gem5_compact_k2m_streamshield and
+            args.suite not in ("gem5", "both")):
+        raise SystemExit(
+            "--gem5-compact-k2m-streamshield requires --suite gem5 or both")
     if args.suite in ("gem5", "both"):
         gem5_isa = selected_gem5_isa()
     else:
@@ -3638,8 +4021,31 @@ def main(argv: list[str]) -> int:
     if args.gem5_compact_fused and args.benchmark != "pr":
         raise SystemExit(
             "--gem5-compact-fused is implemented only for --benchmark pr")
+    if (args.gem5_compact_k2m_streamshield and
+            args.benchmark != "pr"):
+        raise SystemExit(
+            "--gem5-compact-k2m-streamshield is implemented only for "
+            "--benchmark pr")
+    if (args.gem5_compact_k2m_streamshield and
+            args.ecg_isa_variant != "mask"):
+        raise SystemExit(
+            "--gem5-compact-k2m-streamshield requires "
+            "--ecg-isa-variant mask")
+    if (args.gem5_compact_k2m_streamshield and
+            args.gem5_cpu_type != "O3"):
+        raise SystemExit(
+            "--gem5-compact-k2m-streamshield requires --gem5-cpu-type O3 "
+            "for exact Request-bound delivery")
+    if (args.gem5_compact_k2m_streamshield and
+            parse_size_bytes(str(args.line_size)) != 64):
+        raise SystemExit(
+            "--gem5-compact-k2m-streamshield requires --line-size 64 "
+            "because the gem5 ECG request/fill guard is cache-line based")
     if args.gem5_compact_fused and gem5_isa != "riscv":
         raise SystemExit("--gem5-compact-fused requires RISC-V gem5")
+    if args.gem5_compact_k2m_streamshield and gem5_isa != "riscv":
+        raise SystemExit(
+            "--gem5-compact-k2m-streamshield requires RISC-V gem5")
     if (getattr(args, "structural_bypass", "off") != "off" and
             args.suite not in ("cache-sim", "both")):
         raise SystemExit(
@@ -3680,6 +4086,14 @@ def main(argv: list[str]) -> int:
     else:
         policy_texts = DEFAULT_POLICIES
     policies = [parse_policy_spec(p) for p in policy_texts]
+    if (args.gem5_compact_k2m_streamshield and
+            not any(
+                spec.policy == "ECG" and spec.ecg_stream_bypass and
+                spec.ecg_schedule_k == 2
+                for spec in policies)):
+        raise SystemExit(
+            "--gem5-compact-k2m-streamshield requires at least one "
+            "Schedule-2 ECG StreamShield policy")
     args.has_lru_baseline = any(spec.label == "LRU" for spec in policies)
     out_dir = Path(args.out_dir) if args.out_dir else RESULTS_ROOT / now_tag()
     if not out_dir.is_absolute():
@@ -3693,6 +4107,12 @@ def main(argv: list[str]) -> int:
     completion_marker = out_dir / "roi_matrix.complete.json"
     if not args.dry_run:
         completion_marker.unlink(missing_ok=True)
+    if (
+            args.expected_gem5_guest_sha256 ==
+            PLANNING_MISSING_GEM5_GUEST_SHA256 and
+            not args.dry_run):
+        raise SystemExit(
+            "planning-only missing gem5 guest hash cannot execute")
     build_targets(args)
     validate_selected_gem5_guest(args, out_dir)
     validate_expected_gem5_inputs(args)
@@ -3721,6 +4141,11 @@ def main(argv: list[str]) -> int:
 
     certify_sniper_semantic_work(rows, args, policies)
     certify_gem5_pr_results(rows, args)
+    if not args.dry_run:
+        # Persist layered certification failures before any fail-closed
+        # run-level validator raises. Do not emit a completion marker here.
+        write_outputs(out_dir, rows)
+    validate_gem5_compact_k2m_streamshield_rows(rows, args, policies)
 
     inert_cells = set()
     for row in rows:

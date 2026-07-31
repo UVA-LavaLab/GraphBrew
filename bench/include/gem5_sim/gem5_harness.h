@@ -231,6 +231,14 @@ inline bool gem5_ecg_compact_fused_enabled() {
     return enabled != 0;
 }
 
+inline bool gem5_ecg_compact_k2m_streamshield_enabled() {
+    static int enabled = []() {
+        const char* value = std::getenv("GEM5_ECG_COMPACT_K2M_SS");
+        return (value && std::strcmp(value, "0") != 0) ? 1 : 0;
+    }();
+    return enabled != 0;
+}
+
 #ifndef NO_M5OPS
 inline bool gem5_vertex_hints_enabled() {
     static int enabled = []() {
@@ -623,6 +631,26 @@ inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
     return packed;
 }
 
+inline uint64_t gem5_ecg_stream_load2_compact_instruction(
+        const void* record_ptr, uint32_t id_bits, uint32_t epoch_bits) {
+    uint64_t packed = 0;
+#if defined(__riscv)
+    asm volatile (".insn i 0x0b, 0x7, %0, 0(%1)"
+                  : "=r"(packed)
+                  : "r"(record_ptr)
+                  : "memory");
+    (void)id_bits;
+    (void)epoch_bits;
+#else
+    if (record_ptr) {
+        packed = ecg_epoch::widenEpochPair32(
+            *static_cast<const uint32_t*>(record_ptr),
+            id_bits, epoch_bits);
+    }
+#endif
+    return packed;
+}
+
 inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
     uint64_t packed = 0;
 #if defined(__riscv)
@@ -770,6 +798,14 @@ inline bool gem5_ecg_load2_enabled() {
 }
 inline uint64_t gem5_ecg_stream_load2_instruction(const void* record_ptr) {
     return record_ptr ? *static_cast<const uint64_t*>(record_ptr) : 0;
+}
+inline uint64_t gem5_ecg_stream_load2_compact_instruction(
+        const void* record_ptr, uint32_t id_bits, uint32_t epoch_bits) {
+    return record_ptr
+        ? ecg_epoch::widenEpochPair32(
+              *static_cast<const uint32_t*>(record_ptr),
+              id_bits, epoch_bits)
+        : 0;
 }
 inline uint64_t gem5_ecg_load2_instruction(const void* record_ptr) {
     return record_ptr ? *static_cast<const uint64_t*>(record_ptr) : 0;

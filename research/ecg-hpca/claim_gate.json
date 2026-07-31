@@ -44,7 +44,8 @@
       "evidence": [
         "ecddb738",
         "research/ecg-hpca/ARCHITECTURE.md",
-        "research/ecg-hpca/evidence/ecg_3sim_metadata_ssot_20260726"
+        "research/ecg-hpca/evidence/ecg_3sim_metadata_ssot_20260726",
+        "research/ecg-hpca/evidence/proposal_k2m_o3_20260730"
       ]
     },
     {
@@ -272,13 +273,16 @@
     },
     {
       "id": "request_bound_mechanism",
-      "text": "K2-M exact O3 request binding is proven for PR and compact SSSP; a fresh computed-address K2-M gate passes all 15 cache_sim/gem5/Sniper kernel cells.",
-      "scope": "Mechanism correctness with explicit O3 coverage boundary",
+      "text": "K2-M O3 request binding is proven for accepted LLC deliveries observed within the first 2048 traced PR requests; accept traces occur after the simulator dest-line guard, while non-accepted traced requests remain unclassified. Compact SSSP and the 15 cache_sim/gem5/Sniper kernel cells remain separate mechanism evidence.",
+      "scope": "Mechanism correctness only; no zero-misbinding, request-count, timing, or SOTA coverage",
       "decision": "allowed",
       "required_gates": [
         "k2m_request_correctness",
         "five_kernel_mechanism",
         "matched_sniper_post_binding"
+      ],
+      "evidence": [
+        "research/ecg-hpca/evidence/proposal_k2m_o3_20260730"
       ]
     },
     {

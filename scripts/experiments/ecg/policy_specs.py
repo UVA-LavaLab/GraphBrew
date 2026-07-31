@@ -75,6 +75,21 @@ def parse_policy_spec(text: str) -> PolicySpec:
             ecg_transport_pinned=True,
         )
     if upper in (
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG_K2_LRU_STREAMSHIELD",
+        "ECG:K2_LRU_SS",
+        "ECG_K2_LRU_SS",
+    ):
+        return PolicySpec(
+            label="ECG_K2_LRU_STREAMSHIELD",
+            policy="ECG",
+            ecg_mode="ECG_GRASP_POPT",
+            ecg_schedule_k=2,
+            ecg_stream_bypass=True,
+            ecg_variant="lru_only",
+            ecg_transport_pinned=True,
+        )
+    if upper in (
         "ECG:K2_STREAMSHIELD",
         "ECG_K2_STREAMSHIELD",
         "ECG:K2_SS",

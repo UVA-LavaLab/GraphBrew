@@ -62,6 +62,7 @@ POLICY_ORDER = [
     "ECG_K2",
     "ECG_K2_ONLINE",
     "ECG_K2_STREAMSHIELD",
+    "ECG_K2_LRU_STREAMSHIELD",
     "ECG_K2_ONLINE_STREAMSHIELD",
     "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD",
 ]
@@ -94,6 +95,7 @@ POLICY_LABELS = {
     "ECG_K2": "K2",
     "ECG_K2_ONLINE": "K2-online",
     "ECG_K2_STREAMSHIELD": "K2+SS",
+    "ECG_K2_LRU_STREAMSHIELD": "K2-LRU+SS",
     "ECG_K2_ONLINE_STREAMSHIELD": "K2-online+SS",
     "ECG_K2_ONLINE_ADAPTIVE_STREAMSHIELD": "K2-online+adaptive-SS",
 }
@@ -110,6 +112,8 @@ POLICY_DESCRIPTIONS = {
     "ECG_POPT_PRIMARY": "ECG P-OPT-primary oracle-validation mode",
     "ECG_K2_GRASP": "K2 transport with GRASP-only victim selection",
     "ECG_K2_LRU": "K2 transport with LRU-only victim selection",
+    "ECG_K2_LRU_STREAMSHIELD":
+        "K2 transport with LRU-only victim selection and StreamShield",
     "ECG_K2_RRIP": "K2 transport with RRIP-first victim selection",
     "ECG_K2_DEGREE": "K2 transport with degree-first victim selection",
     "ECG_K2_EPOCH": "K2 transport with epoch-first victim selection",
@@ -247,6 +251,31 @@ def output_descriptor(path: Path) -> dict[str, Any]:
         "sha256": digest.hexdigest(),
         "size": path.stat().st_size,
         "rows": rows,
+    }
+
+
+def git_state_descriptor() -> dict[str, Any]:
+    def capture(*args: str) -> str:
+        result = subprocess.run(
+            ["git", *args], cwd=PROJECT_ROOT,
+            capture_output=True, text=True, check=True)
+        return result.stdout
+
+    status = capture("status", "--porcelain=v1")
+    diff = capture("diff", "--binary", "HEAD")
+    return {
+        "commit": capture("rev-parse", "HEAD").strip(),
+        "status_sha256": hashlib.sha256(status.encode()).hexdigest(),
+        "status_lines": len(status.splitlines()),
+        "diff_sha256": hashlib.sha256(diff.encode()).hexdigest(),
+        "diff_bytes": len(diff.encode()),
+    }
+
+
+def bound_file(path: Path) -> dict[str, Any]:
+    return {
+        "path": str(path.resolve()),
+        **output_descriptor(path),
     }
 
 
@@ -769,6 +798,7 @@ def summarize_roi(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     numeric_fields = (
         "sim_ticks", "l3_misses", "l3_miss_rate", "ipc",
         "pf_issued", "pf_useful", "popt_charged_l3_misses_plus_matrix_stream",
+        "ecg_record_bytes", "edge_stream_bytes_per_edge",
     )
     groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -780,12 +810,87 @@ def summarize_roi(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         out = {key: value for key, value in zip(keys, group_key)}
         out["policy_short"] = policy_label(str(out.get("policy_label", "")))
         out["rows"] = len(group_rows)
+        timing_valid = all(
+            timing_valid_for_speedup(row) for row in group_rows)
+        out["timing_valid_for_speedup"] = "1" if timing_valid else "0"
+        timing_models = sorted({
+            timing_model_label(row) for row in group_rows
+            if timing_model_label(row)
+        })
+        correctness_only = bool(timing_models) and all(
+            model in {
+                "mechanism_probe_exact_request",
+                "mechanism_semantic_anchor",
+            }
+            for model in timing_models
+        )
+        out["mechanism_only_correctness"] = (
+            "1" if correctness_only else "0")
+        timing_caveats = sorted({
+            str(row.get("timing_caveat") or "").strip()
+            for row in group_rows
+            if str(row.get("timing_caveat") or "").strip()
+        })
+        out["timing_model"] = " | ".join(timing_models)
+        out["timing_caveat"] = " | ".join(timing_caveats)
         for field in numeric_fields:
+            if field in ("sim_ticks", "ipc") and not timing_valid:
+                continue
+            if (
+                    field in (
+                        "l3_misses", "l3_miss_rate",
+                        "popt_charged_l3_misses_plus_matrix_stream",
+                    ) and correctness_only):
+                continue
             value = avg(v for v in (as_float(row.get(field)) for row in group_rows) if v is not None)
             if value is not None:
                 out[f"avg_{field}"] = value
         summary.append(out)
     return summary
+
+
+def roi_summary_table_spec(
+        relative: list[dict[str, Any]],
+        relative_summary: list[dict[str, Any]],
+        summary: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[str], str]:
+    has_admissible_relative_timing = any(
+        as_float(row.get("speedup_vs_lru")) is not None
+        for row in relative
+    )
+    if has_admissible_relative_timing:
+        return (
+            relative_summary,
+            [
+                "policy_short", "benchmark", "prefetcher",
+                "avg_speedup_vs_lru",
+                "avg_l3_miss_reduction_vs_lru_pct",
+            ],
+            "ECG normalized ROI summary",
+        )
+    all_timing_admissible = bool(summary) and all(
+        str(row.get("timing_valid_for_speedup", "0")) == "1"
+        for row in summary
+    )
+    if all_timing_admissible:
+        return (
+            summary,
+            [
+                "policy_short", "benchmark", "prefetcher",
+                "avg_sim_ticks", "avg_l3_misses",
+            ],
+            "ECG ROI policy summary",
+        )
+    return (
+        summary,
+        [
+            "policy_short", "benchmark", "prefetcher",
+            "avg_ecg_record_bytes", "avg_edge_stream_bytes_per_edge",
+            "timing_valid_for_speedup",
+            "timing_model", "timing_caveat",
+        ],
+        "ECG mechanism-only ROI summary",
+    )
 
 
 def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -804,6 +909,10 @@ def roi_relative_metrics(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         lru_ticks = as_float(lru.get("sim_ticks"))
         lru_misses = effective_l3_misses(lru)
         for policy, row in sorted(by_policy.items(), key=lambda item: policy_sort_key(item[0])):
+            if timing_model_label(row) in {
+                    "mechanism_probe_exact_request",
+                    "mechanism_semantic_anchor"}:
+                continue
             ticks = as_float(row.get("sim_ticks"))
             misses = effective_l3_misses(row)
             record = {key: value for key, value in zip(ROI_COMPARE_KEYS, group_key)}
@@ -2088,7 +2197,11 @@ def plot_l_curve(path: Path, group_key: tuple[str, str], entries: list[dict[str,
     plt.close()
 
 
-def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: list[dict[str, Any]], copy_to_paper: bool) -> None:
+def generate_outputs(
+        out_dir: Path, roi_rows: list[dict[str, Any]],
+        proof_rows: list[dict[str, Any]], copy_to_paper: bool,
+        input_run_dirs: list[Path] | None = None,
+        input_csvs: list[Path] | None = None) -> None:
     aggregate_dir = out_dir / "aggregate"
     figures_dir = out_dir / "figures"
     tables_dir = out_dir / "tables"
@@ -2224,12 +2337,16 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
                 ["charged_policy", "oracle_policy", "benchmark", "section", "tick_delta_pct", "l3_miss_delta_pct"],
                 "P-OPT charged overhead summary",
             )
+        table_rows, table_columns, table_title = roi_summary_table_spec(
+            relative,
+            relative_summary if relative else [],
+            summary,
+        )
         write_latex_table(
             tables_dir / "roi_policy_summary.tex",
-            relative_summary if relative else summary,
-            ["policy_short", "benchmark", "prefetcher", "avg_speedup_vs_lru", "avg_l3_miss_reduction_vs_lru_pct"]
-            if relative else ["policy_short", "benchmark", "prefetcher", "avg_sim_ticks", "avg_l3_misses"],
-            "ECG normalized ROI summary" if relative else "ECG ROI policy summary",
+            table_rows,
+            table_columns,
+            table_title,
         )
         if relative:
             replacement_relative = [row for row in relative if row.get("prefetcher") in ("", "none")]
@@ -2422,6 +2539,26 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
                 "cache_sim ECG prefetch quality summary",
             )
 
+    bound_inputs: dict[str, Any] = {}
+    for index, run_dir in enumerate(input_run_dirs or []):
+        for name in (
+                "run.complete.json", "combined_roi_matrix.csv",
+                "resolved_manifest.json"):
+            path = run_dir / name
+            if path.exists():
+                bound_inputs[f"run_{index}/{name}"] = bound_file(path)
+    for index, path in enumerate(input_csvs or []):
+        if path.exists():
+            bound_inputs[f"csv_{index}/{path.name}"] = bound_file(path)
+
+    bound_outputs: dict[str, Any] = {}
+    for path in (
+            aggregate_dir / "roi_matrix_all.csv",
+            aggregate_dir / "roi_policy_summary.csv",
+            tables_dir / "roi_policy_summary.tex"):
+        if path.exists():
+            bound_outputs[str(path.relative_to(out_dir))] = bound_file(path)
+
     manifest = {
         "created_utc": utc_now(),
         "roi_rows": len(roi_rows),
@@ -2430,6 +2567,13 @@ def generate_outputs(out_dir: Path, roi_rows: list[dict[str, Any]], proof_rows: 
         "figure_format": "svg_primary_png_preview",
         "has_faithfulness_summary": bool(roi_rows),
         "has_prefetch_quality_summary": bool(prefetch_quality),
+        "git_state": git_state_descriptor(),
+        "scripts": {
+            "paper_pipeline.py": bound_file(Path(__file__)),
+            "paper_run.py": bound_file(FINAL_RUN),
+        },
+        "inputs": bound_inputs,
+        "outputs": bound_outputs,
     }
     (out_dir / "paper_pipeline_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
@@ -2488,7 +2632,9 @@ def main(argv: list[str]) -> int:
         return 0
     if not roi_rows and not proof_rows:
         raise SystemExit("no complete ROI or proof rows found")
-    generate_outputs(run_root, roi_rows, proof_rows, args.copy_to_paper)
+    generate_outputs(
+        run_root, roi_rows, proof_rows, args.copy_to_paper,
+        input_run_dirs=run_dirs, input_csvs=input_csvs)
     return 0
 
 

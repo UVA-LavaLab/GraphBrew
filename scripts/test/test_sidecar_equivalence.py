@@ -469,6 +469,12 @@ def test_riscv_gem5_binaries_are_not_stale_against_the_compact_record():
         f"not {'the gem5 decoder' if guest_has_isa else 'the guest binary'}; "
         "rebuild both (make gem5-riscv-m5ops-pr and the RISCV gem5 build) or "
         "neither, otherwise GEM5_ECG_COMPACT_ISA=1 traps on an unknown opcode")
+    guest_has_proposal = b"ECG_K2_MLOAD_C_SS" in blob
+    sim_has_proposal = b"ecg_stream_load2_compact" in gem5_opt.read_bytes()
+    assert guest_has_proposal == sim_has_proposal, (
+        "the compact StreamShield record-load proposal is present in "
+        f"{'the guest binary' if guest_has_proposal else 'the gem5 decoder'} "
+        "but not both; rebuild gem5 and the RISC-V guest together")
 
 
 def test_guest_enforces_the_width_the_runner_intended():

@@ -74,6 +74,36 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def stable_receipt_payload(payload: dict) -> dict:
+    """Select reproducible guest-build fields, excluding trace churn."""
+    return {
+        key: payload.get(key)
+        for key in (
+            "schema_version",
+            "binary",
+            "canonical_command",
+            "compiler",
+            "flags",
+            "includes",
+            "link_inputs",
+            "source",
+            "build_config",
+            "build_config_values",
+            "make_target",
+        )
+    }
+
+
+def stable_receipt_fingerprint(path: Path) -> str:
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid gem5 guest receipt {path}: {error}") from error
+    return hashlib.sha256(json.dumps(
+        stable_receipt_payload(payload),
+        sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def git_state(root: Path = PROJECT_ROOT) -> dict[str, str]:
     def output(command: list[str]) -> bytes:
         result = subprocess.run(

@@ -206,6 +206,43 @@
                     (void)dest_dependency;
                     EA = rvZext(Rs1);
                 }});
+                // Compact unweighted StreamShield record load. Memory moves
+                // four bytes, while rd receives the canonical
+                // dest32|tier2|epoch1_15|epoch2_15 mask consumed by K2-M.
+                // Field widths are loop-invariant architectural state in CSR
+                // 0x802, written before the ROI.
+                0x7: ecg_stream_load2_compact({{
+                    const uint64_t compact =
+                        static_cast<uint32_t>(Mem_uw);
+                    const uint32_t fmt = static_cast<uint32_t>(
+                        xc->readMiscReg(MISCREG_ECG_RECORD_FORMAT));
+                    const uint32_t id_bits = fmt & 0x3FU;
+                    const uint32_t epoch_bits = (fmt >> 8) & 0x3FU;
+                    panic_if(
+                        id_bits == 0 || epoch_bits == 0 ||
+                        id_bits + 2 + 2 * epoch_bits > 32,
+                        "Invalid compact StreamShield K2 format: "
+                        "id_bits=%u epoch_bits=%u",
+                        id_bits, epoch_bits);
+                    const uint64_t id_mask =
+                        (uint64_t{1} << id_bits) - 1;
+                    const uint64_t epoch_mask =
+                        (uint64_t{1} << epoch_bits) - 1;
+                    const uint32_t dest_id = static_cast<uint32_t>(
+                        compact & id_mask);
+                    const uint8_t tier = static_cast<uint8_t>(
+                        (compact >> id_bits) & 0x3U);
+                    const uint16_t epoch1 = static_cast<uint16_t>(
+                        (compact >> (id_bits + 2)) & epoch_mask);
+                    const uint16_t epoch2 = static_cast<uint16_t>(
+                        (compact >> (id_bits + 2 + epoch_bits)) &
+                        epoch_mask);
+                    Rd =
+                        static_cast<uint64_t>(dest_id) |
+                        (static_cast<uint64_t>(tier) << 32) |
+                        (static_cast<uint64_t>(epoch1) << 34) |
+                        (static_cast<uint64_t>(epoch2) << 49);
+                }}, mem_flags=[ECG_STREAM_BYPASS]);
             }
             // GraphBrew FUSED ecg.load (custom-0, FUNCT3=0x2, R-type): indexed-
             // property load + metadata delivery in ONE op. rs1 = property base, rs2 =
