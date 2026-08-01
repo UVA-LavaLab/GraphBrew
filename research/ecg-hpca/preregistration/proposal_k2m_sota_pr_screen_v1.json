@@ -158,14 +158,6 @@
   },
   "blockers": [
     {
-      "id": "online_streamshield_correctness_evidence",
-      "reason": "Produce request-bound O3 correctness evidence for the online set-dueling arm."
-    },
-    {
-      "id": "online_o3_admissible_row",
-      "reason": "Produce one timing-admissible online O3 row with the expected rrip_first/dueling receipt."
-    },
-    {
       "id": "whole_matrix_execution_budget",
       "reason": "Approve 12 whole-cell seven-policy jobs; policy sharding is not allowed."
     }
@@ -174,7 +166,7 @@
     "ready": false,
     "policy_sharding_allowed": false,
     "maximum_policy_runtime_seconds": 43200,
-    "note": "Trace-free K2-M, GRASP, and analytic charged P-OPT have timing-valid O3 smoke rows. Stages remain blocked until online correctness/admissibility and the whole-cell execution budget are complete."
+    "note": "All mechanisms and baselines have timing-valid O3 smoke rows, including request-bound online set-dueling. Stages remain blocked only until the 12-cell whole-matrix execution budget is approved."
   },
   "resource_scope": {
     "screen": "K2 uses equal data capacity; charged P-OPT loses reserved LLC ways for its matrix.",
