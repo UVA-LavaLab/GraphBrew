@@ -191,3 +191,31 @@ def test_the_executing_victim_variant_is_attested_at_runtime():
     assert "dueling=" in window, (
         "set-dueling overrides the configured variant per set; a receipt that "
         "hides it would attest a rule that is not uniformly in force")
+
+
+def test_online_dueling_has_roi_activity_statistics():
+    policy = (
+        ROOT / "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/ecg_rp.cc").read_text()
+    header = (
+        ROOT / "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/ecg_rp.hh").read_text()
+    selector = (
+        ROOT / "bench/include/gem5_sim/overlays/mem/cache/"
+        "replacement_policies/ecg_victim_policy.hh").read_text()
+    runner = (
+        ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
+
+    assert "sampledMisses() const" in selector
+    assert "completedWindows() const" in selector
+    assert "OnlineDuelingStats" in header
+    for field in (
+            "requestBoundVictims", "leaderSamples", "followerSelections",
+            "completedWindows", "winnerChanges",
+            "followerVariantOverrides"):
+        assert f"ADD_STAT(\n        {field}," in policy
+    assert "++onlineDuelingStats.requestBoundVictims" in policy
+    assert "++onlineDuelingStats.leaderSamples" in policy
+    assert "++onlineDuelingStats.followerSelections" in policy
+    assert "gem5_k2_dueling_completed_windows" in runner
+    assert "ONLINE_DUELING_WINDOW_MISSES" in runner

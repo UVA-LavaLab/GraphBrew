@@ -8,6 +8,7 @@
 #ifndef __MEM_CACHE_REPLACEMENT_POLICIES_ECG_RP_HH__
 #define __MEM_CACHE_REPLACEMENT_POLICIES_ECG_RP_HH__
 
+#include "base/statistics.hh"
 #include "mem/cache/replacement_policies/base.hh"
 #include "mem/cache/replacement_policies/ecg_victim_policy.hh"
 #include "mem/cache/replacement_policies/graph_cache_context_gem5.hh"
@@ -83,6 +84,17 @@ class GraphEcgRP : public Base
     mutable bool victimRequestValid = false;
     mutable uint16_t victimCurrentEpoch = 0;
     mutable uint16_t victimContextId = 0;
+
+    mutable struct OnlineDuelingStats : public statistics::Group
+    {
+        OnlineDuelingStats(statistics::Group* parent);
+        statistics::Scalar requestBoundVictims;
+        statistics::Scalar leaderSamples;
+        statistics::Scalar followerSelections;
+        statistics::Scalar completedWindows;
+        statistics::Scalar winnerChanges;
+        statistics::Scalar followerVariantOverrides;
+    } onlineDuelingStats;
 };
 
 } // namespace replacement_policy

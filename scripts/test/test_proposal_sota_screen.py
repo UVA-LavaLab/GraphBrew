@@ -266,6 +266,15 @@ def synthetic_rows(primary_ratio=0.94):
                         "gem5_variant_dueling_receipt":
                             str(receipt["dueling"]),
                     })
+                    if int(receipt["dueling"]) == 1:
+                        row.update({
+                            "gem5_k2_dueling_request_bound_victims": "100",
+                            "gem5_k2_dueling_leader_samples": "2048",
+                            "gem5_k2_dueling_follower_selections": "90",
+                            "gem5_k2_dueling_completed_windows": "2",
+                            "gem5_k2_dueling_winner_changes": "0",
+                            "gem5_k2_dueling_follower_variant_overrides": "0",
+                        })
                 rows.append(row)
     return rows
 
@@ -479,6 +488,22 @@ def test_k2_performance_mode_and_online_dueling_fail_closed():
         if row["policy_label"] == "ECG_K2_ONLINE_STREAMSHIELD")
     online["gem5_variant_dueling_receipt"] = "0"
     with pytest.raises(ValueError, match="gem5_variant_dueling_receipt"):
+        gate().evaluate(rows, config())
+
+    rows = synthetic_rows()
+    online = next(
+        row for row in rows
+        if row["policy_label"] == "ECG_K2_ONLINE_STREAMSHIELD")
+    online["gem5_k2_dueling_completed_windows"] = "0"
+    with pytest.raises(ValueError, match="must be positive"):
+        gate().evaluate(rows, config())
+
+    rows = synthetic_rows()
+    online = next(
+        row for row in rows
+        if row["policy_label"] == "ECG_K2_ONLINE_STREAMSHIELD")
+    online["gem5_k2_dueling_leader_samples"] = "1023"
+    with pytest.raises(ValueError, match="full leader-sample window"):
         gate().evaluate(rows, config())
 
 

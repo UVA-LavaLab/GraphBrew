@@ -123,6 +123,14 @@ class OnlineDuelingSelector {
         return winner_.load(std::memory_order_relaxed);
     }
 
+    uint64_t sampledMisses() const {
+        return sampled_misses_.load(std::memory_order_relaxed);
+    }
+
+    uint64_t completedWindows() const {
+        return sampledMisses() / kWindowMisses;
+    }
+
   private:
     static constexpr uint64_t kWindowMisses = 1024;
     std::array<std::atomic<uint64_t>, DUEL_ARM_COUNT> misses_{};

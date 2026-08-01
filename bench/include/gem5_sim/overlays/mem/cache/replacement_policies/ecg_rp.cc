@@ -100,7 +100,8 @@ GraphEcgRP::GraphEcgRP(const Params &p)
       ecgMode(graph::stringToECGMode(p.ecg_mode)),
       llcSize(p.llc_size_bytes),
       sidebandPath(p.sideband_path),
-      poptMatrixPath(p.popt_matrix_path)
+      poptMatrixPath(p.popt_matrix_path),
+      onlineDuelingStats(this)
 {
     // ECG-CONFIG proof banner (ECG_DEBUG=1): same format as cache_sim/sniper, proving
     // which mode/variant this gem5 ECG replacement policy resolved. p.ecg_mode is the
@@ -599,7 +600,18 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
     if (ecgMode == graph::ECGMode::ECG_GRASP_POPT &&
         setDueling && victimRequestValid &&
         !candidates.empty()) {
-        duelingSelector.recordMiss(candidates.front()->getSet());
+        const size_t setIndex = candidates.front()->getSet();
+        const uint64_t samplesBefore = duelingSelector.sampledMisses();
+        const uint64_t windowsBefore = duelingSelector.completedWindows();
+        const uint8_t winnerBefore = duelingSelector.winnerArm();
+        ++onlineDuelingStats.requestBoundVictims;
+        duelingSelector.recordMiss(setIndex);
+        if (duelingSelector.sampledMisses() > samplesBefore)
+            ++onlineDuelingStats.leaderSamples;
+        if (duelingSelector.completedWindows() > windowsBefore)
+            ++onlineDuelingStats.completedWindows;
+        if (duelingSelector.winnerArm() != winnerBefore)
+            ++onlineDuelingStats.winnerChanges;
     }
     for (const auto& candidate : candidates) {
         if (!getData(candidate)->valid) return candidate;
@@ -646,7 +658,15 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         int variant = configuredVariant;
         if (setDueling && !candidates.empty()) {
             const size_t setIndex = candidates.front()->getSet();
+            const bool follower =
+                ecg_policy::duelingLeaderArm(setIndex) < 0;
+            if (victimRequestValid && follower)
+                ++onlineDuelingStats.followerSelections;
             variant = duelingSelector.variantForSet(setIndex);
+            if (
+                    victimRequestValid && follower &&
+                    variant != configuredVariant)
+                ++onlineDuelingStats.followerVariantOverrides;
         }
         const uint32_t ne = std::max<uint32_t>(2u, ctx.topology.edge_epoch_count);
         uint32_t curEpoch = victimRequestValid ? victimCurrentEpoch : 0;
@@ -881,6 +901,30 @@ std::shared_ptr<ReplacementData>
 GraphEcgRP::instantiateEntry()
 {
     return std::make_shared<EcgReplData>(rrpvMax);
+}
+
+GraphEcgRP::OnlineDuelingStats::OnlineDuelingStats(
+        statistics::Group* parent)
+  : statistics::Group(parent),
+    ADD_STAT(
+        requestBoundVictims,
+        "Number of request-bound online-dueling victim selections"),
+    ADD_STAT(
+        leaderSamples,
+        "Number of online-dueling leader-set miss samples"),
+    ADD_STAT(
+        followerSelections,
+        "Number of online-dueling follower-set variant selections"),
+    ADD_STAT(
+        completedWindows,
+        "Number of online-dueling sample windows completed"),
+    ADD_STAT(
+        winnerChanges,
+        "Number of online-dueling winner changes"),
+    ADD_STAT(
+        followerVariantOverrides,
+        "Number of request-bound follower selections overriding static RRIP")
+{
 }
 
 } // namespace replacement_policy

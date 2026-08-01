@@ -57,7 +57,12 @@ from gem5_guest_receipt import (  # noqa: E402
     validate_receipt as validate_gem5_guest_receipt,
     verify_staged_guest,
 )
-from policy_specs import PolicySpec, parse_policy_spec  # noqa: E402
+from policy_specs import (  # noqa: E402
+    ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
+    ONLINE_DUELING_WINDOW_MISSES,
+    PolicySpec,
+    parse_policy_spec,
+)
 
 _GEM5_OPT = Path(os.environ.get(
     "GEM5_OPT",
@@ -202,6 +207,18 @@ GEM5_STAT_KEYS = {
         "system.l3cache.replacement_policy.hotPropertyAccesses",
     "popt_roi_rereference_queries":
         "system.l3cache.replacement_policy.rereferenceQueries",
+    "gem5_k2_dueling_request_bound_victims":
+        "system.l3cache.replacement_policy.requestBoundVictims",
+    "gem5_k2_dueling_leader_samples":
+        "system.l3cache.replacement_policy.leaderSamples",
+    "gem5_k2_dueling_follower_selections":
+        "system.l3cache.replacement_policy.followerSelections",
+    "gem5_k2_dueling_completed_windows":
+        "system.l3cache.replacement_policy.completedWindows",
+    "gem5_k2_dueling_winner_changes":
+        "system.l3cache.replacement_policy.winnerChanges",
+    "gem5_k2_dueling_follower_variant_overrides":
+        "system.l3cache.replacement_policy.followerVariantOverrides",
     # Demand-load (cpu.data) L3 stats EXCLUDING prefetcher fills. The L2 stream
     # prefetcher otherwise dominates overall::total (>>demand). Sniper's NUCA
     # counters do not provide this split, so the pipeline treats its prefetched
@@ -1473,6 +1490,29 @@ def apply_gem5_geometry_receipt(
     return valid
 
 
+def validate_online_dueling_activity(
+        row: dict[str, Any], required: bool) -> bool:
+    if not required:
+        return True
+    missing = [
+        field for field in ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS
+        if int(row.get(field) or 0) <= 0
+    ]
+    leader_samples = int(
+        row.get("gem5_k2_dueling_leader_samples") or 0)
+    if leader_samples < ONLINE_DUELING_WINDOW_MISSES:
+        missing.append(
+            "gem5_k2_dueling_leader_samples"
+            f"<{ONLINE_DUELING_WINDOW_MISSES}")
+    if missing:
+        mark_row_error(
+            row,
+            "online K2 set-dueling was not exercised in the ROI: "
+            f"{missing}")
+        return False
+    return True
+
+
 def mark_row_error(row: dict[str, Any], message: str) -> None:
     """Preserve every failing gate instead of replacing the first cause."""
     existing = str(row.get("error") or "").strip()
@@ -2592,6 +2632,7 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         mark_row_error(
             row,
             "GRASP made no hot-tier property classifications in the ROI")
+    validate_online_dueling_activity(row, spec.ecg_set_dueling)
     if spec.policy == "POPT" and int(
             row.get("popt_roi_rereference_queries") or 0) <= 0:
         mark_row_error(

@@ -6,6 +6,20 @@ import re
 from dataclasses import dataclass
 
 
+ONLINE_DUELING_WINDOW_MISSES = 1024
+ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS = (
+    "gem5_k2_dueling_request_bound_victims",
+    "gem5_k2_dueling_leader_samples",
+    "gem5_k2_dueling_follower_selections",
+    "gem5_k2_dueling_completed_windows",
+)
+ONLINE_DUELING_REPORTED_FIELDS = (
+    *ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
+    "gem5_k2_dueling_winner_changes",
+    "gem5_k2_dueling_follower_variant_overrides",
+)
+
+
 @dataclass(frozen=True)
 class PolicySpec:
     label: str

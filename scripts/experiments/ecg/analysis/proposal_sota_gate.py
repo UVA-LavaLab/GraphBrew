@@ -17,7 +17,11 @@ ROOT = Path(__file__).resolve().parents[4]
 ECG_DIR = ROOT / "scripts" / "experiments" / "ecg"
 sys.path.insert(0, str(ECG_DIR))
 
-from policy_specs import policy_output_label  # noqa: E402
+from policy_specs import (  # noqa: E402
+    ONLINE_DUELING_REPORTED_FIELDS,
+    ONLINE_DUELING_WINDOW_MISSES,
+    policy_output_label,
+)
 
 
 DEFAULT_CONFIG = (
@@ -495,6 +499,27 @@ def validate_k2(row: dict[str, Any], config: dict[str, Any],
     require_text(row, "gem5_variant_requested_receipt", receipt["requested"])
     require_text(row, "gem5_variant_effective_receipt", receipt["effective"])
     require_text(row, "gem5_variant_dueling_receipt", receipt["dueling"])
+    if int(receipt["dueling"]) == 1:
+        require_fields(
+            row,
+            ONLINE_DUELING_REPORTED_FIELDS,
+            policy)
+        for field in (
+                "gem5_k2_dueling_request_bound_victims",
+                "gem5_k2_dueling_follower_selections",
+                "gem5_k2_dueling_completed_windows"):
+            require_positive(row, field)
+        if integer(
+                row.get("gem5_k2_dueling_leader_samples"),
+                "gem5_k2_dueling_leader_samples") < (
+                    ONLINE_DUELING_WINDOW_MISSES):
+            raise ValueError(
+                "online K2 did not collect a full leader-sample window")
+        for field in (
+                "gem5_k2_dueling_winner_changes",
+                "gem5_k2_dueling_follower_variant_overrides"):
+            if number(row.get(field), field) < 0:
+                raise ValueError(f"{field} must be nonnegative")
 
 
 def build_cells(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[
