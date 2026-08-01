@@ -32,6 +32,16 @@ def build_rows(args: argparse.Namespace) -> list[tuple[str, ...]]:
                     token in str(stage["name"]) for token in args.only):
                 continue
             settings = paper_run.merged_defaults(manifest, stage)
+            screen_path = str(settings.get("screen_config", ""))
+            if screen_path:
+                screen = paper_run.load_manifest(
+                    paper_run.resolve_path(screen_path))
+                if not screen.get(
+                        "execution", {}).get(
+                            "policy_sharding_allowed", True):
+                    raise SystemExit(
+                        f"stage {stage['name']} requires whole-cell jobs; "
+                        "one-policy Slurm shards are not allowed")
             blocked_reason = str(settings.get("blocked_reason", ""))
             if blocked_reason and not args.allow_blocked:
                 raise SystemExit(

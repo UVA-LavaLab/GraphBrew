@@ -336,6 +336,62 @@ pending.
 The gem5 Hawkeye adapter is scoped to the artifact's conventional uncompressed
 set-associative LLC; compressed-block move semantics are not claimed.
 
+## Proposal K2-M sampled SOTA screen
+
+The scientific SSOT is
+`preregistration/proposal_k2m_sota_pr_screen_v1.json`. It defines three
+deterministic PageRank samples crossed with iterations 1, 2, 4, and 8, for 12
+cells. Every cell runs one complete seven-policy matrix:
+
+```text
+LRU GRASP POPT POPT:UNCHARGED ECG:K2_LRU_STREAMSHIELD
+ECG:K2_STREAMSHIELD ECG:K2_ONLINE_STREAMSHIELD
+```
+
+The primary metrics are gem5 `sim_ticks` and memory-controller
+`dram_offchip_bytes`, reported together. The static K2-M+StreamShield arm alone
+controls the stop/go decision; the online arm is characterization only. The
+screen checks aggregate, per-cell, per-graph, i=8, and leave-one-graph-out
+ratios against LRU, GRASP, and charged P-OPT. The K2-LRU+StreamShield arm
+separates complete-design gains from replacement-policy gains, while uncharged
+P-OPT is an oracle attribution control.
+
+The screen remains blocked until trace-free proposal timing, target-time P-OPT
+streaming, stable O3 baselines, online correctness, one admissible online row,
+and a whole-cell execution budget are available. These are research blockers,
+not cryptographic qualifications.
+
+The charged P-OPT screen uses a three-slot overlap buffer: columns `e` and
+`e+1` remain readable while `e+2` is streamed. This costs two reserved ways in
+the sampled cells. It favors P-OPT timing by permitting overlap, but hurts
+P-OPT capacity relative to a two-slot design and therefore can favor K2. A
+two-slot serialized P-OPT sensitivity is mandatory before a P-OPT performance
+claim. `popt_matrix_stream_bytes` remains the one-iteration model value;
+target-time rows additionally report cumulative `popt_target_stream_bytes`,
+requests, and requestor-scoped DRAM bytes for all executed iterations.
+Because the sampled graphs are low degree, especially `cit-Patents-n18-sym`,
+the matrix stream can be a large fraction of charged P-OPT traffic. Beating
+charged P-OPT here is only a screen for full-graph work, not a refutation of
+P-OPT; the decision output reports the stream fraction and adjacent uncharged
+oracle ratios.
+
+K2 retains all 16 data ways and discloses 49 metadata bits per line, while
+charged P-OPT loses the ways reserved for its matrix. This is not an
+equal-silicon comparison and cannot support a lower-hardware-cost claim. A pass
+requires later 15-way and 14-way K2 sensitivities, then full graphs and all
+supported algorithms. gem5 O3 is the timing authority until another backend
+implements the same architectural K2-M path.
+
+The 12 semantic receipts were reproduced with the host PageRank binary using
+`setarch x86_64 -R ... -t 0`; `-t 0` prevents convergence from shortening the
+requested iteration count. The three one-iteration receipts also match
+retained RISC-V gem5 rows.
+
+Sampling biases both baselines: the lower-degree samples charge more P-OPT
+stream bytes per edge, while the reduced vertex-ID width lets K2 retain its
+4-byte compact record. Full-graph expansion must re-check the compact field
+budget and may require a wider K2 record.
+
 ## Separated experiment questions
 
 | Profile | Question | Prefetch/traffic treatment |

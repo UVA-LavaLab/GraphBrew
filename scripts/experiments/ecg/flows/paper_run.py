@@ -339,6 +339,54 @@ def merged_defaults(manifest: dict[str, Any], stage: dict[str, Any]) -> dict[str
     return defaults
 
 
+def apply_screen_config(
+        settings: dict[str, Any]) -> tuple[
+            dict[str, Any], list[dict[str, Any]] | None]:
+    path_text = str(settings.get("screen_config", ""))
+    if not path_text:
+        return settings, None
+    screen = load_manifest(resolve_path(path_text))
+    iteration = int(settings["screen_iteration"])
+    if iteration not in [int(value) for value in screen["iterations"]]:
+        raise SystemExit(
+            f"screen iteration {iteration} is not declared by {path_text}")
+
+    merged = dict(settings)
+    screen_env = dict(settings.get("env", {}))
+    screen_env.update({
+        "ECG_RECORD_TIER_BITS": str(screen["compact_tier_bits"]),
+        "ECG_RECORD_VARIABLE_WIDTH": "1",
+    })
+    merged.update({
+        "suite": screen["simulator"],
+        "benchmarks": [screen["benchmark"]],
+        "policies": list(screen["policies"]["all"]),
+        "prefetcher": screen["prefetcher"],
+        "gem5_cpu_type": screen["cpu_type"],
+        "ecg_isa_variant": screen["isa_variant"],
+        "ecg_epochs": int(screen["k2_epochs"]),
+        "popt_reserve_model": "size_correct",
+        "popt_property_bytes": int(screen["popt_model"]["property_bytes"]),
+        "popt_active_columns": int(
+            screen["popt_model"]["reserved_column_slots"]),
+        "popt_num_epochs": int(screen["popt_model"]["epochs"]),
+        "popt_min_data_ways": int(
+            screen["popt_model"]["minimum_data_ways"]),
+        "env": screen_env,
+        "timeout_gem5": int(
+            screen["execution"]["maximum_policy_runtime_seconds"]),
+        "_screen_options_template": screen["options_template"],
+        "_screen_iteration": iteration,
+        "_screen_config_data": screen,
+    })
+    graphs = []
+    for cell in screen["graphs"]:
+        graph = dict(cell)
+        graph["l3_sizes"] = [str(cell["l3_size"])]
+        graphs.append(graph)
+    return merged, graphs
+
+
 def scale_size(size_str: str, factor: int) -> str:
     """Multiply a cache size like '2MB' by an integer factor -> '8MB'. Used to hold
     per-core LLC constant across a Sniper multi-core sweep (shared L3 = per_core * cores)."""
@@ -370,6 +418,14 @@ def expand_jobs(args: argparse.Namespace, manifest: dict[str, Any], run_dir: Pat
         if args.skip and any(token in stage["name"] for token in args.skip):
             continue
         settings = merged_defaults(manifest, stage)
+        settings, screen_graphs = apply_screen_config(settings)
+        if (
+                screen_graphs is not None and args.policy and
+                not settings["_screen_config_data"].get(
+                        "execution", {}).get(
+                            "policy_sharding_allowed", True)):
+            raise SystemExit(
+                f"stage {stage['name']} requires the complete policy roster")
         blocked_reason = str(settings.get("blocked_reason", ""))
         if (blocked_reason and
                 not (getattr(args, "list", False) or
@@ -377,16 +433,34 @@ def expand_jobs(args: argparse.Namespace, manifest: dict[str, Any], run_dir: Pat
                      getattr(args, "check_graphs", False))):
             raise SystemExit(
                 f"stage {stage['name']} is blocked: {blocked_reason}")
+        if (
+                screen_graphs is not None and
+                not settings["_screen_config_data"]["execution"]["ready"] and
+                not (getattr(args, "list", False) or
+                     getattr(args, "dry_run", False) or
+                     getattr(args, "check_graphs", False))):
+            blocker_ids = ", ".join(
+                blocker["id"]
+                for blocker in settings["_screen_config_data"]["blockers"])
+            raise SystemExit(
+                f"stage {stage['name']} is blocked by screen config: "
+                f"{blocker_ids}")
         kind = str(stage["kind"])
         if kind == "proof_matrix":
             if args.policy:
                 continue
             jobs.append(make_proof_job(args, run_dir, settings))
         elif kind == "roi_matrix":
-            graph_set_name = str(settings["graph_set"])
-            if graph_set_name not in graph_sets:
-                raise SystemExit(f"unknown graph_set={graph_set_name!r} in stage {stage['name']}")
-            for graph in graph_sets[graph_set_name]:
+            if screen_graphs is None:
+                graph_set_name = str(settings["graph_set"])
+                if graph_set_name not in graph_sets:
+                    raise SystemExit(
+                        f"unknown graph_set={graph_set_name!r} "
+                        f"in stage {stage['name']}")
+                stage_graphs = graph_sets[graph_set_name]
+            else:
+                stage_graphs = screen_graphs
+            for graph in stage_graphs:
                 graph_name = str(graph["name"])
                 if not token_matches(graph_name, args.graph):
                     continue
@@ -495,12 +569,19 @@ def make_roi_job(
     settings = dict(settings)
     _skip = {"l3_sizes"} if settings.get("_core_tag") else set()
     for _cell_key in (
-        "l1d_size", "l2_size", "l3_ways", "l3_sizes", "line_size",
-        "structure_prefetch_degree",
+        "l1d_size", "l2_size", "l1d_ways", "l2_ways",
+        "l3_ways", "l3_sizes",
+        "line_size", "structure_prefetch_degree",
     ):
         if _cell_key in graph and _cell_key not in _skip:
             settings[_cell_key] = graph[_cell_key]
-    options = options_for(manifest, graph, graph_path, benchmark)
+    if settings.get("_screen_options_template"):
+        options = str(settings["_screen_options_template"]).format(
+            graph_path=str(graph_path) if graph_path else "",
+            iterations=int(settings["_screen_iteration"]),
+        )
+    else:
+        options = options_for(manifest, graph, graph_path, benchmark)
     core_tag = str(settings.get("_core_tag", ""))
     scaling_series_id = sanitize(
         f"{settings['name']}_{graph_name}_{benchmark}")
@@ -559,6 +640,13 @@ def make_roi_job(
         command.extend([
             "--k2-l3-ways", str(settings["k2_l3_ways"]),
         ])
+    for setting, option in (
+            ("popt_property_bytes", "--popt-property-bytes"),
+            ("popt_active_columns", "--popt-active-columns"),
+            ("popt_num_epochs", "--popt-num-epochs"),
+            ("popt_min_data_ways", "--popt-min-data-ways")):
+        if setting in settings:
+            command.extend([option, str(settings[setting])])
     if settings.get("gem5_compact_fused"):
         command.append("--gem5-compact-fused")
     if settings.get("gem5_compact_k2m_streamshield"):

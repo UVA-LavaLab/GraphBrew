@@ -369,6 +369,36 @@ snapshot both registers, request-bound O3 sequence propagation, context-tagged
 line metadata, and passing MSHR merge mutations. These are implementation gates,
 not performance experiments.
 
+### Proposal K2-M sampled SOTA screen
+
+Inspect the 12 blocked whole-cell commands:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_proposal_k2m_sota_pr_screen \
+  --run-dir /tmp/proposal-k2m-sota-screen \
+  --list --dry-run --no-build --allow-missing-graphs
+```
+
+Do not set `execution.ready` to `true` until every blocker in
+`research/ecg-hpca/preregistration/proposal_k2m_sota_pr_screen_v1.json` is
+resolved. Run complete seven-policy cells; one-policy Slurm sharding is
+forbidden because every cell needs its own LRU denominator.
+
+After an admissible complete run:
+
+```bash
+python3 scripts/experiments/ecg/analysis/proposal_sota_gate.py \
+  --input <run>/combined_roi_matrix.csv \
+  --output <run>/proposal_sota_decision.json
+```
+
+The decision file reports baseline sanity, all candidate ratios, worst cells,
+per-graph/per-iteration/leave-one-out guards, transport attribution, oracle
+attribution, and the stop/go result. Keep the raw run directory, resolved
+command manifest, and git commit with the result; no additional stamping
+workflow is required.
+
 For host-cost diagnosis, use `SNIPER_K2_LOOKUP_PROFILE=1` and explicit
 `SNIPER_ECG_HOST_PROFILE=1`. Do not reintroduce the rejected direct-mapped K2
 lookup memo: its measured hit rate was 0.0059% and it slowed the A/B run 7.4%

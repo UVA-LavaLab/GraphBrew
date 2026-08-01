@@ -55,7 +55,8 @@
     "ecg_record_width_timing": "gem5 timing and bandwidth for the two-stamp record at the width gem5 actually streams; the width contrast itself lives in cache_sim.",
     "ecg_isa_decode_matrix": "Decode-cost matrix. Separates record WIDTH from the cost of DECODING it, with a per-stage LRU denominator so no comparison crosses runs.",
     "ecg_fused_compact_matrix": "Fused compact K2 TimingSimple matrix: hardware-decoded 4B, software-widened 4B, and wide 8B controls in one build with per-stage LRU and K2-LRU; O3 request binding is a separate mechanism gate.",
-    "ecg_proposal_k2m_o3_gate": "Exact O3 request-bound correctness gate for the proposal's compact StreamShield record load plus one-for-one computed-address K2-M property load."
+    "ecg_proposal_k2m_o3_gate": "Exact O3 request-bound correctness gate for the proposal's compact StreamShield record load plus one-for-one computed-address K2-M property load.",
+    "ecg_proposal_k2m_sota_pr_screen": "Blocked sampled PageRank screen against LRU, GRASP, and charged P-OPT."
   },
   "benchmark_options": {
     "synthetic_pr": {
@@ -1853,6 +1854,58 @@
         "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
       },
       "notes": "Mechanism-only proposal gate with a width-unmatched 8-byte non-StreamShield K2 semantic anchor plus transport-matched 4-byte StreamShield lru_only and epoch_first arms. roi_matrix forces capped 2048-event request/bypass traces; every StreamShield row must attest only 4-byte request-flag record loads, exact same-line O3 K2-M Request acceptance, and multiple nonzero record-derived epoch pairs. All three rows must match PageRank semantics. The anchor is not a StreamShield control, and this proves existence and binding rather than request-count or performance coverage."
+    },
+    {
+      "name": "70_gem5_proposal_sota_pr_i1",
+      "kind": "roi_matrix",
+      "suite": "gem5",
+      "profiles": ["ecg_proposal_k2m_sota_pr_screen"],
+      "screen_config": "research/ecg-hpca/preregistration/proposal_k2m_sota_pr_screen_v1.json",
+      "screen_iteration": 1,
+      "out_subdir": "70_gem5_proposal_sota_pr_i1",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
+    },
+    {
+      "name": "71_gem5_proposal_sota_pr_i2",
+      "kind": "roi_matrix",
+      "suite": "gem5",
+      "profiles": ["ecg_proposal_k2m_sota_pr_screen"],
+      "screen_config": "research/ecg-hpca/preregistration/proposal_k2m_sota_pr_screen_v1.json",
+      "screen_iteration": 2,
+      "out_subdir": "71_gem5_proposal_sota_pr_i2",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
+    },
+    {
+      "name": "72_gem5_proposal_sota_pr_i4",
+      "kind": "roi_matrix",
+      "suite": "gem5",
+      "profiles": ["ecg_proposal_k2m_sota_pr_screen"],
+      "screen_config": "research/ecg-hpca/preregistration/proposal_k2m_sota_pr_screen_v1.json",
+      "screen_iteration": 4,
+      "out_subdir": "72_gem5_proposal_sota_pr_i4",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
+    },
+    {
+      "name": "73_gem5_proposal_sota_pr_i8",
+      "kind": "roi_matrix",
+      "suite": "gem5",
+      "profiles": ["ecg_proposal_k2m_sota_pr_screen"],
+      "screen_config": "research/ecg-hpca/preregistration/proposal_k2m_sota_pr_screen_v1.json",
+      "screen_iteration": 8,
+      "out_subdir": "73_gem5_proposal_sota_pr_i8",
+      "env": {
+        "GEM5_OPT": "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt",
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops"
+      }
     }
   ]
 }

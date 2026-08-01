@@ -533,6 +533,12 @@ def popt_charge_metadata(args: argparse.Namespace, spec: PolicySpec, l3_size: st
         "popt_matrix_bytes": 0,
         "popt_matrix_fits": 1,
         "popt_matrix_active_columns": 0,
+        "popt_property_bytes": max(
+            int(getattr(args, "popt_property_bytes", 4)), 1),
+        "popt_num_epochs": max(
+            int(getattr(args, "popt_num_epochs", 256)), 1),
+        "popt_min_data_ways": max(
+            int(getattr(args, "popt_min_data_ways", 1)), 1),
         "popt_matrix_column_bytes": 0,
         "popt_matrix_stream_bytes": 0,
         "popt_matrix_stream_cache_lines": 0,
@@ -628,6 +634,13 @@ def policy_cache_geometry(
             "equal_capacity" if override_ways == 0
             else "baseline_equal_silicon_reference"),
     })
+    transport = ecg_transport_for(spec, args.benchmark)
+    is_k2 = (
+        spec.policy == "ECG" and
+        spec.ecg_mode == "ECG_GRASP_POPT" and
+        transport.schedule_k == 2)
+    if is_k2:
+        metadata["k2_metadata_bits_per_line"] = 49
     if override_ways == 0:
         return metadata
     if override_ways > baseline_ways:
@@ -635,11 +648,6 @@ def policy_cache_geometry(
             f"K2 L3 ways ({override_ways}) cannot exceed baseline "
             f"ways ({baseline_ways})")
 
-    transport = ecg_transport_for(spec, args.benchmark)
-    is_k2 = (
-        spec.policy == "ECG" and
-        spec.ecg_mode == "ECG_GRASP_POPT" and
-        transport.schedule_k == 2)
     if not is_k2:
         return metadata
 
@@ -1640,7 +1648,8 @@ def validate_gem5_compact_k2m_streamshield_rows(
 
 def apply_gem5_variant_receipt(
         row: dict[str, Any], log_text: str,
-        requested: str, required: bool) -> bool:
+        requested: str, required: bool,
+        expected_dueling: int = 0) -> bool:
     """Attest the executing ECG victim variant rather than trusting config."""
     match = re.search(
         r"\[ECG-VARIANT-RECEIPT sim=gem5 requested=([^ ]+) "
@@ -1663,11 +1672,13 @@ def apply_gem5_variant_receipt(
     row["gem5_variant_dueling_receipt"] = dueling
     valid = (
         actual_requested == requested and
-        expected_effective == effective and dueling == 0)
+        expected_effective == effective and
+        dueling == expected_dueling)
     if required and not valid:
         mark_row_error(row, (
             "ECG victim variant receipt mismatch: "
-            f"expected {requested}/{expected_effective}/dueling=0, got "
+            f"expected {requested}/{expected_effective}/"
+            f"dueling={expected_dueling}, got "
             f"{actual_requested}/{effective}/dueling={dueling}"))
     return valid
 
@@ -2310,7 +2321,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["timing_caveat"] = " ".join(
                 part for part in (caveat, trace_caveat) if part)
         apply_gem5_variant_receipt(
-            base, log_text, ecg_variant, required=is_k2_ecg)
+            base, log_text, ecg_variant, required=is_k2_ecg,
+            expected_dueling=int(transport.set_dueling))
         # ecg_record_bytes above is a NOMINAL value derived from the schedule,
         # so it read 8 for every Schedule-2 row even when the guest streamed a
         # compact 4-byte record. Anyone re-parsing the combined CSV would have
@@ -3480,9 +3492,12 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             if spec.ecg_mode else ""
         ),
         "l1d_size": args.l1d_size,
+        "l1d_ways": args.l1d_ways,
         "l2_size": args.l2_size,
+        "l2_ways": args.l2_ways,
         "l3_size": l3_size,
         "l3_ways": args.l3_ways,
+        "line_size": args.line_size,
         "l3_effective_size": (
             charge.get("popt_effective_l3_size", l3_size)
             if charge else l3_size),
