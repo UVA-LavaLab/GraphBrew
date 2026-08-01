@@ -136,6 +136,7 @@ def synthetic_rows(primary_ratio=0.94):
                 if policy == "GRASP":
                     row.update({
                         "grasp_context_loaded": "1",
+                        "grasp_regions_loaded": "2",
                         "grasp_hot_property_accesses": "100",
                     })
                 elif policy == "POPT":
@@ -426,6 +427,12 @@ def test_baseline_activity_and_popt_accounting_fail_closed():
     rows = synthetic_rows()
     grasp = next(row for row in rows if row["policy_label"] == "GRASP")
     grasp["grasp_hot_property_accesses"] = "0"
+    with pytest.raises(ValueError, match="must be positive"):
+        gate().evaluate(rows, config())
+
+    rows = synthetic_rows()
+    grasp = next(row for row in rows if row["policy_label"] == "GRASP")
+    grasp["grasp_regions_loaded"] = "0"
     with pytest.raises(ValueError, match="must be positive"):
         gate().evaluate(rows, config())
 

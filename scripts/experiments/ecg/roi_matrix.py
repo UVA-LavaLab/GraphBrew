@@ -198,6 +198,8 @@ GEM5_STAT_KEYS = {
     "l1_accesses": "system.cpu.dcache.overallAccesses::total",
     "l2_accesses": "system.l2cache.overallAccesses::total",
     "l3_accesses": "system.l3cache.overallAccesses::total",
+    "grasp_hot_property_accesses":
+        "system.l3cache.replacement_policy.hotPropertyAccesses",
     "popt_roi_rereference_queries":
         "system.l3cache.replacement_policy.rereferenceQueries",
     # Demand-load (cpu.data) L3 stats EXCLUDING prefetcher fills. The L2 stream
@@ -1432,6 +1434,22 @@ def apply_gem5_popt_receipt(
     return active
 
 
+def apply_gem5_grasp_receipt(
+        row: dict[str, Any], log_text: str, required: bool) -> bool:
+    match = re.search(
+        r"\[GRASP-ACTIVE sim=gem5 context=1 regions=(\d+)\]",
+        log_text)
+    active = match is not None
+    row["grasp_context_loaded"] = int(active)
+    row["grasp_regions_loaded"] = (
+        int(match.group(1)) if match else 0)
+    if required and not active:
+        mark_row_error(
+            row,
+            "GRASP completed without loading graph context")
+    return active
+
+
 def apply_gem5_geometry_receipt(
         row: dict[str, Any], config_path: Path,
         expected_size: str, expected_ways: str) -> bool:
@@ -2410,6 +2428,8 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["ecg_isa_variant"] = "mask"
         elif "[ECG_K2_ILOAD" in log_text:
             base["ecg_isa_variant"] = "indexed"
+        apply_gem5_grasp_receipt(
+            base, log_text, required=spec.policy == "GRASP")
         apply_gem5_popt_receipt(
             base, log_text, required=spec.policy == "POPT")
         apply_gem5_geometry_receipt(
@@ -2567,6 +2587,11 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     })
     row.setdefault("status", "ok")
     row.update(sections[0])
+    if spec.policy == "GRASP" and int(
+            row.get("grasp_hot_property_accesses") or 0) <= 0:
+        mark_row_error(
+            row,
+            "GRASP made no hot-tier property classifications in the ROI")
     if spec.policy == "POPT" and int(
             row.get("popt_roi_rereference_queries") or 0) <= 0:
         mark_row_error(

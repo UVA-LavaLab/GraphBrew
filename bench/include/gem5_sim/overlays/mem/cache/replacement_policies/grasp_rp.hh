@@ -22,6 +22,7 @@
 #ifndef __MEM_CACHE_REPLACEMENT_POLICIES_GRASP_RP_HH__
 #define __MEM_CACHE_REPLACEMENT_POLICIES_GRASP_RP_HH__
 
+#include "base/statistics.hh"
 #include "mem/cache/replacement_policies/base.hh"
 #include "mem/cache/replacement_policies/graph_cache_context_gem5.hh"
 #include "params/GraphGraspRP.hh"
@@ -90,6 +91,12 @@ class GraphGraspRP : public Base
     mutable graph::GraphCacheContext ctx;
     mutable bool loadAttempted = false;
     mutable uint64_t loadAttemptCount = 0;
+
+    mutable struct GraspStats : public statistics::Group
+    {
+        GraspStats(statistics::Group* parent);
+        statistics::Scalar hotPropertyAccesses;
+    } graspStats;
 };
 
 } // namespace replacement_policy

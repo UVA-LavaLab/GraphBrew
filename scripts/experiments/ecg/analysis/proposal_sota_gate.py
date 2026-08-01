@@ -248,9 +248,13 @@ def parse_size(value: str) -> int:
 def validate_grasp(row: dict[str, Any]) -> None:
     require_fields(
         row,
-        ("grasp_context_loaded", "grasp_hot_property_accesses"),
+        (
+            "grasp_context_loaded", "grasp_regions_loaded",
+            "grasp_hot_property_accesses",
+        ),
         "GRASP")
     require_text(row, "grasp_context_loaded", "1")
+    require_positive(row, "grasp_regions_loaded")
     require_positive(row, "grasp_hot_property_accesses")
 
 

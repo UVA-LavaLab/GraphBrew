@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 
 namespace gem5 {
 namespace replacement_policy {
@@ -19,7 +20,8 @@ GraphGraspRP::GraphGraspRP(const Params &p)
       numBuckets(p.num_buckets),
       hotFraction(p.hot_fraction),
       llcSize(p.llc_size_bytes),
-      sidebandPath(p.sideband_path)
+      sidebandPath(p.sideband_path),
+      graspStats(this)
 {
 }
 
@@ -34,6 +36,10 @@ GraphGraspRP::tryLoadContext() const
 
     if (ctx.loadFromSideband(sidebandPath)) {
         ctx.loaded = true;
+        std::fprintf(
+            stderr,
+            "[GRASP-ACTIVE sim=gem5 context=1 regions=%u]\n",
+            ctx.num_regions);
     }
 }
 
@@ -45,6 +51,7 @@ GraphGraspRP::invalidate(
     data->rrpv = maxRRPV;
     data->is_property_data = false;
     data->degree_bucket = numBuckets;
+    data->line_addr = 0;
 }
 
 void
@@ -100,6 +107,8 @@ GraphGraspRP::reset(
 {
     auto data = std::static_pointer_cast<GraspReplData>(replacement_data);
     data->rrpv = maxRRPV;
+    data->is_property_data = false;
+    data->line_addr = 0;
 }
 
 ReplaceableEntry*
@@ -132,7 +141,10 @@ GraphGraspRP::classifyAddress(uint64_t addr) const
 {
     if (ctx.loaded) {
         uint32_t tier = ctx.classifyGRASP(addr, llcSize, hotFraction);
-        if (tier == 1) return ReuseTier::HIGH;
+        if (tier == 1) {
+            ++graspStats.hotPropertyAccesses;
+            return ReuseTier::HIGH;
+        }
         if (tier == 2) return ReuseTier::MODERATE;
         return ReuseTier::LOW;
     }
@@ -153,10 +165,13 @@ GraphGraspRP::insertionRRPV(ReuseTier tier) const
 void
 GraphGraspRP::promoteOnHit(GraspReplData* data) const
 {
-    if (ctx.loaded && ctx.isPropertyData(data->line_addr)) {
+    if (
+            data->line_addr != 0 &&
+            ctx.loaded && ctx.isPropertyData(data->line_addr)) {
         data->is_property_data = true;
         uint32_t tier = ctx.classifyGRASP(data->line_addr, llcSize, hotFraction);
         if (tier == 1) {
+            ++graspStats.hotPropertyAccesses;
             data->rrpv = 0;
         } else if (data->rrpv > 0) {
             data->rrpv--;
@@ -165,6 +180,14 @@ GraphGraspRP::promoteOnHit(GraspReplData* data) const
     } else if (data->rrpv > 0) {
         data->rrpv--;
     }
+}
+
+GraphGraspRP::GraspStats::GraspStats(statistics::Group* parent)
+  : statistics::Group(parent),
+    ADD_STAT(
+        hotPropertyAccesses,
+        "Number of GRASP hot-tier property classifications")
+{
 }
 
 } // namespace replacement_policy
