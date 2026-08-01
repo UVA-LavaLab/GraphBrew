@@ -2141,6 +2141,9 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         if compact_k2m_verify_requested:
             env["ECG_STREAM_BYPASS_TRACE"] = "2048"
             env["ECG_K2_DELIVERY_TRACE"] = "2048"
+            if transport.set_dueling:
+                env["ECG_STREAM_BYPASS_TRACE"] = "131072"
+                env["ECG_K2_DELIVERY_TRACE"] = "131072"
         else:
             disable_gem5_event_traces(env)
     else:

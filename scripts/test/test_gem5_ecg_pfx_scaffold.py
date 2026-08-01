@@ -1061,6 +1061,8 @@ def test_proposal_o3_manifest_profile_is_exact_and_mechanism_only():
     paper_run = read("scripts/experiments/ecg/flows/paper_run.py")
     assert 'env["ECG_K2_DELIVERY_TRACE"] = "2048"' in runner
     assert 'env["ECG_STREAM_BYPASS_TRACE"] = "2048"' in runner
+    assert 'env["ECG_K2_DELIVERY_TRACE"] = "131072"' in runner
+    assert 'env["ECG_STREAM_BYPASS_TRACE"] = "131072"' in runner
     assert "max(k2_trace, 2048)" not in runner
     assert "max(bypass_trace, 2048)" not in runner
     assert '"mechanism_probe_exact_request"' in runner
