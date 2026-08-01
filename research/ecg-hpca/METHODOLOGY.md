@@ -356,10 +356,16 @@ ratios against LRU, GRASP, and charged P-OPT. The K2-LRU+StreamShield arm
 separates complete-design gains from replacement-policy gains, while uncharged
 P-OPT is an oracle attribution control.
 
-The screen remains blocked until trace-free proposal timing, target-time P-OPT
-streaming, stable O3 baselines, online correctness, one admissible online row,
-and a whole-cell execution budget are available. These are research blockers,
-not cryptographic qualifications.
+The trace-free proposal timing mode reuses the correctness-proven architectural
+path with per-event tracing disabled. It does not fuse two graph accesses into
+one: ordinary PageRank loads an edge ID and then its property, while the
+proposal loads the replacing 4-byte K2 record and then uses K2-M in place of
+the ordinary property load. Recovering the vertex ID from the widened record
+adds one register extraction in the current guest and is charged to K2; it is
+not another memory access or a software record decode. The screen remains
+blocked until one O3 timing row validates this mode, target-time P-OPT
+streaming is available, the O3 baselines are stable, online correctness has one
+admissible row, and the whole-cell execution budget is approved.
 
 The charged P-OPT screen uses a three-slot overlap buffer: columns `e` and
 `e+1` remain readable while `e+2` is streamed. This costs two reserved ways in

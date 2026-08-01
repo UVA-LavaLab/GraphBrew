@@ -350,6 +350,9 @@ def apply_screen_config(
     if iteration not in [int(value) for value in screen["iterations"]]:
         raise SystemExit(
             f"screen iteration {iteration} is not declared by {path_text}")
+    if screen["k2_timing_mode"] != "compact_trace_free":
+        raise SystemExit(
+            f"unsupported K2 timing mode {screen['k2_timing_mode']!r}")
 
     merged = dict(settings)
     screen_env = dict(settings.get("env", {}))
@@ -365,6 +368,7 @@ def apply_screen_config(
         "gem5_cpu_type": screen["cpu_type"],
         "ecg_isa_variant": screen["isa_variant"],
         "ecg_epochs": int(screen["k2_epochs"]),
+        "gem5_compact_k2m_performance": True,
         "popt_reserve_model": "size_correct",
         "popt_property_bytes": int(screen["popt_model"]["property_bytes"]),
         "popt_active_columns": int(
@@ -651,6 +655,8 @@ def make_roi_job(
         command.append("--gem5-compact-fused")
     if settings.get("gem5_compact_k2m_streamshield"):
         command.append("--gem5-compact-k2m-streamshield")
+    if settings.get("gem5_compact_k2m_performance"):
+        command.append("--gem5-compact-k2m-performance")
     if settings.get("gem5_cpu_type"):
         command.extend([
             "--gem5-cpu-type", str(settings["gem5_cpu_type"]),

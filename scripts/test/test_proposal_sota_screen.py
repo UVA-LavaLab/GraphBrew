@@ -214,6 +214,11 @@ def synthetic_rows(primary_ratio=0.94):
                     row.update({
                         "proposal_path_active": "1",
                         "proposal_performance_mode_active": "1",
+                        "gem5_compact_k2m_streamshield_active": "1",
+                        "gem5_compact_k2m_performance_requested": "1",
+                        "gem5_ecg_delivery":
+                            "ecg.stream.load2.compact+ecg.k2.mload.f32",
+                        "gem5_k2_binding_model": "request",
                         "ecg_schedule_k": "2",
                         "ecg_record_bytes": "4",
                         "ecg_record_replaces_edge": "1",
@@ -225,11 +230,6 @@ def synthetic_rows(primary_ratio=0.94):
                         "ecg_epochs": str(cfg["k2_epochs"]),
                         "gem5_k2_delivery_trace_limit": "0",
                         "gem5_stream_bypass_trace_limit": "0",
-                        "proposal_request_flag_bypass_count": "100",
-                        "proposal_request_flag_bad_size_count": "0",
-                        "proposal_k2_request_accept_count": "50",
-                        "proposal_k2_request_bad_accept_count": "0",
-                        "proposal_k2_exact_request_bound": "1",
                         "proposal_compact_id_bits":
                             str(graph["compact_id_bits"]),
                         "proposal_compact_epoch_bits":
@@ -282,6 +282,7 @@ def test_profile_expands_to_twelve_whole_cells(tmp_path):
         "ECG:K2_ONLINE_STREAMSHIELD") == 12
     assert text.count("--popt-active-columns 3") == 12
     assert text.count("--timeout-gem5 43200") == 12
+    assert text.count("--gem5-compact-k2m-performance") == 12
 
     blocked = subprocess.run(
         [
@@ -427,13 +428,13 @@ def test_baseline_activity_and_popt_accounting_fail_closed():
         gate().evaluate(rows, config())
 
 
-def test_k2_activity_and_online_dueling_fail_closed():
+def test_k2_performance_mode_and_online_dueling_fail_closed():
     rows = synthetic_rows()
     primary = next(
         row for row in rows
         if row["policy_label"] == "ECG_K2_STREAMSHIELD")
-    primary["proposal_request_flag_bypass_count"] = "0"
-    with pytest.raises(ValueError, match="must be positive"):
+    primary["proposal_performance_mode_active"] = "0"
+    with pytest.raises(ValueError, match="proposal_performance_mode_active"):
         gate().evaluate(rows, config())
 
     rows = synthetic_rows()

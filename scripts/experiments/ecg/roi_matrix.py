@@ -1319,6 +1319,16 @@ def scrub_cell_mechanism_env(env: dict[str, str]) -> None:
     env.update(diagnostics)
 
 
+def disable_gem5_event_traces(env: dict[str, str]) -> None:
+    for key in (
+            "ECG_K2_DELIVERY_TRACE",
+            "ECG_STREAM_BYPASS_TRACE",
+            "GEM5_ECG_EXT_TRACE",
+            "ECG_EVICT_TRACE",
+            "ECG_EVICT_TRACE_ROI"):
+        env.pop(key, None)
+
+
 def apply_explicit_cell_mechanism_env(
         env: dict[str, str], spec: PolicySpec) -> None:
     raw = os.environ.get("GRAPHBREW_EXPLICIT_CELL_ENV", "{}")
@@ -1370,8 +1380,13 @@ def mark_row_error(row: dict[str, Any], message: str) -> None:
 
 
 def apply_gem5_compact_k2m_streamshield_receipt(
-        row: dict[str, Any], log_text: str, requested: bool) -> bool:
-    """Attest the proposal's two one-for-one loads from the guest receipt."""
+        row: dict[str, Any], log_text: str, requested: bool,
+        require_trace_receipts: bool = True,
+        performance_requested: bool = False) -> bool:
+    """Validate the proposal path, with traces required only for mechanism rows."""
+    format_receipt = re.search(
+        r"\[ECG_K2_MLOAD_C_SS\][^\n]*"
+        r"id_bits=(\d+) epoch_bits=(\d+)", log_text)
     active = "[ECG_K2_MLOAD_C_SS]" in log_text
     row["gem5_compact_k2m_streamshield_active"] = int(active)
     if active:
@@ -1404,15 +1419,27 @@ def apply_gem5_compact_k2m_streamshield_receipt(
     row["gem5_stream_bypass_request_flag_bad_size_events"] = bad_size_events
     row["gem5_stream_bypass_all_events"] = len(all_bypass_lines)
     row["gem5_stream_bypass_range_events"] = len(range_lines)
-    if requested and (
-            not active or request_flag_events == 0 or
+    if format_receipt:
+        row["proposal_compact_id_bits"] = int(format_receipt.group(1))
+        row["proposal_compact_epoch_bits"] = int(format_receipt.group(2))
+        row["proposal_compact_tier_bits"] = 2
+    row["proposal_performance_mode_active"] = int(
+        performance_requested and active and format_receipt is not None)
+    if requested and not active:
+        mark_row_error(row, (
+            "proposal compact K2-M+StreamShield was requested but "
+            "the guest emitted no ECG_K2_MLOAD_C_SS activation receipt"))
+    elif performance_requested and format_receipt is None:
+        mark_row_error(row, (
+            "trace-free proposal timing was requested but the guest emitted "
+            "no compact field-width receipt"))
+    elif require_trace_receipts and requested and (
+            request_flag_events == 0 or
             size4_events == 0 or bad_size_events != 0 or
             len(all_bypass_lines) != request_flag_events or range_lines):
         mark_row_error(row, (
             "proposal compact K2-M+StreamShield was requested but "
-            + ("the guest emitted no ECG_K2_MLOAD_C_SS activation receipt"
-               if not active else
-               "the LLC emitted no request-flag StreamShield receipt"
+            + ("the LLC emitted no request-flag StreamShield receipt"
                if request_flag_events == 0 else
                "the request-flag StreamShield receipts did not attest "
                "only 4-byte request-flag record requests")))
@@ -1944,8 +1971,13 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     compact_fused_requested = (
         bool(args.gem5_compact_fused) or
         env.get("GEM5_ECG_COMPACT_FUSED") == "1")
+    compact_k2m_verify_requested = (
+        bool(getattr(args, "gem5_compact_k2m_streamshield", False)))
+    compact_k2m_performance_requested = (
+        bool(getattr(args, "gem5_compact_k2m_performance", False)))
     compact_k2m_streamshield_requested = (
-        bool(args.gem5_compact_k2m_streamshield))
+        compact_k2m_verify_requested or
+        compact_k2m_performance_requested)
     if compact_fused_requested and args.benchmark != "pr":
         raise RuntimeError(
             "fused compact K2 is implemented only for gem5 PageRank; "
@@ -1966,8 +1998,11 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             "ECG_RECORD_VARIABLE_WIDTH": "1",
             "ECG_EXPECT_BYTES_PER_EDGE": "4",
         })
-        env["ECG_STREAM_BYPASS_TRACE"] = "2048"
-        env["ECG_K2_DELIVERY_TRACE"] = "2048"
+        if compact_k2m_verify_requested:
+            env["ECG_STREAM_BYPASS_TRACE"] = "2048"
+            env["ECG_K2_DELIVERY_TRACE"] = "2048"
+        else:
+            disable_gem5_event_traces(env)
     else:
         env.pop("GEM5_ECG_COMPACT_K2M_SS", None)
     k2_isa_name = (
@@ -2197,6 +2232,9 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             str(args.expected_gem5_guest_sha256),
         "gem5_compact_k2m_streamshield_requested": int(
             compact_k2m_streamshield_cell_requested),
+        "gem5_compact_k2m_performance_requested": int(
+            compact_k2m_streamshield_cell_requested and
+            compact_k2m_performance_requested),
         "gem5_cpu_type": args.gem5_cpu_type,
         "gem5_k2_delivery_trace_limit": int(
             env.get("ECG_K2_DELIVERY_TRACE", "0") or 0),
@@ -2214,14 +2252,24 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         base["gem5_ecg_context_id"] = gem5_ecg_context_id
     if gem5_ecg_delivery:
         base["gem5_ecg_delivery"] = gem5_ecg_delivery
-    if compact_k2m_streamshield_cell_requested:
+    if (
+            compact_k2m_streamshield_cell_requested and
+            compact_k2m_verify_requested):
         base["timing_model"] = "mechanism_probe_exact_request"
         base["timing_valid_for_speedup"] = "0"
         base["timing_caveat"] = (
             "Synthetic compact StreamShield plus K2-M O3 correctness gate; "
             "this row is not performance evidence.")
     elif (
-            args.gem5_compact_k2m_streamshield and
+            compact_k2m_streamshield_cell_requested and
+            compact_k2m_performance_requested and
+            args.has_lru_baseline and
+            str(base.get("timing_valid_for_speedup")) == "1"):
+        base["timing_model"] = "architectural_compact_k2m_streamshield"
+        base["timing_valid_for_speedup"] = "1"
+        base["timing_caveat"] = ""
+    elif (
+            compact_k2m_streamshield_requested and
             is_k2_ecg and not transport.stream_bypass):
         base["timing_model"] = "mechanism_semantic_anchor"
         base["timing_valid_for_speedup"] = "0"
@@ -2283,13 +2331,35 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
         apply_gem5_compact_fused_receipt(
             base, log_text, compact_fused_cell_requested)
         apply_gem5_compact_k2m_streamshield_receipt(
-            base, log_text, compact_k2m_streamshield_cell_requested)
-        apply_gem5_request_bound_k2_receipt(
             base, log_text, compact_k2m_streamshield_cell_requested,
+            require_trace_receipts=compact_k2m_verify_requested,
+            performance_requested=(
+                compact_k2m_streamshield_cell_requested and
+                compact_k2m_performance_requested))
+        apply_gem5_request_bound_k2_receipt(
+            base, log_text, (
+                compact_k2m_streamshield_cell_requested and
+                compact_k2m_verify_requested),
             64, require_discriminating=(
-                compact_k2m_streamshield_cell_requested),
+                compact_k2m_streamshield_cell_requested and
+                compact_k2m_verify_requested),
             trace_limit=int(
                 base.get("gem5_k2_delivery_trace_limit") or 0))
+        if (
+                compact_k2m_streamshield_cell_requested and
+                compact_k2m_performance_requested):
+            trace_free = (
+                int(base.get("gem5_k2_delivery_trace_limit") or 0) == 0 and
+                int(base.get("gem5_stream_bypass_trace_limit") or 0) == 0 and
+                int(base.get("gem5_k2_request_trace_events") or 0) == 0 and
+                int(base.get("gem5_stream_bypass_all_events") or 0) == 0)
+            if not trace_free:
+                mark_row_error(
+                    base,
+                    "trace-free proposal timing emitted per-event traces")
+            base["proposal_performance_mode_active"] = int(
+                trace_free and
+                int(base.get("proposal_performance_mode_active") or 0) == 1)
         base["gem5_stream_bypass_trace_saturated"] = int(
             int(base.get("gem5_stream_bypass_trace_limit") or 0) > 0 and
             int(base.get("gem5_stream_bypass_all_events") or 0) >=
@@ -3410,15 +3480,19 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         spec.policy == "ECG" and
         spec.ecg_mode == "ECG_GRASP_POPT" and
         transport.schedule_k == 2)
+    trace_free_gem5_k2m = (
+        simulator == "gem5" and
+        bool(getattr(args, "gem5_compact_k2m_performance", False)) and
+        transport.stream_bypass)
     if (is_k2 and args.ecg_isa_variant == "mask" and
-            simulator in ("gem5", "sniper")):
+            simulator in ("gem5", "sniper") and
+            not trace_free_gem5_k2m):
         timing_model = "prototype_mask_only_load"
         timing_valid_for_speedup = "0"
         timing_caveat = (
-            "K2-M uses Sniper's exact governed-load marker and modeled "
-            "epoch/context channel rather than executing the architectural "
-            "RISC-V CSRs; report timing as diagnostic until fresh matched rows "
-            "are certified.")
+            "K2-M timing is diagnostic unless gem5 executes the architectural "
+            "compact StreamShield record load and request-bound property load "
+            "with per-event tracing disabled.")
 
     effective_ecg_epochs = effective_ecg_epoch_count(
         args.ecg_epochs, transport.schedule_k)
@@ -3910,8 +3984,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
              "PageRank; unsupported kernels fail instead of falling back.")
     parser.add_argument(
         "--gem5-compact-k2m-streamshield", action="store_true",
-        help="Use PR's proposal-faithful 4-byte StreamShield record load "
-             "followed by a one-for-one computed-address K2-M property load.")
+        help="Run PR's traced proposal correctness gate: a 4-byte "
+             "StreamShield record load followed by a one-for-one "
+             "computed-address K2-M property load.")
+    parser.add_argument(
+        "--gem5-compact-k2m-performance", action="store_true",
+        help="Run the same architectural compact K2-M+StreamShield path with "
+             "per-event traces disabled so gem5 target time is admissible.")
     parser.add_argument(
         "--expected-gem5-guest-sha256", default="",
         help="Require the staged RISC-V guest to match this paper-run hash.")
@@ -4022,13 +4101,21 @@ def main(argv: list[str]) -> int:
             "to equal 1")
     if args.threads and args.suite != "sniper":
         raise SystemExit("--threads is currently supported only with --suite sniper")
+    compact_k2m_requested = bool(
+        args.gem5_compact_k2m_streamshield or
+        args.gem5_compact_k2m_performance)
+    if (
+            args.gem5_compact_k2m_streamshield and
+            args.gem5_compact_k2m_performance):
+        raise SystemExit(
+            "choose either --gem5-compact-k2m-streamshield for traced "
+            "correctness or --gem5-compact-k2m-performance for timing")
     if args.gem5_compact_fused and args.suite not in ("gem5", "both"):
         raise SystemExit(
             "--gem5-compact-fused requires --suite gem5 or both")
-    if (args.gem5_compact_k2m_streamshield and
-            args.suite not in ("gem5", "both")):
+    if compact_k2m_requested and args.suite not in ("gem5", "both"):
         raise SystemExit(
-            "--gem5-compact-k2m-streamshield requires --suite gem5 or both")
+            "compact K2-M+StreamShield requires --suite gem5 or both")
     if args.suite in ("gem5", "both"):
         gem5_isa = selected_gem5_isa()
     else:
@@ -4036,31 +4123,29 @@ def main(argv: list[str]) -> int:
     if args.gem5_compact_fused and args.benchmark != "pr":
         raise SystemExit(
             "--gem5-compact-fused is implemented only for --benchmark pr")
-    if (args.gem5_compact_k2m_streamshield and
-            args.benchmark != "pr"):
+    if compact_k2m_requested and args.benchmark != "pr":
         raise SystemExit(
-            "--gem5-compact-k2m-streamshield is implemented only for "
+            "compact K2-M+StreamShield is implemented only for "
             "--benchmark pr")
-    if (args.gem5_compact_k2m_streamshield and
-            args.ecg_isa_variant != "mask"):
+    if compact_k2m_requested and args.ecg_isa_variant != "mask":
         raise SystemExit(
-            "--gem5-compact-k2m-streamshield requires "
+            "compact K2-M+StreamShield requires "
             "--ecg-isa-variant mask")
-    if (args.gem5_compact_k2m_streamshield and
-            args.gem5_cpu_type != "O3"):
+    if compact_k2m_requested and args.gem5_cpu_type != "O3":
         raise SystemExit(
-            "--gem5-compact-k2m-streamshield requires --gem5-cpu-type O3 "
+            "compact K2-M+StreamShield requires --gem5-cpu-type O3 "
             "for exact Request-bound delivery")
-    if (args.gem5_compact_k2m_streamshield and
+    if (
+            compact_k2m_requested and
             parse_size_bytes(str(args.line_size)) != 64):
         raise SystemExit(
-            "--gem5-compact-k2m-streamshield requires --line-size 64 "
+            "compact K2-M+StreamShield requires --line-size 64 "
             "because the gem5 ECG request/fill guard is cache-line based")
     if args.gem5_compact_fused and gem5_isa != "riscv":
         raise SystemExit("--gem5-compact-fused requires RISC-V gem5")
-    if args.gem5_compact_k2m_streamshield and gem5_isa != "riscv":
+    if compact_k2m_requested and gem5_isa != "riscv":
         raise SystemExit(
-            "--gem5-compact-k2m-streamshield requires RISC-V gem5")
+            "compact K2-M+StreamShield requires RISC-V gem5")
     if (getattr(args, "structural_bypass", "off") != "off" and
             args.suite not in ("cache-sim", "both")):
         raise SystemExit(
@@ -4101,13 +4186,14 @@ def main(argv: list[str]) -> int:
     else:
         policy_texts = DEFAULT_POLICIES
     policies = [parse_policy_spec(p) for p in policy_texts]
-    if (args.gem5_compact_k2m_streamshield and
+    if (
+            compact_k2m_requested and
             not any(
                 spec.policy == "ECG" and spec.ecg_stream_bypass and
                 spec.ecg_schedule_k == 2
                 for spec in policies)):
         raise SystemExit(
-            "--gem5-compact-k2m-streamshield requires at least one "
+            "compact K2-M+StreamShield requires at least one "
             "Schedule-2 ECG StreamShield policy")
     args.has_lru_baseline = any(spec.label == "LRU" for spec in policies)
     out_dir = Path(args.out_dir) if args.out_dir else RESULTS_ROOT / now_tag()

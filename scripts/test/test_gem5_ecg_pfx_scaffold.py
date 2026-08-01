@@ -446,8 +446,10 @@ def test_k2_mask_only_variant_is_distinct_from_indexed_load():
     assert "SNIPER_K2_TRANSPORT_MATCHED" in runner
     assert "matched-k2m-sideband-model" in runner
     assert '"prototype_mask_only_load"' in runner
-    assert "exact governed-load marker and modeled" in runner
-    assert "epoch/context channel rather than executing" in runner
+    assert (
+        "compact StreamShield record load and request-bound property load"
+        in runner)
+    assert '"architectural_compact_k2m_streamshield"' in runner
     assert 'row["gem5_ecg_epoch_channel"]' not in runner
     assert 'base["gem5_ecg_epoch_channel"]' in runner
     assert "transport.schedule_k == 2" in runner
@@ -637,6 +639,21 @@ def test_proposal_compact_k2m_streamshield_is_fail_closed():
     assert active["gem5_ecg_delivery"] == (
         "ecg.stream.load2.compact+ecg.k2.mload.f32")
 
+    performance = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
+        performance,
+        "[ECG_K2_MLOAD_C_SS] PR compact StreamShield record load "
+        "+ computed-address masked property load ACTIVE "
+        "(id_bits=16 epoch_bits=5)\n",
+        requested=True,
+        require_trace_receipts=False,
+        performance_requested=True)
+    assert performance["proposal_performance_mode_active"] == 1
+    assert performance["proposal_compact_id_bits"] == 16
+    assert performance["proposal_compact_epoch_bits"] == 5
+    assert performance["proposal_compact_tier_bits"] == 2
+    assert "error" not in performance
+
     missing = {"timing_valid_for_speedup": "1"}
     assert not roi_matrix.apply_gem5_compact_k2m_streamshield_receipt(
         missing, "[ECG_K2_MLOAD] PR ACTIVE", requested=True)
@@ -733,6 +750,67 @@ def test_proposal_compact_k2m_streamshield_cli_guards():
     assert wrong_line.returncode != 0
     assert "requires --line-size 64" in (
         wrong_line.stdout + wrong_line.stderr)
+
+    riscv_env = {
+        **os.environ,
+        "GEM5_OPT": str(
+            PROJECT_ROOT /
+            "bench/include/gem5_sim/gem5/build/RISCV/gem5.opt"),
+        "GEM5_KERNEL_SUFFIX": "_riscv_m5ops",
+    }
+    performance_args = roi_matrix.parse_args([
+        "--suite", "gem5", "--benchmark", "pr",
+        "--ecg-isa-variant", "mask",
+        "--gem5-cpu-type", "O3",
+        "--policies", "LRU", "ECG:K2_STREAMSHIELD",
+        "--gem5-compact-k2m-performance", "--dry-run",
+    ])
+    assert performance_args.gem5_compact_k2m_performance is True
+
+    mixed_modes = subprocess.run(
+        [
+            sys.executable, str(ROI_MATRIX_PATH),
+            "--suite", "gem5", "--benchmark", "pr",
+            "--ecg-isa-variant", "mask",
+            "--gem5-cpu-type", "O3",
+            "--policies", "LRU", "ECG:K2_STREAMSHIELD",
+            "--gem5-compact-k2m-streamshield",
+            "--gem5-compact-k2m-performance", "--dry-run",
+        ],
+        cwd=PROJECT_ROOT, env=riscv_env,
+        capture_output=True, text=True, timeout=60)
+    assert mixed_modes.returncode != 0
+    assert "choose either" in (
+        mixed_modes.stdout + mixed_modes.stderr)
+
+
+def test_trace_free_k2m_does_not_override_other_timing_caveats():
+    args = roi_matrix.parse_args([])
+    args.benchmark = "pr"
+    args.prefetcher = "ECG_PFX"
+    args.ecg_pfx_delivery = "instruction"
+    args.ecg_isa_variant = "mask"
+    args.gem5_compact_k2m_performance = True
+    args.has_lru_baseline = True
+    row = roi_matrix.base_row(
+        "gem5", args,
+        roi_matrix.parse_policy_spec("ECG:K2_STREAMSHIELD"),
+        "32kB")
+    assert row["timing_valid_for_speedup"] == "0"
+    assert row["timing_model"] == "prototype_instruction_delivery"
+
+
+def test_trace_free_k2m_scrubs_all_gem5_event_traces():
+    env = {
+        "ECG_K2_DELIVERY_TRACE": "2048",
+        "ECG_STREAM_BYPASS_TRACE": "2048",
+        "GEM5_ECG_EXT_TRACE": "2048",
+        "ECG_EVICT_TRACE": "2048",
+        "ECG_EVICT_TRACE_ROI": "1",
+        "UNRELATED": "keep",
+    }
+    roi_matrix.disable_gem5_event_traces(env)
+    assert env == {"UNRELATED": "keep"}
 
 
 def test_proposal_request_bound_receipt_matches_request_extension():

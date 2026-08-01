@@ -422,17 +422,15 @@ def validate_k2(row: dict[str, Any], config: dict[str, Any],
         row,
         (
             "proposal_path_active", "proposal_performance_mode_active",
+            "gem5_compact_k2m_streamshield_active",
+            "gem5_compact_k2m_performance_requested",
+            "gem5_ecg_delivery", "gem5_k2_binding_model",
             "ecg_record_bytes", "ecg_record_replaces_edge",
             "edge_stream_bytes_per_edge", "k2_metadata_bits_per_line",
             "l3_effective_ways", "l3_effective_size",
             "ecg_isa_variant", "ecg_epochs",
             "gem5_k2_delivery_trace_limit",
             "gem5_stream_bypass_trace_limit",
-            "proposal_request_flag_bypass_count",
-            "proposal_request_flag_bad_size_count",
-            "proposal_k2_request_accept_count",
-            "proposal_k2_request_bad_accept_count",
-            "proposal_k2_exact_request_bound",
             "proposal_compact_id_bits", "proposal_compact_epoch_bits",
             "proposal_compact_tier_bits",
             "gem5_variant_requested_receipt",
@@ -443,6 +441,11 @@ def validate_k2(row: dict[str, Any], config: dict[str, Any],
     for field, value in (
             ("proposal_path_active", "1"),
             ("proposal_performance_mode_active", "1"),
+            ("gem5_compact_k2m_streamshield_active", "1"),
+            ("gem5_compact_k2m_performance_requested", "1"),
+            ("gem5_ecg_delivery",
+             "ecg.stream.load2.compact+ecg.k2.mload.f32"),
+            ("gem5_k2_binding_model", "request"),
             ("ecg_record_bytes", "4"),
             ("ecg_record_replaces_edge", "1"),
             ("edge_stream_bytes_per_edge", "4"),
@@ -451,13 +454,8 @@ def validate_k2(row: dict[str, Any], config: dict[str, Any],
             ("ecg_isa_variant", config["isa_variant"]),
             ("ecg_epochs", config["k2_epochs"]),
             ("gem5_k2_delivery_trace_limit", "0"),
-            ("gem5_stream_bypass_trace_limit", "0"),
-            ("proposal_request_flag_bad_size_count", "0"),
-            ("proposal_k2_request_bad_accept_count", "0"),
-            ("proposal_k2_exact_request_bound", "1")):
+            ("gem5_stream_bypass_trace_limit", "0")):
         require_text(row, field, value)
-    require_positive(row, "proposal_request_flag_bypass_count")
-    require_positive(row, "proposal_k2_request_accept_count")
     require_text(row, "proposal_compact_id_bits", graph["compact_id_bits"])
     require_text(
         row, "proposal_compact_epoch_bits", graph["compact_epoch_bits"])

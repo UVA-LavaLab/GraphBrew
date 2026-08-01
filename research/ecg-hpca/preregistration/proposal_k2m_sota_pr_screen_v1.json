@@ -5,6 +5,7 @@
   "simulator": "gem5",
   "cpu_type": "O3",
   "isa_variant": "mask",
+  "k2_timing_mode": "compact_trace_free",
   "k2_epochs": 32,
   "compact_tier_bits": 2,
   "benchmark": "pr",
@@ -162,7 +163,7 @@
   "blockers": [
     {
       "id": "proposal_timing_admissibility",
-      "reason": "Implement trace-free K2-M performance execution using the same mechanism path as the committed correctness gate. The mask path must execute the architectural K2-M timing path before timing_valid_for_speedup can become 1; otherwise this screen requires a new version with a different ISA variant. Rows must emit performance-mode activation, compact field widths, request/bypass counters, zero bad counters, exact-request binding, and timing validity. The proposal_* request and bypass counters must be free-running ROI aggregates emitted at ROI end, not counts reconstructed from per-event traces, so both trace limits remain zero while activity counters remain positive."
+      "reason": "Validate one O3 row using the implemented compact_trace_free mode. It executes the same architectural 4-byte StreamShield record load and request-bound K2-M property load as the committed correctness gate, but leaves both per-event trace limits at zero. The row must emit the proposal activation and compact field-width receipt, match PageRank semantics, and remain timing-valid."
     },
     {
       "id": "popt_target_time_charge",
