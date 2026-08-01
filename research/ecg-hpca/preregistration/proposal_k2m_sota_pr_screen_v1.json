@@ -158,10 +158,6 @@
   },
   "blockers": [
     {
-      "id": "popt_analytic_o3_preflight",
-      "reason": "Validate one O3 P-OPT row with the GraphPoptRP rereference path active, size-correct reserved LLC capacity, cumulative per-iteration analytic stream traffic included in dram_offchip_bytes, and the optimistic no-stream-latency timing caveat."
-    },
-    {
       "id": "o3_baseline_stability",
       "reason": "LRU, GRASP, and P-OPT must complete the same O3 preflight. GRASP must emit context-loaded and hot-property access counters; P-OPT must emit context/rereference-loaded receipts and a positive ROI phase-two rereference-query count."
     },
@@ -182,7 +178,7 @@
     "ready": false,
     "policy_sharding_allowed": false,
     "maximum_policy_runtime_seconds": 43200,
-    "note": "The trace-free K2-M timing path is implemented and smoke-tested. Stages remain blocked until the analytic charged P-OPT O3 preflight and the remaining baseline/online/budget preflights are complete."
+    "note": "Trace-free K2-M and analytic charged P-OPT have timing-valid O3 smoke rows. Stages remain blocked until GRASP activation, online correctness/admissibility, and the whole-cell execution budget are complete."
   },
   "resource_scope": {
     "screen": "K2 uses equal data capacity; charged P-OPT loses reserved LLC ways for its matrix.",
