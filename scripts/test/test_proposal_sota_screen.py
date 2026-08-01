@@ -50,7 +50,10 @@ def expected_popt(cfg, graph, iterations):
         int(graph["l3_ways"]))
     reserved_ways = (matrix_bytes + bytes_per_way - 1) // bytes_per_way
     stream_bytes_per_iteration = int(model["epochs"]) * lines
-    target_stream_bytes = stream_bytes_per_iteration * iterations
+    stream_requests_per_iteration = (
+        stream_bytes_per_iteration + line_size - 1) // line_size
+    target_stream_bytes = (
+        stream_requests_per_iteration * iterations * line_size)
     return (
         matrix_bytes, reserved_ways,
         stream_bytes_per_iteration, target_stream_bytes)
@@ -92,6 +95,8 @@ def synthetic_rows(primary_ratio=0.94):
                         iterations=iterations),
                     "policy_label": policy,
                     "timing_valid_for_speedup": "1",
+                    "timing_model": "simulated_target_time",
+                    "timing_caveat": "",
                     "simulator": "gem5",
                     "gem5_cpu_type": "O3",
                     "prefetcher": "none",
@@ -106,6 +111,8 @@ def synthetic_rows(primary_ratio=0.94):
                     "line_size": str(graph["line_size"]),
                     "l3_effective_size": graph["l3_size"],
                     "l3_effective_ways": str(graph["l3_ways"]),
+                    "gem5_l3_size_actual": graph["l3_size"],
+                    "gem5_l3_ways_actual": str(graph["l3_ways"]),
                     "popt_effective_l3_size": graph["l3_size"],
                     "popt_effective_l3_ways": str(graph["l3_ways"]),
                     "popt_reserved_ways": "0",
@@ -144,24 +151,26 @@ def synthetic_rows(primary_ratio=0.94):
                             str(cfg["popt_model"]["epochs"]),
                         "popt_min_data_ways":
                             str(cfg["popt_model"]["minimum_data_ways"]),
-                        "popt_demand_columns_per_epoch": str(
-                            cfg["popt_model"]["demand_columns_per_epoch"]),
-                        "popt_stream_path":
-                            cfg["popt_model"]["stream_path"],
-                        "popt_stream_bypass_l1_l2": "1",
-                        "popt_demand_priority": "1",
-                        "popt_max_outstanding_requests": str(
-                            cfg["popt_model"][
-                                "max_outstanding_requests"]),
                         "popt_reload_each_iteration": "1",
                         "popt_initial_columns_charged": "1",
-                        "popt_conventional_prefetcher": "0",
-                        "popt_target_time_charged": "1",
-                        "popt_matrix_stream_mode": "target_simulated",
+                        "popt_target_time_charged": "0",
+                        "popt_timing_optimistic": "1",
+                        "timing_model":
+                            "optimistic_popt_analytic_stream",
+                        "timing_caveat":
+                            "Matrix-stream latency is omitted; timing "
+                            "therefore favors P-OPT.",
+                        "popt_matrix_stream_mode": "analytic_cumulative",
                         "popt_offchip_includes_matrix_stream": "1",
+                        "popt_policy_active": "1",
                         "popt_context_loaded": "1",
                         "popt_rereference_loaded": "1",
-                        "popt_oracle_queries": "100",
+                        "popt_runtime_epochs":
+                            str(cfg["popt_model"]["epochs"]),
+                        "popt_runtime_cache_lines": str(
+                            stream_bytes_per_iteration //
+                            int(cfg["popt_model"]["epochs"])),
+                        "popt_roi_rereference_queries": "100",
                         "popt_matrix_bytes": str(matrix_bytes),
                         "popt_reserved_ways": str(reserved_ways),
                         "popt_effective_l3_ways": str(
@@ -176,10 +185,17 @@ def synthetic_rows(primary_ratio=0.94):
                             mod.parse_size(graph["l3_size"]) *
                             (int(graph["l3_ways"]) - reserved_ways) //
                             int(graph["l3_ways"])),
+                        "gem5_l3_ways_actual": str(
+                            int(graph["l3_ways"]) - reserved_ways),
+                        "gem5_l3_size_actual": str(
+                            mod.parse_size(graph["l3_size"]) *
+                            (int(graph["l3_ways"]) - reserved_ways) //
+                            int(graph["l3_ways"])),
                         "popt_matrix_stream_bytes":
                             str(stream_bytes_per_iteration),
-                        "popt_target_stream_bytes":
+                        "popt_cumulative_stream_bytes":
                             str(target_stream_bytes),
+                        "popt_matrix_stream_iterations": str(iterations),
                         "popt_matrix_stream_requests": str(
                             target_stream_bytes // int(graph["line_size"])),
                         "popt_dram_offchip_bytes_without_matrix_stream":
@@ -197,7 +213,7 @@ def synthetic_rows(primary_ratio=0.94):
                         "popt_matrix_stream_mode": "none",
                         "popt_matrix_stream_bytes": "0",
                         "popt_matrix_stream_requests": "0",
-                        "popt_target_stream_bytes": "0",
+                        "popt_cumulative_stream_bytes": "0",
                         "popt_matrix_stream_dram_bytes": "0",
                         "popt_stream_requestor_dram_bytes": "0",
                         "popt_dram_offchip_bytes_without_matrix_stream":
@@ -205,9 +221,15 @@ def synthetic_rows(primary_ratio=0.94):
                         "popt_nonstream_requestor_dram_bytes": str(ordinary),
                         "popt_effective_l3_ways": str(graph["l3_ways"]),
                         "popt_effective_l3_size": graph["l3_size"],
+                        "popt_policy_active": "1",
                         "popt_context_loaded": "1",
                         "popt_rereference_loaded": "1",
-                        "popt_oracle_queries": "100",
+                        "popt_runtime_epochs":
+                            str(cfg["popt_model"]["epochs"]),
+                        "popt_runtime_cache_lines": str(
+                            stream_bytes_per_iteration //
+                            int(cfg["popt_model"]["epochs"])),
+                        "popt_roi_rereference_queries": "100",
                     })
                 elif policy.startswith("ECG_K2_"):
                     receipt = cfg["variant_receipts"][policy]
@@ -281,6 +303,7 @@ def test_profile_expands_to_twelve_whole_cells(tmp_path):
         "ECG:K2_LRU_STREAMSHIELD ECG:K2_STREAMSHIELD "
         "ECG:K2_ONLINE_STREAMSHIELD") == 12
     assert text.count("--popt-active-columns 3") == 12
+    assert text.count("--popt-matrix-stream analytic") == 12
     assert text.count("--timeout-gem5 43200") == 12
     assert text.count("--gem5-compact-k2m-performance") == 12
 
@@ -415,16 +438,22 @@ def test_baseline_activity_and_popt_accounting_fail_closed():
 
     rows = synthetic_rows()
     popt = next(row for row in rows if row["policy_label"] == "POPT")
-    popt["popt_max_outstanding_requests"] = "4"
-    with pytest.raises(ValueError, match="popt_max_outstanding_requests"):
+    popt["popt_matrix_stream_iterations"] = "99"
+    with pytest.raises(ValueError, match="popt_matrix_stream_iterations"):
+        gate().evaluate(rows, config())
+
+    rows = synthetic_rows()
+    popt = next(row for row in rows if row["policy_label"] == "POPT")
+    popt["popt_roi_rereference_queries"] = "0"
+    with pytest.raises(ValueError, match="must be positive"):
         gate().evaluate(rows, config())
 
     rows = synthetic_rows()
     oracle = next(
         row for row in rows
         if row["policy_label"] == "POPT_UNCHARGED")
-    oracle["popt_oracle_queries"] = "99"
-    with pytest.raises(ValueError, match="query work differs"):
+    oracle["popt_policy_active"] = "0"
+    with pytest.raises(ValueError, match="popt_policy_active"):
         gate().evaluate(rows, config())
 
 

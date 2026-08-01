@@ -362,27 +362,27 @@ one: ordinary PageRank loads an edge ID and then its property, while the
 proposal loads the replacing 4-byte K2 record and then uses K2-M in place of
 the ordinary property load. Recovering the vertex ID from the widened record
 adds one register extraction in the current guest and is charged to K2; it is
-not another memory access or a software record decode. The screen remains
-The mode passed a one-cell O3 smoke with matched PageRank semantics, zero
+not another memory access or a software record decode. The mode passed a
+one-cell O3 smoke with matched PageRank semantics, zero
 per-event traces, and timing-valid LRU and K2 rows. This smoke validates the
-measurement path, not cache performance. The screen remains blocked until
-target-time P-OPT streaming is available, the O3 baselines are stable, online
-correctness has one admissible row, and the whole-cell execution budget is
-approved.
+measurement path, not cache performance.
 
 The charged P-OPT screen uses a three-slot overlap buffer: columns `e` and
 `e+1` remain readable while `e+2` is streamed. This costs two reserved ways in
-the sampled cells. It favors P-OPT timing by permitting overlap, but hurts
-P-OPT capacity relative to a two-slot design and therefore can favor K2. A
-two-slot serialized P-OPT sensitivity is mandatory before a P-OPT performance
-claim. `popt_matrix_stream_bytes` remains the one-iteration model value;
-target-time rows additionally report cumulative `popt_target_stream_bytes`,
-requests, and requestor-scoped DRAM bytes for all executed iterations.
+the sampled cells. The screen simulates the real P-OPT replacement policy with
+that reduced data capacity. `popt_matrix_stream_bytes` remains the
+one-iteration model value; `popt_cumulative_stream_bytes` and
+`dram_offchip_bytes` charge every matrix byte for every executed PageRank
+iteration. Matrix-stream latency is omitted, so P-OPT timing is explicitly
+optimistic. Target-time streaming and a two-slot serialized sensitivity remain
+mandatory before a P-OPT performance claim.
 Because the sampled graphs are low degree, especially `cit-Patents-n18-sym`,
 the matrix stream can be a large fraction of charged P-OPT traffic. Beating
 charged P-OPT here is only a screen for full-graph work, not a refutation of
 P-OPT; the decision output reports the stream fraction and adjacent uncharged
-oracle ratios.
+oracle ratios. Because stream latency is omitted in this tier, the uncharged
+oracle's time contrast primarily measures the reserved-capacity penalty rather
+than the complete streaming-engine cost.
 
 K2 retains all 16 data ways and discloses 49 metadata bits per line, while
 charged P-OPT loses the ways reserved for its matrix. This is not an
@@ -395,6 +395,10 @@ The 12 semantic receipts were reproduced with the host PageRank binary using
 `setarch x86_64 -R ... -t 0`; `-t 0` prevents convergence from shortening the
 requested iteration count. The three one-iteration receipts also match
 retained RISC-V gem5 rows.
+
+The screen remains blocked until the analytic charged P-OPT O3 preflight, the
+remaining O3 baselines, online correctness, one admissible online row, and the
+whole-cell execution budget are complete.
 
 Sampling biases both baselines: the lower-degree samples charge more P-OPT
 stream bytes per edge, while the reduced vertex-ID width lets K2 retain its

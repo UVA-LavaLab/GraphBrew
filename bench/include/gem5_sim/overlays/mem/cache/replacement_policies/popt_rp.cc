@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <vector>
 
 namespace gem5 {
@@ -22,7 +23,8 @@ GraphPoptRP::GraphPoptRP(const Params &p)
     : Base(p),
       maxRRPV(p.max_rrpv),
       sidebandPath(p.sideband_path),
-      poptMatrixPath(p.popt_matrix_path)
+      poptMatrixPath(p.popt_matrix_path),
+      poptStats(this)
 {
 }
 
@@ -153,12 +155,23 @@ GraphPoptRP::getVictim(const ReplacementCandidates& candidates) const
     }
 
     // Phase 2: find max rereference distance among property lines.
+    if (!activeAnnounced) {
+        activeAnnounced = true;
+        std::fprintf(
+            stderr,
+            "[POPT-ACTIVE sim=gem5 context=1 reref=1 phase2=1 epochs=%u "
+            "cache_lines=%u]\n",
+            ctx.rereference.num_epochs,
+            ctx.rereference.num_cache_lines);
+    }
+
     uint8_t maxDist = 0;
     std::vector<std::pair<ReplaceableEntry*, uint8_t>> wayDists;
     wayDists.reserve(candidates.size());
 
     for (const auto& c : candidates) {
         auto d = std::static_pointer_cast<PoptReplData>(c->replacementData);
+        ++poptStats.rereferenceQueries;
         uint32_t dist = ctx.findNextRef(d->line_addr);
         uint8_t d8 = static_cast<uint8_t>(std::min(dist, uint32_t(127)));
         wayDists.emplace_back(c, d8);
@@ -188,6 +201,14 @@ std::shared_ptr<ReplacementData>
 GraphPoptRP::instantiateEntry()
 {
     return std::make_shared<PoptReplData>(maxRRPV);
+}
+
+GraphPoptRP::PoptStats::PoptStats(statistics::Group* parent)
+  : statistics::Group(parent),
+    ADD_STAT(
+        rereferenceQueries,
+        "Number of P-OPT phase-two rereference-matrix queries")
+{
 }
 
 } // namespace replacement_policy

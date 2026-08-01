@@ -315,18 +315,19 @@ def report_idealised_mechanisms(rows) -> None:
         if r["_graph"] in seen:
             continue
         mode = r.get("popt_matrix_stream_mode")
-        extra = num(r.get("popt_matrix_stream_bytes")) or 0.0
-        if mode == "analytic" and extra > 0:
+        extra = num(r.get("popt_cumulative_stream_bytes")) or 0.0
+        if str(mode).startswith("analytic") and extra > 0:
             seen.add(r["_graph"])
             idealised.append((r["_graph"], extra,
-                              num(r.get("dram_offchip_bytes")) or 0.0))
+                              num(r.get(
+                                  "popt_dram_offchip_bytes_without_matrix_stream"))
+                              or 0.0))
     if idealised:
-        print("  P-OPT: rereference-matrix stream is ANALYTIC, not simulated.")
+        print("  P-OPT: matrix-stream bytes are charged analytically.")
         print("  gem5 reads the matrix from a sideband file, so its column")
-        print("  traffic never enters the memory system: P-OPT is charged for")
-        print("  LLC CAPACITY (reserved ways) but not for the bandwidth or the")
-        print("  latency of streaming columns. K2 by contrast pays for its")
-        print("  records in full, in both bytes and instructions.")
+        print("  traffic is added to off-chip bytes for every iteration, but")
+        print("  it does not contend for bandwidth or add target-time latency.")
+        print("  P-OPT timing is therefore an optimistic lower bound.")
         print()
         print(f"    {'graph':<24}{'offchip':>12}{'+matrix':>12}{'understated':>13}")
         for graph, extra, base in idealised:
@@ -334,9 +335,8 @@ def report_idealised_mechanisms(rows) -> None:
                 print(f"    {graph:<24}{base:>12,.0f}{base + extra:>12,.0f}"
                       f"{extra / base * 100:>12.1f}%")
         print()
-        print("  => Under the frozen metrics, an idealised mechanism is")
-        print("     INELIGIBLE for a performance claim. The P-OPT rows below")
-        print("     are an upper bound on P-OPT, not a comparable baseline.")
+        print("  => The P-OPT rows below are a conservative timing baseline")
+        print("     for K2, not a target-time P-OPT performance claim.")
     else:
         print("  no analytic-only mechanism detected in these rows")
 

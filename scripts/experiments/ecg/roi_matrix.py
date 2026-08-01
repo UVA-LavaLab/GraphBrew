@@ -198,6 +198,8 @@ GEM5_STAT_KEYS = {
     "l1_accesses": "system.cpu.dcache.overallAccesses::total",
     "l2_accesses": "system.l2cache.overallAccesses::total",
     "l3_accesses": "system.l3cache.overallAccesses::total",
+    "popt_roi_rereference_queries":
+        "system.l3cache.replacement_policy.rereferenceQueries",
     # Demand-load (cpu.data) L3 stats EXCLUDING prefetcher fills. The L2 stream
     # prefetcher otherwise dominates overall::total (>>demand). Sniper's NUCA
     # counters do not provide this split, so the pipeline treats its prefetched
@@ -373,15 +375,26 @@ def miss_rate(misses: Any, accesses: Any) -> float | None:
     return miss_count / access_count
 
 
+def estimate_num_iterations(options: str) -> int | None:
+    parts = shlex.split(options)
+    for index, part in enumerate(parts):
+        if part == "-i" and index + 1 < len(parts):
+            return int(parts[index + 1])
+        if part.startswith("-i") and part[2:].isdigit():
+            return int(part[2:])
+    return None
+
+
 def apply_overhead_metrics(row: dict[str, Any]) -> None:
-    """Charge P-OPT's rereference-matrix stream, once and in the right column.
+    """Charge P-OPT's rereference-matrix stream without double-counting.
 
     Two accounting modes exist and must never both apply:
 
     * ``simulated`` -- cache_sim issued the column stream as real accesses
       (``POPT_MATRIX_STREAM_SIM=1``), so it is already inside ``l3_misses`` and
       ``total_memory_traffic``. Adding the flat charge here would double-count.
-    * ``analytic`` -- the stream was not simulated, so it is added post hoc.
+    * ``analytic`` -- the stream was not simulated, so each PageRank iteration
+      is charged post hoc while target-time stream latency remains omitted.
 
     The analytic mode is only symmetric with K2 when no prefetcher is active.
     K2's edge records are simulated accesses a structure prefetcher covers,
@@ -403,14 +416,34 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
             "--popt-matrix-stream simulated was requested but no matrix-stream "
             "lines were observed; the stream is implemented in cache_sim only")
         return
+    iteration_value = (
+        row.get("pr_iterations") or
+        estimate_num_iterations(str(row.get("options", ""))))
+    if charged and iteration_value in (None, ""):
+        mark_row_error(
+            row,
+            "charged P-OPT row has no PageRank iteration count")
+    iterations = max(int(iteration_value or 1), 1)
+    row["popt_matrix_stream_iterations"] = iterations if charged else 0
     if simulated > 0:
         row["popt_matrix_stream_mode"] = "simulated"
         stream_lines = 0
     else:
-        row["popt_matrix_stream_mode"] = "analytic" if charged else "none"
+        row["popt_matrix_stream_mode"] = (
+            "analytic_cumulative" if charged else "none")
         stream_lines = (
-            int(row.get("popt_matrix_stream_cache_lines") or 0) if charged else 0
-        )
+            int(row.get("popt_matrix_stream_cache_lines") or 0) * iterations
+            if charged else 0)
+    line_size = parse_size_bytes(str(row.get("line_size") or "64"))
+    stream_bytes = stream_lines * line_size
+    row["popt_cumulative_stream_bytes"] = stream_bytes
+    row["popt_matrix_stream_requests"] = stream_lines
+    row["popt_matrix_stream_dram_bytes"] = stream_bytes
+    row["popt_stream_requestor_dram_bytes"] = stream_bytes
+    row["popt_target_time_charged"] = 0
+    row["popt_timing_optimistic"] = int(charged and simulated <= 0)
+    row["popt_reload_each_iteration"] = int(charged)
+    row["popt_initial_columns_charged"] = int(charged)
     # The frozen primary metric on a timing backend: memory-controller bytes in
     # BOTH directions. gem5 reports reads and writes separately; combine them
     # once here so no downstream consumer has to remember to.
@@ -418,16 +451,27 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
     wr = row.get("dram_write_bytes")
     if rd not in (None, "") and wr not in (None, ""):
         try:
-            row["dram_offchip_bytes"] = int(float(rd)) + int(float(wr))
+            without_stream = int(float(rd)) + int(float(wr))
+            row["popt_dram_offchip_bytes_without_matrix_stream"] = (
+                without_stream)
+            row["popt_nonstream_requestor_dram_bytes"] = without_stream
+            row["dram_offchip_bytes"] = without_stream + stream_bytes
+            row["popt_offchip_includes_matrix_stream"] = int(charged)
         except (TypeError, ValueError):
             pass
     l3_misses = row.get("l3_misses")
     if l3_misses not in (None, ""):
         row["l3_misses_with_overhead"] = int(l3_misses) + stream_lines
+        if charged:
+            row["popt_charged_l3_misses_plus_matrix_stream"] = (
+                int(l3_misses) + stream_lines)
     traffic = row.get("total_memory_traffic")
     if traffic not in (None, ""):
         row["total_memory_traffic_with_overhead"] = (
             int(traffic) + stream_lines)
+        if charged:
+            row["popt_charged_total_memory_traffic"] = (
+                int(traffic) + stream_lines)
 
 
 def annotate_l3_pressure(row: dict[str, Any]) -> dict[str, Any]:
@@ -1368,6 +1412,49 @@ def apply_gem5_compact_fused_receipt(
     return active
 
 
+def apply_gem5_popt_receipt(
+        row: dict[str, Any], log_text: str, required: bool) -> bool:
+    match = re.search(
+        r"\[POPT-ACTIVE sim=gem5 context=1 reref=1 phase2=1 "
+        r"epochs=(\d+) cache_lines=(\d+)\]",
+        log_text)
+    active = match is not None
+    row["popt_policy_active"] = int(active)
+    row["popt_context_loaded"] = int(active)
+    row["popt_rereference_loaded"] = int(active)
+    if match:
+        row["popt_runtime_epochs"] = int(match.group(1))
+        row["popt_runtime_cache_lines"] = int(match.group(2))
+    if required and not active:
+        mark_row_error(
+            row,
+            "P-OPT completed without entering the rereference victim path")
+    return active
+
+
+def apply_gem5_geometry_receipt(
+        row: dict[str, Any], config_path: Path,
+        expected_size: str, expected_ways: str) -> bool:
+    try:
+        config = json.loads(config_path.read_text())
+        l3 = config["system"]["l3cache"]
+        actual_size = parse_size_bytes(str(l3["size"]))
+        actual_ways = int(l3["assoc"])
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        mark_row_error(row, "gem5 config is missing the realized LLC geometry")
+        return False
+    row["gem5_l3_size_actual"] = actual_size
+    row["gem5_l3_ways_actual"] = actual_ways
+    valid = (
+        actual_size == parse_size_bytes(str(expected_size)) and
+        actual_ways == int(expected_ways))
+    if not valid:
+        mark_row_error(
+            row,
+            "gem5 realized LLC geometry differs from the charged geometry")
+    return valid
+
+
 def mark_row_error(row: dict[str, Any], message: str) -> None:
     """Preserve every failing gate instead of replacing the first cause."""
     existing = str(row.get("error") or "").strip()
@@ -1879,11 +1966,6 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         if expected not in log_text:
             row["status"] = "error"
             row["error"] = "StreamShield requested but cache_sim bypass path was inactive"
-    if spec.charge_popt_overhead:
-        stream_lines = int(row.get("popt_matrix_stream_cache_lines") or 0)
-        traffic = row.get("total_memory_traffic")
-        if traffic not in (None, ""):
-            row["popt_charged_total_memory_traffic"] = int(traffic) + stream_lines
     apply_overhead_metrics(row)
     row.update(parse_ecg_log_stats(log_path))
     return [row]
@@ -2328,6 +2410,11 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
             base["ecg_isa_variant"] = "mask"
         elif "[ECG_K2_ILOAD" in log_text:
             base["ecg_isa_variant"] = "indexed"
+        apply_gem5_popt_receipt(
+            base, log_text, required=spec.policy == "POPT")
+        apply_gem5_geometry_receipt(
+            base, gem5_out / "config.json",
+            effective_l3_size, effective_l3_ways)
         apply_gem5_compact_fused_receipt(
             base, log_text, compact_fused_cell_requested)
         apply_gem5_compact_k2m_streamshield_receipt(
@@ -2480,12 +2567,11 @@ def run_gem5(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size:
     })
     row.setdefault("status", "ok")
     row.update(sections[0])
-    if spec.charge_popt_overhead:
-        stream_lines = int(row.get("popt_matrix_stream_cache_lines") or 0)
-        l3_misses = row.get("l3_misses")
-        if l3_misses not in (None, ""):
-            row["popt_charged_l3_misses_plus_matrix_stream"] = (
-                int(l3_misses) + stream_lines)
+    if spec.policy == "POPT" and int(
+            row.get("popt_roi_rereference_queries") or 0) <= 0:
+        mark_row_error(
+            row,
+            "P-OPT performed no phase-two rereference queries in the ROI")
     apply_overhead_metrics(row)
     if (transport.stream_adaptive and
             not int(row.get("gem5_stream_adaptive_active") or 0)):
@@ -3475,6 +3561,22 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             "This invocation has no within-run LRU cell. Under the frozen "
             "comparison rules it is mechanism/correctness evidence only and "
             "cannot support a speedup claim.")
+
+    if (
+            spec.policy == "POPT" and charge and
+            int(charge.get("popt_overhead_charged", 0)) == 1 and
+            simulator == "gem5" and
+            getattr(args, "popt_matrix_stream", "analytic") == "analytic"):
+        if timing_valid_for_speedup == "1":
+            timing_model = "optimistic_popt_analytic_stream"
+        timing_caveat = " ".join(
+            part for part in (
+                timing_caveat,
+                "P-OPT replacement and reduced LLC capacity are simulated, "
+                "while cumulative matrix-stream traffic is charged "
+                "analytically and its latency is omitted; timing therefore "
+                "favors P-OPT.")
+            if part)
 
     is_k2 = (
         spec.policy == "ECG" and

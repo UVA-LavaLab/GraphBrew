@@ -129,6 +129,7 @@ def validate_common_row(
             "pr_result_matched", "l3_exercised",
             "l1d_size", "l1d_ways", "l2_size", "l2_ways",
             "l3_size", "l3_ways", "line_size",
+            "gem5_l3_size_actual", "gem5_l3_ways_actual",
             "final_job_id", "options", "pr_iterations", "pr_semantic_edges",
             "pr_score_checksum", *config["metrics"]["primary"],
             *config["metrics"]["secondary"],
@@ -220,14 +221,18 @@ def expected_popt(config: dict[str, Any], graph: dict[str, Any],
         raise ValueError(
             f"{graph['name']} P-OPT effective ways differ from the screen")
     stream_bytes_per_iteration = int(model["epochs"]) * column_bytes
-    target_stream_bytes = stream_bytes_per_iteration * iteration
+    stream_requests_per_iteration = (
+        stream_bytes_per_iteration + line_size - 1) // line_size
+    stream_requests = stream_requests_per_iteration * iteration
+    cumulative_stream_bytes = stream_requests * line_size
     return {
+        "matrix_column_bytes": column_bytes,
         "matrix_bytes": matrix_bytes,
         "reserved_ways": reserved_ways,
         "effective_ways": effective_ways,
         "stream_bytes_per_iteration": stream_bytes_per_iteration,
-        "target_stream_bytes": target_stream_bytes,
-        "stream_requests": target_stream_bytes // line_size,
+        "cumulative_stream_bytes": cumulative_stream_bytes,
+        "stream_requests": stream_requests,
     }
 
 
@@ -275,6 +280,8 @@ def validate_baseline(
             row, "popt_effective_l3_size", graph["l3_size"])
         require_text(row, "l3_effective_ways", graph["l3_ways"])
         require_size(row, "l3_effective_size", graph["l3_size"])
+        require_text(row, "gem5_l3_ways_actual", graph["l3_ways"])
+        require_size(row, "gem5_l3_size_actual", graph["l3_size"])
 
 
 def validate_popt(row: dict[str, Any], config: dict[str, Any],
@@ -287,20 +294,20 @@ def validate_popt(row: dict[str, Any], config: dict[str, Any],
             "popt_matrix_active_columns", "popt_num_epochs",
             "popt_min_data_ways", "popt_target_time_charged",
             "popt_matrix_stream_mode", "popt_offchip_includes_matrix_stream",
-            "popt_context_loaded", "popt_rereference_loaded",
-            "popt_oracle_queries", "popt_matrix_bytes",
+            "popt_policy_active", "popt_context_loaded",
+            "popt_rereference_loaded", "popt_runtime_epochs",
+            "popt_runtime_cache_lines", "popt_roi_rereference_queries",
+            "popt_matrix_bytes",
             "popt_reserved_ways", "popt_effective_l3_ways",
-            "popt_matrix_stream_bytes", "popt_target_stream_bytes",
+            "popt_matrix_stream_bytes", "popt_cumulative_stream_bytes",
+            "popt_matrix_stream_iterations",
             "popt_matrix_stream_requests",
             "popt_dram_offchip_bytes_without_matrix_stream",
             "popt_matrix_stream_dram_bytes",
             "popt_stream_requestor_dram_bytes",
-            "popt_demand_columns_per_epoch", "popt_stream_path",
-            "popt_stream_bypass_l1_l2", "popt_demand_priority",
-            "popt_max_outstanding_requests",
             "popt_reload_each_iteration",
             "popt_initial_columns_charged",
-            "popt_conventional_prefetcher",
+            "popt_timing_optimistic", "timing_model", "timing_caveat",
         ),
         "POPT")
     model = config["popt_model"]
@@ -313,28 +320,23 @@ def validate_popt(row: dict[str, Any], config: dict[str, Any],
             ("popt_matrix_active_columns", model["reserved_column_slots"]),
             ("popt_num_epochs", model["epochs"]),
             ("popt_min_data_ways", model["minimum_data_ways"]),
-            ("popt_target_time_charged", "1"),
-            ("popt_matrix_stream_mode", "target_simulated"),
+            ("popt_target_time_charged", "0"),
+            ("popt_matrix_stream_mode", "analytic_cumulative"),
             ("popt_offchip_includes_matrix_stream", "1"),
+            ("popt_policy_active", "1"),
             ("popt_context_loaded", "1"),
             ("popt_rereference_loaded", "1"),
-            ("popt_demand_columns_per_epoch",
-             model["demand_columns_per_epoch"]),
-            ("popt_stream_path", model["stream_path"]),
-            ("popt_stream_bypass_l1_l2",
-             int(model["bypass_l1_l2"])),
-            ("popt_demand_priority", int(model["demand_priority"])),
-            ("popt_max_outstanding_requests",
-             model["max_outstanding_requests"]),
             ("popt_reload_each_iteration",
              int(model["reload_each_iteration"])),
             ("popt_initial_columns_charged",
              int(model["charge_initial_columns_in_roi"])),
-            ("popt_conventional_prefetcher",
-             int(model["conventional_prefetcher"]))):
+            ("popt_timing_optimistic", "1"),
+            ("timing_model", "optimistic_popt_analytic_stream")):
         require_text(row, field, value)
+    if "favors P-OPT" not in str(row.get("timing_caveat", "")):
+        raise ValueError("P-OPT row does not disclose optimistic timing")
+    require_positive(row, "popt_roi_rereference_queries")
 
-    require_positive(row, "popt_oracle_queries")
     without_stream = number(
         row.get("popt_dram_offchip_bytes_without_matrix_stream"),
         "popt_dram_offchip_bytes_without_matrix_stream")
@@ -351,16 +353,21 @@ def validate_popt(row: dict[str, Any], config: dict[str, Any],
         "popt_stream_requestor_dram_bytes")
     if (
             stream != requestor_stream or
-            stream != expected["target_stream_bytes"]):
+            stream != expected["cumulative_stream_bytes"]):
         raise ValueError("P-OPT stream bytes are not fully charged")
 
     for field, value in (
             ("popt_matrix_bytes", expected["matrix_bytes"]),
+            ("popt_runtime_epochs", model["epochs"]),
+            ("popt_runtime_cache_lines",
+             expected["matrix_column_bytes"]),
             ("popt_reserved_ways", expected["reserved_ways"]),
             ("popt_effective_l3_ways", expected["effective_ways"]),
             ("popt_matrix_stream_bytes",
              expected["stream_bytes_per_iteration"]),
-            ("popt_target_stream_bytes", expected["target_stream_bytes"]),
+            ("popt_cumulative_stream_bytes",
+             expected["cumulative_stream_bytes"]),
+            ("popt_matrix_stream_iterations", iteration),
             ("popt_matrix_stream_requests", expected["stream_requests"])):
         if integer(row.get(field), field) != value:
             raise ValueError(f"P-OPT {field} differs from the frozen model")
@@ -369,23 +376,28 @@ def validate_popt(row: dict[str, Any], config: dict[str, Any],
         int(graph["l3_ways"]))
     require_size(row, "popt_effective_l3_size", effective_size)
     require_size(row, "l3_effective_size", effective_size)
+    require_text(row, "gem5_l3_ways_actual", expected["effective_ways"])
+    require_size(row, "gem5_l3_size_actual", effective_size)
 
 
-def validate_oracle(row: dict[str, Any], graph: dict[str, Any]) -> None:
+def validate_oracle(
+        row: dict[str, Any], config: dict[str, Any],
+        graph: dict[str, Any]) -> None:
     require_fields(
         row,
         (
             "popt_overhead_charged", "popt_reserved_ways",
             "popt_target_time_charged", "popt_matrix_stream_mode",
             "popt_matrix_stream_bytes", "popt_matrix_stream_requests",
-            "popt_target_stream_bytes",
+            "popt_cumulative_stream_bytes",
             "popt_matrix_stream_dram_bytes",
             "popt_stream_requestor_dram_bytes",
             "popt_dram_offchip_bytes_without_matrix_stream",
             "popt_nonstream_requestor_dram_bytes",
             "popt_effective_l3_ways", "popt_effective_l3_size",
-            "popt_context_loaded", "popt_rereference_loaded",
-            "popt_oracle_queries",
+            "popt_policy_active", "popt_context_loaded",
+            "popt_rereference_loaded", "popt_runtime_epochs",
+            "popt_runtime_cache_lines", "popt_roi_rereference_queries",
         ),
         "POPT_UNCHARGED")
     for field, value in (
@@ -395,14 +407,24 @@ def validate_oracle(row: dict[str, Any], graph: dict[str, Any]) -> None:
             ("popt_matrix_stream_mode", "none"),
             ("popt_matrix_stream_bytes", "0"),
             ("popt_matrix_stream_requests", "0"),
-            ("popt_target_stream_bytes", "0"),
+            ("popt_cumulative_stream_bytes", "0"),
             ("popt_matrix_stream_dram_bytes", "0"),
             ("popt_stream_requestor_dram_bytes", "0")):
         require_text(row, field, value)
     require_text(row, "popt_effective_l3_ways", graph["l3_ways"])
     require_size(row, "popt_effective_l3_size", graph["l3_size"])
+    require_text(row, "gem5_l3_ways_actual", graph["l3_ways"])
+    require_size(row, "gem5_l3_size_actual", graph["l3_size"])
+    require_text(row, "popt_policy_active", "1")
     require_text(row, "popt_context_loaded", "1")
     require_text(row, "popt_rereference_loaded", "1")
+    require_positive(row, "popt_roi_rereference_queries")
+    expected = expected_popt(config, graph, 1)
+    require_text(
+        row, "popt_runtime_epochs", config["popt_model"]["epochs"])
+    require_text(
+        row, "popt_runtime_cache_lines",
+        expected["matrix_column_bytes"])
     total = number(row.get("dram_offchip_bytes"), "dram_offchip_bytes")
     without_stream = number(
         row.get("popt_dram_offchip_bytes_without_matrix_stream"),
@@ -413,7 +435,6 @@ def validate_oracle(row: dict[str, Any], graph: dict[str, Any]) -> None:
     if without_stream < 0 or nonstream < 0 or (
             without_stream != total or nonstream != total):
         raise ValueError("uncharged P-OPT traffic accounting is invalid")
-    require_positive(row, "popt_oracle_queries")
 
 
 def validate_k2(row: dict[str, Any], config: dict[str, Any],
@@ -463,6 +484,8 @@ def validate_k2(row: dict[str, Any], config: dict[str, Any],
         row, "proposal_compact_tier_bits", config["compact_tier_bits"])
     require_text(row, "l3_effective_ways", graph["l3_ways"])
     require_text(row, "l3_effective_size", graph["l3_size"])
+    require_text(row, "gem5_l3_ways_actual", graph["l3_ways"])
+    require_size(row, "gem5_l3_size_actual", graph["l3_size"])
 
     receipt = config["variant_receipts"][policy]
     require_text(row, "gem5_variant_requested_receipt", receipt["requested"])
@@ -514,7 +537,7 @@ def build_cells(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[
         elif policy == roles["popt"]:
             validate_popt(row, config, graphs[graph_name], iteration)
         elif policy == "POPT_UNCHARGED":
-            validate_oracle(row, graphs[graph_name])
+            validate_oracle(row, config, graphs[graph_name])
         elif policy.startswith("ECG_K2_"):
             validate_k2(row, config, graphs[graph_name], policy)
 
@@ -537,13 +560,6 @@ def build_cells(rows: list[dict[str, str]], config: dict[str, Any]) -> dict[
                 for row in per_policy.values()
             }) != 1:
             raise ValueError(f"cell {key} mixes job ids")
-        if integer(
-                per_policy[roles["popt"]].get("popt_oracle_queries"),
-                "charged popt_oracle_queries") != integer(
-                    per_policy[roles["oracle"]].get("popt_oracle_queries"),
-                    "uncharged popt_oracle_queries"):
-            raise ValueError(
-                f"charged and uncharged P-OPT query work differs in {key}")
     return cells
 
 

@@ -3,6 +3,7 @@
 
 from argparse import Namespace
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -63,6 +64,85 @@ def test_popt_charged_size_correct_reserves_resident_matrix_columns():
     assert charge["popt_effective_l3_size"] == "3584B"
     assert charge["popt_matrix_fits"] == 1
     assert charge["popt_matrix_stream_cache_lines"] == 1024
+
+
+def test_analytic_popt_stream_charge_scales_with_iterations():
+    row = {
+        "options": "-g 12 -i 2",
+        "line_size": "64",
+        "popt_overhead_charged": 1,
+        "popt_matrix_stream_requested": "analytic",
+        "popt_matrix_stream_bytes": 65536,
+        "popt_matrix_stream_cache_lines": 1024,
+        "dram_read_bytes": 1000,
+        "dram_write_bytes": 200,
+        "l3_misses": 10,
+        "total_memory_traffic": 20,
+    }
+
+    roi_matrix.apply_overhead_metrics(row)
+
+    assert row["popt_matrix_stream_mode"] == "analytic_cumulative"
+    assert row["popt_matrix_stream_iterations"] == 2
+    assert row["popt_cumulative_stream_bytes"] == 131072
+    assert row["popt_matrix_stream_requests"] == 2048
+    assert row["popt_dram_offchip_bytes_without_matrix_stream"] == 1200
+    assert row["dram_offchip_bytes"] == 132272
+    assert row["l3_misses_with_overhead"] == 2058
+    assert row["popt_timing_optimistic"] == 1
+
+
+def test_gem5_popt_activation_receipt_is_required():
+    row = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_popt_receipt(
+        row,
+        "[POPT-ACTIVE sim=gem5 context=1 reref=1 phase2=1 "
+        "epochs=256 cache_lines=64]",
+        required=True)
+    assert row["popt_policy_active"] == 1
+    assert row["popt_context_loaded"] == 1
+    assert row["popt_rereference_loaded"] == 1
+    assert row["popt_runtime_epochs"] == 256
+
+    missing = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_popt_receipt(
+        missing, "", required=True)
+    assert missing["status"] == "error"
+    assert missing["timing_valid_for_speedup"] == "0"
+
+
+def test_gem5_geometry_receipt_checks_realized_cache(tmp_path):
+    config = tmp_path / "config.json"
+    config.write_text(json.dumps({
+        "system": {"l3cache": {"size": 3584, "assoc": 14}},
+    }))
+    row = {"timing_valid_for_speedup": "1"}
+    assert roi_matrix.apply_gem5_geometry_receipt(
+        row, config, "3584B", "14")
+    assert row["gem5_l3_size_actual"] == 3584
+    assert row["gem5_l3_ways_actual"] == 14
+
+    wrong = {"timing_valid_for_speedup": "1"}
+    assert not roi_matrix.apply_gem5_geometry_receipt(
+        wrong, config, "4kB", "16")
+    assert wrong["status"] == "error"
+
+
+def test_gem5_analytic_popt_timing_is_labeled_optimistic():
+    args = roi_matrix.parse_args([
+        "--suite", "gem5",
+        "--policies", "LRU", "POPT",
+        "--popt-matrix-stream", "analytic",
+    ])
+    args.has_lru_baseline = True
+    spec = roi_matrix.parse_policy_spec("POPT")
+    charge = roi_matrix.popt_charge_metadata(
+        _charge_args("size_correct"), spec, "4kB")
+    row = roi_matrix.base_row("gem5", args, spec, "4kB", charge)
+
+    assert row["timing_valid_for_speedup"] == "1"
+    assert row["timing_model"] == "optimistic_popt_analytic_stream"
+    assert "timing therefore favors P-OPT" in row["timing_caveat"]
 
 
 def test_popt_charged_size_correct_marks_infeasible_when_matrix_exceeds_llc():
@@ -251,6 +331,7 @@ def test_gem5_sideband_paths_are_per_output_directory(tmp_path):
 def test_simulated_stream_is_not_double_charged():
     """When cache_sim streams the columns, the flat charge must not be added."""
     row = {
+        "options": "-i 1",
         "popt_overhead_charged": 1,
         "popt_matrix_stream_cache_lines": 229108,
         "popt_matrix_stream_lines_simulated": 229120,
@@ -266,6 +347,7 @@ def test_simulated_stream_is_not_double_charged():
 
 def test_analytic_stream_is_still_charged():
     row = {
+        "options": "-i 1",
         "popt_overhead_charged": 1,
         "popt_matrix_stream_cache_lines": 229108,
         "popt_matrix_stream_lines_simulated": 0,
@@ -273,9 +355,20 @@ def test_analytic_stream_is_still_charged():
         "total_memory_traffic": 1000000,
     }
     roi_matrix.apply_overhead_metrics(row)
-    assert row["popt_matrix_stream_mode"] == "analytic"
+    assert row["popt_matrix_stream_mode"] == "analytic_cumulative"
     assert row["l3_misses_with_overhead"] == 1229108
     assert row["total_memory_traffic_with_overhead"] == 1229108
+
+
+def test_charged_stream_requires_an_iteration_count():
+    row = {
+        "popt_overhead_charged": 1,
+        "popt_matrix_stream_cache_lines": 10,
+        "popt_matrix_stream_lines_simulated": 0,
+    }
+    roi_matrix.apply_overhead_metrics(row)
+    assert row["status"] == "error"
+    assert "iteration count" in row["error"]
 
 
 def test_uncharged_policy_pays_nothing():

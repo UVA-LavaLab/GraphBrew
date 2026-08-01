@@ -23,4 +23,7 @@ def test_gem5_popt_memoizes_distances_before_rrip_aging():
     assert popt.count("ctx.findNextRef(") == 1
     assert "wayDists.emplace_back" in popt
     assert "ctx.findNextRef(" not in rrip
-
+    marker = source.index("[POPT-ACTIVE sim=gem5")
+    phase2 = source.index("// Phase 2: find max rereference distance")
+    assert marker > phase2
+    assert "++poptStats.rereferenceQueries" in source

@@ -376,6 +376,7 @@ def apply_screen_config(
         "popt_num_epochs": int(screen["popt_model"]["epochs"]),
         "popt_min_data_ways": int(
             screen["popt_model"]["minimum_data_ways"]),
+        "popt_matrix_stream": "analytic",
         "env": screen_env,
         "timeout_gem5": int(
             screen["execution"]["maximum_policy_runtime_seconds"]),
@@ -648,7 +649,8 @@ def make_roi_job(
             ("popt_property_bytes", "--popt-property-bytes"),
             ("popt_active_columns", "--popt-active-columns"),
             ("popt_num_epochs", "--popt-num-epochs"),
-            ("popt_min_data_ways", "--popt-min-data-ways")):
+            ("popt_min_data_ways", "--popt-min-data-ways"),
+            ("popt_matrix_stream", "--popt-matrix-stream")):
         if setting in settings:
             command.extend([option, str(settings[setting])])
     if settings.get("gem5_compact_fused"):

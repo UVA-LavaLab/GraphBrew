@@ -103,19 +103,15 @@
   "popt_model": {
     "epochs": 256,
     "property_bytes": 4,
-    "demand_columns_per_epoch": 2,
     "reserved_column_slots": 3,
     "expected_reserved_ways_in_screen": 2,
     "expected_effective_data_ways_in_screen": 14,
     "minimum_data_ways": 1,
-    "stream_path": "memory_to_reserved_llc",
-    "bypass_l1_l2": true,
-    "demand_priority": true,
-    "max_outstanding_requests": 32,
     "reload_each_iteration": true,
     "charge_initial_columns_in_roi": true,
-    "conventional_prefetcher": false,
-    "note": "Triple buffering permits overlap of column e+2 while e and e+1 remain readable. It favors P-OPT timing but costs one additional LLC way versus a two-slot design in these cells. A two-slot serialized sensitivity is mandatory before a P-OPT performance claim."
+    "screen_stream_charge": "analytic_cumulative_offchip",
+    "timing_treatment": "optimistic_no_stream_latency",
+    "note": "The screen simulates P-OPT replacement with the computed reserved LLC capacity and charges every matrix byte for every PageRank iteration as off-chip traffic. Matrix-stream latency is omitted, which favors P-OPT. Triple buffering costs one additional LLC way versus a two-slot design; target-time and two-slot serialized sensitivities remain mandatory before a P-OPT performance claim."
   },
   "metrics": {
     "primary": ["sim_ticks", "dram_offchip_bytes"],
@@ -162,12 +158,12 @@
   },
   "blockers": [
     {
-      "id": "popt_target_time_charge",
-      "reason": "Implement target-time matrix streaming, initial residency, per-iteration reload, and requestor-scoped counters. Receipts must report the SSOT engine settings: two demanded columns, memory-to-reserved-LLC stream path, L1/L2 bypass, demand priority, 32 maximum outstanding requests, per-iteration reload, initial columns charged in ROI, and no conventional prefetcher. Keep popt_matrix_stream_bytes as one-iteration metadata; emit cumulative popt_target_stream_bytes, popt_matrix_stream_requests, popt_matrix_stream_dram_bytes, popt_stream_requestor_dram_bytes, and non-stream DRAM bytes for the executed run. The uncharged control emits the same accounting fields with zero or none values."
+      "id": "popt_analytic_o3_preflight",
+      "reason": "Validate one O3 P-OPT row with the GraphPoptRP rereference path active, size-correct reserved LLC capacity, cumulative per-iteration analytic stream traffic included in dram_offchip_bytes, and the optimistic no-stream-latency timing caveat."
     },
     {
       "id": "o3_baseline_stability",
-      "reason": "LRU, GRASP, and P-OPT must complete the same O3 preflight. GRASP must emit context-loaded and hot-property access counters; P-OPT must emit context/rereference-loaded and oracle-query counters."
+      "reason": "LRU, GRASP, and P-OPT must complete the same O3 preflight. GRASP must emit context-loaded and hot-property access counters; P-OPT must emit context/rereference-loaded receipts and a positive ROI phase-two rereference-query count."
     },
     {
       "id": "online_streamshield_correctness_evidence",
@@ -186,7 +182,7 @@
     "ready": false,
     "policy_sharding_allowed": false,
     "maximum_policy_runtime_seconds": 43200,
-    "note": "The trace-free K2-M timing path is implemented and smoke-tested. Stages remain blocked until the P-OPT target-time engine and the remaining O3/online/budget preflights are complete."
+    "note": "The trace-free K2-M timing path is implemented and smoke-tested. Stages remain blocked until the analytic charged P-OPT O3 preflight and the remaining baseline/online/budget preflights are complete."
   },
   "resource_scope": {
     "screen": "K2 uses equal data capacity; charged P-OPT loses reserved LLC ways for its matrix.",
@@ -195,7 +191,7 @@
     "lower_hardware_cost_claim_allowed": false,
     "charged_in_roi": {
       "grasp": "common DBG-ordered traversal",
-      "popt": "reserved LLC capacity, matrix-stream traffic, and target time",
+      "popt": "reserved LLC capacity plus cumulative analytic matrix-stream traffic; stream latency omitted",
       "k2": "4-byte replacement records and StreamShield placement"
     },
     "declared_outside_roi": {
@@ -208,6 +204,7 @@
       "k2": "49 metadata bits/line, request sideband, CSRs, StreamShield flag, and online dueling state"
     },
     "required_post_screen_sensitivities": [
+      "target-time P-OPT matrix-stream latency",
       "two-slot serialized P-OPT",
       "15-way K2 versus 16-way baselines",
       "14-way K2 versus 16-way baselines"

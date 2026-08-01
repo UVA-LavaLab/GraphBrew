@@ -25,6 +25,7 @@
 #include "mem/cache/replacement_policies/base.hh"
 #include "mem/cache/replacement_policies/graph_cache_context_gem5.hh"
 #include "params/GraphPoptRP.hh"
+#include "base/statistics.hh"
 
 #include <cstdint>
 #include <memory>
@@ -76,7 +77,14 @@ class GraphPoptRP : public Base
 
     mutable graph::GraphCacheContext ctx;
     mutable bool loadAttempted = false;
+    mutable bool activeAnnounced = false;
     mutable uint64_t loadAttemptCount = 0;
+
+    mutable struct PoptStats : public statistics::Group
+    {
+        PoptStats(statistics::Group* parent);
+        statistics::Scalar rereferenceQueries;
+    } poptStats;
 };
 
 } // namespace replacement_policy

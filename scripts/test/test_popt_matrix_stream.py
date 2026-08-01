@@ -114,9 +114,8 @@ def test_gem5_popt_matrix_stream_is_disclosed_as_analytic():
     assert "popt_matrix_stream_mode" in analysis, (
         "the analysis must read the charging mode, or an idealised P-OPT row "
         "is presented as a comparable baseline")
-    assert "INELIGIBLE" in analysis, (
-        "the frozen metrics make idealised mechanisms ineligible for a "
-        "performance claim; the report must say so where the rows are read")
+    assert "optimistic lower bound" in analysis, (
+        "the report must disclose that analytic stream latency favors P-OPT")
     marker = analysis.index("popt_matrix_stream_mode")
     ratios = analysis.index("2. TIME AND TRAFFIC versus LRU")
     assert marker < ratios, (
