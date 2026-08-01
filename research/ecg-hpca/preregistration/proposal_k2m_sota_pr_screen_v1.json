@@ -162,10 +162,6 @@
   },
   "blockers": [
     {
-      "id": "proposal_timing_admissibility",
-      "reason": "Validate one O3 row using the implemented compact_trace_free mode. It executes the same architectural 4-byte StreamShield record load and request-bound K2-M property load as the committed correctness gate, but leaves both per-event trace limits at zero. The row must emit the proposal activation and compact field-width receipt, match PageRank semantics, and remain timing-valid."
-    },
-    {
       "id": "popt_target_time_charge",
       "reason": "Implement target-time matrix streaming, initial residency, per-iteration reload, and requestor-scoped counters. Receipts must report the SSOT engine settings: two demanded columns, memory-to-reserved-LLC stream path, L1/L2 bypass, demand priority, 32 maximum outstanding requests, per-iteration reload, initial columns charged in ROI, and no conventional prefetcher. Keep popt_matrix_stream_bytes as one-iteration metadata; emit cumulative popt_target_stream_bytes, popt_matrix_stream_requests, popt_matrix_stream_dram_bytes, popt_stream_requestor_dram_bytes, and non-stream DRAM bytes for the executed run. The uncharged control emits the same accounting fields with zero or none values."
     },
@@ -190,7 +186,7 @@
     "ready": false,
     "policy_sharding_allowed": false,
     "maximum_policy_runtime_seconds": 43200,
-    "note": "Stages remain blocked until the performance mode and P-OPT target-time engine are implemented."
+    "note": "The trace-free K2-M timing path is implemented and smoke-tested. Stages remain blocked until the P-OPT target-time engine and the remaining O3/online/budget preflights are complete."
   },
   "resource_scope": {
     "screen": "K2 uses equal data capacity; charged P-OPT loses reserved LLC ways for its matrix.",

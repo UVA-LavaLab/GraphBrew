@@ -363,9 +363,12 @@ proposal loads the replacing 4-byte K2 record and then uses K2-M in place of
 the ordinary property load. Recovering the vertex ID from the widened record
 adds one register extraction in the current guest and is charged to K2; it is
 not another memory access or a software record decode. The screen remains
-blocked until one O3 timing row validates this mode, target-time P-OPT
-streaming is available, the O3 baselines are stable, online correctness has one
-admissible row, and the whole-cell execution budget is approved.
+The mode passed a one-cell O3 smoke with matched PageRank semantics, zero
+per-event traces, and timing-valid LRU and K2 rows. This smoke validates the
+measurement path, not cache performance. The screen remains blocked until
+target-time P-OPT streaming is available, the O3 baselines are stable, online
+correctness has one admissible row, and the whole-cell execution budget is
+approved.
 
 The charged P-OPT screen uses a three-slot overlap buffer: columns `e` and
 `e+1` remain readable while `e+2` is streamed. This costs two reserved ways in
