@@ -396,9 +396,10 @@ The 12 semantic receipts were reproduced with the host PageRank binary using
 requested iteration count. The three one-iteration receipts also match
 retained RISC-V gem5 rows.
 
-The screen remains blocked until GRASP activation, online correctness, one
-admissible online row, and the whole-cell execution budget are complete. The
-analytic P-OPT path passed an O3
+The GRASP path also passed an O3 smoke with loaded graph context and 62,363
+hot-tier classifications in the measured ROI. The screen remains blocked until
+online correctness, one admissible online row, and the whole-cell execution
+budget are complete. The analytic P-OPT path passed an O3
 smoke with positive ROI phase-two rereference queries, realized 14-way charged
 geometry, and exactly two iterations of matrix-stream traffic. This validates
 activation and accounting, not the tiny synthetic graph's policy ranking.

@@ -158,10 +158,6 @@
   },
   "blockers": [
     {
-      "id": "o3_baseline_stability",
-      "reason": "LRU, GRASP, and P-OPT must complete the same O3 preflight. GRASP must emit context-loaded and hot-property access counters; P-OPT must emit context/rereference-loaded receipts and a positive ROI phase-two rereference-query count."
-    },
-    {
       "id": "online_streamshield_correctness_evidence",
       "reason": "Produce request-bound O3 correctness evidence for the online set-dueling arm."
     },
@@ -178,7 +174,7 @@
     "ready": false,
     "policy_sharding_allowed": false,
     "maximum_policy_runtime_seconds": 43200,
-    "note": "Trace-free K2-M and analytic charged P-OPT have timing-valid O3 smoke rows. Stages remain blocked until GRASP activation, online correctness/admissibility, and the whole-cell execution budget are complete."
+    "note": "Trace-free K2-M, GRASP, and analytic charged P-OPT have timing-valid O3 smoke rows. Stages remain blocked until online correctness/admissibility and the whole-cell execution budget are complete."
   },
   "resource_scope": {
     "screen": "K2 uses equal data capacity; charged P-OPT loses reserved LLC ways for its matrix.",
