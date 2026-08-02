@@ -13,6 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = (
     ROOT / "research/ecg-hpca/preregistration/"
     "proposal_k2m_sota_pr_screen_v1.json")
+V2_CONFIG_PATH = (
+    ROOT / "research/ecg-hpca/preregistration/"
+    "proposal_k2m_sota_pr_screen_v2.json")
 GATE_PATH = (
     ROOT / "scripts/experiments/ecg/analysis/proposal_sota_gate.py")
 PAPER_RUN_PATH = (
@@ -30,8 +33,8 @@ def load_module(name: str, path: Path):
     return module
 
 
-def config():
-    return json.loads(CONFIG_PATH.read_text())
+def config(path=CONFIG_PATH):
+    return json.loads(path.read_text())
 
 
 def gate():
@@ -59,8 +62,8 @@ def expected_popt(cfg, graph, iterations):
         stream_bytes_per_iteration, target_stream_bytes)
 
 
-def synthetic_rows(primary_ratio=0.94):
-    cfg = config()
+def synthetic_rows(primary_ratio=0.94, cfg=None):
+    cfg = cfg or config()
     mod = gate()
     roles = mod.policy_roles(cfg)
     rows = []
@@ -75,11 +78,11 @@ def synthetic_rows(primary_ratio=0.94):
                 "GRASP": (100.0, ordinary),
                 "POPT": (90.0, ordinary + target_stream_bytes),
                 "POPT_UNCHARGED": (85.0, ordinary),
-                "ECG_K2_LRU_STREAMSHIELD": (
+                roles["transport"]: (
                     105.0, ordinary * 1.01),
-                "ECG_K2_STREAMSHIELD": (
+                roles["primary"]: (
                     90.0 * primary_ratio, ordinary * 1.01),
-                "ECG_K2_ONLINE_STREAMSHIELD": (
+                roles["characterization"][0]: (
                     90.0 * (primary_ratio + 0.01), ordinary * 1.015),
             }
             for policy, (ticks, traffic) in metrics.items():
@@ -292,6 +295,49 @@ def test_ssot_is_compact_and_has_no_hash_qualification():
     assert cfg["compact_tier_bits"] == 2
 
 
+def test_v2_preserves_failed_v1_and_preregisters_static_rrip():
+    v1 = config()
+    v2 = config(V2_CONFIG_PATH)
+    assert len(V2_CONFIG_PATH.read_text().splitlines()) < 300
+    assert "sha256" not in V2_CONFIG_PATH.read_text().lower()
+    assert v2["lineage"]["prior_screen"] == v1["id"]
+    assert v1["policies"]["primary_candidate"] == (
+        "ECG:K2_STREAMSHIELD")
+    assert v2["policies"]["primary_candidate"] == (
+        "ECG:K2_RRIP_STREAMSHIELD")
+    assert v2["policies"]["all"] == [
+        "LRU", "GRASP", "POPT", "POPT:UNCHARGED",
+        "ECG:K2_LRU_STREAMSHIELD",
+        "ECG:K2_RRIP_STREAMSHIELD",
+        "ECG:K2_ONLINE_STREAMSHIELD",
+    ]
+    changed = {
+        key for key in set(v1) | set(v2)
+        if v1.get(key) != v2.get(key)
+    }
+    assert changed == {
+        "version", "id", "scope", "lineage",
+        "policies", "variant_receipts", "blockers", "execution",
+    }
+    assert {
+        key: value for key, value in v2["policies"].items()
+        if key not in ("all", "primary_candidate")
+    } == {
+        key: value for key, value in v1["policies"].items()
+        if key not in ("all", "primary_candidate")
+    }
+    assert {
+        key: value for key, value in v2["variant_receipts"].items()
+        if key != "ECG_K2_RRIP_STREAMSHIELD"
+    } == {
+        key: value for key, value in v1["variant_receipts"].items()
+        if key != "ECG_K2_STREAMSHIELD"
+    }
+    result = gate().evaluate(synthetic_rows(cfg=v2), v2)
+    assert result["primary_candidate"] == "ECG_K2_RRIP_STREAMSHIELD"
+    assert result["screen_passes"] is True
+
+
 def test_profile_expands_to_twelve_whole_cells(tmp_path):
     result = subprocess.run(
         [
@@ -340,6 +386,28 @@ def test_profile_expands_to_twelve_whole_cells(tmp_path):
     assert settings["env"]["ECG_RECORD_VARIABLE_WIDTH"] == "1"
     assert settings["env"]["ECG_RECORD_TIER_BITS"] == str(
         config()["compact_tier_bits"])
+
+
+def test_v2_profile_expands_with_static_rrip_primary(tmp_path):
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/experiments/ecg/flows/paper_run.py",
+            "--profile", "ecg_proposal_k2m_sota_pr_screen_v2",
+            "--run-dir", str(tmp_path / "run-v2"),
+            "--list", "--dry-run", "--no-build",
+            "--allow-missing-graphs",
+        ],
+        cwd=ROOT, capture_output=True, text=True, timeout=120)
+    text = result.stdout + result.stderr
+    assert result.returncode == 0, text
+    assert "jobs=12" in text
+    assert text.count(
+        "--policies LRU GRASP POPT POPT:UNCHARGED "
+        "ECG:K2_LRU_STREAMSHIELD ECG:K2_RRIP_STREAMSHIELD "
+        "ECG:K2_ONLINE_STREAMSHIELD") == 12
+    assert "proposal_k2m_sota_pr_screen_v2.json" in (
+        MANIFEST_PATH.read_text())
 
 
 def test_popt_model_matches_roi_matrix_producer():

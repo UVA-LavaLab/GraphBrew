@@ -369,9 +369,9 @@ snapshot both registers, request-bound O3 sequence propagation, context-tagged
 line metadata, and passing MSHR merge mutations. These are implementation gates,
 not performance experiments.
 
-### Proposal K2-M sampled SOTA screen
+### Proposal K2-M sampled SOTA screens
 
-Inspect the 12 blocked whole-cell commands:
+V1 is retained as the failed `epoch_first` preregistration. Inspect it with:
 
 ```bash
 python3 scripts/experiments/ecg/flows/paper_run.py \
@@ -380,9 +380,20 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --list --dry-run --no-build --allow-missing-graphs
 ```
 
-Do not set `execution.ready` to `true` until every blocker in
-`research/ecg-hpca/preregistration/proposal_k2m_sota_pr_screen_v1.json` is
-resolved. Run complete seven-policy cells; one-policy Slurm sharding is
+V1 is closed: do not resume it, set its `execution.ready`, or analyze its rows
+under the v2 config.
+
+V2 preregisters static RRIP without rewriting v1:
+
+```bash
+python3 scripts/experiments/ecg/flows/paper_run.py \
+  --profile ecg_proposal_k2m_sota_pr_screen_v2 \
+  --run-dir /tmp/proposal-k2m-sota-screen-v2 \
+  --list --dry-run --no-build --allow-missing-graphs
+```
+
+Do not set v2 `execution.ready` to `true` until its execution budget is
+approved. Run complete seven-policy cells; one-policy Slurm sharding is
 forbidden because every cell needs its own LRU denominator.
 
 After an admissible complete run:
@@ -390,6 +401,7 @@ After an admissible complete run:
 ```bash
 python3 scripts/experiments/ecg/analysis/proposal_sota_gate.py \
   --input <run>/combined_roi_matrix.csv \
+  --config research/ecg-hpca/preregistration/proposal_k2m_sota_pr_screen_v2.json \
   --output <run>/proposal_sota_decision.json
 ```
 

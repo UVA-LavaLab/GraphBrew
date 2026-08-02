@@ -416,6 +416,20 @@ stream bytes per edge, while the reduced vertex-ID width lets K2 retain its
 4-byte compact record. Full-graph expansion must re-check the compact field
 budget and may require a wider K2 record.
 
+### Static-RRIP v2 lineage
+
+V1 remains a failed experiment. Its web-Google i=1 cell used the preregistered
+`epoch_first` primary and failed the GRASP traffic guard plus both charged
+P-OPT guards. A subsequent diagnostic did not rewrite v1: static
+`rrip_first`+StreamShield matched online K2 within 0.5% time and 1.2% misses,
+showing that the v1 gap came from its benchmark-name PR-to-`epoch_first`
+mapping rather than online adaptation.
+
+`preregistration/proposal_k2m_sota_pr_screen_v2.json` is a separate
+preregistration. It changes only the static primary to
+`ECG:K2_RRIP_STREAMSHIELD`; graphs, baselines, controls, accounting, thresholds,
+and stop rules remain unchanged. V1 results cannot be relabeled as v2 results.
+
 ## Separated experiment questions
 
 | Profile | Question | Prefetch/traffic treatment |
