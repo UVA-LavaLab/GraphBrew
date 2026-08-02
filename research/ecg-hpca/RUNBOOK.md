@@ -392,9 +392,9 @@ python3 scripts/experiments/ecg/flows/paper_run.py \
   --list --dry-run --no-build --allow-missing-graphs
 ```
 
-Do not set v2 `execution.ready` to `true` until its execution budget is
-approved. Run complete seven-policy cells; one-policy Slurm sharding is
-forbidden because every cell needs its own LRU denominator.
+V2 execution is approved. Run complete seven-policy cells; one-policy Slurm
+sharding is forbidden because every cell needs its own LRU denominator. The
+local flow is sequential and resumable with the same run directory.
 
 After an admissible complete run:
 

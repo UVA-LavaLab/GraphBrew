@@ -301,6 +301,9 @@ def test_v2_preserves_failed_v1_and_preregisters_static_rrip():
     assert len(V2_CONFIG_PATH.read_text().splitlines()) < 300
     assert "sha256" not in V2_CONFIG_PATH.read_text().lower()
     assert v2["lineage"]["prior_screen"] == v1["id"]
+    assert v2["blockers"] == []
+    assert v2["execution"]["ready"] is True
+    assert v2["execution"]["maximum_policy_runtime_seconds"] == 86400
     assert v1["policies"]["primary_candidate"] == (
         "ECG:K2_STREAMSHIELD")
     assert v2["policies"]["primary_candidate"] == (

@@ -166,17 +166,12 @@
       "dueling": 1
     }
   },
-  "blockers": [
-    {
-      "id": "v2_whole_matrix_execution_budget",
-      "reason": "Approve 12 whole-cell seven-policy jobs after reviewing the v1 calibration runtime. Policy sharding is not allowed. A cross-run diagnostic comparison clears the 0.97 charged-P-OPT time guard by only about 0.12 percentage points; it is not an admissible whole cell and a stop outcome remains likely."
-    }
-  ],
+  "blockers": [],
   "execution": {
-    "ready": false,
+    "ready": true,
     "policy_sharding_allowed": false,
-    "maximum_policy_runtime_seconds": 43200,
-    "note": "All mechanisms and baselines have timing-valid O3 evidence. V2 remains blocked only on execution budget; an edge-count and iteration-linear extrapolation from the named v1 calibration gives a conservative roughly 310 serial-hour estimate."
+    "maximum_policy_runtime_seconds": 86400,
+    "note": "Execution budget approved after the named v1 calibration. Run the 12 whole cells without policy sharding. The 24-hour per-policy ceiling covers the edge-count and iteration-scaled soc-pokec i=8 K2 estimate; the local sequential run is resumable."
   },
   "resource_scope": {
     "screen": "K2 uses equal data capacity; charged P-OPT loses reserved LLC ways for its matrix.",
