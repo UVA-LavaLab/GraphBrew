@@ -383,10 +383,10 @@ def test_uncharged_policy_pays_nothing():
     assert row["l3_misses_with_overhead"] == 1000000
 
 
-def _run_cli(extra: list) -> tuple:
+def _run_cli(extra: list, suite: str = "cache-sim") -> tuple:
     import subprocess
     cmd = [
-        sys.executable, str(ROI_MATRIX_PATH), "--suite", "cache-sim",
+        sys.executable, str(ROI_MATRIX_PATH), "--suite", suite,
         "--benchmark", "pr", "--policies", "POPT", "--dry-run",
     ] + extra
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -404,6 +404,62 @@ def test_simulated_stream_with_prefetcher_is_allowed():
     code, out = _run_cli(
         ["--prefetcher", "STRIDE", "--popt-matrix-stream", "simulated"])
     assert code == 0, out
+
+
+def test_explicit_analytic_prefetch_upper_bound_is_allowed():
+    code, out = _run_cli([
+        "--prefetcher", "STRIDE",
+        "--popt-matrix-stream", "analytic_prefetch_upper_bound",
+    ], suite="gem5")
+    assert code == 0, out
+
+
+def test_analytic_prefetch_upper_bound_is_rejected_for_cache_sim():
+    code, out = _run_cli([
+        "--prefetcher", "STRIDE",
+        "--popt-matrix-stream", "analytic_prefetch_upper_bound",
+    ])
+    assert code != 0
+    assert "gem5-only sensitivity" in out
+
+
+def test_analytic_prefetch_upper_bound_is_disclosed():
+    row = {
+        "options": "-i 2",
+        "line_size": "64",
+        "popt_overhead_charged": 1,
+        "popt_matrix_stream_requested":
+            "analytic_prefetch_upper_bound",
+        "popt_matrix_stream_cache_lines": 10,
+        "dram_read_bytes": 1000,
+        "dram_write_bytes": 200,
+    }
+    roi_matrix.apply_overhead_metrics(row)
+    assert row["popt_matrix_stream_mode"] == (
+        "analytic_cumulative_prefetch_upper_bound")
+    assert row["popt_prefetch_upper_bound"] == 1
+    assert row["popt_cumulative_stream_bytes"] == 1280
+
+    args = roi_matrix.parse_args([
+        "--suite", "gem5",
+        "--policies", "LRU", "POPT",
+        "--prefetcher", "STRIDE",
+        "--popt-matrix-stream", "analytic_prefetch_upper_bound",
+    ])
+    args.has_lru_baseline = True
+    spec = roi_matrix.parse_policy_spec("POPT")
+    charge = roi_matrix.popt_charge_metadata(
+        _charge_args("size_correct"), spec, "4kB")
+    result = roi_matrix.base_row("gem5", args, spec, "4kB", charge)
+    assert result["timing_valid_for_speedup"] == "1"
+    assert result["timing_model"] == (
+        "optimistic_popt_prefetch_upper_bound")
+    assert "perfect matrix latency hiding" in result["timing_caveat"]
+    assert result["timing_comparison_bound"] == (
+        "popt_favorable_lower_bound")
+    assert result["offchip_comparison_bound"] == (
+        "popt_favorable_lower_bound")
+    assert result["l3_miss_comparison_valid"] == 0
 
 
 def test_analytic_charge_without_prefetcher_is_allowed():

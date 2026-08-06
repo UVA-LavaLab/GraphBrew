@@ -411,6 +411,32 @@ attribution, and the stop/go result. Keep the raw run directory, resolved
 command manifest, and git commit with the result; no additional stamping
 workflow is required.
 
+After the no-prefetch screen, run the common-prefetcher sensitivity on one
+complete web-Google i=1 cell first:
+
+```bash
+GEM5_OPT=bench/include/gem5_sim/gem5/build/RISCV/gem5.opt \
+GEM5_KERNEL_SUFFIX=_riscv_m5ops \
+python3 scripts/experiments/ecg/roi_matrix.py \
+  --suite gem5 --benchmark pr \
+  --options '-f results/graphs/web-Google-n16/web-Google-n16.sg -o 5 -n 1 -i 1 -t 0' \
+  --policies LRU GRASP POPT POPT:UNCHARGED \
+    ECG:K2_LRU_STREAMSHIELD ECG:K2_RRIP_STREAMSHIELD \
+    ECG:K2_ONLINE_STREAMSHIELD \
+  --prefetcher STRIDE --prefetcher-level l2 \
+  --structure-prefetch-degree 1 \
+  --popt-reserve-model size_correct --popt-active-columns 3 \
+  --popt-num-epochs 256 --popt-matrix-stream analytic_prefetch_upper_bound \
+  --ecg-epochs 32 --ecg-epoch-pack-bits 64 --ecg-isa-variant mask \
+  --gem5-compact-k2m-performance --gem5-cpu-type O3 \
+  --l1d-size 16kB --l1d-ways 8 --l2-size 64kB --l2-ways 8 \
+  --l3-sizes 128kB --l3-ways 16 --line-size 64 --no-build
+```
+
+Only K2 matching or beating the deliberately favored P-OPT time/traffic bounds
+is admissible from this mode. A P-OPT win remains unresolved. Do not compare
+its analytically added matrix misses against prefetch-covered simulated misses.
+
 For host-cost diagnosis, use `SNIPER_K2_LOOKUP_PROFILE=1` and explicit
 `SNIPER_ECG_HOST_PROFILE=1`. Do not reintroduce the rejected direct-mapped K2
 lookup memo: its measured hit rate was 0.0059% and it slowed the A/B run 7.4%

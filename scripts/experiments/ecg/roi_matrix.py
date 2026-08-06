@@ -414,6 +414,9 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
       ``total_memory_traffic``. Adding the flat charge here would double-count.
     * ``analytic`` -- the stream was not simulated, so each PageRank iteration
       is charged post hoc while target-time stream latency remains omitted.
+    * ``analytic_prefetch_upper_bound`` -- the same byte charge under a common
+      prefetcher, explicitly treating P-OPT's matrix latency as perfectly
+      hidden. This is a P-OPT-favorable sensitivity, not stream simulation.
 
     The analytic mode is only symmetric with K2 when no prefetcher is active.
     K2's edge records are simulated accesses a structure prefetcher covers,
@@ -448,8 +451,12 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
         row["popt_matrix_stream_mode"] = "simulated"
         stream_lines = 0
     else:
-        row["popt_matrix_stream_mode"] = (
-            "analytic_cumulative" if charged else "none")
+        if charged and requested == "analytic_prefetch_upper_bound":
+            row["popt_matrix_stream_mode"] = (
+                "analytic_cumulative_prefetch_upper_bound")
+        else:
+            row["popt_matrix_stream_mode"] = (
+                "analytic_cumulative" if charged else "none")
         stream_lines = (
             int(row.get("popt_matrix_stream_cache_lines") or 0) * iterations
             if charged else 0)
@@ -461,6 +468,8 @@ def apply_overhead_metrics(row: dict[str, Any]) -> None:
     row["popt_stream_requestor_dram_bytes"] = stream_bytes
     row["popt_target_time_charged"] = 0
     row["popt_timing_optimistic"] = int(charged and simulated <= 0)
+    row["popt_prefetch_upper_bound"] = int(
+        charged and requested == "analytic_prefetch_upper_bound")
     row["popt_reload_each_iteration"] = int(charged)
     row["popt_initial_columns_charged"] = int(charged)
     # The frozen primary metric on a timing backend: memory-controller bytes in
@@ -3609,6 +3618,9 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
     timing_model = "simulated_target_time"
     timing_valid_for_speedup = "1"
     timing_caveat = ""
+    timing_comparison_bound = "measured"
+    offchip_comparison_bound = "measured"
+    l3_miss_comparison_valid = 1
     if args.prefetcher == "ECG_PFX" and simulator in ("gem5", "sniper"):
         timing_model = (
             "prototype_instruction_delivery"
@@ -3635,16 +3647,31 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
             spec.policy == "POPT" and charge and
             int(charge.get("popt_overhead_charged", 0)) == 1 and
             simulator == "gem5" and
-            getattr(args, "popt_matrix_stream", "analytic") == "analytic"):
+            getattr(args, "popt_matrix_stream", "analytic") in (
+                "analytic", "analytic_prefetch_upper_bound")):
         if timing_valid_for_speedup == "1":
-            timing_model = "optimistic_popt_analytic_stream"
+            timing_model = (
+                "optimistic_popt_prefetch_upper_bound"
+                if args.popt_matrix_stream ==
+                "analytic_prefetch_upper_bound"
+                else "optimistic_popt_analytic_stream")
+        timing_comparison_bound = "popt_favorable_lower_bound"
+        if args.popt_matrix_stream == "analytic_prefetch_upper_bound":
+            offchip_comparison_bound = "popt_favorable_lower_bound"
+            l3_miss_comparison_valid = 0
+        prefetch_disclosure = (
+            " The common prefetcher does not issue accesses for the analytic "
+            "matrix sideband, so this sensitivity assumes perfect matrix "
+            "latency hiding while still charging all matrix bytes."
+            if args.popt_matrix_stream ==
+            "analytic_prefetch_upper_bound" else "")
         timing_caveat = " ".join(
             part for part in (
                 timing_caveat,
                 "P-OPT replacement and reduced LLC capacity are simulated, "
                 "while cumulative matrix-stream traffic is charged "
                 "analytically and its latency is omitted; timing therefore "
-                "favors P-OPT.")
+                f"favors P-OPT.{prefetch_disclosure}")
             if part)
 
     is_k2 = (
@@ -3681,6 +3708,9 @@ def base_row(simulator: str, args: argparse.Namespace, spec: PolicySpec, l3_size
         "timing_model": timing_model,
         "timing_valid_for_speedup": timing_valid_for_speedup,
         "timing_caveat": timing_caveat,
+        "timing_comparison_bound": timing_comparison_bound,
+        "offchip_comparison_bound": offchip_comparison_bound,
+        "l3_miss_comparison_valid": l3_miss_comparison_valid,
         "droplet_prefetch_degree": args.droplet_prefetch_degree,
         "droplet_indirect_degree": args.droplet_indirect_degree,
         "droplet_stride_table_size": args.droplet_stride_table_size,
@@ -4110,7 +4140,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "web-Google PageRank the bypass is worth -20.0%% to LRU, "
                              "-5.1%% to GRASP and -2.0%% to P-OPT, against StreamShield's "
                              "-2.4%% to K2.")
-    parser.add_argument("--popt-matrix-stream", choices=["analytic", "simulated"],
+    parser.add_argument(
+        "--popt-matrix-stream",
+        choices=[
+            "analytic", "simulated",
+            "analytic_prefetch_upper_bound",
+        ],
                         default="analytic",
                         help="How P-OPT's rereference-matrix column stream is charged. "
                              "'analytic' (legacy): add a flat per-run line count to the miss "
@@ -4121,7 +4156,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                              "symmetric with K2 when no prefetcher is active; with a "
                              "prefetcher it charges P-OPT demand misses that real hardware "
                              "removes, so 'simulated' is REQUIRED for any prefetch-enabled "
-                             "K2-versus-P-OPT comparison.")
+                             "K2-versus-P-OPT comparison. "
+                             "'analytic_prefetch_upper_bound' explicitly keeps "
+                             "the analytic byte charge under a common "
+                             "prefetcher while assuming perfect matrix latency "
+                             "hiding; it is a P-OPT-favorable sensitivity.")
     parser.add_argument("--ecg-charged", type=int, choices=[0, 1], default=1,
                         help="ECG per-edge record DELIVERY charge. 1 (default) = software "
                              "delivery: the 8B packed record is read from memory per edge "
@@ -4327,6 +4366,13 @@ def main(argv: list[str]) -> int:
         raise SystemExit(
             "--popt-matrix-stream simulated is implemented in cache_sim only; "
             "gem5 and Sniper would silently fall back to the analytic charge")
+    if (
+            getattr(args, "popt_matrix_stream", "analytic") ==
+            "analytic_prefetch_upper_bound" and
+            args.suite != "gem5"):
+        raise SystemExit(
+            "--popt-matrix-stream analytic_prefetch_upper_bound is a "
+            "gem5-only sensitivity; cache_sim must use simulated streaming")
     # A flat analytic matrix charge cannot be covered by a prefetcher, while
     # K2's per-edge records are simulated accesses that can. Combining the
     # analytic charge with an active prefetcher therefore prices the two
@@ -4345,9 +4391,9 @@ def main(argv: list[str]) -> int:
                      else DEFAULT_POLICIES))])):
         raise SystemExit(
             "charged P-OPT with an active prefetcher requires "
-            "--popt-matrix-stream simulated: a flat analytic matrix charge "
-            "cannot be prefetch-covered while K2's records can, which prices "
-            "the two metadata streams differently")
+            "--popt-matrix-stream simulated, or the explicit "
+            "analytic_prefetch_upper_bound sensitivity: a flat analytic "
+            "matrix charge cannot be prefetch-covered while K2's records can")
     if args.all_policies:
         policy_texts = ALL_POLICIES
     elif args.policies is not None:

@@ -84,6 +84,10 @@ instructions, IPC.
   simulated through the cache hierarchy, every competitor's metadata or
   reference-structure stream must be too, with identical prefetch eligibility
   and identical MSHR, queue, latency and bandwidth treatment.
+- The named `analytic_prefetch_upper_bound` sensitivity is a declared one-sided
+  stress test, not an exception for headline comparison: only K2 matching or
+  beating the deliberately favored P-OPT time/traffic bounds is admissible.
+  A P-OPT win in this mode is unresolved until its stream is simulated.
 - A result produced by a mechanism that cannot mispredict is an upper bound,
   not a measurement. Any configuration using semantic address classification
   (for example a prefetcher that consults the graph context to decide whether
@@ -429,6 +433,21 @@ mapping rather than online adaptation.
 preregistration. It changes only the static primary to
 `ECG:K2_RRIP_STREAMSHIELD`; graphs, baselines, controls, accounting, thresholds,
 and stop rules remain unchanged. V1 results cannot be relabeled as v2 results.
+
+### Common-prefetcher sensitivity
+
+The primary screen keeps conventional prefetching disabled. A separate
+sensitivity applies the same finite-resource gem5 L2 stride prefetcher, degree
+1, to every policy. Charged P-OPT uses
+`analytic_prefetch_upper_bound`: reserved capacity and every matrix byte remain
+charged, but the analytic matrix sideband receives perfect latency hiding and
+is not itself prefetched. This deliberately favors P-OPT.
+
+The sensitivity compares target time and total off-chip bytes. P-OPT's
+matrix-derived L3 miss addition is not a prefetch-comparable miss metric because
+the matrix is not issued as simulated accesses in gem5. P-OPT time and
+off-chip bytes are favorable lower bounds here: matrix latency is perfectly
+hidden and the analytic matrix stream incurs no prefetcher over-fetch.
 
 ## Separated experiment questions
 
