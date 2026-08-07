@@ -9,6 +9,7 @@ decision logic could differ between backends — this test fails loudly.
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -219,3 +220,105 @@ def test_online_dueling_has_roi_activity_statistics():
     assert "++onlineDuelingStats.followerSelections" in policy
     assert "gem5_k2_dueling_completed_windows" in runner
     assert "ONLINE_DUELING_WINDOW_MISSES" in runner
+
+
+SNIPER_CACHE_SET_ECG = (
+    ROOT / "bench/include/sniper_sim/overlays/common/core/memory_subsystem"
+    "/cache/cache_set_ecg.cc")
+
+
+def test_sniper_variant_is_attested_at_runtime():
+    """Sniper analog of test_the_executing_victim_variant_is_attested_at_runtime.
+
+    Verified end to end: ECG_VARIANT=lru_only produces
+    "[ECG-VARIANT-RECEIPT sim=sniper requested=lru_only effective=6
+    dueling=0]" -- an ungated, print-once receipt gated only on
+    context.loaded, mirroring gem5's own gating.
+    """
+    overlay = SNIPER_CACHE_SET_ECG.read_text()
+    assert "ECG-VARIANT-RECEIPT" in overlay, (
+        "nothing attests the Sniper-executing victim rule, so a "
+        "replacement-rule comparison cites its own configuration as evidence")
+    i = overlay.index("ECG-VARIANT-RECEIPT")
+    window = overlay[i - 800:i + 600]
+    assert "sim=sniper" in window
+    assert "requested=" in window and "effective=" in window, (
+        "the receipt must show BOTH what was asked for and what was "
+        "resolved, or it cannot catch a silent fallback")
+    assert "dueling=" in window, (
+        "set-dueling overrides the configured variant per set; a receipt "
+        "that hides it would attest a rule that is not uniformly in force")
+
+
+def test_sniper_online_dueling_has_roi_activity_statistics():
+    """Sniper analog of test_online_dueling_has_roi_activity_statistics.
+
+    Sniper has no gem5-style statistics::Group, so the counters are exposed
+    via registerStatsMetric under the "ecg-online-dueling" namespace, the
+    SAME mechanism nuca-cache's stream-bypass-reads/writes already relies
+    on. Sniper's --roi wrapper does NOT reset registered stats at ROI start
+    (StatsManager::recordStats() only snapshots current values under a named
+    prefix); each counter is monotonic, registered no later than its first
+    increment, and reported by the caller (sniper_lib.py/parse_stats) as a
+    roi-begin -> roi-end snapshot delta.
+    """
+    overlay = SNIPER_CACHE_SET_ECG.read_text()
+    runner = (ROOT / "scripts/experiments/ecg/roi_matrix.py").read_text()
+
+    # Multicore-safe evidence: recordMiss() now returns a MissRecordEvent
+    # describing only what THAT call did (no racy before/after diffing of
+    # the selector's own sampledMisses()/completedWindows() across shared
+    # core threads), and every evidence increment goes through the atomic
+    # incrementEvidenceCounter() wrapper (__sync_fetch_and_add) rather than
+    # a plain "++" that would race across Sniper's per-core OS threads. See
+    # the MULTICORE SAFETY comment block in cache_set_ecg.cc.
+    assert "ecg_policy::MissRecordEvent" in overlay
+    assert "incrementEvidenceCounter" in overlay
+    assert "__sync_fetch_and_add" in overlay
+    assert "struct OnlineDuelingEvidence" in overlay
+    assert "ensureOnlineDuelingStatsRegistered" in overlay
+    for field in (
+            "governed_victims", "leader_samples", "follower_selections",
+            "completed_windows", "winner_changes",
+            "follower_variant_overrides"):
+        assert f"&evidence.{field}" in overlay, (
+            f"OnlineDuelingEvidence.{field} is never registered via "
+            "registerStatsMetric")
+        increment_pattern = re.compile(
+            r"incrementEvidenceCounter\(\s*"
+            rf"(evidence|onlineDuelingEvidence\(\))\.{re.escape(field)}\s*\)")
+        assert increment_pattern.search(overlay), (
+            f"OnlineDuelingEvidence.{field} is never atomically incremented "
+            "via incrementEvidenceCounter()")
+        # Guard against a regression back to a racy plain "++" increment.
+        assert f"++evidence.{field}" not in overlay, (
+            f"OnlineDuelingEvidence.{field} is incremented with a plain "
+            "'++' -- this races across Sniper's per-core OS threads; use "
+            "incrementEvidenceCounter() instead")
+        assert f"++onlineDuelingEvidence().{field}" not in overlay, (
+            f"OnlineDuelingEvidence.{field} is incremented with a plain "
+            "'++' -- this races across Sniper's per-core OS threads; use "
+            "incrementEvidenceCounter() instead")
+    assert "sniper_k2_dueling_completed_windows" in runner
+    assert "SNIPER_ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS" in runner
+
+
+def test_sniper_online_dueling_naming_avoids_gem5_request_binding_claim():
+    """Sniper must never claim gem5's O3 Request/MSHR-attested victim binding.
+
+    gem5's first online-dueling counter is named "requestBoundVictims"
+    because it is gated on a genuine per-packet Request/MSHR binding
+    (GraphEcgRP::setVictimRequest) that only exists on gem5's O3 CPU.
+    Sniper's marker/sideband-governed population must use a different name
+    (governed_victims) so a reader of the evidence cannot mistake Sniper's
+    population for that gem5-specific HW binding.
+    """
+    overlay = SNIPER_CACHE_SET_ECG.read_text()
+    assert "struct OnlineDuelingEvidence" in overlay
+    assert "UInt64 governed_victims" in overlay
+    # The evidence struct itself must not (re-)introduce gem5's field name.
+    struct_start = overlay.index("struct OnlineDuelingEvidence")
+    struct_end = overlay.index("};", struct_start)
+    struct_body = overlay[struct_start:struct_end]
+    assert "request_bound_victims" not in struct_body
+    assert "requestBoundVictims" not in struct_body

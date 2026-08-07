@@ -84,6 +84,30 @@ inline int duelingLeaderArm(size_t set_index) {
     return slot < DUEL_ARM_COUNT ? static_cast<int>(slot) : -1;
 }
 
+// Result of a single recordMiss() call. Every field describes ONLY what
+// THAT call itself did/observed -- never a diff against a separately-read
+// "before" snapshot. That distinction matters under concurrent callers
+// (Sniper simulates cores as real OS threads sharing one LLC/selector):
+// separate before/after reads of sampledMisses()/completedWindows()/
+// winnerArm() around a recordMiss() call race against every OTHER
+// thread's concurrent recordMiss() call on the same selector, so a
+// caller-side "after > before" diff can attribute another thread's window
+// completion or winner change to this call (or miss/double-count one
+// entirely). Every counter recordMiss() touches here (misses_,
+// sampled_misses_, winner_) is already an std::atomic with a
+// fetch_add/exchange that returns a value unique to the calling thread, so
+// deriving leader_sample/completed_window/winner_changed from THOSE return
+// values (as done below) is race-free: at most one call can ever observe
+// "this fetch_add hit the window boundary" for a given window, and only
+// that same call performs (and reports) the resulting winner transition.
+struct MissRecordEvent {
+    bool leader_sample = false;     // this call sampled a leader-set miss
+    bool completed_window = false;  // this call's sample completed a window
+    bool winner_changed = false;    // this call's window changed the winner
+    uint8_t winner_before = 0;
+    uint8_t winner_after = 0;
+};
+
 class OnlineDuelingSelector {
   public:
     int variantForSet(size_t set_index) const {
@@ -94,14 +118,25 @@ class OnlineDuelingSelector {
         return duelingArmVariant(arm);
     }
 
-    void recordMiss(size_t set_index) {
+    // Returns a MissRecordEvent describing what THIS call did; see the
+    // struct comment above for why that must never be reconstructed from a
+    // caller-side before/after diff under concurrent callers. The dueling
+    // decision logic itself (leader gating, per-window arm comparison,
+    // ties keeping the incumbent winner) is UNCHANGED from the original
+    // void-returning implementation.
+    MissRecordEvent recordMiss(size_t set_index) {
+        MissRecordEvent event;
+        event.winner_before = winner_.load(std::memory_order_relaxed);
+        event.winner_after = event.winner_before;
         const int leader = duelingLeaderArm(set_index);
-        if (leader < 0) return;
+        if (leader < 0) return event;
+        event.leader_sample = true;
         misses_[static_cast<size_t>(leader)].fetch_add(
             1, std::memory_order_relaxed);
         const uint64_t total =
             sampled_misses_.fetch_add(1, std::memory_order_relaxed) + 1;
-        if ((total % kWindowMisses) != 0) return;
+        if ((total % kWindowMisses) != 0) return event;
+        event.completed_window = true;
 
         std::array<uint64_t, DUEL_ARM_COUNT> window{};
         for (size_t arm = 0; arm < DUEL_ARM_COUNT; ++arm) {
@@ -116,7 +151,26 @@ class OnlineDuelingSelector {
                 best_misses = window[arm];
             }
         }
-        winner_.store(best, std::memory_order_relaxed);
+        // winner_before/winner_changed for a completed window MUST be
+        // derived from the return value of the atomic op that actually
+        // installs `best`, not from the separate winner_.load() taken at
+        // the top of this call (or the initial-guess load just above).
+        // Overlapping recordMiss() calls from other threads can complete
+        // their OWN windows and mutate winner_ at any point between those
+        // earlier reads and this store; a caller-visible "before" that
+        // isn't the exact predecessor this call's store overwrote can
+        // duplicate or misattribute a winner_changed transition that
+        // really belongs to a different call. exchange() is a single
+        // atomic RMW: its return value is, by definition, the value this
+        // specific call's store replaced in winner_'s real total
+        // modification order, so at most one call can ever report a given
+        // transition and the transitions chain together exactly.
+        const uint8_t previous_winner =
+            winner_.exchange(best, std::memory_order_relaxed);
+        event.winner_before = previous_winner;
+        event.winner_after = best;
+        event.winner_changed = (best != previous_winner);
+        return event;
     }
 
     uint8_t winnerArm() const {

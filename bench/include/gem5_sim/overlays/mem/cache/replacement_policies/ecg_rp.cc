@@ -601,17 +601,19 @@ GraphEcgRP::getVictim(const ReplacementCandidates& candidates) const
         setDueling && victimRequestValid &&
         !candidates.empty()) {
         const size_t setIndex = candidates.front()->getSet();
-        const uint64_t samplesBefore = duelingSelector.sampledMisses();
-        const uint64_t windowsBefore = duelingSelector.completedWindows();
-        const uint8_t winnerBefore = duelingSelector.winnerArm();
         ++onlineDuelingStats.requestBoundVictims;
-        duelingSelector.recordMiss(setIndex);
-        if (duelingSelector.sampledMisses() > samplesBefore)
-            ++onlineDuelingStats.leaderSamples;
-        if (duelingSelector.completedWindows() > windowsBefore)
-            ++onlineDuelingStats.completedWindows;
-        if (duelingSelector.winnerArm() != winnerBefore)
-            ++onlineDuelingStats.winnerChanges;
+        // recordMiss() now returns what THIS call itself did instead of the
+        // caller diffing separately-read before/after selector snapshots
+        // (ecg_victim_policy.h's MissRecordEvent comment explains why that
+        // diff is race-prone under concurrent callers; gem5's O3 CPU event
+        // queue processes this single-threaded per instance, so the switch
+        // here is for API consistency with the shared header and Sniper's
+        // now-required fix, not a behavior change).
+        const ecg_policy::MissRecordEvent event =
+            duelingSelector.recordMiss(setIndex);
+        if (event.leader_sample) ++onlineDuelingStats.leaderSamples;
+        if (event.completed_window) ++onlineDuelingStats.completedWindows;
+        if (event.winner_changed) ++onlineDuelingStats.winnerChanges;
     }
     for (const auto& candidate : candidates) {
         if (!getData(candidate)->valid) return candidate;

@@ -210,6 +210,22 @@ not measured K2-I or mask-only timing. Tiny PR and weighted SSSP O3 runs prove r
 delivery; scale runs remain on TimingSimpleCPU. Historical
 gem5 rows labeled `ecg.load2`/`ecg.wload2` predate this correction and are not
 reinterpreted without rerunning.
+Sniper's `ECG:K2_ONLINE_STREAMSHIELD` variant/dueling-selection decision now
+carries the same class of runtime evidence as gem5's `OnlineDuelingStats`
+(governed-victim/leader-sample/follower-selection/completed-window/
+winner-change/follower-variant-override counters registered via
+`registerStatsMetric`). Sniper's `--roi` wrapper does not reset registered
+stats at ROI start; each counter is monotonic, registered no later than its
+first increment, and reported as a roi-begin -> roi-end snapshot delta (the
+same mechanism `sniper_lib.py`/`stats.parse_stats()` already use for every
+other Sniper stat), plus an ungated `[ECG-VARIANT-RECEIPT sim=sniper ...]`
+receipt). Sniper's population is governed by a marker/sideband condition, not
+by a genuine per-packet Request/MSHR-attested victim binding, so its first
+counter is named `governed_victims` rather than gem5's `requestBoundVictims`;
+the two are never interchangeable and the distinction is load-bearing. This
+evidence is attestation of which rule executed and how much it fired, not a
+timing result: gem5 O3 remains the architectural timing authority, and Sniper
+mask-mode rows remain ineligible for a performance claim.
 
 The K2-M Sniper model uses transport-matched guest execution: every policy
 loads the same 8-byte records for unweighted kernels, while SSSP uses the same

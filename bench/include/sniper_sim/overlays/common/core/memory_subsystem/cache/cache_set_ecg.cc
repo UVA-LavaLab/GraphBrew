@@ -4,6 +4,7 @@
 #include "config.hpp"
 #include "log.h"
 #include "simulator.h"
+#include "stats.h"
 
 #include <algorithm>
 #include <atomic>
@@ -184,7 +185,115 @@ uint32_t requesterCoreOr(core_id_t fallback)
    return static_cast<uint32_t>(fallback);
 }
 
+// ECG:K2_ONLINE_STREAMSHIELD runtime evidence -- the Sniper analog of gem5
+// GraphEcgRP::OnlineDuelingStats (ecg_rp.hh/.cc). Both consume
+// ecg_policy::OnlineDuelingSelector, so the counters below are semantically
+// the SAME quantities gem5 registers as statistics::Scalar: a leader-set
+// miss sample, a completed window, a winner change, a follower-set variant
+// selection, and a follower selection whose variant differed from the
+// statically requested one.
+//
+// NAMING CAVEAT: gem5 calls its first counter "requestBoundVictims" because
+// on the O3 CPU it is gated on a genuine per-packet Request/MSHR-attested
+// victim binding (GraphEcgRP::setVictimRequest). Sniper has no MSHR to bind
+// to -- its "governed_victims" population below is gated on the SAME
+// marker/sideband condition already used to admit a miss into the dueling
+// sample stream in prepareInsertion() (an in-ROI vertex hint, and either
+// exact-bind is off or this fill carried a validated exact-bind lookup).
+// This is the closest Sniper-equivalent population, not a claim of
+// gem5 O3 MSHR-level request binding.
+//
+// MULTICORE SAFETY: unlike gem5 (a single-threaded discrete-event
+// simulator, even for multi-core configurations), Sniper simulates each
+// core in its own OS thread, and a single CacheSetECG instance -- and thus
+// this evidence struct and the shared ecg_policy::globalOnlineDuelingSelector()
+// -- is shared across every core whose accesses map to that L3 set. Plain
+// "UInt64 x; ++x;" here would race across those threads (a torn/lost
+// increment), and separately re-reading the selector's own before/after
+// state around a recordMiss() call is ALSO racy (another core's concurrent
+// recordMiss() call can complete a window or change the winner in between
+// the two reads, causing that single true event to be attributed to
+// zero, one, or more than one calling thread). Two fixes address this:
+//   1. Every increment below goes through incrementEvidenceCounter(), which
+//      wraps __sync_fetch_and_add -- the SAME atomic-increment builtin
+//      already used elsewhere in this exact Sniper tree for shared counters
+//      touched from multiple core threads (see e.g.
+//      common/misc/timer.h, common/misc/subsecond_time.h,
+//      common/core/core.cc's g_instructions_hpi_global). The underlying
+//      counters stay plain UInt64 so registerStatsMetric<UInt64> below is
+//      unchanged.
+//   2. recordMiss() itself now returns a MissRecordEvent describing ONLY
+//      what THAT call did (ecg_victim_policy.h has the full race argument);
+//      evidence is derived from that per-call event instead of separate
+//      before/after reads of shared atomics.
+struct OnlineDuelingEvidence
+{
+   UInt64 governed_victims = 0;
+   UInt64 leader_samples = 0;
+   UInt64 follower_selections = 0;
+   UInt64 completed_windows = 0;
+   UInt64 winner_changes = 0;
+   UInt64 follower_variant_overrides = 0;
+};
+
+OnlineDuelingEvidence& onlineDuelingEvidence()
+{
+   static OnlineDuelingEvidence evidence;
+   return evidence;
+}
+
+// __sync_fetch_and_add is a full-barrier GCC/Clang atomic builtin; matches
+// the increment convention already used on shared UInt64 counters elsewhere
+// in this Sniper tree (see the MULTICORE SAFETY comment above). Kept as a
+// tiny wrapper so every evidence increment below is visibly atomic at the
+// call site.
+inline void incrementEvidenceCounter(UInt64& counter)
+{
+   __sync_fetch_and_add(&counter, 1);
+}
+
+// registerStatsMetric follows the SAME convention as nuca_cache.cc's
+// "nuca-cache"/stream-bypass-reads counters: it registers a pointer to a
+// live, monotonically-incrementing counter. Sniper's --roi wrapper does NOT
+// reset registered stats at ROI start -- StatsManager::recordStats() only
+// snapshots the current values under a named prefix ("roi-begin", then
+// later "roi-end"); sniper_lib.py's stats.parse_stats() subsequently reports
+// the delta between those two snapshots. So these counters are safe to read
+// as an ROI-scoped quantity ONLY because they are registered no later than
+// their first increment (before any in-ROI activity can be lost) and are
+// reported as a roi-begin -> roi-end snapshot delta, not because the
+// underlying value is ever reset to zero. Guarded by a function-local
+// static so the registration itself executes exactly once even though
+// CacheSetECG is instantiated once per L3 set (not once per cache).
+void ensureOnlineDuelingStatsRegistered()
+{
+   static const bool registered = []() {
+      auto& evidence = onlineDuelingEvidence();
+      registerStatsMetric(
+            "ecg-online-dueling", 0, "governed-victims",
+            &evidence.governed_victims);
+      registerStatsMetric(
+            "ecg-online-dueling", 0, "leader-samples",
+            &evidence.leader_samples);
+      registerStatsMetric(
+            "ecg-online-dueling", 0, "follower-selections",
+            &evidence.follower_selections);
+      registerStatsMetric(
+            "ecg-online-dueling", 0, "completed-windows",
+            &evidence.completed_windows);
+      registerStatsMetric(
+            "ecg-online-dueling", 0, "winner-changes",
+            &evidence.winner_changes);
+      registerStatsMetric(
+            "ecg-online-dueling", 0, "follower-variant-overrides",
+            &evidence.follower_variant_overrides);
+      return true;
+   }();
+   (void)registered;
+}
+
 }  // namespace
+
 
 CacheSetECG::CacheSetECG(
       String cfgname, core_id_t core_id,
@@ -336,8 +445,29 @@ CacheSetECG::prepareInsertion(IntPtr addr, UInt32 set_index)
    }();
    if (set_dueling &&
        (!sniperK2ExactBindEnabled() || m_pending_exact_k2_valid) &&
-       graphbrew::sniper::hasCurrentVertexHint(requesterCoreOr(m_core_id)))
-      ecg_policy::globalOnlineDuelingSelector().recordMiss(set_index);
+       graphbrew::sniper::hasCurrentVertexHint(requesterCoreOr(m_core_id))) {
+      // Governed-victim online-dueling evidence (ECG:K2_ONLINE_STREAMSHIELD).
+      // Sniper analog of gem5 GraphEcgRP::getVictim's requestBoundVictims/
+      // leaderSamples/completedWindows/winnerChanges; see the
+      // OnlineDuelingEvidence comment above for the naming AND multicore-
+      // safety caveats. recordMiss()'s returned MissRecordEvent describes
+      // ONLY what THIS call did, so no caller-side before/after diffing of
+      // the shared selector is needed (that diff races across the core
+      // threads that share this CacheSetECG instance); every increment goes
+      // through incrementEvidenceCounter() (__sync_fetch_and_add) since
+      // multiple cores can reach this same evidence struct concurrently.
+      ensureOnlineDuelingStatsRegistered();
+      auto& selector = ecg_policy::globalOnlineDuelingSelector();
+      auto& evidence = onlineDuelingEvidence();
+      incrementEvidenceCounter(evidence.governed_victims);
+      const ecg_policy::MissRecordEvent event = selector.recordMiss(set_index);
+      if (event.leader_sample)
+         incrementEvidenceCounter(evidence.leader_samples);
+      if (event.completed_window)
+         incrementEvidenceCounter(evidence.completed_windows);
+      if (event.winner_changed)
+         incrementEvidenceCounter(evidence.winner_changes);
+   }
    m_has_pending_insert = true;
    graphbrew::sniper::globalContext().updateVertexFromAddr(
          m_pending_insert_addr, requesterCoreOr(m_core_id));
@@ -724,10 +854,6 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
       return value && value[0] && std::string(value) != "0";
    }();
    int variant = configured_variant;
-   if (set_dueling) {
-      auto& selector = ecg_policy::globalOnlineDuelingSelector();
-      variant = selector.variantForSet(m_set_index);
-   }
 
    auto& context = graphbrew::sniper::globalContext();
    // SNIPER_ECG_EXTRACT: rank property lines by the DELIVERED per-edge epoch
@@ -740,6 +866,52 @@ CacheSetECG::findECGGraspPoptVictim(CacheCntlr *cntlr)
    // signal is the delivered epoch (needs only the property region, not the matrix).
    if (!context.loaded || (!fatLoad && !context.rereference.enabled))
       return findSRRIPVictim(cntlr);
+
+   // Ungated receipt, printed once. Sniper analog of gem5's
+   // [ECG-VARIANT-RECEIPT]: the runner records the variant it REQUESTED;
+   // without this nothing in an archived Sniper run proves which rule
+   // actually executed. Gated on context.loaded (mirrors gem5's
+   // `ecgMode == ECG_GRASP_POPT && ctx.loaded` guard around its own receipt).
+   static const bool variant_announced = [&]() {
+      const char* requested = std::getenv("ECG_VARIANT");
+      std::fprintf(stderr,
+          "[ECG-VARIANT-RECEIPT sim=sniper requested=%s effective=%d "
+          "dueling=%d]\n",
+          requested ? requested : "(unset)", configured_variant,
+          set_dueling ? 1 : 0);
+      return true;
+   }();
+   (void)variant_announced;
+
+   if (set_dueling) {
+      // Follower-set online-dueling evidence, gated on the SAME governed
+      // marker/sideband condition prepareInsertion uses to admit a
+      // governed_victims sample (exact-bind validated, or exact-bind is
+      // disabled entirely, AND a live vertex hint for this requester) so
+      // gem5 and Sniper populate their K2 online-dueling evidence under
+      // matching admission criteria -- an un-governed victim (no vertex
+      // hint, or an exact-bind fill Sniper could not validate) must not be
+      // able to inflate follower_selections/follower_variant_overrides.
+      // Sniper analog of gem5 GraphEcgRP::getVictim's followerSelections/
+      // followerVariantOverrides; see the OnlineDuelingEvidence comment for
+      // the Request/MSHR naming caveat -- this counts marker-governed
+      // follower-set selections, not an O3 request-attested victim.
+      const bool governed =
+         (!sniperK2ExactBindEnabled() || m_pending_exact_k2_valid) &&
+         graphbrew::sniper::hasCurrentVertexHint(requesterCoreOr(m_core_id));
+      auto& selector = ecg_policy::globalOnlineDuelingSelector();
+      const bool follower = ecg_policy::duelingLeaderArm(m_set_index) < 0;
+      if (governed && follower) {
+         ensureOnlineDuelingStatsRegistered();
+         incrementEvidenceCounter(onlineDuelingEvidence().follower_selections);
+      }
+      variant = selector.variantForSet(m_set_index);
+      if (governed && follower && variant != configured_variant) {
+         ensureOnlineDuelingStatsRegistered();
+         incrementEvidenceCounter(
+               onlineDuelingEvidence().follower_variant_overrides);
+      }
+   }
 
    const uint32_t ne = context.edge_epoch_count ? context.edge_epoch_count : 256u;
    uint32_t requester_core = requesterCoreOr(m_core_id);

@@ -19,6 +19,25 @@ ONLINE_DUELING_REPORTED_FIELDS = (
     "gem5_k2_dueling_follower_variant_overrides",
 )
 
+# Sniper analog of the gem5 online-dueling evidence above. Field names use a
+# "sniper_" prefix and "governed_victims" rather than gem5's frozen
+# "request_bound_victims": Sniper has no O3 Request/MSHR-attested victim to
+# bind to, so its population is the closest Sniper-equivalent (a
+# marker/sideband-governed miss population; see cache_set_ecg.cc's
+# OnlineDuelingEvidence comment and sniper_k2_dueling_binding_model). The
+# frozen gem5_* fields above are never renamed or repurposed for Sniper.
+SNIPER_ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS = (
+    "sniper_k2_dueling_governed_victims",
+    "sniper_k2_dueling_leader_samples",
+    "sniper_k2_dueling_follower_selections",
+    "sniper_k2_dueling_completed_windows",
+)
+SNIPER_ONLINE_DUELING_REPORTED_FIELDS = (
+    *SNIPER_ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
+    "sniper_k2_dueling_winner_changes",
+    "sniper_k2_dueling_follower_variant_overrides",
+)
+
 
 @dataclass(frozen=True)
 class PolicySpec:

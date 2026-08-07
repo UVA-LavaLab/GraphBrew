@@ -3096,62 +3096,6 @@ struct GraphCacheContext {
         }
         os << std::defaultfloat << "===========================\n";
     }
-
-private:
-    // Auto-compute hot fraction from degree distribution and LLC capacity.
-    //
-    // Strategy:
-    //   1. Capacity-based: what fraction of the array fits in this region's
-    //      LLC share? (llc_size / num_regions_so_far / array_bytes)
-    //   2. Degree-based (if topology available): what fraction of vertices
-    //      covers 50% of total edges? For power-law graphs, this is << 1%.
-    //   3. Take the minimum: the tighter constraint wins.
-    //
-    // This replaces GRASP's manual "f" parameter with a self-tuning approach.
-    double autoComputeHotFraction(uint32_t num_elements, uint32_t elem_size,
-                                  size_t llc_size) const {
-        uint64_t array_bytes = static_cast<uint64_t>(num_elements) * elem_size;
-        if (array_bytes == 0 || llc_size == 0) return 0.1;
-
-        // 1. Capacity-based: what share of LLC can this array occupy?
-        //    Divide LLC among registered regions (including this new one)
-        uint32_t total_regions = num_regions + 1;  // +1 for the one being registered
-        uint64_t llc_share = llc_size / total_regions;
-        double capacity_fraction = static_cast<double>(llc_share) / array_bytes;
-        if (capacity_fraction > 1.0) capacity_fraction = 1.0;
-
-        // 2. Degree-based: what fraction covers 50% of edges?
-        //    Only if topology is initialized
-        double degree_fraction = 1.0;
-        if (topology.num_vertices > 0 && topology.num_edges > 0) {
-            uint64_t half_edges = topology.num_edges / 2;
-            uint64_t cumulative = 0;
-            // Scan from highest-degree bucket downward
-            // (DBG-ordered: high-degree vertices are at front of array)
-            for (int b = GraphTopology::NUM_BUCKETS - 1; b >= 0; --b) {
-                cumulative += topology.bucket_total_degrees[b];
-                if (cumulative >= half_edges) {
-                    // Count vertices in this and higher buckets
-                    uint64_t hot_vertices = 0;
-                    for (int bb = b; bb < static_cast<int>(GraphTopology::NUM_BUCKETS); ++bb)
-                        hot_vertices += topology.bucket_counts[bb];
-                    degree_fraction = static_cast<double>(hot_vertices) / topology.num_vertices;
-                    break;
-                }
-            }
-            // Clamp: at least 1% (avoid empty hot region)
-            if (degree_fraction < 0.01) degree_fraction = 0.01;
-        }
-
-        // Take the tighter constraint
-        double result = std::min(capacity_fraction, degree_fraction);
-
-        // Sanity: at least 1%, at most 50%
-        if (result < 0.01) result = 0.01;
-        if (result > 0.50) result = 0.50;
-
-        return result;
-    }
 };
 
 } // namespace cache_sim

@@ -60,6 +60,7 @@ from gem5_guest_receipt import (  # noqa: E402
 from policy_specs import (  # noqa: E402
     ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
     ONLINE_DUELING_WINDOW_MISSES,
+    SNIPER_ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
     PolicySpec,
     parse_policy_spec,
 )
@@ -1499,20 +1500,115 @@ def apply_gem5_geometry_receipt(
     return valid
 
 
+def apply_sniper_geometry_receipt(
+        row: dict[str, Any], sniper_out: Path,
+        expected_kb: int, expected_ways: str) -> bool:
+    """Attest Sniper's actually-applied LLC (NUCA) geometry.
+
+    Sniper's CacheParameters constructor computes
+    ``num_sets = size_kb * 1024 / (associativity * block_size)`` and
+    LOG_ASSERT_ERRORs (a fatal, run-aborting check) if that does not divide
+    evenly, so a *completed* run's geometry is guaranteed internally
+    self-consistent. That does not, however, prove our requested
+    ``-g perf_model/nuca/cache_size=...``/``associativity=...`` overrides
+    actually reached the merged config (a wrong key path or a later config
+    file could silently leave a stale default in place). Verify against
+    Sniper's OWN emitted ``sim.cfg`` (the merged, as-applied config dump)
+    rather than re-asserting our own already-computed request as ground
+    truth -- mirroring apply_gem5_geometry_receipt's use of gem5's
+    config.json instead of gem5's requested/charged geometry.
+
+    Also require ``[perf_model/nuca] enabled = true``: Sniper's base.cfg
+    ships ``[perf_model/nuca] enabled = false`` by default (NUCA is opt-in
+    via nuca-cache.cfg), and a merged config that left ``enabled = false``
+    would make the ``cache_size``/``associativity`` keys checked above
+    inert -- the run would then be modeling the LLC through a different,
+    unattested mechanism with a possibly different real geometry, even
+    though those two keys happen to read back as the requested values.
+    """
+    sim_cfg_path = sniper_out / "simulation" / "sim.cfg"
+    if not sim_cfg_path.exists():
+        sim_cfg_path = sniper_out / "sim.cfg"
+    try:
+        cfg_text = sim_cfg_path.read_text(errors="ignore")
+    except OSError:
+        mark_row_error(
+            row,
+            "Sniper sim.cfg is missing; cannot verify realized LLC geometry")
+        return False
+    section_match = re.search(
+        r"\[perf_model/nuca\](.*?)(?:\n\[|\Z)", cfg_text, re.DOTALL)
+    if not section_match:
+        mark_row_error(row, "Sniper sim.cfg has no [perf_model/nuca] section")
+        return False
+    section = section_match.group(1)
+    enabled_match = re.search(
+        r'^enabled(?:\[\])?\s*=\s*"?([A-Za-z0-9]+)"?',
+        section, re.MULTILINE)
+    if not enabled_match:
+        mark_row_error(
+            row,
+            "Sniper sim.cfg [perf_model/nuca] has no 'enabled' key; cannot "
+            "verify NUCA is actually driving the realized LLC geometry")
+        return False
+    nuca_enabled = enabled_match.group(1).strip().lower() in ("true", "1")
+    row["sniper_l3_nuca_enabled"] = int(nuca_enabled)
+    if not nuca_enabled:
+        mark_row_error(
+            row,
+            "Sniper sim.cfg reports [perf_model/nuca] enabled = false; the "
+            "realized LLC geometry cannot be attested through a disabled "
+            "NUCA cache")
+        return False
+    size_match = re.search(
+        r"^cache_size(?:\[\])?\s*=\s*([0-9,]+)", section, re.MULTILINE)
+    assoc_match = re.search(
+        r"^associativity(?:\[\])?\s*=\s*([0-9,]+)", section, re.MULTILINE)
+    if not size_match or not assoc_match:
+        mark_row_error(
+            row, "Sniper sim.cfg is missing the realized LLC geometry")
+        return False
+    actual_size_values = {
+        int(v) for v in size_match.group(1).split(",") if v.strip()}
+    actual_assoc_values = {
+        int(v) for v in assoc_match.group(1).split(",") if v.strip()}
+    if len(actual_size_values) != 1 or len(actual_assoc_values) != 1:
+        mark_row_error(
+            row, "Sniper realized LLC geometry differs across cores")
+        return False
+    actual_size = next(iter(actual_size_values))
+    actual_ways = next(iter(actual_assoc_values))
+    row["sniper_l3_size_actual_kb"] = actual_size
+    row["sniper_l3_ways_actual"] = actual_ways
+    valid = actual_size == int(expected_kb) and actual_ways == int(expected_ways)
+    if not valid:
+        mark_row_error(
+            row,
+            "Sniper realized LLC geometry differs from the charged geometry")
+    return valid
+
+
+
 def validate_online_dueling_activity(
-        row: dict[str, Any], required: bool) -> bool:
+        row: dict[str, Any], required: bool,
+        positive_fields: tuple[str, ...] = ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
+        leader_samples_field: str = "gem5_k2_dueling_leader_samples") -> bool:
+    """Fail-closed check that online set-dueling actually ran in the ROI.
+
+    Shared by gem5 (default fields) and Sniper (``sniper_*`` fields passed by
+    the caller) -- the gem5 field names/semantics are never renamed; Sniper
+    passes its own ``sniper_k2_dueling_*`` fields explicitly instead.
+    """
     if not required:
         return True
     missing = [
-        field for field in ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS
+        field for field in positive_fields
         if int(row.get(field) or 0) <= 0
     ]
-    leader_samples = int(
-        row.get("gem5_k2_dueling_leader_samples") or 0)
+    leader_samples = int(row.get(leader_samples_field) or 0)
     if leader_samples < ONLINE_DUELING_WINDOW_MISSES:
         missing.append(
-            "gem5_k2_dueling_leader_samples"
-            f"<{ONLINE_DUELING_WINDOW_MISSES}")
+            f"{leader_samples_field}<{ONLINE_DUELING_WINDOW_MISSES}")
     if missing:
         mark_row_error(
             row,
@@ -1864,6 +1960,53 @@ def apply_gem5_variant_receipt(
     return valid
 
 
+def apply_sniper_variant_receipt(
+        row: dict[str, Any], log_text: str,
+        requested: str, required: bool,
+        expected_dueling: int = 0) -> bool:
+    """Attest the executing Sniper ECG victim variant rather than trusting
+    config, mirroring apply_gem5_variant_receipt's [ECG-VARIANT-RECEIPT]
+    contract but matching Sniper's own receipt (``sim=sniper``).
+
+    Sniper's variant/dueling decision is driven by the SAME shared
+    ecg_policy::OnlineDuelingSelector as gem5 (a marker/sideband-governed
+    per-set decision), but Sniper has no O3 Request/MSHR to bind a victim
+    to. This function -- and the ``sniper_variant_*`` fields it writes --
+    must never be conflated with gem5's Request-bound attestation; see
+    ``sniper_k2_dueling_binding_model`` for the explicit distinction.
+    """
+    match = re.search(
+        r"\[ECG-VARIANT-RECEIPT sim=sniper requested=([^ ]+) "
+        r"effective=(\d+) dueling=(\d+)\]", log_text)
+    if not match:
+        if required:
+            mark_row_error(
+                row, "ECG victim variant receipt missing from Sniper output")
+        return False
+    actual_requested = match.group(1)
+    effective = int(match.group(2))
+    dueling = int(match.group(3))
+    expected_effective = {
+        "grasp_only": 0, "epoch_first": 1, "rrip_first": 2,
+        "epoch_only": 3, "shortcircuit": 4, "legacy": 4,
+        "degree_first": 5, "traversal": 5, "lru_only": 6,
+    }.get(requested)
+    row["sniper_variant_requested_receipt"] = actual_requested
+    row["sniper_variant_effective_receipt"] = effective
+    row["sniper_variant_dueling_receipt"] = dueling
+    valid = (
+        actual_requested == requested and
+        expected_effective == effective and
+        dueling == expected_dueling)
+    if required and not valid:
+        mark_row_error(row, (
+            "ECG victim variant receipt mismatch: "
+            f"expected {requested}/{expected_effective}/"
+            f"dueling={expected_dueling}, got "
+            f"{actual_requested}/{effective}/dueling={dueling}"))
+    return valid
+
+
 def ecg_epoch_region(benchmark: str) -> str:
     return {
         "pr": "contrib", "bfs": "parent", "sssp": "dist",
@@ -1915,6 +2058,31 @@ def effective_ecg_variant(
     # BC/CC mix frontier work with backward/pointer-chasing phases; rrip_first
     # is the measured do-no-harm arm and remains the safe adaptive fallback.
     return "rrip_first"
+
+
+def sniper_mask_mode_ecg_variant(
+        args: argparse.Namespace, schedule_k: int | None,
+        spec: PolicySpec) -> str:
+    """Compute the ECG_VARIANT Sniper's mask-mode (K2-M / ``--ecg-isa-variant
+    mask``) transport exports, called from run_sniper's mask branch.
+
+    Every ``ECG:K2_*`` PolicySpec pins its own ``ecg_variant`` (e.g.
+    ``ECG:K2_LRU_STREAMSHIELD`` -> "lru_only", ``ECG:K2_DEGREE`` ->
+    "degree_first", ``ECG:K2_RRIP_STREAMSHIELD`` -> "rrip_first",
+    ``ECG:K2_ONLINE_STREAMSHIELD`` -> "rrip_first" with dueling enabled) and
+    that pin MUST reach the child Sniper process unchanged and MUST be what
+    the receipt validator (apply_sniper_variant_receipt) checks against --
+    anything else would let the runner silently execute (and certify) a
+    different variant than the one requested. Only a spec with genuinely no
+    pinned variant (``spec.ecg_variant is None``, i.e. it reached
+    ECG_GRASP_POPT mode through the generic "ECG:<mode>" parser path rather
+    than a named ``K2_*`` spec) falls back to the generic ECG:K2
+    adaptive-benchmark mapping, matching gem5/cache_sim's own default.
+    """
+    if spec.ecg_variant is None:
+        return effective_ecg_variant(
+            args, schedule_k=2, spec=parse_policy_spec("ECG:K2"))
+    return effective_ecg_variant(args, schedule_k, spec)
 
 
 def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_size: str) -> list[dict[str, Any]]:
@@ -3064,8 +3232,12 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     if args.ecg_isa_variant == "mask":
         env["SNIPER_ECG_MODE"] = "ECG_GRASP_POPT"
         env["ECG_MODE"] = "ECG_GRASP_POPT"
-        env["ECG_VARIANT"] = effective_ecg_variant(
-            args, schedule_k=2, spec=parse_policy_spec("ECG:K2"))
+        # Preserve any spec-pinned variant (e.g. ECG:K2_LRU_STREAMSHIELD ->
+        # "lru_only") instead of unconditionally overwriting it with the
+        # generic ECG:K2 adaptive mapping; see sniper_mask_mode_ecg_variant.
+        ecg_variant = sniper_mask_mode_ecg_variant(
+            args, transport.schedule_k, spec)
+        env["ECG_VARIANT"] = ecg_variant
         env["ECG_EDGE_MASKS"] = "1"
         env["SNIPER_POPT_FAST"] = "1"
     schedule_k = transport.schedule_k if is_k2_ecg else 0
@@ -3264,6 +3436,11 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
                     "rereference matrix"),
             })
             return [row]
+        if is_k2_ecg:
+            apply_sniper_variant_receipt(
+                row, log_text, ecg_variant, required=True,
+                expected_dueling=int(transport.set_dueling))
+            row["sniper_k2_dueling_binding_model"] = "marker_population"
 
     raw_stats = read_sniper_stats(sniper_out)
     if not raw_stats.get("success"):
@@ -3280,7 +3457,6 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
     l3_misses = metrics.get("llc_load_misses", 0)
     row.update({
         "section": 1,
-        "status": "ok",
         "stats_path": metrics.get("stats_path", ""),
         "sniper_policy_config": policy_name,
         "sim_ticks": metrics.get("cycles_or_time", 0),
@@ -3299,6 +3475,12 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
         "l2_policy": "LRU",
         "l3_policy": policy_name.upper(),
     })
+    # Metrics population must never resurrect a row that an earlier gate
+    # (e.g. apply_sniper_variant_receipt) already failed via mark_row_error;
+    # only claim "ok" here if nothing upstream already marked "error".
+    if row.get("status") != "error":
+        row["status"] = "ok"
+    apply_sniper_geometry_receipt(row, sniper_out, l3_kb, sniper_l3_ways)
     apply_overhead_metrics(row)
     # In certification mode the runner asks for a fixed K2 delivery-trace
     # budget; require that full budget so a single paired transaction cannot
@@ -3355,6 +3537,30 @@ def run_sniper(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_siz
                 rf"nuca-cache\.{re.escape(metric)}\s*=\s*(\d+)",
                 stats_text)
             row[field] = int(match.group(1)) if match else 0
+        # Sniper analog of gem5's OnlineDuelingStats (ecg_rp.hh): registered via
+        # registerStatsMetric("ecg-online-dueling", 0, ...) in cache_set_ecg.cc,
+        # only when the K2 online-dueling selector was actually exercised.
+        # "governed_victims" (not "request_bound_victims") because Sniper has
+        # no O3 Request/MSHR to bind a victim to -- see
+        # sniper_k2_dueling_binding_model.
+        for field, metric in (
+            ("sniper_k2_dueling_governed_victims", "governed-victims"),
+            ("sniper_k2_dueling_leader_samples", "leader-samples"),
+            ("sniper_k2_dueling_follower_selections", "follower-selections"),
+            ("sniper_k2_dueling_completed_windows", "completed-windows"),
+            ("sniper_k2_dueling_winner_changes", "winner-changes"),
+            ("sniper_k2_dueling_follower_variant_overrides",
+             "follower-variant-overrides"),
+        ):
+            match = re.search(
+                rf"ecg-online-dueling\.{re.escape(metric)}\s*=\s*(\d+)",
+                stats_text)
+            row[field] = int(match.group(1)) if match else 0
+    if is_k2_ecg:
+        validate_online_dueling_activity(
+            row, transport.set_dueling,
+            positive_fields=SNIPER_ONLINE_DUELING_REQUIRED_POSITIVE_FIELDS,
+            leader_samples_field="sniper_k2_dueling_leader_samples")
     if transport.stream_bypass:
         bypass_reads = int(row.get("sniper_stream_bypass_reads") or 0)
         bypass_writes = int(row.get("sniper_stream_bypass_writes") or 0)

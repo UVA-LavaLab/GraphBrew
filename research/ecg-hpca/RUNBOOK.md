@@ -469,6 +469,24 @@ For Sniper mask-mode rows, only P-OPT may set
 K2-M, LRU, SRRIP, and GRASP use the matched K2 record transport without
 constructing or loading the P-OPT matrix.
 
+`ECG:K2_ONLINE_STREAMSHIELD` rows now report `sniper_k2_dueling_governed_victims`,
+`sniper_k2_dueling_leader_samples`, `sniper_k2_dueling_follower_selections`,
+`sniper_k2_dueling_completed_windows`, `sniper_k2_dueling_winner_changes`,
+`sniper_k2_dueling_follower_variant_overrides`, and
+`sniper_k2_dueling_binding_model` ("marker_population"), alongside
+`sniper_variant_requested_receipt`/`sniper_variant_effective_receipt`/
+`sniper_variant_dueling_receipt` parsed from the runner's own
+`[ECG-VARIANT-RECEIPT sim=sniper ...]` stderr line and
+`sniper_l3_size_actual_kb`/`sniper_l3_ways_actual` parsed from Sniper's own
+emitted `sim.cfg`. `roi_matrix.py` fails the row closed if the dueling window
+never fully activated, the variant receipt is missing/mismatched, or the
+realized LLC geometry differs from the charged geometry — the Sniper analogs
+of gem5's `gem5_k2_dueling_*`, `gem5_variant_*_receipt`, and
+`gem5_l3_*_actual` checks (those gem5 fields/semantics are unchanged). This is
+evidence that the correct rule executed and how much it fired; it is not a
+timing claim, and does not change gem5 O3's status as timing authority or
+Sniper mask-mode's timing ineligibility.
+
 Generate the analytical floor with:
 
 ```bash

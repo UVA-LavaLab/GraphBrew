@@ -112,6 +112,29 @@ Passed-gate evidence must resolve to a reachable commit or existing file.
   two 15-bit epochs; the real RISC-V decoder round-trips all fields.
 - Five-arm online set dueling is live in cache_sim, gem5, and Sniper without a
   benchmark-name decision.
+- Sniper now emits the same class of K2 online-dueling runtime evidence as
+  gem5's `OnlineDuelingStats`: `governed_victims`, `leader_samples`,
+  `follower_selections`, `completed_windows`, `winner_changes`, and
+  `follower_variant_overrides`, registered via `registerStatsMetric` under the
+  `ecg-online-dueling` namespace. Sniper's `--roi` wrapper does not reset
+  registered stats at ROI start; each is a monotonic counter registered no
+  later than its first increment, and the runner reads it as a roi-begin ->
+  roi-end snapshot delta (the same mechanism Sniper's own `sniper_lib.py`
+  uses for every other stat), plus an ungated, print-once
+  `[ECG-VARIANT-RECEIPT sim=sniper requested=... effective=... dueling=...]`
+  receipt mirroring gem5's own. Sniper's population is named `governed_victims`
+  rather than gem5's `requestBoundVictims` because Sniper has no O3
+  Request/MSHR to bind a victim to; it is gated on the same marker/sideband
+  admission condition already used to enter the dueling sample stream, not a
+  claim of gem5's per-packet Request-bound attestation. `roi_matrix.py` parses
+  and fail-closed validates these under `sniper_k2_dueling_*` fields (never
+  renaming or repurposing the frozen `gem5_k2_dueling_*` fields) and adds a
+  realized-LLC-geometry receipt that checks Sniper's own emitted `sim.cfg`
+  `[perf_model/nuca]` `cache_size`/`associativity` against the charged
+  geometry, mirroring `apply_gem5_geometry_receipt`'s use of gem5's
+  `config.json`. gem5 O3 remains the architectural timing authority; this adds
+  attestation/mechanism evidence only and does not make Sniper mask-mode
+  timing eligible for a performance claim.
 - In the complete cache_sim real-graph replacement profile, every static arm is
   best on at least one cell and online K2 is within 0.26% geomean LLC misses of
   the per-cell best static arm while beating it on 8/15 cells.
