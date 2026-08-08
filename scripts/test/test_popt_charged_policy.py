@@ -5,6 +5,7 @@ from argparse import Namespace
 import importlib.util
 import json
 from pathlib import Path
+import re
 import sys
 
 
@@ -360,6 +361,41 @@ def test_simulated_stream_supports_single_pass_kernels_without_i_option():
     assert row["popt_matrix_stream_mode"] == "simulated"
     assert row["popt_matrix_stream_iterations"] == 1
     assert row["popt_target_time_charged"] == 0
+
+
+def test_cache_sim_runtime_receipt_overrides_nominal_k2_width(tmp_path):
+    args = roi_matrix.parse_args([
+        "--suite", "cache-sim",
+        "--benchmark", "pr",
+        "--policies", "ECG:K2_RRIP_STREAMSHIELD",
+        "--options", "-g 10 -k 4 -o 5 -n 1 -i 1",
+        "--l3-sizes", "32kB",
+        "--ecg-epochs", "16",
+        "--dry-run",
+    ])
+    args.dry_run = False
+    args.has_lru_baseline = True
+    spec = roi_matrix.parse_policy_spec(
+        "ECG:K2_RRIP_STREAMSHIELD")
+    out = tmp_path / "matrix"
+    out.mkdir()
+    row = roi_matrix.base_row("cache_sim", args, spec, "32kB")
+    assert row["ecg_record_bytes"] == 8
+
+    log = (
+        "[ECG-METADATA kernel=pr delivery=packed stamps=2 "
+        "epoch_bits=4 tier_bits=2 id_bits=10 record_bytes=4 "
+        "payload_bits=10 bytes_per_edge=4.000 charged=1 bypass=1 "
+        "packed_fits=1]\n")
+    receipt = re.search(
+        r"\[ECG-METADATA [^\]]*record_bytes=(\d+)"
+        r"[^\]]*bytes_per_edge=([0-9.]+)[^\]]*\]", log)
+    assert receipt
+    row["ecg_record_bytes"] = int(receipt.group(1))
+    row["edge_stream_bytes_per_edge"] = int(
+        float(receipt.group(2)))
+    assert row["ecg_record_bytes"] == 4
+    assert row["edge_stream_bytes_per_edge"] == 4
 
 
 def test_analytic_stream_is_still_charged():

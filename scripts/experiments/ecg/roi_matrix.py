@@ -2121,6 +2121,24 @@ def run_cache_sim(args: argparse.Namespace, out_dir: Path, spec: PolicySpec, l3_
         return [row]
 
     data = json.loads(json_path.read_text())
+    log_text = log_path.read_text(errors="ignore")
+    metadata_receipt = re.search(
+        r"\[ECG-METADATA [^\]]*record_bytes=(\d+)"
+        r"[^\]]*bytes_per_edge=([0-9.]+)[^\]]*\]",
+        log_text)
+    if metadata_receipt:
+        record_bytes = int(metadata_receipt.group(1))
+        row["ecg_receipt_bytes_per_edge"] = float(
+            metadata_receipt.group(2))
+        row["ecg_record_bytes"] = record_bytes
+        if "[ECG_COMPACT_K2_WEIGHTED64]" in log_text:
+            row["ecg_record_replaces_edge"] = 1
+            row["edge_stream_bytes_per_edge"] = 8
+        elif int(row.get("ecg_record_replaces_edge") or 0):
+            row["edge_stream_bytes_per_edge"] = record_bytes
+        else:
+            row["edge_stream_bytes_per_edge"] = (
+                int(row.get("graph_edge_bytes") or 0) + record_bytes)
     row.update({
         "status": "ok",
         "total_accesses": data.get("total_accesses"),
